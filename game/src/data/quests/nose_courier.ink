@@ -30,7 +30,7 @@ Tamsin Roe leans on the fender of a truck with a blue stripe down its door, read
 She folds it away when she sees you, without any hurry.
 You're the one the Guild sent? Good. I'm Tamsin. # speaker: Tamsin
 Vesna Hale rides behind me, always. She has the rifle and I have the wheel. But she's down with a fever, and the south loop won't wait for her. # speaker: Tamsin
-It's the Pump Station, South Lock, Green Pit and home. The Guild pays for the whole loop, and all I need is someone in the back seat. # speaker: Tamsin
+It's the Pump Station, Bowl, Green Pit and home. The Guild pays for the whole loop, and all I need is someone in the back seat. # speaker: Tamsin
 One thing first, though. I carry no gun. Not for you, not for Vesna, not for the Guild. # speaker: Tamsin
 -> hub
 
@@ -81,7 +81,7 @@ At Green Pit you'll want to hang it on the hook by Hadiza Okon's door before you
 ~ letter_seen = true
 ~ note("courierLetter")
 Tamsin loosens the strap and lets you look. # place: Guild post, Nose
-She carries other people's letters for free, and she reads every one of them. Most are small. A mother to a son at South Lock, a bill from a welder, and a note for the Pump Station with nothing on it but a date.
+She carries other people's letters for free, and she reads every one of them. Most are small. A mother to a son in the Bowl patrol, a bill from a welder, and a note for the Pump Station with nothing on it but a date.
 One thick envelope is capped with a Burnt Convoy tin seal. It's addressed to Karl Vosk, care of Kiln Camp.
 Nobody writes to Kiln, so I'm carrying it myself. Someone wrote to him once, and that's all a letter ever tells you. # speaker: Tamsin
 -> post
@@ -94,9 +94,9 @@ At the Pump Station Tamsin leaves the note with only a date on it. Agnes Ondra's
 -> lock
 
 === lock ===
-South Lock stands where the canal drops through its gates, and a man in a Bowl coat steps into the road with his hand up. # place: South Lock
-He has a patrol badge and a worn letter in his other hand. Behind him Mirela Duarte sits at the lock house table with the Canal book open and does not look up.
-Morning, courier. The patrol's looking in every bag that goes south this season. Folks in Kiln have friends, and we'd like to know who writes to them. # speaker: Corporal
+The Bowl gate stands where the road meets the first terraces, and a man in a Bowl coat steps into the road with his hand up. # place: Bowl gate
+He has a patrol badge and a worn letter in his other hand. Behind him a second patrolman sits on the gate wall with a kettle between his boots.
+Morning, courier. The patrol's looking in every bag that comes through this season. Folks in Kiln have friends, and we'd like to know who writes to them. # speaker: Corporal
 He says it kindly, which makes it worse. Tamsin keeps both hands on the wheel.
 The Guild doesn't open a bag for anyone. I'd sooner lose the road. # speaker: Tamsin
 + [Let Tamsin hold her ground.]
@@ -110,7 +110,7 @@ The Guild doesn't open a bag for anyone. I'd sooner lose the road. # speaker: Ta
 
 = lock_refused
 ~ lock_way = "refused"
-Tamsin says it again, slowly, and the corporal looks at her for a long moment. # place: South Lock
+Tamsin says it again, slowly, and the corporal looks at her for a long moment. # place: Bowl gate
 Then he lowers his hand and steps aside. The Guild's been good to my mother, he says, and I'd sooner not be the one who stops it.
 The word will still reach the toll hut that a Guild truck wouldn't be looked into. Bowl remembers a closed bag.
 -> green
@@ -139,7 +139,7 @@ The word will still reach the toll hut that a Guild truck wouldn't be looked int
 - else:
   ~ lock_way = "read"
   ~ letter_fate = "read"
-  You pry at the panel, and the clip snaps with a crack that carries across the lock. The corporal looks round.
+  You pry at the panel, and the clip snaps with a crack that carries across the gate. The corporal looks round.
   The letter is lying on the floor of the cab with the Burnt Convoy seal facing up. He picks it up and reads the address, and he gives it back with great care.
   -> green
 }
@@ -147,7 +147,7 @@ The word will still reach the toll hut that a Guild truck wouldn't be looked int
 = lock_read
 ~ lock_way = "read"
 ~ letter_fate = "read"
-Tamsin stares at you. Then she hands the bag down without a word. # place: South Lock
+Tamsin stares at you. Then she hands the bag down without a word. # place: Bowl gate
 The corporal goes through it as kindly as he does everything. He stops at the thick envelope and reads the address.
 Karl Vosk, at Kiln. He says the name twice. I thank you, he says. The patrol's been asking after that name for a long time.
 -> green

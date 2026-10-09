@@ -94,7 +94,7 @@ Her line is "I did not come to take your water. I came to write down how much of
 
 Way: oppose.
 
-Mirela keeps South Lock for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws.
 
 Her line is "The water came from our seep, and we will count every drop of it."
 
@@ -156,7 +156,7 @@ Her line is "Kiln riders take the trucks that run alone."
 
 Way: fear.
 
-Otto is the welder of Ridge Wrecks who built the first swivel, a gun mount of hull plate that turns across a truck bed. He signs every weld with a small mark and adds a second pin to every mount. Drivers say a Brann mark means an honest hauler, but Kiln riders bolt captured Brann swivels onto their own trucks. The Nose copied his swivel with one pin, and it killed a man he knew. His granddaughter Lenka welds beside him and signs her own pivot rings.
+Otto is the welder at the Salvage Yard who built the first swivel, a gun mount of hull plate that turns across a truck bed. He signs every weld with a small mark and adds a second pin to every mount. Drivers say a Brann mark means an honest hauler, but Kiln riders bolt captured Brann swivels onto their own trucks. The Nose copied his swivel with one pin, and it killed a man he knew. His granddaughter Lenka welds beside him and signs her own pivot rings.
 
 His line is "A loose pin is a gun waiting for a bend."
 

@@ -128,7 +128,7 @@ Leads:
 - The wreck shows a torch cut. A man on the ammunition box names the rust-red cab. A read of the ground with `skill("perception")` shows soldiers' boots under the stripper's tracks, so the post saw the ring first and left it.
 - The yard tally names the Kiln hauler, but a Nose soldier at the end of the bench hears it. That sets `post_ahead`.
 - Otto Brann tells how to know a Nose ring. The crane office drawer holds the patrol roster copied twice in Mara's hand.
-- Ridge Wrecks and Kiln Camp are gated on `found()`.
+- Otto Brann's bench stands in the Salvage Yard, so the walk to him needs no gate. Kiln Camp is gated on `found()`.
 
 Ways to get the ring at Kiln Camp:
 
@@ -189,13 +189,13 @@ Outcomes:
 
 ## The Archon's pipe
 
-`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Each question follows from her last answer: the pump, the numbers, the meter the Senate took off one pipe, the second copy. The second copy opens `pump_pipe.ink`, shown as pages. Agnes gives the player a sealed copy of her pump book to carry to South Lock. Her stated reason is that a driver passes the patrol unseen. The margin of the book shows the real one: she wants a driver named as the finder, so the Pump Station is not.
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Each question follows from her last answer: the pump, the numbers, the meter the Senate took off one pipe, the second copy. The second copy opens `pump_pipe.ink`, shown as pages. Agnes gives the player a sealed copy of her pump book to carry to Mirela Duarte in Bowl. Her stated reason is that a driver passes the patrol unseen. The margin of the book shows the real one: she wants a driver named as the finder, so the Pump Station is not.
 
-A steward of the Archon's household meets the player on the Bowl road. He has already sent word to the patrol at the Green Pit sluice, so the road to South Lock has a checkpoint. The quest variable `sluice` keeps how the player stands with it.
+A steward of the Archon's household meets the player on the Bowl road. He has already sent word to the patrol at the Bowl gate, so the road into Bowl has a checkpoint. The quest variable `sluice` keeps how the player stands with it.
 
-- Social 3 on the steward gets a household pass and half the offer, and the player keeps the book. A failure sends his rider ahead, and every later check at the sluice needs one more rank.
-- The sluice itself is run by driving, talked past by social, or bribed with 50 M. A failed run or talk loses the bundle to the Archon's desk, costs a fine of 40 M and sets `pipe_fate` to `seized`. A bribe passes, but the patrol writes the player's name down.
-- South Lock needs the way to be known through `found("south-lock")`. The sluice can be passed without it.
+- Social 3 on the steward gets a household pass and half the offer, and the player keeps the book. A failure sends his rider ahead, and every later check at the gate needs one more rank.
+- The gate itself is run by driving the dry canal cut round it, talked past by social, or bribed with 50 M. A failed run or talk loses the bundle to the Archon's desk, costs a fine of 40 M and sets `pipe_fate` to `seized`. A bribe passes, but the patrol writes the player's name down.
+- Mirela's lock house sits on the lowest canal in Bowl, right under the Archon's terraces. It needs no `found()` gate, because the player is already in Bowl once the gate is passed. The checkpoints keep their old names, and the variable `sluice` keeps the player's standing at the gate.
 - At the lock Mirela asks the player to sign the Canal book as the driver who found it. Signing sets `delivered` and the household turns on the player. Leaving the name off sets `filed`, and the Canal word stands alone. Both pay 60 M.
 - Machining 2 reads the terrace valve and finds the empty meter flange. Machining 3 bolts a spare meter to it for 30 M and sets `metered`. A failure shears the flange, costs a fine and marks the player.
 - Perception 2 while reading the book shows the first pipe line in Wendell's hand, a year older than the order. Mirela reads it two ways and the player does not learn which is true.
@@ -252,11 +252,11 @@ The Granary and the Pump Station are stalls with no board of work. Their locals 
 
 ## The last courier
 
-`nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with her first hub and "I'll ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, South Lock, Green Pit and the south bend. Tamsin writes the player's name on the loop sheet as the pair. A copy goes to the Guild board, and the board sells what it holds.
+`nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with her first hub and "I'll ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, the Bowl gate, Green Pit and the south bend. Tamsin writes the player's name on the loop sheet as the pair. A copy goes to the Guild board, and the board sells what it holds.
 
 - Vesna can lend her rifle. At Green Pit, where every gun hangs on a hook by Hadiza's door, the tables talk about the new rider only if the player sits down with Tamsin or hangs the rifle there.
 - The bag holds a thick letter from the Burnt Convoy for Karl Vosk at Kiln Camp.
-- At South Lock a Bowl patrol corporal asks to look in the bag. Tamsin refuses. A player may let her hold her ground, talk him down with `skill("social")`, hide the letter in the door panel with `skill("machining")`, or hand him the bag. A failed try or handing him the bag lets him read the address and sets `letter_fate` to `read`.
+- At the Bowl gate a Bowl patrol corporal asks to look in the bag. Tamsin refuses. A player may let her hold her ground, talk him down with `skill("social")`, hide the letter in the door panel with `skill("machining")`, or hand him the bag. A failed try or handing him the bag lets him read the address and sets `letter_fate` to `read`.
 - At the south bend the player may hand over the letter, which sets `delivered`. The player may also pay the 30 M toll, raise Vesna's rifle, read the rider with `skill("perception")` or take the wheel with `skill("driving")`. Both skill paths pass the rider. A failed read or a failed run strips the truck.
 - Doing nothing strips the truck, costs 40 M and the rifle, and pays nothing.
 
@@ -267,7 +267,7 @@ The Granary and the Pump Station are stalls with no board of work. Their locals 
 `bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. She explains what the reading is and who the dead are before the first choice. The player stands through the reading at Canyon Bridge, where each name carries a line about the person. A drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
 
 - Evidence is the drunk man's word, his brass for 10 M, Dario Feld's book, and the Guild letter if the player holds the note `courierLetter`. A look at the drunk man with `skill("perception")` shows a wheel burned into his boot heel.
-- The Bowl road patrol rides on three pieces of evidence. It pays 40 M, and Kiln shuts the south bend to Bowl trucks. A letter the corporal read at South Lock counts as the Guild piece.
+- The Bowl road patrol rides on three pieces of evidence. It pays 40 M, and Kiln shuts the south bend to Bowl trucks. A letter the corporal read at the Bowl gate counts as the Guild piece.
 - A player named on the Guild sheet as the pair who carried the letter faces a doubting sergeant. A failed `skill("social")` costs 30 M and a night in the cell.
 - Telling Hal's widow at the Granary pays nothing. Saying nothing pays nothing.
 - A player who held the note `courierKarl` may ride south and talk to the rider. Success with `skill("social")` gets the rider to answer at the next reading. Failure costs a flat tire and 30 M, and the rider flees.

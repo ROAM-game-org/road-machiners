@@ -49,7 +49,7 @@ The crane hangs over the stacked wrecks with its hook swaying in the dry wind. B
   -> tally
 + {not saw_roster} [Ask the Administrator what the yard knows.]
   -> crane
-+ {found("ridge-wrecks") and not otto_read} [Drive to Ridge Wrecks and ask Otto Brann.]
++ {not otto_read} [Walk over to Otto Brann's bench and ask him.]
   -> ridge
 + {found("kiln") and (saw_cut or yard_tally) and not has_ring} [Find the Kiln truck that bought the ring.]
   -> kiln
@@ -117,7 +117,7 @@ I care for my people as I can, and everyone in this yard is somebody's people. T
 === ridge ===
 ~ otto_read = true
 ~ note("pinStamp")
-Otto Brann works at a bench under a sheet of hull plate that keeps the sun off his hands. His granddaughter Lenka holds the far end of a half-finished ring. # place: Ridge Wrecks
+Otto Brann works at a bench under a sheet of hull plate that keeps the sun off his hands. His granddaughter Lenka holds the far end of a half-finished ring. # place: Salvage Yard
 You describe the ring from the yard tally. Otto stops welding and lifts his visor.
 A ring of Nose steel carries the gate stamp on its flat side, and it has one hole where the second pin ought to go. They copied my swivel and cut the second pin out. It saved a little steel and an hour of a machinist's time. A pin is a pin, they said. # speaker: Otto
 Lenka sets down her tongs. Emil Kessel came to this bench the winter before he died. He asked Grandfather what a second pin would cost him, and Grandfather quoted the price. # speaker: Lenka

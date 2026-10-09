@@ -36,14 +36,14 @@ VAR knows_copy = false
   -> hub
 + {pipe_fate == "none" and knows_copy} [Where's the second copy?]
   Under my pillow, wrapped in oilcloth with a wax seal on the knot. I trust the pillow more than any shelf. # speaker: Agnes
-  I want it taken to South Lock and put in Mirela Duarte's hands. She keeps the Canal book there, the water record the canal families keep for themselves. # speaker: Agnes
+  I want it taken to Bowl and put in Mirela Duarte's hands. She keeps the Canal book in the lock house on the lowest canal, the water record the canal families keep for themselves. # speaker: Agnes
   -> pillow
 + [Goodbye.]
   -> END
 
 = pillow
 + [Why not carry it yourself?]
-  The patrol watches the pump road, and a pump keeper on the canal road would be a story before supper. A driver's only a driver, and nobody remembers which one. # speaker: Agnes
+  The patrol watches the pump road, and a pump keeper on the Bowl road would be a story before supper. A driver's only a driver, and nobody remembers which one. # speaker: Agnes
   -> pillow
 + [I will carry it.]
   ~ note("pipeBook")

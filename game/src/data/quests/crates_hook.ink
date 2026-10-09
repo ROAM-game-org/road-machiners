@@ -3,7 +3,7 @@
 # fact: office_files Pierce filing room: hook crates left by the north gate in Dell Marr's hand, week after week. His last line ends mid-word, and the pages after it are cut out.
 # fact: yard_tally Crane book: hook crates left the old yard by the north gate, week after week. Each line ends with a sealed order and one initial, L.
 # fact: otto_wheel Otto: he strapped the hook crates for the yard and signed each strap. The wheel crates went out roped.
-# fact: otto_lid Ridge Wrecks: a crate lid with a hook burned in, strapped with Otto's mark. Chalk on the edge says north gate, by L.
+# fact: otto_lid Otto's bench, Salvage Yard: a crate lid with a hook burned in, strapped with Otto's mark. Chalk on the edge says north gate, by L.
 # fact: mara_copy Mara Kessel's old case, second copy: the day each insured truck was filed at the Nose office and the night it was stopped on the road. The last line sends the clerk west, by order, L.
 # fact: caught Filing room: the clerk at the side table wrote a line when you took the book down.
 INCLUDE world.ink
@@ -42,7 +42,7 @@ The Pierce office at Nose keeps its blinds drawn against the dust, and the only 
   -> crane
 + {not mara_copy and (pin_pact == "signed" or pin_fate == "sully")} [Ask Sully Okafor for the second copy of Mara Kessel's old case.]
   -> copy
-+ {found("ridge-wrecks") and not otto_wheel} [Drive to Ridge Wrecks and ask Otto Brann about his marks.]
++ {not otto_wheel} [Walk over to Otto Brann's bench and ask about his marks.]
   -> ridge
 + {otto_wheel and lid_how == "none"} [Ask Otto for the lid on his wall.]
   -> lid
@@ -138,7 +138,7 @@ Sully closes the folder when you look up. He does not say whether he has read it
 
 === ridge ===
 ~ otto_wheel = true
-Otto Brann sits at his bench under a sheet of hull plate with a half-welded ring across his knees, and his granddaughter Lenka signs a pivot ring with a tiny chisel at the next bench. # place: Ridge Wrecks
+Otto Brann sits at his bench under a sheet of hull plate with a half-welded ring across his knees, and his granddaughter Lenka signs a pivot ring with a tiny chisel at the next bench. # place: Salvage Yard
 You ask him about his marks.
 I put my mark on every weld I make. A Brann mark tells the next driver the weld holds. The yard paid me to strap crates for the long haul, the ones with a hook burned into the lid. I strapped every one and signed every strap. # speaker: Otto
 The wheel crates went out roped. I never touched those. # speaker: Otto
@@ -149,12 +149,12 @@ If that mark hangs somebody, it hangs me too. I've spent a long time making it m
 === lid ===
 { caught:
   ~ lid_how = "rubbing"
-  Lenka meets you at the shed door before you reach the wall, and she keeps her voice low. # place: Ridge Wrecks
+  Lenka meets you at the shed door before you reach the wall, and she keeps her voice low. # place: Salvage Yard
   A man in a Pierce coat came yesterday. He paid my grandfather in clean paper for the crate lid, and Grandfather let him have it. I made a charcoal rubbing first. I make one of everything he sells. # speaker: Lenka
   She holds out a sheet of paper gone grey with rubbing. A hook shows plainly on it, and a Brann mark runs along one strap.
   -> desk
 }
-Otto goes to the wall of his shed, where a crate lid hangs with its edge scorched. # place: Ridge Wrecks
+Otto goes to the wall of his shed, where a crate lid hangs with its edge scorched. # place: Salvage Yard
 { pin_fate == "mara" or pin_fate == "sully" or pin_fate == "pierce":
   ~ otto_lid = true
   ~ lid_how = "gift"
@@ -187,7 +187,7 @@ Lenka shifts at her bench. Give it to someone who'll use it, Grandfather. # spea
   -> desk
 
 === forge ===
-You borrow a plank from the scrap behind the shed and burn a hook into it with a shaped iron, working in the shade of your own truck where no one can see. # place: Ridge Wrecks
+You borrow a plank from the scrap behind the shed and burn a hook into it with a shaped iron, working in the shade of your own truck where no one can see. # place: Salvage Yard
 { skill("machining") >= 2:
   ~ otto_lid = true
   ~ lid_how = "forged"

@@ -156,7 +156,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   },
   pinStamp: {
     title: 'How to know a Nose ring',
-    from: 'Otto Brann, Ridge Wrecks',
+    from: 'Otto Brann, Salvage Yard',
     text: 'Otto Brann says a Nose swivel ring carries the gate stamp on its flat and a single pin hole. A Brann ring has a small mark and a second pin. Emil Kessel asked Otto about a second pin the winter before he died.',
   },
   pinRoster: {
@@ -196,7 +196,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   },
   cratesLid: {
     title: 'A lid with a hook and a Brann mark',
-    from: 'Otto Brann, Ridge Wrecks',
+    from: 'Otto Brann, Salvage Yard',
     text: 'Otto Brann strapped the hook crates for the yard and signed each strap. He kept a lid. It has a hook burned in and chalk on its edge that reads north gate, by L.',
   },
   cratesTally: {
@@ -230,8 +230,8 @@ export const NOTES: Record<NoteId, NoteDef> = {
     text: "A steward of the Archon's household offered coin to lose a sealed bundle on the road. He would not say why. He said the offer stands until the Bowl.",
   },
   pipeCanal: {
-    title: 'The Canal book at South Lock',
-    from: 'Mirela Duarte, South Lock',
+    title: 'The Canal book in Bowl',
+    from: 'Mirela Duarte, Bowl lock house',
     text: "The Canal book holds the same weekly line for the Archon's pipe as the pump book. Mirela's cousin Tomas wrote a patrol report on the valve. It lies on the Archon's desk.",
   },
   sackGate: {
