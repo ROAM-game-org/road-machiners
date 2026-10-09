@@ -1,5 +1,3 @@
-// NPC goals: the goal stack, the fixed survival rule, the decision points that push and pop goals, and each goal's
-// work. See src/sim/npc-decisions.ts for the weighted rolls.
 
 import { ECONOMY } from '../data/goods';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/npcs';
@@ -540,8 +538,8 @@ export function react<D extends NoticedDecision>(world: World, vehicle: Vehicle,
   return decide(world, vehicle, decision, id, seen ? perceiveDanger(world, vehicle, vehicleById(world, id)) : null);
 }
 
-export function fightCornered(world: World, vehicle: Vehicle, foe: Vehicle): void {
-  interrupt(world, vehicle, fightGoal(world, vehicle, foe, 'cornered'));
+export function fightCornered(world: World, vehicle: Vehicle, foe: Vehicle, reason = 'cornered'): void {
+  interrupt(world, vehicle, fightGoal(world, vehicle, foe, reason));
 }
 
 type HostileDecision = 'hostileSeen' | 'contactHeard';

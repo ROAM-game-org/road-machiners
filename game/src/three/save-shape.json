@@ -1519,6 +1519,7 @@
    "crates_fate": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
+   "intro_step": "string",
    "pin_fate": "string",
    "pin_pact": "string"
   },
@@ -1547,6 +1548,7 @@
    },
    "first_fall": {},
    "granary_driver": {},
+   "intro_green_pit": {},
    "nose_clerk": {},
    "nose_constance": {},
    "nose_depot_leak": {
@@ -1623,6 +1625,9 @@
    "granary_driver": [
     "start",
     "start.hub"
+   ],
+   "intro_green_pit": [
+    "start"
    ],
    "nose_clerk": [
     "start",

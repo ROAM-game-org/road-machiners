@@ -5,6 +5,9 @@ import {
   COST_TAG,
   FIRST_FALL_SEEN,
   GAME_OPENED_QUESTS,
+  INTRO_STEP,
+  INTRO_STEPS,
+  type IntroStep,
   MONEY_STAT,
   QUEST_VIEWS,
   type CompiledQuest,
@@ -163,6 +166,17 @@ export function openFirstFall(w: World, foes: readonly string[]): void {
   if (w.player.quests.session) return;
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.firstFall, FIRST_FALL_SEEN) === true) return;
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.firstFall, 'start');
+}
+
+export function introStep(w: World): IntroStep {
+  const step = questVar(w, QUESTS, GAME_OPENED_QUESTS.introGreenPit, INTRO_STEP);
+  const known = INTRO_STEPS.find((s) => s === step);
+  if (!known) throw new Error(`World variable ${INTRO_STEP} holds ${String(step)}`);
+  return known;
+}
+
+export function setIntroStep(w: World, step: IntroStep): void {
+  w.player.quests.world[INTRO_STEP] = step;
 }
 
 export function chooseQuestOption(world: World, bundle: QuestBundle, index: number): World {
