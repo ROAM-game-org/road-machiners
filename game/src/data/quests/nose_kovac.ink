@@ -1,38 +1,55 @@
 INCLUDE world.ink
 
+VAR heard_workshop = false
+VAR asked_workshop = false
+VAR heard_gate_law = false
+VAR asked_gate_law = false
+VAR heard_courier = false
+VAR asked_courier = false
+VAR heard_paper = false
+VAR asked_paper = false
+VAR heard_kessel = false
+VAR asked_kessel = false
+
 === start ===
 # checkpoint: start
 { depot_thief:
-- "vance": Kovac. The depot is quiet these days. Good. <b>Be brief</b> anyway.
-- "pell": Kovac. Fuel still walks out of my depot. <b>Be brief.</b>
-- else: Sergeant Kovac, dispatch. <b>Be brief.</b>
+- "vance": Sergeant Kovac, dispatch. The depot is quiet these days. That's your doing. State your business and keep it short.
+- "pell": Sergeant Kovac, dispatch. Fuel's still walking out of my depot, so I'm short on patience. State your business.
+- else: Sergeant Kovac, dispatch. State your business and keep it short. The roster won't fill itself.
 }
 -> hub
 
 = hub
 # checkpoint: start.hub
 + [What is this place?]
-  Nose. Army post, now a town. We hold the north-east road and the canyon crossing. Anyone moves freight through here, we know.
+  Nose. The dispatch desk is mine. Freight on the north-east road or through the canyon crossing passes this desk, or it doesn't pass. If you want something to be proud of, ask the Committee about the workshop line. It builds whole engines and guns. Bowl can't.
+  ~ heard_workshop = true
   -> hub
 + [Who runs Nose?]
-  The Army. Command gives orders, dispatch hands them out, everyone else follows. Simple. Works.
+  On paper the Central Committee. In the street the Army. Command gives me orders, I hand them down, nobody argues. I hear Bowl votes on everything. I wouldn't last a morning there.
+  -> hub
++ [What is the road like?]
+  Bad once you're past the walls. Nobody keeps the road between our wall and Bowl's. Kiln riders, the raiders from the camp in the south, strip any truck that won't pay or fight. I log every truck out and every truck in. The ones that don't come back are the part I like least. That's why no truck gets out without a gun. That's the gate law. One courier goes without. I haven't decided what I think of her.
+  ~ heard_gate_law = true
+  ~ heard_courier = true
   -> hub
 + [Any work?]
   {
     - board_full():
-      You are overcommitted. Clear your sheet first.
+      You're carrying all the work the log allows. Clear your sheet first.
       -> hub
     - not has_work() and has_offers():
       Nothing on the board fits you right now.
       -> hub
     - not has_work():
-      Board is empty. Try tomorrow.
+      Board's empty today. Try tomorrow.
       -> hub
   }
-  Board has this. Yes or no? # work_offer
+  The board has this one. Do you take it? # work_offer
   ++ [Yes.]
      ~ take_work()
-     Logged. Do not be late.
+     Logged. Don't be late.
      -> hub
   ++ [No.]
      -> hub
@@ -43,27 +60,34 @@ INCLUDE world.ink
   ~ begin("nose_depot_leak")
   -> END
 + {has_note("wagonBowl")} [About that scavenger with the Army radio.]
-  Him. Sold us our own radio back, the nerve. That set came off <b>wagon Seven</b>. She went dark on the Pump Station run down to Bowl. Crew walked in with raiders on their heels, no wagon. The scavenger swore she sits a short hop off the track. Nobody went to look. Too far off our road to spare a truck.
+  Him. He sold us our own radio back. I'll admit the nerve impressed me. That set came off wagon Seven. She went dark on the Pump Station run down to Bowl. The crew walked into Nose with raiders on their heels. The scavenger swears she sits a short hop off the track. Nobody went to look. She's too far off our road to spare a truck.
   ~ note("wagonNose")
   -> hub
 + {searched("story-wagon-seven")} [We found wagon Seven.]
-  Heard. Wagon Seven is written off. Whatever was left on her is yours. Do not make a habit of picking over Army property.
+  I heard. She was written off long ago, so whatever's left on her is yours. Just don't make a habit of picking over Army property.
   ~ note("wagonFound")
   -> hub
-+ [What is the gate law?]
-  No truck leaves Nose for the open road without a gun. The line issues a steel mount with every pass. Simple. Works.
++ {heard_workshop and not asked_workshop} [Where did the workshop line come from?]
+  Old Orchard, the Old Army's depot. The machine tools are the Guild's, and command rents them. Who pays that rent is above my sheet.
+  ~ asked_workshop = true
   -> hub
-+ [What happened to Emil Kessel?]
-  Driver. North bend. The mount shifted and swung the gun into the cab. Inquiry closed. His sister serves at the Yard post now.
++ {heard_gate_law and not asked_gate_law} [What is the gate law?]
+  No gun, no gate pass. The line hands every driver a steel mount with his pass, so nobody can tell me he had nothing to bolt on. What happens to the mount after that is between the driver and Pierce. Pierce writes his paper. I don't ask.
+  ~ asked_gate_law = true
+  ~ heard_paper = true
   -> hub
-+ [Who writes the paper on a truck?]
-  Constance Pierce, at the Pierce office. No paper on a one-pin mount. Command issues one pin. Drivers pay the Yard to bore a second. I do not log it.
++ {heard_courier and not asked_courier} [Who is the courier that goes without a gun?]
+  Tamsin Roe, of the Guild. The Guild carries the mail between the towns. She drives with no gun of her own. The courier who runs with her carries the rifle. A pair gets through my gate, but I don't like what it teaches the other drivers. Brave or stupid, I haven't decided.
+  ~ asked_courier = true
   -> hub
-+ [Who drives the open road alone?]
-  Tamsin Roe, Guild courier. No gun. Her pair carries the rifle. Brave or stupid. I have not decided.
++ {heard_paper and not asked_paper} [What is Pierce paper?]
+  It's the insurance that pays a driver when his truck is shot. Constance Pierce writes it at the Pierce office. She won't write it for a mount with one pin. Command ordered one pin. So drivers pay the Salvage Yard, south of here, to bore a second. I don't log it. Emil Kessel went round the north bend with only one.
+  ~ asked_paper = true
+  ~ heard_kessel = true
   -> hub
-+ [Where did the workshop line come from?]
-  Old Orchard's machine tools. Command rents them. Hauled up the mountain, now they run. Who pays the rent is above my sheet.
++ {heard_kessel and not asked_kessel} [What happened to Emil Kessel?]
+  He was a driver. His mount shifted on its pin at the north bend and swung the gun into his cab. The inquiry's closed. I won't reopen it for you. His sister serves at the Yard post now. That's the Army post inside the Salvage Yard.
+  ~ asked_kessel = true
   -> hub
 + [Goodbye.]
   -> END
