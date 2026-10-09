@@ -38,7 +38,7 @@ I saw you at the well yesterday with no cab to be in tonight. Come with me. A re
 = hub
 # checkpoint: start.hub
 + [Who is on the list?]
-  Hal Sorensen drove grain for the Granary, and he was shot below the bridge the year the road went unguarded. Jens Vosk was a robber who died to a tenant's swivel near the Burnt Convoy. # speaker: Lusa
+  Hal Sorensen drove grain for the Granary, and he was shot below the bridge the year the road went unguarded. Jens Vosk was a robber who died to a tenant's swivel at the Burnt Convoy, back when the burnt trucks still stood by the road. # speaker: Lusa
   Brother Anselm buried both of them, one on each side of the road, and he's buried between them now. Wendell Ondra kept the pump book at the Pump Station and died at the Green Pit sluice. Emil Kessel drove for Nose and died on the north bend, on a mount with a single pin. # speaker: Lusa
   I read them all the same way, a robber beside a driver. The road doesn't sort them, so I don't try. # speaker: Lusa
   -> hub
@@ -51,7 +51,7 @@ I saw you at the well yesterday with no cab to be in tonight. Come with me. A re
   -> END
 
 === reading ===
-Canyon Bridge hangs over the gorge with the last light on its rails, and the wind hums in the cables like a long held note. Trucks stand along the bare deck with their cabs dark, and the drivers stand beside them with their caps in their hands. # page # place: Canyon Bridge
+Canyon Bridge hangs over the gorge with the last light on its rails, and the wind hums in the cables like a long held note. Trucks stand along the bare deck with their cabs dark, and the drivers stand beside them with their caps in their hands. # page # place: The bridge deck
 A toll hut sits at the Bowl end. Graves lie at the far end, and Hal's and Jens's face each other across the road while Anselm's lies between.
 Lusa stands in the middle of the deck with her back to the drop. She reads without a book, in a clear voice that carries to the last truck.
 Hal Sorensen, who drove the Granary's grain and would not pay a stranger for a rifle he hadn't asked for.
@@ -67,7 +67,7 @@ Each name gets its answer. The wind takes the last one off the bridge.
   -> END
 
 === after_reading_scene ===
-The trucks start one by one and file off the deck, and their lamps swing across the rails. # page # place: Canyon Bridge
+The trucks start one by one and file off the deck, and their lamps swing across the rails. # page # place: The bridge deck
 At the toll hut a man sits on the step with a bottle between his boots. He's loud and drunk, though not unkind, and he's watched you since the reading began.
 You stayed to the end. Sit down, will you? Nobody ever sits with me. # speaker: Drunk man
 -> hub_drunk
@@ -106,7 +106,7 @@ You stayed to the end. Sit down, will you? Nobody ever sits with me. # speaker: 
 
 === hub_lusa ===
 # checkpoint: hub_lusa
-Lusa is rolling up her sheet on the toll hut rail, with the graves dark behind her. # page # place: Canyon Bridge
+Lusa is rolling up her sheet on the toll hut rail, with the graves dark behind her. # page # place: The bridge deck
 { refused: The step of the toll hut is empty. The cell door beside it is shut. }
 { drunk_said: If somebody told you a story tonight, Dario Feld's book is the only record I trust. He wrote down every convoy day. # speaker: Lusa }
 + {drunk_said and not book_seen} [Ask for Dario Feld's book.]
@@ -124,7 +124,7 @@ Lusa is rolling up her sheet on the toll hut rail, with the graves dark behind h
 === book ===
 ~ book_seen = true
 ~ note("namesBook")
-Lusa unwraps a book bound in truck canvas. Dario Feld, the old convoy master, gave it to her when he gave her the western road. # place: Canyon Bridge
+Lusa unwraps a book bound in truck canvas. Dario Feld, the old convoy master, gave it to her when he gave her the western road. # place: The bridge deck
 She finds the page without looking.
 The day before the shooting, the entry says there were a pair of men in Army coats on the rise below the bridge. The elder watched. The younger counted the trucks and mended nothing.
 Beside it Dario wrote a second line. The younger one had red thread at his cuff, a woman's stitch.
@@ -134,7 +134,7 @@ Dario wrote it. I only carry it. # speaker: Lusa
 === hal_letter ===
 ~ hal_letter_read = true
 ~ note("namesLetter")
-Lusa folds back a letter from inside the sheet. The paper is soft from carrying. # place: Canyon Bridge
+Lusa folds back a letter from inside the sheet. The paper is soft from carrying. # place: The bridge deck
 Hal wrote it the night before. He never sent it. His family kept it, and Lusa copied it.
 He says he'll cross the bridge in the morning. He says a stranger on the road offered him a rifle for grain, and he won't pay for a thing he didn't ask for.
 He says the road will empty if men pay for fear.
@@ -143,13 +143,13 @@ It doesn't say who the stranger was. # speaker: Lusa
 
 === mail ===
 ~ kiln_known = true
-You've seen that name already. A thick letter in a Guild bag, a Burnt Convoy seal on it, Karl Vosk, care of Kiln Camp. # place: Canyon Bridge
+You've seen that name already. A thick letter in a Guild bag, a Burnt Convoy seal on it, Karl Vosk, care of Kiln Camp. # place: The bridge deck
 The Kiln riders have a new man, and he sat at the Green Pit tables and asked what the courier bag carries.
 Lusa watches your face and asks nothing. # speaker: Lusa
 -> hub_lusa
 
 === decide ===
-You hold a name and what stands behind it. # place: Canyon Bridge
+You hold a name and what stands behind it. # place: The bridge deck
 Lusa hangs the sheet on its peg and waits. She doesn't say what she would do.
 + [Take it to the sergeant of the Bowl road patrol.]
   -> patrol
@@ -253,7 +253,7 @@ You tell him who you are and what you read on the bridge. You tell him about the
 
 === kept ===
 ~ outcome = "kept"
-You say nothing. The lamps on the deck go out one by one. # place: Canyon Bridge
+You say nothing. The lamps on the deck go out one by one. # place: The bridge deck
 Lusa walks past you with her sheet under her arm.
 Next year I'll read the same names. # speaker: Lusa
 She doesn't look back. The name stays where you put it.
@@ -264,7 +264,7 @@ Lusa is mending a strap on the crate by the well. # place: Bowl
 {
   - names_vosk == "patrol": The patrol rode south. Bowl trucks use the long road now, and nobody says why.
   - names_vosk == "kin": Hal's widow lit a lamp at the bridge. Lusa says one more voice answered the names this year.
-  - names_vosk == "answered": Lusa says a rider sent word through the Burnt Convoy asking where he may stand at the back. She hasn't answered him yet.
+  - names_vosk == "answered": Lusa says a rider sent word through Sefa's families at the Salvage Yard asking where he may stand at the back. She hasn't answered him yet.
   - names_vosk == "fled": Lusa says nobody has seen the rider on the south bend since a Bowl truck was shot at there. She thinks a name has been lost.
   - outcome == "kept": Lusa read the same names again. She asks nothing of you.
 }

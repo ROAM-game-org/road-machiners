@@ -67,7 +67,7 @@ describe('settlement locals', () => {
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON);
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON_FOUND);
 
-    w.player.discovered.push('burnt-convoy');
+    w.player.notes.push({ id: 'burntConvoy', turn: 0 });
     w.player.notes.push({ id: 'wagonBowl', turn: 0 });
     w.player.scavenged.push(WAGON_SEVEN);
 
@@ -352,14 +352,14 @@ describe('locals at stalls', () => {
 
     const lamps = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?']);
     expect(questView(lamps, QUESTS).choices).not.toContain('I will go and look at the lamps.');
-    w.player.discovered.push('podfield');
-    const found = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.']);
+    w.player.discovered.push('glass-flats');
+    const found =talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.']);
     expect(questView(found, QUESTS).choices).toContain('Walk the line of lamps.');
   });
 
   it('pays for the lien on the dark lamp and refuses the same pick with less money', () => {
     const w = parkedAt('granary');
-    w.player.discovered.push('podfield');
+    w.player.discovered.push('glass-flats');
     const slip = ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.', 'Ask the carter for his slip.'];
     const paid = talk(w, 'granary_odile', [...slip, 'Pay the clerk the lien on the dark lamp.']);
     expect(w.player.money - paid.player.money).toBe(120 * UNITS.centsPerM);

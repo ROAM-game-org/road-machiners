@@ -102,7 +102,7 @@ Her line is "The water came from our seep, and we will count every drop of it."
 
 Way: escape.
 
-Juno kept the Podfield beacons for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
+Juno kept the beacon lamps in the field of old pods at the edge of the Glass Flats for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
 
 Her line is "Six lamps, six pods, and not one of them goes dark while I am alive."
 
@@ -196,7 +196,7 @@ His line is "We pay Kiln and we pay the patrol, and we pay both with the same gr
 
 Way: embrace.
 
-Bo is a tenant driver who killed the robber Jens Vosk with a Granary swivel near the Burnt Convoy. The tenant hall decided that a tenant who defends his load is not a killer. He was the first tenant to sign the Bowl road patrol roll. He has five years left to earn his vote.
+Bo is a tenant driver who killed the robber Jens Vosk with a Granary swivel at the Burnt Convoy, a row of burnt trucks the road crews have since cleared. The tenant hall decided that a tenant who defends his load is not a killer. He was the first tenant to sign the Bowl road patrol roll. He has five years left to earn his vote.
 
 His line is "I would give the grain back if it bought Jens his life."
 
@@ -212,7 +212,7 @@ Her line is "The count is read in the open. Whoever wants the last number, come 
 
 Way: oppose.
 
-Sefa leads a dozen vulture families who live in the burnt trucks of the Burnt Convoy. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt Convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
 
 Her line is "We take what the road is done with and leave the water."
 
@@ -228,4 +228,4 @@ Her line is "The test is here, but the road goes out there."
 
 Way: escape.
 
-Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy squatters, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.
+Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.

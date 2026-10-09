@@ -220,7 +220,7 @@ The world variable `sack_fate` keeps the outcome. Odile greets by it.
 
 ## Juno's lamps
 
-Odile's question about the oil she burns opens `granary_lamps.ink` once `found("podfield")` holds. Until then she only says where Podfield lies. The Bowl buys Juno Pell's lamp oil, and the coin goes to a Pierce clerk against the lien painted on each lamp. The last lamp is dry and tagged for seizure. Odile asked for a look, but the Granary carter already holds a sale paper dated before the lamp went dark.
+Odile's question about the oil she burns opens `granary_lamps.ink` once `found("glass-flats")` holds. Until then she only says where the pod field lies, at the edge of the Glass Flats. The Bowl buys Juno Pell's lamp oil, and the coin goes to a Pierce clerk against the lien painted on each lamp. The last lamp is dry and tagged for seizure. Odile asked for a look, but the Granary carter already holds a sale paper dated before the lamp went dark.
 
 - Perception 2 at the slip sees the paper in the carter's coat. It lowers the social check for a lease by one rank.
 - Paying the clerk the lien costs 120 M and sets `paid`. The clerk writes the player's name beside the number and `lien_standing` becomes `debtor`.
@@ -255,7 +255,7 @@ The Granary and the Pump Station are stalls with no board of work. Their locals 
 `nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with her first hub and "I'll ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, South Lock, Green Pit and the south bend. Tamsin writes the player's name on the loop sheet as the pair. A copy goes to the Guild board, and the board sells what it holds.
 
 - Vesna can lend her rifle. At Green Pit, where every gun hangs on a hook by Hadiza's door, the tables talk about the new rider only if the player sits down with Tamsin or hangs the rifle there.
-- The bag holds a thick letter from the Burnt Convoy for Karl Vosk at Kiln Camp.
+- The bag holds a thick letter sealed with a Burnt Convoy tin seal for Karl Vosk at Kiln Camp.
 - At South Lock a Bowl patrol corporal asks to look in the bag. Tamsin refuses. A player may let her hold her ground, talk him down with `skill("social")`, hide the letter in the door panel with `skill("machining")`, or hand him the bag. A failed try or handing him the bag lets him read the address and sets `letter_fate` to `read`.
 - At the south bend the player may hand over the letter, which sets `delivered`. The player may also pay the 30 M toll, raise Vesna's rifle, read the rider with `skill("perception")` or take the wheel with `skill("driving")`. Both skill paths pass the rider. A failed read or a failed run strips the truck.
 - Doing nothing strips the truck, costs 40 M and the rifle, and pays nothing.
@@ -264,7 +264,7 @@ The Granary and the Pump Station are stalls with no board of work. Their locals 
 
 ## The Reading of Names
 
-`bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. She explains what the reading is and who the dead are before the first choice. The player stands through the reading at Canyon Bridge, where each name carries a line about the person. A drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
+`bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. She explains what the reading is and who the dead are before the first choice. The player stands through the reading on the Canyon Bridge deck, where each name carries a line about the person. A drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
 
 - Evidence is the drunk man's word, his brass for 10 M, Dario Feld's book, and the Guild letter if the player holds the note `courierLetter`. A look at the drunk man with `skill("perception")` shows a wheel burned into his boot heel.
 - The Bowl road patrol rides on three pieces of evidence. It pays 40 M, and Kiln shuts the south bend to Bowl trucks. A letter the corporal read at South Lock counts as the Guild piece.

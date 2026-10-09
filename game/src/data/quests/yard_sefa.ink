@@ -17,13 +17,13 @@ VAR asked_post = false
 
 === start ===
 # checkpoint: start
-Sefa Krol. I trade for the families of the Burnt Convoy. Show me what you carry and I'll tell you what it's worth. Keep your hand off my table.
+Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry and I'll tell you what it's worth. Keep your hand off my table.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + [Who are the families of the Burnt Convoy?]
-  People who live in the burnt trucks, where the road stopped. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left in our trucks to pick. They're welcome to think so.
+  People who lived in the burnt trucks on the road. The road crews cleared the wrecks a while ago, so we moved here, to the north side of the Yard. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left out there to pick. They're welcome to think so.
   ~ heard_picked = true
   -> hub
 + [What do you sell here?]
@@ -40,7 +40,7 @@ Sefa Krol. I trade for the families of the Burnt Convoy. Show me what you carry 
   ~ heard_post = true
   -> hub
 + {(heard_picked or has_note("burntConvoy")) and not asked_picked} [Is the Burnt Convoy picked clean?]
-  No. We pick it every week and the road leaves more. Rust grows new things. Old Ibo, the radio man at Nose, says otherwise on the air, to men who wouldn't drive out there for a gift. Good. Let him.
+  No. We pick that road every week and the road leaves more. Rust grows new things. Old Ibo, the radio man at Nose, says otherwise on the air, to men who wouldn't drive out there for a gift. Good. Let him.
   ~ note("talkConvoyNotClean")
   ~ asked_picked = true
   -> hub
@@ -60,7 +60,7 @@ Sefa Krol. I trade for the families of the Burnt Convoy. Show me what you carry 
   ~ asked_water = true
   -> hub
 + {heard_kiln and not asked_kiln} [Why do the Kiln riders leave you alone?]
-  We have a deal. Kiln has a man named Kaplan who knows a fair split. What the riders leave on the road is ours. What we find of their dead, we bury with their boots on. Nobody on either side likes it, which is how you know it works. Anyone who comes to the convoy with nothing gets beans and no questions. That goes for a rider as much as a driver.
+  We have a deal. Kiln has a man named Kaplan who knows a fair split. What the riders leave on the road is ours. What we find of their dead, we bury with their boots on. Nobody on either side likes it, which is how you know it works. Anyone who comes to our tables with nothing gets beans and no questions. That goes for a rider as much as a driver.
   ~ asked_kiln = true
   ~ heard_rider = true
   -> hub

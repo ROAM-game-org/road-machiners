@@ -14,7 +14,7 @@ The first part is history as people in the basin could know it. The last part ho
 
 - Year 0. The second moon breaks apart overhead in daylight. The largest hull blasts the central crater, later called the Fallen Sun. A trail of engines, plates and pods falls from the south-west. One great section comes down on a mountain in the east. A heavy piece makes a deep crater in the south fields, where two Canal Folk villages stood.
 - Year 0. The debris trail crosses the river above the dam. The river breaks its course and sinks into the ground. The basin starts to dry into desert.
-- Year 0. Hundreds of escape pods come down along the trail and across the basin, thickest at the place later called Podfield. Many of them open. People climb out: pale, in grey suits, speaking a tongue nobody knows and only a few words of the common speech. Most remember nothing before waking in the pod.
+- Year 0. Hundreds of escape pods come down along the trail and across the basin, thickest at the edge of the Glass Flats. Many of them open. People climb out: pale, in grey suits, speaking a tongue nobody knows and only a few words of the common speech. Most remember nothing before waking in the pod.
 - Year 1. Many pod people die in the first winter. Some are taken in, some are robbed, and some are put to work for their keep. The Canal Folk shut their villages to them. Basin people call them the Given, after the cry "Given by the sky".
 
 ## The Dry Years
@@ -78,12 +78,12 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 116. Otto Brann builds the swivel: a gun on a ring of hull plate that turns across a truck bed and locks with a pin.
 - Year 116. The western convoy of Dario Feld agrees a fixed fee to cross Canyon Bridge each year. The dreamer Lusa Fenwick rides west with it and comes back with tales of western towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - Year 117. The Vosk brothers, two Old Army deserters, rob three insured trucks on the Nose road. They always know which trucks to stop.
-- Year 118. A Granary truck with a Brann swivel fights them off near the Burnt Convoy. Its tenant driver, Bo Lindqvist, kills Jens Vosk. Anselm buries Jens across the road from Hal. Otto adds a second pin to every swivel.
+- Year 118. A Granary truck with a Brann swivel fights them off at the Burnt Convoy. Its tenant driver, Bo Lindqvist, kills Jens Vosk. Anselm buries Jens across the road from Hal. Otto adds a second pin to every swivel.
 - Year 118. A dry year. The Green Pit pumps draw mud by noon. The Bowl meters the Green Pit feeder and claims a share of it.
-- Year 119. Scrapjaw riders take the Podfield fuel truck in the debris trail. Its young driver Tam is shot in the leg. A western driver, Remy Castell, opens a stall of western rifles at the crossroads.
+- Year 119. Scrapjaw riders take the fuel truck of the pod field at the edge of the Glass Flats, in the debris trail. Its young driver Tam is shot in the leg. A western driver, Remy Castell, opens a stall of western rifles at the crossroads.
 - Year 120. The Nose posts a gate law: no truck leaves for the open road without a gun.
 - Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice. The tower announces that the tone from the central wreck counts the years since the fall.
-- Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture squatters of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
+- Year 122. The Bowl refuses a Pierce loan. Pierce pays its crews late. Vulture families of the Burnt Convoy stop a Pierce office truck and take a debtor book listing what the Nose Committee and the Bowl Senate owe Pierce.
 - Year 123. The Pierce yard's crews stop answering to Pierce and run the yard themselves: the Salvage Yard. Their crew boss Sully Okafor buys the debtor book from the squatters and keeps it shut. Hull pieces, relics and the Old Army's stripped guns are sold there.
 - Year 124. Old soldiers try the Old Orchard gate at night and are turned back. Some of them join the Bowl patrol.
 - Year 124. The Bowl funds a road patrol from the Granary count, the bridge toll, the convoy fee and tenant shares. Tenants may serve in it. The Nose refuses to pay and patrols only its own roads. Each town now guards the road near its walls, and the open road between them has no guard.
