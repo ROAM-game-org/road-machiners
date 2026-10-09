@@ -6,7 +6,7 @@
 # fact: valve_read Terrace valve: the wheel is worn bright on one side. An empty flange sits below it, its bolt holes clean.
 # fact: offer_heard Household: a steward in a Marr coat offered coin to lose the bundle on the road.
 # fact: canal_matches Canal book: the same weekly line for the pipe, in Mirela's hand.
-# fact: report_named South Lock: Tomas Duarte wrote a patrol report on the valve. It lies on the Archon's desk.
+# fact: report_named Bowl lock house: Tomas Duarte wrote a patrol report on the valve. It lies on the Archon's desk.
 INCLUDE world.ink
 
 VAR taken = false
@@ -33,8 +33,8 @@ VAR toll = 50
 Agnes keeps the Pump Station behind a wall of drums and gauges, and the whole place smells of hot iron and wet rope. # place: Pump Station
 She draws a flat bundle from under her pillow. It is oilcloth tied with wire, and a wax seal sits on the knot.
 It's the pump book, every line in my own hand. I copied it by lamplight over most of a winter. # speaker: Agnes
-South Lock is at the far end of the canals, past Green Pit. A woman named Mirela Duarte keeps the Canal book there. # speaker: Agnes
-I want this in her hands and nobody else's. The patrol watches the pump road, so a keeper on the canal road would be a story by supper. A driver's only a driver. # speaker: Agnes
+A woman named Mirela Duarte keeps the Canal book in the lock house on Bowl's lowest canal. # speaker: Agnes
+I want this in her hands and nobody else's. The patrol watches the pump road, so a keeper on the Bowl road would be a story by supper. A driver's only a driver. # speaker: Agnes
 + [Take the bundle.]
   ~ taken = true
   ~ note("pipeBook")
@@ -49,11 +49,11 @@ A cart waits where the pump track meets the Bowl road, its off wheel propped on 
 A man in a Marr coat sits on the tailboard with his hands folded in his lap. His eyes go to the bundle under your arm before they go to your face.
 I serve the household of the Archon. News of a sealed bundle travels faster than any truck on this road. # speaker: Steward
 The top terraces have held their water by an old charter since the Bowl was founded, and a charter is not a theft, whatever a book may call it. A book that says otherwise is a quarrel the Bowl can't afford in a dry year. # speaker: Steward
-I'd be grateful if that one were lost on the road. I don't ask you to burn it, only to lose it. I should add that the patrol at the Green Pit sluice opens every sealed bundle that passes, when I send word. # speaker: Steward
+I'd be grateful if that one were lost on the road. I don't ask you to burn it, only to lose it. I should add that the patrol at the Bowl gate opens every sealed bundle that passes, when I send word. # speaker: Steward
 He names a sum: {price} M. # reveal: all
 + [Take the money.]
   -> sold
-+ [Say you will lose it, and ask for a pass at the sluice first.]
++ [Say you will lose it, and ask for a pass at the gate first.]
   -> haggle
 + [Not today.]
   ~ offer_heard = true
@@ -75,16 +75,16 @@ He names a sum: {price} M. # reveal: all
 ~ give_money(price / 2)
 You keep your face still and your voice flat, the way a man sounds when he loses things for a living. # page # place: The Bowl road
 The steward writes a line on a slip, signs it with a household mark and counts out half the sum into your hand. # speaker: Steward
-That will open the sluice for you, and nobody there will ask what you're carrying. I think we understand each other. # speaker: Steward
+That will open the gate for you, and nobody there will ask what you're carrying. I think we understand each other. # speaker: Steward
 He does not look at the bundle again. He is quite sure of you. # reveal: all
 -> road
 
 === seen_through ===
 ~ sluice = "watched"
 The steward listens to the end with his head slightly tilted. He does not smile. # page # place: The Bowl road
-A man who asks for a pass wants to cross the sluice carrying something he means to keep. # speaker: Steward
-He raises a hand toward the rise, and a rider in a grey coat starts his buggy and goes down the road toward Green Pit.
-The offer's closed now, I'm afraid, and my rider will reach the sluice well before you do. # speaker: Steward
+A man who asks for a pass wants to cross the gate carrying something he means to keep. # speaker: Steward
+He raises a hand toward the rise, and a rider in a grey coat starts his buggy and goes down the road toward the Bowl gate.
+The offer's closed now, I'm afraid, and my rider will reach the gate well before you do. # speaker: Steward
 -> road
 
 === road ===
@@ -94,7 +94,7 @@ The bundle rides on the seat beside you, and the oilcloth has already taken the 
   -> read
 + [Climb to the top terrace.]
   -> terrace
-+ [Take the canal road toward South Lock.]
++ [Drive on to the Bowl gate.]
   -> sluice_post
 + [Take it to the Granary gate.]
   -> gate
@@ -187,12 +187,12 @@ The household sends a bill for the stones and the wall, and it comes to {due} M.
 { crossed():
   -> through
 }
-A pair of Bowl patrolmen hold the sluice at Green Pit, with a cart drawn across the cut and a kettle steaming on the sill. # page # place: The Green Pit sluice
+A pair of Bowl patrolmen hold the Bowl gate, with a cart drawn across the road and a kettle steaming on the wall. # page # place: The Bowl gate
 { sluice == "watched":
   A rider in a grey coat leans on his buggy behind them. He has plainly been here since morning.
 }
 They look at the bundle under your arm, and they do not look at your face.
-+ [Run the dry cut round the sluice.]
++ [Run the dry cut round the gate.]
   -> cut
 + [Talk the patrolmen through.]
   -> talk
@@ -201,17 +201,12 @@ They look at the bundle under your arm, and they do not look at your face.
 
 === through ===
 { sluice == "passed":
-  The patrolmen read the household's slip, and one of them lifts the cart out of your way. # place: The Green Pit sluice
+  The patrolmen read the household's slip, and one of them lifts the cart out of your way. # place: The Bowl gate
   They look at the slip and then at the sky, and neither of them looks at the bundle.
 - else:
-  The patrolmen remember your truck, and the cart is already out of the way. # place: The Green Pit sluice
+  The patrolmen remember your truck, and the cart is already out of the way. # place: The Bowl gate
 }
-{ found("south-lock"):
-  -> lock
-}
-Past the sluice the canal splits into dry cuts, and none of them is marked, so you cannot tell which one leads to a lock.
-Someone at Green Pit may know where South Lock lies.
--> road
+-> lock
 
 === cut ===
 ~ temp need = 2
@@ -271,14 +266,15 @@ The cart rolls aside. The rider behind him, if there is one, will see nothing to
   ~ due = money()
 }
 ~ pay(due)
-They read the first page standing in the road, with the wind lifting the corner of it. Then they close the book and put it in a saddlebag. # page # place: The Green Pit sluice
+They read the first page standing in the road, with the wind lifting the corner of it. Then they close the book and put it in a saddlebag. # page # place: The Bowl gate
 The pump book goes to the Archon's desk. Nobody will ask the pump keeper for her first book, and nobody needs to.
 They fine you {due} M for carrying a bundle without a patrol leave. # reveal: all
 Your name is in their report before you reach your truck.
 -> END
 
 === lock ===
-South Lock is a lock house on a dry cut, with a sluice gate and a long beam to lift it, and the stone smells of cold mud. # page # place: South Lock
+The canal families' lock house stands on the lowest canal in Bowl, with a sluice gate and a long beam to lift it, and the stone smells of cold mud. # page # place: Bowl lock house
+Far above, the whitewashed wall of the top terrace catches the sun, and a hand with a bucket stops to watch your truck.
 A woman stands on the beam with her sleeves rolled to the elbow. She reads the bundle's seal before she reads you.
 Agnes sent you. She doesn't trust the road, and she's right not to. # speaker: Mirela
 { book_read:
@@ -292,7 +288,7 @@ She lays the copy beside a long book chained to the sill. The weekly lines run s
   You tell her about the bright wheel and the empty flange, and she stops listening to anything else for a moment.
 }
 A young man in a Bowl coat whitewashes the sluice stones a little way off. He does not look up.
-That's my cousin Tomas. He serves the patrol at my own lock because he scraped the chalk off a meter. # speaker: Mirela
+That's my cousin Tomas. He serves the Bowl patrol at my own lock because he scraped the chalk off a meter. # speaker: Mirela
 He wrote a report on that valve. It's lying on the Archon's desk and nobody reads it. # speaker: Mirela
 The water came out of our seep, and we'll count every drop of it. But a book with nobody's name on it is only a rumor. Put yours beside Agnes's line and say a driver found it on the road. # speaker: Mirela
 + [Sign the Canal book as the driver who found it.]
@@ -307,7 +303,7 @@ The water came out of our seep, and we'll count every drop of it. But a book wit
 ~ marr_regard = "enemy"
 ~ note("pipeCanal")
 ~ give_money(fee)
-You sign. Mirela blots the page with her sleeve and counts {fee} M out of the lock box. # page # place: South Lock
+You sign. Mirela blots the page with her sleeve and counts {fee} M out of the lock box. # page # place: Bowl lock house
 The Canal families pay for their own proof, and we remember who stood beside it. Any truck that carries your name will find water at this lock. # speaker: Mirela
 As you go, a cart with a Marr lantern stops at the lock gate. The man on it asks for Tomas Duarte by name. # reveal: all
 -> END
@@ -318,10 +314,10 @@ As you go, a cart with a Marr lantern stops at the lock gate. The man on it asks
 ~ report_named = true
 ~ note("pipeCanal")
 ~ give_money(fee)
-Mirela stares at you, and then she shrugs. She chains the copy beside her own book. # page # place: South Lock
+Mirela stares at you, and then she shrugs. She chains the copy beside her own book. # page # place: Bowl lock house
 Then it's a Canal word against the household's, and they'll call it a forgery by a pump keeper with a grudge. # speaker: Mirela
 She counts {fee} M out of the lock box and does not say your name aloud again. # reveal: all
-Nobody comes to the lock that day, and nothing moves on the dry cut but the wind.
+Nobody comes to the lock that day, and nothing moves on the canal but the wind.
 -> END
 
 === gate ===

@@ -71,7 +71,7 @@ This part was generated with a second, smaller run of the story game. Its player
 
 - Year 113. Nobody patrols the roads. Old Army rifles sell for grain at every crossroads. A Bowl grain truck is stopped below Canyon Bridge, and its driver, Hal Sorensen, is shot. No patrol comes for two days. Brother Anselm of the Creed buries him by the bridge. Hal's last letter says he would not pay a stranger for a rifle.
 - Year 113. A Bowl patrol holds the Old Orchard gate and keeps the shops shut. Corporal Ilya Moreno of the Old Army serves in it and paints the motor pool count on the blockhouse wall: 38 trucks.
-- Year 114. Pierce announces it insures only trucks that carry a gun. The Granary arms its grain trucks with patrol veterans and crossroads rifles. Otto Brann of Ridge Wrecks welds gun racks for Pierce trucks and signs each one.
+- Year 114. Pierce announces it insures only trucks that carry a gun. The Granary arms its grain trucks with patrol veterans and crossroads rifles. Otto Brann of the Salvage Yard welds gun racks for Pierce trucks and signs each one.
 - Year 114. Hadiza Okon of Green Pit hangs hooks by her door. Drivers hang their rifles there to drink. People call it the hook house.
 - Year 115. A free radio voice starts reading the weather like an old farm report. The Guild cannot find her mast. She thanks the Creed for a meal she never ate: "Waste some time."
 - Year 115. The Bowl Senate lets tenant drivers carry rifles on the road, for the first time since the Grain War, and pays half the cost of rifles on grain runs.

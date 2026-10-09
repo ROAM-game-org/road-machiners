@@ -40,7 +40,7 @@ The Old Army's trucks still stand where they stopped at Old Orchard. Their logs,
 
 ## The Archon's pipe
 
-1. Agnes Ondra at the Pump Station asks the player to carry a sealed copy of her pump book to South Lock.
+1. Agnes Ondra at the Pump Station asks the player to carry a sealed copy of her pump book to Mirela Duarte in Bowl.
 2. Mirela Duarte's Canal book shows that a pipe with no meter draws seep water up to the Archon's terrace every week.
 3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the valve. It sits on the Archon's desk.
 4. The Archon's household offers the player good money to lose the copy on the road.
@@ -53,7 +53,7 @@ Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every 
 ## Emil's pin
 
 1. Mara Kessel, an officer in Captain Silver's post, quietly asks the player to bring her the one-pin swivel from Emil Kessel's wreck on the north road.
-2. The wreck has already been stripped. The mount turns up at the Salvage Yard, at Ridge Wrecks or on a Kiln truck.
+2. The wreck has already been stripped. The mount turns up at the Salvage Yard or on a Kiln truck.
 3. The mount proves that the Nose gate issued it with one pin. Silver wants it destroyed. The Administrator wants it kept, along with what it proves.
 4. Mara has her own pact with the Administrator. The player decides who learns about it.
 

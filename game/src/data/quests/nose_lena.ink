@@ -34,7 +34,7 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   ~ note("greenPit")
   -> hub
 + {heard_swivel and not asked_pins} [Why look at the pins?]
-  Because the copy they bolt on at the gate has one. I've seen what one does on a hard bend. The mount slides and the gun swings round into your own cab. Otto Brann made the first swivel, at Ridge Wrecks. He gave his a second pin. He was right, and I told command so. Nobody asks a mechanic. The Yard will bore you a second pin for a fee. Pay it.
+  Because the copy they bolt on at the gate has one. I've seen what one does on a hard bend. The mount slides and the gun swings round into your own cab. Otto Brann made the first swivel, and he still welds at the Salvage Yard. He gave his a second pin. He was right, and I told command so. Nobody asks a mechanic. The Yard will bore you a second pin for a fee. Pay it.
   ~ note("talkOnePin")
   ~ asked_pins = true
   ~ heard_brann = true

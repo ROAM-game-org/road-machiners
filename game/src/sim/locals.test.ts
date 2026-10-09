@@ -295,19 +295,18 @@ describe('locals at stalls', () => {
     expect(choices(dropped, 'pump_agnes')).toContain('What does the pump do?');
   });
 
-  it('leaves the lock out of reach until it is found, even past the sluice', () => {
+  it('reaches the Bowl lock house once the gate is bought', () => {
     const w = parkedAt('pump-station');
-    const lost = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.', 'Pay the patrolmen to look at the water.']);
+    const lost = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drive on to the Bowl gate.', 'Pay the patrolmen to look at the water.']);
 
-    expect(questView(lost, QUESTS).choices).toContain('Take the canal road toward South Lock.');
+    expect(questView(lost, QUESTS).choices).toContain('Sign the Canal book as the driver who found it.');
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
     expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
   });
 
   it('pays the sluice patrol with a bribe, signs the Canal book and pays on delivery', () => {
     const w = parkedAt('pump-station');
-    w.player.discovered.push('south-lock');
-    const road = ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.'];
+    const road = ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drive on to the Bowl gate.'];
 
     const signed = talk(w, 'pump_agnes', [...road, 'Pay the patrolmen to look at the water.', 'Sign the Canal book as the driver who found it.']);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
@@ -319,9 +318,8 @@ describe('locals at stalls', () => {
 
   it('seizes the bundle and fines the player when the sluice talk fails', () => {
     const w = parkedAt('pump-station');
-    w.player.discovered.push('south-lock');
 
-    const seized = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.', 'Talk the patrolmen through.']);
+    const seized = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drive on to the Bowl gate.', 'Talk the patrolmen through.']);
 
     expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
     expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);

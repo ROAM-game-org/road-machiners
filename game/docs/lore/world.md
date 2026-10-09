@@ -35,7 +35,7 @@ By year 130 nobody drives the open road without a gun. Every driver knows why, a
 - Pierce insures only trucks that carry a gun, and from year 128 only on a mount with two pins.
 - The Nose lets no truck out of its gate without a gun. Its workshop line hands out a steel turning mount with every gate pass.
 - Kiln Camp strips trucks that neither pay nor fight. A truck that fights hard is often let go.
-- Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of Ridge Wrecks built the first one.
+- Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of the Salvage Yard built the first one.
 - Guns are cheap. The Salvage Yard sells the Old Army's stripped guns at the crossroads.
 
 Drivers say a truck is "pinned twice" when it is ready for the road. A swivel with one pin can slide on a bend and swing the gun into the cab.
