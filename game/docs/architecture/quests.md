@@ -121,35 +121,71 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 
 ## Emil's pin
 
-`pin_emil.ink` is a page quest. Mara Kessel, a local at the Salvage Yard stall, starts it from `yard_mara.ink` with "You look like someone with a problem." She wants the one-pin swivel ring from her brother Emil's wreck. Each lead gives a fact. The wreck shows a torch cut, the yard tally names a Kiln hauler, Otto Brann at Ridge Wrecks tells the player how to know a Nose ring, and the crane office drawer holds the patrol roster copied twice in Mara's hand. Ridge Wrecks and Kiln Camp are gated on `found()`. The ring costs 40 M from the Kiln rider.
+`pin_emil.ink` is a page quest. Mara Kessel, a local at the Salvage Yard stall, starts it from `yard_mara.ink` with "You look like someone with a problem." She asks for her brother Emil's one-pin ring so she can hold it. She also needs a witness whose name goes on a page, and she does not say so. Her question shows only after she has said who Emil was.
 
-- Giving the ring to Mara pays 60 M. If the player saw the roster, they may tell Mara they know. That changes only her words.
-- Giving it to Captain Silver pays 150 M and the ring goes into the slag drum. If the player saw the roster, Silver asks whose hand wrote it, and naming Mara pays 100 M more and puts her in the post cell.
-- Giving it to the Administrator pays 90 M and the ring goes into the crane office drawer.
-- The stall local calls none of `has_work`, `has_offers`, `board_full` or `take_work`.
+Leads:
 
-The world variable `pin_fate` keeps who holds the ring: `none`, `mara`, `silver` or `sully`. `pin_pact` is `silver` once Silver learned of Mara's pact, else `hidden`. Mara talks by both.
+- The wreck shows a torch cut. A man on the ammunition box names the rust-red cab. A read of the ground with `skill("perception")` shows soldiers' boots under the stripper's tracks, so the post saw the ring first and left it.
+- The yard tally names the Kiln hauler, but a Nose soldier at the end of the bench hears it. That sets `post_ahead`.
+- Otto Brann tells how to know a Nose ring. The crane office drawer holds the patrol roster copied twice in Mara's hand.
+- Ridge Wrecks and Kiln Camp are gated on `found()`.
+
+Ways to get the ring at Kiln Camp:
+
+- Pay 40 M, or 80 M once the post is bidding. A buyer who does not know the stamp, from Otto or from `skill("perception")`, pays for a Brann ring and must buy again.
+- Tell the rider how Emil died with `skill("social")`. She gives the ring free and lies to the post. A failed talk costs 10 M and sends a boy running to the Yard, which sets `post_ahead`.
+- Rebuild her mount with `skill("machining")` and swap rings. A failed weld costs 20 M for the plate.
+
+When `post_ahead` holds, a sergeant searches the beds at the post gate. The ways through are the scrap lane with `skill("driving")`, a weld that makes the ring a bed bracket with `skill("machining")`, a talk with the sergeant with `skill("social")`, and a call to Sully's crane crew when the player saw the roster. A failed try, or opening the bed, seizes the ring. Silver burns it, takes 30 M and writes the player into his file.
+
+Who gets the ring:
+
+- Mara pays 40 M. She asks the player to sign two pages naming the player as the buyer. Signing sets `pin_pact` to `signed` and `post_file` to `named`. The pages and the ring then go to the crane office in a sack. Refusing keeps the file clean and loses Mara's trust.
+- Silver pays 80 M and burns the ring. He asks the player to sign that a Kiln rider took it off a dead Nose man. Signing sets `kiln_word` to `named`. Refusing sets `post_file` to `named`. A player who saw the roster may name Mara for 40 M more, and she goes to the post cell.
+- The Administrator pays 40 M and locks the ring beside the Pierce book. He warns that a boy at the gate will name the player to the captain, and `post_file` becomes `named`.
+- The Pierce office at Nose pays 30 M and writes the name in Constance's book.
+
+The world variable `pin_fate` keeps who holds the ring: `none`, `mara`, `silver`, `sully` or `pierce`. `pin_pact` is `silver` once Silver learned of Mara's pact, `signed` once the player signed her pages, else `hidden`. `yard_power` is `even`, `post` or `yard` and tilts toward whoever holds the Yard gate. `post_file` is `clean` or `named` and records Silver's file on the player. `kiln_word` is `named` once Kiln read a page that names the player against Kiln. Mara, Silver, the bend quest and the hook crates read them.
 
 ## The north bend
 
-`bend_north.ink` is a page quest. Captain Silver, a local at the Salvage Yard, starts it from `yard_silver.ink` with "Is there work for me?" Silver pays 150 M to clear Ash Kerimov off the north bend. A Kiln rider at the yard brings Kaplan's offer of 180 M for the same, with the request that Ash is not hurt. A ride to the bend gives Ash's story.
+`bend_north.ink` is a page quest. Captain Silver, a local at the Salvage Yard, starts it from `yard_silver.ink` with "Is there work for me?" Silver says he wants a man off the north bend because the man talks. The real reason is that Ash's pin checks undercut the post's cause and the Nose line's mount. A Kiln rider brings Kaplan's offer for the same, and Ain wants the same result. A player whose `post_file` is `named` gets no pay from Silver and only a shorter file. A player whose `kiln_word` is `named` hears no offer from Kiln.
 
-- Taking Silver's job drives Ash out, and a Nose truck takes the bend on a single pin.
-- Taking Kaplan's job also drives Ash out, and Kiln riders sit at the bend.
-- Warning Ash pays nothing and he stays.
-- Leaving 60 M for pins pays Ash's tin and he stays.
+Ways through:
 
-The world variable `bend_fate` keeps the outcome: `none`, `silver`, `kiln` or `ash`. Silver greets by it. A player who leaves the quest unfinished hears Silver's pitch again.
+- Silver's job with `skill("toughness")` drives Ash off. A failed stand pays nothing, and soldiers take Ash. Both set `bend_fate` to `silver`.
+- Kaplan's job with `skill("social")` persuades Ash to leave on his own legs. A failed talk pays nothing, and Ain's riders take the bend. Both set `bend_fate` to `kiln`.
+- Warning Ash pays nothing. Leaving 60 M for pins pays Ash's tin. Both set `ash`.
+- A bench at the bend with `skill("machining")` bores free second pins. It ends Ash's reason to sit there and costs the Administrator his fee. It sets `bench`. A failed bore costs 40 M for the ring of a driver whose gun swung.
+- A night on the rise with `skill("perception")` shows a Nose cart leaving a crate of rifles with Kiln red cloth on it. A failed watch writes the player into Silver's file. The player may take a scarf from the crate.
+- The Administrator, given the scarf, shows it to the post and sets `exposed`. Without it his crews find bare rock and charge 40 M. Silver, given the scarf, burns it, pays 80 M and sets `hush`. Without it he has the player walked out and writes the name.
+
+`bend_fate` is `none`, `silver`, `kiln`, `ash`, `bench`, `exposed` or `hush`. Silver greets by it.
 
 ## The hook crates
 
-`crates_hook.ink` is a page quest. Constance Pierce, a local at Nose, starts it from `nose_constance.ink` with "You look like someone with a problem." She suspects her cousin Lucan sent the hook crates north and cannot prove it. Four facts are evidence: the filing room manifests, the crane book, Otto Brann's remark about the straps he signed, and the lid he kept. The lid counts 2 and each other fact 1. The crane book costs 40 M. Evidence only ever shows a chalked initial. The quest never says what Lucan ordered.
+`crates_hook.ink` is a page quest. Constance Pierce, a local at Nose, starts it from `nose_constance.ink` with "You look like someone with a problem." Her question shows only after she has talked about where the guns came from. She says she wants a paper a board will read against her cousin Lucan. She also wants his chair, and she needs a name on the paper that is not a Pierce. The quest never says what Lucan ordered.
 
-- Bringing 3 or more to Constance pays 180 M and the pages go to the Pierce board.
-- Selling 2 or more to Lucan Pierce pays 240 M and he asks the player to tell Constance they found nothing.
-- Burying any of it pays nothing.
+Evidence and its weight:
 
-The world variable `crates_fate` keeps the outcome: `none`, `proof`, `lucan` or `buried`. Constance greets by it, and Mara reacts to `proof`.
+- The filing room manifests count 1. The crane book counts 1 and costs 40 M, or 80 M once Lucan's clerk has been to Sully. Otto Brann's remark about the straps counts 1.
+- The lid counts 2. Otto gives it to a player who took a Nose ring out of the Yard, or to a player who wins him over with `skill("social")`. A player with `skill("machining")` can forge a lid.
+- Mara Kessel's second case copy counts 2. Sully gives it to a player who signed Mara's pages or who gave him the ring.
+- A ring given to the Pierce office counts 1.
+
+Failed checks:
+
+- A failed read of the cut page with `skill("perception")` sets `caught`. Lucan's clerk learns it, the crane book costs more, and Otto's lid is gone. Lenka gives a rubbing that counts 1.
+- A failed wager with Sully raises the price.
+- A failed plea or a failed forging closes Otto for good.
+
+Outcomes:
+
+- Bringing 3 or more to Constance means signing a page that names the player as the source. It pays 60 M and sets `crates_fate` to `proof`. A forged lid pays 30 M and sets `forged`, and Constance keeps the player's name for leverage.
+- Selling 2 or more to Lucan pays 80 M and a receipt over the player's name. Asking for his word and not coin, with `skill("social")`, gets a card that names the bearer a friend of the underwriting floor. A failed ask gets nothing. All set `lucan`.
+- Burying any of it sets `buried`.
+
+`crates_fate` is `none`, `proof`, `lucan`, `buried` or `forged`. Constance greets by it, and Mara reacts to `proof`.
 
 ## The Archon's pipe
 
@@ -216,32 +252,45 @@ The Granary and the Pump Station are stalls with no board of work. Their locals 
 
 ## The last courier
 
-`nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with "Why no gun?" and "I will ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, South Lock, Green Pit and the south bend.
+`nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with her first hub and "I'll ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, South Lock, Green Pit and the south bend. Tamsin writes the player's name on the loop sheet as the pair. A copy goes to the Guild board, and the board sells what it holds.
 
-- Vesna can lend her rifle. The Green Pit hooks give a rumor about the new Kiln rider only if the player hangs the rifle there.
-- The bag holds a letter for Karl Vosk at Kiln Camp. Handing it over or paying the 30 M toll lets the truck pass.
-- Raising the rifle also passes, and Tamsin pays but will not ride behind it again. Doing nothing strips the truck, costs 40 M and the rifle, and pays nothing.
+- Vesna can lend her rifle. At Green Pit, where every gun hangs on a hook by Hadiza's door, the tables talk about the new rider only if the player sits down with Tamsin or hangs the rifle there.
+- The bag holds a thick letter from the Burnt Convoy for Karl Vosk at Kiln Camp.
+- At South Lock a Bowl patrol corporal asks to look in the bag. Tamsin refuses. A player may let her hold her ground, talk him down with `skill("social")`, hide the letter in the door panel with `skill("machining")`, or hand him the bag. A failed try or handing him the bag lets him read the address and sets `letter_fate` to `read`.
+- At the south bend the player may hand over the letter, which sets `delivered`. The player may also pay the 30 M toll, raise Vesna's rifle, read the rider with `skill("perception")` or take the wheel with `skill("driving")`. Both skill paths pass the rider. A failed read or a failed run strips the truck.
+- Doing nothing strips the truck, costs 40 M and the rifle, and pays nothing.
 
-The world variable `courier_fate` is `"armed"` or `"stripped"`. A pass without the rifle leaves it `"none"`. The notes `courierLetter` and `courierRider` feed the Reading of Names.
+`courier_fate` is `none`, `armed`, `stripped` or `ran`. `letter_fate` is `none`, `read` or `delivered`. The notes `courierLetter` and `courierRider` feed the Reading of Names, and `courierKarl` opens its southern road.
 
 ## The Reading of Names
 
-`bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. The player stands through the reading at Canyon Bridge, and a drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
+`bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. She explains what the reading is and who the dead are before the first choice. The player stands through the reading at Canyon Bridge, where each name carries a line about the person. A drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
 
-- Evidence is the drunk man's word, his brass (10 M for a drink), Dario Feld's book, and the Guild letter if the player holds the note `courierLetter`.
-- The Bowl road patrol rides only on three pieces of evidence. It pays 80 M, and Kiln shuts the south bend to Bowl trucks.
-- Telling Hal's widow at the Granary or saying nothing pays nothing.
+- Evidence is the drunk man's word, his brass for 10 M, Dario Feld's book, and the Guild letter if the player holds the note `courierLetter`. A look at the drunk man with `skill("perception")` shows a wheel burned into his boot heel.
+- The Bowl road patrol rides on three pieces of evidence. It pays 40 M, and Kiln shuts the south bend to Bowl trucks. A letter the corporal read at South Lock counts as the Guild piece.
+- A player named on the Guild sheet as the pair who carried the letter faces a doubting sergeant. A failed `skill("social")` costs 30 M and a night in the cell.
+- Telling Hal's widow at the Granary pays nothing. Saying nothing pays nothing.
+- A player who held the note `courierKarl` may ride south and talk to the rider. Success with `skill("social")` gets the rider to answer at the next reading. Failure costs a flat tire and 30 M, and the rider flees.
 
-The world variable `names_vosk` is `"patrol"` or `"kin"`. Saying nothing leaves it `"none"`.
+`names_vosk` is `none`, `patrol`, `kin`, `answered` or `fled`. Saying nothing leaves it `none`.
 
 ## The hook house
 
-`salvage_hooks.ink` is a page quest. Pim Arslan, a stall local at the Salvage Yard, sells a smoke lens for 15 M and sends the player to Hadiza Okon at Green Pit. A Nose soldier from Silver's post writes down who hangs which rifle.
+`salvage_hooks.ink` is a page quest. Pim Arslan, a stall local at the Salvage Yard, sells a smoke lens for 15 M. She explains the hooks at Green Pit and sends the player to Hadiza Okon. A Nose soldier from Silver's post writes down who hangs which rifle. Pim does not say that her own line is on his sheet.
 
-- The lens lets the player watch him and read his sheet. Asking the tables and following him to Silver's post shows what he reports and to whom.
-- Telling Hadiza pays 50 M. Paying the soldier costs 40 M. Reading the sheet aloud empties the hooks.
+- The lens, or `skill("perception")`, lets the player watch him. Without either, he sees the watcher and writes the face. That sets `post_file` to `named`.
+- The tables, the soldier and his sheet give facts. Following him to the post gate with `skill("driving")` shows the clerk's second hand. A failed tail names the player.
+- Sitting with the soldier with `skill("social")` gives more. A failed try names the player.
 
-The world variable `hooks_report` is `"told"` or `"exposed"`. Paying the soldier leaves it `"none"`.
+Ways to settle it with Hadiza:
+
+- Telling her pays 20 M and sets `told`.
+- Paying the soldier costs 40 M and sets `bought`. A harder soldier comes later.
+- Talking the soldier into writing only stamps, with `skill("social")`, sets `turned`. A failed talk names the player.
+- Reading the sheet aloud empties the hooks, sets `exposed` and tilts `yard_power` to `post`.
+- Giving the clerk's line to the Administrator sets `sully`, tilts `yard_power` to `yard` and names the player to the post.
+
+`hooks_report` is `none`, `told`, `bought`, `turned`, `exposed` or `sully`.
 
 ## The arrival
 
