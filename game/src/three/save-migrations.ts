@@ -543,6 +543,18 @@ function withNotesAndWagon_34_35(world: SavedJson): SavedJson {
   };
 }
 
+const PERSONALITIES_38_39 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
+
+function personalityOf_38_39(vehicleId: string): string {
+  const hash = [...vehicleId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
+  return PERSONALITIES_38_39[hash % PERSONALITIES_38_39.length];
+}
+
+function withPersonalities_38_39(world: SavedJson): SavedJson {
+  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_38_39(v.id as string) } } : v);
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -626,6 +638,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), quests: { world: {}, local: {}, session: null } } }),
   (world) => dropQuestVar(dropQuest(dropQuest(world, 'sample_bowl'), 'sample_nose'), null, 'sample_wagon_heard'),
   (world) => dropQuestVar(dropQuestVar(world, 'nose_depot_leak', 'evidence'), 'nose_depot_leak', 'misled'),
+  withPersonalities_38_39,
 ];
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

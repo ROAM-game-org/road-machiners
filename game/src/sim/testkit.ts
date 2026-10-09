@@ -10,6 +10,7 @@ import type { Terrain } from './terrain';
 import { TEST_MAP } from '../test/map';
 import { onTestFinished } from 'vitest';
 import { DECISIONS, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
+import type { PersonalityId } from '../data/personalities';
 import { addState } from './states';
 import type { Faction, GameEvent, NpcBrain, Vehicle, World, XpSource } from './types';
 import { dist, type Vec } from './vec';
@@ -68,8 +69,8 @@ export function practiceOf(w: World, source: XpSource): Extract<GameEvent, { t: 
   return w.events.filter((e): e is Extract<GameEvent, { t: 'practice' }> => e.t === 'practice' && e.source === source);
 }
 
-export function npcBrain(templateId: string, home: Vec, traits: TraitId[]): NpcBrain {
-  return { templateId, driver: 'Test Driver', traits, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
+export function npcBrain(templateId: string, home: Vec, traits: TraitId[], personality: PersonalityId = 'talkative'): NpcBrain {
+  return { templateId, driver: 'Test Driver', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
 }
 
 export function forceOption<D extends DecisionId>(decision: D, option: DecisionOptions[D]): void {

@@ -373,6 +373,19 @@ describe('game save', () => {
     expect(loaded.player.xp).toEqual(world.player.xp);
   });
 
+  it('keeps every driver personality through a save and a load, and awards nothing on load', () => {
+    const slots = makeSlots();
+    const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const drivers = world.vehicles.filter((v) => v.brain);
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(drivers.length).toBeGreaterThan(0);
+    expect(loaded.vehicles.filter((v) => v.brain).map((v) => v.brain!.personality)).toEqual(drivers.map((v) => v.brain!.personality));
+    expect(loaded.vehicles.map((v) => v.resources)).toEqual(world.vehicles.map((v) => v.resources));
+    expect([loaded.player.money, loaded.player.xp, loaded.player.repeats, loaded.events]).toEqual([world.player.money, world.player.xp, world.player.repeats, []]);
+  });
+
   it('rejects a save whose broken props do not match the map', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));

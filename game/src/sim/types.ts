@@ -4,6 +4,7 @@ import type { TraitId } from "../data/npcs";
 import type { PropKind, Terrain } from "./terrain";
 import type { Vec } from "./vec";
 import type { TopicId } from "../data/dialogue";
+import type { PersonalityId } from "../data/personalities";
 import type { DecisionOptions } from "../data/npcs";
 import type { Contract, ShopState } from "./market";
 import type { Rng } from "./rng";
@@ -181,6 +182,7 @@ export type NpcBrain = {
     templateId: string;
     driver: string;
     traits: TraitId[];
+    personality: PersonalityId;
     goals: NpcActivity[];
     noticed: Record<string, number>;
     tracks: Record<string, Track>;
@@ -283,6 +285,7 @@ export type CallVar =
   | { kind: "aid"; fuel: number; supplies: number }
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
+  | { kind: "rumor"; id: string }
   | { kind: "answer"; option: string };
 export type CallVars = Record<string, CallVar>;
 

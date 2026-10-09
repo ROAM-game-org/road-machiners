@@ -1,5 +1,7 @@
 
-import type { ConditionId, EffectId, PrepareId } from '../data/dialogue';
+import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
+import type { NpcTalk } from '../data/personalities';
+import { RUMORS, type RumorDef } from '../data/rumors';
 import { CONTRACTS } from '../data/market';
 import { LOCALS, NOTES, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
@@ -32,7 +34,31 @@ function demandsOnTop(world: World, npc: Vehicle): boolean {
 
 export type Condition = (world: World, npc: Vehicle, vars: CallVars) => boolean;
 export type Effect = (world: World, npc: Vehicle, call: Call) => void;
-export type Prepare = (world: World, npc: Vehicle) => CallVars;
+export type Prepare = (world: World, npc: Vehicle, talk: NpcTalk) => CallVars;
+
+function yieldAnswer(world: World, npc: Vehicle): CallVars {
+  return { answer: { kind: 'answer', option: answersSurrender(world, npc, playerVehicle(world)) ? 'yes' : 'no' } };
+}
+
+function rumorPool(talk: NpcTalk): readonly RumorDef[] {
+  return RUMORS.filter((r) => talk.personality.rumorKinds.includes(r.kind));
+}
+
+function idHash(id: string): number {
+  return [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+}
+
+function rumorVars(npc: Vehicle, pool: readonly RumorDef[], slot: number): CallVars {
+  if (pool.length === 0) throw new Error(`${npc.id} passes on no rumors`);
+  return { rumor: { kind: 'rumor', id: pool[(idHash(npc.id) + slot) % pool.length].id } };
+}
+
+const HELP_TOPICS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', 'offerPatchWorn', 'patchRequest'];
+
+export function helpedByPlayer(world: World, npc: Vehicle): boolean {
+  const talked = world.player.talked[npc.id];
+  return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
+}
 
 function knownTowns(npc: Vehicle): TownDef[] {
   return npcProfile(npc).towns.map((id) => {
@@ -151,7 +177,7 @@ function namedAid(call: Call): AidAmounts {
   return { fuel: v.fuel, supplies: v.supplies };
 }
 
-function namedPrice(call: Call): number {
+function namedPrice(call: Pick<Call, 'vars'>): number {
   const v = call.vars.price;
   if (v?.kind !== 'money') throw new Error('The topic named no price');
   return v.amount;
@@ -227,6 +253,8 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   aidGiven: (_world, _npc, vars) => answerOf(vars) === 'give',
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
+  canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  toldHearsay: (world, npc) => world.player.talked[npc.id]?.hearsay === 'done',
   heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
 };
 
@@ -270,7 +298,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     settle(world, npc, call, 'agreed');
     practice(world, 'deal', 1, null, npc.id);
   },
-  askStandDown: (world, npc, call) => { call.vars = PREPARES.yieldAnswer(world, npc); },
+  askStandDown: (world, npc, call) => { call.vars = yieldAnswer(world, npc); },
   standDownPlea: (world, npc) => {
     standDownBeggar(world, npc);
     practice(world, 'deal', 1, null, npc.id);
@@ -330,6 +358,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     transfer(world, playerVehicle(world), npc, price.amount);
     makePeace(world, playerVehicle(world), npc);
   },
+  payTalk: (world, npc, call) => transfer(world, playerVehicle(world), npc, namedPrice(call)),
   giveAidPaid: (world, npc, call) => { agreeAid(world, npc, { giver: 'player', ...namedAid(call), price: namedPrice(call), free: false }); },
   giveAidFree: (world, npc, call) => { agreeAid(world, npc, { giver: 'player', ...namedAid(call), price: 0, free: true }); },
   takeAid: (world, npc, call) => { agreeAid(world, npc, { giver: 'npc', ...namedAid(call), price: 0, free: true }); },
@@ -346,7 +375,10 @@ export const EFFECTS: Record<EffectId, Effect> = {
 export const PREPARES: Record<PrepareId, Prepare> = {
   truceAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'truce') } }),
   mercyAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersPlea(world, npc, playerVehicle(world), 'mercy') } }),
-  yieldAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersSurrender(world, npc, playerVehicle(world)) ? 'yes' : 'no' } }),
+  yieldAnswer,
+  hearsay: (_world, npc, talk) => rumorVars(npc, rumorPool(talk), 0),
+  hearsayMore: (_world, npc, talk) => rumorVars(npc, rumorPool(talk), 1),
+  boast: (_world, npc) => rumorVars(npc, RUMORS.filter((r) => r.kind === 'tall'), 0),
   threatAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersThreat(world, npc) } }),
   warnAnswer: (world, npc) => ({ answer: { kind: 'answer', option: answersWarning(world, npc) } }),
   npcTowTerms: (world, npc) => {
