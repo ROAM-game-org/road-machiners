@@ -87,7 +87,8 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Narration in page scenes uses full, concrete sentences with real detail of sight, sound, heat and touch. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Write "a pair of soldiers", not "two soldiers". Numbers are fine inside `# row` tables, which are documents.
 - Keep each local's voice. Bowl talks warm and slow, Nose talks short. `docs/lore.md` keeps the voices.
-- Use markup sparingly: `<b>` for a name or sum that matters, `<shake>` and `<pop>` once per scene at most.
+- Never bold speech for emphasis. A person stresses a word through how the sentence is built, not through type. `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
+- Every speaker sounds like nobody else. Before writing a person, decide their voice: their vocabulary and what they compare things to, how long their sentences run, a verbal habit or two, what they care about and avoid, and how they treat a stranger. A canal warden talks of water and seasons and family. A dispatcher talks in orders and times. A tenant organizer jokes to keep from shouting. Read a line with the name hidden. If it could belong to anyone else in the basin, rewrite it.
 - A rumor goes into the journal with `~ note("<id>")`. Add the note to `NOTES` in `src/data/locals.ts` first.
 
 ## Rules the build enforces
