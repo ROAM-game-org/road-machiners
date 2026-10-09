@@ -24,7 +24,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + [Where can I get water, or find work?]
   Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with coin. Work is Dag's, because he rides with the Farmers and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and it comes down a feeder channel from Green Pit, a village with a deep well.
+  I only open the gates. The water that goes through them belongs to the families, and it comes down a feeder channel from Green Pit. That's a pump outpost out on the flat. Their pumps pull water up from deep rock, and what they don't sell by the can runs down to us.
   ~ ruben_water = true
   -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]
@@ -39,7 +39,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   So you've stood in that crater, and you know more of it than I do. Nose calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
   -> hub
 + {ruben_water || found("green-pit")} [What do you know about the Green Pit feeder?]
-  In a dry year the Senate hung a meter on it and claimed a share for Bowl, as if the feeder had ever been ours to measure. That year the well at Green Pit dropped by a hand's width, and nobody asked the well what it thought.
+  In a dry year the Senate hung a meter on it and claimed a share for Bowl, as if the feeder had ever been ours to measure. That year the pumps at Green Pit drew mud by noon, and nobody asked the pumps what they thought.
   Wendell Ondra died at the sluice there, the little gate where the feeder lets its water in. His niece Agnes keeps the book at the Pump Station, and she writes down every drop.
   -> hub
 + {ruben_senate} [What are the tenants saying?]

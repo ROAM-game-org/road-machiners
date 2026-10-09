@@ -30,7 +30,7 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]
-  Green Pit, out past the road. The water there runs clean and nobody guards it. Fill your cans if you're out that way.
+  Green Pit, out past the road. It's a pump outpost behind a wall of drums, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring coin.
   ~ note("greenPit")
   -> hub
 + {heard_swivel and not asked_pins} [Why look at the pins?]

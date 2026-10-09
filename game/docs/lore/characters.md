@@ -172,7 +172,7 @@ Her line is "The glass points at the Fallen Sun. Read it before you drive out."
 
 Way: embrace.
 
-Hadiza keeps the well and the inn at Green Pit. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+Hadiza runs the pump and the canteen at Green Pit, a walled pump outpost that sells water from deep rock. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
 
 Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
 

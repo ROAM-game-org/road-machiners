@@ -68,7 +68,7 @@ She watches the window and not you. Her eyes go to the mirror on the wall every 
 Kiln riders take the trucks that run alone. A new one has come to the south bend this season, and I never saw his face. # speaker: Vesna
 I saw his truck from a long way off, though. It carried a Brann swivel, so he didn't build it himself. # speaker: Vesna
 Tamsin thinks her blue paint is a wall. It's paint. Take the rifle. # speaker: Vesna
-At Green Pit you'll want to hang it on the hook by Hadiza Okon's door before you drink. Everyone does, haulers and Kiln riders alike, and that's the only reason the well house stays peaceful. Bring it back to me afterward. # speaker: Vesna
+At Green Pit you'll want to hang it on the hook by Hadiza Okon's door before you drink. Everyone does, haulers and Kiln riders alike, and that's the only reason her canteen stays peaceful. Bring it back to me afterward. # speaker: Vesna
 + [Take Vesna's rifle.]
   ~ gun = true
   She shuts her eyes. Her hand stays on the arm of the chair a moment after the rifle is gone.
@@ -154,8 +154,8 @@ Karl Vosk, at Kiln. He says the name twice. I thank you, he says. The patrol's b
 
 === green ===
 # checkpoint: green
-Green Pit lies in a dip, a well under a roof and an inn built around it. Rifles hang on iron hooks by the door, because at Hadiza Okon's well house everyone hangs their gun before they drink. That's how raiders and haulers share one room. # page # place: Green Pit
-{ found("green-pit"): You know this place. Hadiza Okon fills the cups herself, as before. | A cracked pit with a roof over the well. Hadiza Okon fills the cups herself, and nobody argues with the hooks. }
+Green Pit is a pump yard behind a wall of stacked drums under green tarp. Water tanks stand over it on steel legs, and the pump thuds day and night like a slow heart. Hadiza Okon's canteen leans against the tank wall. Rifles hang on iron hooks by its door, because everyone hangs their gun before they drink. That's how raiders and haulers share one room. # page # place: Green Pit
+{ found("green-pit"): You know this place. Hadiza Okon fills the cups herself, as before. | Hadiza Okon fills the cups herself, and charges for them, and nobody argues with the hooks. }
 + {gun} [Hang Vesna's rifle on a hook, like everyone.]
   ~ drinkers_said = true
   ~ note("courierRider")

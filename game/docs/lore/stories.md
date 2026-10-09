@@ -67,7 +67,7 @@ Tamsin Roe is the last Guild courier with no gun. Vesna Hale rides behind her wi
 
 ## The hook house
 
-Green Pit's well drops every dry year. A Nose soldier from Silver's post sits by the hooks and watches who hangs what. Hadiza Okon asks the player to find out what he reports and to whom. If the hooks stop meaning safety, the last place where Kiln riders and haulers drink together goes with them.
+Green Pit's pumps draw mud every dry year. A Nose soldier from Silver's post sits by the hooks and watches who hangs what. Hadiza Okon asks the player to find out what he reports and to whom. If the hooks stop meaning safety, the last place where Kiln riders and haulers drink together goes with them.
 
 ## The arrival
 

@@ -67,7 +67,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   greenPit: {
     title: 'Clean water at Green Pit',
     from: 'Lena, Nose mechanic',
-    text: 'Lena says the water at Green Pit runs clean and nobody guards it.',
+    text: 'Lena says the pump outpost at Green Pit sells clean water from deep rock, by the can.',
   },
   glassTank: {
     title: 'A tank at Glass Flats',

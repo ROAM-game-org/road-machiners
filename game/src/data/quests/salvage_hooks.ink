@@ -44,7 +44,7 @@ I've a favor to ask of somebody who doesn't look like anybody. I haven't found s
 
 === errand ===
 Pim lowers her voice, though only the stalls are listening. # place: Salvage Yard stalls
-It's about Hadiza Okon, who keeps the well and the inn at Green Pit. She feeds anyone once, and she has a rule at her door. Everybody hangs their rifle on a hook by the threshold before they drink, so that raiders, haulers and Yard crews can share one room without a gun in it. # speaker: Pim
+It's about Hadiza Okon, who runs the pump and the canteen at Green Pit. She feeds anyone once, and she has a rule at her door. Everybody hangs their rifle on a hook by the threshold before they drink, so that raiders, haulers and Yard crews can share one room without a gun in it. # speaker: Pim
 A Nose soldier from Silver's post sits by those hooks now. He's polite, and he writes. Hadiza wants to know what he writes and who reads it, and she asked me for someone she doesn't know. # speaker: Pim
 You're nobody she knows. I scratched the lean lines of the Flats' glass on a plate and hung it by her door, so she'll listen if you say I sent you. # speaker: Pim
 + [I'll go to Green Pit.]
@@ -56,11 +56,11 @@ You're nobody she knows. I scratched the lean lines of the Flats' glass on a pla
   -> END
 
 === arrive ===
-Green Pit lies in a dip, a well under a roof and an inn built around it, and the air smells of cold water and woodsmoke. # page # place: Green Pit
-Rifles hang on the iron hooks by the door, many of them, like coats in a hall. A scratched plate hangs beside them, and every line on it leans the same way.
-{ found("green-pit"): You know the place. | The well drops a hand's width when the year is dry. Nobody here says so out loud. }
+Green Pit is a pump yard behind a wall of stacked drums under green tarp. Water tanks stand over it on steel legs, the pump thuds day and night, and the air smells of wet iron and diesel. # page # place: Green Pit
+Hadiza's canteen leans against the tank wall. Rifles hang on the iron hooks by its door, many of them, like coats in a hall. A scratched plate hangs beside them, and every line on it leans the same way.
+{ found("green-pit"): You know the place. | In a dry year the pump draws mud by noon. Nobody here says so out loud. }
 Hadiza Okon fills a cup before you speak.
-Hang it on the hook. Everyone drinks here, and nobody takes my well. # speaker: Hadiza
+Hang it on the hook. Everyone drinks here, and nobody takes my pump. # speaker: Hadiza
 Her chin points at a young man in a Nose coat on a stool by the hooks. He has a sheet on a board across his knees.
 That's the soldier. He came with the dry year. He sits, he watches, and he writes. # speaker: Hadiza
 I feed him once a day, same as anyone. I want to know what he writes and who reads it. Then I want you to tell me what I should do about it. # speaker: Hadiza
@@ -68,9 +68,9 @@ I feed him once a day, same as anyone. I want to know what he writes and who rea
 
 === hooks ===
 # checkpoint: hooks
-The soldier doesn't look up. Water drips behind the roof, and now and then a rifle clinks on its hook. # page # place: Green Pit
+The soldier doesn't look up. The pump thuds behind the wall, and now and then a rifle clinks on its hook. # page # place: Green Pit
 { not saw_hooks: A man who watches the watcher gets seen. }
-+ {not saw_hooks} [Watch him from the well.]
++ {not saw_hooks} [Watch him from the drums.]
   -> watch
 + {not asked_drinkers} [Ask the tables about him.]
   -> drinkers
@@ -88,7 +88,7 @@ The soldier doesn't look up. Water drips behind the roof, and now and then a rif
   -> END
 
 === watch ===
-You sit on the well curb. # place: Green Pit
+You sit on an upturned drum by the tank wall. # place: Green Pit
 { lens_held or skill("perception") >= 2:
   ~ saw_hooks = true
   { lens_held:
@@ -136,7 +136,7 @@ You sit down beside him. He moves the board a hand's width away and says nothing
 === tally ===
 ~ read_tally = true
 ~ note("hooksSheet")
-Hadiza brings the soldier a bowl and talks about the well. He sets the board down on his knee to take it. # place: Green Pit
+Hadiza brings the soldier a bowl and talks about the pump. He sets the board down on his knee to take it. # place: Green Pit
 You have the sheet in your hands for as long as it takes to read it.
 Stamp; Hung by # head
 Wheel; Hauler # row
