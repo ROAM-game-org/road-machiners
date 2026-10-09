@@ -4,6 +4,80 @@ This guide covers how people in the basin talk and how the player talks back. It
 
 The examples are written for ROAM. A line marked Bad is the kind of line that has shipped before and confused players.
 
+## House style
+
+ROAM's voice comes from the author's own wasteland and adventure stories. These habits hold for page narration and for talk alike.
+
+### Read people by their gear
+
+Bring a person in with a short list of what they wear and carry, then the narrator's practical read of it. Boots, tools, wear and dirt say what a life has been. A narrated list may run in fragments. Speech still uses whole sentences.
+
+"A Kiln rider. Goggles pushed up, a scarf gone stiff with dust, a rifle with a new stock on an old action. The boots are new. Somebody paid him lately."
+
+### The narrator sizes things up
+
+Narration stays close to the player and thinks like a survivor: what's a threat, what's worth taking, who has water and who's lying about it. Its judgments are short and dry. It gives the practical read of a moment, never the moral one.
+
+"Somebody loved this truck, or was very afraid. Out here that's mostly the same thing."
+
+### Small stakes beside big ones
+
+Put a plain want next to the violence: a bed, a hot meal, a cup of water, who does the washing up. A haggle over a cot after a gunfight tells the player more about the basin than any speech about how hard life is. End a big scene on the small thing.
+
+After the player drives the raiders off Juno's lamp line, Juno says: "You'll want the cot by the stove, then. And you're carrying the oil up in the morning, because Tam's leg won't."
+
+### Both sides look the same
+
+When two groups face off, let the narration notice how alike they are: the same rags, the same thirst, the same bad odds. The basin has no clean side, and the narration shows it by putting the two sides next to each other, not by saying so.
+
+"A pair of trucks on patched tires faces a pair of trucks on patched tires, and everyone squints into the same sun."
+
+### Customs nobody explains
+
+Show a town by its habits: where guns hang, who says their name first, how long you wait before you speak, what you leave on a grave. People keep a custom without thinking and get uneasy when a stranger doesn't. The player learns it by watching someone keep it or by breaking it.
+
+### Old words on new things
+
+The old world left words behind, and people use them for new things without knowing the old meaning. Use a few and never explain where they came from.
+
+"A bath at Green Pit is a wet rag and a cup of warm water, and it costs extra."
+
+### Talk is a trade
+
+Gatekeepers, traders and clerks price news. A toll drops if you tell the gate what you saw on the road. A stranger's story is worth something to somebody, and people say so.
+
+Kovac: "Toll's the usual. Half, if you tell me what's parked at Kiln."
+
+### Swearing like weather
+
+Rough people swear plainly and without heat, the way they'd mention the wind. Swearing belongs to some speakers and not to others. It's never there to shock.
+
+### Competence shows in small checks
+
+Show skill as habit. A veteran checks both gun pins at every stop, counts their knives before a talk and notices the man who steps out of their line of sight. The narrator respects it in a few words.
+
+"The old one takes a casual step to the side, out of your sight. Figures how he lived this long."
+
+### Hope, then the floor
+
+Give the player a reason to hope, then take it away with a plain fact they see for themselves. The rifle across the hill was a plank. The water truck was hauling sand. The reversal comes from what the character notices, never from a narrator's twist.
+
+### Violence is fast, then ugly
+
+In a fight the narration narrows to a few physical details and short sentences. After it, the character is cold and shaking, and the narration finds no glory and no comfort. Killing is work you get through. It never feels good afterward.
+
+"Then it's over. Your hands won't stop shaking, though you're cold all over in the heat. The other driver's canteen is still half full. It's the first thing you think about, and you don't like yourself for it."
+
+### The old world is a dream
+
+Memories of before come vague and too bright: fountains, grass, lights at night. The dust is what's real. People don't mourn the past out loud. It comes up, and they shrug it off.
+
+### Refrains and endings
+
+A scene may carry one phrase that comes back changed at the end, like "Sand and dust, the spotlight of the sun." Use one per scene at most.
+
+End a scene on a dry, small line, often the next chore or a flat joke. Never end on a moral.
+
 ## Before you write a person
 
 Write their voice sheet in [Voices](lore/voices.md) first. A sheet answers five questions.

@@ -79,7 +79,7 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 ## Writing rules
 
-[Writing dialogue](dialogue-writing.md) holds every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
+[Writing dialogue](dialogue-writing.md) holds the house style for narration and talk, and every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never explains what a moment means. Write what the other driver does, not "nobody out here kills that".
 - Narration in page scenes uses full, concrete sentences with real detail of sight, sound, heat and touch. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
