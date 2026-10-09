@@ -2,6 +2,7 @@
 import { DEAL_LINES, TIP_LINES } from '../data/dialogue';
 import { GOODS } from '../data/goods';
 import { REGION } from '../data/region';
+import { RUMORS } from '../data/rumors';
 import { FACTION_COLORS } from '../render/palette';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { isKnockedOut } from '../sim/defeat';
@@ -65,7 +66,13 @@ export function tipText(v: Extract<CallVar, { kind: 'tip' }>): string {
   return line.replace('{site}', siteName(v.tip.shop)).replace('{good}', good.name.toLowerCase()).replace('{was}', good.plural ? 'were' : 'was');
 }
 
-type VarText = { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => string };
+function rumorText(v: Extract<CallVar, { kind: 'rumor' }>): string {
+  const rumor = RUMORS.find((r) => r.id === v.id);
+  if (!rumor) throw new Error(`Unknown rumor ${v.id}`);
+  return rumor.text;
+}
+
+type VarText ={ [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => string };
 
 const VAR_TEXT: VarText = {
   town: (v) => townName(v.id),
@@ -78,6 +85,7 @@ const VAR_TEXT: VarText = {
   prices: pricesText,
   aid: aidText,
   tip: tipText,
+  rumor: rumorText,
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };
 

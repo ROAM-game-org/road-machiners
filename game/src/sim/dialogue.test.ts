@@ -3,12 +3,12 @@ import { PERK_NUMBERS, XP_SOURCES } from '../data/skills';
 import { SHOPS } from '../data/market';
 import { buyPrice, sellPrice } from './economy';
 import { goodBasePrice, goodValue, vehicleValue } from './market';
-import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOPICS, type Topic } from '../data/dialogue';
+import { BUSY_LINE, TRAIT_TALK, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, type Topic } from '../data/dialogue';
 import { QUESTS, questView } from './quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { playerVehicle } from './damage';
-import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, hangUp, honk, placeholders, radioSpeakers, raiseCalls } from './dialogue';
+import { callVehicle, callTrucks, chooseOption, currentOptions, endCallIfOut, hangUp, honk, placeholders, radioSpeakers, raiseCalls, talkOf } from './dialogue';
 import { fireBlock, isHostile } from './combat';
 import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -50,8 +50,9 @@ describe('topic data', () => {
   it('every option leads to a node of its topic, the hub or the end, and every node is reachable', () => {
     for (const topic of Object.values(TOPICS)) {
       expect(topic.nodes[topic.start], `${topic.id} start`).toBeDefined();
-      const reached = new Set([topic.start]);
-      const queue = [topic.start];
+      const entries = TOLL in topic.nodes ? [topic.start, TOLL] : [topic.start];
+      const reached = new Set(entries);
+      const queue = [...entries];
       while (queue.length > 0) {
         for (const option of topic.nodes[queue.pop()!].options) {
           if (option.go === HUB || option.go === END) continue;
@@ -89,9 +90,9 @@ describe('calls', () => {
   it('opens on the hub with the greeting when the player sees the truck', () => {
     const { w, npc } = withNpc('trader', 'traders');
     const next = callVehicle(w, npc.id);
-    expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { text: TRAIT_TALK.trader.voice!.greeting, vars: {} } });
+    expect(next.player.call).toEqual({ with: npc.id, topic: null, node: HUB, vars: {}, line: { text: talkOf(npc).greeting, vars: {} } });
     expect(next.events).toContainEqual({ t: 'call', with: npc.id, outcome: 'opened' });
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, text: TRAIT_TALK.trader.voice!.greeting, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, text: talkOf(npc).greeting, vars: {} });
   });
 
   it('cannot reach a truck out of sight', () => {
@@ -112,7 +113,7 @@ describe('calls', () => {
     const { w, npc } = withNpc('trader', 'traders');
     addState(w, 'feud', npc.id, w.player.vehicleId, { kind: 'feud', robbery: false });
     addState(w, 'plea', w.player.vehicleId, npc.id, { kind: 'plea', plea: 'truce', answered: true });
-    expectRefused(w, npc.id, TRAIT_TALK.trader.voice!.refusal);
+    expectRefused(w, npc.id, talkOf(npc).refusal);
   });
 
   it('a truck in combat with another truck refuses the call with the busy line', () => {
@@ -266,8 +267,8 @@ describe('NPC calls', () => {
     let next = callVehicle(w, npc.id);
     next = chooseOption(next, optionIndex(next, TOPICS.directions.ask!.text));
     expect(next.player.call?.topic).toBeNull();
-    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, text: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
-    expect(next.player.call?.line).toEqual({ text: TRAIT_TALK.trader.voice!.repeatLine, vars: {} });
+    expect(next.events).toContainEqual({ t: 'say', speaker: npc.id, text: talkOf(npc).repeatLine, vars: {} });
+    expect(next.player.call?.line).toEqual({ text: talkOf(npc).repeatLine, vars: {} });
   });
 });
 
@@ -659,7 +660,7 @@ describe('trading tips', () => {
   }
 
   function tipOf(w: World, npc: Vehicle): unknown {
-    return PREPARES.tradeTip(w, npc).tip;
+    return PREPARES.tradeTip(w, npc, talkOf(npc)).tip;
   }
 
   function pressureFor(shop: string, good: string, ratio: number): number {
@@ -995,7 +996,7 @@ describe('fuel and supply aid', () => {
     next = chooseOption(next, optionIndex(next, 'Understood.'));
     next = chooseOption(next, optionIndex(next, askText));
     expect(next.player.call?.topic).toBeNull();
-    expect(next.player.call?.line.text).toBe(TRAIT_TALK.trader.voice!.repeatLine);
+    expect(next.player.call?.line.text).toBe(talkOf(npc).repeatLine);
   });
 
   it('a driver that gives agrees a free gift of what it named and comes over', () => {

@@ -1,8 +1,7 @@
-// NPC spawning up to per-template caps. Raiders appear at their camp gates, neutrals at the gates of any
-// town or other location.
 
 import { FIRST_NAMES, NPCS, OPPOSED_TRAITS, SPAWN, SURNAMES, type NpcTemplate, type TraitId } from "../data/npcs";
 import { chassisDef } from "../data/chassis";
+import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
 import { REGION } from "../data/region";
 import { playerVehicle } from "./damage";
 import { makeVehicle } from "./factory";
@@ -105,6 +104,10 @@ export function rollTraits(world: Rng, tpl: NpcTemplate): TraitId[] {
   return won.reduce((held, trait) => (opposesAny(trait, held) ? held : [...held, trait]), [...tpl.traits]);
 }
 
+export function rollPersonality(world: Rng): PersonalityId {
+  return PERSONALITY_IDS[randInt(world, 0, PERSONALITY_IDS.length - 1)];
+}
+
 function opposesAny(trait: TraitId, held: TraitId[]): boolean {
   return OPPOSED_TRAITS.some(([a, b]) => (a === trait && held.includes(b)) || (b === trait && held.includes(a)));
 }
@@ -133,6 +136,7 @@ export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos
       templateId: tpl.id,
       driver: driverName(world.nameRng),
       traits: rollTraits(world, tpl),
+      personality: rollPersonality(world),
       goals: [],
       noticed: {},
       tracks: {},

@@ -1,13 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { BUSY_LINE, SPARE_LINE, TOPICS, TRAIT_TALK } from '../data/dialogue';
-import { tipText } from './dialogue';
+import { PERSONALITIES } from '../data/personalities';
+import { RUMORS } from '../data/rumors';
+import { fillLine, tipText } from './dialogue';
 import { markupProblems, plainText } from './quest-text';
+
+function personalityLines(): string[] {
+  return Object.values(PERSONALITIES).flatMap((p) => [p.greeting, p.repeatLine, p.refusal, ...(p.withholdLine ? [p.withholdLine] : []), ...(p.tollLine ? [p.tollLine] : []), ...Object.values(p.lines).flatMap((nodes) => Object.values(nodes))]);
+}
+
+describe('rumor text', () => {
+  it('shows the written rumor for a rumor value', () => {
+    expect(fillLine('{rumor}', { rumor: { kind: 'rumor', id: 'dryBasin' } })).toBe(RUMORS.find((r) => r.id === 'dryBasin')!.text);
+  });
+
+  it('fails loud on a rumor that does not exist', () => {
+    expect(() => fillLine('{rumor}', { rumor: { kind: 'rumor', id: 'nothing' } })).toThrow('Unknown rumor nothing');
+  });
+});
 
 describe('radio line markup', () => {
   it('passes the quest text check on every radio line and option', () => {
     const voices = Object.values(TRAIT_TALK).flatMap((t) => (t.voice ? [t.voice.greeting, t.voice.repeatLine, t.voice.refusal] : []));
     const topics = Object.values(TOPICS).flatMap((t) => [...(t.ask ? [t.ask.text] : []), ...Object.values(t.nodes).flatMap((n) => [n.line, ...n.options.map((o) => o.text)])]);
-    const lines = [BUSY_LINE, SPARE_LINE, ...voices, ...topics];
+    const lines = [BUSY_LINE, SPARE_LINE, ...voices, ...topics, ...personalityLines(), ...RUMORS.map((r) => r.text)];
     expect(lines.length).toBeGreaterThan(100);
     for (const line of lines) expect(markupProblems(line, []), line).toEqual([]);
   });

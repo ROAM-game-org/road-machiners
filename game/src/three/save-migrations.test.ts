@@ -50,6 +50,7 @@ import FORMAT_2_34 from './save-fixtures/format-2-34.json';
 import FORMAT_2_35 from './save-fixtures/format-2-35.json';
 import FORMAT_2_36 from './save-fixtures/format-2-36.json';
 import FORMAT_2_37 from './save-fixtures/format-2-37.json';
+import FORMAT_2_38 from './save-fixtures/format-2-38.json';
 
 describe('save migrations', () => {
   it('0 to 1 gives the player townPatched false and keeps every other field', () => {
@@ -822,6 +823,29 @@ describe('save migration 37 to 38', () => {
       ...FORMAT_2_37,
       player: { ...FORMAT_2_37.player, quests: { ...FORMAT_2_37.player.quests, local: { nose_depot_leak: { watches: 3, ledger_read: true } } } },
     });
+  });
+});
+
+describe('save migration 38 to 39', () => {
+  const personalityIn = (world: { vehicles: { id: string; brain: object | null }[] }, id: string) => (world.vehicles.find((v) => v.id === id)!.brain as { personality?: string } | null)?.personality;
+
+  it('gives every driver a personality from its vehicle id and leaves the rest of the brain alone', () => {
+    const next = MIGRATIONS[38](FORMAT_2_38) as typeof FORMAT_2_38;
+
+    expect(personalityIn(next, 'npc1')).toBe('braggart');
+    expect(personalityIn(next, 'npc2')).toBe('grim');
+    expect(personalityIn(next, 'npc3')).toBe('tightLipped');
+    expect(next.vehicles[1].brain).toEqual({ ...FORMAT_2_38.vehicles[1].brain, personality: 'braggart' });
+  });
+
+  it('gives the player no personality', () => {
+    const next = MIGRATIONS[38](FORMAT_2_38) as typeof FORMAT_2_38;
+
+    expect(next.vehicles[0]).toEqual(FORMAT_2_38.vehicles[0]);
+  });
+
+  it('draws the same personality each time it runs', () => {
+    expect(MIGRATIONS[38](FORMAT_2_38)).toEqual(MIGRATIONS[38](FORMAT_2_38));
   });
 });
 

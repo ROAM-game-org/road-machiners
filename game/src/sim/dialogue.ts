@@ -1,9 +1,10 @@
 
-import { BUSY_LINE, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOPICS, TRAIT_TALK, type DialogueOption, type Topic, type TopicId, type Voice } from '../data/dialogue';
+import { BUSY_LINE, END, handoffQuest, HONK_RANGE, HUB, REFUSED, TOLL, TOPICS, TRAIT_TALK, type DialogueOption, type Topic, type TopicId } from '../data/dialogue';
+import { PERSONALITIES, TALK_PRICE, type Gate, type NpcTalk, type Personality } from '../data/personalities';
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
-import { CONDITIONS, EFFECTS, PREPARES } from './dialogue-rules';
+import { CONDITIONS, EFFECTS, helpedByPlayer, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
@@ -14,11 +15,38 @@ import { playerCommand, requireActivePlayer, update } from './world';
 
 export type OfferedOption = { text: string; topic: TopicId | null; option: DialogueOption | null };
 
-export function talkOf(npc: Vehicle): Voice & { topics: TopicId[] } {
+export function talkOf(npc: Vehicle): NpcTalk {
   const talks = npcTraits(npc).map((id) => TRAIT_TALK[id]);
   const voice = talks.find((t) => t.voice)?.voice;
   if (!voice) throw new Error(`${npc.id} has no trait with a voice`);
-  return { ...voice, topics: [...new Set(talks.flatMap((t) => t.topics))] };
+  const personality = personalityOf(npc);
+  return {
+    ...voice,
+    greeting: `${voice.greeting} ${personality.greeting}`,
+    repeatLine: `${voice.repeatLine} ${personality.repeatLine}`,
+    refusal: `${voice.refusal} ${personality.refusal}`,
+    topics: [...new Set([...talks.flatMap((t) => t.topics), ...personality.extraTopics])],
+    personality,
+  };
+}
+
+function personalityOf(npc: Vehicle): Personality {
+  const id = npc.brain?.personality;
+  if (!id || !Object.hasOwn(PERSONALITIES, id)) throw new Error(`${npc.id} has unknown personality ${id}`);
+  return PERSONALITIES[id];
+}
+
+function gateOf(npc: Vehicle, topic: Topic): Gate {
+  return talkOf(npc).personality.gates[topic.id] ?? 'open';
+}
+
+function lineOf(npc: Vehicle, topic: TopicId, node: string): string {
+  const { personality } = talkOf(npc);
+  if (node === TOLL) {
+    if (!personality.tollLine) throw new Error(`${npc.id} has no line for a price`);
+    return personality.tollLine;
+  }
+  return personality.lines[topic]?.[node] ?? TOPICS[topic].nodes[node].line;
 }
 
 function holds(world: World, npc: Vehicle, when: readonly (keyof typeof CONDITIONS)[], vars: CallVars): boolean {
@@ -41,7 +69,7 @@ function openCall(world: World): Call {
 
 function askable(world: World, npc: Vehicle): Topic[] {
   const feud = inFeud(world, npc, playerVehicle(world));
-  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && holds(world, npc, t.ask.when, {}));
+  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && gateOf(npc, t) !== 'closed' && holds(world, npc, t.ask.when, {}));
 }
 
 export function currentOptions(world: World): OfferedOption[] {
@@ -59,7 +87,7 @@ export function currentLine(world: World): string {
   const call = openCall(world);
   if (isRefused(call)) return call.line.text;
   if (!call.topic) return talkOf(vehicleById(world, call.with)).greeting;
-  return TOPICS[call.topic].nodes[call.node].line;
+  return lineOf(vehicleById(world, call.with), call.topic, call.node);
 }
 
 function say(world: World, speaker: string, text: string, vars: CallVars): void {
@@ -81,10 +109,11 @@ function enter(world: World, call: Call, topic: TopicId | null, node: string): v
   say(world, call.with, currentLine(world), call.vars);
 }
 
-function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic): void {
-  call.vars = topic.prepare ? PREPARES[topic.prepare](world, npc) : {};
+function enterTopic(world: World, npc: Vehicle, call: Call, topic: Topic, node: string = topic.start): void {
+  const prepared = topic.prepare ? PREPARES[topic.prepare](world, npc, talkOf(npc)) : {};
+  call.vars = node === TOLL ? { ...prepared, price: { kind: 'money', amount: TALK_PRICE } } : prepared;
   practice(world, 'call', 1, null, `${npc.id}:${topic.id}`);
-  enter(world, call, topic.id, topic.start);
+  enter(world, call, topic.id, node);
 }
 
 function endCall(world: World, call: Call): void {
@@ -145,7 +174,15 @@ export function chooseOption(world: World, index: number): World {
 
 function askTopic(world: World, npc: Vehicle, call: Call, topic: Topic): void {
   if (isSettled(world, npc, topic)) return say(world, npc.id, talkOf(npc).repeatLine, {});
-  enterTopic(world, npc, call, topic);
+  const gate = gateOf(npc, topic);
+  if (gate === 'help' && !helpedByPlayer(world, npc)) return say(world, npc.id, withholdOf(npc), {});
+  enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
+}
+
+function withholdOf(npc: Vehicle): string {
+  const line = talkOf(npc).personality.withholdLine;
+  if (!line) throw new Error(`${npc.id} has no line for holding back`);
+  return line;
 }
 
 function follow(world: World, npc: Vehicle, call: Call, option: DialogueOption): void {

@@ -1,5 +1,5 @@
 {
- "format": "2.38",
+ "format": "2.39",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1334,6 +1334,7 @@
      "hurt": "number",
      "memories": [],
      "noticed": {},
+     "personality": "string",
      "stepIndex": "number",
      "templateId": "string",
      "tracks": {},
@@ -1433,6 +1434,7 @@
      "hurt": "number",
      "memories": [],
      "noticed": {},
+     "personality": "string",
      "stepIndex": "number",
      "templateId": "string",
      "tracks": {},
