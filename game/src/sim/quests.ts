@@ -179,14 +179,14 @@ export function openFirstFall(w: World, foes: readonly string[]): void {
 }
 
 export function introStep(w: World): IntroStep {
-  const step = questVar(w, QUESTS, GAME_OPENED_QUESTS.introGreenPit, INTRO_STEP);
+  const step = worldVar(w, INTRO_STEP);
   const known = INTRO_STEPS.find((s) => s === step);
-  if (!known) throw new Error(`World variable ${INTRO_STEP} holds ${String(step)}`);
+  if (!known) throw new Error(`World variable ${INTRO_STEP} holds ${String(step)}, which is no intro step`);
   return known;
 }
 
 export function setIntroStep(w: World, step: IntroStep): void {
-  w.player.quests.world[INTRO_STEP] = step;
+  setWorldVar(w, INTRO_STEP, step);
 }
 
 export function chooseQuestOption(world: World, bundle: QuestBundle, index: number): World {
@@ -266,6 +266,21 @@ function questVar(world: World, bundle: QuestBundle, questId: string, name: stri
   const decl = bundle.world[name];
   if (!decl) throw new Error(`Quest ${questId} reads no variable ${name}`);
   return shared[name] ?? decl.init;
+}
+
+export function worldVar(world: World, name: string): QuestValue {
+  const decl = QUESTS.world[name];
+  if (!decl) throw new Error(`No world variable ${name}`);
+  return world.player.quests.world[name] ?? decl.init;
+}
+
+export function setWorldVar(world: World, name: string, value: QuestValue): void {
+  const decl = QUESTS.world[name];
+  if (!decl) throw new Error(`No world variable ${name}`);
+  if (typeof value !== decl.type) throw new Error(`World variable ${name} holds a ${decl.type}, not ${String(value)}`);
+  if (world.player.quests.session) throw new Error(`World variable ${name} was set while a quest is open, and the next pick would undo it`);
+  if (value === decl.init) delete world.player.quests.world[name];
+  else world.player.quests.world[name] = value;
 }
 
 export function questProblems(state: QuestState, bundle: QuestBundle): string[] {

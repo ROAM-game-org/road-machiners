@@ -1,15 +1,18 @@
+import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, GREEN_PIT } from '../data/intro';
 import { chassisDef } from '../data/chassis';
-import { GAME_OPENED_QUESTS } from '../data/quests';
+import { GAME_OPENED_QUESTS, type IntroStep } from '../data/quests';
 import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
+import { mountedParts } from './grid';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
 import { introStep, openQuest, QUESTS, setIntroStep } from './quests';
+import { engineNeedsPatch } from './repair';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
 import { isRoadTile } from './terrain';
@@ -17,9 +20,16 @@ import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { playerSees, sightRadius } from './vision';
 
+const BEFORE_PATCH: readonly IntroStep[] = ['off', 'walk', 'drive'];
+
 export function advanceIntro(w: World): void {
   if (w.player.state !== 'active' || w.player.quests.session) return;
   const step = introStep(w);
+  if (BEFORE_PATCH.includes(step)) settleBeforePatch(w, step);
+  else settleAfterPatch(w, step);
+}
+
+function settleAfterPatch(w: World, step: IntroStep): void {
   if (step === 'patched') launchAmbush(w);
   else if (step === 'ambush' && hunters(w).length === 0) setIntroStep(w, 'done');
 }
@@ -34,6 +44,17 @@ export function arriveAtGreenPit(w: World, foes: readonly string[] | null): void
   me.speed = 0;
   me.trail = [];
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.introGreenPit, 'start');
+}
+
+function settleBeforePatch(w: World, step: IntroStep): void {
+  if (!w.obstacles.some((o) => o.id === FARM_TOWER_ID)) return;
+  if (step !== 'drive') setIntroStep(w, 'drive');
+  if (enginePatched(w)) setIntroStep(w, 'patched');
+}
+
+function enginePatched(w: World): boolean {
+  const me = playerVehicle(w);
+  return mountedParts(me, 'engine').length > 0 && !engineNeedsPatch(w, me);
 }
 
 function launchAmbush(w: World): void {

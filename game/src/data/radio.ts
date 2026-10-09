@@ -1,5 +1,3 @@
-// Waste Of Time Radio: J.J.'s lines and the pacing of her broadcasts. See docs/lore.md for her voice and
-// src/ui/radio.ts for what she reports.
 
 export type RadioTopic =
   | 'ident'
@@ -106,6 +104,9 @@ export const RADIO_LINES: Record<RadioTopic, readonly string[]> = {
     'Road dust has a way of introducing a driver before their name does.',
     'A heavy rig always gets the last word in an argument with a light one.',
     'Off-road miles have a habit of becoming repair bills.',
+    'A cough in the engine is a warning. Ignore it and the road finishes the sentence.',
+    'Dirt forgives a driver more than rock does. A road forgives most.',
+    'A tired engine mends best at rest. Nothing heals while the wheels roll.',
     'A stranded trader gets visitors. A stranded raider gets stories.',
     'The dust swallowed the horizon again. I never trusted it anyway.',
     "A fuel needle at the bottom tells the longest stories.",

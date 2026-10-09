@@ -1,5 +1,3 @@
-// The save slots and the request that tells boot which one to load. A slot holds one save envelope. In local
-// storage, where older builds kept saves, the Autosave had the key a single save had before slots.
 
 import type { SaveSlots } from './save-db';
 
@@ -46,14 +44,14 @@ export function newestSlot(slots: SaveSlots, count: number): SlotId | null {
   return listSaves(slots, count)[0]?.slot ?? null;
 }
 
-export type BootRequest = SlotId | { new: WorldSetup };
+export type BootRequest = SlotId | { new: WorldSetup; intro: boolean };
 
 function requestKey(base: string): string {
   return `${base}.boot`;
 }
 
 export function requestBoot(session: Storage, base: string, request: BootRequest): void {
-  session.setItem(requestKey(base), typeof request === 'string' ? request : JSON.stringify({ new: request.new }));
+  session.setItem(requestKey(base), typeof request === 'string' ? request : JSON.stringify({ new: request.new, intro: request.intro }));
 }
 
 function isSlotId(value: string): value is SlotId {
@@ -65,10 +63,16 @@ export function takeBootRequest(session: Storage, base: string): BootRequest | n
   if (value === null) return null;
   session.removeItem(requestKey(base));
   if (isSlotId(value)) return value;
-  return { new: parseSetup(newGameSetup(value)) };
+  const request = newGameRequest(value);
+  return { new: parseSetup(request.new), intro: introOf(request.intro, value) };
 }
 
-function newGameSetup(value: string): unknown {
+function introOf(intro: unknown, value: string): boolean {
+  if (typeof intro !== 'boolean') throw new Error(`Boot request has no intro choice: ${value}`);
+  return intro;
+}
+
+function newGameRequest(value: string): { new: unknown; intro: unknown } {
   let request: unknown;
   try {
     request = JSON.parse(value);
@@ -76,5 +80,5 @@ function newGameSetup(value: string): unknown {
     throw new Error(`Unknown boot request ${value}`);
   }
   if (typeof request !== 'object' || request === null || !('new' in request)) throw new Error(`Unknown boot request ${value}`);
-  return request.new;
+  return { new: request.new, intro: 'intro' in request ? request.intro : undefined };
 }

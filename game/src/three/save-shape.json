@@ -1585,6 +1585,7 @@
     "store_read": "boolean",
     "weigher_said": "boolean"
    },
+   "intro_arrival": {},
    "intro_green_pit": {},
    "nose_clerk": {},
    "nose_constance": {},
@@ -1724,6 +1725,14 @@
    "granary_sack": [
     "start",
     "desk"
+   ],
+   "intro_arrival": [
+    "start",
+    "rim",
+    "slope",
+    "farm",
+    "shed",
+    "truck"
    ],
    "intro_green_pit": [
     "start"

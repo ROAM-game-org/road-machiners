@@ -1,6 +1,3 @@
-// The New game screen, the one way to start a new game from the menu, the death screen and the boot save screen. The
-// player picks a game mode and may change its world settings. Nothing is written until Start: Start confirms, leaves
-// a boot request with the picked setup and reloads, and boot then deletes the autosaves and builds the world.
 
 import { GAME_MODES, WORLD_SETTINGS } from "../data/modes";
 import { defaultSetup, parseSetup, percent } from "../sim/settings";
@@ -37,12 +34,14 @@ export function openNewGame(actions: NewGameActions, onClose: () => void): void 
 
 class NewGameScreen {
   private draft: WorldSetup = defaultSetup("roaming");
+  private skipIntro = false;
   private readonly opener = document.activeElement as HTMLElement | null;
   private readonly block = panel("new-game-block");
   private readonly root = panel("new-game");
   private readonly modes = el("div", { class: "mode-list", role: "radiogroup", "aria-label": "Game mode" });
   private readonly settingsButton = el("button", { class: "settings-toggle", "aria-expanded": "false", onclick: () => this.toggleSettings() }, "World Settings");
   private readonly settings = el("div", { class: "world-settings", hidden: true });
+  private readonly introButton = el("button", { class: "intro-toggle", role: "switch", "aria-checked": "false", onclick: () => this.toggleIntro() }, "Skip the intro");
   private readonly startButton = el("button", { class: "start", onclick: () => this.start() }, "Start");
   private readonly onKey = (e: Event) => {
     if ((e as KeyboardEvent).code !== "Escape") return;
@@ -61,6 +60,7 @@ class NewGameScreen {
     this.root.append(
       el("h3", {}, "New game"),
       this.modes,
+      this.introButton,
       this.settingsButton,
       this.settings,
       el("div", { class: "new-game-buttons" }, el("button", { class: "back", onclick: () => this.close() }, "Back"), this.startButton),
@@ -126,6 +126,12 @@ class NewGameScreen {
     this.render();
   }
 
+  private toggleIntro(): void {
+    this.skipIntro = !this.skipIntro;
+    this.introButton.setAttribute("aria-checked", String(this.skipIntro));
+    this.introButton.className = this.skipIntro ? "intro-toggle selected" : "intro-toggle";
+  }
+
   private toggleSettings(): void {
     const open = this.settings.hidden;
     this.settings.hidden = !open;
@@ -139,7 +145,7 @@ class NewGameScreen {
 
   private start(): void {
     if (!this.actions.confirm(CONFIRM_NEW_GAME)) return;
-    this.actions.requestBoot({ new: parseSetup(this.draft) });
+    this.actions.requestBoot({ new: parseSetup(this.draft), intro: !this.skipIntro });
     this.actions.reload();
   }
 

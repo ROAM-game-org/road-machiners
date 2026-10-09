@@ -1,4 +1,3 @@
-// Boots the 3D game.
 
 import { loadBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
@@ -6,7 +5,7 @@ import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
 import { CHASSIS } from '../data/chassis';
 import { MIX, SOUNDS } from '../data/sounds';
-import { startKit } from '../data/start';
+import { startKit, type Opening } from '../data/start';
 import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
@@ -16,7 +15,7 @@ import { warmRoutes } from '../sim/path';
 import { vehicleStats } from '../sim/stats';
 import { decodeMap, type BakedMap } from '../sim/terrain';
 import type { World, WorldSetup } from '../sim/types';
-import { newWorld } from '../sim/world';
+import { kitOfNewGame, newGame } from '../sim/new-game';
 import { DebugConsole, Noclip } from '../ui/console';
 import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
@@ -50,39 +49,39 @@ async function fetchMap(): Promise<BakedMap> {
   return decodeMap(new Uint8Array(await response.arrayBuffer()));
 }
 
-type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
+type Booted = { world: World; runId: string; loadedFrom: SlotId | null; opening: Opening | null };
 
 async function bootWorld(): Promise<Booted> {
   const request = takeBootRequest(window.sessionStorage, SAVE_KEY);
-  if (typeof request === 'object' && request !== null) return boot.track('world', () => freshRun(request.new), BOOT_TEXT.newGame);
+  if (typeof request === 'object' && request !== null) return boot.track('world', () => freshRun(request.new, request.intro), BOOT_TEXT.newGame);
   const slot = request ?? newestSlot(slots, CONFIG.saveSlots);
-  if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming')), BOOT_TEXT.newGame);
+  if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), true), BOOT_TEXT.newGame);
   return boot.track('world', () => bootSlot(slot), BOOT_TEXT.loadSave);
 }
 
 async function bootSlot(slot: SlotId): Promise<Booted> {
   try {
     const world = loadWorld(slots, slot, map);
-    if (!world) return newGameSaved(defaultSetup('roaming'));
+    if (!world) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    return { world, runId, loadedFrom: slot, fresh: false };
+    return { world, runId, loadedFrom: slot, opening: null };
   } catch (err) {
     if (!(err instanceof SaveError)) throw err;
     return rescuedOrNew(err, slot);
   }
 }
 
-function freshRun(setup: WorldSetup): Booted {
+function freshRun(setup: WorldSetup, intro: boolean): Booted {
   clearGame(slots, window.localStorage);
-  return newGameSaved(setup);
+  return newGameSaved(setup, intro);
 }
 
-function newGameSaved(setup: WorldSetup): Booted {
-  const world = newGame(setup);
+function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
+  const world = newGame(CONFIG.seed ?? freshSeed(), CONFIG.startKit, intro, map, setup);
   const runId = freshRunId();
   writeSave(slots, 'auto', world, runId, Date.now());
-  return { world, runId, loadedFrom: null, fresh: true };
+  return { world, runId, loadedFrom: null, opening: kitOfNewGame(CONFIG.startKit, intro).opening };
 }
 
 async function rescuedOrNew(error: SaveError, slot: SlotId): Promise<Booted> {
@@ -92,16 +91,12 @@ async function rescuedOrNew(error: SaveError, slot: SlotId): Promise<Booted> {
   const rescued = rescueSave(slots, slot, map, startKit(CONFIG.startKit), freshSeed, freshRunId, Date.now());
   if (!rescued) throw new Error('The save became unreadable while migrating');
   await boot.aside(() => showCarryReport(rescued.report));
-  return { world: rescued.world, runId: rescued.runId, loadedFrom: null, fresh: false };
+  return { world: rescued.world, runId: rescued.runId, loadedFrom: null, opening: null };
 }
 
 async function persistSaves(): Promise<void> {
   if (!navigator.storage) return console.warn('The page is not secure, so it cannot ask the browser to keep saves under disk pressure');
   if (!(await navigator.storage.persist())) console.warn('The browser did not grant persistent storage, so it may evict saves under disk pressure');
-}
-
-function newGame(setup: WorldSetup): World {
-  return newWorld(CONFIG.seed ?? freshSeed(), startKit(CONFIG.startKit), map, setup);
 }
 
 installCrashScreen();
@@ -123,8 +118,7 @@ const newGameActions: NewGameActions = {
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
   confirm: (text) => window.confirm(text),
 };
-// The world and its ground build while physics, models and sounds load, since those wait mostly on the network and decoders.
-const { world, runId, loadedFrom, fresh } = await bootWorld();
+const { world, runId, loadedFrom, opening } = await bootWorld();
 const log = new RunLog(slots.backend, runId, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 await boot.track('ground', () => groundTexture(world));
@@ -135,8 +129,7 @@ radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', () => new Game(world, { slots, runId, log }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio));
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
-const opening = startKit(CONFIG.startKit).opening;
-if (fresh && opening) game.hud.note(world, opening.log, "");
+if (opening) game.hud.note(world, opening.log, "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 onEveryError(() => game.holdSaves());

@@ -1,6 +1,8 @@
-// New game setup for the player. CONFIG.startKit picks the kit.
 
+import type { Vec } from '../sim/vec';
+import { ARRIVAL, type FarmPiece } from './arrival';
 import { CHASSIS } from './chassis';
+import { REGION } from './region';
 import { RULES } from './rules';
 
 export type StartKit = {
@@ -15,15 +17,44 @@ export type StartKit = {
   costBasis: Record<string, number>;
   autoRepair: boolean;
   opening: Opening | null;
+  intro: Intro | null;
 };
 
 export type Opening = {
   log: string;
+  wreck: { ahead: number; side: number };
   condition: Record<string, number>;
   stock: { goods: Record<string, number>; parts: string[] };
 };
 
+export type Intro = {
+  pose: { pos: Vec; heading: number };
+  farm: FarmPiece[];
+  withoutIntro: string;
+};
+
+const STANDARD_OPENING: Opening = {
+  log: 'You find yourself stranded in an unfamiliar land. Not your finest moment.',
+  wreck: REGION.playerStart.wreck,
+  condition: { stockEngine: 0.18, cabPickup: 0.3 },
+  stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
+};
+
 export const START_KITS: Record<string, StartKit> = {
+  arrival: {
+    name: 'Your truck',
+    chassis: 'scout',
+    parts: ['panniers', 'mg', 'stockEngine'],
+    storage: [],
+    money: 33300,
+    fuel: CHASSIS.scout.fuelCap,
+    supplies: RULES.baseSupplies,
+    cargo: { scrap: 2, parts: 2 },
+    costBasis: { scrap: 333 },
+    autoRepair: false,
+    opening: { ...STANDARD_OPENING, log: 'The pickup idles rough and coughs.', wreck: ARRIVAL.wreck },
+    intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, withoutIntro: 'standard' },
+  },
   standard: {
     name: 'Your truck',
     chassis: 'scout',
@@ -35,11 +66,8 @@ export const START_KITS: Record<string, StartKit> = {
     cargo: { scrap: 2, parts: 2 },
     costBasis: { scrap: 333 },
     autoRepair: false,
-    opening: {
-      log: 'You find yourself stranded in an unfamiliar land. Not your finest moment.',
-      condition: { stockEngine: 0.18, cabPickup: 0.3 },
-      stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
-    },
+    opening: STANDARD_OPENING,
+    intro: null,
   },
   combat: {
     name: 'Your truck',
@@ -53,6 +81,7 @@ export const START_KITS: Record<string, StartKit> = {
     costBasis: { scrap: 333 },
     autoRepair: true,
     opening: null,
+    intro: null,
   },
   midgame: {
     name: 'Your truck',
@@ -66,6 +95,7 @@ export const START_KITS: Record<string, StartKit> = {
     costBasis: {},
     autoRepair: true,
     opening: null,
+    intro: null,
   },
   snowball: {
     name: 'Your truck',
@@ -79,6 +109,7 @@ export const START_KITS: Record<string, StartKit> = {
     costBasis: {},
     autoRepair: true,
     opening: null,
+    intro: null,
   },
 };
 

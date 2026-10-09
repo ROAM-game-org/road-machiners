@@ -1,5 +1,3 @@
-// Field repair: a parked job that spends parts to restore one part's HP up to a field cap.
-// Parts are spent only when the job finishes. Machining shortens the job and cuts parts use.
 
 import { partDef } from '../data/parts';
 import { GOODS } from '../data/goods';
@@ -25,6 +23,11 @@ export type RepairPlan = { turns: number; parts: number; hp: number; needed: num
 export function repairPlan(world: World, v: Vehicle, partId: string, maxParts = Infinity): RepairPlan {
   const part = findRepairPart(v, partId);
   return planPartRepair(part, partFieldCap(world, v, part), machiningMult(world, v), goodsCount(v).parts ?? 0, maxParts);
+}
+
+export function engineNeedsPatch(world: World, v: Vehicle): boolean {
+  const engine = mountedParts(v).find((p) => partDef(p.defId).kind === 'engine');
+  return engine !== undefined && repairPlan(world, v, engine.id).needed > 0;
 }
 
 function partFieldCap(world: World, v: Vehicle, part: PartInstance): number {

@@ -2,7 +2,7 @@
 
 The game mode and world settings a player picks at New game. The principles behind them are in [DESIGN.md](../../DESIGN.md).
 
-New game, from the top-right menu, the death screen or the boot save screen, opens one New game screen. The player picks a game mode and may open World Settings. Back, or Escape, closes the screen and changes nothing: the running world and its autosaves stay. Start asks first. It then deletes the autosaves, keeps the save slots and starts the new world.
+New game, from the top-right menu, the death screen or the boot save screen, opens one New game screen. The player picks a game mode and may open World Settings. A Skip the intro switch starts the old stranded start instead of the arrival at the farm. Back, or Escape, closes the screen and changes nothing: the running world and its autosaves stay. Start asks first. It then deletes the autosaves, keeps the save slots and starts the new world.
 
 Roaming is the only mode: the open wasteland, today's sandbox. A future mode is a new row in `GAME_MODES` in `src/data/modes.ts`.
 
