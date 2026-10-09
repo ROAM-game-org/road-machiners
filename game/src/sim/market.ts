@@ -1,6 +1,3 @@
-// Shops: goods price pressure, finite random part stock and contract boards. Pure functions on an
-// explicit ShopState.
-// IV1: every price here derives from a good's base value through goodBasePrice/goodPrice.
 
 import { ECONOMY, GOODS } from '../data/goods';
 import { PARTS } from '../data/parts';
@@ -142,9 +139,6 @@ export function estimateTurns(from: Vec, to: Vec): number {
   return (dist(from, to) * EFFORT.routeFactor) / EFFORT.refSpeed + EFFORT.handlingTurns;
 }
 
-// A haul's reward: turns of estimated travel at the salvage wage, whatever the good, times the haul's
-// reward factor, plus a small cut of the hauled goods' value. The good's value pays through the cut, not
-// through a tier wage. A rush haul pays the rush premium on top.
 export function contractReward(turns: number, cargoValue: number, rush: boolean): number {
   requireNonNegative('turns', turns);
   requireNonNegative('cargo value', cargoValue);
@@ -153,8 +147,6 @@ export function contractReward(turns: number, cargoValue: number, rush: boolean)
   return Math.round(rush ? standard * CONTRACTS.haul.rush.premium : standard);
 }
 
-// Turns a haul allows from acceptance. A standard haul gets room on top of the drive plus a fixed slack
-// for one stop. A rush haul gets the drive with a margin and no slack.
 export function haulWindow(turns: number, rush: boolean): number {
   requireNonNegative('turns', turns);
   const haul = CONTRACTS.haul;
@@ -396,26 +388,34 @@ function requireParkedAt(world: World, shopId: string): void {
 }
 
 export function acceptContract(world: World, contractId: string): World {
-  return playerCommand(world, (w) => {
-    const shopId = shopAt(w);
-    if (!shopId) throw new Error('Not parked at a shop');
-    const board = shopState(w, shopId).contracts;
-    const contract = board.find((c) => c.id === contractId);
-    if (!contract) throw new Error(`No contract ${contractId} at ${shopId}`);
-    if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
-    if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
-    if (contract.kind === 'haul') loadHaul(w, contract);
-    contract.deadline = w.turn + contract.window;
-    board.splice(board.indexOf(contract), 1);
-    w.player.contracts.push(contract);
-    w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
-  });
+  return playerCommand(world, (w) => takeContract(w, contractId));
+}
+
+export function takeContract(w: World, contractId: string): void {
+  const shopId = shopAt(w);
+  if (!shopId) throw new Error('Not parked at a shop');
+  const board = shopState(w, shopId).contracts;
+  const contract = board.find((c) => c.id === contractId);
+  if (!contract) throw new Error(`No contract ${contractId} at ${shopId}`);
+  if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
+  if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
+  if (contract.kind === 'haul') loadHaul(w, contract);
+  contract.deadline = w.turn + contract.window;
+  board.splice(board.indexOf(contract), 1);
+  w.player.contracts.push(contract);
+  w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
+}
+
+export function haulBlock(world: World, c: Contract): string | null {
+  if (c.kind !== 'haul') return null;
+  if (world.player.money < 0) return 'Cannot take on a haul while in debt';
+  return freeCells(playerVehicle(world)) < c.units ? `Needs ${c.units} free cells for the cargo` : null;
 }
 
 function loadHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
-  if (world.player.money < 0) throw new Error('Cannot take on a haul while in debt');
+  const block = haulBlock(world, c);
+  if (block) throw new Error(block);
   const v = playerVehicle(world);
-  if (freeCells(v) < c.units) throw new Error(`Needs ${c.units} free cells for the cargo`);
   const held = goodsCount(v)[c.good] ?? 0;
   if (addGoods(world, v, c.good, c.units) !== c.units) throw new Error('Cargo capacity invariant failed');
   const paid = world.player.costBasis[c.good] ?? 0;

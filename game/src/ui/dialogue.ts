@@ -1,6 +1,3 @@
-// The radio call panel and dialogue text. The panel shows who is on the line, what they said, and the
-// numbered replies. While it is open, keys 1 to 9 pick a reply and Escape hangs up. Otherwise T calls the
-// inspected truck and H honks.
 
 import { DEAL_LINES, TIP_LINES } from '../data/dialogue';
 import { GOODS } from '../data/goods';
@@ -13,6 +10,7 @@ import type { CallVar, CallVars, GameEvent, World } from '../sim/types';
 import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { el, isBrowserChord, panel } from './dom';
+import { renderLine } from './quest-text';
 import { fuelLiters, meters, moneyText } from './units';
 import { npcName } from '../sim/spawn';
 
@@ -106,12 +104,12 @@ export function canCall(w: World, id: string): boolean {
 
 export type DialogueHost = {
   world(): World;
-  talk(next: World): void; // apply a dialogue command and log its lines
-  inspected(): string | null; // the pinned vehicle, else the one under the cursor
-  busy(): boolean; // a turn plays
-  commit(next: World): void; // take a honked world without pausing travel
-  log(next: World): void; // log the events of a command
-  playHorn(vehicleId: string, delayMs: number): void; // sound one truck's horn where it is drawn
+  talk(next: World): void;
+  inspected(): string | null;
+  busy(): boolean;
+  commit(next: World): void;
+  log(next: World): void;
+  playHorn(vehicleId: string, delayMs: number): void;
 };
 
 const HONK_REPLY_MS = 500;
@@ -151,27 +149,33 @@ const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 
 export class DialoguePanel {
   private readonly root = panel('dialogue');
   private readonly horn: Horn;
+  private drawn = '';
 
   constructor(private readonly host: DialogueHost) {
     this.horn = new Horn(host);
     this.root.style.display = 'none';
+    this.root.addEventListener('click', () => this.root.classList.add('qt-done'));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
   }
 
   render(w: World): void {
     const call = w.player.call;
     this.root.style.display = call ? '' : 'none';
-    if (!call) return this.root.replaceChildren();
+    if (!call) {
+      this.drawn = '';
+      return this.root.replaceChildren();
+    }
+    const offered = currentOptions(w);
+    const key = JSON.stringify([call, offered.map((o) => o.text)]);
+    if (key === this.drawn) return;
+    this.drawn = key;
     const npc = vehicleById(w, call.with);
     this.root.style.borderLeftColor = `#${FACTION_COLORS[npc.faction].top.toString(16).padStart(6, '0')}`;
-    const options = currentOptions(w).map((o, i) =>
-      el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, `${i + 1}. ${o.text}`),
-    );
-    this.root.replaceChildren(
-      el('div', { class: 'dialogue-speaker' }, `Radio: ${npcName(npc)}`),
-      el('div', { class: 'dialogue-line' }, `“${fillLine(call.line.text, call.line.vars)}”`),
-      el('div', { class: 'dialogue-options' }, ...options),
-    );
+    this.root.classList.remove('qt-done');
+    const options = offered.map((o, i) => el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, `${i + 1}. ${o.text}`));
+    const line = renderLine(`“${fillLine(call.line.text, call.line.vars)}”`, [], 0).el;
+    line.classList.add('dialogue-line');
+    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, `Radio: ${npcName(npc)}`), line, el('div', { class: 'dialogue-options' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

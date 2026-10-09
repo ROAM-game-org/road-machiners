@@ -1,5 +1,3 @@
-// The save format and the steps that carry an old save to it. A save loads only in its own major format. Within
-// it, load runs every step from the save's minor format on, so the minor format is the number of steps.
 
 import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 
@@ -519,6 +517,32 @@ function withCents_29_30(world: SavedJson): SavedJson {
   };
 }
 
+const WAGON_SEVEN_34_35 = {
+  obstacle: { id: 'story-wagon-seven', pos: { x: 171, y: 381 }, r: 0.8, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: 2.2 } },
+  stock: {
+    id: 'story-wagon-seven',
+    pos: { x: 171, y: 381 },
+    radius: 0.8,
+    goods: { scrap: 3, meds: 1, parts: 1 },
+    parts: [{ id: 'story-wagon-seven-cannon', defId: 'cannon', hp: 48, wear: 2, gun: { cooldown: 0, ammo: 2, reloadWork: 0 } }],
+    fuel: 10,
+    supplies: 4,
+    hidden: { goods: {}, parts: [], fuel: 0, supplies: 0 },
+  },
+};
+
+function withNotesAndWagon_34_35(world: SavedJson): SavedJson {
+  const has = (list: SavedJson[]) => list.some((x) => x.id === WAGON_SEVEN_34_35.obstacle.id);
+  const obstacles = world.obstacles as SavedJson[];
+  const salvage = world.salvage as SavedJson[];
+  return {
+    ...world,
+    player: { ...(world.player as SavedJson), notes: [] },
+    obstacles: has(obstacles) ? obstacles : [...obstacles, structuredClone(WAGON_SEVEN_34_35.obstacle)],
+    salvage: has(salvage) ? salvage : [...salvage, structuredClone(WAGON_SEVEN_34_35.stock)],
+  };
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -598,6 +622,62 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
     return { ...world, player };
   },
   (world) => world,
+  withNotesAndWagon_34_35,
+  (world) => ({ ...world, player: { ...(world.player as SavedJson), quests: { world: {}, local: {}, session: null } } }),
+  (world) => dropQuestVar(dropQuest(dropQuest(world, 'sample_bowl'), 'sample_nose'), null, 'sample_wagon_heard'),
+  (world) => dropQuestVar(dropQuestVar(world, 'nose_depot_leak', 'evidence'), 'nose_depot_leak', 'misled'),
 ];
+
+type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
+
+function questsOf(world: SavedJson): SavedQuests {
+  return (world.player as { quests: SavedQuests }).quests;
+}
+
+function withQuests(world: SavedJson, quests: SavedQuests): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), quests } };
+}
+
+function questVars(quests: SavedQuests, quest: string | null): SavedJson {
+  return quest === null ? quests.world : (quests.local[quest] ?? {});
+}
+
+function withQuestVars(quests: SavedQuests, quest: string | null, vars: SavedJson): SavedQuests {
+  if (quest === null) return { ...quests, world: vars };
+  const { [quest]: _old, ...others } = quests.local;
+  return { ...quests, local: Object.keys(vars).length > 0 ? { ...others, [quest]: vars } : others };
+}
+
+export function renameQuestVar(world: SavedJson, quest: string | null, from: string, to: string): SavedJson {
+  const quests = questsOf(world);
+  const { [from]: value, ...rest } = questVars(quests, quest);
+  if (value === undefined) return world;
+  if (to in rest) throw new Error(`Quest variable ${to} already holds a value, so ${from} cannot move there`);
+  return withQuests(world, withQuestVars(quests, quest, { ...rest, [to]: value }));
+}
+
+export function dropQuestVar(world: SavedJson, quest: string | null, name: string): SavedJson {
+  const quests = questsOf(world);
+  const { [name]: _dropped, ...rest } = questVars(quests, quest);
+  return withQuests(world, withQuestVars(quests, quest, rest));
+}
+
+export function moveQuestCheckpoint(world: SavedJson, quest: string, from: string, to: string): SavedJson {
+  const quests = questsOf(world);
+  const session = quests.session;
+  if (session?.quest !== quest || session.checkpoint !== from) return world;
+  return withQuests(world, { ...quests, session: { ...session, checkpoint: to } });
+}
+
+export function endQuestSession(world: SavedJson, quest: string): SavedJson {
+  const quests = questsOf(world);
+  return quests.session?.quest === quest ? withQuests(world, { ...quests, session: null }) : world;
+}
+
+export function dropQuest(world: SavedJson, quest: string): SavedJson {
+  const quests = endQuestSession(world, quest);
+  const { [quest]: _dropped, ...local } = questsOf(quests).local;
+  return withQuests(quests, { ...questsOf(quests), local });
+}
 
 export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: MIGRATIONS.length } as const;

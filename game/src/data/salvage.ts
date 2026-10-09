@@ -1,6 +1,6 @@
-// Loot tables, search speed and daily renewal for scavenging. Rolls draw through rng.ts.
 
 import type { Weighted } from './npcs';
+import type { Vec } from '../sim/vec';
 
 export type LootRange = [number, number];
 
@@ -99,3 +99,31 @@ export const STRIP = {
   yieldShare: 0.5,
   turns: 3,
 };
+
+export type StoryWreck = {
+  id: string;
+  pos: Vec;
+  r: number;
+  chassisId: string;
+  yaw: number;
+  goods: Record<string, number>;
+  fuel: number;
+  supplies: number;
+  part: { id: string; defId: string; wear: number };
+};
+
+export const WAGON_SEVEN = 'story-wagon-seven';
+
+export const STORY_WRECKS: StoryWreck[] = [
+  {
+    id: WAGON_SEVEN,
+    pos: { x: 171, y: 381 },
+    r: 0.8,
+    chassisId: 'wagon',
+    yaw: 2.2,
+    goods: { scrap: 3, meds: 1, parts: 1 },
+    fuel: 10,
+    supplies: 4,
+    part: { id: 'story-wagon-seven-cannon', defId: 'cannon', wear: 2 },
+  },
+];

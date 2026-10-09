@@ -1,4 +1,3 @@
-// Obstacle placement: the baked map's props, then seeded site props and road wrecks.
 
 import { FORTRESS } from '../data/fortress';
 import { FORT_MODELS, type FortModel } from './fortress';
@@ -6,6 +5,7 @@ import { PHYSICS } from '../data/physics';
 import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
 import { BREAKABLE } from '../data/rules';
+import { STORY_WRECKS } from '../data/salvage';
 import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { isFortress, siteGap } from './sites';
 import { TERRAIN } from '../data/terrain';
@@ -26,6 +26,7 @@ export function generateObstacles(world: World, map: BakedMap, fixed: Obstacle[]
     out.push(o);
   }
   placeRoadWrecks(world, out);
+  for (const w of STORY_WRECKS) out.push({ id: w.id, pos: { ...w.pos }, r: w.r, kind: 'wreck', hulk: { chassisId: w.chassisId, yaw: w.yaw } });
   return out;
 }
 

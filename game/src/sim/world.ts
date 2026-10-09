@@ -1,5 +1,3 @@
-// World creation and the turn pipeline. No rendering or physics imports: this runs in Node tests.
-// Public functions take a world and return a new one. Inside, a cloned draft is mutated.
 
 import { CHASSIS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -42,6 +40,7 @@ import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
 import type { GridItem, MoveOrder, PartInstance, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, parseSetup, repairSetup } from './settings';
+import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
@@ -99,6 +98,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       perks: [],
       marked: [],
       rumored: [],
+      notes: [],
       health: RULES.maxHealth,
       fuel: kit.fuel,
       supplies: kit.supplies,
@@ -119,6 +119,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       beacon: false,
       call: null,
       talked: {},
+      quests: { world: {}, local: {}, session: null, live: null },
       god: false,
       fullLog: false,
       frozen: false,
@@ -440,6 +441,7 @@ export type Carried = {
   truck: { chassisId: string; name: string | null; items: CarriedItem[] } | null;
   storage: CarriedPart[];
   setup: unknown;
+  quests: CarriedQuestVars;
 };
 
 export type CarryReport = {
@@ -457,6 +459,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, map: BakedMap, fre
   const truckKit = carriedKit(carried, kit, report);
   const world = newWorld(pick(carried.seed, freshSeed()), { ...truckKit, opening: null, autoRepair: true }, map, setup, true, townStart());
   carryPlayer(world, carried);
+  carryQuests(world, carried.quests, report);
   carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
   world.player.costBasis = heldBasis(playerVehicle(world), carried.costBasis);
   fitStores(world, playerVehicle(world));
@@ -498,6 +501,12 @@ function carryPlayer(world: World, c: Carried): void {
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
   for (const source of Object.keys(XP_SOURCES) as XpSource[]) p.xpBySource[source] = pick(c.xpBySource[source], 0);
   carryPerks(world, c.perks);
+}
+
+function carryQuests(world: World, carried: CarriedQuestVars, report: CarryReport): void {
+  const { world: shared, local, lost } = fittingQuestVars(carried, QUESTS);
+  world.player.quests = { world: shared, local, session: null, live: null };
+  report.lost.push(...lost);
 }
 
 function carryPerks(world: World, perks: string[]): void {

@@ -1,4 +1,3 @@
-// Building vehicles and parts with world-unique ids.
 
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
@@ -33,8 +32,12 @@ export function newId(world: IdSource, prefix: string): string {
 }
 
 export function makePart(world: IdSource, defId: string, wear: number): PartInstance {
+  return partWithId(newId(world, 'p'), defId, wear);
+}
+
+export function partWithId(id: string, defId: string, wear: number): PartInstance {
   if (!Number.isInteger(wear) || wear < 0 || wear > CONDITION.maxWear) throw new Error(`Bad wear ${wear} for a new ${defId}`);
-  const part: PartInstance = { id: newId(world, 'p'), defId, hp: 0, wear, ...gunFor(defId), ...chargeFor(defId) };
+  const part: PartInstance = { id, defId, hp: 0, wear, ...gunFor(defId), ...chargeFor(defId) };
   return { ...part, hp: maxHp(part) };
 }
 
