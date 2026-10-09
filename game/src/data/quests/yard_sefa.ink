@@ -1,50 +1,76 @@
 INCLUDE world.ink
 
+VAR heard_picked = false
+VAR asked_picked = false
+VAR heard_book = false
+VAR asked_book = false
+VAR heard_pguns = false
+VAR asked_pguns = false
+VAR heard_water = false
+VAR asked_water = false
+VAR heard_kiln = false
+VAR asked_kiln = false
+VAR heard_rider = false
+VAR asked_rider = false
+VAR heard_post = false
+VAR asked_post = false
+
 === start ===
 # checkpoint: start
-Sefa Krol. I trade for the families of the Burnt Convoy. Show me what you carry and I will tell you what it is worth. Keep your hand off my table.
+Sefa Krol. I trade for the families of the Burnt Convoy. Show me what you carry and I'll tell you what it's worth. Keep your hand off my table.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + [Who are the families of the Burnt Convoy?]
-  People who live where the road stopped. We are not a camp. A camp has a flag and a man who wants to be called sir.
-  We are first to any wreck, and last to leave it. That is all we are.
+  People who live in the burnt trucks, where the road stopped. We're not a camp. A camp has a flag and a man who wants to be called sir. We're first to any wreck and last to leave it. That's all we are. Men on the air say there's nothing left in our trucks to pick. They're welcome to think so.
+  ~ heard_picked = true
   -> hub
 + [What do you sell here?]
-  What the road is done with. Wiring, wheel rims, a gun with no pin. Things that have a second life if you are not proud.
+  What the road is done with. Wiring, wheel rims, a gun with its pin broken. Anything with a second life in it, if you're not too proud to give it one. I buy too, so put what you carry on the table. Keep your hand off it. Years ago we sold the Yard a book we took off a Pierce truck, and people still ask me about it.
+  ~ heard_book = true
   -> hub
-+ [Why do you never take the last water?]
-  A man with no water is a body, and a body is trouble. Leave him his water and he is a fool who walks on. Fools talk less than bodies.
-  Also, my mother would find out. She finds out everything.
++ [What is the road like out here?]
+  Dry. Every driver sits with his water between his feet. I make a point of never taking the last of it from anyone, and you can ask me why. The Kiln riders from the camp in the south mostly leave us alone. You can ask me about that too.
+  ~ heard_water = true
+  ~ heard_kiln = true
   -> hub
-+ [Is the Burnt Convoy picked clean?]
-  Who says that? Ibo says it, on the air, to men who would not drive out there for a gift. Good. Let him.
-  We pick it every week and the road leaves more. Rust grows new things. Ask any family.
++ [Who runs this yard?]
+  The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north side of the yard, where soldiers don't like the wind.
+  ~ heard_post = true
+  -> hub
++ {(heard_picked or has_note("burntConvoy")) and not asked_picked} [Is the Burnt Convoy picked clean?]
+  No. We pick it every week and the road leaves more. Rust grows new things. Old Ibo, the radio man at Nose, says otherwise on the air, to men who wouldn't drive out there for a gift. Good. Let him.
   ~ note("talkConvoyNotClean")
+  ~ asked_picked = true
   -> hub
-+ [What is it with the debtor book?]
-  We stopped a Pierce office truck on the road and took a book off the seat. Page after page of names and sums. Sums I cannot read, the zeroes go on so long.
-  The Yard could read them. I sold it to them. What it says is not for sale, and what the Yard does with it is not my business.
-  A crane office has a shut door now, and a shut door is a loud thing.
++ {heard_book and not asked_book} [What was the book you sold the Yard?]
+  A debtor book. We stopped a Pierce office truck on the road and took it off the seat. Pierce lends to the towns and insures the trucks, so that's a big name to cross. It was page after page of names and sums. I can't read the sums. The zeroes go on too long. The Yard could read them, so I sold it to them. What it says isn't for sale, and what the Yard does with it isn't my business. The crane office has a shut door now. A shut door is a loud thing.
   ~ note("talkCraneBook")
+  ~ asked_book = true
+  ~ heard_pguns = true
   -> hub
-+ [What is your deal with Kiln?]
-  Kiln has a man named Kaplan who knows a fair split. What Kiln riders leave on the road is ours. What we find of their dead we bury with their boots on.
-  It is a good arrangement. Nobody on either side likes it, which is how you know it works.
-  -> hub
-+ [Did you hide a robber once?]
-  Men come to the convoy with nothing. We ask nothing. One came after his brother died in the road. He ate our beans for a long time and spoke little. Then he went south.
-  I will not say his name. It would be rude to the beans.
-  -> hub
-+ [What do you make of Pierce and the guns?]
-  I hear that Pierce sold the Old Army's guns north to Scrapjaw, and then made every driver buy a gun to get paper. I hear it from a pair of drivers who each swear the other lied.
-  Good business, if it is true. A man who sells the fire and the bucket never starves.
++ {heard_pguns and not asked_pguns} [What else do you hear about Pierce?]
+  That Pierce sold the Old Army's guns north to Scrapjaw, then made every driver buy a gun to get paper. I hear it from a pair of drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
   ~ note("talkPierceGuns")
+  ~ asked_pguns = true
   -> hub
-+ [What do you make of the post at the gate?]
-  Nose soldiers inside a free yard. Mara Kessel writes down who comes and goes. She writes it twice. A woman who writes twice is afraid of something.
-  We keep to the north side. Soldiers do not like the wind there.
++ {heard_water and not asked_water} [Why do you never take the last water?]
+  A man with no water is a body, and a body is trouble. Leave him his water and he's a fool who walks on. Fools talk less than bodies. Also, my mother would find out. She finds out everything.
+  ~ asked_water = true
+  -> hub
++ {heard_kiln and not asked_kiln} [Why do the Kiln riders leave you alone?]
+  We have a deal. Kiln has a man named Kaplan who knows a fair split. What the riders leave on the road is ours. What we find of their dead, we bury with their boots on. Nobody on either side likes it, which is how you know it works. Anyone who comes to the convoy with nothing gets beans and no questions. That goes for a rider as much as a driver.
+  ~ asked_kiln = true
+  ~ heard_rider = true
+  -> hub
++ {heard_rider and not asked_rider} [Has a rider ever come to you with nothing?]
+  Once. His brother died in the road. He ate our beans for a long time and said little, and then he went south. I won't say his name. It would be rude to the beans.
+  ~ asked_rider = true
+  -> hub
++ {heard_post and not asked_post} [What do you make of the Army post?]
+  I don't trust it. Mara Kessel writes down who comes and goes through the gate, and she writes it twice. A woman who writes twice is afraid of something.
+  ~ asked_post = true
   -> hub
 + [Goodbye.]
   -> END

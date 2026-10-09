@@ -55,7 +55,7 @@ describe('settlement locals', () => {
     expect(localsAt('nose').map((l) => l.id)).toEqual(expect.arrayContaining(['ines', 'bureauClerk']));
     expect(localsAt('bowl').map((l) => l.id)).toEqual(expect.arrayContaining(['jory', 'bo']));
 
-    const next = talk(parkedAt('salvage-yard'), 'yard_sefa', ['Is the Burnt Convoy picked clean?']);
+    const next = talk(parkedAt('salvage-yard'), 'yard_sefa', ['Who are the families of the Burnt Convoy?', 'Is the Burnt Convoy picked clean?']);
 
     expect(next.player.notes.map((n) => n.id)).toEqual(['talkConvoyNotClean']);
     expect(untouched(next)).toEqual(untouched(parkedAt('salvage-yard')));
@@ -72,7 +72,7 @@ describe('settlement locals', () => {
     w.player.scavenged.push(WAGON_SEVEN);
 
     expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
-    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'What is the gate law?', 'What happened to Emil Kessel?', 'Who writes the paper on a truck?', 'Who drives the open road alone?', 'Where did the workshop line come from?', 'Goodbye.']);
+    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
   });
 
   it('opens the Fallen Sun question once the crater is found', () => {

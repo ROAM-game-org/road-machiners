@@ -1,52 +1,86 @@
 INCLUDE world.ink
 
+VAR heard_oldworld = false
+VAR asked_oldworld = false
+VAR heard_bowl = false
+VAR asked_bowl = false
+VAR heard_jj = false
+VAR asked_jj = false
+VAR heard_tone = false
+VAR asked_tone = false
+VAR heard_couriers = false
+VAR asked_couriers = false
+VAR heard_convoy = false
+VAR asked_convoy = false
+VAR heard_army = false
+VAR asked_army = false
+VAR heard_tools = false
+VAR asked_tools = false
+
 === start ===
 # checkpoint: start
-Eh? Pull up a crate. Ibo. I listen to the air for the Army, and to everything else for myself.
+Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everything else for myself.
 -> hub
 
 = hub
 # checkpoint: start.hub
-+ [Tell me about the Old World.]
-  Bowl folk will tell you it was all orchards. Rubbish. There were highways, power lines, towns bigger than both of ours put together. The orchards were only what they could see from the canals.
++ [What do you do in this shack?]
+  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the Guild calling their rounds. And now and then there's a tone out of the big hull that nobody can explain. The set itself is Old World work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
+  ~ heard_oldworld = true
+  ~ heard_jj = true
+  ~ heard_couriers = true
+  ~ heard_tone = true
   -> hub
-+ [Where does J.J. broadcast from?]
-  Jill Jane's mast? Everybody wants to know. Her signal is strongest at night and <i>drifts like it is on wheels</i>. I would wager she moves it. Do not tell the Sergeant I listen.
++ {heard_oldworld and not asked_oldworld} [What was the Old World like?]
+  Bigger than anyone here thinks. Bowl folk will tell you it was all orchards, and that's rubbish. There were highways, power lines, towns bigger than Nose and Bowl put together. The orchards were only what you could see from the canals. I knew men of the Old Army who could drive a mountain road blind, and there's nobody like them left.
+  ~ asked_oldworld = true
+  ~ heard_army = true
+  ~ heard_bowl = true
   -> hub
-+ [What do you make of Bowl?]
-  Good people, slow talkers. They would hold a meeting to decide whether to hold a meeting. Their grain keeps us fed, so the Army minds its manners.
++ {heard_bowl and not asked_bowl} [What do you make of the Bowl folk?]
+  Good people, slow talkers. They'd hold a meeting to decide whether to hold a meeting. Still, their grain keeps us fed, so the Army minds its manners with them.
+  ~ asked_bowl = true
   -> hub
-+ [Heard anything on the air?]
-  Scavengers chatter about Burnt Convoy now and then. Picked clean, they say. Nothing left there but ash and bent rims. Not worth the fuel.
++ [Heard anything interesting on the air?]
+  Scavengers gab about the Burnt Convoy now and then, that row of burnt trucks out on the road. Picked clean, they say. Nothing left but ash and bent rims, and not worth the fuel to go and look.
   ~ note("burntConvoy")
+  ~ heard_convoy = true
   -> hub
-+ {found("burnt-convoy")} [What happened at Burnt Convoy?]
-  A whole convoy went up in one night. Some say raiders, some say a fuel truck blew and took the rest with it. I heard the last calls on the air. Nobody said who started it.
++ {heard_jj and not asked_jj} [Where does Jill Jane broadcast from?]
+  Nobody knows, but I'd wager she moves it. Her signal's strongest at night, and it drifts like the mast is on wheels. Don't tell the Sergeant I listen to her. He thinks this shack is for the Army alone.
+  ~ asked_jj = true
+  -> hub
++ {heard_tone and not asked_tone} [What does the tone from the hull say?]
+  Ines Abend, who reads it out front, says it counts the years since the fall. A tone's a tone, though. I've listened a long while and I hear a tone. If it counts, it counts without me.
+  ~ asked_tone = true
+  -> hub
++ {heard_couriers and not asked_couriers} [Who are the Guild couriers?]
+  They carry the mail between the towns. They run in pairs now, one to drive and one to hold the gun. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
+  ~ asked_couriers = true
+  -> hub
++ {(heard_convoy or found("burnt-convoy")) and not asked_convoy} [What happened at Burnt Convoy?]
+  A whole convoy went up in one night. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
+  ~ asked_convoy = true
+  -> hub
++ {heard_army and not asked_army} [How did the Old Army end?]
+  Hungry. Commander Lind nailed a book of every unpaid promise to the gate at Old Orchard, the Army's depot, and then he died in the motor pool. I heard his last calls on the air. He read the whole list. The machine tools stayed behind in the shed, and somebody's still paying for those.
+  Some say the Army didn't run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
+  ~ note("talkArmyStarved")
+  ~ asked_army = true
+  ~ heard_tools = true
+  -> hub
++ {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
+  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it. Ask at the Pierce office who pays what.
+  ~ note("talkCommitteeRent")
+  ~ asked_tools = true
   -> hub
 + {depot_thief != "none" and depot_thief != "open"} [Heard about the depot business?]
   { depot_thief:
-  - "vance": Vance! He sat at my table on cold nights. You never know a man until he sells you out.
-  - "pell": Pell? Pell cannot steal a biscuit without saying sorry to it. Somebody else is laughing tonight.
-  - "bought": The depot is clean, they say. Funny. The trader by the gate still sells fuel cheap.
-  - else: Fuel still goes missing, they say. Not my business. Not yours either, now.
+  - "vance": Vance! He sat at my table on cold nights, and I'd have trusted him with my radio. You never know a man until he sells you out.
+  - "pell": Pell? That man can't steal a biscuit without saying sorry to it. Somebody else is laughing tonight.
+  - "bought": The depot's clean, they say. Funny, then, that the trader by the gate still sells fuel cheap.
+  - else: Fuel still goes missing, they say. It's not my business, and it's not yours either, now.
   }
-  -> hub
-+ [How did the Old Army end?]
-  Hungry. Lind nailed a book of every unpaid promise to the Orchard gate and died in the motor pool. I heard his last calls. He read a list.
-  Some say the Army did not run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
-  ~ note("talkArmyStarved")
-  -> hub
-+ [Who pays for Old Orchard's tools?]
-  The Guild's trust rents them to us. Command pays the Guild. The Guild hears who pays command. I hear the Guild on the air, a little.
-  Ask at the Pierce office who pays what. I will not repeat what I hear.
-  ~ note("talkCommitteeRent")
-  -> hub
-+ [What does the tone from the hull say?]
-  The tower says it counts the years since the fall. A tone is a tone. I have listened to it for a long while and I hear a tone.
-  If it counts, it counts without me.
-  -> hub
-+ [Why do Guild couriers run in pairs?]
-  Since Kiln riders took to the open road. One drives and one carries the gun. Tamsin Roe is the odd one, with none. I hear her call-sign more than any.
   -> hub
 + [Goodbye.]
   -> END

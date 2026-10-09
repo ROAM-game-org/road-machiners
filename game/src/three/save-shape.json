@@ -1587,7 +1587,16 @@
    },
    "intro_arrival": {},
    "intro_bowl": {},
-   "nose_clerk": {},
+   "nose_clerk": {
+    "asked_box": "boolean",
+    "asked_case": "boolean",
+    "asked_kessel": "boolean",
+    "asked_mounts": "boolean",
+    "heard_box": "boolean",
+    "heard_case": "boolean",
+    "heard_kessel": "boolean",
+    "heard_mounts": "boolean"
+   },
    "nose_constance": {},
    "nose_courier": {
     "asked_gun": "boolean",
@@ -1619,10 +1628,60 @@
     "stakeout_done": "boolean",
     "watches": "number"
    },
-   "nose_ibo": {},
-   "nose_ines": {},
-   "nose_kovac": {},
-   "nose_lena": {},
+   "nose_ibo": {
+    "asked_army": "boolean",
+    "asked_bowl": "boolean",
+    "asked_convoy": "boolean",
+    "asked_couriers": "boolean",
+    "asked_jj": "boolean",
+    "asked_oldworld": "boolean",
+    "asked_tone": "boolean",
+    "asked_tools": "boolean",
+    "heard_army": "boolean",
+    "heard_bowl": "boolean",
+    "heard_convoy": "boolean",
+    "heard_couriers": "boolean",
+    "heard_jj": "boolean",
+    "heard_oldworld": "boolean",
+    "heard_tone": "boolean",
+    "heard_tools": "boolean"
+   },
+   "nose_ines": {
+    "asked_chant": "boolean",
+    "asked_end": "boolean",
+    "asked_families": "boolean",
+    "asked_rim": "boolean",
+    "asked_teo": "boolean",
+    "heard_chant": "boolean",
+    "heard_end": "boolean",
+    "heard_families": "boolean",
+    "heard_rim": "boolean",
+    "heard_teo": "boolean"
+   },
+   "nose_kovac": {
+    "asked_courier": "boolean",
+    "asked_gate_law": "boolean",
+    "asked_kessel": "boolean",
+    "asked_paper": "boolean",
+    "asked_workshop": "boolean",
+    "heard_courier": "boolean",
+    "heard_gate_law": "boolean",
+    "heard_kessel": "boolean",
+    "heard_paper": "boolean",
+    "heard_workshop": "boolean"
+   },
+   "nose_lena": {
+    "asked_brann": "boolean",
+    "asked_glare": "boolean",
+    "asked_kiln": "boolean",
+    "asked_pins": "boolean",
+    "asked_sun": "boolean",
+    "heard_brann": "boolean",
+    "heard_glare": "boolean",
+    "heard_kiln": "boolean",
+    "heard_sun": "boolean",
+    "heard_swivel": "boolean"
+   },
    "orchard_count": {
     "gap_seen": "boolean",
     "ilya_said": "boolean",
@@ -1668,7 +1727,22 @@
     "saw_hooks": "boolean"
    },
    "yard_mara": {},
-   "yard_sefa": {},
+   "yard_sefa": {
+    "asked_book": "boolean",
+    "asked_kiln": "boolean",
+    "asked_pguns": "boolean",
+    "asked_picked": "boolean",
+    "asked_post": "boolean",
+    "asked_rider": "boolean",
+    "asked_water": "boolean",
+    "heard_book": "boolean",
+    "heard_kiln": "boolean",
+    "heard_pguns": "boolean",
+    "heard_picked": "boolean",
+    "heard_post": "boolean",
+    "heard_rider": "boolean",
+    "heard_water": "boolean"
+   },
    "yard_silver": {}
   },
   "checkpoints": {
