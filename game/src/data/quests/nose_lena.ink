@@ -20,5 +20,19 @@ Lena. If it is broken, put it on the bench. If it is talk, keep it quick. My han
 + [What about the Fallen Sun?]
   Best metal in the basin and the worst place to get it. That hull is no warship, whatever the brass says. No gun mounts anywhere. <b>Cargo holds, all of it.</b>
   -> hub
++ [Is a second pin worth it?]
+  Always. The line's steel copy of the Brann swivel has one pin. On a bend it can slide and swing the gun into your cab. I told them. Nobody asks a mechanic.
+  The Yard bores a second for a fee. Pay it.
+  ~ note("talkOnePin")
+  -> hub
++ [Do you trust Brann's mounts?]
+  The ones with his mark, yes. A weld you can read is a weld you can trust. Kiln riders bolt captured ones on their own trucks. Good steel does not choose its owner.
+  -> hub
++ [Who makes lenses for the glare?]
+  Pim Arslan cuts them from the fused glass. Smoke-dark. Worth it. I wear a pair on bad days.
+  -> hub
++ [What do you think of Kiln's tools?]
+  Dagny Brask melts captured guns into them. They are decent. Do not tell command I said so.
+  -> hub
 + [Goodbye.]
   -> END

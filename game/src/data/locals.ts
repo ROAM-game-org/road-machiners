@@ -1,5 +1,19 @@
 
-export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'greenPit' | 'glassTank' | 'burntConvoy';
+export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'greenPit' | 'glassTank' | 'burntConvoy'
+  | 'talkGranaryGate'
+  | 'talkSeepPipe'
+  | 'talkConvoyNotClean'
+  | 'talkCraneBook'
+  | 'talkPierceGuns'
+  | 'talkSunwardNumber'
+  | 'talkWestTowns'
+  | 'talkClerkWest'
+  | 'talkGlassLean'
+  | 'talkSunwardTake'
+  | 'talkKilnFight'
+  | 'talkOnePin'
+  | 'talkArmyStarved'
+  | 'talkCommitteeRent';
 
 export type NoteDef = { title: string; from: string; text: string };
 
@@ -39,9 +53,79 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'Old Ibo, Nose radio shack',
     text: 'Old Ibo says Burnt Convoy was picked clean long ago and nothing is left there worth the fuel.',
   },
+  talkGranaryGate: {
+    title: 'The counts on the Granary gate',
+    from: 'Jory Baptiste, at Bowl',
+    text: 'Jory says Odile Marsh writes counts on the Granary gate: the sacks paid to Kiln for each armed truck, and the tenants\' share for the road patrol. He says both are paid from the same grain.',
+  },
+  talkSeepPipe: {
+    title: 'A pipe to the top terraces',
+    from: 'Jory Baptiste, at Bowl',
+    text: 'Jory says a pipe runs from the seep up to the top terraces, and no meter may read it. He has not seen it. He has seen how green their kitchen gardens are in a dry year.',
+  },
+  talkConvoyNotClean: {
+    title: 'Burnt Convoy is not picked clean',
+    from: 'Sefa Krol, at the Salvage Yard',
+    text: 'Sefa says the families pick Burnt Convoy every week and the road leaves more. She says Ibo tells drivers it is picked clean so they stay away.',
+  },
+  talkCraneBook: {
+    title: 'A book in the crane office',
+    from: 'Sefa Krol, at the Salvage Yard',
+    text: 'Sefa says her families took a book of names and sums off a Pierce office truck and sold it to the Salvage Yard. She will not say what it holds. She says the crane office door is shut now.',
+  },
+  talkPierceGuns: {
+    title: 'Pierce sold the guns and the paper',
+    from: 'Sefa Krol, at the Salvage Yard',
+    text: 'Sefa has heard from a pair of drivers that Pierce sold the Old Army\'s guns north to Scrapjaw, then made every driver buy a gun to get paper. Each driver swears the other lied.',
+  },
+  talkSunwardNumber: {
+    title: 'The number at the rim',
+    from: 'Ines Abend, at Nose',
+    text: 'Ines believes the number the Sunward chant at the rim is where the radio count stops. It is larger than this year\'s count. She does not know how they came to it.',
+  },
+  talkWestTowns: {
+    title: 'Western towns with no guns',
+    from: 'A Bowl patrol driver, at the Granary',
+    text: 'A patrol driver says convoy drivers tell of towns past the canyon whose trucks carry no guns, because a guard paid by every town keeps the roads. Lusa Fenwick brought the tale back. The driver has not been west.',
+  },
+  talkClerkWest: {
+    title: 'The clerk who went west',
+    from: 'A Bureau clerk, at Nose',
+    text: 'A Bureau clerk says the corridor holds that a Pierce clerk sold the roads of insured trucks to robbers, and was sent west and told to stay. The clerk says the Bureau case is closed.',
+  },
+  talkGlassLean: {
+    title: 'Glass that leans one way',
+    from: 'Hattie, at the Bowl well house',
+    text: 'Hattie says Pim Arslan the lens cutter swears every ripple in the glass at Glass Flats leans one way, toward the Fallen Sun. Her cousin says it points at heaven.',
+  },
+  talkSunwardTake: {
+    title: 'Strangers in the crater',
+    from: 'Hattie, at the Bowl well house',
+    text: 'Hattie says the Sunward take strangers into the crater and they do not come out. She also says folk come out green at the edges and quiet. She has never followed one in.',
+  },
+  talkKilnFight: {
+    title: 'Kiln lets hard fighters go',
+    from: 'Dag, Bowl Farmers patrol',
+    text: 'Dag says Kiln riders often let a truck go if it fights hard, and strip one that fights soft. He tells drivers to know which they are.',
+  },
+  talkOnePin: {
+    title: 'The one-pin swivel',
+    from: 'Lena, Nose mechanic',
+    text: 'Lena says the line\'s steel copy of the Brann swivel has one pin, and on a bend it can slide and swing the gun into the cab. She says the Salvage Yard bores a second for a fee.',
+  },
+  talkArmyStarved: {
+    title: 'The Old Army and its hunger',
+    from: 'Old Ibo, Nose radio shack',
+    text: 'Old Ibo says the Old Army ended hungry, and that Commander Lind read a list of unpaid promises on his last calls. He has heard it said the Army was starved on purpose. He says whoever says so wants a seat in the hall.',
+  },
+  talkCommitteeRent: {
+    title: 'Who pays for Old Orchard\'s tools',
+    from: 'Old Ibo, Nose radio shack',
+    text: 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He says to ask at the Pierce office who pays command. He will not repeat what he hears on the air.',
+  },
 };
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'bo' | 'sefa' | 'ines' | 'granaryDriver' | 'bureauClerk';
 
 export type LocalDef = { id: LocalId; name: string; role: string; town: string; quest: string };
 
@@ -52,4 +136,10 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   kovac: { id: 'kovac', name: 'Sergeant Kovac', role: 'Dispatcher', town: 'nose', quest: 'nose_kovac' },
   lena: { id: 'lena', name: 'Lena', role: 'Mechanic', town: 'nose', quest: 'nose_lena' },
   ibo: { id: 'ibo', name: 'Old Ibo', role: 'Radio man', town: 'nose', quest: 'nose_ibo' },
+  jory: { id: 'jory', name: 'Jory Baptiste', role: 'Speaks for the tenants', town: 'bowl', quest: 'bowl_jory' },
+  bo: { id: 'bo', name: 'Bo Lindqvist', role: 'Granary truck driver', town: 'bowl', quest: 'bowl_bo' },
+  sefa: { id: 'sefa', name: 'Sefa Krol', role: 'Trades for the Burnt Convoy families', town: 'salvage-yard', quest: 'yard_sefa' },
+  ines: { id: 'ines', name: 'Ines Abend', role: 'Lunar Society', town: 'nose', quest: 'nose_ines' },
+  granaryDriver: { id: 'granaryDriver', name: 'Patrol driver', role: 'Bowl road patrol', town: 'granary', quest: 'granary_driver' },
+  bureauClerk: { id: 'bureauClerk', name: 'Bureau clerk', role: 'Order Bureau records', town: 'nose', quest: 'nose_clerk' },
 };

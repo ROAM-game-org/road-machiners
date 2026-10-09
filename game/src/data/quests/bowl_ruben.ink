@@ -22,5 +22,17 @@ Sit a while, the shade is free. I am Ruben. I keep the canal gates. What is on y
 + {found("fallen-sun")} [What is the Fallen Sun really?]
   You have stood in that crater, then. You tell me. Nose calls it a warship. Hattie calls it a seed ship that lost its way. I only know <i>nothing grows near it</i>, and that is the worst thing I can say of any place.
   -> hub
++ [What of the Green Pit feeder?]
+  A dry year came and the Senate hung a meter on it. A share for Bowl, they said. The feeder was never ours to meter. The Green Pit well dropped a hand's width that year, and nobody asked the well.
+  Wendell Ondra died at the sluice there. His niece Agnes keeps the Pump Station book now, and she writes down every drop.
+  -> hub
++ [What are the tenants saying?]
+  That they feed us and have no say. They are right. The families never wanted to tell a tenant what to think, only what to plant.
+  Jory Baptiste speaks for them on the terraces. He is quick. I like him, and I vote against him anyway.
+  -> hub
++ [Why did Bowl refuse the Pierce loan?]
+  The Senate would not sign. A long loan of grain in a drought is enough debt for one lifetime. Pierce pays our crews late now, to teach us manners.
+  Some say the Senate should have signed. Some say the Senate should have signed long ago. Those are the same ones.
+  -> hub
 + [Goodbye.]
   -> END

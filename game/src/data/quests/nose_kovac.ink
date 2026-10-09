@@ -50,5 +50,20 @@ INCLUDE world.ink
   Heard. Wagon Seven is written off. Whatever was left on her is yours. Do not make a habit of picking over Army property.
   ~ note("wagonFound")
   -> hub
++ [What is the gate law?]
+  No truck leaves Nose for the open road without a gun. The line issues a steel mount with every pass. Simple. Works.
+  -> hub
++ [What happened to Emil Kessel?]
+  Driver. North bend. The mount shifted and swung the gun into the cab. Inquiry closed. His sister serves at the Yard post now.
+  -> hub
++ [Who writes the paper on a truck?]
+  Constance Pierce, at the Pierce office. No paper on a one-pin mount. Command issues one pin. Drivers pay the Yard to bore a second. I do not log it.
+  -> hub
++ [Who drives the open road alone?]
+  Tamsin Roe, Guild courier. No gun. Her pair carries the rifle. Brave or stupid. I have not decided.
+  -> hub
++ [Where did the workshop line come from?]
+  Old Orchard's machine tools. Command rents them. Hauled up the mountain, now they run. Who pays the rent is above my sheet.
+  -> hub
 + [Goodbye.]
   -> END

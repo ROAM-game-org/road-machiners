@@ -62,6 +62,15 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - Bowl is run by the canal families, a say for every gate, and guarded by the Bowl Farmers. Its people talk warm and slow, of crops, canals, water and seed. They think Nose is soldiers playing at a town.
 - Nose is an Army post that became a town. The Army runs it: command gives orders, dispatch hands them out. Its people talk short and to the point. They think Bowl is slow but needed, since its grain feeds them.
 - The locals are Ruben the canal warden, Hattie of the well house and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven went dark on the Pump Station run to Bowl, and its crew walked home.
+- Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
+- Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the pipe to the top terraces.
+- Bo is gentle and plain. He tells the fight near the Burnt Convoy once and does not excuse it.
+- The patrol driver talks like a working Bowl hand: the Granary count, the road no one guards and the western tale. The Bureau clerk talks short and low, afraid of the corridor, and says only what the corridor says.
+- Sefa is blunt and dry. She speaks for the families of the Burnt Convoy, takes what the road is done with and leaves the water.
+- Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
+- The six older locals also talk about the gun law, the swivel and its pins, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
+- A rumor from [Rumors](lore/rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the Burnt Convoy.
+- Locals point to the people of other jobs by name and place only: Agnes Ondra at the Pump Station, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.
 - Lines stay in character, as J.J.'s do. They never say turns, quests, XP, levels, HP, markers, waypoints, the map, clicks, the player or the game. They give no number other than a day count or a clock hour.
 - A clue describes land the listener can see: a compass direction from a town, a named road or place, and the terrain there, like a hollow or an old farm with a water tower. It never gives a distance as a number or an exact spot.

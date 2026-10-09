@@ -1516,9 +1516,13 @@
    "depot_thief": "string"
   },
   "local": {
+   "bowl_bo": {},
    "bowl_dag": {},
    "bowl_hattie": {},
+   "bowl_jory": {},
    "bowl_ruben": {},
+   "granary_driver": {},
+   "nose_clerk": {},
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -1537,11 +1541,17 @@
     "watches": "number"
    },
    "nose_ibo": {},
+   "nose_ines": {},
    "nose_kovac": {},
    "nose_lena": {},
-   "radio_wagon_driver": {}
+   "radio_wagon_driver": {},
+   "yard_sefa": {}
   },
   "checkpoints": {
+   "bowl_bo": [
+    "start",
+    "start.hub"
+   ],
    "bowl_dag": [
     "start",
     "start.hub"
@@ -1550,7 +1560,19 @@
     "start",
     "start.hub"
    ],
+   "bowl_jory": [
+    "start",
+    "start.hub"
+   ],
    "bowl_ruben": [
+    "start",
+    "start.hub"
+   ],
+   "granary_driver": [
+    "start",
+    "start.hub"
+   ],
+   "nose_clerk": [
     "start",
     "start.hub"
    ],
@@ -1561,6 +1583,10 @@
     "last_call"
    ],
    "nose_ibo": [
+    "start",
+    "start.hub"
+   ],
+   "nose_ines": [
     "start",
     "start.hub"
    ],
@@ -1575,6 +1601,10 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "yard_sefa": [
+    "start",
+    "start.hub"
    ]
   }
  }

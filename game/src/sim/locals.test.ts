@@ -49,6 +49,18 @@ describe('settlement locals', () => {
     for (const local of Object.values(LOCALS)) expect(Object.keys(SHOPS)).toContain(local.town);
   });
 
+  it('places the recent-years locals and records a biased rumor as said', () => {
+    expect(localsAt('salvage-yard').map((l) => l.id)).toEqual(['sefa']);
+    expect(localsAt('granary').map((l) => l.id)).toEqual(['granaryDriver']);
+    expect(localsAt('nose').map((l) => l.id)).toEqual(['kovac', 'lena', 'ibo', 'ines', 'bureauClerk']);
+    expect(localsAt('bowl').map((l) => l.id)).toEqual(['ruben', 'hattie', 'dag', 'jory', 'bo']);
+
+    const next = talk(parkedAt('salvage-yard'), 'yard_sefa', ['Is the Burnt Convoy picked clean?']);
+
+    expect(next.player.notes.map((n) => n.id)).toEqual(['talkConvoyNotClean']);
+    expect(untouched(next)).toEqual(untouched(parkedAt('salvage-yard')));
+  });
+
   it('opens a question only once its fact holds', () => {
     const w = parkedAt('nose');
     expect(choices(w, 'nose_ibo')).not.toContain('What happened at Burnt Convoy?');
@@ -60,7 +72,7 @@ describe('settlement locals', () => {
     w.player.scavenged.push(WAGON_SEVEN);
 
     expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
-    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
+    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'What is the gate law?', 'What happened to Emil Kessel?', 'Who writes the paper on a truck?', 'Who drives the open road alone?', 'Where did the workshop line come from?', 'Goodbye.']);
   });
 
   it('opens the Fallen Sun question once the crater is found', () => {

@@ -31,5 +31,22 @@ Eh? Pull up a crate. Ibo. I listen to the air for the Army, and to everything el
   - else: Fuel still goes missing, they say. Not my business. Not yours either, now.
   }
   -> hub
++ [How did the Old Army end?]
+  Hungry. Lind nailed a book of every unpaid promise to the Orchard gate and died in the motor pool. I heard his last calls. He read a list.
+  Some say the Army did not run out of food. They say it was starved on purpose. I say a man who starts a rumor like that wants a seat in the hall.
+  ~ note("talkArmyStarved")
+  -> hub
++ [Who pays for Old Orchard's tools?]
+  The Guild's trust rents them to us. Command pays the Guild. The Guild hears who pays command. I hear the Guild on the air, a little.
+  Ask at the Pierce office who pays what. I will not repeat what I hear.
+  ~ note("talkCommitteeRent")
+  -> hub
++ [What does the tone from the hull say?]
+  The tower says it counts the years since the fall. A tone is a tone. I have listened to it for a long while and I hear a tone.
+  If it counts, it counts without me.
+  -> hub
++ [Why do Guild couriers run in pairs?]
+  Since Kiln riders took to the open road. One drives and one carries the gun. Tamsin Roe is the odd one, with none. I hear her call-sign more than any.
+  -> hub
 + [Goodbye.]
   -> END
