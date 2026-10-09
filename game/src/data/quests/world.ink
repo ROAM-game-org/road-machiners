@@ -1,4 +1,7 @@
 VAR depot_thief = "none"
+VAR courier_fate = "none"
+VAR names_vosk = "none"
+VAR hooks_report = "none"
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

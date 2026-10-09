@@ -1513,12 +1513,40 @@
  },
  "quests": {
   "world": {
-   "depot_thief": "string"
+   "courier_fate": "string",
+   "depot_thief": "string",
+   "hooks_report": "string",
+   "names_vosk": "string"
   },
   "local": {
    "bowl_dag": {},
    "bowl_hattie": {},
+   "bowl_names": {
+    "asked_jens": "boolean",
+    "book_seen": "boolean",
+    "bounty": "number",
+    "brass_held": "boolean",
+    "drink_price": "number",
+    "drunk_said": "boolean",
+    "hal_letter_read": "boolean",
+    "kiln_known": "boolean",
+    "outcome": "string",
+    "sergeant_refused": "boolean"
+   },
    "bowl_ruben": {},
+   "nose_courier": {
+    "asked_gun": "boolean",
+    "drinkers_said": "boolean",
+    "gun": "boolean",
+    "letter_seen": "boolean",
+    "lost_share": "number",
+    "met_vesna": "boolean",
+    "result": "string",
+    "reward": "number",
+    "riding": "boolean",
+    "toll": "number",
+    "vesna_said": "boolean"
+   },
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -1539,7 +1567,21 @@
    "nose_ibo": {},
    "nose_kovac": {},
    "nose_lena": {},
-   "radio_wagon_driver": {}
+   "radio_wagon_driver": {},
+   "salvage_hooks": {
+    "asked_drinkers": "boolean",
+    "asked_glass": "boolean",
+    "bribe": "number",
+    "fee": "number",
+    "lens_held": "boolean",
+    "lens_price": "number",
+    "outcome": "string",
+    "read_tally": "boolean",
+    "sat_near": "boolean",
+    "saw_drop": "boolean",
+    "saw_hooks": "boolean",
+    "talked_soldier": "boolean"
+   }
   },
   "checkpoints": {
    "bowl_dag": [
@@ -1550,9 +1592,22 @@
     "start",
     "start.hub"
    ],
+   "bowl_names": [
+    "start",
+    "start.hub",
+    "after_reading_scene.hub_drunk",
+    "hub_lusa"
+   ],
    "bowl_ruben": [
     "start",
     "start.hub"
+   ],
+   "nose_courier": [
+    "start",
+    "start.hub",
+    "post",
+    "green",
+    "bend"
    ],
    "nose_depot_leak": [
     "start",
@@ -1575,6 +1630,11 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "salvage_hooks": [
+    "start",
+    "start.hub",
+    "hooks"
    ]
   }
  }

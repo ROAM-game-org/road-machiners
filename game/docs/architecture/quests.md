@@ -93,3 +93,32 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - An alarm of 2, or letting it go, loses the trail.
 
 The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo talks about it.
+
+## The last courier
+
+`nose_courier.ink` is a page quest. Tamsin Roe at Nose starts it with "Why no gun?" and "I will ride behind you". Vesna Hale is sick, so the player rides as Tamsin's pair on the south loop, told as narrated scenes at the Pump Station, South Lock, Green Pit and the south bend.
+
+- Vesna can lend her rifle. The Green Pit hooks give a rumor about the new Kiln rider only if the player hangs the rifle there.
+- The bag holds a letter for Karl Vosk at Kiln Camp. Handing it over or paying the 30 M toll lets the truck pass.
+- Raising the rifle also passes, and Tamsin pays but will not ride behind it again. Doing nothing strips the truck, costs 40 M and the rifle, and pays nothing.
+
+The world variable `courier_fate` is `"armed"` or `"stripped"`. A pass without the rifle leaves it `"none"`. The notes `courierLetter` and `courierRider` feed the Reading of Names.
+
+## The Reading of Names
+
+`bowl_names.ink` is a page quest. Lusa Fenwick at Bowl starts it. The player stands through the reading at Canyon Bridge, and a drunk man at the toll hut says that Karl Vosk shot Hal Sorensen. No line says it as fact.
+
+- Evidence is the drunk man's word, his brass (10 M for a drink), Dario Feld's book, and the Guild letter if the player holds the note `courierLetter`.
+- The Bowl road patrol rides only on three pieces of evidence. It pays 80 M, and Kiln shuts the south bend to Bowl trucks.
+- Telling Hal's widow at the Granary or saying nothing pays nothing.
+
+The world variable `names_vosk` is `"patrol"` or `"kin"`. Saying nothing leaves it `"none"`.
+
+## The hook house
+
+`salvage_hooks.ink` is a page quest. Pim Arslan, a stall local at the Salvage Yard, sells a smoke lens for 15 M and sends the player to Hadiza Okon at Green Pit. A Nose soldier from Silver's post writes down who hangs which rifle.
+
+- The lens lets the player watch him and read his sheet. Asking the tables and following him to Silver's post shows what he reports and to whom.
+- Telling Hadiza pays 50 M. Paying the soldier costs 40 M. Reading the sheet aloud empties the hooks.
+
+The world variable `hooks_report` is `"told"` or `"exposed"`. Paying the soldier leaves it `"none"`.
