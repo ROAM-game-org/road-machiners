@@ -79,7 +79,12 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 ## Writing rules
 
-- Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict.
+- Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never explains what a moment means. Write what the other driver does, not "nobody out here kills that".
+- The player is a stranger who knows nothing of the basin. A question names only what they have heard of: a thing the speaker mentioned earlier in this talk, a note they hold, or a place they have found. Gate it on a variable that the earlier answer sets, on `has_note()` or on `found()`. "Why did Bowl refuse the Pierce loan?" may appear only after someone has mentioned the loan.
+- Speak to that stranger. When a speaker uses a local word, like Pierce paper, the roll or the gate law, the same answer says what it is in the speaker's own way. Each answer makes sense to someone who heard nothing before it.
+- Write people the way people talk. Use whole sentences that run as long as the thought needs, with the rhythm of speech. Do not stack clipped fragments. "Some. Good drivers, bad paper. They wear the same coat." is shorthand nobody can follow. Write instead: "A few of them, yes. They drive well, but Pierce won't insure a tenant's truck, so they ride in our coats and the Senate keeps their names off the roll that would earn them a vote."
+- Terse is a voice, not a license to be cryptic. A short-spoken Nose sergeant still says complete things that a stranger understands.
+- Narration in page scenes uses full, concrete sentences with real detail of sight, sound, heat and touch. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Write "a pair of soldiers", not "two soldiers". Numbers are fine inside `# row` tables, which are documents.
 - Keep each local's voice. Bowl talks warm and slow, Nose talks short. `docs/lore.md` keeps the voices.
 - Use markup sparingly: `<b>` for a name or sum that matters, `<shake>` and `<pop>` once per scene at most.
