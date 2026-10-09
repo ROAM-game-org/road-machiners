@@ -1516,11 +1516,15 @@
  "quests": {
   "world": {
    "bend_fate": "string",
+   "count_fate": "string",
    "crates_fate": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
+   "lamps_fate": "string",
    "pin_fate": "string",
-   "pin_pact": "string"
+   "pin_pact": "string",
+   "pipe_fate": "string",
+   "sack_fate": "string"
   },
   "local": {
    "bend_north": {
@@ -1547,6 +1551,25 @@
    },
    "first_fall": {},
    "granary_driver": {},
+   "granary_lamps": {
+    "juno_said": "boolean",
+    "lamps_seen": "boolean",
+    "lien": "number",
+    "offer": "number",
+    "slip_read": "boolean",
+    "tam_said": "boolean"
+   },
+   "granary_odile": {},
+   "granary_sack": {
+    "board_cost": "number",
+    "bribe": "number",
+    "carter_said": "boolean",
+    "drop_seen": "boolean",
+    "log_read": "boolean",
+    "reward": "number",
+    "store_read": "boolean",
+    "weigher_said": "boolean"
+   },
    "nose_clerk": {},
    "nose_constance": {},
    "nose_depot_leak": {
@@ -1570,6 +1593,15 @@
    "nose_ines": {},
    "nose_kovac": {},
    "nose_lena": {},
+   "orchard_count": {
+    "gap_seen": "boolean",
+    "ilya_said": "boolean",
+    "paint": "number",
+    "price": "number",
+    "release_read": "boolean",
+    "stub_read": "boolean",
+    "wall_read": "boolean"
+   },
    "pin_emil": {
     "has_ring": "boolean",
     "mara_pay": "number",
@@ -1581,6 +1613,17 @@
     "silver_pay": "number",
     "sully_pay": "number",
     "yard_tally": "boolean"
+   },
+   "pump_agnes": {},
+   "pump_pipe": {
+    "book_read": "boolean",
+    "canal_matches": "boolean",
+    "fee": "number",
+    "fine": "number",
+    "offer_heard": "boolean",
+    "price": "number",
+    "report_named": "boolean",
+    "taken": "boolean"
    },
    "radio_wagon_driver": {},
    "yard_mara": {},
@@ -1624,6 +1667,18 @@
     "start",
     "start.hub"
    ],
+   "granary_lamps": [
+    "start",
+    "foot"
+   ],
+   "granary_odile": [
+    "start",
+    "start.hub"
+   ],
+   "granary_sack": [
+    "start",
+    "desk"
+   ],
    "nose_clerk": [
     "start",
     "start.hub"
@@ -1654,11 +1709,24 @@
     "start",
     "start.hub"
    ],
+   "orchard_count": [
+    "start",
+    "yard"
+   ],
    "pin_emil": [
     "start",
     "desk",
     "to_mara.pact_mara",
     "to_silver.pact_silver"
+   ],
+   "pump_agnes": [
+    "start",
+    "start.hub"
+   ],
+   "pump_pipe": [
+    "start",
+    "steward",
+    "road"
    ],
    "radio_wagon_driver": [
     "start",

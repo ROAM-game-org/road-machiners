@@ -1,5 +1,9 @@
 VAR depot_thief = "none"
 VAR first_knockout_seen = false
+VAR pipe_fate = "none"
+VAR sack_fate = "none"
+VAR lamps_fate = "none"
+VAR count_fate = "none"
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

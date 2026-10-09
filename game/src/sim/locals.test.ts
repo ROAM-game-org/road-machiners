@@ -264,6 +264,76 @@ describe('the depot leak at Nose', () => {
   });
 });
 
+describe('locals at stalls', () => {
+  it('lists Agnes at the Pump Station and Odile at the Granary', () => {
+    expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
+    expect(localsAt('granary').map((l) => l.id)).toContain('odile');
+  });
+
+  it('opens the pipe quest from Agnes and ends it with the bundle dropped', () => {
+    const w = parkedAt('pump-station');
+
+    const dropped = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drop it in a ditch.']);
+
+    expect(dropped.player.quests.world).toEqual({});
+    expect(dropped.player.money).toBe(w.player.money);
+    expect(dropped.player.notes.map((n) => n.id)).toEqual(['pipeBook', 'pipeOffer']);
+    expect(choices(dropped, 'pump_agnes')).toContain('What is under your pillow?');
+  });
+
+  it('gates the South Lock delivery on the lock being found, and pays on delivery', () => {
+    const w = parkedAt('pump-station');
+    const road = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.']);
+    expect(questView(road, QUESTS).choices).not.toContain('Carry it to South Lock.');
+
+    w.player.discovered.push('south-lock');
+    const delivered = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Carry it to South Lock.']);
+
+    expect(delivered.player.quests.world).toEqual({ pipe_fate: 'delivered' });
+    expect(delivered.player.money - w.player.money).toBe(80 * UNITS.centsPerM);
+  });
+
+  it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
+    const w = parkedAt('pump-station');
+
+    const read = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take it to the Granary gate.']);
+
+    expect(read.player.quests.world).toEqual({ pipe_fate: 'read' });
+    expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);
+    const odile = parkedAt('granary');
+    odile.player.quests.world = { pipe_fate: 'read' };
+    expect(choices(odile, 'granary_odile')).toContain('About the book read at your gate.');
+  });
+
+  it('starts the sack count from Odile and hides the lamps and orchard walks until the places are found', () => {
+    const w = parkedAt('granary');
+    expect(choices(w, 'granary_odile')).toEqual(['What hangs on the gate?', 'Why pay Kiln at all?', 'Who is the road patrol?', 'Is your count right?', 'Where does the lamp oil come from?', 'Who pays the patrol at Old Orchard?', 'Goodbye.']);
+
+    const asked = talk(w, 'granary_odile', ['Is your count right?', 'I will count with you.', 'I will count with you.']);
+    expect(questView(asked, QUESTS).choices).toContain('Read the gate log.');
+
+    const lamps = talk(w, 'granary_odile', ['Where does the lamp oil come from?']);
+    expect(questView(lamps, QUESTS).choices).not.toContain('I will go and look at the lamps.');
+    w.player.discovered.push('podfield');
+    const found = talk(w, 'granary_odile', ['Where does the lamp oil come from?', 'I will go and look at the lamps.']);
+    expect(questView(found, QUESTS).choices).toContain('Walk the line of lamps.');
+  });
+
+  it('pays for the lien on the dark lamp and refuses the same pick with less money', () => {
+    const w = parkedAt('granary');
+    w.player.discovered.push('podfield');
+    const slip = ['Where does the lamp oil come from?', 'I will go and look at the lamps.', 'Ask the carter for his slip.'];
+    const paid = talk(w, 'granary_odile', [...slip, 'Pay the clerk the lien on the dark lamp.']);
+    expect(w.player.money - paid.player.money).toBe(120 * UNITS.centsPerM);
+    expect(paid.player.quests.world).toEqual({ lamps_fate: 'paid' });
+
+    const broke = cloneWorld(w);
+    broke.player.money = 100 * UNITS.centsPerM;
+    const short = talk(broke, 'granary_odile', slip);
+    expect(questView(short, QUESTS).locked[pickIndex(short, 'Pay the clerk the lien on the dark lamp.')]).toBe(true);
+  });
+});
+
 describe('journal notes', () => {
   it('starts a new player with no notes', () => {
     expect(emptyWorld().player.notes).toEqual([]);
