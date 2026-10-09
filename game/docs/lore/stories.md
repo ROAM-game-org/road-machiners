@@ -59,7 +59,7 @@ Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every 
 
 ## The Reading of Names
 
-Once a year Lusa Fenwick reads the names of the dead at Canyon Bridge: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra, Emil Kessel. Drivers stop on the bare deck with their rifles on the cab hooks. Someone in the crowd killed one of the people named. A player who stays for the whole reading hears who, from a man who drinks too much afterward.
+Once a year Lusa Fenwick reads the names of the dead at Canyon Bridge: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra, Emil Kessel. Drivers park on the bare deck and stand bareheaded while she reads. Someone in the crowd killed one of the people named. A player who stays for the whole reading hears who, from a man who drinks too much afterward.
 
 ## The last courier
 
