@@ -3,6 +3,7 @@ import { handoffQuest, TOPICS } from '../data/dialogue';
 import { LOCALS, NOTES, type NoteId } from '../data/locals';
 import { PERSONALITIES, type Personality } from '../data/personalities';
 import { RUMORS } from '../data/rumors';
+import { GAME_OPENED_QUESTS } from '../data/quests';
 import { QUESTS } from '../sim/quests';
 import { readQuestSources } from './quest-compile';
 
@@ -55,7 +56,8 @@ describe('settlement talk content', () => {
     const fromLocals = Object.values(LOCALS).map((l) => l.quest);
     const fromRadio = Object.values(TOPICS).flatMap((t) => Object.values(t.nodes).flatMap((n) => n.options.flatMap((o) => handoffQuest(o.go) ?? [])));
     const fromQuests = SOURCES.flatMap(([, source]) => [...source.matchAll(/~\s*begin\("([a-z_]+)"\)/g)].map((m) => m[1]));
-    const started = new Set([...fromLocals, ...fromRadio, ...fromQuests]);
+    const fromGame = Object.values(GAME_OPENED_QUESTS);
+    const started = new Set([...fromLocals, ...fromRadio, ...fromQuests, ...fromGame]);
     expect(started).toEqual(new Set(Object.keys(QUESTS.quests)));
   });
 

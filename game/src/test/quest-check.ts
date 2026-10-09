@@ -11,7 +11,7 @@ import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { markupProblems } from '../ui/quest-text';
-import { compileSources, type QuestSources } from './quest-compile';
+import { compileSources, WORLD_FILE, type QuestSources } from './quest-compile';
 
 export type QuestReport = { quest: string; states: number; problems: string[] };
 
@@ -30,7 +30,18 @@ export function checkQuests(sources: QuestSources, scenes: QuestScenes, limit: n
   const shared: QuestReport = { quest: 'all', states: 0, problems: [...errors, ...warnings, ...hooks] };
   if (hooks.length > 0) return [shared];
   const assigned = worldAssignments(sources, bundle);
-  return [shared, ...Object.keys(bundle.quests).map((id) => exploreQuest(withWorldVars(scenes(id), assigned), bundle, id, sections[id] ?? [], limit))];
+  return [shared, ...Object.keys(bundle.quests).map((id) => {
+    const read = assigned.filter(([name]) => readsWorldVar(sources, id, name));
+    return exploreQuest(withWorldVars(scenes(id), read), bundle, id, sections[id] ?? [], limit);
+  })];
+}
+
+function readsWorldVar(sources: QuestSources, questId: string, name: string): boolean {
+  const word = new RegExp(`\\b${name}\\b`);
+  const quest = sources[`${questId}.ink`];
+  if (quest === undefined) throw new Error(`No source for quest ${questId}`);
+  const sharedUse = sources[WORLD_FILE].split('\n').some((line) => !/^\s*VAR\s/.test(line) && word.test(line));
+  return sharedUse || word.test(quest);
 }
 
 const ASSIGNMENT = /^\s*~\s*([a-z_][a-z0-9_]*)\s*=\s*("[^"]*"|true|false|-?\d+(?:\.\d+)?)\s*$/gim;

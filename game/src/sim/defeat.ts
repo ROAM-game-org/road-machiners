@@ -1,7 +1,3 @@
-// A lost fight knocks a driver out, the player or an NPC alike. The truck keeps every item, trucks parked beside
-// it strip it, and nobody is its foe while it lies out. It wakes once the trucks that fought it look away. Health
-// at 0 ends the player's run. A woken NPC retreats home and lies up there, and nobody is its foe until it refits at
-// the end of the lie-up.
 
 import { NPC_BEHAVIOR, NPCS } from "../data/npcs";
 import { chassisDef } from "../data/chassis";
@@ -10,6 +6,7 @@ import { isJunk, maxHp, restorePart } from "./wear";
 import { playerVehicle } from "./damage";
 import { beatenBy, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
+import { openFirstFall } from "./quests";
 import { corePart, mountedParts } from "./grid";
 import { cancelJob } from "./jobs";
 import { practice, vehicleHasPerk } from "./progress";
@@ -58,6 +55,7 @@ export function checkKnockout(world: World): void {
   sendToLoot(world, me, robbers);
   settleRevenge(world, me);
   world.events.push({ t: "knockout" });
+  openFirstFall(world, me.defeat.foes);
 }
 
 function knockedNow(world: World, me: Vehicle): boolean {

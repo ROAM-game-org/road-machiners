@@ -234,7 +234,7 @@ export function requireActivePlayer(world: World): void {
 
 export function autoRuns(world: World): boolean {
   const p = world.player;
-  if (p.call) return false;
+  if (p.call || p.quests.live) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyAid(world)) return false;
   return waitsOnBeacon(world);

@@ -93,3 +93,14 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - An alarm of 2, or letting it go, loses the trail.
 
 The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo talks about it.
+
+## The first fall
+
+`first_fall.ink` is a page scene the game opens by itself. It teaches that a knockout is not the end. It opens once per game, when the player's truck is first knocked out by other trucks.
+
+- `checkKnockout()` in `src/sim/defeat.ts` calls `openFirstFall()` in `src/sim/quests.ts` when trucks fought the player. A knockout with no attacker, such as a hazard, opens nothing.
+- `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. The quest sets that variable after its first choice, so saves keep it and `src/sim/types.ts` stays as it is.
+- Leaving the scene before the first choice sets nothing, so the next knockout opens it again.
+- While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
+- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The voice test counts it as a way in next to locals, radio calls and `begin()`.
+- Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.

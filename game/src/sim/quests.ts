@@ -3,6 +3,8 @@ import { Story } from 'inkjs';
 import {
   CHECKPOINT_TAG,
   COST_TAG,
+  FIRST_FALL_SEEN,
+  GAME_OPENED_QUESTS,
   MONEY_STAT,
   QUEST_VIEWS,
   type CompiledQuest,
@@ -154,6 +156,13 @@ export function openQuest(w: World, bundle: QuestBundle, questId: string, checkp
   if (!questOf(bundle, questId).checkpoints.includes(checkpoint)) throw new Error(`Quest ${questId} has no checkpoint ${checkpoint}`);
   w.player.quests.session = { quest: questId, checkpoint, seed: questSeed(w, questId) };
   enterCheckpoint(w, bundle);
+}
+
+export function openFirstFall(w: World, foes: readonly string[]): void {
+  if (foes.length === 0) return;
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.firstFall, FIRST_FALL_SEEN) === true) return;
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.firstFall, 'start');
 }
 
 export function chooseQuestOption(world: World, bundle: QuestBundle, index: number): World {
