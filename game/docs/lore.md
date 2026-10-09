@@ -1,5 +1,12 @@
 # Lore
 
+The world of ROAM. Everything here answers to [Theme](theme.md).
+
+- [Peoples](lore/peoples.md): towns, groups and faiths, and how each copes with the world.
+- [Characters](lore/characters.md): named people.
+- [Rumors](lore/rumors.md): what people say.
+- [Stories](lore/stories.md): seeds for events and jobs.
+
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
@@ -9,6 +16,25 @@ A huge spaceship broke apart while descending through the atmosphere. Its larges
 People still live and trade here. Farmers protect the canals that still work and the remaining seed stores. Salvagers recover metal and machinery from the wrecks. Truckers carry food, water, fuel, and parts between settlements. An irrigation gate can matter as much as a cargo hold.
 
 The landscape shows all three histories: old field boundaries and canals, the ship's debris trail, and newer truck roads connecting useful places. Hills, valleys, a canyon, and a dried riverbed divide the routes. The crash's date and the basin's old name remain open.
+
+After the crash, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace between them, until it ran short of food and left Old Orchard. The towns have not fought openly since, but each one expects the other to start.
+
+### Open questions
+
+Each of these needs one true answer, written here once it is chosen. The game will show it only as evidence.
+
+- What the ship was and why it fell.
+- Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
+- What lies in the Fallen Sun's crater, and what the green glow does to people.
+- What the fused glass is.
+- Why the Old Army left Old Orchard.
+- Where the people of the basin came from. One candidate is that they descend from people the ship grew or copied on its way, and that the first of them were people who died on Earth long before.
+- What the basin was called before.
+
+### Mood references
+
+- Huge Old World structures turned into homes: a cruise liner, an aircraft carrier, the oil platforms of Neft Daşları on the Caspian Sea.
+- Ernst Haeckel's Art Forms in Nature, for beauty found in strange shapes.
 
 ### Concept image prompt
 
