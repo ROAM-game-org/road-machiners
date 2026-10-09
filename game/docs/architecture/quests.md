@@ -93,3 +93,51 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - An alarm of 2, or letting it go, loses the trail.
 
 The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo talks about it.
+
+## The Archon's pipe
+
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Her question about the pillow opens `pump_pipe.ink`, shown as pages. She gives the player a sealed copy of her pump book to carry to South Lock. A steward of the Archon's household meets the player on the Bowl road and offers 150 M to lose it.
+
+- Delivering the copy to Mirela Duarte pays 80 M. The choice shows only once `found("south-lock")` holds.
+- Selling it to the steward pays 150 M.
+- Reading it out at the Granary gate costs a fine of 40 M, or whatever the player holds if less.
+- Dropping it in a ditch pays and costs nothing, and Agnes offers a new copy.
+- Cutting the seal to read the book first writes the journal note `pipeDraw` and shows a table of the weekly lines.
+
+The world variable `pipe_fate` keeps the outcome of the first three. Agnes greets by it, and Odile asks about the book read at her gate.
+
+## The Kiln sack
+
+`granary_odile.ink` is the talk of Odile Marsh, a local at the Granary, which is a stall. Her question about the count opens `granary_sack.ink`, shown as pages. The sacks out of the store are more than the two boards on the gate add up to.
+
+- The gate log, the store book, a carter and a watch at the Kiln drop each give a fact. The night weigher is a false lead that explains only a few sacks.
+- Naming the Kiln collector with 3 or more proof points pays 90 M. The drop counts 2 and each other fact 1.
+- Naming the weigher gets him thrown out, and the skim goes on.
+- Taking the collector's envelope pays 60 M and leaves the tenants short.
+- Chalking the true counts on a new board costs 10 M and sets the carters asking who holds the stick.
+
+The world variable `sack_fate` keeps the outcome. Odile greets by it.
+
+## Juno's lamps
+
+Odile's question about lamp oil opens `granary_lamps.ink` once `found("podfield")` holds. Until then she only says where Podfield lies. The Bowl buys Juno Pell's lamp oil, and the coin goes to a Pierce clerk against the lien painted on each lamp. The last lamp is dry and tagged for seizure.
+
+- Paying the clerk the lien on the dark lamp costs 120 M and lights it.
+- Sending the carter away without oil keeps every lamp lit and leaves the Granary on tallow.
+- Taking the Granary's offer for the lamps pays 100 M, and a Bowl crew keeps them lit from then on. It needs Tam's word about the dry lamp first.
+
+The world variable `lamps_fate` keeps the outcome. Odile talks about it.
+
+## Ilya's count
+
+Odile's question about the Old Orchard patrol opens `orchard_count.ink` once `found("orchard")` holds. Ilya Moreno counts the motor pool every dawn and paints the number on the blockhouse wall. This morning one truck is gone. The gate stub book and a release paper show a Pierce cart took it with the seal of the Archon's household.
+
+- Showing Ilya the paper pays nothing. He gives the player a torn page of the Army's motor pool book and writes the note `countLog`.
+- Painting the old number back costs 10 M and leaves Ilya counting an empty slot.
+- Selling the paper to the gate corporal pays 70 M, and Ilya blames the tenants at the orchard edge.
+
+The world variable `count_fate` keeps the outcome. Odile talks about it.
+
+## Locals at stalls
+
+The Granary and the Pump Station are stalls with no board of work. Their locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to both.
