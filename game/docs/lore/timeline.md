@@ -1,0 +1,79 @@
+# Timeline
+
+The history of Icarus from the last years before the fall to today. It was generated with the [Story game](story-game.md), and the leaders' choices came from agents playing them. Years count from the fall of the ship. Today is year 130.
+
+The first part is history as people in the basin could know it. The last part holds the hidden truths, which the game shows only as evidence.
+
+## Before the fall
+
+- Year -10. The Chaos is in its 110th year. A drought halves the river. The Garrison, an Old World army remnant at Old Orchard, strips the grain from ruined depots. The Waterworks ration the river by written schedule, and the south fields go dry. Dust Riders kill a Canal Folk boy in a raid, and Old Mother Saxa pays his mother two barrels.
+- Year -10. A new bright point moves among the stars. Director Yusuf Abend of the Alpha Tower charts it and finds it is huge and falling. The Creed calls it a sign of the test.
+- Year -5. The Waterworks turn the water schedule into a tariff, and farmers call it the water tax. Abend computes the fall for year 2 over the eastern hills. He is wrong on both counts.
+
+## The fall
+
+- Year 0. The second moon breaks apart overhead in daylight. The largest hull blasts the central crater, later called the Fallen Sun. A trail of engines, plates and pods falls from the south-west. One great section comes down on a mountain in the east. A heavy piece makes a deep crater in the south fields, where two Canal Folk villages stood.
+- Year 0. The debris trail crosses the river above the dam. The river breaks its course and sinks into the ground. The basin starts to dry into desert.
+
+## The Dry Years
+
+- Year 3. Five Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
+- Year 3. Water seeps into the floor of the south crater. The Creed's refugees win it from the Waterworks and the Canal Folk, and camp on the crater floor. A Waterworks engineer dies in the scuffle.
+- Year 3. Abend and his apprentice Teo bring a hull plate home, marked in an unknown script beside common digits. Abend dies of burns from the wreck. Teo, 23, takes the tower.
+- Year 3. The Relay traces a repeating radio tone to the central hull. Nobody can read it.
+- Year 10. Teo finds the tone repeats numbers stamped on the plate, and the sequence grows by one each year. He tells nobody.
+- Year 10. The Creed's readers read the plate as "to bring you home". The faith becomes the Reclaimer's Creed.
+- Year 10. The Dust Riders take a toll on the dam road and, for the first time, stay in one place.
+
+## The first convoys
+
+- Year 20. The first western convoy in living memory reaches the basin. The mountain wreck has the most metal, and two western mechanics stay there. Wreck fever kills people who work near glowing cells.
+- Year 20. A western engineer recognizes a symbol on the plate from an Old World book. Years later he writes to Teo that it marks a seed vault.
+- Year 30. The last pool in the old riverbed dries. Four factions go for the crater seep. The Garrison's squad will not fire on the Creed's crowd and turns back. The Waterworks keep the pump, and the Dust Riders win a race for the seep road.
+- Year 30. Drifters work the mountain wreck for food and a bed. People start calling it the Nose.
+- Year 35. The western trader Augustin Pierce settles at the Nose. He lends against salvage and pays families when crews do not come back.
+- Year 35. Wreck-fever survivors walk into the central crater and camp by the green glow.
+- Year 40. The Relay sells shares in its masts, and Pierce buys the first. The shareholders rename it the Guidestar Guild. People start calling the Garrison the Old Army.
+- Year 50. The worst storm decade. A storm tears open the Nose's sealed upper halls: a long room of empty cradles, each the size of a person. A small blue lens from that room ends up in Teo's failing eye. He lives.
+- Year 50. The Canal families dig a rain cistern on the crater rim. It is the first water in the crater that nobody sells.
+
+## The Bowl and the Nose
+
+- Year 60. Crops grow on the crater floor. The Creed, the Canal families and the Waterworks form one Crater Council. Pierce's clerks keep its accounts, and the Guild posts its votes. The settlement calls itself the Bowl. The Old Army asks to keep the council's book and is refused.
+- Year 63. Rafe Ondra of the Waterworks dies at 104 with the pump book open. The Waterworks become the Bowl's water office.
+- Year 70. A drought cracks the Bowl's cistern. The Bowl buys Nose grain at high prices and borrows from Pierce for ten years of grain. The dreamers start calling the glow the Fallen Sun, and themselves the Sunward.
+- Year 80. The Chaos ends in the wider world, and the basin's storms stop.
+- Year 80. A Nose grain convoy is ambushed below the Bowl, and two drivers die. Teo's reading of the road points to Bowl tenants with rifles bought at the rim.
+
+## The Grain War
+
+- Year 83. The Bowl will not hand its tenants to the Nose. Marek Graves closes the grain road and takes the seep road. The Grain War begins.
+- Year 85. Commander Tobiah Lind drives the Old Army's heavy trucks round the Nose by the north hills and feeds the Bowl from Old Orchard's own stores. The siege loses its grip. Scrapjaw's riders take a sack per truck for passage and dig in at a spring in the north hills: Scrapjaw Camp.
+- Year 89. The Truce of the Fallen Sun is signed at the central crater rim. Three Bowl tenants are judged by a Guild panel with the Sunward watching, and exiled. The grain road reopens. The Old Army is to patrol the roads, paid by both towns. No weapon may be drawn in sight of the glow.
+- Year 89. Imre names Dagny Brask's band as the rifle sellers. Both towns turn on her, and she hauls her furnace into the southern badlands: Kiln Camp.
+- Year 90. The Bowl council becomes the Senate. Only those who served ten years in the Bowl patrols may vote.
+
+## The end of the Old Army
+
+- Year 100. Marek Graves hands the Nose to his son Alan, who forms the Central Committee and becomes President.
+- Year 100. Neither town pays the Old Army. Hungry soldiers sell rifles to Scrapjaw. Pierce pays the army's back wages and takes its heavy trucks as collateral.
+- Year 100. Teo's scholars at the tower call themselves the Lunar Society. Young people who say nothing here is real leave the Creed: the Ephemeralists.
+- Year 110. Beacon keepers on the debris trail call themselves the Children of Noah.
+- Year 112. Commander Lind nails a book of every unpaid promise to the Old Orchard gate and dies in the motor pool. The Old Army ends. Its trucks stand where they stopped.
+
+## Recent years
+
+- Year 115. A free radio voice starts reading the weather like an old farm report. The Guild cannot find her mast. She thanks the Creed for a meal she never ate: "Waste some time."
+- Year 121. The Lunar Society votes to read the count in the open. Teo refuses, and they cast him out. People call him the Apprentice.
+- Year 123. The Pierce yard's crews stop answering to Pierce and run the yard themselves: the Salvage Yard. Hull pieces and relics are sold there.
+- Year 125. Ain Christopher flees the Nose after his child dies and comes to Kiln Camp with Kaplan. Within a year he runs it. Dagny Brask, past 110, still keeps the furnace.
+- Year 127. The Guild's trust rents Old Orchard's machine tools to the Nose, the only bidder who can pay. The Nose hauls them up the mountain and builds the basin's only workshop line. The Bowl keeps the gate of an empty farm.
+- Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word.
+
+## Hidden truths
+
+- The tone from the central hull counts the years since the fall, one step each year, toward a last number that the plate holds. What happens when it reaches that number is open.
+- The plate's symbol marks a seed vault. By the tone and the plate, the vault lies in the crater floor in the hull's shadow, not inside the hull.
+- The cradle room in the Nose's upper halls held people-sized cradles. Who or what lay in them is open.
+- The Bowl council did not send the convoy ambush of year 80. Hungry tenants did it on their own, with rifles bought at the rim.
+- The Old Army was starved on purpose. The Central Committee held back the Nose's fuel payments so the army would fail and its workshops would fall to the Nose. The Bowl simply could not pay.
