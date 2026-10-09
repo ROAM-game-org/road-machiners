@@ -25,6 +25,7 @@ export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'g
   | 'cratesTally'
   | 'cratesFiles'
   | 'pipeBook' | 'pipeDraw' | 'pipeOffer' | 'pipeCanal' | 'sackGate' | 'sackStore' | 'sackDrop' | 'lampsLien' | 'lampsOil' | 'countWall' | 'countGap' | 'countRelease' | 'countLog'
+  | 'sackBeam'
   | 'courierVesna'
   | 'courierLetter'
   | 'courierRider'
@@ -229,6 +230,11 @@ export const NOTES: Record<NoteId, NoteDef> = {
     title: 'The collector and his stick',
     from: 'The Kiln drop',
     text: 'The Kiln collector notches a stick for the carters and notches it again for sacks that never left a cart. A second wagon waits behind the rocks.',
+  },
+  sackBeam: {
+    title: 'A filed poise on the Granary beam',
+    from: 'The Granary weigh house',
+    text: 'The poise weight on the weighing block is a hand lighter than its stamp. Bright file marks run along its edge. Nobody says who held the file.',
   },
   lampsLien: {
     title: 'Numbers on the lamps',

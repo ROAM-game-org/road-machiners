@@ -153,45 +153,60 @@ The world variable `crates_fate` keeps the outcome: `none`, `proof`, `lucan` or 
 
 ## The Archon's pipe
 
-`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Her question about the pillow opens `pump_pipe.ink`, shown as pages. She gives the player a sealed copy of her pump book to carry to South Lock. A steward of the Archon's household meets the player on the Bowl road and offers 150 M to lose it.
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Each question follows from her last answer: the pump, the numbers, the meter the Senate took off one pipe, the second copy. The second copy opens `pump_pipe.ink`, shown as pages. Agnes gives the player a sealed copy of her pump book to carry to South Lock. Her stated reason is that a driver passes the patrol unseen. The margin of the book shows the real one: she wants a driver named as the finder, so the Pump Station is not.
 
-- Delivering the copy to Mirela Duarte pays 80 M. The choice shows only once `found("south-lock")` holds.
-- Selling it to the steward pays 150 M.
-- Reading it out at the Granary gate costs a fine of 40 M, or whatever the player holds if less.
-- Dropping it in a ditch pays and costs nothing, and Agnes offers a new copy.
-- Cutting the seal to read the book first writes the journal note `pipeDraw` and shows a table of the weekly lines.
+A steward of the Archon's household meets the player on the Bowl road. He has already sent word to the patrol at the Green Pit sluice, so the road to South Lock has a checkpoint. The quest variable `sluice` keeps how the player stands with it.
 
-The world variable `pipe_fate` keeps the outcome of the first three. Agnes greets by it, and Odile asks about the book read at her gate.
+- Social 3 on the steward gets a household pass and half the offer, and the player keeps the book. A failure sends his rider ahead, and every later check at the sluice needs one more rank.
+- The sluice itself is run by driving, talked past by social, or bribed with 50 M. A failed run or talk loses the bundle to the Archon's desk, costs a fine of 40 M and sets `pipe_fate` to `seized`. A bribe passes, but the patrol writes the player's name down.
+- South Lock needs the way to be known through `found("south-lock")`. The sluice can be passed without it.
+- At the lock Mirela asks the player to sign the Canal book as the driver who found it. Signing sets `delivered` and the household turns on the player. Leaving the name off sets `filed`, and the Canal word stands alone. Both pay 60 M.
+- Machining 2 reads the terrace valve and finds the empty meter flange. Machining 3 bolts a spare meter to it for 30 M and sets `metered`. A failure shears the flange, costs a fine and marks the player.
+- Perception 2 while reading the book shows the first pipe line in Wendell's hand, a year older than the order. Mirela reads it two ways and the player does not learn which is true.
+- Selling to the steward pays 100 M and sets `sold`. Reading at the Granary gate sets `read`, keeps the book with social 2 and otherwise costs 40 M and the book. Dropping the bundle in a ditch changes nothing, and Agnes offers again.
+
+The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized` and `metered`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes, Odile asks about the book read at her gate, and Ilya's count reads `marr_regard`.
 
 ## The Kiln sack
 
-`granary_odile.ink` is the talk of Odile Marsh, a local at the Granary, which is a stall. Her question about the count opens `granary_sack.ink`, shown as pages. The sacks out of the store are more than the two boards on the gate add up to.
+`granary_odile.ink` is the talk of Odile Marsh, a local at the Granary, which is a stall. Her questions follow from each answer: the gate boards, the sack paid to Kiln, the road patrol, what troubles her count. The last one opens `granary_sack.ink`, shown as pages. The sacks out of the store are more than both boards on the gate add up to. Odile says she wants a small man she can put out of the gate, and the quest shows why: a large name would cost the Granary its peace with Kiln.
 
-- The gate log, the store book, a carter and a watch at the Kiln drop each give a fact. The night weigher is a false lead that explains only a few sacks.
-- Naming the Kiln collector with 3 or more proof points pays 90 M. The drop counts 2 and each other fact 1.
-- Naming the weigher gets him thrown out, and the skim goes on.
-- Taking the collector's envelope pays 60 M and leaves the tenants short.
-- Chalking the true counts on a new board costs 10 M and sets the carters asking who holds the stick.
+- The gate log with the store book, a carter and a watch at the Kiln drop each give a fact. The night weigher is a false lead that explains only a few sacks.
+- Machining 2 on the weighing block finds a poise weight filed a hand light, so every sack reads heavy. A failure bends the knife edge and costs 20 M. Telling Odile pays 50 M and sets `mended`. The gap shrinks and does not close, and nobody learns who held the file.
+- Social 2 at the drop offers the collector a written fee on the gate. Success sets `dealt`, with a third column on the board. Failure costs 40 M and the second wagon vanishes, so the drop shows nothing more.
+- Toughness 3 takes the collector's stick. It counts 3 as proof. A failure costs 60 M and also hides the wagon.
+- Naming the collector needs 4 proof points. The drop counts 2 and each other fact 1. It pays 70 M and sets `closed`, or `forced` with the stick, and then Kiln strips a pair of Granary carts.
+- Naming the weigher pays 40 M and sets `blamed`, and the skim goes on.
+- Taking the collector's envelope pays 60 M and sets `cut`.
+- Chalking the true counts on a new board costs 10 M and sets `posted`.
 
 The world variable `sack_fate` keeps the outcome. Odile greets by it.
 
 ## Juno's lamps
 
-Odile's question about lamp oil opens `granary_lamps.ink` once `found("podfield")` holds. Until then she only says where Podfield lies. The Bowl buys Juno Pell's lamp oil, and the coin goes to a Pierce clerk against the lien painted on each lamp. The last lamp is dry and tagged for seizure.
+Odile's question about the oil she burns opens `granary_lamps.ink` once `found("podfield")` holds. Until then she only says where Podfield lies. The Bowl buys Juno Pell's lamp oil, and the coin goes to a Pierce clerk against the lien painted on each lamp. The last lamp is dry and tagged for seizure. Odile asked for a look, but the Granary carter already holds a sale paper dated before the lamp went dark.
 
-- Paying the clerk the lien on the dark lamp costs 120 M and lights it.
-- Sending the carter away without oil keeps every lamp lit and leaves the Granary on tallow.
-- Taking the Granary's offer for the lamps pays 100 M, and a Bowl crew keeps them lit from then on. It needs Tam's word about the dry lamp first.
+- Perception 2 at the slip sees the paper in the carter's coat. It lowers the social check for a lease by one rank.
+- Paying the clerk the lien costs 120 M and sets `paid`. The clerk writes the player's name beside the number and `lien_standing` becomes `debtor`.
+- Machining 2 cuts the lien plate off the post and brings up the old stamped number. It costs nothing and sets `plated`. The clerk has a number and no plate, and `lien_standing` becomes `enemy`. A failure scorches the tank, costs 40 M, raises the lien by that amount and posts armed men by the cart. Both the plate and the track are then closed.
+- Toughness 3 in the track sends the cart away and sets `held`. Armed men follow next quarter and `lien_standing` becomes `enemy`. A failure costs 40 M and the same lien rise and guard.
+- Social 3, or 2 with the paper seen, turns the sale into a lease and sets `leased`. A Bowl crew lights the lamps, Juno and Tam keep the ladder and the Granary pays rent in oil. A failure sets `sour` and closes the lease and the sale.
+- Sending the carter away keeps every lamp lit and leaves the Granary on tallow. That sets `kept`.
+- Taking the Granary's offer pays 100 M, needs Tam's word and a witness mark, and sets `sold`.
 
-The world variable `lamps_fate` keeps the outcome. Odile talks about it.
+The world variable `lamps_fate` keeps the outcome. The world variable `lien_standing` is `none`, `debtor` or `enemy`. Odile talks about the outcome, and Ilya's count reads `lien_standing`.
 
 ## Ilya's count
 
-Odile's question about the Old Orchard patrol opens `orchard_count.ink` once `found("orchard")` holds. Ilya Moreno counts the motor pool every dawn and paints the number on the blockhouse wall. This morning one truck is gone. The gate stub book and a release paper show a Pierce cart took it with the seal of the Archon's household.
+Odile's question about the message from Old Orchard opens `orchard_count.ink` once `found("orchard")` holds. Ilya Moreno counts the motor pool every dawn and paints the number on the blockhouse wall. This morning one truck is gone. The gate stub book and a release paper show a Pierce cart took it with the seal of the Archon's household, and fresh chalk ticks on the cabs beside it show more are marked.
 
-- Showing Ilya the paper pays nothing. He gives the player a torn page of the Army's motor pool book and writes the note `countLog`.
-- Painting the old number back costs 10 M and leaves Ilya counting an empty slot.
-- Selling the paper to the gate corporal pays 70 M, and Ilya blames the tenants at the orchard edge.
+- Perception 2 on the rows sees the chalk ticks. Machining 2 pulls the injectors from the cabs beside the slot and sets `pulled`. A failure costs 20 M and Ilya turns his back for good, which closes the talk with him.
+- Driving 3 runs the Pierce cart down on the north road and brings the truck back. It sets `reclaimed` and `lien_standing` becomes `enemy`. With `lien_standing` already `enemy` it needs driving 4. A failure costs 60 M and marks the player.
+- Showing Ilya the paper pays nothing and sets `told`. He gives the player a torn page of the Army's motor pool book and writes the note `countLog`.
+- Social 2 asks Ilya to say the true number at the gate where the patrol can hear. It sets `posted`. He loses his coat and `marr_regard` becomes `enemy`. A failure closes the talk with him.
+- Painting the old number back costs 10 M and sets `painted`. Ilya keeps counting an empty slot.
+- Selling the paper to the gate corporal pays 70 M and sets `sold`, and Ilya blames the tenants at the orchard edge.
+- The gate corporal asks 20 M for his stub book when `marr_regard` is `enemy`.
 
 The world variable `count_fate` keeps the outcome. Odile talks about it.
 
