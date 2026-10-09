@@ -104,3 +104,35 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 - Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.
+
+## Emil's pin
+
+`pin_emil.ink` is a page quest. Mara Kessel, a local at the Salvage Yard stall, starts it from `yard_mara.ink` with "You look like someone with a problem." She wants the one-pin swivel ring from her brother Emil's wreck. Each lead gives a fact. The wreck shows a torch cut, the yard tally names a Kiln hauler, Otto Brann at Ridge Wrecks tells the player how to know a Nose ring, and the crane office drawer holds the patrol roster copied twice in Mara's hand. Ridge Wrecks and Kiln Camp are gated on `found()`. The ring costs 40 M from the Kiln rider.
+
+- Giving the ring to Mara pays 60 M. If the player saw the roster, they may tell Mara they know. That changes only her words.
+- Giving it to Captain Silver pays 150 M and the ring goes into the slag drum. If the player saw the roster, Silver asks whose hand wrote it, and naming Mara pays 100 M more and puts her in the post cell.
+- Giving it to the Administrator pays 90 M and the ring goes into the crane office drawer.
+- The stall local calls none of `has_work`, `has_offers`, `board_full` or `take_work`.
+
+The world variable `pin_fate` keeps who holds the ring: `none`, `mara`, `silver` or `sully`. `pin_pact` is `silver` once Silver learned of Mara's pact, else `hidden`. Mara talks by both.
+
+## The north bend
+
+`bend_north.ink` is a page quest. Captain Silver, a local at the Salvage Yard, starts it from `yard_silver.ink` with "Is there work for me?" Silver pays 150 M to clear Ash Kerimov off the north bend. A Kiln rider at the yard brings Kaplan's offer of 180 M for the same, with the request that Ash is not hurt. A ride to the bend gives Ash's story.
+
+- Taking Silver's job drives Ash out, and a Nose truck takes the bend on a single pin.
+- Taking Kaplan's job also drives Ash out, and Kiln riders sit at the bend.
+- Warning Ash pays nothing and he stays.
+- Leaving 60 M for pins pays Ash's tin and he stays.
+
+The world variable `bend_fate` keeps the outcome: `none`, `silver`, `kiln` or `ash`. Silver greets by it. A player who leaves the quest unfinished hears Silver's pitch again.
+
+## The hook crates
+
+`crates_hook.ink` is a page quest. Constance Pierce, a local at Nose, starts it from `nose_constance.ink` with "You look like someone with a problem." She suspects her cousin Lucan sent the hook crates north and cannot prove it. Four facts are evidence: the filing room manifests, the crane book, Otto Brann's remark about the straps he signed, and the lid he kept. The lid counts 2 and each other fact 1. The crane book costs 40 M. Evidence only ever shows a chalked initial. The quest never says what Lucan ordered.
+
+- Bringing 3 or more to Constance pays 180 M and the pages go to the Pierce board.
+- Selling 2 or more to Lucan Pierce pays 240 M and he asks the player to tell Constance they found nothing.
+- Burying any of it pays nothing.
+
+The world variable `crates_fate` keeps the outcome: `none`, `proof`, `lucan` or `buried`. Constance greets by it, and Mara reacts to `proof`.

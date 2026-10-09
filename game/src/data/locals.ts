@@ -13,7 +13,17 @@ export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'g
   | 'talkKilnFight'
   | 'talkOnePin'
   | 'talkArmyStarved'
-  | 'talkCommitteeRent';
+  | 'talkCommitteeRent'
+  | 'pinAsk'
+  | 'pinStamp'
+  | 'pinRoster'
+  | 'bendOffers'
+  | 'bendKaplan'
+  | 'bendAsh'
+  | 'cratesAsk'
+  | 'cratesLid'
+  | 'cratesTally'
+  | 'cratesFiles';
 
 export type NoteDef = { title: string; from: string; text: string };
 
@@ -123,9 +133,59 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'Old Ibo, Nose radio shack',
     text: 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He says to ask at the Pierce office who pays command. He will not repeat what he hears on the air.',
   },
+  pinAsk: {
+    title: 'The swivel from Emil Kessel\'s wreck',
+    from: 'Mara Kessel, Salvage Yard post',
+    text: 'Mara Kessel wants the gun mount from her brother Emil\'s wreck on the north road. The wreck was stripped before she got there. She does not say why she wants the mount, only that it carries one pin.',
+  },
+  pinStamp: {
+    title: 'How to know a Nose ring',
+    from: 'Otto Brann, Ridge Wrecks',
+    text: 'Otto Brann says a Nose swivel ring carries the gate stamp on its flat and a single pin hole. A Brann ring has a small mark and a second pin. Emil Kessel asked Otto about a second pin the winter before he died.',
+  },
+  pinRoster: {
+    title: 'The roster, copied twice',
+    from: 'The crane office, Salvage Yard',
+    text: 'A drawer in the Administrator\'s crane office holds Captain Silver\'s patrol roster. It is copied twice in one small hand, and the copy bears the name M. Kessel.',
+  },
+  bendOffers: {
+    title: 'Silver wants the bend cleared',
+    from: 'Captain Silver, Salvage Yard post',
+    text: 'Captain Silver says a man at the north bend stops his Nose drivers and tells them their mounts are bad. Silver wants him gone, and he pays for it.',
+  },
+  bendKaplan: {
+    title: 'Kiln wants the bend cleared',
+    from: 'A Kiln rider, for Kaplan',
+    text: 'Kaplan of Kiln Camp sent a rider to say the man at the north bend slows the road. Ain wants him gone. Kaplan would rather he left alive, and he pays for it.',
+  },
+  bendAsh: {
+    title: 'The man at the north bend',
+    from: 'Ash Kerimov, north bend',
+    text: 'Ash Kerimov rode for Scrapjaw once. He sits at the north bend where Emil Kessel died and asks every driver to show the pins of their swivel. He pays for a second pin when a driver cannot.',
+  },
+  cratesAsk: {
+    title: 'Hook crates and wheel crates',
+    from: 'Constance Pierce, Nose office',
+    text: 'Constance Pierce says the old Pierce yard crated the Old Army\'s stripped guns. Wheel crates went to a crossroads dealer. Hook crates went north. She wants to know who ordered the hook crates.',
+  },
+  cratesLid: {
+    title: 'A lid with a hook and a Brann mark',
+    from: 'Otto Brann, Ridge Wrecks',
+    text: 'Otto Brann strapped the hook crates for the yard and signed each strap. He kept a lid. It has a hook burned in and chalk on its edge that reads north gate, by L.',
+  },
+  cratesTally: {
+    title: 'The crane book',
+    from: 'Sully Okafor, Salvage Yard',
+    text: 'The old yard tally in the crane office lists hook crates leaving by the north gate, week after week. Each line ends with a sealed order and one initial, L.',
+  },
+  cratesFiles: {
+    title: 'Dell Marr\'s last page',
+    from: 'The Pierce filing room, Nose',
+    text: 'The Pierce filing room keeps the crate manifests in Dell Marr\'s hand. His last line ends mid-word, and the pages after it were cut out with a blade.',
+  },
 };
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'bo' | 'sefa' | 'ines' | 'granaryDriver' | 'bureauClerk';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'bo' | 'sefa' | 'ines' | 'granaryDriver' | 'bureauClerk' | 'pin_mara' | 'bend_silver' | 'crates_constance';
 
 export type LocalDef = { id: LocalId; name: string; role: string; town: string; quest: string };
 
@@ -142,4 +202,7 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   ines: { id: 'ines', name: 'Ines Abend', role: 'Lunar Society', town: 'nose', quest: 'nose_ines' },
   granaryDriver: { id: 'granaryDriver', name: 'Patrol driver', role: 'Bowl road patrol', town: 'granary', quest: 'granary_driver' },
   bureauClerk: { id: 'bureauClerk', name: 'Bureau clerk', role: 'Order Bureau records', town: 'nose', quest: 'nose_clerk' },
+  pin_mara: { id: 'pin_mara', name: 'Mara Kessel', role: 'Post officer', town: 'salvage-yard', quest: 'yard_mara' },
+  bend_silver: { id: 'bend_silver', name: 'Captain Silver', role: 'Commands the Nose post', town: 'salvage-yard', quest: 'yard_silver' },
+  crates_constance: { id: 'crates_constance', name: 'Constance Pierce', role: 'Head underwriter', town: 'nose', quest: 'nose_constance' },
 };

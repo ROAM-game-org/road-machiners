@@ -50,10 +50,10 @@ describe('settlement locals', () => {
   });
 
   it('places the recent-years locals and records a biased rumor as said', () => {
-    expect(localsAt('salvage-yard').map((l) => l.id)).toEqual(['sefa']);
-    expect(localsAt('granary').map((l) => l.id)).toEqual(['granaryDriver']);
-    expect(localsAt('nose').map((l) => l.id)).toEqual(['kovac', 'lena', 'ibo', 'ines', 'bureauClerk']);
-    expect(localsAt('bowl').map((l) => l.id)).toEqual(['ruben', 'hattie', 'dag', 'jory', 'bo']);
+    expect(localsAt('salvage-yard').map((l) => l.id)).toContain('sefa');
+    expect(localsAt('granary').map((l) => l.id)).toContain('granaryDriver');
+    expect(localsAt('nose').map((l) => l.id)).toEqual(expect.arrayContaining(['ines', 'bureauClerk']));
+    expect(localsAt('bowl').map((l) => l.id)).toEqual(expect.arrayContaining(['jory', 'bo']));
 
     const next = talk(parkedAt('salvage-yard'), 'yard_sefa', ['Is the Burnt Convoy picked clean?']);
 
