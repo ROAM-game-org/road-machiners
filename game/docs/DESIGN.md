@@ -4,6 +4,8 @@ RoaM or Road Machiners is a turn-based post-apocalyptic wasteland RPG where you 
 
 Inspired by Ex Machina, Space Rangers 2, Kenshi, Dustland Delivery, Caravaneer 2 and more.
 
+The idea behind the game is in [Theme](theme.md). Every principle below answers to it.
+
 # Staple Principles
 
 1. Immersive role-playing sandbox
