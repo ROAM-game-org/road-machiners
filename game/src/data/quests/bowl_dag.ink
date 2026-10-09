@@ -51,7 +51,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   -> hub
 + {dag_kiln} [What do you mean, pay the raiders?]
   The Granary pays Kiln Camp a sack of grain for every armed truck that crosses their road. It costs less than a funeral.
-  If they close on you anyway, fight hard. They often let a hard fighter go, and they strip a soft one down to the frame. I told you not to fire first and I meant it, but I never told you to fight soft once they're on you. I told you to know which one you are.
+  If they close on you anyway, fight hard. They often let a hard fighter go, and they strip a soft one down to the frame. Don't start the fight. But once they start it, don't hold back.
   ~ note("talkKilnFight")
   -> hub
 + {dag_pay} [Do tenants serve with you?]

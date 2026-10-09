@@ -34,7 +34,7 @@ Bowl road patrol, grain run. Talk if you like, friend, but I'm checking pins whi
   It ended and left hungry soldiers behind. My uncle was in it. He told me how soldiers came to the gate of Old Orchard, its depot, at night and were turned away. Some of them are on my crew, and I'll say this for hungry soldiers, they make fine drivers.
   -> hub
 + {driver_road} [What do they do differently past the canyon?]
-  The tale is that trucks there carry no guns, because a guard every town pays for keeps the roads. Lusa Fenwick rode west with a convoy and came back with it. She's a dreamer.
+  The tale is that trucks there carry no guns, because a guard every town pays for keeps the roads. Lusa Fenwick rode west with a convoy once, and she came back telling it. She's a dreamer.
   I haven't been west, and neither has anyone who swears to it.
   ~ note("talkWestTowns")
   -> hub

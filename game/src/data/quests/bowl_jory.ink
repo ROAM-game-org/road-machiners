@@ -7,13 +7,13 @@ VAR jory_nose = false
 
 === start ===
 # checkpoint: start
-Jory Baptiste. I speak for the tenants, which is to say I talk and the Senate nods off. Sit down, the stool's free. That's more than anyone's ever said of the vote.
+Jory Baptiste. I speak for the tenants, which is to say I talk and the Senate nods off. Sit down, the stool's free. It's the only free thing in Bowl, so enjoy it.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + [Who are the tenants?]
-  We grow the food, and the citizens eat it. You can tell us apart by the dirt under the nails. We own less than the folk of Nose and answer to fewer people, so we're poor but loose, like a dog off the chain.
+  We grow the food, and the citizens eat it. You can tell us apart by the dirt under the nails. We work the families' terraces and keep a share of what we grow. We've no vote in the Senate, so the families decide what we plant and what we're paid.
   The top terraces, where the old families live, stay green even in a dry year. Nobody's explained that to me, and I wouldn't dare ask. A miracle's a miracle.
   ~ jory_green = true
   ~ jory_nose = true
