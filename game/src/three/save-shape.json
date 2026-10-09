@@ -1539,10 +1539,26 @@
     "seen_ash": "boolean",
     "silver_pay": "number"
    },
-   "bowl_bo": {},
-   "bowl_dag": {},
-   "bowl_hattie": {},
-   "bowl_jory": {},
+   "bowl_bo": {
+    "bo_fight": "boolean",
+    "bo_roll": "boolean"
+   },
+   "bowl_dag": {
+    "dag_kiln": "boolean",
+    "dag_pay": "boolean",
+    "dag_road": "boolean"
+   },
+   "bowl_hattie": {
+    "hattie_flats": "boolean",
+    "hattie_strangers": "boolean",
+    "hattie_sunward": "boolean"
+   },
+   "bowl_jory": {
+    "jory_filled": "boolean",
+    "jory_green": "boolean",
+    "jory_nose": "boolean",
+    "jory_patrol": "boolean"
+   },
    "bowl_names": {
     "book_seen": "boolean",
     "bounty": "number",
@@ -1554,7 +1570,12 @@
     "outcome": "string",
     "refused": "boolean"
    },
-   "bowl_ruben": {},
+   "bowl_ruben": {
+    "ruben_old": "boolean",
+    "ruben_senate": "boolean",
+    "ruben_sun": "boolean",
+    "ruben_water": "boolean"
+   },
    "crates_hook": {
     "look_price": "number",
     "lucan_pay": "number",
@@ -1565,7 +1586,10 @@
     "yard_tally": "boolean"
    },
    "first_fall": {},
-   "granary_driver": {},
+   "granary_driver": {
+    "driver_haul": "boolean",
+    "driver_road": "boolean"
+   },
    "granary_lamps": {
     "juno_said": "boolean",
     "lamps_seen": "boolean",

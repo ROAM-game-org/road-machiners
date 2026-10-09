@@ -82,6 +82,20 @@ describe('settlement locals', () => {
     expect(choices(w, 'bowl_ruben')).toContain('What is the Fallen Sun really?');
   });
 
+  it('offers a stranger only questions that name nothing unheard', () => {
+    const w = parkedAt('bowl');
+    expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'Goodbye.']);
+    expect(choices(w, 'bowl_dag')).toEqual(['What is the road like?', 'Any work?', 'Who pays the Farmers?', 'Goodbye.']);
+    expect(choices(w, 'bowl_bo')).toEqual(['What fight on the road?', 'What is the road patrol?', 'Goodbye.']);
+  });
+
+  it('opens a question after the answer that mentions it', () => {
+    const w = parkedAt('bowl');
+    expect(choices(w, 'bowl_ruben')).not.toContain('Why did the Senate refuse the loan from Pierce?');
+    const asked = talk(w, 'bowl_ruben', ['Who runs Bowl?', 'Goodbye.']);
+    expect(choices(asked, 'bowl_ruben')).toContain('Why did the Senate refuse the loan from Pierce?');
+  });
+
   it('writes a rumor into the journal and changes nothing else', () => {
     const w = parkedAt('bowl');
     w.turn = 77;
@@ -96,7 +110,7 @@ describe('settlement locals', () => {
   it('answers a lore question with no note and no change', () => {
     const w = parkedAt('bowl');
 
-    const next = talk(w, 'bowl_ruben', ['Tell me about the Old World.']);
+    const next = talk(w, 'bowl_ruben', ['What is this place?', 'What did your grandmother tell you about the old days?']);
 
     expect(next.player.notes).toEqual([]);
     expect(next.events).toEqual([]);
@@ -134,7 +148,7 @@ describe('work by talk', () => {
 
     expect(townWork(w)?.id).toBe('ct-high');
     const offer = talk(w, 'bowl_dag', [WORK]);
-    expect(questView(offer, QUESTS).lines.at(-1)).toEqual({ text: 'Could be. Interested?', tags: ['work_offer'] });
+    expect(questView(offer, QUESTS).lines.at(-1)).toEqual({ text: 'I might have a haul for you, if you want it.', tags: ['work_offer'] });
   });
 
   it('passes over a haul the truck has no room for', () => {
@@ -158,8 +172,8 @@ describe('work by talk', () => {
     full.shops.bowl.contracts = [haul('ct-high', 300)];
     full.player.contracts = Array.from({ length: CONTRACTS.maxActive }, (_, k) => haul(`held${k}`, 10));
 
-    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe('Nothing on the board today. Come back in a couple of days.');
-    expect(lastLine(talk(full, 'bowl_dag', [WORK]))).toBe('You are carrying enough promises already. Finish a few first.');
+    expect(lastLine(talk(empty, 'bowl_dag', [WORK]))).toBe("The board's empty today. Come back in a couple of days, it fills slowly.");
+    expect(lastLine(talk(full, 'bowl_dag', [WORK]))).toBe("You're carrying enough promises already. Finish a few and then ask me again.");
   });
 
   it('takes the offer exactly as the board does', () => {

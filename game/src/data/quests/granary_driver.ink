@@ -1,37 +1,42 @@
 INCLUDE world.ink
 
+VAR driver_haul = false
+VAR driver_road = false
+
 === start ===
 # checkpoint: start
-Bowl road patrol. Grain run. If you want to talk, talk while I check the pins.
+Bowl road patrol, grain run. Talk if you like, friend, but I'm checking pins while you do. Don't take it personal if I'm looking at the truck and not at you.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + [What do you haul?]
-  Grain from the Granary to wherever the Senate points. Every truck carries a gun now, on a ring pinned twice.
-  The Granary pays a sack for each armed truck that crosses Kiln's road. A sack is cheaper than a truck.
+  Grain, from the Granary to wherever the Senate points me. I'm late with this load because a pin on my ring was loose. A pair of steel pins holds the ring to the bed, and I've seen what one pin does on a bend. So I check both at every stop, and I'll check yours too if you let me.
+  Every crossing of Kiln Camp's road costs the Granary a sack, so I keep my load tight. A sack's cheaper than a truck, I tell myself. Odile Marsh, the steward, chalks every sack on the gate at night.
+  ~ driver_haul = true
   -> hub
-+ [What is on the Granary gate?]
-  Odile Marsh's counts. Sacks to Kiln. Tenants' shares for the patrol. She was a tenant once, and some of us still call her a turncoat behind her back.
-  She counts every sack at night, twice. I have watched her. She does not blink.
++ [What is the road like out here?]
+  Empty, once you're between the towns. Each town guards the road by its own walls, and Nose won't pay for a guard on the rest. Every truck's its own patrol, and I'd sleep better with somebody else on the road.
+  The Old Army kept the whole road once, before my time. And I hear folk past the canyon do it differently, but I've only heard it.
+  ~ driver_road = true
   -> hub
-+ [Does the patrol keep the whole road?]
-  Only the road near the walls. The Nose will not pay for the rest, and keeps its own. Between us there is nobody.
-  So every truck is its own patrol. That is why we all carry a gun.
++ {driver_haul} [What is on the Granary gate?]
+  Odile's counts, and I've watched her chalk them. One board holds the sacks we pay Kiln. The one beside it holds the tenants' share that pays for the patrol. She was a tenant herself, and some of us still call her a turncoat behind her back.
+  She counts every sack twice, at night, and she doesn't blink.
   -> hub
-+ [Do you trust Kiln?]
-  I trust them to be Kiln. Pay and they let you through. Fight hard and they often let you through. Do neither and they strip you.
++ {driver_haul} [Do you trust Kiln?]
+  I trust them to act like Kiln. If you pay, they let you through. If you fight hard they often let you through anyway, and if you do neither they strip the truck down to the frame.
   -> hub
-+ [Have you heard about the west?]
-  Convoy drivers say there are towns past the canyon where trucks carry no guns. A guard paid by every town keeps the roads, they say.
-  Lusa Fenwick rode west with a convoy and came back with the tale. She is a dreamer. I have not been west. Neither has anyone who swears it.
++ {driver_haul} [What are the tenants like on the patrol?]
+  Good drivers. They sit at the back of the hall and don't complain, and I've seen worse men with a vote.
+  -> hub
++ {driver_road} [What became of the Old Army?]
+  It ended and left hungry soldiers behind. My uncle was in it. He told me how soldiers came to the gate of Old Orchard, its depot, at night and were turned away. Some of them are on my crew, and I'll say this for hungry soldiers, they make fine drivers.
+  -> hub
++ {driver_road} [What do they do differently past the canyon?]
+  The tale is that trucks there carry no guns, because a guard every town pays for keeps the roads. Lusa Fenwick rode west with a convoy and came back with it. She's a dreamer.
+  I haven't been west, and neither has anyone who swears to it.
   ~ note("talkWestTowns")
-  -> hub
-+ [Were you in the Old Army?]
-  My uncle was. Soldiers came to the Orchard gate at night after it ended and were turned back. Some of them are on my crew now. Hungry soldiers make fine drivers.
-  -> hub
-+ [What of the tenants in the patrol?]
-  Good drivers. They sit at the back of the hall, and they do not complain. I have seen worse men with a vote.
   -> hub
 + [Goodbye.]
   -> END
