@@ -68,17 +68,19 @@ function fightsThrough(world: World, me: Vehicle): boolean {
   return vehicleHasPerk(world, me, "fightThrough") && world.player.health > maxHealthOf(world) * PERK_NUMBERS.fightThrough.health;
 }
 
-export function advanceKnockout(world: World): void {
+export function advanceKnockout(world: World): string[] | null {
   const p = world.player;
-  if (p.state !== "knockedOut") return;
+  if (p.state !== "knockedOut") return null;
   p.knockoutTurns++;
   const me = playerVehicle(world);
   if (!me.defeat) throw new Error("A knocked-out player truck has no defeat");
-  if (attackerWatches(world, me, me.defeat.foes) && p.knockoutTurns < RULES.knockoutMaxTurns) return;
+  const foes = me.defeat.foes;
+  if (attackerWatches(world, me, foes) && p.knockoutTurns < RULES.knockoutMaxTurns) return null;
   patchBrokenCore(me);
   delete me.defeat;
   p.state = "active";
   world.events.push({ t: "wake" });
+  return foes;
 }
 
 export function patchBrokenCore(me: Vehicle): void {

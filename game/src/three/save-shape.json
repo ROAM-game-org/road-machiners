@@ -1522,6 +1522,7 @@
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
    "hooks_report": "string",
+   "intro_step": "string",
    "lamps_fate": "string",
    "names_vosk": "string",
    "pin_fate": "string",
@@ -1584,6 +1585,7 @@
     "store_read": "boolean",
     "weigher_said": "boolean"
    },
+   "intro_green_pit": {},
    "nose_clerk": {},
    "nose_constance": {},
    "nose_courier": {
@@ -1722,6 +1724,9 @@
    "granary_sack": [
     "start",
     "desk"
+   ],
+   "intro_green_pit": [
+    "start"
    ],
    "nose_clerk": [
     "start",

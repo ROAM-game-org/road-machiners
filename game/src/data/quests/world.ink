@@ -1,5 +1,6 @@
 VAR depot_thief = "none"
 VAR first_knockout_seen = false
+VAR intro_step = "off"
 VAR pipe_fate = "none"
 VAR sack_fate = "none"
 VAR lamps_fate = "none"

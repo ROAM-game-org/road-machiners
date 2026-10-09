@@ -106,6 +106,19 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 - Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.
 
+## The ambush and Green Pit
+
+The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `walk`, `drive`, `patched`, `ambush` and `done`. Another part of the game sets `walk`, `drive` and `patched`. `src/sim/intro.ts` sets `ambush`, and `intro_green_pit.ink` and `src/sim/intro.ts` set `done`.
+
+- `introStep()` and `setIntroStep()` in `src/sim/quests.ts` read and write it, next to `openFirstFall()`.
+- `advanceIntro()` runs each turn after `spawnNpcs()`. At `patched`, with the player active and on a road tile outside a site, it spawns one raider and sets `ambush`. Off the road it waits.
+- The raider is the `buggy` template with the gear and chassis in `AMBUSH` in `src/data/intro.ts`. It spawns on a road out of the player's sight and nearer to Green Pit than the player. It gets a robbery feud and a fight goal on the player, the same as a raider that chose to rob. It carries no cargo, so it has room to rob.
+- The raider drives and fights by the normal rules. It may radio a demand, and the player may refuse.
+- A knockout plays the first fall as usual. When the knockout ends, `arriveAtGreenPit()` runs if the foes were not empty and the step is `ambush`. It parks the truck on the Green Pit pad and opens `intro_green_pit`.
+- `intro_green_pit.ink` is a page scene. Its first choice sets `done`. Leaving before that choice sets nothing, so the next knockout plays it again.
+- At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
+- A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
+
 ## Emil's pin
 
 `pin_emil.ink` is a page quest. Mara Kessel, a local at the Salvage Yard stall, starts it from `yard_mara.ink` with "You look like someone with a problem." She wants the one-pin swivel ring from her brother Emil's wreck. Each lead gives a fact. The wreck shows a torch cut, the yard tally names a Kiln hauler, Otto Brann at Ridge Wrecks tells the player how to know a Nose ring, and the crane office drawer holds the patrol roster copied twice in Mara's hand. Ridge Wrecks and Kiln Camp are gated on `found()`. The ring costs 40 M from the Kiln rider.
