@@ -17,9 +17,11 @@ export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'g
   | 'pinAsk'
   | 'pinStamp'
   | 'pinRoster'
+  | 'pinBoots'
   | 'bendOffers'
   | 'bendKaplan'
   | 'bendAsh'
+  | 'bendRise'
   | 'cratesAsk'
   | 'cratesLid'
   | 'cratesTally'
@@ -160,6 +162,11 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'The crane office, Salvage Yard',
     text: 'A drawer in the Administrator\'s crane office holds Captain Silver\'s patrol roster. It is copied twice in one small hand, and the copy bears the name M. Kessel.',
   },
+  pinBoots: {
+    title: 'Boots under the tracks',
+    from: 'The north bend',
+    text: 'Round Emil Kessel\'s wreck the boot prints of soldiers lie under the tracks of the cab that cut the ring. The soldiers came first, looked at the ring and left it.',
+  },
   bendOffers: {
     title: 'Silver wants the bend cleared',
     from: 'Captain Silver, Salvage Yard post',
@@ -174,6 +181,11 @@ export const NOTES: Record<NoteId, NoteDef> = {
     title: 'The man at the north bend',
     from: 'Ash Kerimov, north bend',
     text: 'Ash Kerimov rode for Scrapjaw once. He sits at the north bend where Emil Kessel died and asks every driver to show the pins of their swivel. He pays for a second pin when a driver cannot.',
+  },
+  bendRise: {
+    title: 'A crate above the narrow turn',
+    from: 'The rise above the north bend',
+    text: 'At dusk a Nose cart left a crate of greased Army rifles in the rocks above the narrow corner of the north bend. A bundle of new Kiln red cloth lay on the lid.',
   },
   cratesAsk: {
     title: 'Hook crates and wheel crates',
