@@ -63,6 +63,18 @@ INCLUDE world.ink
 
 [Quests](architecture/quests.md#top-tags) lists every tag and its exact rules.
 
+## Quest design
+
+Age of Decadence is the model. Avoid the quest where someone asks for a mystery solved and pays a purse at the end. A few may stay, but most quests work like this:
+
+- The player is often a pawn. People use them to carry, deliver, witness or take the blame, for aims they learn late or never. A quest giver rarely says the true reason.
+- Information is scarce and partial. Each fact costs time, money, trust or risk. Many questions never get an answer, and two sources may disagree.
+- Opponents are competent. They notice the player, plan ahead, cover their tracks and act while the player acts. An obvious plan fails against them.
+- The reward comes from the world more often than from a purse: a favor, a door that opens or closes, a name people remember, a grudge. Money changes hands when the deal is a plain deal.
+- Every side loses something. No ending is clean.
+- The player can fail, and the story goes on. A failure leaves its own mark, like a lost friend or a closed door.
+- An ending changes who holds power. The player may never see the whole effect.
+
 ## Writing rules
 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict.
