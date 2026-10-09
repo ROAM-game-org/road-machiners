@@ -26,6 +26,7 @@ export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'g
   | 'cratesLid'
   | 'cratesTally'
   | 'cratesFiles'
+  | 'cratesCopy'
   | 'pipeBook' | 'pipeDraw' | 'pipeOffer' | 'pipeCanal' | 'sackGate' | 'sackStore' | 'sackDrop' | 'lampsLien' | 'lampsOil' | 'countWall' | 'countGap' | 'countRelease' | 'countLog'
   | 'courierVesna'
   | 'courierLetter'
@@ -183,7 +184,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
     text: 'Ash Kerimov rode for Scrapjaw once. He sits at the north bend where Emil Kessel died and asks every driver to show the pins of their swivel. He pays for a second pin when a driver cannot.',
   },
   bendRise: {
-    title: 'A crate above the narrow turn',
+    title: 'A crate above the narrow corner',
     from: 'The rise above the north bend',
     text: 'At dusk a Nose cart left a crate of greased Army rifles in the rocks above the narrow corner of the north bend. A bundle of new Kiln red cloth lay on the lid.',
   },
@@ -206,6 +207,11 @@ export const NOTES: Record<NoteId, NoteDef> = {
     title: 'Dell Marr\'s last page',
     from: 'The Pierce filing room, Nose',
     text: 'The Pierce filing room keeps the crate manifests in Dell Marr\'s hand. His last line ends mid-word, and the pages after it were cut out with a blade.',
+  },
+  cratesCopy: {
+    title: 'Mara Kessel\'s old case',
+    from: 'Sully Okafor, crane office',
+    text: 'The second copy of Mara Kessel\'s Bureau case lies in a drawer of the crane office. Each insured truck was filed at the Nose office in the morning and stopped on the road that night. The clerk who filed them was sent west by order of the underwriting floor, with the initial L beside the line.',
   },
   pipeBook: {
     title: 'The pump book',
