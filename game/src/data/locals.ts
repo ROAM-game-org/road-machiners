@@ -77,7 +77,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   burntConvoy: {
     title: 'Burnt Convoy picked clean',
     from: 'Old Ibo, Nose radio shack',
-    text: 'Old Ibo says Burnt Convoy was picked clean long ago and nothing is left there worth the fuel.',
+    text: 'Old Ibo says the Burnt Convoy was picked clean long ago and the stretch is not worth the fuel.',
   },
   talkGranaryGate: {
     title: 'The counts on the Granary gate',
@@ -92,7 +92,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   talkConvoyNotClean: {
     title: 'Burnt Convoy is not picked clean',
     from: 'Sefa Krol, at the Salvage Yard',
-    text: 'Sefa says the families pick Burnt Convoy every week and the road leaves more. She says Ibo tells drivers it is picked clean so they stay away.',
+    text: 'Sefa says the families still pick the old Burnt Convoy stretch every week and the road leaves more. She says Ibo tells drivers it is picked clean so they stay away.',
   },
   talkCraneBook: {
     title: 'A book in the crane office',
@@ -256,13 +256,13 @@ export const NOTES: Record<NoteId, NoteDef> = {
   },
   lampsLien: {
     title: 'Numbers on the lamps',
-    from: 'Podfield',
-    text: 'Every Podfield lamp carries a Pierce lien number in yellow paint. On one post an older number shows beneath the paint.',
+    from: 'The Glass Flats',
+    text: 'Every lamp in the pod field carries a Pierce lien number in yellow paint. On one post an older number shows beneath the paint.',
   },
   lampsOil: {
     title: 'Oil for the Bowl',
-    from: 'Young Tam, Podfield',
-    text: 'The Bowl buys the Podfield lamp oil, and the coin goes to a Pierce clerk. The oil can Tam carries up the ladder gets lighter every week. The last lamp is dry.',
+    from: 'Young Tam, at the Glass Flats',
+    text: 'The Bowl buys the lamp oil from the pod field, and the coin goes to a Pierce clerk. The oil can Tam carries up the ladder gets lighter every week. The last lamp is dry.',
   },
   countWall: {
     title: 'Coats of paint at Old Orchard',
@@ -307,21 +307,21 @@ export const NOTES: Record<NoteId, NoteDef> = {
   namesReading: {
     title: 'The Reading of Names',
     from: 'Lusa Fenwick, at the Bowl well',
-    text: 'Lusa reads the names of the dead at Canyon Bridge once a year: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra and Emil Kessel. Drivers answer each name from their cabs.',
+    text: 'Lusa reads the names of the dead on the bridge deck once a year: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra and Emil Kessel. Drivers answer each name from their cabs.',
   },
   namesDrunk: {
     title: 'Who shot Hal Sorensen',
-    from: 'A drunk man at the Canyon Bridge toll hut',
+    from: 'A drunk man at the bridge toll hut',
     text: 'A drunk man says Karl Vosk, the younger Vosk, shot Hal Sorensen below the bridge. He says Jens only held the wheel. He kept a spent Old Army brass from the road.',
   },
   namesBook: {
     title: 'Dario Feld\'s book',
-    from: 'Lusa Fenwick, at Canyon Bridge',
+    from: 'Lusa Fenwick, on the bridge deck',
     text: 'The old convoy master wrote that on the day before Hal was shot, a pair of men in Army coats watched the trucks from the rise below the bridge. The younger had red thread at his cuff.',
   },
   namesLetter: {
     title: 'Hal\'s last letter',
-    from: 'Lusa Fenwick, at Canyon Bridge',
+    from: 'Lusa Fenwick, on the bridge deck',
     text: 'Hal wrote that a stranger offered him a rifle for grain. He would not pay for a thing he did not ask for.',
   },
   hooksSoldier: {

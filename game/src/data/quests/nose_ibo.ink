@@ -42,7 +42,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_bowl = true
   -> hub
 + [Heard anything interesting on the air?]
-  Scavengers gab about the Burnt Convoy now and then, that row of burnt trucks out on the road. Picked clean, they say. Nothing left but ash and bent rims, and not worth the fuel to go and look.
+  Scavengers gab about the Burnt Convoy now and then, that row of burnt trucks the road crews hauled off. Picked clean, they say. The stretch is all ash and bent rims, and not worth the fuel to go and look.
   ~ note("burntConvoy")
   ~ heard_convoy = true
   -> hub
@@ -58,8 +58,8 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   They carry the mail between the towns. They run in pairs now, one to drive and one to hold the gun. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
   ~ asked_couriers = true
   -> hub
-+ {(heard_convoy or found("burnt-convoy")) and not asked_convoy} [What happened at Burnt Convoy?]
-  A whole convoy went up in one night. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
++ {(heard_convoy or has_note("burntConvoy")) and not asked_convoy} [What happened at Burnt Convoy?]
+  A whole convoy went up in one night, years back. Some say raiders did it. Some say a fuel truck blew and took the rest with it. I heard the last calls on the air, and nobody said who started it.
   ~ asked_convoy = true
   -> hub
 + {heard_army and not asked_army} [How did the Old Army end?]

@@ -170,7 +170,7 @@ Rhythm: dry and blunt. She says a flat fact, then a sharper sentence, then a jok
 
 Habits: she says "That is all we are". She prices what a stranger carries. She says a good deal is one nobody likes.
 
-Cares about: the families, fair trade and leaving a driver his last water. She avoids names of people who came to the convoy for shelter.
+Cares about: the families, fair trade and leaving a driver his last water. She avoids names of people who came to the families for shelter.
 
 Strangers: she weighs them like goods. She tells them to keep a hand off the table.
 

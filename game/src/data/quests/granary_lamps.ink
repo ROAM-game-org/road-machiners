@@ -26,14 +26,14 @@ VAR quarter = 40
 
 === start ===
 # checkpoint: start
-Podfield is a field of open pods, rusted shells half sunk in the dust, and the wind sets their hatches creaking like a congregation. # place: Podfield
+At the edge of the Glass Flats lies a field of open pods, rusted shells half sunk in the dust beside the fused glass, and the wind sets their hatches creaking like a congregation. # place: Glass Flats
 A line of posts, welded from hull plate, follows the debris trail across it with a lamp on top of each.
 An old woman sits on a stool at the foot of the first post with a rag in her lap. A young man with a stiff leg is already on the ladder.
 -> foot
 
 === foot ===
 # checkpoint: foot
-The Granary cart stands at the foot of the ladder, and a man in a Pierce coat writes in a book on its tailboard. # page # place: Podfield
+The Granary cart stands at the foot of the ladder, and a man in a Pierce coat writes in a book on its tailboard. # page # place: Glass Flats
 { guarded:
   A pair of the clerk's men stand by the cart now, with their hands resting on their belts.
 }
@@ -63,7 +63,7 @@ The Granary cart stands at the foot of the ladder, and a man in a Pierce coat wr
 === lamps ===
 ~ lamps_seen = true
 ~ note("lampsLien")
-You walk the line in the low light, and each post carries a number in fresh yellow paint on a plate welded below the lamp. # place: Podfield
+You walk the line in the low light, and each post carries a number in fresh yellow paint on a plate welded below the lamp. # place: Glass Flats
 Post; Lien paint; Oil tank # head
 First; 4417; full # row
 Second; 4418; full # row
@@ -77,7 +77,7 @@ The lien plates are riveted over the hull, and the old numbers were stamped into
 
 === juno ===
 ~ juno_said = true
-Juno Pell does not get up. Her hands are knotted like roots, and she keeps working the rag between them. # place: Podfield
+Juno Pell does not get up. Her hands are knotted like roots, and she keeps working the rag between them. # place: Glass Flats
 I know every pod on this field by its number, child. I knew them long before Pierce came and painted over them. # speaker: Juno
 The Granary buys our oil. I sell to them first so the roof holds over our heads, and the lamps get whatever's left. # speaker: Juno
 The last one's resting. Every lamp is a pod and every pod is somebody, and not one of them goes dark while I'm alive. # speaker: Juno
@@ -94,7 +94,7 @@ The last lamp is dry to the wick, and there's a tag from the Pierce office wired
 
 === slip ===
 ~ slip_read = true
-The carter holds the slip out without being asked twice. # place: Podfield
+The carter holds the slip out without being asked twice. # place: Glass Flats
 Item; Paid by; Paid to # head
 Lamp oil, per can; The Granary; Pierce office, lien book # row
 { skill("perception") >= 2:
@@ -149,7 +149,7 @@ He sends a bill for the tank and the seam, and it comes to {due} M. The lien on 
 -> foot
 
 === hold ===
-You walk out to where the cart must pass and stand in the track. # page # place: Podfield
+You walk out to where the cart must pass and stand in the track. # page # place: Glass Flats
 The clerk's pair comes up with their hands on their belts. Tam watches from the ladder, and Juno does not look up.
 { skill("toughness") >= 3:
   -> held
@@ -188,7 +188,7 @@ The clerk writes in his book. The lien on the post grows by a quarter, and the c
 
 === leased ===
 ~ lamps_fate = "leased"
-The carter does not meet your eye. # page # place: Podfield
+The carter does not meet your eye. # page # place: Glass Flats
 { paper_seen:
   You say you can read a seal across a tailboard, and that a paper dated before the lamp went dark is a paper the Senate will want explained.
 }
@@ -200,14 +200,14 @@ At dusk a Bowl crew lights the lamps beside Tam. The old woman stays on her stoo
 
 === sour_deal ===
 ~ sour = true
-The carter listens to the end. Then he rolls the paper and puts it back in his coat. # place: Podfield
+The carter listens to the end. Then he rolls the paper and puts it back in his coat. # place: Glass Flats
 Odile didn't send me here to be taught my own trade. # speaker: Carter
 He tells the yard what you said. By the time you reach the ladder, Tam has gone up it and will not come down.
 -> foot
 
 === kept ===
 ~ lamps_fate = "kept"
-The carter looks at the old woman, then at you. # page # place: Podfield
+The carter looks at the old woman, then at you. # page # place: Glass Flats
 He shrugs and swings the cart round, and the oil stays on the field.
 That night every lamp burns, the last one too, thin and yellow. Far off at the Granary the weigh house runs on tallow.
 The clerk writes in his book. The lien grows by a quarter.
@@ -216,7 +216,7 @@ The clerk writes in his book. The lien grows by a quarter.
 === sold ===
 ~ lamps_fate = "sold"
 ~ give_money(offer)
-The carter unrolls a paper. The Granary will take the lamps and keep them lit with its own crew and rope. # page # place: Podfield
+The carter unrolls a paper. The Granary will take the lamps and keep them lit with its own crew and rope. # page # place: Glass Flats
 Nobody climbs the ladder with a bad leg after that, and Tam can say that much for it.
 Juno signs her mother's name with a hand that shakes. She does not ask what the paper says.
 The carter asks for a witness's mark under hers, and you give it. Tam reads it from the ladder and spits.

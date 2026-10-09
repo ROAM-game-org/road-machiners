@@ -104,7 +104,7 @@ The other drivers have no town to speak for them.
 - Vultures oppose. They follow fights and strip the losers.
 - Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
 - Couriers embrace the road. Guild couriers run the open road in pairs.
-- The Burnt Convoy squatters oppose. A dozen vulture families live in the burnt trucks of an old convoy and are first to any wreck.
+- The Burnt Convoy families oppose. A dozen vulture families lived in the burnt trucks of an old convoy until the road crews cleared the wrecks. They live on the north side of the Salvage Yard now and are first to any wreck.
 
 ## Faiths
 

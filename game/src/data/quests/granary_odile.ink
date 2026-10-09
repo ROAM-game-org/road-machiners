@@ -23,7 +23,7 @@ VAR knows_orchard = false
 # checkpoint: start.hub
 + [What hangs on the gate?]
   A pair of boards that I chalk myself at night, after I've counted the store. One shows the sacks we pay to Kiln Camp, a sack for every armed truck of ours that crosses their road. The other shows the tenants' share for the road patrol, the men who guard the roads near the Bowl. # speaker: Odile
-  I light the lamps over the gate at the same hour, with oil from the beacon field at Podfield. Lately my count has troubled me more than the lamps do. # speaker: Odile
+  I light the lamps over the gate at the same hour, with oil from the beacon field on the edge of the Glass Flats. Lately my count has troubled me more than the lamps do. # speaker: Odile
   ~ note("sackGate")
   ~ knows_gate = true
   ~ knows_patrol = true
@@ -45,8 +45,8 @@ VAR knows_orchard = false
   ++ [Not now.]
      -> hub
 + {knows_lamps and lamps_fate == "none"} [Who presses the oil you burn at the gate?]
-  An old woman named Juno Pell, who keeps the beacon lamps along the debris trail at Podfield. That's east of here and a little north, where the pods came down thickest. She sells the Bowl her oil, and my carter tells me her end lamp stands dark. I don't like a dark lamp. # speaker: Odile
-  { found("podfield"):
+  An old woman named Juno Pell, who keeps the beacon lamps along the debris trail, in the field of old pods at the edge of the Glass Flats. That's east of here and a little north, where the pods came down thickest. She sells the Bowl her oil, and my carter tells me her end lamp stands dark. I don't like a dark lamp. # speaker: Odile
+  { found("glass-flats"):
     -> lamps_ask
   }
   -> hub
@@ -60,14 +60,14 @@ VAR knows_orchard = false
   I stood in my own door and let it be read, and I still don't know why. # speaker: Odile
   The tenants won't forget it. I'm quite sure the household of the Archon won't either. # speaker: Odile
   -> hub
-+ {lamps_fate != "none"} [About the Podfield lamps.]
++ {lamps_fate != "none"} [About Juno's lamps.]
   { lamps_fate:
   - "paid": The end lamp burns again, but the oil comes slower now and my gate lamps burn low. I count by what I have. # speaker: Odile
   - "kept": No oil came, so I count by tallow, and tallow smokes. # speaker: Odile
-  - "sold": A Bowl crew lights the Podfield lamps now, and my oil comes on time. I don't ask what Juno said. I'm fairly sure she didn't say it willingly. # speaker: Odile
+  - "sold": A Bowl crew lights Juno's lamps now, and my oil comes on time. I don't ask what Juno said. I'm fairly sure she didn't say it willingly. # speaker: Odile
   - "leased": The Granary pays Juno rent in oil now and keeps a crew on her ladder, and she and her boy are still the keepers. The Senate calls that a lease. I call it a very polite purchase. # speaker: Odile
   - "plated": The Pierce clerk wrote the end post down as unknown, and a surveyor's coming to look at it. They tell me the oil will come as before, but the Corporation has your truck on a page by itself. # speaker: Odile
-  - "held": The lamps burned all night, but the Corporation is sending armed men to Podfield next quarter. I wouldn't be on that road when they go. # speaker: Odile
+  - "held": The lamps burned all night, but the Corporation is sending armed men out to the Glass Flats next quarter. I wouldn't be on that road when they go. # speaker: Odile
   }
   -> hub
 + {count_fate != "none"} [About the wall at Old Orchard.]
