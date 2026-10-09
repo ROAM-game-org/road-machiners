@@ -7,6 +7,7 @@ The world of ROAM. Everything here answers to [Theme](theme.md).
 - [Characters](lore/characters.md): named people.
 - [Rumors](lore/rumors.md): what people say.
 - [Stories](lore/stories.md): seeds for events and jobs.
+- [Story game](lore/story-game.md): a turn-based game that generates history and stories with agents.
 
 ## Icarus
 
