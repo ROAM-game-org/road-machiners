@@ -21,7 +21,7 @@ describe('checkQuests', () => {
     const reports = checkQuests(readQuestSources('src/data/quests'), gameScenes(world()), QUEST_STATE_LIMIT);
     expect(reports.flatMap((r) => r.problems)).toEqual([]);
     expect(reports.find((r) => r.quest === 'bowl_hattie')?.states).toBeGreaterThan(2);
-  });
+  }, 180_000);
 
   it('walks a branch on a game query both ways across the scenes', () => {
     const sources = readQuestSources('src/data/quests');

@@ -1513,12 +1513,34 @@
  },
  "quests": {
   "world": {
-   "depot_thief": "string"
+   "bend_fate": "string",
+   "crates_fate": "string",
+   "depot_thief": "string",
+   "pin_fate": "string",
+   "pin_pact": "string"
   },
   "local": {
+   "bend_north": {
+    "ash_story": "boolean",
+    "fund": "number",
+    "heard_kaplan": "boolean",
+    "kaplan_pay": "number",
+    "seen_ash": "boolean",
+    "silver_pay": "number"
+   },
    "bowl_dag": {},
    "bowl_hattie": {},
    "bowl_ruben": {},
+   "crates_hook": {
+    "look_price": "number",
+    "lucan_pay": "number",
+    "office_files": "boolean",
+    "otto_lid": "boolean",
+    "otto_wheel": "boolean",
+    "proof_pay": "number",
+    "yard_tally": "boolean"
+   },
+   "nose_constance": {},
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -1539,9 +1561,27 @@
    "nose_ibo": {},
    "nose_kovac": {},
    "nose_lena": {},
-   "radio_wagon_driver": {}
+   "pin_emil": {
+    "has_ring": "boolean",
+    "mara_pay": "number",
+    "otto_read": "boolean",
+    "ring_price": "number",
+    "saw_cut": "boolean",
+    "saw_roster": "boolean",
+    "silver_extra": "number",
+    "silver_pay": "number",
+    "sully_pay": "number",
+    "yard_tally": "boolean"
+   },
+   "radio_wagon_driver": {},
+   "yard_mara": {},
+   "yard_silver": {}
   },
   "checkpoints": {
+   "bend_north": [
+    "start",
+    "road"
+   ],
    "bowl_dag": [
     "start",
     "start.hub"
@@ -1551,6 +1591,14 @@
     "start.hub"
    ],
    "bowl_ruben": [
+    "start",
+    "start.hub"
+   ],
+   "crates_hook": [
+    "start",
+    "desk"
+   ],
+   "nose_constance": [
     "start",
     "start.hub"
    ],
@@ -1572,9 +1620,24 @@
     "start",
     "start.hub"
    ],
+   "pin_emil": [
+    "start",
+    "desk",
+    "to_mara.pact_mara",
+    "to_silver.pact_silver"
+   ],
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "yard_mara": [
+    "start",
+    "start.hub",
+    "start.gone"
+   ],
+   "yard_silver": [
+    "start",
+    "start.hub"
    ]
   }
  }
