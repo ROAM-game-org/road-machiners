@@ -12,3 +12,6 @@ export const CHECKPOINT_TAG = 'checkpoint:';
 export const COST_TAG = 'cost:';
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['transcript', 'page'];
 export const MONEY_STAT = 'money';
+
+export const GAME_OPENED_QUESTS = { firstFall: 'first_fall' } as const;
+export const FIRST_FALL_SEEN = 'first_knockout_seen';

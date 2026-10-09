@@ -1513,7 +1513,8 @@
  },
  "quests": {
   "world": {
-   "depot_thief": "string"
+   "depot_thief": "string",
+   "first_knockout_seen": "boolean"
   },
   "local": {
    "bowl_bo": {},
@@ -1521,6 +1522,7 @@
    "bowl_hattie": {},
    "bowl_jory": {},
    "bowl_ruben": {},
+   "first_fall": {},
    "granary_driver": {},
    "nose_clerk": {},
    "nose_depot_leak": {
@@ -1567,6 +1569,10 @@
    "bowl_ruben": [
     "start",
     "start.hub"
+   ],
+   "first_fall": [
+    "start",
+    "look"
    ],
    "granary_driver": [
     "start",
