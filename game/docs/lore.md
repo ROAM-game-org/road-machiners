@@ -2,6 +2,7 @@
 
 The world of ROAM. Everything here answers to [Theme](theme.md).
 
+- [World facts](lore/world.md): the timeline, technology, population and what lies beyond the basin.
 - [Peoples](lore/peoples.md): towns, groups and faiths, and how each copes with the world.
 - [Characters](lore/characters.md): named people.
 - [Rumors](lore/rumors.md): what people say.
@@ -11,13 +12,13 @@ The world of ROAM. Everything here answers to [Theme](theme.md).
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
 
-A huge spaceship broke apart while descending through the atmosphere. Its largest hull section lies in the central crater and is called the Fallen Sun. Engines, cargo sections, and escape pods fell across the basin, leaving a trail of wrecks and impact scars. No one agrees whether the crash happened before, during, or after the wider collapse.
+A huge spaceship broke apart while descending through the atmosphere. Its largest hull section lies in the central crater and is called the Fallen Sun. Engines, cargo sections, and escape pods fell across the basin, leaving a trail of wrecks and impact scars. No one in the basin agrees whether the crash happened before, during, or after the wider collapse. It happened in the middle of the Chaos, as [World facts](lore/world.md) records.
 
 People still live and trade here. Farmers protect the canals that still work and the remaining seed stores. Salvagers recover metal and machinery from the wrecks. Truckers carry food, water, fuel, and parts between settlements. An irrigation gate can matter as much as a cargo hold.
 
 The landscape shows all three histories: old field boundaries and canals, the ship's debris trail, and newer truck roads connecting useful places. Hills, valleys, a canyon, and a dried riverbed divide the routes. The crash's date and the basin's old name remain open.
 
-After the crash, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace between them, until it ran short of food and left Old Orchard. The towns have not fought openly since, but each one expects the other to start.
+After the Chaos, Nose and Bowl fought a war over the basin. The Old Army ended it and kept the peace between them, until it ran short of food and left Old Orchard. The towns have not fought openly since. Each one expects the other to start.
 
 ### Open questions
 
