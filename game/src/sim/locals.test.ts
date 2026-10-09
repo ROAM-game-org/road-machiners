@@ -273,32 +273,52 @@ describe('locals at stalls', () => {
   it('opens the pipe quest from Agnes and ends it with the bundle dropped', () => {
     const w = parkedAt('pump-station');
 
-    const dropped = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drop it in a ditch.']);
+    const dropped = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Drop it in a ditch.']);
 
     expect(dropped.player.quests.world).toEqual({});
     expect(dropped.player.money).toBe(w.player.money);
     expect(dropped.player.notes.map((n) => n.id)).toEqual(['pipeBook', 'pipeOffer']);
-    expect(choices(dropped, 'pump_agnes')).toContain('What is under your pillow?');
+    expect(choices(dropped, 'pump_agnes')).toContain('What does the pump do?');
   });
 
-  it('gates the South Lock delivery on the lock being found, and pays on delivery', () => {
+  it('leaves the lock out of reach until it is found, even past the sluice', () => {
     const w = parkedAt('pump-station');
-    const road = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.']);
-    expect(questView(road, QUESTS).choices).not.toContain('Carry it to South Lock.');
+    const lost = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.', 'Pay the patrolmen to look at the water.']);
 
+    expect(questView(lost, QUESTS).choices).toContain('Take the canal road toward South Lock.');
+    expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
+    expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
+  });
+
+  it('pays the sluice patrol with a bribe, signs the Canal book and pays on delivery', () => {
+    const w = parkedAt('pump-station');
     w.player.discovered.push('south-lock');
-    const delivered = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Carry it to South Lock.']);
+    const road = ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.'];
 
-    expect(delivered.player.quests.world).toEqual({ pipe_fate: 'delivered' });
-    expect(delivered.player.money - w.player.money).toBe(80 * UNITS.centsPerM);
+    const signed = talk(w, 'pump_agnes', [...road, 'Pay the patrolmen to look at the water.', 'Sign the Canal book as the driver who found it.']);
+    expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
+    expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
+
+    const filed = talk(w, 'pump_agnes', [...road, 'Pay the patrolmen to look at the water.', 'Leave your name off.']);
+    expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
+  });
+
+  it('seizes the bundle and fines the player when the sluice talk fails', () => {
+    const w = parkedAt('pump-station');
+    w.player.discovered.push('south-lock');
+
+    const seized = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take the canal road toward South Lock.', 'Talk the patrolmen through.']);
+
+    expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
+    expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);
   });
 
   it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 
-    const read = talk(w, 'pump_agnes', ['What is under your pillow?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take it to the Granary gate.']);
+    const read = talk(w, 'pump_agnes', ['What does the pump do?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Take the bundle.', 'Not today.', 'Take it to the Granary gate.']);
 
-    expect(read.player.quests.world).toEqual({ pipe_fate: 'read' });
+    expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);
     const odile = parkedAt('granary');
     odile.player.quests.world = { pipe_fate: 'read' };
@@ -307,25 +327,29 @@ describe('locals at stalls', () => {
 
   it('starts the sack count from Odile and hides the lamps and orchard walks until the places are found', () => {
     const w = parkedAt('granary');
-    expect(choices(w, 'granary_odile')).toEqual(['What hangs on the gate?', 'Why pay Kiln at all?', 'Who is the road patrol?', 'Is your count right?', 'Where does the lamp oil come from?', 'Who pays the patrol at Old Orchard?', 'Goodbye.']);
+    expect(choices(w, 'granary_odile')).toEqual(['What hangs on the gate?', 'Goodbye.']);
+    const gate = talk(w, 'granary_odile', ['What hangs on the gate?']);
+    expect(questView(gate, QUESTS).choices).toEqual(['What hangs on the gate?', 'Why does the Granary pay Kiln a sack for every truck?', 'Who is in the road patrol?', 'What troubles you about your count?', 'Who presses the oil you burn at the gate?', 'Goodbye.']);
+    const patrol = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who is in the road patrol?']);
+    expect(questView(patrol, QUESTS).choices).toContain('What was the message from Old Orchard?');
 
-    const asked = talk(w, 'granary_odile', ['Is your count right?', 'I will count with you.', 'I will count with you.']);
-    expect(questView(asked, QUESTS).choices).toContain('Read the gate log.');
+    const asked = talk(w, 'granary_odile', ['What hangs on the gate?', 'What troubles you about your count?', 'I will count with you.', 'I will count with you.']);
+    expect(questView(asked, QUESTS).choices).toContain('Read the gate log and the store book against the boards.');
 
-    const lamps = talk(w, 'granary_odile', ['Where does the lamp oil come from?']);
+    const lamps = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?']);
     expect(questView(lamps, QUESTS).choices).not.toContain('I will go and look at the lamps.');
     w.player.discovered.push('podfield');
-    const found = talk(w, 'granary_odile', ['Where does the lamp oil come from?', 'I will go and look at the lamps.']);
+    const found = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.']);
     expect(questView(found, QUESTS).choices).toContain('Walk the line of lamps.');
   });
 
   it('pays for the lien on the dark lamp and refuses the same pick with less money', () => {
     const w = parkedAt('granary');
     w.player.discovered.push('podfield');
-    const slip = ['Where does the lamp oil come from?', 'I will go and look at the lamps.', 'Ask the carter for his slip.'];
+    const slip = ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.', 'Ask the carter for his slip.'];
     const paid = talk(w, 'granary_odile', [...slip, 'Pay the clerk the lien on the dark lamp.']);
     expect(w.player.money - paid.player.money).toBe(120 * UNITS.centsPerM);
-    expect(paid.player.quests.world).toEqual({ lamps_fate: 'paid' });
+    expect(paid.player.quests.world).toEqual({ lamps_fate: 'paid', lien_standing: 'debtor' });
 
     const broke = cloneWorld(w);
     broke.player.money = 100 * UNITS.centsPerM;

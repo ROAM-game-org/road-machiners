@@ -1524,6 +1524,8 @@
    "hooks_report": "string",
    "intro_step": "string",
    "lamps_fate": "string",
+   "lien_standing": "string",
+   "marr_regard": "string",
    "names_vosk": "string",
    "pin_fate": "string",
    "pin_pact": "string",
@@ -1567,22 +1569,40 @@
    "first_fall": {},
    "granary_driver": {},
    "granary_lamps": {
+    "guarded": "boolean",
     "juno_said": "boolean",
     "lamps_seen": "boolean",
     "lien": "number",
     "offer": "number",
+    "paper_seen": "boolean",
+    "quarter": "number",
     "slip_read": "boolean",
+    "sour": "boolean",
     "tam_said": "boolean"
    },
-   "granary_odile": {},
+   "granary_odile": {
+    "knows_gate": "boolean",
+    "knows_lamps": "boolean",
+    "knows_orchard": "boolean",
+    "knows_patrol": "boolean"
+   },
    "granary_sack": {
+    "beam_read": "boolean",
+    "beating": "number",
     "board_cost": "number",
     "bribe": "number",
     "carter_said": "boolean",
     "drop_seen": "boolean",
+    "hush": "number",
     "log_read": "boolean",
+    "mend_fee": "number",
+    "pin_bent": "boolean",
+    "pin_cost": "number",
     "reward": "number",
+    "stick_taken": "boolean",
     "store_read": "boolean",
+    "toll": "number",
+    "warned": "boolean",
     "weigher_said": "boolean"
    },
    "intro_arrival": {},
@@ -1624,12 +1644,17 @@
    "nose_kovac": {},
    "nose_lena": {},
    "orchard_count": {
+    "chased": "boolean",
+    "cold": "boolean",
     "gap_seen": "boolean",
     "ilya_said": "boolean",
+    "marks_seen": "boolean",
     "paint": "number",
     "price": "number",
     "release_read": "boolean",
+    "stub_fee": "number",
     "stub_read": "boolean",
+    "tow": "number",
     "wall_read": "boolean"
    },
    "pin_emil": {
@@ -1644,16 +1669,26 @@
     "sully_pay": "number",
     "yard_tally": "boolean"
    },
-   "pump_agnes": {},
+   "pump_agnes": {
+    "knows_book": "boolean",
+    "knows_copy": "boolean",
+    "knows_pipe": "boolean"
+   },
    "pump_pipe": {
     "book_read": "boolean",
     "canal_matches": "boolean",
+    "early_lines": "boolean",
     "fee": "number",
     "fine": "number",
+    "margin_read": "boolean",
     "offer_heard": "boolean",
+    "parts": "number",
     "price": "number",
     "report_named": "boolean",
-    "taken": "boolean"
+    "sluice": "string",
+    "taken": "boolean",
+    "toll": "number",
+    "valve_read": "boolean"
    },
    "radio_wagon_driver": {},
    "salvage_hooks": {
