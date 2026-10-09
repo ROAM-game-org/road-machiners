@@ -68,3 +68,14 @@ Tamsin Roe is the last Guild courier with no gun. Vesna Hale rides behind her wi
 ## The hook house
 
 Green Pit's well drops every dry year. A Nose soldier from Silver's post sits by the hooks and watches who hangs what. Hadiza Okon asks the player to find out what he reports and to whom. If the hooks stop meaning safety, the last place where Kiln riders and haulers drink together goes with them.
+
+## The arrival
+
+The game opens with the player walking into the basin from outside. Nobody ever says who they are or why they came. Their canteen is empty and the heat is closing in.
+
+1. On foot at the basin's edge, they walk toward a water tower on an abandoned farm.
+2. An old pickup sits in a collapsed shed under the tower. It starts on the third try and coughs.
+3. They learn to drive on open dirt toward a wreck in sight.
+4. They search the wreck and patch the engine so it stops misfiring.
+5. One raider truck takes them on the road out. The pickup is weak, so a loss is likely but not forced.
+6. On a loss, the first fall plays: the barrel lowers and the driver lives. They wake parked at Green Pit, where Hadiza Okon feeds anyone once and the guns hang on the hooks. A stranger towed the truck in and left no name.
