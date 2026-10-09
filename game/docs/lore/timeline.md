@@ -14,11 +14,14 @@ The first part is history as people in the basin could know it. The last part ho
 
 - Year 0. The second moon breaks apart overhead in daylight. The largest hull blasts the central crater, later called the Fallen Sun. A trail of engines, plates and pods falls from the south-west. One great section comes down on a mountain in the east. A heavy piece makes a deep crater in the south fields, where two Canal Folk villages stood.
 - Year 0. The debris trail crosses the river above the dam. The river breaks its course and sinks into the ground. The basin starts to dry into desert.
+- Year 0. Hundreds of escape pods come down along the trail and across the basin, thickest at the place later called Podfield. Many of them open. People climb out: pale, in grey suits, speaking a tongue nobody knows and only a few words of the common speech. Most remember nothing before waking in the pod.
+- Year 1. Many pod people die in the first winter. Some are taken in, some are robbed, and some are put to work for their keep. The Canal Folk shut their villages to them. Basin people call them the Given, after the cry "Given by the sky".
 
 ## The Dry Years
 
 - Year 3. Five Garrison soldiers under Sergeant Dorota Vance refuse to come down from the mountain wreck. They are the founders of the Nose.
-- Year 3. Water seeps into the floor of the south crater. The Creed's refugees win it from the Waterworks and the Canal Folk, and camp on the crater floor. A Waterworks engineer dies in the scuffle.
+- Year 3. The Given find their way to the mountain wreck, the one place that looks like where they came from. Vance's deserters take them in. From the start, most of the people of the Nose are Given.
+- Year 3. Water seeps into the floor of the south crater. The Creed's refugees, many of them Given, win it from the Waterworks and the Canal Folk, and camp on the crater floor. A Waterworks engineer dies in the scuffle.
 - Year 3. Abend and his apprentice Teo bring a hull plate home, marked in an unknown script beside common digits. Abend dies of burns from the wreck. Teo, 23, takes the tower.
 - Year 3. The Relay traces a repeating radio tone to the central hull. Nobody can read it.
 - Year 10. Teo finds the tone repeats numbers stamped on the plate, and the sequence grows by one each year. He tells nobody.
@@ -30,11 +33,12 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 20. The first western convoy in living memory reaches the basin. The mountain wreck has the most metal, and two western mechanics stay there. Wreck fever kills people who work near glowing cells.
 - Year 20. A western engineer recognizes a symbol on the plate from an Old World book. Years later he writes to Teo that it marks a seed vault.
 - Year 30. The last pool in the old riverbed dries. Four factions go for the crater seep. The Garrison's squad will not fire on the Creed's crowd and turns back. The Waterworks keep the pump, and the Dust Riders win a race for the seep road.
-- Year 30. Drifters work the mountain wreck for food and a bed. People start calling it the Nose.
+- Year 30. Drifters work the mountain wreck for food and a bed, Given and basin-born alike. People start calling it the Nose. Lena Graves, a Given who woke in a pod as a girl, becomes its quartermaster.
+- Year 30. The first children of Given and basin-born parents grow up. They speak only the common speech. Their parents' tongue survives in a few words, songs and names.
 - Year 35. The western trader Augustin Pierce settles at the Nose. He lends against salvage and pays families when crews do not come back.
-- Year 35. Wreck-fever survivors walk into the central crater and camp by the green glow.
+- Year 35. Wreck-fever survivors walk into the central crater and camp by the green glow. Most of them are Given, and they say they dream of the crater every night.
 - Year 40. The Relay sells shares in its masts, and Pierce buys the first. The shareholders rename it the Guidestar Guild. People start calling the Garrison the Old Army.
-- Year 50. The worst storm decade. A storm tears open the Nose's sealed upper halls: a long room of empty cradles, each the size of a person. A small blue lens from that room ends up in Teo's failing eye. He lives.
+- Year 50. The worst storm decade. A storm tears open the Nose's sealed upper halls: a long room of empty cradles, each the size of a person. Old Given who see it go silent, and some weep. A small blue lens from that room ends up in Teo's failing eye. He lives.
 - Year 50. The Canal families dig a rain cistern on the crater rim. It is the first water in the crater that nobody sells.
 
 ## The Bowl and the Nose
@@ -58,7 +62,7 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 100. Marek Graves hands the Nose to his son Alan, who forms the Central Committee and becomes President.
 - Year 100. Neither town pays the Old Army. Hungry soldiers sell rifles to Scrapjaw. Pierce pays the army's back wages and takes its heavy trucks as collateral.
 - Year 100. Teo's scholars at the tower call themselves the Lunar Society. Young people who say nothing here is real leave the Creed: the Ephemeralists.
-- Year 110. Beacon keepers on the debris trail call themselves the Children of Noah.
+- Year 110. Beacon keepers on the debris trail call themselves the Children of Noah. Most are grandchildren of the Given, waiting for the ship that left their grandparents behind to come back.
 - Year 112. Commander Lind nails a book of every unpaid promise to the Old Orchard gate and dies in the motor pool. The Old Army ends. Its trucks stand where they stopped.
 
 ## Recent years
@@ -70,10 +74,12 @@ The first part is history as people in the basin could know it. The last part ho
 - Year 127. The Guild's trust rents Old Orchard's machine tools to the Nose, the only bidder who can pay. The Nose hauls them up the mountain and builds the basin's only workshop line. The Bowl keeps the gate of an empty farm.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word.
 
+- Year 130. The last Given who woke in a pod are very old. Most people in the basin have a Given grandparent, and pale skin and grey eyes are common in the Nose. Some families still keep a grey suit or a pod tag stamped with common digits.
+
 ## Hidden truths
 
 - The tone from the central hull counts the years since the fall, one step each year, toward a last number that the plate holds. What happens when it reaches that number is open.
 - The plate's symbol marks a seed vault. By the tone and the plate, the vault lies in the crater floor in the hull's shadow, not inside the hull.
-- The cradle room in the Nose's upper halls held people-sized cradles. Who or what lay in them is open.
+- The cradle room in the Nose's upper halls held the Given before they were moved into the pods. Whether they were sleeping passengers or people the ship grew, and why they remember nothing, is open.
 - The Bowl council did not send the convoy ambush of year 80. Hungry tenants did it on their own, with rifles bought at the rim.
 - The Old Army was starved on purpose. The Central Committee held back the Nose's fuel payments so the army would fail and its workshops would fall to the Nose. The Bowl simply could not pay.

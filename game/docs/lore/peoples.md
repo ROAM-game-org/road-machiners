@@ -44,7 +44,7 @@ The cost was that it held the peace by holding all the guns, and it could not fe
 
 Way: embrace.
 
-The Guidestar Guild carries messages across the basin by courier and by radio relay, for a fee. It is owned in shares, and members and outside investors trade those shares. A share in the Guild is worth more than most trucks.
+The Guidestar Guild carries messages across the basin by courier and by radio relay, for a fee. It is owned in shares, held in a trust by both towns so that no single buyer can take it over. A share in the Guild is worth more than most trucks.
 
 The Guild serves every side and sells news to all of them. It does not like J.J., because she gives news away for free from a mast it cannot find.
 
@@ -69,6 +69,18 @@ Way: oppose.
 Raiders live in two camps, Scrapjaw Camp in the north and Kiln Camp in the south. They refuse the order that Nose and Bowl try to build, and they take what they need from the roads. To a raider, robbery is business. Killing is a last resort, because a dead driver hauls no cargo next week.
 
 The cost is that raiders live by taking from people who build things, and they never build anything that lasts.
+
+## The Given
+
+Way: escape.
+
+When the ship fell, hundreds of its escape pods came down across the basin, and people climbed out of them. They were pale, wore grey suits, spoke a tongue nobody knew and remembered almost nothing before waking. Basin people called them the Given, after the cry "Given by the sky".
+
+The Given were never one faction. Most went to the Nose, the wreck that looked like home, and they built it alongside the Garrison's deserters. Others joined the Creed's refugees in the crater that became the Bowl. Today most people in the basin have a Given grandparent. The last ones who woke in a pod are very old.
+
+Their descendants carry them in small ways: pale skin and grey eyes, a few words of a lost tongue in songs and names, a grey suit or a pod tag stamped with common digits kept in a family chest. Many of the Sunward and most of the Children of Noah are Given families. They are the ones who dream of the crater, and the ones who wait for the ship to come back.
+
+The cost is that they live as guests in a world they did not choose, still half waiting to be collected.
 
 ## Drivers of the road
 

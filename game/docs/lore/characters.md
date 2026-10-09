@@ -6,7 +6,7 @@ Named people of Icarus. Each one has a main way of coping from [Theme](../theme.
 
 Way: control.
 
-The President of Nose has led its Central Committee for 30 years. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
+The President of Nose has led its Central Committee for 30 years. His grandmother Lena Graves woke in a pod as a girl, and he has her grey eyes. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
 
 ## Captain Silver
 
@@ -31,6 +31,14 @@ Way: oppose.
 Ain is the unacknowledged son of a Nose committee member. His child died. After that he fled Nose and started his own gang. Now he wants to be king of the raider camps, whatever it costs. He believes the end justifies the means, and nobody knows the whole of his past.
 
 His line is "I will be king of the camps, and I will pay any price for it."
+
+## Dagny Brask
+
+Way: oppose.
+
+Dagny founded Kiln Camp when both towns drove her band out of the crater rim. She is past 110 and still works the furnace that gives the camp its name. She melts captured guns into tools. Ain runs the camp now, and she calls no one king.
+
+Her line is "Kings do not light furnaces. Workers do."
 
 ## Kaplan
 

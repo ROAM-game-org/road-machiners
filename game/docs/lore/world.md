@@ -31,6 +31,7 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 - About 20,000 people live in Icarus.
 - Each town holds a few thousand. Bowl is larger than Nose.
 - Each smaller site holds a few hundred. The rest are squatters and drivers.
+- Most people in the basin descend in part from the Given, the survivors who came down in the ship's escape pods. See [Peoples](peoples.md).
 
 ## Beyond the basin
 

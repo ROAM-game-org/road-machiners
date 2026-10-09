@@ -30,7 +30,7 @@ Each of these needs one true answer, written here once it is chosen. The game wi
 - What lies in the Fallen Sun's crater, and what the green glow does to people.
 - What the fused glass is.
 - Why the Old Army left Old Orchard.
-- Where the people of the basin came from. One candidate is that they descend from people the ship grew or copied on its way, and that the first of them were people who died on Earth long before.
+- What the Given were. Many basin people descend from these pod survivors, as [Peoples](lore/peoples.md) records. Whether they were sleeping passengers or people the ship grew, and why they woke remembering nothing, is open.
 - What the basin was called before.
 
 ### Mood references
