@@ -1,5 +1,6 @@
 VAR depot_thief = "none"
 VAR first_knockout_seen = false
+VAR intro_step = "off"
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

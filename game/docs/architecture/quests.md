@@ -102,7 +102,7 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. The quest sets that variable after its first choice, so saves keep it and `src/sim/types.ts` stays as it is.
 - Leaving the scene before the first choice sets nothing, so the next knockout opens it again.
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
-- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The voice test counts it as a way in next to locals, radio calls and `begin()`.
+- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival is one of them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 - Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.
 
 ## Emil's pin
@@ -136,3 +136,14 @@ The world variable `bend_fate` keeps the outcome: `none`, `silver`, `kiln` or `a
 - Burying any of it pays nothing.
 
 The world variable `crates_fate` keeps the outcome: `none`, `proof`, `lucan` or `buried`. Constance greets by it, and Mara reacts to `proof`.
+
+## The arrival
+
+`intro_arrival.ink` is a page quest the game opens by itself on a new game. The player walks down into the basin with an empty canteen and finds an old pickup in a collapsed shed under a water tower. It names nobody and says nothing of who the player is. All picks only change the words, and every path reaches the shed.
+
+- `newGame()` in `src/sim/new-game.ts` builds the world from the start kit `arrival` and opens the quest at `start`. `newWorld()` opens nothing. With Skip the intro, `newGame()` builds the kit named by `withoutIntro` instead, which is the old stranded start.
+- The kit `arrival` has the `intro` field: the pose of the truck, the farm pieces and the kit to use without the intro. `ARRIVAL` in `src/data/arrival.ts` holds them. The farm is non-baked landmark obstacles, so the map file and its hash stay as they are. The pieces are a water tower, a shed, a house, a woodpile, drums and a tank. None of them can break. The tower and the shed are not loot spots.
+- The farm lies on the southern basin floor, about 50 tiles south of Green Pit. The region road to Green Pit is about 15 tiles north of the opening wreck, with no cliff on the way.
+- The pickup is the scout with the opening condition of the standard start: a nearly dead engine, a worn cab and an opening wreck that holds 3 parts and a cage. The engine has no misfire rule. Low engine HP is what the rules give, and parts that wear down can fail. The opening tips teach driving, search, loot and patch.
+- The world variable `intro_step` is `off`, `walk`, `drive`, `patched`, `ambush` or `done`. The quest sets `walk` on its first choice and `drive` when the scene ends. `advanceIntro()` in `src/sim/intro.ts` runs each turn after the patches. It sets `drive` when the scene was left early, and `patched` once the engine needs no patch. It does nothing in a world without the farm, so a skipped intro stays `off`. Later steps belong to other code.
+- Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.

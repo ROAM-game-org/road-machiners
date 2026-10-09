@@ -1,19 +1,15 @@
-// First-time tips for driving and the horn, and a farewell once the player heads out. A tip shows while its moment lasts, one at a time. It goes away for good
-// once the player closes it or does what it says. Seen tips stay in browser storage across saves, and a new game clears them.
-// A new game first runs the opening tips: reach the opening wreck, search it, loot it, patch the engine and mount the
 
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
 import { goodsCount, isMounted, mountedParts } from "../sim/grid";
 import { openingStockOf } from "../sim/opening";
-import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
-import { repairPlan } from "../sim/repair";
+import { engineNeedsPatch } from "../sim/repair";
 import { canReachSalvage, hasSalvage } from "../sim/salvage";
 import type { SalvageStock, World } from "../sim/types";
 import { vehicleStats } from "../sim/stats";
 import { playerSees } from "../sim/vision";
-import { dist } from "../sim/vec";
+import { dist, type Vec } from "../sim/vec";
 import { playerCanAct, hostileToPlayer, startPose } from "../sim/world";
 import { el, panel } from "./dom";
 
@@ -34,6 +30,7 @@ type Tip = {
 
 const FAREWELL_DISTANCE = 80;
 const spawn = startPose().pos;
+const departureFrom = (w: World): Vec => openingStockOf(w)?.pos ?? spawn;
 
 const npcInSight = (w: World): boolean =>
   w.vehicles.some((v) => v.brain && !isKnockedOut(v) && playerSees(w, v.pos));
@@ -53,12 +50,6 @@ type OpeningState = { stock: SalvageStock | null; step: OpeningStep | null };
 const searchedOpening = (w: World, { stock }: OpeningState): boolean => stock !== null && w.player.scavenged.includes(stock.id);
 
 const inOpeningReach = (w: World, { stock }: OpeningState): boolean => stock !== null && canReachSalvage(playerVehicle(w), stock);
-
-const engineNeedsPatch = (w: World): boolean => {
-  const me = playerVehicle(w);
-  const engine = mountedParts(me).find((p) => partDef(p.defId).kind === "engine");
-  return engine !== undefined && repairPlan(w, me, engine.id).needed > 0;
-};
 
 const cageMounted = (w: World): boolean => mountedParts(playerVehicle(w)).some((p) => p.defId === "cage");
 
@@ -88,7 +79,7 @@ function stepAfterSearch(w: World, stock: SalvageStock): OpeningStep | null {
   return installDue(w) ? "install" : null;
 }
 
-const patchDue = (w: World): boolean => engineNeedsPatch(w) && (goodsCount(playerVehicle(w)).parts ?? 0) > 0;
+const patchDue = (w: World): boolean => engineNeedsPatch(w, playerVehicle(w)) && (goodsCount(playerVehicle(w)).parts ?? 0) > 0;
 
 const installDue = (w: World): boolean => holdsLooseCage(w) && !cageMounted(w);
 
@@ -115,7 +106,7 @@ const TIPS: readonly Tip[] = [
   openingTip(
     "patch",
     "[I] opens your truck. Click the engine, then Patch. Close your truck and [Space] runs the patch.",
-    (w, o) => o.stock !== null && !engineNeedsPatch(w),
+    (w, o) => o.stock !== null && !engineNeedsPatch(w, playerVehicle(w)),
   ),
   openingTip(
     "install",
@@ -186,7 +177,7 @@ const TIPS: readonly Tip[] = [
     id: "farewell",
     text: "That's it, good luck.",
     after: "honk",
-    when: (w) => dist(playerVehicle(w).pos, spawn) >= FAREWELL_DISTANCE,
+    when: (w) => dist(playerVehicle(w).pos, departureFrom(w)) >= FAREWELL_DISTANCE,
     done: () => false,
   },
 ];

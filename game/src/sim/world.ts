@@ -53,6 +53,7 @@ import { cookOffClaymores, settleClaymores } from './claymore';
 import { activateUtilities, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
 import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
+import { advanceIntro } from './intro';
 import { advanceEngineHeat } from './engine-heat';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
@@ -63,7 +64,7 @@ export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'ma
   return { seed, rngState: seed, marketRng: marketStream(seed), nameRng: nameStream(seed), searchRng: searchStream(seed) };
 }
 
-export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: WorldSetup, populate = true, start: { pos: Vec; heading: number } = startPose()): World {
+export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: WorldSetup, populate = true, start: { pos: Vec; heading: number } = kitStart(kit)): World {
   if (map.terrain.size !== REGION.size)
     throw new Error(`Map size ${map.terrain.size} does not match region size ${REGION.size}`);
   const world: World = {
@@ -140,7 +141,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     flares: [],
     lines: [],
   };
-  world.obstacles = generateObstacles(world, map, openingObstacles(kit.opening, start));
+  world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
   const truck = makeVehicle(world, {
     name: kit.name,
     faction: "player",
@@ -169,6 +170,10 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   refreshVision(world);
   world.events = [];
   return world;
+}
+
+function kitStart(kit: StartKit): { pos: Vec; heading: number } {
+  return kit.intro?.pose ?? startPose();
 }
 
 export function startPose(): { pos: Vec; heading: number } {
@@ -317,6 +322,7 @@ export function endTurn(
     dropStrandedTowers(w);
     advanceContracts(w);
     advancePatches(w);
+    advanceIntro(w);
     advanceAid(w);
     advanceStates(w);
     checkBeacon(w);
@@ -457,7 +463,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, map: BakedMap, fre
   const { setup, reset } = carriedSetup(carried.setup);
   const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
-  const world = newWorld(pick(carried.seed, freshSeed()), { ...truckKit, opening: null, autoRepair: true }, map, setup, true, townStart());
+  const world = newWorld(pick(carried.seed, freshSeed()), { ...truckKit, opening: null, intro: null, autoRepair: true }, map, setup, true, townStart());
   carryPlayer(world, carried);
   carryQuests(world, carried.quests, report);
   carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);

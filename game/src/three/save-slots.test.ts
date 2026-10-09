@@ -64,10 +64,17 @@ describe('save slots', () => {
   it('carries a new game setup through the reload exactly once, with its exact values', () => {
     const session = makeStorage();
     const setup = { mode: 'roaming' as const, settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75 } };
-    requestBoot(session, 'roam.save', { new: setup });
+    requestBoot(session, 'roam.save', { new: setup, intro: false });
 
-    expect(takeBootRequest(session, 'roam.save')).toEqual({ new: setup });
+    expect(takeBootRequest(session, 'roam.save')).toEqual({ new: setup, intro: false });
     expect(takeBootRequest(session, 'roam.save')).toBeNull();
+  });
+
+  it('refuses a new game request that does not say whether the intro plays', () => {
+    const session = makeStorage();
+    session.setItem('roam.save.boot', JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } }));
+
+    expect(() => takeBootRequest(session, 'roam.save')).toThrow(/intro/);
   });
 
   it.each([

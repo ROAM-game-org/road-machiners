@@ -146,7 +146,17 @@ describe("the New game screen", () => {
     screen.button("Reset to defaults").fire("click");
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } }]);
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: true }]);
+  });
+
+  it("starts without the intro when the Skip the intro switch is on", () => {
+    const { screen, requests } = open();
+    expect(screen.button("Skip the intro").attrs["aria-checked"]).toBe("false");
+    screen.button("Skip the intro").fire("click");
+    expect(screen.button("Skip the intro").attrs["aria-checked"]).toBe("true");
+    screen.button("Start").fire("click");
+
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: false }]);
   });
 
   it("asks before Start and stays open with nothing written when the player says no", () => {
@@ -167,7 +177,7 @@ describe("the New game screen", () => {
     slide("fuelUse", 2);
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1 } } }]);
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1 } }, intro: true }]);
     expect(actions.reload).toHaveBeenCalledTimes(1);
   });
 

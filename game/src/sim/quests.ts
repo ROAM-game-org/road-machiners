@@ -244,6 +244,21 @@ function questVar(world: World, bundle: QuestBundle, questId: string, name: stri
   return shared[name] ?? decl.init;
 }
 
+export function worldVar(world: World, name: string): QuestValue {
+  const decl = QUESTS.world[name];
+  if (!decl) throw new Error(`No world variable ${name}`);
+  return world.player.quests.world[name] ?? decl.init;
+}
+
+export function setWorldVar(world: World, name: string, value: QuestValue): void {
+  const decl = QUESTS.world[name];
+  if (!decl) throw new Error(`No world variable ${name}`);
+  if (typeof value !== decl.type) throw new Error(`World variable ${name} holds a ${decl.type}, not ${String(value)}`);
+  if (world.player.quests.session) throw new Error(`World variable ${name} was set while a quest is open, and the next pick would undo it`);
+  if (value === decl.init) delete world.player.quests.world[name];
+  else world.player.quests.world[name] = value;
+}
+
 export function questProblems(state: QuestState, bundle: QuestBundle): string[] {
   return [
     ...varProblems(state.world, bundle.world, (name) => `World variable ${name}`),

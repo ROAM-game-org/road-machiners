@@ -8,7 +8,7 @@ export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
 export const CONFIG = {
-  startKit: 'standard',
+  startKit: 'arrival',
   seed: null as number | null,
   combatShotMs: 1000,
   combatFireSpreadMs: 300,

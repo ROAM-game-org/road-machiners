@@ -3110,6 +3110,14 @@ canvas.view {
   box-shadow: inset 0 0 0 1px #af9658;
   background: #3a3f3c;
 }
+#ui .new-game .intro-toggle {
+  align-self: flex-start;
+}
+#ui .new-game .intro-toggle.selected {
+  border-color: #e0be77;
+  box-shadow: inset 0 0 0 1px #af9658;
+  background: #3a3f3c;
+}
 #ui .new-game .settings-toggle {
   align-self: flex-start;
 }
