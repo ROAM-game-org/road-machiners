@@ -5,7 +5,7 @@ import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { playerVehicle } from '../sim/damage';
 import { isNoteId, learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
-import { shopAt } from '../sim/market';
+import { shopAt, siteOf } from '../sim/market';
 import { chooseQuestOption, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, startQuest, type QuestView } from '../sim/quests';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
@@ -61,8 +61,7 @@ export function gameScenes(base: World): QuestScenes {
 }
 
 function parkAt(world: World, town: string): void {
-  const site = REGION.towns.find((t) => t.id === town);
-  if (!site) throw new Error(`No town ${town}`);
+  const site = siteOf(town);
   const truck = playerVehicle(world);
   truck.pos = { ...sitePads(site)[0] };
   truck.speed = 0;

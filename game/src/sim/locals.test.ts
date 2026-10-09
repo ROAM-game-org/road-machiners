@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { NoteId } from '../data/locals';
-import { CONTRACTS } from '../data/market';
+import { LOCALS, type NoteId } from '../data/locals';
+import { CONTRACTS, SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
@@ -43,10 +43,10 @@ const WAGON_FOUND = 'We found wagon Seven.';
 const WORK = 'Any work?';
 
 describe('settlement locals', () => {
-  it('lists three locals at each town and none at a stall', () => {
-    expect(localsAt('bowl').map((l) => l.id)).toEqual(['ruben', 'hattie', 'dag']);
-    expect(localsAt('nose').map((l) => l.id)).toEqual(['kovac', 'lena', 'ibo']);
-    expect(localsAt('salvage-yard')).toEqual([]);
+  it('lists the town locals first and keeps every local at a place with a shop', () => {
+    expect(localsAt('bowl').map((l) => l.id).slice(0, 3)).toEqual(['ruben', 'hattie', 'dag']);
+    expect(localsAt('nose').map((l) => l.id).slice(0, 3)).toEqual(['kovac', 'lena', 'ibo']);
+    for (const local of Object.values(LOCALS)) expect(Object.keys(SHOPS)).toContain(local.town);
   });
 
   it('opens a question only once its fact holds', () => {

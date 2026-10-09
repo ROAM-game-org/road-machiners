@@ -43,7 +43,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
 
 export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo';
 
-export type LocalDef = { id: LocalId; name: string; role: string; town: 'bowl' | 'nose'; quest: string };
+export type LocalDef = { id: LocalId; name: string; role: string; town: string; quest: string };
 
 export const LOCALS: Record<LocalId, LocalDef> = {
   ruben: { id: 'ruben', name: 'Ruben', role: 'Canal warden', town: 'bowl', quest: 'bowl_ruben' },
