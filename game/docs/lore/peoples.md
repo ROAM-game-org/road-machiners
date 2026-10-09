@@ -28,6 +28,8 @@ Bowl does not want to grow. It wants to keep its walls and its fields safe. It w
 
 The cost is that life shrinks to fit the walls, and the tenants who feed Bowl have no voice in it.
 
+The Bowl road patrol is paid from the Granary count, the Canyon Bridge toll, the western convoy's fee and tenant shares. Tenants may serve in it, and ten years in it earn a vote. It keeps only the Bowl's roads.
+
 In the game, the Bowl Farmers patrol the roads around Bowl.
 
 ## The Old Army
@@ -58,15 +60,25 @@ Way: control.
 
 Pierce Corporation insures salvage runs into the wreck fields. It works like a casino. Pierce bets that the truck comes back, and if it does not, Pierce pays the family. Its offices also lend money.
 
+Pierce insures only trucks that carry a gun on a mount with two pins, driven by someone who learned the pin lock at Ridge Wrecks. More than any law, this rule put a gun on every truck.
+
 Rumor says both Nose and Bowl owe Pierce so much that the Corporation decides more than either town admits.
 
 The cost is that Pierce turns every life on the road into a bet.
+
+## Salvage Yard
+
+Way: embrace.
+
+The Salvage Yard was the Pierce yard until year 123, when its repair crews stopped answering to Pierce and hung a crane over the stacked wrecks. Each truck stays with the crew that repaired it, and the pay comes out of its load. The Yard sells hull pieces, relics and the Old Army's stripped guns, and it bores the second pin into Nose swivels. The Administrator runs it. A Nose Army post under Captain Silver sits inside its gate.
+
+The cost is that the Yard lives by selling guns to everyone, and everyone wants to own it.
 
 ## Raiders
 
 Way: oppose.
 
-Raiders live in two camps, Scrapjaw Camp in the north and Kiln Camp in the south. They refuse the order that Nose and Bowl try to build, and they take what they need from the roads. To a raider, robbery is business. Killing is a last resort, because a dead driver hauls no cargo next week.
+Raiders live in two camps, Scrapjaw Camp in the north and Kiln Camp in the south. They refuse the order that Nose and Bowl try to build, and they take what they need from the roads. To a raider, robbery is business. Killing is a last resort, because a dead driver hauls no cargo next week. Kiln Camp takes a fee from haulers who pay and strips trucks that neither pay nor fight.
 
 The cost is that raiders live by taking from people who build things, and they never build anything that lasts.
 
@@ -91,6 +103,8 @@ The other drivers have no town to speak for them.
 - Roamers escape. They keep moving and never stay anywhere long.
 - Vultures oppose. They follow fights and strip the losers.
 - Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
+- Couriers embrace the road. Guild couriers run the open road in pairs.
+- The Burnt Convoy squatters oppose. A dozen vulture families live in the burnt trucks of an old convoy and are first to any wreck.
 
 ## Faiths
 

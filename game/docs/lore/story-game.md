@@ -88,6 +88,17 @@ The game master may break this rule for an anchor, and must give a reason inside
 
 Bring in a new player when the story makes a new group: a split, a desertion, a new faith or a newcomer from outside. Start it small, with one Fair skill and the rest Average or lower. When two players merge, the larger one continues with the merged sheet.
 
+## Smaller passes
+
+A second pass zooms in on a stretch of history that a bigger game already wrote. It turns the bigger game's results into history the players live through.
+
+- The bigger game's results become fixed events. The game master announces them as the turn's events. Players can take part in them, profit from them or suffer from them, but cannot change them. An action that would change a fixed event fails, or it succeeds around the event and leaves the fact standing.
+- Players are minor characters and small groups spread across the map, one or two per place. Give each one a tie to another player, like a debt, a dead friend or a shared well.
+- Give the pass one question to answer, like why every truck carries a gun. Make the answer an anchor that play must reach. It ends as a plain fact in [World facts](world.md), and only its details stay hidden.
+- Ask each player for a scene as well as an action: one concrete moment from the turn. Scenes become story seeds and character details.
+- Scale the death rule to the turn length. At two-year turns, a character over 60 dies on +3 or more, and one over 75 on +2 or more.
+- When a player dies, start a successor as a new player with the same place and a new sheet.
+
 ## The log
 
 The game master keeps three files during play, in project-local `tmp/`:
@@ -105,3 +116,6 @@ After the game, the game master writes the log into a timeline in `docs/lore/` a
 - Give each player the messages sent to it, even when it ignored them. Unanswered offers become grudges.
 - Keep the turn's event short and concrete. A dead driver and a missing grain cart start more story than a description of tension.
 - Decide hidden truths early, like who fired the shots, and write them in the log before any player guesses.
+- Players chase whatever thread the brief hands them. A player's private knowledge, like a crate it was ordered to pack, starts the longest plots.
+- Players who share a place converge. Several players gathered at one grave in the first turn, and that grave stayed the center of the story.
+- A good idea that the fixed events forbid, like a road guard paid by both towns, still belongs in play. Let it half succeed and fail where the anchor needs it to. The failure explains the world.

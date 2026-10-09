@@ -28,10 +28,11 @@ Each of these needs one true answer, written here once it is chosen. The game wi
 - What the ship was and why it fell.
 - Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
 - What lies in the Fallen Sun's crater, and what the green glow does to people.
-- What the fused glass is.
 - Why the Old Army left Old Orchard.
 - What the Given were. Many basin people descend from these pod survivors, as [Peoples](lore/peoples.md) records. Whether they were sleeping passengers or people the ship grew, and why they woke remembering nothing, is open.
 - What the basin was called before.
+
+Chosen answers live in the hidden truths of [Timeline](lore/timeline.md). The fused glass of the Glass Flats is answered there.
 
 ### Mood references
 

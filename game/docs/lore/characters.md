@@ -20,7 +20,9 @@ He believes the only future for the Yard is to belong to Nose. He is willing to 
 
 Way: fear.
 
-The Administrator runs the Salvage Yard with his gang. The Yard is free, and he wants to keep it free. That means getting the Nose post out. He is a crook. He also cares for his people as well as he can.
+The Administrator is Sully Okafor, once the best repair foreman in the Pierce yard. He led the crews when they took the yard in year 123. He keeps a Pierce debtor book shut in the crane office, and it names what both towns owe Pierce. As long as it stays shut, nobody dares to take the Yard. The Yard is free, and he wants to keep it free. That means getting the Nose post out. He is a crook who sells guns. He also cares for his people as well as he can.
+
+He used to bet on everything. Now he has something to lose, and he does not bet anymore.
 
 His line is "I care for my people as I can."
 
@@ -71,3 +73,159 @@ He believes the people of the basin are slowly dying out and that only a new sta
 He speaks in sermons. One of them goes like this:
 
 > Do you fear insanity? The world we know is branches upon branches of an old tree. The tree is reason itself, and the branches are the ways of reasoning. The tree is dead. People are like ants, eating it from the inside. To find a new path we must start from the roots and face insanity if we must.
+
+## Odile Marsh
+
+Way: fear.
+
+Odile is the steward of the Granary for the Bowl Senate. She was born a tenant and earned her vote with ten years in the patrols, and some tenants still call her a turncoat. She counts every sack at night and posts the count on the Granary gate. Two counts hang there now: the sack paid to Kiln Camp for each armed truck, and the tenants' share for the Bowl patrol. She fears a famine like the one in year 70, and she would pay raiders forever to avoid one.
+
+Her line is "Every sack that goes to Kiln is written on the gate."
+
+## Agnes Ondra
+
+Way: fear.
+
+Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every meter she reads is lower than last spring. She found a pipe with no meter that runs up to the Archon's terrace, and the Senate made her take her meter off it.
+
+Her line is "I did not come to take your water. I came to write down how much of it there is."
+
+## Mirela Duarte
+
+Way: oppose.
+
+Mirela keeps South Lock for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws.
+
+Her line is "The water came from our seep, and we will count every drop of it."
+
+## Juno Pell
+
+Way: escape.
+
+Juno kept the Podfield beacons for the Children of Noah for sixty years. Her mother woke in a pod, and Juno knows every pod by its number. A Pierce lien number is painted on every lamp, and the Bowl buys their oil now. She is 84 and stays on the ground. Young Tam climbs the ladder for her.
+
+Her line is "Six lamps, six pods, and not one of them goes dark while I am alive."
+
+## Ilya Moreno
+
+Way: control.
+
+Ilya was a corporal of the Old Army. He stayed at Old Orchard in a Bowl patrol coat and watched the Nose haul the machine tools away. Every morning he counts the 36 trucks in the motor pool and paints the number on the blockhouse wall. He guards an army that is gone, for the day the basin needs one again.
+
+His line is "Those trucks are the army. I am still on duty."
+
+## Ash Kerimov
+
+Way: oppose.
+
+Ash was Scrapjaw's sharpest outrider. He gave every robbed driver a choice, and that cost him Rook's trust and then Ain's. Now he sits alone at the north bend where Emil Kessel died. He tells every driver to get a second pin bored, and he pays for it himself when they cannot.
+
+His line is "Pin it twice, friend. Then you choose your road, not the bend."
+
+## Constance Pierce
+
+Way: control.
+
+Constance is the head underwriter of Pierce Corporation at the Nose office, a great-granddaughter of Augustin Pierce. She wrote the rule that Pierce insures only armed trucks, and later the rule that it insures only mounts with two pins. She suspects what her cousin Lucan did with the yard's guns, and she cannot prove it. She never forgives a debt and never forgets a favor.
+
+Her line is "A driver who files his road with me is a driver I can pay when he is shot."
+
+## Lucan Pierce
+
+Way: control.
+
+Lucan runs Pierce Corporation. He lends to rulers, never to farmers, and both towns owe him more than they admit. He ordered the hook crates north to Scrapjaw. When the clerk who sold the routes was caught, Lucan had him sent west. He says Pierce only insures the road.
+
+## Tamsin Roe
+
+Way: embrace.
+
+Tamsin is the fastest courier of the Guidestar Guild, and the last one with no gun. She reads the mail she carries and carries other people's letters for free. She runs the south loop in a pair with Vesna Hale. Vesna carries the gun, and Tamsin drives in front.
+
+Her line is "You carry the gun, I carry the letters, and neither of us dies on that road."
+
+## Vesna Hale
+
+Way: fear.
+
+Vesna is a lone trader in salt and grain. She was robbed once and swore it would never happen twice. Her flatbed carried the first double-pinned Brann swivel, and Pierce later cancelled her paper because she would not file her road. She checks her mirrors every minute.
+
+Her line is "Kiln riders take the trucks that run alone."
+
+## Otto Brann
+
+Way: fear.
+
+Otto is the welder of Ridge Wrecks who built the first swivel, a gun mount of hull plate that turns across a truck bed. He signs every weld with a small mark and adds a second pin to every mount. Drivers say a Brann mark means an honest hauler, but Kiln riders bolt captured Brann swivels onto their own trucks. The Nose copied his swivel with one pin, and it killed a man he knew. His granddaughter Lenka welds beside him and signs her own pivot rings.
+
+His line is "A loose pin is a gun waiting for a bend."
+
+## Pim Arslan
+
+Way: escape.
+
+Pim ran from the Bowl glass works at 19 with a diamond saw. She cuts the fused glass of the Glass Flats into smoke-dark lenses, and drivers wear them against the glare. She walked the glass to the Fallen Sun and saw that every ripple leans toward the crater. A plate she scratched with the lean lines hangs by the door of the Green Pit hook house.
+
+Her line is "The glass points at the Fallen Sun. Read it before you drive out."
+
+## Hadiza Okon
+
+Way: embrace.
+
+Hadiza keeps the well and the inn at Green Pit. Everyone hangs their rifle on the hooks by her door, and nobody draws a gun at her table. Drivers, couriers, Salvage Yard crews, Kiln riders and Nose soldiers all drink there. The Bowl patrol does not, because the raiders do. She feeds anyone once.
+
+Her line is "Hang it on the hook. Everyone drinks here, and nobody takes my well."
+
+## Mara Kessel
+
+Way: control.
+
+Mara was an inspector of the Nose Order Bureau, the Committee's secret police. She proved that a Pierce clerk sold the routes of insured trucks and that Lucan Pierce armed Scrapjaw. The Committee buried her case and sent her to Captain Silver's post at the Salvage Yard. Her brother Emil died on a one-pin Nose swivel. She writes everything twice, and she keeps a quiet pact with the Administrator that Silver does not know about.
+
+Her line is "I wrote it twice, once for the file and once for myself."
+
+## Jory Baptiste
+
+Way: oppose.
+
+Jory speaks for the tenants on the Bowl terraces and answers everything with a short joke. The Senate will not give tenants a vote. So he fills the Bowl road patrol with tenant drivers, because ten years in the patrol earns a vote. The patrols know his face and once searched his house at night.
+
+His line is "We pay Kiln and we pay the patrol, and we pay both with the same grain."
+
+## Bo Lindqvist
+
+Way: embrace.
+
+Bo is a tenant driver who killed the robber Jens Vosk with a Granary swivel near the Burnt Convoy. The tenant hall decided that a tenant who defends his load is not a killer. He was the first tenant to sign the Bowl road patrol roll. He has five years left to earn his vote.
+
+His line is "I would give the grain back if it bought Jens his life."
+
+## Ines Abend
+
+Way: embrace.
+
+Ines leads the Lunar Society with Imre since the society cast Teo out. She copied a page of Teo's count and spoke first at the vote. She read the count aloud to him at the crater rim, and he told her to keep reading it after him. A copy hangs by the tower door for anyone to read. The Sunward chant a number larger than this year's count, and she believes it is where the count stops.
+
+Her line is "The count is read in the open. Whoever wants the last number, come to the tower door."
+
+## Sefa Krol
+
+Way: oppose.
+
+Sefa leads a dozen vulture families who live in the burnt trucks of the Burnt Convoy. They are first to any wreck, and she never takes the last water from anyone. She hid the robber Karl Vosk for years, sold Pierce's debtor book to the Salvage Yard and made a deal with Kaplan of Kiln Camp over the raiders' wrecks. Nobody in her camp went short this year.
+
+Her line is "We take what the road is done with and leave the water."
+
+## Lusa Fenwick
+
+Way: escape.
+
+Lusa is an Ephemeralist dreamer who rode west with a convoy and came back. She keeps Hal Sorensen's map of the western road, and on its back she drew a valley town whose trucks carry no guns. Once a year she reads the names of the dead at Canyon Bridge. The old convoy master Dario Feld gave her his western book, and the convoy drivers let her read them the road.
+
+Her line is "The test is here, but the road goes out there."
+
+## Karl Vosk
+
+Way: escape.
+
+Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy squatters, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.

@@ -37,3 +37,34 @@ Every few days each major group makes one move of its own, whatever the player d
 ## The Old Army
 
 The Old Army's trucks still stand where they stopped at Old Orchard. Their logs, orders and cargo hold pieces of why it left. Some pieces say it ran out of food. Others say someone starved it out on purpose. The player can put the pieces together, and the answer changes how Nose and Bowl look.
+
+## The Archon's pipe
+
+1. Agnes Ondra at the Pump Station asks the player to carry a sealed copy of her pump book to South Lock.
+2. Mirela Duarte's Canal book shows that a pipe with no meter draws seep water up to the Archon's terrace every week.
+3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the valve. It sits on the Archon's desk.
+4. The Archon's household offers the player good money to lose the copy on the road.
+5. The player can deliver the copy, sell it, read it out at the Granary gate where the tenants post their counts, or drop it in a ditch.
+
+## The north bend
+
+Ash Kerimov sits alone at the north bend where Emil Kessel died. He stops every truck and asks to see its swivel pins. A driver with one pin gets a choice: pay for a second pin at the Salvage Yard, or drive on. Kiln Camp wants him gone, because he slows the road. Captain Silver wants him gone too, because he talks to Nose drivers. Both offer the player a job.
+
+## Emil's pin
+
+1. Mara Kessel, an officer in Captain Silver's post, quietly asks the player to bring her the one-pin swivel from Emil Kessel's wreck on the north road.
+2. The wreck has already been stripped. The mount turns up at the Salvage Yard, at Ridge Wrecks or on a Kiln truck.
+3. The mount proves that the Nose gate issued it with one pin. Silver wants it destroyed. The Administrator wants it kept, along with what it proves.
+4. Mara has her own pact with the Administrator. The player decides who learns about it.
+
+## The Reading of Names
+
+Once a year Lusa Fenwick reads the names of the dead at Canyon Bridge: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra, Emil Kessel. Drivers stop on the bare deck with their rifles on the cab hooks. Someone in the crowd killed one of the people named. A player who stays for the whole reading hears who, from a man who drinks too much afterward.
+
+## The last courier
+
+Tamsin Roe is the last Guild courier with no gun. Vesna Hale rides behind her with the only rifle. This year Vesna is sick. The Guild asks the player to ride as Tamsin's pair on the south loop. Tamsin will not take a gun. Kiln riders know her truck and let it pass, but this season someone new rides for Kiln.
+
+## The hook house
+
+Green Pit's well drops every dry year. A Nose soldier from Silver's post sits by the hooks and watches who hangs what. Hadiza Okon asks the player to find out what he reports and to whom. If the hooks stop meaning safety, the last place where Kiln riders and haulers drink together goes with them.
