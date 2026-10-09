@@ -64,7 +64,7 @@ One owner per concept. Use these and do not decide the same thing elsewhere:
 - `src/sim/wear.ts` is the only writer of part HP.
 - `workOf()` in `src/sim/states.ts` gives timed work, so new work gets a progress bar.
 - `practice()` in `src/sim/progress.ts` is the only way to gain XP.
-- `talkOf()` in `src/sim/dialogue.ts` is the one place talk reads traits.
+- `talkOf()` in `src/sim/dialogue.ts` is the one place talk reads traits and personality.
 - `propPose()` in `src/sim/mapgen.ts` gives each prop's turn and scale.
 - `src/sim/body.ts` is the only conversion between grid cells and meters.
 - `src/sim/utility.ts` owns utility charge, orders, the activation step and the emitter shutdown. Each utility effect's world object has one owner: `hazards.ts` for smoke, ground fields and flares, and `claymore.ts`. `harpoon.ts` owns the lines of the harpoon, which is a gun.
