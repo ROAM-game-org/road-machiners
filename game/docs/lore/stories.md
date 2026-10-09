@@ -1,6 +1,6 @@
 # Stories
 
-Seeds for events and jobs in Icarus. A story never has a right side. The player can join any side, play both, or walk away, and the world goes on without them. Groups are in [Peoples](peoples.md) and people in [Characters](characters.md).
+Seeds for events and jobs in Icarus. None of them is built in the game yet. A story never has a right side. The player can join any side, play both, or walk away, and the world goes on without them. Groups are in [Peoples](peoples.md) and people in [Characters](characters.md).
 
 ## The free yard
 

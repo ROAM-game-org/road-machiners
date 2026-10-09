@@ -22,7 +22,7 @@ Way: fear.
 
 Bowl is a farm built in terraces down the inside of an impact crater. Its people are citizens and tenants. A person earns citizenship by serving ten years in the Bowl patrols, and only citizens vote. Tenants have fewer rights and less money than the people of Nose, but much more freedom.
 
-The Senate of citizens governs Bowl, and it elects Archons to carry out its decisions. Bowl's agents in other towns are called Episkopoi. The Senate is run by old men, and it is often split on the questions that matter, so it acts slowly. Bowl has more people than Nose.
+The Senate of citizens governs Bowl. It elects Archons to carry out its decisions. Bowl's agents in other towns are called Episkopoi. Old men run the Senate. It often splits on the questions that matter, so it acts slowly. Bowl has more people than Nose.
 
 Bowl does not want to grow. It wants to keep its walls and its fields safe. It would still destroy Nose if it could, and it calls that defense.
 
@@ -78,7 +78,7 @@ The other drivers have no town to speak for them.
 - Scavengers embrace it too. They live off the wrecks and ask no questions about where the wrecks came from.
 - Roamers escape. They keep moving and never stay anywhere long.
 - Vultures oppose. They follow fights and strip the losers.
-- Mercs sell their guns to whoever pays. They cope by letting someone else decide.
+- Mercs embrace the world as it is. They sell their guns to whoever pays and leave the deciding to others.
 
 ## Faiths
 

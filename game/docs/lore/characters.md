@@ -6,7 +6,7 @@ Named people of Icarus. Each one has a main way of coping from [Theme](../theme.
 
 Way: control.
 
-The President of Nose has led its Central Committee for 30 years. He believes the basin will die without rationing and discipline, and he is probably right about that. He has also stopped being able to tell the good of Nose from his own hold on it.
+The President of Nose has led its Central Committee for 30 years. He believes the basin will die without rationing and discipline. He is probably right about that. He can no longer tell the good of Nose from his own hold on it.
 
 ## Captain Silver
 
@@ -20,7 +20,7 @@ He believes the only future for the Yard is to belong to Nose. He is willing to 
 
 Way: fear.
 
-The Administrator runs the Salvage Yard with his gang. The Yard is free, and he wants to keep it that way, which means getting the Nose post out. He is a crook, and he cares for his people as well as he can.
+The Administrator runs the Salvage Yard with his gang. The Yard is free, and he wants to keep it free. That means getting the Nose post out. He is a crook. He also cares for his people as well as he can.
 
 His line is "I care for my people as I can."
 
@@ -28,7 +28,7 @@ His line is "I care for my people as I can."
 
 Way: oppose.
 
-Ain is the unacknowledged son of a Nose committee member. His child died, and after that he fled Nose and started his own gang. Now he wants to be king of the raider camps, whatever it costs. He believes the end justifies the means, and nobody knows the whole of his past.
+Ain is the unacknowledged son of a Nose committee member. His child died. After that he fled Nose and started his own gang. Now he wants to be king of the raider camps, whatever it costs. He believes the end justifies the means, and nobody knows the whole of his past.
 
 His line is "I will be king of the camps, and I will pay any price for it."
 
@@ -44,7 +44,7 @@ His lines are "It was better when we were just a pack" and "The dead don't care 
 
 Way: control.
 
-Fane is an old trinket trader in the Nose market. He buys relics from the ship and anything else nobody else understands. People call him the soul lender, because he will lend against anything, and he always collects. He is a cunning businessman with no principles, and he trades in information as much as in goods.
+Fane is an old trinket trader in the Nose market. He buys relics from the ship and anything else nobody else understands. People call him the soul lender. He will lend against anything, and he always collects. He is a cunning businessman with no principles, and he trades in information as much as in goods.
 
 ## The Preacher
 

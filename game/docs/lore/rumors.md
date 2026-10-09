@@ -1,7 +1,6 @@
 # Rumors
 
-Things people in Icarus say. Some are true, some are half true and some are false. A rumor is evidence, never an answer, as [Theme](../theme.md) describes. Drivers, traders, the radio and the Rumor mill perk can pass them on.
-
+Things people in Icarus say. Some are true, some are half true and some are false. A rumor is evidence, never an answer, as [Theme](../theme.md) describes.
 ## What the ship was
 
 Nobody agrees, and each guess has its believers.
