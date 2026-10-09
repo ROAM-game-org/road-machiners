@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AMBUSH, GREEN_PIT } from '../data/intro';
+import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { startKit } from '../data/start';
@@ -93,6 +93,7 @@ describe('the ambush', () => {
     expect(playerSees(w, raider.pos)).toBe(false);
     expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: w.player.vehicleId });
     expect(w.events.filter((e) => e.t === 'spawn')).toHaveLength(1);
+    expect(raider.brain!.traits).toEqual(expect.arrayContaining(['raider', 'brave']));
   });
 
   it('waits off the road and spawns nothing', () => {
@@ -143,8 +144,8 @@ describe('the ambush', () => {
   });
 });
 
-describe('the fall and Green Pit', () => {
-  it('plays the first fall, robs the cargo, spares the driver and parks the truck at Green Pit', () => {
+describe('the fall and the wake in Bowl', () => {
+  it('plays the first fall, robs the cargo, spares the driver and parks the truck in Bowl', () => {
     const w = ambushed();
     knockedOutBy(w);
     expect(w.player.quests.session?.quest).toBe('first_fall');
@@ -155,12 +156,12 @@ describe('the fall and Green Pit', () => {
     expect(next.player.state).toBe('active');
     expect(next.player.health).toBeGreaterThan(0);
     expect(hasCargo(me)).toBe(false);
-    expect(canUseSite(me.pos, REGION.locations.find((l) => l.id === GREEN_PIT)!)).toBe(true);
-    expect(next.player.quests.session?.quest).toBe('intro_green_pit');
+    expect(canUseSite(me.pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(true);
+    expect(next.player.quests.session?.quest).toBe('intro_bowl');
     expect(introStep(next)).toBe('ambush');
   });
 
-  it('sets done after the Green Pit scene and plays it once', () => {
+  it('sets done after the Bowl scene and plays it once', () => {
     const w = ambushed();
     knockedOutBy(w);
     let next = runUntilAwake(closeScene(w));
@@ -172,7 +173,7 @@ describe('the fall and Green Pit', () => {
     expect(introStep(next)).toBe('done');
   });
 
-  it('ends quietly with no Green Pit scene when the player wins', () => {
+  it('ends quietly with no Bowl scene when the player wins', () => {
     const w = ambushed();
     knockOutNpc(w, raidersIn(w)[0]);
     const next = endTurn(w, testDrive);
@@ -194,12 +195,12 @@ describe('the fall and Green Pit', () => {
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));
     expect(next.player.quests.session).toBeNull();
-    expect(canUseSite(playerVehicle(next).pos, REGION.locations.find((l) => l.id === GREEN_PIT)!)).toBe(false);
+    expect(canUseSite(playerVehicle(next).pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(false);
   });
 });
 
 describe('saves around the ambush', () => {
-  it('loads at patched, at ambush, while knocked out and in the Green Pit scene without an award', () => {
+  it('loads at patched, at ambush, while knocked out and in the Bowl scene without an award', () => {
     const patched = patchedWorld();
     expectNothingAwarded(savedAndLoaded(patched), patched);
     const fighting = ambushed();

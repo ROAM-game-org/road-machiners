@@ -3,36 +3,33 @@ INCLUDE world.ink
 
 === start ===
 # checkpoint: start
-The truck stops dead. Your chest hits the wheel and your head hits the dash. # place: The cab
-Something warm runs into your eye. One high note rings in your ears. The world swims.
-The engine ticks as it cools. Nothing else moves.
+The truck stops so hard that the belt you never fastened would not have helped, and your forehead meets the dash with a sound you feel in your teeth. # place: The cab
+Something warm runs into your left eye and keeps running. A single high note fills your ears, and under it, far away, your engine ticks as it cools.
 + [Wipe your eye.]
   ~ first_knockout_seen = true
-  Your hand comes away red. You blink until the glass holds still.
+  Your sleeve comes away dark and wet. You blink until the cracked glass in front of you stops sliding sideways.
   -> look
 + [Keep it shut.]
   ~ first_knockout_seen = true
-  The dark behind your lid pulses with your heart. After a while you make yourself look.
+  Behind the lid the dark beats in time with your heart. When you finally open your good eye, the glass in front of you is a web of cracks.
   -> look
 
 === look ===
 # checkpoint: look
-Through the cracked glass hangs a barrel, wreathed in smoke. It is pointed at you. # page
-Dust drifts across the hood. The other truck idles close, its driver a shape behind a screen.
-You know how this ends. A dry end, in a dry land. Nobody will come to bury you.
-+ [Look it in the eye.]
-  The barrel does not waver. Your mouth tastes of copper and dust.
+Out past the hood, where the dust is settling, the other truck has stopped side on, far enough that you could not hit it with a thrown stone. # page
+Its gun is still swung toward you on the mount, and a thin grey thread of smoke climbs from the muzzle and leans away with the wind. Behind it, a figure in goggles stands braced in the bed with both hands on the grips.
+Your hands lie in your lap and will not lift. You wonder, quite calmly, how long a body keeps in this heat, and whether anyone would think to look.
++ [Hold the gunner's gaze.]
+  You cannot see the eyes behind the goggles. You look anyway, because it is the last thing left that you can choose.
   -> mercy
-+ [Close your eyes.]
-  You hear your own breath. You hear the wind take sand over the hood.
++ [Close your eyes and wait.]
+  You listen to the wind push sand across the hood and wait for the sound you will not hear.
   -> mercy
 
 === mercy ===
-It does not come. # page
-The seconds pile up. Then the barrel sinks.
-The other driver has seen what you are now. A dead truck and a driver who cannot lift a hand. Nobody out here kills that.
-A door slams somewhere. An engine climbs, then fades into the flat.
-The ringing eases. You are going to live. # page
-You did not know how much you wanted that. The warmth in your eye does not matter. The dash is cool against your cheek.
-The edges of the world close in, soft and slow.
+The sound does not come. # page
+When you look again, the barrel has swung up and away and points at nothing in the empty sky. The gunner pushes the goggles onto their forehead, spits over the side and climbs down.
+They walk to your truck slowly, a rifle slung across the back, and do not even glance at the cab as they pass your window. You hear the bed creak under their weight and the tarp lift, and for a while you hear them sorting through what you carried.
+On the way back they stop by your door. A dented canteen lands on the seat beside you, half full, sloshing. Then boots on gravel, a door slamming, and an engine climbing away into the flat until the wind takes it. # page
+You are alive. You hold onto that thought the way you would hold a rope, and it is enough to keep the canteen in your lap while the dark comes up around the edges of everything, soft and patient and in no hurry at all.
 -> END

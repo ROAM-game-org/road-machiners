@@ -20,7 +20,7 @@ import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
-import { advanceIntro, arriveAtGreenPit } from './intro';
+import { advanceIntro, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
 import { applyHazards } from './hazard';
@@ -330,7 +330,7 @@ export function endTurn(
     noteEngagements(w);
     discoverSites(w);
     checkDeath(w);
-    arriveAtGreenPit(w, advanceKnockout(w));
+    wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
     spawnNpcs(w);

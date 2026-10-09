@@ -13,7 +13,7 @@ export const COST_TAG = 'cost:';
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['transcript', 'page'];
 export const MONEY_STAT = 'money';
 
-export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introGreenPit: 'intro_green_pit' } as const;
+export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introWake: 'intro_bowl' } as const;
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 
 export const INTRO_STEP = 'intro_step';

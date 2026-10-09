@@ -1586,7 +1586,7 @@
     "weigher_said": "boolean"
    },
    "intro_arrival": {},
-   "intro_green_pit": {},
+   "intro_bowl": {},
    "nose_clerk": {},
    "nose_constance": {},
    "nose_courier": {
@@ -1734,7 +1734,7 @@
     "shed",
     "truck"
    ],
-   "intro_green_pit": [
+   "intro_bowl": [
     "start"
    ],
    "nose_clerk": [

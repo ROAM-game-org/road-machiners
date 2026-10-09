@@ -106,16 +106,16 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival is one of them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 - Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.
 
-## The ambush and Green Pit
+## The ambush and the wake in Bowl
 
-The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `walk`, `drive`, `patched`, `ambush` and `done`. Another part of the game sets `walk`, `drive` and `patched`. `src/sim/intro.ts` sets `ambush`, and `intro_green_pit.ink` and `src/sim/intro.ts` set `done`.
+The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `walk`, `drive`, `patched`, `ambush` and `done`. `src/sim/intro.ts` sets `ambush`, and `intro_bowl.ink` and `src/sim/intro.ts` set `done`.
 
 - `introStep()` and `setIntroStep()` in `src/sim/quests.ts` read and write it, next to `openFirstFall()`.
 - `advanceIntro()` runs each turn after `spawnNpcs()`. At `patched`, with the player active and on a road tile outside a site, it spawns one raider and sets `ambush`. Off the road it waits.
-- The raider is the `buggy` template with the gear and chassis in `AMBUSH` in `src/data/intro.ts`. It spawns on a road out of the player's sight and nearer to Green Pit than the player. It gets a robbery feud and a fight goal on the player, the same as a raider that chose to rob. It carries no cargo, so it has room to rob.
+- The raider is the `buggy` template with the gear and chassis in `AMBUSH` in `src/data/intro.ts`. It spawns on a road out of the player's sight and nearer to Green Pit than the player. It gets a robbery feud and a fight goal on the player, the same as a raider that chose to rob. It also gets the `brave` trait, so it does not flee from a pickup with a machine gun. It carries no cargo, so it has room to rob.
 - The raider drives and fights by the normal rules. It may radio a demand, and the player may refuse.
-- A knockout plays the first fall as usual. When the knockout ends, `arriveAtGreenPit()` runs if the foes were not empty and the step is `ambush`. It parks the truck on the Green Pit pad and opens `intro_green_pit`.
-- `intro_green_pit.ink` is a page scene. Its first choice sets `done`. Leaving before that choice sets nothing, so the next knockout plays it again.
+- A knockout plays the first fall as usual. When the knockout ends, `wakeInTown()` runs if the foes were not empty and the step is `ambush`. It parks the truck on a Bowl pad and opens `intro_bowl`. Bowl has a garage, so a player whose engine was taken can buy another.
+- `intro_bowl.ink` is a page scene with Hattie at the well house. Its first choice sets `done`. Leaving before that choice sets nothing, so the next knockout plays it again.
 - At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
 - A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
 
@@ -234,7 +234,7 @@ The world variable `hooks_report` is `"told"` or `"exposed"`. Paying the soldier
 
 - `newGame()` in `src/sim/new-game.ts` builds the world from the start kit `arrival` and opens the quest at `start`. `newWorld()` opens nothing. With Skip the intro, `newGame()` builds the kit named by `withoutIntro` instead, which is the old stranded start.
 - The kit `arrival` has the `intro` field: the pose of the truck, the farm pieces and the kit to use without the intro. `ARRIVAL` in `src/data/arrival.ts` holds them. The farm is non-baked landmark obstacles, so the map file and its hash stay as they are. The pieces are a water tower, a shed, a house, a woodpile, drums and a tank. None of them can break. The tower and the shed are not loot spots.
-- The farm lies on the southern basin floor, about 50 tiles south of Green Pit. The region road to Green Pit is about 15 tiles north of the opening wreck, with no cliff on the way.
+- The farm lies at the foot of the southern rim, about 95 tiles from Green Pit. The nearest road is about 70 tiles north, out of sight, with no cliff on the way.
 - The pickup is the scout with the opening condition of the standard start: a nearly dead engine, a worn cab and an opening wreck that holds 3 parts and a cage. The engine has no misfire rule. Low engine HP is what the rules give, and parts that wear down can fail. The opening tips teach driving, search, loot and patch.
-- The world variable `intro_step` is `off`, `walk`, `drive`, `patched`, `ambush` or `done`. The quest sets `walk` on its first choice and `drive` when the scene ends. `advanceIntro()` in `src/sim/intro.ts` runs once each turn. It sets `drive` when the scene was left early, and `patched` once the engine needs no patch. Those two steps need the farm, so a skipped intro stays `off`. The ambush and Green Pit steps follow from `patched`.
+- The world variable `intro_step` is `off`, `walk`, `drive`, `patched`, `ambush` or `done`. The quest sets `walk` on its first choice and `drive` when the scene ends. `advanceIntro()` in `src/sim/intro.ts` runs once each turn. It sets `drive` when the scene was left early, and `patched` once the engine needs no patch. Those two steps need the farm, so a skipped intro stays `off`. The ambush and the wake in Bowl follow from `patched`.
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.

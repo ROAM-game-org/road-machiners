@@ -124,7 +124,7 @@ describe('the arrival at the farm', () => {
     expect(w.player.autoRepair).toBe(false);
   });
 
-  it('puts the wreck in sight on open dirt with no cliff between, and a road toward Green Pit near the farm', () => {
+  it('puts the wreck in sight on open dirt, and the farm out of sight of the road, with no cliff on the way out', () => {
     const w = arrival();
     const me = playerVehicle(w);
     const wreck = openingStockOf(w)!.pos;
@@ -138,7 +138,8 @@ describe('the arrival at the farm', () => {
     const greenPit = REGION.locations.find((l) => l.id === 'green-pit')!.pos;
     const road = REGION.roads.find((r) => r.some((p) => dist(p, greenPit) < 20))!;
     const out = nearestOnRoad(road, wreck);
-    expect(dist(out, wreck)).toBeLessThan(20);
+    expect(playerSees(w, out)).toBe(false);
+    expect(playerSees(w, greenPit)).toBe(false);
     expect(cliffsAlong(w, wreck, out)).toBe(0);
   });
 

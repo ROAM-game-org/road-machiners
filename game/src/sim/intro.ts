@@ -1,5 +1,5 @@
 import { FARM_TOWER_ID } from '../data/arrival';
-import { AMBUSH, GREEN_PIT } from '../data/intro';
+import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { GAME_OPENED_QUESTS, type IntroStep } from '../data/quests';
 import { REGION } from '../data/region';
@@ -34,16 +34,16 @@ function settleAfterPatch(w: World, step: IntroStep): void {
   else if (step === 'ambush' && hunters(w).length === 0) setIntroStep(w, 'done');
 }
 
-export function arriveAtGreenPit(w: World, foes: readonly string[] | null): void {
+export function wakeInTown(w: World, foes: readonly string[] | null): void {
   if (foes === null || foes.length === 0 || introStep(w) !== 'ambush') return;
   const me = playerVehicle(w);
-  const site = getKnownSite(GREEN_PIT);
+  const site = getKnownSite(WAKE_TOWN);
   const pad = nearestPad(site, me.pos);
   me.pos = parkingSpot(w, pad, me);
   me.heading = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   me.speed = 0;
   me.trail = [];
-  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introGreenPit, 'start');
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
 }
 
 function settleBeforePatch(w: World, step: IntroStep): void {
@@ -65,6 +65,9 @@ function launchAmbush(w: World): void {
   const spot = ambushSpot(w, me, chassisDef(loadout.chassisId).radius);
   if (!spot) return;
   const raider = spawnAt(w, template, { ...loadout, cargo: {} }, spot);
+  const brain = raider.brain;
+  if (!brain) throw new Error(`Ambush raider ${raider.id} has no brain`);
+  brain.traits = [...new Set([...brain.traits, ...AMBUSH.addedTraits])];
   addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: true });
   w.events.push({ t: 'hostile', vehicle: raider.id, against: me.id });
   fightCornered(w, raider, me, 'rob cargo');
@@ -105,5 +108,5 @@ function parkingSpot(w: World, pad: Vec, me: Vehicle): Vec {
       if (isFree(w, spot, radius, me.id)) return spot;
     }
   }
-  throw new Error(`No free spot for the player truck near the ${GREEN_PIT} pad`);
+  throw new Error(`No free spot for the player truck near the ${WAKE_TOWN} pad`);
 }

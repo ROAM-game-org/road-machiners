@@ -1,9 +1,10 @@
-import type { GearLevel } from './npcs';
+import type { GearLevel, TraitId } from './npcs';
 
 export const AMBUSH = {
   template: 'buggy',
   chassis: 'niva',
   gear: 'light' as GearLevel,
+  addedTraits: ['brave'] as TraitId[],
   sightMin: 1.2,
   sightMax: 2,
   sightTarget: 1.5,
@@ -13,3 +14,4 @@ export const AMBUSH = {
 };
 
 export const GREEN_PIT = 'green-pit';
+export const WAKE_TOWN = 'bowl';
