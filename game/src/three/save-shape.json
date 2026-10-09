@@ -1517,10 +1517,13 @@
   "world": {
    "bend_fate": "string",
    "count_fate": "string",
+   "courier_fate": "string",
    "crates_fate": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
+   "hooks_report": "string",
    "lamps_fate": "string",
+   "names_vosk": "string",
    "pin_fate": "string",
    "pin_pact": "string",
    "pipe_fate": "string",
@@ -1539,6 +1542,17 @@
    "bowl_dag": {},
    "bowl_hattie": {},
    "bowl_jory": {},
+   "bowl_names": {
+    "book_seen": "boolean",
+    "bounty": "number",
+    "brass_held": "boolean",
+    "drink_price": "number",
+    "drunk_said": "boolean",
+    "hal_letter_read": "boolean",
+    "kiln_known": "boolean",
+    "outcome": "string",
+    "refused": "boolean"
+   },
    "bowl_ruben": {},
    "crates_hook": {
     "look_price": "number",
@@ -1572,6 +1586,19 @@
    },
    "nose_clerk": {},
    "nose_constance": {},
+   "nose_courier": {
+    "asked_gun": "boolean",
+    "drinkers_said": "boolean",
+    "gun": "boolean",
+    "letter_seen": "boolean",
+    "lost_share": "number",
+    "met_vesna": "boolean",
+    "result": "string",
+    "reward": "number",
+    "riding": "boolean",
+    "toll": "number",
+    "vesna_said": "boolean"
+   },
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -1626,6 +1653,17 @@
     "taken": "boolean"
    },
    "radio_wagon_driver": {},
+   "salvage_hooks": {
+    "asked_drinkers": "boolean",
+    "bribe": "number",
+    "fee": "number",
+    "lens_held": "boolean",
+    "lens_price": "number",
+    "outcome": "string",
+    "read_tally": "boolean",
+    "saw_drop": "boolean",
+    "saw_hooks": "boolean"
+   },
    "yard_mara": {},
    "yard_sefa": {},
    "yard_silver": {}
@@ -1650,6 +1688,12 @@
    "bowl_jory": [
     "start",
     "start.hub"
+   ],
+   "bowl_names": [
+    "start",
+    "start.hub",
+    "after_reading_scene.hub_drunk",
+    "hub_lusa"
    ],
    "bowl_ruben": [
     "start",
@@ -1686,6 +1730,13 @@
    "nose_constance": [
     "start",
     "start.hub"
+   ],
+   "nose_courier": [
+    "start",
+    "start.hub",
+    "post",
+    "green",
+    "bend"
    ],
    "nose_depot_leak": [
     "start",
@@ -1731,6 +1782,11 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "salvage_hooks": [
+    "start",
+    "start.hub",
+    "hooks"
    ],
    "yard_mara": [
     "start",

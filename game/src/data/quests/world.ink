@@ -4,6 +4,9 @@ VAR pipe_fate = "none"
 VAR sack_fate = "none"
 VAR lamps_fate = "none"
 VAR count_fate = "none"
+VAR courier_fate = "none"
+VAR names_vosk = "none"
+VAR hooks_report = "none"
 
 EXTERNAL money()
 EXTERNAL give_money(amount)
