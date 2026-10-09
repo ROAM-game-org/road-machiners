@@ -25,16 +25,23 @@ type SceneWalk = { states: number; stopped: boolean; problems: string[] };
 
 export const QUEST_STATE_LIMIT = 5000;
 
-export function checkQuests(sources: QuestSources, scenes: QuestScenes, limit: number): QuestReport[] {
+export type QuestCheck = { shared: QuestReport; questIds: string[]; walk: (questId: string, scenes: QuestScenes, limit: number) => QuestReport };
+
+export function questCheck(sources: QuestSources): QuestCheck {
   const { bundle, errors, warnings, sections } = compileSources(sources, true);
   const hooks = hookProblems(bundle);
   const shared: QuestReport = { quest: 'all', states: 0, problems: [...errors, ...warnings, ...hooks] };
-  if (hooks.length > 0) return [shared];
   const assigned = worldAssignments(sources, bundle);
-  return [shared, ...Object.keys(bundle.quests).map((id) => {
+  const walk = (id: string, scenes: QuestScenes, limit: number): QuestReport => {
     const read = assigned.filter(([name]) => readsWorldVar(sources, id, name));
     return exploreQuest(withWorldVars(scenes(id), read), bundle, id, sections[id] ?? [], limit);
-  })];
+  };
+  return { shared, questIds: hooks.length > 0 ? [] : Object.keys(bundle.quests), walk };
+}
+
+export function checkQuests(sources: QuestSources, scenes: QuestScenes, limit: number): QuestReport[] {
+  const check = questCheck(sources);
+  return [check.shared, ...check.questIds.map((id) => check.walk(id, scenes, limit))];
 }
 
 function readsWorldVar(sources: QuestSources, questId: string, name: string): boolean {

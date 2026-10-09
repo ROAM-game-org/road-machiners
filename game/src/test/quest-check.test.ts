@@ -3,7 +3,7 @@ import { START_KITS } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from './map';
-import { checkQuests, gameScenes, QUEST_STATE_LIMIT, type QuestReport } from './quest-check';
+import { checkQuests, gameScenes, QUEST_STATE_LIMIT, questCheck, type QuestReport } from './quest-check';
 import { readQuestSources, type QuestSources } from './quest-compile';
 
 const WORLD = `VAR heard = false\n${readQuestSources('src/data/quests')['world.ink']}`;
@@ -17,10 +17,20 @@ function check(quest: string, worldInk = WORLD): string[] {
 }
 
 describe('checkQuests', () => {
-  it('passes the game quests', () => {
-    const reports = checkQuests(readQuestSources('src/data/quests'), gameScenes(world()), QUEST_STATE_LIMIT);
-    expect(reports.flatMap((r) => r.problems)).toEqual([]);
-    expect(reports.find((r) => r.quest === 'bowl_hattie')?.states).toBeGreaterThan(2);
+  describe('the game quests', () => {
+    const game = questCheck(readQuestSources('src/data/quests'));
+    const scenes = gameScenes(world());
+
+    it('compile with no problems and cover every quest', () => {
+      expect(game.shared.problems).toEqual([]);
+      expect(game.questIds).toContain('bowl_hattie');
+    });
+
+    it.each(game.questIds)('walks %s with no problems', (id) => {
+      const report = game.walk(id, scenes, QUEST_STATE_LIMIT);
+      expect(report.problems).toEqual([]);
+      expect(report.states).toBeGreaterThan(2);
+    });
   });
 
   it('walks a branch on a game query both ways across the scenes', () => {
