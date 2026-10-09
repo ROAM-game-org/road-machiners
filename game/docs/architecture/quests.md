@@ -42,6 +42,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `begin(quest)` opens another quest at its `start` once this one ends. It must come right before `-> END`, or the pick throws. Kovac starts the depot quest this way.
 - `note(id)` writes a journal note and `has_note(id)` reads one. `found(site)` reads whether a town or location is found, and `searched(wreck)` whether a story wreck is searched. Each throws on an id the game does not know.
 - `has_work()`, `has_offers()` and `board_full()` read the board of the town the truck is parked at, and `take_work()` takes its best offer as the Contracts tab does. They throw away from a town. The offer is the best-paying open contract the truck can take, from `townWork()` in `src/sim/dialogue-rules.ts`. `has_offers()` tells a board with open contracts the truck cannot take from an empty one.
+- `skill(id)` reads the player's level in a skill: driving, perception, machining, toughness or social. It throws on any other id. The veteran check world holds every skill at the top level, so a skill check is walked both ways.
 - Game state such as money is read through a query, never copied into an ink variable.
 
 ## Top tags

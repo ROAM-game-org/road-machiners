@@ -65,15 +65,17 @@ INCLUDE world.ink
 
 ## Quest design
 
-Age of Decadence is the model. Avoid the quest where someone asks for a mystery solved and pays a purse at the end. A few may stay, but most quests work like this:
+Age of Decadence is the model. Its designer held every quest to three rules: no delivery errands, several ways through that each use a different skill, and outcomes that shift the factions.
 
-- The player is often a pawn. People use them to carry, deliver, witness or take the blame, for aims they learn late or never. A quest giver rarely says the true reason.
-- Information is scarce and partial. Each fact costs time, money, trust or risk. Many questions never get an answer, and two sources may disagree.
-- Opponents are competent. They notice the player, plan ahead, cover their tracks and act while the player acts. An obvious plan fails against them.
-- The reward comes from the world more often than from a purse: a favor, a door that opens or closes, a name people remember, a grudge. Money changes hands when the deal is a plain deal.
-- Every side loses something. No ending is clean.
-- The player can fail, and the story goes on. A failure leaves its own mark, like a lost friend or a closed door.
-- An ending changes who holds power. The player may never see the whole effect.
+- No errands. A job that sounds like "carry this" or "find out who" opens a fight between factions. The cargo, the paper or the answer matters more to someone else than to the player.
+- Each quest has several ways through, and each uses a different skill or something the player holds. Social talks, bribes or lies. Perception sees what is off. Machining reads a weld or fixes the problem. Driving outruns or rams. Force, a forged paper and walking away are ways through too.
+- A failed check has a consequence. It does not only close a door. A driver who asks about swivel pins and knows nothing of guns makes the yard wonder who sent them.
+- An outcome shifts power between factions, and it opens or closes later quests. A player thrown out of a faction loses its help for good.
+- People use the player. Someone who helps for free may want the player's name on a paper, then use it to steal and leave the player to take the blame. The reason a person gives for a job is often not the real one.
+- The world moves without the player. The person they came to see may already be dead. Opponents are as competent as the player, and they act on what they know.
+- Information is earned and partial. Two people can tell different versions, and the player does not always learn which was true. No fact depends on one person alone, so killing or angering anyone never locks the player out.
+- Money is a tool, not the prize. A plain deal pays a plain fee. Larger rewards are standing with a faction, an open door, a tool, or the way into the next quest.
+- Everything costs something. A good outcome for one faction is a bad outcome for another.
 
 ## Writing rules
 

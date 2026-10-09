@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
-import { chooseQuestOption, fittingQuestVars, leaveQuest, questProblems, questView, restoreQuest, startQuest } from './quests';
+import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, restoreQuest, startQuest } from './quests';
 import { defaultSetup } from './settings';
 import type { QuestBundle } from '../data/quests';
 import { compileBundle, readQuestSources } from '../test/quest-compile';
@@ -212,5 +212,15 @@ describe('questProblems', () => {
 
   it('finds nothing in a new game', () => {
     expect(questProblems(world().player.quests, QUESTS)).toEqual([]);
+  });
+});
+
+describe('skill query', () => {
+  it('reads the player skill level and throws on an unknown skill', () => {
+    const w = world();
+    w.player.ranks.machining = 3;
+    expect(QUEST_QUERIES.skill(w, ['machining'])).toBe(3);
+    expect(QUEST_QUERIES.skill(w, ['social'])).toBe(w.player.ranks.social);
+    expect(() => QUEST_QUERIES.skill(w, ['charm'])).toThrow(/no skill charm/);
   });
 });

@@ -13,6 +13,7 @@ EXTERNAL has_work()
 EXTERNAL has_offers()
 EXTERNAL board_full()
 EXTERNAL take_work()
+EXTERNAL skill(id)
 VAR pin_fate = "none"
 VAR pin_pact = "hidden"
 VAR bend_fate = "none"

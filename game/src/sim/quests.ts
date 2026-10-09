@@ -19,11 +19,13 @@ import {
 import BUNDLE from '../data/quests.json';
 import type { NoteId } from '../data/locals';
 import { REGION } from '../data/region';
+import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
+import { skillLevel } from './progress';
 import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
-import type { QuestLine, QuestSession, QuestState, QuestVars, World } from './types';
+import type { QuestLine, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
 import { update } from './world';
 
 export type QuestView = {
@@ -56,6 +58,7 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   has_work: (world) => townWork(world) !== null,
   has_offers: (world) => townOffers(world).length > 0,
   board_full: (world) => boardFull(world),
+  skill: (world, args) => skillLevel(world, skillArg('skill', args)),
 };
 
 export const QUEST_EFFECTS: Record<string, QuestEffect> = {
@@ -94,6 +97,13 @@ function noteArg(fn: string, args: readonly unknown[]): NoteId {
   const id = textArg(fn, args, 0);
   if (!isNoteId(id)) throw new Error(`${fn} names no note ${id}`);
   return id;
+}
+
+function skillArg(fn: string, args: readonly unknown[]): SkillId {
+  const id = textArg(fn, args, 0);
+  const skill = SKILL_IDS.find((s) => s === id);
+  if (!skill) throw new Error(`${fn} names no skill ${id}`);
+  return skill;
 }
 
 function siteArg(fn: string, args: readonly unknown[]): string {
