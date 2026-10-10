@@ -4,7 +4,7 @@ INCLUDE world.ink
 === start ===
 # checkpoint: start
 Sand and dust, the faded spotlight of the sun, and not a blade of grass in sight. For days now. # place: The rim
-You shake the canteen beside your ear anyway. You emptied it at dawn and you've known it was empty all morning, but the hand stopped listening to the head a while back. The cap is too hot to hold. Your shirt dried stiff with salt hours ago, and it hasn't been wet since.
+You shake the canteen beside your ear anyway. You emptied it at dawn and you've known it was empty all morning, but the hand stopped listening to the head a while back. The cap is too hot to hold. Your shirt is stiff with salt where the sweat dried, and wet again under the arms.
 + [Wipe your mouth.]
   ~ intro_step = "walk"
   Your lips are split at the corners. The back of your hand comes away gritty and a little pink. Funny thing, the drier you get, the more you think about your own mouth.
@@ -45,7 +45,7 @@ The farm around it has been handed back to the dust. Fence posts lean every way 
   The handle shrieks. The pipe coughs once, spits a thread of rust onto your boots, and that's all it has. You hold it open a while longer anyway. Hope is a stupid habit, and you've kept it longer than most.
   -> shed
 + [Call out.]
-  Your voice goes out across the yard, cracked and smaller than you meant it. Nothing sends it back. Just as well. Out here, whoever answers usually wants your boots.
+  You know better, and you call out anyway, because thirst is louder than sense. Your voice goes out across the yard, cracked and smaller than you meant it. Nothing sends it back. Just as well. Out here, whoever answers usually wants your boots.
   -> shed
 
 === shed ===
@@ -57,7 +57,7 @@ The tires are soft but whole. The bed is boxed in with welded plate. Behind the 
   The hinge screams loud enough to send something small scrabbling out from under the bed. Air rolls out of the cab, warm and close, and still cooler than the yard. Anything to get out of the sun.
   -> truck
 + [Wipe the windshield first.]
-  Your palm leaves a clean arc in the dust. Behind it there's a bench seat split and patched with tape, a dash of bare metal, and the key, still standing in the ignition. Somebody meant to come back.
+  Your palm leaves a clean arc in the dust. Behind it there's a bench seat split and patched with tape, a dash of bare metal, and a tin cup wedged under the mirror, still waiting for coffee.
   -> truck
 
 === truck ===
