@@ -175,6 +175,7 @@ export function openFirstFall(w: World, foes: readonly string[]): void {
   if (foes.length === 0) return;
   if (w.player.quests.session) return;
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.firstFall, FIRST_FALL_SEEN) === true) return;
+  setWorldVar(w, FIRST_FALL_SEEN, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.firstFall, 'start');
 }
 

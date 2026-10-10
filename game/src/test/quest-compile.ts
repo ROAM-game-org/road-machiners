@@ -74,7 +74,7 @@ export function compileQuest(id: string, sources: QuestSources, countAllVisits: 
 type Header = { view: QuestViewKind; stats: QuestStat[]; facts: QuestFact[]; errors: string[] };
 
 function headerOf(story: Story): Header {
-  const header: Header = { view: 'transcript', stats: [], facts: [], errors: [] };
+  const header: Header = { view: 'talk', stats: [], facts: [], errors: [] };
   for (const tag of story.globalTags ?? []) readHeaderTag(header, story, tag);
   return header;
 }

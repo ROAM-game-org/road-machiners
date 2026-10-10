@@ -41,9 +41,9 @@ Every quest needs a way in. The voice test fails on a quest that nothing starts.
 - A radio call: give a radio option `go: questGo('<quest>')` in `src/data/dialogue.ts`. The call ends and the quest opens.
 - Another quest: call `~ begin("<quest>")` right before `-> END`. Kovac opens the depot quest this way.
 
-## Transcript or pages
+## Talk or pages
 
-A quest without top tags is a transcript: each answer stacks under the last one, like a chat. Use it for short talk, such as asking a local about rumors.
+A quest without top tags is a talk. The window shows only the player's last pick, the reply to it and the choices. Earlier replies are gone, so each reply must make sense on its own. Use it for short talk, such as asking a local about rumors.
 
 A scene that needs full attention, like an investigation or an intro sequence, uses pages. The top tags go above `INCLUDE`. ink ignores them anywhere else, so the build fails on one placed lower:
 
@@ -86,6 +86,8 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Numbers are fine inside `# row` tables, which are documents.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
 - A rumor goes into the journal with `~ note("<id>")`. Add the note to `NOTES` in `src/data/locals.ts` first.
+
+- Every choice changes something real: what the player learns, what they hold, who knows them or where the story goes. A choice whose options all lead to the same outcome is no choice. Cut it and let the page run on behind Next.
 
 ## Rules the build enforces
 

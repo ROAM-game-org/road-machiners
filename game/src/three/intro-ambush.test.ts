@@ -9,7 +9,7 @@ import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
 import { corePart } from '../sim/grid';
 import { addGoods } from '../sim/inventory';
-import { chooseQuestOption, introStep, leaveQuest, QUESTS, setIntroStep } from '../sim/quests';
+import { introStep, leaveQuest, setIntroStep } from '../sim/quests';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { topGoal } from '../sim/npc-activities';
 import { hasCargo } from '../sim/salvage';
@@ -59,7 +59,7 @@ function knockedOutBy(w: World): Vehicle {
 }
 
 function closeScene(w: World): World {
-  return leaveQuest(chooseQuestOption(w, QUESTS, 0));
+  return leaveQuest(w);
 }
 
 function runUntilAwake(start: World): World {
@@ -148,7 +148,7 @@ describe('the fall and the wake in Bowl', () => {
   it('plays the first fall, robs the cargo, spares the driver and parks the truck in Bowl', () => {
     const w = ambushed();
     knockedOutBy(w);
-    expect(w.player.quests.session?.quest).toBe('first_fall');
+    expect(w.player.quests.live?.quest).toBe('first_fall');
     expect(introStep(w)).toBe('ambush');
     let next = closeScene(w);
     next = runUntilAwake(next);
@@ -157,19 +157,18 @@ describe('the fall and the wake in Bowl', () => {
     expect(next.player.health).toBeGreaterThan(0);
     expect(hasCargo(me)).toBe(false);
     expect(canUseSite(me.pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(true);
-    expect(next.player.quests.session?.quest).toBe('intro_bowl');
-    expect(introStep(next)).toBe('ambush');
+    expect(next.player.quests.live?.quest).toBe('intro_bowl');
+    expect(introStep(next)).toBe('done');
   });
 
-  it('sets done after the Bowl scene and plays it once', () => {
+  it('sets done when the Bowl scene opens and plays it once', () => {
     const w = ambushed();
     knockedOutBy(w);
     let next = runUntilAwake(closeScene(w));
-    next = leaveQuest(chooseQuestOption(next, QUESTS, 0));
     expect(introStep(next)).toBe('done');
-    expect(next.player.quests.session).toBeNull();
+    next = closeScene(next);
     next = endTurn(next, testDrive);
-    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live).toBeNull();
     expect(introStep(next)).toBe('done');
   });
 
@@ -194,7 +193,7 @@ describe('the fall and the wake in Bowl', () => {
     setIntroStep(w, 'done');
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));
-    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live).toBeNull();
     expect(canUseSite(playerVehicle(next).pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(false);
   });
 });
@@ -210,7 +209,7 @@ describe('saves around the ambush', () => {
     const closed = closeScene(fighting);
     const scene = runUntilAwake(closed);
     expectNothingAwarded(savedAndLoaded(scene), scene);
-    const done = leaveQuest(chooseQuestOption(scene, QUESTS, 0));
+    const done = closeScene(scene);
     expectNothingAwarded(savedAndLoaded(done), done);
   });
 });

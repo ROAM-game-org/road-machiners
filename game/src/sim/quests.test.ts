@@ -33,7 +33,7 @@ describe('startQuest', () => {
     const w = startQuest(world(), QUESTS, 'sample_bowl', 'start');
     expect(questView(w, QUESTS)).toEqual({
       quest: 'sample_bowl',
-      view: 'transcript',
+      view: 'talk',
       lines: [{ text: 'Hattie sets her bucket down by the well.', tags: [] }],
       choices: ['Heard any rumors?', 'Leave.'],
       costs: [null, null],

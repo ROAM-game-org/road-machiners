@@ -50,13 +50,13 @@ describe('quest top tags', () => {
     expect(compile(sources(`# view: page\n${BODY}`)).errors).toEqual([expect.stringContaining('Put them all at the very top, above INCLUDE world.ink')]);
   });
 
-  it('gives a quest with no top tags the transcript view', () => {
-    expect(compile(sources(BODY)).quest).toMatchObject({ view: 'transcript', stats: [], facts: [] });
+  it('gives a quest with no top tags the talk view', () => {
+    expect(compile(sources(BODY)).quest).toMatchObject({ view: 'talk', stats: [], facts: [] });
   });
 
   it('fails an unknown tag, a bad view, a stat on no number and a fact on no true or false variable', () => {
     expect(compile(headed('# mood: grim', BODY)).errors).toEqual([expect.stringContaining('# mood: grim is unknown')]);
-    expect(compile(headed('# view: scroll', BODY)).errors).toEqual([expect.stringContaining('# view: scroll needs one of transcript, page')]);
+    expect(compile(headed('# view: scroll', BODY)).errors).toEqual([expect.stringContaining('# view: scroll needs one of talk, page')]);
     expect(compile(headed('# stat: seen Seen', BODY)).errors).toEqual([expect.stringContaining('# stat: seen needs a number variable')]);
     expect(compile(headed('# stat: nothing Nothing', BODY)).errors).toEqual([expect.stringContaining('# stat: nothing needs a number variable')]);
     expect(compile(headed('# fact: watches Watches.', BODY)).errors).toEqual([expect.stringContaining('# fact: watches needs a true or false variable')]);

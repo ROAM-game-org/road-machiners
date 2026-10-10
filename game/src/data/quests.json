@@ -196,7 +196,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -220,7 +220,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -244,7 +244,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -272,7 +272,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -389,7 +389,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -489,11 +489,10 @@
    ]
   },
   "first_fall": {
-   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[[\"#\",\"^checkpoint: start\",\"/#\",\"^The truck stops dead, and your forehead meets the dash with a sound you feel in your teeth. The belt you never bothered with wouldn't have helped anyway. \",\"#\",\"^place: The cab\",\"/#\",\"\\n\",\"^Something warm runs into your left eye and keeps running. A thin high note fills your ears. Under it, muffled, your engine ticks as it cools, like it's counting something.\",\"\\n\",\"ev\",\"str\",\"^Wipe your eye.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Keep it shut.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"ev\",true,\"/ev\",{\"VAR=\":\"first_knockout_seen\",\"re\":true},\"^Your sleeve comes away dark and wet. You blink until the cracked glass in front of you stops sliding sideways.\",\"\\n\",{\"->\":\"look\"},null],\"c-1\":[\"\\n\",\"ev\",true,\"/ev\",{\"VAR=\":\"first_knockout_seen\",\"re\":true},\"^Behind the lid the dark beats in time with your heart. When you open the good eye, the glass in front of you is a web of cracks. Some window you've got now.\",\"\\n\",{\"->\":\"look\"},null]}],null],\"look\":[[\"#\",\"^checkpoint: look\",\"/#\",\"^Out past the hood, where the dust is settling, the other truck has stopped side on. It's too far to hit with a thrown stone, not that you could lift one. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Its gun is still swung your way, and a thin grey thread of smoke climbs from the muzzle and leans off with the wind. A figure in goggles stands braced in the bed with both hands on the grips.\",\"\\n\",\"^Your hands have gone heavy in your lap, and this time they won't lift. You wonder, calm as anything, how long a body keeps in this heat. Not long, you figure. Then the dust gets it, and then nobody remembers there was a truck here at all. One with the dust, then.\",\"\\n\",\"ev\",\"str\",\"^Hold the gunner's gaze.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Close your eyes and wait.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"^You can't see the eyes behind the goggles. You look anyway. It's the last thing left you can choose, and you'll be damned if you choose the floor.\",\"\\n\",{\"->\":\"mercy\"},null],\"c-1\":[\"\\n\",\"^You listen to the wind push sand across the hood, and you wait for the sound you won't get to hear.\",\"\\n\",{\"->\":\"mercy\"},null]}],null],\"mercy\":[\"^The sound doesn't come. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^When you look again, the barrel has swung up and away and points at nothing in the empty sky. The gunner pushes the goggles up, spits over the side and climbs down.\",\"\\n\",\"^They walk to your truck slow, with a rifle slung across their back, and they don't even glance at the cab as they pass. The bed creaks under their weight. For a while you listen to them sort through what you carried, unhurried, like somebody doing chores.\",\"\\n\",\"ev\",{\"VAR?\":\"intro_step\"},\"str\",\"^ambush\",\"/str\",\"==\",\"/ev\",[{\"->\":\".^.b\",\"c\":true},{\"b\":[\"^ Then the hood creaks up, and a wrench works at something in the engine bay for a long while. \",{\"->\":\"mercy.17\"},null]}],\"nop\",\"\\n\",\"^On the way back they stop by your door. A dented canteen lands on the seat beside you, half full and sloshing. Then boots on gravel, a door slamming, and an engine climbing off into the flat until the wind takes it. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^You're alive. You hold onto that the way you'd hold a rope. It's enough to keep the canteen in your lap while the dark comes up around the edges of everything, soft and patient and in no hurry at all.\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
+   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[\"#\",\"^checkpoint: start\",\"/#\",\"^The truck stops dead, and your forehead meets the dash with a sound you feel in your teeth. The belt you never bothered with wouldn't have helped anyway. \",\"#\",\"^place: The cab\",\"/#\",\"\\n\",\"^Something warm runs into your left eye and keeps running. A thin high note fills your ears. Under it, muffled, your engine ticks as it cools, like it's counting something.\",\"\\n\",\"^Your sleeve comes away dark and wet. You blink until the cracked glass in front of you stops sliding sideways.\",\"\\n\",\"^Out past the hood, where the dust is settling, the other truck has stopped side on. It's too far to hit with a thrown stone, not that you could lift one. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Its gun is still swung your way, and a thin grey thread of smoke climbs from the muzzle and leans off with the wind. A figure in goggles stands braced in the bed with both hands on the grips.\",\"\\n\",\"^Your hands have gone heavy in your lap, and this time they won't lift. You wonder, calm as anything, how long a body keeps in this heat. Not long, you figure. Then the dust gets it, and then nobody remembers there was a truck here at all.\",\"\\n\",\"^You listen to the wind push sand across the hood, and you wait for the sound you won't get to hear.\",\"\\n\",\"^The sound doesn't come. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^When you look again, the barrel has swung up and away and points at nothing in the empty sky. The gunner pushes the goggles up, spits over the side and climbs down.\",\"\\n\",\"^They walk to your truck slow, with a rifle slung across their back, and they don't even glance at the cab as they pass. The bed creaks under their weight. For a while you listen to them sort through what you carried, unhurried, like somebody doing chores.\",\"\\n\",\"ev\",{\"VAR?\":\"intro_step\"},\"str\",\"^ambush\",\"/str\",\"==\",\"/ev\",[{\"->\":\".^.b\",\"c\":true},{\"b\":[\"^ Then the hood creaks up, and a wrench works at something in the engine bay for a long while. \",{\"->\":\"start.40\"},null]}],\"nop\",\"\\n\",\"^On the way back they stop by your door. A dented canteen lands on the seat beside you, half full and sloshing. Then boots on gravel, a door slamming, and an engine climbing off into the flat until the wind takes it. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^You're alive. You hold onto that the way you'd hold a rope. It's enough to keep the canteen in your lap while the dark comes up around the edges of everything, soft and patient and in no hurry at all.\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
    "vars": {},
    "checkpoints": [
-    "start",
-    "look"
+    "start"
    ],
    "view": "page",
    "stats": [],
@@ -515,7 +514,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -622,7 +621,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -742,22 +741,17 @@
    ]
   },
   "intro_arrival": {
-   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[[\"#\",\"^checkpoint: start\",\"/#\",\"^The canteen has been empty since dawn. You shake it by your ear anyway, and nothing moves inside. \",\"#\",\"^place: The rim\",\"/#\",\"\\n\",\"^You have walked since the stars were out. The cap is too hot to hold for long. Your shirt is stiff with salt where the sweat dried, and wet again under the arms.\",\"\\n\",\"ev\",\"str\",\"^Wipe your mouth.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Tuck the canteen away.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"ev\",\"str\",\"^walk\",\"/str\",\"/ev\",{\"VAR=\":\"intro_step\",\"re\":true},\"^Your lips are split at the corners. The back of your hand comes away gritty and a little pink.\",\"\\n\",{\"->\":\"rim\"},null],\"c-1\":[\"\\n\",\"ev\",\"str\",\"^walk\",\"/str\",\"/ev\",{\"VAR=\":\"intro_step\",\"re\":true},\"^It knocks against your hip with every step.\",\"\\n\",{\"->\":\"rim\"},null]}],null],\"rim\":[[\"#\",\"^checkpoint: rim\",\"/#\",\"^The rock you have been climbing all morning ends at an edge. Below it lies a basin, so wide that the far side is a paler line in the haze. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^To the north a thin line might be a road. Past it, something in the haze might be a town.\",\"\\n\",\"^At the foot of the slope a water tower stands over a few roofs. There's no smoke and nothing moves. A tower means a well, or it used to.\",\"\\n\",\"ev\",\"str\",\"^Look back the way you came.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Look down the slope.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"^Rock and shimmer, the same as yesterday. There's no water back there either.\",\"\\n\",{\"->\":\"slope\"},null],\"c-1\":[\"\\n\",\"^Loose scree, then hard dirt, then the tower. Half a morning's walk, if your knees hold.\",\"\\n\",{\"->\":\"slope\"},null]}],null],\"slope\":[[\"#\",\"^checkpoint: slope\",\"/#\",\"^You go down sideways and dig your heels in. Stones slide out from under your boots and clatter away below you. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Halfway down you stop sweating. You know what that means, and you keep going.\",\"\\n\",\"ev\",\"str\",\"^Rest in the shade of a boulder.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Keep walking.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"^The shade is a hand wide. You sit in it until your breath slows, then make yourself stand before sitting starts to feel like a plan.\",\"\\n\",{\"->\":\"farm\"},null],\"c-1\":[\"\\n\",\"^If you sit down now, you might not get up. You keep walking.\",\"\\n\",{\"->\":\"farm\"},null]}],null],\"farm\":[[\"#\",\"^checkpoint: farm\",\"/#\",\"^Up close the tank is rusted brown and stands on thin iron legs. A gun mount is bolted to the rail at the top, with nothing in it. Somebody kept watch from up there. \",\"#\",\"^page \",\"/#\",\"#\",\"^place: The farm\",\"/#\",\"\\n\",\"^The house has lost its roof. The fence posts lean. The goat pen holds dry droppings and no goats.\",\"\\n\",\"^A rope lies coiled beside the well, knotted at even lengths along its whole run. Every knot is dry.\",\"\\n\",\"ev\",\"str\",\"^Try the tap under the tower.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Call out.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"^The handle squeals. The pipe coughs a thread of rust onto your boots and gives nothing else. You hold it open a while longer anyway.\",\"\\n\",{\"->\":\"shed\"},null],\"c-1\":[\"\\n\",\"^You know better, but thirst is louder than sense. Your voice comes out cracked. Nobody answers.\",\"\\n\",{\"->\":\"shed\"},null]}],null],\"shed\":[[\"#\",\"^checkpoint: shed\",\"/#\",\"^Behind the tower, what's left of a shed has folded in on itself. Under the fallen roof sheet, in the shade, sits a pickup. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^It's old and square, built heavy to outlast whoever drove it. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.\",\"\\n\",\"^A machine gun sits on a swivel behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.\",\"\\n\",\"^Someone has scratched a ladle into the driver's door, deep, with a knife point.\",\"\\n\",\"ev\",\"str\",\"^Pull the door open.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},\"ev\",\"str\",\"^Wipe the windshield first.\",\"/str\",\"/ev\",{\"*\":\".^.c-1\",\"flg\":4},{\"c-0\":[\"\\n\",\"^The hinge shrieks, and something small scrabbles out from under the bed. The air in the cab is close and warm, and still cooler than the yard.\",\"\\n\",{\"->\":\"truck\"},null],\"c-1\":[\"\\n\",\"^Your palm clears an arc in the dust. Behind it there's a split bench seat patched with tape, a bare metal dash and a tin cup wedged under the mirror.\",\"\\n\",{\"->\":\"truck\"},null]}],null],\"truck\":[[\"#\",\"^checkpoint: truck\",\"/#\",\"^The bench is hot through your trousers. The cab smells of oil, rope and old tobacco. A key stands in the ignition, with a brass tag on its ring stamped with a number worn half smooth. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^You twist the key. The starter grinds, slows and quits.\",\"\\n\",\"^You twist it again. The engine catches for a breath, shakes the whole cab and dies. You call the truck something you wouldn't call a dog.\",\"\\n\",\"^You lean your forehead on the hot wheel and wait. Then you try a third time. It coughs, misses, coughs again, and holds. The idle is rough and lopsided, and the mirror shakes with it. It's the best sound you have heard in a long time.\",\"\\n\",\"ev\",\"str\",\"^Ease out of the shed.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},{\"c-0\":[\"\\n\",\"ev\",\"str\",\"^drive\",\"/str\",\"/ev\",{\"VAR=\":\"intro_step\",\"re\":true},\"^The roof sheet scrapes the length of the cab and slides off the tailgate. Light hits the windshield, and the basin opens up in front of the hood.\",\"\\n\",\"^The fuel needle sits just above empty. The town in the haze had better be close.\",\"\\n\",\"end\",null]}],null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
+   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[\"#\",\"^checkpoint: start\",\"/#\",\"^The canteen has been empty since dawn. You shake it by your ear anyway, and nothing moves inside. \",\"#\",\"^place: The rim\",\"/#\",\"\\n\",\"^You have walked since the stars were out. The cap is too hot to hold for long. Your shirt is stiff with salt where the sweat dried, and wet again under the arms. Your lips are split at the corners.\",\"\\n\",\"^The rock you have been climbing all morning ends at an edge. Below it lies a basin, so wide that the far side is a paler line in the haze. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^To the north a thin line might be a road. Past it, something in the haze might be a town.\",\"\\n\",\"^At the foot of the slope a water tower stands over a few roofs. There's no smoke and nothing moves. A tower means a well, or it used to.\",\"\\n\",\"^You go down sideways and dig your heels in. Stones slide out from under your boots and clatter away below you. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Halfway down you stop sweating. You know what that means, and you keep going. If you sit down now, you might not get up.\",\"\\n\",\"^Up close the tank is rusted brown and stands on thin iron legs. A gun mount is bolted to the rail at the top, with nothing in it. Somebody kept watch from up there. \",\"#\",\"^page \",\"/#\",\"#\",\"^place: The farm\",\"/#\",\"\\n\",\"^The house has lost its roof. The fence posts lean. The goat pen holds dry droppings and no goats.\",\"\\n\",\"^A rope lies coiled beside the well, knotted at even lengths along its whole run. Every knot is dry.\",\"\\n\",\"^The tap under the tower squeals when you work the handle. The pipe coughs a thread of rust onto your boots and gives nothing else. You hold it open a while longer anyway.\",\"\\n\",\"^Behind the tower, what's left of a shed has folded in on itself. Under the fallen roof sheet, in the shade, sits a pickup. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^It's old and square, built heavy to outlast whoever drove it. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.\",\"\\n\",\"^A machine gun sits on a swivel behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.\",\"\\n\",\"^Someone has scratched a ladle into the driver's door, deep, with a knife point.\",\"\\n\",\"^The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of oil, rope and old tobacco. A key stands in the ignition, with a brass tag on its ring stamped with a number worn half smooth. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^You twist the key. The starter grinds, slows and quits.\",\"\\n\",\"^You twist it again. The engine catches for a breath, shakes the whole cab and dies. You call the truck something you wouldn't call a dog.\",\"\\n\",\"^You lean your forehead on the hot wheel and wait. Then you try a third time. It coughs, misses, coughs again, and holds. The idle is rough and lopsided, and the mirror shakes with it. It's the best sound you have heard in a long time.\",\"\\n\",\"^You ease out of the shed. The roof sheet scrapes the length of the cab and slides off the tailgate, and the basin opens up in front of the hood. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The fuel needle sits just above empty. The town in the haze had better be close.\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
    "vars": {},
    "checkpoints": [
-    "start",
-    "rim",
-    "slope",
-    "farm",
-    "shed",
-    "truck"
+    "start"
    ],
    "view": "page",
    "stats": [],
    "facts": []
   },
   "intro_bowl": {
-   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[[\"#\",\"^checkpoint: start\",\"/#\",\"^Somewhere close, a bucket is coming up a well on a creaking rope. It's the first sound in days that isn't wind or an engine. \",\"#\",\"^place: Bowl\",\"/#\",\"\\n\",\"^You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them the terraces climb, green enough to hurt your eyes.\",\"\\n\",\"ev\",\"str\",\"^Sit up.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},{\"c-0\":[\"\\n\",\"ev\",\"str\",\"^done\",\"/str\",\"/ev\",{\"VAR=\":\"intro_step\",\"re\":true},\"^Your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag, like the one on your key.\",\"\\n\",\"^The bed is empty. Somebody went through the engine bay in a hurry and left the bolts where they fell.\",\"\\n\",{\"->\":\"hattie\"},null]}],null],\"hattie\":[[\"^A broad woman with flour on her forearms sets a cup of water on the bench beside you. Then she sits down at the other end of it. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Drink it slow. A tow man brought you in at first light, set you on my bench and drove off before I got a word out of him. No name, and no coin either. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"^She nods at the chain on your bumper.\",\"\\n\",\"^He did ask after a Varga woman. There's a Ruth Varga on the third terrace who buys her water here every morning and pays in sorghum. Whether she's his Varga, he didn't stay to find out. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"^The yard by the gate sells back whatever they took, if you have the coin. You look like someone who eats first and pays later, so I'll put the grain on your slate. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"ev\",\"str\",\"^Drink.\",\"/str\",\"/ev\",{\"*\":\".^.c-0\",\"flg\":4},{\"c-0\":[\"\\n\",\"^The water is cold and tastes of stone. You drink it too fast and your teeth ache. A bowl of hot grain comes after it without being asked for.\",\"\\n\",\"end\",null]}],null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
+   "story": "{\"inkVersion\":21,\"root\":[[\"#\",\"^view: page\",\"/#\",\"\\n\",[\"done\",{\"#n\":\"g-0\"}],null],\"done\",{\"start\":[\"#\",\"^checkpoint: start\",\"/#\",\"^Somewhere close, a bucket is coming up a well on a creaking rope. It's the first sound in days that isn't wind or an engine. \",\"#\",\"^place: Bowl\",\"/#\",\"\\n\",\"^You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them the terraces climb, green enough to hurt your eyes.\",\"\\n\",\"^You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag, like the one on your key. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^The bed is empty. Somebody went through the engine bay in a hurry and left the bolts where they fell.\",\"\\n\",\"^A broad woman with flour on her forearms sets a cup of water on the bench beside you. Then she sits down at the other end of it. \",\"#\",\"^page\",\"/#\",\"\\n\",\"^Drink it slow. A tow man brought you in at first light, set you on my bench and drove off before I got a word out of him. No name, and no coin either. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"^She nods at the chain on your bumper.\",\"\\n\",\"^He did ask after a Varga woman. There's a Ruth Varga on the third terrace who buys her water here every morning and pays in sorghum. Whether she's his Varga, he didn't stay to find out. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"^The yard by the gate sells back whatever they took, if you have the coin. You look like someone who eats first and pays later, so I'll put the grain on your slate. \",\"#\",\"^speaker: Hattie\",\"/#\",\"\\n\",\"^The water is cold and tastes of stone. You drink it too fast and your teeth ache. A bowl of hot grain comes after it without being asked for. \",\"#\",\"^page\",\"/#\",\"\\n\",\"end\",null],\"global decl\":[\"ev\",\"str\",\"^none\",\"/str\",{\"VAR=\":\"depot_thief\"},false,{\"VAR=\":\"first_knockout_seen\"},\"str\",\"^off\",\"/str\",{\"VAR=\":\"intro_step\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pipe_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"sack_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lamps_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"count_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"marr_regard\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"lien_standing\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"courier_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"names_vosk\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"hooks_report\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"pin_fate\"},\"str\",\"^hidden\",\"/str\",{\"VAR=\":\"pin_pact\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"bend_fate\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"crates_fate\"},\"str\",\"^even\",\"/str\",{\"VAR=\":\"yard_power\"},\"str\",\"^clean\",\"/str\",{\"VAR=\":\"post_file\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"kiln_word\"},\"str\",\"^none\",\"/str\",{\"VAR=\":\"letter_fate\"},\"/ev\",\"end\",null]}],\"listDefs\":{}}",
    "vars": {},
    "checkpoints": [
     "start"
@@ -806,7 +800,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -826,7 +820,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1111,7 +1105,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1163,7 +1157,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1215,7 +1209,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1267,7 +1261,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1528,7 +1522,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1651,7 +1645,7 @@
     "start",
     "start.ask"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1760,7 +1754,7 @@
     "start.hub",
     "start.gone"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1828,7 +1822,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   },
@@ -1839,7 +1833,7 @@
     "start",
     "start.hub"
    ],
-   "view": "transcript",
+   "view": "talk",
    "stats": [],
    "facts": []
   }

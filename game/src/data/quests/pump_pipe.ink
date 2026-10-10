@@ -49,7 +49,7 @@ Every line in my own hand. I copied it by lamplight over most of a winter. # spe
 === steward ===
 # checkpoint: steward
 A cart waits where the pump track meets the Bowl road, one wheel propped on a stone to ease the axle. # page # place: The Bowl road
-A man in a grey coat with a lantern on the collar sits on the tailboard, his hands folded in his lap. His eyes go to the bundle on your seat before they go to your face.
+A man in a grey coat with a lantern on the collar sits on the tailboard, his hands folded in his lap. His eyes find the bundle before they go to your face.
 I serve the household of the Archon. The pump road has a watchman, and the watchman is ours. # speaker: Steward
 The top terraces have held their water by an old charter since the Bowl was founded, and a charter is not a theft, whatever a book may call it. A book that says otherwise is a quarrel the Bowl can't afford in a dry year. # speaker: Steward
 I'd be grateful if that one were lost on the road. I don't ask you to burn it, only to lose it. I should add that the patrol at the Bowl gate opens every sealed bundle that passes, when I send word. # speaker: Steward

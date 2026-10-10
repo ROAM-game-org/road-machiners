@@ -828,7 +828,25 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   (world) => world,
   withPersonalities_46_47,
+  withChoiceFreeScenes_47_48,
 ];
+
+const DROPPED_SCENE_CHECKPOINTS_47_48: readonly (readonly [string, string])[] = [
+  ['intro_arrival', 'rim'],
+  ['intro_arrival', 'slope'],
+  ['intro_arrival', 'farm'],
+  ['intro_arrival', 'shed'],
+  ['intro_arrival', 'truck'],
+  ['first_fall', 'look'],
+];
+
+function withChoiceFreeScenes_47_48(world: SavedJson): SavedJson {
+  const started = DROPPED_SCENE_CHECKPOINTS_47_48.reduce((w, [quest, checkpoint]) => moveQuestCheckpoint(w, quest, checkpoint, 'start'), world);
+  const quests = questsOf(started);
+  if (quests.world.intro_step !== 'walk') return started;
+  const { intro_step: _walk, ...rest } = quests.world;
+  return withQuests(started, { ...quests, world: rest });
+}
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
 

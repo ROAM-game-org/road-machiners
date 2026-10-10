@@ -50,6 +50,7 @@ import { STORY_WRECKS } from '../data/salvage';
 import FORMAT_2_43 from './save-fixtures/format-2-43.json';
 import FORMAT_2_44 from './save-fixtures/format-2-44.json';
 import FORMAT_2_46 from './save-fixtures/format-2-46.json';
+import FORMAT_2_47 from './save-fixtures/format-2-47.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1065,3 +1066,31 @@ describe('save migration 46 to 47', () => {
   });
 });
 
+
+describe('save migration 47 to 48', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const questsIn = (world: object) => (world as { player: { quests: Quests } }).player.quests;
+  const withSession = (quest: string, checkpoint: string) => {
+    const world = structuredClone(FORMAT_2_47);
+    world.player.quests.session = { quest, checkpoint, seed: 17 };
+    return world;
+  };
+
+  it('sends a save made inside the arrival back to its first page and forgets the walk step', () => {
+    const next = questsIn(MIGRATIONS[47](structuredClone(FORMAT_2_47)));
+
+    expect(next.session).toEqual({ quest: 'intro_arrival', checkpoint: 'start', seed: 17 });
+    expect(next.world).toEqual({ first_knockout_seen: true });
+  });
+
+  it('sends a save made inside the first fall back to its first page', () => {
+    expect(questsIn(MIGRATIONS[47](withSession('first_fall', 'look'))).session?.checkpoint).toBe('start');
+  });
+
+  it('leaves other quests and later intro steps alone', () => {
+    const other = withSession('nose_kovac', 'start.hub');
+    other.player.quests.world.intro_step = 'ambush';
+
+    expect(MIGRATIONS[47](structuredClone(other))).toEqual(other);
+  });
+});

@@ -1,7 +1,7 @@
 
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
-import type { QuestLine, QuestLive, World } from '../sim/types';
+import type { QuestLive, World } from '../sim/types';
 import { createIcon } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
@@ -12,20 +12,17 @@ import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
 import { renderLine } from './quest-text';
 
-export type Exchange = { ask: string | null; lines: QuestLine[] };
-
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
-export function extendTranscript(transcript: readonly Exchange[], shown: QuestLive | null, live: QuestLive, ask: string | null): Exchange[] {
-  if (ask === null || shown?.quest !== live.quest) return [{ ask: null, lines: live.lines }];
-  return [...transcript, { ask, lines: live.lines }];
+export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
+  return shown?.quest === live.quest ? ask : null;
 }
 
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
-  private transcript: Exchange[] = [];
   private asked: string | null = null;
+  private lastAsk: string | null = null;
   private error: Msg | null = null;
   private page = 0;
   private artBefore: string | null = null;
@@ -50,7 +47,7 @@ export class QuestScreen {
     if (!live) return this.hide();
     if (live.quest === this.shown?.quest && live.ink === this.shown.ink) return;
     this.carry(live);
-    this.transcript = extendTranscript(this.transcript, this.shown, live, this.asked);
+    this.lastAsk = askOf(this.shown, live, this.asked);
     this.shown = live;
     this.asked = null;
     this.page = 0;
@@ -74,7 +71,7 @@ export class QuestScreen {
 
   private hide(): void {
     this.shown = null;
-    this.transcript = [];
+    this.lastAsk = null;
     this.error = null;
     this.root.style.display = 'none';
     this.root.replaceChildren();
@@ -86,33 +83,24 @@ export class QuestScreen {
     this.root.style.display = '';
     this.root.classList.remove('qt-done');
     this.root.classList.toggle('quest-page', view.view === 'page');
-    const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTranscript(w, view);
+    const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
     this.revealEnd = performance.now() + endMs;
   }
 
-  private drawTranscript(w: World, view: QuestView): number {
-    const older = this.transcript.slice(0, -1).flatMap((x) => this.exchange(w, x, false).nodes);
-    const newest = this.exchange(w, this.transcript[this.transcript.length - 1], true);
-    const log = el('div', { class: 'quest-log' }, ...older, ...newest.nodes);
-    this.root.replaceChildren(this.head(view.quest), log, this.choices(w, view, newest.endMs), this.errorLine());
-    log.scrollTop = log.scrollHeight;
-    return newest.endMs;
-  }
-
-  private exchange(w: World, x: Exchange, newest: boolean): { nodes: HTMLElement[]; endMs: number } {
-    const drawn = drawLines(w, x.lines, 0, { inlineArt: true, offers: newest });
-    const box = el('div', { class: newest ? 'quest-exchange' : 'quest-exchange qt-done' }, x.ask === null ? null : el('div', { class: 'talk-ask' }, verbatim(x.ask)), ...drawn.nodes);
-    return { nodes: [box], endMs: drawn.endMs };
+  private drawTalk(w: World, view: QuestView): number {
+    const drawn = drawLines(w, pagesOf(view.lines)[this.page], 0, { inlineArt: true, offers: true });
+    const ask = this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
+    const text = el('div', { class: 'quest-talk' }, ask, ...drawn.nodes);
+    this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
+    return drawn.endMs;
   }
 
   private drawPage(w: World, view: QuestView): number {
     const pages = pagesOf(view.lines);
     const shown = pages.slice(0, this.page + 1).flat();
     const drawn = drawLines(w, pages[this.page], 0, { inlineArt: false, offers: true });
-    const last = this.page === pages.length - 1;
-    const next = el('button', { class: 'quest-next qt-unit', style: `animation-delay: ${drawn.endMs}ms`, onclick: () => this.nextPage() }, t('quest.next'));
     const place = lastTagged(shown, 'place') ?? this.placeBefore;
-    const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, last ? this.choices(w, view, drawn.endMs) : next, this.errorLine());
+    const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     this.root.replaceChildren(this.art(lastTagged(shown, 'img') ?? this.artBefore), text, this.side(view));
     return drawn.endMs;
   }
@@ -139,6 +127,11 @@ export class QuestScreen {
 
   private errorLine(): HTMLElement {
     return el('div', { class: 'error' }, this.error);
+  }
+
+  private pageEnd(w: World, view: QuestView, atMs: number): HTMLElement {
+    if (this.onLastPage(view)) return this.choices(w, view, atMs);
+    return el('button', { class: 'quest-next qt-unit', style: `animation-delay: ${atMs}ms`, onclick: () => this.nextPage() }, t('quest.next'));
   }
 
   private choices(w: World, view: QuestView, atMs: number): HTMLElement {
@@ -188,7 +181,7 @@ export class QuestScreen {
   }
 
   private onLastPage(view: QuestView): boolean {
-    return view.view === 'transcript' || this.page === pagesOf(view.lines).length - 1;
+    return this.page === pagesOf(view.lines).length - 1;
   }
 
   private pickKey(index: number): void {

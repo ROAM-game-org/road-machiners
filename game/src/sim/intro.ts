@@ -20,7 +20,7 @@ import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { playerSees, sightRadius } from './vision';
 
-const BEFORE_PATCH: readonly IntroStep[] = ['off', 'walk', 'drive'];
+const BEFORE_PATCH: readonly IntroStep[] = ['off', 'drive'];
 
 export function advanceIntro(w: World): void {
   if (w.player.state !== 'active' || w.player.quests.session) return;
@@ -43,6 +43,7 @@ export function wakeInTown(w: World, foes: readonly string[] | null): void {
   me.heading = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   me.speed = 0;
   me.trail = [];
+  setIntroStep(w, 'done');
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
 }
 

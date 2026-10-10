@@ -44,7 +44,7 @@
   height: var(--icon-l);
 }
 
-/* Talk window: over every other screen while a quest is live. Older exchanges stay above, fully shown. */
+/* Talk window: over every other screen while a quest is live. It shows the last pick, the reply and the choices. */
 #ui .modal.quest-screen {
   z-index: var(--z-log-open);
   top: 64px;
@@ -62,11 +62,12 @@
   align-items: center;
   gap: var(--space-4);
 }
-.quest-screen .quest-log {
+#ui .quest-screen .talk-head .close {
+  position: static;
+  margin-left: auto;
+}
+.quest-screen .quest-talk {
   overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
   scrollbar-width: thin;
 }
 .quest-screen .qt-line {
@@ -79,7 +80,10 @@
 }
 .quest-screen .talk-ask {
   color: var(--ink-muted);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+#ui .quest-screen .quest-next {
+  align-self: flex-start;
 }
 .quest-screen .talk-ask::before {
   content: "> ";

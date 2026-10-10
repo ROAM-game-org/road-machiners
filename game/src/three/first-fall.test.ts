@@ -3,7 +3,7 @@ import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { checkKnockout } from '../sim/defeat';
 import { corePart } from '../sim/grid';
-import { chooseQuestOption, leaveQuest, QUESTS, questView, startQuest } from '../sim/quests';
+import { leaveQuest, QUESTS, questView, startQuest } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
 import { addVehicle } from '../sim/testkit';
 import type { World } from '../sim/types';
@@ -34,23 +34,23 @@ function wake(w: World): void {
 }
 
 describe('the first fall', () => {
-  it('opens at start on the first combat knockout', () => {
+  it('shows its pages on the first combat knockout with no choice to make', () => {
     const w = freshWorld();
     fallToRaider(w);
     expect(w.player.state).toBe('knockedOut');
-    expect(w.player.quests.session?.quest).toBe(FIRST_FALL);
-    expect(w.player.quests.session?.checkpoint).toBe('start');
-    expect(questView(w, QUESTS).quest).toBe(FIRST_FALL);
+    const view = questView(w, QUESTS);
+    expect(view.quest).toBe(FIRST_FALL);
+    expect(view.choices).toEqual([]);
+    expect(view.ended).toBe(true);
   });
 
-  it('marks itself seen after the first choice, and a second knockout opens nothing', () => {
+  it('marks itself seen when it opens, and a second knockout opens nothing', () => {
     const w = freshWorld();
     fallToRaider(w);
-    w.player.quests = leaveQuest(chooseQuestOption(w, QUESTS, 0)).player.quests;
     expect(w.player.quests.world).toEqual({ first_knockout_seen: true });
+    w.player.quests = leaveQuest(w).player.quests;
     wake(w);
     fallToRaider(w);
-    expect(w.player.quests.session).toBeNull();
     expect(w.player.quests.live).toBeNull();
   });
 
@@ -67,34 +67,19 @@ describe('the first fall', () => {
     corePart(playerVehicle(w), 'cab').hp = 0;
     checkKnockout(w);
     expect(w.player.state).toBe('knockedOut');
-    expect(w.player.quests.session).toBeNull();
+    expect(w.player.quests.live).toBeNull();
   });
 
-  it('saves and loads mid-scene into the same page without a second opening or any award', () => {
-    const slots = new SaveSlots(memoryBackend(), new Map());
-    const w = freshWorld();
-    fallToRaider(w);
-    const mid = chooseQuestOption(w, QUESTS, 0);
-    writeSave(slots, 'auto', mid, 'run', 1);
-    const loaded = loadWorld(slots, 'auto', TEST_MAP);
-    if (!loaded) throw new Error('The save did not load');
-    expect(loaded.player.quests.session).toEqual(mid.player.quests.session);
-    expect(questView(loaded, QUESTS).choices).toEqual(questView(mid, QUESTS).choices);
-    expect(loaded.player.quests.world).toEqual({ first_knockout_seen: true });
-    expect(loaded.player.money).toBe(mid.player.money);
-    expect(loaded.player.knockouts).toBe(mid.player.knockouts);
-    expect(loaded.events).toEqual([]);
-  });
-
-  it('saves and loads at the knocked-out moment into the first page without setting anything', () => {
+  it('saves and loads at the knocked-out moment with the scene seen and no award', () => {
     const slots = new SaveSlots(memoryBackend(), new Map());
     const w = freshWorld();
     fallToRaider(w);
     writeSave(slots, 'auto', w, 'run', 1);
     const loaded = loadWorld(slots, 'auto', TEST_MAP);
     if (!loaded) throw new Error('The save did not load');
-    expect(loaded.player.quests.session).toEqual(w.player.quests.session);
-    expect(loaded.player.quests.world).toEqual({});
+    expect(loaded.player.quests.session).toBeNull();
+    expect(loaded.player.quests.world).toEqual({ first_knockout_seen: true });
+    expect(loaded.player.money).toBe(w.player.money);
     expect(loaded.player.knockouts).toBe(1);
     expect(loaded.events).toEqual([]);
   });

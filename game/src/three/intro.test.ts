@@ -9,7 +9,7 @@ import { startRepair } from '../sim/jobs';
 import { takeAllLoot } from '../sim/locations';
 import { newGame } from '../sim/new-game';
 import { openingStockOf, OPENING_WRECK_ID } from '../sim/opening';
-import { chooseQuestOption, leaveQuest, QUESTS, questView } from '../sim/quests';
+import { QUESTS, questView } from '../sim/quests';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
@@ -46,12 +46,6 @@ function sameAfterRoundTrip(w: World): World {
   return loaded;
 }
 
-function playScene(w: World, picks: number): World {
-  let next = w;
-  for (let i = 0; i < picks; i++) next = chooseQuestOption(next, QUESTS, 0);
-  return next;
-}
-
 function parked(w: World): World {
   const next = structuredClone(w);
   const me = playerVehicle(next);
@@ -73,12 +67,6 @@ function untilIdle(w: World): World {
   return next;
 }
 
-function driven(w: World): World {
-  let scene = w;
-  while (scene.player.quests.session) scene = chooseQuestOption(scene, QUESTS, 0);
-  return scene;
-}
-
 function searchedAndLooted(w: World): World {
   const searched = untilIdle(startSearch(parked(w), OPENING_WRECK_ID));
   return takeAllLoot(searched, OPENING_WRECK_ID);
@@ -89,25 +77,19 @@ function patched(w: World): World {
 }
 
 describe('the arrival at the farm', () => {
-  it('opens the arrival page quest on a new game and sets nothing before the first choice', () => {
+  it('shows the arrival pages on a new game with no choice to make, setting nothing', () => {
     const w = arrival();
-    expect(w.player.quests.session?.quest).toBe('intro_arrival');
-    expect(w.player.quests.session?.checkpoint).toBe('start');
-    expect(questView(w, QUESTS).view).toBe('page');
+    const view = questView(w, QUESTS);
+    expect(view.quest).toBe('intro_arrival');
+    expect(view.view).toBe('page');
+    expect(view.choices).toEqual([]);
+    expect(view.ended).toBe(true);
     expect(introStep(w)).toBe('off');
     expect(w.player.money).toBe(startKit('standard').money);
   });
 
-  it('walks to the shed whatever the player picks, setting walk on the first choice and drive at the end', () => {
-    for (const pick of [0, 1]) {
-      let w = arrival();
-      for (let i = 0; i < 6; i++) {
-        w = chooseQuestOption(w, QUESTS, Math.min(pick, questView(w, QUESTS).choices.length - 1));
-        if (i === 0) expect(introStep(w)).toBe('walk');
-      }
-      expect(w.player.quests.session).toBeNull();
-      expect(introStep(w)).toBe('drive');
-    }
+  it('moves on to drive on the first turn after the arrival', () => {
+    expect(introStep(turns(arrival(), 1))).toBe('drive');
   });
 
   it('parks the pickup at the farm with a nearly dead engine, a worn cab and parts enough to patch it', () => {
@@ -150,8 +132,7 @@ describe('the arrival at the farm', () => {
   });
 
   it('reaches patched once the engine patch lands, not before', () => {
-    let w = driven(arrival());
-    w = searchedAndLooted(w);
+    let w = searchedAndLooted(arrival());
     expect(introStep(turns(w, 2))).toBe('drive');
     w = patched(w);
     expect(engineNeedsPatch(w, playerVehicle(w))).toBe(false);
@@ -160,14 +141,8 @@ describe('the arrival at the farm', () => {
 
   it('survives a save and load at every step and awards nothing twice', () => {
     let w = sameAfterRoundTrip(arrival());
-    const view = questView(w, QUESTS);
-    expect(questView(w, QUESTS).choices).toEqual(view.choices);
-    w = sameAfterRoundTrip(playScene(w, 1));
-    expect(introStep(w)).toBe('walk');
-    w = sameAfterRoundTrip(playScene(w, 2));
-    w = sameAfterRoundTrip(driven(w));
-    expect(introStep(w)).toBe('drive');
     w = sameAfterRoundTrip(searchedAndLooted(w));
+    expect(introStep(w)).toBe('drive');
     const money = w.player.money;
     const xp = w.player.xp;
     const parts = goodsCount(playerVehicle(w)).parts;
@@ -180,14 +155,6 @@ describe('the arrival at the farm', () => {
     expect(money).toBe(w.player.money);
     expect(xp).toBeLessThanOrEqual(w.player.xp);
     expect(parts).toBeGreaterThan(goodsCount(playerVehicle(w)).parts ?? 0);
-  });
-
-  it('moves on to drive when the player leaves the scene early', () => {
-    const w = leaveQuest(playScene(arrival(), 1));
-    expect(introStep(w)).toBe('walk');
-    expect(introStep(turns(w, 1))).toBe('drive');
-    const early = leaveQuest(arrival());
-    expect(introStep(turns(early, 1))).toBe('drive');
   });
 });
 

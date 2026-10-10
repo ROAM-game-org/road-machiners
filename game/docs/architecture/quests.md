@@ -49,7 +49,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 
 Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the whole quest. The build reads them into the bundle and fails on an unknown one.
 
-- `# view: page` shows the quest as pages. Without it the quest is a transcript.
+- `# view: page` shows the quest as pages. Without it the quest is a talk.
 - `# stat: <variable> <Label>` shows a number variable in the page's right column. `# stat: money Money` shows the player's money. `# stat: alarm Talk: quiet, talking, loud` shows a word for the value instead, and a value past the list shows the last word.
 - `# fact: <variable> <text>` shows the text in the right column while the true or false variable is true. Facts are what the player found, written as raw observations, so the player draws the conclusion.
 
@@ -59,11 +59,11 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - A line tag sets how the line reveals: `# reveal: all`, `word` or `char`, and `# speed: slow`, `normal` or `fast`. Words is the default. `# speaker: <name>` puts the name before the line. `# work_offer` shows the town's best offer under the line.
 - `# row` and `# head` make a line a table row, its cells split by `;`. Lines in a row form one table, for ledgers, logs and price boards. The voice test reads no numbers in them.
 - `# place: <name>` names where the page is and heads it until another place. `# page` starts a new page, behind a Next button. A page tag on the first line of a pick's output starts no new page, so a load opens on it directly.
-- `# img: <key>` shows a picture. The keys and their files under `public/quest-art/` are in `QUEST_ART` in `src/data/quest-art.ts`. A page shows the latest picture in its art column until another replaces it, and a transcript shows it in the log. A key not in the list fails the check.
+- `# img: <key>` shows a picture. The keys and their files under `public/quest-art/` are in `QUEST_ART` in `src/data/quest-art.ts`. A page shows the latest picture in its art column until another replaces it, and a talk shows it among the lines. A key not in the list fails the check.
 - A choice tagged `# cost: <M>` takes that money when picked. The window shows it greyed with the player's money when they hold less, and a pick of it throws. The tag may hold an ink value: `+ [Pay her {price} M. # cost: {price}]`. A choice takes no other tag.
 - `MARKS` and `LINE_TAGS` in `src/ui/quest-text.ts` list them. A new effect is one entry there and its CSS in `style.css`. Unknown or unclosed markup and unknown tags fail `npm run quests:check`.
 - `src/ui/quest-screen.ts` is the talk window. It shows whenever `player.quests.live` is set, so a start, a pick and a load all show it. It lies over every other screen. Digits pick, a click, Space or Enter shows the rest of the reveal at once, and Escape leaves the quest.
-- A transcript keeps the exchanges of this talk above the newest one. It suits short talk, like asking around town.
+- A talk shows only the player's last pick, the reply and the choices. Earlier exchanges are not kept, so the player reads each reply. A `# page` tag splits a reply behind a Next button, as in the page view. It suits short talk, like asking around town.
 - A page shows art on the left, one page of text with its choices in the middle, and the stats and facts on the right. A fact found in the last pick stands out. Space or Enter after the reveal turns to the next page. It suits scenes that need full attention. `src/ui/quest-lines.ts` draws lines for both views.
 
 ## Saves
@@ -100,22 +100,21 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 `first_fall.ink` is a page scene the game opens by itself. It teaches that a knockout is not the end. It opens once per game, when the player's truck is first knocked out by other trucks.
 
 - `checkKnockout()` in `src/sim/defeat.ts` calls `openFirstFall()` in `src/sim/quests.ts` when trucks fought the player. A knockout with no attacker, such as a hazard, opens nothing.
-- `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. The quest sets that variable after its first choice, so saves keep it and `src/sim/types.ts` stays as it is.
-- Leaving the scene before the first choice sets nothing, so the next knockout opens it again.
+- `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. It sets that variable as it opens the scene, so saves keep it and `src/sim/types.ts` stays as it is.
+- The scene offers no choice, since every choice would lead to the same outcome. Its pages run behind Next buttons, and the session ends as it opens. A save made while the pages show does not show them again on load.
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
 - `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival is one of them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
-- Both checkpoints open with text only, so a load at any page changes no variable and opens nothing twice.
 
 ## The ambush and the wake in Bowl
 
-The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `walk`, `drive`, `patched`, `ambush` and `done`. `src/sim/intro.ts` sets `ambush`, and `intro_bowl.ink` and `src/sim/intro.ts` set `done`.
+The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `drive`, `patched`, `ambush` and `done`. `src/sim/intro.ts` sets every one of them.
 
 - `introStep()` and `setIntroStep()` in `src/sim/quests.ts` read and write it, next to `openFirstFall()`.
 - `advanceIntro()` runs each turn after `spawnNpcs()`. At `patched`, with the player active and on a road tile outside a site, it spawns one raider and sets `ambush`. Off the road it waits.
 - The raider is the `buggy` template with the gear and chassis in `AMBUSH` in `src/data/intro.ts`. It spawns on a road out of the player's sight and nearer to Green Pit than the player. It gets a robbery feud and a fight goal on the player, the same as a raider that chose to rob. It also gets the `brave` trait, so it does not flee from a pickup with a machine gun. It carries no cargo, so it has room to rob.
 - The raider drives and fights by the normal rules. It may radio a demand, and the player may refuse.
-- A knockout plays the first fall as usual. When the knockout ends, `wakeInTown()` runs if the foes were not empty and the step is `ambush`. It parks the truck on a Bowl pad and opens `intro_bowl`. Bowl has a garage, so a player whose engine was taken can buy another.
-- `intro_bowl.ink` is a page scene with Hattie at the well house. Its first choice sets `done`. Leaving before that choice sets nothing, so the next knockout plays it again.
+- A knockout plays the first fall as usual. When the knockout ends, `wakeInTown()` runs if the foes were not empty and the step is `ambush`. It parks the truck on a Bowl pad, sets `done` and opens `intro_bowl`. Bowl has a garage, so a player whose engine was taken can buy another.
+- `intro_bowl.ink` is a page scene with Hattie at the well house. It offers no choice and plays once.
 - At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
 - A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
 
@@ -294,13 +293,13 @@ Ways to settle it with Hadiza:
 
 ## The arrival
 
-`intro_arrival.ink` is a page quest the game opens by itself on a new game. The player walks down into the basin with an empty canteen and finds an old pickup in a collapsed shed under a water tower. It names nobody and says nothing of who the player is. All picks only change the words, and every path reaches the shed.
+`intro_arrival.ink` is a page quest the game opens by itself on a new game. The player walks down into the basin with an empty canteen and finds an old pickup in a collapsed shed under a water tower. It names nobody and says nothing of who the player is. It offers no choice, since nothing on the walk is the player's to decide.
 
 - `newGame()` in `src/sim/new-game.ts` builds the world from the start kit `arrival` and opens the quest at `start`. `newWorld()` opens nothing. With Skip the intro, `newGame()` builds the kit named by `withoutIntro` instead, which is the old stranded start.
 - The kit `arrival` has the `intro` field: the pose of the truck, the farm pieces and the kit to use without the intro. `ARRIVAL` in `src/data/arrival.ts` holds them. The farm is non-baked landmark obstacles, so the map file and its hash stay as they are. The pieces are a water tower, a shed, a fallen house, a woodpile, drums and a fence. None of them can break. The tower and the shed are not loot spots.
 - The farm lies at the foot of the southern rim, about 95 tiles from Green Pit. The nearest road is about 70 tiles north, out of sight, with no cliff on the way.
 - The pickup is the scout with the opening condition of the standard start: a nearly dead engine, a worn cab and an opening wreck that holds 3 parts and a cage. The engine has no misfire rule. Low engine HP is what the rules give, and parts that wear down can fail. The opening tips teach driving, search, loot and patch.
-- The world variable `intro_step` is `off`, `walk`, `drive`, `patched`, `ambush` or `done`. The quest sets `walk` on its first choice and `drive` when the scene ends. `advanceIntro()` in `src/sim/intro.ts` runs once each turn. It sets `drive` when the scene was left early, and `patched` once the engine needs no patch. Those two steps need the farm, so a skipped intro stays `off`. The ambush and the wake in Bowl follow from `patched`.
+- The world variable `intro_step` is `off`, `drive`, `patched`, `ambush` or `done`. The quest sets nothing. `advanceIntro()` in `src/sim/intro.ts` runs once each turn. It sets `drive` on the first turn after the scene, and `patched` once the engine needs no patch. Those two steps need the farm, so a skipped intro stays `off`. The ambush and the wake in Bowl follow from `patched`.
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.
 ## Language
 
