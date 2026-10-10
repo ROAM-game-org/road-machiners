@@ -7,7 +7,7 @@ VAR hattie_soldiers = false
 
 === start ===
 # checkpoint: start
-I'm Hattie. I keep the well house. Water costs, talk doesn't, and I hear everything that happens in Bowl twice. Once when it happens, and once when somebody's improved it.
+Water costs here, talk doesn't, and I hear everything that happens in Bowl twice. Once when it happens, and once when somebody's improved it.
 -> hub
 
 = hub

@@ -1,4 +1,5 @@
 # view: page
+# stat: money Money
 INCLUDE world.ink
 
 === start ===
@@ -14,7 +15,22 @@ Up close the tank is rusted brown and stands on thin iron legs. A gun mount is b
 The house has lost its roof. The fence posts lean. The goat pen holds dry droppings and no goats.
 A rope lies coiled beside the well, knotted at even lengths along its whole run. Every knot is dry.
 The tap under the tower squeals when you work the handle. The pipe coughs a thread of rust onto your boots and gives nothing else. You hold it open a while longer anyway.
-Behind the tower, what's left of a shed has folded in on itself. Under the fallen roof sheet, in the shade, sits a pickup. # page
+Behind the tower, what's left of a shed has folded in on itself. Something long and square sits under the fallen roof sheet.
++ [Search the house first.]
+  -> house
++ [Go straight to the shed.]
+  -> shed
+
+= house
+~ give_money(50)
+You step over the doorsill into a room open to the sky. Sand has drifted into the corners. The table is still there, and the stove, and a cot with no blanket. Somebody took everything that would carry. # page # place: The house
+Under the cot, a floorboard sits a little higher than the rest. You get your fingers under it and it comes up.
+In the hollow lies a tobacco tin. Inside it, wrapped in a strip of oilcloth, is a fold of notes, soft from handling.
+Somebody meant to come back for this. You put it in your shirt and go out to the shed.
+-> shed
+
+= shed
+Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm
 It's old and square, with a flat grille and round lamps. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.
 A machine gun sits on a swivel behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.
 Someone has scratched a ladle into the driver's door, deep, with a knife point.

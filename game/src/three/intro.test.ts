@@ -9,7 +9,8 @@ import { startRepair } from '../sim/jobs';
 import { takeAllLoot } from '../sim/locations';
 import { newGame } from '../sim/new-game';
 import { openingStockOf, OPENING_WRECK_ID } from '../sim/opening';
-import { QUESTS, questView } from '../sim/quests';
+import { chooseQuestOption, QUESTS, questView } from '../sim/quests';
+import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
@@ -28,6 +29,9 @@ import { memoryBackend, SaveSlots } from './save-db';
 const SEED = 1337;
 const setup = defaultSetup('roaming');
 const arrival = (): World => newGame(SEED, 'arrival', true, TEST_MAP, setup);
+const SEARCH_HOUSE = 0;
+const GO_TO_SHED = 1;
+const arrived = (): World => chooseQuestOption(arrival(), QUESTS, GO_TO_SHED);
 
 const engineOf = (w: World) => mountedParts(playerVehicle(w), 'engine')[0];
 
@@ -77,19 +81,46 @@ function patched(w: World): World {
 }
 
 describe('the arrival at the farm', () => {
-  it('shows the arrival pages on a new game with no choice to make, setting nothing', () => {
+  it('opens the arrival pages on a new game with a choice to search the house or go to the shed, setting nothing', () => {
     const w = arrival();
     const view = questView(w, QUESTS);
     expect(view.quest).toBe('intro_arrival');
     expect(view.view).toBe('page');
-    expect(view.choices).toEqual([]);
-    expect(view.ended).toBe(true);
+    expect(view.choices).toHaveLength(2);
+    expect(view.ended).toBe(false);
     expect(introStep(w)).toBe('off');
     expect(w.player.money).toBe(startKit('standard').money);
   });
 
-  it('moves on to drive on the first turn after the arrival', () => {
-    expect(introStep(turns(arrival(), 1))).toBe('drive');
+  it('pays 50 M for searching the house, nothing for going straight to the shed, and ends the scene either way', () => {
+    const start = startKit('standard').money;
+    const searched = chooseQuestOption(arrival(), QUESTS, SEARCH_HOUSE);
+    const straight = chooseQuestOption(arrival(), QUESTS, GO_TO_SHED);
+    expect(searched.player.money - start).toBe(50 * UNITS.centsPerM);
+    expect(straight.player.money).toBe(start);
+    for (const w of [searched, straight]) {
+      expect(questView(w, QUESTS).ended).toBe(true);
+      expect(w.player.quests.session).toBeNull();
+    }
+  });
+
+  it('keeps the arrival choice and the money as they were across a save made before the pick', () => {
+    const loaded = sameAfterRoundTrip(arrival());
+    expect(questView(loaded, QUESTS).choices).toHaveLength(2);
+    const searched = chooseQuestOption(loaded, QUESTS, SEARCH_HOUSE);
+    expect(searched.player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+  });
+
+  it('runs a turn after a load while the truck still rolls with no order', () => {
+    const rolling = parked(arrived());
+    playerVehicle(rolling).speed = 3;
+    const w = turns(throughRoundTrip(rolling), 1);
+    expect(playerVehicle(w).trail.length).toBeGreaterThan(1);
+  });
+
+  it('moves on to drive on the first turn after the arrival, not while its choice waits', () => {
+    expect(introStep(turns(arrived(), 1))).toBe('drive');
+    expect(introStep(turns(arrival(), 1))).toBe('off');
   });
 
   it('parks the pickup at the farm with a nearly dead engine, a worn cab and parts enough to patch it', () => {
@@ -132,7 +163,7 @@ describe('the arrival at the farm', () => {
   });
 
   it('reaches patched once the engine patch lands, not before', () => {
-    let w = searchedAndLooted(arrival());
+    let w = searchedAndLooted(arrived());
     expect(introStep(turns(w, 2))).toBe('drive');
     w = patched(w);
     expect(engineNeedsPatch(w, playerVehicle(w))).toBe(false);
@@ -140,7 +171,7 @@ describe('the arrival at the farm', () => {
   });
 
   it('survives a save and load at every step and awards nothing twice', () => {
-    let w = sameAfterRoundTrip(arrival());
+    let w = sameAfterRoundTrip(arrived());
     w = sameAfterRoundTrip(searchedAndLooted(w));
     expect(introStep(w)).toBe('drive');
     const money = w.player.money;

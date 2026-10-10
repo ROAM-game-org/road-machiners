@@ -151,7 +151,15 @@ export function partHp(v: Vehicle): number {
 }
 
 export function testDrive(world: World): void {
-  for (const v of world.vehicles) if (v.order) driveOne(world, v);
+  for (const v of world.vehicles) {
+    if (v.trail.length === 0) standStill(v);
+    if (v.order) driveOne(world, v);
+  }
+}
+
+function standStill(v: Vehicle): void {
+  const pose = { ...v.pos, heading: v.heading };
+  v.trail = [pose, { ...pose }];
 }
 
 function driveOne(world: World, v: Vehicle): void {
