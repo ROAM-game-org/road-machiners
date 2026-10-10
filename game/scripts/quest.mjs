@@ -14,9 +14,13 @@ const { values, positionals } = parseArgs({
   options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' } },
 });
 const id = positionals[0];
-if (!id) throw new Error('Name a quest: npm run quest -- <quest>');
+if (!id) throw new Error('Name a quest: npm run quest -- <quest>, or list them: npm run quest -- list');
 const { bundle, errors } = compileSources(readQuestSources('src/data/quests'), false);
 if (errors.length > 0) throw new Error(`Quests do not compile:\n${errors.join('\n')}`);
+if (id === 'list') {
+  console.log(Object.keys(bundle.quests).sort().join('\n'));
+  process.exit(0);
+}
 if (!bundle.quests[id]) throw new Error(`No quest ${id}. Quests: ${Object.keys(bundle.quests).join(', ')}`);
 
 const PARSERS = {
