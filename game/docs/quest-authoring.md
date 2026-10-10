@@ -2,6 +2,29 @@
 
 This guide covers how to add a quest, change one safely and keep all quests healthy. Quests are ink scripts in `src/data/quests/`. [Quests](architecture/quests.md) is the reference for every tag, game function and save rule, and this guide links there instead of repeating it. The ink language itself is in [Writing with ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md).
 
+## Making a quest
+
+A quest is built in three steps: play out the story behind it, write it, then playtest it with a fresh agent until it scores 9 out of 10.
+
+1. Build the situation with the [Story game](lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
+2. Write the quest from the log with this guide and [Writing dialogue](dialogue-writing.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
+3. Playtest it with Codex in headless mode. Fill in [the playtest prompt](quest-playtest-prompt.md):
+   - `<QUEST>` is the quest id.
+   - `<SITUATION>` is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player.
+   - `<OUT>` is a notes file under `tmp/`.
+
+   Run it in the background, with a log:
+
+   ```
+   codex exec -s workspace-write -C "$PWD" - < tmp/playtest-prompt.md > tmp/playtest.log 2>&1 &
+   ```
+
+   The agent plays one pick at a time through `npm run quest`. It comments on every screen for clarity, voice, choices, pull, consistency and prose, and it ends with a score out of 10. A run takes about 5 minutes.
+4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
+5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when a fresh run scores it 9 out of 10 or higher.
+
+A run that hits a load error or a broken runner does not count. Fix the error and run again.
+
 ## The loop
 
 1. Edit or add a `.ink` file in `src/data/quests/`.
