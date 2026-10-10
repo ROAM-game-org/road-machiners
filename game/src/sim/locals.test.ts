@@ -127,6 +127,16 @@ describe('the lost wagon chain', () => {
     expect(w.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonNose', 'wagonFound']);
   });
 
+  it('lets Hattie talk about the tow man and the stripped truck only to a driver who was towed in', () => {
+    const towed = parkedAt('bowl');
+    towed.player.quests.world.towed_to_bowl = true;
+
+    expect(choices(parkedAt('bowl'), 'bowl_hattie')).not.toContain('Tell me about the tow man.');
+    expect(choices(parkedAt('bowl'), 'bowl_hattie')).not.toContain('Who stripped my truck?');
+    expect(choices(towed, 'bowl_hattie')).toEqual(expect.arrayContaining(['Tell me about the tow man.', 'Who stripped my truck?']));
+    expect(questView(talk(towed, 'bowl_hattie', ['Tell me about the tow man.']), QUESTS).choices).toContain('Why would he want a Varga?');
+  });
+
   it('takes the rumor question off the list once asked, with the note kept', () => {
     const once = talk(parkedAt('bowl'), 'bowl_hattie', ['Heard any rumors?']);
 

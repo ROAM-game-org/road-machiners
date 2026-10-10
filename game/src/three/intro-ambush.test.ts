@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
+import { TOWED_TO_BOWL } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { startKit } from '../data/start';
@@ -159,6 +160,7 @@ describe('the fall and the wake in Bowl', () => {
     expect(canUseSite(me.pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(true);
     expect(next.player.quests.live?.quest).toBe('intro_bowl');
     expect(introStep(next)).toBe('done');
+    expect(next.player.quests.world[TOWED_TO_BOWL]).toBe(true);
   });
 
   it('sets done when the Bowl scene opens and plays it once', () => {
@@ -178,6 +180,7 @@ describe('the fall and the wake in Bowl', () => {
     const next = endTurn(w, testDrive);
     expect(introStep(next)).toBe('done');
     expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
   });
 
   it('ends quietly when the raider loses the player', () => {
@@ -194,6 +197,7 @@ describe('the fall and the wake in Bowl', () => {
     knockedOutBy(w);
     const next = runUntilAwake(closeScene(w));
     expect(next.player.quests.live).toBeNull();
+    expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
     expect(canUseSite(playerVehicle(next).pos, REGION.towns.find((t) => t.id === WAKE_TOWN)!)).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
-import { GAME_OPENED_QUESTS, type IntroStep } from '../data/quests';
+import { GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
 import { playerVehicle } from './damage';
@@ -11,7 +11,7 @@ import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, QUESTS, setIntroStep } from './quests';
+import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
@@ -44,6 +44,7 @@ export function wakeInTown(w: World, foes: readonly string[] | null): void {
   me.speed = 0;
   me.trail = [];
   setIntroStep(w, 'done');
+  setWorldVar(w, TOWED_TO_BOWL, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
 }
 

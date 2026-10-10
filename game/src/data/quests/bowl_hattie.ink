@@ -9,6 +9,9 @@ VAR hattie_granary = false
 VAR hattie_soldiers = false
 VAR hattie_roads = false
 VAR hattie_came_out = false
+VAR hattie_tow = false
+VAR hattie_varga = false
+VAR hattie_strip = false
 
 === start ===
 # checkpoint: start
@@ -17,6 +20,20 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
 
 = hub
 # checkpoint: start.hub
++ {towed_to_bowl and not hattie_tow} [Tell me about the tow man.]
+  Big and slow-spoken, with a Pierce coat gone white at the seams. That tag on his chain is an old Pierce yard tag. Before the crews took the yard, Pierce hung one on every key and chain it owned.
+  If your key has a brass tag, it came from the same yard.
+  ~ hattie_tow = true
+  -> hub
++ {hattie_tow and not hattie_varga} [Why would he want a Varga?]
+  Ask Ruth, not me. The Vargas had a farm down at the foot of the rim, with a water tower over it, until their well went dry. She came up to the terraces with her name and not much else.
+  If somebody's paying a tow man to find her, it isn't to bring her a present.
+  ~ hattie_varga = true
+  -> hub
++ {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
+  Not the tow man. It came in on his chain like that, with the bed bare and the engine open. Whoever did it took their time and left you breathing, and out on the open road that counts as manners.
+  ~ hattie_strip = true
+  -> hub
 + {not hattie_rumor} [Heard any rumors?]
   A scavenger came through a few days back, trying to sell a Nose Army radio. He swore he'd pulled it off an Army wagon sitting dead in the hills north-east of here.
   When the patrol asked him where exactly, he filled his tank and left by the south road before dark.
