@@ -15,7 +15,7 @@ The house has lost its roof. The fence posts lean. The goat pen holds dry droppi
 A rope lies coiled beside the well, knotted at even lengths along its whole run. Every knot is dry.
 The tap under the tower squeals when you work the handle. The pipe coughs a thread of rust onto your boots and gives nothing else. You hold it open a while longer anyway.
 Behind the tower, what's left of a shed has folded in on itself. Under the fallen roof sheet, in the shade, sits a pickup. # page
-It's old and square, built heavy to outlast whoever drove it. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.
+It's old and square, with a flat grille and round lamps. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.
 A machine gun sits on a swivel behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.
 Someone has scratched a ladle into the driver's door, deep, with a knife point.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of oil, rope and old tobacco. A key stands in the ignition, with a brass tag on its ring stamped with a number worn half smooth. # page
