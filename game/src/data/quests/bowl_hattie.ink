@@ -12,6 +12,8 @@ VAR hattie_came_out = false
 VAR hattie_tow = false
 VAR hattie_varga = false
 VAR hattie_strip = false
+VAR hattie_farm = false
+VAR hattie_unarmed = false
 
 === start ===
 # checkpoint: start
@@ -27,8 +29,15 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   -> hub
 + {hattie_tow and not hattie_varga} [Why would he want a Varga?]
   Ask Ruth, not me. The Vargas had a farm down at the foot of the rim, with a water tower over it, until their well went dry. She came up to the terraces with her name and not much else.
-  If somebody's paying a tow man to find her, it isn't to bring her a present.
+  He didn't stay to see her, mind. A man with good news waits for an answer.
   ~ hattie_varga = true
+  -> hub
++ {hattie_varga and not hattie_farm} [I found my truck at that farm.]
+  Hattie puts the bucket down.
+  Then that's Danil Varga's pickup you're driving. Her boy. He went west with a convoy and never came back, and she left the farm the year after.
+  The whole well house will know it by noon, so you'd best see Ruth before she hears it from somebody else.
+  ~ hattie_farm = true
+  ~ varga_truck_known = true
   -> hub
 + {towed_to_bowl and not hattie_strip} [Who stripped my truck?]
   Not the tow man. It came in on his chain like that, with the bed bare and the engine open. Whoever did it took their time and left you breathing, and out on the open road that counts as manners.
@@ -64,6 +73,10 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   Not on the open road. Nobody guards that, which is the trouble with it. But Nose won't let a truck out of its own gate without a gun on it, so don't go up there unarmed.
   ~ hattie_roads = true
   -> hub
++ {hattie_roads and not hattie_unarmed} [What if I go up to Nose unarmed?]
+  They'll let you in. Getting out's the trouble. You'll sit inside their gate till you buy a gun off them, at their price.
+  ~ hattie_unarmed = true
+  -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
   Pim Arslan, who cuts lenses, says every ripple in it leans the same way, toward the Fallen Sun. That's the crater where the ship came down.
   I won't stand on it at noon, whatever it points at. The Sunward have their own opinion, mind. They worship whatever lies in that crater, and they'll share it with anyone who stands still.
@@ -82,5 +95,5 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   ~ hattie_came_out = true
   -> hub
 + [Goodbye.]
-  Come back when you've coin for a bucket.
+  { towed_to_bowl: Mind your slate. I don't forget a bowl of grain. | Come back when you've coin for a bucket. }
   -> END

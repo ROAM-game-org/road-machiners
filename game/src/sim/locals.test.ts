@@ -137,6 +137,16 @@ describe('the lost wagon chain', () => {
     expect(questView(talk(towed, 'bowl_hattie', ['Tell me about the tow man.']), QUESTS).choices).toContain('Why would he want a Varga?');
   });
 
+  it('lets a towed driver tell Hattie where the truck came from, and the Bowl knows it from then on', () => {
+    const towed = parkedAt('bowl');
+    towed.player.quests.world.towed_to_bowl = true;
+    const asked = talk(towed, 'bowl_hattie', ['Tell me about the tow man.', 'Why would he want a Varga?']);
+
+    expect(asked.player.quests.world.varga_truck_known).toBeUndefined();
+    const told = chooseQuestOption(asked, QUESTS, pickIndex(asked, 'I found my truck at that farm.'));
+    expect(told.player.quests.world.varga_truck_known).toBe(true);
+  });
+
   it('takes the rumor question off the list once asked, with the note kept', () => {
     const once = talk(parkedAt('bowl'), 'bowl_hattie', ['Heard any rumors?']);
 
