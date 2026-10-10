@@ -19,7 +19,6 @@ import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
 import { spawnAt } from '../sim/spawn';
 import { editableTerrain, emptyWorld, testDrive } from '../sim/testkit';
-import { tileAt } from '../sim/terrain';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
@@ -39,7 +38,10 @@ function roadSpot(): Vec {
 function patchedWorld(): World {
   const w = emptyWorld(roadSpot());
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  addGoods(w, playerVehicle(w), 'scrap', 2);
+  const me = playerVehicle(w);
+  addGoods(w, me, 'scrap', 2);
+  me.speed = 2;
+  me.order = { kind: 'through', dest: { x: me.pos.x + Math.cos(me.heading) * 200, y: me.pos.y + Math.sin(me.heading) * 200 } };
   setIntroStep(w, 'patched');
   w.events = [];
   return w;
@@ -88,7 +90,7 @@ function expectNothingAwarded(loaded: World, saved: World): void {
 }
 
 describe('the ambush', () => {
-  it('spawns one raider out of sight on the road once the engine is patched, and sets ambush', () => {
+  it('spawns one raider out of sight once the engine is patched and the player drives, and sets ambush', () => {
     const w = ambushed();
     const [raider] = raidersIn(w);
     expect(raidersIn(w)).toHaveLength(1);
@@ -99,7 +101,7 @@ describe('the ambush', () => {
     expect(raider.brain!.traits).toEqual(expect.arrayContaining(['raider', 'brave']));
   });
 
-  it('spawns the raider on the road ahead of the player, so a driver heading on meets it', () => {
+  it('spawns the raider ahead of the player, so a driver heading on meets it', () => {
     const w = ambushed();
     const me = playerVehicle(w);
     const [raider] = raidersIn(w);
@@ -117,13 +119,23 @@ describe('the ambush', () => {
     expect(dist(track!.at, playerVehicle(w).pos)).toBeLessThan(1);
   });
 
-  it('waits off the road and spawns nothing', () => {
+  it('waits while the player stays parked and spawns nothing', () => {
     const w = patchedWorld();
-    const terrain = editableTerrain(w);
-    terrain.types[tileAt(terrain, playerVehicle(w).pos)] = 'sand';
+    const me = playerVehicle(w);
+    me.speed = 0;
+    me.order = null;
     const next = endTurn(w, testDrive);
     expect(raidersIn(next)).toHaveLength(0);
     expect(introStep(next)).toBe('patched');
+  });
+
+  it('spawns the raider on open ground off any road, since the way from the farm to the town has none', () => {
+    const w = patchedWorld();
+    const terrain = editableTerrain(w);
+    terrain.types.fill('sand');
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
+    expect(introStep(next)).toBe('ambush');
   });
 
   it('does nothing before the engine is patched', () => {
@@ -223,6 +235,7 @@ describe('the fall and the wake in Bowl', () => {
 
   it('takes the cargo the player spilled in the fight, then still has the driver towed to Bowl', () => {
     let w = ambushed();
+    playerVehicle(w).order = { kind: 'brake' };
     let broken = false;
     let spills = 0;
     for (let i = 0; i < 80 && !(introStep(w) === 'done' && w.player.state === 'active'); i++) {

@@ -2,8 +2,8 @@ import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
-import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
+import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { mountedParts } from './grid';
@@ -15,7 +15,7 @@ import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } fro
 import { engineNeedsPatch } from './repair';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
-import { isRoadTile } from './terrain';
+import { isCliff, tileAt } from './terrain';
 import { chooseOn } from './tracks';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -76,7 +76,7 @@ function enginePatched(w: World): boolean {
 
 function launchAmbush(w: World): void {
   const me = playerVehicle(w);
-  if (!isRoadTile(w.terrain, me.pos) || siteUnder(me.pos)) return;
+  if (me.speed <= RULES.parkedSpeed || siteUnder(me.pos)) return;
   const template = NPCS[AMBUSH.template];
   const loadout = generateNpcLoadout(w, template, AMBUSH.chassis, AMBUSH.gear);
   const spot = ambushSpot(w, me, chassisDef(loadout.chassisId).radius);
@@ -95,24 +95,21 @@ function launchAmbush(w: World): void {
 function ambushSpot(w: World, me: Vehicle, radius: number): Vec | null {
   const sight = sightRadius(w, me);
   const target = sight * AMBUSH.sightTarget;
-  return roadPoints()
-    .filter((p) => dist(p, me.pos) >= sight * AMBUSH.sightMin && dist(p, me.pos) <= sight * AMBUSH.sightMax)
-    .filter((p) => isAhead(me, p) && !playerSees(w, p) && isFree(w, p, radius, null))
+  return spotsAhead(me, sight)
+    .filter((p) => !isCliff(w.terrain, tileAt(w.terrain, p)) && !siteUnder(p) && !playerSees(w, p) && isFree(w, p, radius, null))
     .sort((a, b) => Math.abs(dist(a, me.pos) - target) - Math.abs(dist(b, me.pos) - target))[0] ?? null;
 }
 
-function isAhead(me: Vehicle, p: Vec): boolean {
-  const along = (p.x - me.pos.x) * Math.cos(me.heading) + (p.y - me.pos.y) * Math.sin(me.heading);
-  return along >= dist(p, me.pos) * AMBUSH.aheadCos;
+function spotsAhead(me: Vehicle, sight: number): Vec[] {
+  const cone = Math.acos(AMBUSH.aheadCos);
+  const ranges = sampled(sight * AMBUSH.sightMin, sight * AMBUSH.sightMax, AMBUSH.spotStep);
+  const turns = sampled(-cone, cone, AMBUSH.spotStep / sight);
+  return ranges.flatMap((r) => turns.map((a) => ({ x: me.pos.x + Math.cos(me.heading + a) * r, y: me.pos.y + Math.sin(me.heading + a) * r })));
 }
 
-function roadPoints(): Vec[] {
-  return REGION.roads.flatMap((road) => road.slice(1).flatMap((b, i) => alongSegment(road[i], b)));
-}
-
-function alongSegment(a: Vec, b: Vec): Vec[] {
-  const steps = Math.max(1, Math.ceil(dist(a, b) / AMBUSH.roadStep));
-  return Array.from({ length: steps }, (_, k) => ({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps }));
+function sampled(from: number, to: number, step: number): number[] {
+  const count = Math.max(1, Math.ceil((to - from) / step));
+  return Array.from({ length: count + 1 }, (_, k) => from + ((to - from) * k) / count);
 }
 
 function parkingSpot(w: World, pad: Vec, me: Vehicle): Vec {
