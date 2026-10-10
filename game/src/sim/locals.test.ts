@@ -7,7 +7,7 @@ import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
 import { acceptContract, type Contract } from './market';
 import { chooseQuestOption, QUESTS, questView, startQuest } from './quests';
 import { sitePads } from './sites';
-import { compileBundle, readQuestSources } from '../test/quest-compile';
+import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import { emptyWorld } from './testkit';
 import type { World } from './types';
 import { UNITS } from '../data/units';
@@ -325,9 +325,9 @@ describe('the depot leak at Nose', () => {
 
     expect(view.view).toBe('page');
     expect(view.stats).toEqual([
-      { label: 'Watches', value: '4' },
-      { label: 'Money', value: `${w.player.money / UNITS.centsPerM} M` },
-      { label: 'Talk', value: 'quiet' },
+      { name: 'watches', label: 'Watches', value: '4' },
+      { name: 'money', label: 'Money', value: `${w.player.money / UNITS.centsPerM} M` },
+      { name: 'alarm', label: 'Talk', value: 'quiet' },
     ]);
     expect(view.facts).toEqual([expect.stringContaining('Ledger: cans went missing')]);
     expect(view.lines.filter((l) => l.tags.includes('row')).map((l) => l.text)).toEqual(['3rd; 2 cans; Pell', '7th; 3 cans; Pell', '11th; 2 cans; Pell']);
@@ -560,7 +560,7 @@ describe('journal notes', () => {
     const w = parkedAt('bowl');
     const bad = (text: string) => `INCLUDE world.ink\n=== start ===\n# checkpoint: start\n{${text}: yes}\n+ [Bye.] -> END\n`;
     for (const [text, error] of [['has_note("nonsense")', /names no note nonsense/], ['found("atlantis")', /names no town or location atlantis/], ['searched("story-none")', /No story wreck stock story-none/]] as const) {
-      const bundle = compileBundle({ 'world.ink': readQuestSources('src/data/quests')['world.ink'], 'q.ink': bad(text) });
+      const bundle = compileBundle(withEnglishTwins({ 'world.ink': readQuestSources('src/data/quests')['world.ink'], 'q.ink': bad(text) }));
       expect(() => startQuest(w, bundle, 'q', 'start')).toThrow(error);
     }
   });

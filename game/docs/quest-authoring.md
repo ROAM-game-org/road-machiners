@@ -30,9 +30,9 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 
 ## The loop
 
-1. Edit or add a `.ink` file in `src/data/quests/`.
-2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game. Under each screen, both views print the tip of every marked term, like `[hover Bowl: ...]`, so a playtest agent reads the tips a player can hover.
-3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached and effects that a load would repeat. It names the picks that lead to each problem.
+1. Edit or add a `.ink` file in `src/data/quests/`, and make the same change in its Russian twin in `src/data/quests/ru/`. Read [Russian copy](russian-style.md) before you write the Russian.
+2. Play it in the terminal: `npm run quest -- <quest>`, and `--lang ru` plays the twin. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game. Under each screen, both views print the tip of every marked term, like `[hover Bowl: ...]`, so a playtest agent reads the tips a player can hover.
+3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
 6. See it in the game with `npm run dev`. Open the console with backquote and type `tp nose` or `tp bowl`, then open the town's People tab.
@@ -63,7 +63,7 @@ Mira wipes flour off her hands. # speaker: Mira
 
 Every quest needs a way in. The voice test fails on a quest that nothing starts.
 
-- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id. The People tab lists them.
+- A town local: add an entry to `LOCALS` in `src/data/locals.ts` with the quest id, and its `local.<id>.name` and `local.<id>.role` in `src/text/en/story.ts` and `src/text/ru/story.ts`. The People tab lists them.
 - A radio call: give a radio option `go: questGo('<quest>')` in `src/data/dialogue.ts`. The call ends and the quest opens.
 - Another quest: call `~ begin("<quest>")` right before `-> END`. Kovac opens the depot quest this way.
 
@@ -113,7 +113,7 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Numbers are fine inside `# row` tables, which are documents.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
 - A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
-- A rumor goes into the journal with `~ note("<id>")`. Add the note to `NOTES` in `src/data/locals.ts` first.
+- A rumor goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`.
 
 - Every choice changes something real: what the player learns, what they hold, who knows them or where the story goes. A choice whose options all lead to the same outcome is no choice. Cut it and let the page run on behind Next.
 
@@ -121,14 +121,14 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 Locals name places, groups and road slang as if everyone knows them, and a stranger does not. A term tip fills that gap without a "What is X?" question. The player hovers the word and reads what any local could have told them. It makes the world feel known without stopping the talk.
 
-Mark the word in ink, and write its tip in `TERMS` in `src/data/locals.ts`:
+Mark the word in ink, add its id to `TERM_IDS` in `src/data/locals.ts`, and write its tip as `term.<id>` in `src/text/en/story.ts` and `src/text/ru/story.ts`:
 
 ```ink
 Water costs here, talk doesn't, and I hear everything that happens in <term=bowl>Bowl</term> twice.
 ```
 
 ```ts
-bowl: 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
 ```
 
 What a tip may say:
@@ -151,10 +151,8 @@ Where to mark a word:
 
 How to check:
 
-- `npm run quests:check` fails a term id that is not in `TERMS`.
+- `npm run quests:check` fails a term id that is not in `TERM_IDS`, and tsc fails a term with no tip in either language.
 - `npm run quest` prints the tips of every marked term under each screen, like `[hover Bowl: ...]`. Read them as a player who has seen only the screens before.
-- Tips are English only for now, like quest ink. `src/text/untranslated.ts` lists `src/data/locals.ts` as an exception.
-
 ## Rules the build enforces
 
 A save keeps only the variables and the last checkpoint. Load replays the quest from that checkpoint, so ink's own memory is gone after a load. The build and the checker hold quests to that.

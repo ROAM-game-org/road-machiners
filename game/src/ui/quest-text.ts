@@ -1,8 +1,9 @@
 
 import { CONFIG } from '../config';
 import { QUEST_ART } from '../data/quest-art';
-import { TERMS } from '../data/locals';
+import { TERM_IDS, type TermId } from '../data/locals';
 import { verbatim } from '../text/msg';
+import { termText } from '../text/names';
 import { el, uiRoot } from './dom';
 
 export type Mark = { name: string; value: string | null };
@@ -25,7 +26,7 @@ export const MARKS: Record<string, MarkDef> = {
   shake: { values: null },
   pop: { values: null },
   color: { values: QUEST_COLORS },
-  term: { values: Object.keys(TERMS) },
+  term: { values: TERM_IDS },
 };
 
 const REVEALS: readonly Reveal[] = ['all', 'word', 'char'];
@@ -161,10 +162,10 @@ function termElement(id: string): HTMLElement {
   return el('span', { class: 'qt-term', 'data-term': id, tabindex: '0' });
 }
 
-export function termText(id: string): string {
-  const text = TERMS[id];
-  if (text === undefined) throw new Error(`No term "${id}" in TERMS`);
-  return text;
+function termId(id: string): TermId {
+  const term = TERM_IDS.find((t) => t === id);
+  if (term === undefined) throw new Error(`No term "${id}" in TERM_IDS`);
+  return term;
 }
 
 function unitElement(unit: Unit): HTMLElement {
@@ -201,7 +202,7 @@ export class TermTip {
   private show(term: HTMLElement): void {
     const id = term.dataset.term;
     if (id === undefined) throw new Error('A term element has no data-term');
-    this.tip.replaceChildren(el('span', {}, verbatim(termText(id))));
+    this.tip.replaceChildren(el('span', {}, termText(termId(id))));
     this.tip.style.display = '';
     this.place(term.getBoundingClientRect());
   }

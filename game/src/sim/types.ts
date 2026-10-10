@@ -12,7 +12,7 @@ import type { Rng } from "./rng";
 import type { PerkId } from "../data/skills";
 import type { NoteId } from "../data/locals";
 import type { UtilityEffectType } from "../data/parts";
-import type { QuestValue } from "../data/quests";
+import type { QuestLanguage, QuestValue } from "../data/quests";
 
 export type PatchDeal = DecisionOptions["patchDeal"];
 
@@ -380,7 +380,7 @@ export type QuestVars = Record<string, QuestValue>;
 export type QuestSession = { quest: string; checkpoint: string; seed: number };
 export type QuestLine = { text: string; tags: string[] };
 export type QuestCheck = { skill: SkillId; level: number };
-export type QuestLive = { quest: string; ink: string; lines: QuestLine[]; choices: string[]; costs: (number | null)[]; checks: (QuestCheck | null)[] };
+export type QuestLive = { quest: string; lang: QuestLanguage; ink: string; lines: QuestLine[]; choices: string[]; costs: (number | null)[]; checks: (QuestCheck | null)[] };
 export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null };
 export type TopicOutcome = "agreed" | "refused" | "done";
 

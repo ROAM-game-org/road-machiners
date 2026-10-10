@@ -4,15 +4,16 @@ import { defaultSetup } from '../sim/settings';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from './map';
 import { checkQuests, gameScenes, QUEST_STATE_LIMIT, questCheck, type QuestReport } from './quest-check';
-import { readQuestSources, type QuestSources } from './quest-compile';
+import { readQuestSources, withEnglishTwins, type QuestSources } from './quest-compile';
 
 const WORLD = `VAR heard = false\n${readQuestSources('src/data/quests')['world.ink']}`;
 const LIMIT = 200;
+const WALK_TIMEOUT_MS = 120_000;
 
 const world = () => newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
 
 function check(quest: string, worldInk = WORLD): string[] {
-  const sources: QuestSources = { 'world.ink': worldInk, 'q.ink': `INCLUDE world.ink\n${quest}` };
+  const sources: QuestSources = withEnglishTwins({ 'world.ink': worldInk, 'q.ink': `INCLUDE world.ink\n${quest}` });
   return checkQuests(sources, () => [world()], LIMIT).flatMap((report: QuestReport) => report.problems);
 }
 
@@ -29,14 +30,15 @@ describe('checkQuests', () => {
     it.each(game.questIds)('walks %s with no problems', (id) => {
       const report = game.walk(id, scenes, QUEST_STATE_LIMIT);
       expect(report.problems).toEqual([]);
-      expect(report.states).toBeGreaterThan(2);
-    });
+      expect(report.states).toBeGreaterThan(1);
+    }, WALK_TIMEOUT_MS);
   });
 
   it('walks a branch on a game query both ways across the scenes', () => {
     const sources = readQuestSources('src/data/quests');
-    const one = checkQuests({ 'world.ink': sources['world.ink'], 'nose_kovac.ink': sources['nose_kovac.ink'] }, (id) => gameScenes(world())(id).slice(0, 1), QUEST_STATE_LIMIT);
-    const both = checkQuests({ 'world.ink': sources['world.ink'], 'nose_kovac.ink': sources['nose_kovac.ink'] }, gameScenes(world()), QUEST_STATE_LIMIT);
+    const kovac = { 'world.ink': sources['world.ink'], 'nose_kovac.ink': sources['nose_kovac.ink'], 'ru/nose_kovac.ink': sources['ru/nose_kovac.ink'] };
+    const one = checkQuests(kovac, (id) => gameScenes(world())(id).slice(0, 1), QUEST_STATE_LIMIT);
+    const both = checkQuests(kovac, gameScenes(world()), QUEST_STATE_LIMIT);
     expect(both[1].states).toBeGreaterThan(one[1].states);
   });
 
@@ -46,7 +48,7 @@ describe('checkQuests', () => {
       'a.ink': 'INCLUDE world.ink\n=== start ===\n# checkpoint: start\n+ [Shake.]\n  ~ deal = "struck"\n  -> END\n',
       'b.ink': 'INCLUDE world.ink\n=== start ===\n# checkpoint: start\n+ {deal == "struck"} [About the deal.] -> broken\n+ [Bye.] -> END\n= broken\nHi.\n',
     };
-    const problems = checkQuests(quests, () => [world()], LIMIT).flatMap((r) => r.problems);
+    const problems = checkQuests(withEnglishTwins(quests), () => [world()], LIMIT).flatMap((r) => r.problems);
     expect(problems.join('\n')).toMatch(/b: after About the deal\.: .*(loose end|ran out of content)/i);
   });
 

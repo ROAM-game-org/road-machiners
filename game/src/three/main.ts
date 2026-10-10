@@ -21,6 +21,9 @@ import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
 import { uiRoot } from '../ui/dom';
 import { loadLanguage, relocalize } from '../text/language';
+import type { DevLocale } from '../text/msg';
+import type { QuestLanguage } from '../data/quests';
+import { setQuestLanguage } from '../sim/quests';
 import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
 import { chooseSaveFate, saveErrorText, showCarryReport } from '../ui/save-screen';
@@ -115,8 +118,11 @@ function urlSeed(): number | null {
 
 installCrashScreen();
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
+const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
+setQuestLanguage(questLanguageOf(language.current()));
 let relocalizeGame: (() => void) | null = null;
 language.subscribe(() => {
+  setQuestLanguage(questLanguageOf(language.current()));
   relocalize(uiRoot());
   relocalize(element('overlay'));
   relocalizeGame?.();
@@ -157,6 +163,7 @@ radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', () => new Game(world, { slots, runId, log }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio, surface));
 relocalizeGame = () => {
+  game.relanguageQuest();
   radio.relocalize();
   game.uiStale = true;
 };

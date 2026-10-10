@@ -1,6 +1,7 @@
 
 import * as THREE from "three";
 import { CONFIG } from "../config";
+import { QUESTS, relanguageQuest } from "../sim/quests";
 import { getSearchAction } from "../ui/hud-readout";
 import { PHYSICS } from "../data/physics";
 import {
@@ -371,6 +372,10 @@ export class Game {
     if (this.anim) return;
     this.screens.closeAll(null);
     this.screens.fullShop.open();
+  }
+
+  relanguageQuest(): void {
+    if (this.world.player.quests.live) this.apply(relanguageQuest(this.world, QUESTS));
   }
 
   apply(next: World): void {

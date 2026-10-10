@@ -5,12 +5,15 @@ export type QuestVarDecl = { type: QuestValueType; init: QuestValue };
 export type QuestViewKind = 'talk' | 'page';
 export type QuestStat = { name: string; label: string; words: string[] | null };
 export type QuestFact = { name: string; text: string };
-export type CompiledQuest = { story: string; vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; stats: QuestStat[]; facts: QuestFact[] };
+export type QuestLanguage = 'en' | 'ru';
+export type QuestText = { story: string; stats: QuestStat[]; facts: QuestFact[] };
+export type CompiledQuest = { vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; text: Record<QuestLanguage, QuestText> };
 export type QuestBundle = { world: Record<string, QuestVarDecl>; externals: string[]; quests: Record<string, CompiledQuest> };
 
 export const CHECKPOINT_TAG = 'checkpoint:';
 export const COST_TAG = 'cost:';
 export const CHECK_TAG = 'check:';
+export const QUEST_LANGUAGES: readonly QuestLanguage[] = ['en', 'ru'];
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['talk', 'page'];
 export const MONEY_STAT = 'money';
 

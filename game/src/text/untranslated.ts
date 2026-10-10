@@ -9,7 +9,6 @@ const MIGRATION_LABEL = 'A label inside a save migration error, which only the c
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
-  { file: 'src/data/locals.ts', text: '*', reason: 'Journal notes and local names are draft writing that will change before it is translated. They show in English in every language, like quest ink.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },

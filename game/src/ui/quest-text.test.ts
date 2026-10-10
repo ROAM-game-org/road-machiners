@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../config';
 import { QUEST_ART } from '../data/quest-art';
-import { TERMS } from '../data/locals';
+import { TERM_IDS } from '../data/locals';
 import { lineStyle, markupProblems, parseMarkup, PLAIN_STYLE, revealUnits, rowCells, termRuns } from './quest-text';
 
 describe('parseMarkup', () => {
@@ -27,7 +27,7 @@ describe('parseMarkup', () => {
   });
 
   it('takes a term only from the glossary', () => {
-    const id = Object.keys(TERMS)[0];
+    const id = TERM_IDS[0];
     expect(parseMarkup(`In <term=${id}>town</term>.`)[1]).toEqual({ text: 'town', marks: [{ name: 'term', value: id }] });
     expect(() => parseMarkup('<term=atlantis>x</term>')).toThrow('Markup <term=atlantis> needs one of');
   });
@@ -35,7 +35,7 @@ describe('parseMarkup', () => {
 
 describe('termRuns', () => {
   it('groups the words of one term and leaves other words alone', () => {
-    const [first, second] = Object.keys(TERMS);
+    const [first, second] = TERM_IDS;
     const units = revealUnits(parseMarkup(`The <term=${first}>Glass Flats</term> and <term=${second}>Nose</term>`), PLAIN_STYLE, 0);
     expect(termRuns(units).map((run) => [run.term, run.units.map((u) => u.text).join('')])).toEqual([
       [null, 'The '],

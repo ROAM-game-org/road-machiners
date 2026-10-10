@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { handoffQuest, TOPICS } from '../data/dialogue';
-import { LOCALS, NOTE_IDS, NOTES, type NoteId } from '../data/locals';
+import { LOCALS, NOTE_IDS, type NoteId } from '../data/locals';
 import { GAME_OPENED_QUESTS } from '../data/quests';
 import { entryText } from '../text/resolve';
 import { QUESTS } from '../sim/quests';
@@ -29,8 +29,8 @@ function lines(): { where: string; text: string }[] {
       const text = spoken(line);
       return text ? [{ where: `${file}:${k + 1}`, text }] : [];
     })),
-    ...Object.entries(QUESTS.quests).flatMap(([id, q]) => [...q.facts.map((f) => f.text), ...q.stats.flatMap((s) => [s.label, ...(s.words ?? [])])].map((text) => ({ where: `${id} header`, text }))),
-    ...Object.entries(NOTES).flatMap(([id, n]) => [n.title, n.from, n.text].map((text) => ({ where: `note ${id}`, text }))),
+    ...Object.entries(QUESTS.quests).flatMap(([id, q]) => [...q.text.en.facts.map((f) => f.text), ...q.text.en.stats.flatMap((s) => [s.label, ...(s.words ?? [])])].map((text) => ({ where: `${id} header`, text }))),
+    ...NOTE_IDS.flatMap((id) => ['title', 'from', 'text'].map((part) => ({ where: `note ${id}`, text: entryText('en', `journalNote.${id}.${part}`) }))),
     ...Object.values(TOPICS.armyWagon.nodes).map((n) => ({ where: 'radio armyWagon', text: entryText('en', `line.${n.line}`) })),
   ];
 }

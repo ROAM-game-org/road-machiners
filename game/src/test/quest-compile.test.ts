@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import BUNDLE from '../data/quests.json';
 import { parseBundle } from '../sim/quests';
-import { compileBundle, compileQuest, readQuestSources, type QuestSources } from './quest-compile';
+import { compileBundle, compileQuest, compileSources, readQuestSources, withEnglishTwins, type QuestSources } from './quest-compile';
 
 const WORLD = 'VAR heard = false\nEXTERNAL money()\n';
 
@@ -10,7 +10,8 @@ function sources(quest: string): QuestSources {
 }
 
 function compile(given: QuestSources): ReturnType<typeof compileQuest> {
-  return compileQuest('q', given, false);
+  const result = compileQuest('q', withEnglishTwins(given), false);
+  return { ...result, errors: result.errors.filter((e) => !e.startsWith('ru/')) };
 }
 
 describe('the quest bundle', () => {
@@ -35,8 +36,8 @@ describe('quest top tags', () => {
   it('reads the view, stats and facts from the top of the file', () => {
     const { quest, errors } = compile(headed('# view: page\n# stat: watches Watches\n# stat: alarm Talk: quiet, loud\n# stat: money Money\n# fact: seen Seen: a <b>scar</b>.', BODY));
     expect(errors).toEqual([]);
-    expect(quest).toMatchObject({
-      view: 'page',
+    expect(quest?.view).toBe('page');
+    expect(quest?.text.en).toMatchObject({
       stats: [
         { name: 'watches', label: 'Watches', words: null },
         { name: 'alarm', label: 'Talk', words: ['quiet', 'loud'] },
@@ -51,7 +52,7 @@ describe('quest top tags', () => {
   });
 
   it('gives a quest with no top tags the talk view', () => {
-    expect(compile(sources(BODY)).quest).toMatchObject({ view: 'talk', stats: [], facts: [] });
+    expect(compile(sources(BODY)).quest).toMatchObject({ view: 'talk', text: { en: { stats: [], facts: [] } } });
   });
 
   it('fails an unknown tag, a bad view, a stat on no number and a fact on no true or false variable', () => {
@@ -99,6 +100,32 @@ describe('compileQuest', () => {
     const { quest, errors } = compile(sources('=== start ===\nHi.\n-> nowhere\n'));
     expect(quest).toBeNull();
     expect(errors.join('\n')).toMatch(/q\.ink.*line 4.*nowhere/);
+  });
+
+  it('keeps the English and the Russian text of a quest apart', () => {
+    const en = '# fact: seen Seen it.\nINCLUDE world.ink\nVAR seen = false\n=== start ===\n# checkpoint: start\nHi.\n-> END\n';
+    const ru = en.replace('Seen it.', 'Видно.').replace('Hi.', 'Привет.');
+    const { quest, errors } = compileQuest('q', { 'world.ink': WORLD, 'q.ink': en, 'ru/q.ink': ru }, false);
+    expect(errors).toEqual([]);
+    expect(quest?.text.en.facts).toEqual([{ name: 'seen', text: 'Seen it.' }]);
+    expect(quest?.text.ru.facts).toEqual([{ name: 'seen', text: 'Видно.' }]);
+    expect(quest?.text.ru.story).toContain('Привет.');
+  });
+
+  it('fails a quest with no Russian twin, and a twin with no English quest', () => {
+    const body = 'INCLUDE world.ink\n=== start ===\nHi.\n-> END\n';
+    expect(compileQuest('q', { 'world.ink': WORLD, 'q.ink': body }, false).errors).toEqual(['ru/q.ink: No source file ru/q.ink']);
+    expect(compileSources({ 'world.ink': WORLD, 'ru/stray.ink': body }, false).errors).toEqual(['ru/stray.ink: no English quest of that name']);
+  });
+
+  it('fails a Russian twin whose variables, checkpoints, view, stats or facts differ from the English', () => {
+    const en = '# view: page\n# stat: watches Watches\n# fact: seen Seen.\nINCLUDE world.ink\nVAR watches = 3\nVAR seen = false\n=== start ===\n# checkpoint: start\nHi.\n-> END\n';
+    const errorsOf = (ru: string) => compileQuest('q', { 'world.ink': WORLD, 'q.ink': en, 'ru/q.ink': ru }, false).errors.join('\n');
+    expect(errorsOf(en.replace('VAR watches = 3', 'VAR watches = 4'))).toMatch(/ru\/q\.ink: its variables part does not match/);
+    expect(errorsOf(en.replace('# checkpoint: start\n', ''))).toMatch(/ru\/q\.ink: its checkpoints part does not match/);
+    expect(errorsOf(en.replace('# view: page\n', ''))).toMatch(/ru\/q\.ink: its view part does not match/);
+    expect(errorsOf(en.replace('# stat: watches Watches\n', ''))).toMatch(/ru\/q\.ink: its stats part does not match/);
+    expect(errorsOf(en.replace('# fact: seen Seen.\n', ''))).toMatch(/ru\/q\.ink: its facts part does not match/);
   });
 
   it('fails an include of a file that is no quest source', () => {

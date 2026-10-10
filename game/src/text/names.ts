@@ -1,10 +1,10 @@
 import { WORLD_SETTINGS } from '../data/modes';
 import type { LineId } from '../data/dialogue';
-import { LOCALS, NOTES as NOTE_DEFS, type LocalId, type NoteId } from '../data/locals';
+import type { LocalId, NoteId, TermId } from '../data/locals';
 import { FEMALE_NAMES, FIRST_NAMES, SURNAMES, type TraitId } from '../data/npcs';
 import type { PerkId } from '../data/skills';
 import type { Faction, GameModeId, GoalReason, MoneyReason, Refusal, SimNote, SkillId, UnitId, Vehicle, World, WorldSetup, WorldSettings } from '../sim/types';
-import { byId, list, t, verbatim, type Msg } from './msg';
+import { byId, list, t, type Msg } from './msg';
 
 export const partName = (defId: string): Msg => byId(`part.${defId}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
@@ -75,11 +75,12 @@ const NOTES: NoteWords = {
   spawnBlocked: (n) => t('note.spawnBlocked', { template: templateName(n.template) }),
 };
 
-export const noteTitle = (id: NoteId): Msg => verbatim(NOTE_DEFS[id].title);
-export const noteFrom = (id: NoteId): Msg => verbatim(NOTE_DEFS[id].from);
-export const noteBody = (id: NoteId): Msg => verbatim(NOTE_DEFS[id].text);
-export const localName = (id: LocalId): Msg => verbatim(LOCALS[id].name);
-export const localRole = (id: LocalId): Msg => verbatim(LOCALS[id].role);
+export const noteTitle = (id: NoteId): Msg => byId(`journalNote.${id}.title`);
+export const noteFrom = (id: NoteId): Msg => byId(`journalNote.${id}.from`);
+export const noteBody = (id: NoteId): Msg => byId(`journalNote.${id}.text`);
+export const localName = (id: LocalId): Msg => byId(`local.${id}.name`);
+export const localRole = (id: LocalId): Msg => byId(`local.${id}.role`);
+export const termText = (id: TermId): Msg => byId(`term.${id}`);
 
 export function noteText(note: SimNote): Msg {
   return (NOTES[note.id] as (n: SimNote) => Msg)(note);

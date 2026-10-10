@@ -11,11 +11,14 @@ import {
   INTRO_STEPS,
   type IntroStep,
   MONEY_STAT,
+  QUEST_LANGUAGES,
   QUEST_VIEWS,
   type CompiledQuest,
   type QuestBundle,
   type QuestFact,
+  type QuestLanguage,
   type QuestStat,
+  type QuestText,
   type QuestValue,
   type QuestValueType,
   type QuestVarDecl,
@@ -32,7 +35,7 @@ import { skillLevel } from './progress';
 import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
-import type { QuestCheck, QuestLine, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
 import { update } from './world';
 
 export type QuestView = {
@@ -53,7 +56,20 @@ export type QuestEffect = (world: World, args: readonly unknown[]) => void;
 type Runner = { story: Story; world: World | null; restoring: string | null };
 
 const INK_SEED_RANGE = 2 ** 31;
-const runners = new WeakMap<CompiledQuest, Runner>();
+const runners = new WeakMap<QuestText, Runner>();
+let questLanguage: QuestLanguage = 'en';
+
+export function setQuestLanguage(lang: QuestLanguage): void {
+  questLanguage = lang;
+}
+
+export function currentQuestLanguage(): QuestLanguage {
+  return questLanguage;
+}
+
+function textOf(quest: CompiledQuest): QuestText {
+  return quest.text[questLanguage];
+}
 
 const begun = new WeakMap<World, string>();
 const pickedChecks = new WeakMap<World, QuestCheck>();
@@ -133,13 +149,23 @@ export function parseBundle(value: unknown): QuestBundle {
 }
 
 function parseQuest(id: string, value: unknown): CompiledQuest {
-  if (!isRecord(value) || typeof value.story !== 'string' || !isRecord(value.vars) || !Array.isArray(value.checkpoints)) throw new Error(`Quest ${id} has no story, vars or checkpoints`);
-  return { story: value.story, vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), ...parseHeader(id, value) };
+  if (!isRecord(value) || !isRecord(value.vars) || !Array.isArray(value.checkpoints) || !isRecord(value.text)) throw new Error(`Quest ${id} has no vars, checkpoints or text`);
+  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), text: parseTexts(id, value.text) };
 }
 
-function parseHeader(id: string, value: Record<string, unknown>): Pick<CompiledQuest, 'view' | 'stats' | 'facts'> {
-  if (!QUEST_VIEWS.includes(value.view as QuestViewKind) || !Array.isArray(value.stats) || !Array.isArray(value.facts)) throw new Error(`Quest ${id} has no view, stats or facts`);
-  return { view: value.view as QuestViewKind, stats: value.stats.map((s) => parseStat(id, s)), facts: value.facts.map((f) => parseFact(id, f)) };
+function parseView(id: string, value: unknown): QuestViewKind {
+  const view = QUEST_VIEWS.find((v) => v === value);
+  if (!view) throw new Error(`Quest ${id} has no view`);
+  return view;
+}
+
+function parseTexts(id: string, texts: Record<string, unknown>): Record<QuestLanguage, QuestText> {
+  return Object.fromEntries(QUEST_LANGUAGES.map((lang) => [lang, parseText(`${id} in ${lang}`, texts[lang])])) as Record<QuestLanguage, QuestText>;
+}
+
+function parseText(id: string, value: unknown): QuestText {
+  if (!isRecord(value) || typeof value.story !== 'string' || !Array.isArray(value.stats) || !Array.isArray(value.facts)) throw new Error(`Quest ${id} has no story, stats or facts`);
+  return { story: value.story, stats: value.stats.map((s) => parseStat(id, s)), facts: value.facts.map((f) => parseFact(id, f)) };
 }
 
 function parseStat(id: string, value: unknown): QuestStat {
@@ -212,8 +238,7 @@ export function setIntroStep(w: World, step: IntroStep): void {
 export function chooseQuestOption(world: World, bundle: QuestBundle, index: number): World {
   return update(world, (w) => {
     const session = openSession(w.player.quests);
-    const live = w.player.quests.live;
-    if (!live) throw new Error(`Quest ${session.quest} has no live state. Restore it first`);
+    const live = liveIn(w.player.quests, session);
     if (!Number.isInteger(index) || index < 0 || index >= live.choices.length) throw new Error(`No choice ${index} on offer`);
     payCost(w, live.costs[index], live.choices[index]);
     const check = live.checks[index];
@@ -226,6 +251,21 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     } finally {
       pickedChecks.delete(w);
     }
+  });
+}
+
+function liveIn(state: QuestState, session: QuestSession): QuestLive {
+  const live = state.live;
+  if (!live) throw new Error(`Quest ${session.quest} has no live state. Restore it first`);
+  if (live.lang !== questLanguage) throw new Error(`Quest ${session.quest} is live in ${live.lang}, not ${questLanguage}. Relanguage it first`);
+  return live;
+}
+
+export function relanguageQuest(world: World, bundle: QuestBundle): World {
+  if (world.player.quests.live?.lang === questLanguage) return world;
+  return update(world, (w) => {
+    w.player.quests.live = null;
+    restoreQuest(w, bundle);
   });
 }
 
@@ -271,8 +311,8 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     costs: live.costs,
     checks: live.checks,
     locked: live.costs.map((cost) => cost !== null && cost > money),
-    stats: quest.stats.map((stat) => ({ name: stat.name, label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
-    facts: quest.facts.filter((fact) => questVar(world, bundle, live.quest, fact.name) === true).map((fact) => fact.text),
+    stats: quest.text[live.lang].stats.map((stat) => ({ name: stat.name, label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
+    facts: quest.text[live.lang].facts.filter((fact) => questVar(world, bundle, live.quest, fact.name) === true).map((fact) => fact.text),
     ended: session === null,
   };
 }
@@ -422,7 +462,7 @@ function settle(w: World, bundle: QuestBundle, questId: string, story: Story, li
   const choices = story.currentChoices.map((choice) => choice.text);
   const costs = story.currentChoices.map((choice) => choiceCost(questId, choice.text, choice.tags ?? []));
   const checks = story.currentChoices.map((choice) => choiceCheck(questId, choice.text, choice.tags ?? []));
-  state.live = { quest: questId, ink: story.state.toJson(), lines, choices, costs, checks };
+  state.live = { quest: questId, lang: questLanguage, ink: story.state.toJson(), lines, choices, costs, checks };
   if (choices.length === 0) state.session = null;
 }
 
@@ -461,11 +501,12 @@ function injectVars(story: Story, vars: QuestVars): void {
 }
 
 function runnerOf(bundle: QuestBundle, quest: CompiledQuest): Runner {
-  const known = runners.get(quest);
+  const text = textOf(quest);
+  const known = runners.get(text);
   if (known) return known;
-  const runner: Runner = { story: new Story(quest.story), world: null, restoring: null };
+  const runner: Runner = { story: new Story(text.story), world: null, restoring: null };
   for (const name of bundle.externals) bindExternal(runner, name);
-  runners.set(quest, runner);
+  runners.set(text, runner);
   return runner;
 }
 

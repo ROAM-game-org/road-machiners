@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
-import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, restoreQuest, startQuest } from './quests';
+import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
 import { defaultSetup } from './settings';
 import type { QuestBundle } from '../data/quests';
-import { compileBundle, readQuestSources } from '../test/quest-compile';
+import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
 import { newWorld } from './world';
 
-const QUESTS = compileBundle(readQuestSources('src/test/quests'));
+const QUESTS = compileBundle(withEnglishTwins(readQuestSources('src/test/quests')));
 const RUMORS = 'Heard any rumors?';
 const COIN = 'Can you spare some coin for the road?';
 const LEAVE = 'Leave.';
@@ -97,7 +97,7 @@ describe('chooseQuestOption', () => {
 
 function inlineBundle(quest: string): QuestBundle {
   const sources = { 'world.ink': 'EXTERNAL money()\nEXTERNAL give_money(amount)\n', 'q.ink': `INCLUDE world.ink\n${quest}` };
-  return compileBundle(sources);
+  return compileBundle(withEnglishTwins(sources));
 }
 
 function withoutLive(w: World): World {
@@ -108,7 +108,7 @@ function withoutLive(w: World): World {
 
 describe('pay and begin', () => {
   const GAME_WORLD = readQuestSources('src/data/quests')['world.ink'];
-  const bundleOf = (quests: Record<string, string>) => compileBundle({ 'world.ink': GAME_WORLD, ...Object.fromEntries(Object.entries(quests).map(([id, body]) => [`${id}.ink`, `INCLUDE world.ink\n${body}`])) });
+  const bundleOf = (quests: Record<string, string>) => compileBundle(withEnglishTwins({ 'world.ink': GAME_WORLD, ...Object.fromEntries(Object.entries(quests).map(([id, body]) => [`${id}.ink`, `INCLUDE world.ink\n${body}`])) }));
 
   it('takes money in whole M through pay, and refuses more than the player holds', () => {
     const bundle = bundleOf({ q: '=== start ===\n# checkpoint: start\n+ [Pay.]\n  ~ pay(3)\n  -> END\n+ [Pay a fortune.]\n  ~ pay(999999)\n  -> END\n' });
@@ -167,6 +167,42 @@ describe('restoreQuest', () => {
     const w = world();
     restoreQuest(w, QUESTS);
     expect(w.player.quests.live).toBeNull();
+  });
+});
+
+describe('quest language', () => {
+  const english = withEnglishTwins(readQuestSources('src/test/quests'));
+  const russian = english['sample_bowl.ink'].replace('Hattie sets her bucket down by the well.', 'Хэтти ставит ведро у колодца.').replace('[Heard any rumors?]', '[Что слышно?]');
+  const bundle = compileBundle({ ...english, 'ru/sample_bowl.ink': russian });
+  const inRussian = <T>(run: () => T): T => {
+    setQuestLanguage('ru');
+    try {
+      return run();
+    } finally {
+      setQuestLanguage('en');
+    }
+  };
+
+  it('plays the twin of the language in force and marks the live state with it', () => {
+    const w = inRussian(() => startQuest(world(), bundle, 'sample_bowl', 'start'));
+    expect(questView(w, bundle).lines[0].text).toBe('Хэтти ставит ведро у колодца.');
+    expect(questView(w, bundle).choices).toEqual(['Что слышно?', LEAVE]);
+    expect(w.player.quests.live?.lang).toBe('ru');
+  });
+
+  it('refuses a pick on a quest live in another language', () => {
+    const w = startQuest(world(), bundle, 'sample_bowl', 'start');
+    expect(() => inRussian(() => chooseQuestOption(w, bundle, 0))).toThrow('is live in en, not ru');
+  });
+
+  it('reopens a live quest at its checkpoint in the new language, keeping its variables', () => {
+    const w = chooseQuestOption(startQuest(world(), bundle, 'sample_bowl', 'start'), bundle, 0);
+    const switched = inRussian(() => relanguageQuest(w, bundle));
+    expect(switched.player.quests.live?.lang).toBe('ru');
+    expect(switched.player.quests.world).toEqual(w.player.quests.world);
+    expect(switched.player.quests.local).toEqual(w.player.quests.local);
+    expect(questView(switched, bundle).choices).toEqual(questView(w, bundle).choices);
+    expect(inRussian(() => relanguageQuest(switched, bundle))).toBe(switched);
   });
 });
 

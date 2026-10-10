@@ -57,7 +57,7 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 ## Text and the talk window
 
 - Inline markup is `<b>`, `<i>`, `<shake>`, `<pop>`, `<color=rust>` and `<term=bowl>`, closed by `</name>`. Square brackets would break ink choices, so markup uses angle brackets.
-- `<term=<id>>` underlines a word with dots, and hovering or focusing it opens its tip from `TERMS` in `src/data/locals.ts`. An id not in `TERMS` fails the check. `TermTip` in `src/ui/quest-text.ts` draws the one tip. [Term tips](../quest-authoring.md#term-tips) has the writing rules.
+- `<term=<id>>` underlines a word with dots, and hovering or focusing it opens its tip from `term.<id>` in the text catalog. An id not in `TERM_IDS` in `src/data/locals.ts` fails the check. `TermTip` in `src/ui/quest-text.ts` draws the one tip. [Term tips](../quest-authoring.md#term-tips) has the writing rules.
 - A line tag sets how the line reveals: `# reveal: all`, `word` or `char`, and `# speed: slow`, `normal` or `fast`. Words is the default. `# speaker: <name>` puts the name before the line. `# work_offer` shows the town's best offer under the line.
 - `# row` and `# head` make a line a table row, its cells split by `;`. Lines in a row form one table, for ledgers, logs and price boards. The voice test reads no numbers in them.
 - `# place: <name>` names where the page is and heads it until another place. `# page` starts a new page, behind a Next button. A page tag on the first line of a pick's output starts no new page, so a load opens on it directly.
@@ -167,4 +167,10 @@ The Pump Station is a stall with no board of work. Its locals never call `has_wo
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.
 ## Language
 
-The talk window's controls take their words from `src/text/`, in English and Russian. Quest text is English only for now, and shows as it is in Russian: the ink of every quest, and the note titles, sources and texts in `NOTES` and the local names and roles in `LOCALS` in `src/data/locals.ts`. `src/text/untranslated.ts` lists that file as an exception, since the writing will change before it is translated. Radio lines, including the Army wagon topic, are line ids like every other radio line.
+- Each quest has a Russian twin in `src/data/quests/ru/<quest>.ink`. It is the same script with Russian words, and it includes the shared `world.ink`. [Russian copy](../russian-style.md) says what a twin keeps and what it translates.
+- The build compiles both twins into one bundle entry. The quest's variables, checkpoints and view are shared, and `text.en` and `text.ru` each hold a story, stats and facts. A quest with no twin, a twin with no quest, or a twin whose variables, checkpoints, view, stat names or fact names differ fails the build.
+- `setQuestLanguage()` in `src/sim/quests.ts` picks the twin the runner plays. `src/three/main.ts` sets it at boot and on every language switch. The pseudo locale plays English.
+- The live state records its language. A pick on a quest live in another language throws. On a switch, `relanguageQuest()` reopens the open quest at its last checkpoint in the new language, as a load does, and keeps its variables. An ended quest on view closes.
+- `npm run quests:check` walks both twins with the same picks. It fails where they part: a different choice count, cost, check, lock, fact count, end, variable, money, note or contract. Each twin's markup and loads are checked, and each twin's sections must be reached.
+- Note titles, sources and texts, local names and roles, and term tooltips live in the catalog as `journalNote.<id>.*`, `local.<id>.*` and `term.<id>`. `src/data/locals.ts` keeps only their ids.
+- Radio lines, including the Army wagon topic, are line ids like every other radio line.

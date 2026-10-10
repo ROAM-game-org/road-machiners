@@ -1,27 +1,28 @@
 
 import { NOTE_IDS } from '../data/locals';
-import { WAGON_SEEN, type QuestBundle, type QuestValue } from '../data/quests';
+import { QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
 import { isNoteId, learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
 import { shopAt, siteOf } from '../sim/market';
-import { chooseQuestOption, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, startQuest, type QuestView } from '../sim/quests';
+import { chooseQuestOption, currentQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, setQuestLanguage, startQuest, type QuestView } from '../sim/quests';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
 import { markupProblems } from '../ui/quest-text';
-import { compileSources, WORLD_FILE, type QuestSources } from './quest-compile';
+import { compileSources, WORLD_FILE, type QuestSections, type QuestSources } from './quest-compile';
 
 export type QuestReport = { quest: string; states: number; problems: string[] };
 
-type Walk = { key: string; world: World; picks: string[] };
+type Walk = { key: string; worlds: Record<QuestLanguage, World>; picks: string[] };
 type Seen = { picks: string[]; next: string[]; ended: boolean };
 type InkState = { flows: Record<string, { callstack: { threads: { callstack: unknown }[] }; currentChoices: { text: string; targetPath: string }[] }>; currentFlowName: string; variablesState: unknown; visitCounts: Record<string, number>; previousRandom: number };
 
 export type QuestScenes = (questId: string) => World[];
 type SceneWalk = { states: number; stopped: boolean; problems: string[] };
+type Scene = { problems: string[]; seen: Map<string, Seen>; visited: Record<QuestLanguage, Set<string>>; loads: Set<string> };
 
 export const QUEST_STATE_LIMIT = 5000;
 
@@ -34,7 +35,7 @@ export function questCheck(sources: QuestSources): QuestCheck {
   const assigned = worldAssignments(sources, bundle);
   const walk = (id: string, scenes: QuestScenes, limit: number): QuestReport => {
     const read = assigned.filter(([name]) => readsWorldVar(sources, id, name));
-    return exploreQuest(withWorldVars(scenes(id), read), bundle, id, sections[id] ?? [], limit);
+    return exploreQuest(withWorldVars(scenes(id), read), bundle, id, sections[id] ?? { en: [], ru: [] }, limit);
   };
   return { shared, questIds: hooks.length > 0 ? [] : Object.keys(bundle.quests), walk };
 }
@@ -109,38 +110,65 @@ function hookProblems(bundle: QuestBundle): string[] {
   ];
 }
 
-function exploreQuest(scenes: World[], bundle: QuestBundle, id: string, sections: readonly string[], limit: number): QuestReport {
-  const visited = new Set<string>();
+function exploreQuest(scenes: World[], bundle: QuestBundle, id: string, sections: QuestSections, limit: number): QuestReport {
+  const visited = eachLanguage(() => new Set<string>());
   const walks = scenes.map((scene) => walkScene(scene, bundle, id, visited, limit));
   const states = walks.reduce((sum, walk) => sum + walk.states, 0);
   const problems = [...new Set(walks.flatMap((walk) => walk.problems))];
   if (walks.some((walk) => walk.stopped)) return { quest: id, states, problems: [...problems, `${id}: stopped after ${limit} states, so loops and reach are unchecked`] };
-  return { quest: id, states, problems: [...problems, ...sections.filter((s) => !visited.has(s)).map((s) => `${id}: section ${s} is never reached`)] };
+  const unreached = QUEST_LANGUAGES.flatMap((lang) => sections[lang].filter((s) => !visited[lang].has(s)).map((s) => `${id}${inWords(lang)}: section ${s} is never reached`));
+  return { quest: id, states, problems: [...problems, ...unreached] };
 }
 
-function walkScene(start: World, bundle: QuestBundle, id: string, visited: Set<string>, limit: number): SceneWalk {
-  const problems: string[] = [];
-  const seen = new Map<string, Seen>();
-  const queue = bundle.quests[id].checkpoints.flatMap((checkpoint) => attempt(problems, `${id}: checkpoint ${checkpoint}`, () => walkOf(startQuest(start, bundle, id, checkpoint), [])));
+function eachLanguage<T>(make: (lang: QuestLanguage) => T): Record<QuestLanguage, T> {
+  return Object.fromEntries(QUEST_LANGUAGES.map((lang) => [lang, inLanguage(lang, () => make(lang))])) as Record<QuestLanguage, T>;
+}
+
+function inLanguage<T>(lang: QuestLanguage, run: () => T): T {
+  const before = currentQuestLanguage();
+  setQuestLanguage(lang);
+  try {
+    return run();
+  } finally {
+    setQuestLanguage(before);
+  }
+}
+
+function inWords(lang: QuestLanguage): string {
+  return lang === 'en' ? '' : ` in ${lang}`;
+}
+
+function walkScene(start: World, bundle: QuestBundle, id: string, visited: Record<QuestLanguage, Set<string>>, limit: number): SceneWalk {
+  const scene: Scene = { problems: [], seen: new Map(), visited, loads: new Set() };
+  const { problems, seen } = scene;
+  const queue = bundle.quests[id].checkpoints.flatMap((checkpoint) => attempt(problems, `${id}: checkpoint ${checkpoint}`, () => walkOf(eachLanguage(() => startQuest(start, bundle, id, checkpoint)), [])));
   while (queue.length > 0 && seen.size < limit) {
     const walk = queue.shift() as Walk;
-    if (!seen.has(walk.key)) queue.push(...step(walk, bundle, id, seen, visited, problems));
+    if (!seen.has(walk.key)) queue.push(...step(walk, bundle, id, scene));
   }
   const stopped = queue.length > 0;
   return { states: seen.size, stopped, problems: stopped ? problems : [...problems, ...trapProblems(id, seen)] };
 }
 
-function step(walk: Walk, bundle: QuestBundle, id: string, seen: Map<string, Seen>, visited: Set<string>, problems: string[]): Walk[] {
+function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[] {
+  const { problems, seen, visited } = scene;
   const where = `${id}: after ${walk.picks.join(' > ') || 'the start'}`;
-  const view = viewOf(walk.world, bundle, where, problems);
+  const views = eachLanguage((lang) => viewOf(walk.worlds[lang], bundle, `${where}${inWords(lang)}`, problems));
+  const view = views.en;
   const node: Seen = { picks: walk.picks, next: [], ended: view === null || view.ended || view.quest !== id };
   seen.set(walk.key, node);
-  if (view === null || view.quest !== id) return [];
-  for (const path of Object.keys(inkOf(walk.world).visitCounts)) visited.add(path);
-  problems.push(...markupOf(view).map((problem) => `${where}: ${problem}`));
-  if (!view.ended) attempt(problems, `${where}: a load here fails`, () => reloaded(walk, bundle));
+  const split = twinSplit(walk.worlds, views);
+  if (split) problems.push(`${where}: ${split}`);
+  if (split || view === null || view.quest !== id) return [];
+  for (const lang of QUEST_LANGUAGES) for (const path of Object.keys(inkOf(walk.worlds[lang]).visitCounts)) visited[lang].add(path);
+  for (const lang of QUEST_LANGUAGES) problems.push(...markupOf(views[lang] ?? view).map((problem) => `${where}${inWords(lang)}: ${problem}`));
+  const load = loadKey(walk.worlds.en);
+  if (!view.ended && !scene.loads.has(load)) {
+    scene.loads.add(load);
+    attempt(problems, `${where}: a load here fails`, () => reloaded(walk, bundle));
+  }
   return view.choices.flatMap((text, index) => (view.locked[index] ? [] : attempt(problems, `${id}: after ${[...walk.picks, text].join(' > ')}`, () => {
-    const next = walkOf(chooseQuestOption(walk.world, bundle, index), [...walk.picks, text]);
+    const next = walkOf(eachLanguage((lang) => chooseQuestOption(walk.worlds[lang], bundle, index)), [...walk.picks, text]);
     node.next.push(next.key);
     return next;
   })));
@@ -153,6 +181,18 @@ function viewOf(world: World, bundle: QuestBundle, where: string, problems: stri
     problems.push(`${where}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
+}
+
+function twinSplit(worlds: Record<QuestLanguage, World>, views: Record<QuestLanguage, QuestView | null>): string | null {
+  const en = outcomeOf(worlds.en, views.en);
+  const split = QUEST_LANGUAGES.find((lang) => outcomeOf(worlds[lang], views[lang]) !== en);
+  return split === undefined ? null : `the ${split} twin parts from the English one. English: ${en}. ${split}: ${outcomeOf(worlds[split], views[split])}`;
+}
+
+function outcomeOf(world: World, view: QuestView | null): string {
+  const { quests, money, notes, contracts } = world.player;
+  const shown = view && { quest: view.quest, choices: view.choices.length, costs: view.costs, checks: view.checks, locked: view.locked, facts: view.facts.length, ended: view.ended };
+  return JSON.stringify({ shown, world: quests.world, local: quests.local, session: quests.session, money, notes: notes.map((n) => n.id), contracts: contracts.map((c) => c.id) });
 }
 
 function markupOf(view: QuestView): string[] {
@@ -187,14 +227,21 @@ function trapProblems(id: string, seen: Map<string, Seen>): string[] {
 }
 
 function reloaded(walk: Walk, bundle: QuestBundle): Walk {
-  const loaded = cloneWorld(walk.world);
-  loaded.player.quests.live = null;
-  restoreQuest(loaded, bundle);
+  eachLanguage((lang) => {
+    const loaded = cloneWorld(walk.worlds[lang]);
+    loaded.player.quests.live = null;
+    restoreQuest(loaded, bundle);
+  });
   return walk;
 }
 
-function walkOf(world: World, picks: string[]): Walk {
-  return { key: stateKey(world), world, picks };
+function loadKey(world: World): string {
+  const { quests, money, notes, contracts } = world.player;
+  return JSON.stringify([quests.session, quests.world, quests.local, money, notes.map((n) => n.id), contracts.map((c) => c.id)]);
+}
+
+function walkOf(worlds: Record<QuestLanguage, World>, picks: string[]): Walk {
+  return { key: stateKey(worlds.en), worlds, picks };
 }
 
 function inkOf(world: World): InkState {

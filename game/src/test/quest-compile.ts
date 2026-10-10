@@ -1,13 +1,14 @@
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Compiler, CompilerOptions, type Story } from 'inkjs/full';
 import { ErrorType } from 'inkjs/compiler/Parser/ErrorType';
-import { CHECKPOINT_TAG, MONEY_STAT, QUEST_VIEWS, type CompiledQuest, type QuestBundle, type QuestFact, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
+import { CHECKPOINT_TAG, MONEY_STAT, QUEST_LANGUAGES, QUEST_VIEWS, type CompiledQuest, type QuestLanguage, type QuestText, type QuestBundle, type QuestFact, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
 
 export type QuestSources = Record<string, string>;
-export type CompileResult = { quest: CompiledQuest | null; errors: string[]; warnings: string[]; sections: string[] };
-export type SourcesResult = { bundle: QuestBundle; errors: string[]; warnings: string[]; sections: Record<string, string[]> };
+export type QuestSections = Record<QuestLanguage, string[]>;
+export type CompileResult = { quest: CompiledQuest | null; errors: string[]; warnings: string[]; sections: QuestSections };
+export type SourcesResult = { bundle: QuestBundle; errors: string[]; warnings: string[]; sections: Record<string, QuestSections> };
 
 type ParsedVar = { listDefinition: unknown };
 type ParsedFlow = { isFunction: boolean; subFlowsByName: Map<string, ParsedFlow> };
@@ -27,12 +28,23 @@ type Parsed = { story: Story; vars: string[]; externals: string[]; flows: Map<st
 export const WORLD_FILE = 'world.ink';
 
 export function readQuestSources(dir: string): QuestSources {
-  const files = readdirSync(dir).filter((file) => file.endsWith('.ink')).sort();
-  return Object.fromEntries(files.map((file) => [file, readFileSync(join(dir, file), 'utf8')]));
+  const twinDirs = QUEST_LANGUAGES.filter((lang) => lang !== 'en');
+  const files = [...inkFiles(dir, ''), ...twinDirs.flatMap((lang) => inkFiles(join(dir, lang), `${lang}/`))];
+  return Object.fromEntries(files.map(([key, path]) => [key, readFileSync(path, 'utf8')]));
+}
+
+export function withEnglishTwins(sources: QuestSources): QuestSources {
+  const twins = questIds(sources).flatMap((id) => QUEST_LANGUAGES.filter((lang) => lang !== 'en').map((lang) => [twinFile(id, lang), sources[`${id}.ink`]]));
+  return { ...sources, ...Object.fromEntries(twins) };
+}
+
+function inkFiles(dir: string, prefix: string): [string, string][] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((file) => file.endsWith('.ink')).sort().map((file) => [`${prefix}${file}`, join(dir, file)]);
 }
 
 export function questIds(sources: QuestSources): string[] {
-  return Object.keys(sources).filter((file) => file !== WORLD_FILE).map((file) => file.replace(/\.ink$/, ''));
+  return Object.keys(sources).filter((file) => file !== WORLD_FILE && !file.includes('/')).map((file) => file.replace(/\.ink$/, ''));
 }
 
 export function compileBundle(sources: QuestSources): QuestBundle {
@@ -44,31 +56,75 @@ export function compileBundle(sources: QuestSources): QuestBundle {
 export function compileSources(sources: QuestSources, countAllVisits: boolean): SourcesResult {
   const world = parseInk(WORLD_FILE, sources, countAllVisits);
   if (!world.parsed) return { bundle: { world: {}, externals: [], quests: {} }, errors: world.errors.map((e) => `world: ${e}`), warnings: [], sections: {} };
-  const results = questIds(sources).map((id) => [id, compileQuest(id, sources, countAllVisits)] as const);
+  const ids = questIds(sources);
+  const strays = Object.keys(sources).filter((file) => file.includes('/') && !ids.includes(file.replace(/^[a-z]+\/|\.ink$/g, ''))).map((file) => `${file}: no English quest of that name`);
+  const results = ids.map((id) => [id, compileQuest(id, sources, countAllVisits)] as const);
   const compiled = results.flatMap(([id, r]) => (r.quest ? [[id, r.quest] as const] : []));
   return {
     bundle: { world: declarations(world.parsed.story, world.parsed.vars), externals: [...world.parsed.externals].sort(), quests: Object.fromEntries(compiled) },
-    errors: results.flatMap(([id, r]) => r.errors.map((e) => `${id}: ${e}`)),
+    errors: [...strays, ...results.flatMap(([id, r]) => r.errors.map((e) => `${id}: ${e}`))],
     warnings: results.flatMap(([id, r]) => r.warnings.map((w) => `${id}: ${w}`)),
     sections: Object.fromEntries(results.map(([id, r]) => [id, r.sections])),
   };
 }
 
+export function twinFile(id: string, lang: QuestLanguage): string {
+  return lang === 'en' ? `${id}.ink` : `${lang}/${id}.ink`;
+}
+
+type QuestShape = Omit<CompiledQuest, 'text'>;
+type Twin = { lang: QuestLanguage; shape: QuestShape; text: QuestText } | { lang: QuestLanguage; shape: null; text: null };
+type TwinResult = { twin: Twin; errors: string[]; warnings: string[]; sections: string[] };
+
 export function compileQuest(id: string, sources: QuestSources, countAllVisits: boolean): CompileResult {
+  const results = QUEST_LANGUAGES.map((lang) => compileTwin(id, lang, sources, countAllVisits));
+  const named = (lang: QuestLanguage, message: string) => (lang === 'en' ? message : `${twinFile(id, lang)}: ${message}`);
+  const errors = results.flatMap((r) => r.errors.map((e) => named(r.twin.lang, e)));
+  const warnings = results.flatMap((r) => r.warnings.map((w) => named(r.twin.lang, w)));
+  const sections = Object.fromEntries(results.map((r) => [r.twin.lang, r.sections])) as Record<QuestLanguage, string[]>;
+  const twins = results.map((r) => r.twin);
+  if (errors.length > 0 || !twins.every(hasShape)) return { quest: null, errors, warnings, sections };
+  const [en, ...others] = twins;
+  const mismatches = others.flatMap((t) => twinMismatches(en, t).map((m) => named(t.lang, m)));
+  if (mismatches.length > 0) return { quest: null, errors: mismatches, warnings, sections };
+  const text = Object.fromEntries(twins.map((t) => [t.lang, t.text])) as Record<QuestLanguage, QuestText>;
+  return { quest: { ...en.shape, text }, errors: [], warnings, sections };
+}
+
+function hasShape(twin: Twin): twin is Extract<Twin, { shape: QuestShape }> {
+  return twin.shape !== null;
+}
+
+function compileTwin(id: string, lang: QuestLanguage, sources: QuestSources, countAllVisits: boolean): TwinResult {
+  const failed = (errors: string[], warnings: string[], sections: string[]): TwinResult => ({ twin: { lang, shape: null, text: null }, errors, warnings, sections });
+  const file = twinFile(id, lang);
   const world = parseInk(WORLD_FILE, sources, countAllVisits);
-  const own = parseInk(`${id}.ink`, sources, countAllVisits);
-  if (!own.parsed || !world.parsed) return { quest: null, errors: [...world.errors, ...own.errors], warnings: own.warnings, sections: [] };
+  const own = parseInk(file, sources, countAllVisits);
+  if (!own.parsed || !world.parsed) return failed([...world.errors, ...own.errors], own.warnings, []);
   const worldVars = new Set(world.parsed.vars);
   const local = own.parsed.vars.filter((name) => !worldVars.has(name));
   const sections = sectionsOf(own.parsed.flows);
   const header = headerOf(own.parsed.story);
-  header.errors.push(...strayHeaderErrors(sources[`${id}.ink`], own.parsed.story));
+  header.errors.push(...strayHeaderErrors(sources[file], own.parsed.story));
   const ruleErrors = [...varErrors(own.parsed), ...checkpointErrors(own.parsed), ...countErrors(own.parsed), ...header.errors];
-  if (ruleErrors.length > 0) return { quest: null, errors: ruleErrors, warnings: own.warnings, sections };
+  if (ruleErrors.length > 0) return failed(ruleErrors, own.warnings, sections);
   const story = own.parsed.story.ToJson();
-  if (!story) throw new Error(`Quest ${id} compiled to no story`);
-  const quest = { story, vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view, stats: header.stats, facts: header.facts };
-  return { quest, errors: [], warnings: own.warnings, sections };
+  if (!story) throw new Error(`Quest ${file} compiled to no story`);
+  const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view };
+  return { twin: { lang, shape, text: { story, stats: header.stats, facts: header.facts } }, errors: [], warnings: own.warnings, sections };
+}
+
+function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<Twin, { shape: QuestShape }>): string[] {
+  const outline = (t: Extract<Twin, { shape: QuestShape }>): Record<string, string> => ({
+    variables: JSON.stringify(t.shape.vars),
+    checkpoints: JSON.stringify(t.shape.checkpoints),
+    view: t.shape.view,
+    stats: JSON.stringify(t.text.stats.map((s) => [s.name, s.words?.length ?? null])),
+    facts: JSON.stringify(t.text.facts.map((f) => f.name)),
+  });
+  const a = outline(en);
+  const b = outline(twin);
+  return Object.keys(a).filter((key) => a[key] !== b[key]).map((key) => `its ${key} part does not match the English quest: ${b[key]} against ${a[key]}`);
 }
 
 type Header = { view: QuestViewKind; stats: QuestStat[]; facts: QuestFact[]; errors: string[] };

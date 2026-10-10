@@ -93,3 +93,42 @@ Good lines to match:
 - refit: переоснащение. Mount: крепление.
 - pristine (no wear): без износа. Rebuilt after a breakdown: капремонт, «2 капремонта». Broken: не работает. Junk: лом.
 - flatbed extension: удлинитель кузова. Cage: каркас. Armor plate: стальной лист.
+- money: М, as «60 М». A sum inside a quest line reads «{price} М».
+- watch, a shift of time in a quest: вахта, «две вахты».
+
+## Quests
+
+Each quest in `src/data/quests/<quest>.ink` has a Russian twin in `src/data/quests/ru/<quest>.ink`. [Quests](architecture/quests.md) explains how the game picks the twin and how the checker compares them. A twin is the same script with Russian words.
+
+What stays exactly as in the English file:
+
+- Knots, stitches, diverts, gathers, `VAR` lines and their values, `INCLUDE`, conditions, `~` lines and every call such as `note("wagonPin")`.
+- The order and number of choices, and whether each is `+` or `*`.
+- Tags with ids or numbers: `checkpoint`, `img`, `cost`, `check`, `reveal`, `speed`, `view`, `row`, `head`, `page` and `work_offer`.
+- Markup names: `<b>`, `<i>`, `<shake>`, `<pop>`, `<color=rust>` and `<term=id>`. Translate the words between the tags.
+- The number of `;` cells in a `# row` or `# head` line.
+
+What is translated:
+
+- Every line of text, the words inside choice brackets and the words after a choice's closing bracket.
+- The values of `# place:` and `# speaker:`.
+- The labels and words of `# stat:` and the text of `# fact:`. The variable name after `stat:` or `fact:` stays.
+
+How it reads:
+
+- Narration speaks to the player as «вы», in the present tense: «Вы кладёте обломок на верстак».
+- A choice the player says aloud stays direct speech, as in the English: «Что это за место?», «Пока.». A choice that is an action is an infinitive phrase, as in Russian text quests: «Положить обломок на верстак и сказать, откуда он».
+- People in town say «ты» to the player, like drivers on the radio.
+- The player has no gender in the game. Never write a past-tense verb or a short adjective that agrees with the player. Write «Ты это видел?» as «Видно было?» or «Ты это видишь?», and «ты прав» as «тут не поспоришь».
+- Ink has no plurals. A number from a variable sits before a word whose form does not change, like «М», or the sentence is rewritten around it.
+- Table rows use the Russian number format: a decimal comma and a no-break space between thousands.
+- A dialogue dash is «—». A hyphen at the start of a line is an ink gather, so never start a line of text with «-».
+- Each speaker keeps their voice from [the voice sheets](lore/voices.md): their words, rhythm and habits.
+
+Names:
+
+- People: Agnes Ondra is Агнес Ондра. Mirela is Мирела. Sergeant Kovac is сержант Ковач. Lena is Лена. Old Ibo is Старый Ибо. Ruben is Рубен. Hattie is Хэтти. Dag is Даг. Jory Baptiste is Джори Батист. Sefa Krol is Сефа Кроль. Corporal Bram Teller is капрал Брэм Теллер. Private Ilan Duvall is рядовой Илан Дюваль. Vance is Вэнс. Pell is Пелл. Sabine is Сабина. Bo Lindqvist is Бо Линдквист. Ines Abend is Инес Абенд. Mirela Duarte is Мирела Дуарте. Aurel Brede is Аурел Бреде. Pim Arslan is Пим Арслан. Commander Lind is командир Линд. Otto Brann is Отто Бранн. Tamsin Roe is Тэмсин Роу. The Steward is управляющий.
+- Places take their names from `site.*` in `src/text/ru/names.ts`: Bowl is Чаша, Nose is Нос, Pump Station is Насосная станция, Salvage Yard is Свалка, Granary is Элеватор, Burnt Convoy is Сгоревший конвой, Kiln is Обжиг, Scrapjaw is Ржавая Челюсть, Glass Flats is Стеклянная равнина and Fallen Sun is Павшее солнце.
+- Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращённые к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
+- Water: the dial is счётчик, a hose meter is водомер, the tanker is цистерна, a trough is жёлоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.
+- Guns: the pin is штифт, its broken stub is огрызок, the swivel mount is турель and its ring is кольцо. A hollow is лощина.

@@ -5,18 +5,23 @@ import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { START_KITS } from '../src/data/start.ts';
 import { UNITS } from '../src/data/units.ts';
 import { skillLevel } from '../src/sim/progress.ts';
-import { chooseQuestOption, questProblems, questView, restoreQuest, startQuest } from '../src/sim/quests.ts';
+import { QUEST_LANGUAGES } from '../src/data/quests.ts';
+import { chooseQuestOption, questProblems, questView, restoreQuest, setQuestLanguage, startQuest } from '../src/sim/quests.ts';
+import { entryText } from '../src/text/resolve.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { newWorld } from '../src/sim/world.ts';
 import { TEST_MAP } from '../src/test/map.ts';
 import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
-import { parseMarkup, termText } from '../src/ui/quest-text.ts';
+import { parseMarkup } from '../src/ui/quest-text.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, skill: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' }, from: { type: 'string' } },
+  options: { lang: { type: 'string', default: 'en' }, checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, skill: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' }, from: { type: 'string' } },
 });
 if (values.pick !== undefined && !values.play) throw new Error('--pick needs --play <file>');
+if (!QUEST_LANGUAGES.includes(values.lang)) throw new Error(`--lang ${values.lang} needs one of ${QUEST_LANGUAGES.join(', ')}`);
+setQuestLanguage(values.lang);
+const termText = (term) => entryText(values.lang, `term.${term}`);
 const id = positionals[0];
 if (!id) throw new Error('Name a quest: npm run quest -- <quest>, or list them: npm run quest -- list');
 const { bundle, errors } = compileSources(readQuestSources('src/data/quests'), false);
