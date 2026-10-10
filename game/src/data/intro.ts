@@ -8,6 +8,7 @@ export const AMBUSH = {
   sightMin: 1.2,
   sightMax: 2,
   sightTarget: 1.5,
+  aheadCos: 0.7,
   roadStep: 2,
   parkingRings: 6,
   parkingAngles: 8,

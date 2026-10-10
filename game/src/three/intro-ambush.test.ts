@@ -20,6 +20,7 @@ import { canUseSite } from '../sim/sites';
 import { spawnAt } from '../sim/spawn';
 import { editableTerrain, emptyWorld, testDrive } from '../sim/testkit';
 import { tileAt } from '../sim/terrain';
+import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { playerSees } from '../sim/vision';
@@ -96,6 +97,24 @@ describe('the ambush', () => {
     expect(topGoal(raider)).toMatchObject({ kind: 'fight', targetId: w.player.vehicleId });
     expect(w.events.filter((e) => e.t === 'spawn')).toHaveLength(1);
     expect(raider.brain!.traits).toEqual(expect.arrayContaining(['raider', 'brave']));
+  });
+
+  it('spawns the raider on the road ahead of the player, so a driver heading on meets it', () => {
+    const w = ambushed();
+    const me = playerVehicle(w);
+    const [raider] = raidersIn(w);
+    const along = (raider.pos.x - me.pos.x) * Math.cos(me.heading) + (raider.pos.y - me.pos.y) * Math.sin(me.heading);
+    expect(along).toBeGreaterThan(dist(raider.pos, me.pos) * AMBUSH.aheadCos - 1e-9);
+  });
+
+  it('keeps the raider on the player\'s real position, so it never stops at an old sighting', () => {
+    let w = ambushed();
+    for (let i = 0; i < 3; i++) w = endTurn(w, testDrive);
+    const me = playerVehicle(w);
+    me.pos = { x: me.pos.x + 30, y: me.pos.y };
+    w = endTurn(w, testDrive);
+    const track = trackOf(raidersIn(w)[0], w.player.vehicleId);
+    expect(dist(track!.at, playerVehicle(w).pos)).toBeLessThan(1);
   });
 
   it('waits off the road and spawns nothing', () => {

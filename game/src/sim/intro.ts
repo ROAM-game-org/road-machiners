@@ -1,5 +1,5 @@
 import { FARM_TOWER_ID } from '../data/arrival';
-import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
+import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { REGION } from '../data/region';
@@ -16,6 +16,7 @@ import { engineNeedsPatch } from './repair';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
 import { isRoadTile } from './terrain';
+import { chooseOn } from './tracks';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { playerSees, sightRadius } from './vision';
@@ -39,8 +40,9 @@ function keepHunting(w: World): void {
   if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
   const me = playerVehicle(w);
   const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
-  if (!fight) fightCornered(w, raider, me, 'robCargo');
-  else if (fight.worn) fight.worn = { ...fight.worn, turn: w.turn };
+  if (!fight) return fightCornered(w, raider, me, 'robCargo');
+  chooseOn(w, raider, me.id, me.pos, 'fight', false);
+  fight.worn = { ...fight.worn!, turn: w.turn };
 }
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
@@ -92,12 +94,16 @@ function launchAmbush(w: World): void {
 
 function ambushSpot(w: World, me: Vehicle, radius: number): Vec | null {
   const sight = sightRadius(w, me);
-  const green = getKnownSite(GREEN_PIT).pos;
   const target = sight * AMBUSH.sightTarget;
   return roadPoints()
     .filter((p) => dist(p, me.pos) >= sight * AMBUSH.sightMin && dist(p, me.pos) <= sight * AMBUSH.sightMax)
-    .filter((p) => dist(p, green) < dist(me.pos, green) && !playerSees(w, p) && isFree(w, p, radius, null))
+    .filter((p) => isAhead(me, p) && !playerSees(w, p) && isFree(w, p, radius, null))
     .sort((a, b) => Math.abs(dist(a, me.pos) - target) - Math.abs(dist(b, me.pos) - target))[0] ?? null;
+}
+
+function isAhead(me: Vehicle, p: Vec): boolean {
+  const along = (p.x - me.pos.x) * Math.cos(me.heading) + (p.y - me.pos.y) * Math.sin(me.heading);
+  return along >= dist(p, me.pos) * AMBUSH.aheadCos;
 }
 
 function roadPoints(): Vec[] {
