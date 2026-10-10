@@ -386,7 +386,7 @@ function damageSpans(world: World, vehicleId: string, hits: PartHit[]): LogSpan[
 }
 
 function jobText(world: World, e: Extract<GameEvent, { t: 'job' }>): LogLine | null {
-  if (e.vehicle !== world.player.vehicleId) return null;
+  if (e.vehicle !== world.player.vehicleId || (e.outcome === 'done' && e.job.kind === 'search')) return null;
   const what = jobLabel(world, playerVehicle(world), e.job);
   const lines = {
     started: line(t('log.jobStarted', { what, n: e.job.turnsLeft }), ''),

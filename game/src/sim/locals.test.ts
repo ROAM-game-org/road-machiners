@@ -293,13 +293,16 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Ask what she\'s writing.', 'Ask why the tanker\'s meter came off.'];
+  const OPEN = ['Read her the big dial.', 'Ask why the tanker\'s meter came off.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
   const TAKE = 'Take the copy and the meter out to your truck.';
   const ROAD = [...OPEN, COVER, CARRY, TAKE, 'Keep the copy.'];
   const LIE = 'Tell him it\'s pump records for the lock house.';
   const LOCK = 'Drive down to the lock house.';
+  const SIGN = 'Sign and write what you read on the dial.';
+  const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
+  const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
 
   it('lists Agnes at the Pump Station', () => {
     expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
@@ -343,7 +346,7 @@ describe('locals at stalls', () => {
     const w = parkedAt('pump-station');
     const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', LOCK]);
 
-    expect(questView(lost, QUESTS).choices).toContain('Sign as the carrier.');
+    expect(questView(lost, QUESTS).choices).toContain(SIGN);
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
     expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
   });
@@ -352,7 +355,7 @@ describe('locals at stalls', () => {
     const w = parkedAt('pump-station');
     const gate = [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', LOCK];
 
-    const signed = talk(w, 'pump_agnes', [...gate, 'Sign as the carrier.']);
+    const signed = talk(w, 'pump_agnes', [...gate, SIGN]);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
@@ -377,19 +380,27 @@ describe('locals at stalls', () => {
     const w = parkedAt('pump-station');
 
     const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
-    expect(questView(bought, QUESTS).choices).toContain('Sign as the carrier.');
+    expect(questView(bought, QUESTS).choices).toContain(SIGN);
     expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
   it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('pump-station');
 
-    const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', 'Drive up to the top terrace.', 'Bolt Agnes\'s meter onto the inlet.']);
+    const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', TERRACE, BOLT]);
     expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
     expect(w.player.money - sheared.player.money).toBe(90 * UNITS.centsPerM);
 
-    const signed = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', 'Drive up to the top terrace.', 'Bolt Agnes\'s meter onto the inlet.', LOCK, 'Sign as the carrier.']);
+    const signed = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', TERRACE, BOLT, LOCK, SIGN]);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
+  });
+
+  it('offers the meter bolt only to a driver who took the meter', () => {
+    const w = parkedAt('pump-station');
+    const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', 'Slip the older one some coin.', TERRACE];
+
+    expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
+    expect(questView(talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', TERRACE]), QUESTS).choices).toContain(BOLT);
   });
 
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {

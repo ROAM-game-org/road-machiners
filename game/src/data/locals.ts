@@ -119,12 +119,12 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
-    text: "The pump brings up less water every season, and more of it goes missing. The missing water goes into the household's tanker, which loads at the pump every week. The Senate made Agnes take the meter off its hose, so its loads go in no book.",
+    text: "The pump brings up less every season, and Bowl's trucks get less too. Every hose at the pump has a meter except the household tanker's. The Senate ordered its meter off in autumn, and the gap in Agnes's book has grown every week since. You read this week's dial, and your name is beside the number.",
   },
   pipeDraw: {
     title: 'A tanker in no book',
     from: "Agnes's copy of the pump book",
-    text: "Agnes's copy matches her book. On the last page she ran the numbers forward: by next autumn, Bowl's trucks get almost nothing.",
+    text: "Agnes's copy matches her book, down to your name beside this week's dial. On the last page she ran the numbers forward as a guess: if the pump keeps falling and the tanker keeps growing, Bowl's trucks get almost nothing by next autumn.",
   },
   pipeOffer: {
     title: 'Money to lose the copy',
@@ -134,7 +134,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeCanal: {
     title: "Mirela's book in Bowl",
     from: 'Mirela Duarte, Bowl lock house',
-    text: "Every barrel Agnes loaded onto Bowl's trucks reached Mirela's count, so Agnes's book is honest and the gap is the tanker. Mirela will read both books to the Senate and try to win back the canal families' share of the water.",
+    text: "Every barrel Agnes loaded onto Bowl's trucks reached Mirela's trough, so Agnes's hose column is honest. The dial is the other half, and you read it. Mirela will read every number to the Senate and try to win back the canal families' job of sharing out the trough.",
   },
 };
 

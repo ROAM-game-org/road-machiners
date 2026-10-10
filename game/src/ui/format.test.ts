@@ -671,3 +671,15 @@ describe("loot argument log", () => {
     expect(eventText(w, { t: "lootArgument", warner: warner.id, looter: looter.id, place: "pile", end: "yielded" })).toBeNull();
   });
 });
+
+describe("a finished search in the log", () => {
+  it("logs one line, the search line, and keeps the job line for other work", () => {
+    const w = emptyWorld();
+    const me = w.player.vehicleId;
+    const search: Job = { kind: "search", stockId: "opening-wreck", turnsLeft: 0, total: 2 };
+    const repair: Job = { kind: "repair", partId: mountedParts(w.vehicles[0])[0].id, parts: 1, turnsLeft: 0, total: 2 };
+    expect(eventText(w, { t: "job", vehicle: me, job: search, outcome: "done" })).toBeNull();
+    expect(logEn(w, { t: "searched", stock: "opening-wreck" })?.text).toBe("Search done.");
+    expect(eventText(w, { t: "job", vehicle: me, job: repair, outcome: "done" })).not.toBeNull();
+  });
+});

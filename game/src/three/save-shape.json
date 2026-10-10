@@ -2023,6 +2023,7 @@
     "fine": "number",
     "knows_envelope": "boolean",
     "margin_read": "boolean",
+    "meter_taken": "boolean",
     "offer_heard": "boolean",
     "offer_open": "boolean",
     "price": "number",
