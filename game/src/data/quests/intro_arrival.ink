@@ -36,7 +36,7 @@ A machine gun sits on a swivel ring behind the cab, its barrel wrapped in rag. A
 Someone has scratched a ladle into the driver's door, deep, with a knife point.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of oil, rope and old tobacco. A key stands in the ignition, with a brass tag on its ring stamped with a number worn half smooth. # page
 You twist the key. The starter grinds, slows and quits.
-You twist it again. The engine catches for a breath, shakes the whole cab and dies. You call the truck something you wouldn't call a dog.
+You twist it again. The engine catches for a breath, shakes the whole cab and dies. "Come on, you rusted pig," you tell it.
 You lean your forehead on the hot wheel and wait. Then you try a third time. It coughs, misses, coughs again, and holds. The idle is rough and lopsided, and the mirror shakes with it. It's the best sound you have heard in a long time.
 You ease out of the shed. The roof sheet scrapes the length of the cab and slides off the tailgate, and the basin opens up in front of the hood. # page
 The fuel needle sits just above empty, and your tongue sticks to your teeth. The town in the haze had better be close.

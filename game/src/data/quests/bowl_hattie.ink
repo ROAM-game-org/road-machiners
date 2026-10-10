@@ -8,6 +8,7 @@ VAR hattie_strangers = false
 VAR hattie_granary = false
 VAR hattie_soldiers = false
 VAR hattie_roads = false
+VAR hattie_came_out = false
 
 === start ===
 # checkpoint: start
@@ -18,7 +19,7 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
 # checkpoint: start.hub
 + {not hattie_rumor} [Heard any rumors?]
   A scavenger came through a few days back, trying to sell a Nose Army radio. He swore he'd pulled it off an Army wagon sitting dead in the hills north-east of here.
-  When the patrol asked him where exactly, he filled his tank and left for Nose in a hurry.
+  When the patrol asked him where exactly, he filled his tank and left by the south road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
@@ -42,7 +43,7 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   Soldiers playing at being a town, if you ask me. They eat our grain and send us orders back, and they're perfectly polite whenever they want something.
   ~ hattie_soldiers = true
   -> hub
-+ {hattie_soldiers and not hattie_roads} [Will they stop me on the road?]
++ {hattie_soldiers and not hattie_roads} [Will the Nose soldiers stop me on the road?]
   Not on the open road. Nobody guards that, which is the trouble with it. But Nose won't let a truck out of its own gate without a gun on it, so don't go up there unarmed.
   ~ hattie_roads = true
   -> hub
@@ -57,6 +58,11 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   I've never followed one in, and I won't.
   ~ note("talkSunwardTake")
   ~ hattie_sunward = true
+  -> hub
++ {hattie_sunward and not hattie_came_out} [Have you seen one come out?]
+  Once. A woman came up the canal road at dusk and asked me for water. Her hands had a green shine to them in the dark, and she drank bucket after bucket without a word.
+  She didn't pay, and I didn't ask her to. She walked back the way she came, toward the crater.
+  ~ hattie_came_out = true
   -> hub
 + [Goodbye.]
   Come back when you've coin for a bucket.

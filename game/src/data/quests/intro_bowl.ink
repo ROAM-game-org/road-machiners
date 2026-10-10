@@ -6,7 +6,7 @@ INCLUDE world.ink
 Somewhere close, a bucket is coming up a well on a creaking rope. # place: Bowl
 You're lying on a bench under a roof of woven reeds. Past the shade run canals full of slow brown water. Past them the terraces climb, green with crops.
 You sit up, and your head swims, then settles. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper. It has a brass tag, like the one on your key. # page
-The bed is empty. Somebody went through the engine bay in a hurry and left the bolts where they fell.
+The bed is empty. Somebody went through the engine bay and left the bolts where they fell.
 A broad woman with flour on her forearms sets a cup of water on the bench beside you. Then she sits down at the other end of it. # page
 Drink it slow. A tow man brought you in at first light and set you on my bench. He asked me one thing and drove off. No name, and no coin either. # speaker: Hattie
 She nods at the chain on your bumper.
