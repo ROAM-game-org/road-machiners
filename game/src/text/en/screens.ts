@@ -655,5 +655,6 @@ export const SCREENS = {
   'quest.next': 'Next',
   'quest.speaker': m('{name}: ', { name: 'text' }),
   'quest.choice': m('{n}. {text}', { n: 'int', text: 'text' }),
+  'quest.check': m('{skill} {level}, yours {have}', { skill: 'text', level: 'int', have: 'int' }),
   'quest.offer': m('{summary}, pays {pay}, within {window}.', { summary: 'text', pay: 'text', window: 'text' }),
 };

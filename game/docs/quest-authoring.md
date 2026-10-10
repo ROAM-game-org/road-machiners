@@ -78,6 +78,7 @@ INCLUDE world.ink
 - Write documents as tables with `# head` and `# row` lines, cells split by `;`. Use them for ledgers, logs and price boards.
 - `# img: <key>` shows a picture. To add one, put the file in `public/quest-art/` and add the key to `QUEST_ART` in `src/data/quest-art.ts`.
 - A paid choice carries `# cost: <M>` inside its brackets. The runner charges it on the pick and greys the choice out when the player holds less.
+- A choice that can fail carries `# check: <skill> <level>` inside its brackets, and the ink after it branches on `passed()`. The window shows the skill and level next to the choice. [Skill checks in talk](dialogue-writing.md#skill-checks-in-talk) has the writing rules.
 
 [Quests](architecture/quests.md#top-tags) lists every tag and its exact rules.
 

@@ -2,6 +2,7 @@
 import { Story } from 'inkjs';
 import {
   CHECKPOINT_TAG,
+  CHECK_TAG,
   COST_TAG,
   FIRST_FALL_SEEN,
   GAME_OPENED_QUESTS,
@@ -28,7 +29,7 @@ import { skillLevel } from './progress';
 import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
-import type { QuestLine, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
+import type { QuestCheck, QuestLine, QuestSession, QuestState, QuestVars, SkillId, World } from './types';
 import { update } from './world';
 
 export type QuestView = {
@@ -37,6 +38,7 @@ export type QuestView = {
   lines: QuestLine[];
   choices: string[];
   costs: (number | null)[];
+  checks: (QuestCheck | null)[];
   locked: boolean[];
   stats: { label: string; value: string }[];
   facts: string[];
@@ -51,6 +53,7 @@ const INK_SEED_RANGE = 2 ** 31;
 const runners = new WeakMap<CompiledQuest, Runner>();
 
 const begun = new WeakMap<World, string>();
+const pickedChecks = new WeakMap<World, QuestCheck>();
 const SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export const QUEST_QUERIES: Record<string, QuestQuery> = {
@@ -62,6 +65,11 @@ export const QUEST_QUERIES: Record<string, QuestQuery> = {
   has_offers: (world) => townOffers(world).length > 0,
   board_full: (world) => boardFull(world),
   skill: (world, args) => skillLevel(world, skillArg('skill', args)),
+  passed: (world) => {
+    const check = pickedChecks.get(world);
+    if (!check) throw new Error('passed() ran with no # check choice picked');
+    return skillLevel(world, check.skill) >= check.level;
+  },
 };
 
 export const QUEST_EFFECTS: Record<string, QuestEffect> = {
@@ -197,10 +205,16 @@ export function chooseQuestOption(world: World, bundle: QuestBundle, index: numb
     if (!live) throw new Error(`Quest ${session.quest} has no live state. Restore it first`);
     if (!Number.isInteger(index) || index < 0 || index >= live.choices.length) throw new Error(`No choice ${index} on offer`);
     payCost(w, live.costs[index], live.choices[index]);
-    runQuest(w, bundle, session.quest, (story) => {
-      story.state.LoadJson(live.ink);
-      story.ChooseChoiceIndex(index);
-    });
+    const check = live.checks[index];
+    if (check) pickedChecks.set(w, check);
+    try {
+      runQuest(w, bundle, session.quest, (story) => {
+        story.state.LoadJson(live.ink);
+        story.ChooseChoiceIndex(index);
+      });
+    } finally {
+      pickedChecks.delete(w);
+    }
   });
 }
 
@@ -244,6 +258,7 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     lines: live.lines,
     choices: live.choices,
     costs: live.costs,
+    checks: live.checks,
     locked: live.costs.map((cost) => cost !== null && cost > money),
     stats: quest.stats.map((stat) => ({ label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
     facts: quest.facts.filter((fact) => questVar(world, bundle, live.quest, fact.name) === true).map((fact) => fact.text),
@@ -391,18 +406,29 @@ function settle(w: World, bundle: QuestBundle, questId: string, story: Story, li
   state.local = Object.keys(local).length > 0 ? { ...others, [questId]: local } : others;
   const choices = story.currentChoices.map((choice) => choice.text);
   const costs = story.currentChoices.map((choice) => choiceCost(questId, choice.text, choice.tags ?? []));
-  state.live = { quest: questId, ink: story.state.toJson(), lines, choices, costs };
+  const checks = story.currentChoices.map((choice) => choiceCheck(questId, choice.text, choice.tags ?? []));
+  state.live = { quest: questId, ink: story.state.toJson(), lines, choices, costs, checks };
   if (choices.length === 0) state.session = null;
 }
 
 function choiceCost(questId: string, text: string, tags: readonly string[]): number | null {
   const tag = tags.find((t) => t.startsWith(COST_TAG));
-  const other = tags.find((t) => !t.startsWith(COST_TAG));
-  if (other !== undefined) throw new Error(`Choice "${text}" of ${questId} carries # ${other}. A choice takes only # cost.`);
+  const other = tags.find((t) => !t.startsWith(COST_TAG) && !t.startsWith(CHECK_TAG));
+  if (other !== undefined) throw new Error(`Choice "${text}" of ${questId} carries # ${other}. A choice takes only # cost and # check.`);
   if (tag === undefined) return null;
   const cost = Number(tag.slice(COST_TAG.length).trim());
   if (!Number.isInteger(cost) || cost <= 0) throw new Error(`Choice "${text}" of ${questId} needs a whole positive cost, got # ${tag}`);
   return cost;
+}
+
+function choiceCheck(questId: string, text: string, tags: readonly string[]): QuestCheck | null {
+  const tag = tags.find((t) => t.startsWith(CHECK_TAG));
+  if (tag === undefined) return null;
+  const [id, levelText, ...rest] = tag.slice(CHECK_TAG.length).trim().split(/\s+/);
+  const skill = SKILL_IDS.find((s) => s === id);
+  const level = Number(levelText);
+  if (!skill || !Number.isInteger(level) || level <= 0 || rest.length > 0) throw new Error(`Choice "${text}" of ${questId} needs # check: <skill> <level>, got # ${tag}`);
+  return { skill, level };
 }
 
 function storedVars(story: Story, decls: Record<string, QuestVarDecl>, quest: string | null): QuestVars {

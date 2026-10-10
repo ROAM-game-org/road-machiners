@@ -1,9 +1,11 @@
 
 import { questArtUrl } from '../data/quest-art';
 import { townWork } from '../sim/dialogue-rules';
+import { skillLevel } from '../sim/progress';
 import type { QuestView } from '../sim/quests';
 import type { QuestLine, World } from '../sim/types';
 import { t, verbatim } from '../text/msg';
+import { skillName } from '../text/names';
 import { el } from './dom';
 import { contractSummary, contractWindow } from './format';
 import { lineStyle, renderLine, rowCells } from './quest-text';
@@ -74,6 +76,8 @@ export function choiceButtons(w: World, view: QuestView, pick: (index: number) =
   return view.choices.map((text, i) => {
     const locked = view.locked[i];
     const held = locked ? el('span', { class: 'quest-held' }, moneyMsg(w.player.money)) : null;
-    return el('button', { class: 'quest-choice', 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
+    const check = view.checks[i];
+    const tested = check ? el('span', { class: 'quest-check' }, t('quest.check', { skill: skillName(check.skill), level: check.level, have: skillLevel(w, check.skill) })) : null;
+    return el('button', { class: 'quest-choice', 'data-choice': String(i), disabled: locked, onclick: () => pick(i) }, tested, t('quest.choice', { n: i + 1, text: verbatim(text) }), held);
   });
 }

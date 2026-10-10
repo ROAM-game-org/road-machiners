@@ -3,7 +3,7 @@ import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf } from './quest-lines';
 import { askOf } from './quest-screen';
 
-const live = (quest: string, text: string): QuestLive => ({ quest, ink: '{}', lines: [{ text, tags: [] }], choices: ['Goodbye.'], costs: [null] });
+const live = (quest: string, text: string): QuestLive => ({ quest, ink: '{}', lines: [{ text, tags: [] }], choices: ['Goodbye.'], costs: [null], checks: [null] });
 const line = (text: string, ...tags: string[]) => ({ text, tags });
 
 describe('pagesOf', () => {

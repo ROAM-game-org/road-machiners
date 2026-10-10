@@ -42,7 +42,8 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `begin(quest)` opens another quest at its `start` once this one ends. It must come right before `-> END`, or the pick throws. Kovac starts the depot quest this way.
 - `note(id)` writes a journal note and `has_note(id)` reads one. `found(site)` reads whether a town or location is found, and `searched(wreck)` whether a story wreck is searched. Each throws on an id the game does not know.
 - `has_work()`, `has_offers()` and `board_full()` read the board of the town the truck is parked at, and `take_work()` takes its best offer as the Contracts tab does. They throw away from a town. The offer is the best-paying open contract the truck can take, from `townWork()` in `src/sim/dialogue-rules.ts`. `has_offers()` tells a board with open contracts the truck cannot take from an empty one.
-- `skill(id)` reads the player's level in a skill: driving, perception, machining, toughness or social. It throws on any other id. The veteran check world holds every skill at the top level, so a skill check is walked both ways.
+- `skill(id)` reads the player's level in a skill: driving, perception, machining, toughness or social. It throws on any other id. The veteran check world holds every skill at the top level, so a skill check is walked both ways. Use it for what a skill lets the player see or say for free, like an extra line in a document.
+- `passed()` tells whether the player meets the `# check` of the choice just picked. A choice that can fail carries the check, and the ink after the pick branches on `passed()`. It throws when the picked choice has no check, and on a load, which picks nothing.
 - Game state such as money is read through a query, never copied into an ink variable.
 
 ## Top tags
@@ -60,7 +61,8 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - `# row` and `# head` make a line a table row, its cells split by `;`. Lines in a row form one table, for ledgers, logs and price boards. The voice test reads no numbers in them.
 - `# place: <name>` names where the page is and heads it until another place. `# page` starts a new page, behind a Next button. A page tag on the first line of a pick's output starts no new page, so a load opens on it directly.
 - `# img: <key>` shows a picture. The keys and their files under `public/quest-art/` are in `QUEST_ART` in `src/data/quest-art.ts`. A page shows the latest picture in its art column until another replaces it, and a talk shows it among the lines. A key not in the list fails the check.
-- A choice tagged `# cost: <M>` takes that money when picked. The window shows it greyed with the player's money when they hold less, and a pick of it throws. The tag may hold an ink value: `+ [Pay her {price} M. # cost: {price}]`. A choice takes no other tag.
+- A choice tagged `# cost: <M>` takes that money when picked. The window shows it greyed with the player's money when they hold less, and a pick of it throws. The tag may hold an ink value: `+ [Pay her {price} M. # cost: {price}]`.
+- A choice tagged `# check: <skill> <level>` tests a skill. The window shows the skill, the level it needs and the player's own level, so a failure is never a surprise rule. The level may be an ink value: `# check: social {gate_need()}`. A choice takes only `# cost` and `# check`.
 - `MARKS` and `LINE_TAGS` in `src/ui/quest-text.ts` list them. A new effect is one entry there and its CSS in `style.css`. Unknown or unclosed markup and unknown tags fail `npm run quests:check`.
 - `src/ui/quest-screen.ts` is the talk window. It shows whenever `player.quests.live` is set, so a start, a pick and a load all show it. It lies over every other screen. Digits pick, a click, Space or Enter shows the rest of the reveal at once, and Escape leaves the quest.
 - A talk shows only the player's last pick, the reply and the choices. Earlier exchanges are not kept, so the player reads each reply. A `# page` tag splits a reply behind a Next button, as in the page view. It suits short talk, like asking around town.
@@ -120,10 +122,11 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 
 ## The Archon's pipe
 
-`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Each question follows from her last answer: the pump, the numbers, the meter the Senate took off one pipe, the second copy. The second copy opens `pump_pipe.ink`, shown as pages. Agnes gives the player a sealed copy of her pump book to carry to Mirela Duarte in Bowl. Her stated reason is that a driver passes the patrol unseen. The margin of the book shows the real one: she wants a driver named as the finder, so the Pump Station is not.
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Each question follows from her last answer: the pump, the numbers, the meter the Senate took off one pipe. Sava, a Marr watchman, sits on a drum by her gate. When Agnes first names the falling numbers he asks the player what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player. Only then does she name the second copy, and the envelope of household money in her drawer. Telling him sets `pipe_fate` to `searched`, pays 20 M and ends the quest. The second copy opens `pump_pipe.ink`, shown as pages. Agnes gives the player a sealed copy of her pump book to carry to Mirela Duarte in Bowl. Her stated reason is that a driver passes the patrol unseen. The margin of the book shows the real one: she wants a driver named as the finder, so the Pump Station is not.
 
-A steward of the Archon's household meets the player on the Bowl road. He has already sent word to the patrol at the Bowl gate, so the road into Bowl has a checkpoint. The quest variable `sluice` keeps how the player stands with it.
+The steward Aurel Brede meets the player on the Bowl road. He has already sent word to the patrol at the Bowl gate, so the road into Bowl has a checkpoint. The quest variable `sluice` keeps how the player stands with it.
 
+- Social 2 on the steward makes him tell what the pipe feeds: half its water is the Senate's dry-year store under the terrace. Mirela hears it as a way to split the Senate.
 - Social 3 on the steward gets a household pass and half the offer, and the player keeps the book. A failure sends his rider ahead, and every later check at the gate needs one more rank.
 - The gate itself is run by driving the dry canal cut round it, talked past by social, or bribed with 50 M. A failed run or talk loses the bundle to the Archon's desk, costs a fine of 40 M and sets `pipe_fate` to `seized`. A bribe passes, but the patrol writes the player's name down.
 - Mirela's lock house sits on the lowest canal in Bowl, right under the Archon's terraces. It needs no `found()` gate, because the player is already in Bowl once the gate is passed. The checkpoints keep their old names, and the variable `sluice` keeps the player's standing at the gate.
@@ -132,7 +135,7 @@ A steward of the Archon's household meets the player on the Bowl road. He has al
 - Perception 2 while reading the book shows the first pipe line in Wendell's hand, a year older than the order. Mirela reads it two ways and the player does not learn which is true.
 - Selling to the steward pays 100 M and sets `sold`. Reading at the Granary gate sets `read`, keeps the book with social 2 and otherwise costs 40 M and the book. Dropping the bundle in a ditch changes nothing, and Agnes offers again.
 
-The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized` and `metered`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes.
+The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized`, `metered` and `searched`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes.
 
 ## Locals at stalls
 

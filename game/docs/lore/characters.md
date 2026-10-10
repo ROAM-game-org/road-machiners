@@ -86,7 +86,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 
 Way: fear.
 
-Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every meter she reads is lower than last spring. She found a pipe with no meter that runs up to the Archon's terrace, and the Senate made her take her meter off it.
+Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every meter she reads is lower than last spring. She found a pipe with no meter that runs up to the Archon's terrace, and the Senate made her take her meter off it. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost, and she wants the copy carried out by a stranger, so a driver is named as its finder and she is not. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -94,9 +94,27 @@ Her line is "I did not come to take your water. I came to write down how much of
 
 Way: oppose.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws. She does not want the pipe metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+
+Tomas saw the bright valve wheel on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
 Her line is "The water came from our seep, and we will count every drop of it."
+
+## Aurel Brede
+
+Way: control.
+
+Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the top terrace pipe fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
+
+His line is "You came for water, and water is what you should carry out."
+
+## Sava Kettering
+
+Way: control.
+
+Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Pump Station gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
+
+His line is "Friend, what did Agnes give you for the drive?"
 
 ## Juno Pell
 

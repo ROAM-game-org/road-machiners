@@ -656,5 +656,6 @@ export const SCREENS: Translation<typeof EN> = {
   'quest.next': 'Дальше',
   'quest.speaker': '{name}: ',
   'quest.choice': '{n}. {text}',
+  'quest.check': '{skill} {level}, у вас {have}',
   'quest.offer': '{summary}, оплата {pay}, срок {window}.',
 };

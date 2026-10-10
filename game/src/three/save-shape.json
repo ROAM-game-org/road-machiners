@@ -1979,6 +1979,7 @@
     "knows_book": "boolean",
     "knows_carry": "boolean",
     "knows_copy": "boolean",
+    "knows_envelope": "boolean",
     "knows_marr": "boolean",
     "knows_pay": "boolean",
     "knows_pipe": "boolean",
@@ -1989,6 +1990,7 @@
     "watchman": "string"
    },
    "pump_pipe": {
+    "asked_water": "boolean",
     "book_read": "boolean",
     "canal_matches": "boolean",
     "early_lines": "boolean",
@@ -2000,6 +2002,7 @@
     "parts": "number",
     "price": "number",
     "report_named": "boolean",
+    "reserve_known": "boolean",
     "sluice": "string",
     "taken": "boolean",
     "toll": "number",

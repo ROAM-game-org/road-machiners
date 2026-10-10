@@ -3,6 +3,7 @@ import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { START_KITS } from '../src/data/start.ts';
 import { UNITS } from '../src/data/units.ts';
+import { skillLevel } from '../src/sim/progress.ts';
 import { chooseQuestOption, questProblems, questView, restoreQuest, startQuest } from '../src/sim/quests.ts';
 import { defaultSetup } from '../src/sim/settings.ts';
 import { newWorld } from '../src/sim/world.ts';
@@ -80,8 +81,13 @@ function showPlayer(w) {
   for (const line of view.lines) console.log(playerLine(line));
   for (const stat of view.stats) console.log(`[${stat.label}: ${stat.value}]`);
   console.log('');
-  view.choices.forEach((choice, index) => console.log(`${index + 1}. ${choice}${view.costs[index] === null ? '' : ` (costs ${view.costs[index]})`}${view.locked[index] ? ' (you cannot afford it)' : ''}`));
+  view.choices.forEach((choice, index) => console.log(`${index + 1}. ${choice}${checkText(w, view.checks[index])}${view.costs[index] === null ? '' : ` (costs ${view.costs[index]})`}${view.locked[index] ? ' (you cannot afford it)' : ''}`));
   if (view.ended) console.log('(the story ends here)');
+}
+
+function checkText(w, check) {
+  if (check === null) return '';
+  return ` (${check.skill} ${check.level}, yours ${skillLevel(w, check.skill)})`;
 }
 
 function playerLine(line) {
@@ -144,7 +150,7 @@ function show(w) {
   for (const line of view.lines) console.log(line.tags.length > 0 ? `${line.text}   # ${line.tags.join(' # ')}` : line.text);
   for (const stat of view.stats) console.log(`  [${stat.label}: ${stat.value}]`);
   for (const fact of view.facts) console.log(`  [fact] ${fact}`);
-  view.choices.forEach((choice, index) => console.log(`  ${index + 1}. ${choice}${view.costs[index] === null ? '' : `   # cost: ${view.costs[index]}`}${view.locked[index] ? ' (locked)' : ''}`));
+  view.choices.forEach((choice, index) => console.log(`  ${index + 1}. ${choice}${view.checks[index] === null ? '' : `   # check: ${view.checks[index].skill} ${view.checks[index].level}`}${view.costs[index] === null ? '' : `   # cost: ${view.costs[index]}`}${view.locked[index] ? ' (locked)' : ''}`));
   if (view.ended) console.log('(the quest ended)');
   console.log('');
 }

@@ -10,6 +10,7 @@ export type QuestBundle = { world: Record<string, QuestVarDecl>; externals: stri
 
 export const CHECKPOINT_TAG = 'checkpoint:';
 export const COST_TAG = 'cost:';
+export const CHECK_TAG = 'check:';
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['talk', 'page'];
 export const MONEY_STAT = 'money';
 

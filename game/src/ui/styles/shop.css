@@ -114,6 +114,11 @@
 .quest-screen .quest-held {
   float: right;
 }
+.quest-screen .quest-check {
+  float: right;
+  margin-left: var(--space-3);
+  color: var(--ink-muted);
+}
 .quest-screen .qt-table {
   border-collapse: collapse;
   font-family: var(--font-mono);

@@ -8,6 +8,7 @@ VAR knows_marr = false
 VAR knows_carry = false
 VAR knows_why = false
 VAR knows_pay = false
+VAR knows_envelope = false
 VAR trusted = false
 VAR watchman = "sitting"
 VAR tip = 20
@@ -15,17 +16,18 @@ VAR tip = 20
 === start ===
 # checkpoint: start
 { pipe_fate:
-- "delivered": Agnes Ondra. Mirela wrote back. Her book and mine agree now, and your name's in hers. I sleep a little better, though I notice I sleep with one ear open.
-- "filed": Agnes Ondra. Mirela wrote that your name isn't in her book. So it's my word alone against a household, and a word like mine doesn't last long.
-- "sold": Agnes Ondra. Nobody's asked me for my book since, and I don't like the quiet. Quiet like this usually means somebody already has what they wanted.
-- "read": Agnes Ondra. They tell me my numbers were read out at the Granary gate. I only ever wanted them written down, but a number said aloud gets written in a great many heads.
-- "seized": Agnes Ondra. The patrol has my copy. They haven't come for the first book, and I think they won't, because they know where it sleeps.
-- "metered": Agnes Ondra. There's a meter on the Archon's pipe now, and I read it from the track with a glass every morning. I didn't put it there, and I've decided not to ask who did.
+- "delivered": Agnes Ondra. I took Mirela this week's figures myself, the top pipe line too, in my own hand. I didn't thank her and she didn't thank me. Your name is in her book, so mine doesn't have to be.
+- "filed": Agnes Ondra. Mirela has the copy and no driver's name beside it. The steward calls it a forgery by a keeper with a grudge, and the drivers at the well believe him.
+- "sold": Agnes Ondra. I sent the steward's oil back to the top terrace, every barrel. Whatever he paid you for my book, I want none of it near my pump.
+- "read": Agnes Ondra. I stood at the back of the crowd at the Granary gate while my own lines were read out. Then I came home and shut the shed. Please go.
+- "seized": Agnes Ondra. The patrol came and asked me about a book. I told them I never owned one, and I read them every gauge from memory. I named nobody.
+- "metered": Agnes Ondra. Somebody bolted a meter onto the top pipe. I walked up before the carts and read it first. I haven't asked who fitted it, and I won't.
 - "searched":
-  Agnes's cot stands on its end by the door, and the pillow is slit open. Agnes doesn't look up from her gauge. She writes the number down and waits for you to leave.
+  Agnes's cot stands on its end by the door, and the pillow is slit open. The drum by the gate stands empty. Agnes doesn't look up from her gauge. She writes the number down and waits for you to leave.
   -> shunned
 - else:
   The Pump Station sits behind a wall of stacked oil drums, and the whole place smells of hot iron and wet rope. A woman in a canvas apron stands at a gauge with a pencil stub, and she doesn't look up.
+  Behind her, a desk drawer stands open a finger's width, and the corner of an envelope shows in it, sealed with a little wax lantern.
   A man in a grey coat sits on an upturned drum by the gate with a mug of tea.
   { skill("perception") >= 2: The tea stopped steaming a while ago, and he hasn't drunk any. He's listening to her. }
   Agnes Ondra. Let me get this number down, then ask what you like. # speaker: Agnes
@@ -66,10 +68,17 @@ VAR tip = 20
   ~ knows_why = true
   { watchman == "covered": You lied to a grey coat for a pump keeper you met this morning. | Most drivers never see him on his drum, or they see him and tell him what I said. } # speaker: Agnes
   And you don't drink from my pipes. Everybody in the Bowl owes somebody on the terraces. You don't. # speaker: Agnes
+  And if this ever reaches the Senate floor, a driver found it on the road. Not me. # speaker: Agnes
+  -> hub
++ {trusted and not knows_envelope} [Who sealed the envelope in your drawer?]
+  ~ knows_envelope = true
+  She looks at the drawer for a long moment before she pushes it shut.
+  The steward of the Marr household. A barrel of oil a month, the same my uncle Wendell got for keeping that pipe out of the book. I didn't know that about Wendell until the steward told me, sitting where you're standing. # speaker: Agnes
+  I took it because I was afraid to say no to his face. It goes back before the frost. # speaker: Agnes
   -> hub
 + {pipe_fate == "none" and knows_copy} [Where's the second copy?]
   Under my pillow, wrapped in oilcloth with a wax seal on the knot. I trust the pillow more than any shelf. # speaker: Agnes
-  I want it in Mirela Duarte's hands. She keeps the Canal families' water book in the lock house on the Bowl's lowest canal. Her cousin Tomas asked the wrong question about that pipe, and the Senate punished him with a patrol coat and the dullest post in the Bowl. # speaker: Agnes
+  I want it in Mirela Duarte's hands. She keeps the Canal families' water book in the lock house on the Bowl's lowest canal. Her cousin Tomas wears a Bowl patrol coat and whitewashes her lock. He told the drivers there about a valve wheel on that pipe, worn bright. They say the steward bought him quiet after, and he said it again anyway. # speaker: Agnes
   -> pillow
 + [Goodbye.]
   -> END

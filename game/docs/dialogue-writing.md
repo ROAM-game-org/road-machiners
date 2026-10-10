@@ -232,7 +232,7 @@ A speaker who talks in riddles says plainly that they won't answer, and still gi
 
 ## Skill checks in talk
 
-Show the skill on the choice so the player learns the rule. Narrate the success or the failure plainly, never the difficulty.
+Tag every choice that can fail with `# check: <skill> <level>`, and branch on `passed()` after it. The window shows the skill, the level and the player's own level, so the player knows the risk before the pick. Narrate the success or the failure plainly, and never repeat the level in the text.
 
 A failure changes how people treat the player. It costs money, a door, a name on a list, or trust. It never only closes the choice.
 
