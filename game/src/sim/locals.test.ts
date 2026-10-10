@@ -66,7 +66,7 @@ describe('settlement locals', () => {
 
     w.player.notes.push({ id: 'burntConvoy', turn: 0 });
     w.player.notes.push({ id: 'wagonBowl', turn: 0 });
-    w.player.scavenged.push(WAGON_SEVEN);
+    w.player.quests.world.wagon_seen = true;
 
     expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
     expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
@@ -115,13 +115,14 @@ describe('settlement locals', () => {
 });
 
 describe('the lost wagon chain', () => {
-  it('leads from Hattie at Bowl to Kovac at Nose, and closes once the wagon is searched', () => {
+  it('leads from Hattie at Bowl to Kovac at Nose, and opens the found question once the wreck scene was seen', () => {
     let w = talk(parkedAt('bowl'), 'bowl_hattie', ['Heard any rumors?', 'Goodbye.']);
     w.vehicles[0].pos = { ...sitePads(site('nose'))[0] };
 
     w = talk(w, 'nose_kovac', [WAGON, 'Goodbye.']);
-    expect(choices(w, 'nose_kovac')).not.toContain(WAGON_FOUND);
     w.player.scavenged.push(WAGON_SEVEN);
+    expect(choices(w, 'nose_kovac')).not.toContain(WAGON_FOUND);
+    w.player.quests.world.wagon_seen = true;
     w = talk(w, 'nose_kovac', [WAGON_FOUND, 'Goodbye.']);
 
     expect(w.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonNose', 'wagonFound']);
@@ -152,6 +153,111 @@ describe('the lost wagon chain', () => {
 
     expect(questView(once, QUESTS).choices).not.toContain('Heard any rumors?');
     expect(once.player.notes.map((n) => n.id)).toEqual(['wagonBowl']);
+  });
+});
+
+describe('wagon Seven', () => {
+  const picked = (w: World, picks: readonly string[]) => picks.reduce((at, pick) => chooseQuestOption(at, QUESTS, pickIndex(at, pick)), w);
+  const worldVars = (w: World) => w.player.quests.world;
+  const BENCH = 'I brought something from wagon Seven.';
+  const SIGN = 'Send for Kovac and give him the stub.';
+  const ASK_TELLER = 'Ask Teller in front of Lena what happened on the bend.';
+  const PUT = 'Put the stub on the bench and say where it came from.';
+  const TAP = 'Spend an hour tapping the stub out.';
+
+  function skilled(w: World, level: number): World {
+    for (const skill of ['perception', 'machining', 'social'] as const) w.player.ranks[skill] = level;
+    return w;
+  }
+
+  function holding(town: string, pin: 'held' | 'bent', level = 0): World {
+    const w = skilled(parkedAt(town), level);
+    w.player.quests.world.wagon_seen = true;
+    w.player.quests.world.wagon_pin = pin;
+    return w;
+  }
+
+  it('lets a skilled driver read the hollow and the mount and take the stub out whole', () => {
+    const w = skilled(parkedAt('bowl'), 3);
+
+    const next = talk(w, 'wagon_seven', ['Walk the hollow.', 'Look at the gun mount.', TAP, 'Leave the hollow.']);
+
+    expect(worldVars(next)).toEqual({ wagon_saw: true, wagon_read: true, wagon_pin: 'held' });
+    expect(next.player.money).toBe(w.player.money);
+    expect(next.player.notes.map((n) => n.id)).toEqual(['wagonPin']);
+  });
+
+  it('gets a driver who misses the signs watched from the ridge, and an unskilled punch bends the stub', () => {
+    const next = talk(skilled(parkedAt('bowl'), 0), 'wagon_seven', ['Walk the hollow.', 'Look at the gun mount.', TAP, 'Leave the hollow.']);
+
+    expect(worldVars(next)).toEqual({ wagon_watched: true, wagon_pin: 'bent' });
+  });
+
+  it('logs a whole stub at Lena\'s bench and pays the finder\'s rate', () => {
+    const w = holding('nose', 'held');
+
+    const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,SIGN]);
+
+    expect(worldVars(next).wagon_fate).toBe('logged');
+    expect(next.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(choices(next, 'nose_lena')).not.toContain(BENCH);
+  });
+
+  it('gets Teller to sign his own admission with enough social, and pays the finder\'s rate', () => {
+    const w = holding('nose', 'held', 2);
+
+    const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,ASK_TELLER]);
+
+    expect(worldVars(next).wagon_fate).toBe('admitted');
+    expect(next.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+  });
+
+  it('logs the stub without a fee when Teller will not sign and calls the driver a looter', () => {
+    const w = holding('nose', 'held', 0);
+
+    const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,ASK_TELLER]);
+
+    expect(worldVars(next).wagon_fate).toBe('logged');
+    expect(next.player.money).toBe(w.player.money);
+  });
+
+  it('sells the stub to Teller for the sump, and Lena remembers it', () => {
+    const w = holding('nose', 'bent');
+
+    const next = picked(talk(w, 'nose_lena', [BENCH]), [PUT,'Step outside with Teller.', 'Take Teller\'s money.']);
+
+    expect(worldVars(next).wagon_fate).toBe('buried');
+    expect(next.player.money - w.player.money).toBe(60 * UNITS.centsPerM);
+    expect(questView(startQuest(next, QUESTS, 'nose_lena', 'start'), QUESTS).lines[0].text).toContain('Teller drinks better');
+  });
+
+  it('offers no log for a bent stub the driver never read', () => {
+    const w = holding('nose', 'bent');
+
+    const view = questView(picked(talk(w, 'nose_lena', [BENCH]), [PUT]), QUESTS);
+
+    expect(view.choices).not.toContain(SIGN);
+    expect(view.choices).not.toContain(ASK_TELLER);
+  });
+
+  it('sells the stub and the place to Sefa at her price', () => {
+    for (const [pin, price] of [['held', 30], ['bent', 15]] as const) {
+      const w = holding('salvage-yard', pin);
+      const next = talk(w, 'yard_sefa', ['I\'ve got the pin from wagon Seven\'s ring.', 'Sell her the stub and the place.']);
+      expect(worldVars(next).wagon_fate).toBe('sold');
+      expect(next.player.money - w.player.money).toBe(price * UNITS.centsPerM);
+    }
+  });
+
+  it('lets a driver who saw the hollow tell it at the well house beside Dag', () => {
+    const w = parkedAt('bowl');
+    w.player.quests.world.wagon_saw = true;
+
+    const next = talk(w, 'bowl_dag', ['Nobody raided that wagon.', 'Say it at the well house.', 'Goodbye.']);
+
+    expect(worldVars(next).wagon_fate).toBe('told');
+    expect(next.player.money).toBe(w.player.money);
+    expect(choices(next, 'bowl_dag')).toContain('What did the well house make of it?');
   });
 });
 

@@ -51,13 +51,16 @@ let thread = null;
 let run = 0;
 let screens = 0;
 
+let carried = null;
 for (const [index, quest] of quests.entries()) {
   const last = index === quests.length - 1;
+  const from = carried;
   let restarted = false;
   while (screens < maxScreens) {
     run += 1;
     const runFile = join(work, `run-${run}.json`);
-    let screen = game(quest, runFile, null);
+    carried = runFile;
+    let screen = game(quest, runFile, null, from);
     if (index > 0 && !restarted) screen = `Time passes. ${values.then[index - 1]}\n\n${screen}`;
     appendFileSync(values.out, `\n## Run ${run}: ${quest}\n`);
     while (screens < maxScreens) {
@@ -67,7 +70,7 @@ for (const [index, quest] of quests.entries()) {
       const step = codex(screens === 1 ? `${promptTemplate.replace('<SITUATION>', values.situation)}\n\nHere is the first screen.\n\n${ask}` : ask, stepSchema);
       appendFileSync(values.out, `\n### Screen ${screens}\n\n${quoted(screen)}\n\nSummary: ${step.summary}\n\nComment: ${step.comment}\n\nPick: ${step.pick}\n`);
       if (ended) break;
-      screen = game(quest, runFile, step.pick);
+      screen = game(quest, runFile, step.pick, from);
     }
     if (!last || restarted || !screen.includes('(the story ends here)') || screens >= maxScreens) break;
     restarted = true;
@@ -89,8 +92,8 @@ const ratings = CRITERIA.map((c) => `- ${c} ${verdict.scores[c].score}: ${verdic
 appendFileSync(values.out, `\n## Verdict\n\nScore: ${score}/5, the lowest of ${scoreLine}\n\n${verdict.verdict}\n\nScores:\n${ratings}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n\nTo reach 5:\n${verdict.to_five}\n`);
 console.log(`Score ${score}/5, the lowest of ${scoreLine}, after ${screens} screens. Notes in ${values.out}`);
 
-function game(quest, runFile, pick) {
-  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
+function game(quest, runFile, pick, from) {
+  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...(from === null ? [] : ['--from', from]),...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
   const result = spawnSync('node_modules/.bin/vite-node', args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`The quest runner failed on pick ${pick}:\n${result.stderr}`);
   return result.stdout.trim();

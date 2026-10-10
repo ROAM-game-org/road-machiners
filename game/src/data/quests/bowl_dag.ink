@@ -78,7 +78,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
      -> hub
 + {wagon_fate == "told"} [What did the well house make of it?]
   Bowl talks over its cups, and Nose soldiers drink from the same well. Now they ask the Farmers whose pins hold. I don't mind that question.
-  The rule stays the same: keep Nose trucks off my road. The reason is different now. They'd come down asking who told.
+  I still want Nose trucks off my road. Before, they'd have come down asking who stripped their wagon. Now they'd come asking who told.
   -> hub
 + [Goodbye.]
   -> END

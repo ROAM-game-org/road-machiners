@@ -20,10 +20,12 @@ import {
   type QuestValueType,
   type QuestVarDecl,
   type QuestViewKind,
+  WAGON_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
 import type { NoteId } from '../data/locals';
 import { REGION } from '../data/region';
+import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
@@ -186,6 +188,14 @@ export function openFirstFall(w: World, foes: readonly string[]): void {
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.firstFall, FIRST_FALL_SEEN) === true) return;
   setWorldVar(w, FIRST_FALL_SEEN, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.firstFall, 'start');
+}
+
+export function openWreckScene(w: World, stockId: string): void {
+  if (stockId !== WAGON_SEVEN) return;
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, WAGON_SEEN) === true) return;
+  setWorldVar(w, WAGON_SEEN, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
 }
 
 export function introStep(w: World): IntroStep {

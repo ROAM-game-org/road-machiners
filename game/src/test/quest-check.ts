@@ -1,6 +1,6 @@
 
 import { NOTE_IDS } from '../data/locals';
-import type { QuestBundle, QuestValue } from '../data/quests';
+import { WAGON_SEEN, type QuestBundle, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
@@ -91,6 +91,7 @@ function veteran(fresh: World): World {
   for (const id of NOTE_IDS) if (isNoteId(id)) learnNote(w, id);
   w.player.discovered = [...REGION.towns, ...REGION.locations].map((s) => s.id);
   w.player.scavenged = [...w.player.scavenged, ...STORY_WRECKS.map((s) => s.id)];
+  w.player.quests.world = { ...w.player.quests.world, [WAGON_SEEN]: true };
   for (const skill of SKILL_IDS) w.player.ranks[skill] = MAX_RANK;
   while (shopAt(w) && townWork(w)) takeTownWork(w);
   w.events = [];

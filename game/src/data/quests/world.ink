@@ -6,6 +6,12 @@ VAR ambush_raider = "none"
 VAR varga_truck_known = false
 VAR pipe_fate = "none"
 VAR marr_regard = "none"
+VAR wagon_seen = false
+VAR wagon_saw = false
+VAR wagon_read = false
+VAR wagon_watched = false
+VAR wagon_pin = "none"
+VAR wagon_fate = "none"
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

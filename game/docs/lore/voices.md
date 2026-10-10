@@ -189,3 +189,31 @@ Cares about: reaching a place before dark. He avoids anything that sounds like t
 Strangers: he gives what he saw and asks for nothing back.
 
 Sample: "Not that I saw. There were tracks all over the hollow, the wide kind raiders make with chains on their tires. They were old, though. Rain's come through since."
+
+### Corporal Bram Teller
+
+Vocabulary: the track, the bend, stripes, the sheet, rations and his sister. He compares things to driving: a bad bend, a slipping clutch, a road you know by heart.
+
+Rhythm: short and careful when he lies, and longer when he tells the truth. He starts sentences with "Look" when he is about to bargain.
+
+Habits: he checks his watch when he lies. He offers money before he offers a reason.
+
+Cares about: his stripes, and his sister's ration card, which his rank pays for. He avoids the word pin.
+
+Strangers: friendly until he learns where they have been. Then he wants to know what they carried out.
+
+Sample: "Look, I've driven that track four years. You don't know the bend. I do."
+
+### Private Ilan Duvall
+
+Vocabulary: rings, seats, pins, loads and his mother. He compares things to mounts: what holds, what slides, what was never seated right.
+
+Rhythm: blunt and young. He says the thing, then stops. He doesn't soften it.
+
+Habits: he rubs his sling strap when he is angry. He turns his half of the pin in his fingers while he talks.
+
+Cares about: never sitting under a one-pin mount again. He avoids talking about the moment the gun swung.
+
+Strangers: he trusts a stranger who has looked at the ring, and nobody else.
+
+Sample: "The ring was fine. The pin wasn't. Write that down, somebody."

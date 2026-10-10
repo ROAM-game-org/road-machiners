@@ -29,12 +29,12 @@ export const NOTES: Record<NoteId, NoteDef> = {
   wagonRoad: {
     title: 'A dead Army wagon in a hollow',
     from: 'A driver on the radio',
-    text: 'A driver saw a dead Army wagon lying in a hollow north-east of Bowl, east of the Bowl north road and south of the Pump Station turn-off. Old tracks with chain marks cross the hollow.',
+    text: 'A driver saw a dead Army wagon lying in a hollow north-east of Bowl, east of the Bowl north road and south of where the Pump Station track branches off. Old tracks with chain marks cross the hollow.',
   },
   wagonDag: {
     title: 'Where wagon Seven lies',
     from: 'Dag, Bowl Farmers patrol',
-    text: 'Dag says wagon Seven lies in a hollow below the bend in the Bowl north road, south of the Pump Station turn-off. He warns not to take anything from it up to Nose.',
+    text: 'Dag says wagon Seven lies in a hollow below the bend in the Bowl north road, south of where the Pump Station track branches off. He warns not to take anything from it up to Nose.',
   },
   wagonPin: {
     title: 'The pin from wagon Seven',

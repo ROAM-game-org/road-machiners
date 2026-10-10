@@ -6,6 +6,7 @@ import { startJob } from './jobs';
 import { practice, skillEffect } from './progress';
 import { canReachSalvage, collectSalvage, hiddenUnits, requireLootFree, revealTurn, salvageUnits, type Found } from './salvage';
 import { breakLootWarning } from './loot-warning';
+import { openWreckScene } from './quests';
 import type { Rng } from './rng';
 import type { Job, SalvageStock, Vehicle, World } from './types';
 import { hasWorkingUtility } from './utility';
@@ -73,4 +74,5 @@ function finishSearch(world: World, v: Vehicle, stockId: string): void {
     practice(world, 'search', 1, null, stockId);
   }
   world.events.push({ t: 'searched', stock: stockId });
+  openWreckScene(world, stockId);
 }
