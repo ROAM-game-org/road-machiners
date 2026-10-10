@@ -166,7 +166,7 @@ export const TERMS: Record<string, string> = {
   sunward: 'Believers who worship whatever lies in the crater of the Fallen Sun. They keep others away from it.',
   senate: 'The council of Bowl\'s citizens, and it decides for the whole town. Only citizens sit in it, and it is known for slow, long arguments.',
   farmers: 'Bowl\'s own road patrol. It guards the roads near Bowl\'s walls and nothing past them.',
-  pump_station: 'A pumpworks out on the flat. Its pumps lift water from deep rock, and a pipe carries it to Bowl\'s canals.',
+  pump_station: 'A pumpworks out on the flat. Its pumps lift water from deep rock, and water trucks carry it to Bowl\'s canals.',
   committee: 'The Central Committee governs Nose. It plans the town\'s work and rations its food and water.',
   salvage_yard: 'A yard of stacked wrecks under a crane, where towed trucks end up. Its repair crews sell hull pieces and the Old Army\'s stripped guns.',
   kiln: 'Kiln Camp, the raider camp in the south. Its riders take a fee from haulers who pay, and strip trucks that neither pay nor fight.',
