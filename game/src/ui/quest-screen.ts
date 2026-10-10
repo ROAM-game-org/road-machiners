@@ -11,8 +11,8 @@ import { questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
 import { renderLine, TermTip } from './quest-text';
-import { moneyDelta } from './units';
 import { MONEY_STAT } from '../data/quests';
+import { UNITS } from '../data/units';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
@@ -20,9 +20,15 @@ export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | nu
   return shown?.quest === live.quest ? ask : null;
 }
 
-function statRow(stat: QuestView['stats'][number], change: number): HTMLElement {
-  const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, verbatim(moneyDelta(change)));
-  return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, el('span', {}, verbatim(stat.label)), el('b', {}, delta, verbatim(stat.value)));
+function moneyChange(cents: number): Msg {
+  const amount = Math.round(Math.abs(cents) / UNITS.centsPerM);
+  return cents > 0 ? t('quest.moneyGained', { amount }) : t('quest.moneyPaid', { amount });
+}
+
+function statRow(stat: QuestView['stats'][number], change: number, cents: number): HTMLElement {
+  const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, moneyChange(change));
+  const value = stat.name === MONEY_STAT ? t('call.money', { amount: Math.floor(cents / UNITS.centsPerM) }) : verbatim(stat.value);
+  return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, el('span', {}, verbatim(stat.label)), el('b', {}, delta, value));
 }
 
 export class QuestScreen {
@@ -126,7 +132,7 @@ export class QuestScreen {
   private side(w: World, view: QuestView): HTMLElement {
     const gained = this.moneyBefore === null ? 0 : w.player.money - this.moneyBefore;
     this.moneyShown = w.player.money;
-    const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0));
+    const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
     return el('div', { class: 'quest-side' }, this.leaveButton(), el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));

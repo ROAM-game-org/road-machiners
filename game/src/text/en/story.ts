@@ -1,4 +1,9 @@
+import { m } from '../msg';
+
 export const STORY = {
+  'quest.moneyGained': m('+{amount} M', { amount: 'int' }),
+  'quest.moneyPaid': m('−{amount} M', { amount: 'int' }),
+
   'local.ruben.name': 'Ruben',
   'local.ruben.role': 'Canal warden',
   'local.hattie.name': 'Hattie',

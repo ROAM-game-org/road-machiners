@@ -2,6 +2,9 @@ import type { STORY as EN } from '../en/story';
 import type { Translation } from '../msg';
 
 export const STORY: Translation<typeof EN> = {
+  'quest.moneyGained': '+{amount} М',
+  'quest.moneyPaid': '−{amount} М',
+
   'local.ruben.name': 'Рубен',
   'local.ruben.role': 'Смотритель канала',
   'local.hattie.name': 'Хэтти',
