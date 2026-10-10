@@ -1,6 +1,6 @@
 # view: page
 # stat: money Money
-# fact: book_read Pump book copy: less water comes up from the floor each season, and the gap between the floor and the meters goes up the top pipe.
+# fact: book_read Pump book copy: while the top pipe had a meter it read the gap to the barrel. Agnes sums the gap since, and run forward it dries the metered pipes by next autumn.
 # fact: margin_read Pump book copy, last page, in Agnes's hand: for Mirela, to set beside hers.
 # fact: offer_heard Household: the steward Aurel Brede offered coin to lose the bundle on the road.
 # fact: reserve_known Steward: half of what the pipe draws fills a cistern under the terrace, the Senate's dry-year store. Only the Archon may open it.
@@ -15,6 +15,10 @@ VAR book_read = false
 VAR offer_heard = false
 VAR offer_open = false
 VAR asked_water = false
+VAR asked_steward = false
+VAR asked_drain = false
+VAR asked_secret = false
+VAR asked_aim = false
 VAR reserve_known = false
 VAR canal_matches = false
 VAR margin_read = false
@@ -28,6 +32,11 @@ VAR toll = 50
 
 === function crossed() ===
 ~ return sluice == "passed" or sluice == "ran" or sluice == "talked" or sluice == "paid"
+
+=== function left_offer() ===
+~ asked_water = false
+~ asked_drain = false
+~ asked_secret = false
 
 === function gate_need(base) ===
 { sluice == "watched":
@@ -46,8 +55,12 @@ That's the meter I took off the top pipe. If you're ever up that way, it still f
 = handover
 + {not knows_envelope} [Ask about the envelope with the lantern seal.]
   ~ knows_envelope = true
-  The steward's. A barrel of oil a month, to leave the top pipe's line empty in my book. # speaker: Agnes
-  I took it, because I was afraid to say no to his face. The line in my book stays empty. The copy has the number. # speaker: Agnes
+  The steward's. A barrel of oil a month, to keep my sums out of the margin of my book. # speaker: Agnes
+  I took it, because I was afraid to say no to his face. My own book has no sums in it. The copy has every one. # speaker: Agnes
+  -> handover
++ {knows_envelope and not asked_steward} [Ask whether the steward knows about the copy.]
+  ~ asked_steward = true
+  If he did, my pillow would be slit open by now. # speaker: Agnes
   -> handover
 + {not asked_cover} [Ask what to say if you're stopped.]
   ~ asked_cover = true
@@ -55,6 +68,9 @@ That's the meter I took off the top pipe. If you're ever up that way, it still f
   -> handover
 + [Take the bundle and the meter out to your truck.]
   ~ taken = true
+  ~ knows_envelope = false
+  ~ asked_cover = false
+  ~ asked_steward = false
   Agnes watches you go. Then she goes back to her dials.
   -> steward
 
@@ -73,19 +89,31 @@ He names a sum: {price} M. # reveal: all
   ~ reserve_known = true
   Half of it waters the orchard. The other half fills a cistern under the terrace. # speaker: Steward
   It's the Senate's store for a dry year, voted in closed session, and only the Archon may open it. # speaker: Steward
-  Read that book aloud at the Granary gate in a dry autumn, and every tenant in the queue will want the store opened tonight. Then there's no store. # speaker: Steward
+  Read that book aloud at the Granary gate in a dry autumn, and every tenant in the queue will want the store opened tonight. The Senate will vote to open it to keep its seats, and then there's no store. # speaker: Steward
+  -> offer
++ {asked_water and not asked_drain} [Say the store fills from the Bowl's own water.]
+  ~ asked_drain = true
+  It does. A dry year comes either way. When it comes, the Archon opens the cistern and the Bowl drinks. # speaker: Steward
+  Empty it now, and the Bowl drinks well this winter and dies the next. # speaker: Steward
+  -> offer
++ {asked_water and not asked_secret} [Ask why the store is a secret.]
+  ~ asked_secret = true
+  A store everyone knows about is a store everyone is owed. # speaker: Steward
   -> offer
 + [Take the money.]
+  ~ left_offer()
   -> sold
 + [Say you'll lose it, and ask for a gate pass first. # check: social 2]
+  ~ left_offer()
   -> haggle
 + [Keep the bundle.]
+  ~ left_offer()
   ~ offer_heard = true
   ~ offer_open = true
   ~ note("pipeOffer")
   The steward shrugs, a small and courteous movement of one shoulder.
   The offer stands until you reach the Bowl. # speaker: Steward
-  -> road
+  -> onto_road
 
 === haggle ===
 ~ offer_heard = true
@@ -102,7 +130,7 @@ You keep your face still and your voice flat, like a driver who loses things for
 The steward writes a line on a slip, signs it with a household mark and counts half the sum into your hand.
 That will open the gate for you, and nobody there will ask what you're carrying. I think we understand each other. # speaker: Steward
 He does not look at the bundle again. He is quite sure of you. # reveal: all
--> road
+-> onto_road
 
 === seen_through ===
 ~ sluice = "watched"
@@ -110,12 +138,15 @@ The steward listens to the end with his head slightly tilted. He does not smile.
 A driver who means to lose a thing doesn't need to carry it through the gate. # speaker: Steward
 He raises a hand toward the rise, and a rider in a grey coat starts his buggy down the road toward the Bowl gate.
 The offer's closed now, I'm afraid. My rider will be at the gate well before you. # speaker: Steward
+-> onto_road
+
+=== onto_road ===
+The pump track runs down onto the Bowl road. Ahead is the Bowl gate. Off to the left, tenants queue with their sacks at the Granary gate, and a side track climbs to the top terrace. # page # place: The road
 -> road
 
 === road ===
 # checkpoint: road
-The pump track runs down onto the Bowl road. Ahead is the Bowl gate. Off to the left, tenants queue with their sacks at the Granary gate, and a side track climbs to the top terrace. # page # place: The road
-{ book_read: The bundle rides on the seat beside you, its seal cut. | The bundle rides on the seat beside you, its seal still whole. }
+{ book_read: The bundle rides on the seat beside you, its seal cut. | The bundle rides on the seat beside you, its seal still whole. } # place: The road
 + {not book_read} [Cut the seal and read the copy.]
   -> read
 + {not walked_out} [Take the side track up to the top terrace.]
@@ -133,14 +164,14 @@ The pump track runs down onto the Bowl road. Ahead is the Bowl gate. Off to the 
 ~ book_read = true
 ~ margin_read = true
 ~ note("pipeDraw")
-You cut the wax and unfold the oilcloth on your knee. Agnes writes small and square, and her copy has a column her own book doesn't. # place: The road
-When; Lifted from the floor; Read on the meters; Gone up the top pipe # head
-Last spring; 410 barrels; 390 barrels; 20 barrels # row
-Midsummer; 380 barrels; 350 barrels; 30 barrels # row
-Autumn; 350 barrels; 300 barrels; 50 barrels # row
-This week; 300 barrels; 230 barrels; 70 barrels # row
-Less water comes up every season, and a bigger share of it goes up the top pipe.
-On the last page, in the same square hand: For Mirela, to set beside hers.
+You cut the wax and unfold the oilcloth on your knee. It is the book you saw at the pump, line for line, in Agnes's small square hand. Her own book stops at the readings. The copy goes on into the margin. # place: The road
+Barrels a week; Pumped up from the floor; Out through the metered pipes; Up the top pipe, by her sum # head
+Last spring; 410; 390; 20 # row
+Midsummer; 380; 350; 30 # row
+Autumn; 350; 300; 50 # row
+This week; 300; 230; 70 # row
+On the last page she has run the sum forward in pencil. If the floor keeps falling and the top pipe keeps growing, the metered pipes run dry by next autumn.
+Under it, one line in ink: For Mirela, to set beside hers.
 -> road
 
 === terrace ===
@@ -174,9 +205,10 @@ You set Agnes's meter against the flange and reach for the first bolt. # place: 
 ~ pipe_fate = "metered"
 ~ marr_regard = "enemy"
 You seat each bolt and draw them down one after another until the face sits square. The needle climbs and settles.
-You angle the dial toward the lower path, where a tenant with a glass can read it from the pump track.
-Word goes down the terraces faster than any crew comes up. At first light a household crew climbs the terrace with wrenches, and half the bottom terrace is already at the wall, with Mirela Duarte in front and the first number on the dial in her book.
-The crew looks at the crowd, and then at each other. They log the work as a line repair and leave the meter where it is. # reveal: all
+The terrace hand with the hoe has watched all of it. He reads the dial, says the number aloud twice, and walks off down the rows without a word to you.
+By dusk the number is chalked on the board at the Granary gate, in a hand you don't know. # page
+At first light a household crew climbs the terrace with wrenches and takes the meter off. They do it in plain sight, and the tenants on the pump track watch them do it. # reveal: all
+Nobody washes the number off the Granary board.
 -> END
 
 === sheared ===
@@ -295,13 +327,14 @@ Agnes sent you. She doesn't trust the road, and she's right not to. # speaker: M
 { book_read:
   The seal's cut. Then you know what you carry. # speaker: Mirela
 }
-She lays the copy beside a long book chained to the sill. One finger runs down Agnes's meter on the canal pipe, the other down her own count at the lock.
-When; Agnes's meter on the canal pipe; Counted at this lock # head
-Last spring; 120 barrels; 120 barrels # row
-Midsummer; 110 barrels; 110 barrels # row
-Autumn; 95 barrels; 95 barrels # row
-This week; 70 barrels; 70 barrels # row
-They agree to the barrel. So her meters are honest, and so is the water that goes missing between her floor and her meters. # speaker: Mirela
+She lays the copy beside a long book chained to the sill. One finger runs down Agnes's column for the canal pipe, the other down her own count at the lock.
+Barrels a week; Agnes's meter on the canal pipe; Counted at this lock # head
+Last spring; 120; 120 # row
+Midsummer; 110; 110 # row
+Autumn; 95; 95 # row
+This week; 70; 70 # row
+They agree to the barrel. That's one of her meters checked against a count nobody at the pump can touch. # speaker: Mirela
+It doesn't prove the rest. It proves she didn't invent the one I can check, and the household's first word will be that she invented it. # speaker: Mirela
 { valve_read:
   You tell her about the bright wheel and the empty flange. She stops listening to anything else for a moment.
 }
@@ -316,6 +349,16 @@ Sign my book as its carrier, and it's her book, mine and a witness, not a keeper
 { book_read:
   Write that you cut the seal on the road and changed nothing. # speaker: Mirela
 }
+-> ask
+
+= ask
++ {not asked_aim} [Ask what she'll do with it.]
+  ~ asked_aim = true
+  Read it on the Senate floor, next to my own count. # speaker: Mirela
+  The canal families lost their share of the lock water in a Senate vote, years back. The household's bench carried that vote. A household caught draining the canal won't carry the next one. # speaker: Mirela
+  You ask whether it's the lock share she wants, and not a meter on the pipe.
+  I want both. I'll take the share first. # speaker: Mirela
+  -> ask
 + [Sign as the carrier.]
   -> signed
 + [Leave your name off.]
@@ -328,9 +371,10 @@ Sign my book as its carrier, and it's her book, mine and a witness, not a keeper
 ~ note("pipeCanal")
 ~ give_money(fee)
 You sign. Mirela writes the day beside your name, blots the page with her sleeve and counts {fee} M out of the lock box. # page # place: Bowl lock house
-The Senate sits in a week. Her book, mine and a witness, and they'll have to read the pipe. # speaker: Mirela
+The Senate sits in a week. Her book, mine and a witness, and they'll have to answer for the pipe. # speaker: Mirela
 The lock hands who watched you sign walk off up the canal path, and by dusk it's told at every lock in the Bowl.
-As you go, a household clerk comes down the lock steps with a letter for her. She reads it, laughs once, and pins it under the chained book. # reveal: all
+Word reaches the drivers' well a week later. Mirela read both books on the Senate floor with your name under them. The household's bench called the copy a forgery, and nobody laughed with them. # page
+The vote to put a meter back on the top pipe failed by one bench. The vote to give the canal families back their lock share passed. # reveal: all
 -> END
 
 === filed ===
@@ -341,7 +385,8 @@ As you go, a household clerk comes down the lock steps with a letter for her. Sh
 Mirela shrugs. She copies the top pipe's line into her own book and writes the day beside it. # page # place: Bowl lock house
 Then it's a lock house's word against the household's, and they'll call it a keeper's grudge. # speaker: Mirela
 She counts {fee} M out of the lock box.
-Before you reach your truck, a household clerk comes down the lock steps and asks her who carried it. The road did, she tells him. # reveal: all
+Before you reach your truck, a household clerk comes down the lock steps and asks her who carried it. The road did, she tells him.
+Word reaches the drivers' well a week later. Mirela read both books on the Senate floor with no witness under them. The household's bench called it a keeper's grudge, and the Senate moved on to grain before dark. # page # reveal: all
 -> END
 
 === gate ===
@@ -358,11 +403,11 @@ A pair of patrolmen in Bowl coats shoulder through the crowd.
 -> fined
 
 === held ===
-You keep your voice even and give the tenants nothing to be afraid of.
-The tenants close round the patrolmen without being asked. The grey-haired man chalks the lines on the board as you read them.
-The patrolmen look at the crowd, and at each other, and then they go back the way they came.
-Before dusk a household cart comes down to the Granary with a sack of grain for every family that goes home quietly. About half the queue goes home. # reveal: all
-The other half can tell you about the pipe with no meter.
+You keep reading. Your voice stays even, and the tenants take their cue from it.
+They close round the patrolmen without being asked. The grey-haired man chalks the lines on the board as you read them.
+The patrolmen look at the crowd and at each other. One of them writes down your plate, and then they go back the way they came.
+Before dusk a household cart comes down to the Granary with a sack of grain for every family that goes home quietly. About half the queue takes a sack and goes. # reveal: all
+The other half stay by the board until dark, reading the numbers to each other.
 -> END
 
 === fined ===

@@ -1891,6 +1891,7 @@
    "marr_regard": "string",
    "pipe_fate": "string",
    "towed_to_bowl": "boolean",
+   "varga_truck_known": "boolean",
    "wagon_fate": "string",
    "wagon_pin": "string",
    "wagon_read": "boolean",
@@ -1902,10 +1903,12 @@
    "bowl_dag": {
     "dag_kiln": "boolean",
     "dag_pay": "boolean",
-    "dag_road": "boolean"
+    "dag_road": "boolean",
+    "dag_wagon": "boolean"
    },
    "bowl_hattie": {
     "hattie_came_out": "boolean",
+    "hattie_farm": "boolean",
     "hattie_flats": "boolean",
     "hattie_glass": "boolean",
     "hattie_granary": "boolean",
@@ -1916,6 +1919,7 @@
     "hattie_strip": "boolean",
     "hattie_sunward": "boolean",
     "hattie_tow": "boolean",
+    "hattie_unarmed": "boolean",
     "hattie_varga": "boolean"
    },
    "bowl_jory": {
@@ -1931,7 +1935,9 @@
     "ruben_water": "boolean"
    },
    "first_fall": {},
-   "intro_arrival": {},
+   "intro_arrival": {
+    "arrival_rope": "boolean"
+   },
    "intro_bowl": {},
    "nose_depot_leak": {
     "alarm": "number",
@@ -1991,7 +1997,9 @@
     "heard_swivel": "boolean"
    },
    "pump_agnes": {
+    "asked_leak": "boolean",
     "asked_man": "boolean",
+    "fee": "number",
     "knows_book": "boolean",
     "knows_copy": "boolean",
     "knows_pay": "boolean",
@@ -2002,7 +2010,11 @@
     "watchman": "string"
    },
    "pump_pipe": {
+    "asked_aim": "boolean",
     "asked_cover": "boolean",
+    "asked_drain": "boolean",
+    "asked_secret": "boolean",
+    "asked_steward": "boolean",
     "asked_water": "boolean",
     "book_read": "boolean",
     "canal_matches": "boolean",
@@ -2025,7 +2037,8 @@
     "fee": "number",
     "halves_fit": "boolean",
     "offer_heard": "boolean",
-    "price": "number"
+    "price": "number",
+    "report_seen": "boolean"
    },
    "wagon_seven": {
     "mount_seen": "boolean",
@@ -2045,7 +2058,8 @@
     "heard_picked": "boolean",
     "heard_post": "boolean",
     "heard_rider": "boolean",
-    "heard_water": "boolean"
+    "heard_water": "boolean",
+    "sefa_priced": "boolean"
    }
   },
   "checkpoints": {
@@ -2069,7 +2083,9 @@
     "start"
    ],
    "intro_arrival": [
-    "start"
+    "start",
+    "start.farm",
+    "start.house"
    ],
    "intro_bowl": [
     "start"
@@ -2109,6 +2125,7 @@
    "wagon_bench": [
     "start",
     "bench",
+    "bench.report",
     "bench.hub"
    ],
    "wagon_seven": [

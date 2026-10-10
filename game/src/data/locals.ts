@@ -114,7 +114,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeDraw: {
     title: 'A pipe with no meter',
     from: "Agnes's copy of the pump book",
-    text: "Agnes's copy has a column her own book doesn't: what goes up the top pipe each season. The share grows as the seep falls.",
+    text: "Agnes's copy has the sums her own book doesn't: what goes up the top pipe each season. Run forward, they dry the metered pipes by next autumn.",
   },
   pipeOffer: {
     title: 'Coin to lose a bundle',
@@ -124,7 +124,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeCanal: {
     title: 'The Canal book in Bowl',
     from: 'Mirela Duarte, Bowl lock house',
-    text: "Mirela's count at the lock agrees with Agnes's canal meter, season by season. So Agnes's meters are honest, and the water missing between her floor and her meters goes up the top pipe.",
+    text: "Mirela's count at the lock agrees with Agnes's canal meter, season by season. Mirela means to read both books on the Senate floor and win back the canal families' lock share.",
   },
 };
 
