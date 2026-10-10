@@ -53,6 +53,7 @@ import FORMAT_2_46 from './save-fixtures/format-2-46.json';
 import FORMAT_2_47 from './save-fixtures/format-2-47.json';
 import FORMAT_2_48 from './save-fixtures/format-2-48.json';
 import FORMAT_2_49 from './save-fixtures/format-2-49.json';
+import FORMAT_2_50 from './save-fixtures/format-2-50.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1131,5 +1132,27 @@ describe('save migration 49 to 50', () => {
     });
     expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl']);
     expect(next.money).toBe(1200);
+  });
+});
+
+describe('save migration 50 to 51', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("moves Hattie's heard-the-glass mark to hattie_glass, so her Sunward question still waits, and keeps the rest", () => {
+    const next = playerOf(MIGRATIONS[50](structuredClone(FORMAT_2_50)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { bowl_hattie: { hattie_flats: true, hattie_glass: true, hattie_strangers: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['talkGlassLean']);
+    expect(next.money).toBe(1200);
+  });
+
+  it('leaves a save that never heard of the glass as it was', () => {
+    const fresh = structuredClone(FORMAT_2_49);
+    expect(MIGRATIONS[50](fresh)).toEqual(fresh);
   });
 });

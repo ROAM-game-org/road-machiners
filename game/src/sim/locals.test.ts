@@ -127,13 +127,11 @@ describe('the lost wagon chain', () => {
     expect(w.player.notes.map((n) => n.id)).toEqual(['wagonBowl', 'wagonNose', 'wagonFound']);
   });
 
-  it('asks again with no second note', () => {
+  it('takes the rumor question off the list once asked, with the note kept', () => {
     const once = talk(parkedAt('bowl'), 'bowl_hattie', ['Heard any rumors?']);
 
-    const twice = chooseQuestOption(once, QUESTS, pickIndex(once, 'Heard any rumors?'));
-
-    expect(twice.player.notes.map((n) => n.id)).toEqual(['wagonBowl']);
-    expect(twice.events).toEqual([]);
+    expect(questView(once, QUESTS).choices).not.toContain('Heard any rumors?');
+    expect(once.player.notes.map((n) => n.id)).toEqual(['wagonBowl']);
   });
 });
 

@@ -831,7 +831,12 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withChoiceFreeScenes_47_48,
   withoutCutQuests_48_49,
   withoutKovacKessel_49_50,
+  withHattieGlass_50_51,
 ];
+
+function withHattieGlass_50_51(world: SavedJson): SavedJson {
+  return renameQuestVar(world, 'bowl_hattie', 'hattie_sunward', 'hattie_glass');
+}
 
 function withoutKovacKessel_49_50(world: SavedJson): SavedJson {
   return ['heard_kessel', 'asked_kessel'].reduce((w, name) => dropQuestVar(w, 'nose_kovac', name), world);

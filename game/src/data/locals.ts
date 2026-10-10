@@ -52,7 +52,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
     text: 'Old Ibo says the Burnt Convoy was picked clean long ago and the stretch is not worth the fuel.',
   },
   talkGranaryGate: {
-    title: 'One grain, two payments',
+    title: 'The same grain paid out twice',
     from: 'Jory Baptiste, at Bowl',
     text: 'Jory says the Granary pays Kiln a sack for each armed truck, and the road patrol is paid from the tenants\' share. He says both are paid from the same grain.',
   },

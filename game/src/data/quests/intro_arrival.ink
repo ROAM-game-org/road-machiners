@@ -23,21 +23,21 @@ Behind the tower, what's left of a shed has folded in on itself. Something long 
 
 = house
 ~ give_money(50)
-You step over the doorsill into a room open to the sky. Sand has drifted into the corners. The table is still there, and the stove, and a cot with no blanket. Somebody took everything that would carry. # page # place: The house
+You step over the doorsill into a room open to the sky. Sand has drifted into the corners. A table and a stove are left, and a cot with no blanket. Anything light enough to carry is gone. # page # place: The house
 Under the cot, a floorboard sits a little higher than the rest. You get your fingers under it and it comes up.
 In the hollow lies a tobacco tin. Inside it, wrapped in a strip of oilcloth, is a fold of notes, soft from handling.
-Somebody meant to come back for this. You put it in your shirt and go out to the shed.
+You put it in your shirt and go out to the shed.
 -> shed
 
 = shed
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm
 It's old and square, with a flat grille and round lamps. The paint has gone to grey primer. The tires are soft but whole, and the bed is boxed in with welded plate.
-A machine gun sits on a swivel behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.
+A machine gun sits on a swivel ring behind the cab, its barrel wrapped in rag. A pair of steel pins hold the ring to the cab. One pin is bright and new, the other worn dull. A small welder's mark is cut into the ring.
 Someone has scratched a ladle into the driver's door, deep, with a knife point.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of oil, rope and old tobacco. A key stands in the ignition, with a brass tag on its ring stamped with a number worn half smooth. # page
 You twist the key. The starter grinds, slows and quits.
 You twist it again. The engine catches for a breath, shakes the whole cab and dies. You call the truck something you wouldn't call a dog.
 You lean your forehead on the hot wheel and wait. Then you try a third time. It coughs, misses, coughs again, and holds. The idle is rough and lopsided, and the mirror shakes with it. It's the best sound you have heard in a long time.
 You ease out of the shed. The roof sheet scrapes the length of the cab and slides off the tailgate, and the basin opens up in front of the hood. # page
-The fuel needle sits just above empty. The town in the haze had better be close.
+The fuel needle sits just above empty, and your tongue sticks to your teeth. The town in the haze had better be close.
 -> END

@@ -1,5 +1,5 @@
 {
- "format": "2.50",
+ "format": "2.51",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1899,6 +1899,10 @@
    },
    "bowl_hattie": {
     "hattie_flats": "boolean",
+    "hattie_glass": "boolean",
+    "hattie_granary": "boolean",
+    "hattie_roads": "boolean",
+    "hattie_rumor": "boolean",
     "hattie_soldiers": "boolean",
     "hattie_strangers": "boolean",
     "hattie_sunward": "boolean"
