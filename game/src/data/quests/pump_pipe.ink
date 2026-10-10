@@ -2,7 +2,7 @@
 # stat: money Money
 # fact: book_read Pump book: a pipe to the Archon's terrace draws seep water every week. No meter reads it.
 # fact: early_lines Pump book: the first line for the pipe is in Wendell's hand, a year before the Senate struck the meter.
-# fact: margin_read Pump book, last margin, in Agnes's hand: if this reaches the Senate floor, say a driver found it.
+# fact: margin_read Pump book, last margin, in Agnes's hand: if this reaches the Senate floor, say a driver found it, and do not name her.
 # fact: valve_read Terrace valve: the wheel is worn bright on one side. An empty flange sits below it, its bolt holes clean.
 # fact: offer_heard Household: a steward in a Marr coat offered coin to lose the bundle on the road.
 # fact: canal_matches Canal book: the same weekly line for the pipe, in Mirela's hand.
@@ -34,7 +34,7 @@ VAR toll = 50
 { taken: -> road }
 Agnes goes to her cot and draws a flat bundle from under the pillow. It is oilcloth tied with wire, and a wax seal sits on the knot. # place: Pump Station
 Every line in my own hand. I copied it by lamplight over most of a winter. # speaker: Agnes
-+ [Tuck it under your coat.]
++ [Stow it under the seat of your truck.]
   ~ taken = true
   ~ note("pipeBook")
   Agnes watches it go. Then she goes back to her gauges, as if the matter were a reading she had already written down.
@@ -93,7 +93,7 @@ The offer's closed now, I'm afraid, and my rider will reach the gate well before
 
 === road ===
 # checkpoint: road
-{ book_read: The book rides on the seat beside you, its cut wax rattling in the oilcloth. | The bundle rides on the seat beside you, its seal still whole. } # page # place: The road
+{ book_read: The book rides under your seat, its cut wax rattling in the oilcloth. | The bundle rides under your seat, its seal still whole. } # page # place: The road
 + {not book_read} [Cut the seal and read the book.]
   -> read
 + {not walked_out} [Climb to the top terrace and see the pipe for yourself.]
@@ -123,7 +123,7 @@ This week; 300 barrels; no meter # row
   The first line for the pipe is in a different hand, an old man's, cramped and slanted to the right. It is her uncle Wendell's, who kept the book before her, and the ink on it is a year older than the line that strikes the meter.
 }
 Every week after the order she still wrote the pipe's line, with no number in it.
-The last margin line is meant for the Canal people. If this reaches the Senate floor, say a driver found it, and do not say the Pump Station.
+The last margin line is meant for the Canal people. If this reaches the Senate floor, say a driver found it, and do not name me.
 -> road
 
 === terrace ===
@@ -158,7 +158,7 @@ Nobody stops you, and the water goes up toward the orchard, quiet and steady.
 ~ walked_out = true
 You lift the hood. Under it are a wheel, a housing and a ring of bolts, and none of it tells you anything you could carry to the Bowl.
 A terrace hand with a hoe comes down the row and asks what you want at the Archon's valve.
-You say you're looking for the water man. He looks at your boots, and then at your truck down on the road, and he doesn't believe a word of it.
+You have no good answer, and he can see it. He looks at your boots, and then at your truck down on the road.
 He walks you to the gate and asks your name and your truck, and he writes both on his palm with a pencil stub.
 -> road
 
@@ -199,13 +199,13 @@ A pair of Bowl patrolmen hold the Bowl gate, with a cart drawn across the road a
 { sluice == "watched":
   A rider in a grey coat leans on his buggy behind them. Dust lies thick on its wheels.
 }
-They look at the bundle on your seat, and they do not look at your face.
-Sealed bundles need a patrol leave. Got one? # speaker: Patrolman
+One of them leans into your cab before he looks at your face.
+Paper off the pump road needs a patrol pass. Got one? # speaker: Patrolman
 + [Run the dry cut round the wall.]
   -> cut
 + [Tell them it's pump returns for the Canal book.]
   -> talk
-+ [Slip the older one coin to look the other way. # cost: {toll}]
++ [Slip the older one some coin to look the other way. # cost: {toll}]
   -> bought
 
 === through ===
@@ -227,14 +227,14 @@ Sealed bundles need a patrol leave. Got one? # speaker: Patrolman
 
 === ran ===
 ~ sluice = "ran"
-The dry cut is a ditch the canal families dug and then forgot. You take it at speed with one hand holding the bundle down on the seat.
+The dry cut is a ditch the canal families dug and then forgot. You take it at speed, and the bundle slides about under your seat.
 Dust rises behind you in a long yellow flag. A shout follows it, and then a shot into the air, but nobody follows the truck down the cut.
 -> through
 
 === rammed ===
 ~ sluice = "ditched"
 The cut is deeper than it looked from the road. The truck comes down on a buried slab and stays there with its nose in the dirt and one wheel spinning.
-The patrolmen walk up unhurried, still holding their kettle mugs, and one of them reaches in and lifts the bundle off the seat.
+The patrolmen walk up unhurried, still holding their kettle mugs, and one of them reaches in and pulls the bundle from under the seat.
 -> seized
 
 === talk ===
@@ -255,7 +255,7 @@ The older patrolman has carried returns himself, and the memory shows on his fac
 
 === read_through ===
 You say the bundle is a pump keeper's returns for the Canal book, dull paper and already late.
-Returns ride in the pump cart at the start of the month. This isn't the start. # speaker: Patrolman
+Late, is it? Late returns ride in the pump cart like the rest. Nobody pays a truck to carry dull paper. # speaker: Patrolman
 { book_read: He sees the cut wax and folds the oilcloth open. | He finds the wax and breaks it with his thumb. }
 -> seized
 
@@ -276,8 +276,8 @@ The cart rolls aside.
 }
 ~ pay(due)
 They read the first page standing in the road, with the wind lifting the corner of it. Then they close the book and put it in a saddlebag. # page # place: The Bowl gate
-The pump book goes to the Archon's desk. Agnes still keeps the first one under her pillow, and now the household knows what is in it.
-They fine you {due} M for carrying a bundle without a patrol leave. # reveal: all
+The pump book goes to the Archon's desk. Agnes still keeps the first book at the Pump Station, and now the household knows what is in it.
+They fine you {due} M for carrying a bundle without a patrol pass. # reveal: all
 Your name is in their report before you reach your truck.
 -> END
 

@@ -278,15 +278,37 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
+  const COVER = 'Pump talk. Pressures and pipes, and none of it worth the hearing.';
+
   it('lists Agnes at the Pump Station and Odile at the Granary', () => {
     expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
     expect(localsAt('granary').map((l) => l.id)).toContain('odile');
   });
 
+  it('keeps the copy from a driver who tells the watchman, and pays the tip', () => {
+    const w = parkedAt('pump-station');
+
+    const told = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'She says the numbers are falling, and one pipe has no meter.']);
+
+    expect(told.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
+    expect(told.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(choices(told, 'pump_agnes')).toEqual(['Goodbye.']);
+  });
+
+  it('holds the copy back from a silent driver until the watchman is named', () => {
+    const w = parkedAt('pump-station');
+
+    const silent = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Say nothing.']);
+    expect(questView(silent, QUESTS).choices).not.toContain('Where\'s the second copy?');
+
+    const warned = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Say nothing.', 'Tell her the man by the drums is listening.']);
+    expect(questView(warned, QUESTS).choices).toContain('Where\'s the second copy?');
+  });
+
   it('opens the pipe quest from Agnes and ends it with the bundle dropped', () => {
     const w = parkedAt('pump-station');
 
-    const dropped = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drop it in a ditch.']);
+    const dropped = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drop it in a ditch.']);
 
     expect(dropped.player.quests.world).toEqual({});
     expect(dropped.player.money).toBe(w.player.money);
@@ -296,7 +318,7 @@ describe('locals at stalls', () => {
 
   it('reaches the Bowl lock house once the gate is bought', () => {
     const w = parkedAt('pump-station');
-    const lost = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Slip the older one coin to look the other way.']);
+    const lost = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Slip the older one some coin to look the other way.']);
 
     expect(questView(lost, QUESTS).choices).toContain('Sign the Canal book as the driver who found it.');
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
@@ -305,20 +327,20 @@ describe('locals at stalls', () => {
 
   it('pays the sluice patrol with a bribe, signs the Canal book and pays on delivery', () => {
     const w = parkedAt('pump-station');
-    const road = ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.'];
+    const road = ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.'];
 
-    const signed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look the other way.', 'Sign the Canal book as the driver who found it.']);
+    const signed = talk(w, 'pump_agnes', [...road, 'Slip the older one some coin to look the other way.', 'Sign the Canal book as the driver who found it.']);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
-    const filed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look the other way.', 'Leave your name off.']);
+    const filed = talk(w, 'pump_agnes', [...road, 'Slip the older one some coin to look the other way.', 'Leave your name off.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
   });
 
   it('seizes the bundle and fines the player when the sluice talk fails', () => {
     const w = parkedAt('pump-station');
 
-    const seized = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Tell them it\'s pump returns for the Canal book.']);
+    const seized = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Tell them it\'s pump returns for the Canal book.']);
 
     expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
     expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);
@@ -327,7 +349,7 @@ describe('locals at stalls', () => {
   it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 
-    const read = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Cut the seal and read the book.', 'Read it aloud to the tenants who queue with their grain at the Granary gate.']);
+    const read = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Cut the seal and read the book.', 'Read it aloud to the tenants who queue with their grain at the Granary gate.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);
