@@ -132,7 +132,7 @@ The steward Aurel Brede meets the player on the Bowl road. He has already sent w
 - Mirela's lock house sits on the lowest canal in Bowl, right under the Archon's terraces. It needs no `found()` gate, because the player is already in Bowl once the gate is passed. The checkpoints keep their old names, and the variable `sluice` keeps the player's standing at the gate.
 - At the lock Mirela asks the player to sign the Canal book as the driver who found it. Signing sets `delivered` and the household turns on the player. Leaving the name off sets `filed`, and the Canal word stands alone. Both pay 60 M.
 - Machining 2 reads the terrace valve and finds the empty meter flange. Machining 3 bolts a spare meter to it for 30 M and sets `metered`. A failure shears the flange, costs a fine and marks the player.
-- Perception 2 while reading the book shows the first pipe line in Wendell's hand, a year older than the order. Mirela reads it two ways and the player does not learn which is true.
+- Perception 2 while reading the book shows Wendell's first page, where the pipe's line stands blank long before the order. Mirela reads it two ways. Agnes's envelope answer tells the player which is true.
 - Selling to the steward pays 100 M and sets `sold`. Reading at the Granary gate sets `read`, keeps the book with social 2 and otherwise costs 40 M and the book. Dropping the bundle in a ditch changes nothing, and Agnes offers again.
 
 The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized`, `metered` and `searched`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes.

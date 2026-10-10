@@ -1,7 +1,7 @@
 # view: page
 # stat: money Money
 # fact: book_read Pump book: a pipe to the Archon's terrace draws seep water every week. No meter reads it.
-# fact: early_lines Pump book: the first line for the pipe is in Wendell's hand, a year before the Senate struck the meter.
+# fact: early_lines Pump book: on Wendell's first page the pipe's line is there with no number, long before the Senate struck the meter.
 # fact: margin_read Pump book, last margin, in Agnes's hand: if this reaches the Senate floor, say a driver found it, and do not name her.
 # fact: offer_heard Household: the steward Aurel Brede offered coin to lose the bundle on the road.
 # fact: reserve_known Steward: half of what the pipe draws fills a cistern under the terrace, the Senate's dry-year store. Only the Archon may open it.
@@ -144,7 +144,7 @@ Winter; 320 barrels; no meter # row
 This week; 300 barrels; no meter # row
 { skill("perception") >= 2:
   ~ early_lines = true
-  The first line for the pipe is in a different hand, an old man's, cramped and slanted to the right. It is her uncle Wendell's, who kept the book before her, and the ink on it is a year older than the line that strikes the meter.
+  The first page is in a different hand, an old man's, cramped and slanted to the right. It is her uncle Wendell's, who kept the book before her. He wrote the pipe's line every week and left it empty, long before any Senate order.
 }
 Every week after the order she still wrote the pipe's line, with no number in it.
 The last margin line is meant for the Canal people. If this reaches the Senate floor, say a driver found it, and do not name me.
@@ -308,7 +308,7 @@ Agnes sent you. She doesn't trust the road, and she's right not to. # speaker: M
 }
 She lays the copy beside a long book chained to the sill. The weekly lines run side by side, hers and Agnes's, line for line.
 { early_lines:
-  She finds the old man's hand at the top of the column and taps it. That's a year before the order. Either the order was a cover, or Wendell kept that pipe out of the book on purpose. # speaker: Mirela
+  She finds the old man's page and taps the empty line. Wendell left it blank for years before any order. Either somebody told him to, or somebody paid him to. # speaker: Mirela
 }
 { valve_read:
   You tell her about the bright wheel and the empty flange, and she stops listening to anything else for a moment.
