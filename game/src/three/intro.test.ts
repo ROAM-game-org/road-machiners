@@ -14,13 +14,14 @@ import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
+import { canUseSite } from '../sim/sites';
 import { isCliff, isRoadTile, tileAt } from '../sim/terrain';
 import { openingStopPoint, testDrive } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { playerSees } from '../sim/vision';
 import { maxHp } from '../sim/wear';
-import { endTurn, newWorld, startPose } from '../sim/world';
+import { endTurn, startPose } from '../sim/world';
 import { openingStep } from '../ui/tips';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
@@ -209,21 +210,21 @@ describe('the arrival at the farm', () => {
 });
 
 describe('a skipped intro', () => {
-  it('starts exactly as the old start did, with no quest, no farm and no intro step', () => {
+  it('starts the player parked in Bowl with the arrival truck, fuel and supplies, with no quest, no farm and no wreck', () => {
     const w = newGame(SEED, 'arrival', false, TEST_MAP, setup);
-    const old = newWorld(SEED, startKit('standard'), TEST_MAP, setup);
-    expect(JSON.stringify(saveOf(w))).toBe(JSON.stringify(saveOf(old)));
-    expect(playerVehicle(w).pos).toEqual(startPose().pos);
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    expect(canUseSite(playerVehicle(w).pos, bowl)).toBe(true);
+    expect(playerVehicle(w).chassisId).toBe('scout');
+    expect(w.player.fuel).toBe(startKit('arrival').fuel);
+    expect(w.player.supplies).toBe(startKit('arrival').supplies);
     expect(w.player.quests.session).toBeNull();
     expect(w.obstacles.some((o) => o.id === FARM_TOWER_ID)).toBe(false);
+    expect(openingStockOf(w)).toBeNull();
     expect(introStep(w)).toBe('off');
   });
 
-  it('leaves the step off when the engine is patched', () => {
-    let w = newGame(SEED, 'arrival', false, TEST_MAP, setup);
-    w = patched(searchedAndLooted(w));
-    expect(engineNeedsPatch(w, playerVehicle(w))).toBe(false);
-    expect(introStep(turns(w, 2))).toBe('off');
+  it('never starts the ambush for a skipped intro', () => {
+    expect(introStep(turns(newGame(SEED, 'arrival', false, TEST_MAP, setup), 3))).toBe('off');
   });
 });
 

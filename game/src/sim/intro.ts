@@ -45,6 +45,13 @@ function keepHunting(w: World): void {
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
   if (foes === null || foes.length === 0 || introStep(w) !== 'ambush') return;
+  parkInWakeTown(w);
+  setIntroStep(w, 'done');
+  setWorldVar(w, TOWED_TO_BOWL, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
+}
+
+function parkInWakeTown(w: World): void {
   const me = playerVehicle(w);
   const site = getKnownSite(WAKE_TOWN);
   const pad = nearestPad(site, me.pos);
@@ -52,9 +59,12 @@ export function wakeInTown(w: World, foes: readonly string[] | null): void {
   me.heading = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   me.speed = 0;
   me.trail = [];
-  setIntroStep(w, 'done');
-  setWorldVar(w, TOWED_TO_BOWL, true);
-  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
+}
+
+export function wakeTownStart(): { pos: Vec; heading: number } {
+  const site = getKnownSite(WAKE_TOWN);
+  const pad = nearestPad(site, site.pos);
+  return { pos: { ...pad }, heading: Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x) };
 }
 
 function settleBeforePatch(w: World, step: IntroStep): void {
