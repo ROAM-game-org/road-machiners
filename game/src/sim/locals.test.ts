@@ -377,6 +377,14 @@ describe('locals at stalls', () => {
     expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
+  it('keeps the steward\'s gate pass through a failed meter fit on the terrace', () => {
+    const w = parkedAt('pump-station');
+    w.player.ranks.social = 2;
+
+    const through = talk(w, 'pump_agnes', [...OPEN, COVER, 'Say you\'ll carry it.', 'Take the bundle and the meter out to your truck.', 'Say you\'ll lose it, and ask for a gate pass first.', 'Take the side track up to the top terrace.', 'Bolt Agnes\'s meter onto the pipe.', 'Drive on to the Bowl gate.']);
+    expect(questView(through, QUESTS).choices).toContain('Sign as the carrier.');
+  });
+
   it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 

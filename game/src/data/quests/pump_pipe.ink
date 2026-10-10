@@ -71,13 +71,13 @@ That's the meter I took off the top pipe. If you're ever up that way, it still f
   ~ knows_envelope = false
   ~ asked_cover = false
   ~ asked_steward = false
-  Agnes watches you go. Then she goes back to her dials.
+  Agnes watches you go. Then she goes back to her dials. She doesn't wave. People who wave get remembered.
   -> steward
 
 === steward ===
 # checkpoint: steward
 A cart waits where the pump track meets the Bowl road. # page # place: The Bowl road
-A grey-haired man in a grey coat sits on its tailboard with his hands folded. A lantern is stitched on his collar, and a purse sits on the board beside him.
+A grey-haired man in a grey coat sits on its tailboard with his hands folded. A lantern is stitched on his collar, and a purse sits on the board beside him. A man that tidy has never carried anything heavy himself.
 Aurel Brede, steward to the Archon's household. My watchman saw the keeper give you a bundle. # speaker: Steward
 I don't ask you to burn it, only to lose it on the road. The patrol at the Bowl gate opens sealed bundles when I send word, and I'd rather not send it. # speaker: Steward
 He names a sum: {price} M. # reveal: all
@@ -141,7 +141,7 @@ The offer's closed now, I'm afraid. My rider will be at the gate well before you
 -> onto_road
 
 === onto_road ===
-The pump track runs down onto the Bowl road. Ahead is the Bowl gate. Off to the left, tenants queue with their sacks at the Granary gate, and a side track climbs to the top terrace. # page # place: The road
+The pump track runs down onto the Bowl road. Ahead is the Bowl gate, and every way into the Bowl goes past somebody. Off to the left, tenants queue with their sacks at the Granary gate, and a side track climbs to the top terrace. # page # place: The road
 -> road
 
 === road ===
@@ -165,18 +165,19 @@ The pump track runs down onto the Bowl road. Ahead is the Bowl gate. Off to the 
 ~ margin_read = true
 ~ note("pipeDraw")
 You cut the wax and unfold the oilcloth on your knee. It is the book you saw at the pump, line for line, in Agnes's small square hand. Her own book stops at the readings. The copy goes on into the margin. # place: The road
-Barrels a week; Pumped up from the floor; Out through the metered pipes; Up the top pipe, by her sum # head
+Barrels a week; Pumped up from the floor; Out through every other pipe's meter; Up the top pipe, by her sum # head
 Last spring; 410; 390; 20 # row
 Midsummer; 380; 350; 30 # row
 Autumn; 350; 300; 50 # row
 This week; 300; 230; 70 # row
-On the last page she has run the sum forward in pencil. If the floor keeps falling and the top pipe keeps growing, the metered pipes run dry by next autumn.
+On the last page she has run the sum forward in pencil. If what the pump brings up keeps falling, and the top pipe keeps taking more of it, every other pipe runs dry by next autumn.
+Next autumn is close enough to plan around, and too close to wait for.
 Under it, one line in ink: For Mirela, to set beside hers.
 -> road
 
 === terrace ===
 A whitewashed wall runs along the top terrace, and its gate stands open for the hands who water the orchard. # page # place: The top terrace
-The pipe comes up out of the rock as thick as a thigh and ends at a valve wheel under a canvas hood. Somewhere above you a bucket knocks against a tree.
+The pipe comes up out of the rock as thick as a thigh and ends at a valve wheel under a canvas hood. Somewhere above you a bucket knocks against a tree. Nobody guards the pipe. Either nobody cares, or everybody up here knows better than to touch it.
 -> terrace_hub
 
 = terrace_hub
@@ -189,7 +190,7 @@ The pipe comes up out of the rock as thick as a thigh and ends at a valve wheel 
 
 === valve ===
 ~ valve_read = true
-You lift the hood. The wheel is worn bright on one side, by a hand that works it often.
+You lift the hood. The wheel is worn bright on one side, by a hand that works it often. Somebody up here opens this pipe wider every week, and doesn't need to write down how far.
 Below it sits an empty flange where a meter used to be. Its bolt holes are clean and oiled, and they are the same ring as the holes on Agnes's meter.
 A terrace hand with a hoe watches you from the rows. He doesn't come down.
 -> terrace.terrace_hub
@@ -212,14 +213,17 @@ Nobody washes the number off the Granary board.
 -> END
 
 === sheared ===
-~ sluice = "watched"
+{ sluice != "passed":
+  ~ sluice = "watched"
+}
 ~ walked_out = true
 ~ temp due = fine
 { money() < due:
   ~ due = money()
 }
 ~ pay(due)
-The flange is older than the meter. It cracks at the first bolt, and seep water sprays across the terrace stones in a bright fan.
+You draw the first bolt down hard before the others are seated, and you know it's wrong as you do it. The old flange cracks across.
+Seep water sprays over the terrace stones in a bright fan and cuts under the whitewashed wall, and a stretch of it slumps into the row.
 The terrace hand drops his hoe and comes running. He walks you to the gate, asks your name and your truck, and writes both on his palm with a stub of charcoal.
 The household sends a bill for the stones and the wall, and it comes to {due} M. # reveal: all
 -> road
@@ -232,7 +236,7 @@ A pair of Bowl patrolmen hold the gate, with a cart drawn across the road and a 
 { sluice == "watched":
   A rider in a grey coat leans on his buggy behind them. Dust lies thick on its wheels.
 }
-The older patrolman reads your plate off a slip of paper before you've stopped, and leans into your cab.
+The older patrolman reads your plate off a slip of paper before you've stopped, and leans into your cab. Somebody's word got here faster than your truck did.
 Sealed paper off the pump road needs a patrol pass. Got one? # speaker: Patrolman
 + [Run the dry cut round the wall. # check: driving {gate_need(2)}]
   -> cut
@@ -259,7 +263,7 @@ Sealed paper off the pump road needs a patrol pass. Got one? # speaker: Patrolma
 === ran ===
 ~ sluice = "ran"
 The dry cut is a ditch the canal people dug and then forgot. You take it at speed, and the bundle slides about on the seat.
-Dust rises behind you in a long yellow flag. A shout follows it, and then a shot into the air, but nobody follows the truck down the cut.
+Dust rises behind you in a long yellow flag. A shout follows it, and then a shot into the air, but nobody follows the truck down the cut. A kettle is a good reason not to.
 -> through
 
 === rammed ===
@@ -321,7 +325,7 @@ Your name is in their report before you reach your truck.
 -> END
 
 === lock ===
-The lock house stands on the lowest canal in the Bowl, with a sluice gate and a long beam to lift it. The stone smells of cold mud. # page # place: Bowl lock house
+The lock house stands on the lowest canal in the Bowl, with a sluice gate and a long beam to lift it. The stone smells of cold mud. Mud means the water was here once and isn't now. # page # place: Bowl lock house
 A woman stands on the beam with her sleeves rolled to the elbow. She reads the bundle's seal before she reads you.
 Agnes sent you. She doesn't trust the road, and she's right not to. # speaker: Mirela
 { book_read:
@@ -345,6 +349,7 @@ It doesn't prove the rest. It proves she didn't invent the one I can check, and 
 }
 She closes the copy and keeps her hand flat on it. # page
 The household will say Agnes forged her copy to sell water. You carried it from her pillow to my sill. # speaker: Mirela
+The Senate weighs a paper by who stands behind it. Agnes keeps the pump and I keep the lock, so we both have a side. You don't drink from either. # speaker: Mirela
 Sign my book as its carrier, and it's her book, mine and a witness, not a keeper's grudge. Your name goes in my book, and the steward reads my book. # speaker: Mirela
 { book_read:
   Write that you cut the seal on the road and changed nothing. # speaker: Mirela
@@ -372,7 +377,7 @@ Sign my book as its carrier, and it's her book, mine and a witness, not a keeper
 ~ give_money(fee)
 You sign. Mirela writes the day beside your name, blots the page with her sleeve and counts {fee} M out of the lock box. # page # place: Bowl lock house
 The Senate sits in a week. Her book, mine and a witness, and they'll have to answer for the pipe. # speaker: Mirela
-The lock hands who watched you sign walk off up the canal path, and by dusk it's told at every lock in the Bowl.
+The lock hands who watched you sign walk off up the canal path, and by dusk it's told at every lock in the Bowl. Your name is in a book the steward reads now. That was the price, and you paid it.
 Word reaches the drivers' well a week later. Mirela read both books on the Senate floor with your name under them. The household's bench called the copy a forgery, and nobody laughed with them. # page
 The vote to put a meter back on the top pipe failed by one bench. The vote to give the canal families back their lock share passed. # reveal: all
 -> END
@@ -431,7 +436,7 @@ The steward does not open the bundle. He weighs it once in his hand and gives yo
 He asks your name and writes it on a slip. Friends of the household drink first, he says, and he folds the slip into his coat.
 Don't speak of this in the Bowl. The gate has your plate. # speaker: Steward
 The cart rolls toward the terraces with the bundle on his knee. # reveal: all
-You count {price} M. Behind you, a lamp comes on at the top terrace.
+You count {price} M. It's good money. It always is. Behind you, a lamp comes on at the top terrace.
 -> END
 
 === dropped ===

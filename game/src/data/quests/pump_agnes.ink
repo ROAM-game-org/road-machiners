@@ -30,8 +30,8 @@ VAR tip = 20
     Changed your mind about the road? # speaker: Agnes
     -> hub
   }
-  The Pump Station sits behind a wall of stacked oil drums, and the whole place smells of hot iron and standing water. A woman in a canvas apron stands at a row of dials with a pencil stub and an open book, and she doesn't look up.
-  A man in a grey coat sits on an upturned drum by the gate with a mug of tea.
+  The Pump Station sits behind a wall of stacked oil drums, and the whole place smells of hot iron and standing water. Water means somebody guards it, so you look for who. A woman in a canvas apron stands at a row of dials with a pencil stub and an open book, and she doesn't look up.
+  A man in a grey coat sits on an upturned drum by the gate with a mug of tea. Nobody drinks tea that slowly unless they're paid to sit.
   { skill("perception") >= 2: His tea stopped steaming a while ago, and he hasn't drunk any. He's listening to her. }
   Tank's by the drums if you want water. If you want to be useful while it fills, read me the big dial. My eyes are going. # speaker: Agnes
 }
@@ -41,14 +41,14 @@ VAR tip = 20
 # checkpoint: start.hub
 + {not knows_book} [Read her the big dial.]
   ~ knows_book = true
-  You read her the number on the big dial. She writes it at the foot of a column, then swings the book round so you can see the page.
-  Barrels a week; Pumped up from the floor; Out through the metered pipes; The top pipe's meter # head
+  You read her the number on the big dial. She writes it at the foot of a column, then swings the book round so you can see the page. Either she trusts drivers, or she's been waiting a long time for anybody to look.
+  Barrels a week; Pumped up from the floor; Out through every other pipe's meter; The top pipe's own meter # head
   Last spring; 410; 390; 20 # row
   Midsummer; 380; 350; 30 # row
   Autumn; 350; 300; meter taken off # row
   This week; 300; 230; meter taken off # row
-  The big dial counts what the pump brings up from the crater floor. Every other pipe has a meter. While the top pipe had one, it read the difference to the barrel. # speaker: Agnes
-  Now it has none, and the difference grows every week. I write it down, and nobody reads it. # speaker: Agnes
+  The big dial counts what the pump brings up from the crater floor. Every pipe out of here has its own meter but the top one, now. # speaker: Agnes
+  While the top pipe had a meter, what it read and what the others read added up to the big dial, to the barrel. Now it has none, and the gap grows every week. I write it down, and nobody reads it. # speaker: Agnes
   -> hub
 + {knows_book and not asked_leak} [Ask whether the pipes could just be leaking.]
   ~ asked_leak = true
@@ -61,7 +61,7 @@ VAR tip = 20
   { trusted:
     -> copy
   }
-  The man in the grey coat puts his mug down and comes over. There is a lantern stitched on his collar.
+  The man in the grey coat puts his mug down and comes over. There is a lantern stitched on his collar. So much for his relief.
   -> watched
 + {not asked_man and not trusted} [Ask the man on the drum what he's waiting for.]
   ~ asked_man = true
@@ -92,7 +92,7 @@ VAR tip = 20
 What's the pump keeper been telling you? # speaker: Watchman
 + [Tell him it was pump talk.]
   ~ watchman = "covered"
-  You tell him she was on about pressures and pipes. He looks at you a while, then nods and goes back to his drum.
+  You tell him she was on about pressures and pipes. He looks at you a while, then nods and goes back to his drum. He didn't believe you. He just didn't care enough to say so.
   -> copy
 + [Tell him what she said.]
   -> told
@@ -108,7 +108,7 @@ What's the pump keeper been telling you? # speaker: Watchman
 You tell him about the falling numbers and the pipe with no meter.
 He takes a small purse out of his coat and holds it out to you.
 The household thanks you. # speaker: Watchman
-Agnes heard every word. She writes the next number down.
+Agnes heard every word. She writes the next number down. It's easy money, and it'll cost somebody else.
 + [Take the purse.]
   ~ marr_regard = "bought"
   ~ give_money(tip)
@@ -120,14 +120,14 @@ Agnes heard every word. She writes the next number down.
   -> gone
 
 = gone
-Agnes doesn't look at you again. As you pull out of the yard, a pair of men in grey coats walk past your truck and into her shed.
+Agnes doesn't look at you again. As you pull out of the yard, a pair of men in grey coats walk past your truck and into her shed. They didn't waste any time. Neither did you.
 -> END
 
 = copy
 ~ trusted = true
 ~ knows_copy = true
 { watchman == "covered": Agnes comes back to the dials. She heard every word, and she talks low now. | She talks low, and she keeps her back to the drum. }
-I made a copy of the book over the winter, and it's under my pillow. It belongs in the lock house at the bottom of the Bowl, beside Mirela Duarte's book. Mirela counts the water that reaches the canal. # speaker: Agnes
+I made a copy of the book over the winter, and it's under my pillow. My own book stays here, where the household can find it if it likes. It belongs in the lock house at the bottom of the Bowl, beside Mirela Duarte's book. Mirela counts the water that reaches the canal. # speaker: Agnes
 Her count beside mine, and nobody can call mine a grudge. # speaker: Agnes
 -> hub
 
