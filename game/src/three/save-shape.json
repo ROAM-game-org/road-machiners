@@ -1931,6 +1931,7 @@
    },
    "bowl_hattie": {
     "hattie_flats": "boolean",
+    "hattie_soldiers": "boolean",
     "hattie_strangers": "boolean",
     "hattie_sunward": "boolean"
    },
@@ -2160,8 +2161,10 @@
     "knows_carry": "boolean",
     "knows_copy": "boolean",
     "knows_marr": "boolean",
+    "knows_pay": "boolean",
     "knows_pipe": "boolean",
-    "knows_senate": "boolean"
+    "knows_senate": "boolean",
+    "knows_why": "boolean"
    },
    "pump_pipe": {
     "book_read": "boolean",

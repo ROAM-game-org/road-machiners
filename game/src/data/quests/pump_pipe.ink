@@ -49,7 +49,7 @@ Every line in my own hand. I copied it by lamplight over most of a winter. # spe
 === steward ===
 # checkpoint: steward
 A cart waits where the pump track meets the Bowl road, one wheel propped on a stone to ease the axle. # page # place: The Bowl road
-A man in a grey coat with a lantern on the collar sits on the tailboard, his hands folded in his lap. His eyes find the bundle before they go to your face.
+A man in a grey coat with a lantern on the collar sits on the tailboard, his hands folded in his lap. He doesn't search you with his eyes. He looks at you like a man who already knows where the bundle is.
 I serve the household of the Archon. The pump road has a watchman, and the watchman is ours. # speaker: Steward
 The top terraces have held their water by an old charter since the Bowl was founded, and a charter is not a theft, whatever a book may call it. A book that says otherwise is a quarrel the Bowl can't afford in a dry year. # speaker: Steward
 I'd be grateful if that one were lost on the road. I don't ask you to burn it, only to lose it. I should add that the patrol at the Bowl gate opens every sealed bundle that passes, when I send word. # speaker: Steward
@@ -96,11 +96,11 @@ The offer's closed now, I'm afraid, and my rider will reach the gate well before
 { book_read: The book rides on the seat beside you, its cut wax rattling in the oilcloth. | The bundle rides on the seat beside you, its seal still whole. } # page # place: The road
 + {not book_read} [Cut the seal and read the book.]
   -> read
-+ {not walked_out} [Climb to the top terrace.]
++ {not walked_out} [Climb to the top terrace and see the pipe for yourself.]
   -> terrace
 + [Drive on to the Bowl gate.]
   -> sluice_post
-+ {book_read} [Read it aloud to the tenants at the Granary gate.]
++ {book_read} [Read it aloud to the tenants who queue with their grain at the Granary gate.]
   -> gate
 + {offer_open} [Find the steward's cart and take his money.]
   -> sold
@@ -158,7 +158,7 @@ Nobody stops you, and the water goes up toward the orchard, quiet and steady.
 ~ walked_out = true
 You lift the hood. Under it are a wheel, a housing and a ring of bolts, and none of it tells you anything you could carry to the Bowl.
 A terrace hand with a hoe comes down the row and asks what you want at the Archon's valve.
-You say you're looking for the water man. He looks at your boots, which have never stood in an orchard, and at your hands, which have never held a hoe.
+You say you're looking for the water man. He looks at your boots, and then at your truck down on the road, and he doesn't believe a word of it.
 He walks you to the gate and asks your name and your truck, and he writes both on his palm with a pencil stub.
 -> road
 
@@ -205,7 +205,7 @@ Sealed bundles need a patrol leave. Got one? # speaker: Patrolman
   -> cut
 + [Tell them it's pump returns for the Canal book.]
   -> talk
-+ [Slip the older one coin to look at the water. # cost: {toll}]
++ [Slip the older one coin to look the other way. # cost: {toll}]
   -> bought
 
 === through ===
@@ -260,7 +260,7 @@ Returns ride in the pump cart at the start of the month. This isn't the start. #
 -> seized
 
 === bought ===
-The older patrolman takes the coin without counting it and studies the water in the cut as if it were something he had never seen.
+The older patrolman takes the coin without counting it and studies the dry cut as if he had never seen it before.
 The cart rolls aside.
 { sluice == "watched": The rider behind them sees all of it, and he takes out a pencil. }
 ~ sluice = "paid"
@@ -297,7 +297,7 @@ She lays the copy beside a long book chained to the sill. The weekly lines run s
   You tell her about the bright wheel and the empty flange, and she stops listening to anything else for a moment.
 }
 A young man in a Bowl patrol coat whitewashes the sluice stones a little way off. He does not look up.
-That's my cousin Tomas. He reported the bright wheel on that valve. For that they put him in a patrol coat and set him to whitewash my lock. # speaker: Mirela
+That's my cousin Tomas. He wrote in a patrol report that somebody opens the Archon's valve every week. For that they put him in a patrol coat and set him to whitewash my lock. # speaker: Mirela
 His report lies on the Archon's desk, and nobody reads it. # speaker: Mirela
 A pump keeper's book is a grudge, and the household will call it one. A driver's name means somebody with no water on this canal saw it. Put yours beside Agnes's line and say you found it on the road. # speaker: Mirela
 + [Sign the Canal book as the driver who found it.]
@@ -347,7 +347,7 @@ A pair of patrolmen in Bowl coats shoulder through the crowd.
 You keep your voice even and give the tenants nothing to be afraid of.
 The tenants close round the patrolmen without being asked. A man at the front chalks the lines on the board as you read them.
 The patrolmen look at the crowd, and at each other, and then they go back the way they came.
-The tenants do not let go of the lines, and by dusk the pipe is a word at every sack. # reveal: all
+By dusk every tenant in the queue can tell you about the pipe with no meter. # reveal: all
 -> END
 
 === fined ===
@@ -359,7 +359,7 @@ The tenants do not let go of the lines, and by dusk the pipe is a word at every 
 One of them takes the book out of your hands.
 Posting on the gate needs a steward's leave, and you haven't got one. # speaker: Patrolman
 He takes {due} M for the disorder and carries the book away toward the terraces. # reveal: all
-The tenants do not let go of the lines, and by dusk the pipe is a word at every sack.
+The book is gone, but by dusk every tenant in the queue can tell you about the pipe with no meter.
 -> END
 
 === sold ===

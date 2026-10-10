@@ -296,7 +296,7 @@ describe('locals at stalls', () => {
 
   it('reaches the Bowl lock house once the gate is bought', () => {
     const w = parkedAt('pump-station');
-    const lost = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Slip the older one coin to look at the water.']);
+    const lost = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Slip the older one coin to look the other way.']);
 
     expect(questView(lost, QUESTS).choices).toContain('Sign the Canal book as the driver who found it.');
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
@@ -307,11 +307,11 @@ describe('locals at stalls', () => {
     const w = parkedAt('pump-station');
     const road = ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.'];
 
-    const signed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look at the water.', 'Sign the Canal book as the driver who found it.']);
+    const signed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look the other way.', 'Sign the Canal book as the driver who found it.']);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
-    const filed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look at the water.', 'Leave your name off.']);
+    const filed = talk(w, 'pump_agnes', [...road, 'Slip the older one coin to look the other way.', 'Leave your name off.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
   });
 
@@ -327,7 +327,7 @@ describe('locals at stalls', () => {
   it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 
-    const read = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Cut the seal and read the book.', 'Read it aloud to the tenants at the Granary gate.']);
+    const read = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Where\'s the second copy?', 'I will carry it.', 'Tuck it under your coat.', 'I\'m not losing anything.', 'Cut the seal and read the book.', 'Read it aloud to the tenants who queue with their grain at the Granary gate.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);

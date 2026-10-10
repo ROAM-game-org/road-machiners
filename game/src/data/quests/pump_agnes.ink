@@ -6,6 +6,8 @@ VAR knows_copy = false
 VAR knows_senate = false
 VAR knows_marr = false
 VAR knows_carry = false
+VAR knows_why = false
+VAR knows_pay = false
 
 === start ===
 # checkpoint: start
@@ -17,7 +19,7 @@ VAR knows_carry = false
 - "seized": Agnes Ondra. The patrol has my copy. They haven't come for the first book, and I think they won't, because they know where it sleeps.
 - "metered": Agnes Ondra. There's a meter on the Archon's pipe now, and I read it from the track with a glass every morning. I didn't put it there, and I've decided not to ask who did.
 - else:
-  The Pump Station sits behind a wall of oil drums and gauges, and the whole place smells of hot iron and wet rope. A woman in a canvas apron stands at a gauge with a pencil stub, and she finishes writing before she looks up.
+  The Pump Station sits behind a wall of stacked oil drums, and the whole place smells of hot iron and wet rope. A woman in a canvas apron stands at a gauge with a pencil stub, and she doesn't look up.
   Agnes Ondra. Let me get this number down, then ask what you like. # speaker: Agnes
 }
 -> hub
@@ -45,9 +47,13 @@ VAR knows_carry = false
   The Archon's household. Gideon Marr sits at the head of the Senate, and his family has held the top terrace since before the Bowl had a wall. Their people wear grey coats with a lantern stitched on the collar. # speaker: Agnes
   The Canal families keep their own count of the water at the Bowl's locks, and they've never liked the top terrace. I only keep the book. # speaker: Agnes
   -> hub
++ {knows_pipe and not knows_why} [Why tell a stranger any of this?]
+  ~ knows_why = true
+  Because you'll be gone by evening, and you don't drink from my pipes. Everybody in the Bowl owes somebody on the terraces. You don't. # speaker: Agnes
+  -> hub
 + {pipe_fate == "none" and knows_copy} [Where's the second copy?]
   Under my pillow, wrapped in oilcloth with a wax seal on the knot. I trust the pillow more than any shelf. # speaker: Agnes
-  I want it in Mirela Duarte's hands. She keeps the Canal families' water book in the lock house on the Bowl's lowest canal. # speaker: Agnes
+  I want it in Mirela Duarte's hands. She keeps the Canal families' water book in the lock house on the Bowl's lowest canal. Her cousin Tomas wears a patrol coat now, for asking the wrong question about that pipe. # speaker: Agnes
   -> pillow
 + [Goodbye.]
   -> END
@@ -56,6 +62,10 @@ VAR knows_carry = false
 + {not knows_carry} [Why not carry it yourself?]
   ~ knows_carry = true
   The patrol watches the pump road, and a pump keeper on the Bowl road would be a story before supper. A driver on that road is one more truck in the dust. Mostly. # speaker: Agnes
+  -> pillow
++ {not knows_pay} [What's in it for me?]
+  ~ knows_pay = true
+  Not much from me. Mirela pays for her own proof, and the Canal families remember who carried it. On a dry road that's worth more than my coin. # speaker: Agnes
   -> pillow
 + [I will carry it.]
   ~ note("pipeBook")
