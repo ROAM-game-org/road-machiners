@@ -187,7 +187,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every meter she reads is lower than last spring. She found a pipe with no meter that runs up to the Archon's terrace, and the Senate made her take her meter off it. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost, and she wants the copy carried out by a stranger, so a driver is named as its finder and she is not. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost, and she wants the copy carried out by a stranger, so a driver is named as its finder and she is not. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -196,18 +196,18 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Way: oppose.
 - High concept: The keeper of the Canal book at the lowest lock house, the last proud Duarte of the canals.
 - Trouble: She speaks first and thinks after, so her words cost her kin and her allies.
-- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every drop of Aurel Brede's pipe; Agnes Ondra's copy sits beside her book.
+- Aspects: Cousin Tomas serves in a Bowl coat at her lock; Counts every barrel the water trucks pour into the canals; Agnes Ondra's copy sits beside her book.
 - Skills: best perception, worst social.
 - Wants: The proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share.
 - Fears: The Canal families fade away unheard.
-- Habit: She counts what the Archon's pipe draws every week at the lock and writes it in the open book.
+- Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. She keeps the Canal book open at the lock house, and every week it records what the Archon's pipe draws. She does not want the pipe metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from the Pump Station pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
-Tomas saw the bright valve wheel on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
+Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
-Her line is "The water came from our seep, and we will count every drop of it."
+Her line is "The water is ours, and we will count every barrel of it."
 
 ## Aurel Brede
 
@@ -216,12 +216,12 @@ Her line is "The water came from our seep, and we will count every drop of it."
 - Trouble: He buys every problem away with money, so each payment is one more thing that can be found out.
 - Aspects: Pays Agnes Ondra as he paid her uncle; Sava Kettering sits on a drum for him; A purse on the cart tailboard.
 - Skills: best social, worst toughness.
-- Wants: The Bowl never learns what the top terrace pipe fills.
+- Wants: The Bowl never learns where the household's tanker unloads.
 - Fears: The Bowl learns it in a dry year.
 - Habit: He sits with his hands folded and names a sum before he names a threat.
-- Secret: The top terrace pipe fills the Marr orchard and the Archon's drought store. He hides it from the tenants and the Senate floor.
+- Secret: The household's tanker fills the Marr gardens and the Archon's drought store. He hides it from the tenants and the Senate floor.
 
-Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the top terrace pipe fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
+Aurel is the steward of the Archon's household, a courteous old man who holds its purse. He offers money before threats, and he signs patrol postings. He knows what the household's tanker fills, and he fears most that the Bowl learns it in a dry year. He pays Agnes Ondra as he paid her uncle, and he posted Sava Kettering at her gate.
 
 His line is "You came for water, and water is what you should carry out."
 
@@ -479,17 +479,51 @@ Sefa leads a dozen vulture families who lived in the burnt trucks of the Burnt C
 
 Her line is "We take what the road is done with and leave the water."
 
+In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and could not lift it, because the ring is bent and locked by a broken pin. She means to come back with a torch after the frost. Until then she tells the Army post that raiders took the wagon.
+
+## Bram Teller
+
+- Way: fear.
+- High concept: A Nose Army corporal who drove wagon Seven on the water run for 4 years.
+- Trouble: Each lie that protects his stripes needs another lie, and the wreck still holds the proof.
+- Aspects: Stripes that pay his sister's ration card; Knows the bend in the Bowl north road; Sergeant Kovac heard the truth.
+- Skills: best driving, worst social.
+- Wants: To keep his stripes and his sister's ration card.
+- Fears: The ration card goes back to the clerk.
+- Habit: He checks his watch when he lies.
+- Secret: He told Command that raiders took wagon Seven, but its one-pin swivel slid on the bend. He hides it from Command and the Salvage Yard.
+
+Teller drove Nose Army wagon Seven on the weekly water run from the Pump Station down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke his gunner's arm. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
+
+His line is "Look, I've driven that track four years. You don't know the bend."
+
+## Ilan Duvall
+
+- Way: oppose.
+- High concept: A conscript gunner of 20 who carries half of the pin that broke.
+- Trouble: He says the plain truth to people who can punish him for it.
+- Aspects: Half a pin in his shirt pocket; Arm in a sling; Found cracked swivels on the depot line with Lena.
+- Skills: best machining, worst social.
+- Wants: Somebody writes down that the pin failed and the ring did not.
+- Fears: Sitting under a one-pin mount again.
+- Habit: He turns his half of the pin in his fingers while he talks.
+- Secret: None.
+
+Ilan is the conscript gunner of wagon Seven, twenty years old. He was under the cannon when it swung, and his arm is in a sling. He took the top half of the sheared pin from the cab and keeps it in his shirt pocket. At Kovac's desk he said the pin sheared, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked one-pin swivels on the depot line. His mother lives in Bowl and buys her water at Hattie's well house.
+
+His line is "The ring was fine. The pin wasn't."
+
 ## Lusa Fenwick
 
 - Way: escape.
-- High concept: A farm son born behind a wheel who rode west as a convoy gunner and never came back.
-- Trouble: Every road out of the farm leaves a debt for his mother to pay.
-- Aspects: An old square pickup with a Brann swivel; Knows every rut of the south road; Took his mother's rifle.
-- Skills: best driving, worst toughness.
-- Wants: To ride west with a long-haul convoy and never come back.
-- Fears: Dying in the farm's dust like his father.
-- Habit: He sleeps in the truck when he is angry.
-- Secret: He lifted the spare key from Amos Teague's belt and took the pickup back. He hid it from Amos and from Pierce.
+- High concept: An Ephemeralist dreamer who rode west with a convoy, came back and reads the road to drivers.
+- Trouble: She brings back stories of a gunless valley that no truck here can drive to.
+- Aspects: Hal Sorensen's map with a valley town drawn on the back; Dario Feld's western book; Reads the dead at Canyon Bridge each year.
+- Skills: best perception, worst toughness.
+- Wants: A road here kept by a guard that every town pays for, so trucks can go without guns.
+- Fears: The valley town is only a dream.
+- Habit: She reads the road aloud from the western book to any convoy driver who will sit.
+- Secret: None.
 
 Lusa is an Ephemeralist dreamer who rode west with a convoy and came back. She keeps Hal Sorensen's map of the western road, and on its back she drew a valley town whose trucks carry no guns. Once a year she reads the names of the dead at Canyon Bridge. The old convoy master Dario Feld gave her his western book, and the convoy drivers let her read them the road.
 
@@ -530,14 +564,14 @@ Her line is "The rope doesn't lie. People lie. The rope only gets shorter."
 ## Danil Varga
 
 - Way: escape.
-- High concept: An Ephemeralist dreamer who rode west with a convoy, came back and reads the road to drivers.
-- Trouble: She brings back stories of a gunless valley that no truck here can drive to.
-- Aspects: Hal Sorensen's map with a valley town drawn on the back; Dario Feld's western book; Reads the dead at Canyon Bridge each year.
-- Skills: best perception, worst toughness.
-- Wants: A road here kept by a guard that every town pays for, so trucks can go without guns.
-- Fears: The valley town is only a dream.
-- Habit: She reads the road aloud from the western book to any convoy driver who will sit.
-- Secret: None.
+- High concept: A farm son born behind a wheel who rode west as a convoy gunner and never came back.
+- Trouble: Every road out of the farm leaves a debt for his mother to pay.
+- Aspects: An old square pickup with a Brann swivel; Knows every rut of the south road; Took his mother's rifle.
+- Skills: best driving, worst toughness.
+- Wants: To ride west with a long-haul convoy and never come back.
+- Fears: Dying in the farm's dust like his father.
+- Habit: He sleeps in the truck when he is angry.
+- Secret: He lifted the spare key from Amos Teague's belt and took the pickup back. He hid it from Amos and from Pierce.
 
 Ruth's son was born behind a wheel and raised behind a plough. He bought an old square pickup on Pierce credit, and Otto Brann welded one of his first swivels into its bed. Danil ran the farm's sorghum north through the Nose gate to pay for it. In year 127 Amos Teague held the pickup at the Nose for Pierce. Danil lifted the spare key from Amos's belt, drove the truck home in the dark, parked it in the shed and rode west with Dario Feld's convoy as a gunner, with his mother's rifle. He never came back.
 

@@ -38,13 +38,13 @@ Every few days each major group makes one move of its own, whatever the player d
 
 The Old Army's trucks still stand where they stopped at Old Orchard. Their logs, orders and cargo hold pieces of why it left. Some pieces say it ran out of food. Others say someone starved it out on purpose. The player can put the pieces together, and the answer changes how Nose and Bowl look.
 
-## The Archon's pipe
+## The Archon's tanker
 
 1. Agnes Ondra at the Pump Station asks the player to carry a sealed copy of her pump book to Mirela Duarte in Bowl.
-2. Mirela Duarte's Canal book shows that a pipe with no meter draws seep water up to the Archon's terrace every week.
-3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the valve. It sits on the Archon's desk.
+2. The book shows water going missing every week into the household's tanker, whose loads a Senate order keeps out of the book. Mirela Duarte's Canal book proves the rest of Agnes's numbers are real.
+3. Tomas Duarte, Mirela's cousin in a Bowl coat, wrote a patrol report about the tanker. It sits on the Archon's desk.
 4. The Archon's household offers the player good money to lose the copy on the road.
-5. The player can deliver the copy, sell it, read it out at the Granary gate where the tenants post their counts, or drop it in a ditch.
+5. The player can deliver the copy, sell it, read it out in the Bowl market, or drop it in a ditch.
 
 ## The north bend
 

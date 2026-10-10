@@ -299,6 +299,7 @@ describe('locals at stalls', () => {
   const TAKE = 'Take the copy and the meter out to your truck.';
   const ROAD = [...OPEN, COVER, CARRY, TAKE, 'Keep the copy.'];
   const LIE = 'Tell him it\'s pump records for the lock house.';
+  const LOCK = 'Drive down to the lock house.';
 
   it('lists Agnes at the Pump Station', () => {
     expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
@@ -340,7 +341,7 @@ describe('locals at stalls', () => {
 
   it('reaches the Bowl lock house once the gate is bought', () => {
     const w = parkedAt('pump-station');
-    const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.']);
+    const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', LOCK]);
 
     expect(questView(lost, QUESTS).choices).toContain('Sign as the carrier.');
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
@@ -349,7 +350,7 @@ describe('locals at stalls', () => {
 
   it('pays the gate patrol with a bribe, signs Mirela\'s book and pays on delivery', () => {
     const w = parkedAt('pump-station');
-    const gate = [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.'];
+    const gate = [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', LOCK];
 
     const signed = talk(w, 'pump_agnes', [...gate, 'Sign as the carrier.']);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
@@ -375,26 +376,29 @@ describe('locals at stalls', () => {
   it('charges double to buy off a patrolman who caught the lie', () => {
     const w = parkedAt('pump-station');
 
-    const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.']);
+    const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
     expect(questView(bought, QUESTS).choices).toContain('Sign as the carrier.');
     expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
-  it('keeps the steward\'s gate pass through a failed meter fit on the terrace', () => {
+  it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
     const w = parkedAt('pump-station');
-    w.player.ranks.social = 2;
 
-    const through = talk(w, 'pump_agnes', [...OPEN, COVER, CARRY, TAKE, 'Say you\'ll lose it, and ask for a gate pass first.', 'Take the side track up to the top terrace.', 'Bolt Agnes\'s meter onto the pipe.', 'Drive on to the Bowl gate.']);
-    expect(questView(through, QUESTS).choices).toContain('Sign as the carrier.');
+    const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', 'Drive up to the top terrace.', 'Bolt Agnes\'s meter onto the inlet.']);
+    expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
+    expect(w.player.money - sheared.player.money).toBe(90 * UNITS.centsPerM);
+
+    const signed = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.', 'Drive up to the top terrace.', 'Bolt Agnes\'s meter onto the inlet.', LOCK, 'Sign as the carrier.']);
+    expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
   });
 
-  it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
+  it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 
-    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Read the copy aloud to the tenants at the Granary gate.']);
+    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', 'Slip the older one some coin.', 'Read the copy aloud in the market.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
-    expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);
+    expect(w.player.money - read.player.money).toBe(90 * UNITS.centsPerM);
   });
 });
 

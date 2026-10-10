@@ -1885,6 +1885,7 @@
  },
  "quests": {
   "world": {
+   "ambush_raider": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
    "intro_step": "string",
@@ -2036,11 +2037,13 @@
    "wagon_bench": {
     "fee": "number",
     "halves_fit": "boolean",
+    "heard_duvall": "boolean",
     "offer_heard": "boolean",
     "price": "number",
     "report_seen": "boolean"
    },
    "wagon_seven": {
+    "followed": "boolean",
     "mount_seen": "boolean",
     "walked": "boolean"
    },
@@ -2116,7 +2119,8 @@
    "pump_pipe": [
     "start",
     "steward",
-    "road"
+    "road",
+    "town"
    ],
    "radio_wagon_driver": [
     "start",
