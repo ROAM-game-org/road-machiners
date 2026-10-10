@@ -29,9 +29,21 @@ import { memoryBackend, SaveSlots } from './save-db';
 const SEED = 1337;
 const setup = defaultSetup('roaming');
 const arrival = (): World => newGame(SEED, 'arrival', true, TEST_MAP, setup);
-const SEARCH_HOUSE = 0;
-const GO_TO_SHED = 1;
-const arrived = (): World => chooseQuestOption(arrival(), QUESTS, GO_TO_SHED);
+const ROPE = 'Drop the rope down the well.';
+const HOUSE = 'Go into the house.';
+const SHED = 'Go to the shed.';
+const LOOK = 'Look around.';
+const LEAVE_HOUSE = 'Go out to the shed.';
+
+function pick(w: World, ...texts: string[]): World {
+  return texts.reduce((at, text) => {
+    const index = questView(at, QUESTS).choices.indexOf(text);
+    if (index < 0) throw new Error(`No choice ${text} in ${questView(at, QUESTS).choices.join(', ')}`);
+    return chooseQuestOption(at, QUESTS, index);
+  }, w);
+}
+
+const arrived = (): World => pick(arrival(), SHED);
 
 const engineOf = (w: World) => mountedParts(playerVehicle(w), 'engine')[0];
 
@@ -81,34 +93,41 @@ function patched(w: World): World {
 }
 
 describe('the arrival at the farm', () => {
-  it('opens the arrival pages on a new game with a choice to search the house or go to the shed, setting nothing', () => {
+  it('opens the arrival pages on a new game at the farm, with the rope, the house and the shed to choose from, setting nothing', () => {
     const w = arrival();
     const view = questView(w, QUESTS);
     expect(view.quest).toBe('intro_arrival');
     expect(view.view).toBe('page');
-    expect(view.choices).toHaveLength(2);
+    expect(view.choices).toEqual([ROPE, HOUSE, SHED]);
     expect(view.ended).toBe(false);
     expect(introStep(w)).toBe('off');
     expect(w.player.money).toBe(startKit('standard').money);
   });
 
-  it('pays 50 M for searching the house, nothing for going straight to the shed, and ends the scene either way', () => {
+  it('takes the rope off the list once the well is measured', () => {
+    expect(questView(pick(arrival(), ROPE), QUESTS).choices).toEqual([HOUSE, SHED]);
+  });
+
+  it('pays 50 M only to a driver who looks around the house, and ends the scene on every road', () => {
     const start = startKit('standard').money;
-    const searched = chooseQuestOption(arrival(), QUESTS, SEARCH_HOUSE);
-    const straight = chooseQuestOption(arrival(), QUESTS, GO_TO_SHED);
-    expect(searched.player.money - start).toBe(50 * UNITS.centsPerM);
+    const looked = pick(arrival(), HOUSE, LOOK);
+    const left = pick(arrival(), HOUSE, LEAVE_HOUSE);
+    const straight = pick(arrival(), SHED);
+    expect(looked.player.money - start).toBe(50 * UNITS.centsPerM);
+    expect(left.player.money).toBe(start);
     expect(straight.player.money).toBe(start);
-    for (const w of [searched, straight]) {
+    for (const w of [looked, left, straight]) {
       expect(questView(w, QUESTS).ended).toBe(true);
       expect(w.player.quests.session).toBeNull();
     }
   });
 
-  it('keeps the arrival choice and the money as they were across a save made before the pick', () => {
-    const loaded = sameAfterRoundTrip(arrival());
-    expect(questView(loaded, QUESTS).choices).toHaveLength(2);
-    const searched = chooseQuestOption(loaded, QUESTS, SEARCH_HOUSE);
-    expect(searched.player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+  it('keeps the farm and the house choices and the money as they were across a save before each pick', () => {
+    const atFarm = sameAfterRoundTrip(pick(arrival(), ROPE));
+    expect(questView(atFarm, QUESTS).choices).toEqual([HOUSE, SHED]);
+    const inHouse = sameAfterRoundTrip(pick(atFarm, HOUSE));
+    expect(questView(inHouse, QUESTS).choices).toEqual([LOOK, LEAVE_HOUSE]);
+    expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
   });
 
   it('runs a turn after a load while the truck still rolls with no order', () => {

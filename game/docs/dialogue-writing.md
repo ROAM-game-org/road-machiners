@@ -8,11 +8,21 @@ The examples are written for ROAM. A line marked Bad is the kind of line that ha
 
 ROAM's voice comes from the author's own wasteland and adventure stories. These habits hold for page narration and for talk alike.
 
-### Plain by default
+### A voice, not a camera
 
-Most sentences say plainly what happens and what is there: "They drank their water." "They searched the bodies. Water for a few days, food for one. Nothing else useful." The habits below are for emphasis. A page uses one at most, and most pages use none. Save them for a turn in the scene, like the moment before a fight or the discovery that changes it. A simile, a dry joke or a sized-up judgment on every line flattens all of them.
+Narration runs through the character's head. Between the plain facts, the character thinks: a judgment, a complaint, a question to themselves, a guess that may be wrong. "Bradley was a good axe, even though he was an insufferable dickhead." "Should have approached from the sun side." "Does dying by a bullet beat starving in the desert? Hell yeah." In a page scene this is the second person: "Walking east was stupid. Not that the west had anything better."
+
+A page of bare facts, one after another, reads as a telegram even when each sentence is fine. "The house has lost its roof. The fence posts lean. The goat pen holds no goats." lists what a camera sees. Give the facts a reaction, or join them to what the character wants.
+
+About a quarter of the sentences carry this voice, as in the author's stories. The rest say plainly what happens. The habits below are the strongest kind of voice, so save them for a turn in the scene, like the moment before a fight. A simile or a joke on every line flattens all of them, and so does none at all.
 
 Describe only what the character needs right now, like water, shade, a threat or a way out. Do not describe a place for its mood.
+
+### No line only the writer understands
+
+Every line must make sense to a player who has read nothing but the screens before it. A clue works when the player sees the thing happen, not when the writer knows what it means. "Every knot is dry" means nothing on the page. Lowering the rope and pulling it up with no wet knot shows an empty well.
+
+Use common words. Write "doorway", not "doorsill", and "the gun mount", not "the swivel ring", unless a person in the scene would use the trade word and the scene shows what it is.
 
 ### Read people by their gear
 

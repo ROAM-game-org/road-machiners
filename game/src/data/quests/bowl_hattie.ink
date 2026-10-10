@@ -45,7 +45,7 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   -> hub
 + {not hattie_rumor} [Heard any rumors?]
   A scavenger came through a few days back, trying to sell a Nose Army radio. He swore he'd pulled it off an Army wagon sitting dead in the hills north-east of here.
-  When the patrol asked him where exactly, he filled his tank and left by the south road before dark.
+  When the patrol asked him where exactly, he filled his tank and left by the west road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
