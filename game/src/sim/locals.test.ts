@@ -293,7 +293,7 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const OPEN = ['Ask what she\'s writing.', 'Ask where the missing water goes.'];
+  const OPEN = ['Ask what she\'s writing.', 'Ask why the tanker\'s meter came off.'];
   const COVER = 'Tell him she was talking about pump pressures.';
   const CARRY = 'Say you\'ll carry the copy.';
   const TAKE = 'Take the copy and the meter out to your truck.';

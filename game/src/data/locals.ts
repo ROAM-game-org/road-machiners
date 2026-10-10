@@ -124,7 +124,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeDraw: {
     title: 'A tanker in no book',
     from: "Agnes's copy of the pump book",
-    text: "Agnes's copy matches her book. Her pencil sum on the last page says the trucks to Bowl's canals get nothing by next autumn.",
+    text: "Agnes's copy matches her book. On the last page she ran the numbers forward: by next autumn, Bowl's trucks get almost nothing.",
   },
   pipeOffer: {
     title: 'Money to lose the copy',
@@ -134,7 +134,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeCanal: {
     title: "Mirela's book in Bowl",
     from: 'Mirela Duarte, Bowl lock house',
-    text: "Mirela's count at the lock matches Agnes's canal meter, season by season. Mirela will read both books to the Senate and try to win back the canal families' share of the lock water.",
+    text: "Every barrel Agnes loaded onto Bowl's trucks reached Mirela's count, so Agnes's book is honest and the gap is the tanker. Mirela will read both books to the Senate and try to win back the canal families' share of the water.",
   },
 };
 

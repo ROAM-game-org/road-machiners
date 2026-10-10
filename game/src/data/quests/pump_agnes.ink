@@ -49,23 +49,23 @@ VAR tip = 20
 + {not knows_book} [Ask what she's writing.]
   ~ knows_book = true
   She holds up the book so you can see it.
-  Barrels a week; Pumped up; Loaded onto trucks in the book; Missing # head
+  Barrels a week; Pumped up; Loaded onto Bowl's trucks; Household tanker # head
   Last spring; 410; 390; 20 # row
   Midsummer; 380; 350; 30 # row
-  Autumn; 350; 300; 50 # row
-  This week; 300; 230; 70 # row
-  Every truck that loads here goes in this book. The pump brings up less water every season, and more of it goes missing. # speaker: Agnes
+  Autumn; 350; 300; meter taken off # row
+  This week; 300; 230; meter taken off # row
+  The pump brings up less every season, and Bowl's trucks get less too. # speaker: Agnes
+  Until autumn the household's tanker had a meter, and the columns added up exactly. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
-+ {knows_book and not asked_leak} [Ask whether the water could be leaking.]
++ {knows_book and not asked_leak and not knows_pipe} [Ask whether the water could be leaking.]
   ~ asked_leak = true
   A leak that big would make the ground muddy. I check the tanks every day, and the ground is dry. # speaker: Agnes
   -> hub
-+ {knows_book and not knows_pipe} [Ask where the missing water goes.]
++ {knows_book and not knows_pipe} [Ask why the tanker's meter came off.]
   ~ note("pipeBook")
   ~ knows_pipe = true
-  Into the household's tanker. The Archon's household lives on the top terrace in Bowl, and the Archon runs the Senate. # speaker: Agnes
-  Their tanker loads here every week. I used to put a meter on its hose, and it read the same as my missing column. Then the Senate sent an order, and I took the meter off. # speaker: Agnes
-  Now the tanker loads and goes, and nobody writes it down. # speaker: Agnes
+  The Senate ordered it. The Archon's household lives on the top terrace in Bowl, and the Archon runs the Senate. # speaker: Agnes
+  Now their tanker loads and goes, and I'm not allowed to write it down. The gap is what it takes. # speaker: Agnes
   { trusted:
     -> copy
   }
@@ -135,8 +135,8 @@ As you drive out, household men in grey coats walk past your truck and into Agne
 ~ knows_copy = true
 Agnes comes back to the dials and speaks quietly.
 Over the winter I made a copy of this book. It's hidden under my pillow. # speaker: Agnes
-It needs to go to Mirela Duarte at the lock house in Bowl. The water trucks unload into the canals there, and Mirela counts every barrel. # speaker: Agnes
-If her count matches mine, nobody can say I made my numbers up. # speaker: Agnes
+It needs to go to Mirela Duarte at the lock house in Bowl. Bowl's trucks unload into the canals there, and Mirela counts every barrel. # speaker: Agnes
+If her count matches what I loaded, my book is honest. Then the household can't say I made the gap up. # speaker: Agnes
 -> hub
 
 = shunned

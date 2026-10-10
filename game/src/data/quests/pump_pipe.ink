@@ -1,11 +1,11 @@
 # view: page
 # stat: money Money
-# fact: book_read Agnes's copy: the pump brings up less water every season, and more goes missing into the household's tanker. Her sum says the trucks to Bowl's canals get nothing by next autumn.
+# fact: book_read Agnes's copy: the pump brings up less every season, and the household's tanker takes more. Run forward, Bowl's trucks get almost nothing by next autumn.
 # fact: margin_read Agnes's copy, last page: for Mirela, to compare with hers.
 # fact: offer_heard Steward Aurel Brede offered money to lose the copy on the road.
 # fact: reserve_known Steward: half of the tanker's water fills a tank under the top terrace. It is the Senate's reserve for a dry year, and only the Archon may open it.
 # fact: valve_read Top terrace: the household's tanker unloads into a tank under the gardens. Agnes's old meter fits its inlet.
-# fact: canal_matches Mirela's count at the canals matches Agnes's book, season by season.
+# fact: canal_matches Every barrel Agnes loaded onto Bowl's trucks reached Mirela's count. Agnes's book is honest, so the gap is the tanker.
 INCLUDE world.ink
 
 VAR taken = false
@@ -49,7 +49,8 @@ VAR toll = 50
 { taken: -> road }
 Agnes takes a flat bundle from under her pillow. It is the copy, wrapped in oilcloth and sealed with wax. # place: Pump Station
 From her desk drawer she takes an old meter. Behind it lies an envelope with a lantern seal. She shuts the drawer.
-This is the meter I took off the household's hose. It also fits the tank they unload into, if you're ever up on their terrace. # speaker: Agnes
+This is the meter I took off the tanker's hose. It also fits the tank the tanker unloads into, up on the household's terrace. # speaker: Agnes
+Bolt it on there, and the next load gets counted where everyone can see it. It's household land, so don't get caught. # speaker: Agnes
 -> handover
 
 = handover
@@ -81,6 +82,7 @@ A grey-haired man in a grey coat sits on the back of it. A lantern is stitched o
 I am Aurel Brede, steward to the Archon's household. My watchman saw Agnes give you something sealed. # speaker: Steward
 I'm not asking you to burn it. Just lose it on the road. If I send word, the patrol at the Bowl gate will open it, and I'd rather not. # speaker: Steward
 He offers {price} M. # reveal: all
+That's a lot of money for losing some paper.
 -> offer
 
 = offer
@@ -98,7 +100,7 @@ He offers {price} M. # reveal: all
   -> offer
 + {asked_water and not asked_secret} [Ask why the reserve is a secret.]
   ~ asked_secret = true
-  If everyone knows about a reserve, everyone wants their share today. # speaker: Steward
+  In the last dry year Bowl had an open store of grain. Everyone knew about it, and it was gone in a week. # speaker: Steward
   -> offer
 + [Take the money.]
   ~ left_offer()
@@ -161,13 +163,14 @@ Water trucks pass you on their way back to the pump, empty and rattling.
 ~ book_read = true
 ~ margin_read = true
 ~ note("pipeDraw")
-You cut the seal and open the copy on your knee. It matches the book you saw at the pump, line for line. # place: The road
-Barrels a week; Pumped up; Loaded onto trucks in the book; Missing # head
-Last spring; 410; 390; 20 # row
-Midsummer; 380; 350; 30 # row
-Autumn; 350; 300; 50 # row
-This week; 300; 230; 70 # row
-On the last page Agnes has done a sum in pencil. If this goes on, the trucks to Bowl's canals get nothing by next autumn.
+You cut the seal and open the copy on your knee. It matches the book you saw at the pump, line for line.
+On the last page Agnes has run the numbers forward in pencil. The pump keeps bringing up less, and the tanker keeps taking more.
+Barrels a week; Pumped up; Household tanker; Left for Bowl's trucks # head
+This week; 300; 70; 230 # row
+Next spring; 270; 100; 170 # row
+Next summer; 240; 140; 100 # row
+Next autumn; 210; 180; 30 # row
+By next autumn, Bowl's trucks get almost nothing. Agnes didn't make that up. She only kept both lines going the way they already go.
 Under it she wrote: For Mirela, to compare with hers.
 -> road
 
@@ -180,7 +183,7 @@ Bowl patrolmen hold the gate, with a cart across the road. To the left, a dry di
   The steward's rider waits behind them, next to his buggy.
 }
 The older patrolman leans into your cab and looks at the copy on the seat.
-Sealed papers from the pump road need a patrol pass. Have you got one? # speaker: Patrolman
+{ book_read: Papers | Sealed papers } from the pump road need a patrol pass. Have you got one? # speaker: Patrolman
 + [Drive the dry ditch around the wall. # check: driving {gate_need(2)}]
   -> cut
 + [Tell him it's pump records for the lock house. # check: social {gate_need(1)}]
@@ -276,7 +279,7 @@ He puts it in a saddlebag, and a boy rides off with it toward the top terrace. T
 The patrolmen read the first page standing in the road. # page # place: The Bowl gate
 A young patrolman says it belongs at the lock house. The older one tells him to bring a saddlebag.
 The copy goes up to the top terrace. Now the household knows what Agnes wrote.
-They fine you {due} M for carrying sealed papers without a pass. # reveal: all
+They fine you {due} M for carrying pump papers without a pass. # reveal: all
 Your name goes into their report.
 -> END
 
@@ -337,13 +340,14 @@ Agnes sent you. Good. # speaker: Mirela
 { book_read:
   The seal's cut, so you've read it. # speaker: Mirela
 }
-She lays the copy next to her book. She finds Agnes's numbers for the trucks sent to the canals and sets them beside her own.
-Barrels a week; Sent to the canals, in Agnes's book; Poured in here, in Mirela's count # head
-Last spring; 120; 120 # row
-Midsummer; 110; 110 # row
-Autumn; 95; 95 # row
-This week; 70; 70 # row
-They match to the barrel. Nobody at the pump can touch my count, so Agnes's numbers are real. # speaker: Mirela
+She lays the copy next to her book and runs a finger down both.
+Barrels a week; Loaded onto Bowl's trucks, in Agnes's book; Poured in here, in Mirela's count # head
+Last spring; 390; 390 # row
+Midsummer; 350; 350 # row
+Autumn; 300; 300 # row
+This week; 230; 230 # row
+Every barrel she says she loaded, I poured in here. Her book is honest. # speaker: Mirela
+And the household's own meter agreed with her until autumn. So the gap since then is the tanker. Nobody else could have taken it. # speaker: Mirela
 { valve_read:
   You tell her about the household's tanker and the empty flange on its tank. She listens closely.
 }
@@ -353,8 +357,9 @@ They match to the barrel. Nobody at the pump can touch my count, so Agnes's numb
   She says it a little too fast.
 }
 She closes the copy and keeps her hand on it. # page
-The household will say Agnes forged this, so I need a witness. Agnes and I both need this water. You don't. # speaker: Mirela
-Sign my book as the one who carried it. Your name will be in my book, and the steward reads my book. # speaker: Mirela
+The household will say somebody changed the copy on the way here. So I need a witness. # speaker: Mirela
+Agnes and I both need this water, so nobody believes us. You don't need it. Sign my book and say you carried it here from her pillow. # speaker: Mirela
+Then your name is in my book, and the steward reads my book. # speaker: Mirela
 { book_read:
   Write that you cut the seal on the road and changed nothing. # speaker: Mirela
 }
@@ -364,7 +369,8 @@ Sign my book as the one who carried it. Your name will be in my book, and the st
 + {not asked_aim} [Ask what she'll do with it.]
   ~ asked_aim = true
   I'll read it to the Senate, next to my own count. # speaker: Mirela
-  Years ago the Senate took away the canal families' share of the water. The household's votes did it. If the household is caught taking water, they won't win the next vote. # speaker: Mirela
+  The canal families used to share out every barrel poured in here. Years ago the Senate gave that job to the household's people. The household's votes did it. # speaker: Mirela
+  If the household is caught taking water, they won't win the next vote. # speaker: Mirela
   You ask whether she wants the share back or a meter on the tanker.
   Both. The share first. # speaker: Mirela
   -> ask
@@ -382,8 +388,9 @@ Sign my book as the one who carried it. Your name will be in my book, and the st
 You sign. Mirela writes the date next to your name and pays you {fee} M from the lock box. # page # place: Bowl lock house
 The Senate meets in a week. # speaker: Mirela
 The truck drivers who watched you sign spread the news. Your name is now in a book the steward reads.
-A week later, news reaches the drivers' well. Mirela read both books to the Senate with your name under them. The household called the copy a forgery, and nobody believed them. # page
-The vote to meter the household's tanker failed by one vote. The vote to give the canal families back their share passed. # reveal: all
+A week later, news reaches the drivers' well. Mirela read both books to the Senate. The household said the copy was changed on the road. # page
+Then Mirela read your name and what you swore: you carried it from Agnes's pillow to her lock house, and nobody changed it. The household had no answer to that.
+The vote to meter the household's tanker failed by one vote. The vote to give the canal families back their share of the water passed. # reveal: all
 -> END
 
 === filed ===
@@ -392,10 +399,10 @@ The vote to meter the household's tanker failed by one vote. The vote to give th
 ~ note("pipeCanal")
 ~ give_money(fee)
 Mirela shrugs. She copies Agnes's missing column into her own book. # page # place: Bowl lock house
-Then it's my word against the household's. They'll call it a grudge. # speaker: Mirela
+Then it's my word against the household's. They'll say the copy was changed on the way. # speaker: Mirela
 She pays you {fee} M from the lock box.
 As you leave, a household clerk comes down the steps and asks her who carried it. She says it was a driver she didn't know.
-A week later, news reaches the drivers' well. Mirela read both books to the Senate with no witness. The household called it a grudge, and the Senate moved on. # page # reveal: all
+A week later, news reaches the drivers' well. Mirela read both books to the Senate with no witness. The household said the copy was changed on the road, and nobody could say it wasn't. The Senate moved on. # page # reveal: all
 -> END
 
 === market ===
