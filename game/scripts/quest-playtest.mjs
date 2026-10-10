@@ -28,12 +28,22 @@ const stepSchema = schemaFile('step', {
   comment: { type: 'string', description: 'Your critique of this screen by the rubric.' },
   pick: { type: 'integer', description: 'The number of the choice you take.' },
 });
+const CRITERIA = ['clarity', 'voice', 'choices', 'pull', 'consistency', 'prose'];
+const rating = {
+  type: 'object',
+  properties: {
+    score: { type: 'integer', description: 'From 1 to 5 by the scale in the rubric.' },
+    reason: { type: 'string', description: 'Why this score and not one higher, with a quoted line.' },
+  },
+  required: ['score', 'reason'],
+  additionalProperties: false,
+};
 const verdictSchema = schemaFile('verdict', {
   best: { type: 'array', items: { type: 'string' }, description: 'The three best things, each with a quoted line.' },
-  worst: { type: 'array', items: { type: 'string' }, description: 'The five worst problems, each with a quoted line.' },
+  worst: { type: 'array', items: { type: 'string' }, description: 'Up to five worst problems, each with a quoted line. List only real ones.' },
   verdict: { type: 'string', description: 'A short overall verdict.' },
-  score: { type: 'integer', description: 'Score out of 10.' },
-  to_nine: { type: 'string', description: 'What would have to change for this writing to earn 9 out of 10.' },
+  scores: { type: 'object', properties: Object.fromEntries(CRITERIA.map((c) => [c, rating])), required: CRITERIA, additionalProperties: false },
+  to_five: { type: 'string', description: 'What would have to change for every criterion to score 5.' },
 });
 
 writeFileSync(values.out, `# Playtest of ${quests.join(', ')}\n\nSituation: ${values.situation}\n`);
@@ -69,9 +79,15 @@ function endNote(last, restarted) {
   return `The story ended. Judge this last screen. ${restarted ? 'Pick 0.' : 'Pick 1 to start over and take a different road, or 0 to stop.'}`;
 }
 
-const verdict = codex('You are done playing. Give your overall verdict on the writing across everything you saw.', verdictSchema);
-appendFileSync(values.out, `\n## Verdict\n\nScore: ${verdict.score}/10\n\n${verdict.verdict}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n\nTo reach 9:\n${verdict.to_nine}\n`);
-console.log(`Score ${verdict.score}/10 after ${screens} screens. Notes in ${values.out}`);
+const verdict = codex('You are done playing. Give your overall verdict on the writing across everything you saw. Score each criterion of the rubric from 1 to 5 by its scale.', verdictSchema);
+const scores = CRITERIA.map((c) => [c, verdict.scores[c].score]);
+const bad = scores.filter(([, s]) => !Number.isInteger(s) || s < 1 || s > 5);
+if (bad.length > 0) throw new Error(`The verdict scores must be whole numbers from 1 to 5, got ${bad.map(([c, s]) => `${c} ${s}`).join(', ')}`);
+const score = Math.min(...scores.map(([, s]) => s));
+const scoreLine = scores.map(([c, s]) => `${c} ${s}`).join(', ');
+const ratings = CRITERIA.map((c) => `- ${c} ${verdict.scores[c].score}: ${verdict.scores[c].reason}`).join('\n');
+appendFileSync(values.out, `\n## Verdict\n\nScore: ${score}/5, the lowest of ${scoreLine}\n\n${verdict.verdict}\n\nScores:\n${ratings}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n\nTo reach 5:\n${verdict.to_five}\n`);
+console.log(`Score ${score}/5, the lowest of ${scoreLine}, after ${screens} screens. Notes in ${values.out}`);
 
 function game(quest, runFile, pick) {
   const args = ['scripts/quest.mjs', quest, '--play', runFile, ...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];

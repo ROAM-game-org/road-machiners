@@ -4,7 +4,7 @@ This guide covers how to add a quest, change one safely and keep all quests heal
 
 ## Making a quest
 
-A quest is built in three steps: play out the story behind it, write it, then playtest it with a fresh agent until it scores 9 out of 10.
+A quest is built in three steps: play out the story behind it, write it, then playtest it with a fresh agent until every criterion scores 5 out of 5.
 
 1. Build the situation with the [Story game](lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
 2. Write the quest from the log with this guide and [Writing dialogue](dialogue-writing.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
@@ -14,7 +14,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a pump station where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
-   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, five worst problems, a score out of 10 and what would make it a 9. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
+   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
 
    A new game has every skill at 0, so every check fails. Give each run the skills of a driver who would arrive at this place with `--skill <skill>=<level>`, which may repeat. Run at least three times, with a different driver each time and one short line in the situation about how they play, like "You like machines, and you want to see things for yourself." Runs with the same situation and skills pick the same road.
 
@@ -24,7 +24,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    npm run quest:playtest -- intro_arrival first_fall intro_bowl bowl_hattie --situation "You start a new game. You are on foot in a desert, with no water." --then "You patch the engine and drive north. A raider truck opens fire, and you lose the fight." --then "You stay out cold." --then "You walk around Bowl. Hattie has time to talk." --set intro_step=ambush --out tmp/playtest-intro.md > tmp/playtest.log 2>&1 &
    ```
 4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
-5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when a fresh run scores it 9 out of 10 or higher.
+5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when fresh runs with different drivers each score it 5 out of 5.
 
 A run that hits a load error or a broken runner does not count. Fix the error and run again.
 
