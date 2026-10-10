@@ -16,7 +16,7 @@ VAR tip = 20
 # checkpoint: start
 { pipe_fate:
 - "delivered":
-  I heard what Mirela read out. Her trough, my hoses and your dial, and yours was the number they couldn't argue with. The tanker still comes, but its meter's back on, and I write it down. # speaker: Agnes
+  I heard what Mirela read out. Her trough, my hoses and your dial, and yours was the number they couldn't argue with. The steward's own crew put a meter back on the tanker's hose, and I write it down now. # speaker: Agnes
 - "filed":
   Mirela read my numbers out, and the household asked where the driver was who read the dial. Nobody could say. The tanker still comes, and I still can't write it down. # speaker: Agnes
 - "sold":
@@ -49,14 +49,15 @@ VAR tip = 20
 # checkpoint: start.hub
 + {not knows_book} [Read her the big dial.]
   ~ knows_book = true
-  You read her the number. She writes it in the book and your name beside it, then holds the book up so you can see the page. You've never had your name in a pump book before.
-  Barrels a week; Pumped up, by the big dial; Loaded onto Bowl's trucks, by their meters; Household tanker, by its meter # head
-  Last spring; 410; 390; 20 # row
-  Midsummer; 380; 350; 30 # row
-  Autumn; 350; 300; meter taken off # row
-  This week; 300; 230; meter taken off # row
-  The pump brings up less every season, and Bowl's trucks get less too. # speaker: Agnes
-  Until autumn the tanker's hose had a meter, and the columns added up to the barrel. Since the meter came off, the gap grows every week. # speaker: Agnes
+  The big dial counts every barrel the pump brings up. Once a week Agnes writes its number down and sets it back to nothing, so the number is the week's whole total.
+  You read her this week's number. She writes it in the book and your name beside it, then holds the book up so you can see the page. You've never had your name in a pump book before.
+  Barrels a week; Pumped up, by the big dial; Bowl's trucks, by the hose meters; Passing trucks, by the hose meters; Household tanker, by its meter # head
+  Last spring; 410; 380; 10; 20 # row
+  Midsummer; 380; 340; 10; 30 # row
+  Autumn; 350; 290; 10; meter taken off # row
+  This week; 300; 220; 10; meter taken off # row
+  Every hose has a meter, and every truck that fills goes in by name. Your tank is in the passing column, under your name. # speaker: Agnes
+  The pump brings up less every season, and Bowl's trucks get less too. Until autumn the tanker's hose had a meter, and the columns added up to the barrel. Since the meter came off, the gap grows every week. # speaker: Agnes
   -> hub
 + {knows_book and not asked_leak} [Ask whether the water could be leaking.]
   ~ asked_leak = true
@@ -136,9 +137,9 @@ As you drive out, household men in grey coats walk past your truck and into Agne
 ~ trusted = true
 ~ knows_copy = true
 Agnes comes back to the dials and speaks quietly.
-Over the winter I made a copy of this book. It's hidden under my pillow. # speaker: Agnes
-It needs to go to Mirela Duarte at the lock house in Bowl. Bowl's trucks pour into her trough, and she counts every barrel. Her count will show my hose column is honest. # speaker: Agnes
-The dial is the other half. Nobody in Bowl has read it. You have, and your name is beside the number. # speaker: Agnes
+Over the winter I made a copy of this book. It's hidden under my pillow, in the shed behind me. # speaker: Agnes
+It needs to go to Mirela Duarte at the lock house in Bowl. Bowl's trucks pour into her trough, and she counts every barrel. Her count will show what I wrote for Bowl's trucks is true. # speaker: Agnes
+Nobody in Bowl can check the dial. You read it, and your name is beside this week's number. Mirela can check her half, and you can swear to the other. # speaker: Agnes
 -> hub
 
 = shunned

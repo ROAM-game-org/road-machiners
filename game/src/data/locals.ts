@@ -119,7 +119,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
-    text: "The pump brings up less every season, and Bowl's trucks get less too. Every hose at the pump has a meter except the household tanker's. The Senate ordered its meter off in autumn, and the gap in Agnes's book has grown every week since. You read this week's dial, and your name is beside the number.",
+    text: "The pump brings up less every season, and Bowl's trucks get less too. Every hose at the pump has a meter except the household tanker's, and every truck that fills goes in Agnes's book by name, yours too. The Senate ordered the tanker's meter off in autumn, and the gap in the book has grown every week since. The big dial counts the week's whole total, and you read it. Your name is beside the number.",
   },
   pipeDraw: {
     title: 'A tanker in no book',

@@ -48,7 +48,8 @@ VAR toll = 50
 === start ===
 # checkpoint: start
 { taken: -> road }
-Agnes takes a flat bundle from under her pillow. It is the copy, wrapped in oilcloth. She opens it, writes this week's line in with your name beside the dial, and seals it with wax. # place: Pump Station
+Agnes leads you into the shed behind the dials, out of the watchman's sight, and pulls the door to. # place: Pump Station
+She takes a flat bundle from under the pillow on her cot. It is the copy, wrapped in oilcloth. She opens it, writes this week's line in with your name beside the dial, and seals it with wax.
 From her desk drawer she takes an old meter and sets it on the desk. Behind it lies an envelope with a lantern seal. She shuts the drawer on it.
 That's the meter the Senate made me take off the tanker's hose. It also fits the tank the tanker empties into, up on the household's terrace. # speaker: Agnes
 Bolt it on there, and the next load gets counted where all of Bowl can see it. It's household land, so you'd be on your own. Take it or leave it. # speaker: Agnes
@@ -173,11 +174,11 @@ Far ahead, the household's tanker crawls along under its load. Empty water truck
 You cut the seal and open the copy on your knee. It matches the book you saw at the pump, line for line, down to your name beside this week's dial.
 On the last page Agnes has run the numbers forward in pencil. At the top she wrote: if the pump keeps falling and the tanker keeps growing.
 Barrels a week; Pumped up; Household tanker; Left for Bowl's trucks # head
-This week; 300; 70; 230 # row
-Next spring; 270; 100; 170 # row
-Next summer; 240; 140; 100 # row
-Next autumn; 210; 180; 30 # row
-It's a guess. The tanker's column is a guess too, since nobody meters it. But the dial you read is real, and so is the gap.
+This week; 300; 70; 220 # row
+Next spring; 270; 100; 160 # row
+Next summer; 240; 140; 90 # row
+Next autumn; 210; 180; 20 # row
+It's a guess, and she says so. The tanker's column is a guess too, since nobody meters it. What's real is the dial you read and the hoses she wrote down, and the gap between them.
 Under the sum she wrote: For Mirela, to compare with hers.
 -> road
 
@@ -350,15 +351,15 @@ Agnes sent you. Good. # speaker: Mirela
   The seal's cut, so you've read it. # speaker: Mirela
 }
 She lays the copy next to her book and runs a finger down both.
-Barrels a week; Loaded onto Bowl's trucks, in Agnes's book; Poured into this trough, in Mirela's count # head
-Last spring; 390; 390 # row
-Midsummer; 350; 350 # row
-Autumn; 300; 300 # row
-This week; 230; 230 # row
-Every barrel she wrote down reached my trough. So her hose column is honest. # speaker: Mirela
-That doesn't prove her dial. Nobody in Bowl can see what the pump brings up. You read it this week, and your name is beside the number. # speaker: Mirela
-Agnes swears to her hoses, I swear to my trough, and you swear to the dial. Each of us swears only to what we read. # speaker: Mirela
-The numbers only add up if the tanker takes the rest, and you saw for yourself that its hose is the one with no meter. # speaker: Mirela
+Barrels a week; Bowl's trucks, in Agnes's book; Poured into this trough, in Mirela's count # head
+Last spring; 380; 380 # row
+Midsummer; 340; 340 # row
+Autumn; 290; 290 # row
+This week; 220; 220 # row
+Every barrel she wrote down for Bowl's trucks reached my trough. So her hose meters are honest. The passing trucks I can't check, but they're a few barrels a week with a name beside each one, yours too. # speaker: Mirela
+That leaves the dial. Nobody in Bowl can see what the pump brings up. You read it this week, and your name is beside the number. # speaker: Mirela
+Agnes swears to her hoses, I swear to my trough, and you swear to the dial. Each of us swears only to what we read ourselves. # speaker: Mirela
+Pumped up, less the hoses, is the gap. You saw for yourself that the tanker's hose is the only one with no meter. # speaker: Mirela
 { valve_read:
   You tell her about the stone tank on the terrace and the empty flange on its inlet. She listens closely.
 }
@@ -369,7 +370,8 @@ The numbers only add up if the tanker takes the rest, and you saw for yourself t
 }
 She closes the copy and keeps her hand on it. # page
 The household will say Agnes and I both want this water, and that's true. You don't. # speaker: Mirela
-Sign my book, and write the number you read on the dial. Then your name is in my book, and the steward reads my book. # speaker: Mirela
+Sign my book, and write the number you read on the dial. Your signature says that and nothing more: that this week the dial read what Agnes wrote. # speaker: Mirela
+Then your name is in my book, and the steward reads my book. # speaker: Mirela
 { book_read:
   Write that you cut the seal on the road and changed nothing. # speaker: Mirela
 }
@@ -400,9 +402,9 @@ You sign and write the number from the dial. Mirela writes the date beside it an
 The Senate meets in a week. # speaker: Mirela
 The truck drivers who watched you sign spread the news. Your name is now in a book the steward reads.
 A week later, news reaches the drivers' well. Mirela read the numbers to the Senate: Agnes's hoses, her own trough and your dial, with your name under it. # page
-The household's bench said Agnes made her numbers up. Mirela asked who made up yours.
-The Senate voted to put the meter back on the tanker's hose. Even the household's bench voted for it. The tanker still comes every week, but now its number goes in the book. # reveal: all
-The trough stays with the household's clerk.
+The household's bench said Agnes made her numbers up. Mirela asked who made up the dial, and read your name. Nobody on that bench knew you, so nobody could say.
+The Senate took no vote on the tanker. It didn't need to. The next week the tanker came to the pump with a meter on its hose, fitted by the steward's own crew. A counted tanker is a smaller story than a secret one, and the steward deals in small stories. # reveal: all
+The trough stays with the household's clerk, and the reserve under the terrace stays a secret. Your name is in a book the steward reads. Nobody from the household has come asking for you.
 -> END
 
 === filed ===
@@ -415,7 +417,7 @@ Then it's her hoses and my trough, and we both want the water. They'll say Agnes
 She pays you {fee} M from the lock box.
 { meter_taken and not walked_out: You leave Agnes's meter with her as well. }
 As you leave, a household clerk comes down the steps and asks her who carried it. She says it was a driver she didn't know.
-A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in her book, but you weren't in the room, and a name on a page isn't a witness. # page
+A week later, news reaches the drivers' well. Mirela read Agnes's book and her own to the Senate. The household said Agnes made up her dial. Your name was beside it in her book, but you weren't in the room to swear to it, and a name on a page isn't a witness. # page
 The Senate moved on to grain. # reveal: all
 -> END
 
