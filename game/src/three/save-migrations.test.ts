@@ -52,6 +52,7 @@ import FORMAT_2_44 from './save-fixtures/format-2-44.json';
 import FORMAT_2_46 from './save-fixtures/format-2-46.json';
 import FORMAT_2_47 from './save-fixtures/format-2-47.json';
 import FORMAT_2_48 from './save-fixtures/format-2-48.json';
+import FORMAT_2_49 from './save-fixtures/format-2-49.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1113,5 +1114,22 @@ describe('save migration 48 to 49', () => {
     world.player.quests.session = { quest: 'pump_pipe', checkpoint: 'road', seed: 17 };
 
     expect(playerOf(MIGRATIONS[48](world)).quests.session).toEqual({ quest: 'pump_pipe', checkpoint: 'road', seed: 17 });
+  });
+});
+
+describe('save migration 49 to 50', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("drops Kovac's Kessel variables and keeps his other talk, the session and the rest", () => {
+    const next = playerOf(MIGRATIONS[49](structuredClone(FORMAT_2_49)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { nose_kovac: { heard_paper: true, asked_paper: true }, bowl_hattie: { hattie_flats: true } },
+      session: { quest: 'nose_kovac', checkpoint: 'start.hub', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl']);
+    expect(next.money).toBe(1200);
   });
 });

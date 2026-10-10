@@ -69,7 +69,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ asked_rider = true
   -> hub
 + {heard_post and not asked_post} [What do you make of the Army post?]
-  I don't trust it. Mara Kessel writes down who comes and goes through the gate, and she writes it twice. A woman who writes twice is afraid of something.
+  I don't trust it. The soldier at the gate writes down who comes and goes through the gate, and she writes it twice. A soldier who writes twice is afraid of something.
   ~ asked_post = true
   -> hub
 + [Goodbye.]

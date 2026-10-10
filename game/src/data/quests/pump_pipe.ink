@@ -33,7 +33,7 @@ VAR toll = 50
 # checkpoint: start
 { taken: -> road }
 Agnes goes to her cot and draws a flat bundle from under the pillow. It is oilcloth tied with wire, and a wax seal sits on the knot. # place: Pump Station
-Every line in my own hand. I copied it by lamplight over most of a winter. # speaker: Agnes
+My uncle Wendell's first page, and every line after it in my own hand. I copied it by lamplight over most of a winter. # speaker: Agnes
 + [Stow it under the seat of your truck.]
   ~ taken = true
   ~ note("pipeBook")

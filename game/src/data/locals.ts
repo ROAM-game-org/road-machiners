@@ -52,14 +52,14 @@ export const NOTES: Record<NoteId, NoteDef> = {
     text: 'Old Ibo says the Burnt Convoy was picked clean long ago and the stretch is not worth the fuel.',
   },
   talkGranaryGate: {
-    title: 'The counts on the Granary gate',
+    title: 'One grain, two payments',
     from: 'Jory Baptiste, at Bowl',
-    text: 'Jory says Odile Marsh writes counts on the Granary gate: the sacks paid to Kiln for each armed truck, and the tenants\' share for the road patrol. He says both are paid from the same grain.',
+    text: 'Jory says the Granary pays Kiln a sack for each armed truck, and the road patrol is paid from the tenants\' share. He says both are paid from the same grain.',
   },
   talkSeepPipe: {
     title: 'A pipe to the top terraces',
     from: 'Jory Baptiste, at Bowl',
-    text: 'Jory says a pipe runs from the seep up to the top terraces, and no meter may read it. He has not seen it. He has seen how green their kitchen gardens are in a dry year.',
+    text: 'Jory says a pipe runs from the Pump Station up to the top terraces, and no meter may read it. He has not seen it. He has seen how green their kitchen gardens are in a dry year.',
   },
   talkConvoyNotClean: {
     title: 'Burnt Convoy is not picked clean',
@@ -94,7 +94,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   talkOnePin: {
     title: 'The one-pin swivel',
     from: 'Lena, Nose mechanic',
-    text: 'Lena says the line\'s steel copy of the Brann swivel has one pin, and on a bend it can slide and swing the gun into the cab. She says the Salvage Yard bores a second for a fee.',
+    text: 'Lena says the line\'s steel copy of the Brann swivel has one pin, and on a bend it can slide and swing the gun into the cab.',
   },
   talkArmyStarved: {
     title: 'The Old Army and its hunger',
@@ -104,7 +104,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   talkCommitteeRent: {
     title: 'Who pays for Old Orchard\'s tools',
     from: 'Old Ibo, Nose radio shack',
-    text: 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He says to ask at the Pierce office who pays command. He will not repeat what he hears on the air.',
+    text: 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He will not repeat what he hears on the air about who pays command.',
   },
   pipeBook: {
     title: 'The pump book',
@@ -119,7 +119,7 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeOffer: {
     title: 'Coin to lose a bundle',
     from: 'A steward in a Marr coat',
-    text: "A steward of the Archon's household offered coin to lose a sealed bundle on the road. He would not say why. He said the offer stands until the Bowl.",
+    text: "A steward of the Archon's household offered coin to lose a sealed bundle on the road. He said the book was a quarrel the Bowl can't afford. He said the offer stands until the Bowl.",
   },
   pipeCanal: {
     title: 'The Canal book in Bowl',

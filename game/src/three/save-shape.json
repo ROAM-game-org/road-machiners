@@ -1,5 +1,5 @@
 {
- "format": "2.49",
+ "format": "2.50",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1956,12 +1956,10 @@
    "nose_kovac": {
     "asked_courier": "boolean",
     "asked_gate_law": "boolean",
-    "asked_kessel": "boolean",
     "asked_paper": "boolean",
     "asked_workshop": "boolean",
     "heard_courier": "boolean",
     "heard_gate_law": "boolean",
-    "heard_kessel": "boolean",
     "heard_paper": "boolean",
     "heard_workshop": "boolean"
    },

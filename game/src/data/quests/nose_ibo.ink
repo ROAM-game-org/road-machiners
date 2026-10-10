@@ -51,7 +51,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_jj = true
   -> hub
 + {heard_tone and not asked_tone} [What does the tone from the hull say?]
-  Ines Abend, who reads it out front, says it counts the years since the fall. A tone's a tone, though. I've listened a long while and I hear a tone. If it counts, it counts without me.
+  Some say it counts the years since the fall. A tone's a tone, though. I've listened a long while and I hear a tone. If it counts, it counts without me.
   ~ asked_tone = true
   -> hub
 + {heard_couriers and not asked_couriers} [Who are the Guild couriers?]
@@ -70,7 +70,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ heard_tools = true
   -> hub
 + {heard_tools and not asked_tools} [Who pays for the Old Orchard tools?]
-  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it. Ask at the Pierce office who pays what.
+  The Guild's trust owns them and rents them to us. Command pays the Guild, and the Guild hears who pays command. I hear the Guild on the air, a little. I won't repeat it.
   ~ note("talkCommitteeRent")
   ~ asked_tools = true
   -> hub

@@ -8,8 +8,6 @@ VAR heard_courier = false
 VAR asked_courier = false
 VAR heard_paper = false
 VAR asked_paper = false
-VAR heard_kessel = false
-VAR asked_kessel = false
 
 === start ===
 # checkpoint: start
@@ -81,13 +79,8 @@ VAR asked_kessel = false
   ~ asked_courier = true
   -> hub
 + {heard_paper and not asked_paper} [What is Pierce paper?]
-  It's the insurance that pays a driver when his truck is shot. Constance Pierce writes it at the Pierce office. She won't write it for a mount with one pin. Command ordered one pin. So drivers pay the Salvage Yard, south of here, to bore a second. I don't log it. Emil Kessel went round the north bend with only one.
+  It's the insurance that pays a driver when his truck is shot. Pierce won't write it for a mount with one pin. Command ordered one pin. What a driver does about that, I don't log.
   ~ asked_paper = true
-  ~ heard_kessel = true
-  -> hub
-+ {heard_kessel and not asked_kessel} [What happened to Emil Kessel?]
-  He was a driver. His mount shifted on its pin at the north bend and swung the gun into his cab. The inquiry's closed. I won't reopen it for you. His sister serves at the Yard post now. That's the Army post inside the Salvage Yard.
-  ~ asked_kessel = true
   -> hub
 + [Goodbye.]
   -> END

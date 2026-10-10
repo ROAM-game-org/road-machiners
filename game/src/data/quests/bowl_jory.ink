@@ -24,7 +24,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the Senate no
   -> hub
 + {jory_patrol} [Why do you send tenants into the patrol?]
   Because the Senate wrote the rule and I read it back to them slowly. They said service earns a vote, so I send them the service. They let tenants carry rifles on the road and pay half the cost on grain runs, and nobody asked what a rifle in a tenant's hands might mean on voting day.
-  The first tenant to sign the patrol roll was Bo Lindqvist, who drives for the Granary. The patrol knows my face by now, too. I've noticed the patrol and the raiders in the south get paid out of the same sacks, but that's a longer story. I've been told I'm a long story myself.
+  The patrol knows my face by now. I've noticed the patrol and the raiders in the south get paid out of the same sacks, but that's a longer story. I've been told I'm a long story myself.
   ~ jory_filled = true
   -> hub
 + {jory_filled} [Does the patrol trouble you?]
@@ -32,14 +32,11 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the Senate no
   -> hub
 + {jory_filled} [What do the raiders have to do with the grain?]
   Kiln Camp, the raiders in the south, gets a sack from the Granary for every armed truck that crosses their road. The patrol is paid out of the tenants' share of the same grain. We pay Kiln and we pay the patrol, and we pay both with the same grain.
-  The sack leaves the store once and the Senate counts it twice. Odile Marsh, who keeps the Granary, chalks the count on the gate at night. Go and read it, and you'll see both lines are our grain. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
+  The sack leaves the store once and the Senate counts it twice. The Senate says it all adds up, and it does, the way a bucket with a hole adds up.
   ~ note("talkGranaryGate")
   -> hub
-+ {jory_filled} [Who is Bo Lindqvist?]
-  A tenant who drives for the Granary, and gentle as a tired ox. Don't joke with him about the fight he had on the road. I joke about everything else, but I know where the edge is.
-  -> hub
 + {jory_green} [Why do the top terraces stay green?]
-  Because, if the word's right, a pipe runs from the seep up to the top gardens. The seep's the little spring in the rock above the terraces. No meter's allowed to read that pipe, and if you say so in the market they'll send for a meter, so I say it only here.
+  Because, if the word's right, a pipe runs from the Pump Station up to the top gardens. The pumps there lift seep water out of the crater floor. No meter's allowed to read that pipe, and if you say so in the market they'll send for a meter, so I say it only here.
   Have I seen the pipe? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the pipe exists or those cabbages are saints.
   ~ note("talkSeepPipe")
   -> hub

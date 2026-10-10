@@ -24,7 +24,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + [Where can I get water, or find work?]
   Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with coin. Work is Dag's, because he rides with the Farmers and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and it comes down a feeder channel from Green Pit. That's a pump outpost out on the flat. Their pumps pull water up from deep rock, and what they don't sell by the can runs down to us.
+  I only open the gates. The water that goes through them belongs to the families, and it comes up by pipe from the Pump Station. That's a pumpworks out on the flat. Its pumps lift seep water from under the crater floor, and what the terraces don't drink runs down to us.
   ~ ruben_water = true
   -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]
@@ -38,9 +38,9 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
 + {found("fallen-sun")} [What is the Fallen Sun really?]
   So you've stood in that crater, and you know more of it than I do. Nose calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
   -> hub
-+ {ruben_water || found("green-pit")} [What do you know about the Green Pit feeder?]
-  In a dry year the Senate hung a meter on it and claimed a share for Bowl, as if the feeder had ever been ours to measure. That year the pumps at Green Pit drew mud by noon, and nobody asked the pumps what they thought.
-  Wendell Ondra died at the sluice there, the little gate where the feeder lets its water in. His niece Agnes keeps the book at the Pump Station, and she writes down every drop.
++ {ruben_water || found("pump-station")} [What do you know about the Pump Station?]
+  In the last dry year its pumps drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.
+  Wendell Ondra kept the pump book there all his life and died at his gauges. His niece Agnes keeps the book now, and she writes down every drop.
   -> hub
 + {ruben_senate} [What are the tenants saying?]
   They say they feed Bowl and have no say in it, and they're right. The families never wanted to tell a tenant what to think, only what to plant.

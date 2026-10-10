@@ -830,7 +830,12 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withPersonalities_46_47,
   withChoiceFreeScenes_47_48,
   withoutCutQuests_48_49,
+  withoutKovacKessel_49_50,
 ];
+
+function withoutKovacKessel_49_50(world: SavedJson): SavedJson {
+  return ['heard_kessel', 'asked_kessel'].reduce((w, name) => dropQuestVar(w, 'nose_kovac', name), world);
+}
 
 const CUT_QUESTS_48_49 = [
   'bowl_bo', 'nose_ines', 'nose_clerk', 'granary_driver', 'granary_odile', 'granary_sack', 'granary_lamps', 'orchard_count',

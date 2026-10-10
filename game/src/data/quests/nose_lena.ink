@@ -30,11 +30,11 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]
-  Green Pit, out past the road. It's a pump outpost behind a wall of drums, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring coin.
+  Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring coin.
   ~ note("greenPit")
   -> hub
 + {heard_swivel and not asked_pins} [Why look at the pins?]
-  Because the copy they bolt on at the gate has one. I've seen what one does on a hard bend. The mount slides and the gun swings round into your own cab. Otto Brann made the first swivel, and he still welds at the Salvage Yard. He gave his a second pin. He was right, and I told command so. Nobody asks a mechanic. The Yard will bore you a second pin for a fee. Pay it.
+  Because the copy they bolt on at the gate has one. I've seen what one does on a hard bend. The mount slides and the gun swings round into your own cab. Otto Brann made the first swivel, and he still welds at the Salvage Yard. He gave his a second pin. He was right, and I told command so. Nobody asks a mechanic.
   ~ note("talkOnePin")
   ~ asked_pins = true
   ~ heard_brann = true
@@ -54,7 +54,7 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   ~ heard_glare = true
   -> hub
 + {heard_glare and not asked_glare} [Is there anything for the glare?]
-  Lenses. Pim Arslan cuts them from the fused glass at the Yard, and they come out dark as smoke. They're worth it. I wear a pair on bad days.
+  Lenses cut from the fused glass, dark as smoke. I wear an old pair on bad days. I don't know who sells them now.
   ~ asked_glare = true
   -> hub
 + [Goodbye.]
