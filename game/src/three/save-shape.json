@@ -2157,8 +2157,11 @@
    },
    "pump_agnes": {
     "knows_book": "boolean",
+    "knows_carry": "boolean",
     "knows_copy": "boolean",
-    "knows_pipe": "boolean"
+    "knows_marr": "boolean",
+    "knows_pipe": "boolean",
+    "knows_senate": "boolean"
    },
    "pump_pipe": {
     "book_read": "boolean",
@@ -2168,13 +2171,15 @@
     "fine": "number",
     "margin_read": "boolean",
     "offer_heard": "boolean",
+    "offer_open": "boolean",
     "parts": "number",
     "price": "number",
     "report_named": "boolean",
     "sluice": "string",
     "taken": "boolean",
     "toll": "number",
-    "valve_read": "boolean"
+    "valve_read": "boolean",
+    "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
    "salvage_hooks": {
