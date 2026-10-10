@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../config';
 import { QUEST_ART } from '../data/quest-art';
-import { lineStyle, markupProblems, parseMarkup, PLAIN_STYLE, revealUnits, rowCells } from './quest-text';
+import { TERMS } from '../data/locals';
+import { lineStyle, markupProblems, parseMarkup, PLAIN_STYLE, revealUnits, rowCells, termRuns } from './quest-text';
 
 describe('parseMarkup', () => {
   it('splits a line into spans carrying their marks, nested ones included', () => {
@@ -23,6 +24,26 @@ describe('parseMarkup', () => {
     expect(() => parseMarkup('<b><i>x</b></i>')).toThrow('Markup </b> closes <i>');
     expect(() => parseMarkup('<color=pink>x</color>')).toThrow('Markup <color=pink> needs one of');
     expect(() => parseMarkup('<b=big>x</b>')).toThrow('Markup <b> takes no value');
+  });
+
+  it('takes a term only from the glossary', () => {
+    const id = Object.keys(TERMS)[0];
+    expect(parseMarkup(`In <term=${id}>town</term>.`)[1]).toEqual({ text: 'town', marks: [{ name: 'term', value: id }] });
+    expect(() => parseMarkup('<term=atlantis>x</term>')).toThrow('Markup <term=atlantis> needs one of');
+  });
+});
+
+describe('termRuns', () => {
+  it('groups the words of one term and leaves other words alone', () => {
+    const [first, second] = Object.keys(TERMS);
+    const units = revealUnits(parseMarkup(`The <term=${first}>Glass Flats</term> and <term=${second}>Nose</term>`), PLAIN_STYLE, 0);
+    expect(termRuns(units).map((run) => [run.term, run.units.map((u) => u.text).join('')])).toEqual([
+      [null, 'The '],
+      [first, 'Glass Flats'],
+      [null, ' '],
+      [null, 'and '],
+      [second, 'Nose'],
+    ]);
   });
 });
 

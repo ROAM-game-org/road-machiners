@@ -70,9 +70,12 @@
   overflow: auto;
   scrollbar-width: thin;
 }
+.quest-screen :is(.quest-talk, .quest-text) {
+  font-size: var(--text-lead);
+  line-height: 1.55;
+}
 .quest-screen .qt-line {
-  line-height: 1.45;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-6);
 }
 .quest-screen .qt-speaker {
   color: var(--ink-muted);
@@ -99,9 +102,14 @@
   gap: var(--space-2);
 }
 #ui .quest-screen .quest-choice {
+  display: block;
+  height: auto;
+  min-height: var(--btn-h-m);
+  padding: var(--space-3) var(--space-6);
   text-align: left;
-  padding: var(--space-2) var(--space-5);
-  min-height: 0;
+  font-size: var(--text-lead);
+  line-height: 1.35;
+  white-space: normal;
 }
 .quest-screen .error:empty {
   display: none;
@@ -183,7 +191,7 @@
   font-weight: 600;
 }
 .quest-page .qt-line {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-7);
 }
 .quest-page .quest-choices {
   margin-top: auto;
@@ -237,14 +245,16 @@
   border-left-color: var(--ink-label);
 }
 
-/* Quest text: each word or letter fades in after its delay. Marks add a look or a motion. */
+/* Quest text: each word or letter fades in after its delay. Marks add a look or a motion. A unit stays hidden, not only clear, until it starts, so a click on a choice that has not shown yet lands on the window and skips the text. */
 .qt-unit {
   opacity: 0;
+  visibility: hidden;
   animation: qt-in 140ms ease-out forwards;
 }
 .qt-done .qt-unit {
   animation: none;
   opacity: 1;
+  visibility: visible;
 }
 .qt-b {
   font-weight: 700;
@@ -266,26 +276,44 @@
 .qt-pop {
   animation: qt-pop 260ms ease-out forwards;
 }
+.qt-term {
+  text-decoration: underline dotted var(--ink-faint);
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+.qt-term:is(:hover, :focus-visible) {
+  text-decoration-color: var(--ink-label);
+}
+#ui .term-tip {
+  position: fixed;
+  z-index: var(--z-feedback);
+  max-width: var(--panel-s);
+  margin-top: var(--space-2);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  pointer-events: none;
+}
 .qt-color-rust { color: var(--danger); }
 .qt-color-sand { color: var(--ink-label); }
 .qt-color-blood { color: var(--danger-deep); }
 .qt-color-sky { color: var(--ink-title); }
 .qt-color-ash { color: var(--ink-muted); }
 @keyframes qt-in {
-  to { opacity: 1; }
+  to { opacity: 1; visibility: visible; }
 }
 @keyframes qt-shake {
-  from { opacity: 1; transform: translateX(-1px); }
-  to { opacity: 1; transform: translateX(1px); }
+  from { opacity: 1; visibility: visible; transform: translateX(-1px); }
+  to { opacity: 1; visibility: visible; transform: translateX(1px); }
 }
 @keyframes qt-pop {
-  0% { opacity: 0; transform: scale(1.6); }
-  100% { opacity: 1; transform: scale(1); }
+  0% { opacity: 0; visibility: visible; transform: scale(1.6); }
+  100% { opacity: 1; visibility: visible; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .qt-unit {
     animation: none;
     opacity: 1;
+    visibility: visible;
   }
 }
 

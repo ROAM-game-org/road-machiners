@@ -10,7 +10,7 @@ import { commandFailure } from './format';
 import { questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
-import { renderLine } from './quest-text';
+import { renderLine, TermTip } from './quest-text';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
@@ -30,6 +30,7 @@ export class QuestScreen {
   private factsBefore = new Set<string>();
   private factsShown: string[] = [];
   private revealEnd = 0;
+  private termTip = new TermTip(this.root);
 
   constructor(private host: UiHost) {
     this.root.classList.add('quest-screen');
@@ -75,9 +76,11 @@ export class QuestScreen {
     this.error = null;
     this.root.style.display = 'none';
     this.root.replaceChildren();
+    this.termTip.hide();
   }
 
   private draw(): void {
+    this.termTip.hide();
     const w = this.host.world();
     const view = questView(w, QUESTS);
     this.root.style.display = '';

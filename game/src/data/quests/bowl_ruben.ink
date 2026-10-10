@@ -23,8 +23,8 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   ~ ruben_senate = true
   -> hub
 + [Where can I get water, or find work?]
-  Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with coin. Work is Dag's, because he rides with the Farmers and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and it comes up by pipe from the Pump Station. That's a pumpworks out on the flat. Its pumps lift water from deep underground, and what the terraces don't drink runs down to us.
+  Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with coin. Work is Dag's, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
+  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from the Pump Station. That's a pumpworks out on the flat, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
   ~ ruben_water = true
   -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]
@@ -36,7 +36,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   People say it was a ship, bigger than all of Bowl. It came down burning and dug a crater out in the basin. Some say it brought the end of the world with it, but I say the end was already here. The ship only added one more bucket to a field that was flooded already.
   -> hub
 + {found("fallen-sun")} [What is the Fallen Sun really?]
-  So you've stood in that crater, and you know more of it than I do. Nose calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
+  So you've stood in that crater, and you know more of it than I do. <term=nose>Nose</term> calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
   -> hub
 + {ruben_water || found("pump-station")} [What do you know about the Pump Station?]
   In the last dry year its pumps drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.

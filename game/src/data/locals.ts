@@ -1,5 +1,5 @@
 
-export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'greenPit' | 'glassTank' | 'burntConvoy'
+export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonDag' | 'wagonFound' | 'wagonPin' | 'greenPit' | 'glassTank' | 'burntConvoy'
   | 'talkGranaryGate'
   | 'talkSeepPipe'
   | 'talkConvoyNotClean'
@@ -24,17 +24,27 @@ export const NOTES: Record<NoteId, NoteDef> = {
   wagonNose: {
     title: 'Wagon Seven',
     from: 'Sergeant Kovac, Nose dispatch',
-    text: 'The radio came off Nose Army wagon Seven, which went dark on the Pump Station run down to Bowl. Its crew walked home with raiders on their heels. The scavenger swore the wagon sits a short hop off the track. Nose never sent anyone to look.',
+    text: 'The radio came off Nose Army wagon Seven, which ran water drums from the Pump Station to Bowl and went dark on the bend in the Bowl north road. Its crew reported raiders and the cannon lost over the edge, and command wrote it off. The scavenger said the cannon is still on the wagon. Kovac did not pay to hear more.',
   },
   wagonRoad: {
     title: 'A dead Army wagon in a hollow',
     from: 'A driver on the radio',
-    text: 'A driver saw a dead Army wagon lying in a hollow, closer to the Bowl north road than to the Pump Station track, south of an old farm with a water tower.',
+    text: 'A driver saw a dead Army wagon lying in a hollow north-east of Bowl, east of the Bowl north road and south of the Pump Station turn-off. Old tracks with chain marks cross the hollow.',
+  },
+  wagonDag: {
+    title: 'Where wagon Seven lies',
+    from: 'Dag, Bowl Farmers patrol',
+    text: 'Dag says wagon Seven lies in a hollow below the bend in the Bowl north road, south of the Pump Station turn-off. He warns not to take anything from it up to Nose.',
+  },
+  wagonPin: {
+    title: 'The pin from wagon Seven',
+    from: 'The hollow off the Bowl north road',
+    text: 'The gun mount on wagon Seven had a seat for one locking pin. The pin snapped, and its stub came out of the ring. The Army mechanics at Nose fit those mounts.',
   },
   wagonFound: {
     title: 'Wagon Seven written off',
     from: 'Sergeant Kovac, Nose dispatch',
-    text: 'Kovac heard wagon Seven was found and searched. The Army wrote it off long ago, and he does not ask for anything back.',
+    text: 'Kovac says wagon Seven is written off by order, and what is left on it is the finder\'s. He logs what he sees at Lena\'s bench.',
   },
   greenPit: {
     title: 'Clean water at Green Pit',
@@ -57,9 +67,9 @@ export const NOTES: Record<NoteId, NoteDef> = {
     text: 'Jory says the Granary pays Kiln a sack for each armed truck, and the road patrol is paid from the tenants\' share. He says both are paid from the same grain.',
   },
   talkSeepPipe: {
-    title: 'A pipe to the top terraces',
+    title: 'A tanker to the top terraces',
     from: 'Jory Baptiste, at Bowl',
-    text: 'Jory says a pipe runs from the Pump Station up to the top terraces, and no meter may read it. He has not seen it. He has seen how green their kitchen gardens are in a dry year.',
+    text: "Jory says the household's tanker fills up at the Pump Station every week, and its loads go in nobody's book. He has not seen it unload. He has seen how green their kitchen gardens are in a dry year.",
   },
   talkConvoyNotClean: {
     title: 'Burnt Convoy is not picked clean',
@@ -109,12 +119,12 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
-    text: 'The pump brings up less water every season, and more of it goes missing. The missing water goes up a pipe to the top terrace, where the Archon\'s household lives. The Senate made Agnes take that pipe\'s meter off.',
+    text: "The pump brings up less water every season, and more of it goes missing. The missing water goes into the household's tanker, which loads at the pump every week. The Senate made Agnes take the meter off its hose, so its loads go in no book.",
   },
   pipeDraw: {
-    title: 'A pipe with no meter',
+    title: 'A tanker in no book',
     from: "Agnes's copy of the pump book",
-    text: "Agnes's copy matches her book. Her pencil sum on the last page says every other pipe runs dry by next autumn.",
+    text: "Agnes's copy matches her book. Her pencil sum on the last page says the trucks to Bowl's canals get nothing by next autumn.",
   },
   pipeOffer: {
     title: 'Money to lose the copy',
@@ -144,4 +154,24 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   jory: { id: 'jory', name: 'Jory Baptiste', role: 'Speaks for the tenants', town: 'bowl', quest: 'bowl_jory' },
   sefa: { id: 'sefa', name: 'Sefa Krol', role: 'Trades for the Burnt Convoy families', town: 'salvage-yard', quest: 'yard_sefa' },
   agnes: { id: 'agnes', name: 'Agnes Ondra', role: 'Keeps the pump book', town: 'pump-station', quest: 'pump_agnes' },
+};
+
+export const TERMS: Record<string, string> = {
+  bowl: 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+  nose: 'The town up the north road, built around a wreck on a mountain. Its soldiers keep the order, and its workshop line builds the basin\'s engines and guns.',
+  pierce: 'The outfit that bets on trucks coming home. It insures a truck only with a gun on it, and pays the family when the truck does not come back.',
+  granary: 'Where Bowl keeps its grain. Bowl pays its patrols from the grain count, and its farmers pay their debts in sorghum.',
+  glass_flats: 'A glass desert out east, off the south road. Drivers wear dark lenses cut from its glass against the glare, and a field of old escape pods lies at its edge.',
+  fallen_sun: 'The crater where the ship came down, before anyone now living was born. People in the basin still count the years from it.',
+  sunward: 'Believers who worship whatever lies in the crater of the Fallen Sun. They keep others away from it.',
+  senate: 'The council of Bowl\'s citizens, and it decides for the whole town. Only citizens sit in it, and it is known for slow, long arguments.',
+  farmers: 'Bowl\'s own road patrol. It guards the roads near Bowl\'s walls and nothing past them.',
+  pump_station: 'A pumpworks out on the flat. Its pumps lift water from deep rock, and a pipe carries it to Bowl\'s canals.',
+  committee: 'The Central Committee governs Nose. It plans the town\'s work and rations its food and water.',
+  salvage_yard: 'A yard of stacked wrecks under a crane, where towed trucks end up. Its repair crews sell hull pieces and the Old Army\'s stripped guns.',
+  kiln: 'Kiln Camp, the raider camp in the south. Its riders take a fee from haulers who pay, and strip trucks that neither pay nor fight.',
+  scrapjaw: 'Scrapjaw Camp, a raider camp far up north. Like Kiln in the south, it takes what it needs from the roads.',
+  old_army: 'The army that stood between Nose and Bowl after their war and kept the roads. It is gone now, and its trucks still stand where they stopped.',
+  guild: 'The Guidestar Guild carries messages across the basin, by courier and by radio relay, for a fee. It serves every side.',
+  old_world: 'The world before it fell apart. Its roads, canals and ruins are still here, and nobody can build like them now.',
 };

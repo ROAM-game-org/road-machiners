@@ -17,13 +17,13 @@ VAR hattie_unarmed = false
 
 === start ===
 # checkpoint: start
-Water costs here, talk doesn't, and I hear everything that happens in Bowl twice. Once when it happens, and once when somebody's improved it.
+Water costs here, talk doesn't, and I hear everything that happens in <term=bowl>Bowl</term> twice. Once when it happens, and once when somebody's improved it.
 -> hub
 
 = hub
 # checkpoint: start.hub
 + {towed_to_bowl and not hattie_tow} [Tell me about the tow man.]
-  Big and slow-spoken, with a Pierce coat gone white at the seams. That tag on his chain is an old Pierce yard tag. Before the crews took the yard, Pierce hung one on every key and chain it owned.
+  Big and slow-spoken, with a <term=pierce>Pierce</term> coat gone white at the seams. That tag on his chain is an old Pierce yard tag. Before the crews took the yard, Pierce hung one on every key and chain it owned.
   If your key has a brass tag, it came from the same yard.
   ~ hattie_tow = true
   -> hub
@@ -44,19 +44,19 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   ~ hattie_strip = true
   -> hub
 + {not hattie_rumor} [Heard any rumors?]
-  A scavenger came through a few days back, trying to sell a Nose Army radio. He swore he'd pulled it off an Army wagon sitting dead in the hills north-east of here.
+  A scavenger came through a few days back, trying to sell a <term=nose>Nose</term> Army radio. He swore he'd pulled it off an Army wagon sitting dead in the hills north-east of here.
   When the patrol asked him where exactly, he filled his tank and left by the west road before dark.
   ~ note("wagonBowl")
   ~ hattie_rumor = true
   -> hub
 + {not hattie_flats} [Any local legends?]
-  You know the Glass Flats, out east, where the ground melted into glass? There's supposed to be an Old World tank out there that still runs. It rolls out at night with its lights off.
+  You know the <term=glass_flats>Glass Flats</term>, out east, where the ground melted into glass? There's supposed to be an Old World tank out there that still runs. It rolls out at night with its lights off.
   My cousin saw it. Well, he heard it, and my cousin hears a great deal when he's been drinking.
   ~ note("glassTank")
   ~ hattie_flats = true
   -> hub
 + {not hattie_strangers} [Who comes through here?]
-  Somebody every day, mind you. Traders, couriers, drivers hauling fuel. The ones that worry me are the quiet ones who ask about the Granary.
+  Somebody every day, mind you. Traders, couriers, drivers hauling fuel. The ones that worry me are the quiet ones who ask about the <term=granary>Granary</term>.
   Soldiers come down from Nose to buy water too. They're polite, I'll give them that.
   ~ hattie_strangers = true
   -> hub
@@ -78,8 +78,8 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   ~ hattie_unarmed = true
   -> hub
 + {hattie_flats and not hattie_glass} [What about the glass at the Glass Flats?]
-  Pim Arslan, who cuts lenses, says every ripple in it leans the same way, toward the Fallen Sun. That's the crater where the ship came down.
-  I won't stand on it at noon, whatever it points at. The Sunward have their own opinion, mind. They worship whatever lies in that crater, and they'll share it with anyone who stands still.
+  Pim Arslan, who cuts lenses, says every ripple in it leans the same way, toward the <term=fallen_sun>Fallen Sun</term>. That's the crater where the ship came down.
+  I won't stand on it at noon, whatever it points at. The <term=sunward>Sunward</term> have their own opinion, mind. They worship whatever lies in that crater, and they'll share it with anyone who stands still.
   ~ note("talkGlassLean")
   ~ hattie_glass = true
   -> hub

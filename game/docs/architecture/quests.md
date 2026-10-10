@@ -56,7 +56,8 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 
 ## Text and the talk window
 
-- Inline markup is `<b>`, `<i>`, `<shake>`, `<pop>` and `<color=rust>`, closed by `</name>`. Square brackets would break ink choices, so markup uses angle brackets.
+- Inline markup is `<b>`, `<i>`, `<shake>`, `<pop>`, `<color=rust>` and `<term=bowl>`, closed by `</name>`. Square brackets would break ink choices, so markup uses angle brackets.
+- `<term=<id>>` underlines a word with dots, and hovering or focusing it opens its tip from `TERMS` in `src/data/locals.ts`. An id not in `TERMS` fails the check. `TermTip` in `src/ui/quest-text.ts` draws the one tip. [Term tips](../quest-authoring.md#term-tips) has the writing rules.
 - A line tag sets how the line reveals: `# reveal: all`, `word` or `char`, and `# speed: slow`, `normal` or `fast`. Words is the default. `# speaker: <name>` puts the name before the line. `# work_offer` shows the town's best offer under the line.
 - `# row` and `# head` make a line a table row, its cells split by `;`. Lines in a row form one table, for ledgers, logs and price boards. The voice test reads no numbers in them.
 - `# place: <name>` names where the page is and heads it until another place. `# page` starts a new page, behind a Next button. A page tag on the first line of a pick's output starts no new page, so a load opens on it directly.
@@ -64,7 +65,7 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - A choice tagged `# cost: <M>` takes that money when picked. The window shows it greyed with the player's money when they hold less, and a pick of it throws. The tag may hold an ink value: `+ [Pay her {price} M. # cost: {price}]`.
 - A choice tagged `# check: <skill> <level>` tests a skill. The window shows the skill, the level it needs and the player's own level, so a failure is never a surprise rule. The level may be an ink value: `# check: social {gate_need()}`. A choice takes only `# cost` and `# check`.
 - `MARKS` and `LINE_TAGS` in `src/ui/quest-text.ts` list them. A new effect is one entry there and its CSS in `style.css`. Unknown or unclosed markup and unknown tags fail `npm run quests:check`.
-- `src/ui/quest-screen.ts` is the talk window. It shows whenever `player.quests.live` is set, so a start, a pick and a load all show it. It lies over every other screen. Digits pick, a click, Space or Enter shows the rest of the reveal at once, and Escape leaves the quest.
+- `src/ui/quest-screen.ts` is the talk window. It shows whenever `player.quests.live` is set, so a start, a pick and a load all show it. It lies over every other screen. Digits pick, a click, Space or Enter shows the rest of the reveal at once, and Escape leaves the quest. Text and choices stay hidden until they fade in, so a click where a choice will appear only shows the rest.
 - A talk shows only the player's last pick, the reply and the choices. Earlier exchanges are not kept, so the player reads each reply. A `# page` tag splits a reply behind a Next button, as in the page view. It suits short talk, like asking around town.
 - A page shows art on the left, one page of text with its choices in the middle, and the stats and facts on the right. A fact found in the last pick stands out. Space or Enter after the reveal turns to the next page. It suits scenes that need full attention. `src/ui/quest-lines.ts` draws lines for both views.
 
@@ -120,22 +121,35 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 - At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
 - A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
 
-## The Archon's pipe
+## The Archon's tanker
 
-`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. The first screen offers actions, not questions: read her the big dial, ask the watchman on the drum what he waits for, or fill up and go. The dial shows her book, where less water reaches the meters each season than comes up from the floor. Asking which pipe has no meter brings the watchman over to ask what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player and name the copy under her pillow. Telling him sets `pipe_fate` to `searched` and ends the quest, and his purse of 20 M is a separate choice. A trusted driver who leaves can come back and say yes later.
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Asking what she writes shows her book: water pumped up, water loaded onto trucks in the book, and the missing rest. Asking where the missing water goes names the household's tanker, whose loads a Senate order keeps out of the book, and brings the watchman over to ask what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player and name the copy under her pillow. Telling him sets `pipe_fate` to `searched` and ends the quest, and his purse of 20 M is a separate choice. A trusted driver who leaves can come back and say yes later.
 
-Saying yes opens `pump_pipe.ink`, shown as pages. Agnes hands over the sealed copy and the meter she took off the top pipe. The player can ask her about the household's envelope in her drawer, which pays her to leave the pipe's line empty, and about what to say at the gate.
+Saying yes opens `pump_pipe.ink`, shown as pages. Agnes hands over the sealed copy and the meter she took off the tanker's hose. The player can ask her about the household's envelope in her drawer, which pays her to stay quiet, and about what to say at the gate.
 
-The steward Aurel Brede meets the player on the Bowl road and offers 100 M to lose the copy. The quest variable `sluice` keeps how the player stands with the patrol at the Bowl gate.
+The steward Aurel Brede meets the player where the pump track meets the Bowl road and offers 100 M to lose the copy. The quest variable `sluice` keeps how the player stands with the patrol at the Bowl gate.
 
-- Asking the steward what the pipe feeds needs no check. Half its water is the Senate's dry-year store under the terrace, and reading the book at the Granary gate could empty it. Mirela hears it as a way to split the Senate.
+- Asking the steward what the tanker fills needs no check. Half its water is the Senate's dry-year store under the top terrace. Mirela hears it as a way to split the Senate.
 - Social 2 on the steward gets a household pass and half the offer, and the player keeps the copy. A failure sends his rider ahead, and every later check at the gate needs one more rank.
-- The gate is run by driving the dry canal cut round it at driving 2, talked past with Agnes's cover story at social 1, bribed with 50 M, or given the copy. A failed run loses the copy, costs a fine of 40 M and sets `pipe_fate` to `seized`. A failed talk offers a second bribe of 100 M before the fine. Handing it over sets `seized` with no fine. A bribe passes, and a watching rider writes the player down.
-- Mirela's lock house sits on the lowest canal in Bowl. Her count at the lock agrees with Agnes's canal meter, which proves the gap in Agnes's book is real. She asks the player to sign the Canal book as the copy's carrier. Signing sets `delivered` and the household turns on the player. Leaving the name off sets `filed`, and the household asks who carried it. Both pay 60 M.
-- Looking at the terrace valve needs no check and shows the bright wheel and the empty flange. Machining 2 bolts Agnes's meter to it and sets `metered`. A failure shears the flange, costs a fine and marks the player.
-- Selling to the steward pays 100 M and sets `sold`. Reading at the Granary gate sets `read`, keeps the copy with social 2 and otherwise costs 40 M and the copy. Dropping the bundle in a ditch changes nothing, and Agnes offers again.
+- The gate is run by driving the dry ditch round it at driving 2, talked past with Agnes's cover story at social 1, bribed with 50 M, or given the copy. A failed run loses the copy, costs a fine of 40 M and sets `pipe_fate` to `seized`. A failed talk offers a second bribe of 100 M before the fine. Handing it over sets `seized` with no fine. A bribe passes, and a watching rider writes the player down.
+- Inside the gate, the `town` checkpoint offers the lock house, the top terrace and the market.
+- Mirela's lock house is where the water trucks pour their loads into Bowl's canals. Her count there agrees with Agnes's book, which proves Agnes's numbers are real. She asks the player to sign the Canal book as the copy's carrier. Signing sets `delivered` and the household turns on the player. Leaving the name off sets `filed`, and the household asks who carried it. Both pay 60 M.
+- On the top terrace, looking at the tank the tanker unloads into needs no check and shows the empty flange. Machining 2 bolts Agnes's meter to it and sets `metered`. A failure cracks the flange, costs a fine and shuts the terrace.
+- Selling to the steward pays 100 M and sets `sold`. Reading in the Bowl market sets `read`, keeps the copy with social 2 and otherwise costs 40 M and the copy. Dropping the copy in a ditch changes nothing, and Agnes offers again.
 
 The world variable `pipe_fate` keeps the outcome. Its values are `none`, `delivered`, `filed`, `sold`, `read`, `seized`, `metered` and `searched`. The world variable `marr_regard` is `bought` after a sale and `enemy` after any other move against the household. Agnes greets by both outcomes.
+
+## Wagon Seven
+
+Nose Army wagon Seven lies in a hollow below a bend in the Bowl north road as the story wreck `story-wagon-seven`, with its cannon on board. Hattie's rumor, Kovac's radio answer, Dag and the radio driver near the wreck point the player to it. The truth is in [Timeline](../lore/timeline.md#hidden-truths): the one-pin swivel sheared on the bend, and the crew reported raiders.
+
+- `openWreckScene()` in `src/sim/quests.ts` opens `wagon_seven.ink` when the player finishes a search of the wagon. `finishSearch()` in `src/sim/search.ts` calls it after the `searched` event, so the loot screen opens under the scene. It sets the world variable `wagon_seen` as it opens, so it plays once. It skips while another quest is open and opens on the next search. The veteran check world holds `wagon_seen` too.
+- The scene is pages at the wreck. Perception 2 sees no casing and no bullet hole and sets `wagon_saw`. A failure sets `wagon_watched`: the families' children saw the player from the ridge. Machining 1 reads the pin stub as sheared under load and sets `wagon_read`. After that, machining 2 taps the stub out whole and sets `wagon_pin` to `held`. A failure sets `bent`. Leaving with a stub writes the note `wagonPin`.
+- Lena at Nose takes a held or bent stub and opens `wagon_bench.ink`, pages at her bench. Duvall's top half fits a held stub. Giving Kovac a held stub, or a bent one the player read, sets `logged`. Kovac pays a finder's rate of 20 M and keeps the trucks with that mount in the yard. Social 2 on Teller gets his own admission and sets `admitted`, with the same fee. A failure sets `logged` with no fee, because Teller calls the player a looter. Selling the stub to Teller pays 60 M and sets `buried`.
+- Sefa at the Salvage Yard buys the stub and the place for 30 M, or 15 M bent, and sets `sold`.
+- Dag at Bowl, once `wagon_saw` holds, lets the player tell it at the well house beside him. That sets `told`.
+
+The world variable `wagon_fate` keeps the outcome. Its values are `none`, `logged`, `admitted`, `buried`, `told` and `sold`. Kovac and Lena greet by it.
 
 ## Locals at stalls
 

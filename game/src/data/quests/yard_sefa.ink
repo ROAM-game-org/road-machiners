@@ -14,6 +14,13 @@ VAR heard_rider = false
 VAR asked_rider = false
 VAR heard_post = false
 VAR asked_post = false
+VAR sefa_priced = false
+
+=== function pin_price() ===
+{ wagon_pin == "held":
+  ~ return 30
+}
+~ return 15
 
 === start ===
 # checkpoint: start
@@ -27,7 +34,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_picked = true
   -> hub
 + [What do you sell here?]
-  What the road is done with. Wiring, wheel rims, a gun with its pin broken. Anything with a second life in it, if you're not too proud to give it one. I buy too, so put what you carry on the table. Keep your hand off it. Years ago we sold the Yard a book we took off a Pierce truck, and people still ask me about it.
+  What the road is done with. Wiring, wheel rims, a gun with its pin broken. Anything with a second life in it, if you're not too proud to give it one. I buy too, so put what you carry on the table. Keep your hand off it. Years ago we sold the <term=salvage_yard>Yard</term> a book we took off a <term=pierce>Pierce</term> truck, and people still ask me about it.
   ~ heard_book = true
   -> hub
 + [What is the road like out here?]
@@ -51,7 +58,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_pguns = true
   -> hub
 + {heard_pguns and not asked_pguns} [What else do you hear about Pierce?]
-  That Pierce sold the Old Army's guns north to Scrapjaw, then made every driver buy a gun to get paper. I hear it from a pair of drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
+  That Pierce sold the <term=old_army>Old Army</term>'s guns north to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from a pair of drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
   ~ note("talkPierceGuns")
   ~ asked_pguns = true
   -> hub
@@ -71,6 +78,26 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
 + {heard_post and not asked_post} [What do you make of the Army post?]
   I don't trust it. The soldier at the gate writes down who comes and goes through the gate, and she writes it twice. A soldier who writes twice is afraid of something.
   ~ asked_post = true
+  -> hub
++ {wagon_pin != "none" and wagon_fate == "none" and not sefa_priced} [I've got the pin from wagon Seven's ring.]
+  ~ sefa_priced = true
+  { wagon_watched:
+    I know. My children watched you crawl round my hollow all afternoon. You found my cut chain, I expect. My men found that ring was bent and went home for a torch.
+  - else:
+    That hollow is ours. My children found her ruts the week she went quiet. My men cut the chain on that cannon and found the ring bent, and they went home for a torch.
+  }
+  A broken Nose pin is worth more than a whole one. The Yard bores second pins into Nose mounts for a fee, and a pin that sheared on an Army wagon sells a great many second pins. That's all we are.
+  { wagon_pin == "bent":
+    You beat the face off it, so I'm paying for the place more than the steel.
+  }
+  She names a price for the stub and your word on where it lies: {pin_price()} M. A good deal is one nobody likes.
+  -> hub
++ {sefa_priced and wagon_fate == "none"} [Sell her the stub and the place.]
+  ~ wagon_fate = "sold"
+  ~ give_money(pin_price())
+  She counts the money onto the table and sweeps the stub off it into her apron, all in one move. # page
+  The Yard's crane men will hang that stub on a wire by the boring bench. Every Nose driver who stops for a second pin will see it. After the frost my men take the torch to the ring, and the cannon goes where cannons go.
+  The Army post will ask whose steel it was. They'll have to ask me, and I'll tell them raiders.
   -> hub
 + [Goodbye.]
   -> END

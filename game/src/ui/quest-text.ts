@@ -1,8 +1,9 @@
 
 import { CONFIG } from '../config';
 import { QUEST_ART } from '../data/quest-art';
+import { TERMS } from '../data/locals';
 import { verbatim } from '../text/msg';
-import { el } from './dom';
+import { el, uiRoot } from './dom';
 
 export type Mark = { name: string; value: string | null };
 export type Span = { text: string; marks: Mark[] };
@@ -10,6 +11,7 @@ export type Reveal = 'all' | 'word' | 'char';
 export type Speed = 'slow' | 'normal' | 'fast';
 export type LineStyle = { reveal: Reveal; speed: Speed; img: string | null; speaker: string | null; place: string | null; flags: string[] };
 export type Unit = { text: string; marks: Mark[]; delayMs: number };
+export type TermRun = { term: string | null; units: Unit[] };
 
 type MarkDef = { values: readonly string[] | null };
 type TagDef = { kind: 'value'; values: readonly string[] | null } | { kind: 'art' } | { kind: 'flag' };
@@ -23,6 +25,7 @@ export const MARKS: Record<string, MarkDef> = {
   shake: { values: null },
   pop: { values: null },
   color: { values: QUEST_COLORS },
+  term: { values: Object.keys(TERMS) },
 };
 
 const REVEALS: readonly Reveal[] = ['all', 'word', 'char'];
@@ -130,12 +133,88 @@ export function renderLine(text: string, tags: readonly string[], startMs: numbe
   const style = lineStyle(tags);
   const units = revealUnits(parseMarkup(text), style, startMs);
   const line = el('div', { class: `qt-line qt-reveal-${style.reveal}` });
-  for (const unit of units) line.append(unitElement(unit));
+  for (const run of termRuns(units)) {
+    const holder = run.term === null ? line : termElement(run.term);
+    holder.append(...run.units.map(unitElement));
+    if (holder !== line) line.append(holder);
+  }
   const endMs = units.length > 0 ? units[units.length - 1].delayMs + CONFIG.questWordMs : startMs;
   return { el: line, endMs };
 }
 
+export function termRuns(units: readonly Unit[]): TermRun[] {
+  const runs: TermRun[] = [];
+  for (const unit of units) {
+    const term = termOf(unit);
+    const last = runs.at(-1);
+    if (term !== null && last?.term === term) last.units.push(unit);
+    else runs.push({ term, units: [unit] });
+  }
+  return runs;
+}
+
+function termOf(unit: Unit): string | null {
+  return unit.marks.find((m) => m.name === 'term')?.value ?? null;
+}
+
+function termElement(id: string): HTMLElement {
+  return el('span', { class: 'qt-term', 'data-term': id, tabindex: '0' });
+}
+
+export function termText(id: string): string {
+  const text = TERMS[id];
+  if (text === undefined) throw new Error(`No term "${id}" in TERMS`);
+  return text;
+}
+
 function unitElement(unit: Unit): HTMLElement {
-  const classes = ['qt-unit', ...unit.marks.map((m) => (m.value === null ? `qt-${m.name}` : `qt-${m.name}-${m.value}`))];
+  const classes = ['qt-unit', ...unit.marks.filter((m) => m.name !== 'term').map((m) => (m.value === null ? `qt-${m.name}` : `qt-${m.name}-${m.value}`))];
   return el('span', { class: classes.join(' '), style: `animation-delay: ${unit.delayMs}ms` }, verbatim(unit.text));
+}
+
+
+export class TermTip {
+  private tip = el('div', { class: 'tooltip term-tip', role: 'tooltip' });
+
+  constructor(source: HTMLElement) {
+    this.tip.style.display = 'none';
+    uiRoot().append(this.tip);
+    source.addEventListener('pointerover', (e) => this.follow(e.target));
+    source.addEventListener('focusin', (e) => this.follow(e.target));
+    source.addEventListener('pointerout', (e) => this.leave(e.relatedTarget));
+    source.addEventListener('focusout', (e) => this.leave(e.relatedTarget));
+  }
+
+  hide(): void {
+    this.tip.style.display = 'none';
+  }
+
+  private follow(target: EventTarget | null): void {
+    const term = termAt(target);
+    if (term) this.show(term);
+  }
+
+  private leave(next: EventTarget | null): void {
+    if (!termAt(next)) this.hide();
+  }
+
+  private show(term: HTMLElement): void {
+    const id = term.dataset.term;
+    if (id === undefined) throw new Error('A term element has no data-term');
+    this.tip.replaceChildren(el('span', {}, verbatim(termText(id))));
+    this.tip.style.display = '';
+    this.place(term.getBoundingClientRect());
+  }
+
+  private place(anchor: DOMRect): void {
+    const width = this.tip.offsetWidth;
+    const left = Math.min(Math.max(anchor.left, 0), window.innerWidth - width);
+    const below = anchor.bottom + this.tip.offsetHeight <= window.innerHeight;
+    this.tip.style.left = `${left}px`;
+    this.tip.style.top = below ? `${anchor.bottom}px` : `${anchor.top - this.tip.offsetHeight}px`;
+  }
+}
+
+function termAt(target: EventTarget | null): HTMLElement | null {
+  return target instanceof Element ? target.closest<HTMLElement>('.qt-term') : null;
 }

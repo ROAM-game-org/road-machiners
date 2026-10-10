@@ -13,7 +13,12 @@ VAR asked_glare = false
 
 === start ===
 # checkpoint: start
-Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands are busy.
+{ wagon_fate:
+- "buried": You. Teller drinks better this week. Put it on the bench or don't, I've got work.
+- "logged": You again. The page is still in Kovac's log. Command hasn't read it. If it's broken, put it on the bench.
+- "admitted": You again. Teller signed it himself, and a pair of trucks are off the line. Nobody asked me, but that's new. Put it on the bench.
+- else: Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands are busy.
+}
 -> hub
 
 = hub
@@ -40,7 +45,7 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   ~ heard_brann = true
   -> hub
 + {heard_brann and not asked_brann} [Do you trust Brann's mounts?]
-  The ones with his mark, yes. He signs every weld. A weld you can read is a weld you can trust. I've even seen Kiln riders running captured ones on their own trucks. Good steel doesn't care who owns it.
+  The ones with his mark, yes. He signs every weld. A weld you can read is a weld you can trust. I've even seen <term=kiln>Kiln</term> riders running captured ones on their own trucks. Good steel doesn't care who owns it.
   ~ asked_brann = true
   ~ heard_kiln = true
   -> hub
@@ -57,5 +62,8 @@ Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands
   Lenses cut from the fused glass, dark as smoke. I wear an old pair on bad days. I don't know who sells them now.
   ~ asked_glare = true
   -> hub
++ {wagon_pin != "none" and wagon_fate == "none"} [I brought something from wagon Seven.]
+  ~ begin("wagon_bench")
+  -> END
 + [Goodbye.]
   -> END

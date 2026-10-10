@@ -18,7 +18,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
 
    A new game has every skill at 0, so every check fails. Give each run the skills of a driver who would arrive at this place with `--skill <skill>=<level>`, which may repeat. Run at least three times, with a different driver each time and one short line in the situation about how they play, like "You like machines, and you want to see things for yourself." Runs with the same situation and skills pick the same road.
 
-   Quests that follow each other, like the intro, are played by one agent in order. Name them all, and give one `--then` line before each quest after the first, which says in plain words what the player did in between. Codex may start over only in the last one. `--set name=value` sets a variable before each quest, such as `--set intro_step=ambush`:
+   Quests that follow each other, like the intro, are played by one agent in order. Name them all, and give one `--then` line before each quest after the first, which says in plain words what the player did in between. Codex may start over only in the last one. Each quest starts with the world variables the quest before it ended with, so a pin taken in one quest is still held in the next. `npm run quest -- <quest> --play <run file> --from <earlier run file>` does the same by hand. `--set name=value` sets a variable before each quest, such as `--set intro_step=ambush`:
 
    ```
    npm run quest:playtest -- intro_arrival first_fall intro_bowl bowl_hattie --situation "You start a new game. You are on foot in a desert, with no water." --then "You patch the engine and drive north. A raider truck opens fire, and you lose the fight." --then "You stay out cold." --then "You walk around Bowl. Hattie has time to talk." --set intro_step=ambush --out tmp/playtest-intro.md > tmp/playtest.log 2>&1 &
@@ -31,7 +31,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 ## The loop
 
 1. Edit or add a `.ink` file in `src/data/quests/`.
-2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game.
+2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game. Under each screen, both views print the tip of every marked term, like `[hover Bowl: ...]`, so a playtest agent reads the tips a player can hover.
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached and effects that a load would repeat. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
@@ -112,9 +112,48 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 - Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue-writing.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Numbers are fine inside `# row` tables, which are documents.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
+- A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
 - A rumor goes into the journal with `~ note("<id>")`. Add the note to `NOTES` in `src/data/locals.ts` first.
 
 - Every choice changes something real: what the player learns, what they hold, who knows them or where the story goes. A choice whose options all lead to the same outcome is no choice. Cut it and let the page run on behind Next.
+
+## Term tips
+
+Locals name places, groups and road slang as if everyone knows them, and a stranger does not. A term tip fills that gap without a "What is X?" question. The player hovers the word and reads what any local could have told them. It makes the world feel known without stopping the talk.
+
+Mark the word in ink, and write its tip in `TERMS` in `src/data/locals.ts`:
+
+```ink
+Water costs here, talk doesn't, and I hear everything that happens in <term=bowl>Bowl</term> twice.
+```
+
+```ts
+bowl: 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
+```
+
+What a tip may say:
+
+- A tip holds common knowledge: what any driver in the basin would tell a stranger over a cup of water.
+- A tip is in-world. It names no game rule, number, stat, skill or mechanic.
+- A tip adds a fact the line does not say. If Hattie says the Glass Flats are melted ground, the tip says something else about them.
+- A tip never tells a secret, an outcome, a hidden motive or anything a quest lets the player find out. The player discovers those in play.
+- A tip is one or two short, plain sentences, in the voice of narration. It is never a riddle.
+- Every fact in a tip matches `docs/lore/`. Check the lore before you write it.
+- A tip is never needed to choose. A fact the player needs for a choice goes in the line itself.
+
+Where to mark a word:
+
+- Mark a word only on a line where the player may know everything its tip says. The writer decides this, and the game does not check it.
+- Mark a term once per screen, on its first use.
+- Mark terms in spoken and narrated lines only, never in a choice. Choice buttons print their text as it is, so a mark would show as raw text.
+- When the player later learns more about a term, add a new entry with its own id, like `bowl_well` beside `bowl`. Mark the new id only on lines after the player has learned it. Never change an old entry to hold the new fact.
+- A tip replaces a question whose answer is only a definition, like "What is this place?". Keep the question when its answer is a story, an opinion or a lead.
+
+How to check:
+
+- `npm run quests:check` fails a term id that is not in `TERMS`.
+- `npm run quest` prints the tips of every marked term under each screen, like `[hover Bowl: ...]`. Read them as a player who has seen only the screens before.
+- Tips are English only for now, like quest ink. `src/text/untranslated.ts` lists `src/data/locals.ts` as an exception.
 
 ## Rules the build enforces
 

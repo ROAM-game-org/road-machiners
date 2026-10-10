@@ -10,10 +10,11 @@ import { defaultSetup } from '../src/sim/settings.ts';
 import { newWorld } from '../src/sim/world.ts';
 import { TEST_MAP } from '../src/test/map.ts';
 import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
+import { parseMarkup, termText } from '../src/ui/quest-text.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, skill: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' } },
+  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, skill: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' }, from: { type: 'string' } },
 });
 if (values.pick !== undefined && !values.play) throw new Error('--pick needs --play <file>');
 const id = positionals[0];
@@ -57,10 +58,17 @@ function loaded(w, file) {
 }
 
 function newRun() {
-  return { quest: id, set: values.set ?? [], skills: values.skill ?? [], checkpoint: values.checkpoint, picks: [] };
+  return { quest: id, world: values.from ? carriedWorld(values.from) : {}, set: values.set ?? [], skills: values.skill ?? [], checkpoint: values.checkpoint, picks: [] };
+}
+
+function carriedWorld(file) {
+  const before = JSON.parse(readFileSync(file, 'utf8'));
+  if (!before.after) throw new Error(`${file} holds no world from a played quest`);
+  return before.after;
 }
 
 function started(w, run = newRun()) {
+  w.player.quests.world = { ...w.player.quests.world, ...run.world };
   for (const assignment of run.set) setVariable(w, assignment);
   for (const assignment of run.skills) setSkill(w, assignment);
   const checkpoint = run.checkpoint ?? bundle.quests[id].checkpoints[0];
@@ -73,11 +81,14 @@ function played(w, file) {
   const at = run.picks.reduce((next, number) => chooseQuestOption(next, bundle, choiceIndex(next, number)), started(w, run));
   if (values.pick === undefined) {
     showPlayer(at);
+    run.after = at.player.quests.world;
   } else {
     const index = choiceIndex(at, values.pick);
     console.log(`> ${questView(at, bundle).choices[index]}\n`);
-    showPlayer(chooseQuestOption(at, bundle, index));
+    const next = chooseQuestOption(at, bundle, index);
+    showPlayer(next);
     run.picks.push(values.pick);
+    run.after = next.player.quests.world;
   }
   writeFileSync(file, `${JSON.stringify(run)}\n`);
 }
@@ -87,7 +98,8 @@ function showPlayer(w) {
   for (const line of view.lines) console.log(playerLine(line));
   for (const stat of view.stats) console.log(`[${stat.label}: ${stat.value}]`);
   console.log('');
-  view.choices.forEach((choice, index) => console.log(`${index + 1}. ${choice}${checkText(w, view.checks[index])}${view.costs[index] === null ? '' : ` (costs ${view.costs[index]})`}${view.locked[index] ? ' (you cannot afford it)' : ''}`));
+  for (const note of termNotes(view, false)) console.log(note);
+  view.choices.forEach((choice, index) => console.log(`${index + 1}. ${withoutTerms(choice)}${checkText(w, view.checks[index])}${view.costs[index] === null ? '' : ` (costs ${view.costs[index]})`}${view.locked[index] ? ' (you cannot afford it)' : ''}`));
   if (view.ended) console.log('(the story ends here)');
 }
 
@@ -101,7 +113,7 @@ function playerLine(line) {
   const place = tag('place');
   const speaker = tag('speaker');
   const isTable = tag('row') !== undefined || tag('head') !== undefined;
-  const text = isTable ? line.text.split(';').map((cell) => cell.trim()).join(' | ') : line.text;
+  const text = isTable ? withoutTerms(line.text).split(';').map((cell) => cell.trim()).join(' | ') : withoutTerms(line.text);
   return `${place ? `\n== ${place} ==\n` : ''}${speaker ? `${speaker}: ` : ''}${text}`;
 }
 
@@ -161,8 +173,7 @@ async function typed(w) {
 function show(w) {
   const view = questView(w, bundle);
   for (const line of view.lines) console.log(line.tags.length > 0 ? `${line.text}   # ${line.tags.join(' # ')}` : line.text);
-  for (const stat of view.stats) console.log(`  [${stat.label}: ${stat.value}]`);
-  for (const fact of view.facts) console.log(`  [fact] ${fact}`);
+  for (const side of sideNotes(view)) console.log(`  ${side}`);
   view.choices.forEach((choice, index) => console.log(`  ${index + 1}. ${choice}${view.checks[index] === null ? '' : `   # check: ${view.checks[index].skill} ${view.checks[index].level}`}${view.costs[index] === null ? '' : `   # cost: ${view.costs[index]}`}${view.locked[index] ? ' (locked)' : ''}`));
   if (view.ended) console.log('(the quest ended)');
   console.log('');
@@ -178,4 +189,23 @@ function finish(w) {
     writeFileSync(values.save, `${JSON.stringify(saved, null, 1)}\n`);
     console.log(`Saved the quest state to ${values.save}`);
   }
+}
+
+function withoutTerms(text) {
+  return text.replace(/<\/?term(=[a-z0-9_-]+)?>/g, '');
+}
+
+function termNotes(view, withIds) {
+  const terms = new Map();
+  for (const text of [...view.lines.map((line) => line.text), ...view.choices]) {
+    for (const span of parseMarkup(text)) {
+      const id = span.marks.find((mark) => mark.name === 'term')?.value;
+      if (id && !terms.has(id)) terms.set(id, span.text);
+    }
+  }
+  return [...terms].map(([id, word]) => `[${withIds ? `term ${id}, ` : ''}hover ${word}: ${termText(id)}]`);
+}
+
+function sideNotes(view) {
+  return [...view.stats.map((stat) => `[${stat.label}: ${stat.value}]`), ...view.facts.map((fact) => `[fact] ${fact}`), ...termNotes(view, true)];
 }

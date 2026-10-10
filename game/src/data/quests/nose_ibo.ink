@@ -25,14 +25,14 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 = hub
 # checkpoint: start.hub
 + [What do you do in this shack?]
-  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the Guild calling their rounds. And now and then there's a tone out of the big hull that nobody can explain. The set itself is Old World work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
+  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the big hull that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
   ~ heard_oldworld = true
   ~ heard_jj = true
   ~ heard_couriers = true
   ~ heard_tone = true
   -> hub
 + {heard_oldworld and not asked_oldworld} [What was the Old World like?]
-  Bigger than anyone here thinks. Bowl folk will tell you it was all orchards, and that's rubbish. There were highways, power lines, towns bigger than Nose and Bowl put together. The orchards were only what you could see from the canals. I knew men of the Old Army who could drive a mountain road blind, and there's nobody like them left.
+  Bigger than anyone here thinks. Bowl folk will tell you it was all orchards, and that's rubbish. There were highways, power lines, towns bigger than Nose and Bowl put together. The orchards were only what you could see from the canals. I knew men of the <term=old_army>Old Army</term> who could drive a mountain road blind, and there's nobody like them left.
   ~ asked_oldworld = true
   ~ heard_army = true
   ~ heard_bowl = true
