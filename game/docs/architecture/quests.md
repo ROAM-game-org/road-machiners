@@ -67,7 +67,7 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 - `MARKS` and `LINE_TAGS` in `src/ui/quest-text.ts` list them. A new effect is one entry there and its CSS in `style.css`. Unknown or unclosed markup and unknown tags fail `npm run quests:check`.
 - `src/ui/quest-screen.ts` is the talk window. It shows whenever `player.quests.live` is set, so a start, a pick and a load all show it. It lies over every other screen. Digits pick, a click, Space or Enter shows the rest of the reveal at once, and Escape leaves the quest. Text and choices stay hidden until they fade in, so a click where a choice will appear only shows the rest.
 - A talk shows only the player's last pick, the reply and the choices. Earlier exchanges are not kept, so the player reads each reply. A `# page` tag splits a reply behind a Next button, as in the page view. It suits short talk, like asking around town.
-- A page shows art on the left, one page of text with its choices in the middle, and the stats and facts on the right. A fact found in the last pick stands out. Space or Enter after the reveal turns to the next page. It suits scenes that need full attention. `src/ui/quest-lines.ts` draws lines for both views.
+- A page shows art on the left, one page of text with its choices in the middle, and the stats and facts on the right. A fact found in the last pick stands out, and so does money gained or paid in it, with the change in green or red before the new sum. Space or Enter after the reveal turns to the next page. It suits scenes that need full attention. `src/ui/quest-lines.ts` draws lines for both views.
 
 ## Saves
 

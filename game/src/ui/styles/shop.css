@@ -230,6 +230,18 @@
   font-weight: 400;
   color: var(--ink-label);
 }
+.quest-page .quest-stat.new b {
+  color: var(--ink);
+}
+.quest-page .quest-delta {
+  margin-right: var(--space-3);
+}
+.quest-page .quest-delta.good {
+  color: var(--good);
+}
+.quest-page .quest-delta.bad {
+  color: var(--danger-ink);
+}
 .quest-page .quest-fact {
   font-size: var(--text-dense);
   color: var(--ink-muted);

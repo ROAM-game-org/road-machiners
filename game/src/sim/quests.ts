@@ -41,7 +41,7 @@ export type QuestView = {
   costs: (number | null)[];
   checks: (QuestCheck | null)[];
   locked: boolean[];
-  stats: { label: string; value: string }[];
+  stats: { name: string; label: string; value: string }[];
   facts: string[];
   ended: boolean;
 };
@@ -261,7 +261,7 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     costs: live.costs,
     checks: live.checks,
     locked: live.costs.map((cost) => cost !== null && cost > money),
-    stats: quest.stats.map((stat) => ({ label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
+    stats: quest.stats.map((stat) => ({ name: stat.name, label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
     facts: quest.facts.filter((fact) => questVar(world, bundle, live.quest, fact.name) === true).map((fact) => fact.text),
     ended: session === null,
   };

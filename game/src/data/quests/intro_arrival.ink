@@ -54,7 +54,6 @@ You put it in your shirt and go out to the shed.
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm
 It's old and square, with a flat grille and round lamps, the kind of truck that outlives its owners. The paint has worn down to grey undercoat. The tires are soft but whole, and the bed is boxed in with welded plate.
 A machine gun stands on a turning mount behind the cab, its barrel wrapped in rag against the dust. A pair of steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
-Someone has scratched a ladle into the driver's door, deep, with a knife point. A strange thing to draw on a truck. A cook's truck, maybe, or a joke.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.
 Behind the seat there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. You hold it a while, then put it back in the box. Eat it now and it's gone. Keep it, and it might be the difference between reaching that town and not. # page
 You twist the key. The starter grinds, slows and quits.

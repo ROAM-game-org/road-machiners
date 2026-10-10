@@ -11,11 +11,18 @@ import { questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
 import { renderLine, TermTip } from './quest-text';
+import { moneyDelta } from './units';
+import { MONEY_STAT } from '../data/quests';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
   return shown?.quest === live.quest ? ask : null;
+}
+
+function statRow(stat: QuestView['stats'][number], change: number): HTMLElement {
+  const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, verbatim(moneyDelta(change)));
+  return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, el('span', {}, verbatim(stat.label)), el('b', {}, delta, verbatim(stat.value)));
 }
 
 export class QuestScreen {
@@ -29,6 +36,8 @@ export class QuestScreen {
   private placeBefore: string | null = null;
   private factsBefore = new Set<string>();
   private factsShown: string[] = [];
+  private moneyBefore: number | null = null;
+  private moneyShown: number | null = null;
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
 
@@ -62,12 +71,14 @@ export class QuestScreen {
     this.artBefore = lastTagged(before, 'img') ?? this.artBefore;
     this.placeBefore = lastTagged(before, 'place') ?? this.placeBefore;
     this.factsBefore = new Set(this.factsShown);
+    this.moneyBefore = this.moneyShown;
   }
 
   private forget(): void {
     this.artBefore = null;
     this.placeBefore = null;
     this.factsBefore = new Set();
+    this.moneyBefore = null;
   }
 
   private hide(): void {
@@ -104,7 +115,7 @@ export class QuestScreen {
     const drawn = drawLines(w, pages[this.page], 0, { inlineArt: false, offers: true });
     const place = lastTagged(shown, 'place') ?? this.placeBefore;
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(lastTagged(shown, 'img') ?? this.artBefore), text, this.side(view));
+    this.root.replaceChildren(this.art(lastTagged(shown, 'img') ?? this.artBefore), text, this.side(w, view));
     return drawn.endMs;
   }
 
@@ -112,8 +123,10 @@ export class QuestScreen {
     return el('div', { class: 'quest-art' }, el('div', { class: 'quest-frame' }, key ? el('img', { src: questArtUrl(key), 'aria-hidden': 'true' }) : null));
   }
 
-  private side(view: QuestView): HTMLElement {
-    const stats = view.stats.map((s) => el('div', { class: 'quest-stat' }, el('span', {}, verbatim(s.label)), el('b', {}, verbatim(s.value))));
+  private side(w: World, view: QuestView): HTMLElement {
+    const gained = this.moneyBefore === null ? 0 : w.player.money - this.moneyBefore;
+    this.moneyShown = w.player.money;
+    const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
     return el('div', { class: 'quest-side' }, this.leaveButton(), el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
