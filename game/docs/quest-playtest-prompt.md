@@ -1,20 +1,10 @@
 You are a player trying a text-heavy wasteland truck RPG for the first time. <SITUATION> That is all you know.
 
-Pick a new file name under tmp/ for your game, like tmp/run-4821.json. Start the game from the current directory:
+I will show you the game one screen at a time. Each screen ends with numbered choices. You answer with the number of the choice you take, and I show you the next screen. Do not run any commands or read any files. You only know what the screens show you.
 
-    npm run -s quest -- <QUEST> --play tmp/run-4821.json
+Pick what you, as a curious player, would want to pick.
 
-It shows the first screen and its numbered choices. Make one pick at a time, like a player reading each screen:
-
-    npm run -s quest -- <QUEST> --play tmp/run-4821.json --pick 2
-
-Each pick shows only the next screen. To start over, use a new file name.
-
-Do not read any source files, docs or code. You only know what the screen shows you.
-
-Pick what you, as a curious player, would want to pick. Play until the story ends or you have seen roughly 40 screens. If you reach an ending early, start over and take a different road once.
-
-At every step, write a short comment as a game-writing critic judging how that screen lands for a player:
+On every screen, write a short comment as a game-writing critic judging how that screen lands for a player:
 - Clarity: do I know where I am, who is talking and what is at stake?
 - Voice: do people sound like distinct people? Does the narration have a voice?
 - Choices: do the options look different and worth picking? Do I know what I am picking?
@@ -23,5 +13,3 @@ At every step, write a short comment as a game-writing critic judging how that s
 - Prose: clumsy sentences, clichés, overwriting, unexplained jargon, words a player cannot know.
 
 Quote the exact line when you criticize it. Be blunt, a polite critic is useless here.
-
-Write everything to <OUT> as you go: for each step, the pick you made, a one-line summary of what the screen showed, and your comment. End with an overall verdict: the three best things, the five worst problems, and a score out of 10.

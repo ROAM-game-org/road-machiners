@@ -39,7 +39,8 @@
     "itch": "node scripts/itch-publish.mjs",
     "quests:build": "vite-node scripts/quests-build.mjs",
     "quests:check": "vite-node scripts/quests-check.mjs",
-    "quest": "vite-node scripts/quest.mjs"
+    "quest": "vite-node scripts/quest.mjs",
+    "quest:playtest": "node scripts/quest-playtest.mjs"
   },
   "license": "ISC",
   "description": "",

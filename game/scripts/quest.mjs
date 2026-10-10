@@ -65,12 +65,32 @@ function played(w, file) {
   if (run.quest !== id) throw new Error(`${file} plays ${run.quest}, not ${id}`);
   const at = run.picks.reduce((next, number) => chooseQuestOption(next, bundle, choiceIndex(next, number)), started(w, run));
   if (values.pick === undefined) {
-    show(at);
+    showPlayer(at);
   } else {
-    pick(at, values.pick);
+    const index = choiceIndex(at, values.pick);
+    console.log(`> ${questView(at, bundle).choices[index]}\n`);
+    showPlayer(chooseQuestOption(at, bundle, index));
     run.picks.push(values.pick);
   }
   writeFileSync(file, `${JSON.stringify(run)}\n`);
+}
+
+function showPlayer(w) {
+  const view = questView(w, bundle);
+  for (const line of view.lines) console.log(playerLine(line));
+  for (const stat of view.stats) console.log(`[${stat.label}: ${stat.value}]`);
+  console.log('');
+  view.choices.forEach((choice, index) => console.log(`${index + 1}. ${choice}${view.costs[index] === null ? '' : ` (costs ${view.costs[index]})`}${view.locked[index] ? ' (you cannot afford it)' : ''}`));
+  if (view.ended) console.log('(the story ends here)');
+}
+
+function playerLine(line) {
+  const tag = (name) => line.tags.find((t) => t === name || t.startsWith(`${name}:`))?.slice(name.length + 1).trim();
+  const place = tag('place');
+  const speaker = tag('speaker');
+  const isTable = tag('row') !== undefined || tag('head') !== undefined;
+  const text = isTable ? line.text.split(';').map((cell) => cell.trim()).join(' | ') : line.text;
+  return `${place ? `\n== ${place} ==\n` : ''}${speaker ? `${speaker}: ` : ''}${text}`;
 }
 
 function choiceIndex(w, number) {

@@ -8,18 +8,13 @@ A quest is built in three steps: play out the story behind it, write it, then pl
 
 1. Build the situation with the [Story game](lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
 2. Write the quest from the log with this guide and [Writing dialogue](dialogue-writing.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
-3. Playtest it with Codex in headless mode. Fill in [the playtest prompt](quest-playtest-prompt.md):
-   - `<QUEST>` is the quest id.
-   - `<SITUATION>` is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player.
-   - `<OUT>` is a notes file under `tmp/`.
-
-   Run it in the background, with a log:
+3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
-   codex exec -s workspace-write -C "$PWD" - < tmp/playtest-prompt.md > tmp/playtest.log 2>&1 &
+   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a pump station where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
-   The agent plays one pick at a time through `npm run quest`. It comments on every screen for clarity, voice, choices, pull, consistency and prose, and it ends with a score out of 10. A run takes about 5 minutes.
+   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, five worst problems and a score out of 10. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
 4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
 5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when a fresh run scores it 9 out of 10 or higher.
 
