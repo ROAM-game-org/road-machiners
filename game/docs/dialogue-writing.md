@@ -8,6 +8,12 @@ The examples are written for ROAM. A line marked Bad is the kind of line that ha
 
 ROAM's voice comes from the author's own wasteland and adventure stories. These habits hold for page narration and for talk alike.
 
+### Plain by default
+
+Most sentences say plainly what happens and what is there: "They drank their water." "They searched the bodies. Water for a few days, food for one. Nothing else useful." The habits below are for emphasis. A page uses one at most, and most pages use none. Save them for a turn in the scene, like the moment before a fight or the discovery that changes it. A simile, a dry joke or a sized-up judgment on every line flattens all of them.
+
+Describe only what the character needs right now, like water, shade, a threat or a way out. Do not describe a place for its mood.
+
 ### Read people by their gear
 
 Bring a person in with a short list of what they wear and carry, then the narrator's practical read of it. Boots, tools, wear and dirt say what a life has been. A narrated list may run in fragments. Speech still uses whole sentences.

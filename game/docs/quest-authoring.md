@@ -82,7 +82,7 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 [Writing dialogue](dialogue-writing.md) holds the house style for narration and talk, and every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never explains what a moment means. Write what the other driver does, not "nobody out here kills that".
-- Narration in page scenes uses full, concrete sentences with real detail of sight, sound, heat and touch. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
+- Narration in page scenes uses full, concrete sentences. Most of them report plainly, as [Writing dialogue](dialogue-writing.md#plain-by-default) asks. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Numbers are fine inside `# row` tables, which are documents.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
 - A rumor goes into the journal with `~ note("<id>")`. Add the note to `NOTES` in `src/data/locals.ts` first.
