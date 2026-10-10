@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { START_KITS } from '../src/data/start.ts';
@@ -11,8 +11,9 @@ import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' } },
+  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' } },
 });
+if (values.pick !== undefined && !values.play) throw new Error('--pick needs --play <file>');
 const id = positionals[0];
 if (!id) throw new Error('Name a quest: npm run quest -- <quest>, or list them: npm run quest -- list');
 const { bundle, errors } = compileSources(readQuestSources('src/data/quests'), false);
@@ -31,6 +32,10 @@ const PARSERS = {
 
 const fresh = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
 const startMoney = fresh.player.money;
+if (values.play) {
+  played(fresh, values.play);
+  process.exit(0);
+}
 let world = values.load ? loaded(fresh, values.load) : started(fresh);
 show(world);
 world = values.picks ? scripted(world, values.picks) : await typed(world);
@@ -49,10 +54,29 @@ function loaded(w, file) {
   return w;
 }
 
-function started(w) {
-  for (const assignment of values.set ?? []) setVariable(w, assignment);
-  const checkpoint = values.checkpoint ?? bundle.quests[id].checkpoints[0];
+function started(w, run = { set: values.set ?? [], checkpoint: values.checkpoint }) {
+  for (const assignment of run.set) setVariable(w, assignment);
+  const checkpoint = run.checkpoint ?? bundle.quests[id].checkpoints[0];
   return startQuest(w, bundle, id, checkpoint);
+}
+
+function played(w, file) {
+  const run = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { quest: id, set: values.set ?? [], checkpoint: values.checkpoint, picks: [] };
+  if (run.quest !== id) throw new Error(`${file} plays ${run.quest}, not ${id}`);
+  const at = run.picks.reduce((next, number) => chooseQuestOption(next, bundle, choiceIndex(next, number)), started(w, run));
+  if (values.pick === undefined) {
+    show(at);
+  } else {
+    pick(at, values.pick);
+    run.picks.push(values.pick);
+  }
+  writeFileSync(file, `${JSON.stringify(run)}\n`);
+}
+
+function choiceIndex(w, number) {
+  const index = Number(number) - 1;
+  if (questView(w, bundle).choices[index] === undefined) throw new Error(`No choice ${number}`);
+  return index;
 }
 
 function setVariable(w, assignment) {
@@ -72,10 +96,8 @@ function parsedValue(type, text, assignment) {
 }
 
 function pick(w, number) {
-  const index = Number(number) - 1;
-  const text = questView(w, bundle).choices[index];
-  if (text === undefined) throw new Error(`No choice ${number}`);
-  console.log(`> ${number}. ${text}\n`);
+  const index = choiceIndex(w, number);
+  console.log(`> ${number}. ${questView(w, bundle).choices[index]}\n`);
   const next = chooseQuestOption(w, bundle, index);
   show(next);
   return next;

@@ -1,10 +1,14 @@
 You are a player trying a text-heavy wasteland truck RPG for the first time. <SITUATION> That is all you know.
 
-Play by running this command from the current directory:
+Pick a new file name under tmp/ for your game, like tmp/run-4821.json. Start the game from the current directory:
 
-    npm run -s quest -- <QUEST> --picks <comma-separated choice numbers>
+    npm run -s quest -- <QUEST> --play tmp/run-4821.json
 
-The first run takes no --picks. Each run replays the scene from the start with your picks so far, and stops at the next set of choices. Add one pick at a time, like a player reading each screen. Ignore the lines about variables, checkpoints and money at the bottom: a player never sees them. If the scene ends with another scene opening, or tells you the next scene's id, play that one the same way with its own id.
+It shows the first screen and its numbered choices. Make one pick at a time, like a player reading each screen:
+
+    npm run -s quest -- <QUEST> --play tmp/run-4821.json --pick 2
+
+Each pick shows only the next screen. To start over, use a new file name.
 
 Do not read any source files, docs or code. You only know what the screen shows you.
 

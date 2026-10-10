@@ -28,7 +28,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 ## The loop
 
 1. Edit or add a `.ink` file in `src/data/quests/`.
-2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, and `--set name=value` sets a variable first.
+2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, and `--set name=value` sets a variable first. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game.
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached and effects that a load would repeat. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.
