@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
+import { MAX_RANK, SKILL_IDS } from '../src/data/skills.ts';
 import { START_KITS } from '../src/data/start.ts';
 import { UNITS } from '../src/data/units.ts';
 import { skillLevel } from '../src/sim/progress.ts';
@@ -12,7 +13,7 @@ import { compileSources, readQuestSources } from '../src/test/quest-compile.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' } },
+  options: { checkpoint: { type: 'string' }, picks: { type: 'string' }, set: { type: 'string', multiple: true }, skill: { type: 'string', multiple: true }, save: { type: 'string' }, load: { type: 'string' }, play: { type: 'string' }, pick: { type: 'string' } },
 });
 if (values.pick !== undefined && !values.play) throw new Error('--pick needs --play <file>');
 const id = positionals[0];
@@ -55,14 +56,19 @@ function loaded(w, file) {
   return w;
 }
 
-function started(w, run = { set: values.set ?? [], checkpoint: values.checkpoint }) {
+function newRun() {
+  return { quest: id, set: values.set ?? [], skills: values.skill ?? [], checkpoint: values.checkpoint, picks: [] };
+}
+
+function started(w, run = newRun()) {
   for (const assignment of run.set) setVariable(w, assignment);
+  for (const assignment of run.skills) setSkill(w, assignment);
   const checkpoint = run.checkpoint ?? bundle.quests[id].checkpoints[0];
   return startQuest(w, bundle, id, checkpoint);
 }
 
 function played(w, file) {
-  const run = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { quest: id, set: values.set ?? [], checkpoint: values.checkpoint, picks: [] };
+  const run = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : newRun();
   if (run.quest !== id) throw new Error(`${file} plays ${run.quest}, not ${id}`);
   const at = run.picks.reduce((next, number) => chooseQuestOption(next, bundle, choiceIndex(next, number)), started(w, run));
   if (values.pick === undefined) {
@@ -113,6 +119,13 @@ function setVariable(w, assignment) {
   const value = parsedValue(decl.type, text, assignment);
   if (local) w.player.quests.local[id] = { ...w.player.quests.local[id], [name]: value };
   else w.player.quests.world[name] = value;
+}
+
+function setSkill(w, assignment) {
+  const [skill, text] = assignment.split('=');
+  const level = Number(text);
+  if (!SKILL_IDS.includes(skill) || !Number.isInteger(level) || level < 0 || level > MAX_RANK) throw new Error(`--skill ${assignment} needs <skill>=<level from 0 to ${MAX_RANK}>, skills: ${SKILL_IDS.join(', ')}`);
+  w.player.ranks[skill] = level;
 }
 
 function parsedValue(type, text, assignment) {

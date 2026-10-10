@@ -8,11 +8,12 @@ const { values, positionals } = parseArgs({
   options: {
     situation: { type: 'string' }, out: { type: 'string' }, screens: { type: 'string', default: '40' }, model: { type: 'string' },
     then: { type: 'string', multiple: true, default: [] }, set: { type: 'string', multiple: true, default: [] },
+    skill: { type: 'string', multiple: true, default: [] },
   },
 });
 const quests = positionals;
 if (quests.length === 0 || !values.situation || !values.out) {
-  throw new Error('Usage: npm run quest:playtest -- <quest> [<next quest> ...] --situation "<what the player sees on arrival>" [--then "<what happens before the next quest>" ...] --out tmp/<notes>.md');
+  throw new Error('Usage: npm run quest:playtest -- <quest> [<next quest> ...] --situation "<what the player sees on arrival>" [--then "<what happens before the next quest>" ...] [--skill <skill>=<level> ...] --out tmp/<notes>.md');
 }
 if (values.then.length !== quests.length - 1) {
   throw new Error(`${quests.length} quests need ${quests.length - 1} --then lines, one before each quest after the first, got ${values.then.length}`);
@@ -32,6 +33,7 @@ const verdictSchema = schemaFile('verdict', {
   worst: { type: 'array', items: { type: 'string' }, description: 'The five worst problems, each with a quoted line.' },
   verdict: { type: 'string', description: 'A short overall verdict.' },
   score: { type: 'integer', description: 'Score out of 10.' },
+  to_nine: { type: 'string', description: 'What would have to change for this writing to earn 9 out of 10.' },
 });
 
 writeFileSync(values.out, `# Playtest of ${quests.join(', ')}\n\nSituation: ${values.situation}\n`);
@@ -68,11 +70,11 @@ function endNote(last, restarted) {
 }
 
 const verdict = codex('You are done playing. Give your overall verdict on the writing across everything you saw.', verdictSchema);
-appendFileSync(values.out, `\n## Verdict\n\nScore: ${verdict.score}/10\n\n${verdict.verdict}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n`);
+appendFileSync(values.out, `\n## Verdict\n\nScore: ${verdict.score}/10\n\n${verdict.verdict}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n\nTo reach 9:\n${verdict.to_nine}\n`);
 console.log(`Score ${verdict.score}/10 after ${screens} screens. Notes in ${values.out}`);
 
 function game(quest, runFile, pick) {
-  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...values.set.flatMap((s) => ['--set', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
+  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
   const result = spawnSync('node_modules/.bin/vite-node', args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`The quest runner failed on pick ${pick}:\n${result.stderr}`);
   return result.stdout.trim();

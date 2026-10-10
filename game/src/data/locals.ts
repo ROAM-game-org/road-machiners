@@ -109,22 +109,22 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
-    text: 'Agnes writes down every meter she reads, and every one is lower than last spring. The Senate made her take her meter off one pipe. She says the pipe still runs.',
+    text: 'Less water comes up out of the floor every season, and less again reaches the meters Agnes reads. The rest goes up a pipe to the top terrace. The Senate made her take its meter off, and the pipe still runs.',
   },
   pipeDraw: {
     title: 'A pipe with no meter',
-    from: "Agnes's pump book",
-    text: "A pipe to the Archon's terrace draws seep water every week. Agnes's book has a line for it each week and no meter reading. The seep falls week after week.",
+    from: "Agnes's copy of the pump book",
+    text: "Agnes's copy has a column her own book doesn't: what goes up the top pipe each season. The share grows as the seep falls.",
   },
   pipeOffer: {
     title: 'Coin to lose a bundle',
-    from: 'A steward in a Marr coat',
-    text: "A steward of the Archon's household offered coin to lose a sealed bundle on the road. He said the book was a quarrel the Bowl can't afford. He said the offer stands until the Bowl.",
+    from: 'Aurel Brede, steward to the household',
+    text: "The steward of the Archon's household offered coin to lose Agnes's copy on the road. He said the patrol at the Bowl gate opens sealed bundles when he sends word. He said the offer stands until the Bowl.",
   },
   pipeCanal: {
     title: 'The Canal book in Bowl',
     from: 'Mirela Duarte, Bowl lock house',
-    text: "The Canal book holds the same weekly line for the Archon's pipe as the pump book. Mirela's cousin Tomas wrote a patrol report on the valve. It lies on the Archon's desk.",
+    text: "Mirela's count at the lock agrees with Agnes's canal meter, season by season. So Agnes's meters are honest, and the water missing between her floor and her meters goes up the top pipe.",
   },
 };
 

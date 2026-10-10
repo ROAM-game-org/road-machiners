@@ -14,7 +14,9 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a pump station where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
-   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, five worst problems and a score out of 10. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
+   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, five worst problems, a score out of 10 and what would make it a 9. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
+
+   A new game has every skill at 0, so every check fails. Give each run the skills of a driver who would arrive at this place with `--skill <skill>=<level>`, which may repeat. Run at least three times, with a different driver each time and one short line in the situation about how they play, like "You like machines, and you want to see things for yourself." Runs with the same situation and skills pick the same road.
 
    Quests that follow each other, like the intro, are played by one agent in order. Name them all, and give one `--then` line before each quest after the first, which says in plain words what the player did in between. Codex may start over only in the last one. `--set name=value` sets a variable before each quest, such as `--set intro_step=ambush`:
 
@@ -29,7 +31,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 ## The loop
 
 1. Edit or add a `.ink` file in `src/data/quests/`.
-2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, and `--set name=value` sets a variable first. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game.
+2. Play it in the terminal: `npm run quest -- <quest>`. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game.
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached and effects that a load would repeat. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
 5. Run the touched tests: `npx vitest run src/test/quest-voice.test.ts src/test/quest-compile.test.ts src/sim/locals.test.ts`.

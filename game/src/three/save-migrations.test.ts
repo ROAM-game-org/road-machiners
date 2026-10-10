@@ -54,6 +54,7 @@ import FORMAT_2_47 from './save-fixtures/format-2-47.json';
 import FORMAT_2_48 from './save-fixtures/format-2-48.json';
 import FORMAT_2_49 from './save-fixtures/format-2-49.json';
 import FORMAT_2_50 from './save-fixtures/format-2-50.json';
+import FORMAT_2_51 from './save-fixtures/format-2-51.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1154,5 +1155,22 @@ describe('save migration 50 to 51', () => {
   it('leaves a save that never heard of the glass as it was', () => {
     const fresh = structuredClone(FORMAT_2_49);
     expect(MIGRATIONS[50](fresh)).toEqual(fresh);
+  });
+});
+
+describe('save migration 51 to 52', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("drops the Pump Station variables the rewrite cut and keeps Agnes's trust, the road, the session and the rest", () => {
+    const next = playerOf(MIGRATIONS[51](structuredClone(FORMAT_2_51)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { pump_agnes: { knows_book: true, knows_pipe: true, trusted: true }, pump_pipe: { taken: true, sluice: 'watched' } },
+      session: { quest: 'pump_pipe', checkpoint: 'road', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['pipeBook']);
+    expect(next.money).toBe(1200);
   });
 });

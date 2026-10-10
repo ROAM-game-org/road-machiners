@@ -832,7 +832,22 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCutQuests_48_49,
   withoutKovacKessel_49_50,
   withHattieGlass_50_51,
+  withoutCutPumpVars_51_52,
 ];
+
+const CUT_PUMP_VARS_51_52: readonly (readonly [string, string])[] = [
+  ['pump_agnes', 'knows_senate'],
+  ['pump_agnes', 'knows_marr'],
+  ['pump_agnes', 'knows_carry'],
+  ['pump_agnes', 'knows_envelope'],
+  ['pump_pipe', 'early_lines'],
+  ['pump_pipe', 'report_named'],
+  ['pump_pipe', 'parts'],
+];
+
+function withoutCutPumpVars_51_52(world: SavedJson): SavedJson {
+  return CUT_PUMP_VARS_51_52.reduce((w, [quest, name]) => dropQuestVar(w, quest, name), world);
+}
 
 function withHattieGlass_50_51(world: SavedJson): SavedJson {
   return renameQuestVar(world, 'bowl_hattie', 'hattie_sunward', 'hattie_glass');

@@ -283,77 +283,94 @@ describe('the depot leak at Nose', () => {
 });
 
 describe('locals at stalls', () => {
-  const COVER = 'Pump talk. Pressures and pipes, and none of it worth the hearing.';
+  const OPEN = ['Read her the big dial.', 'Ask which pipe has no meter.'];
+  const COVER = 'Tell him it was pump talk.';
+  const ROAD = [...OPEN, COVER, 'Say you\'ll carry it.', 'Take the bundle and the meter out to your truck.', 'Keep the bundle.'];
 
   it('lists Agnes at the Pump Station', () => {
     expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
   });
 
-  it('keeps the copy from a driver who tells the watchman, and pays the tip', () => {
+  it('keeps the copy from a driver who tells the watchman, and pays only the driver who takes his purse', () => {
     const w = parkedAt('pump-station');
 
-    const told = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'She says the numbers are falling, and one pipe has no meter.']);
+    const paid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Take the purse.']);
+    expect(paid.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
+    expect(paid.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
+    expect(choices(paid, 'pump_agnes')).toEqual(['Goodbye.']);
 
-    expect(told.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
-    expect(told.player.money - w.player.money).toBe(20 * UNITS.centsPerM);
-    expect(choices(told, 'pump_agnes')).toEqual(['Goodbye.']);
+    const unpaid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Leave it in his hand.']);
+    expect(unpaid.player.quests.world).toEqual({ pipe_fate: 'searched' });
+    expect(unpaid.player.money).toBe(w.player.money);
   });
 
   it('holds the copy back from a silent driver until the watchman is named', () => {
     const w = parkedAt('pump-station');
 
-    const silent = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Say nothing.']);
-    expect(questView(silent, QUESTS).choices).not.toContain('Where\'s the second copy?');
+    const silent = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.']);
+    expect(questView(silent, QUESTS).choices).not.toContain('Say you\'ll carry it.');
 
-    const warned = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', 'Say nothing.', 'Tell her the man by the drums is listening.']);
-    expect(questView(warned, QUESTS).choices).toContain('Where\'s the second copy?');
+    const warned = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.', 'Tell her the man on the drum is listening.']);
+    expect(questView(warned, QUESTS).choices).toContain('Say you\'ll carry it.');
   });
 
   it('opens the pipe quest from Agnes and ends it with the bundle dropped', () => {
     const w = parkedAt('pump-station');
 
-    const dropped = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drop it in a ditch.']);
+    const dropped = talk(w, 'pump_agnes', [...ROAD, 'Drop it in a ditch.']);
 
     expect(dropped.player.quests.world).toEqual({});
     expect(dropped.player.money).toBe(w.player.money);
     expect(dropped.player.notes.map((n) => n.id)).toEqual(['pipeBook', 'pipeOffer']);
-    expect(choices(dropped, 'pump_agnes')).toContain('Where\'s the second copy?');
+    expect(choices(dropped, 'pump_agnes')).toContain('Say you\'ll carry it.');
   });
 
   it('reaches the Bowl lock house once the gate is bought', () => {
     const w = parkedAt('pump-station');
-    const lost = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Slip the older one some coin to look the other way.']);
+    const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.']);
 
-    expect(questView(lost, QUESTS).choices).toContain('Sign the Canal book as the driver who found it.');
+    expect(questView(lost, QUESTS).choices).toContain('Sign as the carrier.');
     expect(lost.player.quests.world).toEqual({ marr_regard: 'enemy' });
     expect(w.player.money - lost.player.money).toBe(50 * UNITS.centsPerM);
   });
 
-  it('pays the sluice patrol with a bribe, signs the Canal book and pays on delivery', () => {
+  it('pays the gate patrol with a bribe, signs the Canal book and pays on delivery', () => {
     const w = parkedAt('pump-station');
-    const road = ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.'];
+    const gate = [...ROAD, 'Drive on to the Bowl gate.', 'Slip the older one some coin.'];
 
-    const signed = talk(w, 'pump_agnes', [...road, 'Slip the older one some coin to look the other way.', 'Sign the Canal book as the driver who found it.']);
+    const signed = talk(w, 'pump_agnes', [...gate, 'Sign as the carrier.']);
     expect(signed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'delivered' });
     expect(signed.player.money - w.player.money).toBe(10 * UNITS.centsPerM);
 
-    const filed = talk(w, 'pump_agnes', [...road, 'Slip the older one some coin to look the other way.', 'Leave your name off.']);
+    const filed = talk(w, 'pump_agnes', [...gate, 'Leave your name off.']);
     expect(filed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'filed' });
   });
 
-  it('seizes the bundle and fines the player when the sluice talk fails', () => {
+  it('fines a driver whose gate talk fails and who hands the bundle over, and fines nobody who hands it over at once', () => {
     const w = parkedAt('pump-station');
+    const gate = [...ROAD, 'Drive on to the Bowl gate.'];
 
-    const seized = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Drive on to the Bowl gate.', 'Tell them it\'s pump returns for the Canal book.']);
-
+    const seized = talk(w, 'pump_agnes', [...gate, 'Tell him it\'s pump returns for the Canal book.', 'Hand it over.']);
     expect(seized.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
     expect(w.player.money - seized.player.money).toBe(40 * UNITS.centsPerM);
+
+    const handed = talk(w, 'pump_agnes', [...gate, 'Hand him the bundle.']);
+    expect(handed.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'seized' });
+    expect(handed.player.money).toBe(w.player.money);
+  });
+
+  it('charges double to buy off a patrolman who caught the lie', () => {
+    const w = parkedAt('pump-station');
+
+    const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', 'Tell him it\'s pump returns for the Canal book.', 'Pay him to forget the lie as well.']);
+    expect(questView(bought, QUESTS).choices).toContain('Sign as the carrier.');
+    expect(w.player.money - bought.player.money).toBe(100 * UNITS.centsPerM);
   });
 
   it('takes a fine at the Granary gate and keeps the tenants talking about it', () => {
     const w = parkedAt('pump-station');
 
-    const read = talk(w, 'pump_agnes', ['What are you writing?', 'What\'s wrong with the numbers?', COVER, 'Where\'s the second copy?', 'I will carry it.', 'Stow it under the seat of your truck.', 'I\'m not losing anything.', 'Cut the seal and read the book.', 'Read it aloud to the tenants who queue with their grain at the Granary gate.']);
+    const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Read it aloud to the tenants at the Granary gate.']);
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);

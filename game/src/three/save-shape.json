@@ -1,5 +1,5 @@
 {
- "format": "2.51",
+ "format": "2.52",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1889,7 +1889,14 @@
    "first_knockout_seen": "boolean",
    "intro_step": "string",
    "marr_regard": "string",
-   "pipe_fate": "string"
+   "pipe_fate": "string",
+   "towed_to_bowl": "boolean",
+   "wagon_fate": "string",
+   "wagon_pin": "string",
+   "wagon_read": "boolean",
+   "wagon_saw": "boolean",
+   "wagon_seen": "boolean",
+   "wagon_watched": "boolean"
   },
   "local": {
    "bowl_dag": {
@@ -1898,6 +1905,7 @@
     "dag_road": "boolean"
    },
    "bowl_hattie": {
+    "hattie_came_out": "boolean",
     "hattie_flats": "boolean",
     "hattie_glass": "boolean",
     "hattie_granary": "boolean",
@@ -1905,7 +1913,10 @@
     "hattie_rumor": "boolean",
     "hattie_soldiers": "boolean",
     "hattie_strangers": "boolean",
-    "hattie_sunward": "boolean"
+    "hattie_strip": "boolean",
+    "hattie_sunward": "boolean",
+    "hattie_tow": "boolean",
+    "hattie_varga": "boolean"
    },
    "bowl_jory": {
     "jory_filled": "boolean",
@@ -1980,32 +1991,28 @@
     "heard_swivel": "boolean"
    },
    "pump_agnes": {
+    "asked_man": "boolean",
     "knows_book": "boolean",
-    "knows_carry": "boolean",
     "knows_copy": "boolean",
-    "knows_envelope": "boolean",
-    "knows_marr": "boolean",
     "knows_pay": "boolean",
     "knows_pipe": "boolean",
-    "knows_senate": "boolean",
     "knows_why": "boolean",
     "tip": "number",
     "trusted": "boolean",
     "watchman": "string"
    },
    "pump_pipe": {
+    "asked_cover": "boolean",
     "asked_water": "boolean",
     "book_read": "boolean",
     "canal_matches": "boolean",
-    "early_lines": "boolean",
     "fee": "number",
     "fine": "number",
+    "knows_envelope": "boolean",
     "margin_read": "boolean",
     "offer_heard": "boolean",
     "offer_open": "boolean",
-    "parts": "number",
     "price": "number",
-    "report_named": "boolean",
     "reserve_known": "boolean",
     "sluice": "string",
     "taken": "boolean",
@@ -2014,6 +2021,16 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
+   "wagon_bench": {
+    "fee": "number",
+    "halves_fit": "boolean",
+    "offer_heard": "boolean",
+    "price": "number"
+   },
+   "wagon_seven": {
+    "mount_seen": "boolean",
+    "walked": "boolean"
+   },
    "yard_sefa": {
     "asked_book": "boolean",
     "asked_kiln": "boolean",
@@ -2088,6 +2105,16 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "wagon_bench": [
+    "start",
+    "bench",
+    "bench.hub"
+   ],
+   "wagon_seven": [
+    "start",
+    "start.hub",
+    "leave"
    ],
    "yard_sefa": [
     "start",
