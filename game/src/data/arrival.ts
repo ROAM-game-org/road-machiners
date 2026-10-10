@@ -8,6 +8,9 @@ export const FARM_TOWER_ID = 'intro-water-tower';
 export const ARRIVAL = {
   pose: { pos: { x: 370, y: 540 }, heading: -2.03 },
   wreck: { ahead: 13, side: 0 },
+  fuelLiters: 43,
+  supplies: 3,
+  health: 89,
   farm: [
     { id: FARM_TOWER_ID, look: 'waterTower', pos: { x: 373, y: 548 }, r: 1.2, yaw: 0.4 },
     { id: 'intro-shed', look: 'shack', pos: { x: 377, y: 545 }, r: 2, yaw: 0.15 },

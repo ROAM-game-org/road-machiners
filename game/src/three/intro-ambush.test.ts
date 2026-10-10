@@ -8,7 +8,8 @@ import { playerVehicle } from '../sim/damage';
 import { hangUp } from '../sim/dialogue';
 import { checkKnockout, knockOutNpc } from '../sim/defeat';
 import { fightOdds } from '../sim/fight-odds';
-import { corePart } from '../sim/grid';
+import { corePart, mountedParts } from '../sim/grid';
+import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
 import { introStep, leaveQuest, setIntroStep } from '../sim/quests';
 import { generateNpcLoadout } from '../sim/npc-loadout';
@@ -183,12 +184,44 @@ describe('the fall and the wake in Bowl', () => {
     expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
   });
 
-  it('ends quietly when the raider loses the player', () => {
+  it('sends the raider back after the player when its fight ends any other way', () => {
     const w = ambushed();
     raidersIn(w)[0].brain!.goals = [];
     const next = endTurn(w, testDrive);
-    expect(introStep(next)).toBe('done');
-    expect(next.player.quests.session).toBeNull();
+    expect(introStep(next)).toBe('ambush');
+    expect(topGoal(raidersIn(next)[0])).toMatchObject({ kind: 'fight', targetId: next.player.vehicleId });
+  });
+
+  it('never demands cargo and turns down every truce and plea for mercy', () => {
+    const w = ambushed();
+    const [raider] = raidersIn(w);
+    const me = playerVehicle(w);
+    expect(topGoal(raider)!.demands).toBe(false);
+    expect(answersPlea(w, raider, me, 'truce')).toBe('no');
+    expect(answersPlea(w, raider, me, 'mercy')).toBe('no');
+    expect(offersGiveUp(w, raider)).toBe(false);
+  });
+
+  it('takes the cargo the player spilled in the fight, then still has the driver towed to Bowl', () => {
+    let w = ambushed();
+    let broken = false;
+    let spills = 0;
+    for (let i = 0; i < 80 && !(introStep(w) === 'done' && w.player.state === 'active'); i++) {
+      if (w.player.call) w = hangUp(w);
+      if (w.player.quests.session) w = closeScene(w);
+      const raider = raidersIn(w)[0];
+      if (!broken && dist(raider.pos, playerVehicle(w).pos) < 12) {
+        for (const part of mountedParts(playerVehicle(w), 'cargo')) part.hp = 0;
+        broken = true;
+      }
+      w = endTurn(w, testDrive);
+      spills += w.events.filter((e) => e.t === 'cargoSpilled').length;
+    }
+    expect(spills).toBeGreaterThan(0);
+    const full = w.salvage.filter((s) => s.id.startsWith(`spill-${w.player.vehicleId}-`) && (Object.values(s.goods).some((n) => n > 0) || s.parts.length > 0));
+    expect(full).toEqual([]);
+    expect(w.player.quests.live?.quest).toBe('intro_bowl');
+    expect(w.player.quests.world[TOWED_TO_BOWL]).toBe(true);
   });
 
   it('leaves a later knockout to the ordinary rules once done', () => {

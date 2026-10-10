@@ -61,8 +61,8 @@ Water costs here, talk doesn't, and I hear everything that happens in Bowl twice
   ~ hattie_strangers = true
   -> hub
 + {hattie_strangers and not hattie_granary} [Who asks about the Granary?]
-  Drivers with empty beds. Somebody out on the road pays them to count the sacks before he comes asking for his share.
-  They needn't bother. Odile posts the count on the Granary gate every night, in her own hand, and she calls that honest.
+  Drivers with nothing in the back. The raiders pay them to find out how much grain we've got in store, so they know how much to ask us for.
+  Not that they need spies. Odile writes the grain count on the Granary gate every night for anyone to read. She calls that honest. I call it saving the raiders a trip.
   ~ hattie_granary = true
   -> hub
 + {hattie_strangers and not hattie_soldiers} [What do you make of the soldiers from Nose?]

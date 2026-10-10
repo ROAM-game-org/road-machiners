@@ -21,6 +21,7 @@ import type { DecisionOptions } from '../data/npcs';
 import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
+import { isIntroAmbusher } from './quests';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
@@ -113,7 +114,12 @@ function creditYield(world: World, loser: Vehicle, winner: Vehicle): void {
 
 export type PleaAnswer = 'yes' | 'no' | 'demand';
 
+export function demandsFirst(world: World, robber: Vehicle, targetId: string): boolean {
+  return !isIntroAmbusher(world, robber.id) && decide(world, robber, 'mugging', targetId, null) === 'demand';
+}
+
 export function answersPlea(world: World, answerer: Vehicle, pleader: Vehicle, plea: Plea): PleaAnswer {
+  if (isIntroAmbusher(world, answerer.id)) return 'no';
   const danger = perceiveDanger(world, answerer, pleader);
   if (plea === 'truce') {
     if (holdsUp(world, answerer, pleader, danger)) return 'demand';
@@ -279,7 +285,7 @@ export function hasStrandedPrey(world: World, npc: Vehicle): boolean {
 
 export function strandedPrey(world: World, npc: Vehicle): Vehicle | null {
   const prey = fightTarget(world, npc);
-  if (!prey || !isBeaten(world, npc, prey)) return null;
+  if (!prey || isIntroAmbusher(world, npc.id) || !isBeaten(world, npc, prey)) return null;
   return visibleHostiles(world, npc).every((foe) => foe.id === prey.id) ? prey : null;
 }
 

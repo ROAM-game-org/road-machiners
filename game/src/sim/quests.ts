@@ -1,6 +1,7 @@
 
 import { Story } from 'inkjs';
 import {
+  AMBUSH_RAIDER,
   CHECKPOINT_TAG,
   CHECK_TAG,
   COST_TAG,
@@ -282,6 +283,10 @@ function questVar(world: World, bundle: QuestBundle, questId: string, name: stri
   const decl = bundle.world[name];
   if (!decl) throw new Error(`Quest ${questId} reads no variable ${name}`);
   return shared[name] ?? decl.init;
+}
+
+export function isIntroAmbusher(world: World, vehicleId: string): boolean {
+  return introStep(world) === 'ambush' && worldVar(world, AMBUSH_RAIDER) === vehicleId;
 }
 
 export function worldVar(world: World, name: string): QuestValue {

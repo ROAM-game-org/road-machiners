@@ -253,4 +253,9 @@ export function lootRobbed(w: World, robberId: string, victimId: string): void {
   const stock = robbedLoot(w, victimId);
   if (!stock) throw new Error(`${robberId} won a robbery, but ${victimId} left no stock`);
   pushGoal(w, robber, { kind: 'loot', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'lootRobbed' });
+  for (const pile of spilledBy(w, victimId)) pushGoal(w, robber, { kind: 'loot', targetId: pile.id, destination: { ...pile.pos }, phase: 'travel', reason: 'takeSpilledCargo' });
+}
+
+function spilledBy(w: World, victimId: string): SalvageStock[] {
+  return w.salvage.filter((s) => s.id.startsWith(`spill-${victimId}-`) && (Object.values(s.goods).some((n) => n > 0) || s.parts.length > 0));
 }

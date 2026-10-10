@@ -29,7 +29,7 @@ import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, loo
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
 import { vehicleById } from './damage';
-import { answersHoldUp, judgeStrandedFoe, plead, warnedOff } from './parley';
+import { answersHoldUp, demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
 import { addState, endState, stateOf, statesHeld } from './states';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
@@ -369,7 +369,7 @@ function fightGoal(world: World, vehicle: Vehicle, target: Vehicle, reason: Goal
   chooseOn(world, vehicle, target.id, target.pos, 'fight', true);
   const worn = { turn: world.turn, condition: bodyCondition(target) };
   const goal: NpcActivity = { ...createActivity('fight', target.id, { ...target.pos }, reason), worn };
-  if (target.id === world.player.vehicleId || robbedFor(world, vehicle, target)) goal.demands = decide(world, vehicle, 'mugging', target.id, null) === 'demand';
+  if (target.id === world.player.vehicleId || robbedFor(world, vehicle, target)) goal.demands = demandsFirst(world, vehicle, target.id);
   return goal;
 }
 

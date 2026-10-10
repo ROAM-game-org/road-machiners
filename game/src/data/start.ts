@@ -4,6 +4,7 @@ import { ARRIVAL, type FarmPiece } from './arrival';
 import { CHASSIS } from './chassis';
 import { REGION } from './region';
 import { RULES } from './rules';
+import { UNITS } from './units';
 
 export type StartKit = {
   chassis: string;
@@ -30,6 +31,7 @@ export type Opening = {
 export type Intro = {
   pose: { pos: Vec; heading: number };
   farm: FarmPiece[];
+  health: number;
   withoutIntro: string;
 };
 
@@ -47,13 +49,13 @@ export const START_KITS: Record<string, StartKit> = {
     storage: [],
     wear: 2,
     money: 33300,
-    fuel: CHASSIS.scout.fuelCap,
-    supplies: RULES.baseSupplies,
+    fuel: ARRIVAL.fuelLiters / UNITS.fuelLiters,
+    supplies: ARRIVAL.supplies,
     cargo: { scrap: 2, parts: 2 },
     costBasis: { scrap: 333 },
     autoRepair: false,
     opening: { ...STANDARD_OPENING, wreck: ARRIVAL.wreck },
-    intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, withoutIntro: 'standard' },
+    intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, health: ARRIVAL.health, withoutIntro: 'standard' },
   },
   standard: {
     chassis: 'scout',

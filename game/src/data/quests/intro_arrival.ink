@@ -55,10 +55,11 @@ Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The fa
 It's old and square, with a flat grille and round lamps, the kind of truck that outlives its owners. The paint has worn down to grey undercoat. The tires are soft but whole, and the bed is boxed in with welded plate.
 A machine gun stands on a turning mount behind the cab, its barrel wrapped in rag against the dust. A pair of steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
 Someone has scratched a ladle into the driver's door, deep, with a knife point. A strange thing to draw on a truck. A cook's truck, maybe, or a joke.
-The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back. # page
+The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.
+Behind the seat there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. You hold it a while, then put it back in the box. Eat it now and it's gone. Keep it, and it might be the difference between reaching that town and not. # page
 You twist the key. The starter grinds, slows and quits.
 You twist it again. The engine catches for a breath, shakes the whole cab and dies. "Come on, you rusted pig," you tell it.
 You lean your forehead on the hot wheel and wait. Then you try once more, and it coughs, misses, coughs again, and holds. It runs rough and lopsided, and the mirror shakes with it. It's the best sound you have heard in your life, or at least since the stars went out this morning.
 You ease out of the shed. The roof sheet scrapes the length of the cab and slides off the tailgate, and the basin opens up in front of the hood. # page
-The fuel needle sits just above empty, and your tongue sticks to your teeth. The town in the haze had better be real, and it had better be close.
+The fuel needle sits a little under a quarter, and your tongue sticks to your teeth. The town in the haze had better be real, and it had better be close.
 -> END

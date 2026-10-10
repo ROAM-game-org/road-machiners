@@ -101,7 +101,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       marked: [],
       rumored: [],
       notes: [],
-      health: RULES.maxHealth,
+      health: startHealth(kit),
       fuel: kit.fuel,
       supplies: kit.supplies,
       autoFire: false,
@@ -172,6 +172,10 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   refreshVision(world);
   world.events = [];
   return world;
+}
+
+function startHealth(kit: StartKit): number {
+  return kit.intro ? kit.intro.health : RULES.maxHealth;
 }
 
 function kitStart(kit: StartKit): { pos: Vec; heading: number } {

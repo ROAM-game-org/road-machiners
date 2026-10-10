@@ -1,7 +1,7 @@
 import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, GREEN_PIT, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
-import { GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
+import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { REGION } from '../data/region';
 import { NPCS } from '../data/npcs';
 import { playerVehicle } from './damage';
@@ -11,7 +11,7 @@ import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar } from './quests';
+import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
@@ -31,7 +31,16 @@ export function advanceIntro(w: World): void {
 
 function settleAfterPatch(w: World, step: IntroStep): void {
   if (step === 'patched') launchAmbush(w);
-  else if (step === 'ambush' && hunters(w).length === 0) setIntroStep(w, 'done');
+  else if (step === 'ambush') keepHunting(w);
+}
+
+function keepHunting(w: World): void {
+  const raider = w.vehicles.find((v) => v.id === worldVar(w, AMBUSH_RAIDER));
+  if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
+  const me = playerVehicle(w);
+  const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
+  if (!fight) fightCornered(w, raider, me, 'robCargo');
+  else if (fight.worn) fight.worn = { ...fight.worn, turn: w.turn };
 }
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
@@ -72,8 +81,9 @@ function launchAmbush(w: World): void {
   brain.traits = [...new Set([...brain.traits, ...AMBUSH.addedTraits])];
   addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: true });
   w.events.push({ t: 'hostile', vehicle: raider.id, against: me.id });
-  fightCornered(w, raider, me, 'robCargo');
+  setWorldVar(w, AMBUSH_RAIDER, raider.id);
   setIntroStep(w, 'ambush');
+  fightCornered(w, raider, me, 'robCargo');
 }
 
 function ambushSpot(w: World, me: Vehicle, radius: number): Vec | null {
@@ -93,10 +103,6 @@ function roadPoints(): Vec[] {
 function alongSegment(a: Vec, b: Vec): Vec[] {
   const steps = Math.max(1, Math.ceil(dist(a, b) / AMBUSH.roadStep));
   return Array.from({ length: steps }, (_, k) => ({ x: a.x + ((b.x - a.x) * k) / steps, y: a.y + ((b.y - a.y) * k) / steps }));
-}
-
-function hunters(w: World): Vehicle[] {
-  return w.vehicles.filter((v) => v.faction === 'raiders' && !isDefeated(v) && v.brain?.goals.some((g) => g.kind === 'fight' && g.targetId === w.player.vehicleId));
 }
 
 function parkingSpot(w: World, pad: Vec, me: Vehicle): Vec {

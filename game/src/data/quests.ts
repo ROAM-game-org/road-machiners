@@ -18,6 +18,7 @@ export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arr
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';
 
+export const AMBUSH_RAIDER = 'ambush_raider';
 export const INTRO_STEP = 'intro_step';
 export const INTRO_STEPS = ['off', 'drive', 'patched', 'ambush', 'done'] as const;
 export type IntroStep = (typeof INTRO_STEPS)[number];
