@@ -24,7 +24,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + [Where can I get water, or find work?]
   Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with coin. Work is Dag's, because he rides with the Farmers and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and it comes up by pipe from the Pump Station. That's a pumpworks out on the flat. Its pumps lift seep water from under the crater floor, and what the terraces don't drink runs down to us.
+  I only open the gates. The water that goes through them belongs to the families, and it comes up by pipe from the Pump Station. That's a pumpworks out on the flat. Its pumps lift water from deep underground, and what the terraces don't drink runs down to us.
   ~ ruben_water = true
   -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]

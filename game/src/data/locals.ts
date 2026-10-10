@@ -109,22 +109,22 @@ export const NOTES: Record<NoteId, NoteDef> = {
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
-    text: 'Less water comes up out of the floor every season, and less again reaches the meters Agnes reads. The rest goes up a pipe to the top terrace. The Senate made her take its meter off, and the pipe still runs.',
+    text: 'The pump brings up less water every season, and more of it goes missing. The missing water goes up a pipe to the top terrace, where the Archon\'s household lives. The Senate made Agnes take that pipe\'s meter off.',
   },
   pipeDraw: {
     title: 'A pipe with no meter',
     from: "Agnes's copy of the pump book",
-    text: "Agnes's copy has the sums her own book doesn't: what goes up the top pipe each season. Run forward, they dry the metered pipes by next autumn.",
+    text: "Agnes's copy matches her book. Her pencil sum on the last page says every other pipe runs dry by next autumn.",
   },
   pipeOffer: {
-    title: 'Coin to lose a bundle',
+    title: 'Money to lose the copy',
     from: 'Aurel Brede, steward to the household',
-    text: "The steward of the Archon's household offered coin to lose Agnes's copy on the road. He said the patrol at the Bowl gate opens sealed bundles when he sends word. He said the offer stands until the Bowl.",
+    text: "The household's steward offered money to lose Agnes's copy on the road. He said the patrol at the Bowl gate will open it if he sends word. His offer stands until Bowl.",
   },
   pipeCanal: {
-    title: 'The Canal book in Bowl',
+    title: "Mirela's book in Bowl",
     from: 'Mirela Duarte, Bowl lock house',
-    text: "Mirela's count at the lock agrees with Agnes's canal meter, season by season. Mirela means to read both books on the Senate floor and win back the canal families' lock share.",
+    text: "Mirela's count at the lock matches Agnes's canal meter, season by season. Mirela will read both books to the Senate and try to win back the canal families' share of the lock water.",
   },
 };
 

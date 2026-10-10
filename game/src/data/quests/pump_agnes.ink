@@ -15,73 +15,80 @@ VAR tip = 20
 === start ===
 # checkpoint: start
 { pipe_fate:
-- "delivered": Agnes Ondra. I took Mirela this week's figures myself, the top pipe line too, in my own hand. I didn't thank her and she didn't thank me. Your name is in her book, so mine doesn't have to be.
-- "filed": Agnes Ondra. Mirela has the copy and no driver's name beside it. The steward calls it a forgery by a keeper with a grudge, and the drivers at the well believe him.
-- "sold": Agnes Ondra. I sent the steward's oil back to the top terrace, every barrel. Whatever he paid you for my book, I want none of it near my pump.
-- "read": Agnes Ondra. I stood at the back of the crowd at the Granary gate while my own lines were read out. Then I came home and shut the shed. Please go.
-- "seized": Agnes Ondra. The patrol came and asked me about a book. I told them I never owned one, and I read them every gauge from memory. I named nobody.
-- "metered": Agnes Ondra. My old meter sat on the top pipe for one night. The household took it off again, but its number is chalked on the Granary board, and nobody has dared wash it off. I haven't asked who fitted it, and I won't.
+- "delivered":
+  I took Mirela this week's numbers myself, the terrace pipe too. Your name is in her book, so mine doesn't have to be. # speaker: Agnes
+- "filed":
+  Mirela has the copy, but no carrier's name is on it. The steward calls it a forgery, and people believe him. # speaker: Agnes
+- "sold":
+  I sent the steward's oil back. Whatever he paid you for my copy, keep it away from my pump. # speaker: Agnes
+- "read":
+  I heard my own numbers read out at the Granary gate. Then I came home and shut the shed. Please go. # speaker: Agnes
+- "seized":
+  The patrol came and asked me about a copy. I said I never made one, and I named nobody. # speaker: Agnes
+- "metered":
+  My old meter was on the terrace pipe for one night. The household took it off, but its number is still chalked on the Granary board. I won't ask who fitted it. # speaker: Agnes
 - "searched":
-  Agnes's cot stands on its end by the door, and the pillow is slit open. The drum by the gate stands empty. Agnes doesn't look up from her gauge. She writes the number down and waits for you to leave.
+  Agnes's cot lies on its side by the door, and the pillow is cut open. The drum by the gate is empty. Agnes writes down a number and doesn't look up.
   -> shunned
 - else:
   { trusted:
-    Agnes looks up from her dials, and then past you at the drum by the gate.
-    Changed your mind about the road? # speaker: Agnes
+    Agnes looks up from her dials, then at the drum by the gate.
+    Changed your mind about the copy? # speaker: Agnes
     -> hub
   }
-  The Pump Station sits behind a wall of stacked oil drums, and the whole place smells of hot iron and standing water. Water means somebody guards it, so you look for who. A woman in a canvas apron stands at a row of dials with a pencil stub and an open book, and she doesn't look up.
-  A man in a grey coat sits on an upturned drum by the gate with a mug of tea. Nobody drinks tea that slowly unless they're paid to sit.
-  { skill("perception") >= 2: His tea stopped steaming a while ago, and he hasn't drunk any. He's listening to her. }
-  Tank's by the drums if you want water. If you want to be useful while it fills, read me the big dial. My eyes are going. # speaker: Agnes
+  The Pump Station is a pumphouse behind a wall of oil drums. It smells of hot iron and wet stone.
+  A woman in a canvas apron stands at a row of dials. She copies each number into a book.
+  A man in a grey coat sits on a drum by the gate with a mug of tea. He watches the woman, not you.
+  { skill("perception") >= 2: His tea has gone cold, and he hasn't drunk any. He is listening to her. }
+  Water's in the tank by the drums. Help yourself. # speaker: Agnes
 }
 -> hub
 
 = hub
 # checkpoint: start.hub
-+ {not knows_book} [Read her the big dial.]
++ {not knows_book} [Ask what she's writing.]
   ~ knows_book = true
-  You read her the number on the big dial. She writes it at the foot of a column, then swings the book round so you can see the page. Either she trusts drivers, or she's been waiting a long time for anybody to look.
-  Barrels a week; Pumped up from the floor; Out through every other pipe's meter; The top pipe's own meter # head
+  She holds up the book so you can see it.
+  Barrels a week; Pumped up; Reached the metered pipes; Missing # head
   Last spring; 410; 390; 20 # row
   Midsummer; 380; 350; 30 # row
-  Autumn; 350; 300; meter taken off # row
-  This week; 300; 230; meter taken off # row
-  The big dial counts what the pump brings up from the crater floor. Every pipe out of here has its own meter but the top one, now. # speaker: Agnes
-  While the top pipe had a meter, what it read and what the others read added up to the big dial, to the barrel. Now it has none, and the gap grows every week. I write it down, and nobody reads it. # speaker: Agnes
+  Autumn; 350; 300; 50 # row
+  This week; 300; 230; 70 # row
+  The pump brings up less water every season, and more of it goes missing. I write it down, and nobody reads it. # speaker: Agnes
   -> hub
-+ {knows_book and not asked_leak} [Ask whether the pipes could just be leaking.]
++ {knows_book and not asked_leak} [Ask whether the pipes could be leaking.]
   ~ asked_leak = true
-  I walk every line once a month. A leak that size would leave the ground all mud, and the ground round my pipes is dust. # speaker: Agnes
+  A leak that big would make the ground muddy. I walk along every pipe each month, and the ground is dry. # speaker: Agnes
   -> hub
-+ {knows_book and not knows_pipe} [Ask which pipe has no meter.]
++ {knows_book and not knows_pipe} [Ask where the missing water goes.]
   ~ note("pipeBook")
   ~ knows_pipe = true
-  The one up to the top terrace, where the Archon's household lives. The Archon heads the Senate, and the Senate sent an order with a seal on it, and I unbolted the meter myself. The pipe's still running. # speaker: Agnes
+  Up the pipe to the top terrace. The Archon's household lives up there, and the Archon runs the Senate. # speaker: Agnes
+  That pipe had its own meter until autumn, and it read the same as my missing column. Then the Senate sent an order, and I took the meter off. The pipe still runs. # speaker: Agnes
   { trusted:
     -> copy
   }
-  The man in the grey coat puts his mug down and comes over. There is a lantern stitched on his collar. So much for his relief.
+  The man in the grey coat puts down his mug and walks over. A lantern is stitched on his collar. It is the household's mark.
   -> watched
 + {not asked_man and not trusted} [Ask the man on the drum what he's waiting for.]
   ~ asked_man = true
-  My relief. # speaker: Watchman
-  He says it to you, but he doesn't take his eyes off Agnes.
+  Just finishing my tea. # speaker: Watchman
+  He doesn't look at you. He keeps watching Agnes.
   -> hub
 + {not trusted and watchman != "told" and (skill("perception") >= 2 or watchman == "silent")} [Tell her the man on the drum is listening.]
   -> warned
 + {pipe_fate == "none" and knows_copy and not knows_why} [Ask why she picked you.]
   ~ knows_why = true
-  { watchman == "covered": You lied to a grey coat for a pump keeper you'd only just met. | You saw him on his drum, and you told me instead of him. } # speaker: Agnes
-  And a pump keeper on the Bowl road is a story before supper. A driver is one more truck in the dust. # speaker: Agnes
-  And when the household asks who took my copy to the Bowl, the answer is a truck that's long gone. # speaker: Agnes
+  { watchman == "covered": You lied to the watchman for me. | You warned me about the watchman. } # speaker: Agnes
+  People notice a pump keeper on the Bowl road. A driver is just one more truck. # speaker: Agnes
+  And when the household asks who carried my copy, the answer is a driver who's long gone. # speaker: Agnes
   -> hub
 + {pipe_fate == "none" and knows_copy and not knows_pay} [Ask what the job pays.]
   ~ knows_pay = true
-  Mirela pays {fee} M out of her lock box for carried proof. I've nothing to add to it. # speaker: Agnes
-  The risk is the gate. The patrol there answers to the Senate, and the household's steward talks to the patrol. # speaker: Agnes
+  Mirela pays {fee} M from the lock house box when the copy arrives. I have nothing to add. # speaker: Agnes
+  The danger is the Bowl gate. The patrol there works for the Senate, and the household's steward gives them orders. # speaker: Agnes
   -> hub
-+ {pipe_fate == "none" and knows_copy} [Say you'll carry it.]
++ {pipe_fate == "none" and knows_copy} [Say you'll carry the copy.]
   ~ begin("pump_pipe")
   -> END
 + [Fill your tank and go.]
@@ -89,26 +96,26 @@ VAR tip = 20
 
 = watched
 # checkpoint: start.watched
-What's the pump keeper been telling you? # speaker: Watchman
-+ [Tell him it was pump talk.]
+What's she been telling you? # speaker: Watchman
++ [Tell him she was talking about pump pressures.]
   ~ watchman = "covered"
-  You tell him she was on about pressures and pipes. He looks at you a while, then nods and goes back to his drum. He didn't believe you. He just didn't care enough to say so.
+  You tell him she was talking about pump pressures. He doesn't look convinced, but he goes back to his drum.
   -> copy
 + [Tell him what she said.]
   -> told
 + [Say nothing.]
   ~ watchman = "silent"
-  You say nothing. He waits, then goes back to his drum, and he looks hard at your truck on the way.
+  You say nothing. He waits, then goes back to his drum. On the way he takes a long look at your truck.
   Agnes goes on writing. She doesn't look at you either.
   -> hub
 
 = told
 ~ watchman = "told"
 ~ pipe_fate = "searched"
-You tell him about the falling numbers and the pipe with no meter.
-He takes a small purse out of his coat and holds it out to you.
+You tell him about the missing water and the terrace pipe.
+He takes a small purse from his coat and holds it out to you.
 The household thanks you. # speaker: Watchman
-Agnes heard every word. She writes the next number down. It's easy money, and it'll cost somebody else.
+Agnes heard all of it. She writes down the next number and doesn't look at you.
 + [Take the purse.]
   ~ marr_regard = "bought"
   ~ give_money(tip)
@@ -116,19 +123,19 @@ Agnes heard every word. She writes the next number down. It's easy money, and it
   -> gone
 + [Leave it in his hand.]
   He shrugs and puts it away.
-  It's all one to the household. # speaker: Watchman
   -> gone
 
 = gone
-Agnes doesn't look at you again. As you pull out of the yard, a pair of men in grey coats walk past your truck and into her shed. They didn't waste any time. Neither did you.
+As you drive out, household men in grey coats walk past your truck and into Agnes's shed.
 -> END
 
 = copy
 ~ trusted = true
 ~ knows_copy = true
-{ watchman == "covered": Agnes comes back to the dials. She heard every word, and she talks low now. | She talks low, and she keeps her back to the drum. }
-I made a copy of the book over the winter, and it's under my pillow. My own book stays here, where the household can find it if it likes. It belongs in the lock house at the bottom of the Bowl, beside Mirela Duarte's book. Mirela counts the water that reaches the canal. # speaker: Agnes
-Her count beside mine, and nobody can call mine a grudge. # speaker: Agnes
+Agnes comes back to the dials and speaks quietly.
+Over the winter I made a copy of this book. It's hidden under my pillow. # speaker: Agnes
+It needs to go to Mirela Duarte at the lock house in Bowl. Mirela counts the water that reaches the canal. # speaker: Agnes
+If her count matches mine, nobody can say I made my numbers up. # speaker: Agnes
 -> hub
 
 = shunned
@@ -137,8 +144,8 @@ Her count beside mine, and nobody can call mine a grudge. # speaker: Agnes
 
 = warned
 ~ trusted = true
-Agnes doesn't look at the drum. She keeps writing and talks lower.
-He watches for the household. He's sat on that drum since the spring. # speaker: Agnes
+Agnes doesn't look at the drum. She keeps writing and speaks quietly.
+He works for the household. He's been on that drum since spring. # speaker: Agnes
 { knows_pipe:
   -> copy
 }

@@ -36,7 +36,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the Senate no
   ~ note("talkGranaryGate")
   -> hub
 + {jory_green} [Why do the top terraces stay green?]
-  Because, if the word's right, a pipe runs from the Pump Station up to the top gardens. The pumps there lift seep water out of the crater floor. No meter's allowed to read that pipe, and if you say so in the market they'll send for a meter, so I say it only here.
+  Because, if the word's right, a pipe runs from the Pump Station up to the top gardens. The pumps there lift water from deep underground. No meter's allowed to read that pipe, and if you say so in the market they'll send for a meter, so I say it only here.
   Have I seen the pipe? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the pipe exists or those cabbages are saints.
   ~ note("talkSeepPipe")
   -> hub
