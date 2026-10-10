@@ -1,5 +1,3 @@
-// The world setup: the game mode and world settings picked at New game, saved in the world. This module checks a
-// setup and is the only reader of its settings for rules, through the scale queries below.
 
 import { GAME_MODES, WORLD_SETTINGS } from '../data/modes';
 import type { GameModeId, World, WorldSettings, WorldSetup } from './types';
@@ -40,15 +38,6 @@ export function fuelUseScale(world: World): number {
 
 export function supplyUseScale(world: World): number {
   return world.setup.settings.supplyUse;
-}
-
-export function setupLabel(setup: WorldSetup): string {
-  const parts = SETTING_IDS.map((id) => `${WORLD_SETTINGS[id].name} ${percent(setup.settings[id])}`);
-  return [GAME_MODES[setup.mode].name, ...parts].join(', ');
-}
-
-export function percent(value: number): string {
-  return `${Math.round(value * 100)}%`;
 }
 
 function validSetting(id: SettingId, value: unknown): value is number {

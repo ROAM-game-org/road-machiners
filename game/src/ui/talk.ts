@@ -3,6 +3,7 @@ import { localsAt } from "../sim/dialogue-rules";
 import { QUESTS, startQuest } from "../sim/quests";
 import type { World } from "../sim/types";
 import { createIcon } from "./cards";
+import { localName, localRole } from "../text/names";
 import { el } from "./dom";
 
 export function peopleList(town: string, run: (cmd: (w: World) => World) => void): HTMLElement {
@@ -14,8 +15,8 @@ export function peopleList(town: string, run: (cmd: (w: World) => World) => void
         "button",
         { class: "person", "data-local": l.id, onclick: () => run((w) => startQuest(w, QUESTS, l.quest, "start")) },
         createIcon("driver"),
-        el("b", {}, l.name),
-        el("span", { class: "dim" }, l.role),
+        el("b", {}, localName(l.id)),
+        el("span", { class: "dim" }, localRole(l.id)),
       ),
     ),
   );

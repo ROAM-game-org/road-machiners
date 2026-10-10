@@ -1,6 +1,3 @@
-// The full shop: a debug screen the console's fullshop command opens anywhere, in combat too. It lists every part in
-// the game, pristine and free to take, beside the truck grid, where parts fit at once as in a garage. It is for trying
-// gear quickly, so it skips prices, stock and the refit rules, and never touches a real shop.
 
 import { PARTS, type PartDef, type PartKind } from "../data/parts";
 import { CheatError, give } from "../sim/cheats";
@@ -9,10 +6,10 @@ import { MOUNT_CELLS } from "../sim/grid";
 import type { PartInstance, World } from "../sim/types";
 import { maxHp } from "../sim/wear";
 import { compareBase, createIcon, partCard } from "./cards";
-import { el, panel } from "./dom";
+import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
-import { FILTER_ICON, STOCK_FILTER_LABEL, STOCK_FILTERS, type StockFilter } from "./town";
+import { FILTER_ICON, STOCK_FILTERS, type StockFilter } from "./town";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");
 
@@ -20,7 +17,7 @@ function shopParts(): PartDef[] {
   const rank = (d: PartDef) => KIND_ORDER.indexOf(d.kind as Exclude<StockFilter, "all">);
   return Object.values(PARTS)
     .filter((d) => d.kind !== "core")
-    .sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.name.localeCompare(b.name));
+    .sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.id.localeCompare(b.id));
 }
 
 function sample(defId: string): PartInstance {
@@ -29,7 +26,7 @@ function sample(defId: string): PartInstance {
 }
 
 export class FullShopScreen {
-  private root = panel("modal");
+  private root = panel("modal dialog");
   private filter: StockFilter = "all";
   private error = "";
   private readonly inventory: InventoryView;
@@ -71,7 +68,7 @@ export class FullShopScreen {
     );
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, "Leave [Esc]"),
-      el("h3", {}, "Full shop: every part, free", truckChips(w)),
+      el("h3", {}, "Full shop", truckChips(w)),
       el("div", { class: "town-split" }, truck, shop),
     );
     this.inventory.fitTo(truck);
@@ -112,7 +109,7 @@ export class FullShopScreen {
         "button",
         {
           class: this.filter === f ? "on" : "",
-          title: STOCK_FILTER_LABEL[f],
+          title: f,
           onclick: () => {
             this.filter = f;
             this.render();

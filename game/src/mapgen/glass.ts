@@ -1,6 +1,3 @@
-// Fused glass of a territory, from its GlassRules: tiles marked glass where value noise passes a cover share that
-// grows from the centre to the edge, kept off the dirt roads and the yards round every piece, building and cache, then
-// glass spires drawn wholly on the glass. Glass ground is drivable and does no harm; a spire is impassable glass. It
 
 import type { TerritoryDef } from '../data/region';
 import type { BuildingGroup, GlassRules, TerritoryRules, WreckRules } from '../data/territory';
@@ -49,9 +46,9 @@ function keptProps(d: MapDraft, t: TerritoryDef, rules: TerritoryRules): BakedPr
 }
 
 function wreckKept(t: TerritoryDef, wreck: WreckRules): BakedProp[] {
-  const onMap = (at: Vec): Vec => ({ x: t.pos.x + at.x, y: t.pos.y + at.y });
-  const pieces = wreck.pieces.map((p) => prop(p.look, onMap(p.at), p.r, p.yaw));
-  return [...pieces, ...wreck.caches.map((c) => prop(wreck.cacheLook, onMap(c.at), wreck.cacheRadius, 0))];
+  const at = (v: Vec): Vec => ({ x: t.pos.x + v.x, y: t.pos.y + v.y });
+  const pieces = wreck.pieces.map((p) => prop(p.look, at(p.at), p.r, p.yaw));
+  return [...pieces, ...wreck.caches.map((c) => prop(wreck.cacheLook, at(c.at), wreck.cacheRadius, c.yaw))];
 }
 
 function buildingGroups(rules: TerritoryRules): BuildingGroup[] {

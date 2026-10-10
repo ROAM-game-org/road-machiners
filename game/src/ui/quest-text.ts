@@ -1,6 +1,7 @@
 
 import { CONFIG } from '../config';
 import { QUEST_ART } from '../data/quest-art';
+import { verbatim } from '../text/msg';
 import { el } from './dom';
 
 export type Mark = { name: string; value: string | null };
@@ -136,5 +137,5 @@ export function renderLine(text: string, tags: readonly string[], startMs: numbe
 
 function unitElement(unit: Unit): HTMLElement {
   const classes = ['qt-unit', ...unit.marks.map((m) => (m.value === null ? `qt-${m.name}` : `qt-${m.name}-${m.value}`))];
-  return el('span', { class: classes.join(' '), style: `animation-delay: ${unit.delayMs}ms` }, unit.text);
+  return el('span', { class: classes.join(' '), style: `animation-delay: ${unit.delayMs}ms` }, verbatim(unit.text));
 }

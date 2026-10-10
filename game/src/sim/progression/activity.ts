@@ -1,6 +1,3 @@
-// The activity log of a progression run: everything the bot and the NPCs did, turn by turn, for a reader who checks a
-// whole run for bugs and dull stretches. The record trace keeps only XP. This log keeps every game event, a snapshot of
-// the player and every NPC at a fixed interval, how the run ended and a summary of counts.
 
 import { SKILL_IDS } from '../../data/skills';
 import { TIME } from '../../data/time';
@@ -127,7 +124,7 @@ function levels(world: World): Record<string, number> {
 function npcSnapshot(v: Vehicle): NpcSnapshot {
   const brain = v.brain;
   return {
-    id: v.id, name: brain ? brain.driver : v.name, faction: v.faction, template: brain ? brain.templateId : null, pos: at(v.pos),
+    id: v.id, name: brain ? brain.driver : v.id, faction: v.faction, template: brain ? brain.templateId : null, pos: at(v.pos),
     ...goalOf(brain ? brain.goals.at(-1) : undefined), ...resourcesOf(v.resources), defeat: v.defeat ? v.defeat.phase : null,
   };
 }

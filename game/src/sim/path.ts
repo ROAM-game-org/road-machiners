@@ -1,6 +1,3 @@
-// Route planning around static obstacles and cliffs: A* on a grid weighted by terrain speed and a
-// cost for leaving the road, so routes prefer roads, then shortcut to visible corners. Moving vehicles are not in the
-// grid, so ramming and blocking still happen. The grid itself lives in ./nav. An NPC driver weighs the cost by
 
 import { REGION } from '../data/region';
 import { crossesRail } from './bridge';
@@ -25,7 +22,7 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     const statics = staticSet(world.obstacles, world.terrain);
     const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
     const reach = radius + CLEARANCE;
-    if (!taste?.roads && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
+    if (!taste?.shy && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
     const layer = navLayer(world.terrain, world.obstacles, radius);
     const start = cellOf(layer, from);
     const target = cellOf(layer, to);

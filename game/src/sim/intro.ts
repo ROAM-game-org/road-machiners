@@ -70,7 +70,7 @@ function launchAmbush(w: World): void {
   brain.traits = [...new Set([...brain.traits, ...AMBUSH.addedTraits])];
   addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: true });
   w.events.push({ t: 'hostile', vehicle: raider.id, against: me.id });
-  fightCornered(w, raider, me, 'rob cargo');
+  fightCornered(w, raider, me, 'robCargo');
   setIntroStep(w, 'ambush');
 }
 

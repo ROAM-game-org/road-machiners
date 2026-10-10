@@ -1,6 +1,3 @@
-// Territories: open ground with hull pieces, loot spots, debris and a hazard. Pure queries over REGION and
-// TERRITORIES. The bake places the props, src/sim/salvage.ts rolls the stocks and src/sim/hazard.ts applies the
-// hazard. This file turns authored layout into map tiles, so the bake, the render and the sim place things alike.
 
 import { REGION, type TerritoryDef } from '../data/region';
 import { SALVAGE, type LootTable } from '../data/salvage';
@@ -58,7 +55,7 @@ export function spotTable(o: Obstacle): LootTable {
   return SALVAGE[table];
 }
 
-export function spotLookOf(stock: SalvageStock): PropKind | null {
+export function spotLookOf(stock: { id: string }): PropKind | null {
   const kind = stock.id.slice(0, stock.id.lastIndexOf('-'));
   return PROP_KINDS.find((k) => k === kind) ?? null;
 }
@@ -114,8 +111,10 @@ export function territoryPieces(t: TerritoryDef): BakedPiece[] {
   return (TERRITORIES[t.id].wreck?.pieces ?? []).map((p) => ({ look: p.look, pos: onMap(t, p.at), yaw: p.yaw, r: p.r, sink: p.sink ?? 0 }));
 }
 
-export function territoryCaches(t: TerritoryDef): Vec[] {
-  return (TERRITORIES[t.id].wreck?.caches ?? []).map((c) => onMap(t, c.at));
+export type BakedCache = { pos: Vec; yaw: number };
+
+export function territoryCaches(t: TerritoryDef): BakedCache[] {
+  return (TERRITORIES[t.id].wreck?.caches ?? []).map((c) => ({ pos: onMap(t, c.at), yaw: c.yaw }));
 }
 
 export function territoryRoads(t: TerritoryDef): { roads: FarmRoad[]; spurs: FarmRoad[] } {
@@ -153,10 +152,10 @@ export function spotGoal(world: World, territoryId: string): NpcActivity {
   const spots = territorySpots(world, territoryId);
   if (!spots.length) throw new Error(`Territory ${territoryId} has no baked loot spots`);
   const spot = spots[randInt(world, 0, spots.length - 1)];
-  return { kind: 'scavenge', targetId: spot.id, destination: { ...spot.pos }, phase: 'travel', reason: 'search a loot spot' };
+  return { kind: 'scavenge', targetId: spot.id, destination: { ...spot.pos }, phase: 'travel', reason: 'searchSpot' };
 }
 
 export function tripGoal(vehicle: Vehicle, territory: TerritoryDef): NpcActivity {
   const entry = territoryEntries(territory).reduce((a, b) => (dist(vehicle.pos, a) <= dist(vehicle.pos, b) ? a : b));
-  return { kind: 'travel', targetId: territory.id, destination: { ...entry }, phase: 'travel', reason: 'make a trip to another site' };
+  return { kind: 'travel', targetId: territory.id, destination: { ...entry }, phase: 'travel', reason: 'tripToSite' };
 }

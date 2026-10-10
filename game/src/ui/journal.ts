@@ -1,15 +1,17 @@
 
-import { NOTES, type NoteDef } from '../data/locals';
+import type { NoteId } from '../data/locals';
+import { noteBody, noteFrom, noteTitle } from '../text/names';
+import { t } from '../text/msg';
 import { clockOf } from '../sim/sun';
 import type { World } from '../sim/types';
 import { createIcon } from './cards';
 import { el, panel } from './dom';
 import type { UiHost } from './host';
 
-export type JournalEntry = NoteDef & { day: number };
+export type JournalEntry = { id: NoteId; day: number };
 
 export function journalEntries(world: World): JournalEntry[] {
-  return world.player.notes.map((n, k) => ({ n, k })).sort((a, b) => b.n.turn - a.n.turn || b.k - a.k).map(({ n }) => ({ ...NOTES[n.id], day: clockOf(n.turn).day }));
+  return world.player.notes.map((n, k) => ({ n, k })).sort((a, b) => b.n.turn - a.n.turn || b.k - a.k).map(({ n }) => ({ id: n.id, day: clockOf(n.turn).day }));
 }
 
 export class JournalScreen {
@@ -39,9 +41,9 @@ export class JournalScreen {
     if (!this.isOpen()) return;
     const entries = journalEntries(this.host.world());
     this.root.replaceChildren(
-      el('button', { class: 'close', onclick: () => this.close() }, 'Close [J]'),
-      el('h3', {}, createIcon('journal'), 'Journal'),
-      entries.length ? el('div', { class: 'journal' }, ...entries.map(entry)) : el('div', { class: 'dim' }, 'Nothing worth writing down yet.'),
+      el('button', { class: 'close', onclick: () => this.close() }, t('journal.close')),
+      el('h3', {}, createIcon('journal'), t('journal.title')),
+      entries.length ? el('div', { class: 'journal' }, ...entries.map(entry)) : el('div', { class: 'dim' }, t('journal.empty')),
     );
   }
 }
@@ -50,7 +52,7 @@ function entry(e: JournalEntry): HTMLElement {
   return el(
     'div',
     { class: 'journal-note' },
-    el('div', { class: 'journal-head' }, el('b', {}, e.title), el('span', { class: 'dim' }, `Day ${e.day}, ${e.from}`)),
-    el('div', {}, e.text),
+    el('div', { class: 'journal-head' }, el('b', {}, noteTitle(e.id)), el('span', { class: 'dim' }, t('journal.entryHead', { day: e.day, from: noteFrom(e.id) }))),
+    el('div', {}, noteBody(e.id)),
   );
 }

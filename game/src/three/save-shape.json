@@ -1,5 +1,5 @@
 {
- "format": "2.39",
+ "format": "2.47",
  "shape": {
   "broken": [],
   "craters": [],
@@ -376,6 +376,128 @@
    {
     "fuel": "number",
     "goods": {
+     "grain": "number",
+     "parts": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "grain": "number",
+      "parts": "number",
+      "textiles": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "grain": "number",
+     "parts": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "grain": "number",
+      "parts": "number",
+      "textiles": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "grain": "number",
+     "parts": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "grain": "number",
+      "parts": "number",
+      "textiles": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
      "meds": "number",
      "parts": "number",
      "salt": "number",
@@ -720,6 +842,128 @@
       "meds": "number",
       "parts": "number",
       "scrap": "number"
+     },
+     "parts": [
+      {
+       "defId": "string",
+       "gun": {
+        "ammo": "number",
+        "cooldown": "number",
+        "reloadWork": "number"
+       },
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "parts": "number",
+     "scrap": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "parts": "number",
+      "scrap": "number",
+      "textiles": "number"
+     },
+     "parts": [],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "parts": "number",
+     "scrap": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "parts": "number",
+      "scrap": "number",
+      "textiles": "number"
+     },
+     "parts": [
+      {
+       "charge": {
+        "reload": "number"
+       },
+       "defId": "string",
+       "hp": "number",
+       "id": "string",
+       "wear": "number"
+      }
+     ],
+     "supplies": "number"
+    },
+    "id": "string",
+    "parts": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ],
+    "pos": {
+     "x": "number",
+     "y": "number"
+    },
+    "radius": "number",
+    "supplies": "number"
+   },
+   {
+    "fuel": "number",
+    "goods": {
+     "parts": "number",
+     "scrap": "number",
+     "textiles": "number"
+    },
+    "hidden": {
+     "fuel": "number",
+     "goods": {
+      "parts": "number",
+      "scrap": "number",
+      "textiles": "number"
      },
      "parts": [
       {
@@ -906,7 +1150,6 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
-      "targetName": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -962,6 +1205,73 @@
      }
     ]
    },
+   "dustwell": {
+    "contracts": [
+     {
+      "deadline": "number",
+      "defId": "string",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "shop": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "good": "string",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "rush": "boolean",
+      "shop": "string",
+      "tier": "number",
+      "to": "string",
+      "units": "number",
+      "window": "number"
+     }
+    ],
+    "pressure": {
+     "meds": "number",
+     "scrap": "number",
+     "tools": "number",
+     "water": "number"
+    },
+    "restockAt": "number",
+    "stock": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     },
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ]
+   },
    "granary": {
     "contracts": [
      {
@@ -981,7 +1291,6 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
-      "targetName": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1029,6 +1338,73 @@
      }
     ]
    },
+   "green-pit": {
+    "contracts": [
+     {
+      "deadline": "number",
+      "defId": "string",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "shop": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "good": "string",
+      "id": "string",
+      "kind": "string",
+      "reward": "number",
+      "rush": "boolean",
+      "shop": "string",
+      "tier": "number",
+      "to": "string",
+      "units": "number",
+      "window": "number"
+     }
+    ],
+    "pressure": {
+     "grain": "number",
+     "salt": "number",
+     "textiles": "number",
+     "water": "number"
+    },
+    "restockAt": "number",
+    "stock": [
+     {
+      "charge": {
+       "reload": "number"
+      },
+      "defId": "string",
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     },
+     {
+      "defId": "string",
+      "gun": {
+       "ammo": "number",
+       "cooldown": "number",
+       "reloadWork": "number"
+      },
+      "hp": "number",
+      "id": "string",
+      "wear": "number"
+     }
+    ]
+   },
    "nose": {
     "contracts": [
      {
@@ -1048,7 +1424,6 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
-      "targetName": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1123,7 +1498,6 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
-      "targetName": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1190,7 +1564,6 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
-      "targetName": "string",
       "template": "string",
       "tier": "number",
       "window": "number"
@@ -1309,7 +1682,6 @@
     ],
     "job": "null",
     "lastHitBy": "null",
-    "name": "string",
     "order": "null",
     "pos": {
      "x": "number",
@@ -1393,7 +1765,6 @@
     ],
     "job": "null",
     "lastHitBy": "null",
-    "name": "string",
     "order": "null",
     "pos": {
      "x": "number",
@@ -1493,7 +1864,6 @@
     ],
     "job": "null",
     "lastHitBy": "null",
-    "name": "string",
     "order": "null",
     "pos": {
      "x": "number",

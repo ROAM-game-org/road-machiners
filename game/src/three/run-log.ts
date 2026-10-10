@@ -1,5 +1,3 @@
-// The run log: what happened to the player over a run, for analysis after the fact. It records outcomes, not a
-// replay, and never feeds the sim. Each entry reads on its own, with names and kinds where the world has only ids.
 
 import { playerVehicle } from '../sim/damage';
 import { mountedItems } from '../sim/grid';
@@ -51,7 +49,7 @@ function eventEntry(known: readonly Vehicle[], e: GameEvent): Body {
 }
 
 function truckOf(v: Vehicle | undefined): { name: string; faction: string; chassis: string } | null {
-  return v ? { name: v.name, faction: v.faction, chassis: v.chassisId } : null;
+  return v ? { name: v.brain ? v.brain.driver : v.id, faction: v.faction, chassis: v.chassisId } : null;
 }
 
 function changeEntry(prev: World | null, next: World): Body | null {

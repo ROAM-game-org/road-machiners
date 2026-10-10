@@ -1,6 +1,3 @@
-// One line per recorded turn: the player truck's state after the turn, the hostiles it sees, the money the turn moved
-// and every event that touches the player. A batch writes these beside its traces, so one run answers every later
-// question about it without a replay.
 
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
@@ -8,6 +5,8 @@ import { goodsCount, mountedParts } from '../grid';
 import { onRouteRoad, terrainNav } from '../nav/layer';
 import { fightOddsAgainst } from '../npc-decisions';
 import { keepsOffRoads } from '../off-road';
+import { REGION } from '../../data/region';
+import { ROAD_INDEX } from '../road-index';
 import { getResources } from '../resources';
 import { isStranded, vehicleStats } from '../stats';
 import { isTowed } from '../tow';
@@ -75,7 +74,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
 const SNAPSHOT_TURNS = 10;
 
 export type WorldLine = { t: number; events?: GameEvent[]; trucks?: TruckSnap[] };
-export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; hp: number; states: string[]; offRoad: boolean; onRoad: boolean };
+export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
 
 export function worldLine(world: World, events: readonly GameEvent[]): WorldLine | null {
   const line: WorldLine = { t: world.turn };
@@ -106,7 +105,15 @@ function snap(world: World, v: Vehicle): TruckSnap {
     states: world.states.filter((s) => s.holder === v.id).map((s) => `${s.kind}>${s.other}`),
     offRoad: keepsOffRoads(world, v),
     onRoad: onRouteRoad(terrainNav(world.terrain), v.pos.x, v.pos.y),
+    roadGap: roadGap(v),
   };
+}
+
+const ROAD_GAP_CAP = 20;
+
+function roadGap(v: Vehicle): number {
+  const centre = ROAD_INDEX.nearestWithin(v.pos.x, v.pos.y, ROAD_GAP_CAP + REGION.roadWidth / 2);
+  return Math.min(ROAD_GAP_CAP, Math.round(Math.max(0, centre - REGION.roadWidth / 2)));
 }
 
 function flagsOf(world: World, me: Vehicle): string[] {
@@ -136,9 +143,9 @@ function truck(world: World, id: string): string {
 }
 
 export function describe(world: World, e: GameEvent): string {
-  if (e.t === 'say') return `say ${e.speaker}: ${e.text}`;
+  if (e.t === 'say') return `say ${e.speaker}: ${e.line}`;
   if (e.t === 'shot') return `shot ${truck(world, e.shooter)}>${truck(world, e.target)} ${e.weapon} hits ${e.rounds.filter((r) => r.hit).length}/${e.rounds.length}`;
-  if (e.t === 'money') return `money ${e.amount} ${e.reason}`;
+  if (e.t === 'money') return `money ${e.amount} ${e.reason.kind}`;
   if (e.t === 'contract') return `contract ${e.outcome} ${e.contract.kind}`;
   if (e.t === 'stateEnded') return `stateEnded ${e.state.kind}:${e.state.holder}>${e.state.other} ${e.ending}`;
   const { t, ...rest } = e;

@@ -1,6 +1,3 @@
-// Territory layer: a wreck's hull pieces, caches, buildings, rim rocks, field spots and debris, the reactor, a farm's
-// layout (./farm) and debris, and fused glass (./glass) inside each territory, placed by the rules in TERRITORIES. It
-// runs after the new-world layer, so ground rules read these props, the seated heights and the marks. Pieces, the
 
 import { PHYSICS } from '../data/physics';
 import { REGION, type TerritoryDef } from '../data/region';
@@ -63,7 +60,7 @@ function fillWreck(draws: Draws, rules: TerritoryRules, wreck: WreckRules, piece
   const [onWeb, onSpur] = [markRoads(d, t, roads, 'inside'), markRoads(d, t, spurs, 'spur')];
   const onRoad: Touch = (pos, r) => onWeb(pos, r) || onSpur(pos, r);
   const pieceBoxes = territoryPieces(t).flatMap((p) => propBoxes(pieceObstacle(p, 'piece')));
-  const caches = territoryCaches(t).map((pos) => prop(wreck.cacheLook, pos, wreck.cacheRadius, 0));
+  const caches = territoryCaches(t).map((c) => prop(wreck.cacheLook, c.pos, wreck.cacheRadius, c.yaw));
   for (const c of caches) if (onRoad(c.pos, c.r) || touchesMarks(d, c.pos, c.r)) throw new Error(`${t.id} cache at ${at(c.pos)} stands on a dirt road`);
   d.props.push(...caches);
   const buildings = placeBuildingGroups(d, t, 0, wreck.buildings, onRoad, pieceBoxes, rng);

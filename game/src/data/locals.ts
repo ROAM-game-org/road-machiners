@@ -341,6 +341,8 @@ export const NOTES: Record<NoteId, NoteDef> = {
   },
 };
 
+export const NOTE_IDS = Object.keys(NOTES) as NoteId[];
+
 export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'bo' | 'sefa' | 'ines' | 'granaryDriver' | 'bureauClerk' | 'pin_mara' | 'bend_silver' | 'crates_constance' | 'agnes' | 'odile' | 'courierTamsin' | 'namesLusa' | 'hooksPim';
 
 export type LocalDef = { id: LocalId; name: string; role: string; town: string; quest: string };

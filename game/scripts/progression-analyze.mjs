@@ -1,6 +1,3 @@
-// Sweeps the turn logs of a recorded batch for every kind of trouble at once, so one batch answers every question
-// without a replay. It reads <dir>/*.turns.jsonl from progression:record and prints per run: how the turns were spent,
-// each fight, each big loss with the events before it, tows, stalls, debt and dry tanks.
 import { createReadStream, readdirSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { JobTally } from '../src/sim/progression/job-checks.ts';
@@ -187,6 +184,7 @@ async function analyzeWorld(name, path) {
   if (flaps.length > 0) console.log(`flapping: ${flaps.slice(0, 12).join('; ')}`);
   printPopulation(lines);
   printOffRoad(lines);
+  printAmbushes(lines);
   printNpcDeaths(lines);
 }
 
@@ -232,7 +230,23 @@ function printOffRoad(lines) {
   console.log(`raiders keeping off roads: ${off}; healthy raiders ${share(moving.filter((v) => !v.offRoad))}`);
   const hunting = by.get('hunting') ?? [];
   const onRoad = hunting.filter((v) => v.onRoad).length;
+  if (hunting.length > 0) {
+    const within = (tiles) => hunting.filter((v) => v.roadGap <= tiles).length;
+    console.log(`hunting raiders within 6 tiles of a road ${within(6)}/${hunting.length}, within 10 tiles ${within(10)}/${hunting.length}`);
+  }
   if (hunting.length > 0 && onRoad / hunting.length > HUNT_ROAD_TARGET) console.log(`MISS: hunting raiders on road above ${100 * HUNT_ROAD_TARGET}%`);
+}
+
+function printAmbushes(lines) {
+  const events = lines.flatMap((l) => l.events ?? []);
+  const passes = Map.groupBy(events.filter((e) => e.t === 'preyPassed'), (e) => e.reason);
+  const passText = [...passes.entries()].map(([reason, es]) => `${reason} ${es.length}`).join(', ') || 'none';
+  const trucks = new Map(lines.flatMap((l) => l.trucks ?? []).map((v) => [v.id, v]));
+  const hunting = new Set(['raid', 'patrol', 'investigate']);
+  const started = events.filter((e) => e.t === 'activity' && e.activity === 'fight' && trucks.get(e.vehicle)?.faction === 'raiders' && hunting.has(e.previous));
+  const byPrevious = Map.groupBy(started, (e) => e.previous);
+  const fightText = [...byPrevious.entries()].map(([previous, es]) => `${previous} ${es.length}`).join(', ') || 'none';
+  console.log(`raider passes on visible prey: ${passText}; raider fights begun from a hunt: ${fightText}`);
 }
 
 function offRoadReason(v) {

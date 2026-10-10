@@ -9,11 +9,17 @@ import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
 import { TEST_MAP } from '../test/map';
 import { onTestFinished } from 'vitest';
-import { DECISIONS, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
+import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
 import { addState } from './states';
-import type { Faction, GameEvent, NpcBrain, Vehicle, World, XpSource } from './types';
+import { advanceJobs } from './jobs';
+import { resolveNpcActivities } from './npc-activities';
+import type { Faction, GameEvent, NpcBrain, Obstacle, SalvageStock, Vehicle, World, XpSource } from './types';
 import { dist, type Vec } from './vec';
+import { REGION } from '../data/region';
+import { propReach } from './mapgen';
+import { rollStock } from './salvage';
+import { spotTable } from './territory';
 import { refreshVision } from './vision';
 import { openingStockOf } from './opening';
 import { playerVehicle } from './damage';
@@ -59,8 +65,26 @@ export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
   return w;
 }
 
+export function addLootSpot(w: World): { spot: Obstacle; stock: SalvageStock } {
+  const orchard = REGION.locations.find((site) => site.id === 'orchard')!;
+  const spot: Obstacle = { id: 'farmhouse-1', kind: 'landmark', look: 'farmhouse', pos: { ...orchard.pos }, r: 1.5, yaw: 0 };
+  const stock = rollStock(w, spotTable(spot), spot.id, spot.pos, propReach(spot));
+  w.obstacles.push(spot);
+  w.salvage.push(stock);
+  return { spot, stock };
+}
+
+export function spotWorld(): { w: World; spot: Obstacle; stock: SalvageStock } {
+  const w = emptyWorld();
+  w.salvage = [];
+  const { spot, stock } = addLootSpot(w);
+  w.vehicles[0].pos = { x: spot.pos.x + propReach(spot) + 1, y: spot.pos.y };
+  refreshVision(w);
+  return { w, spot, stock };
+}
+
 export function addVehicle(w: World, faction: Faction, chassisId: string, parts: string[], pos: Vec, heading = 0): Vehicle {
-  const v = makeVehicle(w, { name: chassisId, faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });
+  const v = makeVehicle(w, { faction, chassisId, parts: parts.map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos, heading, brain: null });
   w.vehicles.push(v);
   return v;
 }
@@ -70,7 +94,7 @@ export function practiceOf(w: World, source: XpSource): Extract<GameEvent, { t: 
 }
 
 export function npcBrain(templateId: string, home: Vec, traits: TraitId[], personality: PersonalityId = 'talkative'): NpcBrain {
-  return { templateId, driver: 'Test Driver', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
+  return { templateId, driver: 'Jed Cobb', traits, personality, goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: { ...home }, stepIndex: 0, memories: [] };
 }
 
 export function forceOption<D extends DecisionId>(decision: D, option: DecisionOptions[D]): void {
@@ -157,6 +181,17 @@ function driveOne(world: World, v: Vehicle): void {
 
 export function startCombat(w: World, aggressor: Vehicle, target: Vehicle): void {
   addState(w, 'combat', aggressor.id, target.id, { kind: 'none' });
+}
+
+export function finishBusiness(w: World, npc: Vehicle): void {
+  w.events = [];
+  if (npc.job?.kind !== 'business') resolveNpcActivities(w);
+  for (let turn = 0; npc.job?.kind === 'business'; turn++) {
+    if (turn > NPC_UPKEEP.businessTurns) throw new Error(`${npc.id} business never finished`);
+    w.events = [];
+    advanceJobs(w);
+    resolveNpcActivities(w);
+  }
 }
 
 export function openingStopPoint(w: World): Vec {

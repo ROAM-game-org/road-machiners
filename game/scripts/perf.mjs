@@ -1,6 +1,3 @@
-// Measures boot, turn, move preview and frame time in Chromium on the real GPU, and fails on any
-// budget miss from scripts/perf-budgets.json, a page error, the crash screen or software drawing.
-// Usage: npm run perf -- --url http://localhost:5173
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
@@ -155,7 +152,7 @@ const frameP95 = await townFrameP95(false);
 const nightP95 = await townFrameP95(true);
 results.frameP95Ms = Math.max(...frameP95, ...nightP95);
 
-const crashed = await page.evaluate(() => document.body.innerText.includes('The game crashed'));
+const crashed = await page.evaluate(() => document.querySelector('.crash-screen') !== null);
 await browser.close();
 
 console.log(`turn ms per call: ${turnMs.map((x) => x.toFixed(1)).join(', ')}`);

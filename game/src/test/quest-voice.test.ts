@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { handoffQuest, TOPICS } from '../data/dialogue';
-import { LOCALS, NOTES, type NoteId } from '../data/locals';
-import { PERSONALITIES, type Personality } from '../data/personalities';
-import { RUMORS } from '../data/rumors';
+import { LOCALS, NOTE_IDS, NOTES, type NoteId } from '../data/locals';
 import { GAME_OPENED_QUESTS } from '../data/quests';
+import { entryText } from '../text/resolve';
 import { QUESTS } from '../sim/quests';
 import { readQuestSources } from './quest-compile';
 
@@ -24,10 +23,6 @@ function spoken(line: string): string | null {
   return words.replace(/#.*$/, '').replace(/->.*$/, '').replace(/<[^>]*>/g, '').trim();
 }
 
-function personalityLines(p: Personality): string[] {
-  return [p.greeting, p.repeatLine, p.refusal, ...(p.withholdLine ? [p.withholdLine] : []), ...(p.tollLine ? [p.tollLine] : []), ...Object.values(p.lines).flatMap((nodes) => Object.values(nodes))];
-}
-
 function lines(): { where: string; text: string }[] {
   return [
     ...SOURCES.flatMap(([file, source]) => source.split('\n').flatMap((line, k) => {
@@ -36,9 +31,7 @@ function lines(): { where: string; text: string }[] {
     })),
     ...Object.entries(QUESTS.quests).flatMap(([id, q]) => [...q.facts.map((f) => f.text), ...q.stats.flatMap((s) => [s.label, ...(s.words ?? [])])].map((text) => ({ where: `${id} header`, text }))),
     ...Object.entries(NOTES).flatMap(([id, n]) => [n.title, n.from, n.text].map((text) => ({ where: `note ${id}`, text }))),
-    ...Object.values(TOPICS.armyWagon.nodes).map((n) => ({ where: 'radio armyWagon', text: n.line })),
-    ...RUMORS.map((r) => ({ where: `rumor ${r.id}`, text: r.text })),
-    ...Object.entries(PERSONALITIES).flatMap(([id, p]) => personalityLines(p).map((text) => ({ where: `personality ${id}`, text }))),
+    ...Object.values(TOPICS.armyWagon.nodes).map((n) => ({ where: 'radio armyWagon', text: entryText('en', `line.${n.line}`) })),
   ];
 }
 
@@ -65,6 +58,6 @@ describe('settlement talk content', () => {
     const taught = new Set<NoteId>(['wagonRoad']);
     for (const [, source] of SOURCES) for (const match of source.matchAll(/~\s*note\("([a-zA-Z]+)"\)/g)) taught.add(match[1] as NoteId);
 
-    expect(taught).toEqual(new Set(Object.keys(NOTES)));
+    expect(taught).toEqual(new Set(NOTE_IDS));
   });
 });

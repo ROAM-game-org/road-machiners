@@ -1,6 +1,3 @@
-// Scavenging search: a parked job that takes turns in proportion to the stock. Each turn reveals hidden loot. A
-// finished search opens the stock's revealed loot to the player, who takes what they want from it. An NPC takes the
-// revealed loot that fits.
 
 import { SALVAGE } from '../data/salvage';
 import { SEARCH } from '../data/utilities';
@@ -8,6 +5,7 @@ import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { practice, skillEffect } from './progress';
 import { canReachSalvage, collectSalvage, hiddenUnits, requireLootFree, revealTurn, salvageUnits, type Found } from './salvage';
+import { breakLootWarning } from './loot-warning';
 import type { Rng } from './rng';
 import type { Job, SalvageStock, Vehicle, World } from './types';
 import { hasWorkingUtility } from './utility';
@@ -36,6 +34,7 @@ export function startSearch(world: World, stockId: string): World {
   return playerCommand(world, (w) => {
     const me = playerVehicle(w);
     requireLootFree(w, me, stockId);
+    breakLootWarning(w, me, stockId);
     beginSearch(w, me, stockId);
   });
 }

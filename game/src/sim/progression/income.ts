@@ -1,13 +1,10 @@
-// The income harness. It plays one policy in the player truck on the mid-game kit, with every skill at rank 2,
-// through the real turn pipeline with every truck on far travel, and measures what the run earns: net worth per
-// in-game hour, a ledger of every money change by reason, per-day net, robbery attempts and NPC wallets. It reads
 
 import { REGION } from '../../data/region';
 import { TIME } from '../../data/time';
 import { playerVehicle } from '../damage';
 import { getLotTradePrice, partTradePrice, repairCost } from '../economy';
 import { goodsCount, isMounted } from '../grid';
-import type { GameEvent, PartInstance, Vehicle, World } from '../types';
+import type { GameEvent, GoalReason, MoneyReason, PartInstance, Vehicle, World } from '../types';
 import { getTradePrice } from '../economy';
 import { isDefeated } from '../defeat';
 import { npcProfile } from '../npc-decisions';
@@ -151,7 +148,7 @@ export function largestTraderLoad(world: World): number {
   return npcProfile(trader).tradeStake * Math.max(...ratios);
 }
 
-const DELIVER_REASON = 'deliver purchased cargo';
+const DELIVER_REASON: GoalReason = 'deliverCargo';
 
 function cargoUnits(v: Vehicle): number {
   return Object.entries(goodsCount(v)).reduce((sum, [good, n]) => sum + (good === 'parts' ? 0 : n), 0);
@@ -210,9 +207,11 @@ function eventMoney(e: GameEvent, me: string): Paid {
   return [moneyEvent, towFee, escortFee, aidPay, patchFee].flatMap((pays) => pays(e, me));
 }
 
+const LEDGER_LINES: Record<MoneyReason['kind'], string> = { contract: 'contract', failedHaul: 'failed haul contract', towing: 'towing' };
+
 function moneyEvent(e: GameEvent): Paid {
   if (e.t !== 'money') return [];
-  return [[e.reason.startsWith('towing ') ? 'towing' : e.reason, e.amount]];
+  return [[LEDGER_LINES[e.reason.kind], e.amount]];
 }
 
 function towFee(e: GameEvent, me: string): Paid {

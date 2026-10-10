@@ -1,4 +1,3 @@
-// The stall watchdog: no driver stays stuck for good, whatever bug stranded it.
 
 import { NPC_BEHAVIOR, SPAWN } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -35,8 +34,6 @@ function waits(world: World, v: Vehicle): boolean {
   return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v);
 }
 
-// A follower at its spot waits. So does one that stands as near a parked leader as its spot does: the spot lies on the
-// far side of the leader, which a parked leader's turn put there, and the follower does not drive around it.
 function waitsOnLeader(world: World, v: Vehicle): boolean {
   const top = topGoal(v);
   if (top?.kind !== 'follow' || top.destination === null) return false;
@@ -58,7 +55,7 @@ function giveUp(world: World, v: Vehicle): void {
   const top = topGoal(v);
   world.events.push({ t: 'stall', vehicle: v.id, goal: top?.kind ?? null, reason: top?.reason ?? 'idle' });
   v.brain!.goals = [];
-  logChange(world, v, top, 'no progress for too long');
+  logChange(world, v, top, 'noProgress');
   jumpClear(world, v);
   freshGoal(world, v);
   v.brain!.progress = { key: progressKey(v), since: world.turn };

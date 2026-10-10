@@ -36,6 +36,10 @@ export class ModalScreens {
     return this.quest.isOpen() || this.all().some((s) => s.isOpen());
   }
 
+  blockingOpen(): boolean {
+    return this.quest.isOpen() || this.all().some((s) => s !== this.inventory && s.isOpen());
+  }
+
   render(): void {
     for (const s of this.all()) s.render();
     this.quest.render();

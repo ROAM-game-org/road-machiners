@@ -1,5 +1,7 @@
 
 import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
+import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
+import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -290,6 +292,69 @@ function withFleePerceived_20_21(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(truck), removed: (world.removed as SavedJson[]).map(truck) };
 }
 
+function withLieUpSpot_41_42(world: SavedJson): SavedJson {
+  const truck = (v: SavedJson): SavedJson => {
+    if (!v.brain) return v;
+    const pos = v.pos as SavedJson;
+    const goal = (g: SavedJson): SavedJson => (g.kind === 'rearm' ? { ...g, destination: { x: pos.x, y: pos.y } } : g);
+    return { ...v, brain: { ...(v.brain as SavedJson), goals: ((v.brain as SavedJson).goals as SavedJson[]).map(goal) } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(truck) };
+}
+
+const FOOTPRINTS_2_34: Record<string, readonly [number, number]> = {
+  shotgun: [1, 2], longRifle: [1, 2], flamer: [1, 2], pneumobolter: [2, 2], slugCannon: [1, 2], heavyMg: [1, 2], cannon: [2, 2], amRifle: [1, 3], autocannon: [2, 2],
+  recoilless: [1, 3], battleRifle: [1, 3], gatling: [2, 2], rocketRack: [2, 2], sniperCannon: [2, 3], grenadeLauncher: [2, 2], tankGun: [2, 3], flechette: [2, 2], harpoon: [1, 2],
+  patcherCrane: [1, 2], smokeMortar: [1, 2], scrapersKnife: [1, 2], emitter: [2, 2], stockEngine: [2, 2], tunedEngine: [2, 2], flatFour: [2, 2], workhorseDiesel: [2, 2],
+  racingV6: [2, 2], heavyDiesel: [2, 2], turbine: [2, 2], plates: [1, 3], cage: [1, 2], ram: [3, 1], scrapPanels: [1, 2], ceramicPlates: [1, 2], spacedArmor: [1, 4],
+  reinforcedCage: [1, 3], plowRam: [3, 1], claymoreRam: [3, 1], rack: [2, 1], trailerBox: [2, 2], flatbed: [2, 1], lightFrame: [2, 2], enclosedFrame: [2, 2], heavyFrame: [2, 2],
+  cab: [1, 2], cabPickup: [3, 2], cabHardtop: [3, 2], transmission: [2, 2], transmissionMid: [2, 2], transmissionHeavy: [2, 2], wheel: [1, 2], wheelMid: [1, 2],
+  wheelHeavy: [1, 2], tank: [1, 2], tankLong: [1, 2], tankMid: [1, 2], tankHeavy: [1, 2],
+};
+
+function footprintCells_42_43(item: SavedJson, defId: string | null): string[] {
+  const [w, h] = defId === 'mg' ? [1, 2] : (defId && FOOTPRINTS_2_34[defId]) || [1, 1];
+  const odd = (item.rot as number) % 2 === 1;
+  const [cw, ch] = odd ? [h, w] : [w, h];
+  const cells: string[] = [];
+  for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) cells.push(`${(item.x as number) + dx},${(item.y as number) + dy}`);
+  return cells;
+}
+
+function withWideMg_42_43(world: SavedJson): SavedJson {
+  const player = world.player as Player;
+  const storage = [...player.storage];
+  const widen = (v: SavedJson): SavedJson => {
+    const layout = LAYOUTS_2_34[v.chassisId as string];
+    const defOf = (item: SavedJson) => ((item.part as SavedJson | undefined)?.defId as string | undefined) ?? null;
+    const items = v.items as SavedJson[];
+    const taken = new Set(items.filter((item) => defOf(item) !== 'mg').flatMap((item) => footprintCells_42_43(item, defOf(item))));
+    const letterAt = (cell: string) => {
+      const [x, y] = cell.split(',').map(Number);
+      return layout[y]?.[x];
+    };
+    const kept: SavedJson[] = [];
+    for (const item of items) {
+      if (defOf(item) !== 'mg') {
+        kept.push(item);
+        continue;
+      }
+      const first = letterAt(`${item.x},${item.y}`);
+      const sits = (rot: number) => footprintCells_42_43({ ...item, rot }, 'mg').every((c) => !taken.has(c) && letterAt(c) === first);
+      const fit = [item.rot as number, 1 - (item.rot as number)].find(sits);
+      if (fit === undefined) {
+        if (v.id === player.vehicleId) storage.push(item.part as SavedJson);
+        continue;
+      }
+      footprintCells_42_43({ ...item, rot: fit }, 'mg').forEach((c) => taken.add(c));
+      kept.push({ ...item, rot: fit });
+    }
+    return { ...v, items: kept };
+  };
+  const vehicles = (world.vehicles as SavedJson[]).map(widen);
+  return { ...world, vehicles, player: { ...player, storage } };
+}
+
 function withFightWorn_21_22(world: SavedJson): SavedJson {
   const turn = world.turn as number;
   const goal = (g: SavedJson): SavedJson => (g.kind === 'fight' ? { ...g, worn: { turn, condition: 1 } } : g);
@@ -517,6 +582,122 @@ function withCents_29_30(world: SavedJson): SavedJson {
   };
 }
 
+const RETIRED_SITES_36_37 = new Set(['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing']);
+const OUTPOST_GOODS_36_37: Record<string, string[]> = {
+  dustwell: ['water', 'scrap', 'tools', 'meds'],
+  'green-pit': ['water', 'grain', 'salt', 'textiles'],
+};
+
+function isRetired_36_37(id: unknown): boolean {
+  return typeof id === 'string' && RETIRED_SITES_36_37.has(id);
+}
+
+function retiredObstacle_36_37(o: SavedJson): boolean {
+  const id = o.id as string;
+  for (const site of RETIRED_SITES_36_37) if (id === `site-${site}` || id.startsWith(`cw-${site}-`)) return true;
+  return false;
+}
+
+function jobOnRetired_36_37(job: SavedJson | null | undefined): boolean {
+  if (!job) return false;
+  if (job.kind === 'search') return isRetired_36_37(job.stockId);
+  const pickup = job.pickup as SavedJson | null | undefined;
+  return job.kind === 'refit' && pickup?.from === 'stock' && isRetired_36_37(pickup.stockId);
+}
+
+function idleVehicle_36_37(v: SavedJson): SavedJson {
+  const brain = v.brain as SavedJson | null | undefined;
+  const job = jobOnRetired_36_37(v.job as SavedJson | null | undefined) ? { job: null } : {};
+  return { ...v, ...job, ...(brain ? { brain: withoutRetiredMemory_36_37(brain) } : {}) };
+}
+
+function withOutposts_36_37(shops: Record<string, SavedJson>, turn: unknown): Record<string, SavedJson> {
+  const added = Object.entries(OUTPOST_GOODS_36_37)
+    .filter(([id]) => !(id in shops))
+    .map(([id, goods]) => [id, { contracts: [], pressure: Object.fromEntries(goods.map((good) => [good, 0])), stock: [], restockAt: turn }]);
+  return { ...shops, ...Object.fromEntries(added) };
+}
+
+function withoutRetiredSites_43_44(world: SavedJson): SavedJson {
+  const keep = (id: string) => !isRetired_36_37(id);
+  const player = world.player as SavedJson;
+  return {
+    ...world,
+    salvage: (world.salvage as SavedJson[]).filter((stock) => keep(stock.id as string)),
+    shops: withOutposts_36_37(world.shops as Record<string, SavedJson>, world.turn),
+    obstacles: (world.obstacles as SavedJson[]).filter((o) => !retiredObstacle_36_37(o)),
+    player: { ...player, scavenged: (player.scavenged as string[]).filter(keep), discovered: (player.discovered as string[]).filter(keep) },
+    vehicles: (world.vehicles as SavedJson[]).map(idleVehicle_36_37),
+  };
+}
+
+function withoutRetiredMemory_36_37(brain: SavedJson): SavedJson {
+  const retired = (key: string) => isRetired_36_37(key) || isRetired_36_37(key.slice(key.indexOf(':') + 1));
+  const goals = (brain.goals as SavedJson[]).filter((g) => !isRetired_36_37(g.targetId));
+  const memories = (brain.memories as SavedJson[]).filter((m) => !isRetired_36_37((m.fact as SavedJson).stock));
+  const noticed = Object.fromEntries(Object.entries(brain.noticed as Record<string, number>).filter(([key]) => !retired(key)));
+  const unfit = ((brain.unfit as string[] | undefined) ?? []).filter((id) => !isRetired_36_37(id));
+  return { ...brain, goals, memories, noticed, ...('unfit' in brain ? { unfit } : {}) };
+}
+
+const UNITS_2_19 = new Set(['part']);
+
+function withGoalIds_34_35(v: SavedJson): SavedJson {
+  const { name: _name, ...rest } = v;
+  const brain = v.brain as SavedJson | null;
+  if (!brain) return rest;
+  const goals = (brain.goals as SavedJson[]).map((g) => ({ ...g, reason: GOAL_REASONS_2_19[g.reason as string] ?? 'legacy' }));
+  return { ...rest, brain: { ...brain, goals } };
+}
+
+function withLineVars_34_35(vars: SavedJson): SavedJson | null {
+  const out: SavedJson = {};
+  for (const [key, v] of Object.entries(vars)) {
+    const item = v as SavedJson;
+    if (item.kind !== 'line') {
+      out[key] = item;
+      continue;
+    }
+    const line = WARN_LINES_2_19[item.text as string];
+    if (!line) return null;
+    out[key] = { kind: 'line', line };
+  }
+  return out;
+}
+
+function knownUnits_34_35(vars: SavedJson): boolean {
+  return Object.values(vars).every((v) => (v as SavedJson).kind !== 'count' || UNITS_2_19.has((v as SavedJson).unit as string));
+}
+
+function callWithLineId_34_35(call: SavedJson | null): SavedJson | null {
+  if (!call) return null;
+  const said = call.line as SavedJson;
+  const line = LINES_2_19[said.text as string];
+  if (!line || !knownUnits_34_35(call.vars as SavedJson) || !knownUnits_34_35(said.vars as SavedJson)) return null;
+  const vars = withLineVars_34_35(call.vars as SavedJson);
+  const sayVars = withLineVars_34_35(said.vars as SavedJson);
+  if (!vars || !sayVars) return null;
+  return { ...call, vars, line: { line, vars: sayVars } };
+}
+
+const withoutTargetName_34_35 = (c: SavedJson): SavedJson => {
+  const { targetName: _targetName, ...rest } = c;
+  return rest;
+};
+
+function withTextIds_34_35(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const shops = Object.fromEntries(
+    Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutTargetName_34_35) }]),
+  );
+  return {
+    ...world,
+    vehicles: (world.vehicles as SavedJson[]).map(withGoalIds_34_35),
+    player: { ...player, call: callWithLineId_34_35(player.call as SavedJson | null), contracts: (player.contracts as SavedJson[]).map(withoutTargetName_34_35) },
+    shops,
+  };
+}
+
 const WAGON_SEVEN_34_35 = {
   obstacle: { id: 'story-wagon-seven', pos: { x: 171, y: 381 }, r: 0.8, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: 2.2 } },
   stock: {
@@ -543,15 +724,15 @@ function withNotesAndWagon_34_35(world: SavedJson): SavedJson {
   };
 }
 
-const PERSONALITIES_38_39 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
+const PERSONALITIES_46_47 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
 
-function personalityOf_38_39(vehicleId: string): string {
+function personalityOf_46_47(vehicleId: string): string {
   const hash = [...vehicleId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
-  return PERSONALITIES_38_39[hash % PERSONALITIES_38_39.length];
+  return PERSONALITIES_46_47[hash % PERSONALITIES_46_47.length];
 }
 
-function withPersonalities_38_39(world: SavedJson): SavedJson {
-  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_38_39(v.id as string) } } : v);
+function withPersonalities_46_47(world: SavedJson): SavedJson {
+  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_46_47(v.id as string) } } : v);
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
@@ -634,11 +815,19 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
     return { ...world, player };
   },
   (world) => world,
+  (world) => world,
+  (world) => world,
+  withTextIds_34_35,
   withNotesAndWagon_34_35,
   (world) => ({ ...world, player: { ...(world.player as SavedJson), quests: { world: {}, local: {}, session: null } } }),
   (world) => dropQuestVar(dropQuest(dropQuest(world, 'sample_bowl'), 'sample_nose'), null, 'sample_wagon_heard'),
   (world) => dropQuestVar(dropQuestVar(world, 'nose_depot_leak', 'evidence'), 'nose_depot_leak', 'misled'),
-  withPersonalities_38_39,
+  withLieUpSpot_41_42,
+  withWideMg_42_43,
+  withoutRetiredSites_43_44,
+  (world) => world,
+  (world) => world,
+  withPersonalities_46_47,
 ];
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

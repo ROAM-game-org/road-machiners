@@ -1,4 +1,3 @@
-// Tuning numbers for NPC drivers: behavior limits, upkeep, hunting grounds and names. Re-exported by src/data/npcs.ts.
 
 import { RULES } from './rules';
 import { TERRAIN } from './terrain';
@@ -14,6 +13,7 @@ const LAW_GATE_REACH = 12;
 export const NPC_BEHAVIOR = {
   stallTurns: 100,
   stallJump: 20,
+  lieUp: { gap: { min: 2, max: 8 }, reach: 1.5, spacing: 1.5 },
   escortFeePerTile: 5,
   weakDecline: 20,
   escortWaitGap: 12,
@@ -30,10 +30,13 @@ export const NPC_BEHAVIOR = {
   dangerSpread: 0.25,
   threatFlee: 20,
   weakFlee: 20,
+  hunterFlee: 0.1,
   trappedFlee: 0.2,
   hurtFullFlee: 0.1,
   missFlee: 0.5,
   manageableFight: 5,
+  threatLeave: 10,
+  warnAnswerTurns: 5,
   keepWork: 400,
   noticeMemory: 3,
   fleeMemory: 30,
@@ -42,7 +45,6 @@ export const NPC_BEHAVIOR = {
   fightStallTurns: 20,
   fightWearShare: 0.05,
   crippledInvestigate: 0.01,
-  watchKeep: 30,
   lootedResume: 0.01,
   ram: {
     partWeight: { cab: 4, wheel: 2, transmission: 2, tank: 1, engine: 3, weapon: 3, armor: 0.25, scanner: 1, store: 1, cargo: 1, utility: 1 },
@@ -57,6 +59,7 @@ export const NPC_BEHAVIOR = {
   lootAppeal: {
     rob: { poor: 5000, rich: 16667, poorMul: 0.02 },
     raid: { poor: 0, rich: 13333, poorMul: 0.002 },
+    hunt: { poor: 0, rich: 6667, poorMul: 0.002 },
   },
   fightNearGuards: 0.001,
   towNearTown: { factor: 0.02, crawl: 15, far: 60 },
@@ -71,6 +74,7 @@ export const NPC_BEHAVIOR = {
 };
 
 export const NPC_UPKEEP = {
+  businessTurns: 3,
   repairParts: 2,
   shadeSearchRadius: 6,
   fuelReserve: 1.5,
@@ -94,8 +98,9 @@ export const HUNT = {
   lawReach: NPC_BEHAVIOR.patrolRadius + TERRAIN.vision.radius,
   offRoadGoals: ['raid', 'patrol', 'investigate'] as const,
   postRoadGap: 6,
-  postRings: [10, 14, 7],
-  postBearings: 16,
+  postRings: [7, 10, 14, 18, 22],
+  roadSample: 4,
+  postBearings: 12,
   patrolPostSpacing: 20,
   watchTurns: 40,
 };
@@ -113,6 +118,11 @@ export const FIRST_NAMES: readonly string[] = [
   'Rook', 'Ruth', 'Sal', 'Sasha', 'Silas', 'Tam', 'Tess', 'Ugo', 'Vera', 'Vic', 'Wade', 'Wren', 'Yuri', 'Zeke',
   'Zoya',
 ];
+
+export const FEMALE_NAMES: ReadonlySet<string> = new Set([
+  'Ada', 'Anya', 'Bea', 'Cass', 'Dora', 'Edda', 'Faye', 'Hester', 'Ida', 'Ivy', 'Juno', 'Kat', 'Lorna', 'Lupe',
+  'Mae', 'Mira', 'Nell', 'Opal', 'Pru', 'Raya', 'Ruth', 'Tess', 'Vera', 'Wren', 'Zoya',
+]);
 
 export const SURNAMES: readonly string[] = [
   'Ash', 'Baines', 'Barrow', 'Boyle', 'Brandt', 'Cobb', 'Crane', 'Culver', 'Dawes', 'Drummond', 'Dust', 'Fisk',

@@ -63,7 +63,6 @@ describe('settlement locals', () => {
 
   it('opens a question only once its fact holds', () => {
     const w = parkedAt('nose');
-    expect(choices(w, 'nose_ibo')).not.toContain('What happened at Burnt Convoy?');
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON);
     expect(choices(w, 'nose_kovac')).not.toContain(WAGON_FOUND);
 

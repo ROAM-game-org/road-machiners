@@ -1,5 +1,3 @@
-// Light from the clock, and the lights that switch on at night. The sun moves continuously: warm white at noon, gold in the late afternoon,
-// red at the horizon with long shadows, then a short twilight hands over to blue moonlight.
 
 import * as THREE from "three";
 import { TERRAIN } from "../../data/terrain";
@@ -91,10 +89,10 @@ const KEYS: Key[] = [
   {
     h: -TWILIGHT,
     sun: 0x8090c0,
-    sunI: 0.6,
+    sunI: 0.7,
     sky: 0x5a6c9c,
     ground: 0x1c1e2a,
-    skyI: 0.78,
+    skyI: 0.88,
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,

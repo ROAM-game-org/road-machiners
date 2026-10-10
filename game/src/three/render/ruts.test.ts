@@ -1,6 +1,3 @@
-// Ruts: a grounded wheel on soft ground lays one segment per step of travel, never on roads, in the air or from a
-// truck the player cannot see, and the pool never passes its cap. tirePoints, which ruts and wheel dust share, is
-// checked here too.
 
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
@@ -201,9 +198,10 @@ describe('Ruts', () => {
   it('never marks from a truck the player does not see, or between turns', () => {
     const w = worldOn('sand');
     const v = truckOf(w);
-    const element = { style: {}, appendChild: () => undefined };
+    const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined };
+    const element = { style: {}, appendChild: () => undefined, getContext: () => paint };
     vi.stubGlobal('document', { createElement: () => element });
-    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig);
+    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w);
     const truckFx = new TruckFx(fx);
 
     for (let i = 0; i <= 16; i++) {

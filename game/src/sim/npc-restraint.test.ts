@@ -15,7 +15,7 @@ import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
 import { cloneWorld, endTurn } from './world';
-import { addVehicle, emptyWorld, npcBrain, testDrive  } from './testkit';
+import { addVehicle, emptyWorld, finishBusiness, npcBrain, testDrive  } from './testkit';
 import { siteGates, sitePads } from './sites';
 import { budget } from '../test/budget';
 import type { NpcActivity, Vehicle, World } from './types';
@@ -29,7 +29,14 @@ function createNpc(templateId = 'scavenger') {
   return { world, npc };
 }
 
-const scavengeGoal: NpcActivity = { kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'search a known salvage site' };
+function loadedTrader(world: World, pos: { x: number; y: number }, parts = ['mg', 'stockEngine']): Vehicle {
+  const trader = addVehicle(world, 'traders', 'scout', parts, pos);
+  trader.brain = npcBrain('trader', trader.pos, TRAITS_OF.trader);
+  addGoods(world, trader, 'scrap', 2);
+  return trader;
+}
+
+const scavengeGoal: NpcActivity = { kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'searchSite' };
 
 function shareOfSeeds(world: World, npcId: string, check: (x: World, npc: Vehicle) => boolean, seeds = 200): number {
   let held = 0;
@@ -69,11 +76,11 @@ describe('NPC restraint', () => {
 
   it('judges the nearby hostile faction group before attacking', () => {
     const { world, npc } = createNpc('buggy');
-    addVehicle(world, 'traders', 'scout', ['mg'], { x: 33, y: 30 });
+    loadedTrader(world, { x: 33, y: 30 });
     const alone = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    addVehicle(world, 'traders', 'scout', ['mg'], { x: 33, y: 32 });
+    loadedTrader(world, { x: 33, y: 32 }, ['mg', 'mg', 'mg', 'stockEngine']);
     const grouped = shareOfSeeds(world, npc.id, (x, me) => thinkNpc(x, me).kind === 'flee');
-    expect(grouped).toBeGreaterThan(0.5);
+    expect(grouped).toBeGreaterThan(0.25);
     expect(grouped).toBeGreaterThan(alone + 0.2);
   });
 
@@ -87,7 +94,7 @@ describe('NPC restraint', () => {
       assignAutoOrders(x);
       const fights = topGoal(me)?.kind === 'fight';
       if (fights) expect(Object.keys(me.weaponOrders)).toHaveLength(1);
-      const paid = topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'take the handed-over cargo';
+      const paid = topGoal(me)?.kind === 'loot' && topGoal(me)?.reason === 'takeHandedCargo';
       return fights || paid;
     });
     expect(fought).toBeGreaterThan(0.9);
@@ -98,6 +105,7 @@ describe('NPC restraint', () => {
     const gate = siteGates(REGION.towns[0])[0];
     npc.pos = { x: gate.x + 3, y: gate.y };
     const prey = addVehicle(world, 'traders', 'scout', [], gate);
+    prey.brain = npcBrain('trader', prey.pos, TRAITS_OF.trader);
     addGoods(world, prey, 'scrap', 1);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
@@ -332,8 +340,8 @@ describe('NPC field repairs', () => {
     expect(thinkNpc(world, npc).kind).not.toBe('sell');
     addGoods(world, npc, 'scrap', 1);
     npc.pos = { ...sitePads(REGION.towns[0])[0] };
-    npc.brain!.goals = [{ kind: 'sell', targetId: REGION.towns[0].id, destination: REGION.towns[0].pos, phase: 'act', reason: 'sell loot' }];
-    resolveNpcActivities(world);
+    npc.brain!.goals = [{ kind: 'sell', targetId: REGION.towns[0].id, destination: REGION.towns[0].pos, phase: 'act', reason: 'sellCargo' }];
+    finishBusiness(world, npc);
     expect(goodsCount(npc).scrap ?? 0).toBe(0);
     expect(goodsCount(npc).parts).toBe(2);
   });

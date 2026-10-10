@@ -283,9 +283,9 @@ export function setWorldVar(world: World, name: string, value: QuestValue): void
   else world.player.quests.world[name] = value;
 }
 
-export function questProblems(state: QuestState, bundle: QuestBundle): string[] {
+export function questProblems(state: QuestState, bundle: QuestBundle): Error[] {
   return [
-    ...varProblems(state.world, bundle.world, (name) => `World variable ${name}`),
+    ...varProblems(state.world, bundle.world, (name) => new Error(`World variable ${name}`)),
     ...Object.entries(state.local).flatMap(([id, vars]) => localProblems(id, vars, bundle)),
     ...sessionProblems(state.session, bundle),
   ];
@@ -311,25 +311,25 @@ function fitting(vars: Record<string, unknown>, decls: Record<string, QuestVarDe
   return { kept, lost };
 }
 
-function localProblems(id: string, vars: QuestVars, bundle: QuestBundle): string[] {
+function localProblems(id: string, vars: QuestVars, bundle: QuestBundle): Error[] {
   const quest = bundle.quests[id];
-  if (!quest) return [`Quest ${id} does not exist`];
-  return varProblems(vars, quest.vars, (name) => `Variable ${name} of quest ${id}`);
+  if (!quest) return [new Error(`Quest ${id} does not exist`)];
+  return varProblems(vars, quest.vars, (name) => new Error(`Variable ${name} of quest ${id}`));
 }
 
-function varProblems(vars: QuestVars, decls: Record<string, QuestVarDecl>, label: (name: string) => string): string[] {
+function varProblems(vars: QuestVars, decls: Record<string, QuestVarDecl>, label: (name: string) => Error): Error[] {
   return Object.entries(vars).flatMap(([name, value]) => {
     const decl = decls[name];
-    if (!decl) return [`${label(name)} is not declared`];
-    return typeof value === decl.type ? [] : [`${label(name)} holds a ${typeof value}, not a ${decl.type}`];
+    if (!decl) return [new Error(`${label(name).message} is not declared`)];
+    return typeof value === decl.type ? [] : [new Error(`${label(name).message} holds a ${typeof value}, not a ${decl.type}`)];
   });
 }
 
-function sessionProblems(session: QuestSession | null, bundle: QuestBundle): string[] {
+function sessionProblems(session: QuestSession | null, bundle: QuestBundle): Error[] {
   if (!session) return [];
   const quest = bundle.quests[session.quest];
-  if (!quest) return [`Quest ${session.quest} does not exist`];
-  return quest.checkpoints.includes(session.checkpoint) ? [] : [`Quest ${session.quest} has no checkpoint ${session.checkpoint}`];
+  if (!quest) return [new Error(`Quest ${session.quest} does not exist`)];
+  return quest.checkpoints.includes(session.checkpoint) ? [] : [new Error(`Quest ${session.quest} has no checkpoint ${session.checkpoint}`)];
 }
 
 function enterCheckpoint(w: World, bundle: QuestBundle): void {
@@ -384,9 +384,9 @@ function noteCheckpoint(state: QuestState, tags: readonly string[]): void {
 
 function settle(w: World, bundle: QuestBundle, questId: string, story: Story, lines: QuestLine[]): void {
   const state = w.player.quests;
-  state.world = storedVars(story, bundle.world, 'the world');
+  state.world = storedVars(story, bundle.world, null);
   const { [questId]: _old, ...others } = state.local;
-  const local = storedVars(story, questOf(bundle, questId).vars, `quest ${questId}`);
+  const local = storedVars(story, questOf(bundle, questId).vars, questId);
   state.local = Object.keys(local).length > 0 ? { ...others, [questId]: local } : others;
   const choices = story.currentChoices.map((choice) => choice.text);
   const costs = story.currentChoices.map((choice) => choiceCost(questId, choice.text, choice.tags ?? []));
@@ -404,11 +404,11 @@ function choiceCost(questId: string, text: string, tags: readonly string[]): num
   return cost;
 }
 
-function storedVars(story: Story, decls: Record<string, QuestVarDecl>, owner: string): QuestVars {
+function storedVars(story: Story, decls: Record<string, QuestVarDecl>, quest: string | null): QuestVars {
   const stored: QuestVars = {};
   for (const [name, decl] of Object.entries(decls)) {
     const value: unknown = story.variablesState.$(name);
-    if (typeof value !== decl.type) throw new Error(`Variable ${name} of ${owner} became a ${typeof value}, not a ${decl.type}`);
+    if (typeof value !== decl.type) throw new Error(`Variable ${name} of ${quest === null ? 'the world' : `quest ${quest}`} became a ${typeof value}, not a ${decl.type}`);
     if (value !== decl.init) stored[name] = value as QuestVars[string];
   }
   return stored;

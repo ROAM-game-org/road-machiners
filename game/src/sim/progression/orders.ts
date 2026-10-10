@@ -1,6 +1,3 @@
-// A bot's player commands: Orders runs them one after another and keeps their events, and upgradeGear is the shop
-// upgrade routine every bot shares. At any shop it buys what ./gear.ts picks for the bot's job, the part
-// that adds most to it within the budget, and mounts it. The parts on offer are the shop's stock and the spares the bot
 
 import { chassisDef, PLAYER_CHASSIS } from '../../data/chassis';
 import { startKit } from '../../data/start';
@@ -127,7 +124,7 @@ function mount(o: Orders, c: Candidate, replaced: PartItem | null): void {
   c.acquire(o);
   const held = o.me.items.find((it): it is PartItem => it.kind === 'part' && it.part.id === c.part.id);
   const spot = installSpot(o.me, held ?? probe(c.part));
-  if (!spot) throw new Error(`No mount for the ${partDef(c.part.defId).name}`);
+  if (!spot) throw new Error(`No mount for the ${c.part.defId}`);
   mountBought(o, c.part.id, spot);
 }
 

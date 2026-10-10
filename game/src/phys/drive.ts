@@ -1,6 +1,3 @@
-// Physics driving for every vehicle. The map's terrain and obstacles become Rapier colliders; each
-// vehicle is a ray-cast car. Time only moves inside simulateTurn. A turn restores the world from a
-// snapshot and runs it forward, so the same state and orders always give the same result: the
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
@@ -593,6 +590,10 @@ function captureImpactMotion(body: RAPIER.RigidBody): ImpactMotion {
   return { velocity: body.linvel(), spin: body.angvel(), heading: headingOf(body.rotation()) };
 }
 
+function sideStiffness(i: number, sideGrip: number, share: number): number {
+  return T.sideFrictionStiffness * sideGrip * share * (i >= 2 ? T.rearSideGrip : 1);
+}
+
 function makeCar(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, mass: number): RAPIER.DynamicRayCastVehicleController {
   const car = world.createVehicleController(body);
   for (const m of wheelMounts(b)) {
@@ -604,7 +605,7 @@ function makeCar(world: RAPIER.World, body: RAPIER.RigidBody, b: Body, mass: num
     car.setWheelSuspensionRelaxation(i, T.suspensionRelaxation);
     car.setWheelMaxSuspensionForce(i, T.maxSuspensionForce * (mass / 1000));
     car.setWheelFrictionSlip(i, T.frictionSlip);
-    car.setWheelSideFrictionStiffness(i, T.sideFrictionStiffness);
+    car.setWheelSideFrictionStiffness(i, sideStiffness(i, 1, 1));
   }
   return car;
 }
@@ -660,7 +661,7 @@ function applyTerrainGrip(c: Car, terrain: Terrain, slick: readonly boolean[]): 
   for (let i = 0; i < 4; i++) {
     const share = slick[i] ? OIL.grip : 1;
     c.ctl.setWheelFrictionSlip(i, grip * share);
-    c.ctl.setWheelSideFrictionStiffness(i, T.sideFrictionStiffness * ground.sideGrip * share);
+    c.ctl.setWheelSideFrictionStiffness(i, sideStiffness(i, ground.sideGrip, share));
   }
 }
 

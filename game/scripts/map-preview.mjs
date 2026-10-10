@@ -1,6 +1,3 @@
-// Top-down pictures of a map draft for tuning the bake: ground type colors under hillshade, site edges
-// as rings and props in a color and shape per kind. An area is a rectangle of the map in tiles, { x, y, w, h } from its
-// top-left corner. Pixel (px, py) covers the map point (area.x + (px + 0.5) / pxPerTile, area.y + (py + 0.5) / pxPerTile).
 
 import { REGION } from '../src/data/region.ts';
 import { TERRAIN, TERRAIN_TYPES } from '../src/data/terrain.ts';
@@ -26,18 +23,20 @@ const PROP_LOOKS = {
   fence: { color: 0xf4ecd0, shape: 'rail' },
   junk: { color: 0xc03890, shape: 'disc' },
   carWreck: { color: 0x2a2a70, shape: 'long' },
-  fortMasonryWall: { color: 0xd8d0b8, shape: 'rail' },
-  fortMasonryTower: { color: 0xb8a888, shape: 'disc' },
-  fortMasonryGate: { color: 0xe05030, shape: 'long' },
-  fortMasonryBastion: { color: 0xb8a888, shape: 'box' },
-  fortMasonryInner: { color: 0xe05030, shape: 'long' },
+  fortPumpworksWall: { color: 0xd8d0b8, shape: 'rail' },
+  fortPumpworksTower: { color: 0xb8a888, shape: 'disc' },
+  fortPumpworksGate: { color: 0xe05030, shape: 'long' },
+  fortPumpworksInner: { color: 0xe05030, shape: 'long' },
+  fortCisternWall: { color: 0xd8d0b8, shape: 'rail' },
+  fortCisternTower: { color: 0xb8a888, shape: 'disc' },
+  fortCisternGate: { color: 0xe05030, shape: 'long' },
+  fortCisternInner: { color: 0xe05030, shape: 'long' },
   fortShipWall: { color: 0xd8d0b8, shape: 'rail' },
   fortShipTower: { color: 0xb8a888, shape: 'disc' },
   fortShipGate: { color: 0xe05030, shape: 'long' },
   fortScrapWall: { color: 0xd8d0b8, shape: 'rail' },
   fortScrapTower: { color: 0xb8a888, shape: 'disc' },
   fortScrapGate: { color: 0xe05030, shape: 'long' },
-  fortScrapBastion: { color: 0xb8a888, shape: 'box' },
   fortScrapInner: { color: 0xe05030, shape: 'long' },
   fortPatchworkWall: { color: 0xd8d0b8, shape: 'rail' },
   fortPatchworkTower: { color: 0xb8a888, shape: 'disc' },
@@ -54,6 +53,7 @@ const PROP_LOOKS = {
   hullChunk: { color: 0x909090, shape: 'long' },
   shipCache: { color: 0x40d040, shape: 'disc' },
   reactor: { color: 0xff40ff, shape: 'disc' },
+  engineCache: { color: 0xf0f040, shape: 'disc' },
   hullCache: { color: 0xf0f040, shape: 'disc' },
   shipBow: { color: 0xd6cfbf, shape: 'long' },
   shipCage: { color: 0xd6cfbf, shape: 'long' },

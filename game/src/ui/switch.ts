@@ -1,32 +1,34 @@
+import { t, type Msg } from "../text/msg";
 import { el } from "./dom";
 
 export interface SwitchOptions {
-  on: string;
-  off: string;
+  on: Msg;
+  off: Msg;
   checked: boolean;
   key?: string;
-  title: string;
-  disabled?: boolean;
+  title: Msg;
+  reason?: Msg | null;
   onclick: () => void;
 }
 
 export function createSwitch(o: SwitchOptions): HTMLElement {
-  const option = (name: string, chosen: boolean) =>
+  const option = (name: Msg, chosen: boolean) =>
     el(
       "span",
       { class: chosen ? "switch-option chosen" : "switch-option" },
       name,
-      chosen && o.key ? el("kbd", {}, `[${o.key}]`) : null,
+      chosen && o.key ? el("kbd", {}, t("ui.key", { key: o.key })) : null,
     );
+  const reason = o.reason ?? null;
   return el(
     "button",
     {
       class: "switch",
       role: "switch",
       "aria-checked": String(o.checked),
-      disabled: o.disabled,
-      title: o.title,
-      onclick: o.onclick,
+      "aria-disabled": reason === null ? undefined : "true",
+      title: reason ?? o.title,
+      onclick: () => reason === null && o.onclick(),
     },
     option(o.on, o.checked),
     el(

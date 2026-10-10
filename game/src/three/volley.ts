@@ -1,4 +1,5 @@
 import { CONFIG } from "../config";
+import type { Msg } from '../text/msg';
 import type { UtilityEffectType } from "../data/parts";
 import type { CueId } from "../data/sounds";
 import { PAL } from "../render/palette";
@@ -73,7 +74,7 @@ function showDamage(host: VolleyHost, r: ShotRound, landMs: number, rows: Map<st
   for (const dealt of [...struck, ...r.blast]) damageLabel(host, dealt.vehicle, roundLabel(host.world, dealt.vehicle, dealt.hits, r.crit), rows, landMs);
 }
 
-function damageLabel(host: VolleyHost, vehicleId: string, label: string | null, rows: Map<string, number>, atMs: number): void {
+function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, rows: Map<string, number>, atMs: number): void {
   const p = host.eventPoint(vehicleId);
   if (!label || !p) return;
   const row = rows.get(vehicleId) ?? 0;
@@ -119,6 +120,14 @@ export function playCookOff(host: CombatHost, brk: PartBreak): void {
   const p = ramShown(host, e.vehicle, e.part, e.pos);
   host.fx.claymoreBlast(p);
   host.sound.at("explosion", p, 0);
+}
+
+export function gunfireSeen(events: readonly GameEvent[], seen: (vehicleId: string) => boolean): boolean {
+  return events.some((e) => e.t === "shot" && seen(e.shooter) && seen(e.target));
+}
+
+export function volleySeen(events: readonly GameEvent[], seen: (vehicleId: string) => boolean): boolean {
+  return gunfireSeen(events, seen) || events.some((e) => (e.t === "utility" || e.t === "partDisabled") && seen(e.vehicle));
 }
 
 export function playDryGuns(host: CombatHost, played: Set<string>): void {

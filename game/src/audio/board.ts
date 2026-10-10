@@ -1,8 +1,6 @@
-// Dev sound board: every cue and variant through the game's mixer, each beside its bus anchor, for
-// auditioning by ear. Opened with npm run sfx:board.
 
 import { MIX, SOUNDS, type Bus, type Cue } from "../data/sounds";
-import { el } from "../ui/dom";
+import { devEl as el } from "../ui/dom";
 import { loadBank, type Bank } from "./bank";
 import { Mixer } from "./mixer";
 

@@ -1,6 +1,3 @@
-// Draws one item or chassis icon from the game's own models, for npm run icons.
-// The style follows the category. An item icon is a vector blueprint from blueprint.ts. A part draws in shades of its
-// category tone, and a good fills its outline with its model's own colors under see-through shading. A chassis portrait is toon: each model keeps its flat colors through a three-step ramp under one key light, with a
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -199,7 +196,7 @@ function build(entry: IconEntry): Omit<Stage, 'scene' | 'camera'> & { root: THRE
 }
 
 function bareTruck(chassisId: string): THREE.Object3D {
-  const v = bareVehicle({ nextId: 0 }, { name: chassisId, faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
+  const v = bareVehicle({ nextId: 0 }, { faction: 'player', chassisId, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const view = new VehicleView(v, false);
   const wheels = wheelMounts(bodyOf(chassisId)).map(() => ({ steer: 0, spin: 0, suspension: PHYSICS.truck.suspensionRest, ground: true }));
   view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels }, 0);

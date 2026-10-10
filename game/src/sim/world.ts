@@ -19,6 +19,7 @@ import { planNpcOrders } from './ai';
 import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
 import { advanceIntro, wakeInTown } from './intro';
 import { healPlayer } from './health';
@@ -27,7 +28,7 @@ import { applyHazards } from './hazard';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
-import { clearPiles, initializeSalvage, renewSalvage } from './salvage';
+import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
 import { spillDeadRows } from './spill';
 import { fadeCraters } from './craters';
 import { timed } from '../perf';
@@ -39,7 +40,7 @@ import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
-import type { GridItem, MoveOrder, PartInstance, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
+import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, parseSetup, repairSetup } from './settings';
 import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
 import { canOverdrive, vehicleStats } from './stats';
@@ -143,10 +144,9 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   };
   world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
   const truck = makeVehicle(world, {
-    name: kit.name,
     faction: "player",
     chassisId: kit.chassis,
-    parts: kit.parts.map((defId) => ({ defId, wear: 0 })),
+    parts: kit.parts.map((defId) => ({ defId, wear: kit.wear })),
     spares: [],
     cargo: kit.cargo,
     pos: start.pos,
@@ -160,13 +160,15 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     throw new Error(
       `Player start overlaps ${blocked.map((o) => o.id).join(", ")}`,
     );
+  wearCoreParts(world, truck, kit.wear);
   world.vehicles.push(truck);
   world.player.vehicleId = truck.id;
   initializeSalvage(world);
   setUpOpening(world, truck, kit.opening);
-  world.player.storage = kit.storage.map((defId) => makePart(world, defId, 0));
+  world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
   if (populate) spawnInitial(world);
   initializeShops(world);
+  stockOldSpots(world, map);
   refreshVision(world);
   world.events = [];
   return world;
@@ -174,6 +176,10 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
 
 function kitStart(kit: StartKit): { pos: Vec; heading: number } {
   return kit.intro?.pose ?? startPose();
+}
+
+function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
+  for (const item of truck.items) if (item.kind === "part" && partDef(item.part.defId).kind === "core") item.part = makePart(world, item.part.defId, wear);
 }
 
 export function startPose(): { pos: Vec; heading: number } {
@@ -224,11 +230,20 @@ export function update(world: World, fn: (draft: World) => void): World {
 function settleOverdrive(w: World): void {
   if (!w.player.overdrive || canOverdrive(playerVehicle(w))) return;
   w.player.overdrive = false;
-  w.events.push({ t: 'info', text: 'Overdrive cut out: the engine is too worn.' });
+  w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
+}
+
+export type ActBlock = 'knockedOut' | 'towed' | 'onRadio';
+
+export function actBlock(world: World): ActBlock | null {
+  if (world.player.state !== 'active') return 'knockedOut';
+  if (isTowed(world)) return 'towed';
+  if (world.player.call) return 'onRadio';
+  return null;
 }
 
 export function playerCanAct(world: World): boolean {
-  return world.player.state === 'active' && !isTowed(world) && !world.player.call;
+  return actBlock(world) === null;
 }
 
 export function requireActivePlayer(world: World): void {
@@ -253,6 +268,12 @@ function waitsOnBeacon(world: World): boolean {
   const p = world.player;
   const me = playerVehicle(world);
   return p.state === 'active' && p.beacon && isAtRest(me) && playerTow(world) === null;
+}
+
+export class Refused extends Error {
+  constructor(readonly refusal: Refusal) {
+    super(`Refused: ${refusal.id}`);
+  }
 }
 
 export function playerCommand(world: World, fn: (draft: World) => void): World {
@@ -379,7 +400,7 @@ export function setUtilityOrder(world: World, partId: string, order: UtilityOrde
       return;
     }
     const error = utilityOrderError(w, me, partId, order);
-    if (error) throw new Error(error);
+    if (error) throw new Refused(error);
     me.utilityOrders[partId] = order;
   });
 }
@@ -389,6 +410,12 @@ export function reloadWeapon(world: World, weaponId: string): World {
     const mw = vehicleStats(w, playerVehicle(w)).weapons.find((m) => m.part.id === weaponId);
     if (!mw) throw new Error(`Player has no weapon ${weaponId}`);
     dropMagazine(mw.part);
+  });
+}
+
+export function cutPlayerLine(world: World, harpoonId: string): World {
+  return playerCommand(world, (w) => {
+    cutLine(w, playerVehicle(w), harpoonId);
   });
 }
 
@@ -428,7 +455,7 @@ export function hostileToPlayer(world: World, v: Vehicle): boolean {
 }
 
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };
-export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: 0 | 1 };
+export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: Rot };
 
 export type Carried = {
   seed: number | null;
@@ -444,7 +471,7 @@ export type Carried = {
   fuel: number | null;
   supplies: number | null;
   costBasis: Record<string, number>;
-  truck: { chassisId: string; name: string | null; items: CarriedItem[] } | null;
+  truck: { chassisId: string; items: CarriedItem[] } | null;
   storage: CarriedPart[];
   setup: unknown;
   quests: CarriedQuestVars;
@@ -485,7 +512,7 @@ function carriedKit(carried: Carried, kit: StartKit, report: CarryReport): Start
     report.lost.push(saved.chassisId);
     return kit;
   }
-  return { ...kit, chassis: saved.chassisId, name: pick(saved.name, kit.name), parts: [], storage: [], cargo: {}, costBasis: {} };
+  return { ...kit, chassis: saved.chassisId, parts: [], storage: [], cargo: {}, costBasis: {} };
 }
 
 function pick<T>(value: T | null | undefined, fallback: T): T {

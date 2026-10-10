@@ -1,5 +1,3 @@
-// Turns game events into sound cues. Positioned cues use the same points as the visual effects, so fog of
-// war silences what the player may not see.
 
 import { BEATS_PER_BAR, engineFileFor, engineStrainFileFor, hornSoundFor, MIX, scorePhaseOf, SOUNDS, type CueId } from "../data/sounds";
 import { Fading, SoundDesigner, type Grid, type Hit, type Offer } from "../audio/designer";
@@ -25,7 +23,6 @@ const STINGS: {
   cue: CueId;
   match: (e: GameEvent, playerId: string) => boolean;
 }[] = [
-  { cue: "defeat", match: (e) => e.t === "knockout" },
   { cue: "level-up", match: (e) => e.t === "skillUp" },
   { cue: "discover", match: (e) => e.t === "discover" },
   { cue: "money", match: (e) => e.t === "money" && e.amount > 0 },

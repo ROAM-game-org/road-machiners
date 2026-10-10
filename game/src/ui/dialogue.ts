@@ -1,8 +1,5 @@
 
-import { DEAL_LINES, TIP_LINES } from '../data/dialogue';
-import { GOODS } from '../data/goods';
-import { REGION } from '../data/region';
-import { RUMORS } from '../data/rumors';
+import type { LineId } from '../data/dialogue';
 import { FACTION_COLORS } from '../render/palette';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { isKnockedOut } from '../sim/defeat';
@@ -10,95 +7,94 @@ import { callVehicle, chooseOption, currentOptions, hangUp, honk } from '../sim/
 import type { CallVar, CallVars, GameEvent, World } from '../sim/types';
 import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
-import { el, isBrowserChord, panel } from './dom';
+import { language, say } from '../text/language';
+import { byId, list, t, type Msg } from '../text/msg';
+import { goodLower, lineKey, partName, siteName, unitCount, vehicleTitle } from '../text/names';
+import { schemaOf } from '../text/resolve';
+import { el, isBrowserChord, panel, topCenter } from './dom';
 import { renderLine } from './quest-text';
-import { fuelLiters, meters, moneyText } from './units';
-import { npcName } from '../sim/spawn';
+import { fuelLiters, meters, moneyM } from './units';
 
-const COMPASS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
 const METERS_PER_KM = 1000;
 
-function compass(rad: number): string {
+function compass(rad: number): Msg {
   const step = (2 * Math.PI) / COMPASS.length;
   const i = Math.round(rad / step);
-  return COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length];
+  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
 }
 
-function townName(id: string): string {
-  const town = REGION.towns.find((t) => t.id === id);
-  if (!town) throw new Error(`Unknown town ${id}`);
-  return town.name;
-}
-
-function siteName(id: string): string {
-  const site = [...REGION.towns, ...REGION.locations].find((s) => s.id === id);
-  if (!site) throw new Error(`Unknown site ${id}`);
-  return site.name;
-}
-
-function distanceText(tiles: number): string {
+function distanceText(tiles: number): Msg {
   const m = meters(tiles);
-  return m >= METERS_PER_KM ? `${(m / METERS_PER_KM).toFixed(1)} km` : `${m} m`;
+  return m >= METERS_PER_KM ? t('call.km', { km: m / METERS_PER_KM }) : t('call.m', { m });
 }
 
-function dealText(v: Extract<CallVar, { kind: 'deal' }>): string {
-  const line = DEAL_LINES[v.deal][v.patcher === 'player' ? 'playerPatches' : 'npcPatches'];
-  return fillLine(line, { price: { kind: 'money', amount: v.price }, parts: { kind: 'count', n: v.parts, unit: 'part' } });
+const money = (amount: number): Msg => t('call.money', { amount: moneyM(amount) });
+
+function dealText(v: Extract<CallVar, { kind: 'deal' }>): Msg {
+  const parts = unitCount('part', v.parts);
+  if (v.deal === 'free') return t(`deal.free.${v.patcher}`, { parts });
+  return t(`deal.${v.deal}.${v.patcher}`, { price: money(v.price), parts });
 }
 
-function pricesText(v: Extract<CallVar, { kind: 'prices' }>): string {
-  return v.goods.map((g) => `${GOODS[g.good].name.toLowerCase()} buy ${moneyText(g.buy)} sell ${moneyText(g.sell)}`).join(', ');
+function pricesText(v: Extract<CallVar, { kind: 'prices' }>): Msg {
+  return list(v.goods.map((g) => t('call.price', { good: goodLower(g.good), buy: money(g.buy), sell: money(g.sell) })));
 }
 
-function aidText(v: Extract<CallVar, { kind: 'aid' }>): string {
+export function aidWords(fuel: number, supplies: number): Msg {
   const parts = [
-    ...(v.fuel > 0 ? [`${fuelLiters(v.fuel)} L of fuel`] : []),
-    ...(v.supplies > 0 ? [`${v.supplies} ${v.supplies === 1 ? 'supply' : 'supplies'}`] : []),
+    ...(fuel > 0 ? [t('call.fuel', { liters: fuelLiters(fuel) })] : []),
+    ...(supplies > 0 ? [t('call.supplies', { n: supplies })] : []),
   ];
   if (parts.length === 0) throw new Error('Aid of no fuel and no supplies is never named in a line');
-  return parts.join(' and ');
+  return parts.length === 2 ? t('call.aid', { fuel: parts[0], supplies: parts[1] }) : parts[0];
 }
 
-export function tipText(v: Extract<CallVar, { kind: 'tip' }>): string {
-  if (!v.tip) return TIP_LINES.none;
-  const line = v.tip.dear ? TIP_LINES.dear : TIP_LINES.cheap;
-  const good = GOODS[v.tip.good];
-  return line.replace('{site}', siteName(v.tip.shop)).replace('{good}', good.name.toLowerCase()).replace('{was}', good.plural ? 'were' : 'was');
+export function tipText(v: Extract<CallVar, { kind: 'tip' }>): Msg {
+  if (!v.tip) return t('tip.none');
+  const words = { site: siteName(v.tip.shop), subject: byId(`good.${v.tip.good}.subject`) };
+  return v.tip.dear ? t('tip.dear', words) : t('tip.cheap', words);
 }
 
-function rumorText(v: Extract<CallVar, { kind: 'rumor' }>): string {
-  const rumor = RUMORS.find((r) => r.id === v.id);
-  if (!rumor) throw new Error(`Unknown rumor ${v.id}`);
-  return rumor.text;
+export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
+  const names = [
+    ...Object.entries(v.goods).map(([good, n]) => t('call.haulGood', { n, good: goodLower(good) })),
+    ...v.parts.map((id) => t('call.haulPart', { part: partName(id) })),
+  ];
+  if (names.length === 0) throw new Error('An empty haul is never named in a line');
+  return list(names);
 }
 
-type VarText ={ [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => string };
+type VarText = { [K in CallVar['kind']]: (v: Extract<CallVar, { kind: K }>) => Msg };
 
 const VAR_TEXT: VarText = {
-  town: (v) => townName(v.id),
+  town: (v) => siteName(v.id),
   site: (v) => siteName(v.id),
-  money: (v) => moneyText(v.amount),
+  money: (v) => money(v.amount),
   distance: (v) => distanceText(v.tiles),
   bearing: (v) => compass(v.rad),
-  count: (v) => `${v.n} ${v.n === 1 ? v.unit : `${v.unit}s`}`,
+  count: (v) => unitCount(v.unit, v.n),
   deal: dealText,
   prices: pricesText,
-  aid: aidText,
+  aid: (v) => aidWords(v.fuel, v.supplies),
+  haul: haulText,
   tip: tipText,
-  rumor: rumorText,
+  line: (v) => lineText(v.line, {}),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };
 
-function formatVar<K extends CallVar['kind']>(v: Extract<CallVar, { kind: K }>): string {
-  return (VAR_TEXT[v.kind as K] as (x: typeof v) => string)(v);
+function formatVar<K extends CallVar['kind']>(v: Extract<CallVar, { kind: K }>): Msg {
+  return (VAR_TEXT[v.kind as K] as (x: typeof v) => Msg)(v);
 }
 
-export function fillLine(text: string, vars: CallVars): string {
-  return text.replace(/\{(\w+)\}/g, (_, name: string) => {
+export function lineText(id: LineId, vars: CallVars): Msg {
+  const key = lineKey(id);
+  const params = Object.keys(schemaOf(key)).map((name) => {
     const v = vars[name];
-    if (!v) throw new Error(`Line "${text}" needs the call value ${name}`);
-    return formatVar(v);
+    if (!v) throw new Error(`Line ${id} needs the call value ${name}`);
+    return [name, formatVar(v)] as const;
   });
+  return byId(key, Object.fromEntries(params));
 }
 
 function isTyping(): boolean {
@@ -155,7 +151,7 @@ class Horn {
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 export class DialoguePanel {
-  private readonly root = panel('dialogue');
+  private readonly root = panel('dialogue notice', topCenter());
   private readonly horn: Horn;
   private drawn = '';
 
@@ -174,16 +170,18 @@ export class DialoguePanel {
       return this.root.replaceChildren();
     }
     const offered = currentOptions(w);
-    const key = JSON.stringify([call, offered.map((o) => o.text)]);
+    const key = JSON.stringify([call, offered.map((o) => o.line), language()]);
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
     this.root.style.borderLeftColor = `#${FACTION_COLORS[npc.faction].top.toString(16).padStart(6, '0')}`;
     this.root.classList.remove('qt-done');
-    const options = offered.map((o, i) => el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, `${i + 1}. ${o.text}`));
-    const line = renderLine(`“${fillLine(call.line.text, call.line.vars)}”`, [], 0).el;
+    const options = offered.map((o, i) =>
+      el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) })),
+    );
+    const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, [], 0).el;
     line.classList.add('dialogue-line');
-    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, `Radio: ${npcName(npc)}`), line, el('div', { class: 'dialogue-options' }, ...options));
+    this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, t('call.speaker', { who: vehicleTitle(w, npc) })), line, el('div', { class: 'dialogue-options' }, ...options));
   }
 
   private onKey(e: KeyboardEvent): void {

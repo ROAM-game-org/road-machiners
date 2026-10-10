@@ -1,6 +1,3 @@
-// The claymore ram: arming it, its blast in a hard crash on its side into a truck or an obstacle, and disarming it
-// once it breaks or leaves its mount. utility.ts hands it the arming order and crash-contact.ts each crash. The
-// charge state and the reload belong to utility.ts.
 
 import { partDef, type ClaymoreDef } from '../data/parts';
 import { coversSide, lanePoint, walkLane, type PartHit, type Round, type Side } from './armor';
@@ -18,14 +15,14 @@ export type ClaymoreCrash = { impact: number; own: CrashContact; theirs: CrashCo
 
 export function claymoreOf(part: PartInstance): ClaymoreDef {
   const def = partDef(part.defId);
-  if (def.kind !== 'armor' || !def.claymore) throw new Error(`${def.name} is not a claymore ram`);
+  if (def.kind !== 'armor' || !def.claymore) throw new Error(`${def.id} is not a claymore ram`);
   return def.claymore;
 }
 
 export function armClaymore(v: Vehicle, part: PartInstance): void {
   claymoreOf(part);
   const charge = chargeOf(part);
-  if (charge.armed || charge.reload > 0 || part.hp <= 0) throw new Error(`${v.name} cannot arm claymore ram ${part.id}`);
+  if (charge.armed || charge.reload > 0 || part.hp <= 0) throw new Error(`${v.id} cannot arm claymore ram ${part.id}`);
   charge.armed = true;
 }
 
