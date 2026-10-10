@@ -76,6 +76,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 115. A free radio voice starts reading the weather like an old farm report. The Guild cannot find her mast. She thanks the Creed for a meal she never ate: "Waste some time."
 - Year 115. The Bowl Senate lets tenant drivers carry rifles on the road, for the first time since the Grain War, and pays half the cost of rifles on grain runs.
 - Year 116. Otto Brann builds the swivel: a gun on a ring of hull plate that turns across a truck bed and locks with a pin.
+- Year 116. Danil Varga of the farm under the water tower on the south rim buys an old square pickup on Pierce credit. Otto Brann welds one of his first swivels into its bed and cuts his small mark into the ring.
 - Year 116. The western convoy of Dario Feld agrees a fixed fee to cross Canyon Bridge each year. The dreamer Lusa Fenwick rides west with it and comes back with tales of western towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - Year 117. The Vosk brothers, two Old Army deserters, rob three insured trucks on the Nose road. They always know which trucks to stop.
 - Year 118. A Granary truck with a Brann swivel fights them off at the Burnt Convoy. Its tenant driver, Bo Lindqvist, kills Jens Vosk. Anselm buries Jens across the road from Hal. Otto adds a second pin to every swivel.
@@ -89,10 +90,14 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 124. The Bowl funds a road patrol from the Granary count, the bridge toll, the convoy fee and tenant shares. Tenants may serve in it. The Nose refuses to pay and patrols only its own roads. Each town now guards the road near its walls, and the open road between them has no guard.
 - Year 125. Ain Christopher flees the Nose after his child dies and comes to Kiln Camp with Kaplan. Within a year he runs it. Dagny Brask, past 110, still keeps the furnace.
 - Year 126. Kiln riders strike the open road. They strip trucks that neither pay nor fight. The Granary pays a sack for each armed truck that crosses, and the convoy pays in medicine and cloth. Guild couriers start running in pairs. Wendell Ondra of the Pump Station dies at the Green Pit sluice. Brother Anselm dies at 75 and is buried between Hal and Jens.
+- Year 126. Marta "Ladle" Ruiz runs the south road for Kiln. A truck that has paid her toll carries a ladle scratched into its door.
 - Year 127. The Guild's trust rents Old Orchard's machine tools to the Nose, the only bidder who can pay. The Nose hauls them up the mountain and builds the basin's only workshop line. The Bowl keeps the gate of an empty farm and 36 trucks that stand where they stopped.
+- Year 127. The Varga well runs dry. Danil Varga takes the family pickup back from the Pierce collector Amos Teague, parks it in the farm shed and rides west with Feld's convoy as a gunner. Ruth Varga pays the rest of the debt in goats and diesel, and Amos hands her the key.
+- Year 128. Ladle Ruiz pays the Varga farm for its years of water with a machine gun stripped from a truck that did not pay. Karl Vosk sets it on the pickup's swivel and bores the ring a second pin. Ruth Varga leaves the key in the ignition and walks north to become a tenant on the Bowl terraces.
 - Year 128. The Nose line hands out a cheap steel copy of the Brann swivel with one pin. Pierce writes no paper on a one-pin mount, so Nose drivers pay the Salvage Yard to bore a second.
 - Year 128. The Apprentice reads the last marks in the central hull's shadow and tells nobody what he read. He trades the count's last number to the Preacher of the Sunward, who teaches it as the glow's word. The Sunward bar the Lunar Society from the rim.
 - Year 129. A Nose driver, Emil Kessel, dies on the north bend when his one-pin swivel slides and swings the gun into his cab. The Nose sends an Army post under Captain Silver into the Salvage Yard.
+- Year 129. A storm brings the Varga shed roof down over the pickup.
 - Year 130. Nobody drives the open road without a gun, except the Guild courier Tamsin Roe, who runs in a pair with Vesna Hale. The names of the dead are read at Canyon Bridge once a year.
 - Year 130. The last Given who woke in a pod are very old. Most people in the basin have a Given grandparent, and pale skin and grey eyes are common in the Nose. Some families still keep a grey suit or a pod tag stamped with common digits.
 
@@ -109,3 +114,4 @@ This part was generated with a second, smaller run of the story game. Its player
 - The top terraces of the Bowl, home of the old Senate families, draw seep water through a pipe no meter is allowed to read. The valve belongs to the household of Archon Gideon Marr. The Canal families count it each week in their own book.
 - The pipe fills a cistern under the Marr orchard. Half its water goes to the orchard and the Marr house. The other half is the Senate's drought store, voted in closed session in year 126, and only the Archon may open it. Wendell Ondra kept the pipe off the pump book for a year before the Senate's order, for a barrel of oil a month from the household.
 - The Glass Flats are sand melted by the ship's engine wash as it came down. The glass is thickest along the debris trail, and every ripple leans toward the Fallen Sun.
+- Kiln Camp sank a deep bore in the dry year 118 to cool its furnace. It draws from the same rock as the Varga well, and it drained the well. Nobody told Ruth Varga.

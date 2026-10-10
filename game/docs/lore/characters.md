@@ -247,3 +247,37 @@ Her line is "The test is here, but the road goes out there."
 Way: escape.
 
 Karl and his brother Jens were Old Army deserters who robbed insured trucks on the Nose road with routes bought from a Pierce clerk. Karl shot Hal Sorensen in year 113. After Jens died he hid among the Burnt Convoy families, and Sefa sent him south. He rides for Kiln Camp now, and nobody there asks about his past.
+
+In year 128, on Ladle's order, he bored a second pin into the swivel ring of the Varga pickup.
+
+## Ruth Varga
+
+Way: fear.
+
+Ruth kept the last farm with its own water on the south rim, below a water tower the Old World built. Every evening she measured the well with a knotted rope. From year 118 it dropped each summer, and nobody ever told her that Kiln Camp's deep bore drew from the same rock. When the well died in year 127 she paid the farm's Pierce debt in goats and diesel. In year 128 she walked north to the Bowl. She lives as a tenant on the third terrace, the thing she feared most, and buys her water at Hattie's well house every morning with sorghum. She left the pickup's key in the ignition in case her son came back and needed to leave fast.
+
+Her line is "The rope doesn't lie. People lie. The rope only gets shorter."
+
+## Danil Varga
+
+Way: escape.
+
+Ruth's son was born behind a wheel and raised behind a plough. He bought an old square pickup on Pierce credit, and Otto Brann welded one of his first swivels into its bed. Danil ran the farm's sorghum north through the Nose gate to pay for it. In year 127 Amos Teague held the pickup at the Nose for Pierce. Danil lifted the spare key from Amos's belt, drove the truck home in the dark, parked it in the shed and rode west with Dario Feld's convoy as a gunner, with his mother's rifle. He never came back.
+
+His line is "Every road out of here is a road out of here."
+
+## Marta "Ladle" Ruiz
+
+Way: oppose.
+
+Ladle runs the south road for Kiln Camp. She tastes every water barrel she takes, and Kiln riders drank free at the Varga tap for years in return for leaving Varga trucks alone. When the Varga well died she came for her last cup and found rust. She paid the debt her own way: a machine gun stripped from a truck that did not pay, set on the Varga pickup's swivel. Then she scratched her ladle into its door. On the south road the mark means the truck has paid. Her riders know the Vargas are gone, so to them a stranger in that truck is a thief, and the mark protects nothing. She fears that Kiln will melt her down with the guns the day it turns on her.
+
+Her line is "Paid is paid. For whoever paid it."
+
+## Amos Teague
+
+Way: control.
+
+Amos collected for the Pierce yard on the south road. He took the key of every truck he seized and hung it on his belt, and he closed every line in his ledger. He closed the Varga line in year 127 and, by his own habit, handed Ruth the key of a truck that was paid for, with the yard's brass tag still on it. Since the crews took the yard he tows for whoever pays. In year 130 he found a stranger knocked out in that same pickup and knew the tag. He towed the truck to Bowl and asked at the well house after a Varga woman, then drove off before anyone could fetch her, and left his chain behind.
+
+His line is "A line stays open till somebody closes it. I close them."
