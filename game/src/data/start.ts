@@ -32,7 +32,6 @@ export type Intro = {
   pose: { pos: Vec; heading: number };
   farm: FarmPiece[];
   health: number;
-  withoutIntro: string;
 };
 
 const STANDARD_OPENING: Opening = {
@@ -55,21 +54,7 @@ export const START_KITS: Record<string, StartKit> = {
     costBasis: { scrap: 333 },
     autoRepair: false,
     opening: { ...STANDARD_OPENING, wreck: ARRIVAL.wreck },
-    intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, health: ARRIVAL.health, withoutIntro: 'inBowl' },
-  },
-  inBowl: {
-    chassis: 'scout',
-    parts: ['panniers', 'mg', 'stockEngine'],
-    storage: [],
-    wear: 2,
-    money: 33300,
-    fuel: ARRIVAL.fuelLiters / UNITS.fuelLiters,
-    supplies: ARRIVAL.supplies,
-    cargo: { scrap: 2, parts: 2 },
-    costBasis: { scrap: 333 },
-    autoRepair: false,
-    opening: null,
-    intro: null,
+    intro: { pose: ARRIVAL.pose, farm: ARRIVAL.farm, health: ARRIVAL.health },
   },
   standard: {
     chassis: 'scout',

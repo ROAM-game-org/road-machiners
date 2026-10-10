@@ -14,7 +14,6 @@ import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
 import { startSearch } from '../sim/search';
-import { canUseSite } from '../sim/sites';
 import { isCliff, isRoadTile, tileAt } from '../sim/terrain';
 import { openingStopPoint, testDrive } from '../sim/testkit';
 import type { World } from '../sim/types';
@@ -210,21 +209,17 @@ describe('the arrival at the farm', () => {
 });
 
 describe('a skipped intro', () => {
-  it('starts the player parked in Bowl with the arrival truck, fuel and supplies, with no quest, no farm and no wreck', () => {
-    const w = newGame(SEED, 'arrival', false, TEST_MAP, setup);
-    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
-    expect(canUseSite(playerVehicle(w).pos, bowl)).toBe(true);
-    expect(playerVehicle(w).chassisId).toBe('scout');
-    expect(w.player.fuel).toBe(startKit('arrival').fuel);
-    expect(w.player.supplies).toBe(startKit('arrival').supplies);
-    expect(w.player.quests.session).toBeNull();
-    expect(w.obstacles.some((o) => o.id === FARM_TOWER_ID)).toBe(false);
-    expect(openingStockOf(w)).toBeNull();
-    expect(introStep(w)).toBe('off');
+  it('builds the same world as the intro, with the arrival scene the only thing missing', () => {
+    const skipped = newGame(SEED, 'arrival', false, TEST_MAP, setup);
+    const played = newGame(SEED, 'arrival', true, TEST_MAP, setup);
+    expect(skipped.player.quests.session).toBeNull();
+    expect(played.player.quests.session?.quest).toBe('intro_arrival');
+    const withoutQuests = (w: World) => JSON.stringify({ ...saveOf(w).world, player: { ...(saveOf(w).world as World).player, quests: null } });
+    expect(withoutQuests(skipped)).toBe(withoutQuests(played));
   });
 
-  it('never starts the ambush for a skipped intro', () => {
-    expect(introStep(turns(newGame(SEED, 'arrival', false, TEST_MAP, setup), 3))).toBe('off');
+  it('runs the rest of the intro the same way when the scene is skipped', () => {
+    expect(introStep(turns(newGame(SEED, 'arrival', false, TEST_MAP, setup), 1))).toBe('drive');
   });
 });
 

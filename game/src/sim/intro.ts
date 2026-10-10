@@ -61,12 +61,6 @@ function parkInWakeTown(w: World): void {
   me.trail = [];
 }
 
-export function wakeTownStart(): { pos: Vec; heading: number } {
-  const site = getKnownSite(WAKE_TOWN);
-  const pad = nearestPad(site, site.pos);
-  return { pos: { ...pad }, heading: Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x) };
-}
-
 function settleBeforePatch(w: World, step: IntroStep): void {
   if (!w.obstacles.some((o) => o.id === FARM_TOWER_ID)) return;
   if (step !== 'drive') setIntroStep(w, 'drive');
