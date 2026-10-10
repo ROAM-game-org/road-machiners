@@ -5,41 +5,13 @@ export type NoteId = 'wagonBowl' | 'wagonNose' | 'wagonRoad' | 'wagonFound' | 'g
   | 'talkConvoyNotClean'
   | 'talkCraneBook'
   | 'talkPierceGuns'
-  | 'talkSunwardNumber'
-  | 'talkWestTowns'
-  | 'talkClerkWest'
   | 'talkGlassLean'
   | 'talkSunwardTake'
   | 'talkKilnFight'
   | 'talkOnePin'
   | 'talkArmyStarved'
   | 'talkCommitteeRent'
-  | 'pinAsk'
-  | 'pinStamp'
-  | 'pinRoster'
-  | 'pinBoots'
-  | 'bendOffers'
-  | 'bendKaplan'
-  | 'bendAsh'
-  | 'bendRise'
-  | 'cratesAsk'
-  | 'cratesLid'
-  | 'cratesTally'
-  | 'cratesFiles'
-  | 'cratesCopy'
-  | 'pipeBook' | 'pipeDraw' | 'pipeOffer' | 'pipeCanal' | 'sackGate' | 'sackStore' | 'sackDrop' | 'lampsLien' | 'lampsOil' | 'countWall' | 'countGap' | 'countRelease' | 'countLog'
-  | 'sackBeam'
-  | 'courierVesna'
-  | 'courierLetter'
-  | 'courierRider'
-  | 'courierKarl'
-  | 'namesReading'
-  | 'namesDrunk'
-  | 'namesBook'
-  | 'namesLetter'
-  | 'hooksSoldier'
-  | 'hooksSheet'
-  | 'hooksDrop';
+  | 'pipeBook' | 'pipeDraw' | 'pipeOffer' | 'pipeCanal';
 
 export type NoteDef = { title: string; from: string; text: string };
 
@@ -104,21 +76,6 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'Sefa Krol, at the Salvage Yard',
     text: 'Sefa has heard from a pair of drivers that Pierce sold the Old Army\'s guns north to Scrapjaw, then made every driver buy a gun to get paper. Each driver swears the other lied.',
   },
-  talkSunwardNumber: {
-    title: 'The number at the rim',
-    from: 'Ines Abend, at Nose',
-    text: 'Ines believes the number the Sunward chant at the rim is where the radio count stops. It is larger than this year\'s count. She does not know how they came to it.',
-  },
-  talkWestTowns: {
-    title: 'Western towns with no guns',
-    from: 'A Bowl patrol driver, at the Granary',
-    text: 'A patrol driver says convoy drivers tell of towns past the canyon whose trucks carry no guns, because a guard paid by every town keeps the roads. Lusa Fenwick brought the tale back. The driver has not been west.',
-  },
-  talkClerkWest: {
-    title: 'The clerk who went west',
-    from: 'A Bureau clerk, at Nose',
-    text: 'A Bureau clerk says the corridor holds that a Pierce clerk sold the roads of insured trucks to robbers, and was sent west and told to stay. The clerk says the Bureau case is closed.',
-  },
   talkGlassLean: {
     title: 'Glass that leans one way',
     from: 'Hattie, at the Bowl well house',
@@ -149,71 +106,6 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'Old Ibo, Nose radio shack',
     text: 'Old Ibo says the Guild\'s trust rents Old Orchard\'s machine tools to Nose, and command pays the Guild. He says to ask at the Pierce office who pays command. He will not repeat what he hears on the air.',
   },
-  pinAsk: {
-    title: 'The swivel from Emil Kessel\'s wreck',
-    from: 'Mara Kessel, Salvage Yard post',
-    text: 'Mara Kessel wants the gun mount from her brother Emil\'s wreck on the north road. The wreck was stripped before she got there. She does not say why she wants the mount, only that it carries one pin.',
-  },
-  pinStamp: {
-    title: 'How to know a Nose ring',
-    from: 'Otto Brann, Salvage Yard',
-    text: 'Otto Brann says a Nose swivel ring carries the gate stamp on its flat and a single pin hole. A Brann ring has a small mark and a second pin. Emil Kessel asked Otto about a second pin the winter before he died.',
-  },
-  pinRoster: {
-    title: 'The roster, copied twice',
-    from: 'The crane office, Salvage Yard',
-    text: 'A drawer in the Administrator\'s crane office holds Captain Silver\'s patrol roster. It is copied twice in one small hand, and the copy bears the name M. Kessel.',
-  },
-  pinBoots: {
-    title: 'Boots under the tracks',
-    from: 'The north bend',
-    text: 'Round Emil Kessel\'s wreck the boot prints of soldiers lie under the tracks of the cab that cut the ring. The soldiers came first, looked at the ring and left it.',
-  },
-  bendOffers: {
-    title: 'Silver wants the bend cleared',
-    from: 'Captain Silver, Salvage Yard post',
-    text: 'Captain Silver says a man at the north bend stops his Nose drivers and tells them their mounts are bad. Silver wants him gone, and he pays for it.',
-  },
-  bendKaplan: {
-    title: 'Kiln wants the bend cleared',
-    from: 'A Kiln rider, for Kaplan',
-    text: 'Kaplan of Kiln Camp sent a rider to say the man at the north bend slows the road. Ain wants him gone. Kaplan would rather he left alive, and he pays for it.',
-  },
-  bendAsh: {
-    title: 'The man at the north bend',
-    from: 'Ash Kerimov, north bend',
-    text: 'Ash Kerimov rode for Scrapjaw once. He sits at the north bend where Emil Kessel died and asks every driver to show the pins of their swivel. He pays for a second pin when a driver cannot.',
-  },
-  bendRise: {
-    title: 'A crate above the narrow corner',
-    from: 'The rise above the north bend',
-    text: 'At dusk a Nose cart left a crate of greased Army rifles in the rocks above the narrow corner of the north bend. A bundle of new Kiln red cloth lay on the lid.',
-  },
-  cratesAsk: {
-    title: 'Hook crates and wheel crates',
-    from: 'Constance Pierce, Nose office',
-    text: 'Constance Pierce says the old Pierce yard crated the Old Army\'s stripped guns. Wheel crates went to a crossroads dealer. Hook crates went north. She wants to know who ordered the hook crates.',
-  },
-  cratesLid: {
-    title: 'A lid with a hook and a Brann mark',
-    from: 'Otto Brann, Salvage Yard',
-    text: 'Otto Brann strapped the hook crates for the yard and signed each strap. He kept a lid. It has a hook burned in and chalk on its edge that reads north gate, by L.',
-  },
-  cratesTally: {
-    title: 'The crane book',
-    from: 'Sully Okafor, Salvage Yard',
-    text: 'The old yard tally in the crane office lists hook crates leaving by the north gate, week after week. Each line ends with a sealed order and one initial, L.',
-  },
-  cratesFiles: {
-    title: 'Dell Marr\'s last page',
-    from: 'The Pierce filing room, Nose',
-    text: 'The Pierce filing room keeps the crate manifests in Dell Marr\'s hand. His last line ends mid-word, and the pages after it were cut out with a blade.',
-  },
-  cratesCopy: {
-    title: 'Mara Kessel\'s old case',
-    from: 'Sully Okafor, crane office',
-    text: 'The second copy of Mara Kessel\'s Bureau case lies in a drawer of the crane office. Each insured truck was filed at the Nose office in the morning and stopped on the road that night. The clerk who filed them was sent west by order of the underwriting floor, with the initial L beside the line.',
-  },
   pipeBook: {
     title: 'The pump book',
     from: 'Agnes Ondra, Pump Station',
@@ -234,116 +126,11 @@ export const NOTES: Record<NoteId, NoteDef> = {
     from: 'Mirela Duarte, Bowl lock house',
     text: "The Canal book holds the same weekly line for the Archon's pipe as the pump book. Mirela's cousin Tomas wrote a patrol report on the valve. It lies on the Archon's desk.",
   },
-  sackGate: {
-    title: 'Boards on the Granary gate',
-    from: 'Odile Marsh, the Granary',
-    text: "Odile chalks a pair of counts on the gate each night. One is the sacks paid to Kiln Camp for each armed truck. One is the tenants' share for the road patrol. The sacks leaving the store are more than both add up to.",
-  },
-  sackStore: {
-    title: 'The store book',
-    from: 'The Granary weigh house',
-    text: 'Each day the same few sacks fall between the store book and the boards. The sentry log and the sacks owed to Kiln match line for line.',
-  },
-  sackDrop: {
-    title: 'The collector and his stick',
-    from: 'The Kiln drop',
-    text: 'The Kiln collector notches a stick for the carters and notches it again for sacks that never left a cart. A second wagon waits behind the rocks.',
-  },
-  sackBeam: {
-    title: 'A filed poise on the Granary beam',
-    from: 'The Granary weigh house',
-    text: 'The poise weight on the weighing block is a hand lighter than its stamp. Bright file marks run along its edge. Nobody says who held the file.',
-  },
-  lampsLien: {
-    title: 'Numbers on the lamps',
-    from: 'The Glass Flats',
-    text: 'Every lamp in the pod field carries a Pierce lien number in yellow paint. On one post an older number shows beneath the paint.',
-  },
-  lampsOil: {
-    title: 'Oil for the Bowl',
-    from: 'Young Tam, at the Glass Flats',
-    text: 'The Bowl buys the lamp oil from the pod field, and the coin goes to a Pierce clerk. The oil can Tam carries up the ladder gets lighter every week. The last lamp is dry.',
-  },
-  countWall: {
-    title: 'Coats of paint at Old Orchard',
-    from: 'The blockhouse wall',
-    text: 'The Old Orchard blockhouse wall holds a number painted over a number. This morning the number is one short of the last.',
-  },
-  countGap: {
-    title: 'An empty slot in the third row',
-    from: 'Old Orchard motor pool',
-    text: 'A truck is gone from the end of the third row. The chocks are still there, with a lien number stenciled on each, and the ground is swept. The gate was shut all night.',
-  },
-  countRelease: {
-    title: 'A release paper with a Marr seal',
-    from: 'The Old Orchard gate corporal',
-    text: "At dusk a Pierce cart carried a truck out of Old Orchard on a paper sealed by the Archon's household. The patrol let it pass.",
-  },
-  countLog: {
-    title: "Ilya's torn page",
-    from: 'Ilya Moreno, Old Orchard',
-    text: "A page from the Army's motor pool book. Every quarter the Nose owed the Army fuel, and every quarter the book is marked held.",
-  },
-  courierVesna: {
-    title: 'A new rider on the south bend',
-    from: 'Vesna Hale, Guild courier',
-    text: 'Vesna says Kiln riders take the trucks that run alone. A new rider holds the south bend this season, and his truck carries a Brann swivel.',
-  },
-  courierLetter: {
-    title: 'A letter for Kiln Camp',
-    from: 'Tamsin Roe, Guild courier',
-    text: 'Tamsin carries a thick letter capped with a Burnt Convoy tin seal. It is addressed to Karl Vosk, care of Kiln Camp.',
-  },
-  courierRider: {
-    title: 'The new rider asked about the bag',
-    from: 'Haulers at the Green Pit tables',
-    text: 'The new Kiln rider sat at Green Pit last week with his rifle left on his truck. He asked what the courier bag carries. He had never seen the Guild stripe.',
-  },
-  courierKarl: {
-    title: 'The rider read his letter',
-    from: 'The south bend',
-    text: 'The rider on the south bend wears an Army coat with red thread at the cuff. He read the Burnt Convoy letter on his fender and asked Tamsin to tell Sefa that he eats and he rides.',
-  },
-  namesReading: {
-    title: 'The Reading of Names',
-    from: 'Lusa Fenwick, at the Bowl well',
-    text: 'Lusa reads the names of the dead on the bridge deck once a year: Hal Sorensen, Jens Vosk, Brother Anselm, Wendell Ondra and Emil Kessel. Drivers answer each name from their cabs.',
-  },
-  namesDrunk: {
-    title: 'Who shot Hal Sorensen',
-    from: 'A drunk man at the bridge toll hut',
-    text: 'A drunk man says Karl Vosk, the younger Vosk, shot Hal Sorensen below the bridge. He says Jens only held the wheel. He kept a spent Old Army brass from the road.',
-  },
-  namesBook: {
-    title: 'Dario Feld\'s book',
-    from: 'Lusa Fenwick, on the bridge deck',
-    text: 'The old convoy master wrote that on the day before Hal was shot, a pair of men in Army coats watched the trucks from the rise below the bridge. The younger had red thread at his cuff.',
-  },
-  namesLetter: {
-    title: 'Hal\'s last letter',
-    from: 'Lusa Fenwick, on the bridge deck',
-    text: 'Hal wrote that a stranger offered him a rifle for grain. He would not pay for a thing he did not ask for.',
-  },
-  hooksSoldier: {
-    title: 'A Nose soldier at the hooks',
-    from: 'Pim Arslan, at the Salvage Yard stalls',
-    text: 'A Nose soldier from Silver\'s post sits by the hooks at Green Pit and writes. Hadiza Okon wants to know what he writes and who reads it.',
-  },
-  hooksSheet: {
-    title: 'What the soldier writes',
-    from: 'The hooks at Green Pit',
-    text: 'The soldier writes a stamp, wheel or hook, and the face that hung each rifle. Yard crews sit beside Kiln riders on every line.',
-  },
-  hooksDrop: {
-    title: 'Where the sheet goes',
-    from: 'Silver\'s post, inside the Salvage Yard',
-    text: 'The soldier hands his sheet to a clerk at Silver\'s post. The clerk pins it by the captain\'s door, and a second hand inks a line under it: Yard crews drink with raiders.',
-  },
 };
 
 export const NOTE_IDS = Object.keys(NOTES) as NoteId[];
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'bo' | 'sefa' | 'ines' | 'granaryDriver' | 'bureauClerk' | 'pin_mara' | 'bend_silver' | 'crates_constance' | 'agnes' | 'odile' | 'courierTamsin' | 'namesLusa' | 'hooksPim';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'jory' | 'sefa' | 'agnes';
 
 export type LocalDef = { id: LocalId; name: string; role: string; town: string; quest: string };
 
@@ -355,17 +142,6 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   lena: { id: 'lena', name: 'Lena', role: 'Mechanic', town: 'nose', quest: 'nose_lena' },
   ibo: { id: 'ibo', name: 'Old Ibo', role: 'Radio man', town: 'nose', quest: 'nose_ibo' },
   jory: { id: 'jory', name: 'Jory Baptiste', role: 'Speaks for the tenants', town: 'bowl', quest: 'bowl_jory' },
-  bo: { id: 'bo', name: 'Bo Lindqvist', role: 'Granary truck driver', town: 'bowl', quest: 'bowl_bo' },
   sefa: { id: 'sefa', name: 'Sefa Krol', role: 'Trades for the Burnt Convoy families', town: 'salvage-yard', quest: 'yard_sefa' },
-  ines: { id: 'ines', name: 'Ines Abend', role: 'Lunar Society', town: 'nose', quest: 'nose_ines' },
-  granaryDriver: { id: 'granaryDriver', name: 'Patrol driver', role: 'Bowl road patrol', town: 'granary', quest: 'granary_driver' },
-  bureauClerk: { id: 'bureauClerk', name: 'Bureau clerk', role: 'Order Bureau records', town: 'nose', quest: 'nose_clerk' },
-  pin_mara: { id: 'pin_mara', name: 'Mara Kessel', role: 'Post officer', town: 'salvage-yard', quest: 'yard_mara' },
-  bend_silver: { id: 'bend_silver', name: 'Captain Silver', role: 'Commands the Nose post', town: 'salvage-yard', quest: 'yard_silver' },
-  crates_constance: { id: 'crates_constance', name: 'Constance Pierce', role: 'Head underwriter', town: 'nose', quest: 'nose_constance' },
   agnes: { id: 'agnes', name: 'Agnes Ondra', role: 'Keeps the pump book', town: 'pump-station', quest: 'pump_agnes' },
-  odile: { id: 'odile', name: 'Odile Marsh', role: 'Granary steward', town: 'granary', quest: 'granary_odile' },
-  courierTamsin: { id: 'courierTamsin', name: 'Tamsin Roe', role: 'Guild courier', town: 'nose', quest: 'nose_courier' },
-  namesLusa: { id: 'namesLusa', name: 'Lusa Fenwick', role: 'Reads the names', town: 'bowl', quest: 'bowl_names' },
-  hooksPim: { id: 'hooksPim', name: 'Pim Arslan', role: 'Glass cutter', town: 'salvage-yard', quest: 'salvage_hooks' },
 };

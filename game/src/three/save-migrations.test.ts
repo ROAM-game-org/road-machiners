@@ -51,6 +51,7 @@ import FORMAT_2_43 from './save-fixtures/format-2-43.json';
 import FORMAT_2_44 from './save-fixtures/format-2-44.json';
 import FORMAT_2_46 from './save-fixtures/format-2-46.json';
 import FORMAT_2_47 from './save-fixtures/format-2-47.json';
+import FORMAT_2_48 from './save-fixtures/format-2-48.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1092,5 +1093,25 @@ describe('save migration 47 to 48', () => {
     other.player.quests.world.intro_step = 'ambush';
 
     expect(MIGRATIONS[47](structuredClone(other))).toEqual(other);
+  });
+});
+
+describe('save migration 48 to 49', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it('drops the cut quests, their world variables and their notes, and keeps the rest', () => {
+    const next = playerOf(MIGRATIONS[48](structuredClone(FORMAT_2_48)));
+
+    expect(next.quests).toEqual({ world: { intro_step: 'done', pipe_fate: 'delivered' }, local: { bowl_hattie: { hattie_flats: true } }, session: null });
+    expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl', 'pipeBook']);
+    expect(next.money).toBe(1200);
+  });
+
+  it('keeps a session inside a kept quest', () => {
+    const world = structuredClone(FORMAT_2_48);
+    world.player.quests.session = { quest: 'pump_pipe', checkpoint: 'road', seed: 17 };
+
+    expect(playerOf(MIGRATIONS[48](world)).quests.session).toEqual({ quest: 'pump_pipe', checkpoint: 'road', seed: 17 });
   });
 });

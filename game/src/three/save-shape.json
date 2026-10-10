@@ -1,5 +1,5 @@
 {
- "format": "2.48",
+ "format": "2.49",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1885,45 +1885,13 @@
  },
  "quests": {
   "world": {
-   "bend_fate": "string",
-   "count_fate": "string",
-   "courier_fate": "string",
-   "crates_fate": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
-   "hooks_report": "string",
    "intro_step": "string",
-   "kiln_word": "string",
-   "lamps_fate": "string",
-   "letter_fate": "string",
-   "lien_standing": "string",
    "marr_regard": "string",
-   "names_vosk": "string",
-   "pin_fate": "string",
-   "pin_pact": "string",
-   "pipe_fate": "string",
-   "post_file": "string",
-   "sack_fate": "string",
-   "yard_power": "string"
+   "pipe_fate": "string"
   },
   "local": {
-   "bend_north": {
-    "ash_story": "boolean",
-    "bench_fee": "number",
-    "crew_fee": "number",
-    "fund": "number",
-    "heard_kaplan": "boolean",
-    "kaplan_pay": "number",
-    "kiln_shut": "boolean",
-    "saw_rise": "boolean",
-    "scarf": "boolean",
-    "seen_ash": "boolean",
-    "silver_pay": "number"
-   },
-   "bowl_bo": {
-    "bo_fight": "boolean",
-    "bo_roll": "boolean"
-   },
    "bowl_dag": {
     "dag_kiln": "boolean",
     "dag_pay": "boolean",
@@ -1941,113 +1909,15 @@
     "jory_nose": "boolean",
     "jory_patrol": "boolean"
    },
-   "bowl_names": {
-    "book_seen": "boolean",
-    "bounty": "number",
-    "brass_held": "boolean",
-    "drink_price": "number",
-    "drunk_said": "boolean",
-    "hal_letter_read": "boolean",
-    "kiln_known": "boolean",
-    "outcome": "string",
-    "refused": "boolean",
-    "runner": "boolean",
-    "sergeant_fine": "number"
-   },
    "bowl_ruben": {
     "ruben_old": "boolean",
     "ruben_senate": "boolean",
     "ruben_sun": "boolean",
     "ruben_water": "boolean"
    },
-   "crates_hook": {
-    "caught": "boolean",
-    "dear": "boolean",
-    "forged_pay": "number",
-    "lid_how": "string",
-    "look_price": "number",
-    "lucan_pay": "number",
-    "mara_copy": "boolean",
-    "office_files": "boolean",
-    "otto_lid": "boolean",
-    "otto_wheel": "boolean",
-    "proof_pay": "number",
-    "rush_price": "number",
-    "yard_tally": "boolean"
-   },
    "first_fall": {},
-   "granary_driver": {
-    "driver_haul": "boolean",
-    "driver_road": "boolean"
-   },
-   "granary_lamps": {
-    "guarded": "boolean",
-    "juno_said": "boolean",
-    "lamps_seen": "boolean",
-    "lien": "number",
-    "offer": "number",
-    "paper_seen": "boolean",
-    "quarter": "number",
-    "slip_read": "boolean",
-    "sour": "boolean",
-    "tam_said": "boolean"
-   },
-   "granary_odile": {
-    "knows_gate": "boolean",
-    "knows_lamps": "boolean",
-    "knows_orchard": "boolean",
-    "knows_patrol": "boolean"
-   },
-   "granary_sack": {
-    "beam_read": "boolean",
-    "beating": "number",
-    "board_cost": "number",
-    "bribe": "number",
-    "carter_said": "boolean",
-    "drop_seen": "boolean",
-    "hush": "number",
-    "log_read": "boolean",
-    "mend_fee": "number",
-    "pin_bent": "boolean",
-    "pin_cost": "number",
-    "reward": "number",
-    "stick_taken": "boolean",
-    "store_read": "boolean",
-    "toll": "number",
-    "warned": "boolean",
-    "weigher_said": "boolean"
-   },
    "intro_arrival": {},
    "intro_bowl": {},
-   "nose_clerk": {
-    "asked_box": "boolean",
-    "asked_case": "boolean",
-    "asked_kessel": "boolean",
-    "asked_mounts": "boolean",
-    "heard_box": "boolean",
-    "heard_case": "boolean",
-    "heard_kessel": "boolean",
-    "heard_mounts": "boolean"
-   },
-   "nose_constance": {
-    "heard_guns": "boolean",
-    "heard_rule": "boolean"
-   },
-   "nose_courier": {
-    "asked_gun": "boolean",
-    "drinkers_said": "boolean",
-    "gun": "boolean",
-    "letter_seen": "boolean",
-    "lock_way": "string",
-    "lost_share": "number",
-    "met_vesna": "boolean",
-    "read_rider": "boolean",
-    "result": "string",
-    "reward": "number",
-    "riding": "boolean",
-    "toll": "number",
-    "vesna_said": "boolean"
-   },
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -2083,18 +1953,6 @@
     "heard_tone": "boolean",
     "heard_tools": "boolean"
    },
-   "nose_ines": {
-    "asked_chant": "boolean",
-    "asked_end": "boolean",
-    "asked_families": "boolean",
-    "asked_rim": "boolean",
-    "asked_teo": "boolean",
-    "heard_chant": "boolean",
-    "heard_end": "boolean",
-    "heard_families": "boolean",
-    "heard_rim": "boolean",
-    "heard_teo": "boolean"
-   },
    "nose_kovac": {
     "asked_courier": "boolean",
     "asked_gate_law": "boolean",
@@ -2119,43 +1977,6 @@
     "heard_sun": "boolean",
     "heard_swivel": "boolean"
    },
-   "orchard_count": {
-    "chased": "boolean",
-    "cold": "boolean",
-    "gap_seen": "boolean",
-    "ilya_said": "boolean",
-    "marks_seen": "boolean",
-    "paint": "number",
-    "price": "number",
-    "release_read": "boolean",
-    "stub_fee": "number",
-    "stub_read": "boolean",
-    "tow": "number",
-    "wall_read": "boolean"
-   },
-   "pin_emil": {
-    "boots": "boolean",
-    "gate_way": "string",
-    "has_ring": "boolean",
-    "mara_pay": "number",
-    "otto_read": "boolean",
-    "pierce_pay": "number",
-    "plate_fee": "number",
-    "post_ahead": "boolean",
-    "ring_price": "number",
-    "ring_way": "string",
-    "rush_price": "number",
-    "saw_cut": "boolean",
-    "saw_roster": "boolean",
-    "seize_fine": "number",
-    "silver_extra": "number",
-    "silver_pay": "number",
-    "sully_pay": "number",
-    "talk_fee": "number",
-    "through_gate": "boolean",
-    "wrong_buy": "boolean",
-    "yard_tally": "boolean"
-   },
    "pump_agnes": {
     "knows_book": "boolean",
     "knows_carry": "boolean",
@@ -2164,7 +1985,10 @@
     "knows_pay": "boolean",
     "knows_pipe": "boolean",
     "knows_senate": "boolean",
-    "knows_why": "boolean"
+    "knows_why": "boolean",
+    "tip": "number",
+    "trusted": "boolean",
+    "watchman": "string"
    },
    "pump_pipe": {
     "book_read": "boolean",
@@ -2185,24 +2009,6 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
-   "salvage_hooks": {
-    "asked_drinkers": "boolean",
-    "bribe": "number",
-    "fee": "number",
-    "lens_held": "boolean",
-    "lens_price": "number",
-    "outcome": "string",
-    "read_tally": "boolean",
-    "saw_drop": "boolean",
-    "saw_hooks": "boolean",
-    "soldier_shut": "boolean",
-    "soldier_talked": "boolean"
-   },
-   "yard_mara": {
-    "heard_pierce": "boolean",
-    "heard_pin": "boolean",
-    "knows_emil": "boolean"
-   },
    "yard_sefa": {
     "asked_book": "boolean",
     "asked_kiln": "boolean",
@@ -2218,18 +2024,9 @@
     "heard_post": "boolean",
     "heard_rider": "boolean",
     "heard_water": "boolean"
-   },
-   "yard_silver": {}
+   }
   },
   "checkpoints": {
-   "bend_north": [
-    "start",
-    "road"
-   ],
-   "bowl_bo": [
-    "start",
-    "start.hub"
-   ],
    "bowl_dag": [
     "start",
     "start.hub"
@@ -2242,59 +2039,18 @@
     "start",
     "start.hub"
    ],
-   "bowl_names": [
-    "start",
-    "start.hub",
-    "after_reading_scene.hub_drunk",
-    "hub_lusa"
-   ],
    "bowl_ruben": [
     "start",
     "start.hub"
    ],
-   "crates_hook": [
-    "start",
-    "desk"
-   ],
    "first_fall": [
     "start"
-   ],
-   "granary_driver": [
-    "start",
-    "start.hub"
-   ],
-   "granary_lamps": [
-    "start",
-    "foot"
-   ],
-   "granary_odile": [
-    "start",
-    "start.hub"
-   ],
-   "granary_sack": [
-    "start",
-    "desk"
    ],
    "intro_arrival": [
     "start"
    ],
    "intro_bowl": [
     "start"
-   ],
-   "nose_clerk": [
-    "start",
-    "start.hub"
-   ],
-   "nose_constance": [
-    "start",
-    "start.hub"
-   ],
-   "nose_courier": [
-    "start",
-    "start.hub",
-    "post",
-    "green",
-    "bend"
    ],
    "nose_depot_leak": [
     "start",
@@ -2306,10 +2062,6 @@
     "start",
     "start.hub"
    ],
-   "nose_ines": [
-    "start",
-    "start.hub"
-   ],
    "nose_kovac": [
     "start",
     "start.hub"
@@ -2318,20 +2070,10 @@
     "start",
     "start.hub"
    ],
-   "orchard_count": [
-    "start",
-    "yard"
-   ],
-   "pin_emil": [
-    "start",
-    "desk",
-    "gate",
-    "to_mara.pact_mara",
-    "to_silver.pact_silver"
-   ],
    "pump_agnes": [
     "start",
-    "start.hub"
+    "start.hub",
+    "start.watched"
    ],
    "pump_pipe": [
     "start",
@@ -2342,21 +2084,7 @@
     "start",
     "start.ask"
    ],
-   "salvage_hooks": [
-    "start",
-    "start.hub",
-    "hooks"
-   ],
-   "yard_mara": [
-    "start",
-    "start.hub",
-    "start.gone"
-   ],
    "yard_sefa": [
-    "start",
-    "start.hub"
-   ],
-   "yard_silver": [
     "start",
     "start.hub"
    ]

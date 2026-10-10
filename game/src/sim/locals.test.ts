@@ -51,9 +51,7 @@ describe('settlement locals', () => {
 
   it('places the recent-years locals and records a biased rumor as said', () => {
     expect(localsAt('salvage-yard').map((l) => l.id)).toContain('sefa');
-    expect(localsAt('granary').map((l) => l.id)).toContain('granaryDriver');
-    expect(localsAt('nose').map((l) => l.id)).toEqual(expect.arrayContaining(['ines', 'bureauClerk']));
-    expect(localsAt('bowl').map((l) => l.id)).toEqual(expect.arrayContaining(['jory', 'bo']));
+    expect(localsAt('bowl').map((l) => l.id)).toContain('jory');
 
     const next = talk(parkedAt('salvage-yard'), 'yard_sefa', ['Who are the families of the Burnt Convoy?', 'Is the Burnt Convoy picked clean?']);
 
@@ -85,7 +83,6 @@ describe('settlement locals', () => {
     const w = parkedAt('bowl');
     expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'Goodbye.']);
     expect(choices(w, 'bowl_dag')).toEqual(['What is the road like?', 'Any work?', 'Who pays the Farmers?', 'Goodbye.']);
-    expect(choices(w, 'bowl_bo')).toEqual(['What fight on the road?', 'What is the road patrol?', 'Goodbye.']);
   });
 
   it('opens a question after the answer that mentions it', () => {
@@ -280,9 +277,8 @@ describe('the depot leak at Nose', () => {
 describe('locals at stalls', () => {
   const COVER = 'Pump talk. Pressures and pipes, and none of it worth the hearing.';
 
-  it('lists Agnes at the Pump Station and Odile at the Granary', () => {
+  it('lists Agnes at the Pump Station', () => {
     expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
-    expect(localsAt('granary').map((l) => l.id)).toContain('odile');
   });
 
   it('keeps the copy from a driver who tells the watchman, and pays the tip', () => {
@@ -353,41 +349,6 @@ describe('locals at stalls', () => {
 
     expect(read.player.quests.world).toEqual({ marr_regard: 'enemy', pipe_fate: 'read' });
     expect(w.player.money - read.player.money).toBe(40 * UNITS.centsPerM);
-    const odile = parkedAt('granary');
-    odile.player.quests.world = { pipe_fate: 'read' };
-    expect(choices(odile, 'granary_odile')).toContain('About the book read at your gate.');
-  });
-
-  it('starts the sack count from Odile and hides the lamps and orchard walks until the places are found', () => {
-    const w = parkedAt('granary');
-    expect(choices(w, 'granary_odile')).toEqual(['What hangs on the gate?', 'Goodbye.']);
-    const gate = talk(w, 'granary_odile', ['What hangs on the gate?']);
-    expect(questView(gate, QUESTS).choices).toEqual(['What hangs on the gate?', 'Why does the Granary pay Kiln a sack for every truck?', 'Who is in the road patrol?', 'What troubles you about your count?', 'Who presses the oil you burn at the gate?', 'Goodbye.']);
-    const patrol = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who is in the road patrol?']);
-    expect(questView(patrol, QUESTS).choices).toContain('What was the message from Old Orchard?');
-
-    const asked = talk(w, 'granary_odile', ['What hangs on the gate?', 'What troubles you about your count?', 'I will count with you.', 'I will count with you.']);
-    expect(questView(asked, QUESTS).choices).toContain('Read the gate log and the store book against the boards.');
-
-    const lamps = talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?']);
-    expect(questView(lamps, QUESTS).choices).not.toContain('I will go and look at the lamps.');
-    w.player.discovered.push('glass-flats');
-    const found =talk(w, 'granary_odile', ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.']);
-    expect(questView(found, QUESTS).choices).toContain('Walk the line of lamps.');
-  });
-
-  it('pays for the lien on the dark lamp and refuses the same pick with less money', () => {
-    const w = parkedAt('granary');
-    w.player.discovered.push('glass-flats');
-    const slip = ['What hangs on the gate?', 'Who presses the oil you burn at the gate?', 'I will go and look at the lamps.', 'Ask the carter for his slip.'];
-    const paid = talk(w, 'granary_odile', [...slip, 'Pay the clerk the lien on the dark lamp.']);
-    expect(w.player.money - paid.player.money).toBe(120 * UNITS.centsPerM);
-    expect(paid.player.quests.world).toEqual({ lamps_fate: 'paid', lien_standing: 'debtor' });
-
-    const broke = cloneWorld(w);
-    broke.player.money = 100 * UNITS.centsPerM;
-    const short = talk(broke, 'granary_odile', slip);
-    expect(questView(short, QUESTS).locked[pickIndex(short, 'Pay the clerk the lien on the dark lamp.')]).toBe(true);
   });
 });
 

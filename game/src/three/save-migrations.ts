@@ -829,7 +829,35 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => world,
   withPersonalities_46_47,
   withChoiceFreeScenes_47_48,
+  withoutCutQuests_48_49,
 ];
+
+const CUT_QUESTS_48_49 = [
+  'bowl_bo', 'nose_ines', 'nose_clerk', 'granary_driver', 'granary_odile', 'granary_sack', 'granary_lamps', 'orchard_count',
+  'nose_constance', 'crates_hook', 'yard_mara', 'pin_emil', 'yard_silver', 'bend_north', 'nose_courier', 'bowl_names', 'salvage_hooks',
+] as const;
+
+const CUT_WORLD_VARS_48_49 = [
+  'sack_fate', 'lamps_fate', 'count_fate', 'lien_standing', 'courier_fate', 'names_vosk', 'hooks_report',
+  'pin_fate', 'pin_pact', 'bend_fate', 'crates_fate', 'yard_power', 'post_file', 'kiln_word', 'letter_fate',
+] as const;
+
+const CUT_NOTES_48_49: ReadonlySet<string> = new Set([
+  'talkSunwardNumber', 'talkWestTowns', 'talkClerkWest',
+  'pinAsk', 'pinStamp', 'pinRoster', 'pinBoots', 'bendOffers', 'bendKaplan', 'bendAsh', 'bendRise',
+  'cratesAsk', 'cratesLid', 'cratesTally', 'cratesFiles', 'cratesCopy',
+  'sackGate', 'sackStore', 'sackDrop', 'sackBeam', 'lampsLien', 'lampsOil', 'countWall', 'countGap', 'countRelease', 'countLog',
+  'courierVesna', 'courierLetter', 'courierRider', 'courierKarl', 'namesReading', 'namesDrunk', 'namesBook', 'namesLetter',
+  'hooksSoldier', 'hooksSheet', 'hooksDrop',
+]);
+
+function withoutCutQuests_48_49(world: SavedJson): SavedJson {
+  const noQuests = CUT_QUESTS_48_49.reduce(dropQuest, world);
+  const noVars = CUT_WORLD_VARS_48_49.reduce((w, name) => dropQuestVar(w, null, name), noQuests);
+  const player = noVars.player as SavedJson;
+  const notes = (player.notes as { id: string }[]).filter((n) => !CUT_NOTES_48_49.has(n.id));
+  return { ...noVars, player: { ...player, notes } };
+}
 
 const DROPPED_SCENE_CHECKPOINTS_47_48: readonly (readonly [string, string])[] = [
   ['intro_arrival', 'rim'],
