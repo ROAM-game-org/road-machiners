@@ -15,6 +15,12 @@ A quest is built in three steps: play out the story behind it, write it, then pl
    ```
 
    The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, five worst problems and a score out of 10. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default.
+
+   Quests that follow each other, like the intro, are played by one agent in order. Name them all, and give one `--then` line before each quest after the first, which says in plain words what the player did in between. Codex may start over only in the last one. `--set name=value` sets a variable before each quest, such as `--set intro_step=ambush`:
+
+   ```
+   npm run quest:playtest -- intro_arrival first_fall intro_bowl bowl_hattie --situation "You start a new game. You are on foot in a desert, with no water." --then "You patch the engine and drive north. A raider truck opens fire, and you lose the fight." --then "You stay out cold." --then "You walk around Bowl. Hattie has time to talk." --set intro_step=ambush --out tmp/playtest-intro.md > tmp/playtest.log 2>&1 &
+   ```
 4. Check every problem it names in the source, then fix the real ones. Rerun the quest checks in [The loop](#the-loop).
 5. Repeat steps 3 and 4 with a new Codex run each time. A fresh run has not seen the old version. The quest is done when a fresh run scores it 9 out of 10 or higher.
 

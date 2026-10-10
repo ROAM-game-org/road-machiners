@@ -5,11 +5,17 @@ import { parseArgs } from 'node:util';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { situation: { type: 'string' }, out: { type: 'string' }, screens: { type: 'string', default: '40' }, model: { type: 'string' } },
+  options: {
+    situation: { type: 'string' }, out: { type: 'string' }, screens: { type: 'string', default: '40' }, model: { type: 'string' },
+    then: { type: 'string', multiple: true, default: [] }, set: { type: 'string', multiple: true, default: [] },
+  },
 });
-const quest = positionals[0];
-if (!quest || !values.situation || !values.out) {
-  throw new Error('Usage: npm run quest:playtest -- <quest> --situation "<what the player sees on arrival>" --out tmp/<notes>.md');
+const quests = positionals;
+if (quests.length === 0 || !values.situation || !values.out) {
+  throw new Error('Usage: npm run quest:playtest -- <quest> [<next quest> ...] --situation "<what the player sees on arrival>" [--then "<what happens before the next quest>" ...] --out tmp/<notes>.md');
+}
+if (values.then.length !== quests.length - 1) {
+  throw new Error(`${quests.length} quests need ${quests.length - 1} --then lines, one before each quest after the first, got ${values.then.length}`);
 }
 const maxScreens = Number(values.screens);
 if (!Number.isInteger(maxScreens) || maxScreens < 1) throw new Error(`--screens needs a whole number, got ${values.screens}`);
@@ -28,38 +34,45 @@ const verdictSchema = schemaFile('verdict', {
   score: { type: 'integer', description: 'Score out of 10.' },
 });
 
-writeFileSync(values.out, `# Playtest of ${quest}\n\nSituation: ${values.situation}\n`);
+writeFileSync(values.out, `# Playtest of ${quests.join(', ')}\n\nSituation: ${values.situation}\n`);
 let thread = null;
 let run = 0;
 let screens = 0;
-let restarted = false;
 
-while (screens < maxScreens) {
-  run += 1;
-  const runFile = join(work, `run-${run}.json`);
-  let screen = game(runFile, null);
-  appendFileSync(values.out, `\n## Run ${run}\n`);
+for (const [index, quest] of quests.entries()) {
+  const last = index === quests.length - 1;
+  let restarted = false;
   while (screens < maxScreens) {
-    screens += 1;
-    const ended = screen.includes('(the story ends here)');
-    const ask = ended
-      ? `${screen}\n\nThe story ended. Judge this last screen. ${restarted ? 'Pick 0.' : 'Pick 1 to start over and take a different road, or 0 to stop.'}`
-      : `${screen}\n\nJudge this screen, then pick one of the numbered choices.`;
-    const step = codex(screens === 1 ? `${promptTemplate.replace('<SITUATION>', values.situation)}\n\nHere is the first screen.\n\n${ask}` : ask, stepSchema);
-    appendFileSync(values.out, `\n### Screen ${screens}\n\n${quoted(screen)}\n\nSummary: ${step.summary}\n\nComment: ${step.comment}\n\nPick: ${step.pick}\n`);
-    if (ended) break;
-    screen = game(runFile, step.pick);
+    run += 1;
+    const runFile = join(work, `run-${run}.json`);
+    let screen = game(quest, runFile, null);
+    if (index > 0 && !restarted) screen = `Time passes. ${values.then[index - 1]}\n\n${screen}`;
+    appendFileSync(values.out, `\n## Run ${run}: ${quest}\n`);
+    while (screens < maxScreens) {
+      screens += 1;
+      const ended = screen.includes('(the story ends here)');
+      const ask = ended ? `${screen}\n\n${endNote(last, restarted)}` : `${screen}\n\nJudge this screen, then pick one of the numbered choices.`;
+      const step = codex(screens === 1 ? `${promptTemplate.replace('<SITUATION>', values.situation)}\n\nHere is the first screen.\n\n${ask}` : ask, stepSchema);
+      appendFileSync(values.out, `\n### Screen ${screens}\n\n${quoted(screen)}\n\nSummary: ${step.summary}\n\nComment: ${step.comment}\n\nPick: ${step.pick}\n`);
+      if (ended) break;
+      screen = game(quest, runFile, step.pick);
+    }
+    if (!last || restarted || !screen.includes('(the story ends here)') || screens >= maxScreens) break;
+    restarted = true;
   }
-  if (restarted || !screen.includes('(the story ends here)') || screens >= maxScreens) break;
-  restarted = true;
+}
+
+function endNote(last, restarted) {
+  if (!last) return 'This part of the story ended, and the next part follows. Judge this last screen. Pick 0.';
+  return `The story ended. Judge this last screen. ${restarted ? 'Pick 0.' : 'Pick 1 to start over and take a different road, or 0 to stop.'}`;
 }
 
 const verdict = codex('You are done playing. Give your overall verdict on the writing across everything you saw.', verdictSchema);
 appendFileSync(values.out, `\n## Verdict\n\nScore: ${verdict.score}/10\n\n${verdict.verdict}\n\nBest:\n${verdict.best.map((b) => `- ${b}`).join('\n')}\n\nWorst:\n${verdict.worst.map((w) => `- ${w}`).join('\n')}\n`);
 console.log(`Score ${verdict.score}/10 after ${screens} screens. Notes in ${values.out}`);
 
-function game(runFile, pick) {
-  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...(pick === null ? [] : ['--pick', String(pick)])];
+function game(quest, runFile, pick) {
+  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...values.set.flatMap((s) => ['--set', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
   const result = spawnSync('node_modules/.bin/vite-node', args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`The quest runner failed on pick ${pick}:\n${result.stderr}`);
   return result.stdout.trim();
