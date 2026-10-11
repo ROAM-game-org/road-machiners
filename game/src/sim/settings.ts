@@ -87,7 +87,7 @@ function onlyKeys(value: Record<string, unknown>, keys: readonly string[], what:
   if (unknown !== undefined) throw new Error(`Unknown ${what} ${unknown}`);
 }
 
-function isMode(mode: unknown): mode is GameModeId {
+export function isMode(mode: unknown): mode is GameModeId {
   return typeof mode === 'string' && Object.hasOwn(GAME_MODES, mode);
 }
 

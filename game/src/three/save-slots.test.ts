@@ -15,7 +15,7 @@ function makeStorage(): Storage {
   };
 }
 
-const save = (turn: number, savedAt?: number) => ({ format: { major: 2, minor: 3 }, savedAt, world: { turn } });
+const save = (turn: number, savedAt?: number, mode = 'roaming') => ({ format: { major: 2, minor: 3 }, savedAt, world: { turn, setup: { mode } } });
 const makeSlots = () => new SaveSlots(memoryBackend(), new Map());
 
 describe('save slots', () => {
@@ -37,13 +37,13 @@ describe('save slots', () => {
     slots.put('auto', save(40));
     slots.put('slot1', save(30, 500));
     slots.put('slot2', '{');
-    slots.put('day', save(20, 900));
+    slots.put('day', save(20, 900, 'furyRoad'));
 
     expect(listSaves(slots, 3)).toEqual([
-      { slot: 'day', savedAt: 900, turn: 20 },
-      { slot: 'slot1', savedAt: 500, turn: 30 },
-      { slot: 'auto', savedAt: 0, turn: 40 },
-      { slot: 'slot2', savedAt: 0, turn: null },
+      { slot: 'day', savedAt: 900, turn: 20, mode: 'furyRoad' },
+      { slot: 'slot1', savedAt: 500, turn: 30, mode: 'roaming' },
+      { slot: 'auto', savedAt: 0, turn: 40, mode: 'roaming' },
+      { slot: 'slot2', savedAt: 0, turn: null, mode: null },
     ]);
     expect(newestSlot(slots, 3)).toBe('day');
     expect(newestSlot(makeSlots(), 3)).toBeNull();

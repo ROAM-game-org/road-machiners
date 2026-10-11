@@ -3,6 +3,7 @@ import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
 import { bindAttr, say } from "../text/language";
 import { date, t, type Msg } from "../text/msg";
+import { modeName } from "../text/names";
 import { el, panel } from "./dom";
 import { clock } from "./format";
 
@@ -28,6 +29,15 @@ export function slotRealTime(info: SlotInfo | null): Msg | null {
 function detailEl(info: SlotInfo | null): HTMLElement {
   const { text, tone } = slotDetail(info);
   return el("span", { class: `save-when ${tone}` }, text);
+}
+
+export function slotMode(info: SlotInfo | null): Msg | null {
+  return info?.mode ? modeName(info.mode) : null;
+}
+
+function nameEl(slot: SlotId, info: SlotInfo | null): HTMLElement {
+  const mode = slotMode(info);
+  return el("span", { class: "save-name" }, el("b", {}, slotLabel(slot)), ...(mode ? [el("span", { class: "dim" }, mode)] : []));
 }
 
 export class SavePanel {
@@ -78,7 +88,7 @@ export class SavePanel {
   }
 
   private row(slot: SlotId, info: SlotInfo | null, onclick: () => void): HTMLElement {
-    return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, el("b", {}, slotLabel(slot)), detailEl(info));
+    return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
   }
 
   private show(title: Msg, rows: HTMLElement[]): void {
