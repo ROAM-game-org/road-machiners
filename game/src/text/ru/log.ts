@@ -186,7 +186,7 @@ export const LOG: Translation<typeof EN> = {
   'contract.ready': 'Готово',
   'contract.window': '{h} ч',
   'contract.due': 'срок: {when}',
-  'clock.day': 'День',
+  'clock.day': 'DAY',
   'clock.full': 'День {day}, {time}',
   'goods.good': 'Товар',
   'goods.theirs': 'У них',

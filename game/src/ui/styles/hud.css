@@ -24,30 +24,21 @@
 }
 .clock-day {
   display: flex;
-  align-items: center;
   gap: var(--space-2);
+  font: italic bold var(--text-lead) / 1 var(--font-lcd);
 }
-.clock-label {
-  font: italic bold var(--text-body) / 1 var(--font-lcd-letters);
-  text-transform: uppercase;
-}
-.clock-digits {
+.clock-time {
   display: inline-grid;
   justify-items: end;
   font: italic bold var(--text-lead) / 1 var(--font-lcd);
 }
-.clock-digits::before,
-.clock-digits > * {
+.clock-time::before,
+.clock-time > * {
   grid-area: 1 / 1;
 }
-.clock-digits::before {
-  color: var(--lcd-ink-faint);
-}
-.day-digits::before {
-  content: "88";
-}
-.time-digits::before {
+.clock-time::before {
   content: "88:88";
+  color: var(--lcd-ink-faint);
 }
 
 .speedometer {
