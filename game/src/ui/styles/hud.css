@@ -11,18 +11,32 @@
   grid-column: 1 / -1;
   justify-self: stretch;
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
-  padding: 1px var(--space-3);
+  padding: var(--space-1) var(--space-3);
   background: var(--lcd);
   color: var(--lcd-ink);
-  border: 1px solid var(--surface-sunk);
+  border: 2px solid var(--steel-0);
   border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 var(--shade);
-  font: var(--text-dense) var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
+  box-shadow: inset 0 2px 4px var(--bevel-dark);
   white-space: nowrap;
+}
+.clock-day {
+  font: 600 var(--text-caption) var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.clock-time {
+  position: relative;
+  font: bold var(--text-lead) / 1 var(--font-lcd);
+  text-align: right;
+}
+.clock-time::before {
+  content: "88:88";
+  position: absolute;
+  right: 0;
+  color: var(--lcd-ink-faint);
 }
 
 .speedometer {
@@ -79,9 +93,9 @@
   padding: 1px var(--space-3);
   background: var(--lcd);
   color: var(--lcd-ink);
-  border: 1px solid var(--surface-sunk);
+  border: 2px solid var(--steel-0);
   border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 var(--shade);
+  box-shadow: inset 0 2px 4px var(--bevel-dark);
   font: var(--text-dense) var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
