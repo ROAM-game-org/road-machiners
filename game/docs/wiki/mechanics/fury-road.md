@@ -61,7 +61,7 @@ Parking on the pad of the next outpost wins the level in that turn, in combat or
 Between levels nothing spawns, even if the player drives off the pad and back. A paid outpost is a garage, as a town garage is: `atGarage()` in `src/sim/garage.ts` says yes on its pad. Every install, removal and swap on the truck grid, and every move to or from garage storage, applies at once with no refit timer, and the screen shows the storage list beside the grid. Storage is the player's one garage storage, shared with every garage and carried from window to window. The outpost screen has three tabs:
 
 - Market: repair all or the basics at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
-- Buy parts: each outpost stocks exactly two parts of every part type, rolled from the seed when the outpost is made and kept in the save. Any part the player can afford can be bought, armor too. It goes onto the truck's cargo cells if it fits, and into storage if not. Buying never fits it.
+- Buy parts: each outpost stocks exactly four armor parts and two parts of every other part type, rolled from the seed when the outpost is made and kept in the save. Any part the player can afford can be bought, armor too. It goes onto the truck's cargo cells if it fits, and into storage if not. Buying never fits it.
 - Trucks: three chassis, drawn without repeats from every player chassis but the scout, from the stretch's own `trucks` stream. The offer is a pure function of the seed and the milestone, so only the bought ones are saved, in the outpost's `trucksSold`, and a bought truck leaves the offer. The price is the town's: the chassis value less the trade-in of the truck the player drives, or a payout when the trade-in is worth more. The swap is the town's, `swapChassis()`: the new chassis brings its own built-in parts, every fitted part is fitted again where it fits, then stowed, then stored, and the goods go back in cargo. Swap is disabled with the reason when the money is short or the goods would not fit the new truck. Fuel and supplies clamp to the new tanks.
 
 Outposts buy nothing. The next level starts only when the player, parked on the pad, presses Wait for the road on the outpost screen.
@@ -82,7 +82,7 @@ Each stretch plans its groups: their sizes and gear level from its wave, each tr
 | 7 | 3, 2 | heavy |
 | 8 and on | 3, 3, 2 | loaded |
 
-Every stretch past 8 repeats stretch 8, so danger rises for 8 stretches and then holds.
+Every stretch past 8 repeats stretch 8, so danger rises for 8 stretches and then holds. The truck of stretch 1 has no armor, mounted or spare.
 
 The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add gunwagons, vultures, mercs and Bowl farmers, and from stretch 6 Nose army trucks, convoys and convoy guards join. Each truck takes its own template's loadout at the group's gear level. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
 

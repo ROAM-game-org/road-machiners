@@ -1,6 +1,7 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
 import type { GearLevel } from './npcs';
+import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
 import type { TerrainTypeId } from './terrain';
 
@@ -22,7 +23,7 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
 };
 
-export type WavePlan = { sizes: number[]; level: GearLevel };
+export type WavePlan = { sizes: number[]; level: GearLevel; armored: boolean };
 export type PoolTier = { upTo: number; weights: Record<string, number> };
 export type Curve = { first: number; step: number; max: number };
 
@@ -36,14 +37,14 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { sizes: [1], level: 'light' },
-    { sizes: [1, 1], level: 'light' },
-    { sizes: [1, 1], level: 'light' },
-    { sizes: [1, 1], level: 'standard' },
-    { sizes: [2, 1], level: 'standard' },
-    { sizes: [2, 2], level: 'standard' },
-    { sizes: [3, 2], level: 'heavy' },
-    { sizes: [3, 3, 2], level: 'loaded' },
+    { sizes: [1], level: 'light', armored: false },
+    { sizes: [1, 1], level: 'light', armored: true },
+    { sizes: [1, 1], level: 'light', armored: true },
+    { sizes: [1, 1], level: 'standard', armored: true },
+    { sizes: [2, 1], level: 'standard', armored: true },
+    { sizes: [2, 2], level: 'standard', armored: true },
+    { sizes: [3, 2], level: 'heavy', armored: true },
+    { sizes: [3, 3, 2], level: 'loaded', armored: true },
   ] as WavePlan[],
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
@@ -60,7 +61,7 @@ export const FURY_ROAD = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 30000, step: 15000, max: 120000 } as Curve, perWreck: { first: 6000, step: 1500, max: 15000 } as Curve },
-  stockPerKind: 2,
+  stockPerKind: { weapon: 2, engine: 2, armor: 4, cargo: 2, scanner: 2, store: 2, utility: 2 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,
   maxTries: 400,

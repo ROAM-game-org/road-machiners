@@ -1,6 +1,6 @@
 
 import { ECONOMY, GOODS } from '../data/goods';
-import { PARTS } from '../data/parts';
+import { PARTS, type PartKind } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
@@ -46,9 +46,15 @@ export function rollPartStock(world: World, rng: Rng, table: PartStockTable, cou
   return stock;
 }
 
-export function rollPartStockPerKind(world: World, rng: Rng, table: PartStockTable, perKind: number, seller: string): PartInstance[] {
+export function rollPartStockPerKind(world: World, rng: Rng, table: PartStockTable, perKind: Partial<Record<PartKind, number>>, seller: string): PartInstance[] {
   const kinds = [...new Set(table.parts.map((p) => PARTS[p.value].kind))];
-  return kinds.flatMap((kind) => rollPartStock(world, rng, { ...table, parts: table.parts.filter((p) => PARTS[p.value].kind === kind) }, perKind, seller));
+  return kinds.flatMap((kind) => rollPartStock(world, rng, { ...table, parts: table.parts.filter((p) => PARTS[p.value].kind === kind) }, countOfKind(perKind, kind, seller), seller));
+}
+
+function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind, seller: string): number {
+  const count = perKind[kind];
+  if (count === undefined) throw new Error(`${seller} has no stock count for ${kind} parts`);
+  return count;
 }
 
 export function initShop(world: World, shopId: string): ShopState {

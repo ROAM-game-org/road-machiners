@@ -125,7 +125,7 @@ Fury Road is a highway combat run on its own map, never on Icarus: an endless ge
 - Combat: hostile groups find the player and fight until a truck is beaten. A fight ends when a truck is knocked out or wrecked, or the two part. A beaten truck leaves no loot. A knocked-out one gets up later and leaves the road. Beating a truck, either way, pays once at the next outpost.
 - Defeat and recovery: a beaten NPC is knocked out or wrecked by the normal rules. A beaten player is never knocked out and ends the run. A stranded player with no way to patch ends the run. There are no tows, beacon or town patches. Restart run starts a new run with the same settings.
 - Social: no radio, hails, horn, pleas, truces, mercy or surrender.
-- Economy: money comes from outpost payouts, not loot or trade. Outposts are garages with storage and instant refits. They sell repairs, fuel, supplies, repair parts, two parts of every type and three trucks.
+- Economy: money comes from outpost payouts, not loot or trade. Outposts are garages with storage and instant refits. They sell repairs, fuel, supplies, repair parts, four armor parts, two parts of every other type and three trucks.
 - Life is valued (principle 4) does not hold: nobody surrenders or flees.
 
 Details: [Fury Road](wiki/mechanics/fury-road.md).

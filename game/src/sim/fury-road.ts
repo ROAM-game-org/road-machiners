@@ -11,7 +11,9 @@ import { canUseSite, sitePads } from './sites';
 import { mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
-import { generateNpcLoadout } from './npc-loadout';
+import { generateNpcLoadout, type NpcLoadout } from './npc-loadout';
+import type { PartSpec } from './factory';
+import { partDef } from '../data/parts';
 import { nextRandom, randInt, type Rng } from './rng';
 import { modeRules } from './settings';
 import { isFree, spawnAt } from './spawn';
@@ -219,7 +221,8 @@ function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
 }
 
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level), cargo: {} } }));
+  const armored = waveOf(group.stretch).armored;
+  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: waveLoadout(generateNpcLoadout(world, NPCS[id], null, group.level), armored) }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
@@ -233,6 +236,12 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   });
   group.spawned = true;
   group.retryUntil = null;
+}
+
+function waveLoadout(loadout: NpcLoadout, armored: boolean): NpcLoadout {
+  if (armored) return { ...loadout, cargo: {} };
+  const unarmored = (specs: PartSpec[]) => specs.filter((p) => partDef(p.defId).kind !== 'armor');
+  return { ...loadout, parts: unarmored(loadout.parts), spares: unarmored(loadout.spares), cargo: {} };
 }
 
 type Candidate = { along: number; across: number };
