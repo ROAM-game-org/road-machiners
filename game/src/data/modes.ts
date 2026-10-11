@@ -28,7 +28,9 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
 
 export type WaveGear = Omit<GearRules, 'money'>;
 export type WavePlan = { sizes: number[]; level: GearLevel; gear: WaveGear };
-const WAVE_GEAR: WaveGear = { armored: true, gunFirst: false };
+const EARLY_GEAR: WaveGear = { armored: true, gunFirst: false, gunTier: 1 };
+const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
+const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
 export type PoolTier = { upTo: number; weights: Record<string, number> };
 export type Curve = { first: number; step: number; max: number };
@@ -43,14 +45,14 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { sizes: [1], level: 'light', gear: { armored: false, gunFirst: true } },
-    { sizes: [1, 1], level: 'light', gear: WAVE_GEAR },
-    { sizes: [1, 1], level: 'light', gear: WAVE_GEAR },
-    { sizes: [1, 1], level: 'standard', gear: WAVE_GEAR },
-    { sizes: [2, 1], level: 'standard', gear: WAVE_GEAR },
-    { sizes: [2, 2], level: 'standard', gear: WAVE_GEAR },
-    { sizes: [3, 2], level: 'heavy', gear: WAVE_GEAR },
-    { sizes: [3, 3, 2], level: 'loaded', gear: WAVE_GEAR },
+    { sizes: [1], level: 'light', gear: { ...EARLY_GEAR, armored: false, gunFirst: true } },
+    { sizes: [1, 1], level: 'light', gear: EARLY_GEAR },
+    { sizes: [1, 1], level: 'light', gear: MIDDLE_GEAR },
+    { sizes: [1, 1], level: 'standard', gear: MIDDLE_GEAR },
+    { sizes: [2, 1], level: 'standard', gear: MIDDLE_GEAR },
+    { sizes: [2, 2], level: 'standard', gear: LATE_GEAR },
+    { sizes: [3, 2], level: 'heavy', gear: LATE_GEAR },
+    { sizes: [3, 3, 2], level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
   gearMoney: { first: 45000, step: 33000 },
   pool: [

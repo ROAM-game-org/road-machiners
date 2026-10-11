@@ -126,8 +126,9 @@ function wearOf(rng: Rng, level: Level): number {
   return sampleWeighted(rng, level.wear);
 }
 
-export type GearRules = { armored: boolean; gunFirst: boolean; money: number | null };
-export const OPEN_GEAR: GearRules = { armored: true, gunFirst: false, money: null };
+export type GearRules = { armored: boolean; gunFirst: boolean; gunTier: number; money: number | null };
+export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
+export const OPEN_GEAR: GearRules = { armored: true, gunFirst: false, gunTier: TOP_GUN_TIER, money: null };
 
 type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules };
 
@@ -160,7 +161,7 @@ function mounted(b: Build, v: Vehicle, defId: string, mount?: SideLetter[]): Veh
 function chooseOptionalPart(b: Build, rng: Rng, v: Vehicle, pool: Weighted<string | null>[]): Vehicle {
   const choices: Weighted<Vehicle>[] = [];
   for (const entry of pool) {
-    const candidate = entry.value === null ? v : mounted(b, v, entry.value);
+    const candidate = entry.value === null ? v : withinTier(b.rules, entry.value) ? mounted(b, v, entry.value) : null;
     if (candidate) choices.push({ value: candidate, weight: entry.weight });
   }
   if (!choices.length) throw new Error(`No eligible optional equipment for ${v.chassisId}. Add an explicit empty outcome or a fitting part.`);
@@ -169,6 +170,15 @@ function chooseOptionalPart(b: Build, rng: Rng, v: Vehicle, pool: Weighted<strin
 
 const ENGINES = Object.values(PARTS).filter((d) => d.kind === 'engine').map((d) => d.id);
 const GUNS = Object.values(PARTS).filter((d) => d.kind === 'weapon' && !isLineGun(d.id)).map((d) => d.id);
+
+function gunsFor(rules: GearRules): string[] {
+  return GUNS.filter((id) => withinTier(rules, id));
+}
+
+function withinTier(rules: GearRules, defId: string): boolean {
+  const def = partDef(defId);
+  return def.kind !== 'weapon' || def.tier <= rules.gunTier;
+}
 const ARMOR = Object.values(PARTS).filter((d) => d.kind === 'armor').map((d) => d.id);
 const SIDE_GROUPS: SideLetter[][] = [['F'], ['L', 'R'], ['B']];
 
@@ -225,7 +235,7 @@ function withBetterArmor(b: Build, v: Vehicle, defId: string, sides: SideLetter[
 type GearMove = (v: Vehicle) => Vehicle | null;
 
 function gearMoves(b: Build, score: (v: Vehicle) => number): GearMove[] {
-  const moves: GearMove[] = GUNS.map((id) => (v: Vehicle) => withGun(b, score, v, id));
+  const moves: GearMove[] = gunsFor(b.rules).map((id) => (v: Vehicle) => withGun(b, score, v, id));
   for (const id of b.rules.armored ? ARMOR : []) {
     for (const sides of SIDE_GROUPS) {
       moves.push((v) => withArmor(b, v, id, sides));
@@ -299,7 +309,7 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
 function chooseFirstGun(b: Build, rng: Rng, p: LoadoutPriorities, powered: Vehicle): Vehicle {
   const score = gearScorer(b.world, p, powered);
   const now = score(powered);
-  const drawn = drawOffers(b, rng, powered, GUNS.map((id) => (v: Vehicle) => withGun(b, score, v, id)), (next) => score(next) - now);
+  const drawn = drawOffers(b, rng, powered, gunsFor(b.rules).map((id) => (v: Vehicle) => withGun(b, score, v, id)), (next) => score(next) - now);
   if (!drawn.length) throw new Error(`No gun fits on ${powered.chassisId} within the gear money`);
   return drawn.reduce((a, c) => (c.worth > a.worth ? c : a)).v;
 }
@@ -353,6 +363,7 @@ function spareAllowed(defId: string | null, left: Left, rules: GearRules): defId
   if (defId === null) return false;
   const def = partDef(defId);
   if (!rules.armored && def.kind === 'armor') return false;
+  if (!withinTier(rules, defId)) return false;
   return def.mass <= left.mass() && def.w * def.h <= left.cells();
 }
 

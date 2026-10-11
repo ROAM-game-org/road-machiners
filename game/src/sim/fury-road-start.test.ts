@@ -4,7 +4,9 @@ import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
 import { playerVehicle } from './damage';
-import { outpostFactsAt, spawnGroup, waveOf } from './fury-road';
+import { NPCS } from '../data/npcs';
+import { gearMoneyOf, outpostFactsAt, spawnGroup, waveOf } from './fury-road';
+import { generateNpcLoadout } from './npc-loadout';
 import { alongOf, toRoad } from './highway';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle } from './types';
@@ -80,6 +82,21 @@ describe('Fury Road first enemy', () => {
       for (const template of Object.keys(FURY_ROAD.pool[0].weights)) {
         const guns = spawnedTrucks(seed, 1, template)[0].items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
         expect(guns.length, `seed ${seed} ${template}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('carries no gun above the tier of its stretch, mounted or spare', () => {
+    const w = furyRoadWorld(3);
+    const templates = Object.keys(NPCS).filter((id) => FURY_ROAD.pool.some((tier) => id in tier.weights));
+    for (const stretch of [1, 3]) {
+      const gear = { ...waveOf(stretch).gear, money: gearMoneyOf(w, stretch) };
+      for (const template of templates) {
+        for (const seed of [1, 2, 3]) {
+          const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(stretch).level, gear);
+          const guns = [...loadout.parts, ...loadout.spares].map((p) => partDef(p.defId)).filter((d) => d.kind === 'weapon');
+          expect(guns.filter((d) => d.tier > gear.gunTier).map((d) => d.id), `stretch ${stretch} ${template} seed ${seed}`).toEqual([]);
+        }
       }
     }
   });
