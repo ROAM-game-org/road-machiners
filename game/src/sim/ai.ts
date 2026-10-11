@@ -19,7 +19,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { runsDown } from "./catch-up";
+import { runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));

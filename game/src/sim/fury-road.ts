@@ -3,7 +3,6 @@ import { GARAGE_STOCK } from '../data/market';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
-import { inCombatWith } from './combat';
 import { isDefeated } from './defeat';
 import { playerVehicle } from './damage';
 import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
@@ -36,7 +35,7 @@ export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
   return FURY_ROAD.waves[Math.min(j, FURY_ROAD.waves.length) - 1];
 }
 
-const SIDES: readonly GroupSide[] = ['ahead', 'behind', 'left', 'right'];
+const SIDES: readonly GroupSide[] = ['ahead', 'left', 'right'];
 
 export function stretchPlan(world: World, j: number): WaveGroup[] {
   return planStretch(world.seed, j, groupSizes(enemyTrucks(world, j)));
@@ -59,7 +58,6 @@ export function planStretch(seed: number, j: number, sizes: readonly number[]): 
       level: wave.level,
       spawned: false,
       vehicles: [],
-      engaged: [],
       wrecked: 0,
       counted: [],
       retryUntil: null,
@@ -139,7 +137,6 @@ export function advanceFuryRoad(world: World): void {
   countBeaten(world, run);
   retireWoken(world, run);
   huntPlayer(world, run);
-  noteEngaged(world, run);
   if (arrivedAtNext(world, run)) return completeStretch(world, run);
   pace(world, run);
   spawnNext(world, run, playerProgress(world, run));
@@ -195,25 +192,6 @@ export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, 
 function huntsPlayer(world: World, v: Vehicle): boolean {
   const top = topGoal(v);
   return top?.kind === 'fight' && top.targetId === world.player.vehicleId;
-}
-
-function noteEngaged(world: World, run: FuryRoadRun): void {
-  const me = playerVehicle(world);
-  for (const group of run.groups) {
-    for (const v of fighting(world, group)) {
-      if (!group.engaged.includes(v.id)) {
-        if (engages(world, v, me)) group.engaged.push(v.id);
-      } else if (fellBehind(world, v, me)) group.engaged = group.engaged.filter((id) => id !== v.id);
-    }
-  }
-}
-
-function engages(world: World, v: Vehicle, me: Vehicle): boolean {
-  return dist(v.pos, me.pos) <= FURY_ROAD.catchUp.engageAt || inCombatWith(world, v, me);
-}
-
-function fellBehind(world: World, v: Vehicle, me: Vehicle): boolean {
-  return dist(v.pos, me.pos) > FURY_ROAD.pacing.near && !inCombatWith(world, v, me);
 }
 
 function encounterOn(world: World, run: FuryRoadRun): boolean {
@@ -273,7 +251,7 @@ function withinFlanks(across: number): number {
 }
 
 function spotCandidates(from: GroupSide, progress: number, across: number): Candidate[] {
-  const make = from === 'left' || from === 'right' ? flankCandidate(from, progress) : lineCandidate(from, progress, across);
+  const make = from === 'left' || from === 'right' ? flankCandidate(from, progress) : lineCandidate(progress, across);
   return Array.from({ length: FURY_ROAD.maxTries / 10 }, (_, step) => make(step));
 }
 
@@ -283,9 +261,9 @@ function flankCandidate(from: 'left' | 'right', progress: number): (step: number
   return (step) => ({ along: progress + flank.along + Math.ceil(step / 2) * (step % 2 === 0 ? 1 : -1) * flank.step, across });
 }
 
-function lineCandidate(from: 'ahead' | 'behind', progress: number, line: number): (step: number) => Candidate {
+function lineCandidate(progress: number, line: number): (step: number) => Candidate {
   const offsets = FURY_ROAD.spawnOffsets;
-  const along = from === 'ahead' ? progress + FURY_ROAD.sides.ahead : progress - FURY_ROAD.sides.behind;
+  const along = progress + FURY_ROAD.sides.ahead;
   return (step) => {
     const offset = Math.floor(step / offsets.length) * FURY_ROAD.spawnStagger;
     return { along: along + (step % 2 === 0 ? offset : -offset), across: withinFlanks(line + offsets[step % offsets.length]) };

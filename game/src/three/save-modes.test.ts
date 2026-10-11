@@ -56,7 +56,6 @@ describe('a saved world by mode', () => {
 
     expect(loaded).toEqual({ ...world, events: [], removed: [] });
     expect(loaded.furyRoad?.quietFrom).toBe(world.furyRoad!.quietFrom);
-    expect(loaded.furyRoad?.groups[0].engaged).toEqual(world.furyRoad!.groups[0].engaged);
   });
 
   it('pays an outpost once across a save and a load between levels, and awards nothing on load', () => {

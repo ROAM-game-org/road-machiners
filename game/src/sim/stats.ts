@@ -16,8 +16,6 @@ import type { PartInstance, Vehicle, World } from './types';
 import { DEG } from './vec';
 import { weatherOn } from './weather';
 import { fuelUseScale } from './settings';
-import { catchingUp } from './catch-up';
-import { FURY_ROAD } from '../data/modes';
 
 export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number };
 
@@ -121,18 +119,10 @@ function limitedSpeed(world: World, v: Vehicle, from: number, limpSpeed: number,
     steps?.push({ kind: 'floor', speed });
   }
   if (inOverdrive(world, v)) {
-    const boost = speedBoostOf(world, v, speed);
-    speed *= boost;
-    steps?.push({ kind: 'overdrive', factor: boost, speed });
+    speed *= RULES.overdriveBoost;
+    steps?.push({ kind: 'overdrive', factor: RULES.overdriveBoost, speed });
   }
   return transmissionSpeed(v, speed, limpSpeed, steps);
-}
-
-function speedBoostOf(world: World, v: Vehicle, own: number): number {
-  if (!catchingUp(world, v)) return RULES.overdriveBoost;
-  const me = world.vehicles.find((x) => x.id === world.player.vehicleId);
-  if (!me) throw new Error(`${v.id} catches up with a player who has no truck`);
-  return Math.max(RULES.overdriveBoost, (vehicleStats(world, me).maxSpeed * FURY_ROAD.catchUp.lead) / own);
 }
 
 function transmissionSpeed(v: Vehicle, from: number, limpSpeed: number, steps: SpeedStep[] | null): number {
@@ -255,8 +245,7 @@ function templateSpeedShare(v: Vehicle): number {
 }
 
 export function inOverdrive(world: World, v: Vehicle): boolean {
-  const wants = v.id === world.player.vehicleId ? world.player.overdrive : catchingUp(world, v);
-  return wants && canOverdrive(v);
+  return v.id === world.player.vehicleId && world.player.overdrive && canOverdrive(v);
 }
 
 export function canOverdrive(v: Vehicle): boolean {

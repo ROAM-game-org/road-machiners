@@ -515,12 +515,11 @@ export type WaveGroup = {
   level: GearLevel;
   spawned: boolean;
   vehicles: string[];
-  engaged: string[];
   wrecked: number;
   counted: string[];
   retryUntil: number | null;
 };
-export type GroupSide = 'ahead' | 'behind' | 'left' | 'right';
+export type GroupSide = 'ahead' | 'left' | 'right';
 export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };

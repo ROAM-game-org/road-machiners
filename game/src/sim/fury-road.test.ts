@@ -6,8 +6,7 @@ import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
-import { inOverdrive, maxSpeedSteps, vehicleStats } from './stats';
-import { RULES } from '../data/rules';
+import { inOverdrive, maxSpeedSteps } from './stats';
 import { inCombat } from './combat';
 import { playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
@@ -121,11 +120,11 @@ describe('the sides a group comes from', () => {
       }
     }
 
-    expect([...sides].sort()).toEqual(['ahead', 'behind', 'left', 'right']);
+    expect([...sides].sort()).toEqual(['ahead', 'left', 'right']);
   });
 
-  it('spawns ahead of the player, behind it, or out in the badlands on its side, inside the window', () => {
-    for (const from of ['ahead', 'behind', 'left', 'right'] as const) {
+  it('spawns ahead of the player or out in the badlands ahead on its side, inside the window', () => {
+    for (const from of ['ahead', 'left', 'right'] as const) {
       const w = furyRoadWorld();
       moveTo(w, milestoneAt(0) + 120);
       const first = group(w);
@@ -140,8 +139,7 @@ describe('the sides a group comes from', () => {
         const at = roadSpot(w, v);
         expect(Math.min(v.pos.x, v.pos.y)).toBeGreaterThan(0);
         expect(Math.max(v.pos.x, v.pos.y)).toBeLessThan(w.size);
-        if (from === 'ahead') expect(at.along).toBeGreaterThan(progress + 10);
-        if (from === 'behind') expect(at.along).toBeLessThan(progress - 10);
+        expect(at.along).toBeGreaterThan(progress + 10);
         if (from === 'left') expect(at.across).toBeLessThanOrEqual(-18);
         if (from === 'right') expect(at.across).toBeGreaterThanOrEqual(18);
       }
@@ -230,43 +228,19 @@ describe('the pace of encounters', () => {
 });
 
 describe('a group racing in', () => {
-  it('races in at the catch-up boost only out of the player sight, until it engages, and again once it falls past the encounter range', () => {
+  it('drives at its own speed near and far, with no overdrive', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);
     const [v] = trucksOf(w, first);
     const me = playerVehicle(w);
-    const boost = () => maxSpeedSteps(w, v).find((s) => s.kind === 'overdrive');
-    const moveTo = (gap: number) => {
+    for (const gap of [FURY_ROAD.pacing.near + 40, TERRAIN.vision.radius + 1, 5]) {
       v.pos = { x: me.pos.x + gap, y: me.pos.y };
       w.turn++;
       advanceFuryRoad(w);
-    };
-    const racing = () => {
-      const step = boost();
-      expect(step).toBeDefined();
-      expect(step!.factor).toBeGreaterThanOrEqual(RULES.overdriveBoost);
-      expect(vehicleStats(w, v).maxSpeed).toBeGreaterThanOrEqual(vehicleStats(w, me).maxSpeed * FURY_ROAD.catchUp.lead - 1e-9);
-    };
 
-    moveTo(TERRAIN.vision.radius + 1);
-    expect(inOverdrive(w, v)).toBe(true);
-    racing();
-
-    moveTo(TERRAIN.vision.radius - 1);
-    expect(first.engaged).toEqual([]);
-    expect(inOverdrive(w, v)).toBe(false);
-    expect(boost()).toBeUndefined();
-
-    moveTo(FURY_ROAD.catchUp.engageAt - 1);
-    expect(first.engaged).toEqual([v.id]);
-    expect(boost()).toBeUndefined();
-
-    moveTo(FURY_ROAD.pacing.near - 1);
-    expect(boost()).toBeUndefined();
-
-    moveTo(FURY_ROAD.pacing.near + 1);
-    expect(first.engaged).toEqual([]);
-    racing();
+      expect(inOverdrive(w, v), `gap ${gap}`).toBe(false);
+      expect(maxSpeedSteps(w, v).some((s) => s.kind === 'overdrive')).toBe(false);
+    }
   });
 
   it('drives at full speed toward a player out of sight, never stopping at the hunted point', () => {
@@ -280,17 +254,6 @@ describe('a group racing in', () => {
 
     expect(v.order?.kind).toBe('through');
     expect(v.order && 'pace' in v.order ? v.order.pace : undefined).toBeUndefined();
-  });
-
-  it('engages at any distance once in combat with the player', () => {
-    const w = furyRoadWorld();
-    const first = spawnFirst(w);
-    const [v] = trucksOf(w, first);
-    addState(w, 'combat', v.id, w.player.vehicleId, { kind: 'none' });
-
-    advanceFuryRoad(w);
-
-    expect(first.engaged).toEqual([v.id]);
   });
 
   it('leaves the overdrive of the player to its switch, and no Roaming truck overdrives', () => {

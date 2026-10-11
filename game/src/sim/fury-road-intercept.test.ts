@@ -16,7 +16,7 @@ function playerAt(w: World, across: number, speed: number): void {
   me.speed = speed;
 }
 
-function spawnedFrom(w: World, from: 'ahead' | 'behind') {
+function spawnedFrom(w: World, from: 'ahead') {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], stretch: 1, from, templates: ['buggy'], level: waveOf(1).level };
   run.groups = [group];
@@ -27,12 +27,10 @@ function spawnedFrom(w: World, from: 'ahead' | 'behind') {
 const acrossAt = (w: World, pos: { x: number; y: number }) => acrossOf(w.seed, toRoad(0, pos));
 
 describe('Fury Road groups on the player line', () => {
-  it('spawn ahead and behind around the player on the verge, not on the road', () => {
-    for (const from of ['ahead', 'behind'] as const) {
-      const w = furyRoadWorld(3);
-      playerAt(w, 16, 0);
-      expect(Math.abs(acrossAt(w, spawnedFrom(w, from).pos) - 16), from).toBeLessThanOrEqual(Math.max(...FURY_ROAD.spawnOffsets.map(Math.abs)));
-    }
+  it('spawn ahead around the player on the verge, not on the road', () => {
+    const w = furyRoadWorld(3);
+    playerAt(w, 16, 0);
+    expect(Math.abs(acrossAt(w, spawnedFrom(w, 'ahead').pos) - 16)).toBeLessThanOrEqual(Math.max(...FURY_ROAD.spawnOffsets.map(Math.abs)));
   });
 
   it('never spawn past the flanks when the player hugs the ridge', () => {
@@ -46,7 +44,7 @@ describe('Fury Road hunters', () => {
   function hunterWorld(playerSpeed: number) {
     const w = furyRoadWorld(3);
     playerAt(w, 0, playerSpeed);
-    const hunter = spawnedFrom(w, 'behind');
+    const hunter = spawnedFrom(w, 'ahead');
     return { w, me: playerVehicle(w), hunter };
   }
 
