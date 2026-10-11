@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { WAGON_SEVEN } from '../data/salvage';
 import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
-import { leaveQuest, QUESTS, questView, startQuest } from '../sim/quests';
+import { QUESTS, questView, startQuest } from '../sim/quests';
+import { finishQuest } from '../sim/testkit';
 import { searchTurn } from '../sim/search';
 import { defaultSetup } from '../sim/settings';
 import type { World } from '../sim/types';
@@ -42,7 +43,7 @@ describe('the wagon Seven scene', () => {
   it('opens once, and a second search of the wagon opens nothing', () => {
     const w = freshWorld();
     finishSearch(w, WAGON_SEVEN);
-    w.player.quests = leaveQuest(w).player.quests;
+    w.player.quests = finishQuest(w).player.quests;
     finishSearch(w, WAGON_SEVEN);
     expect(w.player.quests.live).toBeNull();
   });
@@ -60,7 +61,7 @@ describe('the wagon Seven scene', () => {
     finishSearch(w, WAGON_SEVEN);
     expect(w.player.quests.session).toEqual(before);
     expect(w.player.quests.world.wagon_seen).toBeUndefined();
-    w.player.quests = leaveQuest(w).player.quests;
+    w.player.quests = finishQuest(w).player.quests;
     finishSearch(w, WAGON_SEVEN);
     expect(questView(w, QUESTS).quest).toBe(WAGON_SCENE);
   });

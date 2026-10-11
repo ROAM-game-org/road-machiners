@@ -26,6 +26,7 @@ import { playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, newWorld } from './world';
 import { defaultSetup } from './settings';
+import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
 
 export function flatTerrain(size: number): Terrain {
   return { size, heights: new Array((size + 1) * (size + 1)).fill(0), types: new Array(size * size).fill('road') };
@@ -144,6 +145,20 @@ export function settleStorms(w: World): void {
       if (depth > 0) v.stormExposure[e.id] = depth;
     }
   }
+}
+
+const PICKS_TO_END = 100;
+
+export function finishQuest(world: World): World {
+  let w = world;
+  for (let picks = 0; w.player.quests.session && picks < PICKS_TO_END; picks++) {
+    const view = questView(w, QUESTS);
+    const index = view.locked.lastIndexOf(false);
+    if (index < 0) throw new Error(`Every choice of quest ${view.quest} is locked`);
+    w = chooseQuestOption(w, QUESTS, index);
+  }
+  if (w.player.quests.session) throw new Error(`Quest ${w.player.quests.session.quest} did not end in ${PICKS_TO_END} picks of its last open choice`);
+  return w.player.quests.live ? leaveQuest(w) : w;
 }
 
 export function partHp(v: Vehicle): number {

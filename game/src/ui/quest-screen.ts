@@ -28,7 +28,8 @@ function moneyChange(cents: number): Msg {
 function statRow(stat: QuestView['stats'][number], change: number, cents: number): HTMLElement {
   const delta = change === 0 ? null : el('span', { class: change > 0 ? 'quest-delta good' : 'quest-delta bad' }, moneyChange(change));
   const value = stat.name === MONEY_STAT ? t('call.money', { amount: Math.floor(cents / UNITS.centsPerM) }) : verbatim(stat.value);
-  return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, el('span', {}, verbatim(stat.label)), el('b', {}, delta, value));
+  const label = stat.name === MONEY_STAT ? null : el('span', {}, verbatim(stat.label));
+  return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, label, el('b', {}, delta, value));
 }
 
 export function artToHold(art: readonly string[], shown: string | null): string[] {
@@ -194,16 +195,12 @@ export class QuestScreen {
     const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
     const facts = view.facts.map((f) => el('div', { class: this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
-    return el('div', { class: 'quest-side' }, this.leaveButton(), el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
+    return el('div', { class: 'quest-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
   }
 
   private head(quest: string): HTMLElement {
     const local = localOfQuest(quest);
-    return el('div', { class: 'talk-head' }, createIcon('driver'), local ? el('b', {}, localName(local.id)) : null, local ? el('span', { class: 'dim' }, localRole(local.id)) : null, this.leaveButton());
-  }
-
-  private leaveButton(): HTMLElement {
-    return el('button', { class: 'close', onclick: () => this.leave() }, t('quest.leaveKey'));
+    return el('div', { class: 'talk-head' }, createIcon('driver'), local ? el('b', {}, localName(local.id)) : null, local ? el('span', { class: 'dim' }, localRole(local.id)) : null);
   }
 
   private errorLine(): HTMLElement {
@@ -255,7 +252,6 @@ export class QuestScreen {
   private onKey(e: KeyboardEvent): void {
     if (!this.isOpen() || isBrowserChord(e)) return;
     e.stopImmediatePropagation();
-    if (e.code === 'Escape') return this.leave();
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') return this.skip(e);
     const index = KEY_DIGITS.indexOf(e.code);
     if (index >= 0) this.pickKey(index);

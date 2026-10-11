@@ -17,7 +17,7 @@ import { compileSources, WORLD_FILE, type QuestSections, type QuestSources } fro
 export type QuestReport = { quest: string; states: number; problems: string[] };
 
 type Walk = { key: string; worlds: Record<QuestLanguage, World>; picks: string[] };
-type Seen = { picks: string[]; next: string[]; ended: boolean };
+type Seen = { picks: string[]; next: string[]; free: string[]; ended: boolean };
 type InkState = { flows: Record<string, { callstack: { threads: { callstack: unknown }[] }; currentChoices: { text: string; targetPath: string }[] }>; currentFlowName: string; variablesState: unknown; visitCounts: Record<string, number>; previousRandom: number };
 
 export type QuestScenes = (questId: string) => World[];
@@ -155,7 +155,7 @@ function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[]
   const where = `${id}: after ${walk.picks.join(' > ') || 'the start'}`;
   const views = eachLanguage((lang) => viewOf(walk.worlds[lang], bundle, `${where}${inWords(lang)}`, problems));
   const view = views.en;
-  const node: Seen = { picks: walk.picks, next: [], ended: view === null || view.ended || view.quest !== id };
+  const node: Seen = { picks: walk.picks, next: [], free: [], ended: view === null || view.ended || view.quest !== id };
   seen.set(walk.key, node);
   const split = twinSplit(walk.worlds, views);
   if (split) problems.push(`${where}: ${split}`);
@@ -170,6 +170,7 @@ function step(walk: Walk, bundle: QuestBundle, id: string, scene: Scene): Walk[]
   return view.choices.flatMap((text, index) => (view.locked[index] ? [] : attempt(problems, `${id}: after ${[...walk.picks, text].join(' > ')}`, () => {
     const next = walkOf(eachLanguage((lang) => chooseQuestOption(walk.worlds[lang], bundle, index)), [...walk.picks, text]);
     node.next.push(next.key);
+    if (view.costs[index] === null) node.free.push(next.key);
     return next;
   })));
 }
@@ -213,17 +214,25 @@ function attempt(problems: string[], where: string, run: () => Walk): Walk[] {
 }
 
 function trapProblems(id: string, seen: Map<string, Seen>): string[] {
+  const ending = endingNodes(seen, (node) => node.next);
+  const trapped = [...seen].filter(([key]) => !ending.has(key)).map(([, node]) => `${id}: after ${node.picks.join(' > ')}: no choice leads to an end from here`);
+  const free = endingNodes(seen, (node) => node.free);
+  const broke = [...seen].filter(([key]) => ending.has(key) && !free.has(key)).map(([, node]) => `${id}: after ${node.picks.join(' > ')}: only paid choices lead to an end, so a player with no money is stuck`);
+  return [...trapped, ...broke];
+}
+
+function endingNodes(seen: Map<string, Seen>, edges: (node: Seen) => string[]): Set<string> {
   const ends = new Set([...seen].filter(([, node]) => node.ended).map(([key]) => key));
   let grew = true;
   while (grew) {
     grew = false;
     for (const [key, node] of seen) {
-      if (ends.has(key) || !node.next.some((next) => ends.has(next))) continue;
+      if (ends.has(key) || !edges(node).some((next) => ends.has(next))) continue;
       ends.add(key);
       grew = true;
     }
   }
-  return [...seen].filter(([key]) => !ends.has(key)).map(([, node]) => `${id}: after ${node.picks.join(' > ')}: no choice leads to an end from here`);
+  return ends;
 }
 
 function reloaded(walk: Walk, bundle: QuestBundle): Walk {

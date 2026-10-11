@@ -198,6 +198,7 @@ A quest can only ask the game through functions in `world.ink`.
 - "Effect ran while loading checkpoint": move the effect after the checkpoint's first choice.
 - "Loading checkpoint changed its variables": move the `~` line after the first choice.
 - "no choice leads to an end from here": a loop has no exit. Give it one, or cost each lap something, such as a watch.
+- "only paid choices lead to an end": the player cannot leave a quest midway, so a player with no money is stuck there. Add a free choice that leads to an end.
 - "section is never reached": a condition can never hold in either check world, or the section is dead. Fix the condition or delete it.
 - "stopped after 5000 states": see [Keeping the checker fast](#keeping-the-checker-fast).
 - The voice test names a line with a number or a game word: reword it in character.

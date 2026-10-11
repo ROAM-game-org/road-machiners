@@ -207,9 +207,8 @@ describe('quest language', () => {
 });
 
 describe('leaveQuest', () => {
-  it('closes an open quest midway and keeps the variables it set', () => {
-    const left = leaveQuest(play(world(), 'sample_bowl', 'start', [RUMORS]));
-    expect(left.player.quests).toEqual({ world: { sample_wagon_heard: true }, local: { sample_bowl: { trust: 1 } }, session: null, live: null });
+  it('refuses to leave a quest that has not ended', () => {
+    expect(() => leaveQuest(play(world(), 'sample_bowl', 'start', [RUMORS]))).toThrow('a quest can be left only once it ends');
   });
 
   it('clears the last lines of an ended quest', () => {

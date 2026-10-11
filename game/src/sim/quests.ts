@@ -287,6 +287,7 @@ export function restoreQuest(world: World, bundle: QuestBundle): void {
 export function leaveQuest(world: World): World {
   return update(world, (w) => {
     if (!w.player.quests.live) throw new Error('No quest is on view');
+    if (w.player.quests.session) throw new Error(`Quest ${w.player.quests.live.quest} has not ended, and a quest can be left only once it ends`);
     w.player.quests.session = null;
     w.player.quests.live = null;
   });

@@ -14,14 +14,14 @@ import { fightOdds } from '../sim/fight-odds';
 import { corePart, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
-import { introStep, leaveQuest, setIntroStep } from '../sim/quests';
+import { introStep, setIntroStep } from '../sim/quests';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { topGoal } from '../sim/npc-activities';
 import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
 import { spawnAt } from '../sim/spawn';
-import { editableTerrain, emptyWorld, testDrive } from '../sim/testkit';
+import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
@@ -67,7 +67,7 @@ function knockedOutBy(w: World): Vehicle {
 }
 
 function closeScene(w: World): World {
-  return leaveQuest(w);
+  return finishQuest(w);
 }
 
 function runUntilAwake(start: World): World {
