@@ -19,7 +19,7 @@ The public files and votes on GitHub issues. The game's release, dev and candida
 
 A card is one GitHub issue on the Project board. Its column is the state. Every card runs the same stages. Testing gets a build ready for the committee to play. Hardening runs after they approve it, with the deep verification and the review. Hardening is slow, so it runs only on work the committee wants. Merging checks the approved cards merged together before the base takes them.
 
-Each agent stage is one agent session that owns its stage. The agent runs the checks itself and fixes what it finds. Hard checks run only at four checkpoints: the diff guard on every commit and every push, the post checkpoint before a committee post, the merge checkpoint before the base takes a card, and the release playtest before a ship. A checkpoint failure goes back into the session that did the work, until the checks pass or the stage spent its budget, `FACTORY_TESTING_BUDGET_USD` or `FACTORY_MERGING_BUDGET_USD`. Everything else an agent writes, like the post text and its screenshots, is shown as written.
+Each agent stage is one agent session that owns its stage. The agent runs the checks itself and fixes what it finds. Hard checks run only at five checkpoints: the diff guard on every commit and every push, the post checkpoint before a committee post, the merge checkpoint before the base takes a card, the release playtest before the candidate, and the ship checkpoint before `main` takes the release. A checkpoint failure goes back into the session that did the work, until the checks pass or the stage spent its budget, `FACTORY_TESTING_BUDGET_USD` or `FACTORY_MERGING_BUDGET_USD`. At the merge and ship checkpoints only the fix rounds count against that budget, so an expensive conflict still leaves the session its fixes. Everything else an agent writes, like the post text and its screenshots, is shown as written.
 
 ![Card lifecycle](diagrams/lifecycle.svg)
 
@@ -48,7 +48,7 @@ A branch that changes only Markdown docs cannot change the game, so it runs no t
 
 Screenshots never block a card. A card with no screenshot still runs the post checkpoint, and its approval post is text that says it has no screenshot. [evidence.md](evidence.md) has the rules.
 
-A failed job never moves a card. A card stage that fails resumes once on the next tick in its own sessions, and its agent gets the error. A second failure labels the issue `factory-stuck`, and the card waits in its column until Hermes removes the label. An empty budget or a question for the committee labels it at once. A run that hits the Claude weekly usage limit pauses the factory instead, and its card takes no label.
+A failed job never moves a card. A card stage that fails resumes once on the next tick in its own sessions, and its agent gets the error. A second failure labels the issue `factory-stuck`, and the card waits in its column until Hermes removes the label. An empty budget or a question for the committee labels it at once. Each tick's stuck sweep records why every stuck card waits, and removes the label itself only for a mechanical cause: a stale merge in the card's work clone, a GitHub outage or full disk that has passed, and a merge batch that timed out. [operations.md](operations.md#stuck-sweep) has the rules. A run that hits the Claude weekly usage limit pauses the factory instead, and its card takes no label.
 
 A member or Hermes can hold one card with `factory pause-card N`, so its worker goes to other work, like release tasks. The hold stops the card's job and keeps its work clone and agent sessions. The card waits in its column with no label until `factory resume-card N`, and then the stopped stage continues where it stopped. [state.md](state.md) has the rules.
 
@@ -69,7 +69,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 Approve moves a card to Hardening. The hardening session merges the base, attacks the change, runs `/code-review` and fixes every finding. No checks run there. Then the card moves to Merging.
 
-A merge job takes every Merging card of one base at that moment. It merges them into a clone of the base, and the merge session resolves any conflict. The merge checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the merge session. The base takes only a result that passed. If the base moved during the checks, the job merges it in and checks again. A failed batch labels each of its cards `factory-stuck`.
+A merge job takes up to three Merging cards of one base, the oldest first. It merges them into a clone of the base, and the merge session resolves any conflict. While it runs, a catch-up job merges the base into the issue branch of each of the next six waiting cards, one at a time, and an agent resolves any conflict there, so the next batches meet only what the base gained since. A catch-up pushes only the issue branch, runs no checks, and a failed one labels nothing. The merge checkpoint runs the full suite, the typecheck, the playtest and the build on the result. Each run of the checks stops at `FACTORY_CHECKS_TIMEOUT_MINUTES` and counts as a timeout, which runs them again, at most 3 times. A failure goes back into the merge session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving conflicts, before the checks or after the base moved, spends none of that budget. The base takes only a result that passed. If the base moved during the checks, the job merges it in and checks again. A failed batch labels each of its cards `factory-stuck`. When a batch timed out or its job died, the stuck sweep releases half its cards only after no ready Merging card of that base remains and no merge job is running; the three-card cap still applies to every new job. A single repeatedly failing card stays stuck for investigation. Each passing batch is pushed before the next job takes the remaining cards, so later failures cannot lose earlier progress.
 
 ![Hardening and Merging columns](diagrams/hardening.svg)
 
@@ -104,26 +104,26 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 - An agent stage merges the new commits of its issue branch into the work before each push. When GitHub rejects the push because the branch moved again, it merges again and pushes again.
 - A conflict with those commits goes to an agent in the same job. The agent keeps both sides, and the stage goes on. An unfinished merge fails the stage.
-- Testing and Hardening also merge those commits and the base before their agent starts, so the session works on them.
+- Testing and Hardening also merge those commits and the base before their agent starts, so the session works on them. They take the base the way Design does, except that their own agent resolves a conflict. A retry gives an unfinished merge of the base or of the issue branch back to the agent. If the agent ends with the base merge unfinished, Testing counts it as a failed checkpoint and the same session finishes it within the stage budget. Hardening sends it back to the same session once, and fails the stage if the merge is still unfinished.
 - Design does the same on the host before its agent starts, since the agent cannot fetch. A clean clone takes the base: a fast-forward, or a merge that keeps its own commits and its task files. It needs no issue branch on GitHub. A clone with uncommitted changes stays as it is, and the agent is told it may lack recent base work. A conflict goes to an agent in the same job, never to the author, and a retry gives that unfinished merge to an agent again. Any other unfinished merge fails the stage for `factory repair-clone`.
-- The merge queue moves `dev` or the release only with a result its checks passed. A base that moved meanwhile is merged in and checked again.
+- The merge queue moves `dev` or the release only with a result its checks passed. A base that moved meanwhile is merged in and checked again. A catch-up merges the base into the issue branch of a waiting Merging card and pushes only that branch.
 - A merge into `main` or the release that GitHub rejects because a target moved runs again on the new tips.
-- A conflict between whole branches never stops the factory. It covers the release cut, Ship, the hotfix fan-out and the reverts of Remove. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix that conflicts with `main` at approve goes back to Testing.
+- A conflict between whole branches never stops the factory. It covers the release cut, the hotfix fan-out and the reverts of Remove. Ship resolves its own conflict in its session. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix that conflicts with `main` at approve goes back to Testing.
 
 ![Branches](diagrams/branches.svg)
 
 - The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. `lastRelease` changes only when the cut succeeds or finds nothing new, so a failed cut runs again on the next tick.
-- Ship merges `main` into the release, the release into `main` and `main` into `dev` in one push. Then it builds `main` and pushes it to itch.io. A change on `main` never stops a ship. Ship takes whatever `main` holds, game changes included, since only a member puts game changes on `main` outside a release or a hotfix.
-- A hotfix merges its branch into `main`, and `main` into `dev` and the open release, in one push. Then it ships like a release.
+- Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
+- A hotfix merges its branch into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
 
 ## Release
 
 ![Release](diagrams/release.svg)
 
-The playtest is one job, after every release task merged and before the candidate. It merges `main` into the release, then plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main`. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release for a member. [stages.md](stages.md#release-playtest) has the rules.
+The playtest is one job, after every release task merged and before the candidate. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
 
-The candidate builds only the commit the playtest passed, and its post records it. Every move of the release drops the Ship button of the current post, and the playtest job runs again on the new head. A head that only adds commits to a passed commit and changes no file under `game/` plays the same game, so the job carries the pass to it with no suite and no play. Factory and docs commits from `main` move the release this way. Any game change plays in full. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
+The release stays put after its cut. Only its release tasks, the playtest fixes and Remove change it, and nothing from `main` enters it until Ship. Each of these moves drops the Ship button of the current post, and the playtest plays the new head in full. The candidate builds only the commit the playtest passed, and its post records it. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
 
 ## Side jobs
 
@@ -132,18 +132,18 @@ These jobs run beside the cards.
 - change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it.
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
 - incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md` and may add an entry to `dev`.
-- waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters.
+- waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
 - dev: rebuilds `/dev/` when `dev` moved past its build.
 
 ## Tick and queues
 
-A timer runs one tick at a time. A tick never waits for a job. Each job runs as its own process. Check jobs kills a job past its time limit, and resumes a dead job once.
+A timer runs one tick at a time. A tick never waits for a job. Before it picks jobs, it sweeps the stuck cards of the board it read, and a sweep that crashes only records its error. Each job runs as its own process. Check jobs resumes a dead card job once, and kills a card job past its time limit and resumes it once. A second death or timeout, and any branch job past its limit, fails.
 
 ![One tick](diagrams/tick.svg)
 
 Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue.
 
-1. Branch jobs: queued approve, remove, ship, incident, then the merge queue, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
+1. Branch jobs: every queued approve, remove, ship and incident, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
 3. Card jobs: hotfixes, ad hoc tasks, factory changes, release tasks, then other cards. Within each, the card furthest along goes first.
 
@@ -156,4 +156,4 @@ Queues:
 - implement: implementation, ad hoc and change.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
-- branch: approve, merge, remove, ship, incident, release cut, candidate and dev, one at a time.
+- branch: approve, merge, catch-up, remove, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each appends to the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.

@@ -31,7 +31,7 @@ The board column is the position. Only a Testing card has a second one, `post`. 
 - `post`: column Testing, with the issue in `postOnly`. Next job: checks, which builds, publishes and posts with no tests or playtest. `move N approval` puts a card here and drops its approval.
 - `approval`: column Approval. Needs a published build in `builds` and an open post in `approvalPosts`, or an approval queued in `pendingApprovals`. Next job: approve, which runs when the committee presses Approve.
 - `harden`: column Hardening, with an `approvedResolving` entry, or a cleanup task. Next job: harden, which runs the hardening session and moves the card to Merging. `move N harden` records the mover as approver when none is recorded.
-- `merging`: column Merging, with an `approvedResolving` entry, or a cleanup task. Next job: merge, one for every Merging card of a base. `move N merging` and `merge N` record the mover as approver when none is recorded.
+- `merging`: column Merging, with an `approvedResolving` entry, or a cleanup task. Next job: merge, one for up to three Merging cards of a base. `move N merging` and `merge N` record the mover as approver when none is recorded.
 - `done`: column Done. Runs nothing.
 
 Fields that belong to one position:
@@ -42,7 +42,7 @@ Fields that belong to one position:
 
 Flags hold on any position:
 
-- `factory-stuck`: a job failed twice, spent its budget or asked the committee. The card waits in its column until `retry N` removes the label. A card stage that fails the first time takes no label: its issue stays in `interrupted`, its sessions keep the error, and the next tick resumes the stage.
+- `factory-stuck`: a job failed twice, spent its budget or asked the committee. The card waits in its column until `retry N` removes the label, or the stuck sweep removes it for a mechanical cause. A card stage that fails the first time takes no label: its issue stays in `interrupted`, its sessions keep the error, and the next tick resumes the stage.
 - Held: `held` in `state.json` holds who held the card, why, when, and the stage of the job the hold stopped. The tick starts no job on the issue, a queued approval included, until `resume-card N` lifts it. A hold is no failure, so the card takes no label and Hermes gets no incident. `move` keeps it but forgets the stopped stage, since the move clears the sessions. `move N done` drops it.
 - `needs-info`: the author owes answers. The tick removes it when someone answers, or when `FACTORY_NEEDS_INFO_HOURS` pass since the questions.
 - Approved: the card merges after hardening. It shows as `approvedResolving` or a queued approval.
@@ -59,8 +59,9 @@ Flags hold on any position:
 - Playtest: every release task is done, and `release.playtest.passed` is not the release head. The playtest runs.
 - Playtest blocked: `release.playtest.blocked` holds the commit and the reason. The tracking card has `factory-stuck`. `retry <tracking> [decision]` lifts it.
 - Candidate building: `release.playtest.passed` is the release head and no post is current. The candidate runs.
-- Candidate posted: `release.postId` holds the current candidate post, and `release.candidateSha` the commit it plays. Ship runs when a member presses Ship, or on `ship`. A tick that finds the release head past `candidateSha` drops the post and a queued Ship.
-- Shipped: `ship` merged the release into `main`, closed its cards and set `release` to null.
+- Candidate posted: `release.postId` holds the current candidate post, and `release.candidateSha` the commit it plays. Ship runs when a member presses Ship, or on `ship`. A tick that finds the release head past `candidateSha` drops the post and a queued Ship, unless a Ship runs. Ship refuses a release head other than `candidateSha`.
+- Shipping: `release.shipping` holds the release head and the features Ship found on it before it merged into `main`. A Ship that runs again on the same head reuses that list, since the release is then already on `main`. `release.removed` takes an issue as soon as its reverts are pushed, so a removal that runs again goes on with the remaining steps.
+- Shipped: `ship` merged the release into `main`, closed its cards and set `release` to null. A tag that already exists counts as made.
 
 `release.playtest` holds the playtest of the open release: `seed`, fixed at the cut; `runs`, every play started, which names the audit folders; `passed`, the commit a clean play approved, which is also the next job's baseline; `blocked`; and `notes`, the members' decisions from `retry`. One job plays at most `FACTORY_PLAYTEST_RUNS` times, so the state keeps no count of plays left.
 
@@ -85,15 +86,20 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
+- `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
 ## Health records
 
-- `failures`: failed jobs of the last day. `factory failures` prints them. `retry N` clears a card's failure and its stuck label.
+- `failures`: failed jobs of the last day. `factory failures` prints them. `retry N` clears a card's failure and its stuck label. A merge failure holds `batch`, the issues of its batch. `decision` marks a spent budget or a committee question.
+- `stuck`: the stuck sweep's record of each open stuck card, by issue: `incident`, `kind`, `column`, the cause in `stage`, `cause`, `log`, `since`, `decision` and `batch` (the size of its failed merge batch), `tries` (the sweep's actions on it in this column), `released` and `refused`. Written only by the tick's sweep. `factory stuck` prints them. [operations.md](operations.md#stuck-sweep) has the rules.
+- `sweepError`: the last crash of the stuck sweep, cleared by the next sweep that passes. The incident watch prints it.
 - `lastTickError`: the last tick crash. `factory status` shows it.
+- `lastWasteReview`: the start of the next waste review's period, the end of the last published review. Only a published review moves it forward. A review run by hand with none sets it one period back first, so its retry covers the same period. `set-state lastWasteReview` restores it.
 - `devFailed`: the short hash of a `dev` whose build failed. The tick skips it until `dev` moves or Hermes clears it. `devError` holds what broke, and the incident watch prints its first line, so Hermes fixes `dev` or reverts the merge that broke it.
 - Review pending: `$FACTORY_HOME/review-pending` names the issue of a finished waste review. Hermes's incident watch prints it, and Hermes deletes it once handled.
+- Review publishing: `$FACTORY_HOME/waste-review-publish.json` holds a created review issue with its period, bottleneck and proposal until the job has closed it, recorded it and written `review-pending`. Only the waste job writes it. A retry of the same period finishes it, and a later period deletes it.
 - Error service alert: `$FACTORY_HOME/error-reports/alert` holds one line per cap the error service hit that day: the daily issue cap, the disk cap or the per-address limit. Hermes's incident watch prints it, and Hermes deletes it once handled.
-- Pause: the pause file holds the reason and stops the tick. `pause <reason>` writes it and `resume` removes it when `pause` wrote it.
+- Pause: the pause file holds the reason and stops new work. A paused tick only checks the running jobs: it reaps a dead or timed-out job and resumes it once as usual. A second death or timeout fails it. It starts no job, applies no order, runs no cleanup and takes no intake. `pause <reason>` writes it and `resume` removes it when `pause` wrote it.
 
 ## Consistency rules
 
@@ -114,7 +120,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 ## Commands
 
-Read: `factory status`, `cards`, `card N`, `jobs`, `queues`, `release`, `failures`, `log N [stage]`, `audit` and `help`.
+Read: `factory status`, `cards`, `card N`, `jobs`, `queues`, `release`, `failures`, `stuck`, `log N [stage]`, `audit` and `help`.
 
 Write, each with `--by` and `--reason`:
 
@@ -127,7 +133,7 @@ Write, each with `--by` and `--reason`:
 - `remove N` takes a feature out of the release.
 - `drop <approval|removal|ship|change|incident> <id>` drops one queued entry.
 - `merge-change <id>` merges a factory change PR into `main`.
-- `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its cap slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs.
+- `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards. Each catch-up job adds its issue to `caughtUp` on that entry, so a card is caught up at most once per merge job, and the list goes with the entry. A Merging card outside the batch can be held and moved while the merge runs.
 - `resume-card N` lifts the hold. The next tick runs the card's stage, and a job of the stopped stage continues its agents' sessions with `--resume`. It needs no board, so it also lifts a hold whose card is gone.
 
 `card N`, `cards` and `status` show each hold with who held it and why. The public dashboard shows only the wait reason `held`.
@@ -145,6 +151,6 @@ Write orders wait while the factory is paused. The CLI still writes the order, s
 
 `hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
 
-Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume` and `repair-clone N --by <who> --reason <why> [--backup-merge]`. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
+Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume`, `repair-clone N --by <who> --reason <why> [--backup-merge]` and `set-state <path> <json>|--delete --by <who> --reason <why>`. `set-state` changes one value at a dotted path, like `release.postId`, under the state lock, so no job has to stop. It refuses a path whose first key is not a store, a value of another kind than the one it replaces, like an object for a list, and a delete of anything but an entry of a map store like `pendingApprovals.5`. A null value takes any kind. It writes the old and the new value to the tick log. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
 
-`repair-clone N` needs a pause and no running job. It moves the card's work clone whole into a clone backup, checks out GitHub's `factory/issue-N` fresh and copies only the factory folders over. It changes no label, card or `state.json` field. [operations.md](operations.md#repairing-a-work-clone) has the rules.
+`repair-clone N` needs only that no job of the card runs. It holds the card and takes the clone lock `locks/issue-N` while it works, then lifts the hold it placed. It moves the card's work clone whole into a clone backup, checks out GitHub's `factory/issue-N` fresh and copies only the factory folders over. A repair that works removes the stuck label and the card's failures, like `retry N`. A failed repair changes no label, card or `state.json` field. [operations.md](operations.md#repairing-a-work-clone) has the rules.

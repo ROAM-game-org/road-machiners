@@ -10,8 +10,8 @@ const FULL = {
   FACTORY_BUILD_MODEL: 'sonnet', FACTORY_TRIAGE_MODEL: 'haiku', FACTORY_ADVISOR_MODEL: 'opus', FACTORY_MODEL_PRICES: 'opus=4/20/0.2/5/8 sonnet=2/10/0.2/2.5/4 haiku=1/5/0.1/1.25/2', FACTORY_MIN_VOTES: '5', FACTORY_MIN_AGE_HOURS: '24', FACTORY_NEEDS_INFO_HOURS: '24', FACTORY_COMMITTEE_BOOTSTRAP_GITHUB: 'boss',
   FACTORY_COMMITTEE_BOOTSTRAP: '1', TELEGRAM_BOT_TOKEN: 'bt', FACTORY_COMMITTEE_CHAT: '-1', FACTORY_PUBLIC_CHANNEL: '@c',
   FACTORY_TRIAGE_TIMEOUT_MINUTES: '30', FACTORY_DESIGN_TIMEOUT_MINUTES: '135', FACTORY_IMPLEMENT_TIMEOUT_MINUTES: '330', FACTORY_VERIFY_TIMEOUT_MINUTES: '240',
-  FACTORY_TEST_TIMEOUT_MINUTES: '90', FACTORY_BRANCH_TIMEOUT_MINUTES: '60', FACTORY_JOB_MAX_MINUTES: '30', FACTORY_REPLY_ROUTE_MINUTES: '15', FACTORY_RELEASE_DAYS: '7', FACTORY_PLAYTEST_TURNS: '2250', FACTORY_PLAYTEST_RUNS: '4', FACTORY_PLAYTEST_TIMEOUT_MINUTES: '330', FACTORY_MERGE_TIMEOUT_MINUTES: '180', FACTORY_TESTING_BUDGET_USD: '10', FACTORY_MERGING_BUDGET_USD: '5', FACTORY_WASTE_REVIEW_DAYS: '7',
-  ITCH_TARGET: 'u/g', BUTLER_API_KEY: 'bk', FACTORY_MAX_JOBS_PER_DAY: '10', FACTORY_MAX_JOBS_PER_CARD: '4',
+  FACTORY_TEST_TIMEOUT_MINUTES: '90', FACTORY_BRANCH_TIMEOUT_MINUTES: '60', FACTORY_JOB_MAX_MINUTES: '30', FACTORY_REPLY_ROUTE_MINUTES: '15', FACTORY_RELEASE_DAYS: '7', FACTORY_PLAYTEST_TURNS: '2250', FACTORY_PLAYTEST_RUNS: '4', FACTORY_PLAYTEST_TIMEOUT_MINUTES: '330', FACTORY_MERGE_TIMEOUT_MINUTES: '180', FACTORY_CHECKS_TIMEOUT_MINUTES: '45', FACTORY_TESTING_BUDGET_USD: '10', FACTORY_MERGING_BUDGET_USD: '5', FACTORY_WASTE_REVIEW_DAYS: '7',
+  ITCH_TARGET: 'u/g', BUTLER_API_KEY: 'bk', FACTORY_MAX_JOBS_PER_CARD: '4',
   FACTORY_TRIAGE_WORKERS: '1', FACTORY_DESIGN_WORKERS: '1', FACTORY_IMPLEMENT_WORKERS: '2', FACTORY_VERIFY_WORKERS: '1', FACTORY_TEST_WORKERS: '1', FACTORY_TRIAGE_EFFORT: 'low', FACTORY_DESIGN_EFFORT: 'medium',
   FACTORY_MIN_FREE_GB: '5', FACTORY_MIN_AVAILABLE_GB: '1', FACTORY_LOG_DAYS: '14', FACTORY_TRANSCRIPT_DAYS: '10', FACTORY_TEST_CACHE_DAYS: '10', FACTORY_CPU_LIGHT: '0.25', FACTORY_CPU_IMPLEMENT: '0.25', FACTORY_CPU_TEST: '0.5', FACTORY_VITEST_WORKERS_IMPLEMENT: '2', FACTORY_VITEST_WORKERS_TEST: '4',
   FACTORY_ERROR_DAILY_ISSUES: '5', FACTORY_ERROR_DISK_MB: '2000', FACTORY_ERROR_MAP_DAYS: '14', FACTORY_ERROR_BODY_KB: '8192', FACTORY_ERROR_UNZIPPED_MB: '64', FACTORY_ERROR_IP_PER_HOUR: '20', FACTORY_ERROR_ORIGINS: 'https://html.itch.zone',
@@ -27,7 +27,6 @@ describe('loadConfig', () => {
     expect(cfg.committeeBootstrapGithub).toBe('boss');
     expect(cfg.committeeBootstrapTelegram).toBe('1');
     expect(cfg.committeeChat).toBe('-1');
-    expect(cfg.maxJobsPerDay).toBe(10);
     expect(cfg.maxJobsPerCard).toBe(4);
     expect(cfg.itchTarget).toBe('u/g');
     expect(cfg.sfxMaxGenerations).toBe(6);
@@ -35,7 +34,7 @@ describe('loadConfig', () => {
     expect(cfg.triageEffort).toBe('low');
     expect(cfg.designEffort).toBe('medium');
     expect([cfg.minFreeGb, cfg.minAvailableGb, cfg.logDays, cfg.transcriptDays, cfg.testCacheDays]).toEqual([5, 1, 14, 10, 10]);
-    expect([cfg.playtestTimeoutMinutes, cfg.mergeTimeoutMinutes]).toEqual([330, 180]);
+    expect([cfg.playtestTimeoutMinutes, cfg.mergeTimeoutMinutes, cfg.checksTimeoutMinutes]).toEqual([330, 180, 45]);
   });
 
   it('reads token prices per model and requires one for each model the factory picks', () => {
@@ -53,7 +52,7 @@ describe('loadConfig', () => {
   });
 
   it('requires the cap key but leaves the itch keys to the release', () => {
-    expect(() => loadConfig({ ...FULL, FACTORY_MAX_JOBS_PER_DAY: '' })).toThrow('FACTORY_MAX_JOBS_PER_DAY');
+    expect(() => loadConfig({ ...FULL, FACTORY_MAX_JOBS_PER_CARD: '' })).toThrow('FACTORY_MAX_JOBS_PER_CARD');
     const cfg = loadConfig({ ...FULL, ITCH_TARGET: '', BUTLER_API_KEY: undefined });
     expect([cfg.itchTarget, cfg.butlerKey]).toEqual([null, null]);
   });
@@ -103,6 +102,6 @@ describe('readEnvFiles', () => {
     const tracked = Object.keys(readEnvFiles('settings.env', files('', '')[1]));
     expect(tracked.filter((key) => SECRET.test(key))).toEqual([]);
     const filled = Object.fromEntries(Object.keys(settings).map((key) => [key, settings[key] || (key === 'FACTORY_GPU' ? 'on' : '1')]));
-    expect(() => loadConfig(filled)).not.toThrow();
+    expect(loadConfig(filled).maxJobsPerCard).toBe(30);
   });
 });

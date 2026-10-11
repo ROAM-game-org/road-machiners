@@ -17,19 +17,21 @@ import { remove } from './stages/remove';
 import { ship } from './stages/ship';
 import { runStage as checks } from './stages/checks';
 import { merge } from './stages/merge';
+import { catchUp } from './stages/catch-up';
 import { runStage as verify } from './stages/verify';
 import { runStage as harden } from './stages/harden';
 import { runStage as waste } from './stages/waste';
 import { runStage as triage } from './stages/triage';
 import { recordJob, type JobOutcome } from './ledger';
 import { clearSessions, markResumed, resumedStage } from './sessions';
-import { readState, updateState } from './state';
-import { QUEUE_OF, type Ctx, type FactoryState, type Job, type JobStage } from './types';
+import { clearQueued, readState, updateState } from './state';
+import { QUEUE_OF, type Ctx, type Job, type JobStage } from './types';
 
 type Handler = (ctx: Ctx, issue: number) => Promise<void>;
 
 const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge'>, Handler> = {
   triage, design, implement, verify, harden, checks, change, adhoc, playtest, candidate, remove, incident,
+  'catch-up': catchUp,
   ship: (ctx, issue) => ship(ctx, issue, readState(ctx.statePath).pendingShip),
   approve: (ctx, issue) => approve(ctx, issue, readState(ctx.statePath).pendingApprovals[String(issue)] ?? 'the committee'),
 };
@@ -90,9 +92,14 @@ export async function runJob(ctx: Ctx, stage: JobStage, issue: number | null): P
 async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
   const retry = retriesItself(ctx, stage, issue, error);
   if (retry) resumeOnce(ctx, stage, issue, error);
-  else await reportFailure(ctx, stage, failureIssue(stage, issue, readState(ctx.statePath)), error, job?.log ?? null);
+  else await reportFailure(ctx, stage, failureIssue(stage, issue, readState(ctx.statePath)), error, job?.log ?? null, batchOf(ctx, job));
   await noteProgress(ctx, stage, issue, job, retry ? 'stopped' : 'failed');
   return retry;
+}
+
+function batchOf(ctx: Ctx, job: Job | null): number[] {
+  if (job === null) return [];
+  return readState(ctx.statePath).jobs.find((other) => other.id === job.id)?.batch ?? [];
 }
 
 function ledgerEntry(
@@ -139,22 +146,4 @@ function clearJob(ctx: Ctx, stage: JobStage, issue: number | null, resumes: bool
     const interrupted = QUEUE_OF[stage] === 'branch' || resumes ? state.interrupted : state.interrupted.filter((item) => item !== issue);
     return { ...clearQueued(state, stage, issue), jobs, interrupted };
   });
-}
-
-function clearQueued(state: FactoryState, stage: JobStage, issue: number | null): FactoryState {
-  const pendingApprovals = { ...state.pendingApprovals };
-  if (stage === 'approve') delete pendingApprovals[String(issue)];
-  const pendingChanges = stage === 'change' ? state.pendingChanges.filter((item) => item.id !== issue) : state.pendingChanges;
-  const pendingIncidents = stage === 'incident' ? state.pendingIncidents.filter((n) => n !== issue) : state.pendingIncidents;
-  const pendingShip = stage === 'ship' ? null : state.pendingShip;
-  const first = stage === 'remove' ? state.pendingRemovals.findIndex((item) => item.issue === issue) : -1;
-  const pendingRemovals = state.pendingRemovals.filter((_, index) => index !== first);
-  return {
-    ...state,
-    pendingApprovals,
-    pendingChanges,
-    pendingIncidents,
-    pendingShip,
-    pendingRemovals,
-  };
 }

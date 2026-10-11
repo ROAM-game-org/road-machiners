@@ -289,10 +289,19 @@ describe('move', () => {
     expect(calls).toEqual([]);
   });
 
-  it('changes nothing for a Merging card while the merge job runs, though that job has no issue (IV4)', async () => {
+  it('moves a Merging card that is outside the batch of the running merge job', async () => {
     cards = [card(4, 'Merging')];
     const state = readState(statePath);
-    writeState(statePath, { ...state, jobs: [{ ...JOB, id: 'merge---x', stage: 'merge', issue: null }] });
+    writeState(statePath, { ...state, jobs: [{ ...JOB, id: 'merge---x', stage: 'merge', issue: null, batch: [6] }] });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));
+    expect(killed).toEqual([]);
+    expect(calls).toContain('move 4 Design');
+  });
+
+  it('changes nothing for a Merging card in the batch of the running merge job, though that job has no issue (IV4)', async () => {
+    cards = [card(4, 'Merging')];
+    const state = readState(statePath);
+    writeState(statePath, { ...state, jobs: [{ ...JOB, id: 'merge---x', stage: 'merge', issue: null, batch: [4] }] });
     const before = readState(statePath);
     await expect(applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }))).rejects.toThrow('merging now');
     expect(readState(statePath)).toEqual(before);
@@ -517,6 +526,13 @@ describe('ship, cut and remove', () => {
     await applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }));
     expect(readState(statePath).pendingRemovals).toEqual([{ issue: 5, by: 'Ann', text: 'the gate failed on load' }]);
     expect(calls.find((call) => call.startsWith('comment 5'))).toContain('Ann');
+  });
+
+  it('queues a removal that stopped after its reverts again, so it finishes, but not a second copy', async () => {
+    seed({ release: { ...RELEASE, removed: [5] } });
+    await applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }));
+    expect(readState(statePath).pendingRemovals).toHaveLength(1);
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('already queued');
   });
 
   it('refuses a removal from Hermes', async () => {
