@@ -1,6 +1,9 @@
 import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
+import { START_KITS } from '../data/start';
+import { makePart } from './factory';
+import { addStockPart, shopState } from './market';
 import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -48,6 +51,7 @@ function keepHunting(w: World): void {
 export function wakeInTown(w: World, foes: readonly string[] | null): void {
   if (foes === null || foes.length === 0 || introStep(w) !== 'ambush') return;
   parkInWakeTown(w);
+  stockLostKitParts(w);
   setIntroStep(w, 'done');
   setWorldVar(w, TOWED_TO_BOWL, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.introWake, 'start');
@@ -61,6 +65,13 @@ function parkInWakeTown(w: World): void {
   me.heading = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   me.speed = 0;
   me.trail = [];
+}
+
+function stockLostKitParts(w: World): void {
+  const kit = START_KITS.arrival;
+  const shop = shopState(w, WAKE_TOWN);
+  const held = new Set([...playerVehicle(w).items.flatMap((item) => (item.kind === 'part' ? [item.part.defId] : [])), ...shop.stock.map((part) => part.defId)]);
+  for (const defId of kit.parts.filter((id) => !held.has(id))) addStockPart(shop, makePart(w, defId, kit.wear));
 }
 
 function settleBeforePatch(w: World, step: IntroStep): void {
