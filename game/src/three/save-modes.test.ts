@@ -5,7 +5,7 @@ import { haulerOf, playerVehicle } from '../sim/damage';
 import { FURY_ROAD } from '../data/modes';
 import { betweenLevels, outpostPad, waitForRoad } from '../sim/fury-road';
 import { highwayHash } from '../sim/highway';
-import { furyRoadWorld } from '../sim/testkit';
+import { furyRoadWorld, parkOnPad } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -21,9 +21,7 @@ function saved(world: World): SaveSlots {
 }
 
 function arrived(world: World): World {
-  const me = playerVehicle(world);
-  me.pos = outpostPad(world, world.furyRoad!.window + 1);
-  me.speed = 0;
+  parkOnPad(world, world.furyRoad!.window + 1);
   return endTurn(world, () => {});
 }
 

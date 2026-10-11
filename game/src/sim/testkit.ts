@@ -41,6 +41,18 @@ export function furyRoadWorld(seed = 3): World {
   return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
 }
 
+export function parkOnPad(w: World, milestone: number): void {
+  const pad = outpostPad(w, milestone);
+  const me = playerVehicle(w);
+  const hauler = haulerOf(w);
+  me.pos = { ...pad };
+  me.speed = 0;
+  me.order = null;
+  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.speed = 0;
+  hauler.order = null;
+}
+
 export function parkedAtOutpost(seed = 3): World {
   const w = furyRoadWorld(seed);
   const me = playerVehicle(w);

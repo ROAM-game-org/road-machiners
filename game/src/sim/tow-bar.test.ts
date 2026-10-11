@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS } from '../data/chassis';
+import { CHASSIS, HAULER_CHASSIS } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { TOW } from '../data/tow';
 import { bodyOf } from './body';
@@ -55,8 +55,9 @@ function bendTurns(): Pose[][] {
 }
 
 describe('a hitched truck on a tow bar', () => {
-  it('has a positive bar for every pair of chassis', () => {
-    for (const a of Object.keys(CHASSIS)) for (const b of Object.keys(CHASSIS)) expect(TOW.gap - axle(a) - axle(b)).toBeGreaterThan(0);
+  it('has a positive bar for every pair of chassis that can be towed, which is every one but the hauler semi of a Fury Road run', () => {
+    const towable = Object.keys(CHASSIS).filter((id) => id !== HAULER_CHASSIS);
+    for (const a of towable) for (const b of towable) expect(TOW.gap - axle(a) - axle(b)).toBeGreaterThan(0);
   });
 
   it('converges to the gap on a straight, and never jumps', () => {
