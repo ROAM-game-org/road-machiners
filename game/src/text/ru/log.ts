@@ -120,7 +120,6 @@ export const LOG: Translation<typeof EN> = {
   'log.patchStartThem': '{who} начинает чинить ваш грузовик. Стойте на месте.',
   'log.patchDoneYou': 'Вы починили {who, case, acc}.',
   'log.patchDoneThem': '{who} {who, gender, m {починил} f {починила} n {починило} pl {починили}} ваш грузовик.',
-  'log.patchLapsed': 'Ремонт с {who, case, ins} отменен: никто не работал.',
   'log.patchBroken': 'Ремонт с {who, case, ins} отменен.',
   'log.aidNothing': 'Обмена с {who, case, ins} не было.',
   'log.aidPaid': '{goods} за {paid}',
