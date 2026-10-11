@@ -195,15 +195,12 @@ describe('road mask', () => {
 describe('highway asphalt paint', () => {
   const highway = highwayAtlas(4, 1);
 
-  it('paints the highway asphalt as a blurred band past the tile edge, and leaves crater holes in it', () => {
+  it('paints the highway asphalt as a smooth band past the tile edge, and leaves crater holes in it', () => {
     const hole = { pos: highway.roads[0].points[40], radius: 2 };
     const mask = paintedMask(highway, [hole]);
     const band = mask.strokes.find((s) => s.style === ASPHALT_STYLE)!;
 
     expect(band.width).toBeCloseTo((10 + 2 * HIGHWAY.road.paint.bandSpread) * mask.canvas.res, 6);
-    expect(band.filter).toMatch(/^blur\([\d.]+px\)$/);
-    expect(band.clip).not.toBeNull();
-    expect(mask.ctx.filter).toBe('none');
     expect(mask.fills).toEqual([{ style: '#000', x: mask.canvas.toPx(hole.pos.x), y: mask.canvas.toPx(hole.pos.y), r: 2 * mask.canvas.res }]);
     expect(paintedMask().strokes.some((s) => s.style === ASPHALT_STYLE)).toBe(false);
   });

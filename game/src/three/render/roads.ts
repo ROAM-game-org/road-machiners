@@ -26,6 +26,8 @@ const DIRT_EDGE = 0.44;
 const DIRT_WANDER = 0.2;
 const DIRT_SOFT = 0.15;
 const DIRT_SHOULDER = 0.9;
+const BAND_FROM = "0.1";
+const BAND_FULL = "0.25";
 const GLASS_PLATE = 2;
 const GLASS_TINT = 0.16;
 const GLASS_SEAM = 0.25;
@@ -49,7 +51,7 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     roadPixel: { value: pixel },
-    asphaltTint: { value: asphaltTint() },
+    asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
     roadDetailMeters: { value: ROAD_DETAIL_SIDE * pixel },
@@ -98,7 +100,7 @@ uniform sampler2D roadMask;
 uniform sampler2D roadDetail;
 uniform sampler2D roadTone;
 uniform float roadPixel;
-uniform vec3 asphaltTint;
+uniform vec3 asphaltColor;
 uniform float roadOrigin;
 uniform float roadMaskMeters;
 uniform float roadDetailMeters;
@@ -173,9 +175,9 @@ const ROAD_FRAGMENT = `{
   }
   vec2 roadAt = roadOrigin + (floor((vRoadXZ - roadOrigin) / roadPixel) + 0.5) * roadPixel;
   vec3 roadMaskAt = texture2D(roadMask, (roadAt - roadOrigin) / roadMaskMeters).rgb;
-  float asphaltWins = step(roadMaskAt.r, roadMaskAt.b);
-  float roadCover = max(roadMaskAt.r, roadMaskAt.b);
+  float roadCover = roadMaskAt.r;
   float dirtCover = roadMaskAt.g;
+  float bandMask = roadMaskAt.b;
   vec4 roadLook = texture2D(roadDetail, (roadAt - roadOrigin) / roadDetailMeters);
   float roadWander = texture2D(roadTone, (roadAt - roadOrigin) / roadToneMeters).r;
   float roadSand = texture2D(roadDesert, roadAt / roadDesertMeters).r;
@@ -185,23 +187,23 @@ const ROAD_FRAGMENT = `{
   vec3 dirtColor = roadLook.rgb * (0.94 + 0.12 * roadWander) * clamp(groundLuma / dirtGroundLuma, 0.7, 1.2) * dirtTint;
   float roadEdge = 0.5 + (roadWander - 0.5) * 0.4 + (roadLook.a - 0.5) * 0.1;
   float dirtEdge = ${DIRT_EDGE} + (roadWander - 0.5) * ${DIRT_WANDER} + (roadLook.a - 0.5) * 0.02;
-  float surfaceShade = mix(groundShade, 1.0, asphaltWins);
-  vec3 surfaceColor = mix(roadColor, roadLook.rgb * (0.94 + 0.12 * roadWander) * asphaltTint, asphaltWins);
-  vec3 rimSand = rimColor * surfaceShade;
+  vec3 rimSand = rimColor * groundShade;
   if (roadCover > roadEdge) {
     float inner = 1.0 - smoothstep(roadEdge, roadEdge + 0.1, roadCover);
     float edgeDim = roadCover < roadEdge + 0.1 ? mix(0.92, 1.0, roadSand) : 1.0;
-    diffuseColor.rgb = roadLook.a > 1.0 - inner * rimInside * roadSand ? rimSand : surfaceColor * edgeDim;
+    diffuseColor.rgb = roadLook.a > 1.0 - inner * rimInside * roadSand ? rimSand : roadColor * edgeDim;
   } else if (roadCover > shoulderFrom) {
     float k = smoothstep(shoulderFrom, roadEdge, roadCover) * roadSand;
-    if (roadLook.a < k * roadFray) diffuseColor.rgb = surfaceColor;
-    else if (roadLook.a > 1.0 - k * shoulderStones) diffuseColor.rgb = stoneColor * (0.8 + 0.4 * fract(roadLook.a * 13.0)) * surfaceShade;
+    if (roadLook.a < k * roadFray) diffuseColor.rgb = roadColor;
+    else if (roadLook.a > 1.0 - k * shoulderStones) diffuseColor.rgb = stoneColor * (0.8 + 0.4 * fract(roadLook.a * 13.0)) * groundShade;
     else if (roadLook.a > 1.0 - k * rimShare) diffuseColor.rgb = rimSand;
   } else if (dirtCover > dirtEdge - ${DIRT_SOFT}) {
     float dirtIn = smoothstep(dirtEdge - ${DIRT_SOFT}, dirtEdge, dirtCover);
     float dirtShade = mix(${DIRT_SHOULDER}, 1.0, smoothstep(dirtEdge, dirtEdge + ${DIRT_SOFT}, dirtCover));
     diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor * dirtShade, dirtIn);
   }
+  float bandCover = smoothstep(${BAND_FROM}, ${BAND_FULL}, bandMask);
+  if (bandCover > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, asphaltColor * (0.94 + 0.12 * roadWander) * (0.96 + 0.08 * roadLook.a), bandCover);
 #if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
     vec2 padOff = roadAt - padCenters[i];
@@ -285,12 +287,6 @@ function dirtTint(): THREE.Vector3 {
   const road = new THREE.Color(PAL.road);
   const dirt = new THREE.Color(PAL.dirtRoad);
   return new THREE.Vector3(dirt.r / road.r, dirt.g / road.g, dirt.b / road.b);
-}
-
-function asphaltTint(): THREE.Vector3 {
-  const road = new THREE.Color(PAL.road);
-  const asphalt = new THREE.Color(PAL.highwayAsphalt);
-  return new THREE.Vector3(asphalt.r / road.r, asphalt.g / road.g, asphalt.b / road.b);
 }
 
 function luma(c: THREE.Color): number {
