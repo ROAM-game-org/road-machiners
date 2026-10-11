@@ -5,8 +5,8 @@ import { GAME_OPENED_QUESTS } from '../data/quests';
 import { entryText } from '../text/resolve';
 import { QUESTS } from '../sim/quests';
 import { readQuestSources } from './quest-compile';
+import { OUT_OF_CHARACTER } from './out-of-character';
 
-const OUT_OF_CHARACTER = /\b(turns?|quests?|xp|levels?|hp|markers?|waypoints?|maps?|click\w*|players?|games?)\b/i;
 const LOGIC = /^(INCLUDE|EXTERNAL|VAR|CONST|~|->|=|#|\{|\}|-\s)/;
 const CHOICE = /^[+*]+\s*(?:\{[^}]*\}\s*)?\[([^\]]*)\]/;
 const DOCUMENT = /#\s*(row|head)\s*$/;
@@ -38,7 +38,7 @@ describe('settlement talk content', () => {
   it('keeps every line in character', () => {
     const found = lines();
     expect(found.length).toBeGreaterThan(50);
-    for (const { where, text } of found) expect(text, where).not.toMatch(OUT_OF_CHARACTER);
+    for (const { where, text } of found) expect(text, where).not.toMatch(OUT_OF_CHARACTER.en);
   });
 
   it('starts every quest from a local, a radio handoff or another quest', () => {

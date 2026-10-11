@@ -3,6 +3,7 @@ import { EN } from './en';
 import { LOCALES, type EnEntry, type Locale, type Noun } from './msg';
 import { entryText, grammarParams, nounOf, parse, placeholders, pluralCategories, schemaOf } from './resolve';
 import { RU } from './ru';
+import { OUT_OF_CHARACTER } from '../test/out-of-character';
 
 const CATALOGS: Record<Locale, Readonly<Record<string, EnEntry | Noun>>> = { en: EN, ru: RU };
 const KEYS = Object.keys(EN);
@@ -12,10 +13,6 @@ const RU_NOUN = /^(part|chassis|site|terrain|faction)\.[^.]+$|^driver\.(first|la
 const RU_NOUN_KEYS = new Set(['vehicle.yours', 'job.theTruck', 'job.somePart', 'log.anObstacle', 'log.something', 'log.you']);
 const hasWords =(text: string): boolean => /\p{L}{2,}/u.test(text.replace(/\{[^}]*\}/g, ''));
 
-const BANNED: Record<Locale, readonly string[]> = {
-  en: ['turn', 'quest', 'xp', 'experience', 'level', 'hp', 'click', 'press', 'key', 'player', 'game', 'tile', 'save'],
-  ru: ['ход', 'квест', 'опыт', 'уров', 'игрок', 'игров', 'клик', 'нажм', 'клавиш', 'клетк', 'сохран'],
-};
 
 const REJECTED_RU: readonly { text: string; reason: string }[] = [
   { text: 'чинено', reason: 'ungrammatical as a part status; a rebuild after a breakdown is «капремонт»' },
@@ -24,10 +21,6 @@ const REJECTED_RU: readonly { text: string; reason: string }[] = [
   { text: 'осуществ', reason: 'bureaucratic; say what is done' },
 ];
 
-function bannedIn(locale: Locale, text: string): string[] {
-  const words = text.toLowerCase().split(/[^\p{L}]+/u);
-  return BANNED[locale].filter((stem) => words.some((word) => (stem === 'ход' ? word === stem : word.startsWith(stem))));
-}
 
 describe('the catalog', () => {
   it('parses every entry in every language', () => {
@@ -93,7 +86,7 @@ describe('the catalog', () => {
     const talk = KEYS.filter((key) => key.startsWith('line.') || key.startsWith('radio.') || key.startsWith('deal.') || key.startsWith('tip.'));
     expect(talk.length).toBeGreaterThan(150);
     for (const locale of LOCALES) {
-      for (const key of talk) expect(bannedIn(locale, entryText(locale, key)), `${locale} ${key}`).toEqual([]);
+      for (const key of talk) expect(entryText(locale, key), `${locale} ${key}`).not.toMatch(OUT_OF_CHARACTER[locale]);
     }
   });
 
@@ -106,9 +99,14 @@ describe('the catalog', () => {
     expect(found).toEqual([]);
   });
 
-  it('the banned words check catches its own case', () => {
-    expect(bannedIn('en', 'Your turn is up')).toEqual(['turn']);
-    expect(bannedIn('ru', 'Твой ход, игрок')).toEqual(['ход', 'игрок']);
-    expect(bannedIn('ru', 'Проходи мимо')).toEqual([]);
+  it('the out-of-character check stops game talk and lets everyday words through', () => {
+    for (const ok of ['the road turns north', 'water level', 'an old map', 'the truck keys', 'tire pressure', 'save your water', 'an experienced driver', 'a card game'])
+      expect(ok).not.toMatch(OUT_OF_CHARACTER.en);
+    for (const bad of ['Your turn is up', 'level up', 'XP', 'a quest', 'press the E key', 'on the map', 'save the game'])
+      expect(bad).toMatch(OUT_OF_CHARACTER.en);
+    for (const ok of ['опытный водитель', 'уровень воды', 'задний ход', 'сохрани воду', 'нажми на газ', 'Проходи мимо'])
+      expect(ok).not.toMatch(OUT_OF_CHARACTER.ru);
+    for (const bad of ['Твой ход', 'квест', 'очки опыта', 'нажмите E', 'на карте', 'игрок'])
+      expect(bad).toMatch(OUT_OF_CHARACTER.ru);
   });
 });

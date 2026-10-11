@@ -16,7 +16,7 @@ A page of bare facts, one after another, reads as a telegram even when each sent
 
 About a quarter of the sentences carry this voice, as in the author's stories. The rest say plainly what happens. The habits below are the strongest kind of voice, so save them for a turn in the scene, like the moment before a fight. A simile or a joke on every line flattens all of them, and so does none at all.
 
-Describe only what the character needs right now, like water, shade, a threat or a way out. Do not describe a place for its mood.
+Describe what matters to the character right now, like water, shade, a threat, a way out, or a sight that stops them. A place may be beautiful or grim when the character notices it. Never pad a scene with scenery.
 
 ### No line only the writer understands
 
@@ -186,7 +186,7 @@ A fact the player needs to move on, such as where South Lock is or who buys stol
 
 ### A reason to ask this person
 
-The player only asks about what they have heard: something the speaker said earlier in this talk, a note they hold, or a place they have found. Gate the choice on the variable that the earlier answer sets, on `has_note()` or on `found()`.
+The player only asks about what their character knows: something the speaker said earlier in this talk, a note they hold, a place they have found, or something the narration has shown them, like a bandaged arm or the gun on a truck. Gate the choice on the variable that the earlier answer sets, on `has_note()` or on `found()`.
 
 A question also needs a reason to ask this person in particular. It follows from what the player just saw or heard from them.
 
@@ -292,7 +292,7 @@ No jokes that need knowledge from outside the basin. No jokes about the game its
 - Do not chain clauses with "and" and "which" to fit in explanation. Split the run-on and cut what the answer does not need.
 - Keep a reply under about forty words. A longer answer splits into two lines, each with one idea.
 - Never bold speech. A person stresses a word through how the sentence is built.
-- Stay in character. The voice test rejects game words and any count other than days and hours. Write "a pair of soldiers", not "two soldiers".
+- Stay in character. People never talk about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "water level" are fine. Ordinary numbers are fine too, like "two soldiers". The voice test in `src/test/out-of-character.ts` checks the game phrases.
 
 ## Before you commit
 

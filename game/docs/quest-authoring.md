@@ -108,9 +108,9 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 [Writing dialogue](dialogue-writing.md) holds the house style for narration and talk, and every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
 
-- Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never explains what a moment means. Write what the other driver does, not "nobody out here kills that".
+- Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never states the answer to a clue the player is meant to work out. The character may still judge and guess, like "Somebody paid him lately".
 - Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue-writing.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
-- Stay in character. The voice test rejects game words such as quest, map, click and player, and any count other than days and hours. Numbers are fine inside `# row` tables, which are documents.
+- Stay in character. Text never talks about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "an old map" are fine. Ordinary numbers are fine. The voice test in `src/test/out-of-character.ts` checks the game phrases.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. `<shake>` and `<pop>` appear once per scene at most, for a physical event.
 - A word that locals use as if everyone knows it gets a term tip. [Term tips](#term-tips) has the rules.
 - A rumor goes into the journal with `~ note("<id>")`. Add the id to `NOTE_IDS` in `src/data/locals.ts` first, and its `journalNote.<id>.title`, `from` and `text` to `src/text/en/story.ts` and `src/text/ru/story.ts`.
@@ -201,4 +201,4 @@ A quest can only ask the game through functions in `world.ink`.
 - "only paid choices lead to an end": the player cannot leave a quest midway, so a player with no money is stuck there. Add a free choice that leads to an end.
 - "section is never reached": a condition can never hold in either check world, or the section is dead. Fix the condition or delete it.
 - "stopped after 5000 states": see [Keeping the checker fast](#keeping-the-checker-fast).
-- The voice test names a line with a number or a game word: reword it in character.
+- The voice test names a line that talks about a game system: reword it in character.

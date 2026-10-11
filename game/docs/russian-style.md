@@ -118,7 +118,7 @@ How it reads:
 
 - Narration speaks to the player as «вы», in the present tense: «Вы кладете обломок на верстак».
 - Write «е», not «ё». Keep «ё» only in «её», «всё» and «ещё».
-- One image per sentence. Split an English sentence glued with "and" into two Russian sentences: «С самого восхода солнце жжет сквозь ткань на голове. Было глупо идти на восток.»
+- Split an English sentence glued with "and" when it joins images that do not belong together: «С самого восхода солнце жжет сквозь ткань на голове. Было глупо идти на восток.» Keep long sentences that flow as one thought, and vary sentence length. A row of short sentences reads like a telegram.
 - Put the new or stressed word at the end: «Было глупо идти на восток», not «Идти на восток было глупо».
 - Never copy an English echo reply. "It isn't." is «Но тщетно.», not «Не спряталась.» "Or it used to." is «Или когда-то был.»
 - Spell out what English leaves to the reader. "Not that the west had anything better" is «Хотя идти на запад было бы так же глупо».
