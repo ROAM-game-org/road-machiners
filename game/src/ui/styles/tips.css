@@ -1,8 +1,8 @@
 #ui .tip {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-6);
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: start;
   font-size: var(--text-body);
   z-index: var(--z-toast);
 }
@@ -13,7 +13,11 @@
 #ui:has(.dialog:not(.modal)) > .top-center > .tip {
   visibility: hidden;
 }
+#ui .tip .tip-close {
+  justify-self: end;
+}
 #ui .tip .tip-actions {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   display: flex;
+  justify-content: flex-end;
 }
