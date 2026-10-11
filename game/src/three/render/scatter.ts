@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES } from '../../data/terrain';
+import { HIGHWAY } from '../../data/modes';
 import { REGION } from '../../data/region';
 import { desertWeight, lookTypes, type LookType } from '../../render/groundPaint';
 import { hash2 } from '../../render/noise';
@@ -26,7 +27,10 @@ const SCRUB_ELSEWHERE = 0.04;
 const SCRUB_ON_DESERT = 0.14;
 const CACTUS_ON_DESERT = 0.01;
 const CACTUS_BY_ROCK = 0.06;
-const PEBBLE_RADIUS = { min: 0.025, max: 0.045 };
+const DEBRIS_CENTER = 0.03;
+const DEBRIS_EDGE = 0.5;
+const DEBRIS_SCRUB = 0.25;
+const PEBBLE_RADIUS ={ min: 0.025, max: 0.045 };
 const SCRUB_RADIUS = { min: 0.07, max: 0.12 };
 const DESERT_STONES_RADIUS = { min: 0.07, max: 0.14 };
 const DESERT_SCRUB_RADIUS = { min: 0.11, max: 0.17 };
@@ -67,15 +71,34 @@ export function scatterPlacements(t: Terrain, obstacles: Obstacle[]): ScatterChu
 
 function chunkScatter(t: Terrain, look: readonly LookType[], blocked: Uint8Array, rocky: Uint8Array, cx: number, cy: number): ScatterChunk {
   const atlas = atlasOf(t);
+  const highway = highwaySeed(t);
   const chunk: ScatterChunk = { center: { x: cx + TERRAIN_CHUNK / 2, y: cy + TERRAIN_CHUNK / 2 }, pebbles: [], scrub: [], desert_stones: [], desert_scrub: [], cactus: [] };
   for (let y = cy; y < Math.min(cy + TERRAIN_CHUNK, t.size); y++) for (let x = cx; x < Math.min(cx + TERRAIN_CHUNK, t.size); x++) {
     const i = y * t.size + x;
-    const kind = blocked[i] ? null : tileScatter(atlas, look[i], x, y, rocky[i] === 1);
-    if (kind === null || onLoweredGround(t, x, y)) continue;
-    const model = modelOf(kind, desertWeight(look[i]) > 0);
+    const model = blocked[i] ? null : tileModel(atlas, highway, look[i], x, y, rocky[i] === 1);
+    if (model === null || onLoweredGround(t, x, y)) continue;
     chunk[model].push(placed(t, x, y, model));
   }
   return chunk;
+}
+
+function highwaySeed(t: Terrain): number | null {
+  return t.atlas.kind === 'highway' ? t.atlas.seed : null;
+}
+
+function tileModel(atlas: Atlas, highway: number | null, look: LookType, x: number, y: number, byRock: boolean): ScatterModel | null {
+  const p = tilePoint(x, y);
+  const across = highway === null ? Infinity : atlas.roadIndex.nearestWithin(p.x, p.y, HIGHWAY.road.asphalt);
+  if (across <= HIGHWAY.road.asphalt) return asphaltModel(across, highway ?? 0, x, y);
+  const kind = tileScatter(atlas, look, x, y, byRock);
+  return kind === null ? null : modelOf(kind, desertWeight(look) > 0);
+}
+
+function asphaltModel(across: number, seed: number, x: number, y: number): ScatterModel | null {
+  const chance = DEBRIS_CENTER + (DEBRIS_EDGE - DEBRIS_CENTER) * (across / HIGHWAY.road.asphalt) ** 2;
+  const h = hash2(x * 37 + 11 + seed, y * 41 + 13);
+  if (h >= chance) return null;
+  return modelOf(h < chance * (1 - DEBRIS_SCRUB) ? 'pebbles' : 'scrub', true);
 }
 
 const TILE_CORNERS = [[0, 0], [1, 0], [0, 1], [1, 1]];
