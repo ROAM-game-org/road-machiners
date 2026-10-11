@@ -133,6 +133,12 @@ export function declareFeud(w: World, v: Vehicle, otherId: string): void {
   if (v.brain && !(otherId in v.brain.attackers)) v.brain.attackers[otherId] = false;
 }
 
+export function markHostile(w: World, v: Vehicle, otherId: string): void {
+  const held = stateOf(w, 'feud', v.id, otherId);
+  if (held) held.turnsLeft = turnsOf('feud');
+  else addState(w, 'feud', v.id, otherId, { kind: 'feud', robbery: false });
+}
+
 export function stateOf(w: World, kind: StateKindId, holder: string, other: string): NpcState | null {
   return w.states.find((s) => s.kind === kind && s.holder === holder && s.other === other) ?? null;
 }

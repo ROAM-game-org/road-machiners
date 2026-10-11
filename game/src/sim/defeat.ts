@@ -3,7 +3,7 @@ import { NPC_BEHAVIOR, NPCS } from "../data/npcs";
 import { chassisDef } from "../data/chassis";
 import { RULES } from "../data/rules";
 import { isJunk, maxHp, restorePart } from "./wear";
-import { playerVehicle } from "./damage";
+import { haulerOf, playerVehicle } from "./damage";
 import { beatenBy, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
 import { openFirstFall } from "./quests";
@@ -39,9 +39,13 @@ export function checkDeath(world: World): void {
 
 export function checkKnockout(world: World): void {
   const me = playerVehicle(world);
-  if (world.player.state !== "active" || !knockedNow(world, me)) return;
-  if (modeRules(world).playerKnockouts) knockOutPlayer(world, me);
-  else endRun(world, "wrecked");
+  if (world.player.state !== "active") return;
+  if (knockedNow(world, me)) {
+    if (modeRules(world).playerKnockouts) knockOutPlayer(world, me);
+    else endRun(world, "wrecked");
+    return;
+  }
+  if (world.furyRoad && knockedNow(world, haulerOf(world))) endRun(world, "haulerLost");
 }
 
 function knockOutPlayer(world: World, me: Vehicle): void {
@@ -65,14 +69,14 @@ function knockOutPlayer(world: World, me: Vehicle): void {
   openFirstFall(world, me.defeat.foes);
 }
 
-function knockedNow(world: World, me: Vehicle): boolean {
-  if (fightsThrough(world, me)) return false;
-  if (corePart(me, "cab").hp <= 0) return true;
-  return world.player.health < RULES.cabKnock.playerHealth && rollCabKnock(world, me);
+function knockedNow(world: World, truck: Vehicle): boolean {
+  if (fightsThrough(world, truck)) return false;
+  if (corePart(truck, "cab").hp <= 0) return true;
+  return getResources(world, truck).health < RULES.cabKnock.playerHealth && rollCabKnock(world, truck);
 }
 
-function fightsThrough(world: World, me: Vehicle): boolean {
-  return vehicleHasPerk(world, me, "fightThrough") && world.player.health > maxHealthOf(world) * PERK_NUMBERS.fightThrough.health;
+function fightsThrough(world: World, truck: Vehicle): boolean {
+  return vehicleHasPerk(world, truck, "fightThrough") && getResources(world, truck).health > maxHealthOf(world) * PERK_NUMBERS.fightThrough.health;
 }
 
 export function advanceKnockout(world: World): string[] | null {
@@ -179,7 +183,7 @@ function dropOrdersAt(shooter: Vehicle, targetId: string): void {
 }
 
 export function advanceNpcKnockouts(world: World): void {
-  for (const v of world.vehicles.filter((x) => x.id !== world.player.vehicleId)) {
+  for (const v of world.vehicles.filter((x) => x.id !== world.player.vehicleId && x.id !== world.furyRoad?.hauler.id)) {
     if (v.defeat?.phase === "out") advanceNpcKnockout(world, v);
     else if (v.defeat?.phase === "retreat") advanceRetreat(world, v);
   }

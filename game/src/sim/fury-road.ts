@@ -17,7 +17,7 @@ import { nextRandom, randInt, type Rng } from './rng';
 import { modeRules } from './settings';
 import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { isFree, spawnAt } from './spawn';
-import { declareFeud, settleStates } from './states';
+import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
 import { refreshTrack } from './tracks';
@@ -157,14 +157,18 @@ export function advanceFuryRoad(world: World): void {
   if (!run || world.player.state !== 'active' || betweenLevels(world)) return;
   countBeaten(world, run);
   retireWoken(world, run);
-  huntPlayer(world, run);
+  huntConvoy(world, run);
   if (arrivedAtNext(world, run)) return completeStretch(world, run);
   pace(world, run);
-  spawnNext(world, run, playerProgress(world, run));
+  spawnNext(world, run, haulerProgress(world, run));
 }
 
 function playerProgress(world: World, run: FuryRoadRun): number {
   return alongOf(world.seed, toRoad(run.window, playerVehicle(world).pos));
+}
+
+function haulerProgress(world: World, run: FuryRoadRun): number {
+  return alongOf(world.seed, toRoad(run.window, haulerOf(world).pos));
 }
 
 function countBeaten(world: World, run: FuryRoadRun): void {
@@ -191,13 +195,20 @@ function aliveCount(world: World, run: FuryRoadRun): number {
   return run.groups.reduce((n, g) => n + fighting(world, g).length, 0);
 }
 
-function huntPlayer(world: World, run: FuryRoadRun): void {
+export function turnedOnPlayer(world: World, v: Vehicle): boolean {
+  return v.brain !== null && world.player.vehicleId in v.brain.attackers;
+}
+
+function huntConvoy(world: World, run: FuryRoadRun): void {
   const me = playerVehicle(world);
+  const hauler = haulerOf(world);
   for (const group of run.groups) {
     for (const v of fighting(world, group)) {
-      declareFeud(world, v, me.id);
-      if (huntsPlayer(world, v)) refreshTrack(world, v, me.id, interceptPoint(world, run, v, me));
-      else fightCornered(world, v, me);
+      declareFeud(world, v, hauler.id);
+      markHostile(world, v, me.id);
+      const target = turnedOnPlayer(world, v) ? me : hauler;
+      if (huntsTarget(v, target)) refreshTrack(world, v, target.id, interceptPoint(world, run, v, target));
+      else fightCornered(world, v, target);
     }
   }
 }
@@ -210,14 +221,14 @@ export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, 
   return roadPoint(world.seed, run.window, alongOf(world.seed, ahead), withinFlanks(acrossOf(world.seed, ahead)));
 }
 
-function huntsPlayer(world: World, v: Vehicle): boolean {
+function huntsTarget(v: Vehicle, target: Vehicle): boolean {
   const top = topGoal(v);
-  return top?.kind === 'fight' && top.targetId === world.player.vehicleId;
+  return top?.kind === 'fight' && top.targetId === target.id;
 }
 
 function encounterOn(world: World, run: FuryRoadRun): boolean {
-  const me = playerVehicle(world);
-  return run.groups.some((g) => fighting(world, g).some((v) => dist(v.pos, me.pos) <= FURY_ROAD.pacing.near));
+  const hauler = haulerOf(world);
+  return run.groups.some((g) => fighting(world, g).some((v) => dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near));
 }
 
 function pace(world: World, run: FuryRoadRun): void {
@@ -237,13 +248,15 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
+  const hauler = haulerOf(world);
   loadouts.forEach(({ tpl, loadout }, i) => {
     const v = spawnAt(world, tpl, loadout, spots[i]);
     getResources(world, v).fuel = fuelCap(v);
-    v.heading = Math.atan2(me.pos.y - v.pos.y, me.pos.x - v.pos.x);
+    v.heading = Math.atan2(hauler.pos.y - v.pos.y, hauler.pos.x - v.pos.x);
     group.vehicles.push(v.id);
-    declareFeud(world, v, me.id);
-    fightCornered(world, v, me);
+    declareFeud(world, v, hauler.id);
+    markHostile(world, v, me.id);
+    fightCornered(world, v, hauler);
   });
   group.spawned = true;
   group.retryUntil = null;
@@ -252,7 +265,7 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
 type Candidate = { along: number; across: number };
 
 function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: number, radii: number[]): Vec[] | null {
-  const candidates = spotCandidates(from, progress, playerAcross(world, run));
+  const candidates = spotCandidates(from, progress, haulerAcross(world, run));
   const spots: Vec[] = [];
   for (const radius of radii) {
     const spot = freeSpot(world, run, candidates, radius, spots);
@@ -262,8 +275,8 @@ function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: n
   return spots;
 }
 
-function playerAcross(world: World, run: FuryRoadRun): number {
-  return acrossOf(world.seed, toRoad(run.window, playerVehicle(world).pos));
+function haulerAcross(world: World, run: FuryRoadRun): number {
+  return acrossOf(world.seed, toRoad(run.window, haulerOf(world).pos));
 }
 
 function withinFlanks(across: number): number {
@@ -312,8 +325,7 @@ function retryLater(world: World, group: WaveGroup): void {
 }
 
 function parkedOnPad(world: World, milestone: number): boolean {
-  const me = playerVehicle(world);
-  return me.speed <= RULES.parkedSpeed && onOutpostPad(world, me.pos, milestone);
+  return playerTrucks(world).every((truck) => truck.speed <= RULES.parkedSpeed && onOutpostPad(world, truck.pos, milestone));
 }
 
 export function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
@@ -321,7 +333,7 @@ export function onOutpostPad(world: World, pos: Vec, milestone: number): boolean
 }
 
 function arrivedAtNext(world: World, run: FuryRoadRun): boolean {
-  return onOutpostPad(world, playerVehicle(world).pos, run.window + 1);
+  return onOutpostPad(world, haulerOf(world).pos, run.window + 1);
 }
 
 export function betweenLevels(world: World): boolean {
@@ -346,7 +358,7 @@ function completeStretch(world: World, run: FuryRoadRun): void {
   const j = run.window + 1;
   const post = factsOf(run, j);
   const wrecks = run.groups.reduce((n, g) => n + g.wrecked, 0);
-  const pay = payOf(j, wrecks);
+  const pay = payOf(j);
   world.player.money += pay;
   world.events.push({ t: 'money', amount: pay, reason: { kind: 'outpost' } });
   post.paid = true;
@@ -412,7 +424,7 @@ const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K
 function requireMovable(world: World, run: FuryRoadRun): void {
   if (!factsOf(run, run.window + 1).paid) throw new Error(`The window moves only once outpost ${run.window + 1} is paid`);
   if (aliveCount(world, run) > 0) throw new Error('The window cannot move while a group truck is alive');
-  if (!parkedOnPad(world, run.window + 1)) throw new Error(`The window moves only with the player parked at outpost ${run.window + 1}`);
+  if (!parkedOnPad(world, run.window + 1)) throw new Error(`The window moves only with both trucks parked at outpost ${run.window + 1}`);
   if (world.salvage.length > 0 || Object.keys(world.shops).length > 0) throw new Error('A Fury Road window holds no salvage and no shops');
 }
 
@@ -444,14 +456,16 @@ function shiftStorms(world: World): void {
 }
 
 function shiftVehicles(world: World): void {
-  const me = playerVehicle(world);
-  world.removed.push(...world.vehicles.filter((v) => v !== me));
-  world.vehicles = [me];
-  me.pos = shifted(me.pos);
-  me.order = null;
-  me.trail = [];
-  me.weaponOrders = {};
-  me.utilityOrders = {};
+  const kept = playerTrucks(world);
+  world.removed.push(...world.vehicles.filter((v) => !kept.includes(v)));
+  world.vehicles = kept;
+  for (const truck of kept) {
+    truck.pos = shifted(truck.pos);
+    truck.order = null;
+    truck.trail = [];
+    truck.weaponOrders = {};
+    truck.utilityOrders = {};
+  }
 }
 
 function shiftPlayer(world: World): void {
@@ -475,7 +489,7 @@ export function endRun(world: World, cause: RunLossCause): void {
 }
 
 export function canAbandonRun(world: World): boolean {
-  return world.furyRoad !== null && !modeRules(world).rescue && world.player.state === 'active' && isStranded(world, playerVehicle(world));
+  return world.furyRoad !== null && !modeRules(world).rescue && world.player.state === 'active' && playerTrucks(world).some((truck) => isStranded(world, truck));
 }
 
 export function abandonRun(world: World): World {
@@ -500,16 +514,15 @@ export function nextOutpost(world: World): Outpost | null {
   return run ? outpostOf(world, factsOf(run, run.window + 1)) : null;
 }
 
-export function reachedOutpostAt(world: World): Outpost | null {
-  const near = outpostNear(world);
-  return near && playerVehicle(world).speed <= RULES.parkedSpeed ? near : null;
+export function reachedOutpostAt(world: World, truck: Vehicle = playerVehicle(world)): Outpost | null {
+  const near = outpostNear(world, truck);
+  return near && truck.speed <= RULES.parkedSpeed ? near : null;
 }
 
-export function outpostNear(world: World): Outpost | null {
+export function outpostNear(world: World, truck: Vehicle = playerVehicle(world)): Outpost | null {
   const run = world.furyRoad;
   if (!run) return null;
-  const me = playerVehicle(world);
-  const facts = run.outposts.find((post) => post.paid && onOutpostPad(world, me.pos, post.milestone));
+  const facts = run.outposts.find((post) => post.paid && onOutpostPad(world, truck.pos, post.milestone));
   return facts ? outpostOf(world, facts) : null;
 }
 
