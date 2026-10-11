@@ -15,7 +15,7 @@ import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
 import { corePart, goodsCount, mountedParts, type Spot } from '../grid';
-import { canStowPart, installSpot } from '../inventory';
+import { installSpot } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
@@ -119,8 +119,8 @@ function restock(o: Orders, post: Outpost): void {
   for (const kind of SUPPLIES) topUp(o, kind);
   buyPatchGoods(o);
   if (inCombat(o.world, o.me)) return;
-  buyTruck(o, post);
   for (let plan = bestGear(o); plan; plan = bestGear(o)) buyGear(o, plan);
+  buyTruck(o, post);
 }
 
 function buyTruck(o: Orders, post: Outpost): void {
@@ -144,14 +144,13 @@ function bestGear(o: Orders): GearBuy | null {
     const spot = installSpot(o.me, probe(part));
     if (!spot) return [];
     const next = { ...o.me, items: [...o.me.items, { ...probe(part), ...spot }] };
-    const gain = score(next) - now;
-    return gain > 0 && npcLegal(next) ? [{ part, spot, worth: gain / Math.max(1, outpostPartPrice(o.world, part)) }] : [];
+    const gain = score(next) - now;    return gain > 0 && npcLegal(next) ? [{ part, spot, worth: gain / Math.max(1, outpostPartPrice(o.world, part)) }] : [];
   });
   return buys.reduce<GearBuy | null>((best, b) => (!best || b.worth > best.worth ? b : best), null);
 }
 
 function affordable(o: Orders, part: PartInstance, budget: number): boolean {
-  return !isJunk(part) && outpostPartPrice(o.world, part) <= budget && canStowPart(o.me, part);
+  return !isJunk(part) && outpostPartPrice(o.world, part) <= budget;
 }
 
 function bareOf(v: Vehicle): Vehicle {
