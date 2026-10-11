@@ -59,7 +59,7 @@ export const FURY_ROAD = {
   ] as PoolTier[],
   sides: { ahead: 22, behind: 24, flank: { along: 6, across: 22, step: 3 } },
   pacing: { quiet: 20, near: 30 },
-  catchUp: { engageAt: 12, boost: 2 },
+  catchUp: { engageAt: 12, lead: 1.25 },
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,

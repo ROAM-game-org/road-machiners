@@ -4,7 +4,8 @@ import { NPCS } from '../data/npcs';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
-import { inOverdrive, maxSpeedSteps } from './stats';
+import { inOverdrive, maxSpeedSteps, vehicleStats } from './stats';
+import { RULES } from '../data/rules';
 import { inCombat } from './combat';
 import { playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, payOf, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
@@ -234,9 +235,15 @@ describe('a group racing in', () => {
       w.turn++;
       advanceFuryRoad(w);
     };
+    const racing = () => {
+      const step = boost();
+      expect(step).toBeDefined();
+      expect(step!.factor).toBeGreaterThanOrEqual(RULES.overdriveBoost);
+      expect(vehicleStats(w, v).maxSpeed).toBeGreaterThanOrEqual(vehicleStats(w, me).maxSpeed * FURY_ROAD.catchUp.lead - 1e-9);
+    };
 
     expect(inOverdrive(w, v)).toBe(true);
-    expect(boost()).toMatchObject({ factor: FURY_ROAD.catchUp.boost });
+    racing();
 
     moveTo(FURY_ROAD.catchUp.engageAt - 1);
     expect(first.engaged).toEqual([v.id]);
@@ -247,7 +254,7 @@ describe('a group racing in', () => {
 
     moveTo(FURY_ROAD.pacing.near + 1);
     expect(first.engaged).toEqual([]);
-    expect(boost()).toMatchObject({ factor: FURY_ROAD.catchUp.boost });
+    racing();
   });
 
   it('drives at full speed toward a player out of sight, never stopping at the hunted point', () => {
