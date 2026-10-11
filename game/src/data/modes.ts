@@ -1,5 +1,6 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
+import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
@@ -23,7 +24,9 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
 };
 
-export type WavePlan = { sizes: number[]; level: GearLevel; armored: boolean };
+export type WavePlan = { sizes: number[]; level: GearLevel; gear: GearRules };
+const WAVE_GEAR: GearRules = { armored: true, gunFirst: false };
+
 export type PoolTier = { upTo: number; weights: Record<string, number> };
 export type Curve = { first: number; step: number; max: number };
 
@@ -37,14 +40,14 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { sizes: [1], level: 'light', armored: false },
-    { sizes: [1, 1], level: 'light', armored: true },
-    { sizes: [1, 1], level: 'light', armored: true },
-    { sizes: [1, 1], level: 'standard', armored: true },
-    { sizes: [2, 1], level: 'standard', armored: true },
-    { sizes: [2, 2], level: 'standard', armored: true },
-    { sizes: [3, 2], level: 'heavy', armored: true },
-    { sizes: [3, 3, 2], level: 'loaded', armored: true },
+    { sizes: [1], level: 'light', gear: { armored: false, gunFirst: true } },
+    { sizes: [1, 1], level: 'light', gear: WAVE_GEAR },
+    { sizes: [1, 1], level: 'light', gear: WAVE_GEAR },
+    { sizes: [1, 1], level: 'standard', gear: WAVE_GEAR },
+    { sizes: [2, 1], level: 'standard', gear: WAVE_GEAR },
+    { sizes: [2, 2], level: 'standard', gear: WAVE_GEAR },
+    { sizes: [3, 2], level: 'heavy', gear: WAVE_GEAR },
+    { sizes: [3, 3, 2], level: 'loaded', gear: WAVE_GEAR },
   ] as WavePlan[],
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },

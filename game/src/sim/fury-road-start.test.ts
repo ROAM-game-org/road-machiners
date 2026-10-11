@@ -75,6 +75,15 @@ describe('Fury Road first enemy', () => {
     }
   });
 
+  it('carries a gun on any seed or template', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 99]) {
+      for (const template of Object.keys(FURY_ROAD.pool[0].weights)) {
+        const guns = spawnedTrucks(seed, 1, template)[0].items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
+        expect(guns.length, `seed ${seed} ${template}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('leaves armor on the trucks of the next stretch', () => {
     const armored = [1, 3, 99].flatMap((seed) => Object.keys(FURY_ROAD.pool[0].weights).flatMap((template) => spawnedTrucks(seed, 2, template))).filter((v) => armorOf(v).length > 0);
     expect(armored.length).toBeGreaterThan(0);
