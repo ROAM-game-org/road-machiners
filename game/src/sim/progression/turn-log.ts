@@ -31,6 +31,7 @@ export type TurnLine = {
   heat: number;
   chassis: string;
   speed: number;
+  v: number;
   state: string;
   goods: Record<string, number>;
   parts: string[];
@@ -59,6 +60,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
     heat: round(p.engineHeat),
     chassis: me.chassisId,
     speed: round(vehicleStats(world, me).maxSpeed),
+    v: round(me.speed),
     state: p.state,
     goods: goodsCount(me),
     parts: mountedParts(me).map((part) => `${part.defId}:${Math.round((100 * part.hp) / maxHp(part))}`),

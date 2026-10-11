@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { NPCS } from '../data/npcs';
+import { TERRAIN } from '../data/terrain';
 import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -224,7 +225,7 @@ describe('the pace of encounters', () => {
 });
 
 describe('a group racing in', () => {
-  it('races in at the catch-up boost until it engages, and again once it falls past the encounter range', () => {
+  it('races in at the catch-up boost only out of the player sight, until it engages, and again once it falls past the encounter range', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);
     const [v] = trucksOf(w, first);
@@ -236,8 +237,14 @@ describe('a group racing in', () => {
       advanceFuryRoad(w);
     };
 
+    moveTo(TERRAIN.vision.radius + 1);
     expect(inOverdrive(w, v)).toBe(true);
     expect(boost()).toMatchObject({ factor: FURY_ROAD.catchUp.boost });
+
+    moveTo(TERRAIN.vision.radius - 1);
+    expect(first.engaged).toEqual([]);
+    expect(inOverdrive(w, v)).toBe(false);
+    expect(boost()).toBeUndefined();
 
     moveTo(FURY_ROAD.catchUp.engageAt - 1);
     expect(first.engaged).toEqual([v.id]);

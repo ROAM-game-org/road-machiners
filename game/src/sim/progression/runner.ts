@@ -28,6 +28,7 @@ import { mountBought, Orders, type BotTurn } from './orders';
 const PATCH_GOODS = 4;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
+const RECLICK_SHARE = 0.5;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 
 export function runnerOrders(world: World): BotTurn {
@@ -76,7 +77,7 @@ function drive(o: Orders): void {
 
 function hopToward(o: Orders, pad: Vec): void {
   const now = o.me.order;
-  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP) return;
+  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
   driveTo(o, nextHop(o.world, o.me, pad));
 }
 
