@@ -90,7 +90,7 @@ export const HIGHWAY = {
     bend: { ends: 60, cells: 2, shift: [16, 36] as [number, number], straightChance: 0.2, maxHeading: 35 },
     profile: { amplitude: 1.5, wavelength: 300, seedOffset: 103 },
     sample: 2,
-    paint: { band: 0.3, bandSpread: 0.75, holeInset: 0.75 },
+    paint: { bandSpread: 0.75, holeInset: 0.75 },
   },
   relief: { amplitude: 2.4, octaves: [{ freq: 1 / 56, amp: 1, seedOffset: 201 }, { freq: 1 / 17, amp: 0.3, seedOffset: 202 }] },
   ground: {
