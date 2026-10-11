@@ -1,4 +1,4 @@
-import { FURY_ROAD, type Curve } from '../data/modes';
+import { FURY_ROAD } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -13,7 +13,8 @@ import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
 import { generateNpcLoadout } from './npc-loadout';
 import { nextRandom, randInt, type Rng } from './rng';
-import { enemyGearGrowth, modeRules } from './settings';
+import { modeRules } from './settings';
+import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { getResources } from './resources';
@@ -30,19 +31,6 @@ export type FuryRoadReadout = { stretch: number; toOutpost: number; outpostId: s
 
 export { outpostId };
 
-function curveAt(c: Curve, j: number): number {
-  return Math.min(c.max, c.first + c.step * (j - 1));
-}
-
-export function payOf(j: number, wrecks: number): number {
-  return curveAt(FURY_ROAD.pay.base, j) + curveAt(FURY_ROAD.pay.perWreck, j) * wrecks;
-}
-
-export function gearMoneyOf(world: World, j: number): number {
-  const steps = Math.min(j, FURY_ROAD.waves.length) - 1;
-  return Math.round(FURY_ROAD.gearMoney.first + FURY_ROAD.gearMoney.step * enemyGearGrowth(world) * steps);
-}
-
 export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
   if (!Number.isInteger(j) || j < 1) throw new Error(`Stretch ${j} has no wave`);
   return FURY_ROAD.waves[Math.min(j, FURY_ROAD.waves.length) - 1];
@@ -50,13 +38,17 @@ export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
 
 const SIDES: readonly GroupSide[] = ['ahead', 'behind', 'left', 'right'];
 
-export function planStretch(seed: number, j: number): WaveGroup[] {
+export function stretchPlan(world: World, j: number): WaveGroup[] {
+  return planStretch(world.seed, j, groupSizes(enemyTrucks(world, j)));
+}
+
+export function planStretch(seed: number, j: number, sizes: readonly number[]): WaveGroup[] {
   const rng = stretchStream(seed, j, 'groups');
   const sides = stretchStream(seed, j, 'sides');
   const wave = waveOf(j);
   const weights = poolOf(j);
   let last: GroupSide | null = null;
-  return wave.sizes.map((size, i) => {
+  return sizes.map((size, i) => {
     const from = drawSide(sides, last);
     last = from;
     return {
@@ -115,7 +107,7 @@ export function outpostTrucks(world: World, post: OutpostFacts): string[] {
 
 export function startRun(world: World): void {
   if (world.terrain.atlas.kind !== 'highway' || world.terrain.atlas.window !== 0) throw new Error(`A Fury Road run starts on highway window 0, not map ${world.mapHash}`);
-  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: planStretch(world.seed, 1), earned: 0, wrecks: 0, quietFrom: world.turn };
+  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn };
 }
 
 function runOf(world: World): FuryRoadRun {
@@ -439,7 +431,7 @@ export function moveWindow(world: World): void {
   world.obstacles = mapObstacles(map);
   run.window = next;
   run.outposts = [...run.outposts.filter((o) => o.milestone === next), outpostFacts(world, next + 1)];
-  run.groups = planStretch(world.seed, next + 1);
+  run.groups = stretchPlan(world, next + 1);
   run.quietFrom = world.turn;
   refreshVision(world);
 }

@@ -27,13 +27,13 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
 };
 
 export type WaveGear = Omit<GearRules, 'money'>;
-export type WavePlan = { sizes: number[]; level: GearLevel; gear: WaveGear };
+export type WavePlan = { level: GearLevel; gear: WaveGear };
 const EARLY_GEAR: WaveGear = { armored: true, gunFirst: false, gunTier: 1 };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
 export type PoolTier = { upTo: number; weights: Record<string, number> };
-export type Curve = { first: number; step: number; max: number };
+export type Line = { first: number; step: number };
 
 export const FURY_ROAD = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
@@ -45,16 +45,16 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { sizes: [1], level: 'light', gear: { ...EARLY_GEAR, armored: false, gunFirst: true } },
-    { sizes: [1, 1], level: 'light', gear: EARLY_GEAR },
-    { sizes: [1, 1], level: 'light', gear: MIDDLE_GEAR },
-    { sizes: [1, 1], level: 'standard', gear: MIDDLE_GEAR },
-    { sizes: [2, 1], level: 'standard', gear: MIDDLE_GEAR },
-    { sizes: [2, 2], level: 'standard', gear: LATE_GEAR },
-    { sizes: [3, 2], level: 'heavy', gear: LATE_GEAR },
-    { sizes: [3, 3, 2], level: 'loaded', gear: LATE_GEAR },
+    { level: 'light', gear: { ...EARLY_GEAR, armored: false, gunFirst: true } },
+    { level: 'light', gear: EARLY_GEAR },
+    { level: 'light', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: LATE_GEAR },
+    { level: 'heavy', gear: LATE_GEAR },
+    { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
-  gearMoney: { first: 45000, step: 33000 },
+  danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, groupMax: 3, gearShare: 0.6, truckFloor: 20000 },
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
     { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, gunwagon: 3, vulture: 2, merc: 2, bowlFarmer: 1 } },
@@ -69,7 +69,7 @@ export const FURY_ROAD = {
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
-  pay: { base: { first: 30000, step: 15000, max: 120000 } as Curve, perWreck: { first: 6000, step: 1500, max: 15000 } as Curve },
+  pay: { base: { first: 30000, step: 15000 } as Line, perWreck: { first: 6000, step: 1500 } as Line },
   stockPerKind: { weapon: 2, engine: 2, armor: 4, cargo: 2, scanner: 2, store: 2, utility: 2 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,

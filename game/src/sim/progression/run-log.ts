@@ -1,5 +1,7 @@
 import { partDef } from '../../data/parts';
 import { playerVehicle } from '../damage';
+import { enemyTrucks, expectedGear, gearMoneyOf } from '../fury-road-danger';
+import { bodyCondition } from '../npc-decisions';
 import { mountedParts } from '../grid';
 import type { GameEvent, Vehicle, WaveGroup, World } from '../types';
 import { partValue } from '../wear';
@@ -7,8 +9,8 @@ import { partValue } from '../wear';
 export type KitLine = { chassis: string; guns: string[]; armor: number; gear: number };
 export type RunLine =
   | { t: 'group'; turn: number; stretch: number; from: string; trucks: (KitLine & { id: string; template: string })[] }
-  | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number }
-  | { t: 'leave'; turn: number; stretch: number; money: number; kit: KitLine }
+  | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number }
+  | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; expectedGear: number; enemyGear: number; enemyTrucks: number }
   | { t: 'beaten'; turn: number; stretch: number; id: string; template: string }
   | { t: 'lost'; turn: number; stretch: number; cause: string; money: number; kit: KitLine; stretchDamageBy: { id: string; template: string; damage: number }[] };
 
@@ -20,6 +22,10 @@ export function kitOf(v: Vehicle): KitLine {
     armor: parts.filter((p) => partDef(p.defId).kind === 'armor').length,
     gear: Math.round(parts.reduce((sum, p) => sum + partValue(p), 0) / 100),
   };
+}
+
+function conditionOf(world: World): number {
+  return Math.round(bodyCondition(playerVehicle(world)) * 100) / 100;
 }
 
 export class RunLog {
@@ -36,7 +42,7 @@ export class RunLog {
     return [
       ...this.spawned(before, world),
       ...this.beaten(before, world, stretch),
-      ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [{ t: 'outpost', turn: world.turn, stretch: e.milestone, pay: Math.round(e.pay / 100), wrecks: e.wrecks }] : [])),
+      ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [this.outpost(world, e.milestone, e.pay, e.wrecks)] : [])),
       ...(run.window > before.furyRoad.window ? [this.leave(world, stretch)] : []),
       ...events.flatMap((e): RunLine[] => (e.t === 'runLost' ? [this.lost(world, e.stretch, e.cause)] : [])),
     ];
@@ -70,9 +76,24 @@ export class RunLog {
       .map((id) => ({ t: 'beaten', turn: world.turn, stretch, id, template: this.templates.get(id) ?? 'unknown' }));
   }
 
+  private outpost(world: World, stretch: number, pay: number, wrecks: number): RunLine {
+    const damageTaken = Math.round([...this.damage.values()].reduce((sum, d) => sum + d, 0));
+    return { t: 'outpost', turn: world.turn, stretch, pay: Math.round(pay / 100), wrecks, condition: conditionOf(world), damageTaken };
+  }
+
   private leave(world: World, stretch: number): RunLine {
     this.damage.clear();
-    return { t: 'leave', turn: world.turn, stretch, money: Math.round(world.player.money / 100), kit: kitOf(playerVehicle(world)) };
+    return {
+      t: 'leave',
+      turn: world.turn,
+      stretch,
+      money: Math.round(world.player.money / 100),
+      condition: conditionOf(world),
+      kit: kitOf(playerVehicle(world)),
+      expectedGear: Math.round(expectedGear(world, stretch) / 100),
+      enemyGear: Math.round(gearMoneyOf(world, stretch) / 100),
+      enemyTrucks: enemyTrucks(world, stretch),
+    };
   }
 
   private lost(world: World, stretch: number, cause: string): RunLine {

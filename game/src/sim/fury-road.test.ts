@@ -10,7 +10,8 @@ import { inOverdrive, maxSpeedSteps, vehicleStats } from './stats';
 import { RULES } from '../data/rules';
 import { inCombat } from './combat';
 import { playerVehicle } from './damage';
-import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, gearMoneyOf, moveWindow, outpostPad, payOf, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
+import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
+import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
 import { topGoal } from './npc-activities';
 import { planNpcOrders } from './ai';
@@ -78,23 +79,24 @@ function roadSpot(w: World, v: Vehicle): { along: number; across: number } {
 
 const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
 const STRETCHES = Array.from({ length: 10 }, (_, i) => i + 1);
+const SIZES = [3, 3, 2];
 
 describe('the Fury Road pool', () => {
   it('names every NPC template, and draws each one over twenty runs', () => {
     const named = new Set(FURY_ROAD.pool.flatMap((tier) => Object.keys(tier.weights)));
-    const drawn = new Set(SEEDS.flatMap((seed) => STRETCHES.flatMap((j) => planStretch(seed, j).flatMap((g) => g.templates))));
+    const drawn = new Set(SEEDS.flatMap((seed) => STRETCHES.flatMap((j) => planStretch(seed, j, SIZES).flatMap((g) => g.templates))));
 
     expect([...named].sort()).toEqual(Object.keys(NPCS).sort());
     expect(Object.keys(FURY_ROAD.pool[FURY_ROAD.pool.length - 1].weights).sort()).toEqual(Object.keys(NPCS).sort());
     expect([...drawn].sort()).toEqual(Object.keys(NPCS).sort());
   });
 
-  it('sends the group sizes of the wave at its gear level, from the tier of the stretch', () => {
+  it('sends the given group sizes at the wave gear level, from the tier of the stretch', () => {
     for (const seed of SEEDS) {
       for (const j of STRETCHES) {
-        const groups = planStretch(seed, j);
+        const groups = planStretch(seed, j, SIZES);
         const tier = FURY_ROAD.pool.find((t) => j <= t.upTo)!;
-        expect(groups.map((g) => g.templates.length)).toEqual(waveOf(j).sizes);
+        expect(groups.map((g) => g.templates.length)).toEqual(SIZES);
         expect(groups.every((g) => g.level === waveOf(j).level)).toBe(true);
         expect(groups.flatMap((g) => g.templates).every((id) => tier.weights[id] > 0), `seed ${seed} stretch ${j}`).toBe(true);
       }
@@ -102,7 +104,7 @@ describe('the Fury Road pool', () => {
   });
 
   it('sends light trucks first and army trucks and convoys only later', () => {
-    const early = SEEDS.flatMap((seed) => [1, 2].flatMap((j) => planStretch(seed, j).flatMap((g) => g.templates)));
+    const early = SEEDS.flatMap((seed) => [1, 2].flatMap((j) => planStretch(seed, j, SIZES).flatMap((g) => g.templates)));
 
     expect(early.some((id) => ['gunwagon', 'noseArmy', 'convoy', 'convoyGuard'].includes(id))).toBe(false);
   });
@@ -113,7 +115,7 @@ describe('the sides a group comes from', () => {
     const sides = new Set<string>();
     for (const seed of SEEDS) {
       for (const j of STRETCHES) {
-        const from = planStretch(seed, j).map((g) => g.from);
+        const from = planStretch(seed, j, SIZES).map((g) => g.from);
         from.forEach((side) => sides.add(side));
         from.slice(1).forEach((side, i) => expect(side, `seed ${seed} stretch ${j}`).not.toBe(from[i]));
       }
@@ -172,6 +174,7 @@ describe('the pace of encounters', () => {
   it('spawns no group while one is near, nor in the twenty turns after it leaves', () => {
     let w = furyRoadWorld(4);
     for (let k = 0; k < 4; k++) w = nextLevel(w);
+    runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, [1, 1]);
     const first = spawnFirst(w);
     const me = playerVehicle(w);
     for (let t = 0; t < 40; t++) {
@@ -197,6 +200,7 @@ describe('the pace of encounters', () => {
     let w = furyRoadWorld();
     for (let k = 0; k < 7; k++) w = nextLevel(w);
     const run = runOf(w);
+    run.groups = planStretch(w.seed, run.window + 1, SIZES);
     for (const g of run.groups) {
       quietUntilDue(w);
       advanceFuryRoad(w);
@@ -492,19 +496,15 @@ describe('the endless run', () => {
     expect(runOf(w).window).toBe(30);
     expect(w.size).toBe(HIGHWAY.size);
     expect(runOf(w).outposts).toHaveLength(2);
-    expect(runOf(w).groups).toHaveLength(waveOf(32).sizes.length);
+    expect(runOf(w).groups.map((g) => g.templates.length)).toEqual(groupSizes(enemyTrucks(w, 31)));
     expect(w.vehicles).toHaveLength(1);
     expect(w.obstacles.every((o) => o.pos.x >= 0 && o.pos.y >= 0 && o.pos.x <= w.size && o.pos.y <= w.size)).toBe(true);
     expect(Math.max(...sizes.slice(10))).toBeLessThan(Math.max(...sizes.slice(0, 10)) * 1.5);
   });
 
-  it('escalates for eight stretches and then holds at the hardest row and the pay caps', () => {
+  it('arms up for eight stretches and then holds its gear rules', () => {
     expect(waveOf(9)).toBe(waveOf(8));
     expect(waveOf(40)).toBe(FURY_ROAD.waves[FURY_ROAD.waves.length - 1]);
-    expect(payOf(1, 0)).toBe(FURY_ROAD.pay.base.first);
-    expect(payOf(2, 1)).toBe(FURY_ROAD.pay.base.first + FURY_ROAD.pay.base.step + FURY_ROAD.pay.perWreck.first + FURY_ROAD.pay.perWreck.step);
-    expect(payOf(100, 0)).toBe(FURY_ROAD.pay.base.max);
-    expect(payOf(100, 1) - payOf(100, 0)).toBe(FURY_ROAD.pay.perWreck.max);
     expect(() => waveOf(0)).toThrow(/no wave/);
   });
 
@@ -583,17 +583,6 @@ describe('the gear money of a stretch', () => {
   };
   const partsValue = (v: Vehicle): number =>
     v.items.reduce((sum, item) => (item.kind === 'part' && PARTS[item.part.defId].kind !== 'core' ? sum + PARTS[item.part.defId].value : sum), 0);
-
-  it('starts at the first stretch money, grows by the step times the growth setting, and holds after the last wave', () => {
-    const { first, step } = FURY_ROAD.gearMoney;
-    const last = FURY_ROAD.waves.length;
-
-    expect(gearMoneyOf(withGrowth(1), 1)).toBe(first);
-    expect(gearMoneyOf(withGrowth(1), 2)).toBe(first + step);
-    expect(gearMoneyOf(withGrowth(2), 3)).toBe(first + 4 * step);
-    expect(gearMoneyOf(withGrowth(0), last)).toBe(first);
-    expect(gearMoneyOf(withGrowth(1), last + 20)).toBe(gearMoneyOf(withGrowth(1), last));
-  });
 
   it('caps what each spawned truck spends on parts', () => {
     const w = nextLevel(withGrowth(0));
