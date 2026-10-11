@@ -1018,13 +1018,19 @@ function padStop(world: World, vehicle: Vehicle, activity: NpcActivity, site: Si
 function towStop(world: World, vehicle: Vehicle, site: Site): Vec {
   const client = ropeClientOf(world, vehicle.id);
   const delivered = client !== null && canUseSite(vehicleById(world, client).pos, site);
-  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site);
+  if (delivered && parkedOn(vehicle, site)) return { ...vehicle.pos };
+  const spot = towSpot(vehicle, site, TOW.gap / 2);
+  return client !== null && vehicle.speed <= RULES.parkedSpeed && dist(vehicle.pos, spot) < RULES.arriveRadius && isCloserToSite(vehicleById(world, client), vehicle, site) ? towSpot(vehicle, site, REGION.sites.pad.length / 2 + TOW.gap / 2) : spot;
 }
 
-function towSpot(vehicle: Vehicle, site: Site): Vec {
+function isCloserToSite(client: Vehicle, tower: Vehicle, site: Site): boolean {
+  return dist(client.pos, site.pos) < dist(tower.pos, site.pos);
+}
+
+function towSpot(vehicle: Vehicle, site: Site, inward: number): Vec {
   const pad = nearestPad(site, vehicle.pos);
   const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
-  return { x: pad.x - Math.cos(angle) * TOW.gap / 2, y: pad.y - Math.sin(angle) * TOW.gap / 2 };
+  return { x: pad.x - Math.cos(angle) * inward, y: pad.y - Math.sin(angle) * inward };
 }
 
 function parkedOn(vehicle: Vehicle, site: Site): boolean {
