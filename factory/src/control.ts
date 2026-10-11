@@ -327,7 +327,7 @@ async function syncDev(ctx: Ctx, command: Extract<ControlCommand, { action: 'syn
   const release = openRelease(ctx);
   if (release.shipping !== undefined) throw new Error(`Release ${release.day} is shipping. Dev reaches main with its own next release.`);
   if (readState(ctx.statePath).pendingSync !== null) throw new Error(`A sync of dev into release ${release.day} is already queued.`);
-  updateState(ctx.statePath, (state) => ({ ...state, pendingSync: { by, reason: command.reason, from: null } }));
+  updateState(ctx.statePath, (state) => ({ ...state, pendingSync: { release: release.issue, by, reason: command.reason, from: null } }));
   return { issue: release.issue, text: `A sync of dev into ${release.branch} is queued. A coming tick merges GitHub's dev into the release and pushes only the release.` };
 }
 

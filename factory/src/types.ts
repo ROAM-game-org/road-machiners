@@ -128,7 +128,7 @@ export type Route = 'answer' | 'patch' | 'redesign';
 export type Failure = { stage: Stage; issue: number | null; error: string; log: string | null; at: string; batch?: number[]; decision?: boolean };
 export type ChangeRequest ={ id: number; text: string; by: string };
 export type Removal = { issue: number; by: string; text: string };
-export type PendingSync = { by: string; reason: string; from: string | null };
+export type PendingSync = { release: number; by: string; reason: string; from: string | null };
 export type DevSync = { dev: string; head: string; by: string; reason: string; at: string };
 
 export type PlaytestState = {

@@ -97,7 +97,8 @@ export function releaseDrift(state: FactoryState, cards: Card[]): string[] {
 }
 
 function syncDrift(state: FactoryState): string[] {
-  return state.pendingSync !== null && state.release === null ? ['pending dev sync but no open release'] : [];
+  const order = state.pendingSync;
+  return order !== null && order.release !== state.release?.issue ? [`pending dev sync for release #${order.release}, which is not the open release`] : [];
 }
 
 function releasePostDrift(post: ReleasePost | null): string[] {

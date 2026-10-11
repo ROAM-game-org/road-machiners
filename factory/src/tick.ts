@@ -39,7 +39,7 @@ const isHeld = (state: FactoryState, issue: number | null): boolean => issue !==
 function queued(state: FactoryState): JobPick[] {
   const approvals = Object.keys(state.pendingApprovals).map(Number).filter((issue) => !isHeld(state, issue)).sort((a, b) => a - b);
   const ship: JobPick[] = state.pendingShip !== null && state.release ? [{ stage: 'ship', issue: state.release.issue }] : [];
-  const sync: JobPick[] = state.pendingSync !== null && state.release ? [{ stage: 'sync', issue: state.release.issue }] : [];
+  const sync: JobPick[] = state.release !== null && state.pendingSync?.release === state.release.issue ? [{ stage: 'sync', issue: state.release.issue }] : [];
   return [
     ...approvals.map((issue) => ({ stage: 'approve' as const, issue })),
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),

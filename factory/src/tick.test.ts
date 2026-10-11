@@ -168,16 +168,17 @@ describe('chooseJobs during a release', () => {
   });
 
   it('runs a member-ordered dev sync before a queued ship, never beside a ship or removal (IV3)', () => {
-    const order = { by: 'Ann', reason: 'r', from: null };
+    const order = { release: 20, by: 'Ann', reason: 'r', from: null };
     const queuedState = { ...open, release: { ...RELEASE, postId: 5 }, pendingShip: 'Ann', pendingSync: order };
     expect(chooseJobs(queuedState, [], NOW, CFG)).toEqual([{ stage: 'sync', issue: 20 }]);
     expect(chooseJobs({ ...queuedState, pendingRemovals: [{ issue: 8, by: 'Ann', text: 't' }] }, [], NOW, CFG)).toEqual([{ stage: 'remove', issue: 8 }]);
     expect(chooseJobs({ ...queuedState, jobs: [running('ship', 20)] }, [], NOW, CFG)).toEqual([]);
     expect(chooseJobs(state({ pendingSync: order }), [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs({ ...queuedState, pendingShip: null, pendingSync: { ...order, release: 19 } }, [], NOW, CFG)).toEqual([]);
   });
 
   it('lets a running playtest or candidate of the old head finish before the sync starts, then plays the new head', () => {
-    const order = { by: 'Ann', reason: 'r', from: null };
+    const order = { release: 20, by: 'Ann', reason: 'r', from: null };
     const playing = { ...passed, pendingSync: order, jobs: [running('playtest', 20)] };
     expect(evaluateSchedule(playing, [tracking()], NOW, CFG, AT_HEAD).decisions).toContainEqual({ stage: 'sync', issue: 20, reasons: ['issue-running'] });
     expect(chooseJobs({ ...playing, jobs: [running('candidate', 20)] }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);

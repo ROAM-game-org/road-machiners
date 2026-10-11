@@ -557,7 +557,7 @@ describe('sync-dev', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'sync-dev', by: 'hermes' }))).rejects.toThrow('--by <member>');
     expect(readState(statePath).pendingSync).toBeNull();
     await applyControl(fakeCtx(), command({ action: 'sync-dev', by: '11' }));
-    expect(readState(statePath).pendingSync).toEqual({ by: 'Ann', reason: 'the gate failed on load', from: null });
+    expect(readState(statePath).pendingSync).toEqual({ release: 20, by: 'Ann', reason: 'the gate failed on load', from: null });
     expect(calls.find((call) => call.startsWith('comment 20'))).toContain('A sync of dev into release/2026-09-29 is queued');
     expect(ctrlLines()[0]).toMatchObject({ action: 'sync-dev', issue: 20, by: 'Ann' });
   });
@@ -566,13 +566,13 @@ describe('sync-dev', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('No release is open');
     seed({ release: { ...RELEASE, shipping: { sha: 'abc', features: [] } } });
     await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('shipping');
-    seed({ release: RELEASE, pendingSync: { by: 'Bob', reason: 'r', from: null } });
+    seed({ release: RELEASE, pendingSync: { release: 20, by: 'Bob', reason: 'r', from: null } });
     await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('already queued');
     expect(readState(statePath).pendingSync?.by).toBe('Bob');
   });
 
   it('drops a queued sync', async () => {
-    seed({ release: RELEASE, pendingSync: { by: 'Bob', reason: 'r', from: null } });
+    seed({ release: RELEASE, pendingSync: { release: 20, by: 'Bob', reason: 'r', from: null } });
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'sync', id: null }));
     expect(readState(statePath).pendingSync).toBeNull();
     await expect(applyControl(fakeCtx(), command({ action: 'drop', queue: 'sync', id: null }))).rejects.toThrow('sync');

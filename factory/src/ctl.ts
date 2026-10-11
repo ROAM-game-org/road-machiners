@@ -208,7 +208,7 @@ function queues(ctx: Ctx): void {
 }
 
 function syncOrder(order: FactoryState['pendingSync']): string {
-  return order === null ? 'none' : `by ${order.by}: ${order.reason}`;
+  return order === null ? 'none' : `release #${order.release} by ${order.by}: ${order.reason}`;
 }
 
 function release(ctx: Ctx): void {

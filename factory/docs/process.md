@@ -130,7 +130,8 @@ A member can order `factory sync-dev` when the open release needs work that is a
 
 - The job merges GitHub's `dev` into the release tip in a throwaway worktree, so the release keeps its own commits. An agent resolves a real conflict, as at the release cut. When the release moved, the merge runs again on the new tip. When `dev` moved during the merge, the job merges it again, up to 3 times, and says which newer `dev` stayed out.
 - When `dev` entered, the job drops the candidate post and a queued Ship and records the `dev` commit and the new release head. The playtest's earlier pass covers only its own commit, so the playtest plays the new head in full, and the candidate builds the commit it passes. Ship still needs a member. A feature that `dev` merged again after its Remove leaves the removed list.
-- When `dev` was already in the release, nothing changes. A job that runs again after its push records the same `dev` commit once.
+- When `dev` was already in the release, nothing changes. A job that runs again after its push records the same `dev` commit once, with one comment and one ledger line.
+- The order names the release it was given for. An order that outlived its release, like one queued during a Ship, never runs on the next release.
 - The tracking issue gets the order, the `dev` commit that entered, the new head and the features that came with it. The ledger gets a `sync` line.
 
 ## Side jobs

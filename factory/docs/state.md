@@ -59,7 +59,7 @@ Flags hold on any position:
 - Playtest: every release task is done, and `release.playtest.passed` is not the release head. The playtest runs.
 - Playtest blocked: `release.playtest.blocked` holds the commit and the reason. The tracking card has `factory-stuck`. `retry <tracking> [decision]` lifts it.
 - Candidate building: `release.playtest.passed` is the release head and no post is current. The candidate runs.
-- Dev sync queued: `pendingSync` holds a member's `sync-dev` order. The sync job writes the release head it started from in `pendingSync.from`, so a retried job knows what entered during the order. A sync that brought in `dev` drops `postId` and `pendingShip`, appends `{ dev, head, by, reason, at }` to `release.syncs`, and the release goes back to Playtest.
+- Dev sync queued: `pendingSync` holds a member's `sync-dev` order. The sync job writes the release head it started from in `pendingSync.from`, so a retried job knows what entered during the order, and a `dev` commit already in `release.syncs` writes no second record, comment or ledger line. A sync that brought in `dev` drops `postId` and `pendingShip`, appends `{ dev, head, by, reason, at }` to `release.syncs`, and the release goes back to Playtest.
 - Candidate posted: `release.postId` holds the current candidate post, and `release.candidateSha` the commit it plays. Ship runs when a member presses Ship, or on `ship`. A tick that finds the release head past `candidateSha` drops the post and a queued Ship, unless a Ship runs. Ship refuses a release head other than `candidateSha`.
 - Shipping: `release.shipping` holds the release head and the features Ship found on it before it merged into `main`. A Ship that runs again on the same head reuses that list, since the release is then already on `main`. `release.removed` takes an issue as soon as its reverts are pushed, so a removal that runs again goes on with the remaining steps.
 - Shipped: `ship` merged the release into `main`, closed its cards and set `release` to null. A tag that already exists counts as made.
@@ -76,7 +76,7 @@ The public post of a shipped release has its own position in `releasePost`, besi
 
 `release.tasks` lists every release task the factory created or labeled: the cut's cleanup tasks, a reply's task and a fix triage labeled. Each is written before its card or label goes on the board, since the board lists a write up to a minute late. `factory release` prints them as `recorded tasks`.
 
-`factory audit` and `card N` flag six drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a pending dev sync with no open release, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
+`factory audit` and `card N` flag six drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a pending dev sync for a release that is not open, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
 
 The release tracking card has the label `release`. It waits in Approval for the whole release, and its post is `release.postId`. It never shows card drift.
 
@@ -87,7 +87,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press. Drop with `drop approval <issue>`.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
-- `pendingSync`: a member's order to merge `dev` into the open release, with `by`, `reason` and `from`. The sync job runs it. Fed by `sync-dev`. Drop with `drop sync`.
+- `pendingSync`: a member's order to merge `dev` into the open release, with `release`, the tracking issue it was ordered for, `by`, `reason` and `from`. The sync job runs it only while that release is open, so an order that outlived its release never reaches the next one. Fed by `sync-dev`. Drop with `drop sync`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
 - `retried`: approve, remove, sync, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
@@ -117,7 +117,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - A running job whose stage differs from the stage the position runs. The stage of `post` is checks, of `approval` is approve, and `done` runs none.
 - An open release whose tracking card is missing.
 - A pending ship with no current candidate post.
-- A pending dev sync with no open release.
+- A pending dev sync for a release that is not open. Drop it with `drop sync`.
 - A candidate post of a commit the playtest did not pass.
 - A held card in Done, a held card with a running job, or a held issue off the board. The line names who held it and why.
 

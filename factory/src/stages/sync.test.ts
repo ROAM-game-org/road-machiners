@@ -11,7 +11,7 @@ import { syncDev } from './sync';
 
 const BRANCH = 'release/2026-09-29';
 const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: '2026-09-29', postId: 42, removed: [], tasks: [], candidateSha: 'r0', playtest: { seed: 1, runs: 2, passed: 'r0', blocked: null, notes: [] } };
-const ORDER: PendingSync = { by: 'Ann', reason: 'dev has the fix #438 needs', from: null };
+const ORDER: PendingSync = { release: 11, by: 'Ann', reason: 'dev has the fix #438 needs', from: null };
 
 type Remote = { release: string; dev: string; devIn: string; behind: number; fromHasDev: boolean };
 
@@ -106,6 +106,30 @@ describe('syncDev', () => {
     expect(retry.calls.some((call) => call.startsWith('merge '))).toBe(false);
     expect(retry.calls.find((call) => call.startsWith('comment '))).toContain('Dev at d1 entered release/2026-09-29. The release moved from r0 to r1');
     expect(readState(f.ctx.statePath).release?.syncs).toEqual([expect.objectContaining({ dev: 'd1', head: 'r1' })]);
+  });
+
+  it('writes no second ledger line, comment or message when a run after the record retries the order (IV4)', async () => {
+    const f = fake();
+    seed(f);
+    remote(f);
+    f.ctx.telegram.sendMessage = async () => {
+      throw new Error('killed after the record');
+    };
+    await expect(syncDev(f.ctx, 11)).rejects.toThrow('killed');
+    const retry = fake();
+    remote(retry, { release: 'r1', behind: 0 });
+    await syncDev(retry.ctx, 11);
+    expect(retry.calls.some((call) => call.startsWith('comment ') || call.startsWith('message ') || call.startsWith('merge '))).toBe(false);
+    expect(readLedger(f.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'sync')).toHaveLength(1);
+    expect(readState(f.ctx.statePath).release?.syncs).toHaveLength(1);
+  });
+
+  it('refuses an order queued for an earlier release', async () => {
+    const f = fake();
+    seed(f, { pendingSync: { ...ORDER, release: 9 } });
+    remote(f);
+    await expect(syncDev(f.ctx, 11)).rejects.toThrow('ordered for release #9');
+    expect(f.calls.some((call) => call.startsWith('merge '))).toBe(false);
   });
 
   it('takes a removed feature that dev merged again off the removed list', async () => {
