@@ -343,7 +343,7 @@ class Playlist {
   private track = 0;
   private handle: LoopHandle;
 
-  constructor(private player: SoundPlayer, private cue: "music-calm" | "music-quest") {
+  constructor(private player: SoundPlayer, private cue: "music-calm" | "music-quest" | "music-abandoned") {
     this.files = shuffled(SOUNDS[cue].files, Math.random);
     this.handle = player.loop(cue, { pan: 0, gain: 0 }, this.files[0]);
   }
@@ -366,7 +366,8 @@ export class SoundLoops {
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
-  private places: [LoopHandle, "townGain" | "outpostGain" | "abandonedGain"][];
+  private abandoned: Playlist;
+  private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
   constructor(player: SoundPlayer, private score: Pick<CombatScore, "setCombat" | "setPaused" | "tick">) {
@@ -375,10 +376,10 @@ export class SoundLoops {
     this.wind = player.loop("wind", silent);
     this.calm = new Playlist(player, "music-calm");
     this.quest = new Playlist(player, "music-quest");
+    this.abandoned = new Playlist(player, "music-abandoned");
     this.places = [
       [player.loop("music-town", silent), "townGain"],
       [player.loop("music-outpost", silent), "outpostGain"],
-      [player.loop("music-abandoned", silent), "abandonedGain"],
     ];
   }
 
@@ -424,7 +425,7 @@ export class SoundLoops {
 
   private updatePlaylists(l: LoopLevels, was: LoopLevels | null): void {
     const fade = MIX.music.fadeSeconds;
-    for (const [playlist, key] of [[this.calm, "calmGain"], [this.quest, "questGain"]] as const) {
+    for (const [playlist, key] of [[this.calm, "calmGain"], [this.quest, "questGain"], [this.abandoned, "abandonedGain"]] as const) {
       if (was?.[key] === l[key]) continue;
       if (was?.[key] === 0) playlist.next(fade);
       playlist.setGain(l[key], fade);

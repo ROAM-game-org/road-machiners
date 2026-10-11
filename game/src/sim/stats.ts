@@ -16,7 +16,8 @@ import type { PartInstance, Vehicle, World } from './types';
 import { DEG } from './vec';
 import { weatherOn } from './weather';
 import { fuelUseScale } from './settings';
-import { catchingUp, overdriveBoostOf } from './catch-up';
+import { catchingUp } from './catch-up';
+import { FURY_ROAD } from '../data/modes';
 
 export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number };
 
@@ -120,11 +121,18 @@ function limitedSpeed(world: World, v: Vehicle, from: number, limpSpeed: number,
     steps?.push({ kind: 'floor', speed });
   }
   if (inOverdrive(world, v)) {
-    const boost = overdriveBoostOf(world, v);
+    const boost = speedBoostOf(world, v, speed);
     speed *= boost;
     steps?.push({ kind: 'overdrive', factor: boost, speed });
   }
   return transmissionSpeed(v, speed, limpSpeed, steps);
+}
+
+function speedBoostOf(world: World, v: Vehicle, own: number): number {
+  if (!catchingUp(world, v)) return RULES.overdriveBoost;
+  const me = world.vehicles.find((x) => x.id === world.player.vehicleId);
+  if (!me) throw new Error(`${v.id} catches up with a player who has no truck`);
+  return Math.max(RULES.overdriveBoost, (vehicleStats(world, me).maxSpeed * FURY_ROAD.catchUp.lead) / own);
 }
 
 function transmissionSpeed(v: Vehicle, from: number, limpSpeed: number, steps: SpeedStep[] | null): number {
@@ -186,7 +194,7 @@ function driveOf(world: World, v: Vehicle, s: DriveShares): Drive {
   if (!hasWorkingEngine(v) || isStalled(world, v)) return { maxSpeed, accel: s.limpAccel, fuelMult: 0 };
   const ch = chassisDef(v.chassisId);
   const e = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
-  const boost = inOverdrive(world, v) ? overdriveBoostOf(world, v) : 1;
+  const boost = inOverdrive(world, v) ? RULES.overdriveBoost : 1;
   const accel = (ch.accel + e.accelBonus) * s.force * RULES.accelScale * gunDragOf(gunDraw(v), e.capacity) * boost;
   return { maxSpeed, accel, fuelMult: e.fuelMult };
 }
