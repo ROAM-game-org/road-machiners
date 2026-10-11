@@ -102,8 +102,7 @@
   border: 2px solid var(--steel-0);
   border-radius: var(--radius-s);
   box-shadow: inset 0 2px 4px var(--bevel-dark);
-  font: var(--text-dense) var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font: italic bold var(--text-body) var(--font-lcd);
   white-space: nowrap;
 }
 .resource .coin circle {
@@ -114,7 +113,7 @@
   stroke: currentColor;
 }
 .resource strong {
-  font-weight: normal;
+  font-weight: bold;
 }
 .resource .icon {
   width: var(--icon-s);
