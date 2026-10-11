@@ -26,11 +26,8 @@ const DIRT_EDGE = 0.44;
 const DIRT_WANDER = 0.2;
 const DIRT_SOFT = 0.15;
 const DIRT_SHOULDER = 0.9;
-const LANE_EDGE = "0.42";
-const LANE_FADE = "0.04";
 const BAND_FROM = "0.1";
 const BAND_FULL = "0.25";
-const LANE_MIX = "0.82";
 const GLASS_PLATE = 2;
 const GLASS_TINT = 0.16;
 const GLASS_SEAM = 0.25;
@@ -54,7 +51,6 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     roadPixel: { value: pixel },
-    laneColor: { value: new THREE.Color(PAL.laneLine) },
     asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
@@ -104,7 +100,6 @@ uniform sampler2D roadMask;
 uniform sampler2D roadDetail;
 uniform sampler2D roadTone;
 uniform float roadPixel;
-uniform vec3 laneColor;
 uniform vec3 asphaltColor;
 uniform float roadOrigin;
 uniform float roadMaskMeters;
@@ -182,7 +177,7 @@ const ROAD_FRAGMENT = `{
   vec3 roadMaskAt = texture2D(roadMask, (roadAt - roadOrigin) / roadMaskMeters).rgb;
   float roadCover = roadMaskAt.r;
   float dirtCover = roadMaskAt.g;
-  float laneCover = roadMaskAt.b;
+  float bandMask = roadMaskAt.b;
   vec4 roadLook = texture2D(roadDetail, (roadAt - roadOrigin) / roadDetailMeters);
   float roadWander = texture2D(roadTone, (roadAt - roadOrigin) / roadToneMeters).r;
   float roadSand = texture2D(roadDesert, roadAt / roadDesertMeters).r;
@@ -207,9 +202,8 @@ const ROAD_FRAGMENT = `{
     float dirtShade = mix(${DIRT_SHOULDER}, 1.0, smoothstep(dirtEdge, dirtEdge + ${DIRT_SOFT}, dirtCover));
     diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor * dirtShade, dirtIn);
   }
-  float bandCover = smoothstep(${BAND_FROM}, ${BAND_FULL}, laneCover);
+  float bandCover = smoothstep(${BAND_FROM}, ${BAND_FULL}, bandMask);
   if (bandCover > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, asphaltColor * (0.94 + 0.12 * roadWander) * (0.96 + 0.08 * roadLook.a), bandCover);
-  if (laneCover > ${LANE_EDGE} && roadLook.a > ${LANE_FADE}) diffuseColor.rgb = mix(diffuseColor.rgb, laneColor * (0.9 + 0.2 * roadWander), ${LANE_MIX});
 #if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
     vec2 padOff = roadAt - padCenters[i];

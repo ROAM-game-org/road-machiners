@@ -24,7 +24,7 @@ Fury Road plays on its own generated map, never on Icarus. The world seed builds
 
 Each stretch bends once. The road runs straight for 60 tiles after each outpost and before the next one, so the forts, closures and window overlaps stand on straight road. Between them it swings to one side and back: 16 to 36 tiles off its line, to a side drawn from the seed, over two cosine ramps of about 95 tiles each. One stretch in five stays straight. The heading stays within 35° of north, so on screen the road always climbs to the right, between about 8° and 60° above the horizontal, and no bend is tighter than a radius of 40 tiles. The bend numbers live in `HIGHWAY`.
 
-- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. Three dashed dividers and two solid edge lines mark it, with no middle line.
+- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. It carries no lane paint.
 - A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles (144 m) wide: room for a full-speed U-turn and for a fight at gun range. Hardpan is barely slower than asphalt, so a route through a bend takes the racing line on the inside verge. Only poles, the odd ditched car and billboards stand near it. Past the verge come badlands of gravel, scrub and scree with rocks, crags and dead trees, then a ridge too steep to climb.
 - An Old World power line runs along one verge of each stretch.
 

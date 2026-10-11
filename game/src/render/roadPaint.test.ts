@@ -7,7 +7,7 @@ import { siteGap } from '../sim/sites';
 import { isTerritory, territoryRoads } from '../sim/territory';
 import { dist, polylineDist, type Vec } from '../sim/vec';
 import { TERRAIN_MARGIN, type PaintCanvas } from './groundPaint';
-import { ASPHALT_STYLE, BLUR_REACH, DIRT_ROAD_STYLE, LANE_STYLE, laneLines, paintRoadMask, REGION_ROAD_STYLE, type RoadHole } from './roadPaint';
+import { ASPHALT_STYLE, BLUR_REACH, DIRT_ROAD_STYLE, paintRoadMask, REGION_ROAD_STYLE, type RoadHole } from './roadPaint';
 import { highwayAtlas } from '../sim/highway';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { icarusAtlas, type Atlas } from '../sim/atlas';
@@ -192,15 +192,8 @@ describe('road mask', () => {
   });
 });
 
-describe('highway lane paint', () => {
+describe('highway asphalt paint', () => {
   const highway = highwayAtlas(4, 1);
-
-  it('marks four northbound lanes: solid edges and three dashed dividers, with no middle line', () => {
-    const lines = laneLines(highway.roads[0]);
-
-    expect(lines.map((l) => l.offset)).toEqual([-4, 4, -2, 0, 2]);
-    expect(lines.map((l) => l.dashed)).toEqual([false, false, true, true, true]);
-  });
 
   it('paints the highway asphalt as a smooth band past the tile edge, and leaves crater holes in it', () => {
     const hole = { pos: highway.roads[0].points[40], radius: 2 };
@@ -212,11 +205,9 @@ describe('highway lane paint', () => {
     expect(paintedMask().strokes.some((s) => s.style === ASPHALT_STYLE)).toBe(false);
   });
 
-  it('paints lanes and no dirt road on the highway, and no lanes on Icarus', () => {
-    const lanes = paintedMask(highway).strokes;
+  it('paints only asphalt on the highway: no lane lines and no dirt road', () => {
+    const strokes = paintedMask(highway).strokes.filter((s) => s.lines.length > 0);
 
-    expect(lanes.some((s) => s.style === LANE_STYLE && s.lines.length > 0)).toBe(true);
-    expect(lanes.filter((s) => s.style === REGION_ROAD_STYLE).every((s) => s.lines.length === 0)).toBe(true);
-    expect(paintedMask().strokes.some((s) => s.style === LANE_STYLE)).toBe(false);
+    expect(new Set(strokes.map((s) => s.style))).toEqual(new Set([ASPHALT_STYLE]));
   });
 });
