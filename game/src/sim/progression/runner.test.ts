@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { TERRAIN } from '../../data/terrain';
+import { dist } from '../vec';
 import { playerVehicle } from '../damage';
 import { goodsCount, mountedParts } from '../grid';
 import { outpostPad } from '../fury-road';
@@ -31,7 +33,12 @@ describe('the Fury Road runner bot', () => {
     expect(goodsCount(after).parts).toBe(4);
     expect(turn.events).toContainEqual({ t: 'roadOpened', stretch: 2 });
     expect(turn.world.furyRoad?.window).toBe(1);
-    expect(after.order).toEqual({ kind: 'stopAt', dest: outpostPad(turn.world, 2) });
+    const hop = after.order?.kind === 'stopAt' ? after.order.dest : null;
+    expect(hop).not.toBeNull();
+    const pad = outpostPad(turn.world, 2);
+    expect(dist(hop!, after.pos)).toBeLessThan(2 * TERRAIN.vision.radius);
+    expect(dist(hop!, after.pos)).toBeLessThan(dist(pad, after.pos));
+    expect(dist(hop!, pad)).toBeLessThan(dist(after.pos, pad));
     expect(turn.ledger.repairs).toBeLessThan(0);
   });
 

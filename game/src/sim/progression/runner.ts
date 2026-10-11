@@ -3,6 +3,8 @@ import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { RULES } from '../../data/rules';
+import { TERRAIN } from '../../data/terrain';
+import { alongOf, roadPoint, toRoad } from '../highway';
 import { fightOrder, fightPoint, leadOf } from '../ai';
 import { everyGunFires } from '../armor';
 import { inCombat } from '../combat';
@@ -25,6 +27,7 @@ import { mountBought, Orders, type BotTurn } from './orders';
 
 const PATCH_GOODS = 4;
 const FIGHTER = 'merc';
+const HOP = TERRAIN.vision.radius;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 
 export function runnerOrders(world: World): BotTurn {
@@ -67,8 +70,20 @@ function drive(o: Orders): void {
   const foe = nearestFoe(o.world, o.me);
   const next = nextOutpost(o.world);
   if (foe && inCombat(o.world, o.me)) order(o, fighterOrder(o.world, o.me, foe));
-  else if (next) driveTo(o, next.pad);
+  else if (next) hopToward(o, next.pad);
   else if (o.me.order) o.run((w) => setMoveOrder(w, null));
+}
+
+function hopToward(o: Orders, pad: Vec): void {
+  const now = o.me.order;
+  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP) return;
+  driveTo(o, nextHop(o.world, o.me, pad));
+}
+
+function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
+  const window = world.furyRoad?.window ?? 0;
+  const along = alongOf(world.seed, toRoad(window, me.pos)) + HOP;
+  return along >= alongOf(world.seed, toRoad(window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
 }
 
 function fighterOrder(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
