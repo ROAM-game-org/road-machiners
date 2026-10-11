@@ -69,7 +69,7 @@ export const FURY_ROAD = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 30000, step: 15000 } as Line, perWreck: { first: 6000, step: 1500 } as Line },
-  stockPerKind: { weapon: 2, engine: 2, armor: 4, cargo: 2, scanner: 2, store: 2, utility: 2 } as Partial<Record<PartKind, number>>,
+  stockPerKind: { weapon: 4, engine: 3, armor: 4, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,
   maxTries: 400,

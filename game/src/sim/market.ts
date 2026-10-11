@@ -48,7 +48,19 @@ export function rollPartStock(world: World, rng: Rng, table: PartStockTable, cou
 
 export function rollPartStockPerKind(world: World, rng: Rng, table: PartStockTable, perKind: Partial<Record<PartKind, number>>, seller: string): PartInstance[] {
   const kinds = [...new Set(table.parts.map((p) => PARTS[p.value].kind))];
-  return kinds.flatMap((kind) => rollPartStock(world, rng, { ...table, parts: table.parts.filter((p) => PARTS[p.value].kind === kind) }, countOfKind(perKind, kind, seller), seller));
+  return kinds.flatMap((kind) => rollDistinctStock(world, rng, { ...table, parts: table.parts.filter((p) => PARTS[p.value].kind === kind) }, countOfKind(perKind, kind, seller), seller));
+}
+
+function rollDistinctStock(world: World, rng: Rng, table: PartStockTable, count: number, seller: string): PartInstance[] {
+  if (count > table.parts.length) throw new Error(`${seller} asks for ${count} different parts of a kind that has only ${table.parts.length}`);
+  const left = [...table.parts];
+  const stock: PartInstance[] = [];
+  while (stock.length < count) {
+    const defId = sampleWeighted(rng, left);
+    left.splice(left.findIndex((p) => p.value === defId), 1);
+    stock.push(...rollPartStock(world, rng, { ...table, parts: [{ value: defId, weight: 1 }] }, 1, seller));
+  }
+  return stock;
 }
 
 function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind, seller: string): number {
