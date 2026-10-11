@@ -6,7 +6,8 @@ import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { projectileOf } from "./render/projectiles";
-import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { bodyOf } from "../sim/body";
+import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
@@ -268,11 +269,13 @@ const poses: TurnPoses = {
   at: (id, s) => (s < 0 || s >= STEPS ? null : id === "s" ? shooterAt(s) : id === "t" ? targetAt(s) : null),
   headingAt: (id, s) => (s < 0 || s >= STEPS || (id !== "s" && id !== "t") ? null : 0),
   end: (id) => (id === "s" ? shooterAt(STEPS - 1) : id === "t" ? targetAt(STEPS - 1) : id === "o" ? { x: 50, y: 2, z: 50 } : null),
+  endHeading: (id) => (id === "s" || id === "t" || id === "o" ? 0 : null),
 };
 
 const gun = (key: string, covers: Gun["covers"] = () => true, blastRadius = 0): Gun => ({ spec: projectileOf(key), rangeM: 100, blastRadius, covers });
 const round = (struck: string | null, offset = 0, more: Partial<ShotRound> = {}): ShotRound => ({ hit: struck === "t", crit: false, offset, struck, hits: [], blast: [], burst: null, ...more });
-const shot = (rounds: ShotRound[], late: (k: number) => boolean = () => false): Shot => ({ shooter: "s", target: "t", rounds, late, missAt: (offset) => ({ x: 40, y: 0, z: 11.8 + offset }) });
+const TARGET_HALF = { length: 2.5, width: 1 };
+const shot = (rounds: ShotRound[], late: (k: number) => boolean = () => false): Shot => ({ shooter: "s", target: "t", rounds, late, missAt: (offset) => ({ x: 40, y: 0, z: 11.8 + offset }), targetHalf: TARGET_HALF });
 const flatGround = () => 0;
 const half = () => 0.5;
 
@@ -337,6 +340,53 @@ describe("planShot", () => {
     expect(seen.impact).toBe("truck");
     expect(seen.struckAt).toEqual({ x: 50, y: 2, z: 50 });
     expect(hidden.impact).toBe("none");
+  });
+});
+
+describe("planShot against the end of the move", () => {
+  it("fires a round placed at the end of the move so it lands as the move ends, even when the gun only covers early", () => {
+    const early: TurnPoses = { ...poses, headingAt: (_id, s) => (s < 10 ? 0 : 1) };
+    const burst = round(null, 1, { burst: { x: 10, y: 3 } });
+    const [p] = planShot(early, shot([burst], () => true), gun("rocketRack", (heading) => heading === 0, 2), flatGround, half);
+    expect(p.delayMs).toBe(MOVE_MS);
+  });
+
+  it("widens a hit's offset when the target shows more of its side than at the end of the move", () => {
+    const parked = (id: string) => (id === "s" ? { x: 0, y: 2, z: 0 } : id === "t" ? { x: 40, y: 2, z: 0 } : null);
+    const sideOn: TurnPoses = { ...poses, at: (id, s) => (s < STEPS ? parked(id) : null), end: parked, headingAt: (id) => (id === "t" ? Math.PI / 2 : 0) };
+    const [p] = planShot(sideOn, shot([round("t", 0.8)]), gun("cannon"), flatGround, half);
+    expect(p.land.z).toBeCloseTo(0.8 * (TARGET_HALF.length / TARGET_HALF.width), 5);
+  });
+
+  it("keeps a truck's length on the x axis of its body box", () => {
+    const body = bodyOf("buggy").half;
+    expect(body.x).toBeGreaterThan(body.z);
+  });
+});
+
+describe("playShotFx before a shooter's view exists", () => {
+  it("fires the shooter's rounds as the move ends instead of failing the turn", () => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
+    if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
+    world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
+    const launched: { delayMs: number }[] = [];
+    const host = {
+      world,
+      views: new Map(),
+      fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number }) => launched.push(plan), label: () => {} },
+      sound: { at: () => {}, accents: () => {} },
+      eventPoint: () => ORIGIN,
+      breakPart: () => {},
+      onBurst: () => {},
+      poses: posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
+      startMs: 0,
+      freshSmoke: () => false,
+    } as unknown as CombatHost;
+    playShotFx(host, new BreakCues(world.events));
+    expect(launched.map((p) => p.delayMs)).toEqual([MOVE_MS]);
   });
 });
 
