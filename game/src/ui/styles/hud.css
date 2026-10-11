@@ -91,12 +91,15 @@
   align-items: stretch;
 }
 .resource {
-  display: flex;
-  flex-wrap: wrap;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--icon-s) auto;
+  justify-content: start;
   align-items: center;
-  align-content: center;
-  gap: var(--space-1);
-  padding: 1px var(--space-3);
+  column-gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  line-height: 1;
+  text-transform: uppercase;
   background: var(--lcd);
   color: var(--lcd-ink);
   border: 2px solid var(--steel-0);
@@ -113,9 +116,16 @@
   stroke: currentColor;
 }
 .resource strong {
+  grid-column: 2;
   font-weight: bold;
 }
-.resource .icon {
+.resource strong:has(.amount),
+.resource .amount {
+  display: contents;
+}
+.resource .icon,
+.resource .coin {
+  grid-column: 1;
   width: var(--icon-s);
   height: var(--icon-s);
 }
@@ -132,7 +142,10 @@
   stroke: var(--lcd);
 }
 .readouts .meter {
-  flex-basis: 100%;
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--space-1);
   background: var(--lcd-rule);
 }
 .readouts .meter > * {
