@@ -46,6 +46,7 @@ import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup 
 import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
 import { highwayStart } from './highway';
 import { advanceFuryRoad, startRun } from './fury-road';
+import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
@@ -334,6 +335,7 @@ export function endTurn(
     w.turn++;
     advanceWeather(w);
     planNpcOrders(w);
+    planHaulerOrder(w);
     freezeDriving(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
@@ -368,6 +370,7 @@ export function endTurn(
     fitAllStores(w);
     applyGodMode(w);
     resolveDestroyed(w);
+    noteHaulerHits(w);
     dropStrandedTowers(w);
     advanceContracts(w);
     advancePatches(w);
@@ -392,6 +395,7 @@ export function endTurn(
     settleShutdowns(w);
     settleClaymores(w);
     watchStalls(w);
+    watchHaulerStall(w);
     endCallIfOut(w);
     raiseCalls(w);
   }));

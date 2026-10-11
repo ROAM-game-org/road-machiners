@@ -316,7 +316,7 @@ function parkedOnPad(world: World, milestone: number): boolean {
   return me.speed <= RULES.parkedSpeed && onOutpostPad(world, me.pos, milestone);
 }
 
-function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
+export function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
   return canUseSite(pos, outpostFort(world.seed, runOf(world).window, milestone));
 }
 
