@@ -145,9 +145,21 @@ export class Hud {
     const gap = parseFloat(token("--hud-gap"));
     const top = topRight().getBoundingClientRect().bottom + gap;
     this.info.style.top = `${top}px`;
-    this.info.style.height = `${this.radio.root.getBoundingClientRect().top - gap - top}px`;
+    const slot = this.radio.root.getBoundingClientRect().top - gap - top;
+    this.info.style.height = `${slot}px`;
+    const shortBy = this.inspected.heightToFit(this.inspectedDraw, parseFloat(token("--btn-h-s"))) - this.inspectedDraw.clientHeight;
+    const tallest = this.log.root.getBoundingClientRect().bottom - top;
+    const height = Math.min(slot + Math.max(0, shortBy), tallest);
+    this.info.style.height = `${height}px`;
+    this.coverUnder(top + height);
     this.inspected.fitTo(this.inspectedDraw);
   };
+
+  private coverUnder(bottom: number | null): void {
+    for (const below of [this.radio.root, this.log.root]) {
+      below.style.visibility = bottom !== null && bottom > below.getBoundingClientRect().top ? "hidden" : "";
+    }
+  }
 
   constructor(private actions: HudActions, private radio: RadioPanel) {
     this.truckStack.append(this.condition.root);
@@ -157,7 +169,7 @@ export class Hud {
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
     new ResizeObserver(this.placeInfo).observe(rightDock());
-    new ResizeObserver(() => this.inspected.fitTo(this.inspectedDraw)).observe(this.inspectedDraw);
+    new ResizeObserver(this.placeInfo).observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
@@ -559,6 +571,7 @@ export class Hud {
   showInfo(w: World, v: Vehicle | null, hostile: boolean): void {
     if (!v) {
       this.info.style.display = "none";
+      this.coverUnder(null);
       return;
     }
     this.inspected.render(v, this.aimOf(w, v));

@@ -27,6 +27,8 @@ export class TruckConditionView {
   private tiles: ConditionPart[] = [];
   private outline: HTMLElement[] = [];
   private chassisId: string | null = null;
+  private cols = 1;
+  private rows = 1;
 
   constructor(private readonly quiet = false) {
     this.body.append(this.tip);
@@ -34,15 +36,21 @@ export class TruckConditionView {
   }
 
   fitTo(box: HTMLElement): void {
-    this.root.style.zoom = "1";
     const outline = parseFloat(token("--space-4"));
-    const height = this.body.offsetHeight + 2 * PLAN_PAD * CELL;
-    const scale = Math.min((box.clientHeight - outline) / height, (box.clientWidth - outline) / this.body.offsetWidth);
-    this.root.style.zoom = String(scale);
+    const cell = Math.min((box.clientHeight - outline) / (this.rows + 2 * PLAN_PAD), (box.clientWidth - outline) / this.cols);
+    this.root.style.zoom = String(cell / CELL);
+  }
+
+  heightToFit(box: HTMLElement, cell: number): number {
+    const outline = parseFloat(token("--space-4"));
+    const widest = (box.clientWidth - outline) / this.cols;
+    return (this.rows + 2 * PLAN_PAD) * Math.min(cell, widest) + outline;
   }
 
   render(vehicle: Vehicle, aim?: ConditionAim): void {
     const grid = baseGrid(vehicle.chassisId);
+    this.cols = grid.w;
+    this.rows = grid.h;
     this.body.style.width = `${grid.w * CELL}px`;
     this.body.style.height = `${grid.h * CELL}px`;
     this.body.style.margin = `${PLAN_PAD * CELL}px 0`;
