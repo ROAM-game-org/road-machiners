@@ -116,6 +116,12 @@ async function checkSpeedTip(page, width) {
   await page.evaluate(() => document.activeElement?.blur());
 }
 
+function checkClockSpan(m) {
+  const span = `${m.clock.x}-${m.clock.right} vs ${m.dial.x}-${m.money.right}`;
+  assert(Math.abs(m.clock.x - m.dial.x) <= 1, `Clock must start at the dial: ${span}`);
+  assert(Math.abs(m.clock.right - m.money.right) <= 1, `Clock must end at the money readout: ${span}`);
+}
+
 async function checkInstruments(page) {
   const clock = page.locator('.instrument-clock');
   assert(await clock.isVisible(), 'Clock strip must be visible');
@@ -126,7 +132,7 @@ async function checkInstruments(page) {
       return node && node.offsetParent !== null ? node.getBoundingClientRect().toJSON() : null;
     };
     return {
-      panel: rect('.instruments'), clock: rect('.instrument-clock'), dial: rect('.truck-instrument'), readouts: rect('.readouts'),
+      panel: rect('.instruments'), clock: rect('.instrument-clock'), dial: rect('.truck-instrument'), readouts: rect('.readouts'), money: rect('.resource[data-resource="money"]'),
       log: visibleRect('.log'), weapons: visibleRect('.weapons'),
       clockText: document.querySelector('.instrument-clock').innerText,
       panelText: document.querySelector('.instruments').innerText,
@@ -137,8 +143,8 @@ async function checkInstruments(page) {
   });
   const { panel } = m;
   assert(m.clock.x >= panel.x && m.clock.right <= panel.right && m.clock.y >= panel.y && m.clock.bottom <= panel.bottom, 'Clock must lie inside the instruments');
-  assert(m.clock.bottom <= m.dial.y, 'Clock must sit above the dial');
-  assert(Math.abs(m.clock.width - m.dial.width) <= 1, `Clock must be as wide as the dial: ${m.clock.width} vs ${m.dial.width}`);
+  assert(m.clock.bottom <= m.dial.y && m.clock.bottom <= m.readouts.y, 'Clock must sit above the dial and readouts');
+  checkClockSpan(m);
   assert(/Day \d+\s+\d+:\d\d/i.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
   assert.equal(m.panelText.match(/Day \d+\s+\d+:\d\d/gi).length, 1, 'Time must show once');
   assert(!m.actionsText.includes('broken'), 'No broken badge in the action row');
