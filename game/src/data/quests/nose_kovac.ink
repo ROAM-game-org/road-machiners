@@ -71,9 +71,9 @@ VAR asked_paper = false
   -> hub
 + {wagon_fate == "logged" or wagon_fate == "admitted"} [About wagon Seven.]
   { wagon_fate == "admitted":
-    Teller drives the water cart now. His stripes are in my drawer. A pair of depot trucks with the same one-pin mount are off the road until Lena has looked at them. Command hasn't answered. I log that too.
+    Teller drives the water cart now. His stripes are in my drawer. Two depot trucks with the same one-pin mount are off the road until Lena has looked at them. Command hasn't answered. I log that too.
   - else:
-    The raid report and the stub share a page, and command reads the top of it. A pair of depot trucks with the same one-pin mount are off the road until Lena has looked at them. That's as far as my sheet goes.
+    The raid report and the stub share a page, and command reads the top of it. Two depot trucks with the same one-pin mount are off the road until Lena has looked at them. That's as far as my sheet goes.
   }
   -> hub
 + {wagon_fate == "buried"} [About wagon Seven.]
@@ -95,7 +95,7 @@ VAR asked_paper = false
   ~ heard_paper = true
   -> hub
 + {heard_courier and not asked_courier} [Who is the courier that goes without a gun?]
-  Tamsin Roe, of the Guild. The Guild carries the mail between the towns. She drives with no gun of her own. The courier who runs with her carries the rifle. A pair gets through my gate, but I don't like what it teaches the other drivers. Brave or stupid, I haven't decided.
+  Tamsin Roe, of the Guild. The Guild carries the mail between the towns. She drives with no gun of her own. The courier who runs with her carries the rifle. The two of them get through my gate, but I don't like what it teaches the other drivers. Brave or stupid, I haven't decided.
   ~ asked_courier = true
   -> hub
 + {heard_paper and not asked_paper} [What is Pierce paper?]

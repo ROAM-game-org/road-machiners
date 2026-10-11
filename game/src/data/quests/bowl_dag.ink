@@ -43,7 +43,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ dag_pay = true
   -> hub
 + {dag_road} [Who are the raiders?]
-  There's a pair of camps. Kiln Camp sits out east, south of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
+  There are two camps. Kiln Camp sits out east, south of the big crater, and <term=scrapjaw>Scrapjaw Camp</term> is far up north. Most days they'd rather rob you than kill you, because a dead driver hauls nothing next week.
   So pay them or outrun them, but don't fire the first shot if you want to grow old.
   ~ dag_kiln = true
   -> hub
@@ -72,7 +72,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
      ~ wagon_fate = "told"
      You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, the cab pushed in from the bed. Dag stands next to you and says he counted the same. # page
      A woman at the cistern puts her bucket down. Her son was the gunner on that wagon, she says. Nobody had told her it was his own gun.
-     A pair of Nose soldiers buying water hear every word. They fill their drums and leave without talking to each other.
+     Two Nose soldiers buying water hear every word. They fill their drums and leave without talking to each other.
      -> hub
   ++ [Not yet.]
      -> hub

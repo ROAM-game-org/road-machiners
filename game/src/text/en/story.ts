@@ -64,7 +64,7 @@ export const STORY = {
   'journalNote.talkCraneBook.text': 'Sefa says her families took a book of names and sums off a Pierce office truck and sold it to the Salvage Yard. She will not say what it holds. She says the crane office door is shut now.',
   'journalNote.talkPierceGuns.title': 'Pierce sold the guns and the paper',
   'journalNote.talkPierceGuns.from': 'Sefa Krol, at the Salvage Yard',
-  'journalNote.talkPierceGuns.text': 'Sefa has heard from a pair of drivers that Pierce sold the Old Army\'s guns north to Scrapjaw, then made every driver buy a gun to get paper. Each driver swears the other lied.',
+  'journalNote.talkPierceGuns.text': 'Sefa has heard from two drivers that Pierce sold the Old Army\'s guns north to Scrapjaw, then made every driver buy a gun to get paper. Each driver swears the other lied.',
   'journalNote.talkGlassLean.title': 'Glass that leans one way',
   'journalNote.talkGlassLean.from': 'Hattie, at the Bowl well house',
   'journalNote.talkGlassLean.text': 'Hattie says Pim Arslan the lens cutter swears every ripple in the glass at Glass Flats leans one way, toward the Fallen Sun. Her cousin says it points at heaven.',

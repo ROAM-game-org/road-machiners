@@ -116,7 +116,7 @@ You put the stub in his palm and tell him where it came from.
 Out of wagon Seven's ring, with the cannon still on her. I log it. Army steel brought in pays a finder's rate. # speaker: Kovac
 He counts {fee} M onto the bench, then writes the stub in under Teller's report in the same ink. He doesn't strike the report out.
 The report is command's. Whether they read past the first line isn't mine to decide. # speaker: Kovac
-Then he opens the depot list and draws a line through a pair of trucks that carry the same one-pin swivel. They stay off the road until Lena has looked at them.
+Then he opens the depot list and draws a line through two trucks that carry the same one-pin swivel. They stay off the road until Lena has looked at them.
 Teller goes out to the yard without a word. Duvall picks up his half of the pin and puts it back in his shirt pocket.
 If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell her my arm's set. # speaker: Duvall
 -> END
@@ -144,7 +144,7 @@ If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell
   Corporal. Water cart, from tomorrow. Leave the stripes on my desk. # speaker: Kovac
   And my sister's bread? # speaker: Teller
   A water carter's card feeds one man. Rations aren't mine to give. # speaker: Kovac
-  Kovac holds out his hand for the stub. It's what you carried it up here for, and you give it to him. He counts out the finder's rate for it, {fee} M. Then he draws a line through a pair of depot trucks with the same swivel, off the road until Lena has looked at them.
+  Kovac holds out his hand for the stub. It's what you carried it up here for, and you give it to him. He counts out the finder's rate for it, {fee} M. Then he draws a line through two depot trucks with the same swivel, off the road until Lena has looked at them.
   ~ wagon_fate = "admitted"
   ~ give_money(fee)
   If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell her my arm's set. # speaker: Duvall
@@ -154,7 +154,7 @@ If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell
   Lena sends Duvall for Sergeant Kovac. Kovac comes and logs the stub as found, with your name as the finder and Teller's word beside it, and leaves the report standing above both.
   You'd have had a finder's rate for that. The Corporal says you stripped her, and that's one word against another. I don't pay out on those. # speaker: Kovac
   ~ wagon_fate = "logged"
-  He still draws a line through a pair of depot trucks with the same swivel. Teller goes out. Lena wipes her hands on her rag and looks at neither you nor Teller. You can't tell which of you she's angrier with.
+  He still draws a line through two depot trucks with the same swivel. Teller goes out. Lena wipes her hands on her rag and looks at neither you nor Teller. You can't tell which of you she's angrier with.
 }
 -> END
 

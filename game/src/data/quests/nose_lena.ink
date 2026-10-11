@@ -16,7 +16,7 @@ VAR asked_glare = false
 { wagon_fate:
 - "buried": You. Teller drinks better this week. Put it on the bench or don't, I've got work.
 - "logged": You again. The page is still in Kovac's log. Command hasn't read it. If it's broken, put it on the bench.
-- "admitted": You again. Teller signed it himself, and a pair of trucks are off the line. Nobody asked me, but that's new. Put it on the bench.
+- "admitted": You again. Teller signed it himself, and two trucks are off the line. Nobody asked me, but that's new. Put it on the bench.
 - else: Lena. If it's broken, put it on the bench. If it's talk, make it quick. My hands are busy.
 }
 -> hub

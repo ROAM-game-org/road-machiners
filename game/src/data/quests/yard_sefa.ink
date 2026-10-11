@@ -58,7 +58,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_pguns = true
   -> hub
 + {heard_pguns and not asked_pguns} [What else do you hear about Pierce?]
-  That Pierce sold the <term=old_army>Old Army</term>'s guns north to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from a pair of drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
+  That Pierce sold the <term=old_army>Old Army</term>'s guns north to <term=scrapjaw>Scrapjaw</term>, then made every driver buy a gun to get paper. I hear it from two drivers who each swear the other one lied. It's good business, if it's true. A man who sells the fire and the bucket never starves.
   ~ note("talkPierceGuns")
   ~ asked_pguns = true
   -> hub

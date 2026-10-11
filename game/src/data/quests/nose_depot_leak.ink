@@ -50,7 +50,7 @@ A shipment leaves for the north road soon. I want the seller found before it rol
 === desk ===
 # checkpoint: desk
 The yard lies under a film of dust, and the shipment trucks stand fuelled by the gate with their engines ticking as they cool. # page # place: Dispatch office
-{ alarm > 0: A pair of loaders stop talking as you pass, and they start again only when you are well beyond them. }
+{ alarm > 0: Two loaders stop talking as you pass, and they start again only when you are well beyond them. }
 + {not ledger_read} [Read the depot ledgers.]
   -> ledger
 + {ledger_read and not gate_checked} [Check the gate log for the same nights.]
@@ -223,7 +223,7 @@ By evening the whole depot knows who you asked about, and the mess falls silent 
 === caught ===
 ~ depot_thief = "vance"
 ~ give_money(reward)
-Kovac sends a pair of soldiers to the barracks. # page # place: Dispatch office
+Kovac sends two soldiers to the barracks. # page # place: Dispatch office
 They come back with the cans, dug out from under the floor of Vance's bunk and wrapped in Army canvas.
 Vance. I shared my water with that man. # speaker: Kovac
 The Army pays its debts. Take this and keep it quiet. # speaker: Kovac

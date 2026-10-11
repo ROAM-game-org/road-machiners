@@ -53,7 +53,7 @@ You put it in your shirt and go out to the shed.
 = shed
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm # img: arrival_pickup
 It's old and square, the kind of truck that outlives its owners. The sun has bleached the paint to the color of sand, and rust shows through it in patches. Bars are welded over the windows, and a heavy grille guard covers the lamps. The tires are soft but whole. A few empty cans roll around in the bed.
-A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. A pair of steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
+A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. Two steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.
 Behind the seat there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. You hold it a while, then put it back in the box. Eat it now and it's gone. Keep it, and it might be the difference between reaching that town and not. # page
 You twist the key. The starter grinds, slows and quits.
