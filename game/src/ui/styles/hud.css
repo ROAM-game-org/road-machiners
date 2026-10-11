@@ -23,20 +23,32 @@
   white-space: nowrap;
 }
 .clock-day {
-  font: 600 var(--text-caption) var(--font-mono);
-  letter-spacing: 0.12em;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.clock-label {
+  font: bold var(--text-dense) var(--font-ui);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.clock-time {
-  position: relative;
-  font: bold var(--text-lead) / 1 var(--font-lcd);
-  text-align: right;
+.clock-digits {
+  display: inline-grid;
+  justify-items: end;
+  font: italic bold var(--text-lead) / 1 var(--font-lcd);
 }
-.clock-time::before {
-  content: "88:88";
-  position: absolute;
-  right: 0;
+.clock-digits::before,
+.clock-digits > * {
+  grid-area: 1 / 1;
+}
+.clock-digits::before {
   color: var(--lcd-ink-faint);
+}
+.day-digits::before {
+  content: "88";
+}
+.time-digits::before {
+  content: "88:88";
 }
 
 .speedometer {

@@ -564,12 +564,12 @@ export function heldContractDue(c: Contract): Msg {
   return c.kind === 'bounty' && c.fulfilled ? t('contract.ready') : contractDue(c);
 }
 
-export function clock(turn: number): { day: Msg; time: Msg; full: Msg } {
+export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full: Msg } {
   const { day, hour } = clockOf(turn);
   const hh = Math.floor(hour);
   const mm = Math.floor((hour - hh) * 60);
   const time = verbatim(`${hh}:${String(mm).padStart(2, '0')}`);
-  return { day: t('clock.day', { day }), time, full: t('clock.full', { day, time }) };
+  return { dayLabel: t('clock.day'), day: verbatim(String(day)), time, full: t('clock.full', { day, time }) };
 }
 
 function skillUpText(skill: SkillId, rank: number): Msg {
