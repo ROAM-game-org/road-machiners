@@ -54,13 +54,13 @@ describe('refitting the hauler at an outpost', () => {
   it('repairs the hauler parts from the shared wallet', () => {
     const w = parkedAtOutpost();
     const hauler = haulerOf(w);
-    const part = mountedParts(hauler, 'armor')[0];
+    const part = mountedParts(hauler, 'core')[0];
     part.hp = 1;
     const money = w.player.money;
 
     const after = outpostRepairAll(w, hauler.id);
 
-    expect(mountedParts(haulerOf(after), 'armor')[0].hp).toBeGreaterThan(1);
+    expect(mountedParts(haulerOf(after), 'core')[0].hp).toBeGreaterThan(1);
     expect(after.player.money).toBeLessThan(money);
   });
 
