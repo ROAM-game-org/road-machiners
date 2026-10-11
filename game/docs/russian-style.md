@@ -116,7 +116,14 @@ What is translated:
 
 How it reads:
 
-- Narration speaks to the player as «вы», in the present tense: «Вы кладёте обломок на верстак».
+- Narration speaks to the player as «вы», in the present tense: «Вы кладете обломок на верстак».
+- Write «е», not «ё». Keep «ё» only in «её», «всё» and «ещё».
+- One image per sentence. Split an English sentence glued with "and" into two Russian sentences: «С самого восхода солнце жжет сквозь ткань на голове. Было глупо идти на восток.»
+- Put the new or stressed word at the end: «Было глупо идти на восток», not «Идти на восток было глупо».
+- Never copy an English echo reply. "It isn't." is «Но тщетно.», not «Не спряталась.» "Or it used to." is «Или когда-то был.»
+- Spell out what English leaves to the reader. "Not that the west had anything better" is «Хотя идти на запад было бы так же глупо».
+- Use native idioms and insults: «ржавое корыто», not «ржавая свинья». "Had better be real" is «Остается надеяться, что он настоящий».
+- Keep the plain register: «ткань», not «тряпка», for cloth worn on the head.
 - A choice the player says aloud stays direct speech, as in the English: «Что это за место?», «Пока.». A choice that is an action is an infinitive phrase, as in Russian text quests: «Положить обломок на верстак и сказать, откуда он».
 - People in town say «ты» to the player, like drivers on the radio.
 - The player has no gender in the game. Never write a past-tense verb or a short adjective that agrees with the player. Write «Ты это видел?» as «Видно было?» or «Ты это видишь?», and «ты прав» as «тут не поспоришь».
