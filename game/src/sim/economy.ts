@@ -230,20 +230,32 @@ export function serviceAtStall(
 }
 
 function refuelAndRepair(world: World, vehicle: Vehicle): void {
-  topUp(world, vehicle, ['fuel', 'supplies']);
+  topUp(world, vehicle, ['supplies', 'fuel']);
+  if (getResources(world, vehicle).money < 0) return;
+  const parts = repairableParts(vehicle);
+  repairWithin(world, vehicle, parts.filter(isWorkPart), 0);
+  repairWithin(world, vehicle, parts.filter((part) => !isWorkPart(part)), getUpkeepReserve(vehicle));
+}
+
+const WORK_PART_KINDS: readonly string[] = ['core', 'engine', 'weapon'];
+
+function isWorkPart(part: PartInstance): boolean {
+  return WORK_PART_KINDS.includes(partDef(part.defId).kind);
+}
+
+function repairWithin(world: World, vehicle: Vehicle, parts: readonly PartInstance[], kept: number): void {
   const resources = getResources(world, vehicle);
-  if (resources.money < 0) return;
-  const multiplier =
-    vehicle.id === world.player.vehicleId ? repairMult(world) : 1;
-  for (const part of repairableParts(vehicle)) {
-    const unitCost = (ECONOMY.repairShare * partValue(part) * multiplier) / maxHp(part);
-    const hp = Math.min(
-      maxHp(part) - part.hp,
-      Math.floor(resources.money / unitCost),
-    );
+  for (const part of parts) {
+    const unitCost = (ECONOMY.repairShare * partValue(part)) / maxHp(part);
+    const budget = Math.max(0, resources.money - kept);
+    const hp = Math.min(maxHp(part) - part.hp, Math.floor(budget / unitCost));
     restorePart(part, part.hp + hp);
     shopMoney(world, vehicle, -Math.ceil(hp * unitCost), "repair");
   }
+}
+
+export function getUpkeepReserve(vehicle: Vehicle): number {
+  return (fuelCap(vehicle) * ECONOMY.supplyPrice.fuel + suppliesCap(vehicle) * ECONOMY.supplyPrice.supplies) * NPC_UPKEEP.reserveLoads;
 }
 
 export function buyFuel(world: World, vehicle: Vehicle): void {

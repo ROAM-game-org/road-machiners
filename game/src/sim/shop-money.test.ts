@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
-import { sellAtCamp, serviceVehicle, transfer } from './economy';
+import { ECONOMY } from '../data/goods';
+import { getUpkeepReserve, sellAtCamp, serviceVehicle, transfer } from './economy';
 import { makePart } from './factory';
 import { mountedParts } from './grid';
+import { fuelCap, suppliesCap } from './stats';
+import { maxHp, partValue } from './wear';
 import { addGoods, stowPart } from './inventory';
 import { getResources } from './resources';
 import { siteGates, sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
-import type { GameEvent, ShopMoneyKind, Vehicle, World } from './types';
+import type { GameEvent, PartInstance, ShopMoneyKind, Vehicle, World } from './types';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const kiln = REGION.locations.find((l) => l.id === 'kiln')!;
@@ -25,9 +28,9 @@ function totalsByKind(events: readonly ShopMoneyEvent[]): Partial<Record<ShopMon
   return totals;
 }
 
-function traderInBowl(): { w: World; npc: Vehicle } {
+function traderInBowl(parts: string[] = ['stockEngine']): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { ...sitePads(bowl)[0] });
+  const npc = addVehicle(w, 'traders', 'hauler', parts, { ...sitePads(bowl)[0] });
   npc.brain = npcBrain('trader', npc.pos, NPCS.trader.traits);
   w.events = [];
   return { w, npc };
@@ -80,5 +83,79 @@ describe('shop money', () => {
     transfer(w, npc, other, 1234);
 
     expect(w.events).toContainEqual({ t: 'transfer', from: npc.id, to: other.id, amount: 1234 });
+  });
+});
+
+function repairUnitCost(part: PartInstance): number {
+  return (ECONOMY.repairShare * partValue(part)) / maxHp(part);
+}
+
+function fullTanks(w: World, npc: Vehicle): void {
+  const resources = getResources(w, npc);
+  resources.fuel = fuelCap(npc);
+  resources.supplies = suppliesCap(npc);
+}
+
+describe('NPC service spending', () => {
+  it('buys supplies before fuel when the money cannot fill both', () => {
+    const { w, npc } = traderInBowl();
+    const resources = getResources(w, npc);
+    resources.money = 2000;
+    resources.supplies = 0;
+    resources.fuel = 1;
+    const supplies = Math.min(Math.floor(suppliesCap(npc)), Math.floor(2000 / ECONOMY.supplyPrice.supplies));
+
+    serviceVehicle(w, npc, 'bowl', 0);
+
+    expect(resources.supplies).toBe(supplies);
+    expect(resources.fuel).toBe(1 + Math.floor((2000 - supplies * ECONOMY.supplyPrice.supplies) / ECONOMY.supplyPrice.fuel));
+    expect(shopMoneyOf(w, npc).map((e) => e.kind)).toEqual(['supplies', 'fuel']);
+  });
+
+  it('repairs the engine even into its upkeep reserve, and then no armor', () => {
+    const { w, npc } = traderInBowl(['stockEngine', 'plates']);
+    fullTanks(w, npc);
+    const engine = mountedParts(npc, 'engine')[0];
+    const plates = mountedParts(npc, 'armor')[0];
+    engine.hp = 1;
+    plates.hp = 1;
+    const engineCost = Math.ceil((maxHp(engine) - 1) * repairUnitCost(engine));
+    const resources = getResources(w, npc);
+    resources.money = getUpkeepReserve(npc) + engineCost - 1;
+
+    serviceVehicle(w, npc, 'bowl', 0);
+
+    expect(engine.hp).toBe(maxHp(engine));
+    expect(plates.hp).toBe(1);
+    expect(resources.money).toBe(getUpkeepReserve(npc) - 1);
+  });
+
+  it('repairs armor with the money above the reserve and never dips under it', () => {
+    const { w, npc } = traderInBowl(['stockEngine', 'plates']);
+    fullTanks(w, npc);
+    const plates = mountedParts(npc, 'armor')[0];
+    plates.hp = 1;
+    const unit = repairUnitCost(plates);
+    const resources = getResources(w, npc);
+    resources.money = getUpkeepReserve(npc) + Math.ceil(3 * unit);
+
+    serviceVehicle(w, npc, 'bowl', 0);
+
+    expect(plates.hp).toBe(4);
+    expect(resources.money).toBe(getUpkeepReserve(npc));
+  });
+
+  it('repairs no armor when its money is under the reserve', () => {
+    const { w, npc } = traderInBowl(['stockEngine', 'plates']);
+    fullTanks(w, npc);
+    const plates = mountedParts(npc, 'armor')[0];
+    plates.hp = 1;
+    const resources = getResources(w, npc);
+    resources.money = getUpkeepReserve(npc) - 1;
+
+    serviceVehicle(w, npc, 'bowl', 0);
+
+    expect(plates.hp).toBe(1);
+    expect(resources.money).toBe(getUpkeepReserve(npc) - 1);
   });
 });
