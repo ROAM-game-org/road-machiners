@@ -157,7 +157,10 @@
   height: min(var(--quest-page-height), calc(100dvh - var(--quest-page-clearance)));
   max-height: none;
   display: grid;
-  grid-template-columns: minmax(0, 33%) minmax(0, 1fr) 230px;
+  grid-template-columns:
+    min(calc(min(var(--quest-page-height), 100dvh - var(--quest-page-clearance)) * 0.95), calc(100% - var(--quest-side-width) - var(--quest-text-min)))
+    minmax(0, 1fr)
+    var(--quest-side-width);
   gap: 0;
   padding: 0;
   border-left: 2px solid var(--line);
@@ -185,6 +188,10 @@
   to { transform: scale(1.08); }
 }
 .quest-page .quest-text {
+  width: 100%;
+  max-width: var(--quest-text-width);
+  justify-self: center;
+  box-sizing: border-box;
   padding: var(--space-9) var(--space-10) var(--space-8);
   display: flex;
   flex-direction: column;

@@ -202,9 +202,12 @@
   --modal-height: 760px;
   --modal-reserve: 250px;
   --talk-width: 640px;
-  --quest-page-width: 1160px;
-  --quest-page-height: 650px;
+  --quest-page-width: 1584px;
+  --quest-page-height: 900px;
   --quest-page-clearance: 80px;
+  --quest-text-width: 680px;
+  --quest-text-min: 620px;
+  --quest-side-width: 230px;
   --modal-close-gutter: 120px;
   --tab-min-width: 85px;
   --tip-left: 457px;
