@@ -1,8 +1,8 @@
 
 import type { SaveSlots } from './save-db';
 
-import { parseSetup } from '../sim/settings';
-import type { WorldSetup } from '../sim/types';
+import { isMode, parseSetup } from '../sim/settings';
+import type { GameModeId, WorldSetup } from '../sim/types';
 
 import { t, type Msg } from '../text/msg';
 
@@ -26,15 +26,22 @@ export function slotLabel(slot: SlotId): Msg {
   return t('save.slot.manual', { n: Number(slot.slice('slot'.length)) });
 }
 
-export type SlotInfo = { slot: SlotId; savedAt: number; turn: number | null };
+export type SlotInfo = { slot: SlotId; savedAt: number; turn: number | null; mode: GameModeId | null };
 
 function numberOr(value: unknown, fallback: number | null): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : fallback;
 }
 
 function infoOf(slot: SlotId, envelope: unknown): SlotInfo {
-  const { savedAt, world } = (typeof envelope === 'object' && envelope !== null ? envelope : {}) as { savedAt?: unknown; world?: { turn?: unknown } };
-  return { slot, savedAt: numberOr(savedAt, 0) ?? 0, turn: numberOr(world?.turn, null) };
+  const { savedAt, world } = (typeof envelope === 'object' && envelope !== null ? envelope : {}) as { savedAt?: unknown; world?: SavedWorld };
+  return { slot, savedAt: numberOr(savedAt, 0) ?? 0, turn: numberOr(world?.turn, null), mode: savedMode(world) };
+}
+
+type SavedWorld = { turn?: unknown; setup?: { mode?: unknown } };
+
+function savedMode(world: SavedWorld | undefined): GameModeId | null {
+  const mode = world?.setup?.mode;
+  return isMode(mode) ? mode : null;
 }
 
 export function listSaves(slots: SaveSlots, count: number): SlotInfo[] {

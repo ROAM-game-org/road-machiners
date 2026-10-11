@@ -125,7 +125,7 @@ describe('rescueSave', () => {
     const slots = makeSlots();
     const save = currentSave() as ReturnType<typeof currentSave> & { world: { setup: unknown } };
     save.world.mapHash = 'other';
-    save.world.setup = { mode: 'roaming', settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75 } };
+    save.world.setup = { mode: 'roaming', settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75, enemyGearGrowth: 1 } };
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
 
@@ -136,13 +136,13 @@ describe('rescueSave', () => {
   it('resets bad world settings to their defaults, keeps the good ones and reports each reset', () => {
     const slots = makeSlots();
     const save = currentSave() as ReturnType<typeof currentSave> & { world: { setup: unknown } };
-    save.world.setup = { mode: 'roaming', settings: { damage: null, fuelUse: 1.5, supplyUse: 40 } };
+    save.world.setup = { mode: 'roaming', settings: { damage: null, fuelUse: 1.5, supplyUse: 40, enemyGearGrowth: 1 } };
     slots.put('auto', save);
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/badSetup/);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
 
     expect(rescued.report.settingsReset).toEqual(['damage', 'supplyUse']);
-    expect(loadWorld(slots, 'auto', TEST_MAP)!.setup.settings).toEqual({ damage: 1, fuelUse: 1.5, supplyUse: 1 });
+    expect(loadWorld(slots, 'auto', TEST_MAP)!.setup.settings).toEqual({ damage: 1, fuelUse: 1.5, supplyUse: 1, enemyGearGrowth: 1 });
   });
 
   it('gives a save from before world settings the default Roaming setup and reports no reset', () => {

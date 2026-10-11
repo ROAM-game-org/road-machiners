@@ -4,7 +4,11 @@ import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
 import { playerVehicle } from './damage';
+import { NPCS } from '../data/npcs';
 import { outpostFactsAt, spawnGroup, waveOf } from './fury-road';
+import { gearMoneyOf } from './fury-road-danger';
+import { generateNpcLoadout } from './npc-loadout';
+import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle } from './types';
@@ -37,12 +41,19 @@ describe('Slug cannon name', () => {
 describe('Fury Road outpost stock', () => {
   const kinds = [...new Set(GARAGE_STOCK.parts.map((p) => PARTS[p.value].kind))];
 
-  it('holds four armor parts and exactly two parts of every other part type', () => {
+  it('holds four guns, four armor parts, three of most other types and every store and scanner part, never two of the same part', () => {
+    const wanted: Record<string, number> = { weapon: 4, armor: 4, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
+    expect(kinds.sort()).toEqual(Object.keys(wanted).sort());
     for (const seed of [1, 3, 99]) {
       const stock = outpostFactsAt(furyRoadWorld(seed), 1).stock;
-      expect(stock).toHaveLength(kinds.length * 2 + 2);
-      for (const kind of kinds) expect(stock.filter((p) => partDef(p.defId).kind === kind)).toHaveLength(kind === 'armor' ? 4 : 2);
+      for (const kind of kinds) expect(stock.filter((p) => partDef(p.defId).kind === kind), `seed ${seed} ${kind}`).toHaveLength(wanted[kind]);
+      expect(new Set(stock.map((p) => p.defId)).size).toBe(stock.length);
     }
+  });
+
+  it('refuses a count above the different parts a type has', () => {
+    const w = furyRoadWorld(1);
+    expect(() => rollPartStockPerKind(w, { rngState: 1 }, GARAGE_STOCK, { ...FURY_ROAD.stockPerKind, scanner: 2 }, 'test')).toThrow(/only 1/);
   });
 
   it('keeps the same stock through a save and load', () => {
@@ -71,6 +82,30 @@ describe('Fury Road first enemy', () => {
         const trucks = spawnedTrucks(seed, 1, template);
         expect(trucks).toHaveLength(1);
         expect(armorOf(trucks[0])).toEqual([]);
+      }
+    }
+  });
+
+  it('carries a gun on any seed or template', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 99]) {
+      for (const template of Object.keys(FURY_ROAD.pool[0].weights)) {
+        const guns = spawnedTrucks(seed, 1, template)[0].items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind === 'weapon');
+        expect(guns.length, `seed ${seed} ${template}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('carries no gun above the tier of its stretch, mounted or spare', () => {
+    const w = furyRoadWorld(3);
+    const templates = Object.keys(NPCS).filter((id) => FURY_ROAD.pool.some((tier) => id in tier.weights));
+    for (const stretch of [1, 3]) {
+      const gear = { ...waveOf(stretch).gear, money: gearMoneyOf(w, stretch) };
+      for (const template of templates) {
+        for (const seed of [1, 2, 3]) {
+          const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(stretch).level, gear);
+          const guns = [...loadout.parts, ...loadout.spares].map((p) => partDef(p.defId)).filter((d) => d.kind === 'weapon');
+          expect(guns.filter((d) => d.tier > gear.gunTier).map((d) => d.id), `stretch ${stretch} ${template} seed ${seed}`).toEqual([]);
+        }
       }
     }
   });

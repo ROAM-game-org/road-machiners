@@ -32,6 +32,7 @@ export const RULES = {
   hardCrashSpeed: 4,
   cellPen: 0.5,
   crashPen: 4,
+  crashFalloff: 0.6,
   groundCrash: 3,
   landingDamage: 0.25,
   wheelLoss: 0.15,

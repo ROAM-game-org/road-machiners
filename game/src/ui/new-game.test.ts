@@ -93,6 +93,8 @@ describe("the New game screen", () => {
     screen.button("World Settings").fire("click");
 
     expect(section.hidden).toBe(false);
+    expect(screen.all((n) => n.attrs["data-setting"] === "enemyGearGrowth")).toEqual([]);
+    screen.all((n) => n.attrs["data-mode"] === "furyRoad")[0].fire("click");
     for (const [id, def] of Object.entries(WORLD_SETTINGS)) {
       const slider = screen.slider(id);
       expect([slider.attrs.min, slider.attrs.max, slider.attrs.step, slider.attrs.value]).toEqual([def.min, def.max, def.step, def.default].map(String));
@@ -151,7 +153,7 @@ describe("the New game screen", () => {
     screen.button("Reset to defaults").fire("click");
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: true }]);
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
   });
 
   it("starts without the intro when the Skip the intro switch is on", () => {
@@ -161,7 +163,7 @@ describe("the New game screen", () => {
     expect(screen.button("Skip the intro").attrs["aria-checked"]).toBe("true");
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: false }]);
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: false }]);
   });
 
   it("asks before Start and stays open with nothing written when the player says no", () => {
@@ -182,8 +184,17 @@ describe("the New game screen", () => {
     slide("fuelUse", 2);
     screen.button("Start").fire("click");
 
-    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1 } }, intro: true }]);
+    expect(requests).toEqual([{ new: { mode: "roaming", settings: { damage: 1.5, fuelUse: 2, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true }]);
     expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts a Fury Road run with the picked enemy gear growth", () => {
+    const { screen, slide, requests } = open(true);
+    screen.all((n) => n.attrs["data-mode"] === "furyRoad")[0].fire("click");
+    slide("enemyGearGrowth", 0.5);
+    screen.button("Start").fire("click");
+
+    expect(requests).toEqual([{ new: { mode: "furyRoad", settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 0.5 } }, intro: true }]);
   });
 
   it("refuses to start with a value off the slider's grid", () => {

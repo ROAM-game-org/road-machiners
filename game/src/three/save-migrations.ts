@@ -864,7 +864,21 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutKovacKessel_54_55,
   withHattieGlass_55_56,
   withoutCutPumpVars_56_57,
+  withEnemyGearGrowth_57_58,
+  withoutCatchUp_58_59,
 ];
+
+function withoutCatchUp_58_59(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const groups = (run.groups as SavedJson[]).map(({ engaged: _engaged, ...group }) => ({ ...group, from: group.from === 'behind' ? 'ahead' : group.from }));
+  return { ...world, furyRoad: { ...run, groups } };
+}
+
+function withEnemyGearGrowth_57_58(world: SavedJson): SavedJson {
+  const setup = world.setup as { mode: string; settings: SavedJson };
+  return { ...world, setup: { ...setup, settings: { ...setup.settings, enemyGearGrowth: 1 } } };
+}
 
 const CUT_PUMP_VARS_56_57: readonly (readonly [string, string])[] = [
   ['pump_agnes', 'knows_senate'],

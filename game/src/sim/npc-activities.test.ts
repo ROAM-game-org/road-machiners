@@ -1447,8 +1447,21 @@ describe('repair goal in combat', () => {
     expect(inCombat(w, npc)).toBe(false);
 
     expect(turnCornered(w, npc)).toBe(true);
-    expect(topGoal(npc)?.kind).toBe('fight');
-    expect(topGoal(npc)?.targetId).toBe(foe.id);
+    expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: foe.id, reason: 'fightBack' });
+  });
+
+  it('keeps its own fight reason when it turns from an errand on a foe it was already fighting', () => {
+    const { w, npc } = createScavenger();
+    const foe = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 16, y: 10 });
+    addState(w, 'feud', npc.id, foe.id, { kind: 'feud', robbery: false });
+    npc.brain!.goals = [
+      { kind: 'fight', targetId: foe.id, destination: { ...foe.pos }, phase: 'travel', reason: 'robCargo' },
+      { kind: 'loot', targetId: null, destination: { x: 20, y: 10 }, phase: 'travel', reason: 'takeSpilledCargo' },
+    ];
+    refreshVision(w);
+
+    expect(turnCornered(w, npc)).toBe(true);
+    expect(topGoal(npc)).toMatchObject({ kind: 'fight', targetId: foe.id, reason: 'robCargo' });
   });
 
   it('does not turn back without a gun, and its stuck recovery starts', () => {

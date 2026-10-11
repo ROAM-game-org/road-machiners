@@ -1,15 +1,11 @@
-// What flies from a muzzle to where each round lands: tracers, shells, missiles and the harpoon's bolt, with their
-// look and speed per weapon. Rounds fly straight from the barrel tip. Hits end on the truck they struck, and misses end
-// on the ground at the point the sim put them, so the sim's spread shows. A round with a rope trails it from the
 
 import * as THREE from 'three';
 import { PARTS } from '../../data/parts';
 import { TIME } from '../../data/time';
-import { computeRoundPoint, groundPoint, toMap, type V3 } from '../../phys/frames';
+import { groundPoint, toMap, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import type { Terrain } from '../../sim/terrain';
 import { reelRope, Rope, ROPE_LOOK, type GroundAt } from './lines';
-import type { ShotRound } from '../../sim/types';
 
 export type Muzzle = { pos: V3; dir: V3 };
 
@@ -69,8 +65,6 @@ export function projectileOf(key: string): ProjectileSpec {
   return spec;
 }
 
-const HIT = { drop: 0.8, band: 0.7 };
-const MISS_DEPTH = 1;
 const GRENADE_ARC = 3;
 const SHELL_TAIL = 3;
 const MISSILE = {
@@ -82,44 +76,6 @@ const MISSILE = {
 
 export type Impact = 'truck' | 'ground' | 'none';
 export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number };
-export type RoundAim = { impact: 'truck'; b: V3; offset: number } | { impact: 'ground' | 'none'; land: V3 };
-
-export function roundAims(b: V3, targetId: string, rounds: ShotRound[], pointOf: (id: string) => V3 | null, missAt: (offset: number) => V3): RoundAim[] {
-  return rounds.map((r): RoundAim => {
-    if (r.struck === null) return { impact: 'ground', land: missAt(r.offset) };
-    if (r.struck === targetId) return { impact: 'truck', b, offset: r.offset };
-    const p = pointOf(r.struck);
-    return p ? { impact: 'truck', b: p, offset: 0 } : { impact: 'none', land: missAt(r.offset) };
-  });
-}
-
-export type VolleyTiming = { startMs: number; windowMs: number; burstMaxMs: number };
-
-export function planVolley(spec: ProjectileSpec, a: V3, rounds: RoundAim[], timing: VolleyTiming, groundY: (p: V3) => number, blastRadius: number): RoundPlan[] {
-  const { startMs, windowMs, burstMaxMs } = timing;
-  const gap = rounds.length > 1 ? Math.min(spec.gapMs, burstMaxMs / (rounds.length - 1)) : 0;
-  if (startMs + Math.max(0, rounds.length - 1) * gap >= windowMs) throw new Error(`A volley starting at ${startMs} ms leaves no time to fire ${rounds.length} rounds in ${windowMs} ms`);
-  return rounds.map((r, k) => {
-    const land = r.impact === 'truck' ? hitPoint(a, r.b, r.offset) : r.impact === 'ground' && blastRadius === 0 ? groundMiss(a, r.land, groundY) : r.land;
-    const delayMs = startMs + k * gap;
-    const meters = Math.hypot(land.x - a.x, land.y - a.y, land.z - a.z);
-    return { land, impact: r.impact, delayMs, flightMs: Math.min((meters / spec.speed) * 1000, windowMs - delayMs) };
-  });
-}
-
-function hitPoint(a: V3, b: V3, offset: number): V3 {
-  const p = computeRoundPoint(a, b, offset);
-  return { x: p.x, y: b.y - HIT.drop + (Math.random() - 0.5) * HIT.band, z: p.z };
-}
-
-function groundMiss(a: V3, land: V3, groundY: (p: V3) => number): V3 {
-  const dx = land.x - a.x;
-  const dz = land.z - a.z;
-  const len = Math.hypot(dx, dz);
-  const shift = (Math.random() * 2 - 1) * MISS_DEPTH;
-  const end = { x: land.x + (dx / len) * shift, y: 0, z: land.z + (dz / len) * shift };
-  return { ...end, y: groundY(end) };
-}
 
 type Flight = {
   spec: ProjectileSpec;
@@ -258,7 +214,6 @@ class ProjectileKit {
 export class Projectiles {
   private kit = new ProjectileKit();
   private flights: Flight[] = [];
-  private held: Rope[] = [];
   private reels: Reel[] = [];
   private at = new THREE.Vector3();
   private ahead = new THREE.Vector3();
@@ -289,11 +244,6 @@ export class Projectiles {
     });
   }
 
-  releaseRopes(): void {
-    for (const rope of this.held) this.scene.remove(rope.root);
-    this.held = [];
-  }
-
   tick(dt: number): void {
     for (let i = this.flights.length - 1; i >= 0; i--) {
       const f = this.flights[i];
@@ -315,9 +265,9 @@ export class Projectiles {
 
   private landRope(f: Flight): void {
     if (!f.rope) return;
+    if (f.struck) return void this.scene.remove(f.rope.root);
     f.rope.set(f.from, f.to, f.from.distanceTo(f.to), f.ground);
-    if (f.struck) this.held.push(f.rope);
-    else this.reels.push({ rope: f.rope, from: f.from, to: f.to, age: 0, ground: f.ground });
+    this.reels.push({ rope: f.rope, from: f.from, to: f.to, age: 0, ground: f.ground });
   }
 
   private reel(dt: number): void {

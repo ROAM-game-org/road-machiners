@@ -14,6 +14,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
+  frameAt,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -47,7 +48,7 @@ import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import { addScatter } from "./render/scatter";
 import { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { CollisionCues, collisionSteps, gunfireSeen, playCookOff, playCrashes, playDryGuns, playShotFx, playUtilitySounds, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, collisionSteps, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, utilitySeen, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
 import { CraterViews } from "./render/craters";
@@ -714,6 +715,10 @@ export class Game {
       const hit = timed.find((t) => t.event === e);
       return hit ? Math.max(0, stepMs(hit.step ?? TURN_STEPS) - elapsed) : null;
     });
+    playback.shotAims = shotAimsOf(world.events);
+    this.breakCues = new BreakCues(world.events);
+    const band = utilitySeen(world.events, seen) ? CONFIG.utilityBandMs : 0;
+    playback.impactAtMs = Math.max(MOVE_MS + band, playShotFx(this.combatHost(elapsed), this.breakCues));
     if (!towed) this.playDriveSound(playback.result);
     this.phase = "moving";
     this.path.clear();
@@ -732,8 +737,6 @@ export class Game {
     timed("fog", () => this.fog.update(this.combatFogWorld()));
     const host = this.combatHost();
     playCrashes(host, this.crashCues, null);
-    this.breakCues = new BreakCues(this.world.events);
-    playDryGuns(host, playShotFx(host, this.breakCues));
     playUtilitySounds(host);
     this.weapons.render();
   }
@@ -757,7 +760,6 @@ export class Game {
 
   private finishPlayback(): void {
     this.anim = null;
-    this.fx.releaseRopes();
     this.crashCues = null;
     this.breakCues = new BreakCues([]);
     this.phase = null;
@@ -851,8 +853,10 @@ export class Game {
     return { x: f.pos.x, y: f.pos.y + GUN_HEIGHT, z: f.pos.z };
   }
 
-  private combatHost(): CombatHost {
-    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.views, breakPart: (b) => this.playBreak(b) };
+  private combatHost(startMs = 0): CombatHost {
+    const frames = this.anim?.result.frames ?? {};
+    const poses = posesOf(this.world, frames, { moveMs: MOVE_MS, stepMs: stepMs(1), gunHeight: GUN_HEIGHT }, (v) => this.canShowCombatVehicle(v));
+    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.views, breakPart: (b) => this.playBreak(b), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
   }
 
   private playBreak(b: PartBreak): void {
@@ -885,23 +889,23 @@ export class Game {
     if (this.uiStale) this.refreshUi();
   }
 
-  private advanceTurn(now: number): { step: number | null; speed: number } {
+  private advanceTurn(now: number): { at: number | null; speed: number } {
     const held = this.modalOpen() || this.isEditingControl() || document.hidden;
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const wasPlaying = this.anim !== null;
-    let step = this.animStep(now, speed);
+    let at = this.animStep(now, speed);
     this.updateLiveVision();
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying, held);
-    if (began === "failed") return { step, speed };
+    if (began === "failed") return { at, speed };
     if (began === "began") {
-      step = this.animStep(now, speed);
+      at = this.animStep(now, speed);
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi();
-    return { step, speed };
+    return { at, speed };
   }
 
   private tick(now: number): void {
@@ -914,14 +918,15 @@ export class Game {
     const dt = now - this.last;
     this.last = now;
     this.play.beginFrame();
-    const { step, speed } = timed("turn-frame", () => {
+    const { at, speed } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now);
       this.shade.advance();
       return turn;
     });
     this.play.coast(Math.max(0, dt), this.travel.isAdvancing(null, now), speed);
     const playDt = this.play.frameMs() / 1000;
-    this.syncVehicles(step, Math.max(0, dt) / 1000, playDt);
+    const step = at === null ? null : Math.floor(at);
+    this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
     if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
     this.drawOverlays();
@@ -968,7 +973,7 @@ export class Game {
 
   private turnClock(): TurnClock | null {
     const a = this.anim;
-    return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved } : null;
+    return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved, hookedLines: a.hookedLines } : null;
   }
 
   private animStep(now: number, speed: number): number | null {
@@ -978,9 +983,9 @@ export class Game {
     const elapsed = this.travel.advanceClock(a, now, speed, CONFIG.playbackFrameMs);
     this.play.advance(elapsed - from);
     if (elapsed < MOVE_MS)
-      return Math.floor((elapsed / 1000) * PHYSICS.stepsPerSecond);
+      return (elapsed / 1000) * PHYSICS.stepsPerSecond;
     if (!a.moved) this.finishMovement(a);
-    const impactAt = MOVE_MS + (a.volley ? CONFIG.combatShotMs : 0);
+    const impactAt = a.impactAtMs;
     if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
     const finishAt = impactAt + (a.volley ? CONFIG.combatReadMs : 0);
     if (elapsed >= finishAt) {
@@ -990,8 +995,8 @@ export class Game {
     return null;
   }
 
-  private syncVehicles(step: number | null, dt: number, playDt: number): void {
-    const frames: TurnFrames | null = step === null || !this.anim ? null : this.anim.result.frames;
+  private syncVehicles(at: number | null, dt: number, playDt: number): void {
+    const frames: TurnFrames | null = at === null || !this.anim ? null : this.anim.result.frames;
     const landed = !this.anim || this.anim.impacts;
     const glass = daylightAt(this.lightTurn()).glass;
     const now = performance.now();
@@ -1002,7 +1007,7 @@ export class Game {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
       const stale = !this.anim && kept && dist(toMap(kept.pos), v.pos) > MOVED_BY_RULES;
-      const f = frames?.[v.id]?.[step!] ?? (kept && !stale ? kept : restFrame(this.world, v));
+      const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
@@ -1023,7 +1028,7 @@ export class Game {
       view.outline(look === "dark");
       view.windows(glass);
       view.pose(f, dt);
-      view.aim((partId) => this.turretAim((before || v).weaponOrders, f, partId));
+      view.aim((partId) => this.turretAim(v.id, (before || v).weaponOrders, f, partId));
       this.truckFx.emit(this.world, display, f, frames !== null, playDt, seen);
     }
     this.pin.settle();
@@ -1040,9 +1045,8 @@ export class Game {
     return vehicleLampsOn(this.world, v, this.lightTurn()) && this.sightLimit.reaches(f.pos) ? "dark" : null;
   }
 
-  private turretAim(orders: Vehicle["weaponOrders"], f: VehicleFrame, partId: string): number | null {
-    const order = orders[partId] ?? Object.values(orders)[0];
-    const target = order && this.frames[order.targetId];
+  private turretAim(vehicleId: string, orders: Vehicle["weaponOrders"], f: VehicleFrame, partId: string): number | null {
+    const target = this.frames[aimedTarget(this.anim?.shotAims, vehicleId, orders, partId) ?? ""];
     return target
       ? Math.atan2(target.pos.z - f.pos.z, target.pos.x - f.pos.x)
       : null;

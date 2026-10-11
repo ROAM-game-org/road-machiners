@@ -1,5 +1,6 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
+import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
@@ -15,17 +16,24 @@ export const GAME_MODES: Record<GameModeId, GameMode> = {
   furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway' },
 };
 
-export type WorldSettingDef = { default: number; min: number; max: number; step: number };
+export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
+const EVERY_MODE: readonly GameModeId[] = ['roaming', 'furyRoad'];
 
 export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
-  damage: { default: 1, min: 0.5, max: 2, step: 0.25 },
-  fuelUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
-  supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
+  damage: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  fuelUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['furyRoad'] },
 };
 
-export type WavePlan = { sizes: number[]; level: GearLevel; armored: boolean };
+export type WaveGear = Omit<GearRules, 'money'>;
+export type WavePlan = { level: GearLevel; gear: WaveGear };
+const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1 };
+const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
+const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
+
 export type PoolTier = { upTo: number; weights: Record<string, number> };
-export type Curve = { first: number; step: number; max: number };
+export type Line = { first: number; step: number };
 
 export const FURY_ROAD = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
@@ -37,31 +45,31 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { sizes: [1], level: 'light', armored: false },
-    { sizes: [1, 1], level: 'light', armored: true },
-    { sizes: [1, 1], level: 'light', armored: true },
-    { sizes: [1, 1], level: 'standard', armored: true },
-    { sizes: [2, 1], level: 'standard', armored: true },
-    { sizes: [2, 2], level: 'standard', armored: true },
-    { sizes: [3, 2], level: 'heavy', armored: true },
-    { sizes: [3, 3, 2], level: 'loaded', armored: true },
+    { level: 'light', gear: { ...EARLY_GEAR, armored: false } },
+    { level: 'light', gear: EARLY_GEAR },
+    { level: 'light', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: MIDDLE_GEAR },
+    { level: 'standard', gear: LATE_GEAR },
+    { level: 'heavy', gear: LATE_GEAR },
+    { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
+  danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, truckFloorPercent: 60, groupMax: 3, gearShare: 0.3, truckFloor: 20000 },
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
-    { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, gunwagon: 3, vulture: 2, merc: 2, bowlFarmer: 1 } },
+    { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, vulture: 2, merc: 3, bowlFarmer: 1 } },
     {
       upTo: Number.MAX_SAFE_INTEGER,
       weights: { buggy: 2, courier: 1, scavenger: 1, roamer: 1, trader: 1, gunwagon: 3, vulture: 2, merc: 3, bowlFarmer: 1, noseArmy: 2, convoyGuard: 2, convoy: 1 },
     },
   ] as PoolTier[],
-  sides: { ahead: 22, behind: 24, flank: { along: 6, across: 22, step: 3 } },
+  sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
   pacing: { quiet: 20, near: 30 },
-  catchUp: { engageAt: 12 },
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
-  pay: { base: { first: 30000, step: 15000, max: 120000 } as Curve, perWreck: { first: 6000, step: 1500, max: 15000 } as Curve },
-  stockPerKind: { weapon: 2, engine: 2, armor: 4, cargo: 2, scanner: 2, store: 2, utility: 2 } as Partial<Record<PartKind, number>>,
+  pay: { base: { first: 30000, step: 15000 } as Line, perWreck: { first: 6000, step: 1500 } as Line },
+  stockPerKind: { weapon: 4, engine: 3, armor: 4, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,
   maxTries: 400,
@@ -83,11 +91,11 @@ export const HIGHWAY = {
     badlands: 26,
     flatTo: 15,
     blend: 7,
-    ridge: { rise: 3, run: 4 },
+    ridge: { rise: 4, run: 1.5 },
     bend: { ends: 60, cells: 2, shift: [16, 36] as [number, number], straightChance: 0.2, maxHeading: 35 },
     profile: { amplitude: 1.5, wavelength: 300, seedOffset: 103 },
     sample: 2,
-    paint: { dash: 3, gap: 3, line: 0.2, wear: 0.02, band: 0.3, bandSpread: 0.75, holeInset: 0.75 },
+    paint: { band: 0.3, bandSpread: 0.75, holeInset: 0.75 },
   },
   relief: { amplitude: 2.4, octaves: [{ freq: 1 / 56, amp: 1, seedOffset: 201 }, { freq: 1 / 17, amp: 0.3, seedOffset: 202 }] },
   ground: {

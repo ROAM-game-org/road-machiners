@@ -56,7 +56,7 @@ describe("part stats and their change against the player's part", () => {
 
   it("shows a gun's damage per shot as the world deals it, so a Damage 200% world reads twice the default", () => {
     const damaging = emptyWorld();
-    damaging.setup = parseSetup({ mode: "roaming", settings: { damage: 2, fuelUse: 1, supplyUse: 1 } });
+    damaging.setup = parseSetup({ mode: "roaming", settings: { damage: 2, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } });
     const shot = (w: typeof world) => partStats(w, part("mg")).find((s) => s.icon === "damage")?.value;
 
     expect(shot(damaging)).toBeCloseTo(2 * (shot(world) ?? 0));

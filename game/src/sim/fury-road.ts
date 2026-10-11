@@ -1,25 +1,23 @@
-import { FURY_ROAD, type Curve } from '../data/modes';
+import { FURY_ROAD } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
-import { inCombatWith } from './combat';
 import { isDefeated } from './defeat';
 import { playerVehicle } from './damage';
-import { alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
 import { canUseSite, sitePads } from './sites';
 import { mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
-import { generateNpcLoadout, type NpcLoadout } from './npc-loadout';
-import type { PartSpec } from './factory';
-import { partDef } from '../data/parts';
+import { generateNpcLoadout } from './npc-loadout';
 import { nextRandom, randInt, type Rng } from './rng';
 import { modeRules } from './settings';
+import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { getResources } from './resources';
-import { fuelCap, isStranded } from './stats';
+import { fuelCap, isStranded, vehicleStats } from './stats';
 import { refreshTrack } from './tracks';
 import type { FuryRoadRun, GroupSide, OutpostFacts, PartInstance, RunLossCause, Vehicle, WaveGroup, World } from './types';
 import { refreshVision } from './vision';
@@ -32,28 +30,24 @@ export type FuryRoadReadout = { stretch: number; toOutpost: number; outpostId: s
 
 export { outpostId };
 
-function curveAt(c: Curve, j: number): number {
-  return Math.min(c.max, c.first + c.step * (j - 1));
-}
-
-export function payOf(j: number, wrecks: number): number {
-  return curveAt(FURY_ROAD.pay.base, j) + curveAt(FURY_ROAD.pay.perWreck, j) * wrecks;
-}
-
 export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
   if (!Number.isInteger(j) || j < 1) throw new Error(`Stretch ${j} has no wave`);
   return FURY_ROAD.waves[Math.min(j, FURY_ROAD.waves.length) - 1];
 }
 
-const SIDES: readonly GroupSide[] = ['ahead', 'behind', 'left', 'right'];
+const SIDES: readonly GroupSide[] = ['ahead', 'left', 'right'];
 
-export function planStretch(seed: number, j: number): WaveGroup[] {
+export function stretchPlan(world: World, j: number): WaveGroup[] {
+  return planStretch(world.seed, j, groupSizes(enemyTrucks(world, j)));
+}
+
+export function planStretch(seed: number, j: number, sizes: readonly number[]): WaveGroup[] {
   const rng = stretchStream(seed, j, 'groups');
   const sides = stretchStream(seed, j, 'sides');
   const wave = waveOf(j);
   const weights = poolOf(j);
   let last: GroupSide | null = null;
-  return wave.sizes.map((size, i) => {
+  return sizes.map((size, i) => {
     const from = drawSide(sides, last);
     last = from;
     return {
@@ -64,7 +58,6 @@ export function planStretch(seed: number, j: number): WaveGroup[] {
       level: wave.level,
       spawned: false,
       vehicles: [],
-      engaged: [],
       wrecked: 0,
       counted: [],
       retryUntil: null,
@@ -112,7 +105,7 @@ export function outpostTrucks(world: World, post: OutpostFacts): string[] {
 
 export function startRun(world: World): void {
   if (world.terrain.atlas.kind !== 'highway' || world.terrain.atlas.window !== 0) throw new Error(`A Fury Road run starts on highway window 0, not map ${world.mapHash}`);
-  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: planStretch(world.seed, 1), earned: 0, wrecks: 0, quietFrom: world.turn };
+  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn };
 }
 
 function runOf(world: World): FuryRoadRun {
@@ -144,7 +137,6 @@ export function advanceFuryRoad(world: World): void {
   countBeaten(world, run);
   retireWoken(world, run);
   huntPlayer(world, run);
-  noteEngaged(world, run);
   if (arrivedAtNext(world, run)) return completeStretch(world, run);
   pace(world, run);
   spawnNext(world, run, playerProgress(world, run));
@@ -183,25 +175,23 @@ function huntPlayer(world: World, run: FuryRoadRun): void {
   for (const group of run.groups) {
     for (const v of fighting(world, group)) {
       declareFeud(world, v, me.id);
-      if (huntsPlayer(world, v)) refreshTrack(world, v, me.id, me.pos);
+      if (huntsPlayer(world, v)) refreshTrack(world, v, me.id, interceptPoint(world, run, v, me));
       else fightCornered(world, v, me);
     }
   }
 }
 
+export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, me: Vehicle): Vec {
+  const hunterSpeed = vehicleStats(world, hunter).maxSpeed;
+  if (me.speed === 0 || hunterSpeed === 0) return me.pos;
+  const lead = Math.min((me.speed * dist(hunter.pos, me.pos)) / hunterSpeed, FURY_ROAD.pacing.near);
+  const ahead = toRoad(run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
+  return roadPoint(world.seed, run.window, alongOf(world.seed, ahead), withinFlanks(acrossOf(world.seed, ahead)));
+}
+
 function huntsPlayer(world: World, v: Vehicle): boolean {
   const top = topGoal(v);
   return top?.kind === 'fight' && top.targetId === world.player.vehicleId;
-}
-
-function noteEngaged(world: World, run: FuryRoadRun): void {
-  const me = playerVehicle(world);
-  for (const group of run.groups) {
-    for (const v of fighting(world, group)) {
-      if (group.engaged.includes(v.id)) continue;
-      if (dist(v.pos, me.pos) <= FURY_ROAD.catchUp.engageAt || inCombatWith(world, v, me)) group.engaged.push(v.id);
-    }
-  }
 }
 
 function encounterOn(world: World, run: FuryRoadRun): boolean {
@@ -221,8 +211,8 @@ function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
 }
 
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
-  const armored = waveOf(group.stretch).armored;
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: waveLoadout(generateNpcLoadout(world, NPCS[id], null, group.level), armored) }));
+  const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
+  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
@@ -238,16 +228,10 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   group.retryUntil = null;
 }
 
-function waveLoadout(loadout: NpcLoadout, armored: boolean): NpcLoadout {
-  if (armored) return { ...loadout, cargo: {} };
-  const unarmored = (specs: PartSpec[]) => specs.filter((p) => partDef(p.defId).kind !== 'armor');
-  return { ...loadout, parts: unarmored(loadout.parts), spares: unarmored(loadout.spares), cargo: {} };
-}
-
 type Candidate = { along: number; across: number };
 
 function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: number, radii: number[]): Vec[] | null {
-  const candidates = spotCandidates(from, progress);
+  const candidates = spotCandidates(from, progress, playerAcross(world, run));
   const spots: Vec[] = [];
   for (const radius of radii) {
     const spot = freeSpot(world, run, candidates, radius, spots);
@@ -257,8 +241,17 @@ function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: n
   return spots;
 }
 
-function spotCandidates(from: GroupSide, progress: number): Candidate[] {
-  const make = from === 'left' || from === 'right' ? flankCandidate(from, progress) : roadCandidate(from, progress);
+function playerAcross(world: World, run: FuryRoadRun): number {
+  return acrossOf(world.seed, toRoad(run.window, playerVehicle(world).pos));
+}
+
+function withinFlanks(across: number): number {
+  const edge = FURY_ROAD.sides.flank.across;
+  return Math.min(Math.max(across, -edge), edge);
+}
+
+function spotCandidates(from: GroupSide, progress: number, across: number): Candidate[] {
+  const make = from === 'left' || from === 'right' ? flankCandidate(from, progress) : lineCandidate(progress, across);
   return Array.from({ length: FURY_ROAD.maxTries / 10 }, (_, step) => make(step));
 }
 
@@ -268,12 +261,12 @@ function flankCandidate(from: 'left' | 'right', progress: number): (step: number
   return (step) => ({ along: progress + flank.along + Math.ceil(step / 2) * (step % 2 === 0 ? 1 : -1) * flank.step, across });
 }
 
-function roadCandidate(from: 'ahead' | 'behind', progress: number): (step: number) => Candidate {
+function lineCandidate(progress: number, line: number): (step: number) => Candidate {
   const offsets = FURY_ROAD.spawnOffsets;
-  const along = from === 'ahead' ? progress + FURY_ROAD.sides.ahead : progress - FURY_ROAD.sides.behind;
+  const along = progress + FURY_ROAD.sides.ahead;
   return (step) => {
     const offset = Math.floor(step / offsets.length) * FURY_ROAD.spawnStagger;
-    return { along: along + (step % 2 === 0 ? offset : -offset), across: offsets[step % offsets.length] };
+    return { along: along + (step % 2 === 0 ? offset : -offset), across: withinFlanks(line + offsets[step % offsets.length]) };
   };
 }
 
@@ -307,7 +300,7 @@ function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
 }
 
 function arrivedAtNext(world: World, run: FuryRoadRun): boolean {
-  return parkedOnPad(world, run.window + 1);
+  return onOutpostPad(world, playerVehicle(world).pos, run.window + 1);
 }
 
 export function betweenLevels(world: World): boolean {
@@ -416,7 +409,7 @@ export function moveWindow(world: World): void {
   world.obstacles = mapObstacles(map);
   run.window = next;
   run.outposts = [...run.outposts.filter((o) => o.milestone === next), outpostFacts(world, next + 1)];
-  run.groups = planStretch(world.seed, next + 1);
+  run.groups = stretchPlan(world, next + 1);
   run.quietFrom = world.turn;
   refreshVision(world);
 }

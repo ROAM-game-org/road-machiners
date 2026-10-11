@@ -6,13 +6,12 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { goodsCount } from './grid';
 import { acceptContract, contractReward, estimateTurns, goodValue, haulWindow, shopState, siteOf, type Contract } from './market';
-import { playTurns } from './progression/record';
+import { FAR_MOVER, playTurns } from './progression/record';
 import { nearestPad } from './sites';
 import { newWorld, update } from './world';
 
 const UNITS = 8;
 
-// The reported route: tools from Bowl to Granary, rolled by the haul rule, driven by the hauler bot through the real turn pipeline.
 function offer(rush: boolean): Extract<Contract, { kind: 'haul' }> {
   const turns = estimateTurns(siteOf('bowl').pos, siteOf('granary').pos);
   const window = haulWindow(turns, rush);
@@ -33,7 +32,7 @@ describe('Bowl to Granary tools haul', () => {
     const deadline = world.player.contracts[0].deadline;
     let done = false;
     let paid = 0;
-    for (const played of playTurns(world, `haul rush ${rush}`, 'hauler', haul.window)) {
+    for (const played of playTurns(world, `haul rush ${rush}`, 'hauler', haul.window, {}, FAR_MOVER)) {
       world = played.next;
       expect(played.events.some((e) => e.t === 'stall')).toBe(false);
       if (played.events.some((e) => e.t === 'contract' && e.outcome === 'done')) {

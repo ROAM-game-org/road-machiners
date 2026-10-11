@@ -24,8 +24,8 @@ Fury Road plays on its own generated map, never on Icarus. The world seed builds
 
 Each stretch bends once. The road runs straight for 60 tiles after each outpost and before the next one, so the forts, closures and window overlaps stand on straight road. Between them it swings to one side and back: 16 to 36 tiles off its line, to a side drawn from the seed, over two cosine ramps of about 95 tiles each. One stretch in five stays straight. The heading stays within 35° of north, so on screen the road always climbs to the right, between about 8° and 60° above the horizontal, and no bend is tighter than a radius of 40 tiles. The bend numbers live in `HIGHWAY`.
 
-- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. Three dashed dividers and two solid edge lines mark it, with no middle line.
-- A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles (144 m) wide: room for a full-speed U-turn and for a fight at gun range. Hardpan is barely slower than asphalt, so a route through a bend takes the racing line on the inside verge. Only poles, the odd ditched car and billboards stand near it. Past the verge come badlands of gravel, scrub and scree with rocks, crags and dead trees, then a ridge too steep to climb.
+- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. It carries no lane paint.
+- A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles (144 m) wide: room for a full-speed U-turn and for a fight at gun range. The verge and badlands cut top speed by 10%, so the asphalt is the fast lane. Only poles, the odd ditched car and billboards stand near it. Past the verge come badlands of gravel, scrub and scree with rocks, crags and dead trees, then a ridge too steep to climb.
 - An Old World power line runs along one verge of each stretch.
 
 ## Scenes
@@ -54,14 +54,14 @@ The land is generated as you go, in windows of 410 by 410 tiles (1.64 km), each 
 
 ## Outposts
 
-An outpost stands at each milestone from 1 on: a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad, 5 by 7 tiles, to the gate. Its label shows `???` until the player sees it, then "Outpost N", and discovering it gives XP as any site does. The log shows no discovery line for it, since the label and the pay line already name it. It holds 2 parts from the garage table, plus 1 for every 2 milestones, up to 6, rolled when its window opens.
+An outpost stands at each milestone from 1 on: a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad, 5 by 7 tiles, to the gate. Its label shows `???` until the player sees it, then "Outpost N", and discovering it gives XP as any site does. The log shows no discovery line for it, since the label and the pay line already name it.
 
-Parking on the pad of the next outpost wins the level in that turn, in combat or out. It pays 300 M's for stretch 1, 150 M's more for each later stretch, up to 1,200 M's, plus 60 M's for each beaten truck of its groups, 15 M's more each stretch, up to 150 M's. A truck is beaten when it is knocked out or wrecked, and each truck counts once: a knocked-out truck shot to a wreck later adds nothing. The group keeps the ids it counted in the save. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch, standing or knocked out, leave the road and their fights end, so the player is out of combat at once. Their wrecks give no pay.
+Reaching the pad of the next outpost wins the level in that turn, at any speed, in combat or out, so a chased player can drive straight in. It pays 300 M's for stretch 1 and 150 M's more for each later stretch, plus 60 M's for each beaten truck of its groups, 15 M's more each stretch. Pay has no cap. A truck is beaten when it is knocked out or wrecked, and each truck counts once: a knocked-out truck shot to a wreck later adds nothing. The group keeps the ids it counted in the save. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch, standing or knocked out, leave the road and their fights end, so the player is out of combat at once. Their wrecks give no pay.
 
 Between levels nothing spawns, even if the player drives off the pad and back. A paid outpost is a garage, as a town garage is: `atGarage()` in `src/sim/garage.ts` says yes on its pad. Every install, removal and swap on the truck grid, and every move to or from garage storage, applies at once with no refit timer, and the screen shows the storage list beside the grid. Storage is the player's one garage storage, shared with every garage and carried from window to window. The outpost screen has three tabs:
 
 - Market: repair all or the basics at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
-- Buy parts: each outpost stocks exactly four armor parts and two parts of every other part type, rolled from the seed when the outpost is made and kept in the save. Any part the player can afford can be bought, armor too. It goes onto the truck's cargo cells if it fits, and into storage if not. Buying never fits it.
+- Buy parts: each outpost stocks four guns, four armor parts, three engines, three cargo parts, three utility parts, both store parts and the scanner. No part appears twice. The stock is rolled from the seed when the outpost is made and kept in the save. Any part the player can afford can be bought, armor too. It goes onto the truck's cargo cells if it fits, and into storage if not. Buying never fits it.
 - Trucks: three chassis, drawn without repeats from every player chassis but the scout, from the stretch's own `trucks` stream. The offer is a pure function of the seed and the milestone, so only the bought ones are saved, in the outpost's `trucksSold`, and a bought truck leaves the offer. The price is the town's: the chassis value less the trade-in of the truck the player drives, or a payout when the trade-in is worth more. The swap is the town's, `swapChassis()`: the new chassis brings its own built-in parts, every fitted part is fitted again where it fits, then stowed, then stored, and the goods go back in cargo. Swap is disabled with the reason when the money is short or the goods would not fit the new truck. Fuel and supplies clamp to the new tanks.
 
 Outposts buy nothing. The next level starts only when the player, parked on the pad, presses Wait for the road on the outpost screen.
@@ -70,33 +70,36 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 ## Hostile groups
 
-Each stretch plans its groups: their sizes and gear level from its wave, each truck's template from the pool and each group's side.
+Danger rises every stretch with no end. It is measured against the expected player gear: the parts of the start kit, 244 M's, plus 30% of all the pay a player who beat every truck has earned before the stretch. The 30% is what the runner bot puts into parts after repairs, fuel and trucks. Parts here leave out the chassis, since enemy chassis come from random templates.
 
-| Stretch | Group sizes | Gear |
-|---|---|---|
-| 1 | 1 | light |
-| 2 and 3 | 1, 1 | light |
-| 4 | 1, 1 | standard |
-| 5 | 2, 1 | standard |
-| 6 | 2, 2 | standard |
-| 7 | 3, 2 | heavy |
-| 8 and on | 3, 3, 2 | loaded |
+- Danger is 80% of the expected player gear on stretch 1 and grows by 10 points every stretch. The Enemy growth world setting scales the 10 points, as [world-settings.md](world-settings.md) describes.
+- One truck is never worth more than 80% of the expected player gear, and a stretch adds a truck only when every truck still gets at least 60% of it. So two weak trucks never stand in for one fair one: 1 truck up to stretch 4, 2 from stretch 5, 3 from stretch 11 and 4 from stretch 18.
+- The danger is split evenly over the trucks as their gear money, capped at the 80%, with at least 200 M's each, the least that buys every stretch 1 template an engine and a gun.
+- The trucks go in the fewest groups of at most 3, as even as they go.
 
-Every stretch past 8 repeats stretch 8, so danger rises for 8 stretches and then holds. The truck of stretch 1 has no armor, mounted or spare.
+Gear money grows until a truck's rated mass is full. Past that, danger grows as more trucks.
 
-The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add gunwagons, vultures, mercs and Bowl farmers, and from stretch 6 Nose army trucks, convoys and convoy guards join. Each truck takes its own template's loadout at the group's gear level. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
+| Stretch | Gear level |
+|---|---|
+| 1 to 3 | light |
+| 4 to 6 | standard |
+| 7 | heavy |
+| 8 and on | loaded |
 
-A group comes from ahead, behind, the left or the right, never from the side of the group before it:
+The gear level sets only the wear of the parts and the amount of cargo. Every group truck carries a gun. It picks its gun before its cargo and utility parts, so they cannot take every gun spot. The truck of stretch 1 has no armor, mounted or spare.
 
-- ahead: on the road 22 tiles ahead of the player, in the lanes or on the verges;
-- behind: on the road 24 tiles behind;
-- left or right: 6 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
+The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add vultures, mercs and Bowl farmers, and from stretch 6 gunwagons, Nose army trucks, convoys and convoy guards join. A gunwagon needs up to 760 M's to fit an engine and a gun, more than stretches 3 to 5 give. Each truck takes its own template's loadout at the group's gear level. Its guns follow the same steps: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 5 up to tier 2, and from stretch 6 any gun, mounted or spare. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
 
-Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
+A group comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind, since group trucks have no boost and could not catch a faster player.
+
+- ahead: 22 tiles ahead of the player, on the player's line across the road;
+- left or right: 22 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road. A truck as fast as the player reaches the road before the player passes.
+
+An ahead truck stands within 13 tiles of the player's line, and never farther out than the flank spawns. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
 Encounters are paced in time. An encounter is on while a group truck that is not beaten is within 30 tiles of the player. The next group spawns after 20 quiet turns, about 20 seconds of driving, and a level's first group 20 turns after the level starts. Groups spawn in plan order, where the player is, so a fight may meet a scene.
 
-Group trucks spawn with full tanks and no cargo. Each holds a feud on the player and hunts the player's position every turn until the level ends. A group truck races in under overdrive, the same 1.33 boost as the player's, until it first comes within 12 tiles of the player or fights it. From then on it drives at its normal speed for good. An NPC's overdrive costs no engine heat, since only the player's engine heats. A truck with no gun rams.
+Group trucks spawn with full tanks and no cargo. Each holds a feud on the player and hunts it every turn until the level ends. A hunter drives to where the player will be when it gets there, at most 30 tiles ahead of the player and never past the flank spawns. A group truck always drives at its own speed and never overdrives. Out of sight of the player, it drives at full speed toward its hunting point and never slows to stop there. A truck with no gun rams.
 
 ## Defeat
 

@@ -5,7 +5,7 @@ import { chassisDef } from '../../data/chassis';
 import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
-import { aimWithin, gunSpans, type FireSpan } from '../../sim/armor';
+import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { FACTION_COLORS, PAL } from '../../render/palette';
@@ -189,6 +189,12 @@ export class VehicleView {
       const q = headingQuat(turn * DEG);
       turret.head.quaternion.set(q.x, q.y, q.z, q.w);
     }
+  }
+
+  covers(partId: string, heading: number, yaw: number): boolean {
+    const turret = this.turrets.get(partId);
+    if (!turret) throw new Error(`Vehicle view has no mounted weapon ${partId}`);
+    return spansHold(sweepOf(turret.spans, true, turret.facing), angleDiff(heading, yaw) / DEG);
   }
 
   muzzle(partId: string): { pos: V3; dir: V3 } {

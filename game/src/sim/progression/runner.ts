@@ -1,37 +1,62 @@
+import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
+import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
+import { RULES } from '../../data/rules';
+import { playerVehicle } from '../damage';
+import { TERRAIN } from '../../data/terrain';
+import { alongOf, roadPoint, toRoad } from '../highway';
+import { fightOrder, fightPoint, leadOf } from '../ai';
 import { inCombat } from '../combat';
+import { refitLoadout } from '../npc-loadout';
+import { isStranded, vehicleStats } from '../stats';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
-import { basicsRepairCost, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, payOf, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
+import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
+import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
 import { corePart, goodsCount, mountedParts } from '../grid';
-import { canStowPart, installSpot } from '../inventory';
-import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
-import type { PartInstance, Vehicle, World } from '../types';
+import { storePart } from '../inventory';
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
+import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
-import { isJunk, partValue } from '../wear';
+import { isJunk } from '../wear';
 import { aimGuns } from './aim';
-import { probe } from './gear';
+import { gearBudget } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
 const PATCH_GOODS = 4;
+const FIGHTER = 'merc';
+const HOP = TERRAIN.vision.radius;
+const RECLICK_SHARE = 0.5;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 
-export function runnerOrders(world: World): BotTurn {
+export function runnerOrders(world: World, fights: boolean): BotTurn {
   const o = new Orders(world);
-  if (playerCanAct(o.world)) run(o);
+  if (playerCanAct(o.world)) run(o, fights);
   return { world: o.world, events: o.events, ledger: o.ledger, notes: o.notes };
 }
 
-function run(o: Orders): void {
+function run(o: Orders, fights: boolean): void {
   keepSwitches(o);
   if (o.me.job) return;
   const post = reachedOutpostAt(o.world);
   if (post) restock(o, post);
   if (canWaitForRoad(o.world)) o.run(waitForRoad);
-  if (canAbandonRun(o.world) && !canPatchOn(o.world, o.me)) return o.run(abandonRun);
-  drive(o);
+  if (!handleStranded(o)) drive(o, fights);
+}
+
+function handleStranded(o: Orders): boolean {
+  if (canAbandonRun(o.world) && !canPatchOn(o.world, o.me)) {
+    o.run(abandonRun);
+    return true;
+  }
+  if (!isStranded(o.world, o.me) || inCombat(o.world, o.me)) return false;
+  park(o);
+  return true;
+}
+
+function park(o: Orders): void {
+  if (o.me.order?.kind !== 'brake') o.run((w) => setMoveOrder(w, { kind: 'brake' }));
 }
 
 function keepSwitches(o: Orders): void {
@@ -41,12 +66,40 @@ function keepSwitches(o: Orders): void {
   if (foe) aimGuns(o, foe);
 }
 
-function drive(o: Orders): void {
-  const foe = nearestFoe(o.world, o.me);
+function drive(o: Orders, fights: boolean): void {
+  const foe = fights ? nearestFoe(o.world, o.me) : null;
   const next = nextOutpost(o.world);
-  if (foe && inCombat(o.world, o.me)) driveTo(o, foe.pos);
-  else if (next) driveTo(o, next.pad);
+  if (foe && inCombat(o.world, o.me)) order(o, fighterOrder(o.world, o.me, foe));
+  else if (next) hopToward(o, next.pad);
   else if (o.me.order) o.run((w) => setMoveOrder(w, null));
+}
+
+function hopToward(o: Orders, pad: Vec): void {
+  const now = o.me.order;
+  if (now?.kind === 'stopAt' && dist(now.dest, o.me.pos) <= HOP && dist(now.dest, o.me.pos) > HOP * RECLICK_SHARE) return;
+  driveTo(o, nextHop(o.world, o.me, pad));
+}
+
+function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
+  const window = world.furyRoad?.window ?? 0;
+  const along = alongOf(world.seed, toRoad(window, me.pos)) + HOP;
+  return along >= alongOf(world.seed, toRoad(window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
+}
+
+function fighterOrder(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
+  const fighter = asFighter(me);
+  if (vehicleStats(world, me).weapons.length === 0) return { kind: 'stopAt', dest: leadOf(foe) };
+  const clearance = vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance;
+  return fightOrder(world, fighter, foe, fightPoint(world, fighter, foe, clearance));
+}
+
+function asFighter(me: Vehicle): Vehicle {
+  const brain: NpcBrain = { templateId: FIGHTER, driver: 'runner', traits: [...NPCS[FIGHTER].traits], personality: 'grim', goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: me.pos, stepIndex: 0, memories: [] };
+  return { ...me, brain };
+}
+
+function order(o: Orders, next: MoveOrder): void {
+  if (JSON.stringify(o.me.order) !== JSON.stringify(next)) o.run((w) => setMoveOrder(w, next));
 }
 
 function nearestFoe(world: World, me: Vehicle): Vehicle | null {
@@ -64,8 +117,58 @@ function restock(o: Orders, post: Outpost): void {
   repair(o);
   for (const kind of SUPPLIES) topUp(o, kind);
   buyPatchGoods(o);
-  if (!inCombat(o.world, o.me)) buyBestPart(o, post);
+  if (inCombat(o.world, o.me)) return;
+  refitGear(o, post);
+  buyTruck(o, post);
 }
+
+function refitGear(o: Orders, post: Outpost): void {
+  const forSale = post.stock.filter((part) => !isJunk(part));
+  const money = gearBudget(o.world, o.me, 'fighter');
+  const owned = new Set(o.me.items.map((it) => it.id));
+  const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
+  const allowed = (v: Vehicle) => buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed });
+  const kept = new Set(target.items.map((it) => it.id));
+  for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
+  const buys = buysFor(added(target), forSale)!;
+  added(target).forEach((it, i) => {
+    o.run((w) => outpostBuyPart(w, buys[i].id), 'gear');
+    mountBought(o, buys[i].id, { x: it.x, y: it.y, rot: it.rot });
+  });
+}
+
+function buysFor(items: { part: PartInstance }[], forSale: PartInstance[]): PartInstance[] | null {
+  const left = [...forSale];
+  const buys: PartInstance[] = [];
+  for (const it of items) {
+    const i = left.findIndex((p) => p.defId === it.part.defId);
+    if (i < 0) return null;
+    buys.push(...left.splice(i, 1));
+  }
+  return buys;
+}
+
+function cost(o: Orders, parts: PartInstance[]): number {
+  return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
+}
+
+function buyTruck(o: Orders, post: Outpost): void {
+  const budget = gearBudget(o.world, o.me, 'fighter');
+  const current = chassisDef(o.me.chassisId).value;
+  const offers = outpostTrucks(o.world, post)
+    .filter((id) => chassisDef(id).value > current && chassisPrice(o.world, id) <= budget && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id))
+    .sort((a, b) => chassisDef(b).value - chassisDef(a).value);
+  if (offers.length > 0) o.run((w) => outpostBuyChassis(w, offers[0]), 'gear');
+}
+
+function keepsKit(o: Orders, chassisId: string): boolean {
+  const after = outpostBuyChassis(o.world, chassisId);
+  const me = playerVehicle(after);
+  const mountedCount = (v: Vehicle) => mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core').length;
+  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
+}
+
 
 function repair(o: Orders): void {
   const all = repairCost(o.world);
@@ -83,21 +186,6 @@ function buyPatchGoods(o: Orders): void {
   const want = PATCH_GOODS - (goodsCount(o.me).parts ?? 0);
   const n = Math.min(want, outpostGoodRoom(o.me), Math.floor(o.world.player.money / outpostGoodPrice()));
   if (n > 0) o.run((w) => outpostBuyGood(w, n), 'goodsBought');
-}
-
-function buyBestPart(o: Orders, post: Outpost): void {
-  const reserve = payOf((o.world.furyRoad?.window ?? 0) + 1, 0);
-  const fits = post.stock.filter((part) => mountable(o, part) && outpostPartPrice(o.world, part) <= o.world.player.money - reserve);
-  const best = fits.sort((a, b) => partValue(b) - partValue(a))[0];
-  if (!best) return;
-  o.run((w) => outpostBuyPart(w, best.id), 'gear');
-  const held = o.me.items.find((it): it is Extract<typeof it, { kind: 'part' }> => it.kind === 'part' && it.part.id === best.id);
-  const spot = held ? installSpot(o.me, held) : null;
-  if (spot) mountBought(o, best.id, spot);
-}
-
-function mountable(o: Orders, part: PartInstance): boolean {
-  return !isJunk(part) && partDef(part.defId).kind !== 'core' && canStowPart(o.me, part) && installSpot(o.me, probe(part)) !== null;
 }
 
 function driveTo(o: Orders, dest: Vec): void {

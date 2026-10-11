@@ -34,7 +34,7 @@ const FLASH = {
   max: 48,
 };
 
-type FloatText = { el: HTMLDivElement; pos: V3; rowPx: number; age: number; life: number; used: boolean };
+type FloatText = { el: HTMLDivElement; pos: V3; anchor: (() => V3 | null) | null; rowPx: number; age: number; life: number; used: boolean };
 type Flash = { mesh: THREE.Mesh; size: number; age: number };
 type Pending = { left: number; run: () => void };
 
@@ -163,7 +163,7 @@ export class Fx3D {
       const el = document.createElement('div');
       el.className = 'float-text';
       overlay.appendChild(el);
-      this.texts.push({ el, pos: { x: 0, y: 0, z: 0 }, rowPx: 0, age: 0, life: 1, used: false });
+      this.texts.push({ el, pos: { x: 0, y: 0, z: 0 }, anchor: null, rowPx: 0, age: 0, life: 1, used: false });
     }
   }
 
@@ -179,10 +179,6 @@ export class Fx3D {
       cues.landed();
     };
     this.projectiles.launch({ spec, muzzle, plan, onFire, onLand, ground });
-  }
-
-  releaseRopes(): void {
-    this.projectiles.releaseRopes();
   }
 
   private landing(plan: RoundPlan, blastRadius: number, big: boolean): void {
@@ -220,8 +216,14 @@ export class Fx3D {
     this.emissions.missile(p);
   }
 
-  label(p: V3, text: Msg, color: string, row: number, delayMs: number, readMs: number): void {
-    this.pending.push({ left: delayMs / 1000, run: () => this.floatText(p, text, color, readMs, row * LABEL_ROW_PX) });
+  label(anchor: () => V3 | null, text: Msg, color: string, row: number, delayMs: number, readMs: number): void {
+    this.pending.push({
+      left: delayMs / 1000,
+      run: () => {
+        const p = anchor();
+        if (p) this.floatText(p, text, color, readMs, row * LABEL_ROW_PX, anchor);
+      },
+    });
   }
 
   explode(p: V3): void {
@@ -309,13 +311,14 @@ export class Fx3D {
     this.emissions.breakdown(p, motion);
   }
 
-  floatText(p: V3, text: Msg, color: string, durationMs: number, rowPx = 0): void {
+  floatText(p: V3, text: Msg, color: string, durationMs: number, rowPx = 0, anchor: (() => V3 | null) | null = null): void {
     const slot = this.texts.find((x) => !x.used) ?? this.texts.reduce((a, b) => (a.age > b.age ? a : b));
     slot.used = true;
     slot.age = 0;
     slot.life = durationMs / 1000;
     slot.rowPx = rowPx;
     slot.pos = { x: p.x, y: p.y, z: p.z };
+    slot.anchor = anchor;
     setText(slot.el, text);
     slot.el.style.color = color;
     slot.el.style.display = 'block';
@@ -356,6 +359,7 @@ export class Fx3D {
         continue;
       }
       const t = slot.age / slot.life;
+      slot.pos = slot.anchor?.() ?? slot.pos;
       const screen = this.rig.screenOf({ x: slot.pos.x, y: slot.pos.y + t * RISE_METERS, z: slot.pos.z });
       slot.el.style.left = `${screen.x}px`;
       slot.el.style.top = `${screen.y - slot.rowPx}px`;

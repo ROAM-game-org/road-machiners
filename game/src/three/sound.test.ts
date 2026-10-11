@@ -234,16 +234,18 @@ describe("next track", () => {
   const fake = () => {
     const calm: { file?: string; gains: number[]; stops: number[] }[] = [];
     const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
+    const abandoned: { file?: string; gains: number[]; stops: number[] }[] = [];
     const player = {
       setBusTone: () => {},
       loop: (id: string, _at: unknown, file?: string) => {
         const handle = { file, gains: [] as number[], stops: [] as number[] };
         if (id === "music-calm") calm.push(handle);
         if (id === "music-quest") quest.push(handle);
+        if (id === "music-abandoned") abandoned.push(handle);
         return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
-    return { calm, quest, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
+    return { calm, quest, abandoned, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
   };
   const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
 
@@ -258,6 +260,19 @@ describe("next track", () => {
     expect(new Set(quest.slice(0, 3).map((q) => q.file)).size).toBe(SOUNDS["music-quest"].files.length);
     expect(calm[0].gains).toEqual([1, 0]);
     expect(calm[1].gains).toEqual([1, 0]);
+  });
+
+  it("starts the next ruin track each time the player enters a territory", () => {
+    const { abandoned, loops } = fake();
+    const ruins = { ...road, place: "abandoned" } as const;
+    loops.update(road);
+    loops.update(ruins);
+    loops.update(road);
+    loops.update(ruins);
+    loops.update(road);
+    loops.update(ruins);
+    expect(abandoned.map((a) => a.gains)).toEqual([[0], [1, 0], [1, 0], [1]]);
+    expect(new Set(abandoned.slice(0, 3).map((a) => a.file)).size).toBe(SOUNDS["music-abandoned"].files.length);
   });
 
   it("crossfades the calm music to a new track at its current level", () => {

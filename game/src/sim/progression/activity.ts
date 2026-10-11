@@ -6,7 +6,7 @@ import { skillLevel } from '../progress';
 import type { DriverResources, GameEvent, NpcActivity, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import type { Archetype } from './bot';
-import { playTurns, type PlayedTurn } from './record';
+import { FAR_MOVER, playTurns, type PlayedTurn } from './record';
 
 export const ACTIVITY_LIMITS = [
   'every truck travels in far mode, so no physics, close driving or crash contact runs',
@@ -46,7 +46,7 @@ export function* activityFrom(start: World, options: ActivityOptions): Generator
   yield { k: 'run', ...options, limits: ACTIVITY_LIMITS };
   yield snapshot(start);
   try {
-    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, BOT_OPTIONS));
+    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, BOT_OPTIONS, FAR_MOVER));
   } catch (error) {
     play.fail(error);
   }

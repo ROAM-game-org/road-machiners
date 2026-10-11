@@ -96,7 +96,7 @@ const openOptions = (page) => chooseMenuItem(page, 'options');
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'English'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }

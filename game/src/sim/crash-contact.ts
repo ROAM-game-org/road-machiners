@@ -5,7 +5,7 @@ import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { getMobilityCondition, isStranded, vehicleStats } from './stats';
 import { angleDiff, bearing, dist, type Vec } from './vec';
-import { laneCount, passShare, ramMult, sideToward, walkLane, type PartHit, type Side } from './armor';
+import { laneCount, passShare, planCrashLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
 import { damagePart } from './damage';
@@ -111,14 +111,24 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
   const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
   const hits = new Map<string, number>();
   const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
-  for (const lane of contact.lanes) {
-    const copy = structuredClone(vehicle);
-    const draft = { ...world, player: structuredClone(world.player), events: [] };
-    for (const hit of walkLane(draft, copy, contact.side, lane, round)) {
-      hits.set(hit.part, (hits.get(hit.part) ?? 0) + hit.damage);
-    }
-  }
+  const spill = { ...round, damage: round.damage * RULES.crashFalloff };
+  for (const lane of contact.lanes) strikeLane(world, vehicle, contact.side, lane, round, hits);
+  for (const lane of spillLanes(vehicle, contact)) strikeLane(world, vehicle, contact.side, lane, spill, hits);
   return applyCrashHits(world, vehicle, hits);
+}
+
+function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>): void {
+  const copy = structuredClone(vehicle);
+  const draft = { ...world, player: structuredClone(world.player), events: [] };
+  for (const hit of planCrashLane(copy, side, lane, round)) {
+    hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
+  }
+}
+
+function spillLanes(vehicle: Vehicle, contact: CrashContact): number[] {
+  const first = Math.min(...contact.lanes);
+  const last = Math.max(...contact.lanes);
+  return [first - 1, last + 1].filter((lane) => lane >= 0 && lane < laneCount(vehicle, contact.side));
 }
 
 function computeCrashEnergy(world: World, vehicle: Vehicle, impact: number, share: number, mult: number): number {

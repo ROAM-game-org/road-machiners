@@ -19,7 +19,7 @@ import { dist, type Vec } from "../sim/vec";
 import type { NpcState, SalvageStock, Vehicle, World } from "../sim/types";
 import { REGION } from "../data/region";
 import { clock, vehicleName } from "./format";
-import { celsius, distanceText, engineCelsius, fuelLiters, hp, kg, kph, moneyMsg } from "./units";
+import { celsius, distanceText, engineCelsius, fuelLiters, hp, kph, moneyMsg } from "./units";
 import { canAbandonRun, furyRoadReadout, outpostNear, reachedOutpostAt } from "../sim/fury-road";
 import { ENGINE_HEAT } from "../data/wear";
 import type { IconName } from "./cards";
@@ -353,13 +353,13 @@ export function getHudReadout(w: World) {
   const resources: Readout[] = [
     { id: "money", label: t("readout.money"), value: moneyLabel(p.money), balance: p.money, warning: p.money < 0 },
     { id: "fuel", label: t("readout.fuel"), value: t("readout.litersShort", { n: fuelLiters(p.fuel) }), warning: p.fuel < capacity * RULES.lowFuelThreshold, icon: "fuel", tip: fuelTip },
-    { id: "supplies", label: t("readout.supplies"), value: kg(p.supplies), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
+    { id: "supplies", label: t("readout.supplies"), value: t("readout.kgShort", { n: Math.round(p.supplies) }), warning: p.supplies <= RULES.suppliesLow, icon: "supplies" },
     { id: "driver", label: t("readout.driver"), value: num(hp(p.health), "int"), warning: p.health < maxHealth, icon: "driver" },
     ...runResources(w),
   ];
   const storm = w.weather.some((e) => e.kind === "storm" && dist(me.pos, e.pos) - e.radius <= TERRAIN.vision.radius);
   const survival: Readout[] = [
-    { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT },
+    { id: "heat", label: t("readout.heat"), value: t("readout.celsius", { n: celsius(heat) }), warning: heat >= HOT, icon: "heat" },
     { id: "engine", label: t("readout.engine"), value: t("readout.celsius", { n: engineCelsius(p.engineHeat) }), warning: p.engineHeat >= ENGINE_HEAT.warnAt, progress: p.engineHeat, icon: "engine" },
     ...(weather.clear ? [] : [{ id: "weather", label: t("readout.weather"), value: weather.text, warning: storm }]),
   ];

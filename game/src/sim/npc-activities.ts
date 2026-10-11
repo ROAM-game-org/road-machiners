@@ -560,10 +560,11 @@ export function fightCornered(world: World, vehicle: Vehicle, foe: Vehicle, reas
 export function turnCornered(world: World, vehicle: Vehicle): boolean {
   if (topGoal(vehicle)?.kind === 'fight') return false;
   const foe = visibleHostiles(world, vehicle).find((other) => (inCombatWith(world, vehicle, other) || vehicle.brain!.goals.some((goal) => goal.kind === 'fight' && goal.targetId === other.id)) && canStartFight(world, vehicle, other));
-  if (!foe) return false;
-  fightCornered(world, vehicle, foe);
-  return true;
+  if (foe) fightCornered(world, vehicle, foe, turnReason(vehicle, foe));
+  return !!foe;
 }
+
+const turnReason = (vehicle: Vehicle, foe: Vehicle): GoalReason => (topGoal(vehicle)?.kind === 'flee' ? 'cornered' : (vehicle.brain!.goals.find((goal) => goal.kind === 'fight' && goal.targetId === foe.id)?.reason ?? 'fightBack'));
 
 type HostileDecision = 'hostileSeen' | 'contactHeard';
 
