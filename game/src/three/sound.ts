@@ -228,11 +228,12 @@ export function musicPlaceAt(pos: Vec): MusicPlace {
   return isInTerritory(pos) ? "abandoned" : null;
 }
 
-export type LoopState = { stormShare: number; inCombat: boolean; place: MusicPlace; paused: boolean };
+export type LoopState = { stormShare: number; inCombat: boolean; inQuest: boolean; place: MusicPlace; paused: boolean };
 
 export type LoopLevels = {
   windGain: number;
   calmGain: number;
+  questGain: number;
   townGain: number;
   outpostGain: number;
   abandonedGain: number;
@@ -241,7 +242,8 @@ export type LoopLevels = {
   paused: boolean;
 };
 
-function musicOf(s: LoopState): "calm" | "combat" | NonNullable<MusicPlace> {
+function musicOf(s: LoopState): "calm" | "quest" | "combat" | NonNullable<MusicPlace> {
+  if (s.inQuest) return "quest";
   if (s.inCombat) return "combat";
   return s.place ?? "calm";
 }
@@ -253,11 +255,12 @@ export function loopLevels(s: LoopState, mix: typeof MIX): LoopLevels {
   return {
     windGain: w.baseGain + (w.stormGain - w.baseGain) * near,
     calmGain: Number(music === "calm"),
+    questGain: Number(music === "quest"),
     townGain: Number(music === "town"),
     outpostGain: Number(music === "outpost"),
     abandonedGain: Number(music === "abandoned"),
     combatGain: Number(music === "combat"),
-    musicCutoffHz: s.paused ? mix.music.pauseCutoffHz : mix.music.openCutoffHz,
+    musicCutoffHz: s.paused && music !== "quest" ? mix.music.pauseCutoffHz : mix.music.openCutoffHz,
     paused: s.paused,
   };
 }
@@ -332,22 +335,43 @@ export function strainGlides(g: Glide, s: Strain): { healthy: Glide; strained: G
   return { healthy: level(1 - s.from, 1 - s.to), strained: level(s.from, s.to) };
 }
 
+class Playlist {
+  private files: string[];
+  private track = 0;
+  private handle: LoopHandle;
+
+  constructor(private player: SoundPlayer, private cue: "music-calm" | "music-quest") {
+    this.files = shuffled(SOUNDS[cue].files, Math.random);
+    this.handle = player.loop(cue, { pan: 0, gain: 0 }, this.files[0]);
+  }
+
+  setGain(gain: number, fadeSeconds: number): void {
+    this.handle.setGain(gain, fadeSeconds);
+  }
+
+  next(fadeSeconds: number): void {
+    this.handle.stop(fadeSeconds * 1000);
+    this.track = (this.track + 1) % this.files.length;
+    this.handle = this.player.loop(this.cue, { pan: 0, gain: 0 }, this.files[this.track]);
+  }
+}
+
 export class SoundLoops {
   private engine: { healthy: LoopHandle; strained: LoopHandle } | null = null;
   private engineChassis: string | null = null;
   private player: SoundPlayer;
   private wind: LoopHandle;
-  private calm: LoopHandle;
+  private calm: Playlist;
+  private quest: Playlist;
   private places: [LoopHandle, "townGain" | "outpostGain" | "abandonedGain"][];
-  private playlist = shuffled(SOUNDS["music-calm"].files, Math.random);
-  private track = 0;
   private last: LoopLevels | null = null;
 
   constructor(player: SoundPlayer, private score: Pick<CombatScore, "setCombat" | "setPaused" | "tick">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
-    this.calm = player.loop("music-calm", silent, this.playlist[0]);
+    this.calm = new Playlist(player, "music-calm");
+    this.quest = new Playlist(player, "music-quest");
     this.places = [
       [player.loop("music-town", silent), "townGain"],
       [player.loop("music-outpost", silent), "outpostGain"],
@@ -388,19 +412,21 @@ export class SoundLoops {
   }
 
   private updateMusic(l: LoopLevels, was: LoopLevels | null): void {
-    this.updateCalm(l.calmGain, was);
+    this.updatePlaylists(l, was);
     this.updatePlaces(l, was);
     if (was?.musicCutoffHz !== l.musicCutoffHz) this.player.setBusTone("music", l.musicCutoffHz, MIX.music.toneSeconds);
     this.score.setPaused(l.paused);
     if (was?.combatGain !== l.combatGain) this.score.setCombat(l.combatGain > 0, MIX.music.fadeSeconds);
   }
 
-  private updateCalm(gain: number, was: LoopLevels | null): void {
+  private updatePlaylists(l: LoopLevels, was: LoopLevels | null): void {
     const fade = MIX.music.fadeSeconds;
-    if (was?.calmGain === gain) return;
-    if (was?.calmGain === 0) this.nextCalm(fade);
-    this.calm.setGain(gain, fade);
-}
+    for (const [playlist, key] of [[this.calm, "calmGain"], [this.quest, "questGain"]] as const) {
+      if (was?.[key] === l[key]) continue;
+      if (was?.[key] === 0) playlist.next(fade);
+      playlist.setGain(l[key], fade);
+    }
+  }
 
   private updatePlaces(l: LoopLevels, was: LoopLevels | null): void {
     for (const [loop, key] of this.places) if (was?.[key] !== l[key]) loop.setGain(l[key], MIX.music.fadeSeconds);
@@ -408,13 +434,7 @@ export class SoundLoops {
 
   nextTrack(): void {
     const fade = MIX.music.fadeSeconds;
-    this.nextCalm(fade);
+    this.calm.next(fade);
     this.calm.setGain(this.last?.calmGain ?? 0, fade);
-  }
-
-  private nextCalm(fadeSeconds: number): void {
-    this.calm.stop(fadeSeconds * 1000);
-    this.track = (this.track + 1) % this.playlist.length;
-    this.calm = this.player.loop("music-calm", { pan: 0, gain: 0 }, this.playlist[this.track]);
   }
 }

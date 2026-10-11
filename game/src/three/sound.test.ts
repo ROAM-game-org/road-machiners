@@ -31,8 +31,17 @@ describe("stingOf", () => {
 });
 
 describe("loopLevels", () => {
-  const calm = { stormShare: 0, inCombat: false, place: null, paused: false } as const;
+  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null, paused: false } as const;
   const gains = (l: ReturnType<typeof loopLevels>) => [l.calmGain, l.townGain, l.outpostGain, l.abandonedGain, l.combatGain];
+  it("plays quest music over every other music while a quest is open, unmuffled", () => {
+    for (const place of [null, "town", "outpost", "abandoned"] as const)
+      for (const inCombat of [true, false]) {
+        const l = loopLevels({ ...calm, place, inCombat, inQuest: true, paused: true }, MIX);
+        expect([l.questGain, ...gains(l)]).toEqual([1, 0, 0, 0, 0, 0]);
+        expect(l.musicCutoffHz).toBe(MIX.music.openCutoffHz);
+      }
+    expect(loopLevels(calm, MIX).questGain).toBe(0);
+  });
   it("raises the wind with the player's storm share", () => {
     expect(loopLevels(calm, MIX).windGain).toBe(MIX.wind.baseGain);
     expect(loopLevels({ ...calm, stormShare: 0.5 }, MIX).windGain).toBeCloseTo((MIX.wind.baseGain + MIX.wind.stormGain) / 2);
@@ -223,20 +232,36 @@ describe("engine strain log", () => {
 describe("next track", () => {
   const fake = () => {
     const calm: { file?: string; gains: number[]; stops: number[] }[] = [];
+    const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
     const player = {
       setBusTone: () => {},
       loop: (id: string, _at: unknown, file?: string) => {
         const handle = { file, gains: [] as number[], stops: [] as number[] };
         if (id === "music-calm") calm.push(handle);
+        if (id === "music-quest") quest.push(handle);
         return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
-    return { calm, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
+    return { calm, quest, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
   };
+  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
+
+  it("starts the next quest track on each quest and fades the calm music under it", () => {
+    const { calm, quest, loops } = fake();
+    loops.update(road);
+    loops.update({ ...road, inQuest: true });
+    loops.update(road);
+    loops.update({ ...road, inQuest: true });
+    expect(quest.map((q) => q.gains)).toEqual([[0], [1, 0], [1]]);
+    expect(quest[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
+    expect(new Set(quest.slice(0, 3).map((q) => q.file)).size).toBe(SOUNDS["music-quest"].files.length);
+    expect(calm[0].gains).toEqual([1, 0]);
+    expect(calm[1].gains).toEqual([1, 0]);
+  });
 
   it("crossfades the calm music to a new track at its current level", () => {
     const { calm, loops } = fake();
-    loops.update({ stormShare: 1, inCombat: false, place: null, paused: false });
+    loops.update(road);
     loops.nextTrack();
     expect(calm).toHaveLength(2);
     expect(calm[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
@@ -254,7 +279,7 @@ describe("next track", () => {
 
   it("keeps the new track silent in combat", () => {
     const { calm, loops } = fake();
-    loops.update({ stormShare: 1, inCombat: true, place: null, paused: false });
+    loops.update({ ...road, inCombat: true });
     loops.nextTrack();
     expect(calm[1].gains).toEqual([0]);
   });
