@@ -30,7 +30,7 @@ export class TruckConditionView {
   private cols = 1;
   private rows = 1;
 
-  constructor(private readonly quiet = false) {
+  constructor() {
     this.body.append(this.tip);
     this.root.append(this.body);
   }
@@ -104,7 +104,7 @@ export class TruckConditionView {
       if (this.hoverId === part.id) this.hoverId = null;
       this.showTip();
     };
-    const tone = this.quiet ? quietTone(part.percent) : conditionTone(part.percent);
+    const tone = conditionTone(part.percent);
     node.style.cssText = `${boxStyle(part.x, part.y, part.w, part.h)};--tone:${tone.fill};--tint-line:${tone.shade};--tint-shadow:${tone.shade};--tint-light:${tone.light}`;
     if (part.hit) this.flashDamage(node);
   }
@@ -142,21 +142,6 @@ const TONE_STOPS: readonly { at: number; rgb: readonly [number, number, number] 
 ];
 const SHADE_DARKEN = 0.3;
 const LIGHT_LIGHTEN = 0.25;
-
-function quietTone(percent: number): Tone {
-  if (percent === 0) return BROKEN_TONE;
-  const fill =
-    percent >= 100
-      ? "var(--cell-side)"
-      : percent >= 50
-        ? `color-mix(in oklab, var(--cell-side) ${(percent - 50) * 2}%, var(--accent-deep))`
-        : `color-mix(in oklab, var(--accent-deep) ${percent * 2}%, var(--danger-deep))`;
-  return {
-    fill,
-    shade: `color-mix(in oklab, ${fill} 70%, black)`,
-    light: `color-mix(in oklab, ${fill} 75%, white)`,
-  };
-}
 
 function conditionTone(percent: number): Tone {
   if (percent === 0) return BROKEN_TONE;

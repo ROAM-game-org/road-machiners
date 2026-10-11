@@ -118,7 +118,7 @@ export class Hud {
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private condition = new TruckConditionView();
-  private inspected = new TruckConditionView(true);
+  private inspected = new TruckConditionView();
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
   private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
