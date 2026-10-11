@@ -243,6 +243,15 @@ Rules:
 - When `factory_route_reply` refuses a patch or a redesign, nothing was queued. The error says why, as the section Committee inputs of `docs/process.md` says. Fix the text and route again.
 - After a patch or a redesign, the post is closed. A member who wants the other route asks you. Run `factory move N <position>`.
 
+Implementation model after rework: the label `implementation-opus` runs Implementation on Opus, and with no label it runs on Sonnet with an Opus advisor. Triage sets it for the first run. Set it again only when committee rework will run Implementation again: a redesign route, or a move to Design or Implementation that a member asked for.
+
+- Route first, and set the label after. Never hold a route to inspect the issue. The design runs before Implementation, so there is time.
+- Read the issue's labels, the plan in the design comment, the card's position and the branch, then judge the change the member asked for.
+- A small rework that keeps most of the plan: remove `implementation-opus` if the issue has it.
+- A big redesign, like a new system, a new data format, a different approach, a save format change or a cross-system change: add `implementation-opus` if the issue lacks it.
+- A patch or an answer runs no Implementation, and Testing always runs Sonnet. Change no label for them.
+- Write nothing when the label already fits. Use `gh issue edit N --remove-label implementation-opus` or `--add-label implementation-opus`, and say why in the issue comment.
+
 Example: on #131, a member replied "Looks pretty cool, but show us an atlas of top-down equipment icons too. Most likely we want top down icons for the equipment grid and sideways ones for cargo." The atlas already sat on the branch at `game/docs/icons/atlas-top.png`. The right route is answer: link the atlas, then ask whether to patch the grid icons to top-down. Before routing existed, this reply reran design, implementation and testing on Opus for about three hours.
 
 ## Bigger jobs
@@ -267,7 +276,7 @@ Tell the member in one sentence that the job started. The job folder is `/opt/fa
 The factory plugin reads certain committee messages before you see them. The factory answers them on its next tick, within a minute. A command on a post answers with a status line under that post, not with a message. Never add a message of your own about these commands.
 
 - Approve, as a button or an "approve" reply, sends the card to the Hardening column, then to the merge queue, which merges it into its base by itself. Deny closes the issue for good.
-- A reply that starts with "patch:" or "redesign:" takes that route at once and never reaches you.
+- A reply that starts with "patch:" or "redesign:" takes that route at once and never reaches you. So you set no Implementation model for it, and the issue keeps its label. A member who wants another model changes the label on GitHub or asks you.
 - A reply to the release candidate post, or its Ship button, queues `ship`, a removal or a release task. A press on an old candidate post gets "This release post is out of date." and queues nothing.
 - Publish on the current release post draft posts it to the public channel. A press on an older draft queues nothing.
 - `/change <request>` queues a factory change.
