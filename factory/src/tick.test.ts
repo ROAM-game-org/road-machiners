@@ -167,6 +167,28 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(s, [], NOW, CFG)).toEqual([]);
   });
 
+  it('runs a member-ordered dev sync before a queued ship, never beside a ship or removal (IV3)', () => {
+    const order = { by: 'Ann', reason: 'r', from: null };
+    const queuedState = { ...open, release: { ...RELEASE, postId: 5 }, pendingShip: 'Ann', pendingSync: order };
+    expect(chooseJobs(queuedState, [], NOW, CFG)).toEqual([{ stage: 'sync', issue: 20 }]);
+    expect(chooseJobs({ ...queuedState, pendingRemovals: [{ issue: 8, by: 'Ann', text: 't' }] }, [], NOW, CFG)).toEqual([{ stage: 'remove', issue: 8 }]);
+    expect(chooseJobs({ ...queuedState, jobs: [running('ship', 20)] }, [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs(state({ pendingSync: order }), [], NOW, CFG)).toEqual([]);
+  });
+
+  it('lets a running playtest or candidate of the old head finish before the sync starts, then plays the new head', () => {
+    const order = { by: 'Ann', reason: 'r', from: null };
+    const playing = { ...passed, pendingSync: order, jobs: [running('playtest', 20)] };
+    expect(evaluateSchedule(playing, [tracking()], NOW, CFG, AT_HEAD).decisions).toContainEqual({ stage: 'sync', issue: 20, reasons: ['issue-running'] });
+    expect(chooseJobs({ ...playing, jobs: [running('candidate', 20)] }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([]);
+    expect(chooseJobs({ ...passed, pendingSync: order }, [tracking()], NOW, CFG, AT_HEAD)).toEqual([{ stage: 'sync', issue: 20 }]);
+    expect(chooseJobs(passed, [tracking()], NOW, CFG, { dev: null, release: 'rel0002' })).toEqual([{ stage: 'playtest', issue: 20 }]);
+  });
+
+  it('gives the sync the merge time limit', () => {
+    expect(timeoutOf({ ...CFG, mergeTimeoutMinutes: 180 } as never, 'sync')).toBe(180);
+  });
+
   it('ignores a queued ship when no release is open', () => {
     expect(chooseJobs(state({ pendingShip: 'Ann' }), [], NOW, CFG)).toEqual([]);
   });

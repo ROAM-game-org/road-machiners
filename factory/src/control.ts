@@ -14,7 +14,8 @@ import { closeCard } from './stages/approval';
 import { moveCard, type CardStep } from './card-events';
 import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
-export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident'] as const;
+export const DROP_QUEUES = ['approval', 'removal', 'ship', 'sync', 'change', 'incident'] as const;
+export const ISSUELESS_DROPS: DropQueue[] = ['ship', 'sync'];
 export type DropQueue = (typeof DROP_QUEUES)[number];
 
 export type ControlAction =
@@ -22,6 +23,7 @@ export type ControlAction =
   | { action: 'merge'; issue: number }
   | { action: 'ship' }
   | { action: 'cut' }
+  | { action: 'sync-dev' }
   | { action: 'remove'; issue: number }
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'merge-change'; id: number }
@@ -70,6 +72,7 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   merge: (data) => ({ action: 'merge', issue: requireNumber(data, 'issue') }),
   ship: () => ({ action: 'ship' }),
   cut: () => ({ action: 'cut' }),
+  'sync-dev': () => ({ action: 'sync-dev' }),
   remove: (data) => ({ action: 'remove', issue: requireNumber(data, 'issue') }),
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   'merge-change': (data) => ({ action: 'merge-change', id: requireNumber(data, 'id') }),
@@ -98,8 +101,10 @@ export function resolveActor(ctx: Ctx, by: string, gated: boolean): string {
   return member.name ?? member.github ?? member.telegram;
 }
 
+const MEMBER_ONLY: ControlAction['action'][] = ['ship', 'remove', 'merge-change', 'sync-dev'];
+
 export function isGated(ctx: Ctx, command: ControlCommand): boolean {
-  if (command.action === 'ship' || command.action === 'remove' || command.action === 'merge-change') return true;
+  if (MEMBER_ONLY.includes(command.action)) return true;
   if (!approves(command)) return false;
   const { approvedResolving, pendingApprovals } = readState(ctx.statePath);
   const key = String(command.issue);
@@ -114,6 +119,7 @@ type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<Co
 
 const HANDLERS: Handlers = {
   move, merge, ship, cut, remove, drop,
+  'sync-dev': syncDev,
   'merge-change': async (ctx, command) => {
     await ctx.github.mergePullRequest(`factory-change/${command.id}`);
     return { issue: null, text: `Factory change ${command.id} is merged into main. The deploy follows.` };
@@ -317,12 +323,21 @@ async function cut(ctx: Ctx): Promise<Outcome> {
   return { issue: null, text: 'A release cut is due. It starts on a coming tick.' };
 }
 
+async function syncDev(ctx: Ctx, command: Extract<ControlCommand, { action: 'sync-dev' }>, by: string): Promise<Outcome> {
+  const release = openRelease(ctx);
+  if (release.shipping !== undefined) throw new Error(`Release ${release.day} is shipping. Dev reaches main with its own next release.`);
+  if (readState(ctx.statePath).pendingSync !== null) throw new Error(`A sync of dev into release ${release.day} is already queued.`);
+  updateState(ctx.statePath, (state) => ({ ...state, pendingSync: { by, reason: command.reason, from: null } }));
+  return { issue: release.issue, text: `A sync of dev into ${release.branch} is queued. A coming tick merges GitHub's dev into the release and pushes only the release.` };
+}
+
 type Drop = { has: (state: FactoryState, id: number) => boolean; without: (state: FactoryState, id: number) => FactoryState };
 
 const DROPS: Record<DropQueue, Drop> = {
   approval: { has: (state, id) => String(id) in state.pendingApprovals, without: (state, id) => ({ ...state, pendingApprovals: omitKey(state.pendingApprovals, String(id)) }) },
   removal: { has: (state, id) => state.pendingRemovals.some((item) => item.issue === id), without: (state, id) => ({ ...state, pendingRemovals: state.pendingRemovals.filter((item) => item.issue !== id) }) },
   ship: { has: (state) => state.pendingShip !== null, without: (state) => ({ ...state, pendingShip: null }) },
+  sync: { has: (state) => state.pendingSync !== null, without: (state) => ({ ...state, pendingSync: null }) },
   change: { has: (state, id) => state.pendingChanges.some((item) => item.id === id), without: (state, id) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }) },
   incident: { has: (state, id) => state.pendingIncidents.includes(id), without: (state, id) => ({ ...state, pendingIncidents: state.pendingIncidents.filter((item) => item !== id) }) },
 };
@@ -330,7 +345,7 @@ const ISSUE_QUEUES: DropQueue[] = ['approval', 'removal', 'incident'];
 
 function requireEntryId(queue: DropQueue, id: number | null): number {
   if (id !== null) return id;
-  if (queue !== 'ship') throw new Error(`The ${queue} queue needs an id.`);
+  if (!ISSUELESS_DROPS.includes(queue)) throw new Error(`The ${queue} queue needs an id.`);
   return 0;
 }
 

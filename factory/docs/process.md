@@ -116,6 +116,7 @@ Members, other jobs and releases push all the time, so any branch may move while
 - Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
 - A hotfix merges its branch into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
+- `factory sync-dev` merges GitHub's `dev` into the open release, once a member orders it. It pushes only the release, never `dev` or `main`. [Release](#release) has the rules.
 
 ## Release
 
@@ -123,7 +124,14 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 The playtest is one job, after every release task merged and before the candidate. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
 
-The release stays put after its cut. Only its release tasks, the playtest fixes and Remove change it, and nothing from `main` enters it until Ship. Each of these moves drops the Ship button of the current post, and the playtest plays the new head in full. The candidate builds only the commit the playtest passed, and its post records it. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
+The release stays put after its cut. Only its release tasks, the playtest fixes, Remove and a member's dev sync change it, and nothing from `main` enters it until Ship. Each of these moves drops the Ship button of the current post, and the playtest plays the new head in full. The candidate builds only the commit the playtest passed, and its post records it. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
+
+A member can order `factory sync-dev` when the open release needs work that is already on `dev`. It is an exception: `cut` refuses while a release is open, a routine release never takes `dev`, and Hermes cannot order it on its own. The tick queues the order, and a sync job on the tracking issue runs it after any running playtest or candidate of the release ends.
+
+- The job merges GitHub's `dev` into the release tip in a throwaway worktree, so the release keeps its own commits. An agent resolves a real conflict, as at the release cut. When the release moved, the merge runs again on the new tip. When `dev` moved during the merge, the job merges it again, up to 3 times, and says which newer `dev` stayed out.
+- When `dev` entered, the job drops the candidate post and a queued Ship and records the `dev` commit and the new release head. The playtest's earlier pass covers only its own commit, so the playtest plays the new head in full, and the candidate builds the commit it passes. Ship still needs a member. A feature that `dev` merged again after its Remove leaves the removed list.
+- When `dev` was already in the release, nothing changes. A job that runs again after its push records the same `dev` commit once.
+- The tracking issue gets the order, the `dev` commit that entered, the new head and the features that came with it. The ledger gets a `sync` line.
 
 ## Side jobs
 
@@ -143,7 +151,7 @@ A timer runs one tick at a time. A tick never waits for a job. Before it picks j
 
 Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue.
 
-1. Branch jobs: every queued approve, remove, ship and incident, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
+1. Branch jobs: every queued approve, remove, dev sync, ship and incident, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
 3. Card jobs: hotfixes, ad hoc tasks, factory changes, release tasks, then other cards. Within each, the card furthest along goes first.
 
@@ -156,4 +164,4 @@ Queues:
 - implement: implementation, ad hoc and change.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
-- branch: approve, merge, catch-up, remove, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each appends to the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.
+- branch: approve, merge, catch-up, remove, sync, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship, Remove and the dev sync never run together, since each changes the release. Incident jobs run one at a time, since each appends to the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.

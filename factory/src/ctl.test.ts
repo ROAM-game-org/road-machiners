@@ -5,13 +5,13 @@ import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
 vi.mock('./control', async (importOriginal) => ({
-  DROP_QUEUES: (await importOriginal<{ DROP_QUEUES: readonly string[] }>()).DROP_QUEUES,
+  ...(await importOriginal<{ DROP_QUEUES: readonly string[]; ISSUELESS_DROPS: string[] }>()),
   resolveActor: (_ctx: unknown, by: string, gated: boolean) => {
     if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
     if (by !== 'hermes' && by !== 'ann') throw new Error(`unknown actor ${by}`);
     return by;
   },
-  isGated: (_ctx: unknown, command: { action: string }) => command.action === 'ship',
+  isGated: (_ctx: unknown, command: { action: string }) => ['ship', 'sync-dev'].includes(command.action),
   writeControl: (home: string, command: unknown, now: Date) => {
     mkdirSync(join(home, 'inbox'), { recursive: true });
     const path = join(home, 'inbox', `${now.getTime()}-control.json`);
@@ -58,6 +58,8 @@ describe('argument errors', () => {
   it('refuses an unknown actor and a gated order from hermes before writing', async () => {
     await expect(run(fake(), 'cut', '--by', 'bob', '--reason', 'r')).rejects.toThrow('unknown actor');
     await expect(run(fake(), 'ship', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
+    await expect(run(fake(), 'sync-dev', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('cannot order');
+    await expect(run(fake(), 'sync-dev', '--by', 'ann')).rejects.toThrow('Missing --reason');
     expect(inbox()).toEqual([]);
   });
 });
@@ -76,6 +78,8 @@ describe('write commands', () => {
     [['remove', '5'], { action: 'remove', issue: 5 }],
     [['drop', 'approval', '5'], { action: 'drop', queue: 'approval', id: 5 }],
     [['drop', 'ship'], { action: 'drop', queue: 'ship', id: null }],
+    [['sync-dev'], { action: 'sync-dev' }],
+    [['drop', 'sync'], { action: 'drop', queue: 'sync', id: null }],
     [['merge-change', '9'], { action: 'merge-change', id: 9 }],
     [['pause-card', '5'], { action: 'hold', issue: 5 }],
     [['resume-card', '5'], { action: 'unhold', issue: 5 }],
@@ -202,7 +206,7 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'sync-dev', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
   });

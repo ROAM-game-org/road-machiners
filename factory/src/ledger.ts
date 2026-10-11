@@ -19,6 +19,7 @@ export type LedgerLine =
   | { kind: 'route'; issue: number; route: Route; by: string; at: string }
   | { kind: 'post'; id: number; channel?: string; text: string; at: string }
   | { kind: 'control'; action: string; issue: number | null; by: string; reason: string; at: string }
+  | { kind: 'sync'; issue: number; branch: string; dev: string; head: string; by: string; reason: string; at: string }
   | { kind: 'card'; issue: number; step: CardStep; to: Column; at: string; flow?: CardFlow };
 
 const LEDGER_LOCK_MS = 30_000;

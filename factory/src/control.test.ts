@@ -118,7 +118,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'sync-dev' }, { action: 'drop', queue: 'sync', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -548,6 +548,34 @@ describe('ship, cut and remove', () => {
 
   it('refuses a removal with no open release', async () => {
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('No release is open');
+  });
+});
+
+describe('sync-dev', () => {
+  it("queues a member's sync of dev into the open release and comments on the tracking issue (IV2)", async () => {
+    seed({ release: RELEASE });
+    await expect(applyControl(fakeCtx(), command({ action: 'sync-dev', by: 'hermes' }))).rejects.toThrow('--by <member>');
+    expect(readState(statePath).pendingSync).toBeNull();
+    await applyControl(fakeCtx(), command({ action: 'sync-dev', by: '11' }));
+    expect(readState(statePath).pendingSync).toEqual({ by: 'Ann', reason: 'the gate failed on load', from: null });
+    expect(calls.find((call) => call.startsWith('comment 20'))).toContain('A sync of dev into release/2026-09-29 is queued');
+    expect(ctrlLines()[0]).toMatchObject({ action: 'sync-dev', issue: 20, by: 'Ann' });
+  });
+
+  it('refuses a sync with no open release, a shipping release or one already queued', async () => {
+    await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('No release is open');
+    seed({ release: { ...RELEASE, shipping: { sha: 'abc', features: [] } } });
+    await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('shipping');
+    seed({ release: RELEASE, pendingSync: { by: 'Bob', reason: 'r', from: null } });
+    await expect(applyControl(fakeCtx(), command({ action: 'sync-dev' }))).rejects.toThrow('already queued');
+    expect(readState(statePath).pendingSync?.by).toBe('Bob');
+  });
+
+  it('drops a queued sync', async () => {
+    seed({ release: RELEASE, pendingSync: { by: 'Bob', reason: 'r', from: null } });
+    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'sync', id: null }));
+    expect(readState(statePath).pendingSync).toBeNull();
+    await expect(applyControl(fakeCtx(), command({ action: 'drop', queue: 'sync', id: null }))).rejects.toThrow('sync');
   });
 });
 

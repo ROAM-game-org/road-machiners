@@ -59,6 +59,7 @@ Flags hold on any position:
 - Playtest: every release task is done, and `release.playtest.passed` is not the release head. The playtest runs.
 - Playtest blocked: `release.playtest.blocked` holds the commit and the reason. The tracking card has `factory-stuck`. `retry <tracking> [decision]` lifts it.
 - Candidate building: `release.playtest.passed` is the release head and no post is current. The candidate runs.
+- Dev sync queued: `pendingSync` holds a member's `sync-dev` order. The sync job writes the release head it started from in `pendingSync.from`, so a retried job knows what entered during the order. A sync that brought in `dev` drops `postId` and `pendingShip`, appends `{ dev, head, by, reason, at }` to `release.syncs`, and the release goes back to Playtest.
 - Candidate posted: `release.postId` holds the current candidate post, and `release.candidateSha` the commit it plays. Ship runs when a member presses Ship, or on `ship`. A tick that finds the release head past `candidateSha` drops the post and a queued Ship, unless a Ship runs. Ship refuses a release head other than `candidateSha`.
 - Shipping: `release.shipping` holds the release head and the features Ship found on it before it merged into `main`. A Ship that runs again on the same head reuses that list, since the release is then already on `main`. `release.removed` takes an issue as soon as its reverts are pushed, so a removal that runs again goes on with the remaining steps.
 - Shipped: `ship` merged the release into `main`, closed its cards and set `release` to null. A tag that already exists counts as made.
@@ -71,9 +72,11 @@ The public post of a shipped release has its own position in `releasePost`, besi
 - Waiting for a draft: Ship set `releasePost` with the changelog and the screenshot under `$FACTORY_HOME/release-posts/<day>/`, and `postId` is null. The incident watch shows `release post due`, and Hermes sends a draft.
 - Draft posted: `releasePost.postId` holds the draft post in the committee chat, and `releasePost.draft` its text. A reply to it goes to Hermes, who sends a new draft. Publish on the current draft posts it to `FACTORY_PUBLIC_CHANNEL` and sets `releasePost` to null.
 
+`release.syncs` lists each member-ordered dev sync that changed the release: the `dev` commit that entered, the release head after it, who ordered it, why and when. `factory release` prints each as `dev sync`. A release saved before the field has none.
+
 `release.tasks` lists every release task the factory created or labeled: the cut's cleanup tasks, a reply's task and a fix triage labeled. Each is written before its card or label goes on the board, since the board lists a write up to a minute late. `factory release` prints them as `recorded tasks`.
 
-`factory audit` and `card N` flag five drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
+`factory audit` and `card N` flag six drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a pending dev sync with no open release, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
 
 The release tracking card has the label `release`. It waits in Approval for the whole release, and its post is `release.postId`. It never shows card drift.
 
@@ -84,9 +87,10 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press. Drop with `drop approval <issue>`.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
+- `pendingSync`: a member's order to merge `dev` into the open release, with `by`, `reason` and `from`. The sync job runs it. Fed by `sync-dev`. Drop with `drop sync`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
-- `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
+- `retried`: approve, remove, sync, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
 ## Health records
 
@@ -113,6 +117,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - A running job whose stage differs from the stage the position runs. The stage of `post` is checks, of `approval` is approve, and `done` runs none.
 - An open release whose tracking card is missing.
 - A pending ship with no current candidate post.
+- A pending dev sync with no open release.
 - A candidate post of a commit the playtest did not pass.
 - A held card in Done, a held card with a running job, or a held issue off the board. The line names who held it and why.
 
@@ -131,7 +136,8 @@ Write, each with `--by` and `--reason`:
 - `ship` ships the open release.
 - `cut` cuts a release.
 - `remove N` takes a feature out of the release.
-- `drop <approval|removal|ship|change|incident> <id>` drops one queued entry.
+- `sync-dev` merges GitHub's `dev` into the open release. It refuses no open release, a release that is shipping, and a sync already queued. [process.md](process.md#release) has the rules.
+- `drop <approval|removal|ship|sync|change|incident> <id>` drops one queued entry. `ship` and `sync` take no id.
 - `merge-change <id>` merges a factory change PR into `main`.
 - `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards. Each catch-up job adds its issue to `caughtUp` on that entry, so a card is caught up at most once per merge job, and the list goes with the entry. A Merging card outside the batch can be held and moved while the merge runs.
 - `resume-card N` lifts the hold. The next tick runs the card's stage, and a job of the stopped stage continues its agents' sessions with `--resume`. It needs no board, so it also lifts a hold whose card is gone.
@@ -149,7 +155,7 @@ Write orders wait while the factory is paused. The CLI still writes the order, s
 
 `--by` is a committee member, by Telegram id, GitHub login or name, or `hermes`. Hermes passes the Telegram id of the member whose message ordered the action. Its `factory_sender` tool returns that id, since a Telegram display name matches no member.
 
-`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
+`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `sync-dev`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
 
 Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume`, `repair-clone N --by <who> --reason <why> [--backup-merge]` and `set-state <path> <json>|--delete --by <who> --reason <why>`. `set-state` changes one value at a dotted path, like `release.postId`, under the state lock, so no job has to stop. It refuses a path whose first key is not a store, a value of another kind than the one it replaces, like an object for a list, and a delete of anything but an entry of a map store like `pendingApprovals.5`. A null value takes any kind. It writes the old and the new value to the tick log. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
 

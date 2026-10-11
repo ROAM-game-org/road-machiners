@@ -93,7 +93,11 @@ export function releaseDrift(state: FactoryState, cards: Card[]): string[] {
   const release = state.release;
   const lines = release === null ? [] : openReleaseDrift(release, cards);
   if (state.pendingShip !== null && (release === null || release.postId === null)) lines.push('pending ship but no current candidate post');
-  return [...lines, ...releasePostDrift(state.releasePost)];
+  return [...lines, ...syncDrift(state), ...releasePostDrift(state.releasePost)];
+}
+
+function syncDrift(state: FactoryState): string[] {
+  return state.pendingSync !== null && state.release === null ? ['pending dev sync but no open release'] : [];
 }
 
 function releasePostDrift(post: ReleasePost | null): string[] {

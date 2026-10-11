@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
+import { DROP_QUEUES, ISSUELESS_DROPS, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
 import { pauseFile, pausedReason } from './pause';
 import { repairClone } from './repair-clone';
 import { clearStuck } from './stuck';
@@ -43,6 +43,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   merge: { usage: 'merge N', help: 'put a card in the merge queue, past its post and hardening', build: ([n]) => ({ action: 'merge', issue: number(n) }) },
   ship: { usage: 'ship', help: 'ship the open release now', build: () => ({ action: 'ship' }) },
   cut: { usage: 'cut', help: 'cut a release now', build: () => ({ action: 'cut' }) },
+  'sync-dev': { usage: 'sync-dev', help: "merge GitHub's dev into the open release, an exception a committee member orders, never hermes. It keeps the release's own commits, pushes only the release, drops the candidate post and a queued ship, and the playtest and candidate run again on the new head", build: () => ({ action: 'sync-dev' }) },
   remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
@@ -80,7 +81,7 @@ function target(value: string | undefined): MoveTarget {
 
 function dropAction(queue: string | undefined, id: string | undefined): ControlAction {
   if (!DROP_QUEUES.includes(queue as DropQueue)) throw new Error(`Unknown queue "${queue}". Use one of ${DROP_QUEUES.join(', ')}.`);
-  return { action: 'drop', queue: queue as DropQueue, id: queue === 'ship' && id === undefined ? null : number(id) };
+  return { action: 'drop', queue: queue as DropQueue, id: ISSUELESS_DROPS.includes(queue as DropQueue) && id === undefined ? null : number(id) };
 }
 
 function takeFlag(args: string[], name: string): { value: string; rest: string[] } {
@@ -201,8 +202,13 @@ function queues(ctx: Ctx): void {
   console.log(`approval: ${approvals.join(', ') || 'none'}`);
   console.log(`removal: ${removals.join(', ') || 'none'}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
+  console.log(`sync: ${syncOrder(state.pendingSync)}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
   console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+}
+
+function syncOrder(order: FactoryState['pendingSync']): string {
+  return order === null ? 'none' : `by ${order.by}: ${order.reason}`;
 }
 
 function release(ctx: Ctx): void {
@@ -214,7 +220,11 @@ function release(ctx: Ctx): void {
   console.log(`candidate post: ${candidatePost(state.release)}`);
   console.log(`removed: ${state.release.removed.map((issue) => `#${issue}`).join(', ') || 'none'}`);
   console.log(`recorded tasks: ${state.release.tasks.map((issue) => `#${issue}`).join(', ') || 'none'}`);
-  for (const line of playtestLines(state.release.playtest, ctx.cfg.playtestRuns)) console.log(line);
+  for (const line of [...syncLines(state.release), ...playtestLines(state.release.playtest, ctx.cfg.playtestRuns)]) console.log(line);
+}
+
+function syncLines(release: ReleaseState): string[] {
+  return (release.syncs ?? []).map((sync) => `dev sync: dev ${sync.dev} entered at ${sync.head} on ${sync.at} by ${sync.by}: ${sync.reason}`);
 }
 
 function publicPost(post: ReleasePost | null): string {
