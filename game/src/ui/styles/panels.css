@@ -312,10 +312,11 @@
     gap: var(--space-4);
   }
   #ui .info-draw {
-    flex: 0 1 auto;
+    flex: 1 1 0;
   }
   #ui .info-column {
-    flex: 1 0 var(--info-lists-height);
+    flex: 0 1 auto;
+    min-height: var(--info-lists-height);
   }
   #ui .hitcard {
     flex-direction: row;

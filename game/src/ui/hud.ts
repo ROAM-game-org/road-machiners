@@ -157,6 +157,7 @@ export class Hud {
     this.info.append(this.infoBody);
     this.contracts.style.display = "none";
     new ResizeObserver(this.placeInfo).observe(rightDock());
+    new ResizeObserver(() => this.inspected.fitTo(this.inspectedDraw)).observe(this.inspectedDraw);
     window.addEventListener("resize", this.placeInfo);
     this.toastBox.style.display = "none";
     this.rescue.style.display = "none";
