@@ -143,12 +143,6 @@ function stockLabel(verb: 'search' | 'loot' | 'empty', stock: SalvageStock): Msg
   return t(`stock.${verb}.site`, { site: siteName(stock.id) });
 }
 
-function getConditionIcon(def: ReturnType<typeof partDef>): IconName {
-  if (def.kind === "core") return def.role === "tank" ? "fuel" : def.role;
-  if (def.kind === "weapon") return def.look;
-  if (def.kind === "armor") return "armor";
-  return "engine" as const;
-}
 
 function getConditionState(ratio: number): string {
   if (ratio <= 0.25) return "critical";
@@ -182,7 +176,6 @@ export class TruckConditionReadout {
         return {
           id: item.part.id,
           name: partName(def.id),
-          icon: getConditionIcon(def),
           defId: def.id,
           x: item.x,
           y: item.y,

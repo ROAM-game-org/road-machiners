@@ -4,7 +4,7 @@ import { groundPoint, type VehicleFrame } from '../../phys/frames';
 import type { World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { el } from '../../ui/dom';
-import { createIcon } from '../../ui/cards';
+import { createBareItemIcon } from '../../ui/cards';
 import type { JobMark, VehicleMark, WeaponMark } from '../../ui/weapons';
 import { playerExplored } from '../../sim/vision';
 import type { CameraRig } from './camera';
@@ -88,7 +88,7 @@ export class Labels {
 
 function weaponChip(mark: WeaponMark): HTMLElement {
   return el('div', { class: `marker-weapon ${mark.ready ? 'ready' : 'blocked'}`, title: mark.status },
-    createIcon(mark.look),
+    createBareItemIcon(mark.defId),
     el('span', { class: 'marker-slot' }, num(mark.slot, 'int')),
     el('span', { class: 'marker-status' }, mark.status),
   );
