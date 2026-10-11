@@ -86,7 +86,7 @@ export const HIGHWAY = {
     badlands: 26,
     flatTo: 15,
     blend: 7,
-    ridge: { rise: 3, run: 4 },
+    ridge: { rise: 4, run: 1.5 },
     bend: { ends: 60, cells: 2, shift: [16, 36] as [number, number], straightChance: 0.2, maxHeading: 35 },
     profile: { amplitude: 1.5, wavelength: 300, seedOffset: 103 },
     sample: 2,
