@@ -52,7 +52,6 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/three/main.ts', text: 'building the ground', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'waiting for physics, models and sounds', reason: CRASH_REPORT },
   { file: 'src/three/main.ts', text: 'starting the game', reason: CRASH_REPORT },
-  { file: 'src/ui/truck-condition-view.ts', text: '*', reason: 'CSS color expressions for the condition cells, with no words in them.' },
   { file: 'src/ui/units.ts', text: '.innerHTML =', reason: SVG },
   { file: 'src/three/webgl.ts', text: 'Firefox/', reason: 'A token tested in the browser user agent string, never shown.' },
   { file: 'src/three/icons/page.ts', text: '*', reason: 'icons.html is a dev page for checking the icon sheets. It stays English.' },

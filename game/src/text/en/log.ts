@@ -185,7 +185,7 @@ export const LOG = {
   'contract.ready': 'Ready',
   'contract.window': m('{h} h', { h: 'int' }),
   'contract.due': m('by {when}', { when: 'text' }),
-  'clock.day': m('Day {day}', { day: 'int' }),
+  'clock.day': 'Day',
   'clock.full': m('Day {day} {time}', { day: 'int', time: 'text' }),
   'goods.good': 'Good',
   'goods.theirs': 'Theirs',

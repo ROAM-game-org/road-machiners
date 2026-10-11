@@ -20,7 +20,7 @@ import type { VehicleView } from './vehicle';
 
 const S = PHYSICS.metersPerTile;
 
-export type TurnClock = { before: World | null; progress: number; moved: boolean };
+export type TurnClock = { before: World | null; progress: number; moved: boolean; hookedLines: ReadonlySet<string> };
 
 export class HazardViews {
   private readonly smoke = new SmokeCloudsView();
@@ -40,7 +40,7 @@ export class HazardViews {
     this.smoke.update(world, terrain, views, nowMs, clock, cutawayOf(world, views, camera));
     this.fields.update(world, terrain, clock, nowMs);
     this.flares.update(world, terrain, views, nowMs, clock);
-    const fresh = clock === null ? NO_IDS : new Set(world.lines.filter((l) => madeThisTurn(clock, 'lines', l.id)).map((l) => l.id));
+    const fresh = clock === null ? NO_IDS : new Set(world.lines.filter((l) => madeThisTurn(clock, 'lines', l.id) && !clock.hookedLines.has(l.id)).map((l) => l.id));
     this.lines.update(world, views, nowMs, { fresh, playing: turnClock !== null });
     this.pulses.update(world, terrain, views, nowMs, clock);
   }
@@ -56,7 +56,7 @@ export class HazardViews {
       this.played = clock.before ? { before: clock.before, turn: world.turn } : null;
       return clock;
     }
-    return this.played && this.played.turn === world.turn ? { before: this.played.before, progress: 1, moved: true } : null;
+    return this.played && this.played.turn === world.turn ? { before: this.played.before, progress: 1, moved: true, hookedLines: NO_IDS } : null;
   }
 }
 

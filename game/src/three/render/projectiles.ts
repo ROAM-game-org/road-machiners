@@ -214,7 +214,6 @@ class ProjectileKit {
 export class Projectiles {
   private kit = new ProjectileKit();
   private flights: Flight[] = [];
-  private held: Rope[] = [];
   private reels: Reel[] = [];
   private at = new THREE.Vector3();
   private ahead = new THREE.Vector3();
@@ -245,11 +244,6 @@ export class Projectiles {
     });
   }
 
-  releaseRopes(): void {
-    for (const rope of this.held) this.scene.remove(rope.root);
-    this.held = [];
-  }
-
   tick(dt: number): void {
     for (let i = this.flights.length - 1; i >= 0; i--) {
       const f = this.flights[i];
@@ -271,9 +265,9 @@ export class Projectiles {
 
   private landRope(f: Flight): void {
     if (!f.rope) return;
+    if (f.struck) return void this.scene.remove(f.rope.root);
     f.rope.set(f.from, f.to, f.from.distanceTo(f.to), f.ground);
-    if (f.struck) this.held.push(f.rope);
-    else this.reels.push({ rope: f.rope, from: f.from, to: f.to, age: 0, ground: f.ground });
+    this.reels.push({ rope: f.rope, from: f.from, to: f.to, age: 0, ground: f.ground });
   }
 
   private reel(dt: number): void {

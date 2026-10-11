@@ -48,7 +48,7 @@ import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
 import { addScatter } from "./render/scatter";
 import { FogView } from "./render/fog";
 import { Fx3D, TruckFx } from "./render/fx";
-import { aimedTarget, CollisionCues, collisionSteps, freshSmokeOf, gunfireSeen, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, utilitySeen, volleySeen, type CombatHost } from "./volley";
+import { aimedTarget, CollisionCues, collisionSteps, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, utilitySeen, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
 import { CraterViews } from "./render/craters";
@@ -760,7 +760,6 @@ export class Game {
 
   private finishPlayback(): void {
     this.anim = null;
-    this.fx.releaseRopes();
     this.crashCues = null;
     this.breakCues = new BreakCues([]);
     this.phase = null;
@@ -857,7 +856,7 @@ export class Game {
   private combatHost(startMs = 0): CombatHost {
     const frames = this.anim?.result.frames ?? {};
     const poses = posesOf(this.world, frames, { moveMs: MOVE_MS, stepMs: stepMs(1), gunHeight: GUN_HEIGHT }, (v) => this.canShowCombatVehicle(v));
-    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.views, breakPart: (b) => this.playBreak(b), poses, startMs, freshSmoke: freshSmokeOf(this.world, this.anim?.before ?? null) };
+    return { world: this.world, fx: this.fx, sound: this.sound, eventPoint: (id) => this.eventPoint(id), onBurst: (p) => this.craters.reveal(p), views: this.views, breakPart: (b) => this.playBreak(b), poses, startMs, lineHooked: (shooter, weapon) => hookLine(this.world, this.anim, shooter, weapon) };
   }
 
   private playBreak(b: PartBreak): void {
@@ -974,7 +973,7 @@ export class Game {
 
   private turnClock(): TurnClock | null {
     const a = this.anim;
-    return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved } : null;
+    return a ? { before: a.before, progress: Math.min(1, a.elapsed / MOVE_MS), moved: a.moved, hookedLines: a.hookedLines } : null;
   }
 
   private animStep(now: number, speed: number): number | null {

@@ -1,31 +1,59 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: var(--dial-size) auto;
+  grid-template-columns: var(--dial-size) repeat(4, auto);
   column-gap: var(--space-3);
   row-gap: var(--space-2);
   background: var(--surface-raised);
   border-top: 2px solid var(--line-bright);
 }
 .instrument-clock {
-  grid-column: 1 / -1;
-  justify-self: stretch;
+  grid-column: 1 / 3;
+  grid-row: 1;
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
-  padding: 1px var(--space-3);
+  padding: var(--space-1) var(--space-3);
   background: var(--lcd);
   color: var(--lcd-ink);
-  border: 1px solid var(--surface-sunk);
+  border: 2px solid var(--steel-0);
   border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 var(--shade);
-  font: var(--text-dense) var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
+  box-shadow: inset 0 2px 4px var(--bevel-dark);
   white-space: nowrap;
+}
+.clock-day {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.clock-label {
+  font: bold var(--text-dense) var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.clock-digits {
+  display: inline-grid;
+  justify-items: end;
+  font: italic bold var(--text-lead) / 1 var(--font-lcd);
+}
+.clock-digits::before,
+.clock-digits > * {
+  grid-area: 1 / 1;
+}
+.clock-digits::before {
+  color: var(--lcd-ink-faint);
+}
+.day-digits::before {
+  content: "88";
+}
+.time-digits::before {
+  content: "88:88";
 }
 
 .speedometer {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -64,9 +92,11 @@
   padding: 1px 0;
 }
 .readouts {
+  grid-column: 2 / -1;
+  grid-row: 2;
   display: grid;
-  grid-template-columns: repeat(4, auto);
-  gap: var(--space-2);
+  grid-template-columns: subgrid;
+  row-gap: var(--space-2);
   align-content: center;
   align-items: stretch;
 }
@@ -79,9 +109,9 @@
   padding: 1px var(--space-3);
   background: var(--lcd);
   color: var(--lcd-ink);
-  border: 1px solid var(--surface-sunk);
+  border: 2px solid var(--steel-0);
   border-radius: var(--radius-s);
-  box-shadow: inset 0 1px 0 var(--shade);
+  box-shadow: inset 0 2px 4px var(--bevel-dark);
   font: var(--text-dense) var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

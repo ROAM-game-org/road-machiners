@@ -52,8 +52,8 @@ function heatwave(outcome: 'started' | 'ended'): GameEvent {
   return { t: 'weather', event: { id: 'wx1', kind: 'heatwave', turnsLeft: 50 }, outcome } as GameEvent;
 }
 
-function storm(pos: { x: number; y: number }, vel = { x: 1, y: 0 }): GameEvent {
-  return { t: 'weather', event: { id: 'wx2', kind: 'storm', pos, vel, radius: 20, turnsLeft: 50 }, outcome: 'started' } as GameEvent;
+function storm(pos: { x: number; y: number }, vel = { x: 1, y: 0 }, outcome: 'started' | 'ended' = 'started'): GameEvent {
+  return { t: 'weather', event: { id: 'wx2', kind: 'storm', pos, vel, radius: 20, turnsLeft: 50 }, outcome } as GameEvent;
 }
 
 function drain(s: RadioStation, w: World): Broadcast | null {
@@ -89,6 +89,16 @@ describe('RadioStation', () => {
     expect(text).not.toContain('Granary');
     expect(DIRECTIONS.some((d) => text.includes(en(t(`radio.basin.${d}`))))).toBe(true);
     expect(text).toContain('heading north');
+  });
+
+  it('names the place where a storm ends', () => {
+    const granary = site('granary');
+    const w = world(10, ['granary']);
+    const s = tuned(w);
+    s.hear(later(w, RADIO.minGapTurns, [storm({ x: granary.pos.x + 5, y: granary.pos.y }, { x: 1, y: 0 }, 'ended')]));
+    const b = s.next()!;
+    expect(b.topic).toBe('stormEnd');
+    expect(en(b.text)).toContain('near The Granary');
   });
 
   it('never announces a board that was full when it tuned in', () => {

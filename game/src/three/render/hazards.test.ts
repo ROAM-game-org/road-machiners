@@ -42,7 +42,7 @@ function droveEast(world: World): Vehicle {
   return me;
 }
 
-const clock = (before: World, progress: number, moved = false) => ({ before, progress, moved });
+const clock = (before: World, progress: number, moved = false, hookedLines: ReadonlySet<string> = new Set()) => ({ before, progress, moved, hookedLines });
 
 describe('fieldShown', () => {
   it('shows a caltrop field once the dropper has passed it by half its length and the field radius', () => {

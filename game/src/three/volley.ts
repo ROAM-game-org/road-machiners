@@ -18,7 +18,6 @@ import { viewOf, type VehicleView } from "./render/vehicle";
 import type { SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
-import { smokeCrosses } from "../sim/hazards";
 import { bodyOf } from "../sim/body";
 
 export type VolleyHost = {
@@ -45,6 +44,7 @@ export function playVolley(
   weapon: string,
   rows: Map<string, number>,
   dry: boolean,
+  hooked: (() => void) | null,
 ): VolleyLands {
   const rounds = event.rounds;
   const spec = projectileOf(weapon);
@@ -62,6 +62,7 @@ export function playVolley(
         landSound(host, plan, rounds[k], sounds.struck);
         if (empties) host.sound.at("gun-empty", muzzle().pos, 0);
         if (burst) host.onBurst(burst);
+        if (hooked && plan.impact === "truck") hooked();
         for (const brk of breaks.ofRound(event, k)) host.breakPart(brk);
       },
     };
@@ -87,7 +88,7 @@ function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, row
   host.fx.label(() => host.eventPoint(vehicleId), label, PAL.damageText, row, atMs, CONFIG.combatReadMs);
 }
 
-export type CombatHost = VolleyHost & { views: Map<string, VehicleView>; freshSmoke: (a: Vec, b: Vec) => boolean };
+export type CombatHost = VolleyHost & { views: Map<string, VehicleView>; lineHooked: (shooter: string, weapon: string) => void };
 
 export function playCrashes(host: CombatHost, cues: CollisionCues | null, step: number | null): void {
   for (const e of cues?.due(step) ?? []) {
@@ -223,28 +224,27 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const view = host.views.get(e.shooter);
   const spec = projectileOf(part.defId);
   const gun: Gun = { spec, rangeM: weaponRange(part.defId) * PHYSICS.metersPerTile, blastRadius: blastRadiusOf(part.defId), covers: (heading, yaw) => view?.covers(e.weapon, heading, yaw) ?? false };
-  const late = lateRounds(host, e, breaks, spec.rope === true || host.freshSmoke(shooter.pos, target.pos));
   const half = bodyOf(target.chassisId).half;
-  const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late, missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
+  const shot: Shot = { shooter: e.shooter, target: e.target, rounds: e.rounds, late: killingRounds(w, e), missAt: missAt(w, shooter.pos, target.pos), targetHalf: { length: half.x, width: half.z } };
   const ground = (p: V3) => groundPoint(w.terrain, toMap(p)).y;
   const plans = planShot(host.poses, shot, gun, ground, Math.random);
   const dry = w.events.some((x) => x.t === "empty" && x.vehicle === e.shooter && x.weapon === e.weapon);
-  return playVolley(host, plans, () => viewOf(host.views, e.shooter).muzzle(e.weapon), e, breaks, part.defId, rows, dry);
+  const hooked = spec.rope ? () => host.lineHooked(e.shooter, e.weapon) : null;
+  return playVolley(host, plans, () => viewOf(host.views, e.shooter).muzzle(e.weapon), e, breaks, part.defId, rows, dry, hooked);
 }
 
-function lateRounds(host: CombatHost, e: ShotLike, breaks: BreakCues, wholeShot: boolean): (k: number) => boolean {
-  const gone = new Set(host.world.events.flatMap((x) => (x.t === "destroyed" ? [x.vehicle] : [])));
-  return (k) => wholeShot || placedAtEnd(e.rounds[k], e.target, gone) || breaks.breaksOn(e, k);
+function killingRounds(w: World, e: ShotLike): (k: number) => boolean {
+  const gone = w.events.flatMap((x) => (x.t === "destroyed" ? [x.vehicle] : []));
+  const killers = new Set(gone.map((v) => e.rounds.map((r) => damages(r, v)).lastIndexOf(true)));
+  return (k) => killers.has(k);
 }
 
-function placedAtEnd(r: ShotRound, target: string, gone: ReadonlySet<string>): boolean {
-  if (r.burst !== null || r.blast.length > 0) return true;
-  return r.struck !== null && (r.struck !== target || gone.has(r.struck));
-}
+const damages = (r: ShotRound, vehicle: string): boolean => r.struck === vehicle || r.blast.some((b) => b.vehicle === vehicle);
 
-export function freshSmokeOf(world: World, before: World | null): (a: Vec, b: Vec) => boolean {
-  const fresh = () => (before ? world.smoke.filter((c) => !before.smoke.some((o) => o.id === c.id)) : []);
-  return (a, b) => smokeCrosses({ ...world, smoke: fresh() }, a, b);
+export function hookLine(world: World, playing: { before: World; hookedLines: Set<string> } | null, shooter: string, weapon: string): void {
+  if (!playing) throw new Error(`Harpoon of ${shooter} hooked with no turn playing`);
+  const line = world.lines.find((l) => l.from === shooter && l.fromPart === weapon && !playing.before.lines.some((o) => o.id === l.id));
+  if (line) playing.hookedLines.add(line.id);
 }
 
 export function shotAimsOf(events: readonly GameEvent[]): Map<string, string> {
@@ -422,11 +422,23 @@ function movingRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, step:
   const aimed = poses.at(shot.target, step)!;
   const landStep = step + Math.round(flightMsOf(gun.spec, a, aimed) / poses.stepMs);
   const b = poses.at(shot.target, landStep) ?? poses.end(shot.target) ?? aimed;
-  const struck = r.struck === shot.target;
   const offset = offsetThen(poses, shot, r, a, b, poses.headingAt(shot.target, landStep));
-  const land = struck ? hitPoint(a, b, offset, random) : pastMiss(a, b, offset, ground, random);
-  const delayMs = step * poses.stepMs + pellet * gun.spec.gapMs;
-  return { land, impact: struck ? "truck" : "ground", delayMs, flightMs: flightMsOf(gun.spec, a, land), struckAt: struck ? b : null };
+  const { land, impact, struckAt } = movingLand(poses, shot, r, { a, b, landStep, offset }, ground, random);
+  return { land, impact, delayMs: step * poses.stepMs + pellet * gun.spec.gapMs, flightMs: flightMsOf(gun.spec, a, land), struckAt };
+}
+
+type Flightline = { a: V3; b: V3; landStep: number; offset: number };
+
+function movingLand(poses: TurnPoses, shot: Shot, r: ShotRound, f: Flightline, ground: Ground, random: () => number): Pick<PlannedRound, "land" | "impact" | "struckAt"> {
+  if (r.struck === shot.target) return { land: hitPoint(f.a, f.b, f.offset, random), impact: "truck", struckAt: f.b };
+  if (r.burst !== null) return { land: shot.missAt(r.offset), impact: "ground", struckAt: null };
+  const stray = strayPose(poses, r.struck, f.landStep);
+  if (stray) return { land: hitPoint(f.a, stray, 0, random), impact: "truck", struckAt: stray };
+  return { land: pastMiss(f.a, f.b, f.offset, ground, random), impact: r.struck === null ? "ground" : "none", struckAt: null };
+}
+
+function strayPose(poses: TurnPoses, struck: string | null, landStep: number): V3 | null {
+  return struck === null ? null : (poses.at(struck, landStep) ?? poses.end(struck));
 }
 
 function lateRound(poses: TurnPoses, shot: Shot, gun: Gun, r: ShotRound, k: number, valid: number[], ground: Ground, random: () => number): PlannedRound {

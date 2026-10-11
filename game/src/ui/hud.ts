@@ -458,7 +458,10 @@ export class Hud {
 
   private renderClock(clock: ReturnType<typeof getHudReadout>["clock"]): void {
     bindAttr(this.clockSlot, "aria-label", t("hud.clockLabel", { when: clock.full }));
-    this.clockSlot.replaceChildren(el("span", { class: "clock-day" }, clock.day), el("span", { class: "clock-time" }, clock.time));
+    this.clockSlot.replaceChildren(
+      el("span", { class: "clock-day" }, el("span", { class: "clock-label" }, clock.dayLabel), el("span", { class: "clock-digits day-digits" }, el("span", {}, clock.day))),
+      el("span", { class: "clock-digits time-digits" }, el("span", {}, clock.time)),
+    );
   }
 
   private renderSpeedometer(readout: ReturnType<typeof getHudReadout>, busy: boolean): void {

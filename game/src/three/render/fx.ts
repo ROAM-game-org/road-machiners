@@ -181,10 +181,6 @@ export class Fx3D {
     this.projectiles.launch({ spec, muzzle, plan, onFire, onLand, ground });
   }
 
-  releaseRopes(): void {
-    this.projectiles.releaseRopes();
-  }
-
   private landing(plan: RoundPlan, blastRadius: number, big: boolean): void {
     if (blastRadius > 0) this.blast(plan.land, blastRadius);
     else this.impact(plan, big);

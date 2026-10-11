@@ -34,10 +34,6 @@ export class BreakCues {
     this.pending = breakRounds(events);
   }
 
-  breaksOn(owner: ShotLike, round: number): boolean {
-    return this.pending.some((b) => b.owner === owner && b.round === round);
-  }
-
   ofRound(owner: ShotLike, round: number): PartBreak[] {
     return this.take((b) => b.owner === owner && b.round === round);
   }
