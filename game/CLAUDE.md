@@ -29,6 +29,7 @@ Read the doc for an area before changing it.
 - [Writing dialogue](docs/dialogue-writing.md): how people talk, how the player talks back, and the voice sheets every speaker needs.
 - [Principles](docs/architecture/principles.md): the project's architecture principles every design answers to, like one rulebook for every truck, no hot full scans and same seed, same game.
 - [Art pipeline](docs/art.md): Blender models, the truck grid projection and part model rules.
+- [Quest art](docs/quest-art.md): the style prompt and post-process for quest pictures.
 - [Sound](docs/sound.md), [Publishing](docs/publishing.md), [Wiki](docs/wiki/README.md).
 
 ## Commands
