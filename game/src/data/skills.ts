@@ -147,6 +147,7 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
   climber: 'social',
   markov: null,
   runner: null,
+  sprinter: null,
 };
 
 export const TARGET_DAYS = {

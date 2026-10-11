@@ -54,7 +54,7 @@ export const FURY_ROAD = {
     { level: 'heavy', gear: LATE_GEAR },
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
-  danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, groupMax: 3, gearShare: 0.6, truckFloor: 20000 },
+  danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, truckFloorPercent: 60, groupMax: 3, gearShare: 0.3, truckFloor: 20000 },
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
     { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, gunwagon: 3, vulture: 2, merc: 2, bowlFarmer: 1 } },

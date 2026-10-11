@@ -4,7 +4,6 @@ import { enemyTrucks, expectedGear, gearMoneyOf } from '../fury-road-danger';
 import { bodyCondition } from '../npc-decisions';
 import { mountedParts } from '../grid';
 import type { GameEvent, Vehicle, WaveGroup, World } from '../types';
-import { partValue } from '../wear';
 
 export type KitLine = { chassis: string; guns: string[]; armor: number; gear: number };
 export type RunLine =
@@ -20,7 +19,7 @@ export function kitOf(v: Vehicle): KitLine {
     chassis: v.chassisId,
     guns: parts.filter((p) => partDef(p.defId).kind === 'weapon').map((p) => p.defId),
     armor: parts.filter((p) => partDef(p.defId).kind === 'armor').length,
-    gear: Math.round(parts.reduce((sum, p) => sum + partValue(p), 0) / 100),
+    gear: Math.round(parts.reduce((sum, p) => sum + partDef(p.defId).value, 0) / 100),
   };
 }
 

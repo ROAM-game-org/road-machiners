@@ -25,17 +25,21 @@ describe('Fury Road danger', () => {
     expect(gearMoneyOf(w, 1)).toBe(FURY_ROAD.danger.truckFloor);
     expect(enemyTrucks(w, 1)).toBe(1);
     expect(expectedGear(w, 2)).toBe(START_GEAR + FURY_ROAD.danger.gearShare * payOf(1, 1));
-    expect(gearMoneyOf(w, 3)).toBe(Math.round(expectedGear(w, 3) / 2));
+    expect(gearMoneyOf(w, 3)).toBe(Math.round(0.8 * expectedGear(w, 3)));
     expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([80, 90, 100]);
     expect(dangerPercent(withGrowth(2), 3)).toBe(120);
     expect(dangerPercent(withGrowth(0), 50)).toBe(80);
   });
 
-  it('adds a truck each time the danger passes another truck share', () => {
+  it('adds a truck only once every truck still gets at least the truck floor share of the expected gear', () => {
     const w = withGrowth(1);
 
-    expect([1, 2, 9, 10, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 2, 2, 3, 3, 4]);
+    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 2, 2, 3, 3, 4]);
     expect(STRETCHES.every((j) => enemyTrucks(withGrowth(0), j) === 1)).toBe(true);
+    for (const growth of GROWTHS) {
+      const g = withGrowth(growth);
+      for (const j of STRETCHES) if (enemyTrucks(g, j) > 1) expect(dangerPercent(g, j) / enemyTrucks(g, j)).toBeGreaterThanOrEqual(FURY_ROAD.danger.truckFloorPercent);
+    }
   });
 
   it('builds every template of every pool tier at the floor money, with a gun on stretch 1', () => {

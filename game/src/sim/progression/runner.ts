@@ -30,19 +30,19 @@ const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 
-export function runnerOrders(world: World): BotTurn {
+export function runnerOrders(world: World, fights: boolean): BotTurn {
   const o = new Orders(world);
-  if (playerCanAct(o.world)) run(o);
+  if (playerCanAct(o.world)) run(o, fights);
   return { world: o.world, events: o.events, ledger: o.ledger, notes: o.notes };
 }
 
-function run(o: Orders): void {
+function run(o: Orders, fights: boolean): void {
   keepSwitches(o);
   if (o.me.job) return;
   const post = reachedOutpostAt(o.world);
   if (post) restock(o, post);
   if (canWaitForRoad(o.world)) o.run(waitForRoad);
-  if (!handleStranded(o)) drive(o);
+  if (!handleStranded(o)) drive(o, fights);
 }
 
 function handleStranded(o: Orders): boolean {
@@ -66,8 +66,8 @@ function keepSwitches(o: Orders): void {
   if (foe) aimGuns(o, foe);
 }
 
-function drive(o: Orders): void {
-  const foe = nearestFoe(o.world, o.me);
+function drive(o: Orders, fights: boolean): void {
+  const foe = fights ? nearestFoe(o.world, o.me) : null;
   const next = nextOutpost(o.world);
   if (foe && inCombat(o.world, o.me)) order(o, fighterOrder(o.world, o.me, foe));
   else if (next) hopToward(o, next.pad);

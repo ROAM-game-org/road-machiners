@@ -20,7 +20,8 @@ export function dangerPercent(world: World, j: number): number {
 }
 
 export function enemyTrucks(world: World, j: number): number {
-  return Math.ceil(dangerPercent(world, j) / DANGER.truckPercent);
+  const danger = dangerPercent(world, j);
+  return Math.max(1, Math.min(Math.ceil(danger / DANGER.truckPercent), Math.floor(danger / DANGER.truckFloorPercent)));
 }
 
 export function groupSizes(trucks: number): number[] {
@@ -38,8 +39,8 @@ export function expectedGear(world: World, j: number): number {
 }
 
 export function gearMoneyOf(world: World, j: number): number {
-  const share = Math.round(((dangerPercent(world, j) / 100) * expectedGear(world, j)) / enemyTrucks(world, j));
-  return Math.max(DANGER.truckFloor, share);
+  const percent = Math.min(dangerPercent(world, j) / enemyTrucks(world, j), DANGER.truckPercent);
+  return Math.max(DANGER.truckFloor, Math.round((percent / 100) * expectedGear(world, j)));
 }
 
 function startGear(): number {

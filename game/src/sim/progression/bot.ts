@@ -44,11 +44,12 @@ import { reachedOutpostAt } from '../fury-road';
 import { runnerOrders } from './runner';
 import { BIGGEST_PART_CELLS, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'runner';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'runner'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'runner' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'runner', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
-type Goal = Exclude<Policy, 'markov' | 'climber' | 'runner'>;
+type RoadPolicy = 'runner' | 'sprinter';
+type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy>;
 
 const CLIMB_GUNS = 3;
 const GOALS_PLAYED: readonly Goal[] = ['trader', 'scavenger', 'hunter', 'fastTrader'];
@@ -90,10 +91,11 @@ export function isArchetype(value: string): value is Archetype {
 }
 
 export function botOrders(world: World, archetype: Policy, options: BotOptions = {}): BotTurn {
-  return archetype === 'runner' ? runnerOrders(world) : policyOrders(world, archetype, options);
+  if (archetype === 'runner' || archetype === 'sprinter') return runnerOrders(world, archetype === 'runner');
+  return policyOrders(world, archetype, options);
 }
 
-function policyOrders(world: World, archetype: Exclude<Policy, 'runner'>, options: BotOptions): BotTurn {
+function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, options: BotOptions): BotTurn {
   const o = new Orders(world);
   const goal = goalOf(world, archetype, options);
   o.fieldRepair = goal === 'hunter';
@@ -133,7 +135,7 @@ function climberGoal(world: World): Goal {
   return vehicleStats(world, playerVehicle(world)).weapons.length >= CLIMB_GUNS ? 'hunter' : 'trader';
 }
 
-function goalOf(world: World, archetype: Exclude<Policy, 'runner'>, options: BotOptions): Goal {
+function goalOf(world: World, archetype: Exclude<Policy, RoadPolicy>, options: BotOptions): Goal {
   if (archetype === 'climber') return climberGoal(world);
   if (archetype !== 'markov') return archetype;
   const { markovTurns } = options;

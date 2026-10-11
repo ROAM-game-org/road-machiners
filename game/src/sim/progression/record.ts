@@ -104,8 +104,8 @@ function dayEnds(before: World, after: World, last: boolean): boolean {
   return last || clockOf(after.turn).day > clockOf(before.turn).day;
 }
 
-const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', runner: 'furyRoad' };
-const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { runner: 'furyRoad' };
+const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', runner: 'furyRoad', sprinter: 'furyRoad' };
+const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { runner: 'furyRoad', sprinter: 'furyRoad' };
 
 function modeOf(archetype: Archetype): GameModeId {
   return ARCHETYPE_MODES[archetype] ?? 'roaming';
