@@ -72,13 +72,13 @@ describe('resolve', () => {
   });
 
   it('puts a name in the case a sentence asks for, as written inside a sentence', () => {
-    expect(resolve(t('job.repair', { part: byId('part.mg') }), 'ru')).toBe('Ремонт пулемётной турели');
+    expect(resolve(t('job.repair', { part: byId('part.mg') }), 'ru')).toBe('Ремонт пулеметной турели');
     expect(resolve(t('job.repair', { part: byId('part.mg') }), 'en')).toBe('Repair MG turret');
   });
 
   it('capitalizes a name shown on its own or put in a sentence without a case', () => {
-    expect(resolve(byId('part.mg'), 'ru')).toBe('Пулемётная турель');
-    expect(resolve(t('log.partDamage', { part: byId('part.mg'), n: 3 }), 'ru')).toBe('Пулемётная турель: 3');
+    expect(resolve(byId('part.mg'), 'ru')).toBe('Пулеметная турель');
+    expect(resolve(t('log.partDamage', { part: byId('part.mg'), n: 3 }), 'ru')).toBe('Пулеметная турель: 3');
   });
 
   it('carries the case into a phrase and takes its gender from its last name', () => {
@@ -89,13 +89,13 @@ describe('resolve', () => {
     expect(resolve(t('log.patchDoneYou', { who: trader(driver('Boris', 'Morozov')) }), 'ru')).toBe('Вы починили торговца Бориса Морозова.');
     expect(resolve(t('log.patchDoneThem', { who: trader(driver('Vera', 'Morozov.f')) }), 'ru')).toBe('Торговец Вера Морозова починила ваш грузовик.');
     expect(resolve(t('log.patchDoneYou', { who: trader(driver('Ada', 'Kane.f')) }), 'ru')).toBe('Вы починили торговца Аду Кейн.');
-    expect(resolve(t('job.repair', { part: list([byId('part.mg'), byId('part.plates')]) }), 'ru')).toBe('Ремонт пулемётной турели, стальных листов');
+    expect(resolve(t('job.repair', { part: list([byId('part.mg'), byId('part.plates')]) }), 'ru')).toBe('Ремонт пулеметной турели, стальных листов');
   });
 
   it('agrees with the gender of a name, and a list of several is plural', () => {
     const fixedBy = (who: Msg) => resolve(t('log.patchDoneThem', { who }), 'ru');
-    expect(fixedBy(byId('part.mg'))).toBe('Пулемётная турель починила ваш грузовик.');
-    expect(fixedBy(list([byId('part.mg'), byId('part.plates')]))).toBe('Пулемётная турель, стальные листы починили ваш грузовик.');
+    expect(fixedBy(byId('part.mg'))).toBe('Пулеметная турель починила ваш грузовик.');
+    expect(fixedBy(list([byId('part.mg'), byId('part.plates')]))).toBe('Пулеметная турель, стальные листы починили ваш грузовик.');
   });
 
   it('says where a place is with its own preposition and ending', () => {

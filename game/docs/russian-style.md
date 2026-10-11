@@ -22,7 +22,7 @@ Translate what the line means where the player sees it, not its words. The key t
 1. No "label: value" lines unless the English is a label. A colon instead of a sentence is the main tell of machine text.
 2. Numbers sit inside the sentence, with the word in the right case. Write «Нужно 40 опыта, у вас 12», not «Нужно опыта: 40, у вас: 12».
 3. Never chop a word to fit. Use a standard abbreviation with a period, like «прочн.», «доп.», «шт.», «КПП», or pick a shorter word. A reader must recognize every short label without seeing the full word.
-4. Use active verbs and drop possessives Russian does not need. Write «Сначала остановите грузовик», not «Сначала остановите ваш грузовик». Avoid «является», «осуществить» and «был произведён».
+4. Use active verbs and drop possessives Russian does not need. Write «Сначала остановите грузовик», not «Сначала остановите ваш грузовик». Avoid «является», «осуществить» and «был произведен».
 5. Keep the register. UI and the log address the player as «вы». Drivers on the radio say «ты» to the player, even a gang speaking as «мы».
 6. Keep the subject's number and gender. An NPC status is about one driver: «Покинул пост», not «Покинули пост».
 7. Idioms carry meaning, not words. "You look dry" is about fuel, so «бак, смотрю, пустой», not «ты на мели», which means broke.
@@ -51,31 +51,31 @@ Bad, then good, with the reason.
 - `refusal.needsXp`: «Нужно опыта: {cost}, у вас: {have}» → «Нужно {cost} опыта, у вас {have}». A form, not a sentence.
 - `short.gun`, `short.arm`: «Орд», «Брн» → «Оруж.», «Броня». A chopped word nobody can read, and an abbreviation keeps its period.
 - `cond.rebuilt`: «чинено ×2» → «2 капремонта». Committee: ungrammatical and unclear as a status. It counts rebuilds after a breakdown, so it says that in a mechanic's word, with a plural.
-- `cond.pristine`: «новая» → «без износа». The word sits beside any part, and «новая» does not agree with «пулемёт» or «колесо». A condition word must be gender-free or take the part as a param.
+- `cond.pristine`: «новая» → «без износа». The word sits beside any part, and «новая» does not agree with «пулемет» or «колесо». A condition word must be gender-free or take the part as a param.
 - `cond.broken`, `cond.junk`: «сломана», «негодная» → «не работает», «лом». Same reason.
 - `item.mounted`: «Установлено» → «На креплении». It sat under «Боковые корзины» and agreed with nothing.
-- `part.flatbed`: «удлинённая платформа» → «удлинитель кузова». Committee: unnatural and wrong for the equipment. The part lengthens the cargo bed.
+- `part.flatbed`: «удлиненная платформа» → «удлинитель кузова». Committee: unnatural and wrong for the equipment. The part lengthens the cargo bed.
 - `part.cage`: «арматурная клетка» → «арматурный каркас». A welded frame around a truck is a «каркас».
 - `inv.patch`: «Ремонт {turns}х/{parts}зч» → «Ремонт: {turns} х., {parts} дет.». Made-up abbreviations.
 - `job.search`: «Обыск» → «Поиски». «Обыск» is a police search of a person or a house.
 - `goal.leftPost`: «Покинули пост» → «Покинул пост». The status is about one driver.
-- `goal.ranFromIt`: «Убежали от неё» → «Сбежал от него». Wrong number, and грузовик is masculine.
+- `goal.ranFromIt`: «Убежали от нее» → «Сбежал от него». Wrong number, and грузовик is masculine.
 - `goal.watchedRoad`: «Дорога осмотрена» → «Осмотрел дорогу». The other statuses are active, so this one is too.
-- `goal.finishedService`: «Обслужился» → «Прошёл обслуживание». Not a Russian word in this sense.
+- `goal.finishedService`: «Обслужился» → «Прошел обслуживание». Not a Russian word in this sense.
 - `goal.prowledRoad`: «Обрыскал дорогу» → «Прочесал дорогу». A made-up verb.
 - `log.scrapPatch`: «Вы латаете машину ломом, пока она снова не трогается с места» → «Вы латаете машину ломом, и она снова трогается с места». A calque of "until".
 - `inv.loadTitle`: «Масса против номинального груза» → «Масса и допустимая нагрузка». "Against" is not «против» here.
 - `trade.hint.flooded`: «завал» → «затоварено». The market term.
 - `radio.dawn.1`: «Утро, мальчики» → «Доброе утро, мужики». A DJ talking to drivers, not to children.
-- `line.itIsYours`: «Он ваш» → «Твоё». Radio speech says «ты».
-- `line.overMyWreck`: «Только через мой обломок» → «Сначала придётся меня разбить». The meaning, not a word-for-word pun.
+- `line.itIsYours`: «Он ваш» → «Твое». Radio speech says «ты».
+- `line.overMyWreck`: «Только через мой обломок» → «Сначала придется меня разбить». The meaning, not a word-for-word pun.
 - `opening.stranded`: «Вы очутились на мели» → «Вы застряли в незнакомых краях». «На мели» reads as broke.
 
 Good lines to match:
 
 - `log.weather.overcast.started`: «Небо затянуло», not «Началась облачность».
 - `state.revenge`: «Жаждет мести».
-- `line.findersKeepers`: «Кто нашёл, того и добыча».
+- `line.findersKeepers`: «Кто нашел, того и добыча».
 - `line.noTimeOut`: «Некогда. Отбой.»
 
 ## Glossary
@@ -136,6 +136,6 @@ Names:
 
 - People: Agnes Ondra is Агнес Ондра. Mirela is Мирела. Sergeant Kovac is сержант Ковач. Lena is Лена. Old Ibo is Старый Ибо. Ruben is Рубен. Hattie is Хэтти. Dag is Даг. Jory Baptiste is Джори Батист. Sefa Krol is Сефа Кроль. Corporal Bram Teller is капрал Брэм Теллер. Private Ilan Duvall is рядовой Илан Дюваль. Vance is Вэнс. Pell is Пелл. Sabine is Сабина. Bo Lindqvist is Бо Линдквист. Ines Abend is Инес Абенд. Mirela Duarte is Мирела Дуарте. Aurel Brede is Аурел Бреде. Pim Arslan is Пим Арслан. Commander Lind is командир Линд. Otto Brann is Отто Бранн. Tamsin Roe is Тэмсин Роу. The Steward is управляющий.
 - Places take their names from `site.*` in `src/text/ru/names.ts`: Bowl is Чаша, Nose is Нос, Pump Station is Насосная станция, Salvage Yard is Свалка, Granary is Элеватор, Burnt Convoy is Сгоревший конвой, Kiln is Обжиг, Scrapjaw is Ржавая Челюсть, Glass Flats is Стеклянная равнина and Fallen Sun is Павшее солнце.
-- Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращённые к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
-- Water: the dial is счётчик, a hose meter is водомер, the tanker is цистерна, a trough is жёлоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.
+- Groups and things: the Senate is Сенат. The Central Committee is Центральный комитет. The Farmers patrol is патруль Чаши, and a Farmer is фермер. Pierce is «Пирс». The Guidestar Guild is Гильдия Путеводной звезды. The Old Army is Старая армия. The Sunward are Обращенные к Солнцу. The old world is старый мир. Wagon Seven is фургон «Седьмой». Old Orchard is Старый сад. The pump book is насосная книга.
+- Water: the dial is счетчик, a hose meter is водомер, the tanker is цистерна, a trough is желоб, the lock house is шлюзовой дом and the well house is колодезная. The household is двор, and its steward is управляющий.
 - Guns: the pin is штифт, its broken stub is огрызок, the swivel mount is турель and its ring is кольцо. A hollow is лощина.
