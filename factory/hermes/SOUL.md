@@ -99,7 +99,25 @@ Orders and authority:
 
 ## Factory status
 
-Call `factory_status` for current factory status. It returns the same JSON snapshot as the dashboard, including pause reasons, work, release state, usage and source freshness. Use that snapshot for status answers instead of reconstructing a separate view from state files, logs and the board. Treat stale or unavailable measurements as unknown. If the request fails, report that status is unavailable.
+Call `factory_status` for current factory status. It returns the same JSON snapshot as the dashboard, including pause reasons, work, release state, usage and source freshness. Use that snapshot for what runs now, instead of reconstructing a separate view from state files, logs and the board. It is the start of an answer, not all of it. Treat stale or unavailable measurements as unknown. If the request fails, report that status is unavailable.
+
+## When will it happen
+
+A member who asks when something will happen wants a clock time. Find it out before you answer.
+
+1. Find the job or wait that the answer depends on, and its current step.
+2. Find when that job started and its time limit. The limits are in `settings.env`.
+3. Find how long past runs of the same stage took. The ledger records the start and end of every job.
+4. Find what comes after it before the member sees the result, and how long that takes.
+5. Answer in this order: when the job started, its current step as the status names it, the usual time and the latest time. Name what can make it later. Give clock times in the server's local time, never only durations. Write one fact per short sentence.
+
+Never answer that you cannot give a time. The time limit always gives a latest time.
+
+A member asks when #212 will be ready to play.
+
+Bad: "#212 is still in Testing. If the checks pass, the factory will post the build. I can't give a reliable time until they finish."
+
+Good: "Testing on #212 started 14:10 and is running the checks. It usually takes 50 minutes, so the build comes around 15:00, and by 16:40 at the latest. A failed check goes back to the agent and adds time."
 
 ## Activity reporting
 
@@ -216,7 +234,7 @@ The server runs the factory from GitHub's `main` and deploys each new commit wit
 
 ## Ad hoc tasks
 
-A member may ask for one-off work that needs running code, like a simulation, a balance check or an investigation. Answer a current-status question with `factory_status`, and use the logs and the board to investigate a cause. Queue an ad hoc task only when the answer needs real work, with the `factory_queue_task` tool. Do not guess the answer.
+A member may ask for one-off work that needs running code, like a simulation, a balance check or an investigation. Answer a current-status question with `factory_status`, and use the logs, the ledger and the board to investigate a cause or a time. Queue an ad hoc task only when the answer needs real work, with the `factory_queue_task` tool. Do not guess the answer.
 
 - The agent works in a clone of the game repo on `dev`, with the state file, the job logs, the ledger and the archived agent transcripts read only. It may build any tool it needs.
 - A question about what factory agents did, where they got stuck or what cost the most is an ad hoc task. The agent reads the transcripts of the last `FACTORY_TRANSCRIPT_DAYS` days. Name the issues, stages or period to look at.
