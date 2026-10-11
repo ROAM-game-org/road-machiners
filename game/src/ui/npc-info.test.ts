@@ -203,14 +203,15 @@ it('tells a tow offer from a running tow', () => {
   expect(formatNpcStates(w, npc).map(en)).toEqual(['Towing you']);
 });
 
-it('logs how a feud with the player ends', () => {
+it('keeps hostility and feud changes with the player out of the log', () => {
   const w = emptyWorld();
   const me = playerVehicle(w);
   const npc = addVehicle(w, 'scavengers', 'scout', [], { x: 32, y: 30 });
-  npc.brain = { ...npcBrain('scavenger', npc.pos, ['scavenger']), driver: 'Ada Holt' };
   const feud = addState(w, 'feud', npc.id, me.id, { kind: 'feud', robbery: true });
-  expect(lineEn(w, { t: 'stateEnded', state: feud, ending: 'expired' })).toEqual({ text: 'Scavenger Ada Holt gives up the feud with you.', cls: 'good' });
-  expect(lineEn(w, { t: 'stateEnded', state: feud, ending: 'fulfilled' })).toEqual({ text: 'Scavenger Ada Holt ends the feud: you are beaten.', cls: 'bad' });
+  const backedOff = addState(w, 'backedOff', npc.id, me.id, { kind: 'none' });
+  expect(eventText(w, { t: 'hostile', vehicle: npc.id, against: me.id })).toBeNull();
+  for (const ending of ['expired', 'fulfilled', 'broken'] as const) expect(eventText(w, { t: 'stateEnded', state: feud, ending })).toBeNull();
+  expect(eventText(w, { t: 'stateEnded', state: backedOff, ending: 'expired' })).toBeNull();
 });
 
 it('logs no state ending for tow states or states between NPCs', () => {
