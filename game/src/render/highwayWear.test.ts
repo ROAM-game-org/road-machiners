@@ -31,7 +31,7 @@ describe('highway wear', () => {
     for (const p of written.filter((_, k) => k % 97 === 0)) expect(nearLine(p.x, p.y)).toBeLessThanOrEqual(HALF + 2);
   });
 
-  it('draws faded lane marks, sand over the edge and patches or cracks', () => {
+  it('draws a faded center line, sand over the edge and patches or cracks', () => {
     const marks = written.filter((p) => wear[p.i] > 0).length;
     const sand = written.filter((p) => wear[p.i + 1] > 0).length;
     const patched = written.filter((p) => wear[p.i + 3] >= PATCH_UNIT).length;
@@ -42,12 +42,10 @@ describe('highway wear', () => {
     expect(patched).toBeGreaterThan(0);
   });
 
-  it('paints the yellow double line only at the center and white lines elsewhere', () => {
-    const yellow = written.filter((p) => (wear[p.i] & 15) > 0);
-    const white = written.filter((p) => wear[p.i] >> 4 > 0);
-    expect(yellow.length).toBeGreaterThan(0);
-    expect(white.length).toBeGreaterThan(0);
-    expect(Math.max(...yellow.map((p) => Math.abs(wear[p.i + 2] / 254 * HALF)))).toBeLessThan(1);
-    expect(Math.min(...white.map((p) => Math.abs(wear[p.i + 2] / 254 * HALF)))).toBeGreaterThan(1.5);
+  it('paints only the yellow double line, at the center', () => {
+    const marked = written.filter((p) => wear[p.i] > 0);
+    expect(marked.length).toBeGreaterThan(0);
+    expect(Math.max(...marked.map((p) => wear[p.i]))).toBeLessThanOrEqual(15);
+    expect(Math.max(...marked.map((p) => Math.abs(wear[p.i + 2] / 254 * HALF)))).toBeLessThan(1);
   });
 });

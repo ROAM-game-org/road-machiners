@@ -43,7 +43,6 @@ const GLASS_DUST_MIX = 0.35;
 const GLASS_BASE = mix(TERRAIN_TYPES.glass.color, PAL.sand[3], 0.07);
 const GLASS_DUST = mix(PAL.glass.top, 0xb9a47c, 0.6);
 const GLASS_SEAM_COLOR = mix(PAL.glass.top, 0xffffff, 0.45);
-const WEAR_WHITE = mix(PAL.sand[3], 0xffffff, 0.55);
 const WEAR_YELLOW = mix(0xd9a93a, PAL.sand[3], 0.2);
 const WEAR_TEAR_FROM = 0.92;
 const WEAR_GRAIN = 2;
@@ -114,7 +113,6 @@ function wearUniforms(mask: PaintCanvas, t: Terrain) {
   return {
     highwayWear: { value: texture },
     wearBaseLuma: { value: luma(new THREE.Color(PAL.road)) },
-    wearWhite: { value: new THREE.Color(WEAR_WHITE) },
     wearYellow: { value: new THREE.Color(WEAR_YELLOW) },
     wearSand: { value: new THREE.Color(PAL.desertSand) },
   };
@@ -162,19 +160,15 @@ uniform vec3 padMark;
 #ifdef HIGHWAY_WEAR
 uniform sampler2D highwayWear;
 uniform float wearBaseLuma;
-uniform vec3 wearWhite;
 uniform vec3 wearYellow;
 uniform vec3 wearSand;
 float wearHash(float a, float k) {
   return fract(a * 255.0 * k + 0.31);
 }
 vec3 wearPaint(vec3 color, vec4 wear, vec4 roadLook, float wander) {
-  float marks = floor(wear.r * 255.0 + 0.5);
-  float white = floor(marks / 16.0) / 15.0;
-  float yellow = (marks - floor(marks / 16.0) * 16.0) / 15.0;
+  float yellow = floor(wear.r * 255.0 + 0.5) / 15.0;
   float paintHash = wearHash(roadLook.a, 0.618034);
   vec3 paintShade = vec3(0.82 + 0.18 * wander);
-  if (white > 0.0 && paintHash <= white) color = wearWhite * paintShade;
   if (yellow > 0.0 && paintHash <= yellow) color = wearYellow * paintShade;
   return color;
 }

@@ -11,8 +11,7 @@ const SLOT = 28;
 const TONGUE_SLOT = 50;
 const LINE_HALF = 0.12;
 const CENTER_GAP = 0.32;
-const DASH_PERIOD = 8;
-const DASH_ON = 3;
+const CENTER_LINE_SALT = 12;
 const FADE_SCALE = 18;
 const FADE_FROM = 0.3;
 const FADE_TO = 0.75;
@@ -39,14 +38,12 @@ export const PATCH_DARK = 3;
 export const PATCH_LIGHT_RIM = 4;
 export const PATCH_LIGHT = 5;
 
-const DIVIDERS = [...ROAD.lanes.map((c) => c - ROAD.laneWidth / 2), ROAD.lanes[ROAD.lanes.length - 1] + ROAD.laneWidth / 2];
-const CENTER = DIVIDERS.findIndex((d) => d === 0);
 
 type WearField = Pick<PaintCanvas, 'size' | 'res' | 'from'>;
 type Patch = { s0: number; s1: number; t0: number; t1: number; light: boolean };
 type Crack = { s: number; t0: number; t1: number; phase: number };
 type Tongue = { s: number; width: number; depth: number; side: 1 | -1 };
-type Profile = { lines: Float32Array[]; reach: [Float32Array, Float32Array]; patches: Patch[][]; cracks: Crack[][] };
+type Profile = { line: Float32Array; reach: [Float32Array, Float32Array]; patches: Patch[][]; cracks: Crack[][] };
 type Segment = { a: Vec; dx: number; dy: number; length: number; from: number };
 type Spot = { s: number; t: number; dist: number };
 
@@ -110,30 +107,12 @@ function stampPixel(out: Uint8Array, i: number, spot: Spot, profile: Profile): v
 }
 
 function sampleAt(profile: Profile, s: number): number {
-  return Math.min(Math.max(Math.round(s / STEP), 0), profile.lines[0].length - 1);
+  return Math.min(Math.max(Math.round(s / STEP), 0), profile.line.length - 1);
 }
 
 function marksAt(spot: Spot, profile: Profile): number {
-  const k = sampleAt(profile, spot.s);
-  let white = 0;
-  let yellow = 0;
-  for (let d = 0; d < DIVIDERS.length; d++) {
-    const level = Math.round(profile.lines[d][k] * MARK_LEVELS) * lineCover(d, spot);
-    if (d === CENTER) yellow = Math.max(yellow, level);
-    else white = Math.max(white, level);
-  }
-  return white * (MARK_LEVELS + 1) + yellow;
-}
-
-function lineCover(d: number, spot: Spot): number {
-  const offset = Math.abs(DIVIDERS[d] - spot.t);
-  if (d === CENTER) return Math.abs(offset - CENTER_GAP) < LINE_HALF * 0.85 ? 1 : 0;
-  if (offset >= LINE_HALF) return 0;
-  return isEdge(d) || spot.s % DASH_PERIOD < DASH_ON ? 1 : 0;
-}
-
-function isEdge(d: number): boolean {
-  return d === 0 || d === DIVIDERS.length - 1;
+  if (Math.abs(Math.abs(spot.t) - CENTER_GAP) >= LINE_HALF * 0.85) return 0;
+  return Math.round(profile.line[sampleAt(profile, spot.s)] * MARK_LEVELS);
 }
 
 function sandAt(spot: Spot, profile: Profile): number {
@@ -173,7 +152,7 @@ function profileOf(seed: number, length: number): Profile {
   const count = Math.ceil(length / STEP) + 1;
   const tongues = tonguesOf(seed, length);
   return {
-    lines: DIVIDERS.map((_, d) => Float32Array.from({ length: count }, (__, i) => paintStrength(seed, d, i * STEP))),
+    line: Float32Array.from({ length: count }, (_, i) => paintStrength(seed, i * STEP)),
     reach: [1, -1].map((side) => Float32Array.from({ length: count }, (_, i) => reachAt(seed, side as 1 | -1, i * STEP, tongues))) as [Float32Array, Float32Array],
     patches: slots(length, SLOT).map((slot) => patchesOf(seed, slot)),
     cracks: slots(length, CRACK_SLOT).map((slot) => cracksOf(seed, slot)),
@@ -192,8 +171,8 @@ function smoothNoise(seed: number, key: number, x: number): number {
   return a + (hashRandom(seed, SALT, key, i + 1) - a) * k;
 }
 
-function paintStrength(seed: number, divider: number, s: number): number {
-  const n = smoothNoise(seed, 10 + divider, s / FADE_SCALE);
+function paintStrength(seed: number, s: number): number {
+  const n = smoothNoise(seed, CENTER_LINE_SALT, s / FADE_SCALE);
   const k = Math.min(Math.max((n - FADE_FROM) / (FADE_TO - FADE_FROM), 0), 1);
   return k * k * (3 - 2 * k);
 }
