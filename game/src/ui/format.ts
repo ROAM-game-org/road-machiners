@@ -399,17 +399,17 @@ function honkText(world: World, e: Extract<GameEvent, { t: 'honk' }>): LogLine {
   return line(v && playerSees(world, v.pos) ? t('log.honksBack', { who: vehicleTitle(world, v) }) : t('log.hornUnseen'), '');
 }
 
-function patchText(world: World, e: Extract<GameEvent, { t: 'patch' }>): LogLine {
+function patchText(world: World, e: Extract<GameEvent, { t: 'patch' }>): LogLine | null {
+  if (e.outcome === 'lapsed') return null;
   const me = world.player.vehicleId;
   const other = vehicleName(world, e.patcher === me ? e.client : e.patcher);
   const mine = e.patcher === me;
   const lines = {
     started: mine ? t('log.patchStartYou', { who: other }) : t('log.patchStartThem', { who: other }),
     done: mine ? t('log.patchDoneYou', { who: other }) : t('log.patchDoneThem', { who: other }),
-    lapsed: t('log.patchLapsed', { who: other }),
     broken: t('log.patchBroken', { who: other }),
   };
-  const cls = { started: '', done: 'good', lapsed: 'dim', broken: 'dim' }[e.outcome];
+  const cls = { started: '', done: 'good', broken: 'dim' }[e.outcome];
   return line(lines[e.outcome], cls);
 }
 

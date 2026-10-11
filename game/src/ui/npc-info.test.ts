@@ -212,6 +212,7 @@ it('keeps hostility and feud changes with the player out of the log', () => {
   expect(eventText(w, { t: 'hostile', vehicle: npc.id, against: me.id })).toBeNull();
   for (const ending of ['expired', 'fulfilled', 'broken'] as const) expect(eventText(w, { t: 'stateEnded', state: feud, ending })).toBeNull();
   expect(eventText(w, { t: 'stateEnded', state: backedOff, ending: 'expired' })).toBeNull();
+  expect(eventText(w, { t: 'patch', patcher: npc.id, client: me.id, outcome: 'lapsed' })).toBeNull();
 });
 
 it('logs no state ending for tow states or states between NPCs', () => {

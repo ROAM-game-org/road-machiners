@@ -119,7 +119,6 @@ export const LOG = {
   'log.patchStartThem': m('{who} starts patching your truck. Stay parked.', { who: 'text' }),
   'log.patchDoneYou': m('You patched {who}.', { who: 'text' }),
   'log.patchDoneThem': m('{who} patched your truck.', { who: 'text' }),
-  'log.patchLapsed': m('The patch with {who} is off: nobody worked on it.', { who: 'text' }),
   'log.patchBroken': m('The patch with {who} is off.', { who: 'text' }),
   'log.aidNothing': m('Nothing changed hands with {who}.', { who: 'text' }),
   'log.aidPaid': m('{goods} for {paid}', { goods: 'text', paid: 'text' }),
