@@ -10,9 +10,7 @@ export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
-  combatShotMs: 1000,
-  combatFireSpreadMs: 300,
-  combatBurstMaxMs: 450,
+  utilityBandMs: 1000,
   combatReadMs: 1100,
   playEaseMs: 350,
   fxFillScreens: 8,

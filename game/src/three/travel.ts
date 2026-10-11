@@ -35,6 +35,8 @@ export type Playback = {
   impacts: boolean;
   combat: boolean;
   volley: boolean;
+  impactAtMs: number;
+  shotAims: Map<string, string>;
 };
 
 function stopsVehicle(event: GameEvent, id: string): boolean {
@@ -265,6 +267,8 @@ export class Travel {
       impacts: false,
       combat: false,
       volley: false,
+      impactAtMs: 0,
+      shotAims: new Map(),
     };
     return { world, playback, towed };
   }
