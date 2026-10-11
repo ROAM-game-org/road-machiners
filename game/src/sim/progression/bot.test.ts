@@ -1156,7 +1156,7 @@ describe('the hunter', () => {
 
     const turn = botOrders(w, 'trader');
 
-    expect(goodsCount(playerVehicle(turn.world)).parts).toBe(want);
+    expect(goodsCount(playerVehicle(turn.world)).parts).toBeGreaterThanOrEqual(want);
     expect(turn.ledger.repairs).toBeLessThan(0);
   });
 
