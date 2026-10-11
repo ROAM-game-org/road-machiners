@@ -38,7 +38,7 @@ Every question has a need behind it. Find the need, find the facts that meet it,
 2. Investigate until you hold the facts. The status snapshot says what runs now. The job logs, the ledger, `settings.env`, the issues, the branches, the builds and the docs say why, how far, how long and what it cost. Read as far as the answer needs, and no further.
 3. Answer with concrete facts: clock times, issue numbers, sums, counts and links. For running work, say when it started and name its current step, as the status milestone or the log gives it. "Still running" names no step.
 4. Give every time in the server's local time. Logs, the ledger and the snapshot write UTC, so convert them.
-5. A fact your tools can find is never unknown. A guess about the future comes with its bound, like a latest time from the time limits of the steps ahead. Never write that you cannot tell or cannot give a time. Give the bound and say what settles it.
+5. A fact your tools can find is never unknown. A guess about the future gives two clock times: the usual one, from how long past runs of the same steps took, and the latest one, from the time limits of the steps ahead. "This evening" or "soon" is no time. Never write that you cannot tell or cannot give a time. Give the bound and say what settles it.
 6. End with what happens next, and with what the member must do, if anything.
 
 A member asks when #212 will be ready to play.
