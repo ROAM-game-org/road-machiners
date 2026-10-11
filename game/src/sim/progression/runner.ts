@@ -1,6 +1,7 @@
 import { ECONOMY } from '../../data/goods';
 import { partDef } from '../../data/parts';
 import { inCombat } from '../combat';
+import { isStranded } from '../stats';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, payOf, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
@@ -30,8 +31,21 @@ function run(o: Orders): void {
   const post = reachedOutpostAt(o.world);
   if (post) restock(o, post);
   if (canWaitForRoad(o.world)) o.run(waitForRoad);
-  if (canAbandonRun(o.world) && !canPatchOn(o.world, o.me)) return o.run(abandonRun);
-  drive(o);
+  if (!handleStranded(o)) drive(o);
+}
+
+function handleStranded(o: Orders): boolean {
+  if (canAbandonRun(o.world) && !canPatchOn(o.world, o.me)) {
+    o.run(abandonRun);
+    return true;
+  }
+  if (!isStranded(o.world, o.me) || inCombat(o.world, o.me)) return false;
+  park(o);
+  return true;
+}
+
+function park(o: Orders): void {
+  if (o.me.order?.kind !== 'brake') o.run((w) => setMoveOrder(w, { kind: 'brake' }));
 }
 
 function keepSwitches(o: Orders): void {

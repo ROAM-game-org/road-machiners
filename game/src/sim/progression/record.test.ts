@@ -6,7 +6,7 @@ import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
 import { emptyWorld } from '../testkit';
-import { record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
+import { FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
 import { replay } from './replay';
 
 const SHORT_RUN = 60;
@@ -75,7 +75,7 @@ describe('record with a pool to spend', () => {
     const start = emptyWorld();
     start.player.xp = RANK_COSTS[0];
 
-    const [step] = [...stepsFrom(start, 'saver', 'trader', 1)];
+    const [step] = [...stepsFrom(start, 'saver', 'trader', 1, {}, FAR_MOVER)];
 
     expect(step.world.player.ranks).toEqual({ ...start.player.ranks, driving: 1 });
     expect(step.world.player.xp).toBeLessThan(RANK_COSTS[0]);

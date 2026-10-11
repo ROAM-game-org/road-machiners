@@ -35,13 +35,16 @@ export type Recording = { lines: TraceLine[]; rows: DayRow[]; death: RunEnd | nu
 
 const STALL_TILES = 1;
 
+export type Mover = { headless: boolean; step: (world: World) => (draft: World) => void; free: () => void };
+export const FAR_MOVER: Mover = { headless: true, step: () => moveAllFar, free: () => {} };
+
 export function record(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
   return recordFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options);
 }
 
 export function recordFrom(start: World, label: string, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
   const recording: Recording = { lines: [], rows: [], death: null };
-  for (const step of stepsFrom(start, label, archetype, turns, options)) {
+  for (const step of stepsFrom(start, label, archetype, turns, options, FAR_MOVER)) {
     recording.lines.push(...step.lines);
     recording.rows.push(...step.rows);
     recording.death = step.death;
@@ -49,15 +52,15 @@ export function recordFrom(start: World, label: string, archetype: Archetype, tu
   return recording;
 }
 
-export function recordTurns(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}): Generator<RecordStep> {
-  return stepsFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options);
+export function recordTurns(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}, mover: Mover = FAR_MOVER): Generator<RecordStep> {
+  return stepsFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options, mover);
 }
 
-export function* stepsFrom(start: World, label: string, archetype: Policy, turns: number, options: BotOptions = {}): Generator<RecordStep> {
+export function* stepsFrom(start: World, label: string, archetype: Policy, turns: number, options: BotOptions, mover: Mover): Generator<RecordStep> {
   const tally = new DayTally();
   let carried: DayRow[] = [tally.close(0, start)];
   let i = 0;
-  for (const played of playTurns(start, label, archetype, turns, options)) {
+  for (const played of playTurns(start, label, archetype, turns, options, mover)) {
     const { before, next: world } = played;
     tally.note(before, world, played.events, played.ledger);
     const dead = world.player.state === 'dead';
@@ -68,16 +71,16 @@ export function* stepsFrom(start: World, label: string, archetype: Policy, turns
   }
 }
 
-export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions = {}): Generator<PlayedTurn> {
+export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions, mover: Mover): Generator<PlayedTurn> {
   if (!Number.isInteger(turns) || turns <= 0) throw new Error(`A recording needs a positive whole number of turns, got ${turns}`);
-  setHeadless(true);
+  setHeadless(mover.headless);
   clearFarRoutes();
   try {
     let world = start;
     const watch = new StallWatch(label, world.turn, playerVehicle(world).pos);
     for (let i = 0; i < turns; i++) {
       const before = world;
-      const played = inContext(label, before, () => playTurn(before, policy, options));
+      const played = inContext(label, before, () => playTurn(before, policy, options, mover));
       world = played.next;
       if (runOver(world)) {
         yield played;
@@ -87,6 +90,7 @@ export function* playTurns(start: World, label: string, policy: Policy, turns: n
       yield played;
     }
   } finally {
+    mover.free();
     setHeadless(false);
     clearFarRoutes();
   }
@@ -173,10 +177,10 @@ function moneyEventKey(reason: MoneyReason): Move['key'] {
   return reason.kind === 'towing' ? 'fees' : 'contracts';
 }
 
-function playTurn(world: World, archetype: Policy, options: BotOptions): PlayedTurn {
+function playTurn(world: World, archetype: Policy, options: BotOptions, mover: Mover): PlayedTurn {
   const orders = botOrders(buyCheapestRanks(world), archetype, options);
   const goals = topGoals(orders.world);
-  const next = orders.world.player.state === 'dead' ? orders.world : endTurn(orders.world, moveAllFar);
+  const next = orders.world.player.state === 'dead' ? orders.world : endTurn(orders.world, mover.step(orders.world));
   failOnStall(next, goals, options.tolerateStalls === true);
   failOnDryMajority(next);
   const events = [...orders.events, ...next.events];

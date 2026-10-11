@@ -35,6 +35,21 @@ describe('the Fury Road runner bot', () => {
     expect(turn.ledger.repairs).toBeLessThan(0);
   });
 
+  it('parks to patch when stranded out of combat with parts to patch with', () => {
+    const w = furyRoadWorld();
+    const me = playerVehicle(w);
+    mountedParts(me, 'engine')[0].hp = 0;
+    me.speed = 0;
+    me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
+
+    const turn = botOrders(w, 'runner');
+    const next = endTurn(turn.world, () => {});
+
+    expect(turn.world.player.state).toBe('active');
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'brake' });
+    expect(playerVehicle(next).job?.kind).toBe('repair');
+  });
+
   it('ends the run when stranded with no way to patch', () => {
     const w = furyRoadWorld();
     w.player.fuel = 0;

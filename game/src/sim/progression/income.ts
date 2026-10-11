@@ -12,7 +12,7 @@ import { escortsOf } from '../tow';
 import { SHOPS } from '../../data/market';
 import { haulMarginAt, wouldRob, type Policy } from './bot';
 import { LEDGER_KEYS, type BotNote, type BotTurn } from './orders';
-import { playTurns, startWorld } from './record';
+import { FAR_MOVER, playTurns, startWorld } from './record';
 
 export const INCOME_KIT = 'midgame';
 export const INCOME_SKILL_RANK = 2;
@@ -79,7 +79,7 @@ export function playIncome(seed: number, policy: Policy, days: number, label: Ru
   let knockouts = 0;
   let played = 0;
   let last = start;
-  for (const { orders, next } of playTurns(start, `seed ${seed} ${policy}`, policy, turns, INCOME_BOT)) {
+  for (const { orders, next } of playTurns(start, `seed ${seed} ${policy}`, policy, turns, INCOME_BOT, FAR_MOVER)) {
     addCommands(ledger, orders);
     for (const [reason, amount] of pipelineMoney(orders.world, next)) add(ledger, reason, amount);
     attempts.note(orders, next);
