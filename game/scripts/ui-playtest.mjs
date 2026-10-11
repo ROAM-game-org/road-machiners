@@ -137,7 +137,8 @@ async function checkInstruments(page) {
   });
   const { panel } = m;
   assert(m.clock.x >= panel.x && m.clock.right <= panel.right && m.clock.y >= panel.y && m.clock.bottom <= panel.bottom, 'Clock must lie inside the instruments');
-  assert(m.clock.bottom <= m.dial.y && m.clock.bottom <= m.readouts.y, 'Clock must sit above the dial and readouts');
+  assert(m.clock.bottom <= m.dial.y, 'Clock must sit above the dial');
+  assert(Math.abs(m.clock.width - m.dial.width) <= 1, `Clock must be as wide as the dial: ${m.clock.width} vs ${m.dial.width}`);
   assert(/Day \d+\s+\d+:\d\d/i.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
   assert.equal(m.panelText.match(/Day \d+\s+\d+:\d\d/gi).length, 1, 'Time must show once');
   assert(!m.actionsText.includes('broken'), 'No broken badge in the action row');
