@@ -1,17 +1,35 @@
+import { FURY_ROAD } from '../../data/modes';
 import { partDef } from '../../data/parts';
-import { playerVehicle } from '../damage';
+import { haulerOf, playerVehicle } from '../damage';
+import { outpostPartPrice, haulerTakes } from '../outposts';
+import { dist } from '../vec';
+import { isJunk } from '../wear';
+import { gearPlans } from './gear';
 import { enemyTrucks, expectedGear, gearMoneyOf } from '../fury-road-danger';
 import { bodyCondition } from '../npc-decisions';
 import { mountedParts } from '../grid';
 import type { GameEvent, Vehicle, WaveGroup, World } from '../types';
 
 export type KitLine = { chassis: string; guns: string[]; armor: number; gear: number };
+export type Enemy = { chassis: string; guns: string[]; armor: number };
+export type StretchStats = {
+  haulerDamage: number;
+  haulerStart: number;
+  haulerEnd: number;
+  firstHit: number | null;
+  turnsFromFirstHit: number | null;
+  playerShots: number;
+  fights: number;
+  enemies: Enemy[];
+};
+export type OutpostChoice = { useful: number; affordable: number; money: number };
 export type RunLine =
   | { t: 'group'; turn: number; stretch: number; from: string; trucks: (KitLine & { id: string; template: string })[] }
+  | { t: 'stretch'; turn: number; stretch: number; stats: StretchStats; choice: OutpostChoice }
   | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number }
   | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; expectedGear: number; enemyGear: number; enemyTrucks: number }
   | { t: 'beaten'; turn: number; stretch: number; id: string; template: string }
-  | { t: 'lost'; turn: number; stretch: number; cause: string; money: number; kit: KitLine; stretchDamageBy: { id: string; template: string; damage: number }[] };
+  | { t: 'lost'; turn: number; stretch: number; cause: string; money: number; kit: KitLine; stretchDamageBy: { id: string; template: string; damage: number }[]; stats: StretchStats };
 
 export function kitOf(v: Vehicle): KitLine {
   const parts = mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core');
@@ -27,9 +45,41 @@ function conditionOf(world: World): number {
   return Math.round(bodyCondition(playerVehicle(world)) * 100) / 100;
 }
 
+const idleTally = () => ({ haulerDamage: 0, haulerStart: null as number | null, firstHit: null as number | null, playerShots: 0, engaged: new Set<string>(), enemies: [] as Enemy[] });
+
+function haulerCondition(world: World): number {
+  return Math.round(bodyCondition(haulerOf(world)) * 100) / 100;
+}
+
+function damageOn(events: readonly GameEvent[], id: string): number {
+  let total = 0;
+  for (const e of events) {
+    if (e.t === 'shot' && e.target === id) total += e.rounds.reduce((sum, r) => sum + r.hits.reduce((s, h) => s + h.damage, 0), 0);
+    if (e.t === 'collision' && e.a === id) total += e.hitsA.reduce((sum, h) => sum + h.damage, 0);
+    if (e.t === 'collision' && e.b === id) total += e.hitsB.reduce((sum, h) => sum + h.damage, 0);
+  }
+  return total;
+}
+
+function choiceAt(world: World): OutpostChoice {
+  const run = world.furyRoad!;
+  const post = run.outposts.find((o) => o.milestone === run.window + 1);
+  const money = world.player.money;
+  const stock = (post?.stock ?? []).filter((part) => !isJunk(part));
+  const me = playerVehicle(world);
+  const hauler = haulerOf(world);
+  const mine = gearPlans(world, me, stock.map((part) => ({ part, price: outpostPartPrice(world, part) })), { job: 'fighter', skip: [], resale: () => 0 });
+  const theirs = gearPlans(world, hauler, stock.filter(haulerTakes).map((part) => ({ part, price: outpostPartPrice(world, part, hauler.id) })), { job: 'hauler', skip: [], resale: () => 0 });
+  const cheapest = new Map<string, number>();
+  for (const plan of [...mine, ...theirs].filter((p) => p.jobGain > 0)) cheapest.set(plan.offer.part.id, Math.min(cheapest.get(plan.offer.part.id) ?? Infinity, plan.offer.price));
+  return { useful: cheapest.size, affordable: [...cheapest.values()].filter((price) => price <= money).length, money: Math.round(money / 100) };
+}
+
 export class RunLog {
   private damage = new Map<string, number>();
   private templates = new Map<string, string>();
+  private tally = idleTally();
+  private stretchStart = 0;
 
   note(before: World, world: World, events: readonly GameEvent[]): RunLine[] {
     const run = world.furyRoad;
@@ -38,13 +88,51 @@ export class RunLog {
     for (const v of world.vehicles) if (v.brain) this.templates.set(v.id, v.brain.templateId);
     this.tallyDamage(events, me);
     const stretch = run.window + 1;
+    this.tallyHauler(before, world, events);
     return [
       ...this.spawned(before, world),
       ...this.beaten(before, world, stretch),
-      ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [this.outpost(world, e.milestone, e.pay, e.wrecks)] : [])),
+      ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [this.outpost(world, e.milestone, e.pay, e.wrecks), this.stretchLine(world, e.milestone)] : [])),
       ...(run.window > before.furyRoad.window ? [this.leave(world, stretch)] : []),
       ...events.flatMap((e): RunLine[] => (e.t === 'runLost' ? [this.lost(world, e.stretch, e.cause)] : [])),
     ];
+  }
+
+  private tallyHauler(before: World, world: World, events: readonly GameEvent[]): void {
+    const hauler = haulerOf(world);
+    if (this.tally.haulerStart === null) {
+      this.tally.haulerStart = haulerCondition(before);
+      this.stretchStart = before.turn;
+    }
+    const dealt = damageOn(events, hauler.id);
+    this.tally.haulerDamage += dealt;
+    if (dealt > 0 && this.tally.firstHit === null) this.tally.firstHit = world.turn;
+    this.tally.playerShots += events.filter((e) => e.t === 'shot' && e.shooter === world.player.vehicleId).length;
+    for (const g of world.furyRoad!.groups) {
+      if (g.vehicles.some((id) => { const v = world.vehicles.find((x) => x.id === id); return v !== undefined && dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near; })) this.tally.engaged.add(g.id);
+    }
+  }
+
+  private statsAt(world: World): StretchStats {
+    const t = this.tally;
+    const lostAt = world.turn;
+    return {
+      haulerDamage: Math.round(t.haulerDamage),
+      haulerStart: t.haulerStart ?? haulerCondition(world),
+      haulerEnd: haulerCondition(world),
+      firstHit: t.firstHit,
+      turnsFromFirstHit: t.firstHit === null ? null : lostAt - t.firstHit,
+      playerShots: t.playerShots,
+      fights: t.engaged.size,
+      enemies: t.enemies,
+    };
+  }
+
+  private stretchLine(world: World, stretch: number): RunLine {
+    const line: RunLine = { t: 'stretch', turn: world.turn, stretch, stats: this.statsAt(world), choice: choiceAt(world) };
+    this.tally = idleTally();
+    this.tally.haulerStart = haulerCondition(world);
+    return line;
   }
 
   private tallyDamage(events: readonly GameEvent[], me: string): void {
@@ -66,6 +154,7 @@ export class RunLog {
       if (!v?.brain) throw new Error(`Group ${g.id} truck ${id} is missing at spawn`);
       return { id, template: v.brain.templateId, ...kitOf(v) };
     });
+    for (const truck of trucks) this.tally.enemies.push({ chassis: truck.chassis, guns: truck.guns, armor: truck.armor });
     return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, trucks };
   }
 
@@ -98,6 +187,6 @@ export class RunLog {
   private lost(world: World, stretch: number, cause: string): RunLine {
     const stretchDamageBy = [...this.damage.entries()].sort((a, b) => b[1] - a[1])
       .map(([id, damage]) => ({ id, template: this.templates.get(id) ?? 'unknown', damage: Math.round(damage) }));
-    return { t: 'lost', turn: world.turn, stretch, cause, money: Math.round(world.player.money / 100), kit: kitOf(playerVehicle(world)), stretchDamageBy };
+    return { t: 'lost', turn: world.turn, stretch, cause, money: Math.round(world.player.money / 100), kit: kitOf(playerVehicle(world)), stretchDamageBy, stats: this.statsAt(world) };
   }
 }

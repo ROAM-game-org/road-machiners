@@ -8,7 +8,7 @@ import { vehicleStats } from '../stats';
 import type { GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk, maxHp, partValue } from '../wear';
 
-export type GearJob = 'fighter' | 'trader' | 'courier' | 'carrier';
+export type GearJob = 'fighter' | 'trader' | 'courier' | 'carrier' | 'hauler';
 
 export type PartItem = Extract<GridItem, { kind: 'part' }>;
 
@@ -22,13 +22,17 @@ export function goodsRoom(v: Vehicle): number {
   return freeCells({ ...v, items: v.items.filter((it) => it.kind === 'part') });
 }
 
+function toughnessOf(v: Vehicle): number {
+  return [...mountedParts(v, 'core'), ...mountedParts(v, 'armor')].reduce((sum, part) => sum + part.hp, 0);
+}
+
 function fighterStrength(world: World, v: Vehicle): number {
-  const toughness = [...mountedParts(v, 'core'), ...mountedParts(v, 'armor')].reduce((sum, part) => sum + part.hp, 0);
-  return firepower(world, v) * toughness;
+  return firepower(world, v) * toughnessOf(v);
 }
 
 export function jobScore(world: World, v: Vehicle, job: GearJob): number {
   if (job === 'fighter') return fighterStrength(world, v);
+  if (job === 'hauler') return toughnessOf(v);
   if (job === 'courier') return vehicleStats(world, v).maxSpeed;
   return goodsRoom(v) * vehicleStats(world, v).maxSpeed;
 }

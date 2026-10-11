@@ -1,48 +1,54 @@
 import { chassisDef } from '../../data/chassis';
+import { FURY_ROAD } from '../../data/modes';
 import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { RULES } from '../../data/rules';
-import { playerVehicle } from '../damage';
+import { haulerOf, playerTrucks, playerVehicle, truckFor } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { alongOf, roadPoint, toRoad } from '../highway';
+import { acrossOf, alongOf, roadPoint, toRoad } from '../highway';
 import { fightOrder, fightPoint, leadOf } from '../ai';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
+import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostPad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
-import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
+import { haulerTakes, outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
 import { isJunk } from '../wear';
 import { aimGuns } from './aim';
-import { gearBudget } from './gear';
+import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
+export type RoadStyle = 'escort' | 'sprinter';
+
 const PATCH_GOODS = 4;
+const HAULER_SHARE = 0.4;
+const BESIDE = { ahead: 3, across: 2 };
+const PARKED_BESIDE = 2;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
 const SUPPLIES: readonly Supply[] = ['fuel', 'supplies'];
 
-export function runnerOrders(world: World, fights: boolean): BotTurn {
+export function runnerOrders(world: World, style: RoadStyle): BotTurn {
   const o = new Orders(world);
-  if (playerCanAct(o.world)) run(o, fights);
+  if (playerCanAct(o.world)) run(o, style);
   return { world: o.world, events: o.events, ledger: o.ledger, notes: o.notes };
 }
 
-function run(o: Orders, fights: boolean): void {
-  keepSwitches(o);
+function run(o: Orders, style: RoadStyle): void {
+  keepSwitches(o, style);
   if (o.me.job) return;
   const post = reachedOutpostAt(o.world);
-  if (post) restock(o, post);
+  if (post) restock(o, post, style);
   if (canWaitForRoad(o.world)) o.run(waitForRoad);
-  if (!handleStranded(o)) drive(o, fights);
+  if (!handleStranded(o)) drive(o, style);
 }
 
 function handleStranded(o: Orders): boolean {
@@ -59,19 +65,39 @@ function park(o: Orders): void {
   if (o.me.order?.kind !== 'brake') o.run((w) => setMoveOrder(w, { kind: 'brake' }));
 }
 
-function keepSwitches(o: Orders): void {
+function keepSwitches(o: Orders, style: RoadStyle): void {
   if (!o.world.player.autoRepair) o.run((w) => setAutoRepair(w, true));
-  if (!o.world.player.autoFire) o.run((w) => setAutoFire(w, true));
-  const foe = nearestFoe(o.world, o.me);
+  const fires = style === 'escort';
+  if (o.world.player.autoFire !== fires) o.run((w) => setAutoFire(w, fires));
+  const foe = fires ? nearestFoe(o.world, o.me) : null;
   if (foe) aimGuns(o, foe);
 }
 
-function drive(o: Orders, fights: boolean): void {
-  const foe = fights ? nearestFoe(o.world, o.me) : null;
+function drive(o: Orders, style: RoadStyle): void {
   const next = nextOutpost(o.world);
-  if (foe && inCombat(o.world, o.me)) order(o, fighterOrder(o.world, o.me, foe));
-  else if (next) hopToward(o, next.pad);
+  if (style === 'escort') return escort(o);
+  if (next) hopToward(o, next.pad);
   else if (o.me.order) o.run((w) => setMoveOrder(w, null));
+}
+
+function escort(o: Orders): void {
+  const hauler = haulerOf(o.world);
+  const foe = foeNear(o.world, o.me, hauler);
+  if (foe) order(o, fighterOrder(o.world, o.me, foe));
+  else driveTo(o, escortSpot(o.world, hauler));
+}
+
+function foeNear(world: World, me: Vehicle, hauler: Vehicle): Vehicle | null {
+  const foes = world.vehicles.filter((v) => v.id !== me.id && hostileToPlayer(world, v) && playerSees(world, v.pos) && dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near);
+  return foes.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos))[0] ?? null;
+}
+
+function escortSpot(world: World, hauler: Vehicle): Vec {
+  const run = world.furyRoad!;
+  const pad = outpostPad(world, run.window + 1);
+  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return { x: pad.x + PARKED_BESIDE, y: pad.y };
+  const at = toRoad(run.window, hauler.pos);
+  return roadPoint(world.seed, run.window, alongOf(world.seed, at) + BESIDE.ahead, acrossOf(world.seed, at) + BESIDE.across);
 }
 
 function hopToward(o: Orders, pad: Vec): void {
@@ -113,18 +139,45 @@ function canPatchOn(world: World, me: Vehicle): boolean {
   return (goodsCount(me).parts ?? 0) > 0 && drive.length === 2 && drive.every((part) => !isJunk(part));
 }
 
-function restock(o: Orders, post: Outpost): void {
-  repair(o);
-  for (const kind of SUPPLIES) topUp(o, kind);
+function parkedTrucks(world: World): Vehicle[] {
+  return playerTrucks(world).filter((truck) => reachedOutpostAt(world, truck) !== null);
+}
+
+function restock(o: Orders, post: Outpost, style: RoadStyle): void {
+  for (const truck of parkedTrucks(o.world)) {
+    repair(o, truck);
+    for (const kind of SUPPLIES) topUp(o, kind, truck);
+  }
   buyPatchGoods(o);
   if (inCombat(o.world, o.me)) return;
-  refitGear(o, post);
+  const share = style === 'escort' ? HAULER_SHARE : 0;
+  if (share > 0) haulerGear(o, gearBudget(o.world, o.me, 'fighter') * share);
+  refitGear(o, 1 - share);
   buyTruck(o, post);
 }
 
-function refitGear(o: Orders, post: Outpost): void {
-  const forSale = post.stock.filter((part) => !isJunk(part));
-  const money = gearBudget(o.world, o.me, 'fighter');
+function haulerGear(o: Orders, budget: number): void {
+  const hauler = haulerOf(o.world);
+  let left = budget;
+  for (let plan = nextHaulerBuy(o, hauler, left); plan; plan = nextHaulerBuy(o, hauler, left)) {
+    if (plan.replaces) o.run((w) => storePart(w, plan.replaces!.id, hauler.id), 'gear');
+    o.run((w) => outpostBuyPart(w, plan.offer.part.id, hauler.id), 'gear');
+    mountBought(o, plan.offer.part.id, plan.spot, hauler.id);
+    left -= plan.offer.price;
+  }
+}
+
+function nextHaulerBuy(o: Orders, hauler: Vehicle, budget: number) {
+  const post = reachedOutpostAt(o.world, hauler);
+  if (!post) return null;
+  const offers = post.stock.filter((part) => !isJunk(part) && haulerTakes(part)).map((part) => ({ part, price: outpostPartPrice(o.world, part, hauler.id) }));
+  const buyer = { job: 'hauler' as const, skip: [], resale: () => 0 };
+  return bestPlan(gearPlans(o.world, truckFor(o.world, hauler.id), offers, buyer), Math.min(budget, o.world.player.money));
+}
+
+function refitGear(o: Orders, share: number): void {
+  const forSale = reachedOutpostAt(o.world)!.stock.filter((part) => !isJunk(part));
+  const money = gearBudget(o.world, o.me, 'fighter') * share;
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
   const allowed = (v: Vehicle) => buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
@@ -170,16 +223,16 @@ function keepsKit(o: Orders, chassisId: string): boolean {
 }
 
 
-function repair(o: Orders): void {
-  const all = repairCost(o.world);
-  const basics = basicsRepairCost(o.world);
-  if (all > 0 && all <= o.world.player.money) o.run(outpostRepairAll, 'repairs');
-  else if (basics > 0 && basics <= o.world.player.money) o.run(outpostRepairBasics, 'repairs');
+function repair(o: Orders, truck: Vehicle): void {
+  const all = repairCost(o.world, truck);
+  const basics = basicsRepairCost(o.world, truck);
+  if (all > 0 && all <= o.world.player.money) o.run((w) => outpostRepairAll(w, truck.id), 'repairs');
+  else if (basics > 0 && basics <= o.world.player.money) o.run((w) => outpostRepairBasics(w, truck.id), 'repairs');
 }
 
-function topUp(o: Orders, kind: Supply): void {
-  const n = Math.min(supplyRoom(o.world, kind), Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
-  if (n > 0) o.run((w) => outpostBuySupply(w, kind, n), kind);
+function topUp(o: Orders, kind: Supply, truck: Vehicle): void {
+  const n = Math.min(supplyRoom(o.world, kind, truck), Math.floor(o.world.player.money / ECONOMY.supplyPrice[kind]));
+  if (n > 0) o.run((w) => outpostBuySupply(w, kind, n, truck.id), kind);
 }
 
 function buyPatchGoods(o: Orders): void {
