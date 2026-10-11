@@ -160,6 +160,8 @@ Triage rates each `ready` issue once and comments the rating under `Model routin
 
 A label already on the issue wins, and triage never changes labels. A later triage run adds nothing once its routing comment exists. A member can add or remove a label at any time, and the next agent run reads it.
 
+Committee rework that runs Implementation again gets its model from Hermes's judgment, not from code. After Hermes routes a redesign, or moves a card to Design or Implementation for a member, it removes `implementation-opus` for a small rework and adds it for a big redesign. It writes no label for a patch, whose testing session runs on Sonnet. Two reruns of Implementation never reach Hermes, so the issue keeps its label unless a member changes it: a member's own `redesign:` reply, and a patch whose testing session writes `.factory/needs-redesign.md`.
+
 ## Reference images
 
 Before every agent stage, the host fetches the images of the issue body and every comment into `$FACTORY_HOME/media/issue-N/`. The agent sees them read only at `/work/.factory-media`, and the prompt lists their paths.

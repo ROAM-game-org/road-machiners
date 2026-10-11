@@ -373,7 +373,11 @@ ROUTE_SCHEMA = {
 ROUTE_DONE = {
     "answer": "Routed as an answer. Answer the member in the chat now. The card stays in Approval.",
     "patch": "Queued as a patch. Reply to the member with one short sentence. The factory adds a status line to the post.",
-    "redesign": "Queued as a redesign. Reply to the member with one short sentence. The factory adds a status line to the post.",
+    "redesign": (
+        "Queued as a redesign. Reply to the member with one short sentence. The factory adds a status line to the post. "
+        "Implementation runs again after the design, so now set the implementation-opus label by the size of the change, "
+        "as your section Approval replies says."
+    ),
 }
 DRAFT_TOOL = "factory_release_draft"
 DRAFT_LIMIT = 4096  # Telegram's limit for one message, and the draft must stay one message to carry its Publish button
