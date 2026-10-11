@@ -253,7 +253,7 @@ function noteOwner(owner: Map<number, string>, body: RAPIER.RigidBody, vehicleId
   for (let i = 0; i < body.numColliders(); i++) owner.set(body.collider(i).handle, vehicleId);
 }
 
-type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; oil: Circle[]; kicked: boolean };
+type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean };
 
 function run(d: Drive, w: World, steps: number): TurnResult {
   const world = RAPIER.World.restoreSnapshot(d.world.takeSnapshot());
@@ -266,7 +266,7 @@ function run(d: Drive, w: World, steps: number): TurnResult {
     const s = vehicleStats(w, v);
     const b = bodyOf(v.chassisId);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, oil: oilInReach(oil, v, s, body), kicked: false };
+    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false };
   });
   const owner = new Map<number, string>();
   for (const c of cars) noteOwner(owner, c.body, c.v.id);
@@ -658,6 +658,7 @@ function applyTerrainGrip(c: Car, terrain: Terrain, slick: readonly boolean[]): 
   const p = c.body.translation();
   const ground = TERRAIN_TYPES[terrain.types[tileAt(terrain, { x: p.x / S, y: p.z / S })]];
   c.grip = ground.grip;
+  c.topShare = ground.paved ? 1 : TERRAIN.drive.unpavedTopSpeed;
   const grip = T.frictionSlip * groundSpeed(c.s, ground.speed) * ground.grip;
   for (let i = 0; i < 4; i++) {
     const share = slick[i] ? OIL.grip : 1;
@@ -702,7 +703,11 @@ function driveStep(c: Car, terrain: Terrain): void {
     c.mem.backFrom = null;
   }
   turnWheels(c, command.steerTo);
-  applyPedals(c, command.target, speed);
+  applyPedals(c, groundTarget(c, command.target), speed);
+}
+
+function groundTarget(c: Car, target: number): number {
+  return target > 0 ? target * c.topShare : target;
 }
 
 function oilKick(c: Car, slick: readonly boolean[]): void {

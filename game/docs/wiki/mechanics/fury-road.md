@@ -24,8 +24,8 @@ Fury Road plays on its own generated map, never on Icarus. The world seed builds
 
 Each stretch bends once. The road runs straight for 60 tiles after each outpost and before the next one, so the forts, closures and window overlaps stand on straight road. Between them it swings to one side and back: 16 to 36 tiles off its line, to a side drawn from the seed, over two cosine ramps of about 95 tiles each. One stretch in five stays straight. The heading stays within 35° of north, so on screen the road always climbs to the right, between about 8° and 60° above the horizontal, and no bend is tighter than a radius of 40 tiles. The bend numbers live in `HIGHWAY`.
 
-- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. Three dashed dividers and two solid edge lines mark it, with no middle line.
-- A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles (144 m) wide: room for a full-speed U-turn and for a fight at gun range. Hardpan is barely slower than asphalt, so a route through a bend takes the racing line on the inside verge. Only poles, the odd ditched car and billboards stand near it. Past the verge come badlands of gravel, scrub and scree with rocks, crags and dead trees, then a ridge too steep to climb.
+- The road is one carriageway of four northbound lanes, 2 tiles (8 m) each, with centers 1 and 3 tiles each side of the middle and a 1-tile shoulder, 10 tiles (40 m) of asphalt in all. It carries no lane paint.
+- A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles (144 m) wide: room for a full-speed U-turn and for a fight at gun range. The verge and badlands cut top speed by 10%, so the asphalt is the fast lane. Only poles, the odd ditched car and billboards stand near it. Past the verge come badlands of gravel, scrub and scree with rocks, crags and dead trees, then a ridge too steep to climb.
 - An Old World power line runs along one verge of each stretch.
 
 ## Scenes
@@ -90,15 +90,15 @@ The pool holds every NPC template, so a group mixes every kind of vehicle and dr
 
 A group comes from ahead, behind, the left or the right, never from the side of the group before it:
 
-- ahead: on the road 22 tiles ahead of the player, in the lanes or on the verges;
-- behind: on the road 24 tiles behind;
+- ahead: 22 tiles ahead of the player, on the player's line across the road;
+- behind: 24 tiles behind, on the player's line;
 - left or right: 6 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
 
-Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
+An ahead or behind truck stands within 13 tiles of the player's line, and never farther out than the flank spawns. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
 Encounters are paced in time. An encounter is on while a group truck that is not beaten is within 30 tiles of the player. The next group spawns after 20 quiet turns, about 20 seconds of driving, and a level's first group 20 turns after the level starts. Groups spawn in plan order, where the player is, so a fight may meet a scene.
 
-Group trucks spawn with full tanks and no cargo. Each holds a feud on the player and hunts the player's position every turn until the level ends. A group truck races in under overdrive, the same 1.33 boost as the player's, until it first comes within 12 tiles of the player or fights it. From then on it drives at its normal speed for good. An NPC's overdrive costs no engine heat, since only the player's engine heats. A truck with no gun rams.
+Group trucks spawn with full tanks and no cargo. Each holds a feud on the player and hunts it every turn until the level ends. A hunter drives to where the player will be when it gets there, at most 30 tiles ahead of the player and never past the flank spawns. A group truck races in under a catch-up boost of 2 times its top speed and acceleration, more than the player's own overdrive, until it comes within 12 tiles of the player or fights it. It drives at its normal speed while engaged, and races in again once it falls more than 30 tiles behind and is out of combat. Out of sight of the player, it drives at full speed toward its hunting point and never slows to stop there. An NPC's overdrive costs no engine heat, since only the player's engine heats. A truck with no gun rams.
 
 ## Defeat
 

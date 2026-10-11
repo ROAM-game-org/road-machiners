@@ -11,6 +11,7 @@ import { playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, gearMoneyOf, moveWindow, outpostPad, payOf, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
 import { topGoal } from './npc-activities';
+import { planNpcOrders } from './ai';
 import { optionWeights, tradeOffers } from './npc-decisions';
 import { getResources } from './resources';
 import { addState, stateOf } from './states';
@@ -223,26 +224,44 @@ describe('the pace of encounters', () => {
 });
 
 describe('a group racing in', () => {
-  it('overdrives until it engages the player, and never again after', () => {
+  it('races in at the catch-up boost until it engages, and again once it falls past the encounter range', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);
     const [v] = trucksOf(w, first);
     const me = playerVehicle(w);
+    const boost = () => maxSpeedSteps(w, v).find((s) => s.kind === 'overdrive');
+    const moveTo = (gap: number) => {
+      v.pos = { x: me.pos.x + gap, y: me.pos.y };
+      w.turn++;
+      advanceFuryRoad(w);
+    };
 
     expect(inOverdrive(w, v)).toBe(true);
-    expect(maxSpeedSteps(w, v).map((s) => s.kind)).toContain('overdrive');
+    expect(boost()).toMatchObject({ factor: FURY_ROAD.catchUp.boost });
 
-    v.pos = { x: me.pos.x + FURY_ROAD.catchUp.engageAt - 1, y: me.pos.y };
-    w.turn++;
-    advanceFuryRoad(w);
+    moveTo(FURY_ROAD.catchUp.engageAt - 1);
     expect(first.engaged).toEqual([v.id]);
-    expect(inOverdrive(w, v)).toBe(false);
+    expect(boost()).toBeUndefined();
 
-    v.pos = { x: me.pos.x, y: me.pos.y - 100 };
+    moveTo(FURY_ROAD.pacing.near - 1);
+    expect(boost()).toBeUndefined();
+
+    moveTo(FURY_ROAD.pacing.near + 1);
+    expect(first.engaged).toEqual([]);
+    expect(boost()).toMatchObject({ factor: FURY_ROAD.catchUp.boost });
+  });
+
+  it('drives at full speed toward a player out of sight, never stopping at the hunted point', () => {
+    const w = furyRoadWorld();
+    const [v] = trucksOf(w, spawnFirst(w));
+    const me = playerVehicle(w);
+    v.pos = { x: me.pos.x, y: me.pos.y + FURY_ROAD.pacing.near + 10 };
     w.turn++;
     advanceFuryRoad(w);
-    expect(inOverdrive(w, v)).toBe(false);
-    expect(maxSpeedSteps(w, v).map((s) => s.kind)).not.toContain('overdrive');
+    planNpcOrders(w);
+
+    expect(v.order?.kind).toBe('through');
+    expect(v.order && 'pace' in v.order ? v.order.pace : undefined).toBeUndefined();
   });
 
   it('engages at any distance once in combat with the player', () => {

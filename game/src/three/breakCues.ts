@@ -1,6 +1,3 @@
-// When each part break of a turn plays. A part break belongs to the shot whose round dealt its last damage, so it can
-// play as that round lands. Breaks with no round, such as a collision's, wait for the end of the shot band.
-// Nothing here changes game rules.
 
 import type { GameEvent, GridItem, ShotRound } from "../sim/types";
 
@@ -35,6 +32,10 @@ export class BreakCues {
 
   constructor(events: GameEvent[]) {
     this.pending = breakRounds(events);
+  }
+
+  breaksOn(owner: ShotLike, round: number): boolean {
+    return this.pending.some((b) => b.owner === owner && b.round === round);
   }
 
   ofRound(owner: ShotLike, round: number): PartBreak[] {

@@ -32,7 +32,6 @@ export type RoadImage = { side: number; pixels: Uint8ClampedArray };
 
 export const REGION_ROAD_STYLE = "#f00";
 export const DIRT_ROAD_STYLE = "#0f0";
-export const LANE_STYLE = "#00f";
 
 export type RoadHole = { pos: Vec; radius: number };
 
@@ -65,7 +64,6 @@ export function paintRoadMask(c: PaintCanvas, atlas: Atlas, holes: readonly Road
 function paintHighways(c: PaintCanvas, roads: readonly AtlasRoad[], holes: readonly RoadHole[]): void {
   for (const road of roads) {
     paintAsphalt(c, road);
-    paintLanes(c, road);
   }
   c.ctx.globalCompositeOperation = "source-over";
   paintHoles(c, holes);
@@ -89,47 +87,6 @@ function paintHoles(c: PaintCanvas, holes: readonly RoadHole[]): void {
     ctx.arc(c.toPx(hole.pos.x), c.toPx(hole.pos.y), hole.radius * c.res, 0, Math.PI * 2);
     ctx.fill();
   }
-}
-
-type LaneLine = { offset: number; dashed: boolean };
-
-export function laneLines(road: AtlasRoad): LaneLine[] {
-  const { lanes, laneWidth } = HIGHWAY.road;
-  if (road.lanes !== lanes.length) throw new Error(`A road of ${road.lanes} lanes is no highway of ${lanes.length}`);
-  const edge = lanes[lanes.length - 1] + laneWidth / 2;
-  const dividers = lanes.slice(1).map((center, i) => (center + lanes[i]) / 2);
-  return [{ offset: -edge, dashed: false }, { offset: edge, dashed: false }, ...dividers.map((offset) => ({ offset, dashed: true }))];
-}
-
-function paintLanes(c: PaintCanvas, road: AtlasRoad): void {
-  const ctx = c.ctx;
-  const { dash, gap, line, wear } = HIGHWAY.road.paint;
-  ctx.globalCompositeOperation = "lighten";
-  ctx.strokeStyle = LANE_STYLE;
-  ctx.lineWidth = line * c.res;
-  ctx.lineCap = "butt";
-  const points = evenPoints(road.points);
-  laneLines(road).forEach((lane, k) => {
-    const shifted = offsetLine(points, lane.offset);
-    ctx.beginPath();
-    for (let i = 1; i < shifted.length; i++) {
-      const along = i * STEP;
-      const painted = !lane.dashed || along % (dash + gap) < dash;
-      if (!painted || hash2(Math.floor(along / 2), k * 37 + 11) < wear) continue;
-      ctx.moveTo(c.toPx(shifted[i - 1].x), c.toPx(shifted[i - 1].y));
-      ctx.lineTo(c.toPx(shifted[i].x), c.toPx(shifted[i].y));
-    }
-    ctx.stroke();
-  });
-}
-
-function offsetLine(points: readonly Vec[], offset: number): Vec[] {
-  return points.map((p, i) => {
-    const a = points[Math.max(0, i - 1)];
-    const b = points[Math.min(points.length - 1, i + 1)];
-    const length = dist(a, b);
-    return { x: p.x - ((b.y - a.y) / length) * offset, y: p.y + ((b.x - a.x) / length) * offset };
-  });
 }
 
 function strokeRuns(c: PaintCanvas, runs: Vec[][], width: number, blurPx = 0): void {

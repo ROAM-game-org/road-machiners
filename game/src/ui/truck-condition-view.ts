@@ -27,22 +27,29 @@ export class TruckConditionView {
   private tiles: ConditionPart[] = [];
   private outline: HTMLElement[] = [];
   private chassisId: string | null = null;
+  private cols = 1;
+  private rows = 1;
 
-  constructor(private readonly quiet = false) {
+  constructor() {
     this.body.append(this.tip);
     this.root.append(this.body);
   }
 
   fitTo(box: HTMLElement): void {
-    this.root.style.zoom = "1";
     const outline = parseFloat(token("--space-4"));
-    const height = this.body.offsetHeight + 2 * PLAN_PAD * CELL;
-    const scale = Math.min(1, (box.clientHeight - outline) / height, (box.clientWidth - outline) / this.body.offsetWidth);
-    this.root.style.zoom = String(scale);
+    const cell = Math.min((box.clientHeight - outline) / (this.rows + 2 * PLAN_PAD), (box.clientWidth - outline) / this.cols);
+    this.root.style.zoom = String(cell / CELL);
+  }
+
+  boxFor(cell: number): { width: number; height: number } {
+    const outline = parseFloat(token("--space-4"));
+    return { width: this.cols * cell + outline, height: (this.rows + 2 * PLAN_PAD) * cell + outline };
   }
 
   render(vehicle: Vehicle, aim?: ConditionAim): void {
     const grid = baseGrid(vehicle.chassisId);
+    this.cols = grid.w;
+    this.rows = grid.h;
     this.body.style.width = `${grid.w * CELL}px`;
     this.body.style.height = `${grid.h * CELL}px`;
     this.body.style.margin = `${PLAN_PAD * CELL}px 0`;
@@ -97,7 +104,7 @@ export class TruckConditionView {
       if (this.hoverId === part.id) this.hoverId = null;
       this.showTip();
     };
-    const tone = this.quiet ? quietTone(part.percent) : conditionTone(part.percent);
+    const tone = conditionTone(part.percent);
     node.style.cssText = `${boxStyle(part.x, part.y, part.w, part.h)};--tone:${tone.fill};--tint-line:${tone.shade};--tint-shadow:${tone.shade};--tint-light:${tone.light}`;
     if (part.hit) this.flashDamage(node);
   }
@@ -135,21 +142,6 @@ const TONE_STOPS: readonly { at: number; rgb: readonly [number, number, number] 
 ];
 const SHADE_DARKEN = 0.3;
 const LIGHT_LIGHTEN = 0.25;
-
-function quietTone(percent: number): Tone {
-  if (percent === 0) return BROKEN_TONE;
-  const fill =
-    percent >= 100
-      ? "var(--cell-side)"
-      : percent >= 50
-        ? `color-mix(in oklab, var(--cell-side) ${(percent - 50) * 2}%, var(--accent-deep))`
-        : `color-mix(in oklab, var(--accent-deep) ${percent * 2}%, var(--danger-deep))`;
-  return {
-    fill,
-    shade: `color-mix(in oklab, ${fill} 70%, black)`,
-    light: `color-mix(in oklab, ${fill} 75%, white)`,
-  };
-}
 
 function conditionTone(percent: number): Tone {
   if (percent === 0) return BROKEN_TONE;

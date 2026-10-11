@@ -5,7 +5,9 @@ import type { GameEvent, ShotRound } from "../sim/types";
 import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
-import { CollisionCues, collisionSteps, playCrashes, playShotFx, playUtilitySounds, playVolley, type CombatHost, type VolleyHost } from "./volley";
+import { projectileOf } from "./render/projectiles";
+import { bodyOf } from "../sim/body";
+import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
@@ -150,6 +152,17 @@ describe("playUtilitySounds", () => {
   });
 });
 
+const ORIGIN = { x: 0, y: 0, z: 0 };
+const MUZZLE = () => ({ pos: { x: 0, y: 1, z: 0 }, dir: { x: 1, y: 0, z: 0 } }) as never;
+const POSES = { end: () => ORIGIN };
+
+function plansOf(rounds: ShotRound[], shown: (id: string) => boolean = () => true): PlannedRound[] {
+  return rounds.map((r) => {
+    const struckAt = r.struck !== null && shown(r.struck) ? ORIGIN : null;
+    return { land: ORIGIN, impact: struckAt ? "truck" : r.struck === null ? "ground" : "none", delayMs: 0, flightMs: 10, struckAt };
+  });
+}
+
 describe("playVolley sounds", () => {
   function cuesOf(weapon: string, struck: boolean): string[] {
     const cues: string[] = [];
@@ -160,8 +173,8 @@ describe("playVolley sounds", () => {
       c.fired({ pos: p } as never);
       c.landed();
     };
-    const host = { world: emptyWorld(), fx: { shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {} } as unknown as VolleyHost;
-    playVolley(host, p, () => ({ pos: p, dir: { x: 1, y: 0, z: 0 } }) as never, { x: 5, y: 0, z: 0 }, () => p, event, new BreakCues([event]), weapon, "t", new Map(), false);
+    const host = { world: emptyWorld(), fx: { shot: fly, label: () => {} }, sound: { at: (cue: string) => cues.push(cue) }, eventPoint: () => p, breakPart: () => {}, poses: POSES, startMs: 0 } as unknown as VolleyHost;
+    playVolley(host, plansOf([round]), MUZZLE, event, new BreakCues([event]), weapon, new Map(), false);
     return cues;
   }
 
@@ -194,14 +207,26 @@ describe("playVolley breaks", () => {
       sound: { at: (cue: string) => sounds.push(cue) },
       eventPoint,
       breakPart: (b: PartBreak) => broken.push(b),
+      poses: POSES,
+      startMs: 0,
     } as unknown as VolleyHost;
     return { landed, broken, sounds, host };
   }
 
+  it("shows each round's damage label as that round lands, on the truck it hit", () => {
+    const { host } = play();
+    const labels: { at: () => V3 | null; ms: number }[] = [];
+    (host.fx as unknown as { label: unknown }).label = (at: () => V3 | null, _t: unknown, _c: unknown, _r: unknown, ms: number) => labels.push({ at, ms });
+    const plans = plansOf(event.rounds).map((p, k) => ({ ...p, delayMs: k * 300, flightMs: 50 }));
+    playVolley(host, plans, MUZZLE, event, new BreakCues([event]), "mg", new Map(), false);
+    expect(labels.map((l) => l.ms)).toEqual([350, 650]);
+    expect(labels[0].at()).toEqual(ORIGIN);
+  });
+
   it("breaks the part as its breaking round lands, once", () => {
     const { landed, broken, host } = play();
     const breaks = new BreakCues([partOff, event]);
-    playVolley(host, { x: 0, y: 0, z: 0 }, () => ({ pos: { x: 0, y: 1, z: 0 }, dir: { x: 1, y: 0, z: 0 } }) as never, { x: 5, y: 0, z: 0 }, (o) => ({ x: 5, y: 0, z: o }), event, breaks, "mg", "t", new Map(), false);
+    playVolley(host, plansOf(event.rounds), MUZZLE, event, breaks, "mg", new Map(), false);
     expect(landed).toHaveLength(3);
     landed[0]();
     landed[1]();
@@ -211,10 +236,10 @@ describe("playVolley breaks", () => {
     expect(broken).toEqual([{ vehicle: "t", part: GUN }]);
   });
 
-  const volley = (rounds: ShotRound[], eventPoint?: (id: string) => { x: number; y: number; z: number } | null) => {
-    const played = play(eventPoint);
+  const volley = (rounds: ShotRound[], shown?: (id: string) => boolean) => {
+    const played = play();
     const ev = { ...event, rounds } as ShotLike;
-    playVolley(played.host, { x: 0, y: 0, z: 0 }, () => ({ pos: { x: 0, y: 1, z: 0 }, dir: { x: 1, y: 0, z: 0 } }) as never, { x: 5, y: 0, z: 0 }, (o) => ({ x: 5, y: 0, z: o }), ev, new BreakCues([ev]), "mg", "t", new Map(), false);
+    playVolley(played.host, plansOf(rounds, shown), MUZZLE, ev, new BreakCues([ev]), "mg", new Map(), false);
     played.landed.forEach((l) => l());
     return played.sounds;
   };
@@ -230,7 +255,7 @@ describe("playVolley breaks", () => {
   });
 
   it("sounds nothing for a stray into a truck that is not shown", () => {
-    expect(volley([plain("o")], (id) => (id === "o" ? null : { x: 0, y: 0, z: 0 }))).toEqual([]);
+    expect(volley([plain("o")], (id) => id !== "o")).toEqual([]);
   });
 
   it("throws when a shot names a truck that is in neither list", () => {
@@ -238,5 +263,149 @@ describe("playVolley breaks", () => {
     const e = { ...event, t: "shot" } as unknown as GameEvent;
     host.world.events = [e];
     expect(() => playShotFx(host as unknown as CombatHost, new BreakCues([]))).toThrow(/unknown vehicle/);
+  });
+});
+
+const STEPS = 60;
+const STEP_MS = 1000 / STEPS;
+const MOVE_MS = STEPS * STEP_MS;
+
+const shooterAt = (s: number) => ({ x: s * 0.2, y: 2, z: 0 });
+const targetAt = (s: number) => ({ x: 40, y: 2, z: s * 0.2 });
+
+const poses: TurnPoses = {
+  moveMs: MOVE_MS,
+  stepMs: STEP_MS,
+  at: (id, s) => (s < 0 || s >= STEPS ? null : id === "s" ? shooterAt(s) : id === "t" ? targetAt(s) : null),
+  headingAt: (id, s) => (s < 0 || s >= STEPS || (id !== "s" && id !== "t") ? null : 0),
+  end: (id) => (id === "s" ? shooterAt(STEPS - 1) : id === "t" ? targetAt(STEPS - 1) : id === "o" ? { x: 50, y: 2, z: 50 } : null),
+  endHeading: (id) => (id === "s" || id === "t" || id === "o" ? 0 : null),
+};
+
+const gun = (key: string, covers: Gun["covers"] = () => true, blastRadius = 0): Gun => ({ spec: projectileOf(key), rangeM: 100, blastRadius, covers });
+const round = (struck: string | null, offset = 0, more: Partial<ShotRound> = {}): ShotRound => ({ hit: struck === "t", crit: false, offset, struck, hits: [], blast: [], burst: null, ...more });
+const TARGET_HALF = { length: 2.5, width: 1 };
+const shot = (rounds: ShotRound[], late: (k: number) => boolean = () => false): Shot => ({ shooter: "s", target: "t", rounds, late, missAt: (offset) => ({ x: 40, y: 0, z: 11.8 + offset }), targetHalf: TARGET_HALF });
+const flatGround = () => 0;
+const half = () => 0.5;
+
+describe("planShot", () => {
+  it("spreads a machine gun's rounds through the move instead of one burst", () => {
+    const plans = planShot(poses, shot([round("t"), round(null, 3), round("t"), round("t"), round(null, -3)]), gun("mg"), flatGround, half);
+    const fired = plans.map((p) => p.delayMs);
+    expect(fired).toEqual([...fired].sort((a, b) => a - b));
+    expect(fired[0]).toBeLessThan(MOVE_MS * 0.2);
+    expect(fired[4]).toBeGreaterThan(MOVE_MS * 0.7);
+    for (const p of plans) expect(p.delayMs + p.flightMs).toBeLessThanOrEqual(MOVE_MS + STEP_MS);
+  });
+
+  it("lands a hit on the target where it is when the round arrives", () => {
+    const [p] = planShot(poses, shot([round("t")]), gun("cannon"), flatGround, half);
+    const landMs = p.delayMs + p.flightMs;
+    const there = targetAt(Math.round(landMs / STEP_MS));
+    expect(p.impact).toBe("truck");
+    expect(p.land.x).toBeCloseTo(there.x, 0);
+    expect(Math.abs(p.land.z - there.z)).toBeLessThan(0.5);
+    expect(p.struckAt).not.toBeNull();
+  });
+
+  it("flies a miss close past the target and lands it on the ground behind", () => {
+    const [p] = planShot(poses, shot([round(null, 2)]), gun("mg"), flatGround, half);
+    const there = targetAt(Math.round((p.delayMs + p.flightMs) / STEP_MS));
+    expect(p.impact).toBe("ground");
+    expect(p.land.y).toBe(0);
+    expect(p.land.x).toBeGreaterThan(there.x + 1);
+    expect(Math.abs(p.land.z - there.z)).toBeLessThan(4);
+  });
+
+  it("fires only on steps where the gun covers the target", () => {
+    const turning: TurnPoses = { ...poses, headingAt: (_id, s) => (s >= 40 ? 0 : 1) };
+    const facing = gun("mg", (heading) => heading === 0);
+    expect(fireSteps(turning, { shooter: "s", target: "t" }, facing)[0]).toBe(40);
+    const plans = planShot(turning, shot([round("t"), round("t"), round("t")]), facing, flatGround, half);
+    for (const p of plans) expect(p.delayMs).toBeGreaterThanOrEqual(40 * STEP_MS);
+  });
+
+  it("lands rounds the sim placed at the end of the move at the end positions", () => {
+    const burst = round(null, 1, { burst: { x: 10, y: 3 } });
+    const [p] = planShot(poses, shot([burst], () => true), gun("rocketRack", () => true, 2), flatGround, half);
+    expect(p.land).toEqual({ x: 40, y: 0, z: 12.8 });
+    expect(p.delayMs + p.flightMs).toBeGreaterThan(MOVE_MS - 2 * STEP_MS);
+  });
+
+  it("fires at the end when the gun covers the target on no step", () => {
+    const plans = planShot(poses, shot([round("t"), round("t")]), gun("mg", () => false), flatGround, half);
+    expect(plans.map((p) => p.delayMs)).toEqual([MOVE_MS, MOVE_MS + projectileOf("mg").gapMs]);
+    expect(plans[0].struckAt).toEqual(targetAt(STEPS - 1));
+  });
+
+  it("fires all shotgun pellets in one blast", () => {
+    const plans = planShot(poses, shot([round("t"), round(null, 1), round("t")]), gun("shotgun"), flatGround, half);
+    const gap = projectileOf("shotgun").gapMs;
+    expect(plans.map((p) => p.delayMs - plans[0].delayMs)).toEqual([0, gap, 2 * gap]);
+  });
+
+  it("strays a round into a shown third truck and draws no landing for an unseen one", () => {
+    const [seen, hidden] = planShot(poses, shot([round("o"), round("x")], () => true), gun("mg"), flatGround, half);
+    expect(seen.impact).toBe("truck");
+    expect(seen.struckAt).toEqual({ x: 50, y: 2, z: 50 });
+    expect(hidden.impact).toBe("none");
+  });
+});
+
+describe("planShot against the end of the move", () => {
+  it("fires a round placed at the end of the move so it lands as the move ends, even when the gun only covers early", () => {
+    const early: TurnPoses = { ...poses, headingAt: (_id, s) => (s < 10 ? 0 : 1) };
+    const burst = round(null, 1, { burst: { x: 10, y: 3 } });
+    const [p] = planShot(early, shot([burst], () => true), gun("rocketRack", (heading) => heading === 0, 2), flatGround, half);
+    expect(p.delayMs).toBe(MOVE_MS);
+  });
+
+  it("widens a hit's offset when the target shows more of its side than at the end of the move", () => {
+    const parked = (id: string) => (id === "s" ? { x: 0, y: 2, z: 0 } : id === "t" ? { x: 40, y: 2, z: 0 } : null);
+    const sideOn: TurnPoses = { ...poses, at: (id, s) => (s < STEPS ? parked(id) : null), end: parked, headingAt: (id) => (id === "t" ? Math.PI / 2 : 0) };
+    const [p] = planShot(sideOn, shot([round("t", 0.8)]), gun("cannon"), flatGround, half);
+    expect(p.land.z).toBeCloseTo(0.8 * (TARGET_HALF.length / TARGET_HALF.width), 5);
+  });
+
+  it("keeps a truck's length on the x axis of its body box", () => {
+    const body = bodyOf("buggy").half;
+    expect(body.x).toBeGreaterThan(body.z);
+  });
+});
+
+describe("playShotFx before a shooter's view exists", () => {
+  it("fires the shooter's rounds as the move ends instead of failing the turn", () => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
+    if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
+    world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
+    const launched: { delayMs: number }[] = [];
+    const host = {
+      world,
+      views: new Map(),
+      fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number }) => launched.push(plan), label: () => {} },
+      sound: { at: () => {}, accents: () => {} },
+      eventPoint: () => ORIGIN,
+      breakPart: () => {},
+      onBurst: () => {},
+      poses: posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
+      startMs: 0,
+      freshSmoke: () => false,
+    } as unknown as CombatHost;
+    playShotFx(host, new BreakCues(world.events));
+    expect(launched.map((p) => p.delayMs)).toEqual([MOVE_MS]);
+  });
+});
+
+describe("spreadOver", () => {
+  it("gives each round its own slice of the fire steps", () => {
+    expect(spreadOver([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5, () => 0)).toEqual([0, 2, 4, 6, 8]);
+  });
+
+  it("throws with rounds to place and no step to fire on", () => {
+    expect(() => spreadOver([], 1, half)).toThrow(/at least one fire step/);
   });
 });
