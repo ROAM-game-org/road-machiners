@@ -75,6 +75,11 @@ describe('compileQuest', () => {
     expect(quest?.checkpoints).toEqual(['start', 'start.talk']);
   });
 
+  it('lists each picture once in the order the source first shows it', () => {
+    const { quest } = compile(sources('=== start ===\nRim. # img: rim\nShed. # page # img: shed\nRim again. # img: rim\n-> END\n'));
+    expect(quest?.art).toEqual(['rim', 'shed']);
+  });
+
   it('fails a checkpoint tag that names another section', () => {
     const { quest, errors } = compile(sources('=== start ===\n# checkpoint: begin\nHi.\n-> END\n'));
     expect(quest).toBeNull();
@@ -118,12 +123,13 @@ describe('compileQuest', () => {
     expect(compileSources({ 'world.ink': WORLD, 'ru/stray.ink': body }, false).errors).toEqual(['ru/stray.ink: no English quest of that name']);
   });
 
-  it('fails a Russian twin whose variables, checkpoints, view, stats or facts differ from the English', () => {
-    const en = '# view: page\n# stat: watches Watches\n# fact: seen Seen.\nINCLUDE world.ink\nVAR watches = 3\nVAR seen = false\n=== start ===\n# checkpoint: start\nHi.\n-> END\n';
+  it('fails a Russian twin whose variables, checkpoints, view, art, stats or facts differ from the English', () => {
+    const en = '# view: page\n# stat: watches Watches\n# fact: seen Seen.\nINCLUDE world.ink\nVAR watches = 3\nVAR seen = false\n=== start ===\n# checkpoint: start\nHi. # img: rim\n-> END\n';
     const errorsOf = (ru: string) => compileQuest('q', { 'world.ink': WORLD, 'q.ink': en, 'ru/q.ink': ru }, false).errors.join('\n');
     expect(errorsOf(en.replace('VAR watches = 3', 'VAR watches = 4'))).toMatch(/ru\/q\.ink: its variables part does not match/);
     expect(errorsOf(en.replace('# checkpoint: start\n', ''))).toMatch(/ru\/q\.ink: its checkpoints part does not match/);
     expect(errorsOf(en.replace('# view: page\n', ''))).toMatch(/ru\/q\.ink: its view part does not match/);
+    expect(errorsOf(en.replace(' # img: rim', ''))).toMatch(/ru\/q\.ink: its art part does not match/);
     expect(errorsOf(en.replace('# stat: watches Watches\n', ''))).toMatch(/ru\/q\.ink: its stats part does not match/);
     expect(errorsOf(en.replace('# fact: seen Seen.\n', ''))).toMatch(/ru\/q\.ink: its facts part does not match/);
   });

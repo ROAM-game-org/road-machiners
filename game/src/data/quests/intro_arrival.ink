@@ -6,7 +6,7 @@ VAR arrival_rope = false
 
 === start ===
 # checkpoint: start
-The canteen has been empty since dawn. You shake it by your ear anyway, as if the water might be hiding in there. It isn't. # place: The rim
+The canteen has been empty since dawn. You shake it by your ear anyway, as if the water might be hiding in there. It isn't. # place: The rim # img: arrival_rim
 You have walked since the stars were out, and the sun has been burning through the cloth on your head since it came up. Walking east was stupid. Not that the west had anything better. Your shirt is stiff with salt, and your lips have split at the corners, and you try not to lick them, because that only makes it worse.
 The rock you have been climbing all morning ends at an edge. Below it lies a basin so wide that the far side is only a paler line in the haze. # page
 To the north a thin line might be a road. Past it, something in the haze might be a town, or might be the heat playing tricks again. It has done that twice today.
@@ -37,7 +37,7 @@ Not one knot is wet. Somebody measured water with this rope, back when there was
 
 = house
 # checkpoint: start.house
-You step through the doorway into a room with no roof. Sand has drifted into the corners. A table and a stove are left, and a cot with no blanket. Whoever lived here took everything light enough to carry. # page # place: The house
+You step through the doorway into a room with no roof. Sand has drifted into the corners. A table and a stove are left, and a cot with no blanket. Whoever lived here took everything light enough to carry. # page # place: The house # img: arrival_rim
 + [Look around.]
   -> look
 + [Go out to the shed.]
@@ -51,7 +51,7 @@ You put it in your shirt and go out to the shed.
 -> shed
 
 = shed
-Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm
+Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm # img: arrival_pickup
 It's old and square, with a flat grille and round lamps, the kind of truck that outlives its owners. The paint has worn down to grey undercoat. The tires are soft but whole, and the bed is boxed in with welded plate.
 A machine gun stands on a turning mount behind the cab, its barrel wrapped in rag against the dust. A pair of steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.

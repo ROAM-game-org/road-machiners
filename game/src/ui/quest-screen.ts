@@ -7,7 +7,7 @@ import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
 import { commandFailure } from './format';
-import { questArtUrl } from '../data/quest-art';
+import { questArt, questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
 import { renderLine, TermTip } from './quest-text';
@@ -31,6 +31,62 @@ function statRow(stat: QuestView['stats'][number], change: number, cents: number
   return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, el('span', {}, verbatim(stat.label)), el('b', {}, delta, value));
 }
 
+export function artToHold(art: readonly string[], shown: string | null): string[] {
+  if (shown === null) return art.slice(0, 1);
+  const next = art[art.indexOf(shown) + 1];
+  return next === undefined ? [shown] : [shown, next];
+}
+
+class QuestArtStage {
+  private images = new Map<string, HTMLImageElement>();
+  private shown: string | null = null;
+  private shownAt = 0;
+
+  frame(art: readonly string[], key: string | null): HTMLElement {
+    this.hold(artToHold(art, key));
+    if (key !== this.shown) this.shownAt = performance.now();
+    this.shown = key;
+    const img = key === null ? null : this.image(key);
+    if (img) img.style.animationDelay = `${this.shownAt - performance.now()}ms`;
+    return el('div', { class: 'quest-frame' }, img);
+  }
+
+  clear(): void {
+    this.hold([]);
+    this.shown = null;
+  }
+
+  private image(key: string): HTMLImageElement {
+    const img = this.images.get(key);
+    if (!img) throw new Error(`Quest art ${key} is not held`);
+    return img;
+  }
+
+  private hold(keys: readonly string[]): void {
+    for (const [key, img] of this.images) {
+      if (keys.includes(key)) continue;
+      img.onerror = null;
+      img.removeAttribute('src');
+      this.images.delete(key);
+    }
+    for (const key of keys) if (!this.images.has(key)) this.images.set(key, loadArt(key));
+  }
+}
+
+function loadArt(key: string): HTMLImageElement {
+  const focus = `${questArt(key).focusX}% 50%`;
+  const img = document.createElement('img');
+  img.decoding = 'async';
+  img.setAttribute('aria-hidden', 'true');
+  img.style.objectPosition = focus;
+  img.style.transformOrigin = focus;
+  img.onerror = () => {
+    throw new Error(`Quest art ${key} failed to load from ${img.src}`);
+  };
+  img.src = questArtUrl(key);
+  return img;
+}
+
 export class QuestScreen {
   private root = panel('modal');
   private shown: QuestLive | null = null;
@@ -46,6 +102,7 @@ export class QuestScreen {
   private moneyShown: number | null = null;
   private revealEnd = 0;
   private termTip = new TermTip(this.root);
+  private artStage = new QuestArtStage();
 
   constructor(private host: UiHost) {
     this.root.classList.add('quest-screen');
@@ -94,6 +151,7 @@ export class QuestScreen {
     this.root.style.display = 'none';
     this.root.replaceChildren();
     this.termTip.hide();
+    this.artStage.clear();
   }
 
   private draw(): void {
@@ -108,6 +166,7 @@ export class QuestScreen {
   }
 
   private drawTalk(w: World, view: QuestView): number {
+    this.artStage.clear();
     const drawn = drawLines(w, pagesOf(view.lines)[this.page], 0, { inlineArt: true, offers: true });
     const ask = this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
     const text = el('div', { class: 'quest-talk' }, ask, ...drawn.nodes);
@@ -121,12 +180,12 @@ export class QuestScreen {
     const drawn = drawLines(w, pages[this.page], 0, { inlineArt: false, offers: true });
     const place = lastTagged(shown, 'place') ?? this.placeBefore;
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(lastTagged(shown, 'img') ?? this.artBefore), text, this.side(w, view));
+    this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore), text, this.side(w, view));
     return drawn.endMs;
   }
 
-  private art(key: string | null): HTMLElement {
-    return el('div', { class: 'quest-art' }, el('div', { class: 'quest-frame' }, key ? el('img', { src: questArtUrl(key), 'aria-hidden': 'true' }) : null));
+  private art(quest: string, key: string | null): HTMLElement {
+    return el('div', { class: 'quest-art' }, this.artStage.frame(QUESTS.quests[quest].art, key));
   }
 
   private side(w: World, view: QuestView): HTMLElement {

@@ -169,6 +169,7 @@
 }
 .quest-page .quest-frame {
   height: 100%;
+  overflow: hidden;
   border: 1px solid var(--surface-raised);
   background: repeating-linear-gradient(135deg, var(--surface-raised) 0 var(--space-5), var(--surface-highlight) var(--space-5) var(--space-8));
 }
@@ -177,6 +178,11 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  animation: quest-art-zoom 40s ease-out forwards;
+}
+@keyframes quest-art-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
 }
 .quest-page .quest-text {
   padding: var(--space-9) var(--space-10) var(--space-8);
@@ -322,7 +328,8 @@
   100% { opacity: 1; visibility: visible; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .qt-unit {
+  .qt-unit,
+  .quest-page .quest-frame img {
     animation: none;
     opacity: 1;
     visibility: visible;

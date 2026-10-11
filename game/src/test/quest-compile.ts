@@ -110,7 +110,7 @@ function compileTwin(id: string, lang: QuestLanguage, sources: QuestSources, cou
   if (ruleErrors.length > 0) return failed(ruleErrors, own.warnings, sections);
   const story = own.parsed.story.ToJson();
   if (!story) throw new Error(`Quest ${file} compiled to no story`);
-  const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view };
+  const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view, art: artOf(sources[file]) };
   return { twin: { lang, shape, text: { story, stats: header.stats, facts: header.facts } }, errors: [], warnings: own.warnings, sections };
 }
 
@@ -119,6 +119,7 @@ function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<
     variables: JSON.stringify(t.shape.vars),
     checkpoints: JSON.stringify(t.shape.checkpoints),
     view: t.shape.view,
+    art: JSON.stringify(t.shape.art),
     stats: JSON.stringify(t.text.stats.map((s) => [s.name, s.words?.length ?? null])),
     facts: JSON.stringify(t.text.facts.map((f) => f.name)),
   });
@@ -141,6 +142,12 @@ function strayHeaderErrors(source: string, story: Story): string[] {
   const written = source.split('\n').filter((line) => HEADER_LINE.test(line)).length;
   const read = (story.globalTags ?? []).length;
   return written > read ? ['A view, stat or fact tag sits below other content, so the quest ignores it. Put them all at the very top, above INCLUDE world.ink.'] : [];
+}
+
+const ART_TAG = /#\s*img\s*:\s*([a-z0-9_]+)/g;
+
+function artOf(source: string): string[] {
+  return [...new Set([...source.matchAll(ART_TAG)].map((m) => m[1]))];
 }
 
 function readHeaderTag(header: Header, story: Story, tag: string): void {

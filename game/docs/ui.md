@@ -239,6 +239,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `[aria-disabled="true"]` dims a control that cannot be used now. It keeps hover and focus, so its tooltip can say why.
 - `.tooltip` is a note that opens over its anchor. Words use the UI face and numbers use `.num`. It also gives the reason for a disabled control, as one short fact like "Need 12 M more".
 - `.qt-term` is a word in quest text with a term tip: a dotted underline, and the `.term-tip` tooltip on hover and focus. A term tip is story text, so it keeps the in-character voice of P10, not the chrome voice of other tooltips. It is reference, never needed to choose. [Term tips](quest-authoring.md#term-tips) has the writing rules.
+- `.quest-frame` holds a quest page's picture, cropped to the column around its focus point. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
 - `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 

@@ -7,7 +7,7 @@ export type QuestStat = { name: string; label: string; words: string[] | null };
 export type QuestFact = { name: string; text: string };
 export type QuestLanguage = 'en' | 'ru';
 export type QuestText = { story: string; stats: QuestStat[]; facts: QuestFact[] };
-export type CompiledQuest = { vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; text: Record<QuestLanguage, QuestText> };
+export type CompiledQuest = { vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; art: string[]; text: Record<QuestLanguage, QuestText> };
 export type QuestBundle = { world: Record<string, QuestVarDecl>; externals: string[]; quests: Record<string, CompiledQuest> };
 
 export const CHECKPOINT_TAG = 'checkpoint:';

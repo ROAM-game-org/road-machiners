@@ -149,8 +149,8 @@ export function parseBundle(value: unknown): QuestBundle {
 }
 
 function parseQuest(id: string, value: unknown): CompiledQuest {
-  if (!isRecord(value) || !isRecord(value.vars) || !Array.isArray(value.checkpoints) || !isRecord(value.text)) throw new Error(`Quest ${id} has no vars, checkpoints or text`);
-  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), text: parseTexts(id, value.text) };
+  if (!isRecord(value) || !isRecord(value.vars) || !Array.isArray(value.checkpoints) || !Array.isArray(value.art) || !isRecord(value.text)) throw new Error(`Quest ${id} has no vars, checkpoints, art or text`);
+  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), art: value.art.map(String), text: parseTexts(id, value.text) };
 }
 
 function parseView(id: string, value: unknown): QuestViewKind {

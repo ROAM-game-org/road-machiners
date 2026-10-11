@@ -60,10 +60,10 @@ describe('lineStyle', () => {
   });
 
   it('takes art only from the art list', () => {
-    QUEST_ART.test_gate = 'gate.png';
+    QUEST_ART.test_gate = { file: 'gate.webp', focusX: 50 };
     try {
       expect(lineStyle(['img: test_gate']).img).toBe('test_gate');
-      expect(() => lineStyle(['img: test_wall'])).toThrow('Line tag # img: test_wall needs one of test_gate');
+      expect(() => lineStyle(['img: test_wall'])).toThrow(/Line tag # img: test_wall needs one of .*test_gate/);
     } finally {
       delete QUEST_ART.test_gate;
     }
@@ -76,7 +76,7 @@ describe('lineStyle', () => {
   it('fails an unknown tag, a bad value and art that does not exist', () => {
     expect(() => lineStyle(['glow'])).toThrow('Unknown line tag # glow');
     expect(() => lineStyle(['reveal:fade'])).toThrow('Line tag # reveal:fade needs one of all, word, char');
-    expect(() => lineStyle(['img:wagon'])).toThrow('Line tag # img:wagon needs one of nothing yet');
+    expect(() => lineStyle(['img:wagon'])).toThrow(`Line tag # img:wagon needs one of ${Object.keys(QUEST_ART).join(', ')}`);
   });
 });
 
