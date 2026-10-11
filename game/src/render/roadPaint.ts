@@ -69,14 +69,16 @@ function paintHighways(c: PaintCanvas, roads: readonly AtlasRoad[], holes: reado
   paintHoles(c, holes);
 }
 
-export const ASPHALT_STYLE = `rgb(0, 0, ${Math.round(HIGHWAY.road.paint.band * 255)})`;
+export const ASPHALT_STYLE = "#00f";
 
 function paintAsphalt(c: PaintCanvas, road: AtlasRoad): void {
   const ctx = c.ctx;
   ctx.globalCompositeOperation = "lighten";
   ctx.strokeStyle = ASPHALT_STYLE;
-  ctx.lineCap = "butt";
-  strokeRuns(c, [evenPoints(road.points)], road.width + 2 * HIGHWAY.road.paint.bandSpread);
+  const blur = DIRT_BLUR * c.res;
+  ctx.filter = `blur(${blur}px)`;
+  strokeRuns(c, [evenPoints(road.points)], road.width + 2 * HIGHWAY.road.paint.bandSpread, blur);
+  ctx.filter = "none";
 }
 
 function paintHoles(c: PaintCanvas, holes: readonly RoadHole[]): void {
