@@ -21,6 +21,7 @@ export type VehicleSpec = {
   pos: Vec;
   heading: number;
   brain: NpcBrain | null;
+  driver?: 'own';
 };
 
 export type IdSource = Pick<World, 'nextId'>;
@@ -86,7 +87,7 @@ export function bareVehicle(world: IdSource, spec: Omit<VehicleSpec, 'parts' | '
     utilityOrders: {},
     trail: [],
     brain: spec.brain,
-    resources: spec.faction === 'player' ? null : { ...NPC_RESOURCES, fuel: Math.min(NPC_RESOURCES.fuel, chassisDef(spec.chassisId).fuelCap), health: RULES.maxHealth },
+    resources: spec.faction === 'player' && spec.driver !== 'own' ? null : { ...NPC_RESOURCES, fuel: Math.min(NPC_RESOURCES.fuel, chassisDef(spec.chassisId).fuelCap), health: RULES.maxHealth },
     lastHitBy: null,
     job: null,
   };

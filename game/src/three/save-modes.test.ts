@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { startKit } from '../data/start';
 import { defaultSetup } from '../sim/settings';
-import { playerVehicle } from '../sim/damage';
+import { haulerOf, playerVehicle } from '../sim/damage';
 import { FURY_ROAD } from '../data/modes';
 import { betweenLevels, outpostPad, waitForRoad } from '../sim/fury-road';
 import { highwayHash } from '../sim/highway';
@@ -45,6 +45,16 @@ describe('a saved world by mode', () => {
 
     expect(loaded).toEqual(world);
     expect(loaded?.mapHash).toBe(highwayHash(21, 0));
+  });
+
+  it('gives back the hauler and its facts', () => {
+    const world = furyRoadWorld(21);
+    world.furyRoad!.hauler.alarmUntil = 7;
+
+    const loaded = loadWorld(saved(world), 'auto', TEST_MAP)!;
+
+    expect(loaded.furyRoad!.hauler).toEqual({ id: haulerOf(world).id, alarmUntil: 7 });
+    expect(haulerOf(loaded)).toEqual(haulerOf(world));
   });
 
   it('gives back the same run mid-stretch, with a group racing in, and awards nothing on load', () => {

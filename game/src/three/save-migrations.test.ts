@@ -61,6 +61,7 @@ import FORMAT_2_55 from './save-fixtures/format-2-55.json';
 import FORMAT_2_56 from './save-fixtures/format-2-56.json';
 import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import FORMAT_2_58 from './save-fixtures/format-2-58.json';
+import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1271,5 +1272,27 @@ describe('save migration 58 to 59', () => {
     const roaming = { ...structuredClone(FORMAT_2_58), furyRoad: null };
 
     expect(MIGRATIONS[58](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 59 to 60', () => {
+  it('drops a Fury Road run without a hauler and keeps the mode, for the load to rescue it', () => {
+    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59));
+
+    expect(next).toEqual({ ...FORMAT_2_59, furyRoad: null });
+    expect((next.setup as { mode: string }).mode).toBe('furyRoad');
+  });
+
+  it('keeps a run that has a hauler as it is', () => {
+    const run = { ...structuredClone(FORMAT_2_59.furyRoad), hauler: { id: 'v9', alarmUntil: null } };
+    const world = { ...structuredClone(FORMAT_2_59), furyRoad: run };
+
+    expect(MIGRATIONS[59](structuredClone(world))).toEqual(world);
+  });
+
+  it('keeps a Roaming world as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_59), setup: { ...FORMAT_2_59.setup, mode: 'roaming' }, furyRoad: null };
+
+    expect(MIGRATIONS[59](structuredClone(roaming))).toEqual(roaming);
   });
 });

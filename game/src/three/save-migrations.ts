@@ -866,7 +866,13 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCutPumpVars_56_57,
   withEnemyGearGrowth_57_58,
   withoutCatchUp_58_59,
+  withoutOldRun_59_60,
 ];
+
+function withoutOldRun_59_60(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  return run !== null && !('hauler' in run) ? { ...world, furyRoad: null } : world;
+}
 
 function withoutCatchUp_58_59(world: SavedJson): SavedJson {
   const run = world.furyRoad as SavedJson | null;

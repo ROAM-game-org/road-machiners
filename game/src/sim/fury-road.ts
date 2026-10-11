@@ -1,11 +1,13 @@
-import { FURY_ROAD } from '../data/modes';
+import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
+import { HAULER_KIT } from '../data/start';
+import { makeVehicle } from './factory';
 import { isDefeated } from './defeat';
-import { playerVehicle } from './damage';
-import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
+import { haulerOf, playerTrucks, playerVehicle } from './damage';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
 import { canUseSite, sitePads } from './sites';
 import { mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
@@ -28,7 +30,7 @@ import { playerCommand } from './world';
 export type Outpost = OutpostFacts & { id: string; pad: Vec };
 export type FuryRoadReadout = { stretch: number; toOutpost: number; outpostId: string };
 
-export { outpostId };
+export { outpostId, haulerOf, playerTrucks };
 
 export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
   if (!Number.isInteger(j) || j < 1) throw new Error(`Stretch ${j} has no wave`);
@@ -105,7 +107,26 @@ export function outpostTrucks(world: World, post: OutpostFacts): string[] {
 
 export function startRun(world: World): void {
   if (world.terrain.atlas.kind !== 'highway' || world.terrain.atlas.window !== 0) throw new Error(`A Fury Road run starts on highway window 0, not map ${world.mapHash}`);
-  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn };
+  const hauler = spawnHauler(world);
+  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn, hauler: { id: hauler.id, alarmUntil: null } };
+}
+
+export function spawnHauler(world: World): Vehicle {
+  const n = milestoneAt(0);
+  const v = makeVehicle(world, {
+    faction: 'player',
+    chassisId: HAULER_KIT.chassis,
+    parts: HAULER_KIT.parts.map((defId) => ({ defId, wear: HAULER_KIT.wear })),
+    spares: [],
+    cargo: {},
+    pos: roadPoint(world.seed, 0, n, HIGHWAY.road.lanes[HIGHWAY.haulerLane]),
+    heading: roadHeading(world.seed, n),
+    brain: null,
+    driver: 'own',
+  });
+  v.resources = { money: 0, fuel: HAULER_KIT.fuel, supplies: HAULER_KIT.supplies, health: RULES.maxHealth };
+  world.vehicles.push(v);
+  return v;
 }
 
 function runOf(world: World): FuryRoadRun {

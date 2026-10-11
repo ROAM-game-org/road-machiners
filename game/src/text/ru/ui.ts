@@ -211,6 +211,7 @@ export const UI: Translation<typeof EN> = {
   'boot.nextWindow': 'Открываем дорогу на север',
   'death.wrecked': 'Грузовик разбит',
   'death.stranded': 'Вы застряли',
+  'death.haulerLost': 'Фура потеряна',
   'death.restartRun': 'Начать заезд заново',
   'death.runReached': '{mode}. Дошли до {site, case, gen}, {north} на север.',
   'death.runStart': '{mode}. Первый перегон, {north} на север.',

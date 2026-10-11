@@ -53,3 +53,19 @@ export function vehicleById(world: World, id: string): Vehicle {
 export function playerVehicle(world: World): Vehicle {
   return vehicleById(world, world.player.vehicleId);
 }
+
+export function haulerOf(world: World): Vehicle {
+  if (!world.furyRoad) throw new Error("No Fury Road run, so no hauler");
+  return vehicleById(world, world.furyRoad.hauler.id);
+}
+
+export function playerTrucks(world: World): Vehicle[] {
+  const me = playerVehicle(world);
+  return world.furyRoad ? [me, haulerOf(world)] : [me];
+}
+
+export function ownedTruck(world: World, id: string): Vehicle {
+  const truck = playerTrucks(world).find((v) => v.id === id);
+  if (!truck) throw new Error(`The player does not own truck ${id}`);
+  return truck;
+}

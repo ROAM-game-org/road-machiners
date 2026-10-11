@@ -210,6 +210,7 @@ export const UI = {
   'boot.nextWindow': 'Opening the road north',
   'death.wrecked': 'Wrecked',
   'death.stranded': 'Stranded',
+  'death.haulerLost': 'Hauler lost',
   'death.restartRun': 'Restart run',
   'death.runReached': m('{mode}. Reached {site}, {north} north', { mode: 'text', site: 'text', north: 'text' }),
   'death.runStart': m('{mode}. Stretch 1, {north} north', { mode: 'text', north: 'text' }),
