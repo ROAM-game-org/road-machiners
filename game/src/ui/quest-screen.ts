@@ -94,7 +94,7 @@ export class QuestScreen {
   private page = 0;
   private artBefore: string | null = null;
   private placeBefore: string | null = null;
-  private factsBefore = new Set<string>();
+  private factsBefore: Set<string> | null = null;
   private factsShown: string[] = [];
   private moneyBefore: number | null = null;
   private moneyShown: number | null = null;
@@ -138,7 +138,7 @@ export class QuestScreen {
   private forget(): void {
     this.artBefore = null;
     this.placeBefore = null;
-    this.factsBefore = new Set();
+    this.factsBefore = null;
     this.moneyBefore = null;
   }
 
@@ -191,7 +191,7 @@ export class QuestScreen {
     this.moneyShown = w.player.money;
     const stats = view.stats.map((s) => statRow(s, s.name === MONEY_STAT ? gained : 0, w.player.money));
     this.factsShown = view.facts;
-    const facts = view.facts.map((f) => el('div', { class: this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
+    const facts = view.facts.map((f) => el('div', { class: this.factsBefore === null || this.factsBefore.has(f) ? 'quest-fact' : 'quest-fact new' }, renderLine(f, ['reveal:all'], 0).el));
     return el('div', { class: 'quest-side' }, el('div', { class: 'quest-stats' }, ...stats), el('div', { class: 'quest-facts' }, ...facts));
   }
 
