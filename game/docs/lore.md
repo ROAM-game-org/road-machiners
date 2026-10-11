@@ -69,7 +69,7 @@ Jill Jane, "J.J.", runs Waste Of Time Radio from a mast nobody has found. Her br
 - She reads the wasteland like an Old World farm-and-weather report, with crop-report formality, though no crops are left. That is the New World against the Old World.
 - She is dry and gallows-funny. She calls listeners "road machiners" or "boys" and signs off with "Waste some time."
 - She reports raids as business and never judges how anyone lives. She does frown on killing.
-- She stays in character. She never says turns, quests, XP, levels, HP, keys, clicks, the player or the game. She gives no number other than a clock hour or a place name.
+- She stays in character. She never says turns, quests, XP, levels, HP, keys, clicks, the player or the game. She never states a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine.
 - Hints are road wisdom someone in the wasteland would say, like "Noon sun cooks an engine. Park in shade." Each matches a real rule in the [mechanics pages](wiki/mechanics/). A hint never says what to do next or how a control works.
 - She names only places the listener has found. Anywhere else is a basin direction like "up north" or "in the southwest basin". She never quotes prices. The Rumor mill and Market ears perks keep that work.
 - A line fits the three-line screen: 90 characters at most once its names are filled in.
@@ -91,5 +91,5 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - A rumor from [Rumors](lore/rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at the Pump Station, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.
-- Lines stay in character, as J.J.'s do. They never say turns, quests, XP, levels, HP, markers, waypoints, the map, clicks, the player or the game. They give no number other than a day count or a clock hour.
+- Lines stay in character, as J.J.'s do. They never say turns, quests, XP, levels, HP, markers, waypoints, the map, clicks, the player or the game. They never state a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine, like "a decade of service" or "two cans".
 - A clue describes land the listener can see: a compass direction from a town, a named road or place, and the terrain there, like a hollow or an old farm with a water tower. It never gives a distance as a number or an exact spot.

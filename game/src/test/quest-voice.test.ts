@@ -7,7 +7,6 @@ import { QUESTS } from '../sim/quests';
 import { readQuestSources } from './quest-compile';
 
 const OUT_OF_CHARACTER = /\b(turns?|quests?|xp|levels?|hp|markers?|waypoints?|maps?|click\w*|players?|games?)\b/i;
-const NUMBER = /\d|\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundreds?|thousands?|dozens?)\b(?! (days?|o'clock))/i;
 const LOGIC = /^(INCLUDE|EXTERNAL|VAR|CONST|~|->|=|#|\{|\}|-\s)/;
 const CHOICE = /^[+*]+\s*(?:\{[^}]*\}\s*)?\[([^\]]*)\]/;
 const DOCUMENT = /#\s*(row|head)\s*$/;
@@ -36,13 +35,10 @@ function lines(): { where: string; text: string }[] {
 }
 
 describe('settlement talk content', () => {
-  it('keeps every line in character, with no counts but days and hours outside written tables', () => {
+  it('keeps every line in character', () => {
     const found = lines();
     expect(found.length).toBeGreaterThan(50);
-    for (const { where, text } of found) {
-      expect(text, where).not.toMatch(OUT_OF_CHARACTER);
-      expect(text.replace(/wagon Seven/gi, 'wagon'), where).not.toMatch(NUMBER);
-    }
+    for (const { where, text } of found) expect(text, where).not.toMatch(OUT_OF_CHARACTER);
   });
 
   it('starts every quest from a local, a radio handoff or another quest', () => {
