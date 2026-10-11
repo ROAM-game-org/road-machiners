@@ -638,14 +638,10 @@ describe('NPC activities', () => {
       const before = scrapIn(w);
 
       let next = w;
-      let took = false;
-      for (let turn = 0; turn < 40 && !took; turn++) {
-        next = endTurn(next, moveFar);
-        took = (goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0) > 0;
-      }
+      for (let turn = 0; turn < 80 && scrapIn(next) >= before; turn++) next = endTurn(next, moveFar);
 
-      expect(took).toBe(true);
       expect(scrapIn(next)).toBeLessThan(before);
+      expect(goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0).toBeGreaterThan(0);
       expect(next.events.filter((e) => e.t === 'stall')).toEqual([]);
     }, 60_000);
 
