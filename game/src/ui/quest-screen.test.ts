@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf } from './quest-lines';
-import { artToHold, askOf } from './quest-screen';
+import { askOf } from './quest-screen';
 
 const live = (quest: string, text: string): QuestLive => ({ quest, lang: 'en', ink: '{}', lines: [{ text, tags: [] }], choices: ['Goodbye.'], costs: [null], checks: [null] });
 const line = (text: string, ...tags: string[]) => ({ text, tags });
@@ -36,26 +36,5 @@ describe('askOf', () => {
     expect(askOf(null, hattie, null)).toBeNull();
     expect(askOf(hattie, live('bowl_ruben', 'Sit.'), 'Hi')).toBeNull();
     expect(askOf(hattie, live('bowl_hattie', 'Back.'), null)).toBeNull();
-  });
-});
-
-describe('artToHold', () => {
-  const art = ['rim', 'farm', 'shed'];
-
-  it('holds the first picture before any shows', () => {
-    expect(artToHold(art, null)).toEqual(['rim']);
-  });
-
-  it('holds the shown picture and the next one, and drops the rest', () => {
-    expect(artToHold(art, 'rim')).toEqual(['rim', 'farm']);
-    expect(artToHold(art, 'farm')).toEqual(['farm', 'shed']);
-  });
-
-  it('holds only the shown picture at the end of the list', () => {
-    expect(artToHold(art, 'shed')).toEqual(['shed']);
-  });
-
-  it('holds nothing for a quest with no art', () => {
-    expect(artToHold([], null)).toEqual([]);
   });
 });

@@ -30,6 +30,7 @@ type Tip = {
 };
 
 const FAREWELL_DISTANCE = 80;
+const TIP_PAUSE_AFTER_QUEST_MS = 3000;
 const spawn = startPose().pos;
 const departureFrom = (w: World): Vec => openingStockOf(w)?.pos ?? spawn;
 
@@ -177,7 +178,7 @@ export function doneTips(world: World, seen: ReadonlySet<TipId>): TipId[] {
 }
 
 export function tipToShow(world: World, auto: boolean, seen: ReadonlySet<TipId>, shown: TipId | null): TipId | null {
-  if (!playerCanAct(world)) return null;
+  if (!playerCanAct(world) || world.player.quests.live) return null;
   const o = openingState(world);
   const live = openingLive(o, seen);
   const open = TIPS.filter((t) => (t.opening || !live) && !seen.has(t.id) && (!t.after || seen.has(t.after)) && t.when(world, auto, o));
@@ -218,6 +219,8 @@ export class Tips {
   private readonly seen: Set<TipId>;
   private shown: TipId | null = null;
   private moment: { world: World; auto: boolean } | null = null;
+  private questWasOpen = false;
+  private heldUntil = 0;
 
   private off: boolean;
 
@@ -242,11 +245,23 @@ export class Tips {
       }
       return;
     }
-    const next = tipToShow(world, auto, this.seen, this.shown);
+    this.holdAfterQuest(world);
+    const next = performance.now() < this.heldUntil ? null : tipToShow(world, auto, this.seen, this.shown);
     if (next === this.shown) return;
     this.passShown();
     this.shown = next;
     this.render();
+  }
+
+  private holdAfterQuest(world: World): void {
+    const questOpen = world.player.quests.live !== null;
+    if (this.questWasOpen && !questOpen) {
+      this.heldUntil = performance.now() + TIP_PAUSE_AFTER_QUEST_MS;
+      window.setTimeout(() => {
+        if (this.moment) this.update(this.moment.world, this.moment.auto);
+      }, TIP_PAUSE_AFTER_QUEST_MS);
+    }
+    this.questWasOpen = questOpen;
   }
 
   isOn(): boolean {

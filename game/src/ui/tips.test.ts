@@ -1,4 +1,6 @@
 import { defaultSetup } from '../sim/settings';
+import { openQuest, QUESTS } from "../sim/quests";
+import { GAME_OPENED_QUESTS } from "../data/quests";
 import { describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
 import { addVehicle, emptyWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
@@ -79,6 +81,12 @@ describe("driving tips", () => {
   it("shows no tip to a player who cannot act", () => {
     const w = emptyWorld();
     w.player.state = "dead";
+    expect(tipToShow(w, false, new Set(), null)).toBeNull();
+  });
+
+  it("shows no tip while a quest is on screen", () => {
+    const w = emptyWorld();
+    openQuest(w, QUESTS, GAME_OPENED_QUESTS.arrival, "start");
     expect(tipToShow(w, false, new Set(), null)).toBeNull();
   });
 });

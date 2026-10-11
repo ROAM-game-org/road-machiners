@@ -32,19 +32,13 @@ function statRow(stat: QuestView['stats'][number], change: number, cents: number
   return el('div', { class: change === 0 ? 'quest-stat' : 'quest-stat new' }, label, el('b', {}, delta, value));
 }
 
-export function artToHold(art: readonly string[], shown: string | null): string[] {
-  if (shown === null) return art.slice(0, 1);
-  const next = art[art.indexOf(shown) + 1];
-  return next === undefined ? [shown] : [shown, next];
-}
-
 class QuestArtStage {
   private images = new Map<string, HTMLImageElement>();
   private shown: string | null = null;
   private shownAt = 0;
 
   frame(art: readonly string[], key: string | null): HTMLElement {
-    this.hold(artToHold(art, key));
+    this.hold(art);
     if (key !== this.shown) this.shownAt = performance.now();
     this.shown = key;
     const img = key === null ? null : this.image(key);
@@ -77,7 +71,7 @@ class QuestArtStage {
 function loadArt(key: string): HTMLImageElement {
   const focus = `${questArt(key).focusX}% 50%`;
   const img = document.createElement('img');
-  img.decoding = 'async';
+  img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');
   img.style.objectPosition = focus;
   img.style.transformOrigin = focus;
@@ -85,6 +79,9 @@ function loadArt(key: string): HTMLImageElement {
     throw new Error(`Quest art ${key} failed to load from ${img.src}`);
   };
   img.src = questArtUrl(key);
+  img.decode().catch((e: unknown) => {
+    if (img.hasAttribute('src')) throw e;
+  });
   return img;
 }
 
