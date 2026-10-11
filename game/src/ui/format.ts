@@ -256,16 +256,6 @@ function spanLine(cls: string, spans: LogSpan[]): LogLine {
 }
 
 const STATE_ENDED_TEXT: Partial<Record<StateKindId, Record<StateEnding, ((holder: Msg) => LogLine) | null>>> = {
-  feud: {
-    expired: (holder) => line(t('log.feudExpired', { who: holder }), 'good'),
-    fulfilled: (holder) => line(t('log.feudFulfilled', { who: holder }), 'bad'),
-    broken: (holder) => line(t('log.feudBroken', { who: holder }), 'dim'),
-  },
-  backedOff: {
-    expired: (holder) => line(t('log.backedOffExpired', { who: holder }), 'dim'),
-    fulfilled: null,
-    broken: null,
-  },
   aid: {
     expired: (holder) => line(t('log.aidExpired', { who: holder }), 'dim'),
     fulfilled: null,
@@ -732,7 +722,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   shot: shotText,
   partDisabled: partDisabledText,
   destroyed: (world, e) => line(t('log.destroyed', { who: vehicleName(world, e.vehicle) }), 'good'),
-  hostile: (world, e) => (e.against === world.player.vehicleId ? line(t('log.hostile', { who: vehicleName(world, e.vehicle) }), 'bad') : null),
+  hostile: quiet,
   practice: quiet,
   skillUp: (_, e) => line(skillUpText(e.skill, e.level), 'good'),
   money: moneyText,
