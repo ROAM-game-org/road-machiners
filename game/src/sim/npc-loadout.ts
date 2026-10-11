@@ -324,6 +324,22 @@ function pickGear(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, powered:
   }
 }
 
+export type Refit = { priorities: LoadoutPriorities; money: number; allowed: (v: Vehicle) => boolean };
+
+export function refitLoadout(world: World, rng: Rng, truck: Vehicle, refit: Refit): Vehicle {
+  const probe = { ...world };
+  const b: Build = { world: probe, budget: equipmentCost(truck) + refit.money, engineWear: 0, keep: NO_RESERVE, keepShare: speedShare(refit.priorities), rules: OPEN_GEAR };
+  const powered = { ...truck, items: truck.items.filter((it) => it.kind === 'part' && ['core', 'engine'].includes(partDef(it.part.defId).kind)) };
+  const score = gearScorer(probe, refit.priorities, powered);
+  const moves = gearMoves(b, score).map((move): GearMove => (v) => {
+    const next = move(v);
+    return next && refit.allowed(next) ? next : null;
+  });
+  let v = truck;
+  for (let next = takeStep(b, rng, v, moves, score, score(v)); next; next = takeStep(b, rng, v, moves, score, score(v))) v = next;
+  return v;
+}
+
 function mountedNonCore(v: Vehicle): PartSpec[] {
   return v.items.flatMap((item) =>
     item.kind === 'part' && partDef(item.part.defId).kind !== 'core' ? [{ defId: item.part.defId, wear: item.part.wear, at: { x: item.x, y: item.y, rot: item.rot } }] : [],

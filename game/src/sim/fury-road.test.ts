@@ -369,16 +369,16 @@ describe('arriving at an outpost', () => {
     expect(() => waitForRoad(opened)).toThrow(/wait/);
   });
 
-  it('does not complete on the move or off the pad', () => {
+  it('completes on reaching the pad at speed, but not off the pad', () => {
     const moving = furyRoadWorld();
     parkOnNext(moving);
-    playerVehicle(moving).speed = 2;
+    playerVehicle(moving).speed = 8;
     const off = furyRoadWorld();
     moveTo(off, milestoneAt(1) - 20);
 
     for (const w of [moving, off]) advanceFuryRoad(w);
 
-    expect([moving, off].map((w) => runOf(w).outposts[0].paid)).toEqual([false, false]);
+    expect([moving, off].map((w) => runOf(w).outposts[0].paid)).toEqual([true, false]);
   });
 
   it('pays the base and a bonus for each wreck of the stretch, and keeps the run totals', () => {

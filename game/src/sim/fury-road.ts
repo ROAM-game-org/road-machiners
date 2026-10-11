@@ -300,7 +300,7 @@ function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
 }
 
 function arrivedAtNext(world: World, run: FuryRoadRun): boolean {
-  return parkedOnPad(world, run.window + 1);
+  return onOutpostPad(world, playerVehicle(world).pos, run.window + 1);
 }
 
 export function betweenLevels(world: World): boolean {
