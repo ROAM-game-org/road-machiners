@@ -120,6 +120,7 @@ export class Hud {
   private condition = new TruckConditionView();
   private inspected = new TruckConditionView(true);
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
+  private inspectedAimable = false;
   private infoColumn = el("div", { class: "info-column" });
   private contracts = panel("contracts dock-panel", rightDock());
   private log = new LogPanel();
@@ -145,18 +146,26 @@ export class Hud {
     const gap = parseFloat(token("--hud-gap"));
     const top = topRight().getBoundingClientRect().bottom + gap;
     this.info.style.top = `${top}px`;
+    this.info.style.width = "";
     const slot = this.radio.root.getBoundingClientRect().top - gap - top;
     this.info.style.height = `${slot}px`;
-    const shortBy = this.inspected.heightToFit(this.inspectedDraw, parseFloat(token("--btn-h-s"))) - this.inspectedDraw.clientHeight;
-    const tallest = this.log.root.getBoundingClientRect().bottom - top;
-    const height = Math.min(slot + Math.max(0, shortBy), tallest);
-    this.info.style.height = `${height}px`;
-    this.coverUnder(top + height);
+    if (this.inspectedAimable) this.growForAim(top, slot);
+    this.coverUnder(this.info.getBoundingClientRect().bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
 
+  private growForAim(top: number, slot: number): void {
+    const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
+    const wider = need.width - this.inspectedDraw.clientWidth;
+    if (wider > 0) this.info.style.width = `${this.info.offsetWidth + wider}px`;
+    const tallest = this.log.root.getBoundingClientRect().bottom - top;
+    this.info.style.height = `${tallest}px`;
+    const fits = tallest - this.inspectedDraw.clientHeight + need.height;
+    this.info.style.height = `${Math.min(tallest, Math.max(slot, fits))}px`;
+  }
+
   private coverUnder(bottom: number | null): void {
-    for (const below of [this.radio.root, this.log.root]) {
+    for (const below of [...rightDock().children, this.log.root] as HTMLElement[]) {
       below.style.visibility = bottom !== null && bottom > below.getBoundingClientRect().top ? "hidden" : "";
     }
   }
@@ -574,7 +583,9 @@ export class Hud {
       this.coverUnder(null);
       return;
     }
-    this.inspected.render(v, this.aimOf(w, v));
+    const aim = this.aimOf(w, v);
+    this.inspectedAimable = aim !== undefined;
+    this.inspected.render(v, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
       infoHead(w, v, hostile),

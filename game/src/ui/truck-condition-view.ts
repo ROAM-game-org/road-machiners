@@ -41,10 +41,9 @@ export class TruckConditionView {
     this.root.style.zoom = String(cell / CELL);
   }
 
-  heightToFit(box: HTMLElement, cell: number): number {
+  boxFor(cell: number): { width: number; height: number } {
     const outline = parseFloat(token("--space-4"));
-    const widest = (box.clientWidth - outline) / this.cols;
-    return (this.rows + 2 * PLAN_PAD) * Math.min(cell, widest) + outline;
+    return { width: this.cols * cell + outline, height: (this.rows + 2 * PLAN_PAD) * cell + outline };
   }
 
   render(vehicle: Vehicle, aim?: ConditionAim): void {
