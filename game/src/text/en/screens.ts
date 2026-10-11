@@ -256,6 +256,7 @@ export const SCREENS = {
   'hud.tagHostile': 'hostile',
   'hud.tagNeutral': 'neutral',
   'readout.litersShort': m('{n} L', { n: 'int' }),
+  'readout.kgShort': m('{n} kg', { n: 'int' }),
   'readout.celsius': m('{n} °C', { n: 'int' }),
   'units.kg': m('{n} kg', { n: 'int' }),
   'ui.key': m('[{key}]', { key: 'name' }),
