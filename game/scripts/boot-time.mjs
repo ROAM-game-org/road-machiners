@@ -16,7 +16,7 @@ if (!(runs >= 1)) throw new Error('--runs must be at least 1');
 const FETCHES = { code: 'assets/index-', map: 'maps/', models: 'models/', sounds: 'sfx/' };
 const FAST_4G = { offline: false, downloadThroughput: (10 * 1024 * 1024) / 8, uploadThroughput: (10 * 1024 * 1024) / 8, latency: 40 };
 const BOOT_KEY = `${process.env.SAVE_SCOPE ? `roam.save.${process.env.SAVE_SCOPE}` : 'roam.save'}.boot`;
-const NEW_GAME = JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: true });
+const NEW_GAME = JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true });
 
 function askNewGameOnce({ key, request }) {
   if (sessionStorage.getItem('bootTime.asked')) return;

@@ -59,6 +59,7 @@ import FORMAT_2_53 from './save-fixtures/format-2-53.json';
 import FORMAT_2_54 from './save-fixtures/format-2-54.json';
 import FORMAT_2_55 from './save-fixtures/format-2-55.json';
 import FORMAT_2_56 from './save-fixtures/format-2-56.json';
+import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1242,5 +1243,17 @@ describe('save migration 56 to 57', () => {
     });
     expect(next.notes.map((n) => n.id)).toEqual(['pipeBook']);
     expect(next.money).toBe(1200);
+  });
+});
+
+describe('save migration 57 to 58', () => {
+  it('gives the setup the default enemy gear growth and keeps the other settings and fields', () => {
+    const next = MIGRATIONS[57](structuredClone(FORMAT_2_57));
+
+    expect(next).toEqual({
+      turn: 3,
+      setup: { mode: 'furyRoad', settings: { damage: 1.5, fuelUse: 0.75, supplyUse: 1, enemyGearGrowth: 1 } },
+      player: { money: 1200 },
+    });
   });
 });

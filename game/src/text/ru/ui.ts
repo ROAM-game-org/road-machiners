@@ -33,6 +33,8 @@ export const UI: Translation<typeof EN> = {
   'setting.fuelUse.description': 'Сколько топлива сжигает каждый грузовик на каждую пройденную клетку.',
   'setting.supplyUse': 'Расход припасов',
   'setting.supplyUse.description': 'Сколько припасов съедает каждая команда за ход.',
+  'setting.enemyGearGrowth': 'Рост снаряжения врагов',
+  'setting.enemyGearGrowth.description': 'Насколько лучше снаряжение врагов на каждом следующем перегоне.',
   'save.download': 'Скачать сохранение',
   'save.reportBug': 'Если это похоже на ошибку, скачайте сохранение и приложите его к обращению на GitHub.',
   'save.settingReset': 'Настройка «{setting}» сброшена до {pct}%',

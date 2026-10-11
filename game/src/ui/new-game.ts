@@ -78,7 +78,7 @@ class NewGameScreen {
   private render(): void {
     this.modes.replaceChildren(...MODE_IDS.map((id) => this.modeCard(id)));
     this.settings.replaceChildren(
-      ...SETTING_IDS.map((id) => this.settingRow(id)),
+      ...SETTING_IDS.filter((id) => WORLD_SETTINGS[id].modes.includes(this.draft.mode)).map((id) => this.settingRow(id)),
       el("button", { class: "reset", onclick: () => this.reset() }, t("newGame.reset")),
     );
   }

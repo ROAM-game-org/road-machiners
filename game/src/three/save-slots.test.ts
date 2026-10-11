@@ -65,7 +65,7 @@ describe('save slots', () => {
 
   it('carries a new game setup through the reload exactly once, with its exact values', () => {
     const session = makeStorage();
-    const setup = { mode: 'roaming' as const, settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75 } };
+    const setup = { mode: 'roaming' as const, settings: { damage: 1.5, fuelUse: 2, supplyUse: 0.75, enemyGearGrowth: 1 } };
     requestBoot(session, 'roam.save', { new: setup, intro: false });
 
     expect(takeBootRequest(session, 'roam.save')).toEqual({ new: setup, intro: false });
@@ -74,7 +74,7 @@ describe('save slots', () => {
 
   it('refuses a new game request that does not say whether the intro plays', () => {
     const session = makeStorage();
-    session.setItem('roam.save.boot', JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } }));
+    session.setItem('roam.save.boot', JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } } }));
 
     expect(() => takeBootRequest(session, 'roam.save')).toThrow(/intro/);
   });
@@ -88,7 +88,7 @@ describe('save slots', () => {
   });
 
   it.each([
-    ['a setting out of bounds', JSON.stringify({ new: { mode: 'roaming', settings: { damage: 5, fuelUse: 1, supplyUse: 1 } } })],
+    ['a setting out of bounds', JSON.stringify({ new: { mode: 'roaming', settings: { damage: 5, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } } })],
     ['broken JSON', '{"new":'],
     ['a road boot of no slot', JSON.stringify({ slot: 'garage', reason: 'road' })],
     ['JSON with no new game', JSON.stringify({ old: 1 })],

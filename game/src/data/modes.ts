@@ -16,16 +16,19 @@ export const GAME_MODES: Record<GameModeId, GameMode> = {
   furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway' },
 };
 
-export type WorldSettingDef = { default: number; min: number; max: number; step: number };
+export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
+const EVERY_MODE: readonly GameModeId[] = ['roaming', 'furyRoad'];
 
 export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
-  damage: { default: 1, min: 0.5, max: 2, step: 0.25 },
-  fuelUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
-  supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25 },
+  damage: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  fuelUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  supplyUse: { default: 1, min: 0.5, max: 2, step: 0.25, modes: EVERY_MODE },
+  enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['furyRoad'] },
 };
 
-export type WavePlan = { sizes: number[]; level: GearLevel; gear: GearRules };
-const WAVE_GEAR: GearRules = { armored: true, gunFirst: false };
+export type WaveGear = Omit<GearRules, 'money'>;
+export type WavePlan = { sizes: number[]; level: GearLevel; gear: WaveGear };
+const WAVE_GEAR: WaveGear = { armored: true, gunFirst: false };
 
 export type PoolTier = { upTo: number; weights: Record<string, number> };
 export type Curve = { first: number; step: number; max: number };
@@ -49,6 +52,7 @@ export const FURY_ROAD = {
     { sizes: [3, 2], level: 'heavy', gear: WAVE_GEAR },
     { sizes: [3, 3, 2], level: 'loaded', gear: WAVE_GEAR },
   ] as WavePlan[],
+  gearMoney: { first: 45000, step: 33000 },
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
     { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, gunwagon: 3, vulture: 2, merc: 2, bowlFarmer: 1 } },

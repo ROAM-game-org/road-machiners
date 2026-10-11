@@ -35,7 +35,8 @@ export const settingName = (id: keyof WorldSettings): Msg => t(`setting.${id}`);
 export const settingDescription = (id: keyof WorldSettings): Msg => t(`setting.${id}.description`);
 
 export function setupText(setup: WorldSetup): Msg {
-  const settings = (Object.keys(WORLD_SETTINGS) as (keyof WorldSettings)[]).map((id) =>
+  const ids = (Object.keys(WORLD_SETTINGS) as (keyof WorldSettings)[]).filter((id) => WORLD_SETTINGS[id].modes.includes(setup.mode));
+  const settings = ids.map((id) =>
     t('setup.part', { setting: settingName(id), pct: t('setting.percent', { n: Math.round(setup.settings[id] * 100) }) }));
   return list([modeName(setup.mode), ...settings]);
 }

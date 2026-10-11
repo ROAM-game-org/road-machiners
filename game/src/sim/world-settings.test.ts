@@ -1,4 +1,3 @@
-// The world settings scale the same rules for every truck: the player, NPCs and far NPCs.
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
 import { applyContactCrash, applyGroundCrash, applyLanding } from './crash-contact';
@@ -14,7 +13,7 @@ import type { Vehicle, World, WorldSettings } from './types';
 import { consumeSupplies, leakFuel } from './supplies';
 
 function withSettings(w: World, settings: Partial<WorldSettings>): World {
-  w.setup = parseSetup({ mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, ...settings } });
+  w.setup = parseSetup({ mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1, ...settings } });
   return w;
 }
 

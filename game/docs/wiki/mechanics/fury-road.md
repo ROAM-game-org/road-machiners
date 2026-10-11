@@ -82,6 +82,8 @@ Each stretch plans its groups: their sizes and gear level from its wave, each tr
 | 7 | 3, 2 | heavy |
 | 8 and on | 3, 3, 2 | loaded |
 
+Each truck spends its gear money on parts. Stretch 1 gives 450 M's, and each later stretch gives 330 M's more, up to 2,760 M's at stretch 8. The Enemy gear growth world setting scales the 330 M's step, as [world-settings.md](world-settings.md) describes. The gear level sets only the wear of the parts and the amount of cargo. The money tracks what a player can have earned by that stretch.
+
 Every stretch past 8 repeats stretch 8, so danger rises for 8 stretches and then holds. The truck of stretch 1 has no armor, mounted or spare, and always carries a gun. It picks its gun before its cargo and utility parts, so they cannot take every gun spot.
 
 The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add gunwagons, vultures, mercs and Bowl farmers, and from stretch 6 Nose army trucks, convoys and convoy guards join. Each truck takes its own template's loadout at the group's gear level. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.

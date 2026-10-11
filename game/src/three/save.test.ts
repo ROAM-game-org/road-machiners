@@ -584,7 +584,7 @@ describe('game save', () => {
 });
 
 describe('saved world settings', () => {
-  const tuned = (damage: number, fuelUse: number) => parseSetup({ mode: 'roaming', settings: { damage, fuelUse, supplyUse: 1 } });
+  const tuned = (damage: number, fuelUse: number) => parseSetup({ mode: 'roaming', settings: { damage, fuelUse, supplyUse: 1, enemyGearGrowth: 1 } });
 
   function storedWith(setup: unknown): SaveSlots {
     const slots = makeSlots();
@@ -619,10 +619,11 @@ describe('saved world settings', () => {
   });
 
   it.each([
-    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1 } }],
-    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1 } }],
-    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1 } }],
-    ['an unknown mode', { mode: 'campaign', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }],
+    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['an unknown mode', { mode: 'campaign', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['no enemy gear growth', { mode: 'furyRoad', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }],
     ['no setup at the current format', undefined],
   ])('rejects a save with %s as a save error', (_, setup) => {
     expect(() => loadWorld(storedWith(setup), 'auto', TEST_MAP)).toThrow(SaveError);

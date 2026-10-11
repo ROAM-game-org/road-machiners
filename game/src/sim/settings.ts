@@ -24,8 +24,9 @@ export function parseSetup(raw: unknown): WorldSetup {
 export function repairSetup(raw: unknown): { setup: WorldSetup; reset: SettingId[] } {
   const { mode, settings } = knownParts(raw);
   const setup = defaultSetup(mode);
-  const reset = SETTING_IDS.filter((id) => !validSetting(id, settings[id]));
-  return { setup: { ...setup, settings: { ...setup.settings, ...pickSettings(settings, reset) } }, reset };
+  const bad = SETTING_IDS.filter((id) => !validSetting(id, settings[id]));
+  const reset = bad.filter((id) => WORLD_SETTINGS[id].modes.includes(mode));
+  return { setup: { ...setup, settings: { ...setup.settings, ...pickSettings(settings, bad) } }, reset };
 }
 
 export function modeRules(world: World): ModeRules {
@@ -59,6 +60,10 @@ export function fuelUseScale(world: World): number {
 
 export function supplyUseScale(world: World): number {
   return world.setup.settings.supplyUse;
+}
+
+export function enemyGearGrowth(world: World): number {
+  return world.setup.settings.enemyGearGrowth;
 }
 
 function validSetting(id: SettingId, value: unknown): value is number {

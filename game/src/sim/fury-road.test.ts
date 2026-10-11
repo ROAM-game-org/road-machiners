@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { NPCS } from '../data/npcs';
+import { PARTS } from '../data/parts';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
 import { inCombat } from './combat';
 import { playerVehicle } from './damage';
-import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, payOf, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
+import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, gearMoneyOf, moveWindow, outpostPad, payOf, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
 import { topGoal } from './npc-activities';
 import { optionWeights, tradeOffers } from './npc-decisions';
@@ -539,5 +540,33 @@ describe('a Fury Road group truck between fights', () => {
 
     expect(tradeOffers(w, npc)).toEqual([]);
     expect(() => optionWeights(w, npc, 'idle', null, null)).not.toThrow();
+  });
+});
+
+describe('the gear money of a stretch', () => {
+  const withGrowth = (growth: number): World => {
+    const w = furyRoadWorld();
+    return { ...w, setup: { ...w.setup, settings: { ...w.setup.settings, enemyGearGrowth: growth } } };
+  };
+  const partsValue = (v: Vehicle): number =>
+    v.items.reduce((sum, item) => (item.kind === 'part' && PARTS[item.part.defId].kind !== 'core' ? sum + PARTS[item.part.defId].value : sum), 0);
+
+  it('starts at the first stretch money, grows by the step times the growth setting, and holds after the last wave', () => {
+    const { first, step } = FURY_ROAD.gearMoney;
+    const last = FURY_ROAD.waves.length;
+
+    expect(gearMoneyOf(withGrowth(1), 1)).toBe(first);
+    expect(gearMoneyOf(withGrowth(1), 2)).toBe(first + step);
+    expect(gearMoneyOf(withGrowth(2), 3)).toBe(first + 4 * step);
+    expect(gearMoneyOf(withGrowth(0), last)).toBe(first);
+    expect(gearMoneyOf(withGrowth(1), last + 20)).toBe(gearMoneyOf(withGrowth(1), last));
+  });
+
+  it('caps what each spawned truck spends on parts', () => {
+    const w = nextLevel(withGrowth(0));
+    const g = spawnFirst(w);
+
+    expect(g.stretch).toBe(2);
+    for (const v of trucksOf(w, g)) expect(partsValue(v)).toBeLessThanOrEqual(gearMoneyOf(w, g.stretch));
   });
 });

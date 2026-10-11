@@ -28,7 +28,7 @@ describe('record', () => {
     const first = recordTurns(1337, 'trader', 1, { settings: { damage: 2, fuelUse: 1.5 } }).next();
 
     expect(first.done).toBe(false);
-    expect(first.value?.world.setup).toEqual({ mode: 'roaming', settings: { damage: 2, fuelUse: 1.5, supplyUse: 1 } });
+    expect(first.value?.world.setup).toEqual({ mode: 'roaming', settings: { damage: 2, fuelUse: 1.5, supplyUse: 1, enemyGearGrowth: 1 } });
   }, RUN_TIMEOUT);
 
   it('fails a run with a bad setting before it plays', () => {

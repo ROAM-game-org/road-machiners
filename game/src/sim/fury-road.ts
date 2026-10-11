@@ -13,7 +13,7 @@ import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
 import { generateNpcLoadout } from './npc-loadout';
 import { nextRandom, randInt, type Rng } from './rng';
-import { modeRules } from './settings';
+import { enemyGearGrowth, modeRules } from './settings';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { getResources } from './resources';
@@ -36,6 +36,11 @@ function curveAt(c: Curve, j: number): number {
 
 export function payOf(j: number, wrecks: number): number {
   return curveAt(FURY_ROAD.pay.base, j) + curveAt(FURY_ROAD.pay.perWreck, j) * wrecks;
+}
+
+export function gearMoneyOf(world: World, j: number): number {
+  const steps = Math.min(j, FURY_ROAD.waves.length) - 1;
+  return Math.round(FURY_ROAD.gearMoney.first + FURY_ROAD.gearMoney.step * enemyGearGrowth(world) * steps);
 }
 
 export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
@@ -219,7 +224,7 @@ function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
 }
 
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
-  const gear = waveOf(group.stretch).gear;
+  const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
   const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
   if (!spots) return retryLater(world, group);

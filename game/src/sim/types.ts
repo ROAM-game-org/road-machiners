@@ -522,7 +522,7 @@ export type WaveGroup = {
 };
 export type GroupSide = 'ahead' | 'behind' | 'left' | 'right';
 export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number };
-export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number };
+export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
 export type Crater = { id: string; pos: Vec; radius: number; turn: number };

@@ -8,13 +8,14 @@ There are two modes. Roaming is the open wasteland, the sandbox. Fury Road is a 
 
 ## The settings
 
-Each setting is a multiplier on the base rule numbers in `RULES`. 100% is the standard game. Every setting runs from 50% to 200% in steps of 25%. Below 50% a fight could drag on without end and a truck could hardly run dry. At 200% fuel use the starting tank still covers the Bowl to Nose road trip, with about 72% of the tank.
+Each setting is a multiplier on base rule numbers. 100% is the standard game. Damage, Fuel use and Supply use run from 50% to 200% in steps of 25%. Below 50% a fight could drag on without end and a truck could hardly run dry. At 200% fuel use the starting tank still covers the Bowl to Nose road trip, with about 72% of the tank.
 
 - Damage scales every gun round, splash, stray round, town guard round, crash, ram, ground crash and landing, for every truck. Starving, wear from driving and prop scrapes do not change.
 - Fuel use scales the fuel every truck burns per tile. NPC refuel plans and far NPC travel follow. The leak of a broken tank does not change.
 - Supply use scales the supplies every crew eats per turn. Healing's extra supplies and starving do not change.
+- Enemy gear growth is for Fury Road only. It scales how much the gear money of the hostile groups grows with each stretch, as [fury-road.md](fury-road.md) describes. It runs from 0% to 200% in steps of 25%. At 0% every stretch gets the gear money of stretch 1.
 
-The settings apply to every truck alike: the player, NPCs near and far, and the town guards.
+Damage, Fuel use and Supply use apply to every truck alike: the player, NPCs near and far, and the town guards. Each setting names the modes it applies to in `WORLD_SETTINGS`. The New game screen and the `?` menu show only the settings of the world's mode, and a save repair reports only those.
 
 ## Saves
 
@@ -33,6 +34,7 @@ Exposed now:
 - `weaponDamage` and `crashDamage`, together as Damage.
 - `fuelUseFactor` as Fuel use.
 - `suppliesPerTurn` as Supply use.
+- The step of `FURY_ROAD.gearMoney` as Enemy gear growth.
 
 Safe to vary per run later. Each needs its own NPC and economy work, so each is a follow-up:
 

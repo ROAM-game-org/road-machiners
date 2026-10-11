@@ -126,8 +126,8 @@ function wearOf(rng: Rng, level: Level): number {
   return sampleWeighted(rng, level.wear);
 }
 
-export type GearRules = { armored: boolean; gunFirst: boolean };
-export const OPEN_GEAR: GearRules = { armored: true, gunFirst: false };
+export type GearRules = { armored: boolean; gunFirst: boolean; money: number | null };
+export const OPEN_GEAR: GearRules = { armored: true, gunFirst: false, money: null };
 
 type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules };
 
@@ -287,7 +287,7 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const chassis = chassisId ?? sampleWeighted(rng, table.chassis);
   const bare = makeVehicle(probe, { faction: template.faction, chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
-  const open: Build = { world: probe, budget: chassisDef(chassis).value + level.money, engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
+  const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
   const powered = chooseEngine(open, rng, table.priorities, bare);
   const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE };
   let v = rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered) : powered;

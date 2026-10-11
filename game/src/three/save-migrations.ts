@@ -864,7 +864,13 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutKovacKessel_54_55,
   withHattieGlass_55_56,
   withoutCutPumpVars_56_57,
+  withEnemyGearGrowth_57_58,
 ];
+
+function withEnemyGearGrowth_57_58(world: SavedJson): SavedJson {
+  const setup = world.setup as { mode: string; settings: SavedJson };
+  return { ...world, setup: { ...setup, settings: { ...setup.settings, enemyGearGrowth: 1 } } };
+}
 
 const CUT_PUMP_VARS_56_57: readonly (readonly [string, string])[] = [
   ['pump_agnes', 'knows_senate'],
