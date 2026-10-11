@@ -65,7 +65,7 @@ export function playVolley(
       },
     };
     host.fx.shot(roundSpec(spec, k), muzzle, shown, blastRadiusOf(weapon), cues, ground, host.world.turn);
-    showDamage(host, rounds[k], plan.struckAt, shown.delayMs + shown.flightMs, rows);
+    showDamage(host, rounds[k], Math.max(shown.delayMs + shown.flightMs, host.poses.moveMs - host.startMs), rows);
   });
   return { firstMs: Math.min(...landsAt) - host.startMs, lastMs: Math.max(...landsAt) };
 }
@@ -74,13 +74,13 @@ function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: CueI
   if (plan.impact !== "none") host.sound.at(r.struck !== null || r.blast.length > 0 ? struck : "miss", plan.land, 0);
 }
 
-function showDamage(host: VolleyHost, r: ShotRound, struckAt: V3 | null, landMs: number, rows: Map<string, number>): void {
-  const struck = r.struck === null ? [] : [{ vehicle: r.struck, hits: r.hits, at: struckAt }];
-  const blast = r.blast.map((b) => ({ ...b, at: host.poses.end(b.vehicle) }));
-  for (const dealt of [...struck, ...blast]) damageLabel(host, dealt.vehicle, dealt.at, roundLabel(host.world, dealt.vehicle, dealt.hits, r.crit), rows, landMs);
+function showDamage(host: VolleyHost, r: ShotRound, atMs: number, rows: Map<string, number>): void {
+  const struck = r.struck === null ? [] : [{ vehicle: r.struck, hits: r.hits }];
+  for (const dealt of [...struck, ...r.blast]) damageLabel(host, dealt.vehicle, roundLabel(host.world, dealt.vehicle, dealt.hits, r.crit), rows, atMs);
 }
 
-function damageLabel(host: VolleyHost, vehicleId: string, p: V3 | null, label: Msg | null, rows: Map<string, number>, atMs: number): void {
+function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, rows: Map<string, number>, atMs: number): void {
+  const p = host.poses.end(vehicleId);
   if (!label || !p) return;
   const row = rows.get(vehicleId) ?? 0;
   rows.set(vehicleId, row + 1);
