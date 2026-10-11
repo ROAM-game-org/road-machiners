@@ -204,10 +204,19 @@ function noteEngaged(world: World, run: FuryRoadRun): void {
   const me = playerVehicle(world);
   for (const group of run.groups) {
     for (const v of fighting(world, group)) {
-      if (group.engaged.includes(v.id)) continue;
-      if (dist(v.pos, me.pos) <= FURY_ROAD.catchUp.engageAt || inCombatWith(world, v, me)) group.engaged.push(v.id);
+      if (!group.engaged.includes(v.id)) {
+        if (engages(world, v, me)) group.engaged.push(v.id);
+      } else if (fellBehind(world, v, me)) group.engaged = group.engaged.filter((id) => id !== v.id);
     }
   }
+}
+
+function engages(world: World, v: Vehicle, me: Vehicle): boolean {
+  return dist(v.pos, me.pos) <= FURY_ROAD.catchUp.engageAt || inCombatWith(world, v, me);
+}
+
+function fellBehind(world: World, v: Vehicle, me: Vehicle): boolean {
+  return dist(v.pos, me.pos) > FURY_ROAD.pacing.near && !inCombatWith(world, v, me);
 }
 
 function encounterOn(world: World, run: FuryRoadRun): boolean {

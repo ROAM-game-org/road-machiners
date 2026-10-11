@@ -19,6 +19,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
+import { runsDown } from "./catch-up";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -131,6 +132,11 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
   if (v.brain!.ramTarget) return { kind: "through", dest };
   const foe = foeInSight(world, v, activity);
   if (foe) return fightOrder(world, v, foe, dest);
+  if (runsDown(world, v)) return { kind: "through", dest };
+  return followOrder(world, v, activity, dest);
+}
+
+function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
   if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
