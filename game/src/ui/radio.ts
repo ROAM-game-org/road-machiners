@@ -108,7 +108,7 @@ export class RadioStation {
     const w = e.event;
     const topic = WEATHER_TOPICS[w.kind][e.outcome];
     if (!topic) return;
-    this.push(topic, w.kind === 'storm' ? { place: placeOf(world, w.pos).words, heading: t(`radio.heading.${compass(w.vel)}`) } : {}, 'news');
+    this.push(topic, w.kind === 'storm' ? stormSlots(world, w, e.outcome) : {}, 'news');
   }
 
   private raidNews(world: World, topic: RadioTopic, attackerId: string, victimId: string): void {
@@ -170,6 +170,12 @@ function clockCalls(from: number, to: number): { topic: RadioTopic; at: number }
     for (const call of CLOCK_CALLS) calls.push({ topic: call.topic, at: day * 24 + call.hour });
   }
   return calls;
+}
+
+function stormSlots(world: World, storm: Extract<WeatherEvent, { kind: 'storm' }>, outcome: 'started' | 'ended'): Slots {
+  const place = placeOf(world, storm.pos).words;
+  if (outcome === 'ended') return { place };
+  return { place, heading: t(`radio.heading.${compass(storm.vel)}`) };
 }
 
 function raidPlace(world: World, attackerId: string, victimId: string): Place | null {
