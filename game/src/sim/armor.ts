@@ -160,7 +160,11 @@ export function walkLane(world: World, v: Vehicle, side: Side, lane: number, rou
 }
 
 export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round);
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1);
+}
+
+export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, RULES.crashFalloff);
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
@@ -170,7 +174,7 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   return (side, round) => {
     let lanes = sides.get(side);
     if (!lanes) sides.set(side, (lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => laneOwners(g, owner, side, lane))));
-    return lanes.map((cells) => walkCells(cells, round));
+    return lanes.map((cells) => walkCells(cells, round, 1));
   };
 }
 
@@ -180,7 +184,7 @@ function laneOwners(g: Grid, owner: Map<number, PartInstance>, side: Side, lane:
   return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { part: owner.get(cellKey(c.x, c.y)) }));
 }
 
-function walkCells(cells: LaneCell[], round: Round): { part: PartInstance; amount: number }[] {
+function walkCells(cells: LaneCell[], round: Round, falloff: number): { part: PartInstance; amount: number }[] {
   checkRound(round);
   const hits: { part: PartInstance; amount: number }[] = [];
   const struck = new Set<string>();
@@ -188,6 +192,7 @@ function walkCells(cells: LaneCell[], round: Round): { part: PartInstance; amoun
   for (const cell of cells) {
     if (left.pen <= 0) break;
     if (cell === null) continue;
+    if (hits.length > 0) left.damage *= falloff;
     left.pen -= RULES.cellPen;
     const part = cell.part;
     if (!takesHit(part, left.pen, struck)) continue;
