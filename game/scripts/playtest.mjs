@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -29,7 +30,7 @@ if (!cpu && isSoftware(renderer)) {
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-await page.goto(url);
+await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
 await page.waitForTimeout(1000);
 if (await page.$('#boot')) {

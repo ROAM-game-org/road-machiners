@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:5173';
 const cpu = process.argv.includes('--cpu');
@@ -124,7 +125,7 @@ async function boot() {
   if (!cpu && isSoftware(renderer)) throw new Error(`The layout check got the software renderer ${renderer}. Run with --cpu on a machine without a GPU.`);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`${url}/?seed=${SEED}`);
+  await page.goto(playUrl(`${url}/?seed=${SEED}`));
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: BOOT_LIMIT_MS });
   await page.addStyleTag({ content: '#game { display: none !important }' });
   return { browser, page, errors };
@@ -153,6 +154,23 @@ const clearInspect = (page) => page.evaluate(() => {
 
 const INSPECT_VIEWPORTS = [...VIEWPORTS, TALL];
 
+const openStartMenu = (page) => page.evaluate(async () => {
+  for (const node of document.querySelectorAll('#ui > *')) {
+    node.dataset.layoutDisplay = node.style.display;
+    node.style.display = 'none';
+  }
+  const { chooseStart } = await import('/src/ui/save-screen.ts');
+  void chooseStart('auto', { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+});
+
+const closeStartMenu = (page) => page.evaluate(() => {
+  document.querySelector('#ui .start-menu')?.remove();
+  for (const node of document.querySelectorAll('#ui > [data-layout-display]')) {
+    node.style.display = node.dataset.layoutDisplay;
+    delete node.dataset.layoutDisplay;
+  }
+});
+
 const STATES = {
   menu: { setup: () => undefined },
   log: { setup: fillLog },
@@ -166,6 +184,7 @@ const STATES = {
   character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
+  'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };

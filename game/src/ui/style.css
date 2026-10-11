@@ -26,5 +26,6 @@
 @import "./styles/options.css";
 @import "./styles/boot.css";
 @import "./styles/new-game.css";
+@import "./styles/start-menu.css";
 @import "./styles/overlays.css";
 @import "./styles/overlays-dom.css";

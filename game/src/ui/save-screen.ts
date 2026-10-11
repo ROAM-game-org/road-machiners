@@ -5,6 +5,7 @@ import { list, t, verbatim, type Msg } from '../text/msg';
 import { goodName, partName, settingName } from '../text/names';
 import { WORLD_SETTINGS } from '../data/modes';
 import type { SaveError } from '../three/save';
+import type { SlotId } from '../three/save-slots';
 import { disabledWith, download, el, panel } from './dom';
 import { openNewGame, type NewGameActions } from './new-game';
 import { OptionsPanel } from './options';
@@ -36,6 +37,28 @@ export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown
       ),
     );
     root.append(el('div', { class: 'dim' }, t('save.reportBug')));
+  });
+}
+
+const TITLE = verbatim('Road Machiners');
+
+export function chooseStart(newest: SlotId | null, newGame: NewGameActions): Promise<SlotId> {
+  return new Promise((resolve) => {
+    const root = panel('start-menu');
+    root.setAttribute('role', 'dialog');
+    bindAttr(root, 'aria-label', TITLE);
+    const play = (slot: SlotId) => {
+      root.remove();
+      resolve(slot);
+    };
+    const continueAttrs = newest === null ? disabledWith(t('save.none'), () => {}) : { onclick: () => play(newest) };
+    const continueButton = el('button', { class: 'btn-l', ...continueAttrs }, t('menu.continue'));
+    const newGameButton = el('button', { class: 'btn-l', onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame'));
+    const optionsButton = el('button', { class: 'btn-l' }, t('menu.options'));
+    const startOptions = new OptionsPanel(() => optionsButton.focus());
+    optionsButton.addEventListener('click', () => startOptions.open());
+    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, continueButton, newGameButton, optionsButton));
+    (newest === null ? newGameButton : continueButton).focus();
   });
 }
 

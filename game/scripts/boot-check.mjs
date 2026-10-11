@@ -1,16 +1,12 @@
-// Checks the boot screen in a real browser at 1280x800 and 390x844: first load with a fresh game, a saved game,
-// the save rescue screen, a failed map and a failed game module. Screenshots go to .playtest/boot-*.png.
-// Needs the dev server. Same GPU flags as the playtest; with --cpu, Chromium draws in software.
-// Usage: npm run boot:check -- [--url http://localhost:5173] [--cpu]
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { playUrl } from './game-url.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
 const url = arg('url', 'http://localhost:5173');
-// --only names one case, like failedMap, for a quick rerun.
 const only = arg('only', '');
 const cpu = process.argv.includes('--cpu');
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
@@ -39,7 +35,6 @@ const expect = (ok, message) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${message}`);
 };
 
-// Records every change of #boot: the bar value, the stage text, hidden and the segment classes.
 const WATCH = () => {
   window.__bootLog = [];
   const read = () => {
@@ -84,7 +79,6 @@ async function open(browser, viewport, errors) {
   return page;
 }
 
-// A page under load, or one that just crashed, sometimes refuses a capture. A second try settles it.
 async function shot(page, path) {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -109,7 +103,7 @@ async function freshGame(browser, viewport) {
   const errors = [];
   const page = await open(browser, viewport, errors);
   await slow(page);
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForSelector('#boot [role=progressbar]');
   await page.waitForFunction(() => document.querySelector('#boot .boot-seg.running') && document.querySelector('[role=progressbar]').getAttribute('aria-valuenow') !== null);
   await shot(page, `.playtest/boot-${viewport.name}-loading.png`);
@@ -147,7 +141,7 @@ async function rescue(browser, viewport) {
   const errors = [];
   const page = await open(browser, viewport, errors);
   page.on('dialog', (d) => d.accept());
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await cleared(page);
   await page.evaluate(async () => {
     const [{ name }] = (await indexedDB.databases()).filter((d) => d.name?.startsWith('roam'));
@@ -177,10 +171,35 @@ async function rescue(browser, viewport) {
   await page.context().close();
 }
 
+async function startMenu(browser, viewport) {
+  const errors = [];
+  const page = await open(browser, viewport, errors);
+  page.on('dialog', (d) => d.accept());
+  const continueOff = () => page.getByRole('button', { name: 'Continue' }).getAttribute('aria-disabled');
+  await page.goto(url);
+  await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
+  expect(await page.evaluate(() => document.getElementById('boot').hidden), `${viewport.name}: #boot is hidden while the start menu waits`);
+  expect((await continueOff()) === 'true', `${viewport.name}: Continue is off with no save`);
+  await shot(page, `.playtest/boot-${viewport.name}-start-menu.png`);
+  await page.getByRole('button', { name: 'New game' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await cleared(page);
+  expect(stages(await bootLog(page)).includes('Starting a new game'), `${viewport.name}: New game from the start menu reads "Starting a new game"`);
+  await page.evaluate(() => (window.__bootLog = []));
+  await page.reload();
+  await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
+  expect((await continueOff()) === null, `${viewport.name}: Continue is on with a save`);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await cleared(page);
+  expect(stages(await bootLog(page)).includes('Loading your save'), `${viewport.name}: Continue reads "Loading your save"`);
+  expect(errors.length === 0, `${viewport.name}: the start menu has no page errors ${errors.join('; ')}`);
+  await page.context().close();
+}
+
 async function failedMap(browser, viewport) {
   const page = await open(browser, viewport, []);
   await page.route('**/maps/**', (route) => route.fulfill({ status: 404, body: 'gone' }));
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForFunction(() => document.body.innerText.includes('Map file'), null, { timeout: BOOT_LIMIT_MS });
   await shot(page, `.playtest/boot-${viewport.name}-map-failed.png`);
   const state = await page.evaluate(() => ({
@@ -197,7 +216,7 @@ async function failedMap(browser, viewport) {
 async function failedCode(browser, viewport) {
   const page = await open(browser, viewport, []);
   await page.route('**/src/three/main.ts*', (route) => route.abort());
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForSelector('#boot.failed', { timeout: BOOT_LIMIT_MS });
   await shot(page, `.playtest/boot-${viewport.name}-code-failed.png`);
   const stage = await page.textContent('#boot .boot-stage');
@@ -207,7 +226,6 @@ async function failedCode(browser, viewport) {
 }
 
 mkdirSync('.playtest', { recursive: true });
-// Each case gets its own browser, since a heavy game page leaves a shared one too slow to capture the next case.
 async function inBrowser(run) {
   const browser = await chromium.launch({ args: launchArgs() });
   try {
@@ -225,6 +243,7 @@ for (const viewport of VIEWPORTS) {
     });
     await inBrowser((browser) => rescue(browser, viewport));
   }
+  if (!only || only === 'startMenu') await inBrowser((browser) => startMenu(browser, viewport));
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
 }

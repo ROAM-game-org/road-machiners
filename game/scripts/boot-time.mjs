@@ -15,6 +15,14 @@ if (!['none', '4g'].includes(net)) throw new Error('--net is none or 4g');
 if (!(runs >= 1)) throw new Error('--runs must be at least 1');
 const FETCHES = { code: 'assets/index-', map: 'maps/', models: 'models/', sounds: 'sfx/' };
 const FAST_4G = { offline: false, downloadThroughput: (10 * 1024 * 1024) / 8, uploadThroughput: (10 * 1024 * 1024) / 8, latency: 40 };
+const BOOT_KEY = `${process.env.SAVE_SCOPE ? `roam.save.${process.env.SAVE_SCOPE}` : 'roam.save'}.boot`;
+const NEW_GAME = JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }, intro: true });
+
+function askNewGameOnce({ key, request }) {
+  if (sessionStorage.getItem('bootTime.asked')) return;
+  sessionStorage.setItem('bootTime.asked', '1');
+  sessionStorage.setItem(key, request);
+}
 
 function watchBoot() {
   performance.setResourceTimingBufferSize(5000);
@@ -57,6 +65,7 @@ for (let i = 0; i < runs; i++) {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
   await page.addInitScript(watchBoot);
+  await page.addInitScript(askNewGameOnce, { key: BOOT_KEY, request: NEW_GAME });
   if (i === 0) {
     const renderer = await rendererOf(page);
     console.log(`renderer ${renderer}, viewport ${viewport.width}x${viewport.height}, net ${net}, runs ${runs}`);
@@ -70,6 +79,7 @@ for (let i = 0; i < runs; i++) {
   await page.goto(url);
   results.cold.push(await readRun(page));
   await page.waitForTimeout(1500);
+  await page.evaluate((key) => sessionStorage.setItem(key, 'auto'), BOOT_KEY);
   await page.reload();
   results.warm.push(await readRun(page));
   await context.close();

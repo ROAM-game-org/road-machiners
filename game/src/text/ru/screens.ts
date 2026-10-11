@@ -5,6 +5,7 @@ export const SCREENS: Translation<typeof EN> = {
   'menu.save': 'Сохранить',
   'menu.load': 'Загрузить',
   'menu.newGame': 'Новая игра',
+  'menu.continue': 'Продолжить',
   'menu.loadSave': 'Загрузить сохранение',
   'menu.close': 'Закрыть',
   'boot.loading': 'Загрузка',

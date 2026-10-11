@@ -9,6 +9,7 @@ const MIGRATION_LABEL = 'A label inside a save migration error, which only the c
 const SETTING_LABEL = 'A label inside a setup parse error, which only the console and a bug report show.';
 
 export const UNTRANSLATED: readonly Untranslated[] = [
+  { file: 'src/ui/save-screen.ts', text: 'Road Machiners', reason: 'The game title stays as it is in every language, as on the boot screen.' },
   { file: 'src/three/main.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/save.ts', text: 'confirm()', reason: 'The browser adapter shows text its caller already resolved with say().' },
   { file: 'src/three/render/interiors/bowl.ts', text: 'stilt tank', reason: 'A label inside a site build error, which only a bake or a test shows.' },

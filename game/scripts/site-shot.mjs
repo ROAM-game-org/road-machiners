@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { gpuArgs } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -22,7 +23,7 @@ page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => {
   if (m.type() === 'error') errors.push(m.text());
 });
-await page.goto(url);
+await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__ && window.__ROAM_PERF__, null, { timeout: 60000 });
 await page.waitForTimeout(1000);
 for (const id of ids) {

@@ -4,6 +4,7 @@ export const SCREENS = {
   'menu.save': 'Save',
   'menu.load': 'Load',
   'menu.newGame': 'New game',
+  'menu.continue': 'Continue',
   'menu.loadSave': 'Load save',
   'menu.close': 'Close',
   'boot.loading': 'Loading',

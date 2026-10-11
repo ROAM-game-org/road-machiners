@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 import { gpuArgs } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/ui-playtest.mjs <dev-server-url>');
@@ -480,7 +481,7 @@ async function checkKnobs(url, viewport) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto(url);
+    await page.goto(playUrl(url));
     await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
     await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 90000 });
     const at = `At ${viewport.width}x${viewport.height}`;
@@ -580,7 +581,7 @@ try {
   page.setDefaultTimeout(process.env.CPU ? 180000 : 30000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForFunction(() => window.__ROAM__?.state);
   assert(await page.locator('.icon').evaluateAll(nodes => nodes.every(node => node.title)), 'Every icon needs a hover name');
   assert(await page.locator('#ui *').evaluateAll(nodes => nodes.filter(node => !node.closest('button.switch, .radio-next')).every(node => !getComputedStyle(node).backgroundImage.includes('gradient'))), 'UI must use flat surfaces, apart from the metal switches and the radio button');

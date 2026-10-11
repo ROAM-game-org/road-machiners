@@ -102,6 +102,8 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 
 Two zones may never cover each other. A new element that needs room takes it from its own zone.
 
+Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, New game and Options. Continue is off with no save, and focus starts on the first button that is on. New game opens the New game screen over it.
+
 ### 4.3 The always-on budget
 
 The always-on HUD answers a short list of questions without a click: can I keep going, is my truck okay, what is around me, what will this turn do, what just happened and what am I waiting on. A new always-on element names the question it answers. If it answers none, it goes in a panel.

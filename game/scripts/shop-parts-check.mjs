@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/shop-parts-check.mjs <dev-server-url>');
@@ -43,7 +44,7 @@ try {
   page.setDefaultTimeout(240000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 120000 });
   await setup(page);
 

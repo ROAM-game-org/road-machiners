@@ -26,7 +26,7 @@ import type { QuestLanguage } from '../data/quests';
 import { setQuestLanguage } from '../sim/quests';
 import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
-import { chooseSaveFate, saveErrorText, showCarryReport } from '../ui/save-screen';
+import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport } from '../ui/save-screen';
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
@@ -60,9 +60,15 @@ type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: b
 async function bootWorld(): Promise<Booted> {
   const request = takeBootRequest(window.sessionStorage, SAVE_KEY);
   if (typeof request === 'object' && request !== null) return bootRequested(request);
-  const slot = request ?? newestSlot(slots, CONFIG.saveSlots);
-  if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), true), BOOT_TEXT.newGame);
+  const slot = request ?? (await startSlot());
+  if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), false), BOOT_TEXT.newGame);
   return boot.track('world', () => bootSlot(slot), BOOT_TEXT.loadSave);
+}
+
+async function startSlot(): Promise<SlotId | null> {
+  const newest = newestSlot(slots, CONFIG.saveSlots);
+  if (urlPlay()) return newest;
+  return boot.aside(() => chooseStart(newest, newGameActions));
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
@@ -113,6 +119,10 @@ async function persistSaves(): Promise<void> {
 function newGameWorld(setup: WorldSetup, intro: boolean): World {
   const seed = CONFIG.seed ?? urlSeed() ?? freshSeed();
   return newGame(seed, modeKit(setup.mode, CONFIG.startKit), intro, newMapFor(setup, seed, map), setup);
+}
+
+function urlPlay(): boolean {
+  return import.meta.env.DEV && new URLSearchParams(window.location.search).has('play');
 }
 
 function urlSeed(): number | null {
