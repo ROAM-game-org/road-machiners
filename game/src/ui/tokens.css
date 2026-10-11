@@ -2,15 +2,16 @@
    type size, spacing step, radius, shadow, layer or UI size. Every other style uses var(--token).
    docs/ui.md explains each group and ui.html shows them. src/ui/tokens.ts reads this file for Three.js overlays. */
 @font-face {
-  font-family: "DSEG7 Classic";
-  src: url("dseg/fonts/DSEG7-Classic/DSEG7Classic-BoldItalic.woff2") format("woff2");
+  font-family: "DSEG14 Classic";
+  src: url("dseg/fonts/DSEG14-Classic/DSEG14Classic-BoldItalic.woff2") format("woff2");
   font-weight: bold;
   font-style: italic;
   font-display: block;
 }
 :root {
   /* Type */
-  --font-lcd: "DSEG7 Classic", var(--font-mono);  --font-ui: "Barlow Semi Condensed", "Fira Sans Condensed", sans-serif;
+  --font-lcd: "DSEG14 Classic", var(--font-mono);
+  --font-ui: "Barlow Semi Condensed", "Fira Sans Condensed", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --text-caption: 10px;
   --text-dense: 12px;

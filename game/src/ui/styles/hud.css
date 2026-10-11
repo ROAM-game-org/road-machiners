@@ -37,7 +37,7 @@
   grid-area: 1 / 1;
 }
 .clock-time::before {
-  content: "88:88";
+  content: "~~:~~";
   color: var(--lcd-ink-faint);
 }
 
