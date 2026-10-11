@@ -441,6 +441,8 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
+
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
   | { t: 'stall'; vehicle: string; goal: NpcActivity['kind'] | null; reason: GoalReason }
@@ -473,6 +475,9 @@ export type GameEvent =
   | { t: 'towHitched'; by: string; client: string; site: string }
   | { t: 'towDone'; by: string; client: string; fee: number }
   | { t: 'escortPaid'; by: string; client: string; fee: number }
+  | { t: 'guardPaid'; by: string; guard: string; fee: number }
+  | { t: 'shopMoney'; vehicle: string; amount: number; kind: ShopMoneyKind }
+  | { t: 'transfer'; from: string; to: string; amount: number }
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }

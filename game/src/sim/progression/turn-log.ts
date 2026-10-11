@@ -17,6 +17,7 @@ import { maxHp } from '../wear';
 import { hostileToPlayer } from '../world';
 import type { Ledger } from './orders';
 import { netWorth } from './record';
+import type { NpcLedger } from './npc-ledger';
 import { furyRoadReadout } from '../fury-road';
 
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
@@ -83,14 +84,15 @@ function runField(world: World): { run?: string } {
 
 const SNAPSHOT_TURNS = 10;
 
-export type WorldLine = { t: number; events?: GameEvent[]; trucks?: TruckSnap[] };
-export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
+export type WorldLine = { t: number; events?: GameEvent[]; money?: NpcLedger; trucks?: TruckSnap[] };
+export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
 
-export function worldLine(world: World, events: readonly GameEvent[]): WorldLine | null {
+export function worldLine(world: World, events: readonly GameEvent[], npcMoney: NpcLedger = {}): WorldLine | null {
   const line: WorldLine = { t: world.turn };
   if (events.length > 0) line.events = [...events];
+  if (Object.keys(npcMoney).length > 0) line.money = npcMoney;
   if (world.turn % SNAPSHOT_TURNS === 0) line.trucks = world.vehicles.map((v) => snap(world, v));
-  return line.events || line.trucks ? line : null;
+  return line.events || line.money || line.trucks ? line : null;
 }
 
 function meanHp(v: Vehicle): number {
@@ -111,6 +113,8 @@ function snap(world: World, v: Vehicle): TruckSnap {
     goals: v.brain?.goals.map((g) => `${g.kind}${g.targetId ? `:${g.targetId}` : ''}`) ?? [],
     money: Math.round(getResources(world, v).money),
     fuel: Math.round(getResources(world, v).fuel),
+    sup: Math.round(getResources(world, v).supplies * 10) / 10,
+    stranded: isStranded(world, v),
     hp,
     states: world.states.filter((s) => s.holder === v.id).map((s) => `${s.kind}>${s.other}`),
     offRoad: keepsOffRoads(world, v),

@@ -3,6 +3,8 @@ import { createInterface } from 'node:readline';
 import { JobTally } from '../src/sim/progression/job-checks.ts';
 import { HUNT } from '../src/data/npc-behavior.ts';
 import { moneyText } from '../src/ui/units.ts';
+import { ECONOMY } from '../src/data/goods.ts';
+import { TIME } from '../src/data/time.ts';
 
 const LOSS_SHARE = 0.1;
 const LOSS_TURNS = 30;
@@ -16,6 +18,9 @@ const FLAP_KINDS = new Set(['towDropped', 'towOffer', 'towHitched', 'stateEnded'
 
 const HUNT_ROAD_TARGET = 0.25;
 const HUNT_GOALS = new Set(HUNT.offRoadGoals);
+
+const BROKE_BELOW = Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
+const SOLVENCY_DAYS = 5;
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const dir = argv[0];
@@ -186,6 +191,7 @@ async function analyzeWorld(name, path) {
   printOffRoad(lines);
   printAmbushes(lines);
   printNpcDeaths(lines);
+  printSolvency(lines);
 }
 
 function eventTotals(events) {
@@ -258,4 +264,61 @@ function offRoadReason(v) {
 function printNpcDeaths(lines) {
   const lost = lines.flatMap((l) => (l.events ?? []).filter((e) => e.t === 'destroyed' || e.t === 'npcKnockout').map((e) => `${l.t} ${e.t} ${e.vehicle}${e.by ? ` by ${e.by}` : ''}`));
   if (lost.length > 0) console.log(`lost trucks: ${lost.length}: ${lost.slice(0, 20).join('; ')}`);
+}
+
+function printSolvency(lines) {
+  const snaps = lines.filter((l) => l.trucks);
+  if (snaps.length === 0) return;
+  const roles = new Map(snaps.flatMap((l) => l.trucks).map((v) => [v.id, v.who]));
+  console.log('solvency by role (broke/starving/stranded at each day end; flows in money per NPC-day over days 1-5, start cash apart):');
+  for (const role of [...new Set(roles.values())].filter((r) => r !== 'player').sort()) printRoleSolvency(role, lines, snaps, roles);
+}
+
+function printRoleSolvency(role, lines, snaps, roles) {
+  const counts = dayEndSnaps(snaps).map((snap) => {
+    const trucks = snap.trucks.filter((v) => v.who === role);
+    const broke = trucks.filter((v) => v.money < BROKE_BELOW).length;
+    const starving = trucks.filter((v) => v.sup <= 0).length;
+    const stranded = trucks.filter((v) => v.stranded).length;
+    return `t${snap.t} ${broke}/${starving}/${stranded} of ${trucks.length}`;
+  });
+  const flows = roleFlows(role, lines, roles);
+  const kinds = [...flows.byKind.entries()].sort((a, b) => a[1] - b[1]).map(([kind, total]) => `${kind} ${moneyText(total / flows.days)}`).join(', ');
+  const nets = [...flows.byTruck.values()].sort((a, b) => a - b);
+  const median = nets.length > 0 ? nets[Math.floor(nets.length / 2)] : 0;
+  console.log(`  ${role}: ${counts.join(', ')}; start cash ${moneyText(flows.start)}; median net ${moneyText(median)} a day; ${kinds || 'no flows'}`);
+}
+
+function dayEndSnaps(snaps) {
+  return snaps.filter((snap, i) => i === snaps.length - 1 || snap.t % TIME.turnsPerDay === 0);
+}
+
+function roleFlows(role, lines, roles) {
+  const lastTurn = SOLVENCY_DAYS * TIME.turnsPerDay;
+  const inWindow = lines.filter((l) => l.t <= lastTurn);
+  const presence = new Map();
+  const starts = new Map();
+  const step = snapStep(lines);
+  for (const snap of inWindow.filter((l) => l.trucks)) for (const v of snap.trucks.filter((t) => t.who === role)) {
+    presence.set(v.id, (presence.get(v.id) ?? 0) + step);
+    if (!starts.has(v.id)) starts.set(v.id, v.money);
+  }
+  const byKind = new Map();
+  const byTruck = new Map([...presence.keys()].map((id) => [id, 0]));
+  for (const line of inWindow) for (const [id, row] of Object.entries(line.money ?? {})) {
+    if (roles.get(id) !== role) continue;
+    for (const [kind, amount] of Object.entries(row)) {
+      byKind.set(kind, (byKind.get(kind) ?? 0) + amount);
+      byTruck.set(id, (byTruck.get(id) ?? 0) + amount);
+    }
+  }
+  for (const [id, total] of byTruck) byTruck.set(id, total / Math.max(1, (presence.get(id) ?? 0) / TIME.turnsPerDay));
+  const days = Math.max(1e-9, [...presence.values()].reduce((sum, turns) => sum + turns, 0) / TIME.turnsPerDay);
+  const start = starts.size > 0 ? [...starts.values()].reduce((sum, m) => sum + m, 0) / starts.size : 0;
+  return { byKind, byTruck, days, start };
+}
+
+function snapStep(lines) {
+  const turns = lines.filter((l) => l.trucks).map((l) => l.t);
+  return turns.length > 1 ? turns[1] - turns[0] : 1;
 }

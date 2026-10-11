@@ -192,7 +192,7 @@ function writeSteps({ fd, turnsFd, worldFd, runFd }, name, archetype, steps, pro
     const line = turnLine(world, step.events, step.ledger);
     writeSync(turnsFd, `${JSON.stringify(line)}\n`);
     job.note(line);
-    const all = worldLine(world, step.events);
+    const all = worldLine(world, step.events, step.npcMoney);
     if (all) writeSync(worldFd, `${JSON.stringify(all)}\n`);
     progress.count += lines.length;
     progress.end = step.death;

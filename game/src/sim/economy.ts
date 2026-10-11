@@ -21,7 +21,7 @@ import { addStockPart, goodPrice, lotPrice, recordTrade, requireShop, shopAt, sh
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowPart } from "./inventory";
-import type { NpcState, PartInstance, Refusal, Vehicle, World } from "./types";
+import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
 import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
@@ -100,7 +100,7 @@ function buyGoods(world: World, vehicle: Vehicle, good: string, count: number, t
   if (vehicle.id === world.player.vehicleId) noteCostBasis(world, good, total / count, count);
   const added = addGoods(world, vehicle, good, count);
   if (added !== count) throw new Error("Cargo capacity invariant failed");
-  resources.money -= total;
+  shopMoney(world, vehicle, -total, "cargoBuy");
 }
 
 export function noteCostBasis(world: World, good: string, price: number, count: number): void {
@@ -112,7 +112,7 @@ function sellGoods(world: World, vehicle: Vehicle, shopId: string, good: string,
   const held = goodsCount(vehicle)[good] ?? 0;
   if (count > held) throw new Error(`Cannot sell ${count} ${good}, holding ${held}`);
   removeGoods(vehicle, good, count);
-  getResources(world, vehicle).money += total;
+  shopMoney(world, vehicle, total, "cargoSale");
   if (vehicle.id === world.player.vehicleId) practiceSale(world, shopId, good, total / count, count);
 }
 
@@ -147,10 +147,9 @@ export function sellVehicleCargo(
     const sellCount = good === 'parts' ? Math.max(0, count - retainedParts) : count;
     if (sellCount > 0 && traded.includes(good)) tradeGoods(world, vehicle, shopId, good, sellCount, "sell");
   }
-  const resources = getResources(world, vehicle);
   const spares = spareParts(vehicle);
   for (const part of spares) {
-    resources.money += partTradePrice(world, vehicle, part, "sell");
+    shopMoney(world, vehicle, partTradePrice(world, vehicle, part, "sell"), "partSale");
     addStockPart(shopState(world, shopId), part);
   }
   vehicle.items = vehicle.items.filter((item) => item.kind !== "part" || !spares.includes(item.part));
@@ -189,15 +188,14 @@ function requireCampService(vehicle: Vehicle, campId: string): void {
 
 export function sellAtCamp(world: World, vehicle: Vehicle, campId: string, retainedParts: number): void {
   requireCampService(vehicle, campId);
-  const resources = getResources(world, vehicle);
   for (const [good, count] of Object.entries(goodsCount(vehicle))) {
     const sellCount = good === "parts" ? Math.max(0, count - retainedParts) : count;
     if (sellCount <= 0) continue;
     removeGoods(vehicle, good, sellCount);
-    resources.money += sellCount * campGoodPrice(good);
+    shopMoney(world, vehicle, sellCount * campGoodPrice(good), "campSale");
   }
   const spares = spareParts(vehicle);
-  for (const part of spares) resources.money += campPartPrice(part);
+  for (const part of spares) shopMoney(world, vehicle, campPartPrice(part), "campSale");
   vehicle.items = vehicle.items.filter((item) => item.kind !== "part" || !spares.includes(item.part));
 }
 
@@ -244,7 +242,7 @@ function refuelAndRepair(world: World, vehicle: Vehicle): void {
       Math.floor(resources.money / unitCost),
     );
     restorePart(part, part.hp + hp);
-    resources.money -= Math.ceil(hp * unitCost);
+    shopMoney(world, vehicle, -Math.ceil(hp * unitCost), "repair");
   }
 }
 
@@ -268,7 +266,7 @@ function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[]): void {
       ),
     );
     resources[kind] += count;
-    resources.money -= count * ECONOMY.supplyPrice[kind];
+    shopMoney(world, vehicle, -count * ECONOMY.supplyPrice[kind], kind);
   }
 }
 
@@ -714,6 +712,14 @@ export function transfer(world: World, payer: Vehicle, payee: Vehicle, amount: n
   if (short) throw new Error(`${payer.id} cannot pay that much`);
   from.money -= amount;
   getResources(world, payee).money += amount;
+  world.events.push({ t: 'transfer', from: payer.id, to: payee.id, amount });
+}
+
+export function shopMoney(world: World, vehicle: Vehicle, amount: number, kind: ShopMoneyKind): void {
+  if (!Number.isFinite(amount)) throw new Error(`${vehicle.id} cannot get ${amount} money for ${kind}`);
+  if (amount === 0) return;
+  getResources(world, vehicle).money += amount;
+  world.events.push({ t: 'shopMoney', vehicle: vehicle.id, amount, kind });
 }
 
 export function buyTruckGood(world: World, npcId: string, good: string, n: number): World {
