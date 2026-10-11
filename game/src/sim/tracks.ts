@@ -1,6 +1,3 @@
-// Tracks: the trucks a driver senses, and where and when it last saw or heard each. A driver knows a truck it saw
-// and now only hears as the same truck. A track also holds the driver's choice on a hostile truck, so it decides on
-// a hostile once, whichever sense picks it up.
 
 import { NPC_BEHAVIOR } from '../data/npcs';
 import type { Contact, Track, TrackChoice, Vehicle, World } from './types';
@@ -15,6 +12,13 @@ export function chooseOn(world: World, vehicle: Vehicle, id: string, at: Vec, ch
   const known = trackOf(vehicle, id);
   const seenSince = known ? known.seenSince : inSight ? world.turn : null;
   tracksOf(vehicle)[id] = { at: { ...at }, turn: world.turn, sighted: inSight || known?.sighted === true, seenSince, choice, chosenInSight: inSight };
+}
+
+export function refreshTrack(world: World, vehicle: Vehicle, id: string, at: Vec): void {
+  const known = trackOf(vehicle, id);
+  if (!known) throw new Error(`${vehicle.id} has no track of ${id} to refresh`);
+  known.at = { ...at };
+  known.turn = world.turn;
 }
 
 export function comesInSight(world: World, track: Track): boolean {

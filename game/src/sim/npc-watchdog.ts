@@ -10,8 +10,9 @@ import { isShutDown } from './utility';
 import { route } from './path';
 import { randRange } from './rng';
 import { nearestPad } from './sites';
+import { modeRules } from './settings';
 import { isFree } from './spawn';
-import { vehicleStats } from './stats';
+import { isStranded, vehicleStats } from './stats';
 import { isOnRope, npcHomeSite } from './tow';
 import type { Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
@@ -31,7 +32,11 @@ function madeProgress(world: World, v: Vehicle): boolean {
 }
 
 function waits(world: World, v: Vehicle): boolean {
-  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v);
+  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || strandedForGood(world, v);
+}
+
+function strandedForGood(world: World, v: Vehicle): boolean {
+  return !modeRules(world).rescue && isStranded(world, v);
 }
 
 function waitsOnLeader(world: World, v: Vehicle): boolean {
@@ -69,7 +74,7 @@ function freshGoal(world: World, v: Vehicle): void {
 
 function jumpClear(world: World, v: Vehicle): void {
   const player = vehicleById(world, world.player.vehicleId);
-  const home = npcHomeSite(v);
+  const home = npcHomeSite(world, v);
   if (!home || canVehicleSee(world, player, v.pos)) return;
   const spot = jumpSpot(world, v, player, nearestPad(home, v.pos));
   if (!spot) return;

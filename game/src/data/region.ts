@@ -8,6 +8,9 @@ export type SiteLocationDef = {
   pos: Vec;
   radius: number;
   edge?: SiteEdge;
+  look?: string;
+  turn?: number;
+  gates?: readonly Vec[];
 };
 export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
 export type LocationDef = SiteLocationDef | TerritoryDef;

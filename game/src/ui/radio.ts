@@ -1,6 +1,6 @@
 
 import { DIRECTIONS, RADIO, RADIO_HOURS, RADIO_VARIANTS, type Direction, type RadioTopic } from '../data/radio';
-import { REGION } from '../data/region';
+import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
@@ -18,7 +18,6 @@ type Slots = Record<string, Msg>;
 type Place = { key: string; words: Msg };
 
 const RANKS: Broadcast['rank'][] = ['news', 'time', 'filler'];
-const SITES = [...REGION.towns, ...REGION.locations];
 
 const WEATHER_TOPICS: Record<WeatherEvent['kind'], Partial<Record<'started' | 'ended', RadioTopic>>> = {
   heatwave: { started: 'heatwaveStart', ended: 'heatwaveEnd' },
@@ -209,11 +208,11 @@ function hoursOf(turn: number): number {
 }
 
 function placeOf(world: World, pos: Vec): Place {
-  const nearest = SITES.reduce((a, b) => (dist(b.pos, pos) < dist(a.pos, pos) ? b : a));
+  const nearest = atlasSites(atlasOf(world.terrain)).reduce((a, b) => (dist(b.pos, pos) < dist(a.pos, pos) ? b : a));
   if (dist(nearest.pos, pos) <= RADIO.nearTiles && world.player.discovered.includes(nearest.id)) {
     return { key: nearest.id, words: t('radio.near', { site: siteName(nearest.id) }) };
   }
-  const center = REGION.size / 2;
+  const center = world.size / 2;
   const basin = compass({ x: pos.x - center, y: pos.y - center });
   return { key: basin, words: t(`radio.basin.${basin}`) };
 }

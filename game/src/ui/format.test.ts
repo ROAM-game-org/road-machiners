@@ -648,6 +648,18 @@ describe("wake-up log", () => {
   });
 });
 
+describe("Fury Road log lines", () => {
+  it("tells an outpost arrival with its pay once, and the run's end", () => {
+    const w = emptyWorld();
+
+    expect(logEn(w, { t: "outpostReached", milestone: 2, pay: 37000, wrecks: 3 })).toEqual({ text: "Outpost 2. Paid 370 M's for the road and 3 wrecks.", cls: "good" });
+    expect(logEn(w, { t: "outpostReached", milestone: 1, pay: 15000, wrecks: 0 })?.text).toBe("Outpost 1. Paid 150 M's for the road.");
+    expect(eventText(w, { t: "money", amount: 15000, reason: { kind: "outpost" } })).toBeNull();
+    expect(logEn(w, { t: "runLost", stretch: 3, cause: "wrecked" })?.text).toBe("Your truck is wrecked. The run ends on stretch 3.");
+    expect(logEn(w, { t: "runLost", stretch: 2, cause: "abandoned" })?.text).toBe("You end the run on stretch 2.");
+  });
+});
+
 describe("loot argument log", () => {
   it("tells how an argument between two drivers the player sees ended", () => {
     const w = emptyWorld();
@@ -681,5 +693,19 @@ describe("a finished search in the log", () => {
     expect(eventText(w, { t: "job", vehicle: me, job: search, outcome: "done" })).toBeNull();
     expect(logEn(w, { t: "searched", stock: "opening-wreck" })?.text).toBe("Search done.");
     expect(eventText(w, { t: "job", vehicle: me, job: repair, outcome: "done" })).not.toBeNull();
+  });
+});
+
+describe("the discovery line", () => {
+  it("is cut for a Fury Road outpost, whose label and pay line already name it", () => {
+    expect(eventText(emptyWorld(), { t: "discover", location: "outpost-1" })).toBeNull();
+    expect(eventText(emptyWorld(), { t: "discover", location: "outpost-12" })).toBeNull();
+  });
+
+  it("still names a Roaming site", () => {
+    const site = REGION.towns[0].id;
+    const line = eventText(emptyWorld(), { t: "discover", location: site })!;
+
+    expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
   });
 });

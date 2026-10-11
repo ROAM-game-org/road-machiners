@@ -207,7 +207,7 @@ function eventMoney(e: GameEvent, me: string): Paid {
   return [moneyEvent, towFee, escortFee, aidPay, patchFee].flatMap((pays) => pays(e, me));
 }
 
-const LEDGER_LINES: Record<MoneyReason['kind'], string> = { contract: 'contract', failedHaul: 'failed haul contract', towing: 'towing' };
+const LEDGER_LINES: Record<MoneyReason['kind'], string> = { contract: 'contract', failedHaul: 'failed haul contract', towing: 'towing', outpost: 'outpost pay' };
 
 function moneyEvent(e: GameEvent): Paid {
   if (e.t !== 'money') return [];

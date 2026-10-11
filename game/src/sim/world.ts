@@ -14,6 +14,7 @@ import { addGoods } from './inventory';
 import { isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores } from './resources';
 import { generateObstacles, touchesObstacle } from './mapgen';
+import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
 import { planNpcOrders } from './ai';
 import { assignUtilityOrders } from './npc-utility';
@@ -41,8 +42,10 @@ import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
-import { defaultSetup, parseSetup, repairSetup } from './settings';
+import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
+import { highwayStart } from './highway';
+import { advanceFuryRoad, startRun } from './fury-road';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
@@ -65,13 +68,13 @@ export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'ma
   return { seed, rngState: seed, marketRng: marketStream(seed), nameRng: nameStream(seed), searchRng: searchStream(seed) };
 }
 
-export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: WorldSetup, populate = true, start: { pos: Vec; heading: number } = kitStart(kit)): World {
-  if (map.terrain.size !== REGION.size)
-    throw new Error(`Map size ${map.terrain.size} does not match region size ${REGION.size}`);
+export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: WorldSetup, populate = true, start: { pos: Vec; heading: number } = kitStart(kit, seed, setup)): World {
+  requireMapFits(map, setup);
+  const size = map.terrain.size;
   const world: World = {
     ...seedStreams(seed),
     turn: 1,
-    size: REGION.size,
+    size,
     nextId: 0,
     vehicles: [],
     obstacles: [],
@@ -125,7 +128,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       god: false,
       fullLog: false,
       frozen: false,
-      explored: new Uint8Array(REGION.size * REGION.size),
+      explored: new Uint8Array(size * size),
       visible: [],
       contacts: [],
       clouds: [],
@@ -141,12 +144,16 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     fields: [],
     flares: [],
     lines: [],
+    furyRoad: null,
   };
   world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
   const truck = makeVehicle(world, {
     faction: "player",
     chassisId: kit.chassis,
-    parts: kit.parts.map((defId) => ({ defId, wear: kit.wear })),
+    parts: [
+      ...(kit.placed ?? []).map(({ defId, ...at }) => ({ defId, wear: kit.wear, at })),
+      ...kit.parts.map((defId) => ({ defId, wear: kit.wear })),
+    ],
     spares: [],
     cargo: kit.cargo,
     pos: start.pos,
@@ -163,12 +170,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
   wearCoreParts(world, truck, kit.wear);
   world.vehicles.push(truck);
   world.player.vehicleId = truck.id;
-  initializeSalvage(world);
-  setUpOpening(world, truck, kit.opening);
-  world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
-  if (populate) spawnInitial(world);
-  initializeShops(world);
-  stockOldSpots(world, map);
+  setUpWorldStock(world, map, truck, kit, populate);
   refreshVision(world);
   world.events = [];
   return world;
@@ -178,8 +180,30 @@ function startHealth(kit: StartKit): number {
   return kit.intro ? kit.intro.health : RULES.maxHealth;
 }
 
-function kitStart(kit: StartKit): { pos: Vec; heading: number } {
-  return kit.intro?.pose ?? startPose();
+function kitStart(kit: StartKit, seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return kit.intro?.pose ?? startOf(seed, setup);
+}
+
+function requireMapFits(map: BakedMap, setup: WorldSetup): void {
+  const atlas = atlasOf(map.terrain);
+  if (atlas === icarusAtlas() && map.terrain.size !== REGION.size) throw new Error(`Map size ${map.terrain.size} does not match region size ${REGION.size}`);
+  const rules = modeRulesOf(setup.mode);
+  if ((rules.traffic || rules.rescue) && atlas.towns.length === 0) throw new Error(`Mode ${setup.mode} needs towns, and map ${map.hash} has none`);
+}
+
+function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: StartKit, populate: boolean): void {
+  const rules = modeRules(world);
+  if (rules.run) startRun(world);
+  if (rules.looting) initializeSalvage(world);
+  setUpOpening(world, truck, kit.opening);
+  world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
+  if (populate && rules.traffic) spawnInitial(world);
+  if (rules.traffic) initializeShops(world);
+  stockOldSpots(world, map);
+}
+
+export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'highway' ? highwayStart(seed) : startPose();
 }
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
@@ -358,6 +382,7 @@ export function endTurn(
     wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
+    advanceFuryRoad(w);
     spawnNpcs(w);
     advanceIntro(w);
     advanceShops(w);
@@ -490,11 +515,12 @@ export type CarryReport = {
 
 const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
-export function carriedWorld(carried: Carried, kit: StartKit, map: BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
+export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
   const { setup, reset } = carriedSetup(carried.setup);
   const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
-  const world = newWorld(pick(carried.seed, freshSeed()), { ...truckKit, opening: null, intro: null, autoRepair: true }, map, setup, true, townStart());
+  const seed = pick(carried.seed, freshSeed());
+  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup));
   carryPlayer(world, carried);
   carryQuests(world, carried.quests, report);
   carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
@@ -503,6 +529,10 @@ export function carriedWorld(carried: Carried, kit: StartKit, map: BakedMap, fre
   refreshVision(world);
   world.events = [];
   return { world, report };
+}
+
+function carriedStart(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup);
 }
 
 function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {

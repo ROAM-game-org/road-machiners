@@ -1,7 +1,6 @@
-
-import { SALVAGE } from '../data/salvage';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
+import { atlasOf, atlasSites } from './atlas';
 import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { inTowReach } from './tow';
@@ -16,13 +15,14 @@ import { startJob } from './jobs';
 import { beginSearch } from './search';
 import { practice } from './progress';
 import { isFortress, siteGap, type Site } from './sites';
-import { shopAt } from './market';
+import { atGarage } from './garage';
+import { modeRules } from './settings';
 import type { GridItem, PartInstance, SalvageStock, Vehicle, World } from './types';
 import { tileCenter } from './vision';
 import { playerCommand, Refused } from './world';
 
 export function discoverSites(world: World): void {
-  for (const s of [...REGION.towns, ...REGION.locations]) {
+  for (const s of atlasSites(atlasOf(world.terrain))) {
     if (
       world.player.discovered.includes(s.id) ||
       !seesArea(world, s)
@@ -63,13 +63,14 @@ export function downedNear(world: World): Vehicle | null {
 }
 
 export function downedListNear(world: World): Vehicle[] {
+  if (!modeRules(world).looting) return [];
   const me = playerVehicle(world);
   return world.vehicles.filter((v) => v.id !== me.id && isKnockedOut(v) && inTowReach(me, v));
 }
 
 export function downedHere(world: World): Vehicle | null {
   const me = playerVehicle(world);
-  return world.vehicles.find((v) => canLootTruck(me, v)) ?? null;
+  return world.vehicles.find((v) => canLootTruck(world, me, v)) ?? null;
 }
 
 export function emptySalvageNear(world: World): SalvageStock | null {
@@ -134,7 +135,7 @@ export function takeLoot(world: World, stockId: string, pick: LootPick, to: Spot
 
 function transferLoot(world: World, stock: SalvageStock, item: GridItem, to: Spot): void {
   const me = playerVehicle(world);
-  if (item.kind === 'part' && isMounted(me.chassisId, item) && !shopAt(world)) {
+  if (item.kind === 'part' && isMounted(me.chassisId, item) && !atGarage(world)) {
     const work = lootRefitTurns(world, me, RULES.refitTurnsPerPart);
     startJob(world, me, {
       kind: 'refit', moves: [],

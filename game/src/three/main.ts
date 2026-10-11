@@ -33,15 +33,15 @@ import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
 import { ErrorReporter } from './error-report';
 import { Game } from './game';
-import { clearGame, loadWorld, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
+import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { idbBackend, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
-import { allSlots, newestSlot, requestBoot, takeBootRequest, type SlotId } from './save-slots';
+import { allSlots, newestSlot, requestBoot, takeBootRequest, type BootRequest, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
 import { loadModels } from './render/models';
 import { groundTexture } from './render/terrain';
-import { defaultSetup } from '../sim/settings';
+import { defaultSetup, modeKit } from '../sim/settings';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -59,10 +59,15 @@ type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: b
 
 async function bootWorld(): Promise<Booted> {
   const request = takeBootRequest(window.sessionStorage, SAVE_KEY);
-  if (typeof request === 'object' && request !== null) return boot.track('world', () => freshRun(request.new, request.intro), BOOT_TEXT.newGame);
+  if (typeof request === 'object' && request !== null) return bootRequested(request);
   const slot = request ?? newestSlot(slots, CONFIG.saveSlots);
   if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), true), BOOT_TEXT.newGame);
   return boot.track('world', () => bootSlot(slot), BOOT_TEXT.loadSave);
+}
+
+async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
+  if ('new' in request) return boot.track('world', () => freshRun(request.new, request.intro), BOOT_TEXT.newGame);
+  return boot.track('world', () => bootSlot(request.slot), BOOT_TEXT.nextWindow);
 }
 
 async function bootSlot(slot: SlotId): Promise<Booted> {
@@ -106,7 +111,8 @@ async function persistSaves(): Promise<void> {
 }
 
 function newGameWorld(setup: WorldSetup, intro: boolean): World {
-  return newGame(CONFIG.seed ?? urlSeed() ?? freshSeed(), CONFIG.startKit, intro, map, setup);
+  const seed = CONFIG.seed ?? urlSeed() ?? freshSeed();
+  return newGame(seed, modeKit(setup.mode, CONFIG.startKit), intro, newMapFor(setup, seed, map), setup);
 }
 
 function urlSeed(): number | null {
@@ -161,14 +167,14 @@ const radio = new RadioPanel(new RadioStation(Math.random));
 const soundSettings = new SoundSettings(mixer, window.localStorage, radio.faceplate, radio.keys, () => game.loops.nextTrack());
 radio.hear(world);
 const overlay = element('overlay');
-const game = await boot.track('scene', () => new Game(world, { slots, runId, log }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio, surface));
+const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio, surface));
 relocalizeGame = () => {
   game.relanguageQuest();
   radio.relocalize();
   game.uiStale = true;
 };
 const view = { focus: () => game.rig.focus(), setSpeed: (factor: number) => game.follow.keyPan.setSpeed(factor) };
-const opening = startKit(CONFIG.startKit).opening;
+const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));

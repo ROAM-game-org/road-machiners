@@ -724,15 +724,41 @@ function withNotesAndWagon_34_35(world: SavedJson): SavedJson {
   };
 }
 
-const PERSONALITIES_46_47 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
-
-function personalityOf_46_47(vehicleId: string): string {
-  const hash = [...vehicleId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
-  return PERSONALITIES_46_47[hash % PERSONALITIES_46_47.length];
+function withoutIcarusRun_47_48(world: SavedJson): SavedJson {
+  const run = world.gauntlet as SavedJson | null;
+  return run !== null && 'course' in run ? { ...world, gauntlet: null } : world;
 }
 
-function withPersonalities_46_47(world: SavedJson): SavedJson {
-  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_46_47(v.id as string) } } : v);
+function renamedFuryRoad_48_49(world: SavedJson): SavedJson {
+  const { gauntlet, ...rest } = world;
+  const setup = world.setup as SavedJson;
+  return { ...rest, setup: { ...setup, mode: setup.mode === 'gauntlet' ? 'furyRoad' : setup.mode }, furyRoad: gauntlet };
+}
+
+function withRunPacing_49_50(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const groups = (run.groups as SavedJson[]).map(({ at: _at, ...group }) => ({ ...group, engaged: [] }));
+  return { ...world, furyRoad: { ...run, groups, quietFrom: world.turn } };
+}
+
+function withOutpostTrucks_50_51(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const outposts = (run.outposts as SavedJson[]).map((post) => ({ ...post, trucksSold: [] }));
+  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, counted: [] }));
+  return { ...world, furyRoad: { ...run, outposts, groups } };
+}
+
+const PERSONALITIES_51_52 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
+
+function personalityOf_51_52(vehicleId: string): string {
+  const hash = [...vehicleId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
+  return PERSONALITIES_51_52[hash % PERSONALITIES_51_52.length];
+}
+
+function withPersonalities_51_52(world: SavedJson): SavedJson {
+  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_51_52(v.id as string) } } : v);
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
@@ -827,15 +853,20 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutRetiredSites_43_44,
   (world) => world,
   (world) => world,
-  withPersonalities_46_47,
-  withChoiceFreeScenes_47_48,
-  withoutCutQuests_48_49,
-  withoutKovacKessel_49_50,
-  withHattieGlass_50_51,
-  withoutCutPumpVars_51_52,
+  (world) => ({ ...world, gauntlet: null }),
+  withoutIcarusRun_47_48,
+  renamedFuryRoad_48_49,
+  withRunPacing_49_50,
+  withOutpostTrucks_50_51,
+  withPersonalities_51_52,
+  withChoiceFreeScenes_52_53,
+  withoutCutQuests_53_54,
+  withoutKovacKessel_54_55,
+  withHattieGlass_55_56,
+  withoutCutPumpVars_56_57,
 ];
 
-const CUT_PUMP_VARS_51_52: readonly (readonly [string, string])[] = [
+const CUT_PUMP_VARS_56_57: readonly (readonly [string, string])[] = [
   ['pump_agnes', 'knows_senate'],
   ['pump_agnes', 'knows_marr'],
   ['pump_agnes', 'knows_carry'],
@@ -845,29 +876,29 @@ const CUT_PUMP_VARS_51_52: readonly (readonly [string, string])[] = [
   ['pump_pipe', 'parts'],
 ];
 
-function withoutCutPumpVars_51_52(world: SavedJson): SavedJson {
-  return CUT_PUMP_VARS_51_52.reduce((w, [quest, name]) => dropQuestVar(w, quest, name), world);
+function withoutCutPumpVars_56_57(world: SavedJson): SavedJson {
+  return CUT_PUMP_VARS_56_57.reduce((w, [quest, name]) => dropQuestVar(w, quest, name), world);
 }
 
-function withHattieGlass_50_51(world: SavedJson): SavedJson {
+function withHattieGlass_55_56(world: SavedJson): SavedJson {
   return renameQuestVar(world, 'bowl_hattie', 'hattie_sunward', 'hattie_glass');
 }
 
-function withoutKovacKessel_49_50(world: SavedJson): SavedJson {
+function withoutKovacKessel_54_55(world: SavedJson): SavedJson {
   return ['heard_kessel', 'asked_kessel'].reduce((w, name) => dropQuestVar(w, 'nose_kovac', name), world);
 }
 
-const CUT_QUESTS_48_49 = [
+const CUT_QUESTS_53_54 = [
   'bowl_bo', 'nose_ines', 'nose_clerk', 'granary_driver', 'granary_odile', 'granary_sack', 'granary_lamps', 'orchard_count',
   'nose_constance', 'crates_hook', 'yard_mara', 'pin_emil', 'yard_silver', 'bend_north', 'nose_courier', 'bowl_names', 'salvage_hooks',
 ] as const;
 
-const CUT_WORLD_VARS_48_49 = [
+const CUT_WORLD_VARS_53_54 = [
   'sack_fate', 'lamps_fate', 'count_fate', 'lien_standing', 'courier_fate', 'names_vosk', 'hooks_report',
   'pin_fate', 'pin_pact', 'bend_fate', 'crates_fate', 'yard_power', 'post_file', 'kiln_word', 'letter_fate',
 ] as const;
 
-const CUT_NOTES_48_49: ReadonlySet<string> = new Set([
+const CUT_NOTES_53_54: ReadonlySet<string> = new Set([
   'talkSunwardNumber', 'talkWestTowns', 'talkClerkWest',
   'pinAsk', 'pinStamp', 'pinRoster', 'pinBoots', 'bendOffers', 'bendKaplan', 'bendAsh', 'bendRise',
   'cratesAsk', 'cratesLid', 'cratesTally', 'cratesFiles', 'cratesCopy',
@@ -876,15 +907,15 @@ const CUT_NOTES_48_49: ReadonlySet<string> = new Set([
   'hooksSoldier', 'hooksSheet', 'hooksDrop',
 ]);
 
-function withoutCutQuests_48_49(world: SavedJson): SavedJson {
-  const noQuests = CUT_QUESTS_48_49.reduce(dropQuest, world);
-  const noVars = CUT_WORLD_VARS_48_49.reduce((w, name) => dropQuestVar(w, null, name), noQuests);
+function withoutCutQuests_53_54(world: SavedJson): SavedJson {
+  const noQuests = CUT_QUESTS_53_54.reduce(dropQuest, world);
+  const noVars = CUT_WORLD_VARS_53_54.reduce((w, name) => dropQuestVar(w, null, name), noQuests);
   const player = noVars.player as SavedJson;
-  const notes = (player.notes as { id: string }[]).filter((n) => !CUT_NOTES_48_49.has(n.id));
+  const notes = (player.notes as { id: string }[]).filter((n) => !CUT_NOTES_53_54.has(n.id));
   return { ...noVars, player: { ...player, notes } };
 }
 
-const DROPPED_SCENE_CHECKPOINTS_47_48: readonly (readonly [string, string])[] = [
+const DROPPED_SCENE_CHECKPOINTS_52_53: readonly (readonly [string, string])[] = [
   ['intro_arrival', 'rim'],
   ['intro_arrival', 'slope'],
   ['intro_arrival', 'farm'],
@@ -893,8 +924,8 @@ const DROPPED_SCENE_CHECKPOINTS_47_48: readonly (readonly [string, string])[] = 
   ['first_fall', 'look'],
 ];
 
-function withChoiceFreeScenes_47_48(world: SavedJson): SavedJson {
-  const started = DROPPED_SCENE_CHECKPOINTS_47_48.reduce((w, [quest, checkpoint]) => moveQuestCheckpoint(w, quest, checkpoint, 'start'), world);
+function withChoiceFreeScenes_52_53(world: SavedJson): SavedJson {
+  const started = DROPPED_SCENE_CHECKPOINTS_52_53.reduce((w, [quest, checkpoint]) => moveQuestCheckpoint(w, quest, checkpoint, 'start'), world);
   const quests = questsOf(started);
   if (quests.world.intro_step !== 'walk') return started;
   const { intro_step: _walk, ...rest } = quests.world;

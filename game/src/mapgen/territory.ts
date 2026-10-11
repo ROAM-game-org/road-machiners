@@ -4,6 +4,7 @@ import { REGION, type TerritoryDef } from '../data/region';
 import { TERRITORIES, type FarmRules, type Patch, type RimRocks, type TerritoryRules, type WreckRules } from '../data/territory';
 import { TERRAIN } from '../data/terrain';
 import { boxDistance, onDeck, propBoxes, type PosedBox } from '../sim/mapgen';
+import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
 import { randRange, type Rng } from '../sim/rng';
 import { siteGap } from '../sim/sites';
@@ -201,7 +202,7 @@ function inHazard(g: Ground, pos: Vec, r: number): boolean {
 }
 
 function onWay(g: Ground, pos: Vec, r: number): boolean {
-  return g.onRoad(pos, r) || onDeck(pos, r) || g.strips.some((s) => onStrip(s, pos, r));
+  return g.onRoad(pos, r) || onDeck(icarusAtlas(), pos, r) || g.strips.some((s) => onStrip(s, pos, r));
 }
 
 function onStrip(s: LandingStrip, pos: Vec, r: number): boolean {

@@ -9,6 +9,7 @@ import { UNITS } from './units';
 export type StartKit = {
   chassis: string;
   parts: string[];
+  placed?: { defId: string; x: number; y: number; rot: 0 | 1 | 2 | 3 }[];
   storage: string[];
   wear: number;
   money: number;
@@ -80,6 +81,24 @@ export const START_KITS: Record<string, StartKit> = {
     supplies: RULES.baseSupplies,
     cargo: { scrap: 2 },
     costBasis: { scrap: 333 },
+    autoRepair: true,
+    opening: null,
+    intro: null,
+  },
+  furyRoad: {
+    chassis: 'scout',
+    parts: ['mg', 'stockEngine'],
+    placed: [
+      { defId: 'cage', x: 2, y: 0, rot: 1 },
+      { defId: 'cage', x: 2, y: 7, rot: 1 },
+    ],
+    storage: [],
+    wear: 0,
+    money: 20000,
+    fuel: CHASSIS.scout.fuelCap,
+    supplies: RULES.baseSupplies,
+    cargo: { parts: 4 },
+    costBasis: {},
     autoRepair: true,
     opening: null,
     intro: null,

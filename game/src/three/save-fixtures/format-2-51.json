@@ -1,15 +1,9 @@
 {
-  "turn": 3,
-  "player": {
-    "money": 1200,
-    "notes": [{ "id": "pipeBook", "turn": 1 }],
-    "quests": {
-      "world": { "intro_step": "done" },
-      "local": {
-        "pump_agnes": { "knows_book": true, "knows_pipe": true, "knows_senate": true, "knows_marr": true, "knows_carry": true, "knows_envelope": true, "trusted": true },
-        "pump_pipe": { "taken": true, "early_lines": true, "report_named": true, "parts": 30, "sluice": "watched" }
-      },
-      "session": { "quest": "pump_pipe", "checkpoint": "road", "seed": 17 }
-    }
-  }
+  "turn": 1200,
+  "vehicles": [
+    { "id": "player", "brain": null },
+    { "id": "npc1", "brain": { "templateId": "trader", "traits": ["trader"], "driver": "Ada Voss", "goals": [] } },
+    { "id": "npc2", "brain": { "templateId": "buggy", "traits": ["raider"], "driver": "Tom Reck", "goals": [] } },
+    { "id": "npc3", "brain": { "templateId": "noseArmy", "traits": ["lawman", "brave"], "driver": "Ila Marsh", "goals": [] } }
+  ]
 }

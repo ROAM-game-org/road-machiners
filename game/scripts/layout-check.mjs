@@ -8,6 +8,7 @@ const BOOT_LIMIT_MS = process.env.TEST_TIMEOUTS === 'off' ? 0 : cpu ? 240000 : 3
 const SEED = 4242;
 const LOCALES = process.env.LAYOUT_LOCALES?.split(',') ?? ['en', 'ru', 'pseudo'];
 const VIEWPORTS = [[1280, 720], [700, 800]];
+const TALL = [1440, 900];
 const KEY_CAPS = ['WASD', 'Shift', 'Esc'];
 const OUT = 'tmp/layout';
 const GLYPHS = { font: 'Fira Sans Condensed', letter: 'Ж' };
@@ -44,15 +45,15 @@ async function openInventory(page) {
 async function openTown(page, tab) {
   await page.evaluate(async () => {
     const g = window.__ROAM__;
-    if (g.town.isOpen()) return;
+    if (g.screens.town.isOpen()) return;
     const c = await import('/src/sim/cheats.ts');
     g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
-    g.town.open();
+    g.screens.town.open();
   });
   await page.evaluate((tab) => document.querySelector(`.town-screen [data-tab="${tab}"]`).click(), tab);
 }
 
-const closeTown = (page) => page.evaluate(() => window.__ROAM__.town.close());
+const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
 
 async function openCall(page, node) {
   await page.evaluate(async (node) => {
@@ -129,6 +130,29 @@ async function boot() {
   return { browser, page, errors };
 }
 
+async function inspectNpc(page, armed) {
+  await page.evaluate(async (armed) => {
+    const g = window.__ROAM__;
+    const { runCommand } = await import('/src/ui/console.ts');
+    const { partDef } = await import('/src/data/parts.ts');
+    const world = structuredClone(runCommand(g.state, 'spawn gunwagon hostile').world);
+    const npc = world.vehicles.filter((v) => v.brain).at(-1);
+    if (!armed) npc.items = npc.items.filter((it) => !(it.kind === 'part' && partDef(it.part.defId).kind === 'weapon'));
+    g.apply(world);
+    g.hovered = npc.id;
+    g.refreshInfo();
+    g.hitCard.show();
+  }, armed);
+}
+
+const clearInspect = (page) => page.evaluate(() => {
+  const g = window.__ROAM__;
+  g.hovered = null;
+  g.refreshInfo();
+});
+
+const INSPECT_VIEWPORTS = [...VIEWPORTS, TALL];
+
 const STATES = {
   menu: { setup: () => undefined },
   log: { setup: fillLog },
@@ -142,10 +166,14 @@ const STATES = {
   character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
+  inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
+  'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };
 
 const ONLY = process.env.LAYOUT_STATES?.split(',');
 const PICKED = Object.entries(STATES).filter(([name]) => !ONLY || name === 'log' || ONLY.includes(name));
+
+const WINDOWS = [...new Set(PICKED.flatMap(([, state]) => state.viewports ?? VIEWPORTS))];
 
 const started = Date.now();
 const seconds = () => Math.round((Date.now() - started) / 1000);
@@ -167,9 +195,9 @@ async function capture(page, locale, [width, height], [name, state]) {
 async function checkLocale(page, locale) {
   await page.evaluate((l) => window.__ROAM__.language.set(l), locale);
   await probe(page, locale);
-  for (const viewport of VIEWPORTS) {
+  for (const viewport of WINDOWS) {
     await page.setViewportSize({ width: viewport[0], height: viewport[1] });
-    for (const entry of PICKED) await capture(page, locale, viewport, entry);
+    for (const entry of PICKED.filter(([, state]) => (state.viewports ?? VIEWPORTS).includes(viewport))) await capture(page, locale, viewport, entry);
   }
 }
 

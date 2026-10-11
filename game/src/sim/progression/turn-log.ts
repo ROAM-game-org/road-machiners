@@ -17,6 +17,7 @@ import { maxHp } from '../wear';
 import { hostileToPlayer } from '../world';
 import type { Ledger } from './orders';
 import { netWorth } from './record';
+import { furyRoadReadout } from '../fury-road';
 
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
 
@@ -41,6 +42,7 @@ export type TurnLine = {
   foes: SeenFoe[];
   ledger: Partial<Ledger>;
   ev: string[];
+  run?: string;
 };
 
 export function turnLine(world: World, events: readonly GameEvent[], ledger: Ledger): TurnLine {
@@ -68,7 +70,13 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
     foes: foesSeen(world, me),
     ledger: Object.fromEntries(Object.entries(ledger).filter(([, v]) => v !== 0)),
     ev: events.filter((e) => touchesPlayer(e, me.id)).map((e) => describe(world, e)),
+    ...runField(world),
   };
+}
+
+function runField(world: World): { run?: string } {
+  const run = furyRoadReadout(world);
+  return run ? { run: `${run.stretch} ${Math.round(run.toOutpost)}` } : {};
 }
 
 const SNAPSHOT_TURNS = 10;
@@ -128,7 +136,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
     .map((v) => ({ id: v.id, who: `${v.brain?.templateId ?? v.faction}/${v.chassisId}`, dist: Math.round(dist(v.pos, me.pos)), odds: Math.round(100 * fightOddsAgainst(world, me, v).win), speed: Math.round(vehicleStats(world, v).maxSpeed * 10) / 10 }));
 }
 
-const OWN = new Set(['money', 'contract', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover']);
+const OWN = new Set(['money', 'contract', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
 const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {

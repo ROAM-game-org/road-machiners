@@ -12,6 +12,7 @@ import { playerSees } from "../sim/vision";
 import { dist, type Vec } from "../sim/vec";
 import { playerCanAct, hostileToPlayer, startPose } from "../sim/world";
 import { t } from "../text/msg";
+import { modeRules } from "../sim/settings";
 import { el, panel } from "./dom";
 
 const TIPS_KEY = "roam.tips";
@@ -158,7 +159,7 @@ const TIPS: readonly Tip[] = [
   },
   {
     id: "honk",
-    when: npcInSight,
+    when: (w) => modeRules(w).radio && npcInSight(w),
     done: (w) => w.events.some((e) => e.t === "honk" && e.vehicle === w.player.vehicleId),
   },
   {

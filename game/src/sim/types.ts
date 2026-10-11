@@ -1,7 +1,7 @@
 
 import type { PartHit, Side } from "./armor";
 import type { FireBlock } from "./combat";
-import type { TraitId } from "../data/npcs";
+import type { GearLevel, TraitId } from "../data/npcs";
 import type { PropKind, Terrain } from "./terrain";
 import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
@@ -194,7 +194,7 @@ export type SimNote =
   | { id: 'hazard' }
   | { id: 'spawnBlocked'; template: string };
 
-export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string };
+export type MoneyReason = { kind: 'contract' } | { kind: 'failedHaul' } | { kind: 'towing'; vehicle: string } | { kind: 'outpost' };
 
 export type PlacementRefusal = { id: 'noFit' } | { id: 'inTheWay' } | { id: 'armorOnly' };
 
@@ -448,7 +448,7 @@ export type GameEvent =
   | { t: 'empty'; vehicle: string; weapon: string }
   | { t: 'shot'; shooter: string; weapon: string; target: string; aim: Aim; chance: number; damageChance: number; side: Side; rounds: ShotRound[] }
   | { t: 'partDisabled'; vehicle: string; part: string }
-  | { t: 'cargoSpilled'; vehicle: string; part: string; pile: string; units: number }
+  | { t: 'cargoSpilled'; vehicle: string; part: string; pile: string | null; units: number }
   | { t: 'destroyed'; vehicle: string; by: string }
   | { t: 'npcKnockout'; vehicle: string; by: string }
   | { t: 'npcWake'; vehicle: string }
@@ -497,9 +497,31 @@ export type GameEvent =
   | { t: 'claymore'; vehicle: string; part: string; other: string; pos: Vec; hits: PartHit[]; selfHits: PartHit[] }
   | { t: 'claymoreCookOff'; vehicle: string; part: string; pos: Vec; hits: PartHit[] }
   | { t: 'caltrops'; vehicle: string; field: string; source: string; hits: PartHit[] }
-  | { t: 'found'; vehicle: string; stock: string; goods: Record<string, number>; parts: string[]; fuel: number; supplies: number };
+  | { t: 'found'; vehicle: string; stock: string; goods: Record<string, number>; parts: string[]; fuel: number; supplies: number }
+  | { t: 'outpostReached'; milestone: number; pay: number; wrecks: number }
+  | { t: 'roadOpened'; stretch: number }
+  | { t: 'runLost'; stretch: number; cause: RunLossCause };
 
-export type GameModeId = 'roaming';
+export type GameModeId = 'roaming' | 'furyRoad';
+export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean };
+export type MapKind = 'icarus' | 'highway';
+export type RunLossCause = 'wrecked' | 'abandoned';
+export type OutpostFacts = { milestone: number; stock: PartInstance[]; paid: boolean; trucksSold: string[] };
+export type WaveGroup = {
+  id: string;
+  stretch: number;
+  from: GroupSide;
+  templates: string[];
+  level: GearLevel;
+  spawned: boolean;
+  vehicles: string[];
+  engaged: string[];
+  wrecked: number;
+  counted: string[];
+  retryUntil: number | null;
+};
+export type GroupSide = 'ahead' | 'behind' | 'left' | 'right';
+export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 
@@ -534,4 +556,5 @@ export type World = {
   flares: Flare[];
   lines: HarpoonLine[];
   searchRng: Rng;
+  furyRoad: FuryRoadRun | null;
 };

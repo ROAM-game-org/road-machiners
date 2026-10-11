@@ -10,7 +10,13 @@ export const partName = (defId: string): Msg => byId(`part.${defId}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
 export const goodName = (id: string): Msg => byId(`good.${id}`);
 export const goodLower = (id: string): Msg => byId(`good.${id}.lower`);
-export const siteName = (id: string): Msg => byId(`site.${id}`);
+const OUTPOST_ID = /^outpost-(\d+)$/;
+
+export const outpostName = (milestone: number): Msg => t('outpost.name', { word: t('outpost.word'), n: milestone });
+export const siteName = (id: string): Msg => {
+  const outpost = OUTPOST_ID.exec(id);
+  return outpost ? outpostName(Number(outpost[1])) : byId(`site.${id}`);
+};
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
 export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);
@@ -88,6 +94,7 @@ export function noteText(note: SimNote): Msg {
 
 export function moneyReasonText(world: World, reason: MoneyReason): Msg {
   if (reason.kind === 'towing') return t('money.towing', { vehicle: vehicleTitleOf(world, reason.vehicle) });
+  if (reason.kind === 'outpost') return t('money.outpost');
   return reason.kind === 'contract' ? t('money.contract') : t('money.failedHaul');
 }
 

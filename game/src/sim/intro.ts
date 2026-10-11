@@ -2,6 +2,7 @@ import { FARM_TOWER_ID } from '../data/arrival';
 import { AMBUSH, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { START_KITS } from '../data/start';
+import { atlasOf } from './atlas';
 import { makePart } from './factory';
 import { addStockPart, shopState } from './market';
 import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
@@ -87,7 +88,7 @@ function enginePatched(w: World): boolean {
 
 function launchAmbush(w: World): void {
   const me = playerVehicle(w);
-  if (me.speed <= RULES.parkedSpeed || siteUnder(me.pos)) return;
+  if (me.speed <= RULES.parkedSpeed || siteUnder(atlasOf(w.terrain), me.pos)) return;
   const template = NPCS[AMBUSH.template];
   const loadout = generateNpcLoadout(w, template, AMBUSH.chassis, AMBUSH.gear);
   const spot = ambushSpot(w, me, chassisDef(loadout.chassisId).radius);
@@ -107,7 +108,7 @@ function ambushSpot(w: World, me: Vehicle, radius: number): Vec | null {
   const sight = sightRadius(w, me);
   const target = sight * AMBUSH.sightTarget;
   return spotsAhead(me, sight)
-    .filter((p) => !isCliff(w.terrain, tileAt(w.terrain, p)) && !siteUnder(p) && !playerSees(w, p) && isFree(w, p, radius, null))
+    .filter((p) => !isCliff(w.terrain, tileAt(w.terrain, p)) && !siteUnder(atlasOf(w.terrain), p) && !playerSees(w, p) && isFree(w, p, radius, null))
     .sort((a, b) => Math.abs(dist(a, me.pos) - target) - Math.abs(dist(b, me.pos) - target))[0] ?? null;
 }
 

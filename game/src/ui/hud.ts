@@ -42,7 +42,8 @@ export type ContextTarget =
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
   | { kind: 'loot'; id: string }
-  | { kind: 'empty' };
+  | { kind: 'empty' }
+  | { kind: 'outpost' };
 export type ContextAction = { label: Msg; ready: boolean; target: ContextTarget; hint?: Msg; combat?: number };
 
 export function contextKey(target: ContextTarget): string {
@@ -71,6 +72,7 @@ type HudActions = {
   douseEngine: () => void;
   unhitch: () => void;
   setBeacon: (on: boolean) => void;
+  endRun: () => void;
   isBusy: () => boolean;
   autoTravel: () => boolean;
   dialogue: DialogueHost;
@@ -328,13 +330,15 @@ export class Hud {
       el(
         "div",
         { class: "rescue-buttons" },
-        createSwitch({
-          on: t("hud.beaconOn"),
-          off: t("hud.beaconOff"),
-          checked: r.beacon,
-          title: t("hud.beaconTitle"),
-          onclick: () => this.actions.setBeacon(!r.beacon),
-        }),
+        r.canEnd
+          ? el("button", { class: "btn-danger", onclick: () => this.actions.endRun() }, t("hud.endRun"))
+          : createSwitch({
+              on: t("hud.beaconOn"),
+              off: t("hud.beaconOff"),
+              checked: r.beacon,
+              title: t("hud.beaconTitle"),
+              onclick: () => this.actions.setBeacon(!r.beacon),
+            }),
       ),
     );
   }
@@ -574,11 +578,12 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
 
 function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
+  const quietText = list(quiet);
   return el(
     "div",
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
-    el("span", { class: "info-quiet" }, list(quiet)),
+    el("span", { class: "info-quiet", title: quietText }, quietText),
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, t(hostile ? "hud.tagHostile" : "hud.tagNeutral"))]),
   );
 }
