@@ -77,7 +77,8 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 - `factory ship` ships the open release now.
 - `factory cut` cuts a release now.
 - `factory remove N` takes a feature out of the release.
-- `factory drop <approval|removal|ship|change|incident> <id>` drops a queued action.
+- `factory sync-dev` merges `dev` into the open release. Only a member orders it, and never on your own reading. `docs/process.md` has the rules.
+- `factory drop <approval|removal|ship|sync|change|incident> <id>` drops a queued action.
 - `factory merge-change <id>` merges a factory change PR into `main`.
 - `factory pause-card N` holds one card without a failure: its job stops, its work stays, and no job starts on it. `factory resume-card N` lifts the hold, and its stage continues.
 

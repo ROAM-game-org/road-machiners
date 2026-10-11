@@ -1,7 +1,11 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { must, realRun } from '../exec';
 import { readLedger } from '../ledger';
+import { hostRepo } from '../repo';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import type { FactoryState, PendingSync, ReleaseState } from '../types';
+import type { FactoryConfig, FactoryState, PendingSync, ReleaseState } from '../types';
 import { fake, reset, type Fake } from './test-fakes';
 import { syncDev } from './sync';
 
@@ -124,5 +128,63 @@ describe('syncDev', () => {
     seed(f);
     await expect(syncDev(f.ctx, 12)).rejects.toThrow('not the tracking issue');
     expect(f.calls.some((call) => call.startsWith('push '))).toBe(false);
+  });
+});
+
+describe('syncDev on real git', () => {
+  const ID = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
+
+  async function remoteRepo() {
+    mkdirSync('tmp', { recursive: true });
+    const home = resolve(mkdtempSync(join('tmp', 'factory-sync-')));
+    const origin = join(home, 'origin.git');
+    const author = join(home, 'author');
+    const git = async (cwd: string, ...args: string[]) => must(await realRun('git', [...ID, ...args], { cwd }), `git ${args.join(' ')}`);
+    mkdirSync(origin);
+    await git(origin, 'init', '--bare', '-b', 'main');
+    await git(home, 'clone', origin, author);
+    const commit = async (branch: string, file: string, message: string, from = branch) => {
+      await git(author, 'fetch', 'origin');
+      await git(author, 'checkout', '-B', branch, `origin/${from}`);
+      writeFileSync(join(author, file), `${message}\n`);
+      await git(author, 'add', '.');
+      await git(author, 'commit', '-m', message);
+      await git(author, 'push', 'origin', branch);
+    };
+    writeFileSync(join(author, 'base.txt'), 'base\n');
+    await git(author, 'add', '.');
+    await git(author, 'commit', '-m', 'base');
+    await git(author, 'push', 'origin', 'HEAD:main', 'HEAD:dev', `HEAD:${BRANCH}`);
+    await git(home, 'clone', origin, join(home, 'repo'));
+    const repo = hostRepo(realRun, { home, repo: 'o/r' } as FactoryConfig);
+    const tip = async (branch: string) => (await git(origin, 'rev-parse', branch)).trim();
+    return { origin, git, commit, repo, tip };
+  }
+
+  it('merges GitHub dev into the release tip, keeps the release commit, moves neither dev nor main, and records the dev head', { timeout: 30_000 }, async () => {
+    const { origin, git, commit, repo, tip } = await remoteRepo();
+    await commit(BRANCH, 'release-only.txt', 'release only fix');
+    await commit('factory/issue-7', 'dev.txt', 'tow fee', 'dev');
+    await repo.fetch();
+    await repo.merge([{ branch: 'factory/issue-7', into: 'dev', message: 'Merge issue #7: Tow fee' }]);
+    const [main, dev, from] = [await tip('main'), await tip('dev'), await tip(BRANCH)];
+    const f = fake();
+    f.ctx.repo = repo;
+    seed(f);
+    await syncDev(f.ctx, 11);
+    expect([await tip('main'), await tip('dev')]).toEqual([main, dev]);
+    const head = await tip(BRANCH);
+    expect(head).not.toBe(from);
+    expect((await git(origin, 'ls-tree', '--name-only', head)).split('\n')).toEqual(expect.arrayContaining(['dev.txt', 'release-only.txt']));
+    expect((await git(origin, 'rev-list', '--parents', '-n', '1', head)).trim().split(' ').slice(1)).toEqual([from, dev]);
+    const sync = readState(f.ctx.statePath).release?.syncs?.[0];
+    expect(dev.startsWith(sync?.dev ?? '-')).toBe(true);
+    expect(head.startsWith(sync?.head ?? '-')).toBe(true);
+    expect(f.calls.find((call) => call.startsWith('comment '))).toContain('Features from dev:\n- #7 Tow fee');
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), pendingSync: ORDER });
+    await syncDev(f.ctx, 11);
+    expect(await tip(BRANCH)).toBe(head);
+    expect(f.calls.filter((call) => call.startsWith('comment ')).at(-1)).toContain('so the sync changed nothing');
+    expect(readState(f.ctx.statePath).release?.syncs).toHaveLength(1);
   });
 });
