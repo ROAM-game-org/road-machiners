@@ -94,6 +94,7 @@ These takes went through ffmpeg or Demucs before import. Each filter chain is th
 - The town take, `music-town-1791232434318.mp3`, is split with Demucs htdemucs. The drums stem goes back quiet and muffled, so the metal clanks drop out. The bass, other, vocals and drums stems are mixed with `-filter_complex` `[3]lowpass=f=2500,volume=-12dB[d];[0][1][2][d]amix=inputs=4:normalize=0,acompressor=threshold=-22dB:ratio=3:attack=5:release=200:makeup=2,treble=g=-3:f=5000`.
 - The outpost take, `music-outpost-1791233198633.mp3`, gets the same Demucs split and mix as the town take.
 - The abandoned territories take, `music-abandoned-1791234140171.mp3`, runs through `atempo=0.95,acompressor=threshold=-24dB:ratio=4:attack=2:release=300:makeup=2,lowpass=f=3500,treble=g=-4:f=2500,aecho=0.8:0.6:120|260:0.25|0.15` and is cut from 20 s. It sits far back and calm, and its cue volume is lower than the other music.
+- The first quest take, `music-quest-1791723580045.mp3`, had a rustle like paper from its brushes. It is split with Demucs htdemucs on the CPU, since the Mac GPU fails on it. The bass, other, vocals and drums stems are mixed with `-filter_complex` `[3]lowpass=f=1800,lowpass=f=1800,volume=-3dB[d];[1]treble=g=-4:f=5000[o];[0][o][2][d]amix=inputs=4:normalize=0`, so the mallet knocks stay and the rustle drops out.
 
 ## Beat loops
 
