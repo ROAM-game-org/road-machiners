@@ -1,7 +1,9 @@
 import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
+import { partDef } from '../../data/parts';
 import { RULES } from '../../data/rules';
+import { playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
 import { alongOf, roadPoint, toRoad } from '../highway';
 import { fightOrder, fightPoint, leadOf } from '../ai';
@@ -155,9 +157,16 @@ function buyTruck(o: Orders, post: Outpost): void {
   const budget = gearBudget(o.world, o.me, 'fighter');
   const current = chassisDef(o.me.chassisId).value;
   const offers = outpostTrucks(o.world, post)
-    .filter((id) => chassisDef(id).value > current && chassisPrice(o.world, id) <= budget && chassisSwapRefusal(o.world, id) === null)
+    .filter((id) => chassisDef(id).value > current && chassisPrice(o.world, id) <= budget && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id))
     .sort((a, b) => chassisDef(b).value - chassisDef(a).value);
   if (offers.length > 0) o.run((w) => outpostBuyChassis(w, offers[0]), 'gear');
+}
+
+function keepsKit(o: Orders, chassisId: string): boolean {
+  const after = outpostBuyChassis(o.world, chassisId);
+  const me = playerVehicle(after);
+  const mountedCount = (v: Vehicle) => mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core').length;
+  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
 }
 
 
