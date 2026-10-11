@@ -176,9 +176,9 @@ export class QuestScreen {
     const pages = pagesOf(view.lines);
     const shown = pages.slice(0, this.page + 1).flat();
     const drawn = drawLines(w, pages[this.page], 0, { inlineArt: false, offers: true });
-    const place = lastTagged(shown, 'place') ?? this.placeBefore;
+    const place = lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
-    this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore), text, this.side(w, view));
+    this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img), text, this.side(w, view));
     return drawn.endMs;
   }
 

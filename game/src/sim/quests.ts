@@ -17,6 +17,7 @@ import {
   type QuestBundle,
   type QuestFact,
   type QuestLanguage,
+  type QuestScene,
   type QuestStat,
   type QuestText,
   type QuestValue,
@@ -49,6 +50,7 @@ export type QuestView = {
   stats: { name: string; label: string; value: string }[];
   facts: string[];
   ended: boolean;
+  scene: QuestScene;
 };
 export type QuestQuery = (world: World, args: readonly unknown[]) => QuestValue;
 export type QuestEffect = (world: World, args: readonly unknown[]) => void;
@@ -164,8 +166,15 @@ function parseTexts(id: string, texts: Record<string, unknown>): Record<QuestLan
 }
 
 function parseText(id: string, value: unknown): QuestText {
-  if (!isRecord(value) || typeof value.story !== 'string' || !Array.isArray(value.stats) || !Array.isArray(value.facts)) throw new Error(`Quest ${id} has no story, stats or facts`);
-  return { story: value.story, stats: value.stats.map((s) => parseStat(id, s)), facts: value.facts.map((f) => parseFact(id, f)) };
+  if (!isRecord(value) || typeof value.story !== 'string' || !Array.isArray(value.stats) || !Array.isArray(value.facts) || !isRecord(value.scenes)) throw new Error(`Quest ${id} has no story, stats, facts or scenes`);
+  const scenes = Object.fromEntries(Object.entries(value.scenes).map(([checkpoint, scene]) => [checkpoint, parseScene(id, scene)]));
+  return { story: value.story, stats: value.stats.map((s) => parseStat(id, s)), facts: value.facts.map((f) => parseFact(id, f)), scenes };
+}
+
+function parseScene(id: string, value: unknown): QuestScene {
+  const textOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
+  if (!isRecord(value) || !textOrNull(value.img) || !textOrNull(value.place)) throw new Error(`Quest ${id} has a bad checkpoint scene`);
+  return { img: value.img, place: value.place };
 }
 
 function parseStat(id: string, value: unknown): QuestStat {
@@ -315,7 +324,16 @@ export function questView(world: World, bundle: QuestBundle): QuestView {
     stats: quest.text[live.lang].stats.map((stat) => ({ name: stat.name, label: stat.label, value: statText(world, bundle, live.quest, stat, money) })),
     facts: quest.text[live.lang].facts.filter((fact) => questVar(world, bundle, live.quest, fact.name) === true).map((fact) => fact.text),
     ended: session === null,
+    scene: session === null ? NO_SCENE : sceneAt(quest.text[live.lang], session.checkpoint),
   };
+}
+
+const NO_SCENE: QuestScene = { img: null, place: null };
+
+function sceneAt(text: QuestText, checkpoint: string): QuestScene {
+  const scene = text.scenes[checkpoint];
+  if (!scene) throw new Error(`Checkpoint ${checkpoint} has no scene`);
+  return scene;
 }
 
 function statText(world: World, bundle: QuestBundle, questId: string, stat: QuestStat, money: number): string {

@@ -80,6 +80,11 @@ describe('compileQuest', () => {
     expect(quest?.art).toEqual(['rim', 'shed']);
   });
 
+  it('gives each checkpoint the picture and place shown above it, so a load restores them', () => {
+    const { quest } = compile(sources('=== start ===\n# checkpoint: start\nRim. # place: The rim # img: rim\n-> hub\n= hub\n# checkpoint: start.hub\n+ [Go.]\n  -> END\n'));
+    expect(quest?.text.en.scenes).toEqual({ start: { img: null, place: null }, 'start.hub': { img: 'rim', place: 'The rim' } });
+  });
+
   it('fails a checkpoint tag that names another section', () => {
     const { quest, errors } = compile(sources('=== start ===\n# checkpoint: begin\nHi.\n-> END\n'));
     expect(quest).toBeNull();

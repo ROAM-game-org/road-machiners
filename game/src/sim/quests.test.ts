@@ -42,6 +42,7 @@ describe('startQuest', () => {
       stats: [],
       facts: [],
       ended: false,
+      scene: { img: null, place: null },
     });
     expect(w.player.quests.session).toMatchObject({ quest: 'sample_bowl', checkpoint: 'start.talk' });
   });

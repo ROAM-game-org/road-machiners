@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Compiler, CompilerOptions, type Story } from 'inkjs/full';
 import { ErrorType } from 'inkjs/compiler/Parser/ErrorType';
-import { CHECKPOINT_TAG, MONEY_STAT, QUEST_LANGUAGES, QUEST_VIEWS, type CompiledQuest, type QuestLanguage, type QuestText, type QuestBundle, type QuestFact, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
+import { CHECKPOINT_TAG, MONEY_STAT, QUEST_LANGUAGES, QUEST_VIEWS, type CompiledQuest, type QuestLanguage, type QuestText, type QuestBundle, type QuestFact, type QuestScene, type QuestStat, type QuestValueType, type QuestVarDecl, type QuestViewKind } from '../data/quests';
 
 export type QuestSources = Record<string, string>;
 export type QuestSections = Record<QuestLanguage, string[]>;
@@ -111,7 +111,7 @@ function compileTwin(id: string, lang: QuestLanguage, sources: QuestSources, cou
   const story = own.parsed.story.ToJson();
   if (!story) throw new Error(`Quest ${file} compiled to no story`);
   const shape = { vars: declarations(own.parsed.story, local), checkpoints: checkpointsOf(own.parsed), view: header.view, art: artOf(sources[file]) };
-  return { twin: { lang, shape, text: { story, stats: header.stats, facts: header.facts } }, errors: [], warnings: own.warnings, sections };
+  return { twin: { lang, shape, text: { story, stats: header.stats, facts: header.facts, scenes: scenesOf(sources[file]) } }, errors: [], warnings: own.warnings, sections };
 }
 
 function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<Twin, { shape: QuestShape }>): string[] {
@@ -120,6 +120,7 @@ function twinMismatches(en: Extract<Twin, { shape: QuestShape }>, twin: Extract<
     checkpoints: JSON.stringify(t.shape.checkpoints),
     view: t.shape.view,
     art: JSON.stringify(t.shape.art),
+    'checkpoint art': JSON.stringify(Object.entries(t.text.scenes).map(([checkpoint, scene]) => [checkpoint, scene.img])),
     stats: JSON.stringify(t.text.stats.map((s) => [s.name, s.words?.length ?? null])),
     facts: JSON.stringify(t.text.facts.map((f) => f.name)),
   });
@@ -148,6 +149,23 @@ const ART_TAG = /#\s*img\s*:\s*([a-z0-9_]+)/g;
 
 function artOf(source: string): string[] {
   return [...new Set([...source.matchAll(ART_TAG)].map((m) => m[1]))];
+}
+
+const SCENE_ART_TAG = /#\s*img\s*:\s*([a-z0-9_]+)/;
+const SCENE_PLACE_TAG = /#\s*place\s*:\s*([^#]+)/;
+const SCENE_CHECKPOINT_TAG = /#\s*checkpoint\s*:\s*([\w.]+)/;
+
+function scenesOf(source: string): Record<string, QuestScene> {
+  const scenes: Record<string, QuestScene> = {};
+  let scene: QuestScene = { img: null, place: null };
+  for (const line of source.split('\n')) {
+    const checkpoint = line.match(SCENE_CHECKPOINT_TAG)?.[1];
+    if (checkpoint !== undefined) scenes[checkpoint] = scene;
+    const img = line.match(SCENE_ART_TAG)?.[1] ?? scene.img;
+    const place = line.match(SCENE_PLACE_TAG)?.[1].trim() ?? scene.place;
+    scene = { img, place };
+  }
+  return scenes;
 }
 
 function readHeaderTag(header: Header, story: Story, tag: string): void {
