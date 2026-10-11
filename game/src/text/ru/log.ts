@@ -169,7 +169,6 @@ export const LOG: Translation<typeof EN> = {
   'log.debugStall': 'Ошибка: {who, case, nom} {who, gender, m {застрял} f {застряла} n {застряло} pl {застряли}} на {what} ({why}) и {who, gender, m {бросил} f {бросила} n {бросило} pl {бросили}} это',
   'log.moneyGain': '+{n}: {reason}',
   'log.moneyLoss': '−{n}: {reason}',
-  'log.guardShot': 'Охрана {site, case, gen} бьет по {target, case, dat}, попаданий {hits} из {rounds}',
   'log.discovered': 'Вы нашли {site, case, acc}',
   'log.partDisabled': 'У {who, case, gen} {part, case, nom} {part, gender, m {выведен} f {выведена} n {выведено} pl {выведены}} из строя',
   'log.breakdown': '{part} {part, gender, m {сломался} f {сломалась} n {сломалось} pl {сломались}}',
