@@ -46,7 +46,7 @@ const STANDARD_OPENING: Opening = {
 
 export const HAULER_KIT: HaulerKit = {
   chassis: HAULER_CHASSIS,
-  parts: ['workhorseDiesel', 'plates', 'plates'],
+  parts: ['workhorseDiesel'],
   wear: 0,
   fuel: CHASSIS[HAULER_CHASSIS].fuelCap,
   supplies: RULES.baseSupplies,

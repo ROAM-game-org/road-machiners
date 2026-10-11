@@ -40,7 +40,13 @@ export function expectedGear(world: World, j: number): number {
 
 export function gearMoneyOf(world: World, j: number): number {
   const percent = Math.min(dangerPercent(world, j) / enemyTrucks(world, j), DANGER.truckPercent);
-  return Math.max(DANGER.truckFloor, Math.round((percent / 100) * expectedGear(world, j)));
+  return Math.max(floorOf(j), Math.round((percent / 100) * expectedGear(world, j)));
+}
+
+export function floorOf(j: number): number {
+  const tier = FURY_ROAD.pool.find((t) => j <= t.upTo);
+  if (!tier) throw new Error(`Stretch ${j} has no pool tier`);
+  return tier.floor;
 }
 
 function startGear(): number {

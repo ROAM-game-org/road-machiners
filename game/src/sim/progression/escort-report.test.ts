@@ -3,7 +3,7 @@ import { beatableVerdict, choiceVerdict, damageVerdict, fightVerdict, reactVerdi
 import type { RunLine, StretchStats } from './run-log';
 
 const stats = (over: Partial<StretchStats> = {}): StretchStats => ({ haulerDamage: 20, haulerStart: 1, haulerEnd: 0.8, firstHit: 10, turnsFromFirstHit: 30, playerShots: 3, fights: 1, enemies: [{ chassis: 'buggy', guns: ['mg'], armor: 0 }], ...over });
-const won = (stretch: number, over: Partial<StretchStats> = {}, choice = { useful: 3, affordable: 1, money: 50 }): RunLine => ({ t: 'stretch', turn: stretch * 100, stretch, stats: stats(over), choice });
+const won = (stretch: number, over: Partial<StretchStats> = {}, choice = { useful: 3, affordable: 1, total: 90, money: 50 }): RunLine => ({ t: 'stretch', turn: stretch * 100, stretch, stats: stats(over), choice });
 const lost = (stretch: number, over: Partial<StretchStats> = {}): RunLine => ({ t: 'lost', turn: stretch * 100, stretch, cause: 'haulerLost', money: 10, kit: { chassis: 'scout', guns: [], armor: 0, gear: 1 }, stretchDamageBy: [], stats: stats(over) });
 
 function runOf(seed: number, n: number, over: (j: number) => Partial<StretchStats> = () => ({})): SeedRun {
@@ -22,6 +22,8 @@ describe('the escort report', () => {
     expect(fightVerdict([runOf(1, 3)]).pass).toBe(true);
     expect(fightVerdict([runOf(1, 3, (j) => (j === 2 ? { playerShots: 0 } : {}))]).pass).toBe(false);
     expect(fightVerdict([runOf(1, 3, (j) => (j === 2 ? { fights: 0 } : {}))]).pass).toBe(false);
+    expect(fightVerdict([runOf(1, 40, (j) => (j === 2 ? { playerShots: 0 } : {}))]).pass).toBe(true);
+    expect(fightVerdict([seedRun(1, [won(1), lost(2, { playerShots: 0, fights: 0 })])]).pass).toBe(true);
   });
 
   it('passes the damage check when most stretches hurt the hauler', () => {
@@ -42,9 +44,10 @@ describe('the escort report', () => {
   });
 
   it('wants a useful part to afford, and not all of them affordable, at most outposts', () => {
-    const run = seedRun(1, [won(1, {}, { useful: 3, affordable: 1, money: 5 }), won(2, {}, { useful: 3, affordable: 3, money: 5 }), won(3, {}, { useful: 2, affordable: 1, money: 5 })]);
+    const run = seedRun(1, [won(1, {}, { useful: 3, affordable: 1, total: 90, money: 50 }), won(2, {}, { useful: 3, affordable: 3, total: 30, money: 50 }), won(3, {}, { useful: 2, affordable: 1, total: 80, money: 50 })]);
     expect(choiceVerdict([run]).pass).toBe(true);
-    expect(choiceVerdict([seedRun(1, [won(1, {}, { useful: 3, affordable: 0, money: 5 })])]).pass).toBe(false);
+    expect(choiceVerdict([seedRun(1, [won(1, {}, { useful: 3, affordable: 0, total: 90, money: 5 })])]).pass).toBe(false);
+    expect(choiceVerdict([seedRun(1, [won(1, {}, { useful: 3, affordable: 3, total: 30, money: 50 })])]).pass).toBe(false);
   });
 
   it('wants the late stretches to hurt more than the early ones', () => {

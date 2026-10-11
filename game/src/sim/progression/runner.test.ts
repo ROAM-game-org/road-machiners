@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dist } from '../vec';
 import { haulerOf, playerVehicle } from '../damage';
-import { goodsCount, mountedParts } from '../grid';
+import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
 import { outpostPad } from '../fury-road';
 import { furyRoadWorld } from '../testkit';
@@ -57,6 +57,19 @@ describe('the Fury Road escort bot', () => {
     expect(turn.world.player.state).toBe('active');
     expect(playerVehicle(turn.world).order).toEqual({ kind: 'brake' });
     expect(playerVehicle(next).job?.kind).toBe('repair');
+  });
+
+  it('parks to patch a holed tank before the fuel is gone, out of combat with parts to patch with', () => {
+    const w = furyRoadWorld();
+    const me = playerVehicle(w);
+    corePart(me, 'tank').hp = 0;
+    me.speed = 0;
+    me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.world.player.state).toBe('active');
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'brake' });
   });
 
   it('ends the run when stranded with no way to patch', () => {

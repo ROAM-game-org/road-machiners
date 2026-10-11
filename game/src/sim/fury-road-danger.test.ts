@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
-import { dangerPercent, enemyTrucks, expectedGear, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
+import { dangerPercent, enemyTrucks, expectedGear, floorOf, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { HAULER_KIT } from '../data/start';
@@ -23,20 +23,21 @@ describe('Fury Road danger', () => {
     const w = withGrowth(1);
 
     expect(expectedGear(w, 1)).toBe(START_GEAR);
-    expect(Math.round(0.8 * START_GEAR)).toBeLessThan(FURY_ROAD.danger.truckFloor);
-    expect(gearMoneyOf(w, 1)).toBe(FURY_ROAD.danger.truckFloor);
+    expect(Math.round((FURY_ROAD.danger.firstPercent / 100) * START_GEAR)).toBeLessThan(floorOf(1));
+    expect(gearMoneyOf(w, 1)).toBe(floorOf(1));
     expect(enemyTrucks(w, 1)).toBe(1);
     expect(expectedGear(w, 2)).toBe(START_GEAR + FURY_ROAD.danger.gearShare * payOf(1));
-    expect(gearMoneyOf(w, 3)).toBe(Math.round(0.8 * expectedGear(w, 3)));
-    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([80, 90, 100]);
-    expect(dangerPercent(withGrowth(2), 3)).toBe(120);
-    expect(dangerPercent(withGrowth(0), 50)).toBe(80);
+    const share = Math.min(dangerPercent(w, 12) / enemyTrucks(w, 12), FURY_ROAD.danger.truckPercent);
+    expect(gearMoneyOf(w, 12)).toBe(Math.max(floorOf(12), Math.round((share / 100) * expectedGear(w, 12))));
+    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([45, 51, 57]);
+    expect(dangerPercent(withGrowth(2), 3)).toBe(69);
+    expect(dangerPercent(withGrowth(0), 50)).toBe(45);
   });
 
   it('adds a truck only once every truck still gets at least the truck floor share of the expected gear', () => {
     const w = withGrowth(1);
 
-    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 2, 2, 3, 3, 4]);
+    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 1, 2, 3, 4, 4]);
     expect(STRETCHES.every((j) => enemyTrucks(withGrowth(0), j) === 1)).toBe(true);
     for (const growth of GROWTHS) {
       const g = withGrowth(growth);
@@ -75,7 +76,7 @@ describe('Fury Road danger', () => {
   it('never budgets one truck above its share of the expected player gear', () => {
     for (const growth of GROWTHS) {
       const w = withGrowth(growth);
-      for (const j of STRETCHES) expect(gearMoneyOf(w, j)).toBeLessThanOrEqual(Math.max(FURY_ROAD.danger.truckFloor, Math.round((FURY_ROAD.danger.truckPercent / 100) * expectedGear(w, j))));
+      for (const j of STRETCHES) expect(gearMoneyOf(w, j)).toBeLessThanOrEqual(Math.max(floorOf(j), Math.round((FURY_ROAD.danger.truckPercent / 100) * expectedGear(w, j))));
     }
   });
 

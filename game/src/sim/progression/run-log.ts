@@ -22,12 +22,12 @@ export type StretchStats = {
   fights: number;
   enemies: Enemy[];
 };
-export type OutpostChoice = { useful: number; affordable: number; money: number };
+export type OutpostChoice = { useful: number; affordable: number; total: number; money: number };
 export type RunLine =
   | { t: 'group'; turn: number; stretch: number; from: string; trucks: (KitLine & { id: string; template: string })[] }
   | { t: 'stretch'; turn: number; stretch: number; stats: StretchStats; choice: OutpostChoice }
   | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number }
-  | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; expectedGear: number; enemyGear: number; enemyTrucks: number }
+  | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; haulerKit: KitLine; paid: number; expectedGear: number; enemyGear: number; enemyTrucks: number }
   | { t: 'beaten'; turn: number; stretch: number; id: string; template: string }
   | { t: 'lost'; turn: number; stretch: number; cause: string; money: number; kit: KitLine; stretchDamageBy: { id: string; template: string; damage: number }[]; stats: StretchStats };
 
@@ -72,7 +72,8 @@ function choiceAt(world: World): OutpostChoice {
   const theirs = gearPlans(world, hauler, stock.filter(haulerTakes).map((part) => ({ part, price: outpostPartPrice(world, part, hauler.id) })), { job: 'hauler', skip: [], resale: () => 0 });
   const cheapest = new Map<string, number>();
   for (const plan of [...mine, ...theirs].filter((p) => p.jobGain > 0)) cheapest.set(plan.offer.part.id, Math.min(cheapest.get(plan.offer.part.id) ?? Infinity, plan.offer.price));
-  return { useful: cheapest.size, affordable: [...cheapest.values()].filter((price) => price <= money).length, money: Math.round(money / 100) };
+  const prices = [...cheapest.values()];
+  return { useful: cheapest.size, affordable: prices.filter((price) => price <= money).length, total: Math.round(prices.reduce((sum, p) => sum + p, 0) / 100), money: Math.round(money / 100) };
 }
 
 export class RunLog {
@@ -94,7 +95,7 @@ export class RunLog {
       ...this.beaten(before, world, stretch),
       ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [this.outpost(world, e.milestone, e.pay, e.wrecks), this.stretchLine(world, e.milestone)] : [])),
       ...(run.window > before.furyRoad.window ? [this.leave(world, stretch)] : []),
-      ...events.flatMap((e): RunLine[] => (e.t === 'runLost' ? [this.lost(world, e.stretch, e.cause)] : [])),
+      ...events.flatMap((e): RunLine[] => (e.t === 'runLost' ? [this.lost(world, e.stretch, e.cause)] : [])).slice(0, 1),
     ];
   }
 
@@ -178,6 +179,8 @@ export class RunLog {
       money: Math.round(world.player.money / 100),
       condition: conditionOf(world),
       kit: kitOf(playerVehicle(world)),
+      haulerKit: kitOf(haulerOf(world)),
+      paid: Math.round(world.furyRoad!.earned / 100),
       expectedGear: Math.round(expectedGear(world, stretch) / 100),
       enemyGear: Math.round(gearMoneyOf(world, stretch) / 100),
       enemyTrucks: enemyTrucks(world, stretch),

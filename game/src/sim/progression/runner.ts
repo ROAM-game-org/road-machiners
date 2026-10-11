@@ -6,11 +6,12 @@ import { partDef } from '../../data/parts';
 import { RULES } from '../../data/rules';
 import { haulerOf, playerTrucks, playerVehicle, truckFor } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { acrossOf, alongOf, roadPoint, toRoad } from '../highway';
+import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { fightOrder, fightPoint, leadOf } from '../ai';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
+import { tankLeaks } from '../supplies';
 import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostPad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
@@ -28,9 +29,11 @@ import { mountBought, Orders, type BotTurn } from './orders';
 export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
-const HAULER_SHARE = 0.4;
+const HAULER_SHARE = 0.15;
 const BESIDE = { ahead: 3, across: 2 };
-const PARKED_BESIDE = 2;
+const PARKED_BESIDE = 2.2;
+const SAFE_HEAT = 1;
+const FOE_REACH = 1;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
@@ -56,7 +59,7 @@ function handleStranded(o: Orders): boolean {
     o.run(abandonRun);
     return true;
   }
-  if (!isStranded(o.world, o.me) || inCombat(o.world, o.me)) return false;
+  if (!(isStranded(o.world, o.me) || tankLeaks(o.me)) || inCombat(o.world, o.me)) return false;
   park(o);
   return true;
 }
@@ -88,14 +91,21 @@ function escort(o: Orders): void {
 }
 
 function foeNear(world: World, me: Vehicle, hauler: Vehicle): Vehicle | null {
-  const foes = world.vehicles.filter((v) => v.id !== me.id && hostileToPlayer(world, v) && playerSees(world, v.pos) && dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near);
+  const foes = world.vehicles.filter((v) => v.id !== me.id && hostileToPlayer(world, v) && playerSees(world, v.pos) && dist(v.pos, hauler.pos) <= FOE_REACH * FURY_ROAD.pacing.near);
   return foes.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos))[0] ?? null;
+}
+
+function beside(world: World, pad: Vec): Vec {
+  const run = world.furyRoad!;
+  const site = outpostFort(world.seed, run.window, run.window + 1);
+  const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
+  return { x: pad.x - Math.sin(angle) * PARKED_BESIDE, y: pad.y + Math.cos(angle) * PARKED_BESIDE };
 }
 
 function escortSpot(world: World, hauler: Vehicle): Vec {
   const run = world.furyRoad!;
   const pad = outpostPad(world, run.window + 1);
-  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return { x: pad.x + PARKED_BESIDE, y: pad.y };
+  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return beside(world, pad);
   const at = toRoad(run.window, hauler.pos);
   return roadPoint(world.seed, run.window, alongOf(world.seed, at) + BESIDE.ahead, acrossOf(world.seed, at) + BESIDE.across);
 }
@@ -180,7 +190,7 @@ function refitGear(o: Orders, share: number): void {
   const money = gearBudget(o.world, o.me, 'fighter') * share;
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
-  const allowed = (v: Vehicle) => buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
@@ -189,6 +199,11 @@ function refitGear(o: Orders, share: number): void {
     o.run((w) => outpostBuyPart(w, buys[i].id), 'gear');
     mountBought(o, buys[i].id, { x: it.x, y: it.y, rot: it.rot });
   });
+}
+
+function sturdy(item: { part: PartInstance }): boolean {
+  const def = partDef(item.part.defId);
+  return def.kind !== 'engine' || def.heat <= SAFE_HEAT;
 }
 
 function buysFor(items: { part: PartInstance }[], forSale: PartInstance[]): PartInstance[] | null {
