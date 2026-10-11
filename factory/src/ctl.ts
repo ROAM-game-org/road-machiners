@@ -3,8 +3,10 @@ import { join } from 'node:path';
 import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
 import { pauseFile, pausedReason } from './pause';
 import { repairClone } from './repair-clone';
-import { MOVE_TARGETS, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, type MoveTarget } from './position';
+import { clearStuck } from './stuck';
+import { MOVE_TARGETS, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { readState, updateState } from './state';
+import { editState } from './state-edit';
 import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
 
 const SNAPSHOT_AGENT = 'curl/8.0';
@@ -22,6 +24,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
   queues: { usage: 'queues', help: 'list the pending queues', run: queues },
   release: { usage: 'release', help: 'print the open release', run: release },
   failures: { usage: 'failures', help: 'list the recent failed jobs', run: failures },
+  stuck: { usage: 'stuck', help: "list the stuck sweep's record of each stuck card: its kind, incident, cause and what the sweep did", run: stuckRecords },
   log: { usage: 'log N [stage]', help: 'print the tail of the newest log of a card', run: log },
   audit: { usage: 'audit', help: 'print each drift between stores, and nothing when all agree', run: audit },
   help: { usage: 'help', help: 'list the commands', run: help },
@@ -31,7 +34,8 @@ const IMMEDIATE: Record<string, { usage: string; help: string; run: Handler }> =
   retry: { usage: 'retry N [decision]', help: 'remove the stuck label and the failures of a card. On the release tracking card it also lifts a playtest block, so a new playtest job runs, and keeps the decision for its next review', run: retry },
   pause: { usage: 'pause <reason>', help: 'pause the factory', run: pause },
   resume: { usage: 'resume', help: 'remove the pause', run: resume },
-  'repair-clone': { usage: 'repair-clone N --by <who> --reason <why> [--backup-merge]', help: "replace a card's broken work clone with a fresh clone of its GitHub branch. Needs a pause and no running job. The old clone moves whole to $FACTORY_HOME/clone-backups, and only its .factory, .factory-tasks and .factory-media folders are copied over. --backup-merge also takes a clone with an open merge or conflicts. The stuck label stays for retry", run: repairCloneCommand },
+  'set-state': { usage: 'set-state <path> <json>|--delete --by <who> --reason <why>', help: 'set or delete one value of the state file under its lock, like release.postId null, while every job keeps running. Prints the old and the new value', run: setStateCommand },
+  'repair-clone': { usage: 'repair-clone N --by <who> --reason <why> [--backup-merge]', help: "replace a card's broken work clone with a fresh clone of its GitHub branch. Needs no running job of the card, and holds the card while it works. The old clone moves whole to $FACTORY_HOME/clone-backups, and only its .factory, .factory-tasks and .factory-media folders are copied over. --backup-merge also takes a clone with an open merge or conflicts. A repair that works also removes the stuck label and the failures of the card, like retry", run: repairCloneCommand },
 };
 
 const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
@@ -104,7 +108,19 @@ async function repairCloneCommand(ctx: Ctx, args: string[]): Promise<void> {
   const [n, ...extra] = reason.rest.filter((arg) => arg !== '--backup-merge');
   if (extra.length > 0) throw new Error(`Unexpected "${extra.join(' ')}". Usage: ${IMMEDIATE['repair-clone'].usage}`);
   const actor = resolveActor(ctx, by.value, false);
-  for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge })) console.log(line);
+  for (const line of await repairClone(ctx, { issue: number(n), by: actor, reason: reason.value, backupMerge, refuseUnpushed: false })) console.log(line);
+}
+
+function setStateCommand(ctx: Ctx, args: string[]): void {
+  const by = takeFlag(args, '--by');
+  const reason = takeFlag(by.rest, '--reason');
+  const remove = reason.rest.includes('--delete');
+  const [path, json, ...extra] = reason.rest.filter((arg) => arg !== '--delete');
+  if (path === undefined || (json === undefined) !== remove || extra.length > 0) throw new Error(`Usage: ${IMMEDIATE['set-state'].usage}`);
+  const actor = resolveActor(ctx, by.value, false);
+  const { before, after } = editState(ctx.statePath, path, remove ? null : json);
+  ctx.log('tick', null, `${actor} set ${path} from ${JSON.stringify(before)} to ${JSON.stringify(after)}: ${reason.value}`);
+  console.log(`${path}: ${JSON.stringify(before)} -> ${after === undefined ? 'deleted' : JSON.stringify(after)}`);
 }
 
 async function status(ctx: Ctx): Promise<void> {
@@ -160,6 +176,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `running job: ${shown(running.join(', '))}`,
     `failures: ${shown(own.join(' | '))}`,
     `held: ${holdText(state.held[key])}`,
+    `stuck sweep: ${stuckText(state.stuck[key])}`,
   ];
 }
 
@@ -173,7 +190,7 @@ function printRows(rows: string[]): void {
 }
 
 function jobs(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}`));
+  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}${job.caughtUp === undefined ? '' : ` caught up ${job.caughtUp.map((issue) => `#${issue}`).join(',')}`}`));
 }
 
 function queues(ctx: Ctx): void {
@@ -218,7 +235,13 @@ function playtestLines(playtest: PlaytestState, runs: number): string[] {
 }
 
 function failures(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (log ${row.log ?? 'none'})`));
+  printRows(readState(ctx.statePath).failures.map((row) => `${row.at} ${row.stage}${row.issue === null ? '' : ` #${row.issue}`}: ${row.error.split('\n')[0]} (log ${row.log ?? 'none'})${row.batch === undefined ? '' : ` batch ${row.batch.map((issue) => `#${issue}`).join(',')}`}`));
+}
+
+function stuckRecords(ctx: Ctx): void {
+  const state = readState(ctx.statePath);
+  if (state.sweepError !== null) console.log(`sweep error: ${state.sweepError.split('\n')[0]}`);
+  printRows(Object.entries(state.stuck).map(([issue, record]) => `#${issue} ${stuckText(record)}`));
 }
 
 function newestLog(dir: string, issue: number, stage: string | null): string {
@@ -245,8 +268,7 @@ async function audit(ctx: Ctx): Promise<void> {
 async function retry(ctx: Ctx, args: string[]): Promise<void> {
   const issue = number(args[0]);
   const decision = args.slice(1).join(' ').trim();
-  await ctx.github.removeLabel(issue, STUCK_LABEL);
-  updateState(ctx.statePath, (state: FactoryState) => ({ ...state, failures: state.failures.filter((row) => row.issue !== issue) }));
+  await clearStuck(ctx, issue);
   console.log(`Removed ${STUCK_LABEL} and the failures of #${issue}. The next tick continues the card.`);
   if (readState(ctx.statePath).release?.issue === issue) console.log(retryPlaytest(ctx, decision));
 }

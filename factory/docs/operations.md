@@ -4,7 +4,7 @@ How the factory runs on its host: jobs, limits, cleanup, failures and records.
 
 ## Jobs and queues
 
-Each job is its own process, started by the tick. [process.md](process.md#tick-and-queues) lists the queues and the order jobs start in. `FACTORY_<QUEUE>_WORKERS` sets each queue's limit, and the branch queue runs one job at a time. `FACTORY_<QUEUE>_TIMEOUT_MINUTES` sets each queue's time limit. Inside a job, an agent runs long commands with `factory-job`, and `FACTORY_JOB_MAX_MINUTES` caps the limit of each one. An issue has at most one job at a time. Each job's containers carry its id as a label, so a timeout kills only that job.
+Each job is its own process, started by the tick. [process.md](process.md#tick-and-queues) lists the queues and the order jobs start in. `FACTORY_<QUEUE>_WORKERS` sets each queue's limit. The branch queue has no limit. Its jobs run side by side, and each one locks the shared folders it uses under `$FACTORY_HOME/locks`: `dev-build`, `release-main`, `merge-queue`, `ship-main` and each `merge-<branch>` conflict clone. A job waits for a locked folder at most `FACTORY_BRANCH_TIMEOUT_MINUTES`, and the cleanup sweep skips it. `FACTORY_<QUEUE>_TIMEOUT_MINUTES` sets each queue's time limit. Merge and Ship run the full checks and a fix loop, so both get `FACTORY_MERGE_TIMEOUT_MINUTES`. Each run of the factory checks also has its own limit, `FACTORY_CHECKS_TIMEOUT_MINUTES`, since the game's test time limits are off on the host and a hung test or playtest prints nothing. The factory names the run's container and removes it at the limit, and appends `CheckTimeoutError: the checks ran past their N minute limit` to the checks log. Each run is judged by the log lines it wrote itself. A run with only timeout errors counts as a timeout and runs again, at most 3 runs in all. A run that also has another error is a real failure and goes to the agent. Every 5 minutes a running check writes its minutes, its log size and its last `[checks]` step to the job log. Inside a job, an agent runs long commands with `factory-job`, and `FACTORY_JOB_MAX_MINUTES` caps the limit of each one. An issue has at most one job at a time. Each job's containers carry its id as a label, so a timeout kills only that job.
 
 Jobs share the host clone and the state file. Each git step and each state update runs under a lock in `$FACTORY_HOME/locks` or next to the state file. A lock of a dead process is taken over.
 
@@ -16,7 +16,7 @@ A work clone with no commit checked out, like one a full disk cut short, holds n
 
 Each job's containers run on a fixed set of CPUs. `FACTORY_CPU_LIGHT`, `FACTORY_CPU_IMPLEMENT` and `FACTORY_CPU_TEST` set each pool's share, and each pool gets round(share × cores) whole CPUs, at least 1. The pools must fit the host, or every job start throws.
 
-- light: triage, waste review, design and branch jobs other than the merge and the candidate.
+- light: triage, waste review, design and branch jobs other than the merge and the candidate, so a catch-up's agent never takes the merge checks' CPUs.
 - implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its preview checks here.
 - test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks.
 
@@ -30,17 +30,17 @@ Memory, not CPU, limits how many jobs fit on the host. Each container prints its
 
 `FACTORY_GPU=on` gives every container the host's NVIDIA GPU, and the playtest checks the frame rate. `off` runs the playtest with `--cpu`, with fewer turns and no frame rate check.
 
-## Daily cap
+## Card job limit
 
-The factory starts at most `FACTORY_MAX_JOBS_PER_DAY` public jobs in any 24 hours: triage, design, implementation, verify, harden, the release cut, the release playtest and the candidate. Checks, approve, merge, remove, ship, change, ad hoc, incident, dev and waste jobs do not count. Hotfix jobs count but run at the cap. The cap sends no chat message. The dashboard shows the work it holds back and the time the next slot frees.
+The factory has no limit on the jobs it starts per day. The Claude usage-limit pause guards the shared limit.
 
-One card may start at most `FACTORY_MAX_JOBS_PER_CARD` of those jobs in any 24 hours. A card at its limit waits with the reason `card-budget` until its oldest start leaves the window, and other cards keep the daily cap. Hotfix jobs count but run at the limit.
+One card may start at most `FACTORY_MAX_JOBS_PER_CARD` jobs in any 24 hours. The jobs that count are triage, design, implementation, verify, harden, the release cut, the release playtest and the candidate. Checks, approve, merge, remove, ship, change, ad hoc, incident, dev and waste jobs do not count. A card at its limit waits with the reason `card-budget` until its oldest start leaves the window. Hotfix jobs count but run at the limit.
 
 ## Resume
 
-A job whose process dies within its time limit resumes once. This covers a crash, a memory kill or a reboot. Each issue keeps its agents' Claude Code sessions in `$FACTORY_HOME/sessions/issue-N`. The tick removes the dead job's containers, puts the issue in `interrupted` and frees its cap slot. The next tick starts the same stage, and each agent round continues its session with `--resume`. Merges, checks and publishing run again. A second death or a timeout fails the job. A dead branch job always fails, since a restart could repeat a half-done branch move. A job's end clears the sessions and the mark.
+A card job whose process dies within its time limit resumes once. This covers a crash, a memory kill or a reboot. A card job that runs past its time limit resumes once too. The tick kills it first and writes the ledger outcome `timeout`. Each issue keeps its agents' Claude Code sessions in `$FACTORY_HOME/sessions/issue-N`. The tick removes the job's containers, puts the issue in `interrupted` and frees its card job limit slot. The next tick starts the same stage, and each agent round continues its session with `--resume`. Merges, checks and publishing run again. A second death or a second timeout fails the job. A dead or timed-out branch job does not resume its session. An approve, remove, ship or incident job whose order is still queued keeps it once, puts it in `retried` and starts fresh on the next tick. A second death or timeout fails the job and drops its order. A job whose order is already gone fails and reports at once. A merge labels the cards of its batch `factory-stuck`, so it does not start again by itself. A card job that died and was found past its time limit resumes once too. A job's end clears the sessions and the mark.
 
-`factory pause-card N` uses the same path. It kills the card's job, puts the issue in `interrupted` and frees its cap slot, and the card waits until `resume-card N`. The continued job counts as resumed once, so its death fails it.
+`factory pause-card N` uses the same path. It kills the card's job, puts the issue in `interrupted` and frees its card job limit slot, and the card waits until `resume-card N`. The continued job counts as resumed once, so its death fails it.
 
 ## Cleanup and health
 
@@ -58,15 +58,14 @@ When `dev` moves past the commit `/dev/` serves, the next tick rebuilds `/dev/`,
 
 ## Repairing a work clone
 
-A failed merge can leave a card's work clone with an open merge, conflicts or thousands of dirty files. The next job reuses any clone with a commit, so it fails again. `factory repair-clone N --by <who> --reason <why>` swaps the clone for a fresh one and keeps the old one.
+A failed merge can leave a card's work clone with an open merge, conflicts or thousands of dirty files. The next job reuses any clone with a commit. A stage resumes its own unfinished merge of the base or of the issue branch, so those need no repair. Any other open merge fails the stage again. `factory repair-clone N --by <who> --reason <why>` swaps the clone for a fresh one and keeps the old one.
 
-1. Pause the factory with `factory pause <reason>`, and wait until `factory jobs` prints `none`.
-2. Run `factory repair-clone N --by hermes --reason <why>`. Add `--backup-merge` when the clone has an open merge, revert, cherry-pick or rebase, or conflicted files. Without it the command refuses such a clone.
-3. Check the new clone, run `factory resume`, then `factory retry N`.
+1. Run `factory repair-clone N --by hermes --reason <why>`. Add `--backup-merge` when the clone has an open merge, revert, cherry-pick or rebase, or conflicted files. Without it the command refuses such a clone.
+2. Check the new clone. A repair that works already removed the stuck label and the failures, so the next tick continues the card.
 
-The command acts at once. It refuses, and changes nothing in `work/`, when:
+The command needs no pause and no other idle card. It holds the card for its duration, takes the clone lock `$FACTORY_HOME/locks/issue-N`, and lifts only the hold it placed. A hold that was there before stays, and so does the `interrupted` mark, so a held card resumes in the new clone after `resume-card`. A job start, `prepareWorkClone` and the tick sweep of `work/issue-N` wait for that lock or skip the clone. The command acts at once. It refuses, and changes nothing in `work/`, when:
 
-- the factory is not paused, any job runs, or the card has an interrupted or held job, which continues in its clone;
+- a job of the card runs;
 - `--by` is no member and not `hermes`;
 - `work/issue-N` holds no clone with a commit, since the next job clones that again;
 - the clone has an open operation or conflicts and no `--backup-merge`;
@@ -74,13 +73,39 @@ The command acts at once. It refuses, and changes nothing in `work/`, when:
 
 A repair fetches the host clone, then clones GitHub's `factory/issue-N` exactly, with fresh `origin/*` refs like `dev`. It moves the whole old clone, with its tracked, untracked and ignored files, to `$FACTORY_HOME/clone-backups/issue-N-<time>/clone`. `repair.json` beside it records who, why, the old HEAD and branch, the open operation, the conflicted files, the commits on no GitHub branch and the outcome. `status.txt` holds the old `git status`. Only the `.factory`, `.factory-tasks` and `.factory-media` folders are copied into the new clone. The repair passes only when the new clone's `git status` is clean and its HEAD is the branch head.
 
-A failure after the move keeps the backup where it is, moves the half-made clone to `failed-fresh` in the backup and leaves `work/issue-N` free. The error prints the `mv` that restores the old clone. Nothing deletes a backup. The tick sweep reads only `work/`, so Hermes deletes a backup once the card is past the trouble. The stuck label and the failures stay, so only `retry` sends the card on.
+A failure after the move keeps the backup where it is, moves the half-made clone to `failed-fresh` in the backup and leaves `work/issue-N` free. The error prints the `mv` that restores the old clone. Nothing deletes a backup. The tick sweep reads only `work/`, so Hermes deletes a backup once the card is past the trouble. A failed repair leaves the stuck label and the failures in place.
+
+## Stuck sweep
+
+A stuck card waits for a person, so the tick explains each one and clears the ones no person needs. Every tick that is not paused, after cleanup and before the disk check, `sweepStuck` in `src/stuck.ts` reads the board the tick already fetched, every page of it. It writes one record in `stuck` for each open stuck card and changes nothing else on a card it cannot explain.
+
+A record holds the cause: the card's newest failure, or the newest merge failure whose `batch` holds the card. A record keeps its cause after the failure leaves `failures`. Its incident is the issue, the stage and the time of that failure, so a new failure opens a new incident. A card with no failure gets an `unrecorded` incident at the time the sweep first saw it. The record goes when the label goes by any other hand, or when the card leaves the column the sweep released it in.
+
+Each record has a kind. The first that fits wins:
+
+- `running`: a job of the card runs, or the card is in the running merge batch. The sweep waits.
+- `held`: the card is held. The sweep waits.
+- `unrecorded`: no failure names the card. It stays for Hermes, since an empty budget or a committee question may have aged out of `failures`.
+- `blocked`: an empty budget, a committee question, the release tracking card, an action the sweep already took in this column, a refused action, and every other failure, like a failed check. It stays for Hermes.
+- `merge-batch`: a Merging card of a merge batch of two or more cards that timed out or died.
+- `clone-merge`: a Design, Implementation, Testing or Hardening card whose work clone has an open merge, revert, cherry-pick or rebase.
+- `machine`: a GitHub call that timed out, hit the rate limit, got a 5xx or lost its connection, since the tick just read the board, or a full disk once `FACTORY_MIN_FREE_GB` is free again.
+
+The sweep acts with the commands Hermes uses, and writes `tries` and `released` on the record before it acts:
+
+- `merge-batch`: while no merge job runs and no unstuck Merging card of the same base waits, it runs `retry` on the first half, rounded up, of the oldest failed batch, by issue number. The next merge job takes exactly that half. A half that times out again is halved again, and a card that times out alone is `blocked`. A label GitHub refuses to remove stays, and the next tick tries again.
+- `clone-merge`: `repair-clone` with `--backup-merge`, by `factory`, one card per tick and only with the disk above `FACTORY_MIN_FREE_GB`. It also refuses a clone with commits on no GitHub branch, so no unpushed work leaves the clone.
+- `machine`: `retry`, one card per tick.
+
+The board lists a write up to a minute late, so a card the sweep released keeps its kind for 5 minutes while the board still shows the label. The sweep does not repair or retry it again, and a merge release of it only removes the label once more. A label still there after that, with no new failure, is `blocked`. A clone repair or machine retry runs once per card per column. An action that fails writes its reason in `refused`, turns the record `blocked` and does not run again for that incident. A crash of the whole sweep writes `sweepError`, the tick goes on with the cards as they were, and the next sweep that passes clears it. The sweep reads GitHub only through the tick's board, and its only GitHub writes are the label removals.
+
+Hermes's watch lists every stuck issue with its kind, like `stuck #12 Tow fee (sweep: merge-batch)`, and a `stuck sweep failed:` line for `sweepError`. A line holds for one incident, so Hermes wakes on a new failure or when the sweep gives a card back. `factory stuck` prints every record, and `factory card N` the card's one.
 
 ## Failures and Hermes
 
 Each factory process sends its GitHub calls one at a time, as GitHub asks. A call that hits a rate limit waits `FACTORY_GITHUB_RETRY_BASE_SECONDS` and runs again, up to `FACTORY_GITHUB_RETRIES` times, with the wait doubled each time. Any other GitHub error fails at once. A call that runs past `FACTORY_GITHUB_TIMEOUT_SECONDS` is killed and fails, so a dead connection cannot hang a tick. It does not run again, since a write may have landed.
 
-A card stage that fails resumes once on the next tick in its own sessions, and its agent gets the error. It takes no label and records no failure. A failed job after that, a timed-out job, a stage that spent its budget or asked the committee, and any other failed job labels its issue `factory-stuck` and records the failure in `failures` for a day. A failed merge job labels every card of its batch. The factory posts nothing about it. A stuck release step labels the tracking issue. Removing the label lets the factory try again.
+A card stage that fails resumes once on the next tick in its own sessions, and its agent gets the error. It takes no label and records no failure. A failed job after that, a branch job that timed out, a stage that spent its budget or asked the committee, and any other failed job labels its issue `factory-stuck` and records the failure in `failures` for a day. A failed merge job labels every card of its batch and records the batch in its failure. The factory posts nothing about it. A failed or dead catch-up job records its failure with its issue and labels nothing, since its card stays in the merge queue, and the stuck sweep never takes it as a stuck card's cause. A stuck release step labels the tracking issue. Removing the label lets the factory try again.
 
 An agent run that ends on the Claude weekly usage limit is the exception. The factory writes `Hermes: Claude weekly usage limit; <message>` to `$FACTORY_HOME/paused`, unless a pause is already there. The job still records its failure, but the card takes no label. Hermes resumes the factory after the reset, and the card runs its stage again.
 
@@ -88,7 +113,7 @@ Hermes manages the factory. Its incident watch wakes it on a stuck issue, a fail
 
 Hermes uses the `factory` CLI for every look at the factory and every change. Read commands print the state and change nothing. Write commands become inbox commands, and the next tick applies each one before it picks jobs. A write that cannot apply changes nothing and becomes a failure that names the reason. Each write names who ordered it and why, on the issue and in the ledger. Only a member's order runs `merge` or `move N harden` of a card the committee has not approved, `ship` and `merge-change`. `factory help` lists every command. [state.md](state.md) lists the commands.
 
-While Hermes edits state, it pauses the factory with the file `$FACTORY_HOME/paused`, and every tick skips. A paused tick also skips its job checks, so a dead job stays in `jobs` until the pause ends. A line `pid: N` in that file ties the pause to a process, and the tick lifts the pause once that process ends.
+While Hermes edits state, it pauses the factory with the file `$FACTORY_HOME/paused`, and every tick starts no job, applies no order, runs no cleanup and takes no intake. A paused tick still checks the running jobs, so a dead or timed-out job leaves `jobs` also during a pause. A line `pid: N` in that file ties the pause to a process, and the tick lifts the pause once that process ends.
 
 ## Activity and status
 
@@ -119,7 +144,9 @@ Every card move adds a card line: the issue, the new column, the time and a step
 
 A triage `unclear` verdict moves nothing, so its wait for the author stays in Triage. A move by hand on GitHub writes no line.
 
-Every `FACTORY_WASTE_REVIEW_DAYS`, the tick starts a waste review in the triage queue. `wasteNumbers()` in `src/waste.ts` computes the cost per stage and model, the wait per queue, the stages that ran more than once on one issue, the routes and the most expensive issues. It computes the same numbers for the period before, so a jump shows. A Sonnet agent reads those numbers and the records, and writes `.factory/brief.md` with one bottleneck and one change request. The job records them in a closed issue labeled `factory-review` and writes `$FACTORY_HOME/review-pending`. That file is an incident line for Hermes. Hermes checks the review and posts to the committee only when something matters, then deletes the file. A member queues the change by asking Hermes. The first review waits one full period after the deploy.
+Every `FACTORY_WASTE_REVIEW_DAYS`, the tick starts a waste review in the triage queue. `wasteNumbers()` in `src/waste.ts` computes the cost per stage and model, the wait per queue, the stages that ran more than once on one issue, the routes and the most expensive issues. It computes the same numbers for the period before, so a jump shows. A change job's id is no GitHub issue, so a change counts in the totals, stages and models, and never as an issue. `JOB_ISSUE` in `src/types.ts` names the stages whose issue is a GitHub issue. A Sonnet agent reads those numbers and the records, and writes `.factory/brief.md` with one bottleneck and one change request. The job records them in a closed issue labeled `factory-review` and writes `$FACTORY_HOME/review-pending`. That file is an incident line for Hermes. Hermes checks the review and posts to the committee only when something matters, then deletes the file. A member queues the change by asking Hermes. The first review waits one full period after the deploy.
+
+The review's period starts at `lastWasteReview` in the state file. The job moves it to the review's end only after the issue is closed, the review is in `$FACTORY_HOME/waste-reviews.md` and `review-pending` is written. So a failed review keeps its period, and the next one covers it. While a `waste` failure stands in `failures`, the tick starts no review, so a broken review does not rerun on every tick. It runs again when the failure ages out after a day, or at once by `run waste -`. Once the issue exists, the job writes `$FACTORY_HOME/waste-review-publish.json`. A retry of the same period finds it and finishes that issue, with no agent and no second issue.
 
 ## Error reports
 

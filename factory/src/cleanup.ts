@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { isLocked } from './lock';
 import type { Card, FactoryState } from './types';
 
 type Keep = (id: number, state: FactoryState, cards: Card[]) => boolean;
@@ -22,6 +23,7 @@ const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => b
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },
   'merge-queue': { stages: ['merge'], keep: () => false },
+  'ship-main': { stages: ['ship'], keep: () => false },
 };
 const OWN = new Set(['land']);
 const PACKAGE_DIRS = ['node_modules', 'game/node_modules', 'factory/node_modules', 'quality/node_modules'];
@@ -30,7 +32,8 @@ export type Swept = { removed: string[]; stripped: string[]; unknown: string[] }
 
 const isClone = (name: string): boolean => NUMBERED.test(name) || name in NAMED;
 
-function busy(name: string, state: FactoryState): boolean {
+function busy(name: string, state: FactoryState, lockRoot: string): boolean {
+  if (isLocked(join(lockRoot, name))) return true;
   const numbered = NUMBERED.exec(name);
   if (!numbered) return state.jobs.some((job) => NAMED[name].stages.includes(job.stage));
   const id = Number(numbered[2]);
@@ -48,9 +51,9 @@ function stripPackages(dir: string): boolean {
   return packages.length > 0;
 }
 
-function sweepOne(workRoot: string, name: string, state: FactoryState, cards: Card[], swept: Swept): void {
+function sweepOne(workRoot: string, lockRoot: string, name: string, state: FactoryState, cards: Card[], swept: Swept): void {
   if (!isClone(name)) return void swept.unknown.push(name);
-  if (busy(name, state)) return;
+  if (busy(name, state, lockRoot)) return;
   const dir = join(workRoot, name);
   if (!needed(name, state, cards)) {
     rmSync(dir, { recursive: true, force: true });
@@ -59,11 +62,11 @@ function sweepOne(workRoot: string, name: string, state: FactoryState, cards: Ca
   if (stripPackages(dir)) swept.stripped.push(name);
 }
 
-export function sweepWork(workRoot: string, state: FactoryState, cards: Card[]): Swept {
+export function sweepWork(workRoot: string, lockRoot: string, state: FactoryState, cards: Card[]): Swept {
   const swept: Swept = { removed: [], stripped: [], unknown: [] };
   if (!existsSync(workRoot)) return swept;
   const folders = readdirSync(workRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !OWN.has(entry.name));
-  for (const folder of folders) sweepOne(workRoot, folder.name, state, cards, swept);
+  for (const folder of folders) sweepOne(workRoot, lockRoot, folder.name, state, cards, swept);
   return swept;
 }
 

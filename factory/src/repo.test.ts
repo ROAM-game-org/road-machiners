@@ -243,6 +243,20 @@ describe('reverting an issue merge', () => {
 describe('work clones', () => {
   const git = async (cwd: string, ...a: string[]) => must(await realRun('git', [...ID, ...a], { cwd }), `git ${a.join(' ')}`);
 
+  it('waits for the clone lock of an issue clone before it prepares the clone', async () => {
+    const { home, repo } = await setup();
+    const work = join(home, 'work', 'issue-8');
+    const lock = join(home, 'locks', 'issue-8');
+    mkdirSync(lock, { recursive: true });
+    writeFileSync(join(lock, 'owner'), String(process.pid));
+    const done = repo.prepareWorkClone('factory/issue-8', 'dev', work).then(() => 'done');
+    expect(await Promise.race([done, new Promise((resolve) => setTimeout(() => resolve('waiting'), 400))])).toBe('waiting');
+    expect(existsSync(work)).toBe(false);
+    rmSync(lock, { recursive: true });
+    await done;
+    expect(existsSync(join(work, '.git'))).toBe(true);
+  });
+
   it('starts a new branch from the base, and fetches work without pushing it until asked', async () => {
     const { home, repo, show, head } = await setup();
     const work = join(home, 'work', 'issue-8');
@@ -363,6 +377,16 @@ describe('work clones', () => {
       await git(work, 'add', 'g.txt');
       expect(await repo.catchUpBase(work, 'dev')).toEqual({ commit: await head('dev'), conflicts: ['g.txt'], kept: null });
     });
+
+    it('lets the issue branch catch-up pass an open base merge when the branch did not move, so the stage reaches it', async () => {
+      const { repo, work, head } = await staleClone(260);
+      writeFileSync(join(work, 'g.txt'), 'mine\n');
+      await git(work, 'commit', '-am', 'mine');
+      await git(work, 'push', '--quiet', 'origin', 'HEAD:factory/issue-260');
+      await repo.catchUpBase(work, 'dev');
+      expect(await repo.mergeBranchIntoWork(work, 'factory/issue-260')).toEqual({ commit: null, conflicts: [] });
+      expect(await repo.catchUpBase(work, 'dev')).toEqual({ commit: await head('dev'), conflicts: ['g.txt'], kept: null });
+    });
   });
 
   it('gives a new and an existing work clone the guard as an executable pre-commit hook that passes on the host', async () => {
@@ -397,7 +421,7 @@ describe('work clones', () => {
     writeFileSync(join(work, 'game', '.factory-tasks', 'issue-10.md'), '# plan\n');
     writeFileSync(join(work, 'f.txt'), 'ten\n');
     await git(work, 'add', '-f', 'f.txt', 'game/.factory-tasks/issue-10.md');
-    await git(work, 'commit', '-m', 'work on 10 with the task file');
+    await git(work, '-c', 'core.hooksPath=/dev/null', 'commit', '-m', 'work on 10 with the task file');
     expect(await repo.untrackFactoryFiles(work)).toEqual(['game/.factory-tasks/issue-10.md']);
     expect(await repo.untrackFactoryFiles(work)).toEqual([]);
     const head = await repo.fetchFromWork(work, 'factory/issue-10');
@@ -462,7 +486,7 @@ describe('work clones', () => {
   it('merges a moved dev into the branch, and GitHub sees it as merged after the push', async () => {
     const { repo, work, head } = await behindDev('g.txt');
     expect(await repo.isMerged('dev', 'factory/issue-5')).toBe(false);
-    expect(await repo.mergeBaseIntoWork(work, 'dev')).toEqual({ commit: await head('dev'), conflicts: [] });
+    expect(await repo.catchUpBase(work, 'dev')).toEqual({ commit: await head('dev'), conflicts: [], kept: null });
     expect(readFileSync(join(work, 'g.txt'), 'utf8')).toBe('dev moved\n');
     expect(readFileSync(join(work, 'f.txt'), 'utf8')).toBe('five\n');
     await repo.push(await repo.fetchFromWork(work, 'factory/issue-5'), 'factory/issue-5');
@@ -471,7 +495,7 @@ describe('work clones', () => {
 
   it('still sees the merged commit inside the branch after dev moves on', async () => {
     const { repo, work, commit } = await behindDev('g.txt');
-    const merged = (await repo.mergeBaseIntoWork(work, 'dev')).commit;
+    const merged = (await repo.catchUpBase(work, 'dev')).commit as string;
     await repo.push(await repo.fetchFromWork(work, 'factory/issue-5'), 'factory/issue-5');
     await commit('dev', 'g.txt', 'another approval\n');
     await repo.fetch();
@@ -481,7 +505,7 @@ describe('work clones', () => {
 
   it('names the conflicted files and leaves the merge open for the agent', async () => {
     const { repo, work } = await behindDev('f.txt');
-    expect((await repo.mergeBaseIntoWork(work, 'dev')).conflicts).toEqual(['f.txt']);
+    expect((await repo.catchUpBase(work, 'dev')).conflicts).toEqual(['f.txt']);
     expect(readFileSync(join(work, 'f.txt'), 'utf8')).toContain('<<<<<<<');
   });
 
@@ -521,6 +545,24 @@ describe('work clones', () => {
     const { repo, work } = await branchMoved('g.txt', 'g.txt');
     expect((await repo.mergeBranchIntoWork(work, 'factory/issue-12')).conflicts).toEqual(['g.txt']);
     expect(readFileSync(join(work, 'g.txt'), 'utf8')).toContain('<<<<<<<');
+  });
+
+  it('hands its own unfinished merge of the branch back for another round instead of failing', async () => {
+    const { repo, work, head } = await branchMoved('g.txt', 'g.txt');
+    const branch = 'factory/issue-12';
+    await repo.mergeBranchIntoWork(work, branch);
+    const before = readFileSync(join(work, 'g.txt'), 'utf8');
+    expect(await repo.mergeBranchIntoWork(work, branch)).toEqual({ commit: await head(branch), conflicts: ['g.txt'] });
+    expect(readFileSync(join(work, 'g.txt'), 'utf8')).toBe(before);
+  });
+
+  it('still fails on an unfinished merge of other work', async () => {
+    const { repo, work, commit } = await branchMoved('g.txt', 'f.txt');
+    await commit('factory/issue-999', 'g.txt', 'other\n');
+    await repo.fetch();
+    await git(work, 'fetch', '--quiet', 'origin');
+    expect((await realRun('git', [...ID, 'merge', 'origin/factory/issue-999'], { cwd: work })).code).not.toBe(0);
+    await expect(repo.mergeBranchIntoWork(work, 'factory/issue-12')).rejects.toThrow(/unfinished merge or conflicts/);
   });
 });
 
@@ -568,6 +610,30 @@ describe('resolving a conflict', () => {
     expect(again).toBeInstanceOf(MergeConflictError);
     expect(await show('dev', 'g.txt')).toBe('moved\n');
     expect(await show('dev', 'f.txt')).toBe('dev\n');
+  });
+
+  it('catches a waiting issue branch up to dev with a resolved conflict, leaves dev alone, and its later merge into dev is clean', async () => {
+    const { home, repo, commit, feature, show, head } = await setup();
+    await commit('factory/issue-8', 'f.txt', 'card 8\n');
+    await feature(7, 'f.txt', 'card 7\n');
+    await commit('dev', 'g.txt', 'dev moved\n');
+    await repo.fetch();
+    const devBefore = await head('dev');
+    const catchUp = { branch: 'dev', into: 'factory/issue-8', message: 'Merge dev into factory/issue-8 while it waits in Merging' };
+    const error = await repo.merge([catchUp]).catch((e: unknown) => e) as MergeConflictError;
+    expect(error).toBeInstanceOf(MergeConflictError);
+    const dir = join(home, 'work', 'merge-factory-issue-8');
+    await repo.openConflict(dir, error);
+    await agent(dir, 'f.txt', 'card 7 and 8\n');
+    const { resolution } = await repo.closeConflict(dir, error);
+    await repo.merge([catchUp], [resolution]);
+    expect(await head('dev')).toBe(devBefore);
+    expect(await show('dev', 'f.txt')).toBe('card 7\n');
+    expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
+    expect(await show('factory/issue-8', 'g.txt')).toBe('dev moved\n');
+    expect(await repo.isMerged('dev', 'factory/issue-8')).toBe(true);
+    await repo.merge([{ branch: 'factory/issue-8', into: 'dev', message: 'Merge issue #8: title 8' }]);
+    expect(await show('dev', 'f.txt')).toBe('card 7 and 8\n');
   });
 
   it('rejects a merge the agent left open, and a commit that drops a side', async () => {

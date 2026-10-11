@@ -31,7 +31,7 @@ function job(id: string, stage: JobStage, issue: number, startedAt: string, ende
   return { kind: 'job', id, stage, issue, startedAt, endedAt, outcome, agents, ...(retryOf === undefined ? {} : { retryOf }) };
 }
 function schedulerLine(at: string, decisions: { stage: string; issue: number; reasons: string[] }[]): Record<string, unknown> {
-  const report = { picks: [], decisions, nextCapAt: null, release: { reason: 'uncut', issues: [] } };
+  const report = { picks: [], decisions, release: { reason: 'uncut', issues: [] } };
   return { kind: 'observation', producer: 'scheduler', at, since: at, data: { type: 'scheduler', status: 'ready', report, counts: {} } };
 }
 
@@ -185,7 +185,7 @@ describe('usage queries', () => {
 
   it('measures observed waits once per issue, not once per blocking reason', async () => {
     const result = await run([
-      schedulerLine('2026-10-04T10:00:00.000Z', [{ stage: 'design', issue: 1, reasons: ['queue-full', 'daily-cap'] }]),
+      schedulerLine('2026-10-04T10:00:00.000Z', [{ stage: 'design', issue: 1, reasons: ['queue-full', 'card-budget'] }]),
       schedulerLine('2026-10-04T10:01:00.000Z', []),
     ], new Date('2026-10-04T10:02:00Z'));
     expect(rows(result, 'waiting')).toEqual([{ waiting_ms: 60000, span_ms: 120000, gaps: 0 }]);

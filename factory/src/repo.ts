@@ -1,10 +1,10 @@
 import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { GUARD_HOOK } from './container';
 import { must } from './exec';
 import { withLock } from './lock';
 import { createLockWaitReporter } from './observability';
-import { MEDIA_DIR, MergeConflictError, OUT_DIR, RevertConflictError, TASK_DIR, type FactoryConfig, type HostRepo, type MergeStep, type Resolution, type Run } from './types';
+import { CLONE_LOCK_MS, MEDIA_DIR, MergeConflictError, OUT_DIR, RevertConflictError, TASK_DIR, WORK_LOCK, type FactoryConfig, type HostRepo, type MergeStep, type Resolution, type Run } from './types';
 
 const NO_HOOKS = ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=ROAM Factory', '-c', 'user.email=factory@roam.invalid'];
 
@@ -149,17 +149,29 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     return [...marks.flat(), ...rebases, ...(await conflictedFiles(dir))];
   }
 
-  async function openBaseMerge(dir: string, base: string): Promise<{ commit: string; conflicts: string[] } | null> {
+  async function openMergeOf(dir: string, branch: string): Promise<{ commit: string; conflicts: string[] } | null> {
     if (!(await hasRef(dir, 'MERGE_HEAD'))) return null;
     const commit = (await gitIn(dir, ['rev-parse', 'MERGE_HEAD'])).trim();
-    if ((await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', commit, `origin/${base}`], { cwd: dir })).code !== 0) return null;
+    if ((await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', commit, `origin/${branch}`], { cwd: dir })).code !== 0) return null;
     const conflicts = await conflictedFiles(dir);
     return { commit, conflicts: conflicts.length > 0 ? conflicts : lines(await gitIn(dir, ['diff', '--name-only', 'HEAD', 'MERGE_HEAD'])) };
   }
 
-  async function untouchable(dir: string): Promise<string | null> {
+  async function requireNoOpenWork(dir: string): Promise<void> {
     const open = await openWork(dir);
     if (open.length > 0) throw new Error(`${dir} has an unfinished merge or conflicts (${open.join(', ')}), so the factory left it as it is. Repair it with factory repair-clone.`);
+  }
+
+  async function mergeBranchCommit(dir: string, branch: string, commit: string, message?: string): Promise<{ commit: string; conflicts: string[] }> {
+    const result = await run('git', [...NO_HOOKS, 'merge', ...mergeFlags(message), commit], { cwd: dir });
+    if (result.code === 0) return { commit, conflicts: [] };
+    const conflicts = await conflictedFiles(dir);
+    if (conflicts.length === 0) throw new Error(`merge of ${branch} into ${dir} failed without a conflict: ${(result.stderr || result.stdout).trim()}`);
+    return { commit, conflicts };
+  }
+
+  async function untouchable(dir: string): Promise<string | null> {
+    await requireNoOpenWork(dir);
     const changed = lines(await gitIn(dir, ['status', '--porcelain', '--untracked-files=no']));
     return changed.length === 0 ? null : `uncommitted changes in ${changed.map((line) => line.slice(3)).join(', ')}`;
   }
@@ -266,18 +278,9 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async push(commit, branch) {
       await pushAll(new Map([[branch, commit]]));
     },
-    async mergeBaseIntoWork(dir, base) {
-      await gitIn(dir, ['fetch', 'origin']);
-      const commit = (await gitIn(dir, ['rev-parse', `origin/${base}`])).trim();
-      const result = await run('git', [...NO_HOOKS, 'merge', '--no-edit', commit], { cwd: dir });
-      if (result.code === 0) return { commit, conflicts: [] };
-      const conflicts = await conflictedFiles(dir);
-      if (conflicts.length === 0) throw new Error(`merge of ${base} into ${dir} failed without a conflict: ${(result.stderr || result.stdout).trim()}`);
-      return { commit, conflicts };
-    },
     async catchUpBase(dir, base) {
       await gitIn(dir, ['fetch', '--quiet', 'origin']);
-      const open = await openBaseMerge(dir, base);
+      const open = await openMergeOf(dir, base);
       if (open !== null) return { ...open, kept: null };
       const kept = await untouchable(dir);
       if (kept !== null) return { commit: null, conflicts: [], kept };
@@ -288,13 +291,12 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async mergeBranchIntoWork(dir, branch, message) {
       await gitIn(dir, ['fetch', 'origin']);
       if (!(await hasRef(dir, `refs/remotes/origin/${branch}`))) return { commit: null, conflicts: [] };
+      const open = await openMergeOf(dir, branch);
+      if (open !== null) return open;
       const commit = (await gitIn(dir, ['rev-parse', `origin/${branch}`])).trim();
       if ((await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', commit, 'HEAD'], { cwd: dir })).code === 0) return { commit: null, conflicts: [] };
-      const result = await run('git', [...NO_HOOKS, 'merge', ...mergeFlags(message), commit], { cwd: dir });
-      if (result.code === 0) return { commit, conflicts: [] };
-      const conflicts = await conflictedFiles(dir);
-      if (conflicts.length === 0) throw new Error(`merge of ${branch} into ${dir} failed without a conflict: ${(result.stderr || result.stdout).trim()}`);
-      return { commit, conflicts };
+      await requireNoOpenWork(dir);
+      return mergeBranchCommit(dir, branch, commit, message);
     },
     async isMerged(base, branch) {
       const result = await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', await ref(base), await ref(branch)], { cwd: path });
@@ -304,7 +306,10 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async headHash(branch) {
       return (await git(['rev-parse', '--short', await ref(branch)])).trim();
     },
-    diff: async (base, branch) => git(['diff', `${await ref(base)}...${await ref(branch)}`]),
+    async forkPoint(a, b) {
+      return (await git(['rev-parse', '--short', (await git(['merge-base', await ref(a), await ref(b)])).trim()])).trim();
+    },
+    diff: async (base, branch) => git(['diff', '--no-renames', `${await ref(base)}...${await ref(branch)}`]),
     async readFile(branch, path) {
       return git(['show', `${await ref(branch)}:${path}`]);
     },
@@ -333,7 +338,15 @@ function lockEach(cfg: FactoryConfig, jobId: string | null, repo: HostRepo): Hos
   const entries = Object.entries(repo).map(([key, value]) => {
     if (typeof value !== 'function') return [key, value];
     const method = value as (...args: unknown[]) => Promise<unknown>;
-    return [key, (...args: unknown[]) => withLock(dir, REPO_LOCK_MS, () => method(...args), createLockWaitReporter(cfg.home, jobId, cfg.observationHeartbeatMs))];
+    const locked = (...args: unknown[]): Promise<unknown> => withLock(dir, REPO_LOCK_MS, () => method(...args), createLockWaitReporter(cfg.home, jobId, cfg.observationHeartbeatMs));
+    if (key !== 'prepareWorkClone') return [key, locked];
+    return [key, (...args: unknown[]) => withCloneLock(cfg.home, String(args[2]), () => locked(...args))];
   });
   return Object.fromEntries(entries) as HostRepo;
+}
+
+function withCloneLock(home: string, clone: string, work: () => Promise<unknown>): Promise<unknown> {
+  const name = basename(clone);
+  if (dirname(clone) !== join(home, 'work') || !/^issue-\d+$/.test(name)) return work();
+  return withLock(WORK_LOCK(home, name), CLONE_LOCK_MS, work);
 }

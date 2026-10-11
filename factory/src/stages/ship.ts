@@ -7,12 +7,14 @@ import { must } from '../exec';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, GAME_DIR, OUT_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type MergeStep, type ReleasePost, type ReleaseState } from '../types';
+import { BUG_LABEL, GAME_DIR, OUT_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
+import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
-import { agentLog } from './common';
+import { agentLog, fillPrompt, resetOutputs } from './common';
+import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
-import { candidateDir, changeLines, openReleaseTasks, releaseFeatures, releaseLog, requireRelease } from './release-common';
+import { candidateDir, changeLines, openReleaseTasks, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
 
 export type ItchKeys = { itchTarget: string; butlerKey: string };
 
@@ -37,12 +39,25 @@ async function requirePlayed(ctx: Ctx, release: ReleaseState): Promise<void> {
   if (release.candidateSha !== head) throw new Error(`The release moved to ${head} after the candidate of ${release.candidateSha ?? 'an unknown commit'} was posted, so the committee has not played it. A new candidate follows.`);
 }
 
-async function takeMain(ctx: Ctx, branch: string): Promise<MergeStep[]> {
-  if (await ctx.repo.isMerged('main', branch)) return [];
-  return [{ branch: 'main', into: branch, message: `Merge main into ${branch} before the ship` }];
+function landRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
+  return withWorkFolder(ctx, 'ship-main', () => mergeRelease(ctx, release));
 }
 
-export async function publish(ctx: Ctx, keys: ItchKeys, logName: string): Promise<void> {
+async function mergeRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
+  const dir = join(ctx.cfg.home, 'work', 'ship-main');
+  rmSync(dir, { recursive: true, force: true });
+  await ctx.repo.prepareWorkClone('main', 'main', dir);
+  resetOutputs(join(dir, GAME_DIR));
+  const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, 'main') };
+  const conflicts = await mergeIn(ctx, land, { branch: release.branch, message: `Release ${release.day}`, reason: `release ${release.day} ships` });
+  await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('ship-fix', { release: release.branch, failure }));
+}
+
+export function publish(ctx: Ctx, keys: ItchKeys, logName: string): Promise<void> {
+  return withWorkFolder(ctx, 'release-main', () => buildAndPush(ctx, keys, logName));
+}
+
+async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'release-main');
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone('main', 'main', dir);
@@ -63,14 +78,10 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   if (!existsSync(screenshot) || !existsSync(notesPath)) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
   await ctx.repo.fetch();
   await requirePlayed(ctx, release);
-  const features = await releaseFeatures(ctx, release);
+  const features = await shippingFeatures(ctx, release);
   const changelog = changeLines(readFileSync(notesPath, 'utf8'), features).join('\n');
-  const taken = await takeMain(ctx, release.branch);
-  await mergeResolving(ctx, 'ship', [
-    ...taken,
-    { branch: release.branch, into: 'main', message: `Release ${release.day}` },
-    { branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}` },
-  ]);
+  await landRelease(ctx, release);
+  await mergeResolving(ctx, 'ship', [{ branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}` }]);
   await publish(ctx, keys, 'ship');
   const kept = join(releasePostDir(ctx.cfg.home, release.day), 'screenshot.png');
   mkdirSync(dirname(kept), { recursive: true });
@@ -98,6 +109,14 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   });
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes. Hermes drafts the public post next.`);
   ctx.log('ship', issue, `shipped ${features.length} changes`);
+}
+
+async function shippingFeatures(ctx: Ctx, release: ReleaseState): Promise<Feature[]> {
+  const sha = await ctx.repo.headHash(release.branch);
+  if (release.shipping?.sha === sha) return release.shipping.features;
+  const features = await releaseFeatures(ctx, release);
+  updateState(ctx.statePath, (state) => ({ ...state, release: state.release && { ...state.release, shipping: { sha, features } } }));
+  return features;
 }
 
 async function anyBug(ctx: Ctx, issues: number[]): Promise<boolean> {

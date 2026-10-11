@@ -8,11 +8,12 @@ Read CLAUDE.md first.
 Follow it.
 Run `npm ci` before anything else. The factory removes installed packages from clones between stages, and the commit hook needs them.
 
-If `.factory/merge-conflicts.md` exists, the factory merged the current base branch into your branch before you started, and that merge stopped on conflicts in the files it lists.
+{{baseNote}}
+If `.factory/merge-conflicts.md` exists, that merge stopped on conflicts in the files it lists.
 Resolve them first.
 Keep what both sides meant, not just one side.
 Then commit the merge with `git commit --no-edit`.
-The factory fails the stage if the merge is left unfinished.
+If the merge is left unfinished, the factory sends you back to finish it.
 
 You own this stage, and no review runs after you.
 Find what is broken and fix it yourself, in this session.

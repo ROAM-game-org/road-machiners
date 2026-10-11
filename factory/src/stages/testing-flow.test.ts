@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
@@ -24,6 +24,7 @@ let labels: string[] = [];
 let bases: string[] = [];
 let conflicts: string[] = [];
 let merged = true;
+let kept: string | null = null;
 let changed: string[] = [];
 let runs: AgentRun[] = [];
 
@@ -32,6 +33,7 @@ beforeEach(() => {
   albumFails = false;
   conflicts = [];
   merged = true;
+  kept = null;
   changed = ['game/src/sim/far.ts'];
   mkdirSync('tmp', { recursive: true });
   home = mkdtempSync('tmp/factory-testing-');
@@ -111,7 +113,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       diff: async () => '',
       headHash: async () => 'abc123',
       fetch: async () => undefined,
-      mergeBaseIntoWork: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return { commit: 'base0001', conflicts }; },
+      catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       isMerged: async () => merged,
       changedFiles: async () => changed,
@@ -196,15 +198,38 @@ describe('testing in one job', () => {
     await expect(runVerify(fakeCtx((run) => writeFileSync(`${out(run)}/needs-committee.md`, 'A major save bump.')), 7)).rejects.toThrow('committee decision');
   });
 
-  it('fails the stage when the agent leaves the base merge unfinished', async () => {
+  it('hands an unfinished base merge back to the same session, then posts', async () => {
     merged = false;
-    await expect(runVerify(fakeCtx(posts), 7)).rejects.toThrow('left the merge of dev');
+    await runVerify(fakeCtx((run, index) => { posts(run); if (index > 0) merged = true; }), 7);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
+    expect(runs[1]!.prompt).toContain('merge of dev at base000 into factory/issue-7 is unfinished');
+    expect(runs[1]!.prompt).toContain('git commit --no-edit');
+    expect(shellScripts).toHaveLength(1);
+    expect(calls.at(-1)).toBe('move 7 Approval');
+  });
+
+  it('stops with a BudgetError when the merge stays unfinished past the budget', async () => {
+    merged = false;
+    await expect(runVerify(fakeCtx(posts, [], 3), 7)).rejects.toThrow(BudgetError);
   });
 
   it('merges dev first and lists conflicts for the agent', async () => {
     conflicts = ['game/src/a.ts'];
     await runVerify(fakeCtx(posts), 7);
     expect(bases).toContain('merge dev');
+  });
+
+  it('writes the conflicts of a base merge it resumed for the agent', async () => {
+    conflicts = ['game/src/a.ts'];
+    await runVerify(fakeCtx((run) => { expect(readFileSync(`${out(run)}/merge-conflicts.md`, 'utf8')).toBe('- game/src/a.ts\n'); posts(run); }), 7);
+  });
+
+  it('tells the agent when the clone kept an old base and does not check for a base merge', async () => {
+    kept = 'uncommitted changes in f.txt';
+    merged = false;
+    await runVerify(fakeCtx(posts), 7);
+    expect(runs[0]!.prompt).toContain('uncommitted changes in f.txt');
   });
 
   it('works on the release branch for a release task', async () => {
@@ -257,15 +282,16 @@ describe('testing in one job', () => {
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 100: 7 });
   });
 
-  it('retracts the primary when the album fails', async () => {
+  it('keeps the primary post when the album fails', async () => {
     albumFails = true;
     const ctx = fakeCtx((run) => {
       posts(run);
       writeFileSync(`${out(run)}/view1.png`, pngBytes(1));
       writeFileSync(`${out(run)}/evidence.json`, JSON.stringify({ images: [{ file: 'view1.png', description: 'One' }] }));
     });
-    await expect(runVerify(ctx, 7)).rejects.toThrow('sendMediaGroup failed');
-    expect(readState(`${home}/state.json`).approvalPosts).toEqual({});
+    await runVerify(ctx, 7);
+    expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 100: 7 });
+    expect(calls.at(-1)).toBe('move 7 Approval');
   });
 });
 
@@ -301,6 +327,21 @@ describe('hardening in one session', () => {
     expect(calls.at(-1)).toBe('move 7 Merging');
   });
 
+  it('resumes an open base merge and gives its conflicts to the agent', async () => {
+    conflicts = ['game/src/a.ts'];
+    await runHarden(fakeCtx((run) => { expect(readFileSync(`${out(run)}/merge-conflicts.md`, 'utf8')).toBe('- game/src/a.ts\n'); }), 7);
+    expect(runs).toHaveLength(1);
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('tells the agent when the clone kept an old base and does not check for a base merge', async () => {
+    kept = 'uncommitted changes in f.txt';
+    merged = false;
+    await runHarden(fakeCtx(() => undefined), 7);
+    expect(runs[0]!.prompt).toContain('uncommitted changes in f.txt');
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
   it('runs no agent for a docs change', async () => {
     changed = ['docs/guide.md'];
     await runHarden(fakeCtx(() => undefined), 7);
@@ -308,9 +349,19 @@ describe('hardening in one session', () => {
     expect(calls.at(-1)).toBe('move 7 Merging');
   });
 
-  it('fails when the agent leaves the base merge unfinished', async () => {
+  it('sends an unfinished base merge back to the same session once', async () => {
     merged = false;
-    await expect(runHarden(fakeCtx(() => undefined), 7)).rejects.toThrow('left the merge of dev');
+    await runHarden(fakeCtx((_run, index) => { if (index > 0) merged = true; }), 7);
+    expect(runs).toHaveLength(2);
+    expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
+    expect(runs[1]!.prompt).toContain('git commit --no-edit');
+    expect(calls.at(-1)).toBe('move 7 Merging');
+  });
+
+  it('fails when the merge stays unfinished after the second round', async () => {
+    merged = false;
+    await expect(runHarden(fakeCtx(() => undefined), 7)).rejects.toThrow('is unfinished');
+    expect(runs).toHaveLength(2);
   });
 });
 
@@ -353,5 +404,9 @@ describe('captions', () => {
     expect(timeoutOnly(TIMEOUT_FAILURE)).toBe(true);
     expect(timeoutOnly(`${TIMEOUT_FAILURE}\nError: expected 1 to be 2`)).toBe(false);
     expect(timeoutOnly('typecheck failed')).toBe(false);
+    const hung = '[checks] 10:00:00 tests and typecheck\n\nCheckTimeoutError: the checks ran past their 45 minute limit, and the factory removed their container.';
+    expect(timeoutOnly(hung)).toBe(true);
+    expect(timeoutOnly(hung.replace('45', '37.5'))).toBe(true);
+    expect(timeoutOnly(` FAIL  src/a.test.ts > adds\nAssertionError: expected 1 to be 2\n${hung}`)).toBe(false);
   });
 });

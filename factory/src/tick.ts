@@ -10,21 +10,24 @@ import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
 import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
+import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
+import { waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
-import { readState, updateState } from './state';
+import { sweepStuck, type Repair } from './stuck';
+import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, isAnswered } from './questions';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
 export type JobPick = { stage: JobStage; issue: number | null };
-type Candidate = JobPick & { uncapped: boolean };
-type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerDay' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
+type Candidate = JobPick & { pastCardLimit: boolean };
+type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCard' | 'triageWorkers' | 'designWorkers' | 'implementWorkers' | 'verifyWorkers' | 'testWorkers'>;
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const UNCAPPED_STAGES: JobStage[] = ['approve', 'merge', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -33,14 +36,15 @@ function isDue(last: string | null, now: Date, everyMs: number): boolean {
 
 const isHeld = (state: FactoryState, issue: number | null): boolean => issue !== null && String(issue) in state.held;
 
-function queued(state: FactoryState): JobPick | null {
-  const approval = Object.keys(state.pendingApprovals).map(Number).filter((issue) => !isHeld(state, issue)).sort((a, b) => a - b)[0];
-  if (approval !== undefined) return { stage: 'approve', issue: approval };
-  const removal = state.pendingRemovals[0];
-  if (removal) return { stage: 'remove', issue: removal.issue };
-  if (state.pendingShip !== null && state.release) return { stage: 'ship', issue: state.release.issue };
-  const incident = state.pendingIncidents[0];
-  return incident === undefined ? null : { stage: 'incident', issue: incident };
+function queued(state: FactoryState): JobPick[] {
+  const approvals = Object.keys(state.pendingApprovals).map(Number).filter((issue) => !isHeld(state, issue)).sort((a, b) => a - b);
+  const ship: JobPick[] = state.pendingShip !== null && state.release ? [{ stage: 'ship', issue: state.release.issue }] : [];
+  return [
+    ...approvals.map((issue) => ({ stage: 'approve' as const, issue })),
+    ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
+    ...ship,
+    ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+  ];
 }
 
 function changeJobs(state: FactoryState): JobPick[] {
@@ -72,7 +76,18 @@ function cardStage(state: FactoryState, card: Card): JobStage {
 }
 
 function mergeJob(state: FactoryState, cards: Card[]): JobPick | null {
-  return openCards(state, cards).some((card) => card.column === 'Merging') ? { stage: 'merge', issue: null } : null;
+  const ready = waitingMerges(state, openCards(state, cards)).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
+  return ready.length > 0 ? { stage: 'merge', issue: null } : null;
+}
+
+const CATCH_UP_CARDS = 6;
+
+function catchUpJobs(state: FactoryState, cards: Card[]): JobPick[] {
+  const merge = state.jobs.find((job) => job.stage === 'merge');
+  if (merge?.batch === undefined) return [];
+  const next = waitingMerges(state, cards).slice(0, CATCH_UP_CARDS);
+  const failed = (card: Card): boolean => state.failures.some((failure) => failure.stage === 'catch-up' && failure.issue === card.issue);
+  return openCards(state, next).filter((card) => !(merge.caughtUp ?? []).includes(card.issue) && !failed(card)).map((card) => ({ stage: 'catch-up' as const, issue: card.issue }));
 }
 
 const has =
@@ -86,7 +101,7 @@ const lacks =
 
 function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
   const open = openCards(state, cards).filter(lacks(RELEASE_LABEL));
-  const hotfix = byProgress(state, open.filter(has(HOTFIX_LABEL))).map((pick) => ({ ...pick, uncapped: true }));
+  const hotfix = byProgress(state, open.filter(has(HOTFIX_LABEL))).map((pick) => ({ ...pick, pastCardLimit: true }));
   const rest = open.filter(lacks(HOTFIX_LABEL));
   const adhoc = rest
     .filter((card) => card.column === 'Implementation' && has(ADHOC_LABEL)(card))
@@ -94,7 +109,7 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
   const normal = [...adhoc, ...changeJobs(state), ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
-  return [...hotfix, ...normal.map((pick) => ({ ...pick, uncapped: !countsAgainstCap(pick.stage) }))];
+  return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
 export type ReleaseGate = { reason: 'uncut' | 'tracking-missing' | 'failed' | 'release-tasks' | 'playtest' | 'playtest-blocked' | 'candidate' | 'ship-approval'; issues: number[] };
@@ -121,7 +136,8 @@ function releaseJob(state: FactoryState, cards: Card[], releaseHead: string | nu
 
 function wasteReview(state: FactoryState, now: Date, cfg: Due): Candidate[] {
   if (state.lastWasteReview === null || !isDue(state.lastWasteReview, now, cfg.wasteReviewDays * DAY_MS)) return [];
-  return [{ stage: 'waste', issue: null, uncapped: true }];
+  if (state.failures.some((failure) => failure.stage === 'waste')) return [];
+  return [{ stage: 'waste', issue: null, pastCardLimit: false }];
 }
 
 function releaseCut(state: FactoryState, now: Date, cfg: Due): JobPick | null {
@@ -134,16 +150,12 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [queued(state), mergeJob(state, cards), devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
-  return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, uncapped: !countsAgainstCap(pick.stage) }));
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards), devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
+  return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
-export function countsAgainstCap(stage: JobStage): boolean {
-  return !UNCAPPED_STAGES.includes(stage);
-}
-
-export function recentStarts(state: FactoryState, now: Date): string[] {
-  return state.jobStarts.filter((start) => now.getTime() - new Date(start).getTime() < DAY_MS);
+export function countsTowardCardLimit(stage: JobStage): boolean {
+  return !NOT_CARD_LIMITED_STAGES.includes(stage);
 }
 
 export function recentCardStarts(state: FactoryState, now: Date, issue: number): string[] {
@@ -155,13 +167,9 @@ function recentCardStartsAll(state: FactoryState, now: Date): Record<string, str
   return Object.fromEntries(entries.filter(([, starts]) => starts.length > 0));
 }
 
-export function atCap(state: FactoryState, now: Date, cfg: Pick<FactoryConfig, 'maxJobsPerDay'>): boolean {
-  return recentStarts(state, now).length >= cfg.maxJobsPerDay;
-}
-
 function limits(cfg: Due): Record<Queue, number> {
   return {
-    branch: 1,
+    branch: Infinity,
     triage: cfg.triageWorkers,
     design: cfg.designWorkers,
     implement: cfg.implementWorkers,
@@ -170,16 +178,19 @@ function limits(cfg: Due): Record<Queue, number> {
   };
 }
 
-export type WaitReason = 'queue-full' | 'issue-running' | 'daily-cap' | 'card-budget' | 'needs-info' | 'failed' | 'approval' | 'held';
+export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'failed' | 'approval' | 'held';
 export type ScheduleDecision = JobPick & { reasons: WaitReason[] };
-export type ScheduleReport = { picks: JobPick[]; decisions: ScheduleDecision[]; nextCapAt: string | null; release: ReleaseGate };
+export type ScheduleReport = { picks: JobPick[]; decisions: ScheduleDecision[]; release: ReleaseGate };
 function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPick[], cfg: Due): WaitReason[] {
   const queue = QUEUE_OF[pick.stage];
   const reasons: WaitReason[] = isHeld(state, pick.issue) ? ['held'] : [];
   if (running.filter((job) => QUEUE_OF[job.stage] === queue).length >= limits(cfg)[queue]) reasons.push('queue-full');
-  if (pick.issue !== null && running.some((job) => job.issue === pick.issue)) reasons.push('issue-running');
+  if (running.some((job) => job.issue === pick.issue && (pick.issue !== null || job.stage === pick.stage))) reasons.push('issue-running');
+  const group = ONE_AT_A_TIME.find((stages) => stages.includes(pick.stage));
+  if (group !== undefined && running.some((job) => group.includes(job.stage))) reasons.push('issue-running');
   return reasons;
 }
+const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
 function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
   const reasons: WaitReason[] = [];
   if (card.labels.includes(STUCK_LABEL)) reasons.push('failed');
@@ -191,45 +202,35 @@ function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
 function readWaitingStage(state: FactoryState, card: Card): JobStage {
   return card.column === 'Approval' ? 'approve' : cardStage(state, card);
 }
-function readNextCapAt(state: FactoryState, now: Date, cfg: Due): string | null {
-  if (!atCap(state, now, cfg)) return null;
-  return new Date(Date.parse(recentStarts(state, now).sort()[0]) + DAY_MS).toISOString();
-}
-
 function readCardLeft(state: FactoryState, now: Date, cfg: Due, picked: Map<number, number>, issue: number | null): number {
   if (issue === null) return Infinity;
   return cfg.maxJobsPerCard - recentCardStarts(state, now, issue).length - (picked.get(issue) ?? 0);
 }
-function readCapReasons(capped: number, capLeft: number, cardLeft: number): WaitReason[] {
-  const reasons: WaitReason[] = [];
-  if (capped > capLeft) reasons.push('daily-cap');
-  if (capped > 0 && cardLeft < 1) reasons.push('card-budget');
-  return reasons;
+function readCardReasons(limited: boolean, cardLeft: number): WaitReason[] {
+  return limited && cardLeft < 1 ? ['card-budget'] : [];
 }
-function countCardPick(picked: Map<number, number>, capped: number, issue: number | null): void {
-  if (capped > 0 && issue !== null) picked.set(issue, (picked.get(issue) ?? 0) + 1);
+function countCardPick(picked: Map<number, number>, limited: boolean, issue: number | null): void {
+  if (limited && issue !== null) picked.set(issue, (picked.get(issue) ?? 0) + 1);
 }
 
 export type Heads = { dev: string | null; release: string | null };
 const NO_HEADS: Heads = { dev: null, release: null };
 
 export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): ScheduleReport {
-  let capLeft = cfg.maxJobsPerDay - recentStarts(state, now).length;
   const picks: JobPick[] = [];
   const pickedForCard = new Map<number, number>();
   const decisions = cards.filter((card) => card.column !== 'Done' && !card.labels.includes(RELEASE_LABEL)).flatMap((card) => readCardWait(state, card));
   for (const candidate of [...branchCandidates(state, cards, now, cfg, heads), ...wasteReview(state, now, cfg), ...cardCandidates(state, cards)]) {
     const pick = { stage: candidate.stage, issue: candidate.issue };
-    const capped = candidate.uncapped ? 0 : 1;
+    const limited = !candidate.pastCardLimit && countsTowardCardLimit(pick.stage);
     const cardLeft = readCardLeft(state, now, cfg, pickedForCard, pick.issue);
-    const reasons = [...findCapacityReasons(state, pick, [...state.jobs, ...picks], cfg), ...readCapReasons(capped, capLeft, cardLeft)];
+    const reasons = [...findCapacityReasons(state, pick, [...state.jobs, ...picks], cfg), ...readCardReasons(limited, cardLeft)];
     decisions.push({ ...pick, reasons });
     if (reasons.length) continue;
-    capLeft -= capped;
-    countCardPick(pickedForCard, capped, pick.issue);
+    countCardPick(pickedForCard, limited, pick.issue);
     picks.push(pick);
   }
-  return { picks, decisions, nextCapAt: readNextCapAt(state, now, cfg), release: readReleaseGate(state, cards, heads.release) };
+  return { picks, decisions, release: readReleaseGate(state, cards, heads.release) };
 }
 export function chooseJobs(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): JobPick[] {
   return evaluateSchedule(state, cards, now, cfg, heads).picks;
@@ -241,6 +242,7 @@ export type TickDeps = {
   removeContainers: (run: Run, id: string) => Promise<void>;
   spawn: (args: string[], cwd: string, log: string, id: string, cpus: string, testWorkers: number | null) => number;
   cores: () => number;
+  repair: Repair;
 };
 export const REAL_DEPS: TickDeps = {
   isAlive,
@@ -248,13 +250,23 @@ export const REAL_DEPS: TickDeps = {
   removeContainers: removeJobContainers,
   spawn: spawnJob,
   cores: availableParallelism,
+  repair: repairClone,
 };
 
-function dropJob(ctx: Ctx, id: string): void {
+function dropJob(ctx: Ctx, job: Job): void {
+  updateState(ctx.statePath, (state) => ({
+    ...clearQueued(state, job.stage, job.issue),
+    jobs: state.jobs.filter((other) => other.id !== job.id),
+  }));
+}
+
+function retryOrder(ctx: Ctx, job: Job, alive: boolean): void {
   updateState(ctx.statePath, (state) => ({
     ...state,
-    jobs: state.jobs.filter((job) => job.id !== id),
+    jobs: state.jobs.filter((other) => other.id !== job.id),
+    retried: [...state.retried, orderKey(job.stage, job.issue)],
   }));
+  ctx.log('tick', job.issue, `${job.stage} ${alive ? 'timed out' : 'died'}, its order runs once more`);
 }
 
 function minutesSince(ctx: Ctx, iso: string): number {
@@ -266,22 +278,34 @@ async function checkJob(ctx: Ctx, job: Job, deps: TickDeps): Promise<void> {
   const alive = deps.isAlive(job.pid);
   const inTime = minutes <= timeoutOf(ctx.cfg, job.stage);
   if (alive && inTime) return ctx.log('tick', job.issue, `${job.stage} still running`);
-  if (!alive && inTime && canResume(ctx, job)) return resumeJob(ctx, job, deps);
+  if (canResume(ctx, job)) return resumeJob(ctx, job, deps, alive ? 'timeout' : 'died');
   await failJob(ctx, job, alive, deps);
 }
 
-async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
+function retriesOrder(ctx: Ctx, job: Job): boolean {
+  const state = readState(ctx.statePath);
+  return isQueued(state, job.stage, job.issue) && !state.retried.includes(orderKey(job.stage, job.issue));
+}
+
+async function stopJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
   if (alive) await deps.kill(ctx.run, job.pid, job.id);
+  else await deps.removeContainers(ctx.run, job.id);
   recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, alive ? 'timeout' : 'died');
-  dropJob(ctx, job.id);
+}
+
+async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
+  await stopJob(ctx, job, alive, deps);
+  if (retriesOrder(ctx, job)) return retryOrder(ctx, job, alive);
+  dropJob(ctx, job);
+  for (const issue of job.batch ?? []) await ctx.github.addLabel(issue, STUCK_LABEL);
   forgetResume(ctx, job);
   const reason = alive ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'job process died without finishing';
-  await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log);
+  await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log, job.batch ?? []);
 }
 
 export function timeoutOf(cfg: FactoryConfig, stage: JobStage): number {
   if (stage === 'playtest') return cfg.playtestTimeoutMinutes;
-  if (stage === 'merge') return cfg.mergeTimeoutMinutes;
+  if (stage === 'merge' || stage === 'ship') return cfg.mergeTimeoutMinutes;
   const queue = QUEUE_OF[stage];
   const minutes: Record<Queue, number> = {
     triage: cfg.triageTimeoutMinutes,
@@ -311,21 +335,21 @@ function forgetResume(ctx: Ctx, job: Job): void {
   clearSessions(ctx.cfg.home, job.issue);
 }
 
-async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps): Promise<void> {
-  await deps.removeContainers(ctx.run, job.id);
-  recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, 'died');
+async function resumeJob(ctx: Ctx, job: Job & { issue: number }, deps: TickDeps, outcome: 'died' | 'timeout'): Promise<void> {
+  if (outcome === 'timeout') await deps.kill(ctx.run, job.pid, job.id);
+  else await deps.removeContainers(ctx.run, job.id);
+  recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), job, outcome);
   markResumed(ctx.cfg.home, job.issue, job.stage);
   updateState(ctx.statePath, (state) => interruptJob(state, job));
-  ctx.log('tick', job.issue, `${job.stage} process died, it resumes once on the next start`);
+  const cause = outcome === 'timeout' ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'process died';
+  ctx.log('tick', job.issue, `${job.stage} ${cause}, it resumes once on the next start`);
 }
 
 export function interruptJob(state: FactoryState, job: Job & { issue: number }): FactoryState {
-  const start = countsAgainstCap(job.stage) ? state.jobStarts.indexOf(job.startedAt) : -1;
-  const jobStarts = state.jobStarts.filter((_, index) => index !== start);
-  const cardStart = (state.cardStarts[job.issue] ?? []).indexOf(job.startedAt);
-  const cardStarts = { ...state.cardStarts, [job.issue]: (state.cardStarts[job.issue] ?? []).filter((_, index) => index !== cardStart || start === -1) };
+  const cardStart = countsTowardCardLimit(job.stage) ? (state.cardStarts[job.issue] ?? []).indexOf(job.startedAt) : -1;
+  const cardStarts = { ...state.cardStarts, [job.issue]: (state.cardStarts[job.issue] ?? []).filter((_, index) => index !== cardStart) };
   const interrupted = state.interrupted.includes(job.issue) ? state.interrupted : [...state.interrupted, job.issue];
-  return { ...state, jobs: state.jobs.filter((other) => other.id !== job.id), jobStarts, cardStarts, interrupted };
+  return { ...state, jobs: state.jobs.filter((other) => other.id !== job.id), cardStarts, interrupted };
 }
 
 function startJob(ctx: Ctx, codeDir: string, pick: JobPick, deps: TickDeps): void {
@@ -337,10 +361,10 @@ function startJob(ctx: Ctx, codeDir: string, pick: JobPick, deps: TickDeps): voi
   const pid = deps.spawn([pick.stage, String(pick.issue ?? '-')], codeDir, log, id, cpus, vitestWorkersOf(ctx.cfg, pool));
   const job: Job = { ...pick, id, pid, startedAt: ctx.now().toISOString(), log };
   updateState(ctx.statePath, (state) => {
-    if (!countsAgainstCap(pick.stage)) return { ...state, jobs: [...state.jobs, job] };
+    if (!countsTowardCardLimit(pick.stage)) return { ...state, jobs: [...state.jobs, job] };
     const recent = recentCardStartsAll(state, ctx.now());
     const cardStarts = pick.issue === null ? recent : { ...recent, [pick.issue]: [...(recent[pick.issue] ?? []), job.startedAt] };
-    return { ...state, jobs: [...state.jobs, job], jobStarts: [...recentStarts(state, ctx.now()), job.startedAt], cardStarts };
+    return { ...state, jobs: [...state.jobs, job], cardStarts };
   });
   reportAttempt(ctx.cfg.home, job, 'started', ctx.now());
   ctx.log('tick', pick.issue, `started ${pick.stage}, pid ${pid}, CPUs ${cpus}, log ${log}`);
@@ -378,7 +402,7 @@ function cleanBuilds(ctx: Ctx, cards: Card[]): void {
 
 function cleanWork(ctx: Ctx, cards: Card[]): void {
   const state = readState(ctx.statePath);
-  const swept = sweepWork(join(ctx.cfg.home, 'work'), state, cards);
+  const swept = sweepWork(join(ctx.cfg.home, 'work'), join(ctx.cfg.home, 'locks'), state, cards);
   for (const name of swept.removed) ctx.log('tick', null, `removed work clone ${name}`);
   if (swept.stripped.length > 0) ctx.log('tick', null, `removed packages of idle clones ${swept.stripped.join(', ')}`);
   if (swept.unknown.length > 0) ctx.log('tick', null, `left unknown work folders ${swept.unknown.join(', ')}`);
@@ -399,7 +423,7 @@ async function expireReplies(ctx: Ctx): Promise<void> {
   for (const [messageId, reply] of late) {
     updateState(ctx.statePath, (state) => ({ ...state, unroutedReplies: Object.fromEntries(Object.entries(state.unroutedReplies).filter(([id]) => id !== messageId)) }));
     const text = reply.text.replace(/\s+/g, ' ');
-    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null);
+    await reportFailure(ctx, 'feedback', null, `Route the reply ${messageId} to the approval post ${reply.postId} of issue #${reply.issue} on your best reading, unrouted for ${ctx.cfg.replyRouteMinutes} minutes: ${text}`, null, []);
   }
 }
 
@@ -412,8 +436,12 @@ async function settleRouting(ctx: Ctx): Promise<void> {
     }));
 }
 
-export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS): Promise<void> {
+export async function checkJobs(ctx: Ctx, deps: TickDeps = REAL_DEPS): Promise<void> {
   for (const job of readState(ctx.statePath).jobs) await checkJob(ctx, job, deps);
+}
+
+export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS): Promise<void> {
+  await checkJobs(ctx, deps);
   await settleRouting(ctx);
   await startJobs(ctx, codeDir, deps);
   await intake(ctx);
@@ -437,12 +465,13 @@ function movedPast(state: FactoryState, posted: string | null, head: string | nu
 }
 
 async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<void> {
-  const cards = await releaseAnswered(ctx, await ctx.github.cards());
-  cleanBuilds(ctx, cards);
-  cleanWork(ctx, cards);
+  const answered = await releaseAnswered(ctx, await ctx.github.cards());
+  cleanBuilds(ctx, answered);
+  cleanWork(ctx, answered);
   updateState(ctx.statePath, pruneCaptions);
   updateState(ctx.statePath, pruneFailures(ctx.now()));
   const free = freeGb(ctx.cfg.home);
+  const cards = await sweepStuck(ctx, answered, free >= ctx.cfg.minFreeGb, deps.repair);
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);

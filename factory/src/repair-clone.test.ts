@@ -1,16 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { must, realRun } from './exec';
 import { backupRoot, repairClone, type RepairFs } from './repair-clone';
 import { hostRepo } from './repo';
-import { EMPTY_STATE, writeState } from './state';
+import { EMPTY_STATE, readState, writeState } from './state';
 import type { Ctx, FactoryConfig, FactoryState } from './types';
 
 vi.setConfig({ testTimeout: 60_000 });
 
 const ID = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
-const ORDER = { issue: 5, by: 'hermes', reason: 'merge left the clone dirty', backupMerge: false };
+const ORDER = { issue: 5, by: 'hermes', reason: 'merge left the clone dirty', backupMerge: false, refuseUnpushed: false };
 const DEV_FILES = 1284;
 
 async function setup() {
@@ -21,7 +21,9 @@ async function setup() {
   const cfg = { home, repo: 'o/r' } as FactoryConfig;
   const repo = hostRepo(realRun, cfg);
   const statePath = join(home, 'state.json');
-  const ctx = { cfg, repo, statePath, run: realRun, now: () => new Date('2026-10-07T10:00:00Z'), log: () => undefined } as unknown as Ctx;
+  const unstuck: number[] = [];
+  const github = { removeLabel: async (issue: number, label: string) => { if (label === 'factory-stuck') unstuck.push(issue); } };
+  const ctx = { cfg, repo, statePath, run: realRun, github, now: () => new Date('2026-10-07T10:00:00Z'), log: () => undefined } as unknown as Ctx;
   const git = async (cwd: string, ...a: string[]) => must(await realRun('git', [...ID, ...a], { cwd }), `git ${a.join(' ')}`);
   mkdirSync(origin);
   await git(origin, 'init', '--bare', '-b', 'main');
@@ -36,7 +38,6 @@ async function setup() {
   const work = join(home, 'work', 'issue-5');
   await repo.prepareWorkClone('factory/issue-5', 'dev', work);
   writeState(statePath, structuredClone(EMPTY_STATE));
-  writeFileSync(join(home, 'paused'), 'Paused with factory pause: repair\n');
   const push = async (branch: string, files: Record<string, string>) => {
     await git(author, 'fetch', 'origin');
     await git(author, 'checkout', '-q', '-B', branch, `origin/${branch}`);
@@ -47,7 +48,7 @@ async function setup() {
   };
   const hub = async (ref: string) => (await git(origin, 'rev-parse', ref)).trim();
   const setState = (change: Partial<FactoryState>) => writeState(statePath, { ...structuredClone(EMPTY_STATE), ...change });
-  return { home, ctx, git, work, push, hub, setState };
+  return { home, ctx, git, work, push, hub, setState, unstuck };
 }
 
 function factoryFiles(work: string): void {
@@ -72,7 +73,9 @@ const backups = (home: string) => (existsSync(backupRoot(home)) ? readdirSync(ba
 
 describe('repairClone', () => {
   it(`backs up ${DEV_FILES} staged and unstaged changes of an aborted dev merge and checks out the branch fresh`, async () => {
-    const { home, ctx, git, work, push, hub } = await setup();
+    const { home, ctx, git, work, push, hub, setState, unstuck } = await setup();
+    const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', log: null, at: '2026-10-07T09:00:00Z' });
+    setState({ failures: [failure(5), failure(6)] });
     await push('dev', Object.fromEntries(Array.from({ length: DEV_FILES }, (_, i) => [`d${i}.txt`, `${i}\n`])));
     await ctx.repo.fetch();
     factoryFiles(work);
@@ -96,7 +99,9 @@ describe('repairClone', () => {
     expect((await git(work, 'rev-parse', 'HEAD')).trim()).toBe(await hub('factory/issue-5'));
     expect(existsSync(join(work, 'd0.txt'))).toBe(false);
     expect(existsSync(join(work, 'node_modules'))).toBe(false);
-    expect(out.join('\n')).toContain('factory retry 5');
+    expect(out.join('\n')).toContain('are cleared');
+    expect(unstuck).toEqual([5]);
+    expect(readState(ctx.statePath).failures.map((row) => row.issue)).toEqual([6]);
   });
 
   it('keeps the factory folders, from any agent folder, in the new clone', async () => {
@@ -141,6 +146,16 @@ describe('repairClone', () => {
     expect((await git(work, 'rev-parse', 'HEAD')).trim()).toBe(await hub('factory/issue-5'));
   });
 
+  it('leaves a clone with commits that never reached GitHub as it is when the order refuses unpushed work', async () => {
+    const { home, ctx, git, work } = await setup();
+    writeFileSync(join(work, 'f.txt'), 'unpushed\n');
+    await git(work, 'commit', '-qam', 'unpushed work');
+    const local = (await git(work, 'rev-parse', 'HEAD')).trim();
+    await expect(repairClone(ctx, { ...ORDER, refuseUnpushed: true })).rejects.toThrow('1 commits on no GitHub branch');
+    expect(backups(home)).toEqual([]);
+    expect((await git(work, 'rev-parse', 'HEAD')).trim()).toBe(local);
+  });
+
   it('checks out the branch head and dev as GitHub has them now, not as the host clone last saw them', async () => {
     const { ctx, git, work, push, hub } = await setup();
     await push('dev', { 'g.txt': 'new dev\n' });
@@ -160,18 +175,62 @@ describe('repairClone', () => {
     expect(backups(home)).toEqual([]);
   });
 
-  it.each([
-    ['no pause', (env: Env) => env.unpause(), 'needs a paused factory'],
-    ['a job of the card', (env: Env) => env.setState({ jobs: [job(5)] }), 'A verify job of #5 is running'],
-    ['a job of another card', (env: Env) => env.setState({ jobs: [job(9)] }), '1 jobs are running'],
-    ['an interrupted job of the card', (env: Env) => env.setState({ interrupted: [5] }), 'continues in this clone'],
-  ])('refuses with %s and changes nothing', async (_name, arrange, error) => {
+  it('refuses a running job of the card, changes nothing and places no hold', async () => {
     const env = await setup();
     writeFileSync(join(env.work, 'f.txt'), 'dirty\n');
-    arrange({ ...env, unpause: () => renameSync(join(env.home, 'paused'), join(env.home, 'was-paused')) });
-    await expect(repairClone(env.ctx, ORDER)).rejects.toThrow(error);
+    env.setState({ jobs: [job(5)] });
+    await expect(repairClone(env.ctx, ORDER)).rejects.toThrow('A verify job of #5 is running');
     expect(readFileSync(join(env.work, 'f.txt'), 'utf8')).toBe('dirty\n');
     expect(backups(env.home)).toEqual([]);
+    expect(readState(env.ctx.statePath).held).toEqual({});
+  });
+
+  it('repairs while a job of another card runs and the factory is not paused, then lifts its own hold', async () => {
+    const env = await setup();
+    writeFileSync(join(env.work, 'f.txt'), 'dirty\n');
+    env.setState({ jobs: [job(9)] });
+    await repairClone(env.ctx, ORDER);
+    expect(existsSync(join(env.home, 'paused'))).toBe(false);
+    expect(await env.git(env.work, 'status', '--porcelain')).toBe('');
+    const state = readState(env.ctx.statePath);
+    expect(state.held).toEqual({});
+    expect(state.jobs).toHaveLength(1);
+  });
+
+  it('holds the card during the repair', async () => {
+    const env = await setup();
+    let during: FactoryState['held'] = {};
+    const fs: RepairFs = { move: (from, to) => { during = readState(env.ctx.statePath).held; renameSync(from, to); }, copy: () => undefined };
+    await repairClone(env.ctx, ORDER, fs);
+    expect(during['5']).toMatchObject({ by: 'hermes', stage: null });
+  });
+
+  it('lifts its hold when the repair fails', async () => {
+    const env = await setup();
+    const fs: RepairFs = { move: () => { throw new Error('disk gone'); }, copy: () => undefined };
+    await expect(repairClone(env.ctx, ORDER, fs)).rejects.toThrow('disk gone');
+    expect(readState(env.ctx.statePath).held).toEqual({});
+  });
+
+  it('keeps a hold someone else placed and an interrupted mark', async () => {
+    const env = await setup();
+    const held = { by: 'member', reason: 'looking', at: '2026-10-07T08:00:00Z', stage: 'verify' as const };
+    env.setState({ held: { '5': held }, interrupted: [5] });
+    await repairClone(env.ctx, ORDER);
+    const state = readState(env.ctx.statePath);
+    expect(state.held).toEqual({ '5': held });
+    expect(state.interrupted).toEqual([5]);
+  });
+
+  it('waits for the clone lock of the card', async () => {
+    const env = await setup();
+    const lock = join(env.home, 'locks', 'issue-5');
+    mkdirSync(lock, { recursive: true });
+    writeFileSync(join(lock, 'owner'), String(process.pid));
+    const done = repairClone(env.ctx, ORDER).then(() => 'done');
+    expect(await Promise.race([done, new Promise((resolve) => setTimeout(() => resolve('waiting'), 400))])).toBe('waiting');
+    rmSync(lock, { recursive: true });
+    await done;
   });
 
   it('refuses a card with no clone', async () => {
@@ -181,10 +240,11 @@ describe('repairClone', () => {
   });
 
   it('leaves the clone in place when the move into the backup fails', async () => {
-    const { home, ctx, work } = await setup();
+    const { home, ctx, work, unstuck } = await setup();
     writeFileSync(join(work, 'f.txt'), 'dirty\n');
     const fs: RepairFs = { move: () => { throw new Error('disk gone'); }, copy: () => undefined };
     await expect(repairClone(ctx, ORDER, fs)).rejects.toThrow(/stays where it was: disk gone/);
+    expect(unstuck).toEqual([]);
     expect(readFileSync(join(work, 'f.txt'), 'utf8')).toBe('dirty\n');
     expect(manifest(onlyBackup(home))).toMatchObject({ outcome: 'failed', error: 'disk gone' });
   });
@@ -214,8 +274,6 @@ describe('repairClone', () => {
     expect(backups(home).sort()).toEqual(['issue-5-2026-10-07T10-00-00-000Z', 'issue-5-2026-10-07T10-00-00-000Z-1']);
   });
 });
-
-type Env = Awaited<ReturnType<typeof setup>> & { unpause: () => void };
 
 const job = (issue: number) => ({ id: `j${issue}`, stage: 'verify', issue, pid: 1, startedAt: '2026-10-07T09:00:00Z', log: 'l' }) as FactoryState['jobs'][number];
 
