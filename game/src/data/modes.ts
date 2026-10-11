@@ -28,7 +28,7 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
 
 export type WaveGear = Omit<GearRules, 'money'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
-const EARLY_GEAR: WaveGear = { armored: true, gunFirst: false, gunTier: 1 };
+const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1 };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
@@ -45,7 +45,7 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { level: 'light', gear: { ...EARLY_GEAR, armored: false, gunFirst: true } },
+    { level: 'light', gear: { ...EARLY_GEAR, armored: false } },
     { level: 'light', gear: EARLY_GEAR },
     { level: 'light', gear: MIDDLE_GEAR },
     { level: 'standard', gear: MIDDLE_GEAR },
@@ -57,7 +57,7 @@ export const FURY_ROAD = {
   danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, truckFloorPercent: 60, groupMax: 3, gearShare: 0.3, truckFloor: 20000 },
   pool: [
     { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
-    { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, gunwagon: 3, vulture: 2, merc: 2, bowlFarmer: 1 } },
+    { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, vulture: 2, merc: 3, bowlFarmer: 1 } },
     {
       upTo: Number.MAX_SAFE_INTEGER,
       weights: { buggy: 2, courier: 1, scavenger: 1, roamer: 1, trader: 1, gunwagon: 3, vulture: 2, merc: 3, bowlFarmer: 1, noseArmy: 2, convoyGuard: 2, convoy: 1 },

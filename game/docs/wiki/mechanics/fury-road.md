@@ -70,11 +70,11 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 ## Hostile groups
 
-Danger rises every stretch with no end. It is measured against the expected player gear: the parts of the start kit, 244 M's, plus 60% of all the pay a player who beat every truck has earned before the stretch. Parts here leave out the chassis, since enemy chassis come from random templates.
+Danger rises every stretch with no end. It is measured against the expected player gear: the parts of the start kit, 244 M's, plus 30% of all the pay a player who beat every truck has earned before the stretch. The 30% is what the runner bot puts into parts after repairs, fuel and trucks. Parts here leave out the chassis, since enemy chassis come from random templates.
 
 - Danger is 80% of the expected player gear on stretch 1 and grows by 10 points every stretch. The Enemy growth world setting scales the 10 points, as [world-settings.md](world-settings.md) describes.
-- One truck is never worth more than 80% of the expected player gear, so the stretch gets one truck for every 80 points of danger: 1 truck on stretch 1, 2 from stretch 2, 3 from stretch 10 and 4 from stretch 18.
-- The danger is split evenly over the trucks as their gear money, with at least 200 M's each, the least that buys every template an engine and a gun.
+- One truck is never worth more than 80% of the expected player gear, and a stretch adds a truck only when every truck still gets at least 60% of it. So two weak trucks never stand in for one fair one: 1 truck up to stretch 4, 2 from stretch 5, 3 from stretch 11 and 4 from stretch 18.
+- The danger is split evenly over the trucks as their gear money, capped at the 80%, with at least 200 M's each, the least that buys every stretch 1 template an engine and a gun.
 - The trucks go in the fewest groups of at most 3, as even as they go.
 
 Gear money grows until a truck's rated mass is full. Past that, danger grows as more trucks.
@@ -86,9 +86,9 @@ Gear money grows until a truck's rated mass is full. Past that, danger grows as 
 | 7 | heavy |
 | 8 and on | loaded |
 
-The gear level sets only the wear of the parts and the amount of cargo. The truck of stretch 1 has no armor, mounted or spare, and always carries a gun. It picks its gun before its cargo and utility parts, so they cannot take every gun spot.
+The gear level sets only the wear of the parts and the amount of cargo. Every group truck carries a gun. It picks its gun before its cargo and utility parts, so they cannot take every gun spot. The truck of stretch 1 has no armor, mounted or spare.
 
-The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add gunwagons, vultures, mercs and Bowl farmers, and from stretch 6 Nose army trucks, convoys and convoy guards join. Each truck takes its own template's loadout at the group's gear level. Its guns follow the same steps: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 5 up to tier 2, and from stretch 6 any gun, mounted or spare. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
+The pool holds every NPC template, so a group mixes every kind of vehicle and driver. Stretches 1 and 2 draw buggies, couriers, scavengers, roamers and traders. Stretches 3 to 5 add vultures, mercs and Bowl farmers, and from stretch 6 gunwagons, Nose army trucks, convoys and convoy guards join. A gunwagon needs up to 760 M's to fit an engine and a gun, more than stretches 3 to 5 give. Each truck takes its own template's loadout at the group's gear level. Its guns follow the same steps: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 5 up to tier 2, and from stretch 6 any gun, mounted or spare. A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
 
 A group comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind, since group trucks have no boost and could not catch a faster player.
 

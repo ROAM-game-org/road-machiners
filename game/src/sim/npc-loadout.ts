@@ -309,8 +309,10 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
 function chooseFirstGun(b: Build, rng: Rng, p: LoadoutPriorities, powered: Vehicle): Vehicle {
   const score = gearScorer(b.world, p, powered);
   const now = score(powered);
-  const drawn = drawOffers(b, rng, powered, gunsFor(b.rules).map((id) => (v: Vehicle) => withGun(b, score, v, id)), (next) => score(next) - now);
-  if (!drawn.length) throw new Error(`No gun fits on ${powered.chassisId} within the gear money`);
+  const gunsOn = (v: Vehicle) => drawOffers(b, rng, v, gunsFor(b.rules).map((id) => (x: Vehicle) => withGun(b, score, x, id)), (next) => score(next) - now);
+  let drawn = gunsOn(powered);
+  if (!drawn.length) drawn = ENGINES.map((id) => withEngine(b, powered, id)).filter((v): v is Vehicle => v !== null).flatMap(gunsOn);
+  if (!drawn.length) throw new Error(`No gun fits on ${powered.chassisId} with any engine within the gear money`);
   return drawn.reduce((a, c) => (c.worth > a.worth ? c : a)).v;
 }
 

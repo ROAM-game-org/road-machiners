@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
 import { dangerPercent, enemyTrucks, expectedGear, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { NPCS } from '../data/npcs';
+import { PARTS } from '../data/parts';
 import { waveOf } from './fury-road';
 import { generateNpcLoadout } from './npc-loadout';
 import { furyRoadWorld } from './testkit';
@@ -42,13 +43,16 @@ describe('Fury Road danger', () => {
     }
   });
 
-  it('builds every template of every pool tier at the floor money, with a gun on stretch 1', () => {
-    const w = furyRoadWorld(3);
+  it('arms every template of every pool tier with a gun at the least gear money of its first stretch', () => {
+    const w = withGrowth(0);
     for (const [i, tier] of FURY_ROAD.pool.entries()) {
       const j = i === 0 ? 1 : FURY_ROAD.pool[i - 1].upTo + 1;
-      const gear = { ...waveOf(j).gear, money: FURY_ROAD.danger.truckFloor };
+      const gear = { ...waveOf(j).gear, money: gearMoneyOf(w, j) };
       for (const template of Object.keys(tier.weights)) {
-        for (let seed = 1; seed <= 40; seed++) expect(() => generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(j).level, gear), `${template} seed ${seed}`).not.toThrow();
+        for (let seed = 1; seed <= 40; seed++) {
+          const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, waveOf(j).level, gear);
+          expect(loadout.parts.some((p) => PARTS[p.defId].kind === 'weapon'), `${template} seed ${seed}`).toBe(true);
+        }
       }
     }
   });
