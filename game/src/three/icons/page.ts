@@ -1,6 +1,3 @@
-// The dev-only icons page that npm run icons drives in headless Chromium. It renders every catalog entry in both views,
-// then lays out the two unlabeled sprite sheets the game reads, the three labeled atlases (top-down, diagonal and the
-// view the game shows), the closest-pairs report and the manifest body. The items sheet is an SVG of vector blueprints,
 
 import { CHASSIS } from '../../data/chassis';
 import { GOODS } from '../../data/goods';
@@ -86,7 +83,7 @@ async function build(): Promise<IconBuild> {
     return { entry, sheet, views: { top: top.icon, diagonal: diagonal.icon }, svg: shown.svg, tint: shown.tint };
   });
   const files: Record<string, string> = {
-    'public/icons/tint.svg': `data:image/svg+xml;base64,${btoa(tintSheetOf(rendered))}`,
+    'src/ui/tint.svg': `data:image/svg+xml;base64,${btoa(tintSheetOf(rendered))}`,
     'public/icons/items.svg': `data:image/svg+xml;base64,${btoa(svgSheetOf(rendered))}`,
     'public/icons/chassis.png': sheetOf(rendered, 'chassis').toDataURL('image/png'),
     'public/icons/atlas/atlas-top.png': atlasOf(sectionsOf(rendered, () => 'top'), TOP_CAPTION).toDataURL('image/png'),
@@ -297,7 +294,7 @@ async function plans(): Promise<Record<string, string>> {
     return `<symbol id="plan-${entry.id}" viewBox="0 0 ${s} ${s}" preserveAspectRatio="none">${renderPlan(entry, s)}</symbol>`;
   });
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join('')}</svg>\n`;
-  return { 'public/icons/plans.svg': `data:image/svg+xml;base64,${btoa(svg)}` };
+  return { 'src/ui/plans.svg': `data:image/svg+xml;base64,${btoa(svg)}` };
 }
 
 window.__ICONS__ = { build, plans };

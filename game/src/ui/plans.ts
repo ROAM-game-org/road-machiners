@@ -1,10 +1,8 @@
-// Truck outlines and tinted part icons drawn from symbols that join the page once. A truck outline is the chassis plan
-// from npm run icons, stretched over its grid. A tinted part icon takes its colors from the CSS variables --tint-*.
 
 import { baseGrid } from "../sim/grid";
 import { PLAN_PAD } from "../render/partLooks";
-import PLANS from "../../public/icons/plans.svg?raw";
-import TINTS from "../../public/icons/tint.svg?raw";
+import PLANS from "./plans.svg?raw";
+import TINTS from "./tint.svg?raw";
 import { el } from "./dom";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
