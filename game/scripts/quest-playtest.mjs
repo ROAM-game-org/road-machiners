@@ -9,6 +9,7 @@ const { values, positionals } = parseArgs({
     situation: { type: 'string' }, out: { type: 'string' }, screens: { type: 'string', default: '40' }, model: { type: 'string' },
     then: { type: 'string', multiple: true, default: [] }, set: { type: 'string', multiple: true, default: [] },
     skill: { type: 'string', multiple: true, default: [] },
+    lang: { type: 'string', default: 'en' }, prompt: { type: 'string', default: 'docs/quest-playtest-prompt.md' },
   },
 });
 const quests = positionals;
@@ -22,7 +23,8 @@ const maxScreens = Number(values.screens);
 if (!Number.isInteger(maxScreens) || maxScreens < 1) throw new Error(`--screens needs a whole number, got ${values.screens}`);
 
 const work = mkdtempSync(join('tmp', 'playtest-'));
-const promptTemplate = readFileSync('docs/quest-playtest-prompt.md', 'utf8');
+const promptTemplate = readFileSync(values.prompt, 'utf8');
+if (!promptTemplate.includes('<SITUATION>')) throw new Error(`${values.prompt} has no <SITUATION> slot`);
 const stepSchema = schemaFile('step', {
   summary: { type: 'string', description: 'One line: what this screen showed.' },
   comment: { type: 'string', description: 'Your critique of this screen by the rubric.' },
@@ -93,7 +95,7 @@ appendFileSync(values.out, `\n## Verdict\n\nScore: ${score}/5, the lowest of ${s
 console.log(`Score ${score}/5, the lowest of ${scoreLine}, after ${screens} screens. Notes in ${values.out}`);
 
 function game(quest, runFile, pick, from) {
-  const args = ['scripts/quest.mjs', quest, '--play', runFile, ...(from === null ? [] : ['--from', from]),...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
+  const args = ['scripts/quest.mjs', quest, '--lang', values.lang, '--play', runFile, ...(from === null ? [] : ['--from', from]),...values.set.flatMap((s) => ['--set', s]), ...values.skill.flatMap((s) => ['--skill', s]), ...(pick === null ? [] : ['--pick', String(pick)])];
   const result = spawnSync('node_modules/.bin/vite-node', args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`The quest runner failed on pick ${pick}:\n${result.stderr}`);
   return result.stdout.trim();
