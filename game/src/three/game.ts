@@ -14,6 +14,7 @@ import {
   type TurnResult,
 } from "../phys/drive";
 import {
+  frameAt,
   groundPoint,
   toMap,
   type TurnFrames,
@@ -885,23 +886,23 @@ export class Game {
     if (this.uiStale) this.refreshUi();
   }
 
-  private advanceTurn(now: number): { step: number | null; speed: number } {
+  private advanceTurn(now: number): { at: number | null; speed: number } {
     const held = this.modalOpen() || this.isEditingControl() || document.hidden;
     if (held) this.travel.pause();
     const speed = this.travel.getSpeed(now, CONFIG.travelFastSpeed);
     const wasPlaying = this.anim !== null;
-    let step = this.animStep(now, speed);
+    let at = this.animStep(now, speed);
     this.updateLiveVision();
     this.updateTravel();
     const began = this.tryBeginTurn(now, wasPlaying, held);
-    if (began === "failed") return { step, speed };
+    if (began === "failed") return { at, speed };
     if (began === "began") {
-      step = this.animStep(now, speed);
+      at = this.animStep(now, speed);
       this.updateTravel();
     }
     this.travel.prepareNext(this.world, this.anim, now);
     this.flushUi();
-    return { step, speed };
+    return { at, speed };
   }
 
   private tick(now: number): void {
@@ -914,14 +915,15 @@ export class Game {
     const dt = now - this.last;
     this.last = now;
     this.play.beginFrame();
-    const { step, speed } = timed("turn-frame", () => {
+    const { at, speed } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now);
       this.shade.advance();
       return turn;
     });
     this.play.coast(Math.max(0, dt), this.travel.isAdvancing(null, now), speed);
     const playDt = this.play.frameMs() / 1000;
-    this.syncVehicles(step, Math.max(0, dt) / 1000, playDt);
+    const step = at === null ? null : Math.floor(at);
+    this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
     if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
     this.drawOverlays();
@@ -978,7 +980,7 @@ export class Game {
     const elapsed = this.travel.advanceClock(a, now, speed, CONFIG.playbackFrameMs);
     this.play.advance(elapsed - from);
     if (elapsed < MOVE_MS)
-      return Math.floor((elapsed / 1000) * PHYSICS.stepsPerSecond);
+      return (elapsed / 1000) * PHYSICS.stepsPerSecond;
     if (!a.moved) this.finishMovement(a);
     const impactAt = MOVE_MS + (a.volley ? CONFIG.combatShotMs : 0);
     if (elapsed >= impactAt && !a.impacts) this.landImpacts(a);
@@ -990,8 +992,8 @@ export class Game {
     return null;
   }
 
-  private syncVehicles(step: number | null, dt: number, playDt: number): void {
-    const frames: TurnFrames | null = step === null || !this.anim ? null : this.anim.result.frames;
+  private syncVehicles(at: number | null, dt: number, playDt: number): void {
+    const frames: TurnFrames | null = at === null || !this.anim ? null : this.anim.result.frames;
     const landed = !this.anim || this.anim.impacts;
     const glass = daylightAt(this.lightTurn()).glass;
     const now = performance.now();
@@ -1002,7 +1004,7 @@ export class Game {
       this.pin.note(v, i < this.world.vehicles.length);
       const kept = this.frames[v.id];
       const stale = !this.anim && kept && dist(toMap(kept.pos), v.pos) > MOVED_BY_RULES;
-      const f = frames?.[v.id]?.[step!] ?? (kept && !stale ? kept : restFrame(this.world, v));
+      const f = (frames && frameAt(frames[v.id], at!)) ?? (kept && !stale ? kept : restFrame(this.world, v));
       this.frames[v.id] = f;
       const seen = landed ? this.isVehicleVisible(v) : this.canShowCombatVehicle(v);
       if (seen) this.lastSeen.set(v.id, this.world.turn);
