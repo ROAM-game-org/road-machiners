@@ -3,7 +3,8 @@
 // update() clones the world every turn, so an index is keyed by each obstacle's id and place in order, never by array
 
 import { TIME } from '../data/time';
-import { marksOf, ObstacleBuckets, sameMarks, type Blocker, type ObstacleMark } from './nav/buckets';
+import { ObstacleBuckets, type Blocker } from './nav/buckets';
+import { ObstacleCache } from './nav/obstacle-cache';
 import { isBreakable, propReach } from './mapgen';
 import type { Obstacle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
@@ -21,16 +22,9 @@ const MEMBERS: Record<PropIndexKind, { has: (o: Obstacle) => boolean; radius: (o
 };
 
 class Entry {
-  private readonly marks: ObstacleMark[];
   private readonly built: Partial<Record<PropIndexKind, ObstacleBuckets<Slot>>> = {};
 
-  constructor(obstacles: readonly Obstacle[], private readonly size: number) {
-    this.marks = marksOf(obstacles);
-  }
-
-  matches(obstacles: readonly Obstacle[], size: number): boolean {
-    return this.size === size && sameMarks(this.marks, obstacles);
-  }
+  constructor(private readonly size: number) {}
 
   buckets(kind: PropIndexKind, obstacles: readonly Obstacle[]): ObstacleBuckets<Slot> {
     const hit = this.built[kind];
@@ -44,18 +38,10 @@ class Entry {
   }
 }
 
-const KEPT = 4;
-const entries: Entry[] = [];
+const entries = new ObstacleCache<Entry>(4);
 
 function entryFor(world: World): Entry {
-  const { obstacles } = world;
-  const size = world.size;
-  const at = entries.findIndex((e) => e.matches(obstacles, size));
-  if (at === 0) return entries[0];
-  const entry = at > 0 ? entries.splice(at, 1)[0] : new Entry(obstacles, size);
-  entries.unshift(entry);
-  entries.length = Math.min(entries.length, KEPT);
-  return entry;
+  return entries.get(world.obstacles, world.size, () => new Entry(world.size));
 }
 
 export function propsAlong(world: World, kind: PropIndexKind, a: Vec, b: Vec, reach: number): Obstacle[] {
