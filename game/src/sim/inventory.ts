@@ -2,7 +2,7 @@
 import { CRATE_MASS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { skillEffect, vehicleHasPerk } from './progress';
-import { playerVehicle } from './damage';
+import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
 import { findSpot, freeCells, gridOf, isMounted, itemCells, MOUNT_CELLS, mountSpots, placementError, type Cell, type Spot } from './grid';
@@ -118,9 +118,15 @@ export function spareParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [it.part] : []));
 }
 
-export function moveItem(world: World, itemId: string, to: Spot): World {
+function refitTruck(w: World, truckId: string | undefined, atGarageOnly: boolean): Vehicle {
+  const truck = truckFor(w, truckId);
+  if (atGarageOnly && truck.id !== w.player.vehicleId) requireGarage(w, truck.id);
+  return truck;
+}
+
+export function moveItem(world: World, itemId: string, to: Spot, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const me = playerVehicle(w);
+    const me = refitTruck(w, truckId, true);
     const result = planItemMove(me, itemId, to);
     if (result.error !== null) throw new Refused(result.error);
     commitRefit(w, me, result.plan);
@@ -129,16 +135,16 @@ export function moveItem(world: World, itemId: string, to: Spot): World {
 
 export type RefitLayout = Record<string, Spot>;
 
-export function startRefit(world: World, layout: RefitLayout): World {
+export function startRefit(world: World, layout: RefitLayout, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const me = playerVehicle(w);
+    const me = refitTruck(w, truckId, true);
     commitRefit(w, me, layoutPlan(me, layout));
   });
 }
 
 export function plannedRefitTurns(world: World, v: Vehicle, layout: RefitLayout): number {
   const { turns } = layoutPlan(v, layout);
-  return turns > 0 && !atGarage(world) ? refitTurns(world, v, turns) : 0;
+  return turns > 0 && !atGarage(world, v.id) ? refitTurns(world, v, turns) : 0;
 }
 
 function layoutPlan(v: Vehicle, layout: RefitLayout): RefitPlan {
@@ -159,7 +165,7 @@ function commitRefit(w: World, me: Vehicle, plan: RefitPlan): void {
     const moving = findItem(me, move.itemId);
     if (moving.kind === 'part') disarm(moving.part);
   }
-  if (plan.turns > 0 && !atGarage(w)) {
+  if (plan.turns > 0 && !atGarage(w, me.id)) {
     const work = refitTurns(w, me, plan.turns);
     startJob(w, me, { kind: 'refit', moves: plan.moves, pickup: null, turnsLeft: work, total: work });
   } else applyRefitLayout(w, me, plan.items);
@@ -173,10 +179,10 @@ export function lootRefitTurns(world: World, v: Vehicle, planned: number): numbe
   return vehicleHasPerk(world, v, 'cannibal') ? PERK_NUMBERS.cannibal.turns : refitTurns(world, v, planned);
 }
 
-export function storePart(world: World, itemId: string): World {
+export function storePart(world: World, itemId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireGarage(w);
-    const me = playerVehicle(w);
+    requireGarage(w, truckId);
+    const me = truckFor(w, truckId);
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (item.kind !== 'part') throw new Error('Only parts go into garage storage');
@@ -184,14 +190,14 @@ export function storePart(world: World, itemId: string): World {
     me.items = me.items.filter((it) => it.id !== itemId);
     disarm(item.part);
     w.player.storage.push(item.part);
-    afterRefit(w);
+    afterRefit(w, me);
   });
 }
 
-export function takeFromStorage(world: World, partId: string, to: Spot): World {
+export function takeFromStorage(world: World, partId: string, to: Spot, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireGarage(w);
-    const me = playerVehicle(w);
+    requireGarage(w, truckId);
+    const me = truckFor(w, truckId);
     requireIdleRefit(me);
     const i = w.player.storage.findIndex((p) => p.id === partId);
     if (i < 0) throw new Error(`No stored part ${partId}`);
@@ -200,13 +206,13 @@ export function takeFromStorage(world: World, partId: string, to: Spot): World {
     if (err) throw new Refused(err);
     w.player.storage.splice(i, 1);
     me.items.push(item);
-    afterRefit(w);
+    afterRefit(w, me);
   });
 }
 
-export function dumpItem(world: World, itemId: string): World {
+export function dumpItem(world: World, itemId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const me = playerVehicle(w);
+    const me = refitTruck(w, truckId, true);
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
@@ -225,8 +231,7 @@ function requireRemovable(item: GridItem): void {
   if (item.kind === 'part' && partDef(item.part.defId).kind === 'core') throw new Refused({ id: 'builtInFixed' });
 }
 
-export function afterRefit(w: World): void {
-  const me = playerVehicle(w);
+export function afterRefit(w: World, me: Vehicle = playerVehicle(w)): void {
   const error = getLayoutError(me, me.items);
   if (error) throw new Refused(error);
   applyRefitLayout(w, me, me.items);

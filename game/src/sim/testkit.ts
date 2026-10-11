@@ -24,7 +24,7 @@ import { rollStock } from './salvage';
 import { spotTable } from './territory';
 import { refreshVision } from './vision';
 import { openingStockOf } from './opening';
-import { playerVehicle } from './damage';
+import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
 import { outpostPad } from './fury-road';
@@ -44,8 +44,12 @@ export function furyRoadWorld(seed = 3): World {
 export function parkedAtOutpost(seed = 3): World {
   const w = furyRoadWorld(seed);
   const me = playerVehicle(w);
-  me.pos = outpostPad(w, 1);
+  const hauler = haulerOf(w);
+  const pad = outpostPad(w, 1);
+  me.pos = pad;
   me.speed = 0;
+  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.speed = 0;
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
   return parked;

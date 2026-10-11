@@ -1068,3 +1068,9 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* The outpost's truck switch: the player's truck and the hauler, each with its portrait. */
+.truck-switch .chassis-portrait {
+  --portrait-w: calc(var(--icon-l) * 1.6);
+  --portrait-h: var(--icon-l);
+}
