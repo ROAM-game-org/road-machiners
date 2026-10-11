@@ -66,7 +66,7 @@ export function playVolley(
       },
     };
     host.fx.shot(roundSpec(spec, k), muzzle, shown, blastRadiusOf(weapon), cues, ground, host.world.turn);
-    showDamage(host, rounds[k], Math.max(shown.delayMs + shown.flightMs, host.poses.moveMs - host.startMs), rows);
+    showDamage(host, rounds[k], shown.delayMs + shown.flightMs, rows);
   });
   return { firstMs: Math.min(...landsAt) - host.startMs, lastMs: Math.max(...landsAt) };
 }
@@ -81,11 +81,10 @@ function showDamage(host: VolleyHost, r: ShotRound, atMs: number, rows: Map<stri
 }
 
 function damageLabel(host: VolleyHost, vehicleId: string, label: Msg | null, rows: Map<string, number>, atMs: number): void {
-  const p = host.poses.end(vehicleId);
-  if (!label || !p) return;
+  if (!label || !host.poses.end(vehicleId)) return;
   const row = rows.get(vehicleId) ?? 0;
   rows.set(vehicleId, row + 1);
-  host.fx.label(p, label, PAL.damageText, row, atMs, CONFIG.combatReadMs);
+  host.fx.label(() => host.eventPoint(vehicleId), label, PAL.damageText, row, atMs, CONFIG.combatReadMs);
 }
 
 export type CombatHost = VolleyHost & { views: Map<string, VehicleView>; freshSmoke: (a: Vec, b: Vec) => boolean };
