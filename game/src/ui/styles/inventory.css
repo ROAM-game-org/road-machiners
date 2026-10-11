@@ -158,6 +158,9 @@
 .inv-cell.c-D {
   background: var(--cell-deck);
 }
+.inv-cell.c-C {
+  background: repeating-linear-gradient(135deg, var(--cell-bay) 0 var(--space-2), var(--cell-bay-line) var(--space-2) calc(var(--space-2) + 1px));
+}
 .inv-cell.c-E {
   background: var(--cell-engine);
 }

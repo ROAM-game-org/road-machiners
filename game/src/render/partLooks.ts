@@ -31,6 +31,7 @@ const BASE_MODELS: Record<string, ModelName> = {
   niva: 'base_niva',
   bukhanka: 'base_bukhanka',
   lincoln: 'base_lincoln',
+  semi: 'base_semi',
 };
 
 export function baseModel(chassisId: string): ModelName {

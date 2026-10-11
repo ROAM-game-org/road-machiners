@@ -541,6 +541,7 @@ export const SCREENS: Translation<typeof EN> = {
   'inv.verb.rebuild': 'Восстановить',
   'inv.against': 'Сравнение с {part, case, ins} ',
   'cell.deck': 'крепление на палубе для оружия, сканера, грузовой рамы или запаса',
+  'cell.bay': 'грузовой отсек для грузовой рамы или любого груза',
   'cell.engine': 'место двигателя',
   'cell.front': 'крепление передней брони',
   'cell.back': 'крепление задней брони',
