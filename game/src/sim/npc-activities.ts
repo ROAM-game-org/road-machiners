@@ -1017,13 +1017,19 @@ function padStop(world: World, vehicle: Vehicle, activity: NpcActivity, site: Si
 }
 
 function towStop(world: World, vehicle: Vehicle, site: Site): Vec {
-  const client = ropeClientOf(world, vehicle.id);
-  const delivered = client !== null && canUseSite(vehicleById(world, client).pos, site);
-  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site);
+  const clientId = ropeClientOf(world, vehicle.id);
+  const client = clientId === null ? null : vehicleById(world, clientId);
+  const delivered = client !== null && canUseSite(client.pos, site);
+  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site, client);
 }
 
-function towSpot(vehicle: Vehicle, site: Site): Vec {
+function towSpot(vehicle: Vehicle, site: Site, client: Vehicle | null): Vec {
   const pad = nearestPad(site, vehicle.pos);
+  const rope = client === null ? 0 : dist(client.pos, vehicle.pos);
+  if (client !== null && rope > 0) {
+    const lead = rope / 2;
+    return { x: pad.x + ((vehicle.pos.x - client.pos.x) / rope) * lead, y: pad.y + ((vehicle.pos.y - client.pos.y) / rope) * lead };
+  }
   const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   return { x: pad.x - Math.cos(angle) * TOW.gap / 2, y: pad.y - Math.sin(angle) * TOW.gap / 2 };
 }
