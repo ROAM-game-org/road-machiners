@@ -101,7 +101,7 @@ describe('smoke clouds as cards', () => {
     world.events = [{ t: 'utility', vehicle: me.id, part: 'p1', effect: 'mortar', point: { ...pos } }];
     const views = new HazardViews();
     const camera = new THREE.PerspectiveCamera();
-    const clock = { before, progress: 1, moved: true };
+    const clock = { before, progress: 1, moved: true, hookedLines: new Set<string>() };
     const fly = (nowMs: number) => {
       const { cards, lit } = recorder();
       views.update(world, world.terrain, new Map(), nowMs, clock, camera);
