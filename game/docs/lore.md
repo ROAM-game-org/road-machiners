@@ -51,7 +51,10 @@ The Fallen Sun is the basin's name for the ship's largest hull section. It is no
 
 Writing rules:
 
-- In game text say "M's" for an amount and "M" for one. Never call this currency "money", "coins", "cash" or "credits". The code keeps `money` as its internal name.
+- In game text say "M's" for an amount and "M" for one. Never call this currency "money", "coin", "cash" or "credits", in labels, tooltips or lines. The code keeps `money` as its internal name.
+- An M is a metal coin. There is no paper money: never write notes, bills, «купюры» or «бумажки».
+- In Russian say «М» for any amount, like «50 М» and «Не хватает М». Never «деньги» or «монеты».
+- A label never names the currency next to the M icon. The icon says it.
 - Never name the ship, and never say what the discs were used for. Both are still open.
 - Show an amount as a number with the coin glyph in panels, and as "N M's" in the log, dialogue and errors. `src/ui/money.ts` owns both.
 

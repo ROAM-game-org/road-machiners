@@ -51,7 +51,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the whole quest. The build reads them into the bundle and fails on an unknown one.
 
 - `# view: page` shows the quest as pages. Without it the quest is a talk.
-- `# stat: <variable> <Label>` shows a number variable in the page's right column. `# stat: money Money` shows the player's money. `# stat: alarm Talk: quiet, talking, loud` shows a word for the value instead, and a value past the list shows the last word.
+- `# stat: <variable> <Label>` shows a number variable in the page's right column. `# stat: money M's` shows the player's M's with the M icon and no label. `# stat: alarm Talk: quiet, talking, loud` shows a word for the value instead, and a value past the list shows the last word.
 - `# fact: <variable> <text>` shows the text in the right column while the true or false variable is true. Facts are what the player found, written as raw observations, so the player draws the conclusion.
 
 ## Text and the talk window

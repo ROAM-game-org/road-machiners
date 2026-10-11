@@ -76,7 +76,7 @@ A scene that needs full attention, like an investigation or an intro sequence, u
 ```ink
 # view: page
 # stat: watches Watches
-# stat: money Money
+# stat: money M's
 # fact: saw_cut_seal Dispatch: a fuel can on Kovac's desk, its Army seal cut clean.
 INCLUDE world.ink
 ```

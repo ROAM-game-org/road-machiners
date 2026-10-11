@@ -1,6 +1,6 @@
 # view: page
 # stat: watches Watches
-# stat: money Money
+# stat: money M's
 # stat: alarm Talk: quiet, talking, loud
 # fact: ledger_read Ledger: cans went missing on the third, seventh and eleventh nights. Pell was on duty each time.
 # fact: gate_checked Gate log: Corporal Vance signed out late on the third, seventh and eleventh nights, alone, with an empty truck bed.
@@ -129,7 +129,7 @@ Her cans are Army green, and the stencils have been scraped off with something s
 Buying or just looking? Looking's free, but it doesn't feed me. # speaker: Sabine
 + [Pay her {sabine_price} M to talk. # cost: {sabine_price}]
   ~ knows_scar = true
-  She counts the money twice and tucks it away.
+  She counts the M's twice and tucks them away.
   A corporal brings me the cans. Big hands, a scar across his chin. He never gives a name and I never ask. Keeps us both easy. # speaker: Sabine
   -> after
 + [Lean on her.]

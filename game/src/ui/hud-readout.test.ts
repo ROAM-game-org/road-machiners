@@ -309,7 +309,7 @@ describe("critical vehicle readout", () => {
     w.player.fuel = 18.5;
     w.player.supplies = 7.25;
     expect(getHudReadout(w).resources.map((r) => en(r.label))).toEqual([
-      "Money",
+      "M's",
       "Fuel",
       "Supplies",
       "Driver",

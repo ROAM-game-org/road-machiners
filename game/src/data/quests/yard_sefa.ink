@@ -95,7 +95,7 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
 + {sefa_priced and wagon_fate == "none"} [Sell her the stub and the place.]
   ~ wagon_fate = "sold"
   ~ give_money(pin_price())
-  She counts the money onto the table and sweeps the stub off it into her apron, all in one move. # page
+  She counts the M's onto the table and sweeps the stub off it into her apron, all in one move. # page
   The Yard's crane men will hang that stub on a wire by the boring bench. Every Nose driver who stops for a second pin will see it. After the frost my men take the torch to whatever's left on her.
   The Army post will ask whose steel it was. They'll have to ask me, and I'll tell them raiders.
   -> hub

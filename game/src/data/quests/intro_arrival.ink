@@ -1,5 +1,5 @@
 # view: page
-# stat: money Money
+# stat: money M's
 INCLUDE world.ink
 
 VAR arrival_rope = false
@@ -46,7 +46,7 @@ You step through the doorway into a room with no roof. Sand has drifted into the
 = look
 ~ give_money(50)
 No jar of anything. The stove is cold and empty, and the table drawer holds a dead beetle. But under the cot, one floorboard sits a little higher than the rest, and when you get your fingers under it, it comes up with a squeak.
-In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a fold of notes, soft from handling. Somebody hid this from somebody. Well, they're not here to argue.
+In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a short stack of M's that clink when you lift the tin. Somebody hid this from somebody. Well, they're not here to argue.
 You put it in your shirt and go out to the shed.
 -> shed
 

@@ -85,7 +85,7 @@ export const TALK: Translation<typeof EN> = {
   'line.listening': 'Слушаю.',
   'line.makeItShort': 'Покороче.',
   'line.maybeIPassedSomething': 'Может быть. По дороге видел кое-что.',
-  'line.moneyIsInGuns': 'Деньги пришли. Опускаем стволы.',
+  'line.moneyIsInGuns': 'М пришли. Опускаем стволы.',
   'line.moveAlong': 'Проезжай.',
   'line.myTruckIsBroken': 'Мой грузовик сломался. Подлатаешь?',
   'line.myTruckIsDead': 'Мой грузовик заглох намертво. Подлатаешь?',

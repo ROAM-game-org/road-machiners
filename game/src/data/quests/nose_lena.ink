@@ -35,7 +35,7 @@ VAR asked_glare = false
   ~ heard_sun = true
   -> hub
 + [Where can I get clean water?]
-  Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring coin.
+  Green Pit, out past the road. It's a pump outpost round an old cistern, and they pull the water up from deep rock and sell it by the can. It's clean, and it isn't cheap. Bring M's.
   ~ note("greenPit")
   -> hub
 + {heard_swivel and not asked_pins} [Why look at the pins?]
@@ -54,7 +54,7 @@ VAR asked_glare = false
   ~ asked_kiln = true
   -> hub
 + {(heard_sun or found("fallen-sun")) and not asked_sun} [What do you know about the Fallen Sun?]
-  Best metal I ever put a torch to, and the worst place to fetch it. The brass call that hull a warship. I'd like them to show me one gun mount on it. There isn't one. It's cargo holds, all of it. And the glare off the glass around it will blind you by noon.
+  Best metal I ever put a torch to, and the worst place to fetch it. The brass call that hull a warship. I'd like them to show me one gun mount on it. I never found one. All I ever cut there was cargo hold. And the glare off the glass around it will blind you by noon.
   ~ asked_sun = true
   ~ heard_glare = true
   -> hub

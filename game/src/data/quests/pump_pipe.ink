@@ -1,8 +1,8 @@
 # view: page
-# stat: money Money
+# stat: money M's
 # fact: book_read Agnes's copy: the pump brings up less every season, and the household's tanker takes more. Her guess, if that goes on: Bowl's trucks get almost nothing by next autumn.
 # fact: margin_read Agnes's copy, last page: for Mirela, to compare with hers.
-# fact: offer_heard Steward Aurel Brede offered money to lose the copy and forget the dial.
+# fact: offer_heard Steward Aurel Brede offered M's to lose the copy and forget the dial.
 # fact: reserve_known Steward: half of the tanker's water fills a tank under the top terrace. It is the Senate's reserve for a dry year, and only the Archon may open it.
 # fact: valve_read Top terrace: the household's tanker unloads into a stone tank. Its inlet has an empty flange where a meter used to sit.
 # fact: canal_matches Every barrel Agnes loaded onto Bowl's trucks reached Mirela's trough. The dial is the other half, and you read it.
@@ -90,7 +90,7 @@ A grey-haired man in a grey coat sits on the back of it. A lantern is stitched o
 I am Aurel Brede, steward to the Archon's household. My watchman saw Agnes give you something sealed. He also saw you read her dial. # speaker: Steward
 I'm not asking you to burn anything. Lose the paper on the road. And if anyone in Bowl asks, you never read a dial. # speaker: Steward
 He offers {price} M. # reveal: all
-That's a lot of money for forgetting a number.
+That's a lot of M's for forgetting a number.
 -> offer
 
 = offer
@@ -110,7 +110,7 @@ That's a lot of money for forgetting a number.
   ~ asked_secret = true
   In the last dry year Bowl kept an open store of grain. Everyone knew about it, and it was gone in a week. # speaker: Steward
   -> offer
-+ [Take the money.]
++ [Take the M's.]
   ~ left_offer()
   -> sold
 + [Say you'll lose it, and ask for a gate pass first. # check: social 2]
@@ -197,7 +197,7 @@ The older patrolman leans into your cab and looks at the copy on the seat.
   -> cut
 + [Tell him it's pump records for the lock house. # check: social {gate_need(1)}]
   -> talk
-+ [Slip the older one some coin. # cost: {toll}]
++ [Slip the older one a few M's. # cost: {toll}]
   -> bought
 + [Hand him the copy.]
   -> handed
@@ -263,7 +263,7 @@ He holds out his hand for the copy.
   -> bought
 
 === bought ===
-The older patrolman takes the coin without counting it. The cart rolls aside.
+The older patrolman takes the M's without counting them. The cart rolls aside.
 { sluice == "watched": The steward's rider sees it all and writes something down. }
 ~ sluice = "paid"
 ~ marr_regard = "enemy"

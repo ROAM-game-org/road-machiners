@@ -376,7 +376,7 @@ export const LOG = {
   'refusal.topRank': m('{skill} is at the top rank', { skill: 'text' }),
   'refusal.needsXp': m('Needs {cost} XP, you have {have} XP', { cost: 'int', have: 'int' }),
   'refusal.failed': 'That did not work.',
-  'refusal.noMoney': 'Not enough money',
+  'refusal.noMoney': "Not enough M's",
   'refusal.noCargoRoom': 'Not enough cargo space',
   'refusal.theyHaveNoRoom': 'No room on their truck',
   'refusal.noSupplyRoom': 'No room for that much',

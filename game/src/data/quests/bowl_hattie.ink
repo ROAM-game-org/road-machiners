@@ -95,5 +95,5 @@ Water costs here, talk doesn't, and I hear everything that happens in <term=bowl
   ~ hattie_came_out = true
   -> hub
 + [Goodbye.]
-  { towed_to_bowl: Mind your slate. I don't forget a bowl of grain. | Come back when you've coin for a bucket. }
+  { towed_to_bowl: Mind your slate. I don't forget a bowl of grain. | Come back when you've M's for a bucket. }
   -> END

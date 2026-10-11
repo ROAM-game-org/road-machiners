@@ -377,7 +377,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.topRank': '{skill}: уже высший ранг',
   'refusal.needsXp': 'Нужно {cost} опыта, у вас {have}',
   'refusal.failed': 'Не получилось.',
-  'refusal.noMoney': 'Не хватает денег',
+  'refusal.noMoney': 'Не хватает М',
   'refusal.noCargoRoom': 'Не хватает места в кузове',
   'refusal.theyHaveNoRoom': 'У них нет места',
   'refusal.noSupplyRoom': 'Столько не поместится',

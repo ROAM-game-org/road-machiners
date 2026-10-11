@@ -48,7 +48,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ~ dag_kiln = true
   -> hub
 + {dag_road} [What do you make of Nose?]
-  The Army's all right on the road. Off it, they act as though the basin belongs to them and the rest of us are only borrowing it. Bowl was feeding people long before Nose put up its first fence.
+  The Army's all right on the road. Off it, they act as though the basin belongs to them and the rest of us are only borrowing it. Bowl was feeding people long before Nose built its workshop line.
   -> hub
 + {dag_kiln} [What do you mean, pay the raiders?]
   The Granary pays Kiln Camp a sack of grain for every armed truck that crosses their road. It costs less than a funeral.

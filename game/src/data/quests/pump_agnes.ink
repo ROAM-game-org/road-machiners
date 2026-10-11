@@ -67,7 +67,7 @@ VAR tip = 20
 + {knows_book and not knows_pipe} [Ask why the tanker's meter came off.]
   ~ note("pipeBook")
   ~ knows_pipe = true
-  The <term=senate>Senate</term> ordered it. That tanker belongs to the Archon's household. The Archon heads the Senate, and his household lives on the top terrace of <term=bowl>Bowl</term>. # speaker: Agnes
+  The <term=senate>Senate</term> ordered it. That tanker belongs to the Archon's household. The Archon carries out what the Senate decides, and his household lives on the top terrace of <term=bowl>Bowl</term>. # speaker: Agnes
   Now the tanker loads and goes, and I'm not allowed to write it down. Whatever the gap is, that's what it takes. # speaker: Agnes
   { trusted:
     -> copy

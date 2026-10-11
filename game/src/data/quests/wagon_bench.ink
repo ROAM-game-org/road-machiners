@@ -1,9 +1,9 @@
 # view: page
-# stat: money Money
+# stat: money M's
 # fact: halves_fit Bench: Duvall's half of the pin and yours meet face to face, with no gap.
 # fact: report_seen Dispatch log: Corporal Teller's report says raiders ran wagon Seven down at the bend and the cannon went over the edge. Command wrote the wagon off.
 # fact: heard_duvall Duvall: the gun came loose on the bend and swung into the cab. Nobody shot at them. Teller tied the gun down, and they walked.
-# fact: offer_heard Yard: Corporal Teller offered money to drop the stub down the sump. His stripes pay his sister's ration card.
+# fact: offer_heard Yard: Corporal Teller offered M's to drop the stub down the sump. His stripes pay his sister's ration card.
 INCLUDE world.ink
 
 VAR halves_fit = false
@@ -102,7 +102,7 @@ Corporal Teller. A word outside, driver. # speaker: Teller
   We came down onto the bend a bit fast. The gun went loose and came round, all at once, and the back of it hit the cab where I sat. The corporal pulled me out. Nobody shot at us. There wasn't anybody to shoot. # speaker: Duvall
   Teller tied the gun down so it wouldn't swing again, and we walked. He wrote raiders at the desk. I told Kovac it was the pin, and he put me in the margin. # speaker: Duvall
   -> hub
-+ {offer_heard} [Take Teller's money.]
++ {offer_heard} [Take Teller's M's.]
   -> sold
 + [Pocket the stub and leave.]
   Teller watches you go all the way to your truck. Lena doesn't look up.
@@ -161,7 +161,7 @@ If you drive down to Bowl, my mother buys her water at Hattie's well house. Tell
 = sold
 ~ give_money(price)
 ~ wagon_fate = "buried"
-You go back out to the yard. Teller counts the money into your hand, note by note, and holds out his other hand for the stub. # page
+You go back out to the yard. Teller counts M's into your hand one at a time, and holds out his other hand for the stub. # page
 { wagon_pin == "bent":
   He doesn't look at its face. He doesn't know what he's looking for.
 }
