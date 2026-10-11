@@ -114,6 +114,15 @@ Encounters are paced in time. An encounter is on while a group truck that is not
 
 Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler and hunts it every turn until the level ends, and holds a feud on the player too, so the player's guns see it as hostile. It fires on the hauler only. It fires on the gun truck, and hunts it, while the gun truck is in its attackers: after the gun truck shot it, or crashed into it so that it took damage. It drops the gun truck again when the gun truck leaves its sight, and goes back to the hauler. A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns. A group truck that turns to flee is brought back to the fight on the next turn. A group truck always drives at its own speed and never overdrives. Out of sight of the player, it drives at full speed toward its hunting point and never slows to stop there. A truck with no gun rams.
 
+## Balance evidence
+
+`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each, with the numbers in this page, gave:
+
+- Measured gear share of pay on both trucks: median 0.31 over 69 outposts, which is the 0.3 `gearShare` the danger uses.
+- Fight 66 of 72 beaten stretches had a player shot and an encounter, short of the 95% asked for. Damage 53 of 82 stretches hurt the hauler. Variety, Choice and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions, 45 of 72 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 5 on stretches 1 to 3 to 121 on stretches 8 to 10.
+- Beatable fails: 3 of 10 escort seeds beat stretch 10, where 6 are asked for. The escort bot loses its own truck, mostly a scout, in a fight with one or two trucks.
+- Not sprintable misses by one seed: 9 of 10 sprinter seeds lost the run before stretch 10, and one carried the hauler through 16 stretches.
+
 ## Defeat
 
 A beaten group truck is knocked out or wrecked by the normal rules. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to. A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is never knocked out and woken: the knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel, which is the only way out of an empty tank or a broken drive with no parts to patch. The death screen names the mode, the last outpost reached and how far north the truck got, and offers Load save, Restart run with the same settings and a new seed, and New game.
