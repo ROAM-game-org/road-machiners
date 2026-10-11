@@ -30,7 +30,7 @@ describe('Fury Road starter kit', () => {
 
 describe('Slug cannon name', () => {
   it('reads as a cannon in Russian, not the old coinage', () => {
-    expect(JSON.stringify(RU["part.slugCannon"])).not.toMatch(/жаканомёт/i);
+    expect(JSON.stringify(RU["part.slugCannon"])).not.toMatch(/жаканом[её]т/i);
   });
 });
 
