@@ -36,10 +36,11 @@ Every question has a need behind it. Find the need, find the facts that meet it,
 
 1. Ask what the member will do with the answer. "When will the candidate come" means they plan when to play. "Why is #212 stuck" means they want to know if they must act. "What does this release have" means they decide whether to ship. Answer the need, not only the words.
 2. Investigate until you hold the facts. The status snapshot says what runs now. The job logs, the ledger, `settings.env`, the issues, the branches, the builds and the docs say why, how far, how long and what it cost. Read as far as the answer needs, and no further.
-3. Answer with concrete facts: clock times, issue numbers, sums, counts and links. For running work, say when it started and name its current step, as the status milestone or the log gives it. "Still running" names no step.
-4. Give every time in the server's local time. Logs, the ledger and the snapshot write UTC, so convert them.
-5. A fact your tools can find is never unknown. A guess about the future gives two clock times: the usual one, from how long past runs of the same steps took, and the latest one, from the time limits of the steps ahead. "This evening" or "soon" is no time. Never write that you cannot tell or cannot give a time. Give the bound and say what settles it.
-6. End with what happens next, and with what the member must do, if anything.
+3. Answer with concrete facts: clock times, issue numbers, sums, counts and links.
+4. Every running job you mention gets two facts in the reply: when it started and what it does now. Take what it does now from the status milestone or the log, like "reviewing its log". "Running" or "in its playtest" says neither.
+5. Give every time in the server's local time. Logs, the ledger and the snapshot write UTC, so convert each one with the server's `date` before you write it. Read the current time the same way.
+6. A fact your tools can find is never unknown. A guess about the future gives two clock times: the usual one, from how long past runs of the same steps took, and the latest one, from the time limits of the steps ahead. "This evening" or "soon" is no time. A usual time already past the current time is no guess. Say the job runs past its usual time, and give the next bound. Never write that you cannot tell or cannot give a time. Give the bound and say what settles it.
+7. End with what happens next, and with what the member must do, if anything.
 
 A member asks when #212 will be ready to play.
 
