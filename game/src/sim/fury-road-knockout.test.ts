@@ -3,7 +3,7 @@ import { FURY_ROAD } from '../data/modes';
 import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { advanceNpcKnockouts, checkKnockout, isKnockedOut, knockOutNpc } from './defeat';
-import { advanceFuryRoad, outpostPad, waitForRoad } from './fury-road';
+import { advanceFuryRoad, outpostPad, planStretch, waitForRoad } from './fury-road';
 import { corePart } from './grid';
 import { downedListNear, downedHere } from './locations';
 import { topGoal } from './npc-activities';
@@ -111,6 +111,7 @@ describe('a knocked-out Fury Road truck', () => {
   it('holds no encounter on, so the next group comes after the quiet', () => {
     let w = furyRoadWorld(4);
     w = nextLevel(w);
+    runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, [1, 1]);
     const first = spawnGroup(w);
     for (const v of trucksOf(w, first)) {
       beside(w, v);
