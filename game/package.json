@@ -42,7 +42,8 @@
     "quests:build": "vite-node scripts/quests-build.mjs",
     "quests:check": "vite-node scripts/quests-check.mjs",
     "quest": "vite-node scripts/quest.mjs",
-    "quest:playtest": "node scripts/quest-playtest.mjs"
+    "quest:playtest": "node scripts/quest-playtest.mjs",
+    "quest:view": "node scripts/quest-view.mjs"
   },
   "license": "ISC",
   "description": "",
