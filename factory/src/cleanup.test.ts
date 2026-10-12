@@ -32,9 +32,9 @@ describe('sweepWork', () => {
   });
 
   it('removes the clones of Done cards, issues off the board, merged changes and finished builds', () => {
-    const root = work('issue-1', 'issue-2', 'adhoc-4', 'check-issue-3', 'change-1790000000000', 'incident-6', 'dev-build', 'release-main', 'release-candidate', 'waste');
+    const root = work('issue-1', 'issue-2', 'adhoc-4', 'check-issue-3', 'change-1790000000000', 'incident-6', 'dev-build', 'release-main', 'release-candidate', 'waste', 'add-release');
     const swept = sweepWork(root, `${root}-locks`,state(), [card(1, 'Done'), card(3, 'Testing'), card(4, 'Done')]);
-    expect(swept.removed.sort()).toEqual(['adhoc-4', 'change-1790000000000', 'check-issue-3', 'dev-build', 'incident-6', 'issue-1', 'issue-2', 'release-candidate', 'release-main', 'waste']);
+    expect(swept.removed.sort()).toEqual(['add-release', 'adhoc-4', 'change-1790000000000', 'check-issue-3', 'dev-build', 'incident-6', 'issue-1', 'issue-2', 'release-candidate', 'release-main', 'waste']);
   });
 
   it('keeps every clone a running or interrupted job works in, packages included', () => {

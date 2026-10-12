@@ -24,6 +24,7 @@ const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => b
   waste: { stages: ['waste'], keep: () => false },
   'merge-queue': { stages: ['merge'], keep: () => false },
   'ship-main': { stages: ['ship'], keep: () => false },
+  'add-release': { stages: ['add'], keep: () => false },
 };
 const OWN = new Set(['land']);
 const PACKAGE_DIRS = ['node_modules', 'game/node_modules', 'factory/node_modules', 'quality/node_modules'];
