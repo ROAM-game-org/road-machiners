@@ -44,9 +44,14 @@ function keepHunting(w: World): void {
   if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
   const me = playerVehicle(w);
   const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
+  if (!inHuntRange(w, raider, me)) return fight ? undefined : setIntroStep(w, 'done');
   if (!fight) return fightCornered(w, raider, me, 'robCargo');
   chooseOn(w, raider, me.id, me.pos, 'fight', false);
   fight.worn = { ...fight.worn!, turn: w.turn };
+}
+
+function inHuntRange(w: World, raider: Vehicle, me: Vehicle): boolean {
+  return dist(raider.pos, me.pos) <= sightRadius(w, me) * AMBUSH.huntSight;
 }
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {

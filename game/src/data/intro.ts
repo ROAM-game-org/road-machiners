@@ -7,6 +7,7 @@ export const AMBUSH = {
   addedTraits: ['brave'] as TraitId[],
   sightMin: 1.2,
   sightMax: 2,
+  huntSight: 2.5,
   sightTarget: 1.5,
   aheadCos: 0.7,
   spotStep: 2,
