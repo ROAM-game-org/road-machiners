@@ -2,11 +2,11 @@
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
 the scout is 5.2 m long and 2.4 m tall, the bus 7.8 m and 2.9 m, so the rig is 14.2 m long, nearly three scouts.
-The model owns the semi's body: 14.2 m along X, 2.62 m across Y, the ground 1.6 m below the origin at the collider center.
-The 20 by 5 grid stretches over it at about 1.1 cells per cell, the most body.test.ts allows.
+The model owns the semi's body: 17.4 m along X, 2.62 m across Y, the ground 1.6 m below the origin at the collider center.
+The 25 by 5 grid stretches over it at about 1.1 cells per cell, the most body.test.ts allows.
 From the front: a 0.25 m chrome bumper, a 2.2 m hood 1.5 m wide between fenders that flare to 2.44 m, a 1.75 m day cab
-with its roof 2.75 m up, a 0.45 m open gap over the frame and the fifth wheel, then a 9.55 m box trailer from 1.25 m to 3.75 m up,
-so its roof stands 1.36 times the cab roof. Twin stacks reach 3.5 m.
+with its roof 3.0 m up, a 0.45 m open gap over the frame and the fifth wheel, then a 12.75 m box trailer from 1.35 m to 4.4 m up,
+so its roof stands 1.47 times the cab roof. Twin stacks reach 3.85 m.
 Axles: steer 1.1 m behind the bumper front, the drive tandem 1.0 m and 2.2 m behind the cab, the trailer tandem 1.1 m and 2.3 m
 from the doors. Wheel radius 0.55 m. The game draws the steer pair and the outer wheels of the last trailer axle from
 PHYSICS.bodies.semi; the model draws the other 14 with the look of the game's wheel model, duals on the drive and trailer axles.
@@ -31,21 +31,21 @@ from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_
 from shapes import prism  # noqa: E402
 
 SEED = 321
-LENGTH = 14.2
+LENGTH = 17.4
 WIDTH = 2.62
 GROUND = -1.6
 
-WHEEL_X = 6.0  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
+WHEEL_X = 7.6  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
 WHEEL_Y = -0.65  # PHYSICS.bodies.semi.wheelY
 WHEEL_Z = 1.05  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
 WHEEL_R = 0.55  # PHYSICS.bodies.semi.wheelRadius
 WHEEL_HALF_W = 0.15  # PHYSICS.bodies.semi.wheelHalfWidth
-ENGINE = (5.5, -0.2, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
+ENGINE = (7.1, -0.2, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
 DRIVE_AXLES = (1.9, 0.7)
-TRAILER_AXLES = (-4.8, -WHEEL_X)
+TRAILER_AXLES = (-6.4, -WHEEL_X)
 MODEL_WHEELS = 14
 
 FRONT = LENGTH / 2
@@ -73,10 +73,10 @@ HOOD_SHELF = up(1.4)
 HOOD_FRONT_TOP = up(1.72)
 HOOD_BACK_TOP = up(1.82)
 CAB_BOTTOM = up(0.9)
-CAB_ROOF = up(2.75)
-TRAILER_FLOOR = up(1.25)
-TRAILER_ROOF = up(3.75)
-STACK_TOP = up(3.5)
+CAB_ROOF = up(3.0)
+TRAILER_FLOOR = up(1.35)
+TRAILER_ROOF = up(4.4)
+STACK_TOP = up(3.85)
 BAY_FRONT = ENGINE[0] + 0.55
 BAY_BACK = ENGINE[0] - 0.55
 BAY_HALF = HOOD_HALF - 0.12

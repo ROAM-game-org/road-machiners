@@ -101,7 +101,7 @@ const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
-  semi: { height: [3.6, 3.95], hood: [0.14, 0.19], roof: [0.62, 0.72], roofStart: [0.29, 0.36] },
+  semi: { height: [4.3, 4.6], hood: [0.1, 0.19], roof: [0.7, 0.77], roofStart: [0.23, 0.3] },
 };
 
 describe('trucks built from a reference photo keep its proportions', () => {
@@ -118,16 +118,16 @@ describe('trucks built from a reference photo keep its proportions', () => {
 });
 
 describe('the hauler semi', () => {
-  it('spans 14.2 m along and 2.62 m across, nearly three scouts long and wider than the scout', () => {
+  it('spans 17.4 m along and 2.62 m across, over three scouts long and wider than the scout', () => {
     const extent = (name: keyof typeof SHAPES) => {
       const boxes = SHAPES[name].boxes;
       return { along: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)), across: Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0)) };
     };
     const semi = extent('base_semi');
     const scout = extent('base_scout');
-    expect(Math.abs(semi.along - 14.2)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(semi.along - 17.4)).toBeLessThanOrEqual(0.1);
     expect(Math.abs(semi.across - 2.62)).toBeLessThanOrEqual(0.05);
-    expect(semi.along / scout.along).toBeGreaterThan(2.7);
+    expect(semi.along / scout.along).toBeGreaterThan(3.2);
     expect(semi.across).toBeGreaterThan(scout.across);
   });
 });
