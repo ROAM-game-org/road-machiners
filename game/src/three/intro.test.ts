@@ -34,7 +34,7 @@ const HOUSE = 'Go into the house.';
 const SHED = 'Go to the shed.';
 const LOOK = 'Look around.';
 const LEAVE_HOUSE = 'Go out to the shed.';
-const LINK = 'Sit down and lace the collar.';
+const LINK = 'Sit down and close the clamps.';
 
 function pick(w: World, ...texts: string[]): World {
   return texts.reduce((at, text) => {
