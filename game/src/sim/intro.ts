@@ -17,9 +17,9 @@ import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
 import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
+import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
 import { isFree, spawnAt } from './spawn';
-import { isCliff, tileAt } from './terrain';
 import { chooseOn } from './tracks';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -108,7 +108,7 @@ function ambushSpot(w: World, me: Vehicle, radius: number): Vec | null {
   const sight = sightRadius(w, me);
   const target = sight * AMBUSH.sightTarget;
   return spotsAhead(me, sight)
-    .filter((p) => !isCliff(w.terrain, tileAt(w.terrain, p)) && !siteUnder(atlasOf(w.terrain), p) && !playerSees(w, p) && isFree(w, p, radius, null))
+    .filter((p) => !siteUnder(atlasOf(w.terrain), p) && !playerSees(w, p) && isFree(w, p, radius, null) && drivable(w, me.pos, p, radius))
     .sort((a, b) => Math.abs(dist(a, me.pos) - target) - Math.abs(dist(b, me.pos) - target))[0] ?? null;
 }
 
