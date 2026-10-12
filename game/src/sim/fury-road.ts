@@ -531,7 +531,7 @@ export function furyRoadReadout(world: World): FuryRoadReadout | null {
   if (!run) return null;
   if (betweenLevels(world)) return fullStretch(world, run.window + 2);
   const j = run.window + 1;
-  return { stretch: j, toOutpost: Math.max(0, outpostSite(world.seed, j).n - playerProgress(world, run)), outpostId: outpostId(j) };
+  return { stretch: j, toOutpost: Math.max(0, outpostSite(world.seed, j).n - haulerProgress(world, run)), outpostId: outpostId(j) };
 }
 
 function fullStretch(world: World, j: number): FuryRoadReadout {

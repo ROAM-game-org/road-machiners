@@ -49,7 +49,7 @@ export function haulerLane(world: World, hauler: Vehicle): number {
   return best;
 }
 
-export function haulerPace(world: World, hauler: Vehicle): number {
+export function haulerPace(world: World): number {
   const alarm = runOf(world).hauler.alarmUntil;
   return alarm !== null && world.turn <= alarm ? HAULER.hurry : HAULER.cruise;
 }
@@ -74,7 +74,7 @@ function inReachOfLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
 
 function truckInLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   const radius = chassisDef(hauler.chassisId).radius;
-  const pace = haulerPace(world, hauler);
+  const pace = haulerPace(world);
   return otherRunTrucks(world, hauler).some((t) => t.speed < pace && segmentDist(t.pos, a, b) < chassisDef(t.chassisId).radius + radius);
 }
 
@@ -147,7 +147,7 @@ function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   if (dist(hauler.pos, pad) <= HAULER.approach) return { kind: 'stopAt', dest: pad };
   const lane = chosenLane(world, hauler);
   const dest = lanePoint(world, alongNow(world, hauler) + HAULER.lookahead, lane);
-  return { kind: 'through', dest, pace: haulerPace(world, hauler) };
+  return { kind: 'through', dest, pace: haulerPace(world) };
 }
 
 export function planHaulerOrder(world: World): void {

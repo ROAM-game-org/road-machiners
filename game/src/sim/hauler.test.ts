@@ -101,11 +101,11 @@ describe('the hauler driver', () => {
 
     const alarm = w.furyRoad!.hauler.alarmUntil!;
     expect(alarm).toBe(w.turn + FURY_ROAD.hauler.alarmTurns);
-    expect(haulerPace(w, hauler)).toBe(FURY_ROAD.hauler.hurry);
+    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.hurry);
     w.turn = alarm;
-    expect(haulerPace(w, hauler)).toBe(FURY_ROAD.hauler.hurry);
+    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.hurry);
     w.turn = alarm + 1;
-    expect(haulerPace(w, hauler)).toBe(FURY_ROAD.hauler.cruise);
+    expect(haulerPace(w)).toBe(FURY_ROAD.hauler.cruise);
   });
 
   it('is not alarmed by a shot that does no damage', () => {
