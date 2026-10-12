@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the real agy at most AGY_MAX_RUNS times per container, since its Gemini API key is billed per use.
+# Runs the real agy on AGY_MODEL at most AGY_MAX_RUNS times per container, since its Gemini API key is billed per use.
 set -euo pipefail
 
 if ! [[ "${AGY_MAX_RUNS:-}" =~ ^[1-9][0-9]*$ ]]; then
@@ -15,4 +15,8 @@ if [ "$count" -gt "$AGY_MAX_RUNS" ]; then
 fi
 echo "$count" > "$count_file"
 
-exec /opt/agy/agy "$@"
+if [ -z "${AGY_MODEL:-}" ]; then
+  echo "agy: AGY_MODEL is not set" >&2
+  exit 1
+fi
+exec /opt/agy/agy --model "$AGY_MODEL" "$@"

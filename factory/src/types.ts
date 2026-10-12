@@ -25,6 +25,7 @@ export type FactoryConfig = {
   sfxMaxGenerations: number;
   geminiKey: string;
   agyMaxRuns: number;
+  agyModel: string;
   designModel: string;
   buildModel: string;
   triageModel: string;

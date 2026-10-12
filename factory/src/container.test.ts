@@ -10,7 +10,7 @@ type Call = { cmd: string; args: string[]; opts?: RunOptions };
 
 const HOME = resolve('tmp/factory-container-test');
 const tokenPrices: FactoryConfig['tokenPrices'] = { opus: { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 } };
-const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, geminiKey: 'gemini-key', agyMaxRuns: 20, agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
+const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, geminiKey: 'gemini-key', agyMaxRuns: 20, agyModel: 'flash', agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
 
 beforeEach(() => {
   mkdirSync(`${HOME}/codex`, { recursive: true });
@@ -54,7 +54,7 @@ describe('dockerContainer', () => {
     expect(call.args.join(' ')).not.toContain('sound-key');
     expect(call.args.join(' ')).not.toContain('gemini-key');
     expect(call.opts?.env).toEqual({
-      CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', GEMINI_API_KEY: 'gemini-key', AGY_MAX_RUNS: '20',
+      CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', GEMINI_API_KEY: 'gemini-key', AGY_MAX_RUNS: '20', AGY_MODEL: 'flash',
       CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30',
     });
     expect(call.args).toContain(`${HOME}/codex:/home/pwuser/.codex`);
@@ -68,7 +68,7 @@ describe('dockerContainer', () => {
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
-    expect(call.args.filter((a) => a === '-e')).toHaveLength(14);
+    expect(call.args.filter((a) => a === '-e')).toHaveLength(15);
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
