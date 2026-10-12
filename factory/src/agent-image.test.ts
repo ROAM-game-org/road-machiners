@@ -109,11 +109,11 @@ function proxiedShell(script: string, env: Record<string, string>, mounts: Recor
 }
 
 describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex in the real agent container', () => {
-  it('answers through the proxy with the mounted ChatGPT login, and writes files though the call asks for its sandbox', async () => {
-    const run = proxiedShell('echo "Write the single word ok into ok.txt in this folder." | codex exec -s workspace-write --skip-git-repo-check -', {}, { [smokeCodexHome as string]: '/home/pwuser/.codex' });
+  it('draws a picture through the proxy with the mounted ChatGPT login, and saves it though the call asks for its sandbox', async () => {
+    const run = proxiedShell('echo "Generate one small image of a red square and save it as square.png in this folder." | codex exec -s workspace-write --skip-git-repo-check -', {}, { [smokeCodexHome as string]: '/home/pwuser/.codex' });
     await run.done;
-    expect(readFileSync(join(run.clone, 'game/ok.txt'), 'utf8').trim().toLowerCase()).toBe('ok');
-  }, 300_000);
+    expect(readFileSync(join(run.clone, 'game/square.png')).subarray(1, 4).toString()).toBe('PNG');
+  }, 600_000);
 });
 
 describe.skipIf(smokeImage === undefined)('agy in the real agent container', () => {
