@@ -4,7 +4,6 @@ import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/n
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { TOW } from '../data/tow';
 import { callLawmen, inCombat, inCombatWith, isHostile, startFeuds, turnPartHits } from './combat';
 import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { corePart } from './grid';
@@ -34,7 +33,7 @@ import { heldByLooter } from './loot-warning';
 import { addState, endState, stateOf, statesHeld } from './states';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
 import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJob, SalvageStock, Track, Vehicle, World } from './types';
-import { canUseSite, GOAL_REACH, isTerritory, nearestPad, type Site } from './sites';
+import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
 import { spotGoal, territoryOfStock, tripGoal } from './territory';
 import { OLD_PLACES } from '../data/salvage';
 import { clamp, dist, pointsAway, type Vec } from './vec';
@@ -42,7 +41,7 @@ import { heatAt } from './sun';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
-import { dropTow, escortsOf, follows, isOnRope, joinLeader, mercsInSight, npcHomeSite, offerEscort, ropeClientOf, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy } from './tow';
+import { dropTow, escortsOf, follows, isOnRope, joinLeader, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
 import { beginRearm, holdsRearm, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
@@ -1020,24 +1019,6 @@ function padStop(world: World, vehicle: Vehicle, activity: NpcActivity, site: Si
   return parkedOn(vehicle, site) ? { ...vehicle.pos } : siteSpot(world, vehicle, site, out);
 }
 
-function towStop(world: World, vehicle: Vehicle, site: Site): Vec {
-  const clientId = ropeClientOf(world, vehicle.id);
-  const client = clientId === null ? null : vehicleById(world, clientId);
-  const delivered = client !== null && canUseSite(client.pos, site);
-  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site, client);
-}
-
-function towSpot(vehicle: Vehicle, site: Site, client: Vehicle | null): Vec {
-  const pad = nearestPad(site, vehicle.pos);
-  const pull = client && dist(client.pos, pad) > 0 ? { from: client.pos, to: pad } : { from: pad, to: site.pos };
-  const angle = Math.atan2(pull.to.y - pull.from.y, pull.to.x - pull.from.x);
-  return { x: pad.x + Math.cos(angle) * TOW.gap / 2, y: pad.y + Math.sin(angle) * TOW.gap / 2 };
-}
-
-function parkedOn(vehicle: Vehicle, site: Site): boolean {
-  return vehicle.speed <= RULES.parkedSpeed && canUseSite(vehicle.pos, site);
-}
-
 function siteSpot(world: World, vehicle: Vehicle, site: ReturnType<typeof getKnownSite>, out: number): Vec {
   const spot = hashRandom(world.seed, ...charCodes(vehicle.id), ...charCodes(site.id));
   const pad = nearestPad(site, vehicle.pos);
@@ -1164,24 +1145,21 @@ function resolveHaul(world: World, vehicle: Vehicle, activity: NpcActivity): voi
 
 function resolveTravel(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   const arrived = isTerritory(getKnownSite(activity.targetId!)) ? reachedDestination(world, vehicle, activity) : reachSite(vehicle, activity);
-  if (!arrived) return;
-  payForLeg(world, vehicle, activity);
-  finishGoal(world, vehicle, 'arrived');
+  if (arrived) finishLeg(world, vehicle, activity, 'arrived');
 }
 
 function payForLeg(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   payDuty(world, vehicle, activity, escortsOf(world, vehicle.id));
 }
 
-function resolvePatrol(world: World, vehicle: Vehicle, activity: NpcActivity): void {
-  if (!reachedDestination(world, vehicle, activity)) return;
+function finishLeg(world: World, vehicle: Vehicle, activity: NpcActivity, reason: GoalReason): void {
   payForLeg(world, vehicle, activity);
-  finishGoal(world, vehicle, 'patrolledRoad');
+  finishGoal(world, vehicle, reason);
 }
 
 function arrivalResolver(reason: GoalReason): Resolver {
   return (world, vehicle, activity) => {
-    if (reachedDestination(world, vehicle, activity)) finishGoal(world, vehicle, reason);
+    if (reachedDestination(world, vehicle, activity)) finishLeg(world, vehicle, activity, reason);
   };
 }
 
@@ -1210,7 +1188,7 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   haul: resolveHaul,
   travel: resolveTravel,
   prowl: arrivalResolver('prowledRoad'),
-  patrol: resolvePatrol,
+  patrol: arrivalResolver('patrolledRoad'),
   explore: arrivalResolver('exploredSpot'),
 };
 

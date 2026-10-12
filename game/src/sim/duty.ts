@@ -1,5 +1,6 @@
 import { ECONOMY } from '../data/goods';
 import { EFFORT, SHOPS } from '../data/market';
+import type { TraitId } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { shopMoney } from './economy';
 import { getResources } from './resources';
@@ -13,12 +14,19 @@ type Duty = 'patrol' | 'dispatch' | 'guard';
 
 const CONVOY_DUTY_KINDS: readonly NpcActivity['kind'][] = ['haul', 'trade', 'sell'];
 
+const DUTIES: readonly { trait: TraitId; duty: Duty; pays: (goal: NpcActivity) => boolean }[] = [
+  { trait: 'lawman', duty: 'patrol', pays: (goal) => goal.kind === 'patrol' && goal.reason === 'patrolTown' },
+  { trait: 'courier', duty: 'dispatch', pays: (goal) => goal.kind === 'travel' && isShop(goal.targetId) },
+  { trait: 'supplier', duty: 'guard', pays: (goal) => CONVOY_DUTY_KINDS.includes(goal.kind) },
+];
+
+function isShop(siteId: string | null): boolean {
+  return siteId !== null && siteId in SHOPS;
+}
+
 function dutyOf(v: Vehicle, goal: NpcActivity): Duty | null {
   const traits = v.brain?.traits ?? [];
-  if (traits.includes('lawman') && goal.kind === 'patrol' && goal.reason === 'patrolTown') return 'patrol';
-  if (traits.includes('courier') && goal.kind === 'travel' && goal.targetId !== null && goal.targetId in SHOPS) return 'dispatch';
-  if (traits.includes('supplier') && CONVOY_DUTY_KINDS.includes(goal.kind)) return 'guard';
-  return null;
+  return DUTIES.find((d) => traits.includes(d.trait) && d.pays(goal))?.duty ?? null;
 }
 
 export function stampLeg(world: World, v: Vehicle, goal: NpcActivity): void {

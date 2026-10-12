@@ -88,11 +88,17 @@ export type WorldLine = { t: number; events?: GameEvent[]; money?: NpcLedger; tr
 export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
 
 export function worldLine(world: World, events: readonly GameEvent[], npcMoney: NpcLedger = {}): WorldLine | null {
-  const line: WorldLine = { t: world.turn };
-  if (events.length > 0) line.events = [...events];
-  if (Object.keys(npcMoney).length > 0) line.money = npcMoney;
+  const line: WorldLine = { t: world.turn, ...eventsField(events), ...moneyField(npcMoney) };
   if (world.turn % SNAPSHOT_TURNS === 0) line.trucks = world.vehicles.map((v) => snap(world, v));
-  return line.events || line.money || line.trucks ? line : null;
+  return Object.keys(line).length > 1 ? line : null;
+}
+
+function eventsField(events: readonly GameEvent[]): Pick<WorldLine, 'events'> {
+  return events.length > 0 ? { events: [...events] } : {};
+}
+
+function moneyField(npcMoney: NpcLedger): Pick<WorldLine, 'money'> {
+  return Object.keys(npcMoney).length > 0 ? { money: npcMoney } : {};
 }
 
 function meanHp(v: Vehicle): number {

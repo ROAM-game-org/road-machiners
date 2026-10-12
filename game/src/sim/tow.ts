@@ -16,7 +16,7 @@ import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
 import { skillEffect } from './progress';
-import { canUseSite, nearestPad, reachedSite, type Site } from './sites';
+import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
 import { isStranded, vehicleStats } from './stats';
 import { modeRules } from './settings';
@@ -199,6 +199,20 @@ export function towGoal(world: World, vehicle: Vehicle): NpcActivity {
   const site = getKnownSite(data.site);
   const reason = tow.other === world.player.vehicleId ? 'towPlayer' : 'towStranded';
   return { kind: 'tow', targetId: site.id, destination: { ...site.pos }, phase: 'travel', reason };
+}
+
+export function towStop(world: World, vehicle: Vehicle, site: Site): Vec {
+  const clientId = ropeClientOf(world, vehicle.id);
+  const client = clientId === null ? null : vehicleById(world, clientId);
+  const delivered = client !== null && canUseSite(client.pos, site);
+  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site, client);
+}
+
+function towSpot(vehicle: Vehicle, site: Site, client: Vehicle | null): Vec {
+  const pad = nearestPad(site, vehicle.pos);
+  const pull = client && dist(client.pos, pad) > 0 ? { from: client.pos, to: pad } : { from: pad, to: site.pos };
+  const angle = Math.atan2(pull.to.y - pull.from.y, pull.to.x - pull.from.x);
+  return { x: pad.x + Math.cos(angle) * TOW.gap / 2, y: pad.y + Math.sin(angle) * TOW.gap / 2 };
 }
 
 export function strandedAt(world: World, vehicle: Vehicle, client: Vehicle): Vec | null {
