@@ -276,6 +276,9 @@
   visibility: hidden;
   animation: qt-in 140ms ease-out forwards;
 }
+.qt-reveal-all .qt-unit:not(.qt-shake, .qt-pop) {
+  animation-duration: 300ms;
+}
 .qt-done .qt-unit {
   animation: none;
   opacity: 1;
@@ -296,10 +299,10 @@
 .qt-shake {
   animation:
     qt-in 140ms ease-out forwards,
-    qt-shake 90ms linear 6 alternate;
+    qt-shake 160ms linear 18;
 }
 .qt-pop {
-  animation: qt-pop 260ms ease-out forwards;
+  animation: qt-pop 700ms cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
 .qt-term {
   text-decoration: underline dotted var(--ink-faint);
@@ -327,11 +330,14 @@
   to { opacity: 1; visibility: visible; }
 }
 @keyframes qt-shake {
-  from { opacity: 1; visibility: visible; transform: translateX(-1px); }
-  to { opacity: 1; visibility: visible; transform: translateX(1px); }
+  0% { opacity: 1; visibility: visible; transform: translate(0, 0); }
+  25% { opacity: 1; visibility: visible; transform: translate(-1px, 0.5px); }
+  50% { opacity: 1; visibility: visible; transform: translate(1px, -1px); }
+  75% { opacity: 1; visibility: visible; transform: translate(-0.5px, 1px); }
+  100% { opacity: 1; visibility: visible; transform: translate(0, 0); }
 }
 @keyframes qt-pop {
-  0% { opacity: 0; visibility: visible; transform: scale(1.6); }
+  0% { opacity: 0; visibility: visible; transform: scale(2.2); }
   100% { opacity: 1; visibility: visible; transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1001,6 +1007,9 @@
 .chassis-map .c-D {
   background: var(--map-deck);
 }
+.chassis-map .c-C {
+  background: var(--map-bay);
+}
 .chassis-map .c-E {
   background: var(--map-engine);
 }
@@ -1043,6 +1052,7 @@
   opacity: 0.35;
 }
 .inv-grid[data-hint~="D"] .c-D,
+.inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
 .inv-grid[data-hint~="F"] .c-F,
 .inv-grid[data-hint~="B"] .c-B,
@@ -1063,4 +1073,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* The outpost's truck switch: the player's truck and the hauler, each with its portrait. */
+.truck-switch .chassis-portrait {
+  --portrait-w: calc(var(--icon-l) * 1.6);
+  --portrait-h: var(--icon-l);
 }

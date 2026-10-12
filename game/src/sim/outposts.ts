@@ -1,31 +1,35 @@
 import { FURY_ROAD } from '../data/modes';
 import { ECONOMY, GOODS } from '../data/goods';
-import { playerVehicle } from './damage';
+import { haulerOf, playerVehicle, truckFor } from './damage';
+import { partDef } from '../data/parts';
+import { getResources } from './resources';
 import { basicParts, basicsRepairCost, garageParts, garageRepair, partTradePrice, pay, receiveBoughtPart, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './fury-road';
 import { addGoods, cargoRoom } from './inventory';
 import type { PartInstance, Vehicle, World } from './types';
-import { playerCommand } from './world';
+import { playerCommand, Refused } from './world';
 
 const REPAIR_GOOD = 'parts';
 
-export function requireOutpost(world: World): Outpost {
-  const post = reachedOutpostAt(world);
+export function requireOutpost(world: World, truckId?: string): Outpost {
+  const post = reachedOutpostAt(world, truckFor(world, truckId));
   if (!post) throw new Error('Not parked at a reached outpost');
   return post;
 }
 
-export function outpostRepairAll(world: World): World {
+export function outpostRepairAll(world: World, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireOutpost(w);
-    repairFor(w, repairCost(w), garageParts(w, playerVehicle(w)));
+    requireOutpost(w, truckId);
+    const truck = truckFor(w, truckId);
+    repairFor(w, repairCost(w, truck), garageParts(w, truck));
   });
 }
 
-export function outpostRepairBasics(world: World): World {
+export function outpostRepairBasics(world: World, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireOutpost(w);
-    repairFor(w, basicsRepairCost(w), basicParts(w, playerVehicle(w)));
+    requireOutpost(w, truckId);
+    const truck = truckFor(w, truckId);
+    repairFor(w, basicsRepairCost(w, truck), basicParts(w, truck));
   });
 }
 
@@ -34,28 +38,35 @@ function repairFor(world: World, cost: number, parts: PartInstance[]): void {
   for (const part of parts) garageRepair(part);
 }
 
-export function outpostBuySupply(world: World, kind: Supply, n: number): World {
+export function outpostBuySupply(world: World, kind: Supply, n: number, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireOutpost(w);
-    if (!Number.isInteger(n) || n <= 0 || n > supplyRoom(w, kind)) throw new Error(`Cannot buy ${n} ${kind}`);
+    requireOutpost(w, truckId);
+    const truck = truckFor(w, truckId);
+    if (!Number.isInteger(n) || n <= 0 || n > supplyRoom(w, kind, truck)) throw new Error(`Cannot buy ${n} ${kind}`);
     pay(w, ECONOMY.supplyPrice[kind] * n);
-    w.player[kind] += n;
+    getResources(w, truck)[kind] += n;
   });
 }
 
-export function outpostPartPrice(world: World, part: PartInstance): number {
-  return partTradePrice(world, playerVehicle(world), part, 'buy');
+export function outpostPartPrice(world: World, part: PartInstance, truckId?: string): number {
+  return partTradePrice(world, truckFor(world, truckId), part, 'buy');
 }
 
-export function outpostBuyPart(world: World, partId: string): World {
+export function haulerTakes(part: PartInstance): boolean {
+  return FURY_ROAD.hauler.kinds.includes(partDef(part.defId).kind);
+}
+
+export function outpostBuyPart(world: World, partId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const post = requireOutpost(w);
+    const post = requireOutpost(w, truckId);
+    const truck = truckFor(w, truckId);
     const part = post.stock.find((p) => p.id === partId);
     if (!part) throw new Error(`Outpost ${post.milestone} has no part ${partId}`);
-    pay(w, outpostPartPrice(w, part));
+    if (truck === haulerOf(w) && !haulerTakes(part)) throw new Refused({ id: 'noFit' });
+    pay(w, outpostPartPrice(w, part, truck.id));
     const facts = outpostFactsAt(w, post.milestone);
     facts.stock = facts.stock.filter((p) => p.id !== partId);
-    receiveBoughtPart(w, part);
+    receiveBoughtPart(w, part, truck);
   });
 }
 

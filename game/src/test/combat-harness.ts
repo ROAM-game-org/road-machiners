@@ -163,10 +163,10 @@ function groundOf(fight: Fight): Ground {
 function roadBase(kit: string, seed: number): World {
   const w = newWorld(seed, START_KITS[kit] ?? missing('kit', kit), highwayMap(seed, 0), defaultSetup('furyRoad'), false);
   w.furyRoad!.groups = [];
-  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId);
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === w.furyRoad!.hauler.id);
   w.states = [];
   const ground = roadGround(seed);
-  const me = w.vehicles[0];
+  const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
   me.pos = { ...ground.center };
   me.heading = Math.atan2(ground.axis.y, ground.axis.x);
   me.speed = 0;

@@ -867,6 +867,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEnemyGearGrowth_57_58,
   withoutCatchUp_58_59,
   withDutyLegs_59_60,
+  withoutOldRun_60_61,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -887,6 +888,11 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withoutOldRun_60_61(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  return run !== null && !('hauler' in run) ? { ...world, furyRoad: null } : world;
 }
 
 function withoutCatchUp_58_59(world: SavedJson): SavedJson {

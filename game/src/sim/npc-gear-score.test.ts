@@ -3,7 +3,8 @@ import { SIDES } from './armor';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
 import { toughness } from './fight-odds';
-import { gearScorer } from './npc-gear-score';
+import { armorQuality, gearScorer } from './npc-gear-score';
+import { CONDITION } from '../data/wear';
 import type { LoadoutPriorities } from '../data/npcs';
 import { addVehicle, emptyWorld } from './testkit';
 import type { Cell } from './grid';
@@ -79,5 +80,12 @@ describe('gear score', () => {
     const free = gearScorer(w, speedy, powered('stockEngine'), false);
     expect(paying(powered('workhorseDiesel'))).toBeGreaterThan(paying(powered('turbine')));
     expect(free(powered('turbine'))).toBeGreaterThan(free(powered('workhorseDiesel')));
+  });
+});
+
+describe('armor quality of a worn-out plate', () => {
+  it('scores a plate worn past the last wear step like one at the last wear step, instead of throwing', () => {
+    const w = emptyWorld();
+    expect(armorQuality(w, 'plates', CONDITION.maxWear + 1)).toBe(armorQuality(w, 'plates', CONDITION.maxWear));
   });
 });

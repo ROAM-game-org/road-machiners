@@ -1,6 +1,6 @@
 
 import { oilSlickLength } from "../data/utilities";
-import { chassisDef } from "../data/chassis";
+import { CHASSIS, chassisDef } from "../data/chassis";
 import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, type ArmorDef, type ScannerDef, type CargoDef, type StoreDef, type UtilityDef, type FieldRepair } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
@@ -21,7 +21,9 @@ import { fuelLiters, hp, kph, meters, mps2 } from "./units";
 const ART = {
   trade: '<ellipse cx="18" cy="9" rx="11" ry="5"/><path d="M7 9v15c0 7 22 7 22 0V9M7 16c0 7 22 7 22 0"/>',
   fuel: '<path d="M8 10h16v23H8zM11 4h10v6M15 15l6 6-9 8M24 12h7v18h5V15l-5-5"/>',
-  supplies: '<path d="M5 13h30v22H5zM5 13l6-8h18l6 8M15 6v28M25 6v28"/>',
+  supplies: '<path fill-rule="evenodd" d="M5 6h30v29H5zM9 10h22v5H9zM9 18h22v5H9zM9 26h22v5H9z"/>',
+  health: '<path d="M15 5h10v10h10v10H25v10H15V25H5V15h10z"/>',
+  engineHeat: '<path d="M17 4h6v15a6 6 0 1 1-6 0z"/><path fill="none" d="M3 32q4.25-3 8.5 0t8.5 0t8.5 0t8.5 0M3 37q4.25-3 8.5 0t8.5 0t8.5 0t8.5 0M25 8h5M25 13h5"/>',
   driver:
     '<circle cx="20" cy="12" r="7"/><path d="M7 35v-6q13-15 26 0v6M17 27h6M20 24v6"/>',
   truck:
@@ -91,10 +93,36 @@ export function dialShare(speed: number, maxSpeed: number): number {
   return Math.min(Math.abs(speed) / maxSpeed, 1);
 }
 
+const DIAL_STEP = 20;
+const DIAL_TOP = Math.ceil(Math.max(...Object.values(CHASSIS).map((c) => kph(c.maxSpeed))) / DIAL_STEP) * DIAL_STEP;
+const DIAL_X = 60;
+const DIAL_Y = 50;
+const DIAL_R = 40;
+
+function dialPoint(share: number, r: number): string {
+  const a = share * Math.PI;
+  return `${(DIAL_X - r * Math.cos(a)).toFixed(2)} ${(DIAL_Y - r * Math.sin(a)).toFixed(2)}`;
+}
+
+function dialScale(): string {
+  const ticks: string[] = [];
+  for (let v = 0; v <= DIAL_TOP; v += DIAL_STEP / 2) {
+    const share = v / DIAL_TOP;
+    const major = v % DIAL_STEP === 0;
+    ticks.push(`<path class="${major ? "dial-major" : "dial-minor"}" d="M${dialPoint(share, DIAL_R)}L${dialPoint(share, DIAL_R - (major ? 6 : 3))}"/>`);
+  }
+  return ticks.join("");
+}
+
+const DIAL_SCALE = dialScale();
+
 export function createSpeedDial(speed: number, maxSpeed: number): HTMLElement {
   const dial = el("span", { class: "speed-dial", "aria-hidden": "true" });
-  const angle = -120 + dialShare(speed, maxSpeed) * 240;
-  dial.innerHTML = `<svg viewBox="0 0 100 100"><circle class="dial-rim" cx="50" cy="50" r="47"/><circle class="dial-face" cx="50" cy="50" r="41"/><path class="dial-ticks" d="M17 68A38 38 0 1 1 83 68"/><path class="dial-needle" d="M50 50V17" transform="rotate(${angle} 50 50)"/><circle class="dial-pin" cx="50" cy="50" r="4"/></svg>`;
+  const angle = dialShare(speed, DIAL_TOP) * 180;
+  const limit = dialShare(maxSpeed, DIAL_TOP);
+  const redline = `<path class="dial-redline" d="M${dialPoint(limit, DIAL_R - 1)}A${DIAL_R - 1} ${DIAL_R - 1} 0 0 1 ${dialPoint(1, DIAL_R - 1)}"/>`;
+  const needle = `<path class="dial-needle" d="M${DIAL_X - DIAL_R + 3} ${DIAL_Y}L${DIAL_X} ${DIAL_Y - 1.4}L${DIAL_X + 7} ${DIAL_Y - 0.8}V${DIAL_Y + 0.8}L${DIAL_X} ${DIAL_Y + 1.4}z" transform="rotate(${angle} ${DIAL_X} ${DIAL_Y})"/>`;
+  dial.innerHTML = `<svg viewBox="0 0 120 72"><rect class="dial-rim" x="1" y="1" width="118" height="70" rx="9"/><rect class="dial-face" x="4" y="4" width="112" height="64" rx="6"/>${redline}${DIAL_SCALE}${needle}<circle class="dial-pin" cx="${DIAL_X}" cy="${DIAL_Y}" r="4.5"/><circle class="dial-cap" cx="${DIAL_X}" cy="${DIAL_Y}" r="1.6"/></svg>`;
   return dial;
 }
 

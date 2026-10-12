@@ -89,7 +89,7 @@ describe('a new world by mode', () => {
   it('starts a Fury Road world with no traffic, salvage, shops or road wrecks', () => {
     const world = furyRoadWorld(7);
 
-    expect(world.vehicles.map((v) => v.faction)).toEqual(['player']);
+    expect(world.vehicles.map((v) => v.faction)).toEqual(['player', 'player']);
     expect(world.salvage).toEqual([]);
     expect(world.shops).toEqual({});
     expect(world.obstacles.some((o) => /^wreck\d+$/.test(o.id))).toBe(false);

@@ -5,7 +5,7 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { TOW } from '../data/tow';
 import { corePart } from '../sim/grid';
-import { stowPart } from '../sim/inventory';
+import { mountPart, stowPart } from '../sim/inventory';
 import { makePart } from '../sim/factory';
 import { vehicleMass } from '../sim/mass';
 import { npcHomeSite } from '../sim/tow';
@@ -25,6 +25,7 @@ beforeAll(async () => {
 const KPH = (PHYSICS.metersPerTile / PHYSICS.turnSeconds) * 3.6;
 const CRUISE_KPH = 65;
 const RAMP_TURNS = 8;
+const SEMI_RAMP_TURNS = 16;
 const ROAD_Y = 30;
 
 function road(): World {
@@ -37,9 +38,9 @@ function truck(w: World, chassisId: string, parts: string[]): Vehicle {
   return v;
 }
 
-function cruise(w: World, id: string): number {
+function cruise(w: World, id: string, turns = RAMP_TURNS): number {
   let d: Drive = buildDrive(w);
-  for (let i = 0; i < RAMP_TURNS; i++) {
+  for (let i = 0; i < turns; i++) {
     let next: Drive | null = null;
     w = endTurn(w, physicsMove(d, (r) => { next = r.next; }));
     freeDrive(d);
@@ -67,6 +68,17 @@ describe('driven speed on an open road', () => {
     while (stowPart(loaded, l, makePart(loaded, 'stockEngine', 0)));
     expect(vehicleMass(l)).toBeGreaterThan(0.6 * chassisDef('hauler').ratedMass);
     expect(cruise(loaded, l.id)).toBeLessThan(0.95 * cruise(empty, e.id));
+  });
+
+  it('an empty semi cruises at 80 km/h or more, and with every armor cell plated at 60 km/h or more', () => {
+    const empty = road();
+    const e = truck(empty, 'semi', ['stockEngine']);
+    const armored = road();
+    const a = truck(armored, 'semi', ['stockEngine']);
+    while (mountPart(armored, a, makePart(armored, 'steelPlate', 0)));
+    expect(a.items.filter((it) => it.kind === 'part' && it.part.defId === 'steelPlate').length).toBeGreaterThan(0);
+    expect(cruise(empty, e.id, SEMI_RAMP_TURNS) * KPH).toBeGreaterThanOrEqual(80);
+    expect(cruise(armored, a.id, SEMI_RAMP_TURNS) * KPH).toBeGreaterThanOrEqual(60);
   });
 
   it('a tower holds its tow share of its own top speed', () => {

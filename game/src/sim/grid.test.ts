@@ -6,7 +6,7 @@ import { REGION } from '../data/region';
 import { buyChassis } from './economy';
 import { partDef } from '../data/parts';
 import { makePart, makeVehicle } from './factory';
-import { baseGrid, cargoCellsGained, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
+import { MOUNT_CELLS, baseGrid, cargoCellsGained, cellCount, freeCells, gridOf, isMounted, onDeadRow, placementError, itemCells, mountedItems, mountedParts, plateSide, sideOf, type Cell } from './grid';
 import { moveItem, mountPart, storePart } from './inventory';
 import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
@@ -291,5 +291,12 @@ describe('side armor skin', () => {
     const before = freeCells(v);
     v.items.push({ id: 'i-plate', x: 0, y: 2, rot: 0, kind: 'part', part: makePart(w, 'steelPlate', 0) });
     expect(freeCells(v)).toBe(before);
+  });
+});
+
+describe('the cargo bay cell', () => {
+  it('mounts cargo parts and refuses a gun, so a gun on a bay cell is only stowed', () => {
+    expect(MOUNT_CELLS.cargo).toContain('C');
+    for (const kind of ['weapon', 'scanner', 'utility', 'store'] as const) expect(MOUNT_CELLS[kind]).not.toContain('C');
   });
 });

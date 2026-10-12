@@ -1,7 +1,7 @@
 
 import type { SaveSlots } from './save-db';
 
-import { chooseQuestOption, QUESTS, startQuest } from '../sim/quests';
+import { QUESTS, startQuest } from '../sim/quests';
 import { isMode, parseSetup } from '../sim/settings';
 import type { GameModeId, World, WorldSetup } from '../sim/types';
 
@@ -104,6 +104,7 @@ export interface QuestJump {
   quest: string;
   checkpoint: string | null;
   picks: number[];
+  page: number;
 }
 
 export function questJumpOf(search: string): QuestJump | null {
@@ -111,17 +112,17 @@ export function questJumpOf(search: string): QuestJump | null {
   const quest = params.get('quest');
   if (quest === null) return null;
   const picks = params.get('picks');
-  return { quest, checkpoint: params.get('checkpoint'), picks: picks ? picks.split(',').map(pickIndex) : [] };
+  const page = params.get('page');
+  return { quest, checkpoint: params.get('checkpoint'), picks: picks ? picks.split(',').map((p) => countFromOne('picks', p) - 1) : [], page: page ? countFromOne('page', page) - 1 : 0 };
 }
 
-function pickIndex(text: string): number {
-  if (!/^[1-9]\d*$/.test(text)) throw new Error(`?picks holds ${text}, which is no choice number from 1`);
-  return Number(text) - 1;
+function countFromOne(param: string, text: string): number {
+  if (!/^[1-9]\d*$/.test(text)) throw new Error(`?${param} holds ${text}, which is no number from 1`);
+  return Number(text);
 }
 
 export function jumpToQuest(world: World, jump: QuestJump): World {
   const known = QUESTS.quests[jump.quest];
   if (!known) throw new Error(`?quest=${jump.quest} names no quest. Known: ${Object.keys(QUESTS.quests).join(', ')}`);
-  const opened = startQuest(world, QUESTS, jump.quest, jump.checkpoint ?? known.checkpoints[0]);
-  return jump.picks.reduce((w, index) => chooseQuestOption(w, QUESTS, index), opened);
+  return startQuest(world, QUESTS, jump.quest, jump.checkpoint ?? known.checkpoints[0]);
 }

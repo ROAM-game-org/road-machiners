@@ -1,10 +1,10 @@
-// Applying damage. Hit points clamp at zero. Damage reaches parts only through walkLane in armor.ts.
 
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
 import * as wear from "./wear";
 import { practice, skillEffect, vehicleHasPerk } from "./progress";
 import { corePart, mountedParts } from "./grid";
+import { getResources } from "./resources";
 import type { PartInstance, Vehicle, World } from "./types";
 
 export function damagePart(
@@ -27,17 +27,22 @@ export function wholeDamage(amount: number): number {
 }
 
 function hurtsDriver(world: World, v: Vehicle, part: PartInstance): boolean {
-  if (v.id !== world.player.vehicleId) return false;
+  if (!isOwnedTruck(world, v)) return false;
   const def = partDef(part.defId);
   if (def.kind === "core" && def.role === "cab") return true;
   return corePart(v, "cab").hp === 0 && vehicleHasPerk(world, v, "fightThrough");
 }
 
 function hurtDriver(world: World, v: Vehicle, dealt: number): void {
-  const health = world.player.health;
+  const driver = getResources(world, v);
+  const health = driver.health;
   const share = RULES.cabHealthShare * (1 - skillEffect(world, v, "toughness", "cabShare"));
-  world.player.health = Math.max(0, health - Math.round(dealt * share));
-  if (world.player.health < health) practice(world, "damage", health - world.player.health, null, "driver");
+  driver.health = Math.max(0, health - Math.round(dealt * share));
+  if (driver.health < health && v.id === world.player.vehicleId) practice(world, "damage", health - driver.health, null, "driver");
+}
+
+function isOwnedTruck(world: World, v: Vehicle): boolean {
+  return v.id === world.player.vehicleId || v.id === world.furyRoad?.hauler.id;
 }
 
 export function findPart(v: Vehicle, partId: string): PartInstance | null {
@@ -52,4 +57,24 @@ export function vehicleById(world: World, id: string): Vehicle {
 
 export function playerVehicle(world: World): Vehicle {
   return vehicleById(world, world.player.vehicleId);
+}
+
+export function haulerOf(world: World): Vehicle {
+  if (!world.furyRoad) throw new Error("No Fury Road run, so no hauler");
+  return vehicleById(world, world.furyRoad.hauler.id);
+}
+
+export function playerTrucks(world: World): Vehicle[] {
+  const me = playerVehicle(world);
+  return world.furyRoad ? [me, haulerOf(world)] : [me];
+}
+
+export function truckFor(world: World, truckId?: string): Vehicle {
+  return truckId === undefined ? playerVehicle(world) : ownedTruck(world, truckId);
+}
+
+export function ownedTruck(world: World, id: string): Vehicle {
+  const truck = playerTrucks(world).find((v) => v.id === id);
+  if (!truck) throw new Error(`The player does not own truck ${id}`);
+  return truck;
 }

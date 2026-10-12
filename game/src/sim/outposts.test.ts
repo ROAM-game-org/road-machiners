@@ -5,7 +5,7 @@ import { REPAIR } from '../data/wear';
 import { playerVehicle } from './damage';
 import { outpostPad, waitForRoad } from './fury-road';
 import { milestoneAt, roadPoint } from './highway';
-import { furyRoadWorld } from './testkit';
+import { furyRoadWorld, parkOnPad } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
@@ -19,9 +19,7 @@ const still = () => {};
 
 function atOutpost(): World {
   const w = furyRoadWorld();
-  const me = playerVehicle(w);
-  me.pos = outpostPad(w, 1);
-  me.speed = 0;
+  parkOnPad(w, 1);
   return endTurn(w, still);
 }
 

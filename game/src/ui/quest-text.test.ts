@@ -7,15 +7,15 @@ import { lineStyle, markupProblems, parseMarkup, PLAIN_STYLE, revealUnits, rowCe
 describe('parseMarkup', () => {
   it('splits a line into spans carrying their marks, nested ones included', () => {
     expect(parseMarkup('He <b>leans <color=rust>in</color></b> slowly.')).toEqual([
-      { text: 'He ', marks: [] },
-      { text: 'leans ', marks: [{ name: 'b', value: null }] },
-      { text: 'in', marks: [{ name: 'b', value: null }, { name: 'color', value: 'rust' }] },
-      { text: ' slowly.', marks: [] },
+      { text: 'He ', marks: [], pauses: 0 },
+      { text: 'leans ', marks: [{ name: 'b', value: null }], pauses: 0 },
+      { text: 'in', marks: [{ name: 'b', value: null }, { name: 'color', value: 'rust' }], pauses: 0 },
+      { text: ' slowly.', marks: [], pauses: 0 },
     ]);
   });
 
   it('keeps plain text whole', () => {
-    expect(parseMarkup('Just words.')).toEqual([{ text: 'Just words.', marks: [] }]);
+    expect(parseMarkup('Just words.')).toEqual([{ text: 'Just words.', marks: [], pauses: 0 }]);
   });
 
   it('fails unknown, unclosed, crossed and badly valued markup', () => {
@@ -24,11 +24,13 @@ describe('parseMarkup', () => {
     expect(() => parseMarkup('<b><i>x</b></i>')).toThrow('Markup </b> closes <i>');
     expect(() => parseMarkup('<color=pink>x</color>')).toThrow('Markup <color=pink> needs one of');
     expect(() => parseMarkup('<b=big>x</b>')).toThrow('Markup <b> takes no value');
+    expect(() => parseMarkup('x<pause>')).toThrow('Markup <pause> has no text after it');
+    expect(() => parseMarkup('<pause=long>x')).toThrow('Markup <pause> takes no value');
   });
 
   it('takes a term only from the glossary', () => {
     const id = TERM_IDS[0];
-    expect(parseMarkup(`In <term=${id}>town</term>.`)[1]).toEqual({ text: 'town', marks: [{ name: 'term', value: id }] });
+    expect(parseMarkup(`In <term=${id}>town</term>.`)[1]).toEqual({ text: 'town', marks: [{ name: 'term', value: id }], pauses: 0 });
     expect(() => parseMarkup('<term=atlantis>x</term>')).toThrow('Markup <term=atlantis> needs one of');
   });
 });
@@ -36,7 +38,7 @@ describe('parseMarkup', () => {
 describe('termRuns', () => {
   it('groups the words of one term and leaves other words alone', () => {
     const [first, second] = TERM_IDS;
-    const units = revealUnits(parseMarkup(`The <term=${first}>Glass Flats</term> and <term=${second}>Nose</term>`), PLAIN_STYLE, 0);
+    const units = revealUnits(parseMarkup(`The <term=${first}>Glass Flats</term> and <term=${second}>Nose</term>`), lineStyle(['reveal:word']), 0);
     expect(termRuns(units).map((run) => [run.term, run.units.map((u) => u.text).join('')])).toEqual([
       [null, 'The '],
       [first, 'Glass Flats'],
@@ -113,5 +115,27 @@ describe('revealUnits', () => {
   it('shows a whole line at once with reveal all', () => {
     const units = revealUnits(parseMarkup('one <b>two</b>'), lineStyle(['reveal:all']), 40);
     expect(units.map((u) => u.delayMs)).toEqual([40, 40]);
+  });
+
+  it('holds every word after a pause back by the pause', () => {
+    const units = revealUnits(parseMarkup('And then, <pause>slowly, <pause>it settles.'), lineStyle(['reveal:word']), 0);
+    const word = CONFIG.questWordMs;
+    const pause = CONFIG.questPauseMs;
+    expect(units.map((u) => [u.text, u.delayMs])).toEqual([
+      ['And ', 0],
+      ['then, ', word],
+      ['slowly, ', 2 * word + pause],
+      ['it ', 3 * word + 2 * pause],
+      ['settles.', 4 * word + 2 * pause],
+    ]);
+  });
+
+  it('shows now text at once and reveals the rest of the line after it', () => {
+    const units = revealUnits(parseMarkup('<now>You twist the key.</now> It quits.'), lineStyle(['reveal:char']), 0);
+    expect(units.slice(0, 3).map((u) => [u.text, u.delayMs])).toEqual([
+      ['You twist the key.', 0],
+      [' ', CONFIG.questCharMs],
+      ['I', 2 * CONFIG.questCharMs],
+    ]);
   });
 });

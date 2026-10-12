@@ -644,8 +644,8 @@ describe('NPC activities', () => {
         took = (goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0) > 0 && scrapIn(next) < before;
       }
 
-      expect(took).toBe(true);
       expect(scrapIn(next)).toBeLessThan(before);
+      expect(goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0).toBeGreaterThan(0);
       expect(next.events.filter((e) => e.t === 'stall')).toEqual([]);
     }, 60_000);
 

@@ -1,3 +1,4 @@
+import { CONDITION } from '../data/wear';
 import { GEAR_SCORE, PRIORITY_TOP, type LoadoutPriorities } from '../data/npcs';
 import { PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
 import { makePart } from './factory';
@@ -16,7 +17,7 @@ export function armorQuality(world: World, defId: string, wear: number): number 
   const key = `${defId}:${wear}`;
   let quality = qualityCache.get(key);
   if (quality === undefined) {
-    const worn = wornDef(makePart(world, defId, wear));
+    const worn = wornDef(makePart(world, defId, Math.min(wear, CONDITION.maxWear)));
     const def = partDef(defId);
     const selfHarm = def.kind === 'armor' && def.claymore ? def.claymore.selfBlast.damage : 0;
     const shield = THREATS.reduce((sum, round) => sum + (worn.hp * worn.armor) / (round.pen * round.armorShare), 0) / THREATS.length - selfHarm;

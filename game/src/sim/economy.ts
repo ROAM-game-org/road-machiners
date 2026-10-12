@@ -10,7 +10,7 @@ import { REGION, type TownDef } from "../data/region";
 import { CONDITION } from "../data/wear";
 import { fitStores, getResources } from "./resources";
 import { isJunk, maxHp, partValue, rebuildJunk, restorePart, scrapPatchPart, scrapValue, wearFactor } from "./wear";
-import { playerVehicle, vehicleById } from "./damage";
+import { playerTrucks, playerVehicle, vehicleById } from "./damage";
 import { inFeud } from "./combat";
 import { meetGoal } from "./npc-activities";
 import { addState, endState, stateOf } from "./states";
@@ -391,13 +391,9 @@ export function sellGood(world: World, good: string, n: number): World {
   });
 }
 
-export function supplyRoom(world: World, kind: Supply): number {
-  const p = world.player;
-  const cap =
-    kind === 'fuel'
-      ? fuelCap(playerVehicle(world))
-      : suppliesCap(playerVehicle(world));
-  return Math.max(0, Math.floor(cap - p[kind]));
+export function supplyRoom(world: World, kind: Supply, truck: Vehicle = playerVehicle(world)): number {
+  const cap = kind === 'fuel' ? fuelCap(truck) : suppliesCap(truck);
+  return Math.max(0, Math.floor(cap - getResources(world, truck)[kind]));
 }
 
 export function buySupply(world: World, kind: Supply, n: number): World {
@@ -465,7 +461,7 @@ export function repairDrive(world: World): World {
 }
 
 export function partTradePrice(world: World, vehicle: Vehicle, part: PartInstance, direction: 'buy' | 'sell'): number {
-  return partPriceAt(part, vehicle.id === world.player.vehicleId ? spread(world) : ECONOMY.spread, direction);
+  return partPriceAt(part, playerTrucks(world).includes(vehicle) ? spread(world) : ECONOMY.spread, direction);
 }
 
 export function truckPartPrice(world: World, part: PartInstance, direction: 'buy' | 'sell'): number {
@@ -496,8 +492,8 @@ export function buyStockPart(world: World, partId: string): World {
   });
 }
 
-export function receiveBoughtPart(world: World, part: PartInstance): void {
-  if (!stowPart(world, playerVehicle(world), part)) world.player.storage.push(part);
+export function receiveBoughtPart(world: World, part: PartInstance, truck: Vehicle = playerVehicle(world)): void {
+  if (!stowPart(world, truck, part)) world.player.storage.push(part);
 }
 
 export function sellPart(world: World, partId: string): World {
@@ -539,12 +535,12 @@ function costOf(world: World, parts: PartInstance[]): number {
   return parts.reduce((a, p) => a + partRepairCost(world, p), 0);
 }
 
-export function repairCost(world: World): number {
-  return costOf(world, garageParts(world, playerVehicle(world)));
+export function repairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
+  return costOf(world, garageParts(world, truck));
 }
 
-export function basicsRepairCost(world: World): number {
-  return costOf(world, basicParts(world, playerVehicle(world)));
+export function basicsRepairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
+  return costOf(world, basicParts(world, truck));
 }
 
 function allParts(v: Vehicle): PartInstance[] {

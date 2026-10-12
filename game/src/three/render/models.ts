@@ -22,6 +22,7 @@ const NAMES = [
   'base_niva',
   'base_bukhanka',
   'base_lincoln',
+  'base_semi',
   'wmount_riser',
   'wreck',
   'rock',

@@ -1,15 +1,18 @@
 #ui .instruments {
   padding: var(--space-2) var(--space-4);
   display: grid;
-  grid-template-columns: var(--dial-size) repeat(4, auto);
+  grid-template-columns: var(--dial-w) repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "dial heat money clock clock"
+    "dial fuel supplies engine driver";
+  grid-auto-flow: row dense;
   column-gap: var(--space-3);
   row-gap: var(--space-2);
   background: var(--surface-raised);
   border-top: 2px solid var(--line-bright);
 }
 .instrument-clock {
-  grid-column: 1 / 3;
-  grid-row: 1;
+  grid-area: clock;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -56,16 +59,19 @@
 }
 
 .speedometer {
-  grid-column: 1;
-  grid-row: 2;
+  grid-area: dial;
+  align-self: center;
+  position: relative;
+}
+.speed-dial-slot {
   display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 .speed-max {
-  position: relative;
-  font: var(--text-caption) var(--font-mono);
-  color: var(--ink-muted);
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font: var(--text-dense) / 1 var(--font-mono);
+  color: var(--danger);
   cursor: help;
 }
 .speed-max:focus-visible {
@@ -96,13 +102,31 @@
   padding: 1px 0;
 }
 .readouts {
-  grid-column: 2 / -1;
-  grid-row: 2;
-  display: grid;
-  grid-template-columns: subgrid;
-  row-gap: var(--space-2);
-  align-content: center;
-  align-items: stretch;
+  display: contents;
+}
+.resource[data-resource="fuel"] {
+  grid-area: fuel;
+}
+.resource[data-resource="supplies"] {
+  grid-area: supplies;
+}
+.resource[data-resource="money"] {
+  grid-area: money;
+}
+.resource[data-resource="engine"] {
+  grid-area: engine;
+}
+.resource[data-resource="driver"] {
+  grid-area: driver;
+}
+.resource[data-resource="heat"] {
+  grid-area: heat;
+}
+.resource[data-resource="weather"] {
+  grid-column: 2 / span 2;
+}
+.resource[data-resource="run"] {
+  grid-column: 4 / span 2;
 }
 .resource {
   position: relative;
@@ -111,7 +135,7 @@
   justify-content: start;
   align-items: center;
   column-gap: var(--space-2);
-  padding: var(--space-2) var(--space-3) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   line-height: 1;
   text-transform: uppercase;
   background: var(--lcd);
@@ -181,19 +205,16 @@
   border-top: 1px solid var(--bevel-light);
 }
 #ui .instrument-actions button.instrument-button {
+  position: relative;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-1);
   font-size: var(--text-caption);
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   white-space: nowrap;
   background: var(--surface-highlight);
-}
-.instrument-actions .icon {
-  width: var(--icon-s);
-  height: var(--icon-s);
 }
 
 #ui .weapons {

@@ -9,7 +9,7 @@ import { downedListNear, downedHere } from './locations';
 import { topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canLootTruck, takeFromTruck } from './salvage';
-import { furyRoadWorld } from './testkit';
+import { furyRoadWorld, parkOnPad } from './testkit';
 import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
 import { endTurn } from './world';
 
@@ -50,10 +50,7 @@ function wreck(w: World, v: Vehicle): void {
 }
 
 function nextLevel(w: World): World {
-  const me = playerVehicle(w);
-  me.pos = outpostPad(w, runOf(w).window + 1);
-  me.speed = 0;
-  me.order = null;
+  parkOnPad(w, runOf(w).window + 1);
   return waitForRoad(endTurn(w, still));
 }
 

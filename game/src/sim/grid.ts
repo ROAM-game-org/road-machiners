@@ -4,7 +4,7 @@ import { partDef, type CoreDef, type PartKind } from '../data/parts';
 import type { GridItem, PartInstance, PlacementRefusal, Rot, Vehicle } from './types';
 
 export type SideLetter = 'F' | 'B' | 'L' | 'R';
-export type Cell = 'D' | 'E' | SideLetter | 'X' | '.';
+export type Cell = 'D' | 'C' | 'E' | SideLetter | 'X' | '.';
 export type Grid = { w: number; h: number; chassisH: number; deadFrom: number; cells: (Cell | null)[][] };
 export type Spot = { x: number; y: number; rot: Rot };
 
@@ -12,14 +12,14 @@ export const MOUNT_CELLS: Record<PartKind, Cell[]> = {
   weapon: ['D'],
   engine: ['E'],
   armor: ['F', 'B', 'L', 'R'],
-  cargo: ['D'],
+  cargo: ['D', 'C'],
   core: ['X'],
   scanner: ['D'],
   store: ['D'],
   utility: ['D'],
 };
 const SIDES: readonly Cell[] = ['F', 'B', 'L', 'R'];
-const CELL_CHARS: readonly string[] = ['D', 'E', 'F', 'B', 'L', 'R', 'X', '.'];
+const CELL_CHARS: readonly string[] = ['D', 'C', 'E', 'F', 'B', 'L', 'R', 'X', '.'];
 
 const baseGridCache = new Map<string, Grid>();
 

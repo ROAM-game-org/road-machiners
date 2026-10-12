@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../../data/modes';
-import { playerVehicle } from '../damage';
+import { haulerOf, playerVehicle } from '../damage';
 import { advanceFuryRoad, endRun } from '../fury-road';
 import { furyRoadWorld } from '../testkit';
 import type { GameEvent, World } from '../types';
@@ -44,5 +44,48 @@ describe('the Fury Road run log', () => {
 
     expect(lines).toContainEqual(expect.objectContaining({ t: 'lost', stretch: 1, cause: 'wrecked', stretchDamageBy: [{ id: foe, template: expect.any(String), damage: 42 }] }));
     expect(lines.find((l) => l.t === 'lost')).toMatchObject({ kit: { chassis: playerVehicle(after).chassisId } });
+  });
+});
+
+describe('the Fury Road run log per stretch', () => {
+  it('writes the hauler damage, shots, encounters and enemy mix of a stretch when its outpost is reached, and the choice at the outpost', () => {
+    const start = furyRoadWorld();
+    const log = new RunLog();
+    const spawned = spawnFirst(start);
+    log.note(start, spawned, spawned.events);
+    const hauler = haulerOf(spawned);
+    const foe = spawned.furyRoad!.groups[0].vehicles[0];
+    const trucks = spawned.vehicles;
+    trucks.find((v) => v.id === foe)!.pos = { x: hauler.pos.x + 3, y: hauler.pos.y };
+    const hit: GameEvent = { t: 'shot', shooter: foe, weapon: 'p0', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: null, hits: [{ part: 'p1', damage: 14 }], blast: [], burst: null }] };
+    const mine: GameEvent = { t: 'shot', shooter: spawned.player.vehicleId, weapon: 'p0', target: foe, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [] };
+    log.note(spawned, spawned, [hit, mine]);
+    const reached = structuredClone(spawned);
+    reached.events = [{ t: 'outpostReached', milestone: 1, pay: 30000, wrecks: 0 }];
+    reached.furyRoad!.outposts[0].paid = true;
+
+    const lines = log.note(spawned, reached, reached.events);
+    const line = lines.find((l) => l.t === 'stretch');
+
+    expect(line).toMatchObject({ t: 'stretch', stretch: 1, stats: { haulerDamage: 14, playerShots: 1, fights: 1 } });
+    if (line?.t !== 'stretch') throw new Error('no stretch line');
+    expect(line.stats.enemies).toHaveLength(1);
+    expect(line.stats.firstHit).toBe(spawned.turn);
+    expect(line.choice.useful).toBeGreaterThanOrEqual(line.choice.affordable);
+  });
+
+  it('writes the turns from the first hauler hit to its loss on the lost line', () => {
+    const before = spawnFirst(furyRoadWorld());
+    const hauler = haulerOf(before);
+    const log = new RunLog();
+    const hit: GameEvent = { t: 'shot', shooter: before.furyRoad!.groups[0].vehicles[0], weapon: 'p0', target: hauler.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [{ hit: true, crit: false, offset: 0, struck: null, hits: [{ part: 'p1', damage: 9 }], blast: [], burst: null }] };
+    log.note(before, before, [hit]);
+    const after = structuredClone(before);
+    after.turn += 6;
+    endRun(after, 'haulerLost');
+
+    const lost = log.note(before, after, after.events).find((l) => l.t === 'lost');
+
+    expect(lost).toMatchObject({ t: 'lost', cause: 'haulerLost', stats: { haulerDamage: 9, turnsFromFirstHit: 6 } });
   });
 });

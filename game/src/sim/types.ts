@@ -511,7 +511,8 @@ export type GameEvent =
 export type GameModeId = 'roaming' | 'furyRoad';
 export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean };
 export type MapKind = 'icarus' | 'highway';
-export type RunLossCause = 'wrecked' | 'abandoned';
+export type RunLossCause = 'wrecked' | 'abandoned' | 'haulerLost';
+export type HaulerFacts = { id: string; alarmUntil: number | null };
 export type OutpostFacts = { milestone: number; stock: PartInstance[]; paid: boolean; trucksSold: string[] };
 export type WaveGroup = {
   id: string;
@@ -526,7 +527,7 @@ export type WaveGroup = {
   retryUntil: number | null;
 };
 export type GroupSide = 'ahead' | 'left' | 'right';
-export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number };
+export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number; hauler: HaulerFacts };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 

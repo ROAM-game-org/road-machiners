@@ -15,7 +15,7 @@ export type DeathActions = SavePanelActions & {
   newGame: NewGameActions;
 };
 
-const RUN_TITLE: Record<RunLossCause, Msg> = { wrecked: t("death.wrecked"), abandoned: t("death.stranded") };
+const RUN_TITLE: Record<RunLossCause, Msg> = { wrecked: t("death.wrecked"), abandoned: t("death.stranded"), haulerLost: t("death.haulerLost") };
 export const CONFIRM_END_RUN = t("hud.confirmEndRun");
 
 export function confirmedEndRun(world: World): World | null {

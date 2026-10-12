@@ -32,7 +32,7 @@ const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1, paysFu
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
-export type PoolTier = { upTo: number; weights: Record<string, number> };
+export type PoolTier = { upTo: number; floor: number; weights: Record<string, number> };
 export type Line = { first: number; step: number };
 
 export const FURY_ROAD = {
@@ -54,12 +54,13 @@ export const FURY_ROAD = {
     { level: 'heavy', gear: LATE_GEAR },
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
-  danger: { firstPercent: 80, risePercent: 10, truckPercent: 80, truckFloorPercent: 60, groupMax: 3, gearShare: 0.3, truckFloor: 20000 },
+  danger: { firstPercent: 45, risePercent: 6, truckPercent: 45, truckFloorPercent: 35, groupMax: 3, gearShare: 0.3 },
   pool: [
-    { upTo: 2, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
-    { upTo: 5, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, vulture: 2, merc: 3, bowlFarmer: 1 } },
+    { upTo: 2, floor: 20000, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
+    { upTo: 5, floor: 20000, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, merc: 3, bowlFarmer: 1 } },
     {
       upTo: Number.MAX_SAFE_INTEGER,
+      floor: 45000,
       weights: { buggy: 2, courier: 1, scavenger: 1, roamer: 1, trader: 1, gunwagon: 3, vulture: 2, merc: 3, bowlFarmer: 1, noseArmy: 2, convoyGuard: 2, convoy: 1 },
     },
   ] as PoolTier[],
@@ -68,8 +69,9 @@ export const FURY_ROAD = {
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
-  pay: { base: { first: 30000, step: 15000 } as Line, perWreck: { first: 6000, step: 1500 } as Line },
-  stockPerKind: { weapon: 4, engine: 3, armor: 4, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
+  pay: { base: { first: 12000, step: 5000 } as Line },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 6, alarmTurns: 4, approach: 25, stallTurns: 12 },
+  stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,
   maxTries: 400,
@@ -119,6 +121,7 @@ export const HIGHWAY = {
   sceneClear: { along: 4, across: 24 },
   propGap: 0.3,
   startLane: 2,
+  haulerLane: 1,
 };
 
 export type SceneKind = 'pileup' | 'jackknife' | 'checkpoint' | 'tankline' | 'rockfall' | 'craters' | 'ramp';

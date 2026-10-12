@@ -3,7 +3,7 @@ import { chassisDef } from "../data/chassis";
 import { partDef } from "../data/parts";
 import { STRIP } from "../data/salvage";
 import { isJunk, maxHp } from "../sim/wear";
-import { playerVehicle } from "../sim/damage";
+import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
 import {
@@ -112,6 +112,7 @@ export class InventoryView {
   private selectedItem: string | null = null;
   private loot: string | null = null;
   private truck: string | null = null;
+  private gridTruck: string | null = null;
   private cell = CELL_PX;
   private plan: RefitLayout = {};
 
@@ -225,7 +226,7 @@ export class InventoryView {
   }
 
   private shown(w: World): Vehicle {
-    return plannedVehicle(playerVehicle(w), this.plan);
+    return plannedVehicle(this.mine(w), this.plan);
   }
 
   private gridItems(w: World, v: Vehicle): HTMLElement[] {
@@ -325,11 +326,22 @@ export class InventoryView {
   }
 
   private clicked(source: ItemSource, id: string, item: GridItem): ClickedItem {
-    return { source, id, item, stockId: this.loot, truckId: this.truck };
+    return { source, id, item, stockId: this.loot, truckId: this.truck, own: this.gridTruck ?? undefined };
+  }
+
+  showTruck(id: string | null): void {
+    if (this.gridTruck === id) return;
+    this.gridTruck = id;
+    this.plan = {};
+    this.selectedItem = null;
+  }
+
+  private mine(w: World): Vehicle {
+    return truckFor(w, this.gridTruck ?? undefined);
   }
 
   private refitBanner(w: World): HTMLElement[] {
-    const me = playerVehicle(w);
+    const me = this.mine(w);
     if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), () => this.run(cancelRefit), t("inv.cancelRefitTitle"))];
     if (Object.keys(this.plan).length === 0) return [];
     return [this.bannerEl(t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) }), t("inv.cancelPlan"), () => this.cancelPlan())];
@@ -348,19 +360,19 @@ export class InventoryView {
     if (Object.keys(this.plan).length === 0) return;
     const layout = this.plan;
     this.plan = {};
-    this.host.apply(startRefit(this.host.world(), layout));
+    this.host.apply(startRefit(this.host.world(), layout, this.gridTruck ?? undefined));
   }
 
   private sideList(w: World): HTMLElement | null {
     if (this.loot) return this.lootEl(w, this.loot);
-    return !this.instant && atGarage(w) ? this.storageEl(w) : null;
+    return !this.instant && atGarage(w, this.gridTruck ?? undefined) ? this.storageEl(w) : null;
   }
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
       el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, itemName(item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       el("div", { class: "inv-actions" }, ...this.itemActions(w, item, mounted)),
-      ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, mounted) : []),
+      ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
     );
   }
 
@@ -373,10 +385,10 @@ export class InventoryView {
   private itemActions(w: World, item: GridItem, mounted: boolean): HTMLElement[] {
     if (item.kind !== "part") return this.goodActions(w, item.good);
     const buttons: (HTMLElement | null)[] = [
-      mounted ? this.patchButton(w, playerVehicle(w), item.part) : null,
+      mounted ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) ? this.repairButton(w, item.part) : null,
       !mounted && partDef(item.part.defId).kind !== "core"
-        ? this.stripButton(w, playerVehicle(w), item.part)
+        ? this.stripButton(w, this.mine(w), item.part)
         : null,
     ];
     return buttons.filter((b): b is HTMLElement => b !== null);
@@ -455,7 +467,7 @@ export class InventoryView {
   }
 
   private goodActions(w: World, good: string): HTMLElement[] {
-    const me = playerVehicle(w);
+    const me = this.mine(w);
     return good === "scrap" && vehicleHasPerk(w, me, "welder") ? [this.weldButton(w, me)] : [];
   }
 
@@ -780,7 +792,7 @@ export class InventoryView {
   }
 
   private placementProblem(d: Drag): Refusal | null {
-    const me = playerVehicle(this.host.world());
+    const me = this.mine(this.host.world());
     if (d.source === "grid")
       return planItemMove(this.shown(this.host.world()), d.id, {
         x: d.item.x,
@@ -822,13 +834,13 @@ export class InventoryView {
   private dropCommand(e: PointerEvent, d: Drag): (w: World) => World {
     if (this.gridEl !== null && this.inside(e)) return (w) => this.dropOnGrid(w, d);
     const target = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest("[data-drop]")?.getAttribute("data-drop");
-    return d.source === "grid" ? offGridCommand(target, d.id) : (w) => w;
+    return d.source === "grid" ? offGridCommand(target, d.id, this.gridTruck ?? undefined) : (w) => w;
   }
 
   private dropOnGrid(w: World, d: Drag): World {
     const to = { x: d.item.x, y: d.item.y, rot: d.item.rot };
     if (d.source === "grid") return this.moveGridItem(w, d.id, to);
-    if (d.source === "storage") return takeFromStorage(w, d.id, to);
+    if (d.source === "storage") return takeFromStorage(w, d.id, to, this.gridTruck ?? undefined);
     if (d.source === "truck") return takeFromTruck(w, this.truck!, d.id, to);
     return takeLoot(
       w,
@@ -859,13 +871,13 @@ export class InventoryView {
 
   private moveGridItem(w: World, itemId: string, to: Spot): World {
     if (this.instant) return instantMoveItem(w, itemId, to);
-    if (atGarage(w)) return moveItem(w, itemId, to);
+    if (atGarage(w, this.gridTruck ?? undefined)) return moveItem(w, itemId, to, this.gridTruck ?? undefined);
     this.planMove(w, itemId, to);
     return w;
   }
 
   private planMove(w: World, itemId: string, to: Spot): void {
-    const next = planAfterMove(playerVehicle(w), this.plan, itemId, to);
+    const next = planAfterMove(this.mine(w), this.plan, itemId, to);
     if (Object.keys(next).length > 0) startRefit(w, next);
     this.plan = next;
   }
@@ -886,9 +898,9 @@ export class InventoryView {
   }
 }
 
-function offGridCommand(target: string | null | undefined, itemId: string): (w: World) => World {
-  if (target === "storage") return (w) => storePart(w, itemId);
-  return target === "dump" ? (w) => dumpItem(w, itemId) : (w) => w;
+function offGridCommand(target: string | null | undefined, itemId: string, truckId?: string): (w: World) => World {
+  if (target === "storage") return (w) => storePart(w, itemId, truckId);
+  return target === "dump" ? (w) => dumpItem(w, itemId, truckId) : (w) => w;
 }
 
 export class InventoryScreen {
@@ -947,8 +959,8 @@ export class InventoryScreen {
   }
 }
 
-export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }): HTMLElement {
-  const me = playerVehicle(w);
+export function truckChips(w: World, opts: { freeCells: boolean } = { freeCells: true }, truckId?: string): HTMLElement {
+  const me = truckFor(w, truckId);
   const mass = vehicleMass(me);
   const rated = chassisDef(me.chassisId).ratedMass;
   return el(

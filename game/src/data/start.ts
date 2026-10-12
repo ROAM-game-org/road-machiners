@@ -1,7 +1,7 @@
 
 import type { Vec } from '../sim/vec';
 import { ARRIVAL, type FarmPiece } from './arrival';
-import { CHASSIS } from './chassis';
+import { CHASSIS, HAULER_CHASSIS } from './chassis';
 import { REGION } from './region';
 import { RULES } from './rules';
 import { UNITS } from './units';
@@ -22,6 +22,8 @@ export type StartKit = {
   intro: Intro | null;
 };
 
+export type HaulerKit = { chassis: string; parts: string[]; wear: number; fuel: number; supplies: number };
+
 export type Opening = {
   log: 'stranded';
   wreck: { ahead: number; side: number };
@@ -40,6 +42,14 @@ const STANDARD_OPENING: Opening = {
   wreck: REGION.playerStart.wreck,
   condition: { stockEngine: 0.18, cabPickup: 0.3 },
   stock: { goods: { scrap: 0, parts: 3 }, parts: ['cage'] },
+};
+
+export const HAULER_KIT: HaulerKit = {
+  chassis: HAULER_CHASSIS,
+  parts: ['workhorseDiesel'],
+  wear: 0,
+  fuel: CHASSIS[HAULER_CHASSIS].fuelCap,
+  supplies: RULES.baseSupplies,
 };
 
 export const START_KITS: Record<string, StartKit> = {

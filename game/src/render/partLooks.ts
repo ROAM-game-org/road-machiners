@@ -31,12 +31,19 @@ const BASE_MODELS: Record<string, ModelName> = {
   niva: 'base_niva',
   bukhanka: 'base_bukhanka',
   lincoln: 'base_lincoln',
+  semi: 'base_semi',
 };
 
 export function baseModel(chassisId: string): ModelName {
   const base = BASE_MODELS[chassisId];
   if (!base) throw new Error(`Chassis ${chassisId} has no base model in BASE_MODELS`);
   return base;
+}
+
+const OWN_BUMPER_BASES: ReadonlySet<string> = new Set(['semi']);
+
+export function drawsOwnBumpers(chassisId: string): boolean {
+  return OWN_BUMPER_BASES.has(chassisId);
 }
 
 export const BODY_PARTS: ReadonlySet<string> = new Set(

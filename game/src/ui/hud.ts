@@ -22,7 +22,7 @@ import { bugReportUrl, featureRequestUrl, getHudReadout, getRescueReadout, overd
 import { createIcon, createSpeedDial } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch } from "./switch";
+import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
@@ -30,6 +30,7 @@ import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
+import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, say, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
@@ -99,7 +100,7 @@ export class MaxSpeedView {
   private shown = '';
 
   render(maxSpeed: number, lines: TipLine[]): void {
-    setText(this.text, t("speed.kph", { n: maxSpeed }));
+    setText(this.text, num(maxSpeed, "int"));
     const key = JSON.stringify(lines);
     if (key === this.shown) return;
     this.shown = key;
@@ -118,6 +119,7 @@ export class Hud {
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private condition = new TruckConditionView();
+  private haulerGauge = new HaulerGauge();
   private inspected = new TruckConditionView();
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
   private inspectedAimable = false;
@@ -171,7 +173,7 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel) {
-    this.truckStack.append(this.condition.root);
+    this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
     this.dialogue = new DialoguePanel(actions.dialogue);
     this.info.style.display = "none";
@@ -397,7 +399,7 @@ export class Hud {
     });
     const overdrive = createSwitch({
       on: t("hud.overdrive"),
-      off: t("hud.normal"),
+      off: t("hud.overdriveOff"),
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
@@ -415,6 +417,7 @@ export class Hud {
         title: douseReason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
       },
       t("hud.douse"),
+      keyCorner("G"),
     );
     return [headlights, overdrive, douse];
   }
@@ -429,8 +432,8 @@ export class Hud {
         onclick: () => !busy && this.actions.openCharacter(),
         title: busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"),
       },
-      createIcon("driver"),
-      marked ? t("hud.characterKeyMarked") : t("hud.characterKey"),
+      marked ? t("hud.driverMarked") : t("hud.driver"),
+      keyCorner("C"),
     );
   }
 
@@ -438,8 +441,8 @@ export class Hud {
     return el(
       "button",
       { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: t("journal.hint") },
-      createIcon("journal"),
-      t("hud.journalKey"),
+      t("hud.journal"),
+      keyCorner("J"),
     );
   }
 
@@ -447,6 +450,7 @@ export class Hud {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w));
+    this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);

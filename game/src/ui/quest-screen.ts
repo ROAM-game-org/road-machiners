@@ -1,7 +1,7 @@
 
 import { localOfQuest } from '../sim/dialogue-rules';
 import { chooseQuestOption, leaveQuest, QUESTS, questView, type QuestView } from '../sim/quests';
-import type { QuestLive, World } from '../sim/types';
+import type { QuestLine, QuestLive, World } from '../sim/types';
 import { createIcon } from './cards';
 import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
@@ -9,8 +9,8 @@ import { el, isBrowserChord, panel } from './dom';
 import { commandFailure } from './format';
 import { questArt, questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
-import { choiceButtons, drawLines, lastTagged, pagesOf } from './quest-lines';
-import { renderLine, TermTip } from './quest-text';
+import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
+import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
 import { UNITS } from '../data/units';
 
@@ -92,6 +92,7 @@ export class QuestScreen {
   private lastAsk: string | null = null;
   private error: Msg | null = null;
   private page = 0;
+  private paragraph = 0;
   private artBefore: string | null = null;
   private placeBefore: string | null = null;
   private factsBefore: Set<string> | null = null;
@@ -122,6 +123,21 @@ export class QuestScreen {
     this.shown = live;
     this.asked = null;
     this.page = 0;
+    this.paragraph = 0;
+    this.draw();
+  }
+
+  jump(picks: readonly number[], page: number): void {
+    for (const index of picks) {
+      this.render();
+      this.choose(index);
+      if (this.error) throw new Error(`Quest jump pick ${index + 1} failed: ${String(this.error)}`);
+    }
+    this.render();
+    const pages = pagesOf(questView(this.host.world(), QUESTS).lines).length;
+    if (page >= pages) throw new Error(`Quest jump page ${page + 1} is past the last page ${pages}`);
+    this.page = page;
+    this.paragraph = 0;
     this.draw();
   }
 
@@ -165,17 +181,27 @@ export class QuestScreen {
 
   private drawTalk(w: World, view: QuestView): number {
     this.artStage.clear();
-    const drawn = drawLines(w, pagesOf(view.lines)[this.page], 0, { inlineArt: true, offers: true });
+    const drawn = this.drawParagraphs(w, pagesOf(view.lines)[this.page], true);
     const ask = this.page === 0 && this.lastAsk !== null ? el('div', { class: 'talk-ask' }, verbatim(this.lastAsk)) : null;
     const text = el('div', { class: 'quest-talk' }, ask, ...drawn.nodes);
     this.root.replaceChildren(this.head(view.quest), text, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     return drawn.endMs;
   }
 
+  private drawParagraphs(w: World, lines: readonly QuestLine[], talk: boolean): Drawn {
+    const inlineArt = talk;
+    const reveal: Reveal = talk ? 'word' : 'all';
+    const paragraphs = paragraphsOf(lines);
+    const read = drawLines(w, paragraphs.slice(0, this.paragraph).flat(), 0, { inlineArt, offers: true, reveal });
+    for (const node of read.nodes) node.classList.add('qt-done');
+    const fresh = drawLines(w, paragraphs[this.paragraph] ?? [], 0, { inlineArt, offers: true, reveal });
+    return { nodes: [...read.nodes, ...fresh.nodes], endMs: fresh.endMs };
+  }
+
   private drawPage(w: World, view: QuestView): number {
     const pages = pagesOf(view.lines);
-    const shown = pages.slice(0, this.page + 1).flat();
-    const drawn = drawLines(w, pages[this.page], 0, { inlineArt: false, offers: true });
+    const shown = [...pages.slice(0, this.page).flat(), ...paragraphsOf(pages[this.page]).slice(0, this.paragraph + 1).flat()];
+    const drawn = this.drawParagraphs(w, pages[this.page], false);
     const place = lastTagged(shown, 'place') ?? this.placeBefore ?? view.scene.place;
     const text = el('div', { class: 'quest-text' }, place ? el('h2', { class: 'quest-place' }, verbatim(place)) : null, ...drawn.nodes, this.pageEnd(w, view, drawn.endMs), this.errorLine());
     this.root.replaceChildren(this.art(view.quest, lastTagged(shown, 'img') ?? this.artBefore ?? view.scene.img), text, this.side(w, view));
@@ -205,8 +231,21 @@ export class QuestScreen {
   }
 
   private pageEnd(w: World, view: QuestView, atMs: number): HTMLElement {
-    if (this.onLastPage(view)) return this.choices(w, view, atMs);
-    return el('button', { class: 'quest-next qt-unit', style: `animation-delay: ${atMs}ms`, onclick: () => this.nextPage() }, t('quest.next'));
+    if (this.onLastPage(view) && this.onLastParagraph(view)) return this.choices(w, view, atMs);
+    return el('button', { class: 'quest-next qt-unit', style: `animation-delay: ${atMs}ms`, onclick: () => this.advance() }, t('quest.next'));
+  }
+
+  private onLastParagraph(view: QuestView): boolean {
+    return this.paragraph >= paragraphsOf(pagesOf(view.lines)[this.page]).length - 1;
+  }
+
+  private advance(): void {
+    const view = questView(this.host.world(), QUESTS);
+    if (!this.onLastParagraph(view)) {
+      this.paragraph += 1;
+      return this.draw();
+    }
+    if (!this.onLastPage(view)) this.nextPage();
   }
 
   private choices(w: World, view: QuestView, atMs: number): HTMLElement {
@@ -216,6 +255,7 @@ export class QuestScreen {
 
   private nextPage(): void {
     this.page += 1;
+    this.paragraph = 0;
     this.draw();
   }
 
@@ -243,7 +283,12 @@ export class QuestScreen {
 
   private onClick(e: MouseEvent): void {
     if (!(e.target instanceof HTMLElement) || e.target.closest('button')) return;
-    this.root.classList.add('qt-done');
+    if (this.revealing()) return this.root.classList.add('qt-done');
+    this.advance();
+  }
+
+  private revealing(): boolean {
+    return !this.root.classList.contains('qt-done') && performance.now() < this.revealEnd;
   }
 
   private onKey(e: KeyboardEvent): void {
@@ -260,15 +305,16 @@ export class QuestScreen {
 
   private pickKey(index: number): void {
     const view = questView(this.host.world(), QUESTS);
-    if (!this.onLastPage(view)) return;
+    if (!this.onLastPage(view) || !this.onLastParagraph(view)) return;
     if (view.ended) return this.leave();
     if (index < view.choices.length) this.choose(index);
   }
 
   private skip(e: KeyboardEvent): void {
     e.preventDefault();
-    const revealing = !this.root.classList.contains('qt-done') && performance.now() < this.revealEnd;
-    if (revealing) this.root.classList.add('qt-done');
-    else if (!this.onLastPage(questView(this.host.world(), QUESTS))) this.nextPage();
+    if (this.revealing()) return this.root.classList.add('qt-done');
+    const view = questView(this.host.world(), QUESTS);
+    if (!this.onLastPage(view) || !this.onLastParagraph(view)) return this.advance();
+    if (!view.ended && view.choices.length === 1) this.choose(0);
   }
 }

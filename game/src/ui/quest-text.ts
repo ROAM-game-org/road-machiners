@@ -7,7 +7,7 @@ import { termText } from '../text/names';
 import { el, uiRoot } from './dom';
 
 export type Mark = { name: string; value: string | null };
-export type Span = { text: string; marks: Mark[] };
+export type Span = { text: string; marks: Mark[]; pauses: number };
 export type Reveal = 'all' | 'word' | 'char';
 export type Speed = 'slow' | 'normal' | 'fast';
 export type LineStyle = { reveal: Reveal; speed: Speed; img: string | null; speaker: string | null; place: string | null; flags: string[] };
@@ -25,6 +25,7 @@ export const MARKS: Record<string, MarkDef> = {
   i: { values: null },
   shake: { values: null },
   pop: { values: null },
+  now: { values: null },
   color: { values: QUEST_COLORS },
   term: { values: TERM_IDS },
 };
@@ -44,23 +45,43 @@ export const LINE_TAGS: Record<string, TagDef> = {
   head: { kind: 'flag' },
 };
 
-export const PLAIN_STYLE: LineStyle = { reveal: 'word', speed: 'normal', img: null, speaker: null, place: null, flags: [] };
+export const PLAIN_STYLE: LineStyle = { reveal: 'all', speed: 'normal', img: null, speaker: null, place: null, flags: [] };
 
+const PAUSE = 'pause';
 const TAG = /<(\/?)([a-z_]+)(?:=([a-z0-9_-]+))?>/g;
 
 export function parseMarkup(text: string): Span[] {
   const spans: Span[] = [];
   const open: Mark[] = [];
   let last = 0;
+  let pauses = 0;
+  const take = (chunk: string): void => {
+    if (chunk === '') return;
+    spans.push({ text: chunk, marks: [...open], pauses });
+    pauses = 0;
+  };
   for (const m of text.matchAll(TAG)) {
-    spans.push({ text: text.slice(last, m.index), marks: [...open] });
-    if (m[1]) closeMark(open, m[2], text);
-    else open.push(openMark(m[2], m[3] ?? null, text));
+    take(text.slice(last, m.index));
+    pauses += applyTag(open, m, text);
     last = m.index + m[0].length;
   }
-  spans.push({ text: text.slice(last), marks: [...open] });
+  take(text.slice(last));
   if (open.length > 0) throw new Error(`Markup <${open[open.length - 1].name}> is never closed in "${text}"`);
-  return spans.filter((s) => s.text !== '');
+  if (pauses > 0) throw new Error(`Markup <${PAUSE}> has no text after it in "${text}"`);
+  return spans;
+}
+
+function applyTag(open: Mark[], tag: RegExpMatchArray, text: string): number {
+  const [, closing, name, value] = tag;
+  if (closing) closeMark(open, name, text);
+  else if (name === PAUSE) return pauseMark(value ?? null, text);
+  else open.push(openMark(name, value ?? null, text));
+  return 0;
+}
+
+function pauseMark(value: string | null, text: string): number {
+  if (value !== null) throw new Error(`Markup <${PAUSE}> takes no value in "${text}"`);
+  return 1;
 }
 
 export function plainText(text: string): string {
@@ -119,9 +140,17 @@ export function rowCells(text: string): string[] {
 }
 
 export function revealUnits(spans: readonly Span[], style: LineStyle, startMs: number): Unit[] {
-  const step = style.reveal === 'char' ? CONFIG.questCharMs : CONFIG.questWordMs;
-  const units = spans.flatMap((span) => splitUnits(span.text, style.reveal).map((text) => ({ text, marks: span.marks })));
-  return units.map((unit, k) => ({ ...unit, delayMs: style.reveal === 'all' ? startMs : startMs + k * step * SPEEDS[style.speed] }));
+  const step = style.reveal === 'all' ? 0 : (style.reveal === 'char' ? CONFIG.questCharMs : CONFIG.questWordMs) * SPEEDS[style.speed];
+  let at = startMs;
+  return spans.flatMap((span) => {
+    at += span.pauses * CONFIG.questPauseMs;
+    const now = span.marks.some((m) => m.name === 'now');
+    return splitUnits(span.text, now ? 'all' : style.reveal).map((text) => {
+      const unit = { text, marks: span.marks, delayMs: at };
+      at += step;
+      return unit;
+    });
+  });
 }
 
 function splitUnits(text: string, reveal: Reveal): string[] {
@@ -139,7 +168,7 @@ export function renderLine(text: string, tags: readonly string[], startMs: numbe
     holder.append(...run.units.map(unitElement));
     if (holder !== line) line.append(holder);
   }
-  const endMs = units.length > 0 ? units[units.length - 1].delayMs + CONFIG.questWordMs : startMs;
+  const endMs = units.length > 0 ? units[units.length - 1].delayMs + (style.reveal === 'all' ? CONFIG.questLineMs : CONFIG.questWordMs) : startMs;
   return { el: line, endMs };
 }
 

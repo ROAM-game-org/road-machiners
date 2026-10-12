@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
-import { playerVehicle } from './damage';
+import { haulerOf, playerVehicle } from './damage';
 import { interceptPoint, spawnGroup, waveOf } from './fury-road';
 import { acrossOf, alongOf, roadHeading, roadPoint, toRoad } from './highway';
 import { furyRoadWorld } from './testkit';
@@ -14,6 +14,10 @@ function playerAt(w: World, across: number, speed: number): void {
   me.pos = roadPoint(w.seed, 0, N, across);
   me.heading = roadHeading(w.seed, N);
   me.speed = speed;
+  const hauler = haulerOf(w);
+  hauler.pos = { ...me.pos };
+  hauler.heading = me.heading;
+  hauler.speed = speed;
 }
 
 function spawnedFrom(w: World, from: 'ahead') {

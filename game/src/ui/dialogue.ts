@@ -180,7 +180,7 @@ export class DialoguePanel {
     const options = offered.map((o, i) =>
       el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) })),
     );
-    const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, [], 0).el;
+    const line = renderLine(`“${say(lineText(call.line.line, call.line.vars))}”`, ['reveal:word'], 0).el;
     line.classList.add('dialogue-line');
     this.root.replaceChildren(el('div', { class: 'dialogue-speaker' }, t('call.speaker', { who: vehicleTitle(w, npc) })), line, el('div', { class: 'dialogue-options' }, ...options));
   }

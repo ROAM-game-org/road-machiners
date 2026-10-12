@@ -69,6 +69,7 @@ export const PAL = {
   truckGlow: 0xffffff,
   reactorLight: 0x38d6e8,
   reactorGlow: 0x5cf0b4,
+  semi: { orange: 0xd9701c, stripe: 0x1e1c1a, chrome: 0xc4c9cc, amber: 0xf2a22c, white: 0xe6e4da, rib: 0xb9b8b0 },
   hull: { light: 0xc4baa6, grey: 0x8e887c, dark: 0x6e6a62, rust: 0x7e5634 },
   glass: { top: 0x9cb8ac, side: 0x6f8f88, dark: 0x4c6460 },
   scree: 0x8e5e44,
