@@ -124,7 +124,7 @@ describe.skipIf(smokeImage === undefined)('agy in the real agent container', () 
   }, 120_000);
 
   it.skipIf(smokeGeminiKey === undefined)('answers through the proxy with the Gemini key', async () => {
-    const run = proxiedShell('agy -p --dangerously-skip-permissions "Reply with the single word ok."', { AGY_MAX_RUNS: '1', GEMINI_API_KEY: smokeGeminiKey as string });
+    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', GEMINI_API_KEY: smokeGeminiKey as string });
     await run.done;
     expect(readFileSync(run.log, 'utf8').toLowerCase()).toContain('ok');
   }, 300_000);

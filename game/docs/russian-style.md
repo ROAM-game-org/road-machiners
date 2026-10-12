@@ -8,7 +8,7 @@ The Russian must read as if a Russian game writer wrote it first. Think of Ex Ma
 
 Read an entry where it shows before you change it. `npm run text:review` writes `tmp/text-review/<area>.md`, every entry in English and in Russian with sample params: a name of each gender, counts 1, 3, 5 and 1.5, and a place. Agreement and plural errors show there as wrong words in a sentence.
 
-Have agy write every new or changed Russian line, since it writes better Russian than Claude. Give it many lines in one run: `agy -p --dangerously-skip-permissions "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below, and fix what breaks them. A factory job may run agy at most `AGY_MAX_RUNS` times.
+Have agy write every new or changed Russian line, since it writes better Russian than Claude. Give it many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below, and fix what breaks them. A factory job may run agy at most `AGY_MAX_RUNS` times.
 
 Translate what the line means where the player sees it, not its words. The key tells you where it shows:
 
