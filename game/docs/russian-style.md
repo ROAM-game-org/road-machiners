@@ -8,6 +8,8 @@ The Russian must read as if a Russian game writer wrote it first. Think of Ex Ma
 
 Read an entry where it shows before you change it. `npm run text:review` writes `tmp/text-review/<area>.md`, every entry in English and in Russian with sample params: a name of each gender, counts 1, 3, 5 and 1.5, and a place. Agreement and plural errors show there as wrong words in a sentence.
 
+agy writes all Russian text, since it writes better Russian than Claude. That covers new lines, changed lines, quest twins and fixes. Never write or edit a Russian word yourself. Give agy many lines in one run: `agy --dangerously-skip-permissions -p "<request>"`. The request names this file, the English of each line, its key and where it shows, and agy reads the files it names. Then check its lines against the rules and the glossary below. When a line breaks them, run agy again with the line and the rule it breaks. agy runs on Gemini 3.8 Flash at medium effort. The factory sets it with `AGY_MODEL`. On a laptop, add `--model gemini-3.8-flash-medium`. A factory job may run agy at most `AGY_MAX_RUNS` times.
+
 Translate what the line means where the player sees it, not its words. The key tells you where it shows:
 
 - `line.*` is a driver speaking on the radio. It is speech: short, spoken, rude when the English is rude.

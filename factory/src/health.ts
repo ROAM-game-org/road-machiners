@@ -1,6 +1,13 @@
-import { readFileSync, renameSync, statfsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, statfsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export const healthFile = (home: string): string => `${home}/health`;
+
+export function requireCodexLogin(home: string): string {
+  const dir = join(home, 'codex');
+  if (!existsSync(join(dir, 'auth.json'))) throw new Error(`${dir}/auth.json is missing. Sign Codex in to ChatGPT as the factory README says.`);
+  return dir;
+}
 
 export type Health = { at: string; freeGb: number; minFreeGb: number; availableGb: number | null; minAvailableGb: number };
 
