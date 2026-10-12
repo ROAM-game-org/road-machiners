@@ -1,6 +1,4 @@
-// Shared types of the game factory. Every module codes against these, so stages, wrappers and tests agree.
 
-// The Status options of the Project board, in board order. Code that checks a column name reads this list.
 export const COLUMNS = ['Triage', 'Design', 'Implementation', 'Testing', 'Approval', 'Hardening', 'Merging', 'Done'] as const;
 export type Column = typeof COLUMNS[number];
 
@@ -25,6 +23,9 @@ export type FactoryConfig = {
   oauthToken: string;
   elevenlabsKey: string;
   sfxMaxGenerations: number;
+  geminiKey: string;
+  agyMaxRuns: number;
+  agyModel: string;
   designModel: string;
   buildModel: string;
   triageModel: string;

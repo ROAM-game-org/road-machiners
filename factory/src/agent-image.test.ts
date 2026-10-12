@@ -82,12 +82,50 @@ describe.skipIf(!smoke)('reference image in the real agent container', () => {
     const media = join(root, 'media');
     const entries = await fetchMedia({ fetch: host as typeof fetch, dir: media, texts: [{ source: 'issue body', text: asset }] });
     const log = join(root, 'agent.log');
-    const cfg = { image: process.env.FACTORY_SMOKE_IMAGE, oauthToken: process.env.CLAUDE_CODE_OAUTH_TOKEN, elevenlabsKey: '', sfxMaxGenerations: 0, home: root } as FactoryConfig;
+    mkdirSync(join(root, 'codex'));
+    writeFileSync(join(root, 'codex/auth.json'), '{}');
+    const cfg = { image: process.env.FACTORY_SMOKE_IMAGE, oauthToken: process.env.CLAUDE_CODE_OAUTH_TOKEN, elevenlabsKey: '', sfxMaxGenerations: 0, geminiKey: '', agyMaxRuns: 1, home: root } as FactoryConfig;
     const prompt = `${mediaSection(entries)}\n\nLook at the reference image. Answer with exactly two lines. Line 1: the one word name of its main color (red, green, blue, ...). Line 2: the name of every skill you can use that mentions Blender.`;
     await dockerContainer(realRun, cfg, null).agent({ clone, dir: 'game', model: 'haiku', prompt, log, openNetwork: true, mediaDir: media });
     const text = readFileSync(log, 'utf8').toLowerCase();
     expect(text).toContain('green');
     expect(text).toContain('blender-image-to-3d');
     rmSync(root, { recursive: true, force: true });
+  }, 300_000);
+});
+
+const smokeImage = process.env.FACTORY_SMOKE_IMAGE;
+const smokeCodexHome = process.env.FACTORY_SMOKE_CODEX_HOME;
+const smokeGeminiKey = process.env.GEMINI_API_KEY;
+
+function proxiedShell(script: string, env: Record<string, string>, mounts: Record<string, string> = {}): { clone: string; log: string; done: Promise<void> } {
+  const root = mkdtempSync(join(tmpdir(), 'factory-smoke-'));
+  const clone = join(root, 'clone');
+  mkdirSync(join(clone, 'game'), { recursive: true });
+  chmodSync(join(clone, 'game'), 0o777);
+  const log = join(root, 'shell.log');
+  const cfg = { image: smokeImage, home: root, gpu: false } as FactoryConfig;
+  return { clone, log, done: dockerContainer(realRun, cfg, null).shell(clone, script, log, env, mounts) };
+}
+
+describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex in the real agent container', () => {
+  it('draws a picture through the proxy with the mounted ChatGPT login, and saves it though the call asks for its sandbox', async () => {
+    const run = proxiedShell('echo "Generate one small image of a red square and save it as square.png in this folder." | codex exec -s workspace-write --skip-git-repo-check -', {}, { [smokeCodexHome as string]: '/home/pwuser/.codex' });
+    await run.done;
+    expect(readFileSync(join(run.clone, 'game/square.png')).subarray(1, 4).toString()).toBe('PNG');
+  }, 600_000);
+});
+
+describe.skipIf(smokeImage === undefined)('agy in the real agent container', () => {
+  it('stops at the run after AGY_MAX_RUNS', async () => {
+    const run = proxiedShell('agy --version && ! agy --version', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium' });
+    await run.done;
+    expect(readFileSync(run.log, 'utf8')).toContain('run 2 exceeds AGY_MAX_RUNS=1');
+  }, 120_000);
+
+  it.skipIf(smokeGeminiKey === undefined)('answers through the proxy with the Gemini key', async () => {
+    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium', GEMINI_API_KEY: smokeGeminiKey as string });
+    await run.done;
+    expect(readFileSync(run.log, 'utf8').toLowerCase()).toContain('ok');
   }, 300_000);
 });

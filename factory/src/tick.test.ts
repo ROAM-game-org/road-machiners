@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -282,6 +282,8 @@ type Harness = { ctx: Ctx; sent: string[]; labels: string[]; removed: string[]; 
 
 function harness(job: Job | null, alive: boolean, cards: Card[] = [], comments: IssueComment[] = [], devHead = DEV): Harness {
   const dir = mkdtempSync(join(tmpdir(), 'tick-'));
+  mkdirSync(join(dir, 'codex'));
+  writeFileSync(join(dir, 'codex/auth.json'), '{}');
   const statePath = join(dir, 'state.json');
   writeState(statePath, state({ jobs: job ? [job] : [] }));
   const sent: string[] = [];
@@ -412,6 +414,13 @@ describe('tick', () => {
     await tick(h.ctx, '/code', h.deps);
     expect(h.spawned).toEqual([]);
     expect(existsSync(join(h.ctx.cfg.home, 'work', 'issue-9'))).toBe(false);
+  });
+
+  it('stops the tick before it starts a job when Codex has no login', async () => {
+    const h = harness(null, true, [card(8, 'Design')]);
+    rmSync(join(h.ctx.cfg.home, 'codex'), { recursive: true });
+    await expect(tick(h.ctx, '/code', h.deps)).rejects.toThrow('codex/auth.json is missing');
+    expect(h.spawned).toEqual([]);
   });
 
   it('keeps the clone of a running job and removes the clone of a Done card', async () => {

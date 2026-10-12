@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { GUARD_ROUND } from './agent-check';
 import { must } from './exec';
+import { requireCodexLogin } from './health';
 import { MEDIA_MOUNT } from './media';
 import { jobLabel } from './jobs';
 import { closeRun, closeRunFromTranscript, openRun, recordPeak, runProjectsDir, usageFromOutput } from './ledger';
@@ -44,6 +45,11 @@ const NO_PROXY = 'localhost,127.0.0.1';
 
 const NPM_CACHE = '/home/pwuser/.npm';
 const SESSIONS_MOUNT = '/home/pwuser/.claude/projects';
+const CODEX_HOME = '/home/pwuser/.codex';
+
+function codexMount(home: string): string[] {
+  return ['-v', `${requireCodexLogin(home)}:${CODEX_HOME}`];
+}
 
 function mountArgs(cfg: FactoryConfig, clone: string, dir: string, mediaDir?: string): string[] {
   const cache = `${cfg.home}/npm-cache`;
@@ -177,11 +183,12 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
       const session = recordedSession(cfg, jobId, issueSession);
       const env = {
         CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
+        GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
         CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes),
       };
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const args = [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codexMount(cfg.home), ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');
