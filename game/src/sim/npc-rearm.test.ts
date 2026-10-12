@@ -267,6 +267,31 @@ describe('a defeated raider', () => {
     expect(itemIds(v)).toEqual(items);
   });
 
+  it('walks from its home pad to its lie-up spot unseen without being pulled back to the pad', () => {
+    const { w, v } = retreating();
+    const pad = sitePads(npcHomeSite(TEST_MAP, v)!)[0];
+    v.pos = { ...pad };
+    v.defeat!.unseen = RULES.retreatTeleportTurns;
+    thinkNpc(w, v);
+    resolveNpcActivities(w);
+    const spot = topGoal(v)!.destination!;
+    expect(topGoal(v)?.kind).toBe('rearm');
+    expect(dist(pad, spot)).toBeGreaterThan(NPC_BEHAVIOR.lieUp.reach + 1);
+    for (let turn = 0; turn < 100 && !liesUp(v); turn++) {
+      const before = { ...v.pos };
+      advanceNpcKnockouts(w);
+      expect(v.pos).toEqual(before);
+      const left = dist(v.pos, spot);
+      const step = Math.min(1, left);
+      v.pos = { x: v.pos.x + ((spot.x - v.pos.x) / left) * step, y: v.pos.y + ((spot.y - v.pos.y) / left) * step };
+      w.turn++;
+      thinkNpc(w, v);
+      resolveNpcActivities(w);
+    }
+    expect(liesUp(v)).toBe(true);
+    expect(isDefeated(v)).toBe(true);
+  });
+
   it('mints at most one fresh loadout per camp refill time however often it is knocked out and stripped', () => {
     const { w, v } = retreating();
     v.pos = { ...sitePads(npcHomeSite(TEST_MAP, v)!)[0] };
