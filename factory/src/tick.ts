@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { sweepLogs, sweepTestCache, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
-import { freeGb } from './health';
+import { freeGb, requireCodexLogin } from './health';
 import { failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
 import { recordJob } from './ledger';
@@ -472,6 +472,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);
   }
+  requireCodexLogin(ctx.cfg.home);
   await ctx.repo.fetch();
   const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx) };
   dropStaleCandidate(ctx, heads.release);

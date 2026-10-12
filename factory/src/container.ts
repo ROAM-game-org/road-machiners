@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { appendFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { GUARD_ROUND } from './agent-check';
 import { must } from './exec';
+import { requireCodexLogin } from './health';
 import { MEDIA_MOUNT } from './media';
 import { jobLabel } from './jobs';
 import { closeRun, closeRunFromTranscript, openRun, recordPeak, runProjectsDir, usageFromOutput } from './ledger';
@@ -47,9 +48,7 @@ const SESSIONS_MOUNT = '/home/pwuser/.claude/projects';
 const CODEX_HOME = '/home/pwuser/.codex';
 
 function codexMount(home: string): string[] {
-  const dir = join(home, 'codex');
-  if (!existsSync(join(dir, 'auth.json'))) throw new Error(`${dir}/auth.json is missing. Sign Codex in to ChatGPT as the factory README says.`);
-  return ['-v', `${dir}:${CODEX_HOME}`];
+  return ['-v', `${requireCodexLogin(home)}:${CODEX_HOME}`];
 }
 
 function mountArgs(cfg: FactoryConfig, clone: string, dir: string, mediaDir?: string): string[] {
