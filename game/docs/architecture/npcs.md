@@ -35,7 +35,7 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent and replac
 - Lawmen, the Bowl Farmers and Nose Army patrols, are hostile to raiders loot or not, and `callLawmen()` in `src/sim/combat.ts` sets every lawman in sight on whoever fires the first shot at a neutral NPC or starts robbing one.
 - A crash between trucks at peace starts no feud. It leaves the NPC victim a grievance, which it forgives or answers with a feud.
 - A `combat` state runs from an aggressor to its target. `recordAttack()` and `noteEngagements()` (fight goals in sight) in `src/sim/combat.ts` start or refresh it, it lasts `STATE_TURNS.combat` turns, and it breaks once the two trucks are no longer hostile. `inCombat()` and `inCombatWithOther()` in `src/sim/combat.ts` are the one test for whether a driver is in combat. A hostile in sight is a warning only, so no other code decides combat from sight.
-- A state kind that `binds` is a deal. `boundTo()` and `givesWord()` in `src/sim/states.ts` answer who gave whom its word. The two sides never rob each other. The holder starts no decision `src/sim/npc-decisions.ts` marks as a venture, except about its partner. An attack by a partner gives the victim revenge.
+- A state kind that `binds` is a deal. `boundTo()` and `givesWord()` in `src/sim/states.ts` answer who gave whom its word. The two sides never rob each other, and `canRob()` also refuses a truce partner. The holder starts no decision `src/sim/npc-decisions.ts` marks as a venture, except about its partner. An attack by a partner gives the victim revenge.
 
 ## Combat
 

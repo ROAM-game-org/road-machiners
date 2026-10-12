@@ -584,7 +584,7 @@ export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
   tow: {}, patch: {}, trade: {}, aid: {}, combat: {}, lootWarning: {},
-  truce: { preySeen: { rob: { mul: 0.005 } } },
+  truce: {},
   grievance: {},
   strayFire: {},
   plea: { parley: { truce: { mul: 0.01 }, beg: { mul: 0.01 } } },

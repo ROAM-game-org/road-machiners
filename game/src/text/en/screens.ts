@@ -373,8 +373,6 @@ export const SCREENS = {
   'icon.supplies': 'Supplies',
   'icon.driver': 'Driver',
   'icon.truck': 'Truck inventory',
-  'icon.cannon': 'Forward cannon',
-  'icon.mg': 'MG turret',
   'icon.engine': 'Engine',
   'icon.armor': 'Armor',
   'icon.cargo': 'Cargo',

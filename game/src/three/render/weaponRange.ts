@@ -12,7 +12,7 @@ import { vehicleStats, type MountedWeapon } from '../../sim/stats';
 import { markHeightAt, type Terrain } from '../../sim/terrain';
 import type { Vehicle, World } from '../../sim/types';
 import { DEG, type Vec } from '../../sim/vec';
-import { createIcon } from '../../ui/cards';
+import { createBareItemIcon } from '../../ui/cards';
 import { el } from '../../ui/dom';
 import type { CameraRig } from './camera';
 import { READY_ARC_BIT, SPENT_ARC_BIT } from './models';
@@ -180,7 +180,7 @@ export class HoverArcsView {
       const id = arc.weapon.part.id;
       if (this.icons.has(id)) continue;
       const number = el('span', { class: 'arc-icon-slot' }, num(arc.slot, 'int'));
-      const node = el('div', { class: 'arc-icon' }, createIcon(arc.weapon.def.look), number);
+      const node = el('div', { class: 'arc-icon' }, createBareItemIcon(arc.weapon.part.defId), number);
       node.style.width = `${ICON_PX}px`;
       node.style.height = `${ICON_PX}px`;
       node.style.opacity = `${ICON_ALPHA}`;

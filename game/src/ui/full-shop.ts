@@ -5,11 +5,11 @@ import { chargeFor, gunFor } from "../sim/factory";
 import { MOUNT_CELLS } from "../sim/grid";
 import type { PartInstance, World } from "../sim/types";
 import { maxHp } from "../sim/wear";
-import { compareBase, createIcon, partCard } from "./cards";
+import { compareBase, partCard } from "./cards";
 import { devEl as el, panel } from "./dom";
 import type { UiHost } from "./host";
 import { InventoryView, truckChips } from "./inventory";
-import { FILTER_ICON, STOCK_FILTERS, type StockFilter } from "./town";
+import { filterIcon, STOCK_FILTERS, type StockFilter } from "./town";
 
 const KIND_ORDER = STOCK_FILTERS.filter((f): f is Exclude<StockFilter, "all"> => f !== "all");
 
@@ -115,7 +115,7 @@ export class FullShopScreen {
             this.render();
           },
         },
-        f === "all" ? "All" : createIcon(FILTER_ICON[f]),
+        f === "all" ? "All" : filterIcon(f),
         el("span", { class: "count" }, `${this.parts.filter((d) => f === "all" || d.kind === f).length}`),
       ),
     );

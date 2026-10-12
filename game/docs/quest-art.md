@@ -4,7 +4,7 @@ Quest pictures set the mood of a scene. They do not need to show every detail th
 
 ## Prompt
 
-A prompt is the style block, word for word, followed by a scene block. Attach `docs/concepts/quest-art-style.jpg` as a style reference when the image model takes one. It holds the look better than words.
+A prompt is the style block, word for word, followed by a scene block. Attach the rim picture `public/quest-art/arrival_rim.webp`, saved as PNG, as the style reference. It holds the look better than words.
 
 ```
 Style: a matte plein-air painting study in thin dry-brush gouache on canvas-textured paper. Short, flat, angular strokes follow the forms, and the canvas weave shows through the thin paint. Edges are loose, and detail is suggested more than rendered. Earthy palette of ochre, rust, burnt sienna and warm browns, with cool blue-violet shadows.
@@ -14,16 +14,28 @@ The style block names only the medium, the brushwork and the palette. Light, moo
 
 Rules for the scene block:
 
+- A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place. Read the map like tabletop miniatures: a few models stand for a bigger, busier place, so paint the place they stand for, not a one to one copy.
 - Describe the place, the light and the mood. Name only the few objects that carry the scene.
 - Prefer plain views at eye level. Stock shots, like a hero on a cliff with binoculars, read as AI art.
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
+- Truck guns sit on motor-driven turrets that are fired from the cab. Say that nobody stands at the gun, or the model draws a gunner holding the grips.
 - Keep words like "oil", "impasto" or "photo" out. They pull the picture away from the dry gouache look.
+- Keep the scene block short. Each extra demand makes the model garble another one.
+- Show guns in plain side profile. A barrel aimed at the viewer comes out as two barrels.
 
 The scene block for the farmhouse in `intro_arrival`:
 
 ```
 Scene: inside a small abandoned farmhouse whose roof is gone. Hard midday sun falls straight in and cuts sharp shadows from the bare wall tops across the floor. Nothing is left overhead, so only the broken walls cast shadows. Wind-blown sand has drifted into the corners. Only a few things are left: a plain wooden table, a cold iron stove, and a narrow metal cot with no blanket. No people. The view is from the doorway, at standing eye height. Quiet, lonely mood.
 ```
+
+## Generate
+
+Codex draws the picture with gpt-image through the ChatGPT login, so it needs no API key. Pipe a request to `codex exec -s workspace-write -i <style reference png> -` that asks for one 16:9 image from the prompt and names the PNG to save under `tmp/`. Run three takes in parallel and pick among them.
+
+Check every take in close crops before anyone sees it. Guns, hands and anything seen through bars or slats break most often, and a thing behind bars can come out painted over them.
+
+Every round makes a new image from the style reference only. Never attach, describe or edit an earlier take, since edits drift and break layering. Write the scene block fresh each round. Small additions to the last prompt are fine only when the picture is almost right, because a prompt grown by patches gets long and garbled.
 
 ## Post-process
 

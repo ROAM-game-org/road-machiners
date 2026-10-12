@@ -3,8 +3,8 @@
    docs/ui.md explains each group and ui.html shows them. src/ui/tokens.ts reads this file for Three.js overlays. */
 @font-face {
   font-family: "DSEG14 Classic";
-  src: url("dseg/fonts/DSEG14-Classic/DSEG14Classic-BoldItalic.woff2") format("woff2");
-  font-weight: bold;
+  src: url("dseg/fonts/DSEG14-Classic/DSEG14Classic-Italic.woff2") format("woff2");
+  font-weight: normal;
   font-style: italic;
   font-display: block;
 }

@@ -26,9 +26,6 @@ const ART = {
     '<circle cx="20" cy="12" r="7"/><path d="M7 35v-6q13-15 26 0v6M17 27h6M20 24v6"/>',
   truck:
     '<path d="M10 5h20v31H10zM12 10h16v9H12zM12 25h16M12 30h16M6 8v8M34 8v8M6 27v8M34 27v8"/>',
-  cannon:
-    '<path d="M5 25l10-5h14v12H7zM23 22L34 5l5 3-11 19M11 32v5M23 32v5"/>',
-  mg: '<ellipse cx="19" cy="29" rx="14" ry="7"/><path d="M12 28V17h15v11M22 18L36 7M25 21L39 10"/>',
   engine:
     '<path d="M8 8h24v25H8zM4 15h4M32 15h5M13 4v33M20 4v33M27 4v33M7 14h26M7 26h26"/>',
   armor: '<path d="M6 6h28v23L20 37 6 29zM11 11h18v15l-9 5-9-5z"/>',
@@ -175,6 +172,11 @@ export function createItemIcon(id: string): HTMLElement {
   const icon = sheetIcon(cell, "icon item-icon", cell.box);
   icon.setAttribute("style", toneStyle(id));
   return icon;
+}
+
+export function createBareItemIcon(id: string): HTMLElement {
+  const cell = itemIconCell(id);
+  return sheetIcon(cell, "icon item-icon bare", cell.box);
 }
 
 export function toneStyle(id: string): string {

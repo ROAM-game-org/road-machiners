@@ -62,6 +62,7 @@ import FORMAT_2_56 from './save-fixtures/format-2-56.json';
 import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
+import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1276,23 +1277,40 @@ describe('save migration 58 to 59', () => {
 });
 
 describe('save migration 59 to 60', () => {
-  it('drops a Fury Road run without a hauler and keeps the mode, for the load to rescue it', () => {
-    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59));
+  it('starts each in-flight duty leg where the truck stands on the save turn, and leaves other goals alone', () => {
+    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59)) as typeof FORMAT_2_59;
+    const leg = (id: string) => ({ from: FORMAT_2_59.vehicles.find((v) => v.id === id)!.pos, turn: 820 });
+    const goalsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.goals;
+    const before = (id: string) => FORMAT_2_59.vehicles.find((v) => v.id === id)!.brain!.goals;
 
-    expect(next).toEqual({ ...FORMAT_2_59, furyRoad: null });
+    expect(goalsOf('v2')).toEqual([{ ...before('v2')[0], leg: leg('v2') }, before('v2')[1]]);
+    expect(goalsOf('v3')).toEqual([{ ...before('v3')[0], leg: leg('v3') }]);
+    expect(goalsOf('v4')).toEqual(before('v4'));
+    expect(goalsOf('v5')).toEqual([{ ...before('v5')[0], leg: leg('v5') }]);
+    expect(goalsOf('v6')).toEqual(before('v6'));
+    expect(next.vehicles[0]).toEqual(FORMAT_2_59.vehicles[0]);
+    expect(next.turn).toBe(820);
+  });
+});
+
+describe('save migration 60 to 61', () => {
+  it('drops a Fury Road run without a hauler and keeps the mode, for the load to rescue it', () => {
+    const next = MIGRATIONS[60](structuredClone(FORMAT_2_60));
+
+    expect(next).toEqual({ ...FORMAT_2_60, furyRoad: null });
     expect((next.setup as { mode: string }).mode).toBe('furyRoad');
   });
 
   it('keeps a run that has a hauler as it is', () => {
-    const run = { ...structuredClone(FORMAT_2_59.furyRoad), hauler: { id: 'v9', alarmUntil: null } };
-    const world = { ...structuredClone(FORMAT_2_59), furyRoad: run };
+    const run = { ...structuredClone(FORMAT_2_60.furyRoad), hauler: { id: 'v9', alarmUntil: null } };
+    const world = { ...structuredClone(FORMAT_2_60), furyRoad: run };
 
-    expect(MIGRATIONS[59](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[60](structuredClone(world))).toEqual(world);
   });
 
   it('keeps a Roaming world as it is', () => {
-    const roaming = { ...structuredClone(FORMAT_2_59), setup: { ...FORMAT_2_59.setup, mode: 'roaming' }, furyRoad: null };
+    const roaming = { ...structuredClone(FORMAT_2_60), setup: { ...FORMAT_2_60.setup, mode: 'roaming' }, furyRoad: null };
 
-    expect(MIGRATIONS[59](structuredClone(roaming))).toEqual(roaming);
+    expect(MIGRATIONS[60](structuredClone(roaming))).toEqual(roaming);
   });
 });
