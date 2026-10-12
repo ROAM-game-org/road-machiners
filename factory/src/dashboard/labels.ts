@@ -9,7 +9,7 @@ const columns: Record<Column, string> = {
 };
 const stages: Record<JobStage, string> = {
   triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', harden: 'Harden', checks: 'Test', approve: 'Approval', merge: 'Merge', 'catch-up': 'Merge catch-up',
-  playtest: 'Playtest', adhoc: 'Private task', change: 'Factory change', candidate: 'Candidate', release: 'Release', ship: 'Ship', remove: 'Removal',
+  playtest: 'Playtest', adhoc: 'Private task', change: 'Factory change', candidate: 'Candidate', release: 'Release', ship: 'Ship', remove: 'Removal', add: 'Addition',
   incident: 'Incident', dev: 'Dev build', waste: 'Review',
 };
 const queues: Record<Queue, string> = { branch: 'Branch', triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', test: 'Test' };

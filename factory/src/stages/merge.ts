@@ -45,7 +45,7 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   await settle(ctx, base, cards);
 }
 
-export type Landing = { stage: 'merge' | 'ship'; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
+export type Landing = { stage: 'merge' | 'ship' | 'add'; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;

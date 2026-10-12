@@ -44,6 +44,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   ship: { usage: 'ship', help: 'ship the open release now', build: () => ({ action: 'ship' }) },
   cut: { usage: 'cut', help: 'cut a release now', build: () => ({ action: 'cut' }) },
   remove: { usage: 'remove N', help: 'take a feature out of the release', build: ([n]) => ({ action: 'remove', issue: number(n) }) },
+  add: { usage: 'add N', help: "bring an approved issue already merged into dev into the open release. Picks only the issue's dev merge, runs the merge checks, and drops the current candidate. Does nothing when the release already holds it", build: ([n]) => ({ action: 'add', issue: number(n) }) },
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
@@ -197,9 +198,11 @@ function queues(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
   const removals = state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`);
+  const additions = state.pendingAdditions.map((row) => `#${row.issue} by ${row.by}`);
   const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}`);
   console.log(`approval: ${approvals.join(', ') || 'none'}`);
   console.log(`removal: ${removals.join(', ') || 'none'}`);
+  console.log(`addition: ${additions.join(', ') || 'none'}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
   console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);

@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path';
 import { withLockSync } from './lock';
 import type { FactoryState, Job, JobStage, PlaytestState, ReleaseState } from './types';
 
-export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, pendingChanges: [], pendingIncidents: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null };
+export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingAdditions: [], pendingApprovals: {}, approvedResolving: {}, pendingChanges: [], pendingIncidents: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null };
 
 const STATE_LOCK_MS = 30_000;
 
@@ -61,6 +61,7 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
   const pendingShip = stage === 'ship' ? null : state.pendingShip;
   const first = stage === 'remove' ? state.pendingRemovals.findIndex((item) => item.issue === issue) : -1;
   const pendingRemovals = state.pendingRemovals.filter((_, index) => index !== first);
+  const pendingAdditions = stage === 'add' ? state.pendingAdditions.filter((item) => item.issue !== issue) : state.pendingAdditions;
   return {
     ...state,
     pendingApprovals,
@@ -68,6 +69,7 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
     pendingIncidents,
     pendingShip,
     pendingRemovals,
+    pendingAdditions,
     retried: state.retried.filter((key) => key !== orderKey(stage, issue)),
   };
 }
@@ -75,6 +77,7 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
 export function isQueued(state: FactoryState, stage: JobStage, issue: number | null): boolean {
   if (stage === 'approve') return Object.hasOwn(state.pendingApprovals, String(issue));
   if (stage === 'remove') return state.pendingRemovals.some((item) => item.issue === issue);
+  if (stage === 'add') return state.pendingAdditions.some((item) => item.issue === issue);
   if (stage === 'ship') return state.pendingShip !== null;
   if (stage === 'incident') return issue !== null && state.pendingIncidents.includes(issue);
   return false;

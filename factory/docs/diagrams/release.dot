@@ -10,6 +10,7 @@ digraph release {
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=back, weight=0];
   T -> P [label="new release task"];
   B -> P [label="remove #N"];
+  G -> P [label="factory add N:\npick a dev merge,\nmerge checks"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=forward, weight=0];
   G -> G [label="fix and replay"];
   S -> S [label="fix failed checks"];

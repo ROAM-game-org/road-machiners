@@ -167,6 +167,14 @@ describe('chooseJobs during a release', () => {
     expect(chooseJobs(s, [], NOW, CFG)).toEqual([]);
   });
 
+  it('runs one addition at a time after a removal, and never beside a ship or a removal', () => {
+    const additions = [{ issue: 380, by: 'Ann', text: 't' }, { issue: 381, by: 'Ann', text: 't' }];
+    expect(chooseJobs({ ...open, pendingAdditions: additions, pendingRemovals: [{ issue: 8, by: 'Ann', text: 't' }] }, [], NOW, CFG)).toEqual([{ stage: 'remove', issue: 8 }]);
+    expect(chooseJobs({ ...open, pendingAdditions: additions }, [], NOW, CFG)).toEqual([{ stage: 'add', issue: 380 }]);
+    expect(chooseJobs({ ...open, jobs: [running('ship', open.release!.issue)], pendingAdditions: additions }, [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs({ ...open, jobs: [running('add', 380)], pendingRemovals: [{ issue: 8, by: 'Ann', text: 't' }] }, [], NOW, CFG)).toEqual([]);
+  });
+
   it('ignores a queued ship when no release is open', () => {
     expect(chooseJobs(state({ pendingShip: 'Ann' }), [], NOW, CFG)).toEqual([]);
   });

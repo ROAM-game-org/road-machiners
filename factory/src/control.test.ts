@@ -118,7 +118,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'add', issue: 4 }, { action: 'drop', queue: 'addition', id: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -551,9 +551,28 @@ describe('ship, cut and remove', () => {
   });
 });
 
+describe('add', () => {
+  it('queues an addition for a member once, with the reason as its text', async () => {
+    seed({ release: RELEASE });
+    await applyControl(fakeCtx(), command({ action: 'add', issue: 380 }));
+    expect(readState(statePath).pendingAdditions).toEqual([{ issue: 380, by: 'Ann', text: 'the gate failed on load' }]);
+    expect(calls.find((call) => call.startsWith('comment 380'))).toContain('release 2026-09-29 is queued');
+    await expect(applyControl(fakeCtx(), command({ action: 'add', issue: 380 }))).rejects.toThrow('already queued');
+    expect(readState(statePath).pendingAdditions).toHaveLength(1);
+  });
+
+  it('refuses Hermes, a closed release and the tracking issue', async () => {
+    await expect(applyControl(fakeCtx(), command({ action: 'add', issue: 380 }))).rejects.toThrow('No release is open');
+    seed({ release: RELEASE });
+    await expect(applyControl(fakeCtx(), command({ action: 'add', issue: 380, by: 'hermes' }))).rejects.toThrow('--by <member>');
+    await expect(applyControl(fakeCtx(), command({ action: 'add', issue: 20 }))).rejects.toThrow('tracking issue');
+    expect(readState(statePath).pendingAdditions).toEqual([]);
+  });
+});
+
 describe('drop', () => {
   const full = (): void => seed({
-    pendingApprovals: { 4: 'Bob', 5: 'Bob' }, pendingRemovals: [{ issue: 7, by: 'b', text: 't' }, { issue: 8, by: 'b', text: 't' }],
+    pendingApprovals: { 4: 'Bob', 5: 'Bob' }, pendingRemovals: [{ issue: 7, by: 'b', text: 't' }, { issue: 8, by: 'b', text: 't' }], pendingAdditions: [{ issue: 9, by: 'b', text: 't' }],
     pendingShip: 'Bob', pendingChanges: [{ id: 100, text: 'x', by: 'b' }, { id: 101, text: 'y', by: 'b' }], pendingIncidents: [30, 31],
   });
 
@@ -561,23 +580,25 @@ describe('drop', () => {
     full();
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'removal', id: 7 }));
+    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'addition', id: 9 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'ship', id: null }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'change', id: 100 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'incident', id: 30 }));
     const state = readState(statePath);
     expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(state.pendingRemovals.map((item) => item.issue)).toEqual([8]);
+    expect(state.pendingAdditions).toEqual([]);
     expect(state.pendingShip).toBeNull();
     expect(state.pendingChanges.map((item) => item.id)).toEqual([101]);
     expect(state.pendingIncidents).toEqual([31]);
-    expect(ctrlLines()).toHaveLength(5);
+    expect(ctrlLines()).toHaveLength(6);
     expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Ann');
   });
 
   it('throws on a miss and changes nothing (IV4)', async () => {
     full();
     const before = readState(statePath);
-    for (const [queue, id] of [['approval', 99], ['removal', 99], ['change', 99], ['incident', 99]] as const) {
+    for (const [queue, id] of [['approval', 99], ['removal', 99], ['addition', 99], ['change', 99], ['incident', 99]] as const) {
       await expect(applyControl(fakeCtx(), command({ action: 'drop', queue, id }))).rejects.toThrow(String(id));
     }
     seed({ ...before, pendingShip: null });

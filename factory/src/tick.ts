@@ -27,7 +27,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'add', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -42,6 +42,7 @@ function queued(state: FactoryState): JobPick[] {
   return [
     ...approvals.map((issue) => ({ stage: 'approve' as const, issue })),
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
+    ...state.pendingAdditions.map((addition) => ({ stage: 'add' as const, issue: addition.issue })),
     ...ship,
     ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
   ];
@@ -190,7 +191,7 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
   if (group !== undefined && running.some((job) => group.includes(job.stage))) reasons.push('issue-running');
   return reasons;
 }
-const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
+const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove', 'add'], ['incident'], ['catch-up']];
 function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
   const reasons: WaitReason[] = [];
   if (card.labels.includes(STUCK_LABEL)) reasons.push('failed');
@@ -305,7 +306,7 @@ async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
 
 export function timeoutOf(cfg: FactoryConfig, stage: JobStage): number {
   if (stage === 'playtest') return cfg.playtestTimeoutMinutes;
-  if (stage === 'merge' || stage === 'ship') return cfg.mergeTimeoutMinutes;
+  if (stage === 'merge' || stage === 'ship' || stage === 'add') return cfg.mergeTimeoutMinutes;
   const queue = QUEUE_OF[stage];
   const minutes: Record<Queue, number> = {
     triage: cfg.triageTimeoutMinutes,

@@ -13,11 +13,11 @@ digraph committee {
   ready [label="Plugin checks the text;\nimages never block"];
   node [fillcolor="#eef2ff", color="#6366f1"];
   approveJob [label="approve job"]; closed [label="Issue closed\nas wont-do"]; answer [label="Answer in chat\ncard stays"];
-  patchJob [label="Card to Testing\nthe reply is the task"]; design [label="Card to Design"]; shipJob [label="ship job"]; removeJob [label="remove job"];
+  patchJob [label="Card to Testing\nthe reply is the task"]; design [label="Card to Design"]; shipJob [label="ship job"]; removeJob [label="remove job"]; addJob [label="add job\npicks a dev merge\ninto the release"];
   newTask [label="release-task issue\nin Design"]; changeJob [label="change job"]; adhocJob [label="adhoc job"];
   approve -> approveJob; deny -> closed;
   reply -> hermes; hermes -> answer [label="answer"]; hermes -> ready [label="patch or\nredesign"];
   forced -> ready; ready -> patchJob [label="patch"]; ready -> design [label="redesign"]; ready -> member [label="text too short\nnothing queued"];
   ship -> shipJob; remove -> removeJob; rtask -> newTask;
-  change -> changeJob; ask -> hermes2; hermes2 -> adhocJob [label="task"]; hermes2 -> changeJob [label="factory change"];
+  change -> changeJob; ask -> hermes2; hermes2 -> adhocJob [label="task"]; hermes2 -> changeJob [label="factory change"]; hermes2 -> addJob [label="add #N for\na member"];
 }

@@ -73,7 +73,7 @@ The public post of a shipped release has its own position in `releasePost`, besi
 
 `release.tasks` lists every release task the factory created or labeled: the cut's cleanup tasks, a reply's task and a fix triage labeled. Each is written before its card or label goes on the board, since the board lists a write up to a minute late. `factory release` prints them as `recorded tasks`.
 
-`factory audit` and `card N` flag five drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
+`factory audit` and `card N` flag six drifts: an open release whose tracking card is missing, a recorded release task missing from the board, a pending ship with no current candidate post, a pending addition with no open release, a candidate post of a commit the playtest did not pass, and a release post with a draft post id but no draft text or the reverse. `factory release` flags nothing.
 
 The release tracking card has the label `release`. It waits in Approval for the whole release, and its post is `release.postId`. It never shows card drift.
 
@@ -83,10 +83,11 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press. Drop with `drop approval <issue>`.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
+- `pendingAdditions`: approved issues already merged into `dev` to bring into the open release. Fed by `add N`. Drop with `drop addition <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
-- `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
+- `retried`: approve, remove, add, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
 ## Health records
 
@@ -113,6 +114,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - A running job whose stage differs from the stage the position runs. The stage of `post` is checks, of `approval` is approve, and `done` runs none.
 - An open release whose tracking card is missing.
 - A pending ship with no current candidate post.
+- A pending addition with no open release.
 - A candidate post of a commit the playtest did not pass.
 - A held card in Done, a held card with a running job, or a held issue off the board. The line names who held it and why.
 
@@ -131,7 +133,8 @@ Write, each with `--by` and `--reason`:
 - `ship` ships the open release.
 - `cut` cuts a release.
 - `remove N` takes a feature out of the release.
-- `drop <approval|removal|ship|change|incident> <id>` drops one queued entry.
+- `add N` brings an approved issue that merged into `dev` after the cut into the open release. The add job needs an open release that is not shipping, and the issue open with `release-candidate`. It takes the one unreverted `Merge issue #N:` merge on `dev` since `main`, and refuses none or several. It does nothing when the release already holds that commit: as an ancestor, as a `Transferred-from:` trailer, or as a cherry-pick that changes nothing. Otherwise it cherry-picks the merge with `-m 1` in a work clone of the release, so no other `dev` work comes along, and an agent resolves a conflict. It wraps the pick in a `Merge issue #N: <title>` merge with the trailer `Transferred-from: <dev merge>`, so the changelog, Ship and Remove see a normal feature. The merge checkpoint checks it, and the job pushes it as the merge queue does. A pushed addition drops `release.postId` and `pendingShip`, and takes the issue out of `release.removed`. The playtest then plays the new head. It comments the dev commit and the new head on the issue and the tracking issue. `mergeLog` skips a merge that a `Transferred-from:` trailer on its target names, so the next cut and Ship do not list the issue again.
+- `drop <approval|removal|addition|ship|change|incident> <id>` drops one queued entry.
 - `merge-change <id>` merges a factory change PR into `main`.
 - `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards. Each catch-up job adds its issue to `caughtUp` on that entry, so a card is caught up at most once per merge job, and the list goes with the entry. A Merging card outside the batch can be held and moved while the merge runs.
 - `resume-card N` lifts the hold. The next tick runs the card's stage, and a job of the stopped stage continues its agents' sessions with `--resume`. It needs no board, so it also lifts a hold whose card is gone.
@@ -149,7 +152,7 @@ Write orders wait while the factory is paused. The CLI still writes the order, s
 
 `--by` is a committee member, by Telegram id, GitHub login or name, or `hermes`. Hermes passes the Telegram id of the member whose message ordered the action. Its `factory_sender` tool returns that id, since a Telegram display name matches no member.
 
-`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
+`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `add`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
 
 Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume`, `repair-clone N --by <who> --reason <why> [--backup-merge]` and `set-state <path> <json>|--delete --by <who> --reason <why>`. `set-state` changes one value at a dotted path, like `release.postId`, under the state lock, so no job has to stop. It refuses a path whose first key is not a store, a value of another kind than the one it replaces, like an object for a list, and a delete of anything but an entry of a map store like `pendingApprovals.5`. A null value takes any kind. It writes the old and the new value to the tick log. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
 

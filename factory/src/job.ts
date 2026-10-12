@@ -14,6 +14,7 @@ import { playtest } from './stages/playtest';
 import { release } from './stages/release';
 import { runStage as incident } from './stages/incident';
 import { remove } from './stages/remove';
+import { add } from './stages/add';
 import { ship } from './stages/ship';
 import { runStage as checks } from './stages/checks';
 import { merge } from './stages/merge';
@@ -30,7 +31,7 @@ import { QUEUE_OF, type Ctx, type Job, type JobStage } from './types';
 type Handler = (ctx: Ctx, issue: number) => Promise<void>;
 
 const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge'>, Handler> = {
-  triage, design, implement, verify, harden, checks, change, adhoc, playtest, candidate, remove, incident,
+  triage, design, implement, verify, harden, checks, change, adhoc, playtest, candidate, remove, add, incident,
   'catch-up': catchUp,
   ship: (ctx, issue) => ship(ctx, issue, readState(ctx.statePath).pendingShip),
   approve: (ctx, issue) => approve(ctx, issue, readState(ctx.statePath).pendingApprovals[String(issue)] ?? 'the committee'),

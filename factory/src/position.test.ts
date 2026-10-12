@@ -110,6 +110,11 @@ describe('releaseDrift', () => {
     expect(releaseDrift(withState({ release, pendingShip: 'bob' }), [card('Approval', 300)])).toEqual(['pending ship but no current candidate post']);
     expect(releaseDrift(withState({ pendingShip: 'bob' }), [])).toEqual(['pending ship but no current candidate post']);
   });
+  it('flags a pending addition with no open release', () => {
+    const pendingAdditions = [{ issue: 380, by: 'Ann', text: 'missed the cut' }];
+    expect(releaseDrift(withState({ release, pendingAdditions }), [card('Approval', 300)])).toEqual([]);
+    expect(releaseDrift(withState({ pendingAdditions }), [])).toEqual(['pending addition of #380 but no open release']);
+  });
 });
 
 describe('hold drift', () => {

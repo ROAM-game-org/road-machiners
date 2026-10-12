@@ -102,7 +102,8 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 - `factory ship` ships the open release now.
 - `factory cut` cuts a release now.
 - `factory remove N` takes a feature out of the release.
-- `factory drop <approval|removal|ship|change|incident> <id>` drops a queued action.
+- `factory add N` brings an approved issue that merged into `dev` after the cut into the open release. Use it, never a hand push.
+- `factory drop <approval|removal|addition|ship|change|incident> <id>` drops a queued action.
 - `factory merge-change <id>` merges a factory change PR into `main`.
 - `factory pause-card N` holds one card without a failure: its job stops, its work stays, and no job starts on it. `factory resume-card N` lifts the hold, and its stage continues.
 
@@ -119,7 +120,7 @@ Orders and authority:
 - An order from a member runs at once with the matching command. Do not ask back unless the order is unclear. Pass the member as `--by`.
 - "skip it" on a failed gate is `factory move N approval`.
 - A factory change PR is only for a change to the factory itself. Never use one to move a card past something.
-- On your own judgment you may run any command except four. These need `--by <member>` from that member's order: `merge` or `move N harden|merging` of a card the committee has not approved, `ship`, `remove` and `merge-change`. They reach `dev`, players or the factory code. Read what blocked the release playtest before you `retry` its tracking card, and pass your decision as the retry's text.
+- On your own judgment you may run any command except five. These need `--by <member>` from that member's order: `merge` or `move N harden|merging` of a card the committee has not approved, `ship`, `remove`, `add` and `merge-change`. They reach `dev`, players or the factory code. Read what blocked the release playtest before you `retry` its tracking card, and pass your decision as the retry's text.
 - After a hand step the CLI lacks, queue a factory change with `factory_queue_change` that adds the command.
 
 ## Factory status
