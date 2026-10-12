@@ -6,7 +6,7 @@ import { TERRAIN } from '../data/terrain';
 import { corePart, coreParts, mountedParts } from './grid';
 import { maxHp } from './wear';
 import { addGoods } from './inventory';
-import { decide, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
+import { canRob, decide, fitToHunt, holdsUp, huntingGrounds, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
 import { hazardZones, territoryEntries, territoryGrounds } from './territory';
 import { noteHurt, thinkNpc, topGoal } from './npc-activities';
@@ -520,16 +520,20 @@ describe('truce offers', () => {
 });
 
 describe('robbery after a truce', () => {
-  it('a robber rarely robs a truck it holds a truce with', () => {
+  it('a robber never robs a truck it holds a truce with, from either side', () => {
     const w = emptyWorld({ x: 10, y: 10 });
     const me = find(w, w.player.vehicleId);
     addGoods(w, me, 'scrap', 2);
     const robber = addNpc(w, 'scavengers', 'scavenger', ['scavenger', 'scumbag'], { x: 14, y: 10 }, ['autocannon', 'stockEngine']);
     refreshVision(w);
-    const rob = () => optionWeights(w, robber, 'preySeen', me.id, judgeDanger(w, robber, me)).rob!;
-    const before = rob();
+    expect(canRob(w, robber, me)).toBe(true);
+    const truce = addState(w, 'truce', me.id, robber.id, { kind: 'none' });
+    expect(canRob(w, robber, me)).toBe(false);
+    w.states = w.states.filter((s) => s !== truce);
     addState(w, 'truce', robber.id, me.id, { kind: 'none' });
-    expect(rob()).toBeLessThan(before / 100);
+    expect(canRob(w, robber, me)).toBe(false);
+    w.states = [];
+    expect(canRob(w, robber, me)).toBe(true);
   });
 });
 
