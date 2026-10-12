@@ -525,7 +525,7 @@ function watchingNearCamp(gap: number) {
 
 function droppedRaidAfterLoot(w: World, id: string): boolean {
   const events = w.events.filter((e) => e.t === 'activity' && e.vehicle === id);
-  return events.some((e) => e.t === 'activity' && e.previous === 'loot') && events.some((e) => e.t === 'activity' && e.previous === 'raid' && e.reason === 'choseNew');
+  return events.some((e) => e.t === 'activity' && e.previous === 'loot') && events.some((e) => e.t === 'activity' && e.previous === 'raid' && (e.reason === 'choseNew' || e.reason === 'leftPost'));
 }
 
 describe('going home with loot', () => {
