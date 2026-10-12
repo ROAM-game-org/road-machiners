@@ -34,6 +34,7 @@ const HOUSE = 'Go into the house.';
 const SHED = 'Go to the shed.';
 const LOOK = 'Look around.';
 const LEAVE_HOUSE = 'Go out to the shed.';
+const LINK = 'Sit down and lace the collar.';
 
 function pick(w: World, ...texts: string[]): World {
   return texts.reduce((at, text) => {
@@ -43,7 +44,7 @@ function pick(w: World, ...texts: string[]): World {
   }, w);
 }
 
-const arrived = (): World => pick(arrival(), SHED);
+const arrived = (): World => pick(arrival(), SHED, LINK);
 
 const engineOf = (w: World) => mountedParts(playerVehicle(w), 'engine')[0];
 
@@ -110,9 +111,9 @@ describe('the arrival at the farm', () => {
 
   it('pays 50 M only to a driver who looks around the house, and ends the scene on every road', () => {
     const start = startKit('standard').money;
-    const looked = pick(arrival(), HOUSE, LOOK);
-    const left = pick(arrival(), HOUSE, LEAVE_HOUSE);
-    const straight = pick(arrival(), SHED);
+    const looked = pick(arrival(), HOUSE, LOOK, LINK);
+    const left = pick(arrival(), HOUSE, LEAVE_HOUSE, LINK);
+    const straight = pick(arrival(), SHED, LINK);
     expect(looked.player.money - start).toBe(50 * UNITS.centsPerM);
     expect(left.player.money).toBe(start);
     expect(straight.player.money).toBe(start);
