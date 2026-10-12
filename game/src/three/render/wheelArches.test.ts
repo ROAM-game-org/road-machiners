@@ -15,8 +15,8 @@ await loadModels(async (name) => {
 const TOLERANCE = 0.02;
 const ARCH_CLEARANCE = 0.06;
 
-describe('wheel arches of the issue 149 bases', () => {
-  it.each(['lincoln', 'niva', 'bukhanka'] as const)('%s: arches sit on the physics wheels', (id) => {
+describe('wheel arches of the reference photo bases', () => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi'] as const)('%s: arches sit on the physics wheels', (id) => {
     const body = PHYSICS.bodies[id];
     const name = `base_${id}` as ModelName;
     const hub = body.wheelY - PHYSICS.truck.suspensionRest;

@@ -97,14 +97,15 @@ function stationsOf(profile: Profile, ground: number) {
 type Band = [number, number];
 type Reference = { height: Band; hood?: Band; roof: Band; deck?: Band; roofStart?: Band; noseDrop?: Band; tailDrop?: Band };
 
-const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka', Reference> = {
+const REFERENCE: Record<'lincoln' | 'niva' | 'bukhanka' | 'semi', Reference> = {
   lincoln: { height: [1.56, 1.8], hood: [0.34, 0.42], roof: [0.14, 0.24], deck: [0.22, 0.3] },
   niva: { height: [1.89, 2.19], hood: [0.22, 0.28], roof: [0.55, 1], tailDrop: [0, 0.1] },
   bukhanka: { height: [2.34, 2.7], roof: [0.75, 1], roofStart: [0, 0.12], noseDrop: [0.15, 9], tailDrop: [0, 0.15] },
+  semi: { height: [3.6, 3.95], hood: [0.14, 0.19], roof: [0.62, 0.72], roofStart: [0.29, 0.36] },
 };
 
-describe('issue 149 trucks keep their reference proportions', () => {
-  it.each(['lincoln', 'niva', 'bukhanka'] as const)('%s', (id) => {
+describe('trucks built from a reference photo keep its proportions', () => {
+  it.each(['lincoln', 'niva', 'bukhanka', 'semi'] as const)('%s', (id) => {
     const body = PHYSICS.bodies[id];
     const ground = body.wheelY - PHYSICS.truck.suspensionRest - body.wheelRadius;
     const got = stationsOf(profileOf(`base_${id}` as const), ground);
@@ -113,5 +114,20 @@ describe('issue 149 trucks keep their reference proportions', () => {
       if (got[key] < band[0] || got[key] > band[1]) misses.push(`${key} ${got[key].toFixed(3)} outside ${band[0]}..${band[1]}`);
     }
     expect(misses).toEqual([]);
+  });
+});
+
+describe('the hauler semi', () => {
+  it('spans 14.2 m along and 2.62 m across, nearly three scouts long and wider than the scout', () => {
+    const extent = (name: keyof typeof SHAPES) => {
+      const boxes = SHAPES[name].boxes;
+      return { along: Math.max(...boxes.map((b) => b.x1)) - Math.min(...boxes.map((b) => b.x0)), across: Math.max(...boxes.map((b) => b.y1)) - Math.min(...boxes.map((b) => b.y0)) };
+    };
+    const semi = extent('base_semi');
+    const scout = extent('base_scout');
+    expect(Math.abs(semi.along - 14.2)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(semi.across - 2.62)).toBeLessThanOrEqual(0.05);
+    expect(semi.along / scout.along).toBeGreaterThan(2.7);
+    expect(semi.across).toBeGreaterThan(scout.across);
   });
 });

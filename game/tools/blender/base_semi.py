@@ -1,10 +1,18 @@
-"""The semi base: a stylized long-nose tractor and box trailer, drawn as one rigid body with 18 wheels on 5 axles.
+"""The semi base: an orange long-nose tractor pulling a tall white box trailer, one rigid body with 18 wheels on 5 axles.
 
-Grid: 5 columns by 20 rows, 2.42 m across by 13 m along. Half height 0.9 m, from PHYSICS.bodies.semi.
-Rows 0 to 4 are the long hood with the engine on top, rows 5 and 6 the cab, rows 7 to 19 the box trailer with a flat roof.
-The game draws the steering wheels on row 2 and the trailer wheels on row 17, radius 0.7 m, half width 0.3 m, mount 0.6 m below the center.
-The model draws the other axles: two tractor drive axles under the fifth wheel and a second trailer axle, all with dual wheels,
-and the inner wheel of the trailer axle the game draws. That makes 18 wheels on 5 axles.
+Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
+the scout is 5.2 m long and 2.4 m tall, the bus 7.8 m and 2.9 m, so the rig is 14.2 m long, nearly three scouts.
+The model owns the semi's body: 14.2 m along X, 2.62 m across Y, the ground 1.6 m below the origin at the collider center.
+The 20 by 5 grid stretches over it at about 1.1 cells per cell, the most body.test.ts allows.
+From the front: a 0.25 m chrome bumper, a 2.2 m hood 1.5 m wide between fenders that flare to 2.44 m, a 1.75 m day cab
+with its roof 2.75 m up, a 0.45 m open gap over the frame and the fifth wheel, then a 9.55 m box trailer from 1.25 m to 3.75 m up,
+so its roof stands 1.36 times the cab roof. Twin stacks reach 3.5 m.
+Axles: steer 1.1 m behind the bumper front, the drive tandem 1.0 m and 2.2 m behind the cab, the trailer tandem 1.1 m and 2.3 m
+from the doors. Wheel radius 0.55 m. The game draws the steer pair and the outer wheels of the last trailer axle from
+PHYSICS.bodies.semi; the model draws the other 14 with the look of the game's wheel model, duals on the drive and trailer axles.
+The sockets arch_front, arch_rear (the left wheel centers at the hub) and arch_front_top (the steer fender's crown) let
+wheelArches.test.ts check them against physics. The engine stands in a hole in the hood at PHYSICS.bodies.semi.engine.
+Cargo on the trailer's bay cells is inside the box, so the game does not draw it.
 Run: blender --background --python tools/blender/base_semi.py -- public/models/base_semi.glb [tmp/base_semi.png]
 """
 
@@ -14,114 +22,275 @@ import math
 import sys
 from pathlib import Path
 
+import bpy
+from mathutils import Vector
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from kit import Kit, parse_args  # noqa: E402
-from parts_common_base import BASE_COLORS, INSET, Grid, check_base, level_sockets  # noqa: E402
+from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_boxes, hull_mesh  # noqa: E402
+from shapes import prism  # noqa: E402
 
 SEED = 321
-G = Grid(rows=20, cols=5, half_height=0.9)
-SIDE = G.half_y - INSET
-FRONT = G.half_x - INSET
-BACK = -G.half_x + INSET
-WHEEL_X = 4.2  # PHYSICS.bodies.semi.wheelX
-REAR_AXLES = [-WHEEL_X, -5.2]
-DRIVE_AXLES = [0.9, -0.1]
-EXTRA_WHEEL_R = 0.7
-HUB_Z = -1.0
+LENGTH = 14.2
+WIDTH = 2.62
+GROUND = -1.6
 
-HOOD_TOP = 0.3
-CAB_BACK = G.row_x(6.2)
-CAB_FRONT = G.row_x(4.3)
-CAB_ROOF = 1.0
-TRAILER_GAP = 0.45
-TRAILER_FRONT = CAB_BACK - TRAILER_GAP
-TRAILER_ROOF = 1.35
-BODY_BOTTOM = -0.25
-FRAME_Y = 0.62
+WHEEL_X = 6.0  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
+WHEEL_Y = -0.65  # PHYSICS.bodies.semi.wheelY
+WHEEL_Z = 1.05  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
+WHEEL_R = 0.55  # PHYSICS.bodies.semi.wheelRadius
+WHEEL_HALF_W = 0.15  # PHYSICS.bodies.semi.wheelHalfWidth
+ENGINE = (5.5, -0.2, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
+HUB_Z = WHEEL_Y - SUSPENSION_REST
+TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
+DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
+DRIVE_AXLES = (1.9, 0.7)
+TRAILER_AXLES = (-4.8, -WHEEL_X)
+MODEL_WHEELS = 14
+
+FRONT = LENGTH / 2
+BACK = -LENGTH / 2
+GRILLE_X = FRONT - 0.25
+CAB_FRONT = GRILLE_X - 2.2
+CAB_BACK = CAB_FRONT - 1.75
+TRAILER_FRONT = CAB_BACK - 0.45
+TRAILER_HALF = WIDTH / 2
+CAB_HALF = 1.22
+HOOD_HALF = 0.75
+GRILLE_HALF = 0.6
+APRON_HALF = 0.85
+FENDER_HALF = 1.22
 
 
-def wheel(kit: Kit, name: str, x: float, y: float, half_w: float) -> None:
-    kit.cylinder(name, EXTRA_WHEEL_R, 2 * half_w, (x, y, HUB_Z), "wheel", rot=(math.pi / 2, 0, 0), vertices=10)
+def up(height: float) -> float:
+    """Blender Z of a height above the ground."""
+    return GROUND + height
 
 
-def chassis(kit: Kit) -> None:
-    kit.box("frame", (BACK - FRONT, 2 * FRAME_Y, 0.3), ((FRONT + BACK) / 2, 0, BODY_BOTTOM - 0.15), "under")
-    for x in DRIVE_AXLES + [REAR_AXLES[1]]:
+FRAME_BOTTOM = up(0.75)
+FRAME_TOP = up(1.0)
+HOOD_SHELF = up(1.4)
+HOOD_FRONT_TOP = up(1.72)
+HOOD_BACK_TOP = up(1.82)
+CAB_BOTTOM = up(0.9)
+CAB_ROOF = up(2.75)
+TRAILER_FLOOR = up(1.25)
+TRAILER_ROOF = up(3.75)
+STACK_TOP = up(3.5)
+BAY_FRONT = ENGINE[0] + 0.55
+BAY_BACK = ENGINE[0] - 0.55
+BAY_HALF = HOOD_HALF - 0.12
+LEGS_X = DRIVE_AXLES[1] - 1.4
+
+
+def mirrored(kit: Kit, name: str, size: tuple[float, float, float], x: float, y: float, z: float, mat: str) -> None:
+    """A box on the left side at +y and its twin on the right side."""
+    kit.box(f"{name}_l", size, (x, y, z), mat)
+    kit.box(f"{name}_r", size, (x, -y, z), mat)
+
+
+def hull(kit: Kit, name: str, points: list[tuple[float, float, float]], mat: str) -> None:
+    kit._add(hull_mesh(name, points), name, mat, 0.0)
+
+
+def box_points(x0: float, x1: float, half_y: float, z0: float, z1: float) -> list[tuple[float, float, float]]:
+    return [(x, y, z) for x in (x0, x1) for y in (half_y, -half_y) for z in (z0, z1)]
+
+
+def wheel(kit: Kit, name: str, x: float, y: float) -> None:
+    """One wheel in the look of the game's wheel model: a 24-sided tire, an 8-sided light rim and a 6-sided hub."""
+    width = 2 * WHEEL_HALF_W
+    axle = (math.pi / 2, 0, 0)
+    kit.cylinder(f"{name}_tire", TIRE_R, width * 0.94, (x, y, HUB_Z), "wheel", rot=axle, vertices=24)
+    kit.cylinder(f"{name}_rim", WHEEL_R * 0.55, width * 0.98, (x, y, HUB_Z), "metal_light", rot=axle, vertices=8)
+    kit.cylinder(f"{name}_hub", WHEEL_R * 0.22, width, (x, y, HUB_Z), "rust", rot=axle, vertices=6)
+
+
+def running_gear(kit: Kit) -> int:
+    """The frame rails and the 14 wheels the game does not draw. Returns the wheel count."""
+    count = 0
+    for x in DRIVE_AXLES + TRAILER_AXLES[:1]:
         for s in (1, -1):
-            for k, y in enumerate((0.82, 1.04)):
-                wheel(kit, f"dual_{x}_{s}_{k}", x, s * y, 0.1)
+            for k, y in enumerate((WHEEL_Z, WHEEL_Z - DUAL_STEP)):
+                wheel(kit, f"dual_{x}_{s}_{k}", x, s * y)
+                count += 1
     for s in (1, -1):
-        wheel(kit, f"inner_{s}", REAR_AXLES[0], s * 0.74, 0.1)
+        wheel(kit, f"inner_{s}", -WHEEL_X, s * (WHEEL_Z - DUAL_STEP))
+        count += 1
+    tractor_end = DRIVE_AXLES[1] - WHEEL_R - 0.25
+    mirrored(kit, "rail", (GRILLE_X - 0.1 - tractor_end, 0.14, FRAME_TOP - FRAME_BOTTOM), (GRILLE_X - 0.1 + tractor_end) / 2, 0.45, (FRAME_TOP + FRAME_BOTTOM) / 2, "under")
+    for x in DRIVE_AXLES + TRAILER_AXLES:
+        kit.box(f"axle_{x}", (0.14, 2 * (WHEEL_Z - DUAL_STEP), 0.14), (x, 0, HUB_Z), "under")
+    return count
 
 
-def tractor(kit: Kit) -> None:
-    hood_front = FRONT - 0.1
-    hood_back = CAB_FRONT
-    hood_mid = (hood_front + hood_back) / 2
-    kit.box("hood", (hood_front - hood_back, 2 * (SIDE - 0.1), HOOD_TOP - BODY_BOTTOM), (hood_mid, 0, (HOOD_TOP + BODY_BOTTOM) / 2), "orange")
-    kit.box("grille", (0.08, 1.2, 0.62), (FRONT - 0.04, 0, 0.0), "chrome")
-    kit.box("grille_slots", (0.1, 1.0, 0.4), (FRONT - 0.04, 0, 0.0), "under")
-    kit.box("bumper", (0.24, 2 * SIDE, 0.22), (FRONT - 0.1, 0, BODY_BOTTOM + 0.0), "chrome")
-    for s in (1, -1):
-        kit.box(f"lamp_{s}", (0.1, 0.24, 0.2), (FRONT - 0.04, s * 0.78, 0.2), "light")
-        kit.box(f"fender_{s}", (1.3, 0.42, 0.14), (WHEEL_X + 0.2, s * (SIDE - 0.2), HOOD_TOP - 0.12), "orange")
-        kit.box(f"tank_{s}", (1.0, 0.3, 0.3), (CAB_BACK + 0.9, s * (SIDE - 0.15), BODY_BOTTOM + 0.1), "chrome")
-        kit.box(f"step_{s}", (0.5, 0.18, 0.06), (CAB_FRONT - 0.3, s * (SIDE - 0.1), BODY_BOTTOM + 0.05), "under")
-    cab_mid = (CAB_FRONT + CAB_BACK) / 2
-    kit.box("cab", (CAB_FRONT - CAB_BACK, 2 * SIDE - 0.1, CAB_ROOF - BODY_BOTTOM), (cab_mid, 0, (CAB_ROOF + BODY_BOTTOM) / 2), "orange")
-    kit.box("cab_stripe", (CAB_FRONT - CAB_BACK + 0.02, 2 * SIDE - 0.06, 0.1), (cab_mid, 0, 0.1), "orange_dark")
-    kit.box("windshield", (0.06, 2 * SIDE - 0.4, 0.42), (CAB_FRONT + 0.0, 0, CAB_ROOF - 0.3), "glass")
-    for s in (1, -1):
-        kit.box(f"door_glass_{s}", (0.7, 0.05, 0.36), (CAB_FRONT - 0.5, s * (SIDE - 0.03), CAB_ROOF - 0.3), "glass")
-        kit.cylinder(f"stack_{s}", 0.07, 1.5, (CAB_BACK + 0.12, s * (SIDE - 0.1), CAB_ROOF - 0.15), "chrome", vertices=8)
-    kit.box("roof_visor", (0.3, 2 * SIDE - 0.2, 0.06), (CAB_FRONT + 0.05, 0, CAB_ROOF + 0.02), "orange_dark")
-    kit.box("roof_trim", (CAB_FRONT - CAB_BACK - 0.2, 2 * SIDE - 0.05, 0.06), (cab_mid - 0.1, 0, CAB_ROOF + 0.02), "orange")
+def hood(kit: Kit) -> None:
+    """The long hood: a 1.7 m apron up to the shelf, a 1.5 m hood above it rising toward the windshield, with the engine hole."""
+    hull(kit, "apron", box_points(GRILLE_X - 0.02, CAB_FRONT, APRON_HALF, FRAME_BOTTOM, HOOD_SHELF), "orange")
+    top = [(GRILLE_X - 0.05, y, HOOD_FRONT_TOP) for y in (HOOD_HALF - 0.14, -HOOD_HALF + 0.14)]
+    top += [(CAB_FRONT, y, HOOD_BACK_TOP) for y in (HOOD_HALF - 0.14, -HOOD_HALF + 0.14)]
+    shoulder = [(GRILLE_X - 0.05, y, HOOD_FRONT_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
+    shoulder += [(CAB_FRONT, y, HOOD_BACK_TOP - 0.12) for y in (HOOD_HALF, -HOOD_HALF)]
+    base = [(x, y, HOOD_SHELF - 0.05) for x in (GRILLE_X - 0.05, CAB_FRONT) for y in (HOOD_HALF, -HOOD_HALF)]
+    body = hull_mesh("hood", top + shoulder + base)
+    cut_boxes(body, [((BAY_BACK, -BAY_HALF, ENGINE[1]), (BAY_FRONT, BAY_HALF, HOOD_BACK_TOP + 0.2))])
+    body.data.materials.clear()
+    kit._add(body, "hood", "orange", 0.0)
+    kit.box("bay_floor", (BAY_FRONT - BAY_BACK, 2 * BAY_HALF, 0.04), ((BAY_FRONT + BAY_BACK) / 2, 0, ENGINE[1] - 0.02), "under")
+    for s, name in ((1, "l"), (-1, "r")):
+        stripe = [(GRILLE_X - 0.1, HOOD_SHELF + 0.02), (CAB_FRONT, HOOD_SHELF + 0.16), (CAB_FRONT, HOOD_SHELF + 0.28), (GRILLE_X - 0.1, HOOD_SHELF + 0.1)]
+        y0, y1 = sorted((s * (HOOD_HALF - 0.01), s * (HOOD_HALF + 0.02)))
+        prism(kit, f"hood_stripe_{name}", stripe, y0, y1, "stripe")
+
+
+def grille(kit: Kit) -> None:
+    """The tall chrome grille in a chrome frame, the heavy full-width bumper and square headlamp pods on the fenders."""
+    low, high = up(0.75), HOOD_FRONT_TOP - 0.02
+    kit.box("grille_frame", (0.1, 2 * GRILLE_HALF, high - low), (GRILLE_X, 0, (high + low) / 2), "chrome")
+    kit.box("grille_slots", (0.04, 2 * GRILLE_HALF - 0.2, high - low - 0.2), (GRILLE_X + 0.04, 0, (high + low) / 2), "under")
+    for i in range(4):
+        kit.box(f"grille_bar_{i}", (0.05, 0.05, high - low - 0.2), (GRILLE_X + 0.05, (i - 1.5) * 0.24, (high + low) / 2), "chrome")
+    kit.box("bumper", (FRONT - GRILLE_X, 2 * FENDER_HALF, 0.45), ((FRONT + GRILLE_X) / 2, 0, up(0.55)), "chrome")
+    for s, name in ((1, "l"), (-1, "r")):
+        kit.box(f"lamp_pod_{name}", (0.18, 0.3, 0.24), (GRILLE_X - 0.12, s * (HOOD_HALF + 0.22), up(1.28)), "chrome")
+        kit.box(f"lamp_{name}", (0.04, 0.22, 0.16), (GRILLE_X - 0.02, s * (HOOD_HALF + 0.22), up(1.28)), "light")
+
+
+def fenders(kit: Kit) -> None:
+    """Flared steer fenders arching over the front wheels and sweeping down behind them to the cab step."""
+    inner = WHEEL_R + ARCH_CLEARANCE
+    outer = inner + 0.14
+    arc = [(WHEEL_X + outer * math.cos(math.pi * k / 8), HUB_Z + outer * math.sin(math.pi * k / 8)) for k in range(1, 8)]
+    under = [(WHEEL_X + inner * math.cos(math.pi * k / 8), HUB_Z + inner * math.sin(math.pi * k / 8)) for k in range(7, 0, -1)]
+    outline = [(GRILLE_X - 0.08, up(0.95)), (GRILLE_X - 0.08, HUB_Z + outer * 0.55), *arc, (CAB_FRONT + 0.3, up(1.05)), (CAB_FRONT + 0.3, up(0.9)), (WHEEL_X - inner, up(0.9)), *under, (WHEEL_X + inner, up(0.95))]
+    for s, name in ((1, "l"), (-1, "r")):
+        y0, y1 = sorted((s * APRON_HALF, s * FENDER_HALF))
+        prism(kit, f"fender_{name}", outline, y0, y1, "orange")
+
+
+def cab(kit: Kit) -> None:
+    """The day cab: wider than the hood, a split raked windshield, door glass, a roof visor with amber markers, and mirrors."""
+    rake = 0.25
+    glass_low, glass_high = HOOD_BACK_TOP + 0.12, CAB_ROOF - 0.18
+    points = box_points(CAB_FRONT, CAB_BACK, CAB_HALF, CAB_BOTTOM, HOOD_BACK_TOP)
+    points += [(x, y, CAB_ROOF) for x in (CAB_FRONT - rake, CAB_BACK) for y in (CAB_HALF - 0.06, -CAB_HALF + 0.06)]
+    hull(kit, "cab", points, "orange")
+
+    def front_x(z: float) -> float:
+        return CAB_FRONT - rake * (z - HOOD_BACK_TOP) / (CAB_ROOF - HOOD_BACK_TOP)
+
+    for s, name in ((1, "l"), (-1, "r")):
+        pane = [(front_x(z) + d, s * y, z) for z in (glass_low, glass_high) for y in (0.06, CAB_HALF - 0.16) for d in (0.0, 0.02)]
+        hull(kit, f"windshield_{name}", pane, "glass")
+        door = [(CAB_FRONT - 0.35, glass_low), (CAB_BACK + 0.25, glass_low), (CAB_BACK + 0.25, glass_high), (front_x(glass_high) - 0.2, glass_high)]
+        y0, y1 = sorted((s * (CAB_HALF - 0.03), s * (CAB_HALF + 0.005)))
+        prism(kit, f"door_glass_{name}", door, y0, y1, "glass")
+        sweep = [(CAB_FRONT, HOOD_SHELF + 0.16), (CAB_BACK, HOOD_SHELF + 0.45), (CAB_BACK, HOOD_SHELF + 0.57), (CAB_FRONT, HOOD_SHELF + 0.28)]
+        y0, y1 = sorted((s * (CAB_HALF - 0.02), s * (CAB_HALF + 0.01)))
+        prism(kit, f"door_stripe_{name}", sweep, y0, y1, "stripe")
+        kit.box(f"mirror_arm_{name}", (0.05, 0.12, 0.05), (CAB_FRONT - 0.15, s * (CAB_HALF + 0.03), glass_low + 0.1), "chrome")
+        kit.box(f"mirror_{name}", (0.06, 0.08, 0.5), (CAB_FRONT - 0.15, s * (CAB_HALF + 0.05), glass_low + 0.35), "chrome")
+    kit.box("visor", (0.35, 2 * CAB_HALF - 0.1, 0.06), (front_x(CAB_ROOF) + 0.1, 0, CAB_ROOF - 0.02), "orange")
     for i in range(5):
-        kit.box(f"marker_{i}", (0.06, 0.1, 0.08), (CAB_FRONT - 0.1 - i * 0.12, 0, CAB_ROOF + 0.09), "light")
-    kit.box("fifth_wheel", (1.1, 1.5, 0.12), (CAB_BACK - 0.15, 0, BODY_BOTTOM + 0.04), "metal_dark")
-    kit.box("gap_frame", (TRAILER_GAP, 0.7, 0.14), (CAB_BACK + TRAILER_GAP / 2, 0, BODY_BOTTOM + 0.15), "under")
+        kit.box(f"marker_{i}", (0.08, 0.12, 0.08), (front_x(CAB_ROOF) + 0.05, (i - 2) * 0.4, CAB_ROOF + 0.05), "amber")
+
+
+def tanks_and_steps(kit: Kit) -> None:
+    """Chrome fuel tanks and dark steps under the doors, the frame between them hidden."""
+    for s, name in ((1, "l"), (-1, "r")):
+        kit.cylinder(f"tank_{name}", 0.3, 1.1, (CAB_BACK + 0.6, s * (CAB_HALF - 0.3), up(0.62)), "chrome", rot=(0, math.pi / 2, 0), vertices=10)
+        kit.box(f"step_{name}", (0.45, 0.32, 0.08), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.16), up(0.62)), "under")
+        kit.box(f"step_box_{name}", (0.5, 0.3, 0.45), (CAB_FRONT - 0.15, s * (CAB_HALF - 0.17), up(0.82)), "metal_dark")
+
+
+def stacks(kit: Kit) -> None:
+    """Twin tall chrome stacks behind the cab doors, with a wider heat shield on their lower half."""
+    for s, name in ((1, "l"), (-1, "r")):
+        y = s * (CAB_HALF - 0.12)
+        kit.cylinder(f"stack_{name}", 0.08, STACK_TOP - CAB_BOTTOM, (CAB_BACK - 0.12, y, (STACK_TOP + CAB_BOTTOM) / 2), "chrome", vertices=8)
+        kit.cylinder(f"stack_shield_{name}", 0.12, 1.1, (CAB_BACK - 0.12, y, CAB_ROOF - 0.7), "chrome", vertices=8)
+
+
+def coupling(kit: Kit) -> None:
+    """The fifth wheel plate over the drive tandem, deck plates behind the cab, and the drive tandem's mud flaps."""
+    mid = (DRIVE_AXLES[0] + DRIVE_AXLES[1]) / 2
+    kit.box("fifth_wheel", (0.9, 1.2, 0.12), (mid, 0, TRAILER_FLOOR - 0.14), "metal_dark")
+    kit.box("deck_plate", (CAB_BACK - TRAILER_FRONT + 0.3, 1.2, 0.06), (CAB_BACK - 0.3, 0, FRAME_TOP + 0.03), "metal_dark")
+    for s, name in ((1, "l"), (-1, "r")):
+        kit.box(f"drive_flap_{name}", (0.04, 0.62, 0.6), (DRIVE_AXLES[1] - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
+        kit.box(f"drive_fender_{name}", (2.3, 0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
 
 
 def trailer(kit: Kit) -> None:
-    front = TRAILER_FRONT
-    length = front - BACK
-    mid = (front + BACK) / 2
-    height = TRAILER_ROOF - BODY_BOTTOM
-    center_z = (TRAILER_ROOF + BODY_BOTTOM) / 2
-    kit.box("trailer", (length, 2 * SIDE, height), (mid, 0, center_z), "white")
-    kit.box("trailer_skirt", (length, 2 * SIDE, 0.28), (mid, 0, BODY_BOTTOM + 0.14), "trim")
-    kit.box("trailer_roof", (length, 2 * SIDE - 0.08, 0.06), (mid, 0, TRAILER_ROOF + 0.02), "white_shade")
-    kit.box("trailer_nose", (0.08, 2 * SIDE - 0.2, height - 0.3), (front - 0.02, 0, center_z + 0.05), "white_shade")
-    for i in range(9):
-        x = front - 0.5 - i * (length - 1.0) / 8
-        for s in (1, -1):
-            kit.box(f"rib_{i}_{s}", (0.08, 0.05, height - 0.5), (x, s * (SIDE - 0.02), center_z + 0.1), "white_shade")
-    kit.box("door_seam", (0.05, 2 * SIDE - 0.2, height - 0.3), (BACK - 0.0, 0, center_z + 0.05), "white_shade")
-    kit.box("bumper_rear", (0.2, 2 * SIDE - 0.3, 0.2), (BACK + 0.1, 0, BODY_BOTTOM - 0.1), "metal_dark")
-    for s in (1, -1):
-        kit.box(f"taillight_{s}", (0.05, 0.2, 0.2), (BACK - 0.0, s * (SIDE - 0.3), BODY_BOTTOM + 0.35), "red")
-        kit.box(f"flap_{s}", (0.04, 0.6, 0.5), (REAR_AXLES[1] - 0.8, s * 0.9, HUB_Z + 0.3), "wheel")
+    """The white box trailer, ribbed on its sides and roof, with rear doors, lamps, an underride bar, landing legs and flaps."""
+    hull(kit, "trailer", box_points(TRAILER_FRONT, BACK + 0.05, TRAILER_HALF - 0.03, TRAILER_FLOOR, TRAILER_ROOF), "white")
+    length = TRAILER_FRONT - BACK
+    height = TRAILER_ROOF - TRAILER_FLOOR
+    mid_z = (TRAILER_ROOF + TRAILER_FLOOR) / 2
+    mid_x = (TRAILER_FRONT + BACK) / 2
+    mirrored(kit, "bottom_rail", (length, 0.06, 0.16), mid_x, TRAILER_HALF - 0.03, TRAILER_FLOOR + 0.08, "rib")
+    mirrored(kit, "top_rail", (length, 0.06, 0.1), mid_x, TRAILER_HALF - 0.03, TRAILER_ROOF - 0.06, "rib")
+    ribs = 16
+    for i in range(ribs + 1):
+        x = TRAILER_FRONT - 0.15 - i * (length - 0.3) / ribs
+        kit.box(f"rib_{i}", (0.08, WIDTH, height - 0.2), (x, 0, mid_z), "rib")
+    for i in range(8):
+        x = TRAILER_FRONT - 0.6 - i * (length - 1.2) / 7
+        kit.box(f"roof_rib_{i}", (0.1, WIDTH - 0.1, 0.03), (x, 0, TRAILER_ROOF + 0.01), "rib")
+    kit.box("doors", (0.06, WIDTH - 0.16, height - 0.2), (BACK + 0.03, 0, mid_z), "white")
+    kit.box("door_seam", (0.07, 0.04, height - 0.2), (BACK + 0.03, 0, mid_z), "rib")
+    for s, name in ((1, "l"), (-1, "r")):
+        for k, y in enumerate((0.3, 1.0)):
+            kit.box(f"lock_bar_{name}{k}", (0.08, 0.04, height - 0.35), (BACK + 0.04, s * y, mid_z), "chrome")
+        kit.box(f"tail_lamp_{name}", (0.06, 0.22, 0.12), (BACK + 0.03, s * (TRAILER_HALF - 0.25), TRAILER_FLOOR + 0.05), "red")
+        kit.box(f"leg_{name}", (0.12, 0.12, TRAILER_FLOOR - up(0.3)), (LEGS_X, s * 0.85, (TRAILER_FLOOR + up(0.3)) / 2), "metal_dark")
+        kit.box(f"foot_{name}", (0.3, 0.3, 0.06), (LEGS_X, s * 0.85, up(0.3)), "metal_dark")
+        kit.box(f"trailer_flap_{name}", (0.04, 0.62, 0.6), (-WHEEL_X - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
+    kit.box("leg_brace", (0.08, 1.7, 0.08), (LEGS_X, 0, up(0.8)), "metal_dark")
+    kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
+    kit.box("bogie", (2.2, 1.0, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
+    kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
+
+
+def check_size(kit: Kit) -> None:
+    """Raises when the model leaves its LENGTH x WIDTH footprint or does not fill it."""
+    bpy.context.view_layer.update()
+    pts = [obj.matrix_world @ v.co for obj in kit._parts for v in obj.data.vertices]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    print(f"base_semi bounds x {lo.x:.3f}..{hi.x:.3f} y {lo.y:.3f}..{hi.y:.3f} z {lo.z:.3f}..{hi.z:.3f}")
+    if abs(hi.x - lo.x - LENGTH) > 0.01 or abs(hi.y - lo.y - WIDTH) > 0.01 or abs(lo.z - (HUB_Z - TIRE_R)) > 0.01:
+        raise RuntimeError(f"base_semi is {hi.x - lo.x:.3f} x {hi.y - lo.y:.3f} m from z {lo.z:.3f}, not {LENGTH} x {WIDTH} from the tire bottom")
 
 
 def main() -> None:
     args = parse_args()
     colors = {
         **BASE_COLORS,
-        "orange": 0xD9701C,
-        "orange_dark": 0xB5581A,
-        "white": 0xE6E4DA,
-        "white_shade": 0xB9B8B0,
-        "chrome": 0xC4C9CC,
+        "orange": 0xD9701C,  # PAL.semi.orange
+        "stripe": 0x1E1C1A,  # PAL.semi.stripe
+        "chrome": 0xC4C9CC,  # PAL.semi.chrome
+        "amber": 0xF2A22C,  # PAL.semi.amber
+        "white": 0xE6E4DA,  # PAL.semi.white
+        "rib": 0xB9B8B0,  # PAL.semi.rib
     }
     kit = Kit(colors, SEED)
-    chassis(kit)
-    tractor(kit)
+    wheels = running_gear(kit)
+    if wheels != MODEL_WHEELS:
+        raise RuntimeError(f"base_semi draws {wheels} wheels, not {MODEL_WHEELS}: with the game's 4 the hauler must show 18")
+    hood(kit)
+    grille(kit)
+    fenders(kit)
+    cab(kit)
+    tanks_and_steps(kit)
+    stacks(kit)
+    coupling(kit)
     trailer(kit)
-    heights = [HOOD_TOP] * 5 + [CAB_ROOF] * 2 + [TRAILER_ROOF] * 13
-    level_sockets(kit, G, "row", heights)
-    level_sockets(kit, G, "floor", [HOOD_TOP - 0.1] * 5 + [CAB_ROOF - 0.5] * 2 + [TRAILER_ROOF - 0.5] * 13)
-    check_base(kit, "base_semi", G)
-    kit.export("base_semi", args, view_size=16.0)
+    kit.socket("arch_front", (WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
+    kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + WHEEL_R + ARCH_CLEARANCE))
+    check_size(kit)
+    kit.export("base_semi", args, view_size=17.0)
 
 
 if __name__ == "__main__":
