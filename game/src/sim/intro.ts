@@ -44,7 +44,10 @@ function keepHunting(w: World): void {
   if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
   const me = playerVehicle(w);
   const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
-  if (!inHuntRange(w, raider, me)) return fight ? undefined : setIntroStep(w, 'done');
+  if (!inHuntRange(w, raider, me)) {
+    if (!fight) setIntroStep(w, 'done');
+    return;
+  }
   if (!fight) return fightCornered(w, raider, me, 'robCargo');
   chooseOn(w, raider, me.id, me.pos, 'fight', false);
   fight.worn = { ...fight.worn!, turn: w.turn };
