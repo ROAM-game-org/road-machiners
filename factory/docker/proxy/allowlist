@@ -3,6 +3,13 @@
 # Claude Code API. Every model call goes here.
 ^api\.anthropic\.com$
 
+# Codex through the ChatGPT login: model and picture calls, and the login refresh.
+^chatgpt\.com$
+^auth\.openai\.com$
+
+# agy through the Gemini API key.
+^generativelanguage\.googleapis\.com$
+
 # ElevenLabs sound generation for the game's sfx:gen.
 ^api\.elevenlabs\.io$
 

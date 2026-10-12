@@ -1,0 +1,18 @@
+#!/bin/bash
+# Runs the real agy at most AGY_MAX_RUNS times per container, since its Gemini API key is billed per use.
+set -euo pipefail
+
+if ! [[ "${AGY_MAX_RUNS:-}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "agy: AGY_MAX_RUNS must be a positive integer, got \"${AGY_MAX_RUNS:-}\"" >&2
+  exit 1
+fi
+
+count_file=/tmp/agy-runs
+count=$(( $(cat "$count_file" 2>/dev/null || echo 0) + 1 ))
+if [ "$count" -gt "$AGY_MAX_RUNS" ]; then
+  echo "agy: run $count exceeds AGY_MAX_RUNS=$AGY_MAX_RUNS for this job" >&2
+  exit 1
+fi
+echo "$count" > "$count_file"
+
+exec /opt/agy/agy "$@"

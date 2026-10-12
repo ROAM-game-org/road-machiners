@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHECKS_TIMEOUT_MARK, EVIDENCE_CHECK_COMMAND, dockerContainer, readPeakGb, usageLimitMessage } from './container';
 import { recordJob, takeUsage } from './ledger';
 import { UsageLimitError } from './pause';
@@ -10,7 +10,12 @@ type Call = { cmd: string; args: string[]; opts?: RunOptions };
 
 const HOME = resolve('tmp/factory-container-test');
 const tokenPrices: FactoryConfig['tokenPrices'] = { opus: { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 } };
-const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
+const cfg = { image: 'img:1', oauthToken: 'secret-token', elevenlabsKey: 'sound-key', sfxMaxGenerations: 6, geminiKey: 'gemini-key', agyMaxRuns: 20, agentJobMaxMinutes: 30, home: HOME, tokenPrices } as FactoryConfig;
+
+beforeEach(() => {
+  mkdirSync(`${HOME}/codex`, { recursive: true });
+  writeFileSync(`${HOME}/codex/auth.json`, '{}');
+});
 
 const AGENT_RESULT = JSON.stringify({ type: 'result', duration_ms: 60_000, total_cost_usd: 1 });
 
@@ -41,24 +46,29 @@ describe('dockerContainer', () => {
     expect(runCall(free.calls).args).not.toContain('--cpuset-cpus');
   });
 
-  it('passes the secrets by env only and mounts only the clone, the npm cache and the check command', async () => {
+  it('passes the secrets by env only and mounts only the clone, the npm cache, the Codex login and the check command', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'do it', log: '/l.log' });
     const call = runCall(calls);
     expect(call.args.join(' ')).not.toContain('secret-token');
     expect(call.args.join(' ')).not.toContain('sound-key');
-    expect(call.opts?.env).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30' });
+    expect(call.args.join(' ')).not.toContain('gemini-key');
+    expect(call.opts?.env).toEqual({
+      CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', ELEVENLABS_API_KEY: 'sound-key', SFX_MAX_GENERATIONS: '6', GEMINI_API_KEY: 'gemini-key', AGY_MAX_RUNS: '20',
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30',
+    });
+    expect(call.args).toContain(`${HOME}/codex:/home/pwuser/.codex`);
     expect(call.opts?.input).toContain('The limit is at most 30 minutes.');
     expect(call.opts?.input).toMatch(/^Your folder is \/work\/game\./);
     expect(call.opts?.input).toContain('When your activity changes, run factory-status');
     expect(call.opts?.input).toContain('factory-status milestone');
     expect(call.opts?.input).toMatch(/\n\ndo it$/);
     expect(call.opts?.logPath).toBe('/l.log');
-    expect(call.args.filter((a) => a === '-v')).toHaveLength(3);
+    expect(call.args.filter((a) => a === '-v')).toHaveLength(4);
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
-    expect(call.args.filter((a) => a === '-e')).toHaveLength(12);
+    expect(call.args.filter((a) => a === '-e')).toHaveLength(14);
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
@@ -66,8 +76,22 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', readOnly: { '/h/state': '/factory/state' } });
     const args = runCall(calls).args;
-    expect(args.filter((a) => a === '-v')).toHaveLength(4);
+    expect(args.filter((a) => a === '-v')).toHaveLength(5);
     expect(args).toContain('/h/state:/factory/state:ro');
+  });
+
+  it('stops before the agent starts when Codex has no login', async () => {
+    rmSync(`${HOME}/codex`, { recursive: true, force: true });
+    const { run, calls } = fakeRun();
+    await expect(dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l' })).rejects.toThrow(`${HOME}/codex/auth.json is missing`);
+    expect(runCall(calls)).toBeUndefined();
+  });
+
+  it('gives shell containers no Codex login and no Gemini key', async () => {
+    const { run, calls } = fakeRun();
+    await dockerContainer(run, cfg, null).shell('/c', 'x', '/l');
+    expect(runCall(calls).args.join(' ')).not.toContain('/home/pwuser/.codex');
+    expect(runCall(calls).args.join(' ')).not.toContain('GEMINI_API_KEY');
   });
 
   it('mounts the bundled check command read only for every agent, since the commit hook runs it', async () => {
@@ -85,7 +109,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', mediaDir: '/h/media/issue-7' });
     expect(runCall(calls).args).toContain('/h/media/issue-7:/work/.factory-media:ro');
-    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(4);
+    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(5);
   });
 
   it('mounts the session folder under the agent projects folder and starts the session by id', async () => {
@@ -93,7 +117,7 @@ describe('dockerContainer', () => {
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', session: { dir: '/h/sessions/issue-7', id: 'abc', resume: false } });
     const { args } = runCall(calls);
     expect(args).toContain('/h/sessions/issue-7:/home/pwuser/.claude/projects');
-    expect(args.filter((a) => a === '-v')).toHaveLength(4);
+    expect(args.filter((a) => a === '-v')).toHaveLength(5);
     expect(args.slice(args.indexOf('--verbose'))).toEqual(['--verbose', '--session-id', 'abc']);
     expect(args).not.toContain('--resume');
   });
