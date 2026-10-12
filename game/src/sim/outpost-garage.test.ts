@@ -14,7 +14,11 @@ import { fillCargo, parkedAtOutpost, stockOfKind } from './testkit';
 import type { GridItem, World } from './types';
 
 const atOutpost = () => parkedAtOutpost();
-const stockArmor = (w: World) => stockOfKind(w, 'armor');
+function stockArmor(w: World) {
+  const fitted = mountedParts(playerVehicle(w), 'armor')[0];
+  const same = w.furyRoad!.outposts[0].stock.find((p) => partDef(p.defId).kind === 'armor' && partDef(p.defId).w === partDef(fitted.defId).w && partDef(p.defId).h === partDef(fitted.defId).h);
+  return same ?? stockOfKind(w, 'armor');
+}
 
 function mountedGun(w: World): GridItem {
   const me = playerVehicle(w);
