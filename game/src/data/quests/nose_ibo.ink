@@ -55,7 +55,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   ~ asked_tone = true
   -> hub
 + {heard_couriers and not asked_couriers} [Who are the Guild couriers?]
-  They carry the mail between the towns. They run in pairs now, one to drive and one to hold the gun. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
+  They carry the mail between the towns. They run in pairs now, two trucks together. I remember when they went out alone, before the Kiln riders got bold. Kiln's the raider camp in the south. Tamsin Roe's the odd one, with no gun at all. I hear her call-sign more than any other.
   ~ asked_couriers = true
   -> hub
 + {(heard_convoy or has_note("burntConvoy")) and not asked_convoy} [What happened at Burnt Convoy?]

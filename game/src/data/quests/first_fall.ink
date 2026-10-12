@@ -3,7 +3,7 @@ INCLUDE world.ink
 
 === start ===
 # checkpoint: start
-The truck stops dead, and your forehead meets the dash with a sound you feel in your teeth. # place: The cab # img: fall_cab
+The truck stops dead. You feel the crash in every plate of it, as if it were your own body, and your forehead meets the wheel with a sound you feel in your teeth. # place: The cab # img: fall_cab
 Something warm runs into your left eye. A thin high whine fills your ears, and under it the engine ticks as it cools. So that's what losing sounds like.
 Your sleeve comes away dark and wet. You blink until the steel slats across the windshield stop sliding sideways.
 Out past the hood, where the dust is settling, the other truck has stopped side on. # page

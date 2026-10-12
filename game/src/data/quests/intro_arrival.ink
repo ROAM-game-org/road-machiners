@@ -46,29 +46,33 @@ You step through the doorway into a room with no roof. Sand has drifted into the
 = look
 ~ give_money(50)
 No jar of anything. The stove is cold and empty, and the table drawer holds a dead beetle. But under the cot, one floorboard sits a little higher than the rest, and when you get your fingers under it, it comes up with a squeak.
-In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a short stack of M's that clink when you lift the tin. Somebody hid this from somebody. Well, they're not here to argue.
+In the hollow lies a tobacco tin. Inside, wrapped in a strip of oilcloth, is a short stack of brass coins, each stamped with a big M, that clink when you lift the tin. Somebody hid this from somebody and never came back for it. Their loss.
 You put it in your shirt and go out to the shed.
 -> shed
 
 = shed
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm # img: arrival_pickup
 It's old and square, the kind of truck that outlives its owners. The sun has bleached the paint to the color of sand, and rust shows through it in patches. Bars are welded over the windows, and a heavy grille guard covers the lamps. The tires are soft but whole. A few empty cans roll around in the bed.
-A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. Two steel pins lock the mount. One pin is bright and new and the other worn dull, as if somebody fixed half a problem.
+A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. Two steel pins lock the mount. One pin is bright and new and the other worn dull. Somebody replaced one and never got round to the other.
 The hinge shrieks when you pull the door, and something small scrabbles out from under the bed. The cab smells of engine oil and old cigarettes. And the key is in the ignition. Just sitting there, with a brass tag on its ring, like somebody stepped out for a minute and meant to come right back.
 Then you see the driver's seat, and you forget about the key. # page # img: cab_link
 It is deep and padded in dark leather, and its back rises into a tall collar, laced at the front like a boot. Down the middle of the backrest runs a row of small pale knobs, each with a gold dot in its center, right where a spine would lie. Braided cables run out of the back of it and down through the floor.
 Everything else in this truck is rust and patches. The seat is smooth, careful work, the kind nobody can do anymore.
 You know what it is. It's a link. It joins a driver's nerves to the truck, so the truck moves like a body and its guns turn like arms. The people who drive linked for a living are called Machiners. On the roads in the west you watched them roll past for years, sitting so still behind the glass they might have been asleep, while the guns on their hoods swung round to follow you.
 You have never sat in one. They say the first time is the worst, and it gets easier once your body gets used to it.
-Behind the seat, between the cables, there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. You hold it a while, then put it back in the box. Eat it now and it's gone. Keep it, and it might be the difference between reaching that town and not. # page
-You climb in and sit back. The leather is cool, the only cool thing for miles. The knobs press into your back in a hard line, one between your shoulder blades and one at the base of your skull. You pull the collar's laces snug around your neck and wait.
+Behind the seat, between the cables, there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. But dry food with no water only makes the thirst worse, and you have no water. You put it back in the box for later.
++ [Sit down and lace the collar.]
+  -> link
+
+= link
+You climb in and sit back. The leather is cool, the only cool thing for miles. The knobs press into your back in a hard line, one between your shoulder blades and one at the base of your skull. You pull the collar's laces snug around your neck and wait. # page
 Nothing happens. You sit with your hands on the wheel and feel stupid. Maybe it's broken, like everything else on this farm.
-Then your back starts to tingle, like a foot that went to sleep and is waking up. The tingling crawls up into the collar and down your arms to the tips of your fingers. # page
-Then the truck is there, all of it at once, and it's too much.
+Then your back starts to tingle, like a foot that went to sleep and is waking up. The tingling crawls up into the collar and down your arms to the tips of your fingers.
+Then the truck is there, all of it at once, and it's too much. # page
 Four soft tires press into the dirt as if they were your own bare feet on hot ground. The tank is a hollow ache low in your belly, nearly empty. The gun on the hood is a heavy arm you never knew you had, stiff in the shoulder where the mount sticks. Every rust spot and every loose bolt itches at the same time. A bird lands on the roof sheet over the cab, and you feel its little weight press down through the metal.
 You grip the wheel with both hands and breathe through your teeth. It doesn't stop. It keeps coming, more than one head can hold.
 And then, slowly, it settles. The noise sorts itself into one body, and the itching fades. The truck is simply there, the way your hands are there when you aren't looking at them. You feel whole, as if a piece of you had been missing all your life and you never noticed. # page
-You twist the key. The starter grinds deep in your own chest, slows and quits.
+You twist the key. The starter grinds deep in your own chest, slows and quits. # page
 You twist it again. The engine catches for a breath, kicks once like a second heart and dies. "Come on, you rusted pig," you tell it.
 You lean your forehead on the hot wheel and wait. Then you try once more, and it coughs, misses, coughs again, and holds. It runs rough and lopsided, and you feel every missed beat of it in your ribs. It's the best sound you have heard in your life, or at least since the stars went out this morning.
 You don't have to think about the pedals. Your feet find them on their own, and the truck rolls forward because you want it to. The roof sheet scrapes the length of the cab, and you feel it drag down your back like a fingernail before it slides off the tailgate. The basin opens up in front of the hood. # page
