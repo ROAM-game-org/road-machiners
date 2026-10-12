@@ -2,7 +2,7 @@
 import { REGION } from '../data/region';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
-import { canStepOut, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
+import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
 import { CELL, CLEARANCE, blockerKey, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
@@ -43,6 +43,11 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 function insideMap(world: World, p: Vec, radius: number): Vec {
   const hi = world.terrain.size - radius;
   return { x: Math.min(hi, Math.max(radius, p.x)), y: Math.min(hi, Math.max(radius, p.y)) };
+}
+
+export function drivable(world: World, from: Vec, to: Vec, radius: number): boolean {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  return connected(layer, cellOf(layer, from), cellOf(layer, to));
 }
 
 export function warmRoutes(world: World, radii: number[]): void {
