@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { drawsOwnBumpers } from '../../render/partLooks';
 import { baseGrid, itemCells } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
@@ -50,5 +51,12 @@ describe('cargo inside the hauler trailer', () => {
     const { v } = semiWithCargo();
     expect(hidesInside(v, partOf(v, 'workhorseDiesel'))).toBe(false);
     expect(hidesInside(v, partOf(v, 'plates'))).toBe(false);
+  });
+});
+
+describe('the hauler nose and tail', () => {
+  it('shows the semi model\'s own chrome bumper and trailer doors, with no game bumper over them', () => {
+    expect(drawsOwnBumpers('semi')).toBe(true);
+    expect(drawsOwnBumpers('scout')).toBe(false);
   });
 });

@@ -40,6 +40,12 @@ export function baseModel(chassisId: string): ModelName {
   return base;
 }
 
+const OWN_BUMPER_BASES: ReadonlySet<string> = new Set(['semi']);
+
+export function drawsOwnBumpers(chassisId: string): boolean {
+  return OWN_BUMPER_BASES.has(chassisId);
+}
+
 export const BODY_PARTS: ReadonlySet<string> = new Set(
   Object.values(PARTS).flatMap((p) => (p.kind === 'core' && p.role === 'cab' ? [p.id] : [])),
 );
