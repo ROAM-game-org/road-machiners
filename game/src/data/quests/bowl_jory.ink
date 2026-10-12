@@ -18,11 +18,11 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   ~ jory_green = true
   ~ jory_nose = true
   -> hub
-+ [How does a tenant get a vote?]
++ {jory_green} [How does a tenant get a vote?]
   He serves in the Bowl road patrol for a decade. Then the Senate lets him drop a pebble in a jar. My grandfather died one season short, which was bad timing, but he always kept his own schedule.
   ~ jory_patrol = true
   -> hub
-+ {jory_patrol} [Why do you send tenants into the patrol?]
++ {jory_patrol} [Do tenants take up the patrol?]
   Because the Senate wrote the rule and I read it back to them slowly. They said service earns a vote, so I send them the service. They let tenants carry rifles on the road and pay half the cost on grain runs, and nobody asked what a rifle in a tenant's hands might mean on voting day.
   The patrol knows my face by now. I've noticed the patrol and the raiders in the south get paid out of the same sacks, but that's a longer story. I've been told I'm a long story myself.
   ~ jory_filled = true
@@ -40,7 +40,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   Have I seen the tanker unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the tanker exists or those cabbages are saints.
   ~ note("talkSeepPipe")
   -> hub
-+ {jory_nose} [What do you make of Nose?]
++ {jory_nose and found("nose")} [What do you make of Nose?]
   They ration everyone and call it kindness. A fed man in a line is still a man in a line. Ask me again in a famine and I might change my mind, or I might not, because I'm a stubborn fellow when I'm hungry.
   -> hub
 + [Goodbye.]
