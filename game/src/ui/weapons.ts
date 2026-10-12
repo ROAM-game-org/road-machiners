@@ -45,7 +45,7 @@ export function weaponGrid(count: number): { cols: number; small: boolean } {
   return { cols: Math.ceil(count / 2), small: true };
 }
 
-export type WeaponMark = { slot: number; look: "mg" | "cannon"; status: Msg; ready: boolean };
+export type WeaponMark = { slot: number; defId: string; status: Msg; ready: boolean };
 export type JobMark = { label: Msg; progress: number };
 export type VehicleMark = { weapons: WeaponMark[]; radio: boolean; job: JobMark | null; out: boolean; gaveUp: boolean };
 
@@ -61,7 +61,7 @@ export function vehicleMarks(w: World, hovered: string | null): Map<string, Vehi
   vehicleStats(w, playerVehicle(w)).weapons.forEach((mw, i) => {
     const readout = getWeaponReadout(w, mw);
     if (readout.target)
-      markOf(readout.target.id).weapons.push({ slot: i + 1, look: mw.def.look, status: readout.status, ready: readout.canFire });
+      markOf(readout.target.id).weapons.push({ slot: i + 1, defId: mw.part.defId, status: readout.status, ready: readout.canFire });
   });
   if (hovered && canCall(w, hovered)) markOf(hovered).radio = true;
   markSeenNpcs(w, markOf);

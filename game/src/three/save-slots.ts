@@ -1,8 +1,9 @@
 
 import type { SaveSlots } from './save-db';
 
+import { chooseQuestOption, QUESTS, startQuest } from '../sim/quests';
 import { isMode, parseSetup } from '../sim/settings';
-import type { GameModeId, WorldSetup } from '../sim/types';
+import type { GameModeId, World, WorldSetup } from '../sim/types';
 
 import { t, type Msg } from '../text/msg';
 
@@ -97,4 +98,30 @@ function parsedRequest(value: string): { new?: unknown; intro?: unknown; slot?: 
   }
   if (typeof request !== 'object' || request === null) throw new Error(`Unknown boot request ${value}`);
   return request;
+}
+
+export interface QuestJump {
+  quest: string;
+  checkpoint: string | null;
+  picks: number[];
+}
+
+export function questJumpOf(search: string): QuestJump | null {
+  const params = new URLSearchParams(search);
+  const quest = params.get('quest');
+  if (quest === null) return null;
+  const picks = params.get('picks');
+  return { quest, checkpoint: params.get('checkpoint'), picks: picks ? picks.split(',').map(pickIndex) : [] };
+}
+
+function pickIndex(text: string): number {
+  if (!/^[1-9]\d*$/.test(text)) throw new Error(`?picks holds ${text}, which is no choice number from 1`);
+  return Number(text) - 1;
+}
+
+export function jumpToQuest(world: World, jump: QuestJump): World {
+  const known = QUESTS.quests[jump.quest];
+  if (!known) throw new Error(`?quest=${jump.quest} names no quest. Known: ${Object.keys(QUESTS.quests).join(', ')}`);
+  const opened = startQuest(world, QUESTS, jump.quest, jump.checkpoint ?? known.checkpoints[0]);
+  return jump.picks.reduce((w, index) => chooseQuestOption(w, QUESTS, index), opened);
 }

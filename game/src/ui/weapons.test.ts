@@ -218,7 +218,7 @@ describe("vehicle marks", () => {
   it("shows each aimed weapon on its target with slot, look and status", () => {
     const { world, target, gun } = createDuel();
     expect(marksEn(world, target.id)).toEqual({
-      weapons: [{ slot: 1, look: gun.def.look, status: "ready", ready: true }],
+      weapons: [{ slot: 1, defId: gun.part.defId, status: "ready", ready: true }],
       radio: false,
       job: null,
       out: false,
@@ -807,7 +807,7 @@ describe("the harpoon on the weapon panel", () => {
     const far = harpoonDuel(9);
     far.me.weaponOrders[far.harpoon.id] = { targetId: far.target.id, aim: "body" };
     const slot = vehicleStats(far.w, far.me).weapons.findIndex((m) => m.part.id === far.harpoon.id) + 1;
-    expect(marksEn(far.w, far.target.id)?.weapons).toEqual([{ slot, look: "cannon", status: "out of range", ready: false }]);
+    expect(marksEn(far.w, far.target.id)?.weapons).toEqual([{ slot, defId: far.harpoon.defId, status: "out of range", ready: false }]);
   });
 });
 

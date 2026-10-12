@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
+import { hangUp } from './dialogue';
 import { testDrive } from './testkit';
 import type { World } from './types';
 import { endTurn, newWorld } from './world';
@@ -26,6 +27,7 @@ describe('the sim keeps no English', () => {
     const found: [string, string][] = [];
     let events = 0;
     for (let turn = 0; turn < 120; turn++) {
+      if (w.player.call) w = hangUp(w);
       w = endTurn(w, testDrive);
       events += w.events.length;
       found.push(...phrases(w));

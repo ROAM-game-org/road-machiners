@@ -55,7 +55,6 @@ export type WeaponDef = PartBase & {
   stray: number;
   round: WeaponRound;
   classes: WeaponClass[];
-  look: "mg" | "cannon";
   line?: { turns: number };
 };
 

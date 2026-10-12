@@ -374,8 +374,6 @@ export const SCREENS: Translation<typeof EN> = {
   'icon.supplies': 'Припасы',
   'icon.driver': 'Водитель',
   'icon.truck': 'Инвентарь грузовика',
-  'icon.cannon': 'Курсовая пушка',
-  'icon.mg': 'Пулеметная турель',
   'icon.engine': 'Двигатель',
   'icon.armor': 'Броня',
   'icon.cargo': 'Груз',

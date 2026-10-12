@@ -28,6 +28,11 @@ import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { playerSees, sightRadius } from '../sim/vision';
 import { endTurn, newWorld } from '../sim/world';
+import { newGame } from '../sim/new-game';
+import { route } from '../sim/path';
+import { chassisDef } from '../data/chassis';
+import { FARM_TOWER_ID } from '../data/arrival';
+import { AMBUSH_RAIDER } from '../data/quests';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -166,6 +171,24 @@ describe('the ambush', () => {
     const next = endTurn(w, testDrive);
     expect(raidersIn(next)).toHaveLength(1);
     expect(introStep(next)).toBe('ambush');
+  });
+
+  it('spawns the raider where it can drive to the player, not in a pocket walled off by slopes', () => {
+    const w = finishQuest(newGame(1337, 'arrival', true, TEST_MAP, defaultSetup('roaming')));
+    const farm = w.obstacles.find((o) => o.id === FARM_TOWER_ID)!.pos;
+    const bowl = REGION.towns.find((t) => t.id === WAKE_TOWN)!.pos;
+    const toBowl = Math.atan2(bowl.y - farm.y, bowl.x - farm.x);
+    const me = playerVehicle(w);
+    me.pos = { x: farm.x + Math.cos(toBowl) * 160, y: farm.y + Math.sin(toBowl) * 160 };
+    me.heading = toBowl + 0.5;
+    me.speed = 2;
+    me.order = { kind: 'through', dest: { x: me.pos.x + Math.cos(me.heading) * 200, y: me.pos.y + Math.sin(me.heading) * 200 } };
+    setIntroStep(w, 'patched');
+    const next = endTurn(w, testDrive);
+    const raider = next.vehicles.find((v) => v.id === next.player.quests.world[AMBUSH_RAIDER])!;
+    const there = playerVehicle(next).pos;
+    const way = route(next, raider.pos, there, chassisDef(raider.chassisId).radius, [], raider);
+    expect(dist(way[way.length - 1], there)).toBeLessThan(1);
   });
 
   it('does nothing before the engine is patched', () => {

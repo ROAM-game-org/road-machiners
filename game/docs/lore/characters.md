@@ -493,14 +493,14 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its one-pin swivel slid on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from the Pump Station down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke his gunner's arm. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly water run from the Pump Station down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke the arm of his relief driver. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 
 ## Ilan Duvall
 
 - Way: oppose.
-- High concept: A conscript gunner of 20 who carries half of the pin that broke.
+- High concept: A conscript relief driver of 20 who carries half of the pin that broke.
 - Trouble: He says the plain truth to people who can punish him for it.
 - Aspects: Half a pin in his shirt pocket; Arm in a sling; Found cracked swivels on the depot line with Lena.
 - Skills: best machining, worst social.
@@ -509,9 +509,25 @@ His line is "Look, I've driven that track four years. You don't know the bend."
 - Habit: He turns his half of the pin in his fingers while he talks.
 - Secret: None.
 
-Ilan is the conscript gunner of wagon Seven, twenty years old. He was under the cannon when it swung, and his arm is in a sling. He took the top half of the sheared pin from the cab and keeps it in his shirt pocket. At Kovac's desk he said the pin sheared, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked one-pin swivels on the depot line. His mother lives in Bowl and buys her water at Hattie's well house.
+Ilan is the conscript relief driver of wagon Seven, twenty years old. He rode in the cab to take over the link when Teller tired on the long run, and he was under the cannon when it swung, and his arm is in a sling. He took the top half of the sheared pin from the cab and keeps it in his shirt pocket. At Kovac's desk he said the pin sheared, and Kovac wrote it in the margin beside Teller's report. With Lena he found two more cracked one-pin swivels on the depot line. His mother lives in Bowl and buys her water at Hattie's well house.
 
 His line is "The ring was fine. The pin wasn't."
+
+## Edda Moss
+
+- Way: embrace.
+- High concept: The link fitter on the Nose workshop line, whose grandfather wore two Chaos hands.
+- Trouble: Every seat she saves comes off a wreck, and some come off with their Machiner still in them.
+- Aspects: Rewires link seats nobody can build; Reads the marks on a driver's neck; Her grandfather's story of the first link.
+- Skills: best machining, worst driving.
+- Wants: Every new Machiner in the basin comes back to her bench.
+- Fears: The last contacts that still work give out.
+- Habit: She tells a stranger to turn their head and reads their neck first.
+- Secret: None.
+
+Edda fits and rewires link seats on the Nose workshop line, for the Army and for anyone who pays. Nobody can make link contacts anymore, so every seat she works on is a Chaos seat that is still alive. Her grandfather lost both arms in the Chaos and got two hands that moved on his nerves. He told her that someone then wired a soldier's nerves to a tank instead of a hand, and the soldier nearly forgot where he ended and the tank began. He fixed link seats until he died, and he taught her the trade.
+
+Her line is "Turn your head. That ring is fresh."
 
 ## Lusa Fenwick
 
@@ -564,7 +580,7 @@ Her line is "The rope doesn't lie. People lie. The rope only gets shorter."
 ## Danil Varga
 
 - Way: escape.
-- High concept: A farm son born behind a wheel who rode west as a convoy gunner and never came back.
+- High concept: A farm son born behind a wheel who rode west as a hired Machiner and never came back.
 - Trouble: Every road out of the farm leaves a debt for his mother to pay.
 - Aspects: An old square pickup with a Brann swivel; Knows every rut of the south road; Took his mother's rifle.
 - Skills: best driving, worst toughness.
@@ -573,7 +589,7 @@ Her line is "The rope doesn't lie. People lie. The rope only gets shorter."
 - Habit: He sleeps in the truck when he is angry.
 - Secret: He lifted the spare key from Amos Teague's belt and took the pickup back. He hid it from Amos and from Pierce.
 
-Ruth's son was born behind a wheel and raised behind a plough. He bought an old square pickup on Pierce credit, and Otto Brann welded one of his first swivels into its bed. Danil ran the farm's sorghum north through the Nose gate to pay for it. In year 127 Amos Teague held the pickup at the Nose for Pierce. Danil lifted the spare key from Amos's belt, drove the truck home in the dark, parked it in the shed and rode west with Dario Feld's convoy as a gunner, with his mother's rifle. He never came back.
+Ruth's son was born behind a wheel and raised behind a plough. He bought an old square pickup on Pierce credit, and Otto Brann welded one of his first swivels into its bed. Danil ran the farm's sorghum north through the Nose gate to pay for it. In year 127 Amos Teague held the pickup at the Nose for Pierce. Danil lifted the spare key from Amos's belt, drove the truck home in the dark, parked it in the shed and rode west with Dario Feld's convoy as a hired Machiner, with his mother's rifle. He never came back.
 
 His line is "Every road out of here is a road out of here."
 

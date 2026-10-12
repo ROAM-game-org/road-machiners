@@ -26,6 +26,18 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 - A few scattered scholars partly understand the ship's technology: the last members of the Lunar Society, the Apprentice and a few cranks. No town holds that knowledge.
 - Everyone else uses ship parts that still work, like power cells and hull plating, without knowing how they work.
 
+## The link and Machiners
+
+- The link joins a driver's nerves to a truck. The truck becomes an extension of the driver's body. Some say the body becomes an extension of the truck.
+- The link was developed during the Chaos and has nothing to do with the ship. The Chaos wars left more soldiers without arms or legs than anyone could count, so workshops built artificial hands wired to a soldier's own nerves. Then someone wired a soldier's nerves to a tank instead of a hand, and the soldier nearly forgot where he ended and the tank began. After that every army wanted links.
+- A link is the driver's seat itself: padded leather, a row of contacts down the backrest along the spine, and a hard headrest with a round plug for the base of the skull and two hinged clamps for the neck. It is far finer work than anything else in a truck.
+- Nobody can make link contacts now. Fitters at the Nose workshop line and the Salvage Yard rewire old seats. When a seat dies, its truck becomes a plain truck again.
+- The first link overwhelms. For a moment the driver feels every part of the truck at once, then it settles. The body gets used to it in about a week.
+- The truck has no nerve endings, so a Machiner never feels touch or pain through it. A truck's state comes as a new sense outside the body, like seeing a new color. A gun feels the way a prosthetic arm feels to its wearer: moved without thinking, but never a limb of one's own.
+- Linking leaves a red ring at the base of the skull from the plug and a mark on each side of the neck from the clamps. A new driver's marks fade in a few days. After a year of driving they stay for life.
+- The first linked soldier lived in his tank for weeks and nearly lost himself. Machiners climb out every night, so they keep themselves. Old Machiners feel half empty out of the seat and leave it as little as they can.
+- Machiners are people who link to trucks for a living. Road slang shortens it to Mach. Nearly every armed truck on the road has one in its seat, and one Machiner drives a truck alone.
+
 ## Why every truck carries a gun
 
 By year 130 nobody drives the open road without a gun. Every driver knows why, and the reasons pile on each other:
@@ -36,6 +48,7 @@ By year 130 nobody drives the open road without a gun. Every driver knows why, a
 - The Nose lets no truck out of its gate without a gun. Its workshop line hands out a steel turning mount with every gate pass.
 - Kiln Camp strips trucks that neither pay nor fight. A truck that fights hard is often let go.
 - Hull plate from the wrecks is everywhere, and a welder can cut a gun mount from it in a day. The turning mount on a truck bed is called a swivel. Otto Brann of the Salvage Yard built the first one.
+- A swivel turns on an electric motor. The driver aims and fires it through the link. Nobody rides in the bed or holds the gun.
 - Guns are cheap. The Salvage Yard sells the Old Army's stripped guns at the crossroads.
 
 Drivers say a truck is "pinned twice" when it is ready for the road. A swivel with one pin can slide on a bend and swing the gun into the cab.

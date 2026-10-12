@@ -40,7 +40,7 @@ import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { acceptContract, deliverContract, fitsFetch, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { compareBase, createIcon, createItemIcon, type IconName } from "./cards";
+import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
@@ -302,7 +302,7 @@ export class TownScreen {
           this.showList();
         },
       },
-      f === "all" ? t("trade.filter.all") : createIcon(FILTER_ICON[f]),
+      f === "all" ? t("trade.filter.all") : filterIcon(f),
       el("span", { class: "count" }, num(count, "int")),
     );
   }
@@ -368,8 +368,7 @@ function bountyPays(w: World): Msg {
   return vehicleHasPerk(w, playerVehicle(w), "bountyTalk") ? t("contract.paysGiveUp") : t("contract.pays");
 }
 
-export const FILTER_ICON: Record<Exclude<StockFilter, "all">, IconName> = {
-  weapon: "cannon",
+const FILTER_ICON: Record<Exclude<StockFilter, "all" | "weapon">, IconName> = {
   engine: "engine",
   armor: "armor",
   cargo: "cargo",
@@ -377,6 +376,10 @@ export const FILTER_ICON: Record<Exclude<StockFilter, "all">, IconName> = {
   store: "supplies",
   utility: "utility",
 };
+
+export function filterIcon(f: Exclude<StockFilter, "all">): HTMLElement {
+  return f === "weapon" ? createBareItemIcon("mg") : createIcon(FILTER_ICON[f]);
+}
 
 export const TAB_ICON: Record<Tab, IconName> = {
   people: "driver",
@@ -401,10 +404,10 @@ function stockCount(stock: PartInstance[], f: StockFilter): number {
   return f === "all" ? stock.length : stock.filter((p) => partDef(p.defId).kind === f).length;
 }
 
-const CONTRACT_ICON: Record<Contract["kind"], IconName> = {
-  haul: "cargo",
-  fetch: "parts",
-  bounty: "cannon",
+const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
+  haul: () => createIcon("cargo"),
+  fetch: () => createIcon("parts"),
+  bounty: () => createBareItemIcon("cannon"),
 };
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -452,7 +455,7 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
   return el(
     "div",
     { class: "job" },
-    createIcon(CONTRACT_ICON[c.kind]),
+    CONTRACT_ICON[c.kind](),
     el("span", {}, contractSummary(c)),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,

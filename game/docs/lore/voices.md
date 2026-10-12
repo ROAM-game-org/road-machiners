@@ -134,6 +134,20 @@ Strangers: he offers a crate to sit on and wants the news the stranger carries.
 
 Sample: "Nobody knows, but I'd wager she moves it. Her signal's strongest at night, and it drifts like the mast is on wheels."
 
+### Edda Moss
+
+Vocabulary: seats, collars, contacts, cables, necks, spines and skin. She compares a truck's faults to a body's: a rub, a sore, a dead nerve.
+
+Rhythm: measured and practical, like a fitter taking a measurement. She names the part of the body first, then what the seat does to it.
+
+Habits: she tells a stranger to turn their head and reads the marks on their neck before their face. She says "Come and see me before, not after."
+
+Cares about: seats that keep working, and Machiners who come back to her bench. She avoids saying what happens to a seat when its Machiner dies in it.
+
+Strangers: she treats a new Machiner as a future customer and a stranger with no marks as nobody.
+
+Sample: "The plug leaves a ring at the base of the skull, and the clamps leave a mark on each side of the neck. Drive a year, and they stay."
+
 ### Ines Abend
 
 Vocabulary: the count, the number, the tower, the year, the sky and the plate. She compares things to tallies and to reading.

@@ -641,7 +641,7 @@ describe('NPC activities', () => {
       let took = false;
       for (let turn = 0; turn < 40 && !took; turn++) {
         next = endTurn(next, moveFar);
-        took = (goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0) > 0;
+        took = (goodsCount(next.vehicles.find((v) => v.id === npc.id)!).scrap ?? 0) > 0 && scrapIn(next) < before;
       }
 
       expect(took).toBe(true);

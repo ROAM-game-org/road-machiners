@@ -1,6 +1,3 @@
-// Weighted A* and nearest-free search over a nav layer plus a dynamic overlay. All scratch memory is
-// module-level and reused; generation stamps mark which entries belong to the current search, so
-// nothing is cleared between calls.
 
 import { REGION } from '../../data/region';
 import { count } from '../../perf';
@@ -168,7 +165,7 @@ export function findCellsToward(layer: NavLayer, ov: Overlay, start: number, goa
   return fineSearch(layer, ov, start, goal, false, taste);
 }
 
-function connected(layer: NavLayer, start: number, goal: number): boolean {
+export function connected(layer: NavLayer, start: number, goal: number): boolean {
   const target = componentOf(layer, goal);
   return target !== 0 && target === startComponent(layer, start);
 }

@@ -1959,6 +1959,14 @@
     "stakeout_done": "boolean",
     "watches": "number"
    },
+   "nose_edda": {
+    "edda_answered": "boolean",
+    "edda_asked_grandfather": "boolean",
+    "edda_asked_lose": "boolean",
+    "edda_asked_marks": "boolean",
+    "edda_asked_origin": "boolean",
+    "edda_heard_links": "boolean"
+   },
    "nose_ibo": {
     "asked_army": "boolean",
     "asked_bowl": "boolean",
@@ -2101,6 +2109,10 @@
     "desk",
     "sabine.haggle",
     "last_call"
+   ],
+   "nose_edda": [
+    "start",
+    "start.hub"
    ],
    "nose_ibo": [
     "start",
