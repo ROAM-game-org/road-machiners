@@ -5,7 +5,7 @@ import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { getMobilityCondition, isStranded, vehicleStats } from './stats';
 import { angleDiff, bearing, dist, type Vec } from './vec';
-import { laneCount, passShare, planCrashLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
+import { laneCount, passShare, planCrashLane, planLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
 import { damagePart } from './damage';
@@ -44,7 +44,7 @@ export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, w
 
 export function applyGroundCrash(world: World, v: Vehicle, what: string, impact: number, contact: CrashContact): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad ground crash impact ${impact}`);
-  const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash);
+  const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash, true);
   world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
 }
 
@@ -105,22 +105,23 @@ function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number
   return { hitsA, hitsB };
 }
 
-function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number): PartHit[] {
+function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): PartHit[] {
   if (contact.lanes.length === 0) throw new Error('Crash has no touched lanes');
   if (impact < RULES.collisionMinImpact) return [];
   const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
   const hits = new Map<string, number>();
   const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
   const spill = { ...round, damage: round.damage * RULES.crashFalloff };
-  for (const lane of contact.lanes) strikeLane(world, vehicle, contact.side, lane, round, hits);
-  for (const lane of spillLanes(vehicle, contact)) strikeLane(world, vehicle, contact.side, lane, spill, hits);
+  for (const lane of contact.lanes) strikeLane(world, vehicle, contact.side, lane, round, hits, ground);
+  for (const lane of spillLanes(vehicle, contact)) strikeLane(world, vehicle, contact.side, lane, spill, hits, ground);
   return applyCrashHits(world, vehicle, hits);
 }
 
-function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>): void {
+function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
   const copy = structuredClone(vehicle);
   const draft = { ...world, player: structuredClone(world.player), events: [] };
-  for (const hit of planCrashLane(copy, side, lane, round)) {
+  // A fixed ground strike carries through the crushed body; vehicle-to-vehicle strikes lose energy with depth.
+  for (const hit of (ground ? planLane : planCrashLane)(copy, side, lane, round)) {
     hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
   }
 }
