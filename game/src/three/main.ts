@@ -36,7 +36,7 @@ import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { idbBackend, SaveSlots } from './save-db';
 import { RunLog } from './run-log';
-import { allSlots, newestSlot, requestBoot, takeBootRequest, type BootRequest, type SlotId } from './save-slots';
+import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
 import { loadModels } from './render/models';
@@ -58,7 +58,8 @@ async function fetchMap(): Promise<BakedMap> {
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
 
 async function bootWorld(): Promise<Booted> {
-  const request = takeBootRequest(window.sessionStorage, SAVE_KEY);
+  if (questJump) return boot.track('world', () => jumpedRun(questJump), BOOT_TEXT.newGame);
+  const request = takeBootRequest(window.sessionStorage, saveKey);
   if (typeof request === 'object' && request !== null) return bootRequested(request);
   const slot = request ?? (await startSlot());
   if (slot === null) return boot.track('world', () => newGameSaved(defaultSetup('roaming'), false), BOOT_TEXT.newGame);
@@ -92,6 +93,11 @@ async function bootSlot(slot: SlotId): Promise<Booted> {
 function freshRun(setup: WorldSetup, intro: boolean): Booted {
   clearGame(slots, window.localStorage);
   return newGameSaved(setup, intro);
+}
+
+function jumpedRun(jump: QuestJump): Booted {
+  const booted = newGameSaved(defaultSetup('roaming'), false);
+  return { ...booted, world: jumpToQuest(booted.world, jump) };
 }
 
 function newGameSaved(setup: WorldSetup, intro: boolean): Booted {
@@ -133,6 +139,8 @@ function urlSeed(): number | null {
 }
 
 installCrashScreen();
+const questJump = import.meta.env.DEV ? questJumpOf(window.location.search) : null;
+const saveKey = questJump ? `${SAVE_KEY}-quest-view` : SAVE_KEY;
 const language = loadLanguage(window.localStorage, window.location.search, import.meta.env.DEV, document.documentElement);
 const questLanguageOf = (locale: DevLocale): QuestLanguage => (locale === 'pseudo' ? 'en' : locale);
 setQuestLanguage(questLanguageOf(language.current()));
@@ -157,10 +165,10 @@ const loading = Promise.all([
 ]);
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
-const slots = await SaveSlots.open(await idbBackend(SAVE_KEY), window.localStorage, SAVE_KEY, allSlots(CONFIG.saveSlots));
+const slots = await SaveSlots.open(await idbBackend(saveKey), window.localStorage, saveKey, allSlots(CONFIG.saveSlots));
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
-  requestBoot: (request) => requestBoot(window.sessionStorage, SAVE_KEY, request),
+  requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
   reload: () => void slots.flush().then(() => window.location.reload(), reportError),
   confirm: (text) => window.confirm(text),
 };
