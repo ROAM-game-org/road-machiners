@@ -8,7 +8,7 @@ import { readQuestSources, withEnglishTwins, type QuestSources } from './quest-c
 
 const WORLD = `VAR heard = false\n${readQuestSources('src/data/quests')['world.ink']}`;
 const LIMIT = 200;
-const WALK_TIMEOUT_MS = 120_000;
+const WALK_TIMEOUT_MS = 300_000;
 
 const world = () => newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
 

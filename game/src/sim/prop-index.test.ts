@@ -94,4 +94,22 @@ describe('prop index', () => {
     w.obstacles.push(rock);
     expect(propsAround(w, 'sight', rock.pos, 1).map((o) => o.id)).toContain(rock.id);
   });
+
+  it('sees a prop pushed onto the same obstacles array', () => {
+    const { w } = worldAndSamples();
+    const at = { x: 3, y: 3 };
+    const pushed = (kind: Obstacle['kind']) => ({ id: `pushed-${kind}`, kind, pos: at, r: 1 }) as Obstacle;
+    const tree = w.obstacles.find((o) => TIME.obstacleShade[o.kind] !== undefined);
+    const fence = w.obstacles.find(isBreakable);
+    if (!tree || !fence) throw new Error('The test map has no shade caster or breakable prop');
+    const sightBefore = propsAround(w, 'sight', at, 1).length;
+    const shadeBefore = shadeCastersAround(w, at, 1).length;
+    const breakBefore = propsAround(w, 'breakable', at, 1).length;
+
+    w.obstacles.push({ ...tree, id: 'pushed-shade', pos: at }, { ...fence, id: 'pushed-fence', pos: at }, pushed('rock'));
+
+    expect(propsAround(w, 'sight', at, 1).length).toBeGreaterThan(sightBefore);
+    expect(shadeCastersAround(w, at, 1).length).toBeGreaterThan(shadeBefore);
+    expect(propsAround(w, 'breakable', at, 1).length).toBeGreaterThan(breakBefore);
+  });
 });

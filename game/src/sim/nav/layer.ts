@@ -10,7 +10,8 @@ import { hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
 import { isTerritory, siteGap, type Site } from '../sites';
 import { dist, type Vec } from '../vec';
-import { marksOf, ObstacleBuckets, sameMarks, type Blocker, type ObstacleMark } from './buckets';
+import { ObstacleBuckets, type Blocker } from './buckets';
+import { ObstacleCache } from './obstacle-cache';
 
 export const CELL = 0.5;
 export const CLEARANCE = 0.4;
@@ -155,31 +156,24 @@ export function nearCliff(nav: TerrainNav, x: number, y: number, reach: number):
   return c[tileIndex(s, x, y)] === 1 || c[tileIndex(s, x + reach, y)] === 1 || c[tileIndex(s, x - reach, y)] === 1 || c[tileIndex(s, x, y + reach)] === 1 || c[tileIndex(s, x, y - reach)] === 1;
 }
 
-const STATIC_SETS_KEPT = 4;
-const staticSets: { marks: ObstacleMark[]; terrain: Terrain; set: StaticSet }[] = [];
+const staticSets = new ObstacleCache<StaticSet>(4);
 
 export function staticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
-  const at = staticSets.findIndex((e) => e.terrain === terrain && sameMarks(e.marks, obstacles));
-  if (at === 0) return staticSets[0].set;
-  if (at > 0) {
-    const [hit] = staticSets.splice(at, 1);
-    staticSets.unshift(hit);
-    return hit.set;
-  }
+  return staticSets.get(obstacles, terrain, () => buildStaticSet(obstacles, terrain));
+}
+
+function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   const statics = obstacles.filter((o) => isDriveObstacle(o) && !isTransientWreck(o));
   const all = [...statics.map((o) => driveBlocker(o, terrain)), ...atlasOf(terrain).hazards.map((z) => ({ pos: z.pos, r: z.radius }))];
   const breakable = statics.map(isBreakable);
   const solid = all.filter((_, i) => !breakable[i]);
-  const set = {
+  return {
     key: blockerKey(all),
     solidKey: blockerKey(solid),
     solid,
     costly: all.filter((_, i) => breakable[i]),
     buckets: new ObstacleBuckets(all, terrain.size),
   };
-  staticSets.unshift({ marks: marksOf(obstacles), terrain, set });
-  staticSets.length = Math.min(staticSets.length, STATIC_SETS_KEPT);
-  return set;
 }
 
 export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {

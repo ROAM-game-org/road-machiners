@@ -205,9 +205,9 @@ describe('breakable props', () => {
     const other = fenceAt('fence-1', { x: 80.2, y: 80.3 });
     w.obstacles = [fence];
     const whole = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles[0] = other;
+    w.obstacles = [other];
     const broken = navLayer(w.terrain, w.obstacles, radius);
-    w.obstacles[0] = fence;
+    w.obstacles = [fence];
 
     expect(broken === whole).toBe(false);
     expect(broken.slow[cellAt(broken.n, fence.pos)]).toBeCloseTo(whole.slow[cellAt(whole.n, fence.pos)] / BREAKABLE.routeCost);

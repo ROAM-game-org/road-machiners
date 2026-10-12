@@ -43,7 +43,7 @@ describe('gear score', () => {
   const priorities = (change: Partial<LoadoutPriorities>): LoadoutPriorities => ({ speed: 0, firepower: 0, armor: 0, cargo: 0, ...change });
   const scorer = (p: LoadoutPriorities) => {
     const w = emptyWorld();
-    return { w, score: gearScorer(w, p, vanWith([])) };
+    return { w, score: gearScorer(w, p, vanWith([]), true) };
   };
 
   it('scores armor higher when the armor priority is set', () => {
@@ -69,5 +69,15 @@ describe('gear score', () => {
     };
     expect(scorer(priorities({ firepower: 3 })).score(armed())).toBeGreaterThan(scorer(priorities({ firepower: 3 })).score(vanWith([])));
     expect(scorer(priorities({ speed: 3 })).score(armed())).toBeLessThan(scorer(priorities({ speed: 3 })).score(vanWith([])));
+  });
+
+  it('weighs speed against the fuel it burns only for a driver who pays for fuel', () => {
+    const w = emptyWorld();
+    const powered = (engine: string) => addVehicle(w, 'traders', 'van', [engine], { x: 30, y: 30 });
+    const speedy = priorities({ speed: 3 });
+    const paying = gearScorer(w, speedy, powered('stockEngine'), true);
+    const free = gearScorer(w, speedy, powered('stockEngine'), false);
+    expect(paying(powered('workhorseDiesel'))).toBeGreaterThan(paying(powered('turbine')));
+    expect(free(powered('turbine'))).toBeGreaterThan(free(powered('workhorseDiesel')));
   });
 });
