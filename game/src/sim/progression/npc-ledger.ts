@@ -10,7 +10,7 @@ const MONEY_EPSILON = 1e-6;
 
 export function npcLedger(before: World, next: World, events: readonly GameEvent[]): NpcLedger {
   const ledger: NpcLedger = {};
-  for (const e of events) for (const move of npcMoves(e, next.player.vehicleId)) book(ledger, move);
+  for (const e of events) for (const move of rawMoves(e, next.player.vehicleId).filter((move) => move.vehicle !== next.player.vehicleId)) book(ledger, move);
   const was = new Map(before.vehicles.flatMap((v) => (v.resources ? [[v.id, v.resources.money] as const] : [])));
   for (const v of next.vehicles) if (v.id !== next.player.vehicleId) reconcile(next.turn, v, was.get(v.id), ledger[v.id]);
   return ledger;
@@ -30,11 +30,6 @@ function book(ledger: NpcLedger, move: NpcMove): void {
 
 function rowTotal(row: NpcLedgerRow): number {
   return Object.values(row).reduce((sum, amount) => sum + amount, 0);
-}
-
-function npcMoves(e: GameEvent, me: string): NpcMove[] {
-  const moves = rawMoves(e, me);
-  return moves.filter((move) => move.vehicle !== me);
 }
 
 type MoveRule<K extends GameEvent['t']> = (e: Extract<GameEvent, { t: K }>, me: string) => NpcMove[];
