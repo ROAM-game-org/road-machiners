@@ -3,7 +3,8 @@ import { playerVehicle } from "../sim/damage";
 import { basicsRepairCost, chassisPrice, chassisTradeIn, repairCost, supplyRoom, type Supply } from "../sim/economy";
 import { mountedParts } from "../sim/grid";
 import { fuelCap, suppliesCap } from "../sim/stats";
-import type { World } from "../sim/types";
+import { getResources } from "../sim/resources";
+import type { Vehicle, World } from "../sim/types";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { chassisName } from "../text/names";
 import { chassisMap, chassisPortrait, chassisStats, createIcon, diffStats, statGrid } from "./cards";
@@ -18,8 +19,8 @@ export type ShopButtons = {
   priceButton(w: World, verb: Msg, price: number, cmd: ShopCommand, reason?: Msg | null, key?: string): HTMLElement;
 };
 
-export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }): HTMLElement {
-  const broken = mountedParts(playerVehicle(w)).filter((p) => p.hp === 0).length;
+export function repairBar(w: World, buttons: ShopButtons, repair: { basics: ShopCommand; all: ShopCommand }, truck: Vehicle = playerVehicle(w)): HTMLElement {
+  const broken = mountedParts(truck).filter((p) => p.hp === 0).length;
   const button = (verb: Msg, cost: number, cmd: ShopCommand, key: string) =>
     cost === 0 ? buttons.button(verb, cmd, t("trade.nothingToRepair"), key) : buttons.priceButton(w, verb, cost, cmd, null, key);
   return el(
@@ -27,18 +28,18 @@ export function repairBar(w: World, buttons: ShopButtons, repair: { basics: Shop
     { class: "town-repair" },
     createIcon("tools"),
     broken ? el("span", { class: "bad" }, t("trade.broken", { n: broken })) : null,
-    button(t("trade.repairBasicsVerb"), basicsRepairCost(w), repair.basics, "repairBasics"),
-    button(t("trade.repairAllVerb"), repairCost(w), repair.all, "repairAll"),
+    button(t("trade.repairBasicsVerb"), basicsRepairCost(w, truck), repair.basics, "repairBasics"),
+    button(t("trade.repairAllVerb"), repairCost(w, truck), repair.all, "repairAll"),
   );
 }
 
-export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: World, k: Supply, n: number) => World): HTMLElement {
-  const room = supplyRoom(w, k);
+export function supplyRow(w: World, k: Supply, buttons: ShopButtons, buy: (w: World, k: Supply, n: number) => World, truck: Vehicle = playerVehicle(w)): HTMLElement {
+  const room = supplyRoom(w, k, truck);
   const price = ECONOMY.supplyPrice[k];
   const afford = Math.min(room, Math.floor(w.player.money / price));
   const amount = (n: number) => supplyAmount(k, n);
   const reason = room < 1 ? t("trade.full") : shortBy(w.player.money, price);
-  return supplyLine(k, w.player[k], supplyCap(w, k), null, price, shortBy(w.player.money, price) === null, [
+  return supplyLine(k, getResources(w, truck)[k], supplyCap(w, k, truck), null, price, shortBy(w.player.money, price) === null, [
     buttons.button(t("trade.plusAmount", { amount: amount(1) }), (x) => buy(x, k, 1), reason),
     buttons.button(afford > 0 ? t("trade.fill", { amount: amount(afford) }) : t("trade.fillBare"), (x) => buy(x, k, afford), reason),
   ]);
@@ -54,8 +55,8 @@ export function supplyAmount(k: Supply, n: number): Msg {
   return k === "fuel" ? t("trade.liters", { n: fuelLiters(n) }) : num(Math.round(n * 10) / 10, "dec");
 }
 
-export function supplyCap(w: World, k: Supply): number {
-  return k === "fuel" ? fuelCap(playerVehicle(w)) : suppliesCap(playerVehicle(w));
+export function supplyCap(w: World, k: Supply, truck: Vehicle = playerVehicle(w)): number {
+  return k === "fuel" ? fuelCap(truck) : suppliesCap(truck);
 }
 
 export function supplyUnit(k: Supply): Msg {

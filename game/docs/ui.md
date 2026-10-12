@@ -97,7 +97,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 | Top right | System, then the cursor card | Menu and camera switch at the edge, the hover card below them |
 | Right side | Ambient and waiting on | Radio, then contracts |
 | Bottom right | Events and commit | Log above End turn |
-| Bottom left | My truck | Truck diagram above the instruments and the weapons bar |
+| Bottom left | My truck | Truck diagram, then the hauler gauge, above the instruments and the weapons bar |
 | Center | Task | Modals, dialogue, save and new game |
 
 Two zones may never cover each other. A new element that needs room takes it from its own zone.
@@ -210,7 +210,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - Danger marks loss, hostility and failure: `--danger`, `--danger-bright`, `--danger-ink` for text, `--danger-deep`, `--danger-dark` and the `--danger-well` fills. `--alarm` is the part that is about to break.
 - Good marks gain, health and success: `--good`, `--good-bright`, `--good-deep` and `--good-well` for a meter track.
 - The condition ramp `--cond-pristine` to `--cond-junk` colors part condition and must fall in brightness. A test checks it.
-- `--cell-*` colors the truck grid in the inventory and `--map-*` the small grid on truck cards.
+- `--cell-*` colors the truck grid in the inventory and `--map-*` the small grid on truck cards. The cargo bay cell `C` of the semi has its own look: a green hatch in the inventory (`--cell-bay`, `--cell-bay-line`) and a flat green on truck cards (`--map-bay`). It differs from the deck cell, so the grid shows by itself that a gun has no place on the hauler.
 - `--path-*` colors the path preview on the ground through `tokenColor()`.
 - `--steel-0` to `--steel-11`, `--lcd-*` and `--dial-*` color the drawn hardware only.
 - Spacing steps run `--space-1` 2px to `--space-10` 32px. Padding, margin and gap use them. A 1px hairline and 0 stay raw.
@@ -236,6 +236,8 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.
+- `.hauler-gauge` is the hauler's chassis portrait beside a `.meter` of its condition, in the bottom left zone under the truck diagram, shown only in a run. Its tooltip reads "Hauler, 82% in one piece". It answers whether the hauler is okay, and the grid and the world answer the rest.
+- `.truck-switch` is a `.tabs` row of two buttons with a chassis portrait each, the player's truck and the hauler, above the grid on the outpost screen. `.on` marks the truck the grid, the repair bar, the supplies and the Buy parts tab act on. The hauler button is disabled with the reason in its tooltip while the hauler is not parked on the pad.
 - `.meter` is a bar that fills from the left. `.s` and `.l` change its height. `.broken` turns the track to danger. `.progress` fills it with the accent for timed work and recharge.
 - `.selected` is the one look of a chosen item: accent border and accent wash. A pressed `button.on` uses it too. No screen draws its own selected look. Drawn hardware, like a switch or a truck instrument, keeps its metal and takes the accent edge only.
 - `[aria-disabled="true"]` dims a control that cannot be used now. It keeps hover and focus, so its tooltip can say why.

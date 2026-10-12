@@ -538,6 +538,7 @@ export const SCREENS = {
   'inv.verb.rebuild': 'Rebuild',
   'inv.against': m('Against {part} ', { part: 'text' }),
   'cell.deck': 'deck mount for a weapon, scanner, cargo frame or store',
+  'cell.bay': 'cargo bay for a cargo frame or any stowed item',
   'cell.engine': 'engine mount',
   'cell.front': 'front armor mount',
   'cell.back': 'back armor mount',

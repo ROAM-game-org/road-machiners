@@ -114,3 +114,17 @@
   width: 100%;
   justify-content: flex-start;
 }
+#ui .truck-stack > .hauler-gauge {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+#ui .hauler-gauge .chassis-portrait {
+  --portrait-w: calc(var(--icon-xl) * 1.5);
+  --portrait-h: var(--icon-xl);
+}
+#ui .hauler-gauge .meter {
+  flex: 1;
+}

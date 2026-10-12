@@ -41,14 +41,15 @@ import type { Call, Faction, GoalReason, GridItem, NpcState, PartInstance, Salva
 import { dist, pointsAway, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
+import { outpostFort } from '../highway';
 import { runnerOrders } from './runner';
 import { BIGGEST_PART_CELLS, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'runner' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'runner', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
-type RoadPolicy = 'runner' | 'sprinter';
+type RoadPolicy = 'escort' | 'sprinter';
 type Goal = Exclude<Policy, 'markov' | 'climber' | RoadPolicy>;
 
 const CLIMB_GUNS = 3;
@@ -91,7 +92,7 @@ export function isArchetype(value: string): value is Archetype {
 }
 
 export function botOrders(world: World, archetype: Policy, options: BotOptions = {}): BotTurn {
-  if (archetype === 'runner' || archetype === 'sprinter') return runnerOrders(world, archetype === 'runner');
+  if (archetype === 'escort' || archetype === 'sprinter') return runnerOrders(world, archetype);
   return policyOrders(world, archetype, options);
 }
 
@@ -128,7 +129,12 @@ function followGoal(o: Orders, goal: Goal, archetype: Policy): void {
 
 export function parkedOnPurpose(world: World): boolean {
   if (world.player.state === 'knockedOut') return true;
-  return playerVehicle(world).job !== null || patchDeal(world) !== null || shopAt(world) !== null || reachedOutpostAt(world) !== null;
+  return playerVehicle(world).job !== null || patchDeal(world) !== null || shopAt(world) !== null || reachedOutpostAt(world) !== null || waitsOnPad(world);
+}
+
+function waitsOnPad(world: World): boolean {
+  const run = world.furyRoad;
+  return run !== null && canUseSite(playerVehicle(world).pos, outpostFort(world.seed, run.window, run.window + 1));
 }
 
 function climberGoal(world: World): Goal {

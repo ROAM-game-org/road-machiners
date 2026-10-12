@@ -1,13 +1,13 @@
 import { partDef, type PartKind } from "../data/parts";
-import { playerVehicle } from "../sim/damage";
-import { chassisPrice, chassisSwapRefusal } from "../sim/economy";
+import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
+import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
 import { canWaitForRoad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from "../sim/fury-road";
 import { goodsCount, MOUNT_CELLS } from "../sim/grid";
-import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
 import { goodName, refusalText, siteName } from "../text/names";
-import { compareBase, createIcon, createItemIcon } from "./cards";
+import { chassisPortrait, compareBase, createIcon, createItemIcon } from "./cards";
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
@@ -30,6 +30,7 @@ export class OutpostScreen {
   private root = panel("modal dialog");
   private error: Msg | null = null;
   private tab: OutpostTab = "market";
+  private shown: "truck" | "hauler" = "truck";
   private rows = new PartRows(() => this.render());
   private inventory: InventoryView;
 
@@ -75,7 +76,17 @@ export class OutpostScreen {
     const w = this.host.world();
     const post = reachedOutpostAt(w);
     if (!post) return this.close();
-    const truck = el("div", { class: "town-truck" }, repairBar(w, this, { basics: outpostRepairBasics, all: outpostRepairAll }), this.inventory.render());
+    if (this.shown === "hauler" && !this.haulerHere(w)) this.shown = "truck";
+    const id = this.truckId(w);
+    this.inventory.showTruck(id ?? null);
+    const mine = truckFor(w, id);
+    const truck = el(
+      "div",
+      { class: "town-truck" },
+      this.truckSwitch(w),
+      repairBar(w, this, { basics: (x) => outpostRepairBasics(x, id), all: (x) => outpostRepairAll(x, id) }, mine),
+      this.inventory.render(),
+    );
     const shop = el(
       "div",
       { class: "town-shop" },
@@ -86,10 +97,40 @@ export class OutpostScreen {
     );
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
-      el("h3", {}, siteName(post.id), truckChips(w)),
+      el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)),
       el("div", { class: "town-split" }, truck, shop),
     );
     this.inventory.fitTo(truck);
+  }
+
+  private haulerHere(w: World): boolean {
+    return w.furyRoad !== null && reachedOutpostAt(w, haulerOf(w)) !== null;
+  }
+
+  private truckId(w: World): string | undefined {
+    return this.shown === "hauler" && w.furyRoad ? haulerOf(w).id : undefined;
+  }
+
+  private truckSwitch(w: World): HTMLElement | null {
+    if (!w.furyRoad) return null;
+    const away = !this.haulerHere(w);
+    const choice = (which: "truck" | "hauler", chassisId: string, reason: Msg | null) =>
+      el(
+        "button",
+        {
+          class: this.shown === which ? "on" : "",
+          "data-truck": which,
+          disabled: reason !== null,
+          title: reason ?? undefined,
+          onclick: () => {
+            this.shown = which;
+            this.render();
+          },
+        },
+        chassisPortrait(chassisId),
+        t(`outpost.${which}`),
+      );
+    return el("div", { class: "tabs truck-switch" }, choice("truck", playerVehicle(w).chassisId, null), choice("hauler", haulerOf(w).chassisId, away ? t("outpost.haulerAway") : null));
   }
 
   private tabButtons(): HTMLElement[] {
@@ -115,7 +156,10 @@ export class OutpostScreen {
   private tabBody(w: World, post: Outpost): HTMLElement {
     if (this.tab === "trucks") return this.trucks(w, post);
     if (this.tab === "buyParts") return this.stock(w, post);
-    return el("div", { class: "goods" }, goodsHead(), supplyRow(w, "fuel", this, outpostBuySupply), supplyRow(w, "supplies", this, outpostBuySupply), this.goodRow(w));
+    const id = this.truckId(w);
+    const buy = (x: World, k: Supply, n: number) => outpostBuySupply(x, k, n, id);
+    const mine = truckFor(w, id);
+    return el("div", { class: "goods" }, goodsHead(), supplyRow(w, "fuel", this, buy, mine), supplyRow(w, "supplies", this, buy, mine), this.goodRow(w));
   }
 
   private trucks(w: World, post: Outpost): HTMLElement {
@@ -182,15 +226,17 @@ export class OutpostScreen {
   }
 
   private partRow(w: World, p: PartInstance): PartRow {
-    const price = outpostPartPrice(w, p);
+    const id = this.truckId(w);
+    const price = outpostPartPrice(w, p, id);
     const short = shortBy(w.player.money, price);
+    const refused = id !== undefined && !haulerTakes(p) ? t("outpost.haulerRefuses") : null;
     return {
       world: w,
       part: p,
       base: compareBase(this.inventory.selectedPart(), p),
       price,
       payable: short === null,
-      action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id), short),
+      action: this.button(t("goods.buy"), (x) => outpostBuyPart(x, p.id, id), refused ?? short),
       onHover: this.hintMounts(partDef(p.defId).kind),
     };
   }

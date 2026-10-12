@@ -126,6 +126,7 @@ const ENGINE_FILES: Record<string, string> = {
   lincoln: "engine-2.ogg",
   niva: "engine-1.ogg",
   bukhanka: "engine-2.ogg",
+  semi: "engine-3.ogg",
 };
 
 const HORN_SOUNDS: Record<string, { file: string; rate: number }> = {
@@ -145,6 +146,7 @@ const HORN_SOUNDS: Record<string, { file: string; rate: number }> = {
   lincoln: { file: "horn-2.ogg", rate: 0.88 },
   niva: { file: "horn-1.ogg", rate: 1.28 },
   bukhanka: { file: "horn-1.ogg", rate: 0.88 },
+  semi: { file: "horn-2.ogg", rate: 0.66 },
 };
 
 export function hornSoundFor(chassisId: string): { file: string; rate: number } {

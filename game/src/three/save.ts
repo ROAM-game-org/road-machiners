@@ -83,7 +83,7 @@ export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRo
     if (highway) throw new SaveError('otherMap', null, `A ${saved.setup.mode} save names highway map ${saved.mapHash}`);
     return icarus;
   }
-  if (!saved.furyRoad) throw new SaveError('otherMap', null, 'This Fury Road run was laid on Icarus roads, and the highway has replaced them');
+  if (!saved.furyRoad) throw new SaveError('otherMap', null, 'This Fury Road run is from older rules: it was laid on Icarus roads or has no hauler, and the highway has replaced them');
   if (!highway) throw new SaveError('otherMap', null, `A Fury Road save names map ${saved.mapHash}, which is no highway`);
   const map = highwayMap(saved.seed, saved.furyRoad.window);
   if (map.hash !== saved.mapHash) throw new SaveError('otherMap', null, `map ${saved.mapHash}, not the current highway ${map.hash}`);

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
-import { dangerPercent, enemyTrucks, expectedGear, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
+import { dangerPercent, enemyTrucks, expectedGear, floorOf, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
+import { HAULER_KIT } from '../data/start';
 import { waveOf } from './fury-road';
 import { generateNpcLoadout } from './npc-loadout';
 import { furyRoadWorld } from './testkit';
 import type { World } from './types';
 
-const START_GEAR = 4847 + 5000 + 2 * 7266;
+const START_GEAR = [...['mg', 'stockEngine', 'cage', 'cage'], ...HAULER_KIT.parts].reduce((sum, id) => sum + PARTS[id].value, 0);
 const STRETCHES = Array.from({ length: 50 }, (_, i) => i + 1);
 const GROWTHS = [0, 0.25, 1, 2];
 
@@ -22,20 +23,21 @@ describe('Fury Road danger', () => {
     const w = withGrowth(1);
 
     expect(expectedGear(w, 1)).toBe(START_GEAR);
-    expect(Math.round(0.8 * START_GEAR)).toBeLessThan(FURY_ROAD.danger.truckFloor);
-    expect(gearMoneyOf(w, 1)).toBe(FURY_ROAD.danger.truckFloor);
+    expect(Math.round((FURY_ROAD.danger.firstPercent / 100) * START_GEAR)).toBeLessThan(floorOf(1));
+    expect(gearMoneyOf(w, 1)).toBe(floorOf(1));
     expect(enemyTrucks(w, 1)).toBe(1);
-    expect(expectedGear(w, 2)).toBe(START_GEAR + FURY_ROAD.danger.gearShare * payOf(1, 1));
-    expect(gearMoneyOf(w, 3)).toBe(Math.round(0.8 * expectedGear(w, 3)));
-    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([80, 90, 100]);
-    expect(dangerPercent(withGrowth(2), 3)).toBe(120);
-    expect(dangerPercent(withGrowth(0), 50)).toBe(80);
+    expect(expectedGear(w, 2)).toBe(START_GEAR + FURY_ROAD.danger.gearShare * payOf(1));
+    const share = Math.min(dangerPercent(w, 12) / enemyTrucks(w, 12), FURY_ROAD.danger.truckPercent);
+    expect(gearMoneyOf(w, 12)).toBe(Math.max(floorOf(12), Math.round((share / 100) * expectedGear(w, 12))));
+    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([45, 51, 57]);
+    expect(dangerPercent(withGrowth(2), 3)).toBe(69);
+    expect(dangerPercent(withGrowth(0), 50)).toBe(45);
   });
 
   it('adds a truck only once every truck still gets at least the truck floor share of the expected gear', () => {
     const w = withGrowth(1);
 
-    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 2, 2, 3, 3, 4]);
+    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 1, 2, 3, 4, 4]);
     expect(STRETCHES.every((j) => enemyTrucks(withGrowth(0), j) === 1)).toBe(true);
     for (const growth of GROWTHS) {
       const g = withGrowth(growth);
@@ -60,7 +62,7 @@ describe('Fury Road danger', () => {
   it('never lowers the danger, the truck count, the total enemy gear or the pay from one stretch to the next', () => {
     for (const growth of GROWTHS) {
       const w = withGrowth(growth);
-      const rows = STRETCHES.map((j) => ({ danger: dangerPercent(w, j), trucks: enemyTrucks(w, j), total: gearMoneyOf(w, j) * enemyTrucks(w, j), pay: payOf(j, enemyTrucks(w, j)) }));
+      const rows = STRETCHES.map((j) => ({ danger: dangerPercent(w, j), trucks: enemyTrucks(w, j), total: gearMoneyOf(w, j) * enemyTrucks(w, j), pay: payOf(j) }));
       rows.slice(1).forEach((row, i) => {
         const before = rows[i];
         expect(row.danger, `growth ${growth} stretch ${i + 2}`).toBeGreaterThanOrEqual(before.danger);
@@ -74,16 +76,17 @@ describe('Fury Road danger', () => {
   it('never budgets one truck above its share of the expected player gear', () => {
     for (const growth of GROWTHS) {
       const w = withGrowth(growth);
-      for (const j of STRETCHES) expect(gearMoneyOf(w, j)).toBeLessThanOrEqual(Math.max(FURY_ROAD.danger.truckFloor, Math.round((FURY_ROAD.danger.truckPercent / 100) * expectedGear(w, j))));
+      for (const j of STRETCHES) expect(gearMoneyOf(w, j)).toBeLessThanOrEqual(Math.max(floorOf(j), Math.round((FURY_ROAD.danger.truckPercent / 100) * expectedGear(w, j))));
     }
   });
 
-  it('pays more every stretch with no cap', () => {
-    const { base, perWreck } = FURY_ROAD.pay;
+  it('pays more every stretch with no cap, and a beaten truck pays nothing', () => {
+    const { base } = FURY_ROAD.pay;
 
-    expect(payOf(1, 0)).toBe(base.first);
-    expect(payOf(2, 1)).toBe(base.first + base.step + perWreck.first + perWreck.step);
-    expect(payOf(100, 1)).toBe(base.first + 99 * base.step + perWreck.first + 99 * perWreck.step);
+    expect(payOf(1)).toBe(base.first);
+    expect(payOf(2)).toBe(base.first + base.step);
+    expect(payOf(100)).toBe(base.first + 99 * base.step);
+    expect(FURY_ROAD.pay).not.toHaveProperty('perWreck');
   });
 
   it('splits trucks into the fewest groups of at most the group size, as even as they go', () => {

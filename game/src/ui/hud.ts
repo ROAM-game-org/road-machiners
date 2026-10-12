@@ -30,6 +30,7 @@ import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
+import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, say, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
@@ -118,6 +119,7 @@ export class Hud {
   private readoutSlot = el("div", { class: "readouts" });
   private actionSlot = el("div", { class: "instrument-actions" });
   private condition = new TruckConditionView();
+  private haulerGauge = new HaulerGauge();
   private inspected = new TruckConditionView();
   private inspectedDraw = el("div", { class: "info-draw" }, this.inspected.root);
   private inspectedAimable = false;
@@ -171,7 +173,7 @@ export class Hud {
   }
 
   constructor(private actions: HudActions, private radio: RadioPanel) {
-    this.truckStack.append(this.condition.root);
+    this.truckStack.append(this.condition.root, this.haulerGauge.root);
     bottomLeft().append(this.truckStack);
     this.dialogue = new DialoguePanel(actions.dialogue);
     this.info.style.display = "none";
@@ -447,6 +449,7 @@ export class Hud {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
     this.condition.render(playerVehicle(w));
+    this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);

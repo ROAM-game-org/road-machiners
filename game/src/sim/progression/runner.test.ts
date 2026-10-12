@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { TERRAIN } from '../../data/terrain';
 import { dist } from '../vec';
-import { playerVehicle } from '../damage';
-import { goodsCount, mountedParts } from '../grid';
-import { outpostPad } from '../fury-road';
+import { haulerOf, playerVehicle } from '../damage';
+import { corePart, goodsCount, mountedParts } from '../grid';
+import { partDef } from '../../data/parts';
+import { onOutpostPad, outpostPad } from '../fury-road';
+import { outpostFort } from '../highway';
 import { furyRoadWorld } from '../testkit';
 import type { World } from '../types';
 import { maxHp } from '../wear';
@@ -12,34 +13,56 @@ import { botOrders } from './bot';
 
 function atFirstOutpost(): World {
   const w = furyRoadWorld();
+  const pad = outpostPad(w, 1);
   const me = playerVehicle(w);
-  me.pos = outpostPad(w, 1);
+  me.pos = { ...pad };
   me.speed = 0;
+  const hauler = haulerOf(w);
+  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.speed = 0;
   return endTurn(w, () => {});
 }
 
-describe('the Fury Road runner bot', () => {
-  it('repairs, restocks patch parts, waits for the road and drives on to the next outpost', () => {
+describe('the Fury Road escort bot', () => {
+  it('repairs both trucks, restocks patch parts, waits for the road and keeps beside the hauler', () => {
     const w = atFirstOutpost();
-    for (const part of mountedParts(playerVehicle(w))) part.hp = Math.ceil(maxHp(part) * 0.6);
+    for (const truck of [playerVehicle(w), haulerOf(w)]) for (const part of mountedParts(truck)) part.hp = Math.ceil(maxHp(part) * 0.6);
     const me = playerVehicle(w);
     me.items = me.items.filter((it) => !(it.kind === 'good' && it.good === 'parts'));
     w.player.money = 100_000;
 
-    const turn = botOrders(w, 'runner');
+    const turn = botOrders(w, 'escort');
     const after = playerVehicle(turn.world);
 
     expect(mountedParts(after).every((p) => p.hp === maxHp(p))).toBe(true);
+    expect(mountedParts(haulerOf(turn.world)).every((p) => p.hp === maxHp(p))).toBe(true);
     expect(goodsCount(after).parts).toBe(4);
     expect(turn.events).toContainEqual({ t: 'roadOpened', stretch: 2 });
     expect(turn.world.furyRoad?.window).toBe(1);
     const hop = after.order?.kind === 'stopAt' ? after.order.dest : null;
     expect(hop).not.toBeNull();
-    const pad = outpostPad(turn.world, 2);
-    expect(dist(hop!, after.pos)).toBeLessThan(2 * TERRAIN.vision.radius);
-    expect(dist(hop!, after.pos)).toBeLessThan(dist(pad, after.pos));
-    expect(dist(hop!, pad)).toBeLessThan(dist(after.pos, pad));
+    expect(dist(hop!, haulerOf(turn.world).pos)).toBeLessThan(6);
     expect(turn.ledger.repairs).toBeLessThan(0);
+  });
+
+  it('parks on the side of the pad away from the hauler, so a hauler stopped off center never blocks it', () => {
+    const w = atFirstOutpost();
+    const pad = outpostPad(w, 1);
+    const site = outpostFort(w.seed, w.furyRoad!.window, 1);
+    const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
+    for (const side of [1, -1]) {
+      const world = structuredClone(w);
+      const hauler = haulerOf(world);
+      hauler.pos = { x: pad.x - side * Math.sin(angle) * 2, y: pad.y + side * Math.cos(angle) * 2 };
+      playerVehicle(world).pos = { x: pad.x + 12, y: pad.y + 12 };
+
+      const after = playerVehicle(botOrders(world, 'escort').world);
+      const spot = after.order?.kind === 'stopAt' ? after.order.dest : null;
+
+      expect(spot).not.toBeNull();
+      expect(onOutpostPad(world, spot!, 1)).toBe(true);
+      expect(dist(spot!, hauler.pos)).toBeGreaterThan(3);
+    }
   });
 
   it('parks to patch when stranded out of combat with parts to patch with', () => {
@@ -49,7 +72,7 @@ describe('the Fury Road runner bot', () => {
     me.speed = 0;
     me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
 
-    const turn = botOrders(w, 'runner');
+    const turn = botOrders(w, 'escort');
     const next = endTurn(turn.world, () => {});
 
     expect(turn.world.player.state).toBe('active');
@@ -57,13 +80,59 @@ describe('the Fury Road runner bot', () => {
     expect(playerVehicle(next).job?.kind).toBe('repair');
   });
 
+  it('parks to patch a holed tank before the fuel is gone, out of combat with parts to patch with', () => {
+    const w = furyRoadWorld();
+    const me = playerVehicle(w);
+    corePart(me, 'tank').hp = 0;
+    me.speed = 0;
+    me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
+
+    const turn = botOrders(w, 'escort');
+
+    expect(turn.world.player.state).toBe('active');
+    expect(playerVehicle(turn.world).order).toEqual({ kind: 'brake' });
+  });
+
   it('ends the run when stranded with no way to patch', () => {
     const w = furyRoadWorld();
     w.player.fuel = 0;
 
-    const turn = botOrders(w, 'runner');
+    const turn = botOrders(w, 'escort');
 
     expect(turn.world.player.state).toBe('dead');
     expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
+  it('buys armor for the hauler from its share of the money, and never a gun', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    const before = mountedParts(haulerOf(w), 'armor').length;
+
+    const turn = botOrders(w, 'escort');
+
+    const hauler = haulerOf(turn.world);
+    expect(mountedParts(hauler, 'armor').length).toBeGreaterThanOrEqual(before);
+    expect(mountedParts(hauler, 'weapon')).toEqual([]);
+    expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
+  });
+
+  it('turns on auto fire for the escort and drives to the foe near the hauler', () => {
+    const w = furyRoadWorld();
+    w.furyRoad!.groups = [];
+    const turn = botOrders(w, 'escort');
+    expect(turn.world.player.autoFire).toBe(true);
+  });
+});
+
+describe('the Fury Road sprinter bot', () => {
+  it('turns auto fire off and drives ahead for the next pad, whatever follows it', () => {
+    const w = furyRoadWorld();
+    w.player.autoFire = true;
+
+    const turn = botOrders(w, 'sprinter');
+
+    expect(turn.world.player.autoFire).toBe(false);
+    expect(playerVehicle(turn.world).order).toMatchObject({ kind: 'stopAt' });
+    expect(Object.keys(playerVehicle(turn.world).weaponOrders)).toEqual([]);
   });
 });

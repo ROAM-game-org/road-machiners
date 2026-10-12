@@ -1,7 +1,7 @@
 
 import { Refused } from '../sim/world';
 import { partDef } from "../data/parts";
-import { playerVehicle } from "../sim/damage";
+import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { isMounted, type Spot } from "../sim/grid";
 import { installSpot, moveItem, planItemMove, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
@@ -22,6 +22,7 @@ export type ClickedItem = {
   id: string;
   stockId: string | null;
   truckId: string | null;
+  own?: string;
 };
 
 export type LastClick = { id: string; at: number } | null;
@@ -46,8 +47,8 @@ export function doubleClickCommand(w: World, c: ClickedItem, instant = false): (
 
 function storageCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
   if (c.item.kind !== "part") return null;
-  const spot = installSpot(playerVehicle(w), c.item);
-  return spot ? (next) => takeFromStorage(next, c.id, spot) : null;
+  const spot = installSpot(truckFor(w, c.own), c.item);
+  return spot ? (next) => takeFromStorage(next, c.id, spot, c.own) : null;
 }
 
 function takeCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
@@ -59,17 +60,17 @@ function takeCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
 }
 
 function gridCommand(w: World, c: ClickedItem): ((w: World) => World) | null {
-  const me = playerVehicle(w);
+  const me = truckFor(w, c.own);
   const item = me.items.find((it) => it.id === c.id);
   if (!item || item.kind !== "part" || partDef(item.part.defId).kind === "core") return null;
-  if (isMounted(me.chassisId, item)) return (next) => storePart(next, item.id);
+  if (isMounted(me.chassisId, item)) return (next) => storePart(next, item.id, c.own);
   const spot = installSpot(me, item);
-  return spot ? (next) => moveItem(next, item.id, spot) : null;
+  return spot ? (next) => moveItem(next, item.id, spot, c.own) : null;
 }
 
 function gridDoubleClick(w: World, c: ClickedItem, instant: boolean): ((w: World) => World) | null {
   if (instant) return instantGridCommand(w, c);
-  return atGarage(w) ? gridCommand(w, c) : null;
+  return atGarage(w, c.own) ? gridCommand(w, c) : null;
 }
 
 function instantGridCommand(w: World, c: ClickedItem): ((w: World) => World) | null {

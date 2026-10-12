@@ -25,6 +25,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | chassis | niva | base_niva |
 | chassis | bukhanka | base_bukhanka |
 | chassis | lincoln | base_lincoln |
+| chassis | semi | base_semi |
 | part | transmission | transmission |
 | part | transmissionMid | transmission |
 | part | transmissionHeavy | transmission |

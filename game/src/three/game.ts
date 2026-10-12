@@ -22,7 +22,7 @@ import {
   type VehicleFrame,
 } from "../phys/frames";
 import { type PreparedTurn } from "../phys/turn";
-import { playerVehicle, vehicleById } from "../sim/damage";
+import { playerTrucks, playerVehicle, vehicleById } from "../sim/damage";
 
 import { inOverdrive, isStranded, maxTurn, vehicleStats } from "../sim/stats";
 import { clickOrder } from "../sim/steering";
@@ -619,7 +619,7 @@ export class Game {
   }
 
   private isVehicleVisible(v: Vehicle): boolean {
-    if (v.id === playerVehicle(this.world).id) return true;
+    if (playerTrucks(this.world).some((truck) => truck.id === v.id)) return true;
     const f = this.frames[v.id];
     if (this.live && f) return this.live.visible.has(tileOf(this.world, toMap(f.pos)));
     return playerSees(this.world, v.pos);

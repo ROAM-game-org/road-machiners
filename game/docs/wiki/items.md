@@ -25,6 +25,7 @@ Parts are defined in `src/data/parts.ts`, chassis in `src/data/chassis.ts` and g
 | niva | Niva | 2 | 1,050 | 7.6 | 2.2 | 3 | 520 | 4210 | 0.55 | 42 | 0.21 | 6 x 10 | cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid |
 | bukhanka | Bukhanka | 2 | 1,150 | 6 | 1.4 | 2.5 | 1250 | 5360 | 0.65 | 78 | 0.3 | 7 x 10 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |
 | lincoln | Lincoln | 3 | 1,430 | 8.6 | 2 | 2.2 | 900 | 5540 | 0.85 | 85 | 0.36 | 7 x 11 | cabHardtop, transmission, tankLong, wheel, wheel, wheel, wheel |
+| semi | Semi | 3 | 1,400 | 6 | 0.8 | 1.5 | 9000 | 16430 | 1.2 | 160 | 0.5 | 9 x 29 | cabPickup, transmissionMid, tankMid, wheelMid, wheelMid, wheelMid, wheelMid |
 <!-- /wiki:chassis -->
 
 ## Weapons

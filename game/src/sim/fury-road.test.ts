@@ -8,7 +8,7 @@ import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
 import { inCombat } from './combat';
-import { playerVehicle } from './damage';
+import { haulerOf, playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
@@ -29,15 +29,20 @@ function runOf(w: World): FuryRoadRun {
 
 function moveTo(w: World, n: number): void {
   const me = playerVehicle(w);
-  me.pos = roadPoint(w.seed, runOf(w).window, n, HIGHWAY.road.lanes[1]);
+  me.pos = roadPoint(w.seed, runOf(w).window, n, HIGHWAY.road.lanes[2]);
   me.speed = 0;
+  const hauler = haulerOf(w);
+  hauler.pos = roadPoint(w.seed, runOf(w).window, n, HIGHWAY.road.lanes[1]);
+  hauler.speed = 0;
 }
 
 function parkOnNext(w: World): void {
-  const me = playerVehicle(w);
-  me.pos = outpostPad(w, runOf(w).window + 1);
-  me.speed = 0;
-  me.order = null;
+  const pad = outpostPad(w, runOf(w).window + 1);
+  for (const [truck, shift] of [[haulerOf(w), 0], [playerVehicle(w), 2]] as const) {
+    truck.pos = { x: pad.x + shift, y: pad.y };
+    truck.speed = 0;
+    truck.order = null;
+  }
 }
 
 function arrive(w: World): World {
@@ -159,13 +164,15 @@ describe('the pace of encounters', () => {
     expect(group(w).spawned).toBe(true);
   });
 
-  it('spawns hostile groups that hunt the player', () => {
+  it('spawns hostile groups that hunt the hauler and hold the player a foe they do not shoot at', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);
 
     for (const v of trucksOf(w, first)) {
+      expect(stateOf(w, 'feud', v.id, haulerOf(w).id)).not.toBeNull();
       expect(stateOf(w, 'feud', v.id, w.player.vehicleId)).not.toBeNull();
-      expect(topGoal(v)).toMatchObject({ kind: 'fight', targetId: w.player.vehicleId });
+      expect(v.brain!.attackers).toEqual({ [haulerOf(w).id]: false });
+      expect(topGoal(v)).toMatchObject({ kind: 'fight', targetId: haulerOf(w).id });
     }
   });
 
@@ -282,8 +289,8 @@ describe('arriving at an outpost', () => {
 
     expect(runOf(after).window).toBe(0);
     expect(after.mapHash).toBe(highwayHash(w.seed, 0));
-    expect(after.player.money).toBe(money + payOf(1, 0));
-    expect(after.events).toContainEqual({ t: 'outpostReached', milestone: 1, pay: payOf(1, 0), wrecks: 0 });
+    expect(after.player.money).toBe(money + payOf(1));
+    expect(after.events).toContainEqual({ t: 'outpostReached', milestone: 1, pay: payOf(1), wrecks: 0 });
     expect(runOf(after).outposts.map((o) => [o.milestone, o.paid])).toEqual([[1, true]]);
     expect(runOf(after).groups).toEqual([]);
     expect(betweenLevels(after)).toBe(true);
@@ -307,7 +314,7 @@ describe('arriving at an outpost', () => {
     expect(w.events.some((e) => e.t === 'outpostReached')).toBe(true);
     expect(inCombat(w, playerVehicle(w))).toBe(false);
     expect(w.states.filter((s) => first.vehicles.includes(s.holder) || first.vehicles.includes(s.other))).toEqual([]);
-    expect(w.vehicles.map((v) => v.id)).toEqual([w.player.vehicleId]);
+    expect(w.vehicles.map((v) => v.id)).toEqual([w.player.vehicleId, haulerOf(w).id]);
     expect(runOf(w).window).toBe(0);
   });
 
@@ -348,7 +355,7 @@ describe('arriving at an outpost', () => {
     playerVehicle(w).pos = outpostPad(w, 1);
     advanceFuryRoad(w);
 
-    expect(w.vehicles.map((v) => v.id)).toEqual([w.player.vehicleId]);
+    expect(w.vehicles.map((v) => v.id)).toEqual([w.player.vehicleId, haulerOf(w).id]);
     expect(w.player.money).toBe(money);
     expect(runOf(w).window).toBe(0);
   });
@@ -372,7 +379,7 @@ describe('arriving at an outpost', () => {
   it('completes on reaching the pad at speed, but not off the pad', () => {
     const moving = furyRoadWorld();
     parkOnNext(moving);
-    playerVehicle(moving).speed = 8;
+    haulerOf(moving).speed = 8;
     const off = furyRoadWorld();
     moveTo(off, milestoneAt(1) - 20);
 
@@ -381,17 +388,17 @@ describe('arriving at an outpost', () => {
     expect([moving, off].map((w) => runOf(w).outposts[0].paid)).toEqual([true, false]);
   });
 
-  it('pays the base and a bonus for each wreck of the stretch, and keeps the run totals', () => {
+  it('pays the base alone whatever the wrecks, and keeps the run totals', () => {
     const w = furyRoadWorld();
     runOf(w).groups[0].wrecked = 2;
     const money = w.player.money;
 
     const after = arrive(w);
 
-    expect(after.player.money).toBe(money + payOf(1, 2));
-    expect(runOf(after).earned).toBe(payOf(1, 2));
+    expect(after.player.money).toBe(money + payOf(1));
+    expect(runOf(after).earned).toBe(payOf(1));
     expect(runOf(after).wrecks).toBe(2);
-    expect(runEarnings(after)).toMatchObject({ pay: payOf(1, 2), wrecks: 2, reached: 1 });
+    expect(runEarnings(after)).toMatchObject({ pay: payOf(1), wrecks: 2, reached: 1 });
   });
 
   it('counts a wreck of a group truck toward the stretch', () => {
@@ -415,7 +422,7 @@ describe('arriving at an outpost', () => {
     const after = arrive(w);
     const passed = endTurn(passing, still);
 
-    expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId]);
+    expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId, haulerOf(after).id]);
     expect(passed.vehicles.some((v) => group.vehicles.includes(v.id))).toBe(true);
     expect(after.player.xp).toBe(passed.player.xp);
   });
@@ -460,7 +467,7 @@ describe('the endless run', () => {
     expect(w.size).toBe(HIGHWAY.size);
     expect(runOf(w).outposts).toHaveLength(2);
     expect(runOf(w).groups.map((g) => g.templates.length)).toEqual(groupSizes(enemyTrucks(w, 31)));
-    expect(w.vehicles).toHaveLength(1);
+    expect(w.vehicles).toHaveLength(2);
     expect(w.obstacles.every((o) => o.pos.x >= 0 && o.pos.y >= 0 && o.pos.x <= w.size && o.pos.y <= w.size)).toBe(true);
     expect(Math.max(...sizes.slice(10))).toBeLessThan(Math.max(...sizes.slice(0, 10)) * 1.5);
   });

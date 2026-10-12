@@ -25,6 +25,7 @@ import { contactsOf } from './detect';
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
 const camp = REGION.locations.find((l) => l.id === 'scrapjaw')!;
 const TURNS = 40;
+const LIMP_TURNS = 70;
 
 type Prey = 'trader' | 'player' | 'playerEmpty' | 'empty' | 'parked' | 'brute';
 

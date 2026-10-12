@@ -113,11 +113,14 @@
   --cell-plan-line: #b9c6ca;
   --cell-plain: #303d44;
   --cell-deck: #483e36;
+  --cell-bay: #3b4a3c;
+  --cell-bay-line: #5d7160;
   --cell-engine: #3d4b50;
   --cell-side: #414c52;
   --cell-none: #20292e;
   --map-plain: #3a4a52;
   --map-deck: #b0775a;
+  --map-bay: #7f9a7a;
   --map-engine: #6f9aac;
   --map-side: #8d9ca3;
   --map-none: #26313a;

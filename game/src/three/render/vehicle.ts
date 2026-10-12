@@ -9,7 +9,7 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { FACTION_COLORS, PAL } from '../../render/palette';
-import { BODY_PARTS, baseModel, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
@@ -347,6 +347,7 @@ export class VehicleView {
     this.useLamp(obj);
     into.add(obj);
     const grid = baseGrid(v.chassisId);
+    if (drawsOwnBumpers(v.chassisId)) return;
     const stretch = (2 * body.half.y + SKIRT) / EDGE_H;
     const ends: [number, ModelName, number][] = [[0, 'bumper_front', 0], [grid.h - 1, 'bumper_rear', Math.PI]];
     for (const [y, bumperName, yaw] of ends) {
@@ -587,10 +588,16 @@ function onChassis(v: Vehicle, item: GridItem): boolean {
 
 const BUMPER_LOOKS: readonly string[] = ['ram', 'cage'];
 
-function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+}
+
+function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  const grid = baseGrid(v.chassisId);
+  return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 function replacesBumper(v: Vehicle, item: GridItem): boolean {

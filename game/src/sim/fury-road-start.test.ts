@@ -3,7 +3,12 @@ import { FURY_ROAD } from '../data/modes';
 import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
-import { playerVehicle } from './damage';
+import { haulerOf, ownedTruck, playerTrucks, playerVehicle } from './damage';
+import { HAULER_KIT } from '../data/start';
+import { chassisDef } from '../data/chassis';
+import { getResources } from './resources';
+import { fuelCap, vehicleStats } from './stats';
+import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
 import { outpostFactsAt, spawnGroup, waveOf } from './fury-road';
 import { gearMoneyOf } from './fury-road-danger';
@@ -32,6 +37,42 @@ describe('Fury Road starter kit', () => {
   });
 });
 
+describe('Fury Road hauler', () => {
+  it('starts every run with the player truck and a hauler of the hauler kit, with a full tank and no brain', () => {
+    for (const seed of [1, 3, 99]) {
+      const w = furyRoadWorld(seed);
+      const hauler = haulerOf(w);
+      expect(playerTrucks(w).map((v) => v.id)).toEqual([w.player.vehicleId, hauler.id]);
+      expect(hauler.chassisId).toBe(HAULER_KIT.chassis);
+      expect(hauler.faction).toBe('player');
+      expect(hauler.brain).toBeNull();
+      expect(getResources(w, hauler)).toMatchObject({ fuel: fuelCap(hauler), supplies: HAULER_KIT.supplies, health: 100 });
+      expect(w.furyRoad!.hauler).toEqual({ id: hauler.id, alarmUntil: null });
+      const kinds = mountedParts(hauler).map((p) => partDef(p.defId).kind);
+      expect(kinds.filter((k) => k === 'weapon')).toEqual([]);
+      expect(kinds).toContain('engine');
+    }
+  });
+
+  it('keeps the hauler own resources apart from the player', () => {
+    const w = furyRoadWorld(3);
+    expect(getResources(w, haulerOf(w))).not.toBe(w.player);
+  });
+
+  it('drives at a speed that is a real top speed for a heavy truck', () => {
+    const w = furyRoadWorld(3);
+    const speed = vehicleStats(w, haulerOf(w)).maxSpeed;
+    expect(speed).toBeGreaterThan(FURY_ROAD.hauler.cruise);
+    expect(speed).toBeLessThanOrEqual(chassisDef('semi').maxSpeed * 1.1);
+  });
+
+  it('names an owned truck and refuses any other', () => {
+    const w = furyRoadWorld(3);
+    expect(ownedTruck(w, haulerOf(w).id)).toBe(haulerOf(w));
+    expect(() => ownedTruck(w, 'nobody')).toThrow(/does not own/);
+  });
+});
+
 describe('Slug cannon name', () => {
   it('reads as a cannon in Russian, not the old coinage', () => {
     expect(JSON.stringify(RU["part.slugCannon"])).not.toMatch(/жаканом[её]т/i);
@@ -41,8 +82,8 @@ describe('Slug cannon name', () => {
 describe('Fury Road outpost stock', () => {
   const kinds = [...new Set(GARAGE_STOCK.parts.map((p) => PARTS[p.value].kind))];
 
-  it('holds four guns, four armor parts, three of most other types and every store and scanner part, never two of the same part', () => {
-    const wanted: Record<string, number> = { weapon: 4, armor: 4, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
+  it('holds five guns, six armor parts, three of most other types and every store and scanner part, never two of the same part', () => {
+    const wanted: Record<string, number> = { weapon: 5, armor: 6, engine: 3, cargo: 3, utility: 3, store: 2, scanner: 1 };
     expect(kinds.sort()).toEqual(Object.keys(wanted).sort());
     for (const seed of [1, 3, 99]) {
       const stock = outpostFactsAt(furyRoadWorld(seed), 1).stock;

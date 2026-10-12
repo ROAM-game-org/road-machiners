@@ -1001,6 +1001,9 @@
 .chassis-map .c-D {
   background: var(--map-deck);
 }
+.chassis-map .c-C {
+  background: var(--map-bay);
+}
 .chassis-map .c-E {
   background: var(--map-engine);
 }
@@ -1043,6 +1046,7 @@
   opacity: 0.35;
 }
 .inv-grid[data-hint~="D"] .c-D,
+.inv-grid[data-hint~="C"] .c-C,
 .inv-grid[data-hint~="E"] .c-E,
 .inv-grid[data-hint~="F"] .c-F,
 .inv-grid[data-hint~="B"] .c-B,
@@ -1063,4 +1067,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* The outpost's truck switch: the player's truck and the hauler, each with its portrait. */
+.truck-switch .chassis-portrait {
+  --portrait-w: calc(var(--icon-l) * 1.6);
+  --portrait-h: var(--icon-l);
 }

@@ -22,7 +22,7 @@ export type ChassisDef = {
   value: number;
   showsCores: boolean;
   tier: Tier;
-  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln';
+  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi';
 };
 
 export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
@@ -337,6 +337,51 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 85, fuelPerTile: 0.36, base: 50000, showsCores: false, tier: 3, look: 'lincoln',
   },
+  semi: {
+    id: 'semi', maxSpeed: 6.0, accel: 0.8, brake: 1.5, turnSlow: 60, turnFast: 18, reverseTurn: 30,
+    mass: 9000, handlingMass: 14100, radius: 1.2,
+    layout: [
+      ' FFFFFFF ',
+      'LCCCCCCCR',
+      'LXCEEECXR',
+      'LXCEEECXR',
+      'LCCCCCCCR',
+      'LCCXXXCCR',
+      'LCCXXXCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCXXXCCR',
+      'LCCXXXCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LXCCCCCXR',
+      'LXCCCCCXR',
+      ' BBBBBBB ',
+    ],
+    core: [
+      { defId: 'cabPickup', x: 3, y: 5 },
+      { defId: 'transmissionMid', x: 3, y: 9 },
+      { defId: 'tankMid', x: 5, y: 9 },
+      { defId: 'wheelMid', x: 1, y: 2 },
+      { defId: 'wheelMid', x: 7, y: 2 },
+      { defId: 'wheelMid', x: 1, y: 26 },
+      { defId: 'wheelMid', x: 7, y: 26 },
+    ],
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, look: 'semi',
+  },
 };
 
 export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
@@ -344,6 +389,8 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
 );
 
 export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'];
+
+export const HAULER_CHASSIS = 'semi';
 
 export function chassisDef(id: string): ChassisDef {
   const def = CHASSIS[id];

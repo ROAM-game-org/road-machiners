@@ -2,7 +2,7 @@
 import { chassisDef, PLAYER_CHASSIS } from '../../data/chassis';
 import { startKit } from '../../data/start';
 import { partDef, PARTS, type PartKind } from '../../data/parts';
-import { playerVehicle } from '../damage';
+import { playerVehicle, truckFor } from '../damage';
 import { buyChassis, buyStockPart, chassisTradeIn, partTradePrice, sellPart } from '../economy';
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
@@ -128,13 +128,13 @@ function mount(o: Orders, c: Candidate, replaced: PartItem | null): void {
   mountBought(o, c.part.id, spot);
 }
 
-export function mountBought(o: Orders, partId: string, spot: Spot): void {
-  if (o.world.player.storage.some((p) => p.id === partId)) o.run((w) => takeFromStorage(w, partId, spot));
-  else o.run((w) => moveItem(w, itemOf(w, partId), spot));
+export function mountBought(o: Orders, partId: string, spot: Spot, truckId?: string): void {
+  if (o.world.player.storage.some((p) => p.id === partId)) o.run((w) => takeFromStorage(w, partId, spot, truckId));
+  else o.run((w) => moveItem(w, itemOf(w, partId, truckId), spot, truckId));
 }
 
-function itemOf(world: World, partId: string): string {
-  const item = playerVehicle(world).items.find((it) => it.kind === 'part' && it.part.id === partId);
+function itemOf(world: World, partId: string, truckId?: string): string {
+  const item = truckFor(world, truckId).items.find((it) => it.kind === 'part' && it.part.id === partId);
   if (!item) throw new Error(`Part ${partId} is not on the truck`);
   return item.id;
 }
