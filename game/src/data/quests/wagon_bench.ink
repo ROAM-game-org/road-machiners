@@ -34,13 +34,13 @@ You set the stub down and tell her: the dead Army wagon in the hollow below the 
   Bright, flat, no rust, no saw marks. Nobody cut that. It broke in one go, with the gun pulling on it. # speaker: Lena
   Ilan. Come and look at this. # speaker: Lena
   The soldier comes over. He takes a half pin from his shirt pocket and sets it face-down on yours. The broken faces meet with no gap between them.
-  Private Ilan Duvall. He was the gunner on wagon Seven. # speaker: Lena
+  Private Ilan Duvall. He was the relief driver on wagon Seven. # speaker: Lena
   The pin went on the bend, and the gun came round into the cab. That's how my arm went. I picked my half off the cab floor. # speaker: Duvall
 - else:
   Lena looks it over once and puts it down.
   Somebody beat the face off this. I can't read a break that isn't there. # speaker: Lena
   The soldier comes over and takes a half pin from his shirt pocket. He holds it beside yours. Its face is bright. Yours is a grey smear, and they don't meet.
-  Private Ilan Duvall. He was the gunner on wagon Seven. # speaker: Lena
+  Private Ilan Duvall. He was the relief driver on wagon Seven. # speaker: Lena
 }
 -> report
 

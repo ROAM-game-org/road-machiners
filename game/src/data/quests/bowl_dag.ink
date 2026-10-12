@@ -71,7 +71,7 @@ Dag. I ride with the Bowl Farmers, the patrol that keeps the roads near these wa
   ++ [Say it at the well house.]
      ~ wagon_fate = "told"
      You say it at Hattie's, plainly, to whoever is holding a cup: no brass, no holes, the cab pushed in from the bed. Dag stands next to you and says he counted the same. # page
-     A woman at the cistern puts her bucket down. Her son was the gunner on that wagon, she says. Nobody had told her it was his own gun.
+     A woman at the cistern puts her bucket down. Her son rode in the cab of that wagon, she says. Nobody had told her it was the wagon's own gun.
      Two Nose soldiers buying water hear every word. They fill their drums and leave without talking to each other.
      -> hub
   ++ [Not yet.]
