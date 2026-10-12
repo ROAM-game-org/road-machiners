@@ -30,11 +30,12 @@ EXTRA_WHEEL_R = 0.7
 HUB_Z = -1.0
 
 HOOD_TOP = 0.3
-CAB_BACK = G.row_x(6.5)
-CAB_FRONT = G.row_x(4.5)
-CAB_ROOF = 0.95
-TRAILER_FRONT = G.row_x(6.5)
-TRAILER_ROOF = 0.9
+CAB_BACK = G.row_x(6.2)
+CAB_FRONT = G.row_x(4.3)
+CAB_ROOF = 1.0
+TRAILER_GAP = 0.45
+TRAILER_FRONT = CAB_BACK - TRAILER_GAP
+TRAILER_ROOF = 1.35
 BODY_BOTTOM = -0.25
 FRAME_Y = 0.62
 
@@ -56,40 +57,63 @@ def chassis(kit: Kit) -> None:
 def tractor(kit: Kit) -> None:
     hood_front = FRONT - 0.1
     hood_back = CAB_FRONT
-    kit.box("hood", (hood_front - hood_back, 2 * (SIDE - 0.1), HOOD_TOP - BODY_BOTTOM), ((hood_front + hood_back) / 2, 0, (HOOD_TOP + BODY_BOTTOM) / 2), "paint")
-    kit.box("grille", (0.06, 1.6, 0.8), (FRONT - 0.03, 0, 0.0), "under")
-    kit.box("bumper", (0.2, 2 * SIDE, 0.22), (FRONT - 0.1, 0, BODY_BOTTOM - 0.05), "metal_light")
+    hood_mid = (hood_front + hood_back) / 2
+    kit.box("hood", (hood_front - hood_back, 2 * (SIDE - 0.1), HOOD_TOP - BODY_BOTTOM), (hood_mid, 0, (HOOD_TOP + BODY_BOTTOM) / 2), "orange")
+    kit.box("grille", (0.08, 1.2, 0.62), (FRONT - 0.04, 0, 0.0), "chrome")
+    kit.box("grille_slots", (0.1, 1.0, 0.4), (FRONT - 0.04, 0, 0.0), "under")
+    kit.box("bumper", (0.24, 2 * SIDE, 0.22), (FRONT - 0.1, 0, BODY_BOTTOM + 0.0), "chrome")
     for s in (1, -1):
-        kit.box(f"lamp_{s}", (0.05, 0.28, 0.16), (FRONT - 0.02, s * 0.8, 0.2), "light")
-        kit.box(f"fender_{s}", (1.5, 0.3, 0.12), (WHEEL_X, s * (SIDE - 0.2), HOOD_TOP - 0.05), "under")
-    kit.box("cab", (CAB_FRONT - CAB_BACK, 2 * SIDE - 0.1, CAB_ROOF - BODY_BOTTOM), ((CAB_FRONT + CAB_BACK) / 2, 0, (CAB_ROOF + BODY_BOTTOM) / 2), "paint")
-    kit.box("windshield", (0.04, 2 * SIDE - 0.4, 0.5), (CAB_FRONT + 0.0, 0, CAB_ROOF - 0.38), "glass")
+        kit.box(f"lamp_{s}", (0.1, 0.24, 0.2), (FRONT - 0.04, s * 0.78, 0.2), "light")
+        kit.box(f"fender_{s}", (1.3, 0.42, 0.14), (WHEEL_X + 0.2, s * (SIDE - 0.2), HOOD_TOP - 0.12), "orange")
+        kit.box(f"tank_{s}", (1.0, 0.3, 0.3), (CAB_BACK + 0.9, s * (SIDE - 0.15), BODY_BOTTOM + 0.1), "chrome")
+        kit.box(f"step_{s}", (0.5, 0.18, 0.06), (CAB_FRONT - 0.3, s * (SIDE - 0.1), BODY_BOTTOM + 0.05), "under")
+    cab_mid = (CAB_FRONT + CAB_BACK) / 2
+    kit.box("cab", (CAB_FRONT - CAB_BACK, 2 * SIDE - 0.1, CAB_ROOF - BODY_BOTTOM), (cab_mid, 0, (CAB_ROOF + BODY_BOTTOM) / 2), "orange")
+    kit.box("cab_stripe", (CAB_FRONT - CAB_BACK + 0.02, 2 * SIDE - 0.06, 0.1), (cab_mid, 0, 0.1), "orange_dark")
+    kit.box("windshield", (0.06, 2 * SIDE - 0.4, 0.42), (CAB_FRONT + 0.0, 0, CAB_ROOF - 0.3), "glass")
     for s in (1, -1):
-        kit.box(f"door_glass_{s}", (0.6, 0.04, 0.4), (CAB_FRONT - 0.5, s * (SIDE - 0.02), CAB_ROOF - 0.38), "glass")
-        kit.cylinder(f"stack_{s}", 0.07, 1.6, (CAB_BACK + 0.12, s * (SIDE - 0.15), CAB_ROOF - 0.3), "metal_light", vertices=8)
-    kit.box("roof_trim", (CAB_FRONT - CAB_BACK + 0.05, 2 * SIDE - 0.05, 0.06), ((CAB_FRONT + CAB_BACK) / 2, 0, CAB_ROOF + 0.02), "trim")
-    kit.box("fifth_wheel", (1.0, 1.4, 0.1), (TRAILER_FRONT - 0.6, 0, BODY_BOTTOM + 0.02), "metal")
+        kit.box(f"door_glass_{s}", (0.7, 0.05, 0.36), (CAB_FRONT - 0.5, s * (SIDE - 0.03), CAB_ROOF - 0.3), "glass")
+        kit.cylinder(f"stack_{s}", 0.07, 1.5, (CAB_BACK + 0.12, s * (SIDE - 0.1), CAB_ROOF - 0.15), "chrome", vertices=8)
+    kit.box("roof_visor", (0.3, 2 * SIDE - 0.2, 0.06), (CAB_FRONT + 0.05, 0, CAB_ROOF + 0.02), "orange_dark")
+    kit.box("roof_trim", (CAB_FRONT - CAB_BACK - 0.2, 2 * SIDE - 0.05, 0.06), (cab_mid - 0.1, 0, CAB_ROOF + 0.02), "orange")
+    for i in range(5):
+        kit.box(f"marker_{i}", (0.06, 0.1, 0.08), (CAB_FRONT - 0.1 - i * 0.12, 0, CAB_ROOF + 0.09), "light")
+    kit.box("fifth_wheel", (1.1, 1.5, 0.12), (CAB_BACK - 0.15, 0, BODY_BOTTOM + 0.04), "metal_dark")
+    kit.box("gap_frame", (TRAILER_GAP, 0.7, 0.14), (CAB_BACK + TRAILER_GAP / 2, 0, BODY_BOTTOM + 0.15), "under")
 
 
 def trailer(kit: Kit) -> None:
-    length = TRAILER_FRONT - BACK
-    mid = (TRAILER_FRONT + BACK) / 2
-    kit.box("trailer", (length, 2 * SIDE, TRAILER_ROOF - BODY_BOTTOM), (mid, 0, (TRAILER_ROOF + BODY_BOTTOM) / 2), "metal_light")
-    kit.box("trailer_roof", (length, 2 * SIDE - 0.08, 0.06), (mid, 0, TRAILER_ROOF + 0.02), "trim")
-    for i in range(7):
-        x = TRAILER_FRONT - 0.5 - i * (length - 1.0) / 6
+    front = TRAILER_FRONT
+    length = front - BACK
+    mid = (front + BACK) / 2
+    height = TRAILER_ROOF - BODY_BOTTOM
+    center_z = (TRAILER_ROOF + BODY_BOTTOM) / 2
+    kit.box("trailer", (length, 2 * SIDE, height), (mid, 0, center_z), "white")
+    kit.box("trailer_skirt", (length, 2 * SIDE, 0.28), (mid, 0, BODY_BOTTOM + 0.14), "trim")
+    kit.box("trailer_roof", (length, 2 * SIDE - 0.08, 0.06), (mid, 0, TRAILER_ROOF + 0.02), "white_shade")
+    kit.box("trailer_nose", (0.08, 2 * SIDE - 0.2, height - 0.3), (front - 0.02, 0, center_z + 0.05), "white_shade")
+    for i in range(9):
+        x = front - 0.5 - i * (length - 1.0) / 8
         for s in (1, -1):
-            kit.box(f"rib_{i}_{s}", (0.1, 0.04, TRAILER_ROOF - BODY_BOTTOM - 0.1), (x, s * (SIDE - 0.02), (TRAILER_ROOF + BODY_BOTTOM) / 2), "metal")
-    kit.box("door_seam", (0.04, 2 * SIDE - 0.2, TRAILER_ROOF - BODY_BOTTOM - 0.1), (BACK + 0.0, 0, (TRAILER_ROOF + BODY_BOTTOM) / 2), "metal")
+            kit.box(f"rib_{i}_{s}", (0.08, 0.05, height - 0.5), (x, s * (SIDE - 0.02), center_z + 0.1), "white_shade")
+    kit.box("door_seam", (0.05, 2 * SIDE - 0.2, height - 0.3), (BACK - 0.0, 0, center_z + 0.05), "white_shade")
     kit.box("bumper_rear", (0.2, 2 * SIDE - 0.3, 0.2), (BACK + 0.1, 0, BODY_BOTTOM - 0.1), "metal_dark")
     for s in (1, -1):
-        kit.box(f"taillight_{s}", (0.04, 0.2, 0.2), (BACK - 0.0, s * (SIDE - 0.3), BODY_BOTTOM + 0.2), "red")
+        kit.box(f"taillight_{s}", (0.05, 0.2, 0.2), (BACK - 0.0, s * (SIDE - 0.3), BODY_BOTTOM + 0.35), "red")
         kit.box(f"flap_{s}", (0.04, 0.6, 0.5), (REAR_AXLES[1] - 0.8, s * 0.9, HUB_Z + 0.3), "wheel")
 
 
 def main() -> None:
     args = parse_args()
-    kit = Kit(BASE_COLORS, SEED)
+    colors = {
+        **BASE_COLORS,
+        "orange": 0xD9701C,
+        "orange_dark": 0xB5581A,
+        "white": 0xE6E4DA,
+        "white_shade": 0xB9B8B0,
+        "chrome": 0xC4C9CC,
+    }
+    kit = Kit(colors, SEED)
     chassis(kit)
     tractor(kit)
     trailer(kit)
