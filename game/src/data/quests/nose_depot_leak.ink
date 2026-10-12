@@ -7,7 +7,7 @@
 # fact: saw_swap Fuel shed: Vance asked Pell to swap shifts tonight. Pell agreed without looking up. Vance has a scar across his chin.
 # fact: knows_scar Sabine: a corporal brings her the cans. Big hands, a scar across the chin. Never a name.
 # fact: found_seals Barracks: a tin of Army fuel seals under Vance's cot, cut clean.
-# fact: saw_handoff Back fence: at dawn Vance passed cans over the wire to a truck with Sabine's mark.
+# fact: saw_handoff Back fence: at dawn a corporal with a scar passed cans over the wire to a truck with Sabine's mark.
 INCLUDE world.ink
 
 VAR watches = 5
