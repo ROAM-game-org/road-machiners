@@ -176,7 +176,7 @@ export const UI = {
   'weapon.switchShow': 'Show',
   'weapon.switchHide': 'Hide',
   'weapon.autoFire': 'Auto fire',
-  'weapon.autoOff': 'Off',
+  'weapon.autoOff': 'Auto fire off',
   'weapon.autoSwitchTitle': 'Guns shoot at hostiles on their own [Q]',
   'weapon.allOn': 'All',
   'weapon.allOff': 'One',

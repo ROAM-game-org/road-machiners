@@ -177,7 +177,7 @@ export const UI: Translation<typeof EN> = {
   'weapon.switchShow': 'Показать',
   'weapon.switchHide': 'Скрыть',
   'weapon.autoFire': 'Автоогонь',
-  'weapon.autoOff': 'Выкл.',
+  'weapon.autoOff': 'Автоогонь выкл.',
   'weapon.autoSwitchTitle': 'Оружие само стреляет по врагам [Q]',
   'weapon.allOn': 'Всё',
   'weapon.allOff': 'Одно',

@@ -22,7 +22,7 @@ import { bugReportUrl, featureRequestUrl, getHudReadout, getRescueReadout, overd
 import { createIcon, createSpeedDial } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
-import { createSwitch } from "./switch";
+import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
@@ -100,7 +100,7 @@ export class MaxSpeedView {
   private shown = '';
 
   render(maxSpeed: number, lines: TipLine[]): void {
-    setText(this.text, t("speed.kph", { n: maxSpeed }));
+    setText(this.text, num(maxSpeed, "int"));
     const key = JSON.stringify(lines);
     if (key === this.shown) return;
     this.shown = key;
@@ -399,7 +399,7 @@ export class Hud {
     });
     const overdrive = createSwitch({
       on: t("hud.overdrive"),
-      off: t("hud.normal"),
+      off: t("hud.overdriveOff"),
       checked: od.checked,
       key: "O",
       reason: lock ?? od.reason,
@@ -417,6 +417,7 @@ export class Hud {
         title: douseReason ?? t("hud.douseTitle", { n: ENGINE_HEAT.douseSupplies }),
       },
       t("hud.douse"),
+      keyCorner("G"),
     );
     return [headlights, overdrive, douse];
   }
@@ -431,8 +432,8 @@ export class Hud {
         onclick: () => !busy && this.actions.openCharacter(),
         title: busy ? TURN_PLAYING : marked ? t("hud.characterMarked") : t("hud.character"),
       },
-      createIcon("driver"),
-      marked ? t("hud.characterKeyMarked") : t("hud.characterKey"),
+      marked ? t("hud.driverMarked") : t("hud.driver"),
+      keyCorner("C"),
     );
   }
 
@@ -440,8 +441,8 @@ export class Hud {
     return el(
       "button",
       { class: "instrument-button", disabled: busy, onclick: () => this.actions.openJournal(), title: t("journal.hint") },
-      createIcon("journal"),
-      t("hud.journalKey"),
+      t("hud.journal"),
+      keyCorner("J"),
     );
   }
 

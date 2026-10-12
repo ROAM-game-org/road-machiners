@@ -66,7 +66,7 @@ const GROUPS: Group[] = [
   { title: "Condition", prefixes: ["--cond-"], sample: swatch },
   { title: "Grid cells", prefixes: ["--cell-", "--map-"], sample: swatch },
   { title: "Marks", prefixes: ["--mark-"], sample: swatch },
-  { title: "Hardware", prefixes: ["--steel-", "--lcd", "--dial-tick", "--dial-pin"], sample: swatch },
+  { title: "Hardware", prefixes: ["--steel-", "--lcd"], sample: swatch },
   { title: "Light and shade", prefixes: ["--bevel-", "--shade", "--shadow-", "--vignette", "--storm-"], sample: swatch },
   { title: "Spacing", prefixes: ["--space-"], sample: spaceSample },
   { title: "Corners", prefixes: ["--radius-"], sample: radiusSample },
@@ -75,7 +75,7 @@ const GROUPS: Group[] = [
   { title: "Panel sizes", prefixes: ["--panel-", "--dock-", "--modal-"], sample: boxSample },
   {
     title: "Screen sizes",
-    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-size"],
+    prefixes: ["--tab-", "--tip-", "--inv-", "--col-", "--card-", "--portrait-", "--log-", "--marker-", "--narrow-", "--dial-"],
     sample: boxSample,
   },
   { title: "HUD placement", prefixes: ["--hud-"], sample: spaceSample },

@@ -11,14 +11,11 @@ export interface SwitchOptions {
   onclick: () => void;
 }
 
+export function keyCorner(key: string): HTMLElement {
+  return el("kbd", { class: "key-corner" }, t("ui.key", { key }));
+}
+
 export function createSwitch(o: SwitchOptions): HTMLElement {
-  const option = (name: Msg, chosen: boolean) =>
-    el(
-      "span",
-      { class: chosen ? "switch-option chosen" : "switch-option" },
-      name,
-      chosen && o.key ? el("kbd", {}, t("ui.key", { key: o.key })) : null,
-    );
   const reason = o.reason ?? null;
   return el(
     "button",
@@ -30,13 +27,12 @@ export function createSwitch(o: SwitchOptions): HTMLElement {
       title: reason ?? o.title,
       onclick: () => reason === null && o.onclick(),
     },
-    option(o.on, o.checked),
-    el(
-      "span",
-      { class: o.checked ? "switch-lever up" : "switch-lever down" },
-      el("span", { class: "switch-nut" }),
-      el("span", { class: "switch-bat" }),
-    ),
-    option(o.off, !o.checked),
+    el("span", { class: "switch-option" }, o.checked ? o.on : o.off),
+    switchLever(o.checked),
+    o.key ? keyCorner(o.key) : null,
   );
+}
+
+function switchLever(up: boolean): HTMLElement {
+  return el("span", { class: up ? "switch-lever up" : "switch-lever down" }, el("span", { class: "switch-nut" }), el("span", { class: "switch-bat" }));
 }

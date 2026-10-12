@@ -145,8 +145,6 @@
   --coin-face: #4a4338;
   --coin-rim: #a08a55;
   --coin-mark: #c5b981;
-  --dial-tick: #c4bf93;
-  --dial-pin: #c5b981;
 
   /* Light and shade */
   --bevel-light: #ffffff1a;
@@ -197,7 +195,8 @@
   --meter-m: 4px;
   --meter-l: 6px;
   --pip: 10px;
-  --dial-size: 66px;
+  --dial-w: 108px;
+  --dial-h: 65px;
   --slider-thumb: 12px;
   --slider-track: 4px;
   --slider-tick: 20px;
