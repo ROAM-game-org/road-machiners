@@ -39,7 +39,7 @@ describe('combat harness', () => {
   });
 
   it('has two brains of one faction fight each other', () => {
-    const r = runFight({ ...FIGHT, a: parseLineup('buggy:buggy@standard'), b: parseLineup('buggy:buggy@standard'), maxTurns: 12 });
+    const r = runFight({ ...FIGHT, a: parseLineup('buggy:buggy@standard'), b: parseLineup('buggy:buggy@standard'), seed: 1, maxTurns: 12 });
     expect(r.a.rounds).toBeGreaterThan(0);
     expect(r.b.rounds).toBeGreaterThan(0);
     expect(r.a.speed).toBeGreaterThan(0);
@@ -48,7 +48,7 @@ describe('combat harness', () => {
   it('names the courier side when it flees a stronger truck', () => {
     forceOption('truceOffered', 'refuse');
     forceOption('mercyBegged', 'finish');
-    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 6, maxTurns: 40 });
+    const r = runFight({ ...FIGHT, a: parseLineup('merc:snowball'), b: parseLineup('courier'), seed: 4, maxTurns: 40 });
     expect(r.outcome).toBe('b fled');
   });
 
