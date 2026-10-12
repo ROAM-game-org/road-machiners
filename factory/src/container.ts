@@ -184,6 +184,7 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
       const env = {
         CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
         GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
+        CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort,
         CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes),
       };
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
