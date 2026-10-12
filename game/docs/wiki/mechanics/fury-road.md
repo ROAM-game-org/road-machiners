@@ -1,10 +1,10 @@
-# Fury Road
+# Chaos Highway
 
 An endless highway combat run north, with outposts as milestones, picked at New game. The principles and the exceptions to Roaming are in [DESIGN.md](../../DESIGN.md#game-modes). The numbers live in `FURY_ROAD` and `HIGHWAY` in `src/data/modes.ts`. The land comes from `src/sim/highway.ts`, the run rules from `src/sim/fury-road.ts` and `src/sim/outposts.ts`, and the hauler's driving from `src/sim/hauler.ts`.
 
 ## Mode rules
 
-Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its start kit and the map a new world of it is laid on, `icarus` or `highway`. `src/sim/settings.ts` is the only reader: `modeRules()` for a world, and `modeRulesOf()` and `modeMap()` for a setup with no world yet. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Fury Road sets only `run` and `npcKnockouts`:
+Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its start kit and the map a new world of it is laid on, `icarus` or `highway`. `src/sim/settings.ts` is the only reader: `modeRules()` for a world, and `modeRulesOf()` and `modeMap()` for a setup with no world yet. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Chaos Highway sets only `run` and `npcKnockouts`:
 
 - `traffic`: no starting traffic, no spawn timers and no shops.
 - `looting`: no salvage at start or on renewal, no old-world loot spots, no salvage on a wreck, no story wrecks, no cargo handovers, and spilled or dumped cargo is gone.
@@ -20,7 +20,7 @@ A mode that turns on `traffic` or `rescue` needs a map with towns, so a new worl
 
 ## The highway
 
-Fury Road plays on its own generated map, never on Icarus. The world seed builds the land. North in this mode is map north, which the fixed camera draws from the bottom left of the screen toward the top right, about 27° above the horizontal. The road's height rises and falls under the road grade.
+Chaos Highway plays on its own generated map, never on Icarus. The world seed builds the land. North in this mode is map north, which the fixed camera draws from the bottom left of the screen toward the top right, about 27° above the horizontal. The road's height rises and falls under the road grade.
 
 Each stretch bends once. The road runs straight for 60 tiles after each outpost and before the next one, so the forts, closures and window overlaps stand on straight road. Between them it swings to one side and back: 16 to 36 tiles off its line, to a side drawn from the seed, over two cosine ramps of about 95 tiles each. One stretch in five stays straight. The heading stays within 35° of north, so on screen the road always climbs to the right, between about 8° and 60° above the horizontal, and no bend is tighter than a radius of 40 tiles. The bend numbers live in `HIGHWAY`.
 
@@ -127,8 +127,8 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 A beaten group truck is knocked out or wrecked by the normal rules. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to. A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is never knocked out and woken: the knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel, which is the only way out of an empty tank or a broken drive with no parts to patch. The death screen names the mode, the last outpost reached and how far north the truck got, and offers Load save, Restart run with the same settings and a new seed, and New game.
 
-A carried-over Fury Road save starts a fresh run at stretch 1 with its truck and a new hauler. So does a save from a build whose highway or escort rules changed. Migration 59 to 60 sets a run with no hauler to `null`, and load sends the save to the rescue.
+A carried-over Chaos Highway save starts a fresh run at stretch 1 with its truck and a new hauler. So does a save from a build whose highway or escort rules changed. Migration 59 to 60 sets a run with no hauler to `null`, and load sends the save to the rescue.
 
 ## Start
 
-The run starts at milestone 0, the gun truck in the inner right lane and the hauler level with it in the inner left lane, heading north toward the top right of the screen. The Fury Road kit is a scout with one MG, a stock engine, a Rebar cage on the front and another on the back, a full tank, base supplies, 4 parts for field patching and 200 M's. It is the same every run.
+The run starts at milestone 0, the gun truck in the inner right lane and the hauler level with it in the inner left lane, heading north toward the top right of the screen. The Chaos Highway kit is a scout with one MG, a stock engine, a Rebar cage on the front and another on the back, a full tank, base supplies, 4 parts for field patching and 200 M's. It is the same every run.

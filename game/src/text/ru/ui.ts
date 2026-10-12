@@ -206,7 +206,7 @@ export const UI: Translation<typeof EN> = {
   'hud.tipsOff': 'Подсказки выключены. Меню, Показывать подсказки, включит их снова.',
   'hud.douseBlock.noSupplies': 'Нужно припасов: {n}',
   'hud.douseBlock.engineCool': 'Двигатель холодный',
-  'mode.furyRoad': 'Дорога ярости',
+  'mode.furyRoad': 'Шоссе хаоса',
   'mode.furyRoad.description': 'Бесконечное шоссе на север от форпоста к форпосту.',
   'boot.nextWindow': 'Открываем дорогу на север',
   'death.wrecked': 'Грузовик разбит',

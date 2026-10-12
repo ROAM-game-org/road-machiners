@@ -205,7 +205,7 @@ export const UI = {
   'hud.tipsOff': 'Tips are off. Menu, Show tips turns them back on.',
   'hud.douseBlock.noSupplies': m('Need {n} supplies', { n: 'int' }),
   'hud.douseBlock.engineCool': 'Engine is cool',
-  'mode.furyRoad': 'Fury Road',
+  'mode.furyRoad': 'Chaos Highway',
   'mode.furyRoad.description': 'An endless highway north between forts.',
   'boot.nextWindow': 'Opening the road north',
   'death.wrecked': 'Wrecked',

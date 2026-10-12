@@ -1,14 +1,15 @@
 """The semi base: an orange long-nose tractor pulling a tall white box trailer, one rigid body with 18 wheels on 5 axles.
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
-the scout is 5.2 m long and 2.4 m tall, the bus 7.8 m and 2.9 m, so the rig is 14.2 m long, nearly three scouts.
-The model owns the semi's body: 17.4 m along X, 2.62 m across Y, the ground 1.6 m below the origin at the collider center.
-The 25 by 5 grid stretches over it at about 1.1 cells per cell, the most body.test.ts allows.
-From the front: a 0.25 m chrome bumper, a 2.2 m hood 1.5 m wide between fenders that flare to 2.44 m, a 1.75 m day cab
-with its roof 3.0 m up, a 0.45 m open gap over the frame and the fifth wheel, then a 12.75 m box trailer from 1.35 m to 4.4 m up,
-so its roof stands 1.47 times the cab roof. Twin stacks reach 3.85 m.
-Axles: steer 1.1 m behind the bumper front, the drive tandem 1.0 m and 2.2 m behind the cab, the trailer tandem 1.1 m and 2.3 m
-from the doors. Wheel radius 0.55 m. The game draws the steer pair and the outer wheels of the last trailer axle from
+the scout stands for a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
+so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall.
+The model owns the semi's body: 20.5 m along X, 3.1 m across Y, the ground 1.8 m below the origin at the collider center.
+The 29 by 7 grid stretches over it at about 1.09 cells per cell along and 0.92 across, inside what body.test.ts allows.
+From the front: a 0.3 m chrome bumper, a 2.6 m hood 1.76 m wide between fenders that flare to 2.88 m, a 2.05 m day cab
+with its roof 3.55 m up, a 0.55 m open gap over the frame and the fifth wheel, then a 15.0 m box trailer from 1.6 m to 5.2 m up,
+so its roof stands 1.46 times the cab roof. Twin stacks reach 4.55 m.
+Axles: steer 1.3 m behind the bumper front, the drive tandem 1.2 m and 2.6 m behind the cab, the trailer tandem 1.3 m and 2.7 m
+from the doors. Wheel radius 0.65 m. The game draws the steer pair and the outer wheels of the last trailer axle from
 PHYSICS.bodies.semi; the model draws the other 14 with the look of the game's wheel model, duals on the drive and trailer axles.
 The sockets arch_front, arch_rear (the left wheel centers at the hub) and arch_front_top (the steer fender's crown) let
 wheelArches.test.ts check them against physics. The engine stands in a hole in the hood at PHYSICS.bodies.semi.engine.
@@ -31,35 +32,35 @@ from parts_common_base import ARCH_CLEARANCE, BASE_COLORS, SUSPENSION_REST, cut_
 from shapes import prism  # noqa: E402
 
 SEED = 321
-LENGTH = 17.4
-WIDTH = 2.62
-GROUND = -1.6
+LENGTH = 20.5
+WIDTH = 3.1
+GROUND = -1.8
 
-WHEEL_X = 7.6  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
-WHEEL_Y = -0.65  # PHYSICS.bodies.semi.wheelY
-WHEEL_Z = 1.05  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
-WHEEL_R = 0.55  # PHYSICS.bodies.semi.wheelRadius
-WHEEL_HALF_W = 0.15  # PHYSICS.bodies.semi.wheelHalfWidth
-ENGINE = (7.1, -0.2, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
+WHEEL_X = 8.95  # PHYSICS.bodies.semi.wheelX: the steer axle and the last trailer axle
+WHEEL_Y = -0.75  # PHYSICS.bodies.semi.wheelY
+WHEEL_Z = 1.24  # PHYSICS.bodies.semi.wheelZ: the steer wheels and the outer duals
+WHEEL_R = 0.65  # PHYSICS.bodies.semi.wheelRadius
+WHEEL_HALF_W = 0.18  # PHYSICS.bodies.semi.wheelHalfWidth
+ENGINE = (8.35, -0.15, 0.0)  # PHYSICS.bodies.semi.engine, as Blender x, z and -y
 HUB_Z = WHEEL_Y - SUSPENSION_REST
 TIRE_R = WHEEL_R * 0.935  # the wheel model's tire body; its lugs reach the ground
 DUAL_STEP = 2 * WHEEL_HALF_W + 0.02
-DRIVE_AXLES = (1.9, 0.7)
-TRAILER_AXLES = (-6.4, -WHEEL_X)
+DRIVE_AXLES = (4.1, 2.7)
+TRAILER_AXLES = (-7.55, -WHEEL_X)
 MODEL_WHEELS = 14
 
 FRONT = LENGTH / 2
 BACK = -LENGTH / 2
-GRILLE_X = FRONT - 0.25
-CAB_FRONT = GRILLE_X - 2.2
-CAB_BACK = CAB_FRONT - 1.75
-TRAILER_FRONT = CAB_BACK - 0.45
+GRILLE_X = FRONT - 0.3
+CAB_FRONT = GRILLE_X - 2.6
+CAB_BACK = CAB_FRONT - 2.05
+TRAILER_FRONT = CAB_BACK - 0.55
 TRAILER_HALF = WIDTH / 2
-CAB_HALF = 1.22
-HOOD_HALF = 0.75
-GRILLE_HALF = 0.6
-APRON_HALF = 0.85
-FENDER_HALF = 1.22
+CAB_HALF = 1.44
+HOOD_HALF = 0.88
+GRILLE_HALF = 0.7
+APRON_HALF = 1.0
+FENDER_HALF = 1.44
 
 
 def up(height: float) -> float:
@@ -67,16 +68,16 @@ def up(height: float) -> float:
     return GROUND + height
 
 
-FRAME_BOTTOM = up(0.75)
-FRAME_TOP = up(1.0)
-HOOD_SHELF = up(1.4)
-HOOD_FRONT_TOP = up(1.72)
-HOOD_BACK_TOP = up(1.82)
-CAB_BOTTOM = up(0.9)
-CAB_ROOF = up(3.0)
-TRAILER_FLOOR = up(1.35)
-TRAILER_ROOF = up(4.4)
-STACK_TOP = up(3.85)
+FRAME_BOTTOM = up(0.9)
+FRAME_TOP = up(1.2)
+HOOD_SHELF = up(1.65)
+HOOD_FRONT_TOP = up(2.03)
+HOOD_BACK_TOP = up(2.15)
+CAB_BOTTOM = up(1.06)
+CAB_ROOF = up(3.55)
+TRAILER_FLOOR = up(1.6)
+TRAILER_ROOF = up(5.2)
+STACK_TOP = up(4.55)
 BAY_FRONT = ENGINE[0] + 0.55
 BAY_BACK = ENGINE[0] - 0.55
 BAY_HALF = HOOD_HALF - 0.12
@@ -218,7 +219,7 @@ def coupling(kit: Kit) -> None:
     kit.box("deck_plate", (CAB_BACK - TRAILER_FRONT + 0.3, 1.2, 0.06), (CAB_BACK - 0.3, 0, FRAME_TOP + 0.03), "metal_dark")
     for s, name in ((1, "l"), (-1, "r")):
         kit.box(f"drive_flap_{name}", (0.04, 0.62, 0.6), (DRIVE_AXLES[1] - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
-        kit.box(f"drive_fender_{name}", (2.3, 0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
+        kit.box(f"drive_fender_{name}", (2.7,0.62, 0.05), (mid, s * (WHEEL_Z - DUAL_STEP / 2), HUB_Z + WHEEL_R + 0.12), "under")
 
 
 def trailer(kit: Kit) -> None:
@@ -248,7 +249,7 @@ def trailer(kit: Kit) -> None:
         kit.box(f"trailer_flap_{name}", (0.04, 0.62, 0.6), (-WHEEL_X - WHEEL_R - 0.2, s * (WHEEL_Z - DUAL_STEP / 2), up(0.55)), "stripe")
     kit.box("leg_brace", (0.08, 1.7, 0.08), (LEGS_X, 0, up(0.8)), "metal_dark")
     kit.box("underride", (0.12, WIDTH - 0.4, 0.16), (BACK + 0.25, 0, up(0.5)), "metal_dark")
-    kit.box("bogie", (2.2, 1.0, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
+    kit.box("bogie", (2.7, 1.2, TRAILER_FLOOR - HUB_Z - 0.2), ((TRAILER_AXLES[0] + TRAILER_AXLES[1]) / 2, 0, (TRAILER_FLOOR + HUB_Z + 0.2) / 2), "under")
     kit.box("trailer_frame", (length - 0.4, 1.0, 0.16), ((TRAILER_FRONT + BACK) / 2, 0, TRAILER_FLOOR - 0.08), "under")
 
 
@@ -290,7 +291,7 @@ def main() -> None:
     kit.socket("arch_rear", (-WHEEL_X, WHEEL_Z, HUB_Z))
     kit.socket("arch_front_top", (WHEEL_X, WHEEL_Z, HUB_Z + WHEEL_R + ARCH_CLEARANCE))
     check_size(kit)
-    kit.export("base_semi", args, view_size=17.0)
+    kit.export("base_semi", args, view_size=20.0)
 
 
 if __name__ == "__main__":

@@ -270,7 +270,8 @@ describe('the semi', () => {
     for (const tpl of Object.values(NPCS)) expect(tpl.loadout.chassis.map((c) => c.value)).not.toContain('semi');
   });
 
-  it('weighs about three and a half scouts', () => {
-    expect(CHASSIS.semi.mass / CHASSIS.scout.mass).toBeGreaterThan(3.5);
+  it('weighs over ten scouts and over twice any other chassis, so its rams land massive hits', () => {
+    expect(CHASSIS.semi.mass / CHASSIS.scout.mass).toBeGreaterThan(10);
+    for (const def of Object.values(CHASSIS)) if (def.id !== 'semi') expect(CHASSIS.semi.mass / def.mass, def.id).toBeGreaterThan(2);
   });
 });
