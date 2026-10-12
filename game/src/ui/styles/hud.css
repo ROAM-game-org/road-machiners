@@ -32,13 +32,27 @@
   justify-items: end;
   font: italic var(--text-lead) / 1 var(--font-lcd);
 }
+.clock-day > span {
+  display: inline-grid;
+}
 .clock-time::before,
-.clock-time > * {
+.clock-time > *,
+.clock-day > span::before,
+.clock-day > span > * {
   grid-area: 1 / 1;
+}
+.clock-time::before,
+.clock-day > span::before {
+  color: var(--lcd-ink-faint);
 }
 .clock-time::before {
   content: "~~:~~";
-  color: var(--lcd-ink-faint);
+}
+.clock-day > span:first-child::before {
+  content: "~";
+}
+.clock-day > span:last-child::before {
+  content: "~~";
 }
 
 .speedometer {
