@@ -2,6 +2,7 @@
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { ECONOMY } from '../data/goods';
+import { EFFORT } from '../data/market';
 import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { BEACON, TOW } from '../data/tow';
 import { inCombat, inCombatWithOther, isHostile } from './combat';
@@ -9,6 +10,8 @@ import { bodyOf } from './body';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { contactsOf, hearsBeacon } from './detect';
+import { dutyPrice } from './duty';
+import { estimateTurns } from './market';
 import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
@@ -505,8 +508,10 @@ export function tripSite(client: Vehicle): string | null {
   return base && TRIPS.includes(base.kind) ? base.targetId : null;
 }
 
-export function escortFee(client: Vehicle, site: string): number {
-  return Math.round(dist(client.pos, getKnownSite(site).pos) * NPC_BEHAVIOR.escortFeePerTile);
+export function escortFee(world: World, client: Vehicle, merc: Vehicle, site: string): number {
+  const to = getKnownSite(site).pos;
+  const roundTrip = 2;
+  return dutyPrice(world, merc, roundTrip * dist(client.pos, to) * EFFORT.routeFactor, roundTrip * estimateTurns(client.pos, to));
 }
 
 export function isFreeMerc(world: World, v: Vehicle): boolean {
@@ -522,7 +527,7 @@ export function mercsInSight(world: World, client: Vehicle): Vehicle[] {
 export function canHire(world: World, client: Vehicle, merc: Vehicle): boolean {
   const site = tripSite(client);
   if (site === null || escortsOf(world, client.id).length > 0) return false;
-  if (getResources(world, client).money - getUpkeepReserve(client) < escortFee(client, site)) return false;
+  if (getResources(world, client).money - getUpkeepReserve(client) < escortFee(world, client, merc, site)) return false;
   return mercsInSight(world, client).some((v) => v.id === merc.id);
 }
 
@@ -533,7 +538,7 @@ export function offerEscort(world: World, client: Vehicle, merc: Vehicle): void 
     world.events.push({ t: 'escortRefused', by: merc.id, client: client.id });
     return;
   }
-  const fee = escortFee(client, site);
+  const fee = escortFee(world, client, merc, site);
   startEscort(world, merc, client, site, fee);
   world.events.push({ t: 'escortHired', by: merc.id, client: client.id, site, fee });
 }

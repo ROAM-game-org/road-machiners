@@ -14,7 +14,6 @@ export const NPC_BEHAVIOR = {
   stallTurns: 100,
   stallJump: 20,
   lieUp: { gap: { min: 2, max: 8 }, reach: 1.5, spacing: 1.5 },
-  escortFeePerTile: 5,
   weakDecline: 20,
   escortWaitGap: 12,
   escortCatchUpGap: 40,

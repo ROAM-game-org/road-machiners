@@ -256,6 +256,7 @@ export type NpcActivity = {
   demands?: boolean;
   until?: number;
   watchUntil?: number;
+  leg?: { from: Vec; turn: number };
 };
 
 export type NpcBrain = {
