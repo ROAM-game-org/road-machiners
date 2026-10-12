@@ -168,6 +168,16 @@ describe('Language', () => {
     loadLanguage(new FakeStorage(), '', false, null);
   });
 
+  it('opens a language asked in the page address only in dev, and never stores it', () => {
+    const storage = new FakeStorage();
+    storage.setItem(LANGUAGE_KEY, 'en');
+    expect(loadLanguage(storage, '?lang=ru', false, null).current()).toBe('en');
+    expect(loadLanguage(storage, '?lang=ru', true, null).current()).toBe('ru');
+    expect(loadLanguage(storage, '?lang=xx', true, null).current()).toBe('en');
+    expect(storage.getItem(LANGUAGE_KEY)).toBe('en');
+    loadLanguage(new FakeStorage(), '', false, null);
+  });
+
   it('switches to pseudo live without storing it', () => {
     const storage = new FakeStorage();
     const root = { lang: '' };

@@ -36,6 +36,7 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 - The truck has no nerve endings, so a Machiner never feels touch or pain through it. A truck's state comes as a new sense outside the body, like seeing a new color. A gun feels the way a prosthetic arm feels to its wearer: moved without thinking, but never a limb of one's own.
 - Linking leaves a red ring at the base of the skull from the plug and a mark on each side of the neck from the clamps. A new driver's marks fade in a few days. After a year of driving they stay for life.
 - The first linked soldier lived in his tank for weeks and nearly lost himself. Machiners climb out every night, so they keep themselves. Old Machiners feel half empty out of the seat and leave it as little as they can.
+- A linked driver stays an ordinary person. They talk, laugh and look around like anyone else at the wheel, and nothing about them is eerie or machine-like.
 - Machiners are people who link to trucks for a living. Road slang shortens it to Mach. Nearly every armed truck on the road has one in its seat, and one Machiner drives a truck alone.
 
 ## Why every truck carries a gun

@@ -186,6 +186,7 @@ const soundSettings = new SoundSettings(mixer, window.localStorage, radio.facepl
 radio.hear(world);
 const overlay = element('overlay');
 const game = await boot.track('scene', () => new Game(world, { slots, runId, log, mapHash: world.mapHash }, element('game'), overlay, new SoundPlayer(mixer, bank, SOUNDS), () => soundSettings.toggleMute(), radio, surface));
+if (questJump) game.screens.quest.jump(questJump.picks, questJump.page);
 relocalizeGame = () => {
   game.relanguageQuest();
   radio.relocalize();

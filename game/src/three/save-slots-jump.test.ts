@@ -15,26 +15,31 @@ describe('quest jump', () => {
     expect(questJumpOf('?play')).toBeNull();
   });
 
-  it('reads the quest, checkpoint and picks counted from 1', () => {
-    expect(questJumpOf('?play&quest=intro_arrival&checkpoint=start.farm&picks=3,1')).toEqual({ quest: 'intro_arrival', checkpoint: 'start.farm', picks: [2, 0] });
+  it('reads the quest, checkpoint, picks and page counted from 1', () => {
+    expect(questJumpOf('?play&quest=intro_arrival&checkpoint=start.farm&picks=3,1&page=4')).toEqual({ quest: 'intro_arrival', checkpoint: 'start.farm', picks: [2, 0], page: 3 });
   });
 
-  it('refuses a pick that is no choice number from 1', () => {
-    expect(() => questJumpOf('?quest=intro_arrival&picks=0')).toThrow('no choice number');
+  it('opens on the first page with no picks by default', () => {
+    expect(questJumpOf('?quest=intro_arrival')).toEqual({ quest: 'intro_arrival', checkpoint: null, picks: [], page: 0 });
   });
 
-  it('opens the quest at its checkpoint and plays the picks', () => {
-    const w = jumpToQuest(world(), { quest: 'intro_arrival', checkpoint: 'start.farm', picks: [2] });
+  it('refuses a pick or page that is no number from 1', () => {
+    expect(() => questJumpOf('?quest=intro_arrival&picks=0')).toThrow('?picks holds 0, which is no number from 1');
+    expect(() => questJumpOf('?quest=intro_arrival&page=x')).toThrow('?page holds x, which is no number from 1');
+  });
+
+  it('opens the quest at its checkpoint', () => {
+    const w = jumpToQuest(world(), { quest: 'intro_arrival', checkpoint: 'start.farm', picks: [], page: 0 });
     expect(w.player.quests.session?.quest).toBe('intro_arrival');
-    expect(questView(w, QUESTS).choices).toEqual(['Sit down and close the clamps.']);
+    expect(questView(w, QUESTS).choices).toContain('Go to the shed.');
   });
 
   it('opens the first checkpoint when none is named', () => {
-    const w = jumpToQuest(world(), { quest: 'intro_arrival', checkpoint: null, picks: [] });
+    const w = jumpToQuest(world(), { quest: 'intro_arrival', checkpoint: null, picks: [], page: 0 });
     expect(w.player.quests.session).toEqual(startQuest(world(), QUESTS, 'intro_arrival', QUESTS.quests.intro_arrival.checkpoints[0]).player.quests.session);
   });
 
   it('names the known quests when the quest is unknown', () => {
-    expect(() => jumpToQuest(world(), { quest: 'nowhere', checkpoint: null, picks: [] })).toThrow('names no quest');
+    expect(() => jumpToQuest(world(), { quest: 'nowhere', checkpoint: null, picks: [], page: 0 })).toThrow('names no quest');
   });
 });

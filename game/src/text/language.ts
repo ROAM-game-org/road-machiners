@@ -51,8 +51,13 @@ export function loadLanguage(storage: LangStore, search: string, dev: boolean, r
   const asked = new URLSearchParams(search).get('lang');
   const stored = storage.getItem(LANGUAGE_KEY);
   const saved = LOCALES.find((l) => l === stored) ?? 'en';
-  active = new Language(dev && asked === 'pseudo' ? 'pseudo' : saved, storage, root);
+  active = new Language((dev && devLocale(asked)) || saved, storage, root);
   return active;
+}
+
+function devLocale(asked: string | null): DevLocale | null {
+  if (asked === 'pseudo') return 'pseudo';
+  return LOCALES.find((l) => l === asked) ?? null;
 }
 
 export function language(): Language {

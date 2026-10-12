@@ -183,7 +183,7 @@ export class Game {
   readonly hud: Hud;
   private readonly hitCard: HitCard;
   private readonly weapons: WeaponPanel;
-  private readonly screens: ModalScreens;
+  readonly screens: ModalScreens;
   private readonly context: TruckContext;
   private readonly menu: GameMenu;
   private readonly death: DeathScreen;

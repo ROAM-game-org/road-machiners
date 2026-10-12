@@ -58,7 +58,7 @@ The hinge shrieks when you pull the door, and something small scrabbles out from
 Then you see the driver's seat, and you forget about the key. # page # img: cab_link
 It is deep and padded in dark leather. Down the middle of the backrest runs a row of small pale knobs, each with a gold dot in its center, right where a spine would lie. At the top they run up into a hard headrest of pale ceramic and dark metal. Where the back of a driver's skull would rest, it holds a round plug ringed with fine gold pins. Two hinged metal clamps stand open on either side of it, for the neck. Braided cables run out of the back of it and down through the floor.
 Everything else in this truck is rust and patches. The seat is smooth, careful work, the kind nobody can do anymore.
-You know what it is. It's a link. It joins a driver's nerves to the truck, so the truck becomes an extension of their body. Or the body an extension of the truck, depending on who you ask. The people who drive linked for a living are called <color=rust>Machiners</color>. On the roads in the west you watched them roll past for years, sitting so still behind the glass they might have been asleep, while the guns on their hoods swung round to follow you.
+You know what it is. It's a <color=rust>link</color>. It joins a driver's nerves to the truck, so the truck becomes an extension of their body. Or the body an extension of the truck, depending on who you ask. The people who drive linked for a living are called <color=rust>Machiners</color>. On the roads in the west you watched them roll past for years.
 You have never sat in one. They say the first time is the worst, and it gets easier once your body gets used to it.
 Behind the seat, between the cables, there's a tin box, and in it a food ration wrapped in greased paper. Your stomach clenches at the sight of it. But dry food with no water only makes the thirst worse, and you have no water. You put it back in the box for later.
 + [Sit down and close the clamps.]
@@ -67,15 +67,15 @@ Behind the seat, between the cables, there's a tin box, and in it a food ration 
 = link
 You climb in and sit back. Even in the shade the leather has soaked up the day's heat, and it burns through your shirt. The knobs press into your back in a hard line, all the way up your spine from the small of your back to the base of your skull. You lean your head back onto the plug, and the gold pins bite at the base of your skull. You close the clamps around your neck and wait. # page
 Nothing happens. You sit with your hands on the wheel and feel stupid. Maybe it's broken, like everything else on this farm.
-Then your back starts to tingle, like a foot that went to sleep and is waking up. The tingling crawls up to the base of your skull and down your arms to the tips of your fingers.
-Then the truck is there, all of it at once, and it's <pop>too much</pop>. # page # speed: slow
+Then your back starts to <shake>tingle</shake>, like a foot that went to sleep and is waking up. The tingling crawls up to the base of your skull and down your arms to the tips of your fingers.
+Then the truck is there, all of it at once, and it's <pop>too much</pop>. # page # speed: slow # reveal: word
 The gun on the hood is a heavy fifth arm you never knew you had, stiff in the shoulder where the mount sticks. It's indescribable, but you can feel that the fuel tank is nearly empty. Not like hunger or anything else in your body. It's a totally different feeling, outside yourself, like seeing a new color. The engine, the gearbox, the axles and every loose bolt come the same way, each one a new color, all at once.
-You grip the wheel with both hands and breathe through your teeth. <shake>It doesn't stop. It keeps coming, more than one head can hold.</shake> # speed: slow
-And then, slowly, it settles. The new colors sort themselves out and stop shouting. The truck is simply there, the way your hands are there when you aren't looking at them. # page
-You feel whole, as if a piece of you had been missing all your life and you never noticed. # reveal: char
-You twist the key. The starter grinds, and you feel the tired battery behind it. It slows and quits. # page
-You twist it again. The engine catches for a breath, kicks once like a second heart and dies. "Come on, you rusted pig," you tell it.
-You lean your forehead on the hot wheel and wait. Then you try once more, and it coughs, misses, coughs again, and holds. It runs rough and lopsided, and you feel every missed beat of it. It's the best sound you have heard in your life, or at least since the stars went out this morning.
+You grip the wheel with both hands and breathe through your teeth. <shake>It doesn't stop. It keeps coming, more than one head can hold.</shake> # speed: slow # reveal: word
+And then, <pause>slowly, <pause>it settles. <pause>The new colors sort themselves out and stop shouting. The truck is simply there, the way your hands are there when you aren't looking at them. # page # reveal: word
+You feel whole, as if a piece of you had been missing all your life and you never noticed. # speed: slow # reveal: word
+<now>You twist the key.</now> <pause><pause>The starter grinds, and you feel the tired battery behind it. It slows and quits. # page # reveal: char
+<pause><now>You twist it again.</now> <pause>The engine catches for a breath, kicks once like a second heart and dies. # reveal: char
+You lean your forehead on the hot wheel and wait. Then you try once more, and it coughs, misses, coughs again, <pause>and holds. <pause>It runs rough and lopsided, and you feel every missed beat of it. It's the best sound you have heard in your life, or at least since the stars went out this morning. # reveal: word
 You don't have to think about the pedals. Your feet find them on their own, and the truck rolls forward because you want it to. The roof sheet scrapes the length of the cab and slides off the tailgate. The basin opens up in front of the hood. # page
 The fuel needle sits a little under a quarter. You didn't need to look, because you can feel the empty tank. Your tongue sticks to your teeth. The town in the haze had better be real, and it had better be close.
 -> END

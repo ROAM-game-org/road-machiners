@@ -8,11 +8,11 @@ import { t, verbatim } from '../text/msg';
 import { skillName } from '../text/names';
 import { el } from './dom';
 import { contractSummary, contractWindow } from './format';
-import { lineStyle, renderLine, rowCells } from './quest-text';
+import { lineStyle, renderLine, rowCells, type LineStyle, type Reveal } from './quest-text';
 import { moneyMsg } from './units';
 
 export type Drawn = { nodes: HTMLElement[]; endMs: number };
-type Options = { inlineArt: boolean; offers: boolean };
+type Options = { inlineArt: boolean; offers: boolean; reveal: Reveal };
 
 export function pagesOf(lines: readonly QuestLine[]): QuestLine[][] {
   const pages: QuestLine[][] = [[]];
@@ -21,6 +21,16 @@ export function pagesOf(lines: readonly QuestLine[]): QuestLine[][] {
     pages[pages.length - 1].push(line);
   }
   return pages;
+}
+
+export function paragraphsOf(lines: readonly QuestLine[]): QuestLine[][] {
+  const paragraphs: QuestLine[][] = [];
+  for (const line of lines) {
+    const last = paragraphs.at(-1);
+    if (last && rowKind(line) !== null && rowKind(last[last.length - 1]) !== null) last.push(line);
+    else paragraphs.push([line]);
+  }
+  return paragraphs;
 }
 
 export function lastTagged(lines: readonly QuestLine[], key: 'img' | 'place'): string | null {
@@ -56,10 +66,14 @@ function tableRow(text: string, head: boolean): HTMLElement {
   return el('tr', {}, ...rowCells(text).map((cell) => el(head ? 'th' : 'td', {}, verbatim(cell))));
 }
 
+function revealOf(style: LineStyle, options: Options): Reveal {
+  return style.speaker ? 'word' : options.reveal;
+}
+
 function drawLine(nodes: HTMLElement[], w: World, line: QuestLine, atMs: number, options: Options): number {
   const style = lineStyle(line.tags);
   if (style.img && options.inlineArt) nodes.push(el('img', { class: 'qt-img qt-unit', src: questArtUrl(style.img), 'aria-hidden': 'true', style: `animation-delay: ${atMs}ms` }));
-  const drawn = renderLine(line.text, line.tags, atMs);
+  const drawn = renderLine(line.text, [`reveal:${revealOf(style, options)}`, ...line.tags], atMs);
   if (style.speaker) drawn.el.prepend(el('b', { class: 'qt-speaker' }, t('quest.speaker', { name: verbatim(style.speaker) })));
   nodes.push(drawn.el);
   if (options.offers && style.flags.includes('work_offer')) nodes.push(offerCard(w, drawn.endMs));
