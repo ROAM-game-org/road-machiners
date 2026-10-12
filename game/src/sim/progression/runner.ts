@@ -95,17 +95,18 @@ function foeNear(world: World, me: Vehicle, hauler: Vehicle): Vehicle | null {
   return foes.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos))[0] ?? null;
 }
 
-function beside(world: World, pad: Vec): Vec {
+function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
   const run = world.furyRoad!;
   const site = outpostFort(world.seed, run.window, run.window + 1);
   const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
-  return { x: pad.x - Math.sin(angle) * PARKED_BESIDE, y: pad.y + Math.cos(angle) * PARKED_BESIDE };
+  const sides = [1, -1].map((s) => ({ x: pad.x - s * Math.sin(angle) * PARKED_BESIDE, y: pad.y + s * Math.cos(angle) * PARKED_BESIDE }));
+  return dist(sides[0], hauler.pos) >= dist(sides[1], hauler.pos) ? sides[0] : sides[1];
 }
 
 function escortSpot(world: World, hauler: Vehicle): Vec {
   const run = world.furyRoad!;
   const pad = outpostPad(world, run.window + 1);
-  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return beside(world, pad);
+  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return beside(world, pad, hauler);
   const at = toRoad(run.window, hauler.pos);
   return roadPoint(world.seed, run.window, alongOf(world.seed, at) + BESIDE.ahead, acrossOf(world.seed, at) + BESIDE.across);
 }

@@ -3,7 +3,8 @@ import { dist } from '../vec';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
-import { outpostPad } from '../fury-road';
+import { onOutpostPad, outpostPad } from '../fury-road';
+import { outpostFort } from '../highway';
 import { furyRoadWorld } from '../testkit';
 import type { World } from '../types';
 import { maxHp } from '../wear';
@@ -42,6 +43,26 @@ describe('the Fury Road escort bot', () => {
     expect(hop).not.toBeNull();
     expect(dist(hop!, haulerOf(turn.world).pos)).toBeLessThan(6);
     expect(turn.ledger.repairs).toBeLessThan(0);
+  });
+
+  it('parks on the side of the pad away from the hauler, so a hauler stopped off center never blocks it', () => {
+    const w = atFirstOutpost();
+    const pad = outpostPad(w, 1);
+    const site = outpostFort(w.seed, w.furyRoad!.window, 1);
+    const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
+    for (const side of [1, -1]) {
+      const world = structuredClone(w);
+      const hauler = haulerOf(world);
+      hauler.pos = { x: pad.x - side * Math.sin(angle) * 2, y: pad.y + side * Math.cos(angle) * 2 };
+      playerVehicle(world).pos = { x: pad.x + 12, y: pad.y + 12 };
+
+      const after = playerVehicle(botOrders(world, 'escort').world);
+      const spot = after.order?.kind === 'stopAt' ? after.order.dest : null;
+
+      expect(spot).not.toBeNull();
+      expect(onOutpostPad(world, spot!, 1)).toBe(true);
+      expect(dist(spot!, hauler.pos)).toBeGreaterThan(3);
+    }
   });
 
   it('parks to patch when stranded out of combat with parts to patch with', () => {
