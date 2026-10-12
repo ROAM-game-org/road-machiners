@@ -118,13 +118,13 @@ describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex
 
 describe.skipIf(smokeImage === undefined)('agy in the real agent container', () => {
   it('stops at the run after AGY_MAX_RUNS', async () => {
-    const run = proxiedShell('agy --version && ! agy --version', { AGY_MAX_RUNS: '1' });
+    const run = proxiedShell('agy --version && ! agy --version', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium' });
     await run.done;
     expect(readFileSync(run.log, 'utf8')).toContain('run 2 exceeds AGY_MAX_RUNS=1');
   }, 120_000);
 
   it.skipIf(smokeGeminiKey === undefined)('answers through the proxy with the Gemini key', async () => {
-    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', GEMINI_API_KEY: smokeGeminiKey as string });
+    const run = proxiedShell('agy --dangerously-skip-permissions -p "Reply with the single word ok."', { AGY_MAX_RUNS: '1', AGY_MODEL: 'gemini-3.8-flash-medium', GEMINI_API_KEY: smokeGeminiKey as string });
     await run.done;
     expect(readFileSync(run.log, 'utf8').toLowerCase()).toContain('ok');
   }, 300_000);

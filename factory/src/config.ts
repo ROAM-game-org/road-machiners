@@ -29,6 +29,7 @@ const KEYS = {
   sfxMaxGenerations: 'SFX_MAX_GENERATIONS',
   geminiKey: 'GEMINI_API_KEY',
   agyMaxRuns: 'AGY_MAX_RUNS',
+  agyModel: 'AGY_MODEL',
   designModel: 'FACTORY_DESIGN_MODEL',
   buildModel: 'FACTORY_BUILD_MODEL',
   triageModel: 'FACTORY_TRIAGE_MODEL',
