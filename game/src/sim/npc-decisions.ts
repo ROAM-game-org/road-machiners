@@ -10,13 +10,14 @@ import {
 import { REGION } from '../data/region';
 import { modeRules } from './settings';
 import { RULES } from '../data/rules';
-import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, isHostile } from './combat';
+import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
 import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
 import { sensesOf } from './detect';
-import { affordableBuyCount, getTradePrice } from './economy';
+import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
+export { getUpkeepReserve } from './economy';
 import { cargoRoom } from './inventory';
 import { cargoValue } from './market';
 import { maxHp } from './wear';
@@ -34,7 +35,7 @@ import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
-import { fuelCap, isStranded, suppliesCap, vehicleStats } from './stats';
+import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
@@ -205,9 +206,6 @@ export function isHostileContact(world: World, vehicle: Vehicle, contact: Contac
   return world.vehicles.some((other) => other.id === contact.vehicleId && isHostile(world, vehicle, other));
 }
 
-export function getUpkeepReserve(vehicle: Vehicle): number {
-  return (fuelCap(vehicle) * ECONOMY.supplyPrice.fuel + suppliesCap(vehicle) * ECONOMY.supplyPrice.supplies) * NPC_UPKEEP.reserveLoads;
-}
 
 export type TradePlan = { source: string; good: string; sellShop: string };
 
@@ -492,7 +490,7 @@ export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id);
+  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id) && !inTruce(w, robber, target);
 }
 
 function isRobbable(w: World, target: Vehicle): boolean {

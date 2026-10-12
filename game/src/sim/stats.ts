@@ -145,6 +145,14 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
   return speed;
 }
 
+export function plainFuelPerTile(world: World, v: Vehicle): number {
+  return fuelPerTileWith(world, v, 1);
+}
+
+function fuelPerTileWith(world: World, v: Vehicle, fuelMult: number): number {
+  return chassisDef(v.chassisId).fuelPerTile * fuelMult * RULES.fuelUseFactor * fuelUseScale(world);
+}
+
 export function vehicleStats(world: World, v: Vehicle): VehicleStats {
   const ch = chassisDef(v.chassisId);
   const mass = vehicleMass(v);
@@ -165,7 +173,7 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
     turnSlow: ch.turnSlow * DEG * turnMult,
     turnFast: ch.turnFast * DEG * turnMult,
     reverseTurn: ch.reverseTurn * DEG * turnMult,
-    fuelPerTile: ch.fuelPerTile * fuelMult * RULES.fuelUseFactor * fuelUseScale(world),
+    fuelPerTile: fuelPerTileWith(world, v, fuelMult),
     limpSpeed,
     limpAccel,
     roughSkill: skillEffect(world, v, 'driving', 'roughSpeed'),

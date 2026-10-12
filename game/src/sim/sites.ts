@@ -5,7 +5,7 @@ import { REGION, type LocationDef, type TerritoryDef, type TownDef } from '../da
 import { RULES } from '../data/rules';
 import { atlasOf, type Atlas } from './atlas';
 import { playerVehicle } from './damage';
-import type { World } from './types';
+import type { Vehicle, World } from './types';
 import { dist, pointInPolygon, polygonEdgeDist, type Vec } from './vec';
 
 export type Site = TownDef | LocationDef;
@@ -79,6 +79,10 @@ export function nearestPad(site: Site, from: Vec): Vec {
 
 export function canUseSite(pos: Vec, site: Site): boolean {
   return sitePads(site).some((pad) => onPad(pos, pad, site.pos));
+}
+
+export function parkedOn(vehicle: Vehicle, site: Site): boolean {
+  return vehicle.speed <= RULES.parkedSpeed && canUseSite(vehicle.pos, site);
 }
 
 export const GOAL_REACH = RULES.arriveRadius * 2;

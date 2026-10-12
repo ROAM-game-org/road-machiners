@@ -61,6 +61,7 @@ import FORMAT_2_55 from './save-fixtures/format-2-55.json';
 import FORMAT_2_56 from './save-fixtures/format-2-56.json';
 import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import FORMAT_2_58 from './save-fixtures/format-2-58.json';
+import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1271,5 +1272,22 @@ describe('save migration 58 to 59', () => {
     const roaming = { ...structuredClone(FORMAT_2_58), furyRoad: null };
 
     expect(MIGRATIONS[58](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 59 to 60', () => {
+  it('starts each in-flight duty leg where the truck stands on the save turn, and leaves other goals alone', () => {
+    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59)) as typeof FORMAT_2_59;
+    const leg = (id: string) => ({ from: FORMAT_2_59.vehicles.find((v) => v.id === id)!.pos, turn: 820 });
+    const goalsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.goals;
+    const before = (id: string) => FORMAT_2_59.vehicles.find((v) => v.id === id)!.brain!.goals;
+
+    expect(goalsOf('v2')).toEqual([{ ...before('v2')[0], leg: leg('v2') }, before('v2')[1]]);
+    expect(goalsOf('v3')).toEqual([{ ...before('v3')[0], leg: leg('v3') }]);
+    expect(goalsOf('v4')).toEqual(before('v4'));
+    expect(goalsOf('v5')).toEqual([{ ...before('v5')[0], leg: leg('v5') }]);
+    expect(goalsOf('v6')).toEqual(before('v6'));
+    expect(next.vehicles[0]).toEqual(FORMAT_2_59.vehicles[0]);
+    expect(next.turn).toBe(820);
   });
 });
