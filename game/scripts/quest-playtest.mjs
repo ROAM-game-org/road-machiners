@@ -1,5 +1,5 @@
 import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
@@ -69,7 +69,7 @@ for (const [index, quest] of quests.entries()) {
       screens += 1;
       const ended = screen.includes('(the story ends here)');
       const ask = ended ? `${screen}\n\n${endNote(last, restarted)}` : `${screen}\n\nJudge this screen, then pick one of the numbered choices.`;
-      const step = codex(screens === 1 ? `${promptTemplate.replace('<SITUATION>', values.situation)}\n\nHere is the first screen.\n\n${ask}` : ask, stepSchema);
+      const step = player(screens === 1 ? `${promptTemplate.replace('<SITUATION>', values.situation)}\n\nHere is the first screen.\n\n${ask}` : ask, stepSchema);
       appendFileSync(values.out, `\n### Screen ${screens}\n\n${quoted(screen)}\n\nSummary: ${step.summary}\n\nComment: ${step.comment}\n\nPick: ${step.pick}\n`);
       if (ended) break;
       screen = game(quest, runFile, step.pick, from);
@@ -84,7 +84,7 @@ function endNote(last, restarted) {
   return `The story ended. Judge this last screen. ${restarted ? 'Pick 0.' : 'Pick 1 to start over and take a different road, or 0 to stop.'}`;
 }
 
-const verdict = codex('You are done playing. Give your overall verdict on the writing across everything you saw. Score each criterion of the rubric from 1 to 5 by its scale.', verdictSchema);
+const verdict = player('You are done playing. Give your overall verdict on the writing across everything you saw. Score each criterion of the rubric from 1 to 5 by its scale.', verdictSchema);
 const scores = CRITERIA.map((c) => [c, verdict.scores[c].score]);
 const bad = scores.filter(([, s]) => !Number.isInteger(s) || s < 1 || s > 5);
 if (bad.length > 0) throw new Error(`The verdict scores must be whole numbers from 1 to 5, got ${bad.map(([c, s]) => `${c} ${s}`).join(', ')}`);
@@ -99,6 +99,25 @@ function game(quest, runFile, pick, from) {
   const result = spawnSync('node_modules/.bin/vite-node', args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`The quest runner failed on pick ${pick}:\n${result.stderr}`);
   return result.stdout.trim();
+}
+
+function player(prompt, schema) {
+  return values.lang === 'ru' ? agy(prompt, schema) : codex(prompt, schema);
+}
+
+function agyArgs(prompt, schema) {
+  const conversation = thread === null ? [] : ['--conversation', thread];
+  const model = values.model ? ['--model', values.model] : [];
+  return ['--output-format', 'json', '--json-schema', resolve(schema), ...conversation, ...model, '-p', prompt];
+}
+
+function agy(prompt, schema) {
+  const result = spawnSync('agy', agyArgs(prompt, schema), { cwd: work, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (result.status !== 0) throw new Error(`agy failed:\n${result.stderr.slice(-2000)}`);
+  const output = JSON.parse(result.stdout);
+  if (!output.structured_output) throw new Error(`agy gave no answer: ${output.error ?? result.stdout.slice(-2000)}`);
+  thread ??= output.conversation_id;
+  return output.structured_output;
 }
 
 function codex(prompt, schema) {
