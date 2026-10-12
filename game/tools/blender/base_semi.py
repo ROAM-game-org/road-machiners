@@ -1,7 +1,7 @@
 """The semi base: an orange long-nose tractor pulling a tall white box trailer, one rigid body with 18 wheels on 5 axles.
 
 Built from the committee's photo of a Peterbilt 379 type tractor with a container trailer, scaled to the game's trucks:
-the scout stands for a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
+the scout is a pickup. A real rig is about 3.7 times a pickup's length, 1.3 times its width and 2.1 times its height,
 so next to the 5.2 m long, 2.44 m wide, 2.4 m tall scout the rig is 20.5 m long, 3.1 m wide and 5.2 m tall.
 The model owns the semi's body: 20.5 m along X, 3.1 m across Y, the ground 1.8 m below the origin at the collider center.
 The 29 by 7 grid stretches over it at about 1.09 cells per cell along and 0.92 across, inside what body.test.ts allows.
