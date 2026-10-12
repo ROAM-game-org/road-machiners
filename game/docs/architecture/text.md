@@ -95,4 +95,4 @@ Each of these stays as it is, with a follow-up where one makes sense.
 
 ## Russian copy
 
-[Russian copy](../russian-style.md) holds the style rules, bad and good examples and the glossary. Read it before writing Russian.
+[Russian copy](../russian-style.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it.

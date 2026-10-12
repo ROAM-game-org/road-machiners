@@ -30,7 +30,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 
 ## The loop
 
-1. Edit or add a `.ink` file in `src/data/quests/`, and make the same change in its Russian twin in `src/data/quests/ru/`. Read [Russian copy](russian-style.md) before you write the Russian.
+1. Edit or add a `.ink` file in `src/data/quests/`, and have agy make the same change in its Russian twin in `src/data/quests/ru/`, as [Russian copy](russian-style.md) says.
 2. Play it in the terminal: `npm run quest -- <quest>`, and `--lang ru` plays the twin. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game. Under each screen, both views print the tip of every marked term, like `[hover Bowl: ...]`, so a playtest agent reads the tips a player can hover.
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
