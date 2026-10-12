@@ -14,6 +14,7 @@ The style block names only the medium, the brushwork and the palette. Light, moo
 
 Rules for the scene block:
 
+- A place from the game must look like it does in the game. Take a screenshot with `npm run site:shot` first and describe what it shows. The quest text, the picture and the game look must agree in broad strokes, so fix the text when it describes a different place. Read the map like tabletop miniatures: a few models stand for a bigger, busier place, so paint the place they stand for, not a one to one copy.
 - Describe the place, the light and the mood. Name only the few objects that carry the scene.
 - Prefer plain views at eye level. Stock shots, like a hero on a cliff with binoculars, read as AI art.
 - Say what is missing when the model would add it. A roofless room needs "nothing is left overhead", or the floor gets beam shadows.
@@ -34,7 +35,7 @@ Codex draws the picture with gpt-image through the ChatGPT login, so it needs no
 
 Check every take in close crops before anyone sees it. Guns, hands and anything seen through bars or slats break most often, and a thing behind bars can come out painted over them.
 
-To change a picture, rewrite the whole prompt and generate again. Edits on top of an earlier take drift and break layering.
+Every round makes a new image from the style reference only. Never attach, describe or edit an earlier take, since edits drift and break layering. Write the scene block fresh each round. Small additions to the last prompt are fine only when the picture is almost right, because a prompt grown by patches gets long and garbled.
 
 ## Post-process
 
