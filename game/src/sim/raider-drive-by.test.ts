@@ -180,7 +180,7 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
   });
 
   it('shows the pass line "nothing worth taking" when the raider sees an empty-handed player', () => {
-    const empty = runs('playerEmpty', night);
+    const empty = runs('playerEmpty', night, night ? TURNS : 48);
     const shown = empty.flatMap((r) => r.hover);
     if (!night) expect(shown.length, summary(empty)).toBeGreaterThan(0);
     for (const line of shown) expect(line).toBe('Lets you pass: nothing worth taking');
