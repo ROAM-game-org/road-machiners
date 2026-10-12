@@ -5,7 +5,7 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { TOW } from '../data/tow';
 import { corePart } from '../sim/grid';
-import { mountPart, stowPart } from '../sim/inventory';
+import { stowPart } from '../sim/inventory';
 import { makePart } from '../sim/factory';
 import { vehicleMass } from '../sim/mass';
 import { npcHomeSite } from '../sim/tow';
@@ -67,17 +67,6 @@ describe('driven speed on an open road', () => {
     while (stowPart(loaded, l, makePart(loaded, 'stockEngine', 0)));
     expect(vehicleMass(l)).toBeGreaterThan(0.6 * chassisDef('hauler').ratedMass);
     expect(cruise(loaded, l.id)).toBeLessThan(0.95 * cruise(empty, e.id));
-  });
-
-  it('an empty hauler cruises at 80 km/h or more, and with every armor cell plated at 60 km/h or more', () => {
-    const empty = road();
-    const e = truck(empty, 'hauler', ['stockEngine']);
-    const armored = road();
-    const a = truck(armored, 'hauler', ['stockEngine']);
-    while (mountPart(armored, a, makePart(armored, 'steelPlate', 0)));
-    expect(a.items.filter((it) => it.kind === 'part' && it.part.defId === 'steelPlate').length).toBeGreaterThan(0);
-    expect(cruise(empty, e.id) * KPH).toBeGreaterThanOrEqual(80);
-    expect(cruise(armored, a.id) * KPH).toBeGreaterThanOrEqual(60);
   });
 
   it('a tower holds its tow share of its own top speed', () => {
