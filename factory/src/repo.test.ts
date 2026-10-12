@@ -684,3 +684,82 @@ describe('resolving a conflict', () => {
     expect(await repo.revertIssueMerge(3, 'dev')).toBe(false);
   });
 });
+
+describe('picking an issue merge into a release', () => {
+  async function release(env: Awaited<ReturnType<typeof setup>>) {
+    const dir = join(env.home, 'work', 'add-release');
+    await env.repo.prepareWorkClone('release/x', 'release/x', dir);
+    const work = async (...a: string[]) => must(await realRun('git', [...ID, ...a], { cwd: dir }), `git ${a.join(' ')}`);
+    const land = async () => env.repo.push(await env.repo.fetchFromWork(dir, 'release/x'), 'release/x');
+    return { dir, work, land };
+  }
+
+  it('finds the unreverted dev merge of an issue since main', async () => {
+    const { repo, feature } = await setup();
+    await feature(3, 'f.txt', 'three\n');
+    const [merge] = await repo.issueMerges(3, 'dev');
+    expect(merge).toMatch(/^[0-9a-f]{40}$/);
+    expect(await repo.issueMerges(4, 'dev')).toEqual([]);
+    await repo.revertIssueMerge(3, 'dev');
+    expect(await repo.issueMerges(3, 'dev')).toEqual([]);
+  });
+
+  it('takes only the issue onto the release, keeps release-only commits, and later releases skip its dev merge', async () => {
+    const env = await setup();
+    const { repo, feature, commit, show } = env;
+    await repo.createBranch('release/x', 'dev');
+    await commit('release/x', 'g.txt', 'release only\n');
+    await feature(3, 'f.txt', 'three\n');
+    await feature(4, 'g.txt', 'four\n');
+    await repo.fetch();
+    const [merge] = await repo.issueMerges(3, 'dev');
+    const { dir, land } = await release(env);
+    const pick = await repo.startPick(dir, merge);
+    expect(pick).toMatchObject({ present: false, conflicts: [] });
+    if (pick.present) return;
+    await repo.wrapPick(dir, { tip: pick.tip, merge }, 'Merge issue #3: title 3');
+    await land();
+    expect(await show('release/x', 'f.txt')).toBe('three\n');
+    expect(await show('release/x', 'g.txt')).toBe('release only\n');
+    expect(await repo.mergeLog('release/x', 'main')).toEqual(['Merge issue #3: title 3']);
+    await repo.prepareWorkClone('release/x', 'release/x', join(env.home, 'work', 'again'));
+    expect(await repo.startPick(join(env.home, 'work', 'again'), merge)).toEqual({ present: true });
+    await repo.merge([{ branch: 'release/x', into: 'main', message: 'Release x' }]);
+    expect(await repo.mergeLog('dev', 'main')).toEqual(['Merge issue #4: title 4']);
+  });
+
+  it('answers present when the release already holds the merge or its change', async () => {
+    const env = await setup();
+    const { repo, feature, commit } = env;
+    await feature(3, 'f.txt', 'three\n');
+    await repo.createBranch('release/x', 'dev');
+    await feature(4, 'g.txt', 'four\n');
+    await commit('release/x', 'g.txt', 'four\n');
+    await repo.fetch();
+    const { dir } = await release(env);
+    expect(await repo.startPick(dir, (await repo.issueMerges(3, 'dev'))[0])).toEqual({ present: true });
+    expect(await repo.startPick(dir, (await repo.issueMerges(4, 'dev'))[0])).toEqual({ present: true });
+  });
+
+  it('stops on a conflict, refuses to wrap it unfinished, and wraps the resolved pick', async () => {
+    const env = await setup();
+    const { repo, feature, commit, show } = env;
+    await repo.createBranch('release/x', 'dev');
+    await commit('release/x', 'f.txt', 'release fix\n');
+    await feature(3, 'f.txt', 'three\n');
+    await repo.fetch();
+    const [merge] = await repo.issueMerges(3, 'dev');
+    const { dir, work, land } = await release(env);
+    const pick = await repo.startPick(dir, merge);
+    expect(pick).toMatchObject({ present: false, conflicts: ['f.txt'] });
+    if (pick.present) return;
+    await expect(repo.wrapPick(dir, { tip: pick.tip, merge }, 'Merge issue #3: title 3')).rejects.toThrow('unfinished');
+    writeFileSync(join(dir, 'f.txt'), 'release fix\nthree\n');
+    await work('add', 'f.txt');
+    await work('-c', 'core.hooksPath=/dev/null', 'commit', '--no-edit');
+    await repo.wrapPick(dir, { tip: pick.tip, merge }, 'Merge issue #3: title 3');
+    await land();
+    expect(await show('release/x', 'f.txt')).toBe('release fix\nthree\n');
+    expect(await repo.mergeLog('release/x', 'main')).toEqual(['Merge issue #3: title 3']);
+  });
+});

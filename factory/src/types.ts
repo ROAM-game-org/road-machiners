@@ -270,7 +270,12 @@ export interface HostRepo {
   hasNewCommits(base: string, branch: string): Promise<boolean>;
   merge(steps: MergeStep[], resolutions?: Resolution[]): Promise<void>;
   mergeLog(from: string, to: string): Promise<string[]>;
+  issueMerges(issue: number, branch: string): Promise<string[]>;
+  startPick(dir: string, merge: string): Promise<PickStart>;
+  wrapPick(dir: string, pick: { tip: string; merge: string }, message: string): Promise<void>;
 }
+
+export type PickStart = { present: true } | { present: false; tip: string; conflicts: string[] };
 
 export type Resolution = { base: string; source: string; head: string };
 

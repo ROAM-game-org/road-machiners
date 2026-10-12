@@ -20,6 +20,24 @@ function mergeToRevert(log: string, issue: number): string | null {
   return null;
 }
 
+function unrevertedMerges(log: string, issue: number): string[] {
+  const merge = `Merge issue #${issue}:`;
+  const reverted = `Revert "Merge issue #${issue}:`;
+  const found: string[] = [];
+  let reverts = 0;
+  for (const line of log.split('\n').filter(Boolean)) {
+    const [hash, ...words] = line.split(' ');
+    const subject = words.join(' ');
+    if (subject.startsWith(reverted)) reverts += 1;
+    else if (subject.startsWith(merge) && reverts > 0) reverts -= 1;
+    else if (subject.startsWith(merge)) found.push(hash);
+  }
+  return found;
+}
+
+const TRANSFERRED = 'Transferred-from';
+const TRANSFERRED_FORMAT = `--format=%(trailers:key=${TRANSFERRED},valueonly)`;
+
 const lines = (text: string): string[] => text.split('\n').filter(Boolean);
 
 const mergeFlags = (message: string | undefined): string[] => (message === undefined ? ['--no-edit'] : ['--no-ff', '-m', message]);
@@ -326,7 +344,40 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       }
     },
     async mergeLog(from, to) {
-      return lines(await git(['log', '--first-parent', '--merges', '--format=%s', `${await ref(to)}..${await ref(from)}`]));
+      const transferred = new Set(lines(await git(['log', TRANSFERRED_FORMAT, await ref(to)])).map((line) => line.trim()));
+      const merges = lines(await git(['log', '--first-parent', '--merges', '--format=%H %s', `${await ref(to)}..${await ref(from)}`]));
+      return merges.flatMap((line) => {
+        const [hash, ...words] = line.split(' ');
+        return transferred.has(hash) ? [] : [words.join(' ')];
+      });
+    },
+    async issueMerges(issue, branch) {
+      return unrevertedMerges(await git(['log', '--first-parent', '--format=%H %s', `${await ref('main')}..${await ref(branch)}`]), issue);
+    },
+    async startPick(dir, merge) {
+      await gitIn(dir, ['fetch', '--quiet', 'origin']);
+      await requireNoOpenWork(dir);
+      if ((await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', merge, 'HEAD'], { cwd: dir })).code === 0) return { present: true };
+      if (lines(await gitIn(dir, ['log', TRANSFERRED_FORMAT, 'HEAD'])).some((line) => line.trim() === merge)) return { present: true };
+      const tip = (await gitIn(dir, ['rev-parse', 'HEAD'])).trim();
+      const result = await run('git', [...NO_HOOKS, 'cherry-pick', '-m', '1', '-x', merge], { cwd: dir });
+      if (result.code === 0) return { present: false, tip, conflicts: [] };
+      const conflicts = await conflictedFiles(dir);
+      if (conflicts.length > 0) return { present: false, tip, conflicts };
+      const reason = (result.stderr || result.stdout).trim();
+      if (lines(await gitIn(dir, ['status', '--porcelain', '--untracked-files=no'])).length > 0) throw new Error(`cherry-pick of ${merge} failed without a conflict: ${reason}`);
+      await run('git', [...NO_HOOKS, 'cherry-pick', '--abort'], { cwd: dir });
+      await requireNoOpenWork(dir);
+      return { present: true };
+    },
+    async wrapPick(dir, { tip, merge }, message) {
+      const open = await openWork(dir);
+      if (open.length > 0) throw new Error(`The pick of ${merge.slice(0, 7)} is unfinished (${open.join(', ')})`);
+      const picked = (await gitIn(dir, ['rev-parse', 'HEAD'])).trim();
+      const holdsTip = (await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', tip, picked], { cwd: dir })).code === 0;
+      if (picked === tip || !holdsTip) throw new Error(`The pick of ${merge.slice(0, 7)} left ${picked.slice(0, 7)}, which is not a new commit on ${tip.slice(0, 7)}`);
+      await gitIn(dir, ['reset', '--quiet', '--hard', tip]);
+      await gitIn(dir, ['merge', '--no-ff', '-m', message, '-m', `${TRANSFERRED}: ${merge}`, picked]);
     },
   });
 }
