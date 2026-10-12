@@ -26,6 +26,8 @@ export type FactoryConfig = {
   geminiKey: string;
   agyMaxRuns: number;
   agyModel: string;
+  codexModel: string;
+  codexEffort: string;
   designModel: string;
   buildModel: string;
   triageModel: string;

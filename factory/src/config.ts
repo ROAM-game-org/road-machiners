@@ -30,6 +30,8 @@ const KEYS = {
   geminiKey: 'GEMINI_API_KEY',
   agyMaxRuns: 'AGY_MAX_RUNS',
   agyModel: 'AGY_MODEL',
+  codexModel: 'CODEX_MODEL',
+  codexEffort: 'CODEX_EFFORT',
   designModel: 'FACTORY_DESIGN_MODEL',
   buildModel: 'FACTORY_BUILD_MODEL',
   triageModel: 'FACTORY_TRIAGE_MODEL',

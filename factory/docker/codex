@@ -1,7 +1,13 @@
 #!/bin/bash
 # Runs the real Codex without its own sandbox. Its sandbox needs Linux namespaces, which Docker denies, so every shell command it tried would fail.
 # The agent container is the sandbox. Any -s or --sandbox flag a game doc passes is dropped.
+# Codex runs on CODEX_MODEL at CODEX_EFFORT unless the call names its own model with -m.
 set -euo pipefail
+
+if [ -z "${CODEX_MODEL:-}" ] || [ -z "${CODEX_EFFORT:-}" ]; then
+  echo "codex: CODEX_MODEL and CODEX_EFFORT must be set" >&2
+  exit 1
+fi
 
 args=()
 skip=0
@@ -14,4 +20,4 @@ for arg in "$@"; do
   esac
 done
 
-exec /usr/lib/node_modules/@openai/codex/bin/codex.js --dangerously-bypass-approvals-and-sandbox "${args[@]}"
+exec /usr/lib/node_modules/@openai/codex/bin/codex.js --dangerously-bypass-approvals-and-sandbox -c "model=\"$CODEX_MODEL\"" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" "${args[@]}"

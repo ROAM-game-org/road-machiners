@@ -110,7 +110,7 @@ function proxiedShell(script: string, env: Record<string, string>, mounts: Recor
 
 describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex in the real agent container', () => {
   it('draws a picture through the proxy with the mounted ChatGPT login, and saves it though the call asks for its sandbox', async () => {
-    const run = proxiedShell('echo "Generate one small image of a red square and save it as square.png in this folder." | codex exec -s workspace-write --skip-git-repo-check -', {}, { [smokeCodexHome as string]: '/home/pwuser/.codex' });
+    const run = proxiedShell('echo "Generate one small image of a red square and save it as square.png in this folder." | codex exec -s workspace-write --skip-git-repo-check -', { CODEX_MODEL: 'gpt-6-sol', CODEX_EFFORT: 'medium' }, { [smokeCodexHome as string]: '/home/pwuser/.codex' });
     await run.done;
     expect(readFileSync(join(run.clone, 'game/square.png')).subarray(1, 4).toString()).toBe('PNG');
   }, 600_000);
