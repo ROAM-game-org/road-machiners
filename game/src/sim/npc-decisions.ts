@@ -10,7 +10,7 @@ import {
 import { REGION } from '../data/region';
 import { modeRules } from './settings';
 import { RULES } from '../data/rules';
-import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, isHostile } from './combat';
+import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
 import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
@@ -492,7 +492,7 @@ export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id);
+  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id) && !inTruce(w, robber, target);
 }
 
 function isRobbable(w: World, target: Vehicle): boolean {

@@ -69,7 +69,7 @@ function isRopeShielded(world: World, a: Vehicle, b: Vehicle): boolean {
   return towHeldBy(world, a.id)?.other !== b.id && towHeldBy(world, b.id)?.other !== a.id;
 }
 
-function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
+export function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
   return stateOf(world, "truce", a.id, b.id) !== null || stateOf(world, "truce", b.id, a.id) !== null;
 }
 
