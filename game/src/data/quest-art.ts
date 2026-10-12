@@ -4,6 +4,7 @@ export const QUEST_ART: Record<string, QuestArt> = {
   arrival_rim: { file: 'arrival_rim.webp', focusX: 30 },
   arrival_house: { file: 'arrival_house.webp', focusX: 50 },
   arrival_pickup: { file: 'arrival_pickup.webp', focusX: 35 },
+  fall_cab: { file: 'fall_cab.webp', focusX: 60 },
 };
 
 export function questArt(key: string): QuestArt {

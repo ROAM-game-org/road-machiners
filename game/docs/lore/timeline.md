@@ -75,7 +75,7 @@ This part was generated with a second, smaller run of the story game. Its player
 - Year 114. Hadiza Okon of Green Pit hangs hooks by her door. Drivers hang their rifles there to drink. People call it the hook house.
 - Year 115. A free radio voice starts reading the weather like an old farm report. The Guild cannot find her mast. She thanks the Creed for a meal she never ate: "Waste some time."
 - Year 115. The Bowl Senate lets tenant drivers carry rifles on the road, for the first time since the Grain War, and pays half the cost of rifles on grain runs.
-- Year 116. Otto Brann builds the swivel: a gun on a ring of hull plate that turns across a truck bed and locks with a pin.
+- Year 116. Otto Brann builds the swivel: a gun on a ring of hull plate that an electric motor turns across a truck bed, fired from the cab and locked with a pin.
 - Year 116. Danil Varga of the farm under the water tower on the south rim buys an old square pickup on Pierce credit. Otto Brann welds one of his first swivels into its bed and cuts his small mark into the ring.
 - Year 116. The western convoy of Dario Feld agrees a fixed fee to cross Canyon Bridge each year. The dreamer Lusa Fenwick rides west with it and comes back with tales of western towns whose trucks carry no guns, because a guard paid by every town keeps the roads.
 - Year 117. The Vosk brothers, two Old Army deserters, rob three insured trucks on the Nose road. They always know which trucks to stop.
