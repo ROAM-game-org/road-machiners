@@ -101,6 +101,24 @@ describe('game save', () => {
     expect(loaded?.vehicles[0].weaponOrders.w1).toEqual({ targetId: foe.id, aim: 'body' });
   });
 
+  it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const lawman = addVehicle(world, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    lawman.brain = npcBrain('bowlFarmer', lawman.pos, ['lawman', 'brave']);
+    lawman.brain.goals = [{ kind: 'patrol', targetId: 'bowl', destination: { x: 60, y: 60 }, phase: 'travel', reason: 'patrolTown', leg: { from: { x: 20, y: 22 }, turn: 700 } }];
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const back = loaded.vehicles.find((v) => v.id === lawman.id)!;
+    expect(back.brain!.goals).toEqual(lawman.brain.goals);
+    expect(back.resources).toEqual(lawman.resources);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
+  });
+
   it('loads a save with overdrive on and a worn engine as not overdriving, and clears the flag on the next update', () => {
     const slots = makeSlots();
     const world = emptyWorld();

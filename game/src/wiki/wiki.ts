@@ -5,6 +5,7 @@ import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS 
 import { DECISIONS, GEAR_LEVELS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_TURNS, TRAITS } from '../data/npcs';
 import type { WeightChange } from '../data/npcs';
 import { CHASSIS_PRICE_MODIFIERS } from '../data/chassis';
+import { FURY_ROAD } from '../data/modes';
 import { PHYSICS } from '../data/physics';
 import { PARTS, PART_PRICE_MODIFIERS } from '../data/parts';
 import type { PartDef, PartKind } from '../data/parts';
@@ -246,5 +247,5 @@ export const WIKI_ROOTS: Record<string, unknown> = {
   RULES, ECONOMY, EFFORT, CONTRACTS, PRICE_FACTOR, DISTANCE_PREMIUM, PRESSURE_MAX,
   PART_PRICE_MODIFIERS, CHASSIS_PRICE_MODIFIERS, CONDITION, WEAR, REPAIR, PATCH, SALVAGE, STRIP,
   NPC_BEHAVIOR, NPC_UPKEEP, HUNT, SPAWN, MIN_CHANCE, DETECT, TOW, XP_RULES, PERK_NUMBERS,
-  UNITS, TIME, PHYSICS, BREAKABLE,
+  UNITS, TIME, PHYSICS, BREAKABLE, FURY_ROAD,
 };

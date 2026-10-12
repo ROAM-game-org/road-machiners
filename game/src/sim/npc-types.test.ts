@@ -74,7 +74,7 @@ describe('patrols', () => {
   it('finishes a patrol parked on its point', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'bowlFarmer', ['lawman'], 'tractor', ['cannon', 'workhorseDiesel'], { x: 60, y: 60 });
-    npc.brain!.goals = [{ kind: 'patrol', targetId: 'bowl', destination: { x: 60.2, y: 60 }, phase: 'travel', reason: 'patrolTown' }];
+    npc.brain!.goals = [{ kind: 'patrol', targetId: 'bowl', destination: { x: 60.2, y: 60 }, phase: 'travel', reason: 'patrolTown', leg: { from: { ...npc.pos }, turn: w.turn } }];
     npc.speed = 0;
     resolveNpcActivities(w);
     expect(topGoal(npc)).toBeNull();
@@ -146,7 +146,7 @@ describe('couriers', () => {
     const nose = siteById('nose');
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'courier', ['courier'], 'courier', ['mg', 'flatFour'], sitePads(nose)[0]);
-    npc.brain!.goals = [{ kind: 'travel', targetId: 'nose', destination: { ...nose.pos }, phase: 'travel', reason: 'tripToSite' }];
+    npc.brain!.goals = [{ kind: 'travel', targetId: 'nose', destination: { ...nose.pos }, phase: 'travel', reason: 'tripToSite', leg: { from: { ...npc.pos }, turn: w.turn } }];
     npc.speed = 0;
     resolveNpcActivities(w);
     expect(topGoal(npc)).toBeNull();
@@ -197,7 +197,7 @@ describe('supply convoys', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const npc = createNpc(w, 'convoy', ['supplier'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], sitePads(pump)[0]);
     const money = npc.resources!.money;
-    npc.brain!.goals = [{ kind: 'haul', targetId: pump.id, destination: { ...pump.pos }, phase: 'travel', reason: 'loadCargo', load: { good: 'fuelDrums' } }];
+    npc.brain!.goals = [{ kind: 'haul', targetId: pump.id, destination: { ...pump.pos }, phase: 'travel', reason: 'loadCargo', load: { good: 'fuelDrums' }, leg: { from: { ...npc.pos }, turn: w.turn } }];
     npc.speed = 0;
     finishBusiness(w, npc);
     const loaded = goodsCount(npc).fuelDrums ?? 0;
