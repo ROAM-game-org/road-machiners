@@ -28,12 +28,13 @@ The fixed facts of ROAM's world. Lore, art, sound and content all keep to them.
 
 ## The link and Machiners
 
-- The link joins a driver's nerves to a truck. A linked driver feels the truck like a body and turns its guns like arms.
+- The link joins a driver's nerves to a truck. The truck becomes an extension of the driver's body. Some say the body becomes an extension of the truck.
 - The link was developed during the Chaos and has nothing to do with the ship. The Chaos wars left more soldiers without arms or legs than anyone could count, so workshops built artificial hands wired to a soldier's own nerves. Then someone wired a soldier's nerves to a tank instead of a hand, and the soldier nearly forgot where he ended and the tank began. After that every army wanted links.
-- A link is the driver's seat itself: padded leather, a tall laced collar around the neck and a row of contacts down the backrest along the spine. It is far finer work than anything else in a truck.
+- A link is the driver's seat itself: padded leather, a row of contacts down the backrest along the spine, and a hard headrest with a round plug for the base of the skull and two hinged clamps for the neck. It is far finer work than anything else in a truck.
 - Nobody can make link contacts now. Fitters at the Nose workshop line and the Salvage Yard rewire old seats. When a seat dies, its truck becomes a plain truck again.
-- The first link overwhelms. For a moment the driver feels every part of the truck at once, then it settles into one body. The body gets used to it in about a week.
-- Linking leaves a red ring at the base of the skull from the contacts and a line around the neck from the collar. A new driver's marks fade in a few days. After a year of driving they stay for life.
+- The first link overwhelms. For a moment the driver feels every part of the truck at once, then it settles. The body gets used to it in about a week.
+- The truck has no nerve endings, so a Machiner never feels touch or pain through it. A truck's state comes as a new sense outside the body, like seeing a new color. A gun feels the way a prosthetic arm feels to its wearer: moved without thinking, but never a limb of one's own.
+- Linking leaves a red ring at the base of the skull from the plug and a mark on each side of the neck from the clamps. A new driver's marks fade in a few days. After a year of driving they stay for life.
 - The first linked soldier lived in his tank for weeks and nearly lost himself. Machiners climb out every night, so they keep themselves. Old Machiners feel half empty out of the seat and leave it as little as they can.
 - Machiners are people who link to trucks for a living. Road slang shortens it to Mach. Nearly every armed truck on the road has one in its seat, and one Machiner drives a truck alone.
 

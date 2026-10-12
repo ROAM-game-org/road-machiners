@@ -146,7 +146,7 @@ Cares about: seats that keep working, and Machiners who come back to her bench. 
 
 Strangers: she treats a new Machiner as a future customer and a stranger with no marks as nobody.
 
-Sample: "The contacts leave a ring at the base of the skull, and the collar leaves a line round the neck. Drive a year, and they stay."
+Sample: "The plug leaves a ring at the base of the skull, and the clamps leave a mark on each side of the neck. Drive a year, and they stay."
 
 ### Ines Abend
 
