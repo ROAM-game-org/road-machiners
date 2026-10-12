@@ -23,6 +23,7 @@ import { maxHp, partValue, restorePart } from '../wear';
 import { endTurn, newWorld, update } from '../world';
 import { botOrders, parkedOnPurpose, type Archetype, type BotOptions, type Policy } from './bot';
 import { emptyLedger, LEDGER_KEYS, type BotTurn, type Ledger } from './orders';
+import { npcLedger, type NpcLedger } from './npc-ledger';
 import { TEST_MAP } from '../../test/map';
 import { newMapFor } from '../highway';
 import { defaultSetup, modeRules, parseSetup } from '../settings';
@@ -30,7 +31,7 @@ import { defaultSetup, modeRules, parseSetup } from '../settings';
 export type TraceLine = { turn: number; source: XpSource; amount: number; difficulty: number | null; target: string };
 export type RunEnd = { end: 'death'; turn: number };
 export type RunFailure = { end: 'error'; turn: number; message: string };
-export type RecordStep = { world: World; lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null; events: GameEvent[]; ledger: Ledger };
+export type RecordStep = { world: World; lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null; events: GameEvent[]; ledger: Ledger; npcMoney: NpcLedger };
 export type Recording = { lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null };
 
 const STALL_TILES = 1;
@@ -67,7 +68,7 @@ export function* stepsFrom(start: World, label: string, archetype: Policy, turns
     const closed = dayEnds(before, world, ++i === turns || dead) ? [tally.close(clockOf(before.turn).day, world)] : [];
     const rows = [...carried, ...closed];
     carried = [];
-    yield { world, lines: played.lines, rows, death: dead ? { end: 'death', turn: world.turn } : null, events: played.events, ledger: played.ledger };
+    yield { world, lines: played.lines, rows, death: dead ? { end: 'death', turn: world.turn } : null, events: played.events, ledger: played.ledger, npcMoney: played.npcMoney };
   }
 }
 
@@ -135,7 +136,7 @@ export function startWorld(seed: number, kit = 'standard', rank = 0, settings?: 
   });
 }
 
-export type PlayedTurn = { before: World; orders: BotTurn; next: World; lines: TraceLine[]; events: GameEvent[]; ledger: Ledger };
+export type PlayedTurn = { before: World; orders: BotTurn; next: World; lines: TraceLine[]; events: GameEvent[]; ledger: Ledger; npcMoney: NpcLedger };
 
 const MONEY_EPSILON = 1e-6;
 
@@ -185,7 +186,7 @@ function playTurn(world: World, archetype: Policy, options: BotOptions, mover: M
   failOnDryMajority(next);
   const events = [...orders.events, ...next.events];
   const lines = [...traceOf(orders.events, orders.world.turn), ...traceOf(next.events, next.turn)];
-  return { before: world, orders, next, lines, events, ledger: turnLedger(orders, next) };
+  return { before: world, orders, next, lines, events, ledger: turnLedger(orders, next), npcMoney: npcLedger(world, next, events) };
 }
 
 function inContext<T>(label: string, world: World, fn: () => T): T {

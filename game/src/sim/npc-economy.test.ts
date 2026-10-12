@@ -60,7 +60,7 @@ describe('NPC transactions', () => {
     expect(npc).toEqual(before);
   });
 
-  it('buys only affordable fuel before other service', () => {
+  it('buys affordable supplies before fuel', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'scavengers', 'scout', [], sitePads(REGION.towns[0])[0]);
     npc.resources!.fuel = 0;
@@ -68,9 +68,9 @@ describe('NPC transactions', () => {
     npc.resources!.money = ECONOMY.supplyPrice.fuel * 2;
     expect(economy.serviceVehicle).toBeTypeOf('function');
     economy.serviceVehicle(w, npc, 'bowl', 0);
-    expect(npc.resources!.fuel).toBe(2);
-    expect(npc.resources!.money).toBe(0);
-    expect(npc.resources!.supplies).toBe(0);
+    expect(npc.resources!.supplies).toBe(1);
+    expect(npc.resources!.fuel).toBe(0);
+    expect(npc.resources!.money).toBe(ECONOMY.supplyPrice.fuel * 2 - ECONOMY.supplyPrice.supplies);
   });
 
   it('serves like a town garage at a stall', () => {

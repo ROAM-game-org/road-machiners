@@ -5,8 +5,8 @@ import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, PRICE_FACTOR, SHOPS 
 import { DECISIONS, GEAR_LEVELS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_TURNS, TRAITS } from '../data/npcs';
 import type { WeightChange } from '../data/npcs';
 import { CHASSIS_PRICE_MODIFIERS } from '../data/chassis';
-import { PHYSICS } from '../data/physics';
 import { FURY_ROAD } from '../data/modes';
+import { PHYSICS } from '../data/physics';
 import { PARTS, PART_PRICE_MODIFIERS } from '../data/parts';
 import type { PartDef, PartKind } from '../data/parts';
 import { BREAKABLE, RULES } from '../data/rules';
