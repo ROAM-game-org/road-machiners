@@ -59,12 +59,13 @@ Factory code and other settings roll out by a merge into `main`. The server depl
 2. Add the domain to Cloudflare. In Zero Trust, make a tunnel and copy its token. Add the public hostnames `<domain>` and `www.<domain>`, both to `http://caddy:80`. Turn on Always Use HTTPS.
 3. Copy `prod.env.example` to `prod.env` and fill it in.
 4. Make a classic GitHub token for the bot account with `repo` and `project`, and put it in `FACTORY_GH_TOKEN`.
-5. Put the output of `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN` in the factory `.env`.
+5. Put the output of `claude setup-token` in `CLAUDE_CODE_OAUTH_TOKEN` in the factory `.env`. Make a Gemini API key in Google AI Studio and put it in `GEMINI_API_KEY`. Set a budget on its Google Cloud project, since Google bills it per use.
 6. Make a Telegram bot with BotFather. In the factory `.env`, set `TELEGRAM_BOT_TOKEN`, `FACTORY_COMMITTEE_BOOTSTRAP` to your Telegram id, `FACTORY_COMMITTEE_BOOTSTRAP_GITHUB` to your GitHub login and `FACTORY_COMMITTEE_CHAT`. Make the bot an admin of the committee group, or Telegram withholds mentions from it.
 7. In the factory `.env`, set `FACTORY_HOME=/opt/factory/home`, `FACTORY_WEB_ROOT=/opt/factory/www`, `FACTORY_PUBLIC_URL=https://<domain>`, `FACTORY_GPU=on` and `BUTLER_API_KEY`.
 8. Set `FACTORY_ENV_FILE` in `prod.env` to that file. Run provision, reboot when it asks, and run it again until it passes. Then run deploy.
 9. Sign Hermes in to ChatGPT on the server: `cd /opt/factory/code && FACTORY_HERMES_DIR=/opt/factory/hermes FACTORY_UID=1001 docker compose -f factory/hermes/compose.yaml --env-file factory/settings.env --env-file factory/.env run --rm --no-deps hermes hermes auth add openai-codex`. Then run `docker restart factory-hermes`.
-10. Run status, then open `https://<domain>/dev/`.
+10. Sign the agents' Codex in to ChatGPT on the server. First turn on device code login in ChatGPT, under Settings, then Security. Then run `docker run --rm -it -v /opt/factory/home/codex:/home/pwuser/.codex roam-factory:dev codex login --device-auth`, open the link it prints and enter the code. Every agent job stops until `/opt/factory/home/codex/auth.json` exists. Agents spend the limits of that ChatGPT plan. Sign in here, not by a copy of a laptop's `auth.json`, or the two copies fight over one refresh token.
+11. Run status, then open `https://<domain>/dev/`.
 
 ## Moving to another server
 

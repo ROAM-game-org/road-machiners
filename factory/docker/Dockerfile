@@ -1,4 +1,4 @@
-# Agent image: Claude Code with the ultrapack plugin, an entry script that links the game's project skills, plus the browser tooling the game's tests and builds need.
+# Agent image: Claude Code with the ultrapack plugin, Codex and agy, an entry script that links the game's project skills, plus the browser tooling the game's tests and builds need.
 # The Playwright tag matches the playwright version in game/package-lock.json.
 FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
@@ -17,12 +17,21 @@ RUN curl -fsSL "https://download.blender.org/release/Blender${BLENDER_VERSION%.*
 
 RUN npm install -g @anthropic-ai/claude-code
 
+# Codex draws the game's pictures and plays its quests, through the ChatGPT login mounted at ~/.codex. The wrapper in /usr/local/bin comes first in PATH.
+RUN npm install -g @openai/codex && test -f /usr/lib/node_modules/@openai/codex/bin/codex.js
+COPY --chmod=755 codex /usr/local/bin/codex
+
+# agy writes and reviews the game's Russian text, through the Gemini API key. API key mode needs agy 1.1.13 or newer. The wrapper caps its runs.
+RUN curl -fsSL https://antigravity.google/cli/install.sh | bash -s -- --dir /opt/agy \
+ && /opt/agy/agy --version | awk '{ split($NF, v, "."); if (v[1] < 1 || (v[1] == 1 && (v[2] < 1 || (v[2] == 1 && v[3] < 13)))) { print "agy " $NF " is older than 1.1.13"; exit 1 } }'
+COPY --chmod=755 agy /usr/local/bin/agy
+
 COPY --chmod=755 factory-agent /usr/local/bin/factory-agent
 COPY --chmod=755 factory-status /usr/local/bin/factory-status
 COPY --chmod=755 factory-job /usr/local/bin/factory-job
 
 # Everything below runs as the image's non-root user.
-# Claude Code reaches only the Anthropic API, so the egress allowlist needs no telemetry hosts.
+# Claude Code reaches only the Anthropic API, so the egress allowlist needs no telemetry hosts for it.
 ENV CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 
 USER pwuser
@@ -37,6 +46,10 @@ COPY --chown=pwuser:pwuser skills/ /home/pwuser/.claude/skills/
 
 RUN claude plugin marketplace add https://github.com/btseytlin/ultrapack.git \
  && claude plugin install up@ultrapack
+
+# agy uses the Gemini API key only when its settings name the gemini provider. Without that it asks for a Google sign-in.
+RUN mkdir -p /home/pwuser/.gemini/antigravity-cli \
+ && echo '{"modelProvider":"gemini"}' > /home/pwuser/.gemini/antigravity-cli/settings.json
 
 # Factory commits carry no Claude co-author trailer.
 RUN node -e 'const f=require("os").homedir()+"/.claude/settings.json";const fs=require("fs");const s=fs.existsSync(f)?JSON.parse(fs.readFileSync(f,"utf8")):{};s.attribution={commit:"",pr:""};s.includeCoAuthoredBy=false;fs.writeFileSync(f,JSON.stringify(s,null,2))'
