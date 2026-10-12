@@ -7,7 +7,7 @@
 # fact: saw_swap Топливный склад: Вэнс попросил Пелла поменяться сменами на эту ночь. Пелл согласился, не поднимая глаз. У Вэнса шрам поперек подбородка.
 # fact: knows_scar Сабина: канистры ей носит капрал. Большие руки, шрам поперек подбородка. Имени не называет.
 # fact: found_seals Казарма: под койкой Вэнса лежит жестянка армейских пломб с топливных канистр. Все срезаны ровно.
-# fact: saw_handoff Задний забор: на рассвете Вэнс передавал канистры через ограду грузовику со знаком Сабины.
+# fact: saw_handoff Задний забор: на рассвете капрал со шрамом передавал канистры через ограду грузовику со знаком Сабины.
 INCLUDE world.ink
 
 VAR watches = 5
@@ -32,6 +32,9 @@ VAR envelope = 60
 === function knows_whom() ===
 ~ return gate_checked or saw_swap or knows_scar
 
+=== function any_lead() ===
+~ return knows_whom() or saw_handoff or ledger_read or pell_talked
+
 === start ===
 # checkpoint: start
 { depot_thief == "open": -> desk }
@@ -55,7 +58,7 @@ VAR envelope = 60
   -> ledger
 + {ledger_read and not gate_checked} [Проверить журнал ворот за те же ночи.]
   -> gate
-+ {not pell_talked} [Поговорить с Пеллом, кладовщиком топлива.]
++ {not pell_talked} [Поговорить с кладовщиком топлива.]
   -> pell
 + {not sabine_talked} [Поговорить с торговкой у ворот.]
   -> sabine
@@ -63,7 +66,7 @@ VAR envelope = 60
   -> bunk
 + {not stakeout_done} [Следить за складом всю ночь.]
   -> stakeout
-+ [Пойти к Ковачу и назвать имя.]
++ {any_lead()} [Пойти к Ковачу и назвать имя.]
   -> accuse
 + [Бросить это дело.]
   -> let_go
@@ -179,9 +182,11 @@ VAR envelope = 60
 === accuse ===
 Ковач поднимает глаза от графика дежурств. # place: Диспетчерская
 Назови имя. # speaker: Ковач
-+ [Капрал Вэнс.]
++ {gate_checked or saw_swap} [Капрал Вэнс.]
   -> name_vance
-+ [Пелл, кладовщик.]
++ {not (gate_checked or saw_swap) and (knows_scar or saw_handoff)} [Капрал со шрамом.]
+  -> name_vance
++ {ledger_read or pell_talked} [Пелл, кладовщик.]
   -> name_pell
 + [Пока нет.]
   -> desk
@@ -189,9 +194,11 @@ VAR envelope = 60
 === last_call ===
 # checkpoint: last_call
 Колонна уходит на рассвете. Грузовики уже греют моторы на холоде. Ковач ждет за столом с графиком дежурств. # page # place: Диспетчерская
-+ [Назвать капрала Вэнса.]
++ {gate_checked or saw_swap} [Назвать капрала Вэнса.]
   -> name_vance
-+ [Назвать Пелла, кладовщика.]
++ {not (gate_checked or saw_swap) and (knows_scar or saw_handoff)} [Назвать капрала со шрамом.]
+  -> name_vance
++ {ledger_read or pell_talked} [Назвать Пелла, кладовщика.]
   -> name_pell
 + [Бросить это дело.]
   -> too_late

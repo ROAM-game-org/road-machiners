@@ -7,7 +7,7 @@
 # fact: saw_swap Fuel shed: Vance asked Pell to swap shifts tonight. Pell agreed without looking up. Vance has a scar across his chin.
 # fact: knows_scar Sabine: a corporal brings her the cans. Big hands, a scar across the chin. Never a name.
 # fact: found_seals Barracks: a tin of Army fuel seals under Vance's cot, cut clean.
-# fact: saw_handoff Back fence: at dawn Vance passed cans over the wire to a truck with Sabine's mark.
+# fact: saw_handoff Back fence: at dawn a corporal with a scar passed cans over the wire to a truck with Sabine's mark.
 INCLUDE world.ink
 
 VAR watches = 5
@@ -32,6 +32,9 @@ VAR envelope = 60
 === function knows_whom() ===
 ~ return gate_checked or saw_swap or knows_scar
 
+=== function any_lead() ===
+~ return knows_whom() or saw_handoff or ledger_read or pell_talked
+
 === start ===
 # checkpoint: start
 { depot_thief == "open": -> desk }
@@ -55,7 +58,7 @@ The yard lies under a film of dust, and the shipment trucks stand fuelled by the
   -> ledger
 + {ledger_read and not gate_checked} [Check the gate log for the same nights.]
   -> gate
-+ {not pell_talked} [Talk to Pell, the fuel clerk.]
++ {not pell_talked} [Talk to the fuel clerk.]
   -> pell
 + {not sabine_talked} [Talk to the trader by the gate.]
   -> sabine
@@ -63,7 +66,7 @@ The yard lies under a film of dust, and the shipment trucks stand fuelled by the
   -> bunk
 + {not stakeout_done} [Watch the depot all night.]
   -> stakeout
-+ [Go to Kovac with a name.]
++ {any_lead()} [Go to Kovac with a name.]
   -> accuse
 + [Let it go.]
   -> let_go
@@ -179,9 +182,11 @@ A corporal with a scar across his chin passes cans over the wire one at a time, 
 === accuse ===
 Kovac looks up from the duty roster. # place: Dispatch office
 Give me a name. # speaker: Kovac
-+ [Corporal Vance.]
++ {gate_checked or saw_swap} [Corporal Vance.]
   -> name_vance
-+ [Pell, the clerk.]
++ {not (gate_checked or saw_swap) and (knows_scar or saw_handoff)} [The corporal with the scar.]
+  -> name_vance
++ {ledger_read or pell_talked} [Pell, the clerk.]
   -> name_pell
 + [Not yet.]
   -> desk
@@ -189,9 +194,11 @@ Give me a name. # speaker: Kovac
 === last_call ===
 # checkpoint: last_call
 The shipment rolls at dawn, and the trucks are already warming in the cold. Kovac waits at his desk with the duty roster. # page # place: Dispatch office
-+ [Name Corporal Vance.]
++ {gate_checked or saw_swap} [Name Corporal Vance.]
   -> name_vance
-+ [Name Pell, the clerk.]
++ {not (gate_checked or saw_swap) and (knows_scar or saw_handoff)} [Name the corporal with the scar.]
+  -> name_vance
++ {ledger_read or pell_talked} [Name Pell, the clerk.]
   -> name_pell
 + [Let it go.]
   -> too_late

@@ -31,7 +31,7 @@ VAR tip = 20
   Agnes's cot lies on its side by the door, and the pillow is cut open. The drum by the gate is empty. Agnes writes down a number and doesn't look up.
   -> shunned
 - else:
-  { trusted:
+  { trusted and knows_copy:
     Agnes looks up from her dials, then at the drum by the gate.
     Changed your mind about the copy? # speaker: Agnes
     -> hub
