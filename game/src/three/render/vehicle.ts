@@ -587,10 +587,16 @@ function onChassis(v: Vehicle, item: GridItem): boolean {
 
 const BUMPER_LOOKS: readonly string[] = ['ram', 'cage'];
 
-function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+}
+
+function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  const grid = baseGrid(v.chassisId);
+  return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 function replacesBumper(v: Vehicle, item: GridItem): boolean {
