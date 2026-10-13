@@ -69,7 +69,6 @@ VAR fee = 20
 -> hub
 
 = hub
-# checkpoint: bench.hub
 + {wagon_pin == "held"} [Позвать Ковача и отдать ему огрызок.]
   ~ report_seen = true
   -> sign
