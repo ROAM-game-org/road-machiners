@@ -23,12 +23,14 @@ from typing import Optional
 from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
 from .observability import register_observation
+from .public import make_public_factory
 from .readiness import Readiness, refusal
 from .status import register_status
 
 REQUIRED_KEYS = (
     "FACTORY_INBOX", "FACTORY_STATE_DIR", "FACTORY_COMMITTEE_CHAT",
     "FACTORY_COMMITTEE_DIR", "FACTORY_COMMITTEE_BOOTSTRAP", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB",
+    "FACTORY_PUBLIC_DISCUSSION", "FACTORY_PROPOSAL_CHAT", "FACTORY_PUBLIC_INBOX",
 )
 COMMITTEE_PREFIX = "/committee"
 RESTART_DELAY_SECONDS = 2.0
@@ -52,6 +54,9 @@ class Config:
     state_dir: str
     chat: str
     committee: Committee
+    discussion: str
+    proposal_chat: str
+    public_inbox: str
 
 
 def load_config(environ: dict) -> Config:
@@ -63,7 +68,10 @@ def load_config(environ: dict) -> Config:
         environ["FACTORY_COMMITTEE_BOOTSTRAP"].strip(),
         environ["FACTORY_COMMITTEE_BOOTSTRAP_GITHUB"].strip(),
     )
-    return Config(environ["FACTORY_INBOX"].strip(), environ["FACTORY_STATE_DIR"].strip(), environ["FACTORY_COMMITTEE_CHAT"].strip(), committee)
+    return Config(
+        environ["FACTORY_INBOX"].strip(), environ["FACTORY_STATE_DIR"].strip(), environ["FACTORY_COMMITTEE_CHAT"].strip(), committee,
+        environ["FACTORY_PUBLIC_DISCUSSION"].strip(), environ["FACTORY_PROPOSAL_CHAT"].strip(), environ["FACTORY_PUBLIC_INBOX"].strip(),
+    )
 
 
 @dataclass(frozen=True)
@@ -565,6 +573,8 @@ async def _reply(gateway, event, text: str) -> None:
 def make_hook(cfg: Config, readiness: Readiness):
     async def on_dispatch(event, gateway, session_store, **kwargs):
         source = event.source
+        if str(source.chat_id) == cfg.discussion:
+            return {"action": "skip", "reason": "factory-public-discussion"}
         if not cfg.committee.is_member(source.user_id):
             return {"action": "skip", "reason": "factory-not-committee"}
         args = committee_args(event.text)
@@ -617,6 +627,7 @@ def register(ctx) -> None:
     cfg.committee.seed()
     readiness = Readiness(min_words=int(os.environ["FACTORY_ROUTE_MIN_WORDS"]), inbox=cfg.inbox)
     ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness))
+    ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
     ctx.register_tool(name=CHANGE_TOOL, toolset="factory", schema=CHANGE_SCHEMA, handler=make_queue_handler(cfg, kind="change", done=CHANGE_DONE))

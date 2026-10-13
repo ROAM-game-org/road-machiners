@@ -13,7 +13,7 @@ plugin = importlib.util.module_from_spec(spec)
 sys.modules["factory_plugin"] = plugin
 spec.loader.exec_module(plugin)
 
-CFG = plugin.Config("/inbox", "/state", "-100", None)
+CFG = plugin.Config("/inbox", "/state", "-100", None, "-400", "-300", "/pub")
 POSTS = {"55": 12}
 readiness = sys.modules["factory_plugin.readiness"]
 
@@ -162,6 +162,7 @@ def env(tmp_path):
         "FACTORY_ROUTE_MIN_WORDS": "4", "FACTORY_REPO": "owner/repo",
         "FACTORY_COMMITTEE_DIR": str(tmp_path / "committee"),
         "FACTORY_COMMITTEE_BOOTSTRAP": "1", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB": "boss",
+        "FACTORY_PUBLIC_DISCUSSION": "-400", "FACTORY_PROPOSAL_CHAT": "-300", "FACTORY_PUBLIC_INBOX": str(tmp_path / "public-inbox"),
     }
 
 
@@ -234,7 +235,7 @@ def dispatch(tmp_path, user, text="/change x", chat="-100", monkeypatch=None):
     (tmp_path / "inbox").mkdir(exist_ok=True)
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     adapter = Adapter()
     gateway = types.SimpleNamespace(adapters={"telegram": adapter})
     source = types.SimpleNamespace(user_id=user, user_name="Ann", chat_id=chat, platform="telegram")
@@ -249,7 +250,7 @@ def test_hook_routes_release_reply(tmp_path):
     (tmp_path / "inbox").mkdir()
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     adapter = Adapter()
     gateway = types.SimpleNamespace(adapters={"telegram": adapter})
     source = types.SimpleNamespace(user_id="1", user_name="Ann", chat_id="-100", platform="telegram")
@@ -266,7 +267,7 @@ def test_hook_queues_a_plain_approval_reply_and_hands_it_to_hermes_with_a_header
     (tmp_path / "inbox").mkdir()
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     gateway = types.SimpleNamespace(adapters={"telegram": Adapter()})
     source = types.SimpleNamespace(user_id="1", user_name="Ann", chat_id="-100", platform="telegram")
     event = types.SimpleNamespace(text="show us the top-down atlas", reply_to_message_id="55", source=source, message_id="5")
@@ -288,7 +289,7 @@ def route_setup(tmp_path, session=None):
     (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {"55": 12}}')
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    cfg = plugin.Config(str(inbox), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(inbox), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     values = SESSION if session is None else session
     return inbox, plugin.make_route_handler(cfg, make_readiness(tmp_path), session_env=lambda key: values.get(key, ""))
 
@@ -347,7 +348,7 @@ def test_hook_hands_a_reply_to_the_release_post_draft_to_hermes_and_queues_nothi
     (tmp_path / "inbox").mkdir()
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     gateway = types.SimpleNamespace(adapters={"telegram": Adapter()})
     source = types.SimpleNamespace(user_id="1", user_name="Ann", chat_id="-100", platform="telegram")
     event = types.SimpleNamespace(text="mention the new map", reply_to_message_id="66", source=source, message_id="5")
@@ -366,7 +367,7 @@ def draft_setup(tmp_path, state, session):
     (tmp_path / "state" / "state.json").write_text(state)
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    cfg = plugin.Config(str(inbox), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(inbox), str(tmp_path / "state"), "-100", committee, "-400", "-300", "/pub")
     return inbox, plugin.make_draft_handler(cfg, session_env=lambda key: session.get(key, ""))
 
 
@@ -481,7 +482,7 @@ def queue_setup(tmp_path, session):
     committee.seed()
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    cfg = plugin.Config(str(inbox), "/st", "-100", committee)
+    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
     return inbox, plugin.make_queue_handler(cfg, session_env=lambda key: session.get(key, ""))
 
 
@@ -508,7 +509,7 @@ def test_change_tool_writes_change_command(tmp_path):
     committee.seed()
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    cfg = plugin.Config(str(inbox), "/st", "-100", committee)
+    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
     handle = plugin.make_queue_handler(cfg, session_env=lambda key: SESSION.get(key, ""), kind="change", done=plugin.CHANGE_DONE)
     assert json.loads(handle({"request": "Set FACTORY_TEST_WORKERS to 2."}))["message"] == plugin.CHANGE_DONE
     [path] = list(inbox.iterdir())
@@ -551,7 +552,7 @@ def test_change_tool_refuses_hermes_own_change(tmp_path):
     committee.seed()
     inbox = tmp_path / "inbox"
     inbox.mkdir()
-    cfg = plugin.Config(str(inbox), "/st", "-100", committee)
+    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
     handle = plugin.make_queue_handler(cfg, session_env=lambda key: "", kind="change", done=plugin.CHANGE_DONE)
     assert "error" in json.loads(handle({"request": "x"}))
     assert list(inbox.iterdir()) == []
@@ -560,7 +561,7 @@ def test_change_tool_refuses_hermes_own_change(tmp_path):
 def test_sender_tool_returns_the_telegram_id_of_the_member(tmp_path):
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config("/in", "/st", "-100", committee)
+    cfg = plugin.Config("/in", "/st", "-100", committee, "-400", "-300", "/pub")
     handle = plugin.make_sender_handler(cfg, session_env=lambda key: SESSION.get(key, ""))
     assert json.loads(handle({})) == {"by": "1", "name": "Ann"}
 
@@ -568,7 +569,7 @@ def test_sender_tool_returns_the_telegram_id_of_the_member(tmp_path):
 def test_sender_tool_errors_without_a_member_message(tmp_path):
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config("/in", "/st", "-100", committee)
+    cfg = plugin.Config("/in", "/st", "-100", committee, "-400", "-300", "/pub")
     assert "hermes" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: "")({}))["error"]
     stranger = {**SESSION, "HERMES_SESSION_USER_ID": "2"}
     assert "no committee member" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: stranger.get(key, ""))({}))["error"]
