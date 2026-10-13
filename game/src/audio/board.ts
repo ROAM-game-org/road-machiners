@@ -1,7 +1,8 @@
 
 import { MIX, SOUNDS, type Bus, type Cue } from "../data/sounds";
 import { devEl as el } from "../ui/dom";
-import { loadBank, type Bank } from "./bank";
+import { SFX_BYTES } from "../config";
+import { loadBank, recoverBank, type Bank, type DecodeFailure } from "./bank";
 import { Mixer } from "./mixer";
 
 const BUSES: Bus[] = ["ui", "sfx", "ambient", "music"];
@@ -12,7 +13,10 @@ const root = document.getElementById("board");
 if (!root) throw new Error("#board element missing from sound.html");
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
-const { bank, failures } = await loadBank(mixer.ctx, sounds);
+const options = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType("audio/ogg; codecs=opus") };
+const loaded = await loadBank(mixer.ctx, sounds, options);
+const { bank, failures } = loaded;
+const recovered = await recoverBank(mixer.ctx, loaded, options);
 let playing: AudioBufferSourceNode | null = null;
 const rejected = new Set<string>();
 
@@ -62,9 +66,15 @@ function rejectButton(file: string): HTMLElement {
   return b;
 }
 
+function failureLine(f: DecodeFailure): string {
+  const e = f.evidence;
+  const outcome = recovered.has(f.file) ? "decoded later" : "stand-in";
+  return `${f.file} failed to decode as ${f.kind}, ${outcome}: ${f.error}, got ${e.receivedBytes ?? "no"} of ${e.expectedBytes} bytes, HTTP ${e.status ?? "none"}, context ${e.contextState}`;
+}
+
 const copyButton = el("button", { onclick: () => void navigator.clipboard.writeText([...rejected].sort().join(" ")) }, "copy 0 rejects");
 root.append(el("div", { class: "row" }, el("button", { onclick: () => playing?.stop() }, "stop"), copyButton));
-for (const failure of failures) root.append(el("div", { class: "missing" }, `${failure.file} failed to decode: ${failure.error}`));
+for (const failure of failures) root.append(el("div", { class: "missing" }, failureLine(failure)));
 for (const bus of BUSES) {
   const ids = Object.keys(sounds).filter((id) => sounds[id].bus === bus);
   root.append(el("h2", {}, `${bus}  bus volume ${MIX.busVolume[bus]}  target ${MIX.level[bus]} dB RMS`));
