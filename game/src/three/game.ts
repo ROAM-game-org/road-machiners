@@ -85,6 +85,7 @@ import { MIX } from "../data/sounds";
 import { CombatScore, CombatWatch, computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
+import { watchInputMode } from "../ui/input-mode";
 import { PickRing } from "./render/pick-ring";
 import { PointerPicker } from "./pointer";
 import { Travel, type Playback, type LiveVision } from "./travel";
@@ -205,6 +206,7 @@ export class Game {
     this.drive = buildDrive(this.world);
     setTimeout(() => this.travel.warm(this.world, this.drive));
 
+    watchInputMode(uiRoot(), () => this.refreshUi());
     this.renderer.setPixelRatio(window.devicePixelRatio);
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
