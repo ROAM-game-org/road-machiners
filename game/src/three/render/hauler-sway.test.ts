@@ -50,7 +50,6 @@ it('keeps the hauler in its lane while it speeds up and rocks its drawn body no 
   const body = bodyOf(chassisId);
   const hauler = peakPitch(frames, body.half.x, body.wheelY);
   const bus = peakPitch(frames, 3.91, body.wheelY);
-  console.info(`hauler peak pitch ${((hauler * 180) / Math.PI).toFixed(2)} deg, bus-length ${((bus * 180) / Math.PI).toFixed(2)} deg`);
   expect((hauler * 180) / Math.PI).toBeLessThanOrEqual(2.0);
   expect(Math.sin(hauler) * body.half.x).toBeLessThanOrEqual(0.36);
   expect(hauler).toBeLessThanOrEqual(bus);
