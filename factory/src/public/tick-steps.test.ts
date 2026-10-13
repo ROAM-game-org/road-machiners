@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { readState } from '../state';
+import type { Classify } from './decision';
+import { CHANNEL, publicFake } from './public-fakes';
+import { publicTick } from './tick-steps';
+
+const accept: Classify = async () => ({ verdict: 'accept', kind: 'bug', route: 'none', title: 't', reason: 'r' });
+
+describe('publicTick', () => {
+  it('records a failure when a step throws and still runs the later steps', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+    f.store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 5 } });
+    f.store.addProposal(8, 'Radio', f.clock.now);
+    f.ctx.github.issue = async () => { throw new Error('GitHub is down'); };
+    await publicTick(f.ctx, accept);
+    const failures = readState(f.ctx.statePath).failures;
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ stage: 'public', issue: null });
+    expect(failures[0]!.error).toContain('GitHub is down');
+    expect(f.store.proposal(7)?.passedAt).not.toBeNull();
+  });
+
+  it('stops classifying at the first classify error and retries the comment next tick', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+    for (const id of ['a', 'b']) f.store.addComment({ issue: 7, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: 100, author: id, text: id, at: f.clock.now.toISOString() });
+    let calls = 0;
+    const flaky: Classify = async (input) => {
+      calls += 1;
+      if (calls === 2) throw new Error('filter down');
+      return accept(input);
+    };
+    await publicTick(f.ctx, flaky);
+    expect(f.store.unclassifiedComments().map((comment) => comment.text)).toEqual(['b']);
+    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
+    await publicTick(f.ctx, accept);
+    expect(f.store.unclassifiedComments()).toEqual([]);
+  });
+
+  it('maps a reject verdict to the rejected kind', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+    f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'a', postChat: CHANNEL, postMessageId: 100, author: 'a', text: 'spam', at: f.clock.now.toISOString() });
+    await publicTick(f.ctx, async () => ({ verdict: 'reject', kind: 'bug', route: 'none', title: 't', reason: 'r' }));
+    expect(f.store.unclassifiedComments()).toEqual([]);
+    expect(f.store.unsentComments()).toEqual([]);
+    expect(f.comments).toEqual([]);
+  });
+});

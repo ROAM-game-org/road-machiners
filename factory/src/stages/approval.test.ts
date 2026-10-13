@@ -36,7 +36,7 @@ function fakeCtx(): Ctx {
     run: async (cmd: string, args: string[]) => { calls.push(`run ${cmd} ${args[0]}`); return { code: 0, stdout: cmd === 'git' ? 'abc1234'.padEnd(40, '0') : '', stderr: '' }; },
     github: {
       cards: async () => [{ itemId: 'x', issue: 7, column, labels: [] }],
-      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), pullRequestFor: async () => openPr, closePullRequest: record('closePullRequest'), close: record('close'), move: record('move'),
       createRelease: record('release'),
     },
@@ -141,6 +141,11 @@ describe('routeFeedback', () => {
     await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
     expect(calls).toEqual(['comment 7 ## Committee feedback\n\nFrom bob, routed as patch:\n\nLouder horn', 'move 7 Testing']);
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
+  });
+
+  it('writes the heading it is given in place of the committee heading', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, '## Player report');
+    expect(calls).toEqual(['comment 7 ## Player report\n\nFrom public, routed as patch:\n\nIt breaks', 'move 7 Testing']);
   });
 
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {

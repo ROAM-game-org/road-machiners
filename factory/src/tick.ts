@@ -6,6 +6,8 @@ import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
 import { failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
+import { filterWith } from './public/filter';
+import { publicTick } from './public/tick-steps';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
@@ -242,6 +244,7 @@ export type TickDeps = {
   spawn: (args: string[], cwd: string, log: string, id: string, cpus: string, testWorkers: number | null) => number;
   cores: () => number;
   repair: Repair;
+  publicTick: (ctx: Ctx) => Promise<void>;
 };
 export const REAL_DEPS: TickDeps = {
   isAlive,
@@ -250,6 +253,7 @@ export const REAL_DEPS: TickDeps = {
   spawn: spawnJob,
   cores: availableParallelism,
   repair: repairClone,
+  publicTick: (ctx) => publicTick(ctx, filterWith(ctx.cfg, fetch)),
 };
 
 function dropJob(ctx: Ctx, job: Job): void {
@@ -443,6 +447,7 @@ export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS
   await checkJobs(ctx, deps);
   await settleRouting(ctx);
   await startJobs(ctx, codeDir, deps);
+  await deps.publicTick(ctx);
   await intake(ctx);
 }
 

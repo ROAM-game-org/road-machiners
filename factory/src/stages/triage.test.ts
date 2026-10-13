@@ -33,7 +33,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     telegram: { sendMessage: record('message') },
     log: () => undefined,
     github: {
-      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna', thumbsUp: [] }),
+      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
       comments: async () => earlier.map((body) => ({ login: 'bot', body })),
       cards: async () => cards,
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
