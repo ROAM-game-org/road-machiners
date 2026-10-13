@@ -4,8 +4,12 @@ import { PHYSICS } from '../../data/physics';
 import { TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
 import { PAL } from '../../render/palette';
 import { hash2, valueNoise } from '../../render/noise';
+import { bodyOf } from '../../sim/body';
+import { dropClearance } from '../../sim/hazards';
 import { heightAt, tileAt, type Terrain } from '../../sim/terrain';
-import type { DustCloud, World } from '../../sim/types';
+import type { DustCloud, Vehicle, World } from '../../sim/types';
+import { trailPassed, type TurnClock } from './hazards';
+import type { VehicleView } from './vehicle';
 import type { Card, FxCards } from './particles/cards';
 import { CARD_SHAPES } from './particles/cards';
 
@@ -33,18 +37,38 @@ export function puffsPerCloud(shownClouds: number): number {
   return Math.min(DUST_LOOK.puffs, Math.floor(DUST_LOOK.maxCards / shownClouds));
 }
 
+const LARGEST_BREATHE = 1.25;
+
+export function fitToTruck(center: { x: number; z: number }, truck: { x: number; z: number } | null, halfLength: number, reach: number): number {
+  if (!truck) return 1;
+  const room = Math.hypot(center.x - truck.x, center.z - truck.z) - halfLength;
+  return Math.min(1, Math.max(0, room / reach));
+}
+
+function reachAt(life: number): number {
+  const span = DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life;
+  const size = DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * LARGEST_BREATHE;
+  return ((span / 2 + DUST_LOOK.wobble) * Math.SQRT2 + size / 2) * S;
+}
+
 export class DustCloudsView {
   readonly root = new THREE.Group();
   private cards: Card[] = [];
   private lastTurn = -1;
   private turnMs = 0;
+  private lastWorld: World | null = null;
+  private vehicles = new Map<string, Vehicle>();
   private readonly tints = new Map<string, THREE.Color>();
 
   draw(cards: FxCards): void {
     for (const card of this.cards) cards.lit.push(card);
   }
 
-  update(world: World, terrain: Terrain, nowMs: number): void {
+  update(world: World, terrain: Terrain, nowMs: number, views: ReadonlyMap<string, VehicleView> = new Map(), clock: TurnClock | null = null): void {
+    if (world !== this.lastWorld) {
+      this.lastWorld = world;
+      this.vehicles = new Map(world.vehicles.map((v) => [v.id, v]));
+    }
     if (world.turn !== this.lastTurn) {
       this.lastTurn = world.turn;
       this.turnMs = nowMs;
@@ -52,13 +76,28 @@ export class DustCloudsView {
     const glide = Math.min(1, (nowMs - this.turnMs) / 1000 / DUST_LOOK.glideSeconds);
     const shown = new Set(world.player.clouds);
     for (const c of world.dustClouds) if (c.source === world.player.vehicleId) shown.add(c.id);
-    const clouds = world.dustClouds.filter((c) => shown.has(c.id)).slice(0, DUST_LOOK.maxCards);
+    const clouds = world.dustClouds.filter((c) => shown.has(c.id) && this.revealed(c, clock)).slice(0, DUST_LOOK.maxCards);
     const puffs = puffsPerCloud(clouds.length);
     this.cards = [];
-    for (const c of clouds) this.place(terrain, c, puffs, glide, nowMs / 1000);
+    for (const c of clouds) this.place(terrain, c, puffs, glide, nowMs / 1000, this.fitOf(c, glide, views));
   }
 
-  private place(terrain: Terrain, c: DustCloud, puffs: number, glide: number, seconds: number): void {
+  private revealed(c: DustCloud, clock: TurnClock | null): boolean {
+    if (!clock || clock.moved || c.age > 0) return true;
+    const source = this.vehicles.get(c.source);
+    return !source || trailPassed(source, c.pos, dropClearance(source, 0), clock.progress);
+  }
+
+  private fitOf(c: DustCloud, glide: number, views: ReadonlyMap<string, VehicleView>): number {
+    const source = this.vehicles.get(c.source);
+    const truck = views.get(c.source)?.center() ?? null;
+    if (!source || !truck) return 1;
+    const life = Math.min(1, (c.age + glide) / DETECT.dust.lifetime);
+    const center = { x: (c.pos.x + c.vel.x * glide) * S, z: (c.pos.y + c.vel.y * glide) * S };
+    return fitToTruck(center, truck, bodyOf(source.chassisId).half.x, reachAt(life));
+  }
+
+  private place(terrain: Terrain, c: DustCloud, puffs: number, glide: number, seconds: number, fit: number): void {
     const age = c.age + glide;
     const x = c.pos.x + c.vel.x * glide;
     const y = c.pos.y + c.vel.y * glide;
@@ -67,20 +106,21 @@ export class DustCloudsView {
     const cx = x * S;
     const cy = (heightAt(terrain, x, y) + age * DETECT.dust.riseHeight) * S;
     const cz = y * S;
+    if (fit <= 0) return;
     const tint = this.tintOf(terrain.types[tileAt(terrain, c.pos)]);
     const seed = hashId(c.id);
-    const span = DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life;
+    const span = (DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life) * fit;
     const t = seconds / DUST_LOOK.wobbleSeconds;
     for (let i = 0; i < puffs; i++) {
       const k = seed + i * 17;
-      const wx = (valueNoise(k * 0.13 + t, 1.7) - 0.5) * 2 * DUST_LOOK.wobble;
-      const wz = (valueNoise(4.3, k * 0.13 + t) - 0.5) * 2 * DUST_LOOK.wobble;
+      const wx = (valueNoise(k * 0.13 + t, 1.7) - 0.5) * 2 * DUST_LOOK.wobble * fit;
+      const wz = (valueNoise(4.3, k * 0.13 + t) - 0.5) * 2 * DUST_LOOK.wobble * fit;
       const breathe = 0.75 + 0.5 * valueNoise(k * 0.29 + t * 1.3, 8.1);
       this.cards.push({
         x: cx + ((hash2(k, 3) - 0.5) * span + wx) * S,
         y: cy + hash2(k, 7) * span * 0.4 * S,
         z: cz + ((hash2(k, 11) - 0.5) * span + wz) * S,
-        size: DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * breathe * S,
+        size: DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * breathe * fit * S,
         spin: hash2(k, 19) * DUST_LOOK.spinRange,
         shape: Math.min(CARD_SHAPES - 1, Math.floor(hash2(k, 23) * CARD_SHAPES)),
         r: tint.r,
