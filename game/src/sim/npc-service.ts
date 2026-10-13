@@ -106,10 +106,6 @@ export function liesUp(vehicle: Vehicle): boolean {
   return top?.kind === 'rearm' && dist(vehicle.pos, top.destination!) <= NPC_BEHAVIOR.lieUp.reach;
 }
 
-export function rearming(vehicle: Vehicle): boolean {
-  return topGoal(vehicle)?.kind === 'rearm';
-}
-
 export function rearmInvalid(world: World, vehicle: Vehicle): GoalReason | null {
   return needsFreshGear(world, vehicle) ? null : 'fitAgain';
 }
