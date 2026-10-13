@@ -68,6 +68,8 @@ export const UI = {
   'contract.claim': 'Claim',
   'contract.claimAt': m('Claim at {site}', { site: 'text' }),
   'contract.notMet': 'Not met yet',
+  'contract.oneSearch': 'Already searching for someone',
+  'contract.findFirst': 'Find them first',
   'contract.ready': 'Ready',
   'short.util': 'Util',
   'log.found': m('Found {items}.', { items: 'text' }),

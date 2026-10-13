@@ -60,6 +60,8 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   lootWarningTerms: ['warnLine', 'answer'],
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
+  lastSighting: ['sighting'],
+  searchFound: ['found'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
@@ -75,6 +77,8 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
+  sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
+  found: { kind: 'found', driver: 'Jed Cobb', site: 'bowl' },
 };
 
 const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line)));

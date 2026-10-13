@@ -1216,3 +1216,122 @@ describe('robber truce', () => {
     expect(next.player.call?.node).toBe('agreed');
   });
 });
+
+describe('asking after someone', () => {
+  const askText = en(TOPICS.lastSeen.ask!.say);
+  const foundText = en(TOPICS.found.ask!.say);
+
+  function searchWorld(): { w: World; witness: Vehicle; target: Vehicle } {
+    const { w, npc: witness } = withNpc('trader', 'traders');
+    const target = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 200, y: 200 });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    target.brain.driver = 'Mack Holt';
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 3700, deadline: 900, window: 600, tier: 1, found: false,
+    });
+    return { w, witness, target };
+  }
+
+  function sawAt(w: World, witness: Vehicle, target: Vehicle, turn: number, at = { x: 90, y: 30 }): void {
+    const was = w.turn;
+    w.turn = turn;
+    remember(w, witness, { kind: 'sighting', vehicle: target.id, at, heading: 0 });
+    w.turn = was;
+  }
+
+  const askAfter = (w: World, witness: Vehicle): World => {
+    const open = callVehicle(w, witness.id);
+    return chooseOption(open, optionIndex(open, askText));
+  };
+
+  it('reports the remembered place after the target drove on, never its live place', () => {
+    const { w, witness, target } = searchWorld();
+    w.turn = 60;
+    sawAt(w, witness, target, 40);
+    const me = playerVehicle(w).pos;
+    const rng = w.rngState;
+    const asked = askAfter(w, witness);
+    expect(asked.player.call?.vars.sighting).toEqual({
+      kind: 'sighting', driver: 'Mack Holt', seen: { bearing: 0, tiles: dist(me, { x: 90, y: 30 }), turns: 20, heading: 0 },
+    });
+    expect(asked.rngState).toBe(rng);
+  });
+
+  it('answers null for a driver that never saw the target', () => {
+    const { w, witness } = searchWorld();
+    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sighting', driver: 'Mack Holt', seen: null });
+  });
+
+  it('answers null once the sighting has faded', () => {
+    const { w, witness, target } = searchWorld();
+    sawAt(w, witness, target, 0);
+    w.turn += MEMORY.turns.sighting;
+    forgetOld(w);
+    expect(askAfter(w, witness).player.call?.vars.sighting).toEqual({ kind: 'sighting', driver: 'Mack Holt', seen: null });
+  });
+
+  it('moves the lead to the told place', () => {
+    const { w, witness, target } = searchWorld();
+    w.turn = 60;
+    sawAt(w, witness, target, 40);
+    let next = askAfter(w, witness);
+    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
+    expect(next.player.contracts[0]).toMatchObject({ lead: { at: { x: 90, y: 30 }, turn: 40 } });
+  });
+
+  it('keeps a newer lead over an older report', () => {
+    const { w, witness, target } = searchWorld();
+    w.turn = 60;
+    sawAt(w, witness, target, 40);
+    const contract = w.player.contracts[0];
+    if (contract.kind !== 'search') throw new Error('search expected');
+    contract.lead = { at: { x: 5, y: 5 }, turn: 50 };
+    let next = askAfter(w, witness);
+    next = chooseOption(next, optionIndex(next, 'Thanks. Something else.'));
+    expect(next.player.contracts[0]).toMatchObject({ lead: { at: { x: 5, y: 5 }, turn: 50 } });
+  });
+
+  it('throws when the memory changed after the answer was prepared', () => {
+    const { w, witness, target } = searchWorld();
+    w.turn = 60;
+    sawAt(w, witness, target, 40);
+    const asked = askAfter(w, witness);
+    const witnessNow = asked.vehicles.find((v) => v.id === witness.id)!;
+    sawAt(asked, witnessNow, target, 55);
+    expect(() => chooseOption(asked, optionIndex(asked, 'Thanks. Something else.'))).toThrow();
+  });
+
+  it('is offered while a search is open, but not to the target, by a suspicious driver or with no search', () => {
+    const { w, witness, target } = searchWorld();
+    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).toContain(askText);
+    expect(CONDITIONS.seeksSomeone(w, target, {})).toBe(false);
+    witness.brain!.personality = 'suspicious';
+    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(askText);
+    witness.brain!.personality = 'talkative';
+    w.player.contracts = [];
+    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(askText);
+  });
+
+  it('offers the confirmation only to the target of an open search, and confirms it once', () => {
+    const { w, witness, target } = searchWorld();
+    target.pos = { x: 36, y: 31 };
+    witness.pos = { x: 200, y: 200 };
+    refreshVision(w);
+    const open = callVehicle(w, target.id);
+    expect(currentOptions(open).map((o) => en(o.line))).toContain(foundText);
+    let next = chooseOption(open, optionIndex(open, foundText));
+    next = chooseOption(next, optionIndex(next, en('willPassItOn')));
+    const contract = next.player.contracts[0];
+    expect(contract).toMatchObject({ kind: 'search', found: true });
+    expect(next.events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(1);
+    expect(CONDITIONS.isSought(next, target, {})).toBe(false);
+  });
+
+  it('does not offer the confirmation to another driver', () => {
+    const { w, witness } = searchWorld();
+    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(foundText);
+    expect(EFFECTS.confirmFound).toBeDefined();
+    expect(() => PREPARES.searchFound(emptyWorld(), witness)).toThrow();
+  });
+});

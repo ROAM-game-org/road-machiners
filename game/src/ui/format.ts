@@ -2,7 +2,7 @@
 import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
-import type { Contract } from '../sim/market';
+import { isMet, type Contract } from '../sim/market';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
@@ -31,7 +31,7 @@ import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
-import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { goalText, fullName, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, professionName, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
@@ -534,12 +534,17 @@ const CONTRACT_CLS = { accepted: '', fulfilled: 'good', expiring: 'bad', done: '
 function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
   const cls = CONTRACT_CLS[outcome];
   if (outcome === 'fulfilled') {
-    if (c.kind !== 'bounty') throw new Error(`Only a bounty is fulfilled, not a ${c.kind} contract`);
+    if (c.kind === 'search') return line(t('log.contract.found', { who: searchTarget(c), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
+    if (c.kind !== 'bounty') throw new Error(`Only a bounty or a search is fulfilled, not a ${c.kind} contract`);
     return line(t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
   }
   const what = contractSummary(c);
   const text = outcome === 'expiring' ? t('log.contract.expiring', { what, due: contractDue(c) }) : t(`log.contract.${outcome}`, { what, reward: moneyMsg(c.reward) });
   return line(text, cls);
+}
+
+export function searchTarget(c: Extract<Contract, { kind: 'search' }>): Msg {
+  return t('vehicle.npc', { profession: professionName(c.template), driver: fullName(c.driver) });
 }
 
 export function contractSummary(c: Contract): Msg {
@@ -548,6 +553,7 @@ export function contractSummary(c: Contract): Msg {
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
+  if (c.kind === 'search') return t(c.found ? 'contract.searchMet' : 'contract.search', { who: searchTarget(c), site: siteName(c.shop) });
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
 }
@@ -561,7 +567,7 @@ export function contractDue(c: Contract): Msg {
 }
 
 export function heldContractDue(c: Contract): Msg {
-  return c.kind === 'bounty' && c.fulfilled ? t('contract.ready') : contractDue(c);
+  return isMet(c) ? t('contract.ready') : contractDue(c);
 }
 
 export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full: Msg } {

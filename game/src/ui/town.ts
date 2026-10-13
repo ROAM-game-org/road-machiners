@@ -38,7 +38,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, searchBlocked, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
@@ -334,8 +334,11 @@ export class TownScreen {
   private contracts(w: World, shopId: string): HTMLElement {
     const board = shopState(w, shopId).contracts;
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
-    const accept = (c: Contract) =>
-      this.button(t("contract.accept"), (x) => acceptContract(x, c.id), full ? t("contract.full", { n: CONTRACTS.maxActive }) : null);
+    const refusal = (c: Contract): Msg | null => {
+      if (full) return t("contract.full", { n: CONTRACTS.maxActive });
+      return searchBlocked(w, c) ? t("contract.oneSearch") : null;
+    };
+    const accept = (c: Contract) => this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
     return el(
       "div",
       {},
@@ -352,7 +355,7 @@ export class TownScreen {
 
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
     const destination = c.kind === "haul" ? c.to : c.shop;
-    const claim = c.kind === "bounty";
+    const claim = c.kind === "bounty" || c.kind === "search";
     if (destination !== shopId) return el("span", { class: "dim" }, t(claim ? "contract.claimAt" : "contract.deliverAt", { site: siteName(destination) }));
     return this.button(t(claim ? "contract.claim" : "contract.deliver"), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
   }
@@ -361,6 +364,7 @@ export class TownScreen {
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "search") return t("contract.findFirst");
   return bountyPays(w);
 }
 
@@ -408,6 +412,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
+  search: () => createBareItemIcon("scanner"),
 };
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -478,7 +483,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
-  return c.fulfilled;
+  return c.kind === "bounty" ? c.fulfilled : c.found;
 }
 
 type TradeTab = "goods" | "parts" | "supplies";

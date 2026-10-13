@@ -14,7 +14,7 @@ export const PERSONALITIES: Record<PersonalityId, Personality> = {
   tightLipped: { gates: { marketNews: 'help', rumor: 'price', tips: 'closed' } },
   gossip: { gates: {} },
   braggart: { gates: { marketNews: 'closed' } },
-  suspicious: { gates: { directions: 'price', marketNews: 'closed', rumor: 'help', tips: 'closed' } },
+  suspicious: { gates: { directions: 'price', lastSeen: 'closed', marketNews: 'closed', rumor: 'help', tips: 'closed' } },
   kind: { gates: {} },
   grim: { gates: { marketNews: 'price', rumor: 'help', tips: 'closed' } },
   pious: { gates: { marketNews: 'closed', tips: 'closed' } },

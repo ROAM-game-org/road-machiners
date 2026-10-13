@@ -370,6 +370,8 @@ export type CallVar =
   | { kind: "aid"; fuel: number; supplies: number }
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
+  | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
+  | { kind: "found"; driver: string; site: string }
   | { kind: "answer"; option: string }
   | { kind: "line"; line: LineId };
 export type CallVars = Record<string, CallVar>;
