@@ -33,7 +33,8 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
 import { READY_ARC_BIT } from "./render/models";
@@ -596,7 +597,13 @@ export class Game {
 
   private clickVehicle(id: string): void {
     this.pin.click(id);
-    if (this.selected !== null && this.canClick()) this.apply(toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), vehicleById(this.world, id)));
+    if (this.selected === null || !this.canClick()) return;
+    try {
+      this.apply(toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), vehicleById(this.world, id)));
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.hud.note(this.world, refusalText(this.world, err.refusal), "bad");
+    }
   }
 
   private canShowCombatVehicle(v: Vehicle): boolean {
