@@ -18,7 +18,7 @@ function cloud(id: string, source: string, age = 0): DustCloud {
 }
 
 function worldOf(clouds: DustCloud[], seen: string[]): World {
-  return { turn: 1, terrain: flatTerrain(32), dustClouds: clouds, player: { vehicleId: 'me', clouds: seen } } as unknown as World;
+  return { turn: 1, terrain: flatTerrain(32), dustClouds: clouds, vehicles: [], player: { vehicleId: 'me', clouds: seen } } as unknown as World;
 }
 
 function drawn(view: DustCloudsView): Card[] {
