@@ -114,7 +114,6 @@ export type Issue = {
   createdAt: string;
   state: 'OPEN' | 'CLOSED';
   author: string;
-  thumbsUp: string[];
 };
 
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };

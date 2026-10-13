@@ -8,7 +8,7 @@ import { readObservation, type SchedulerData } from './observability';
 import { resumedStage } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
 import { EMPTY_STATE, clearQueued, readState, updateState, writeState } from './state';
-import { FACTORY_MARK, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUESTIONS_HEADING, STUCK_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
+import { FACTORY_MARK, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUESTIONS_HEADING, STUCK_LABEL, VOTING_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
 
 const NOW = new Date('2026-01-10T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
@@ -179,6 +179,14 @@ describe('chooseJobs with held cards', () => {
     const cards = [card(5, 'Implementation'), card(6, 'Implementation', ['release-task']), card(7, 'Implementation')];
     expect(chooseJobs(state({ held: { 5: HOLD } }), cards, NOW, ONE)).toEqual([{ stage: 'implement', issue: 6 }]);
     expect(chooseJobs(state({ held: { 5: HOLD, 6: HOLD } }), cards, NOW, ONE)).toEqual([{ stage: 'implement', issue: 7 }]);
+  });
+
+  it('gives a voting Triage card no triage job and the wait reason voting', () => {
+    const cards = [card(1, 'Triage', [VOTING_LABEL]), card(2, 'Triage')];
+    expect(chooseJobs(state(), cards, NOW, ONE)).toEqual([{ stage: 'triage', issue: 2 }]);
+    const report = evaluateSchedule(state(), [card(1, 'Triage', [VOTING_LABEL])], NOW, CFG);
+    expect(report.picks).toEqual([]);
+    expect(report.decisions).toEqual([{ stage: 'triage', issue: 1, reasons: ['voting'] }]);
   });
 
   it('reports a held card as waiting with the reason held', () => {
