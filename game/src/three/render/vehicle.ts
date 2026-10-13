@@ -220,7 +220,7 @@ export class VehicleView {
     this.turrets.clear();
     this.anchors.clear();
     const body = bodyOf(v.chassisId);
-    this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), hashStr(v.id));
+    this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), body.half.x, hashStr(v.id));
     const paint = FACTION_COLORS[v.faction].top;
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
