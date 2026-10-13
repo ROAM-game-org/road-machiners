@@ -38,18 +38,15 @@ const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge'>,
 
 const CARD_STAGE_NAMES: Partial<Record<JobStage, string>> = { triage: 'Triage', design: 'Design', implement: 'Implementation', verify: 'Testing', harden: 'Hardening', checks: 'Post' };
 
-type Ending = 'finished' | 'failed' | 'stopped';
-const NEXT: Record<Ending, string> = { finished: '', failed: ' Hermes is looking into it.', stopped: ' It resumes in its own session on the next tick, with the error.' };
-
-export function progressNote(ctx: Ctx, stage: JobStage, startedAt: string | null, outcome: Ending): string {
+export function failureNote(ctx: Ctx, stage: JobStage, startedAt: string | null): string {
   const minutes = startedAt ? Math.round((ctx.now().getTime() - new Date(startedAt).getTime()) / 60_000) : null;
   const took = minutes === null ? '' : ` after ${minutes} min`;
-  return `${CARD_STAGE_NAMES[stage]} ${outcome}${took}.${NEXT[outcome]}`;
+  return `${CARD_STAGE_NAMES[stage]} failed${took}. Hermes is looking into it.`;
 }
 
-async function noteProgress(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, outcome: Ending): Promise<void> {
+async function noteFailure(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null): Promise<void> {
   if (issue === null || !(stage in CARD_STAGE_NAMES)) return;
-  await ctx.github.comment(issue, progressNote(ctx, stage, job?.startedAt ?? null, outcome));
+  await ctx.github.comment(issue, failureNote(ctx, stage, job?.startedAt ?? null));
 }
 
 function retriesItself(ctx: Ctx, stage: JobStage, issue: number | null, error: unknown): issue is number {
@@ -79,7 +76,6 @@ export async function runJob(ctx: Ctx, stage: JobStage, issue: number | null): P
     await dispatch(ctx, stage, issue, job);
     outcome = 'done';
     ctx.log(stage, issue, 'done');
-    await noteProgress(ctx, stage, issue, job, 'finished');
   } catch (error) {
     retry = await failed(ctx, stage, issue, job, error);
   } finally {
@@ -91,10 +87,13 @@ export async function runJob(ctx: Ctx, stage: JobStage, issue: number | null): P
 
 async function failed(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null, error: unknown): Promise<boolean> {
   const retry = retriesItself(ctx, stage, issue, error);
-  if (retry) resumeOnce(ctx, stage, issue, error);
-  else await reportFailure(ctx, stage, failureIssue(stage, issue, readState(ctx.statePath)), error, job?.log ?? null, batchOf(ctx, job));
-  await noteProgress(ctx, stage, issue, job, retry ? 'stopped' : 'failed');
-  return retry;
+  if (retry) {
+    resumeOnce(ctx, stage, issue, error);
+    return true;
+  }
+  await reportFailure(ctx, stage, failureIssue(stage, issue, readState(ctx.statePath)), error, job?.log ?? null, batchOf(ctx, job));
+  await noteFailure(ctx, stage, issue, job);
+  return false;
 }
 
 function batchOf(ctx: Ctx, job: Job | null): number[] {
