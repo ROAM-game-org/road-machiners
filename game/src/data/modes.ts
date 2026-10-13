@@ -28,7 +28,7 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
 
 export type WaveGear = Omit<GearRules, 'money'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
-const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1 };
+const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1, paysFuel: false };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 

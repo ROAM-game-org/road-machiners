@@ -132,6 +132,15 @@ describe('NPC equipment generation', () => {
       const firepower = (priority: number) => average(withPriorities(NPCS.gunwagon, { firepower: priority }), 'standard', guns);
       expect(firepower(PRIORITY_TOP)).toBeGreaterThan(firepower(0));
     }, budget(120_000));
+    it('picks engines a wallet can feed: no role runs on turbines and the average burn stays near a stock engine', () => {
+      const engineOf = (v: Vehicle) => mountedParts(v, 'engine')[0].defId;
+      const fuelUse = (v: Vehicle) => wornDef<EngineDef>(mountedParts(v, 'engine')[0]).fuelMult;
+      for (const template of Object.values(NPCS)) {
+        const trucks = Array.from({ length: ROLLS }, (_, i) => rolled(template, null, i + 1));
+        expect(trucks.filter((v) => engineOf(v) === 'turbine').length, template.id).toBeLessThanOrEqual(ROLLS / 4);
+        expect(trucks.reduce((sum, v) => sum + fuelUse(v), 0) / ROLLS, template.id).toBeLessThan(1.5);
+      }
+    }, budget(240_000));
   });
 
   it('armors at least 80% of the edge cells on most loaded trucks', () => {

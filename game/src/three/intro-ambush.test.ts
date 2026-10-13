@@ -16,7 +16,8 @@ import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
 import { introStep, setIntroStep } from '../sim/quests';
 import { generateNpcLoadout } from '../sim/npc-loadout';
-import { topGoal } from '../sim/npc-activities';
+import { fightCornered, topGoal } from '../sim/npc-activities';
+import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
@@ -25,7 +26,7 @@ import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/test
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
-import { playerSees } from '../sim/vision';
+import { playerSees, sightRadius } from '../sim/vision';
 import { endTurn, newWorld } from '../sim/world';
 import { newGame } from '../sim/new-game';
 import { route } from '../sim/path';
@@ -69,6 +70,32 @@ function knockedOutBy(w: World): Vehicle {
   corePart(me, 'cab').hp = 0;
   checkKnockout(w);
   return raider;
+}
+
+const fightOn = (v: Vehicle, id: string) => v.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === id);
+
+function huntRange(w: World): number {
+  return sightRadius(w, playerVehicle(w)) * AMBUSH.huntSight;
+}
+
+function placePlayerAt(w: World, factor: number): void {
+  const me = playerVehicle(w);
+  const raider = raidersIn(w)[0];
+  const range = huntRange(w) * factor;
+  me.pos = { x: raider.pos.x + range, y: raider.pos.y };
+  me.speed = 0;
+  me.order = null;
+}
+
+function turnsToDone(start: World, saveAt: number | null): { turns: number; w: World } {
+  let w = start;
+  for (let turns = 1; turns <= 60; turns++) {
+    placePlayerAt(w, 1.5);
+    w = endTurn(w, testDrive);
+    if (turns === saveAt) w = savedAndLoaded(w);
+    if (introStep(w) === 'done') return { turns, w };
+  }
+  throw new Error('The raider never gave up');
 }
 
 function closeScene(w: World): World {
@@ -117,7 +144,7 @@ describe('the ambush', () => {
     expect(along).toBeGreaterThan(dist(raider.pos, me.pos) * AMBUSH.aheadCos - 1e-9);
   });
 
-  it('keeps the raider on the player\'s real position, so it never stops at an old sighting', () => {
+  it('keeps the raider on the player\'s real position within the hunt range, so it never stops at an old sighting', () => {
     let w = ambushed();
     for (let i = 0; i < 3; i++) w = endTurn(w, testDrive);
     const me = playerVehicle(w);
@@ -332,5 +359,73 @@ describe('saves around the ambush', () => {
     expectNothingAwarded(savedAndLoaded(scene), scene);
     const done = closeScene(scene);
     expectNothingAwarded(savedAndLoaded(done), done);
+  });
+});
+
+describe('the hunt range', () => {
+  it('gives up a player who escapes beyond the range, with the raider left where it drove', () => {
+    const { turns, w } = turnsToDone(ambushed(), null);
+    expect(turns).toBeLessThanOrEqual(NPC_BEHAVIOR.fightStallTurns + 1);
+    const raider = raidersIn(w)[0];
+    expect(raider).toBeDefined();
+    expect(fightOn(raider, w.player.vehicleId)).toBeUndefined();
+    expect(w.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
+    expect(w.player.quests.session).toBeNull();
+  });
+
+  it('keeps the forced fight while the player stays in range', () => {
+    let w = ambushed();
+    for (let i = 0; i < 30; i++) {
+      placePlayerAt(w, 0.9);
+      w = endTurn(w, testDrive);
+    }
+    expect(introStep(w)).toBe('ambush');
+    const raider = raidersIn(w)[0];
+    expect(fightOn(raider, w.player.vehicleId)).toBeDefined();
+    expect(dist(trackOf(raider, w.player.vehicleId)!.at, playerVehicle(w).pos)).toBeLessThan(1);
+  });
+
+  it('takes the hunt up again when the player comes back before it gives up', () => {
+    let w = ambushed();
+    for (let i = 0; i < 3; i++) {
+      placePlayerAt(w, 1.5);
+      w = endTurn(w, testDrive);
+    }
+    expect(introStep(w)).toBe('ambush');
+    placePlayerAt(w, 0.5);
+    w = endTurn(w, testDrive);
+    const raider = raidersIn(w)[0];
+    expect(introStep(w)).toBe('ambush');
+    expect(fightOn(raider, w.player.vehicleId)).toBeDefined();
+    expect(dist(trackOf(raider, w.player.vehicleId)!.at, playerVehicle(w).pos)).toBeLessThan(1);
+  });
+
+  it('leaves other raiders\' fights to the ordinary rules', () => {
+    let w = ambushed();
+    const me = playerVehicle(w);
+    const other = spawnAt(w, NPCS[AMBUSH.template], generateNpcLoadout(w, NPCS[AMBUSH.template], AMBUSH.chassis, AMBUSH.gear), { x: me.pos.x - 60, y: me.pos.y });
+    fightCornered(w, other, me, 'robCargo');
+    for (let i = 0; i < NPC_BEHAVIOR.fightSearchTurns + 2; i++) {
+      placePlayerAt(w, 0.5);
+      w = endTurn(w, testDrive);
+    }
+    const second = w.vehicles.find((v) => v.id === other.id)!;
+    expect(introStep(w)).toBe('ambush');
+    expect(fightOn(second, w.player.vehicleId)).toBeUndefined();
+  });
+
+  it('gives up on the same turn whether or not the game was saved mid-escape or at done', () => {
+    const plain = turnsToDone(ambushed(), null);
+    const mid = turnsToDone(ambushed(), 3);
+    expect(mid.turns).toBe(plain.turns);
+    const done = plain.w;
+    const loaded = savedAndLoaded(done);
+    expectNothingAwarded(loaded, done);
+    expect(introStep(loaded)).toBe('done');
+    expect(fightOn(raidersIn(loaded)[0], loaded.player.vehicleId)).toBeUndefined();
+  });
+
+  it('covers the farthest spawn', () => {
+    expect(AMBUSH.huntSight).toBeGreaterThanOrEqual(AMBUSH.sightMax);
   });
 });

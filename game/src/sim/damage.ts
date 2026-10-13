@@ -1,4 +1,3 @@
-// Applying damage. Hit points clamp at zero. Damage reaches parts only through walkLane in armor.ts.
 
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";

@@ -46,8 +46,8 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   They say they feed Bowl and have no say in it, and they're right. The families never wanted to tell a tenant what to think, only what to plant.
   Jory Baptiste speaks for them on the terraces. He is quick, and I like him, and I vote against him anyway.
   -> hub
-+ {ruben_senate} [Why did the Senate refuse the loan from Pierce?]
-  Because Pierce wanted the canal gates as surety. If a dry year came and we couldn't pay, Pierce would own the water, and the families would be tenants on their own terraces.
++ {ruben_senate} [What came of the Pierce loan?]
+  The Senate turned it down. Pierce wanted the canal gates as surety. If a dry year came and we couldn't pay, Pierce would own the water, and the families would be tenants on their own terraces.
   My grandmother would have thrown the man in the canal. The Senate only argued with him for a season, which I suppose is how we throw people now.
   -> hub
 + [Goodbye.]

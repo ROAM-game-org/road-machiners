@@ -1,5 +1,3 @@
-// The Blender bases cut their arches where the game draws the wheels: at PHYSICS.bodies wheelX, hub height and wheelZ.
-// A base marks its arch with the sockets arch_front, arch_rear (the left arch center at the hub) and arch_front_top (the crown).
 
 import { describe, expect, it } from 'vitest';
 import { PHYSICS } from '../../data/physics';

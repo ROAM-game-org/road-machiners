@@ -1153,6 +1153,7 @@ describe('the hunter', () => {
     removeAllGoods(me);
     const want = START_KITS.standard.cargo.parts ?? 0;
     expect(want).toBeGreaterThan(0);
+    w.player.discovered = ['bowl'];
 
     const turn = botOrders(w, 'hunter');
 

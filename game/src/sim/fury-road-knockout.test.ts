@@ -108,7 +108,7 @@ describe('a knocked-out Fury Road truck', () => {
   it('holds no encounter on, so the next group comes after the quiet', () => {
     let w = furyRoadWorld(4);
     w = nextLevel(w);
-    runOf(w).groups = planStretch(w.seed, runOf(w).groups[0].stretch, [1, 1]);
+    runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, [1, 1]);
     const first = spawnGroup(w);
     for (const v of trucksOf(w, first)) {
       beside(w, v);

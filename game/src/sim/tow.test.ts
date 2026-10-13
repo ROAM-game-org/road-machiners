@@ -1113,6 +1113,20 @@ describe('NPCs towing each other', () => {
     expectDelivered({ w, client, tower: withTower(w, ...SCAVENGER, beside(REGION.sites.pad.width / 2 + 4)) });
   });
 
+  it('a tower parked at the pad with its client lying inward of it ends the tow with the client on the pad', () => {
+    const w = emptyWorld(bowl.pos);
+    for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
+    forceOption('idle', 'wait');
+    forceOption('strandedSeen', 'tow');
+    const pad = nearestPad(bowl, outFrom(bowl, 5));
+    const out = Math.atan2(pad.y - bowl.pos.y, pad.x - bowl.pos.x);
+    const inward = (d: number): Vec => ({ x: pad.x - Math.cos(out) * d, y: pad.y - Math.sin(out) * d });
+    const client = withTower(w, ...TRADER, inward(REGION.sites.pad.length / 2 + 3));
+    client.resources!.fuel = 0;
+    client.resources!.money = 1000;
+    expectDelivered({ w, client, tower: withTower(w, ...SCAVENGER, pad) });
+  });
+
   it('a hitched client drops its kept far route, so it drives on from the drop point', () => {
     const s = roadside(bowl, TRADER, SCAVENGER);
     s.client.brain!.farRoute = { dest: { ...bowl.pos }, points: [{ ...s.client.pos }, { ...bowl.pos }], offRoad: false };

@@ -12,7 +12,7 @@ VAR mount_seen = false
 
 === start ===
 # checkpoint: start
-The wagon lies nose-down at the bottom of the hollow, below the bend in the Bowl north road. It left the road on the bend and ran all the way down the slope. Army green under the dust. The stencil on the door is the Nose Army's, from the town on the mountain to the north-east. # place: A hollow off the Bowl north road
+The wagon lies nose-down at the bottom of the hollow, below the bend in the Bowl north road. It left the road on the bend and ran all the way down the slope. Army green under the dust. The stencil on the door is the Nose Army's, from the town on the mountain to the north-east, and under it is a white 7. # place: A hollow off the Bowl north road
 You've been through everything that opens. The radio is gone from the cab, and its bracket hangs empty. The bed is bare: wooden chocks for a row of water drums, and no drums.
 The cannon is still on its swivel ring, but it has swung right round. Its back end lies across the cab roof, and the back wall of the cab is caved in.
 A tow chain is wrapped round the gun where it lies and hooked to the cab frame, so somebody tied it down after it swung. The chain has been cut since. The cut ends are still bright.
