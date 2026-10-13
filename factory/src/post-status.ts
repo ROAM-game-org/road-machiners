@@ -3,8 +3,8 @@ import { CAPTION_LIMIT, cut } from './stages/checks';
 import { readState, updateState } from './state';
 import { PUBLIC_SENDER, type Ctx, type FactoryState } from './types';
 
-const PLAYER_PATCH_STATUS = '🎮 A player report sent it back. Sonnet fixes the build, then the checks run again.';
-const PLAYER_REDESIGN_STATUS = '🎮 A player report sent it back. Back to design.';
+const PLAYER_PATCH_STATUS = 'A player report sent it back. Sonnet fixes the build, then the checks run again.';
+const PLAYER_REDESIGN_STATUS = 'A player report sent it back. Back to design.';
 const UNMARKED = ['change', 'adhoc', 'reply', 'answer', 'release-draft'] as const;
 type PostKind = Exclude<InboxCommand['kind'], (typeof UNMARKED)[number]>;
 

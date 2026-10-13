@@ -33,6 +33,6 @@ describe('markPost for a player report', () => {
     const ctx = { statePath, cfg: { committeeChat: 'c' }, telegram: { editText: async (_chat: string, id: number, text: string) => { edits.push(`${id} ${text}`); } } } as unknown as Ctx;
     await markPost(ctx, { kind: 'redesign', issue: 7, text: 'x', by: 'public', byName: null, chat: 'c', messageId: null, postId: 40 }, 'public');
     rmSync(statePath);
-    expect(edits).toEqual(['40 Caption\n\n🎮 A player report sent it back. Back to design.']);
+    expect(edits).toEqual(['40 Caption\n\nA player report sent it back. Back to design.']);
   });
 });
