@@ -46,7 +46,7 @@ describe('intake', () => {
       },
     } as unknown as Ctx;
     expect(await intake(ctx)).toEqual([4]);
-    expect(calls).toEqual(['addCard 4 Triage', 'comment 4 The factory picked this up for triage.']);
+    expect(calls).toEqual(['addCard 4 Triage']);
   });
 
   it('puts a fresh error report with no votes into Triage, not Design', async () => {
@@ -63,7 +63,7 @@ describe('intake', () => {
       },
     } as unknown as Ctx;
     expect(await intake(ctx)).toEqual([8]);
-    expect(calls).toEqual(['addCard 8 Triage', 'comment 8 The factory picked this up for triage.']);
+    expect(calls).toEqual(['addCard 8 Triage']);
   });
 
   it('puts a fresh hotfix with no votes straight into Design', async () => {
@@ -82,6 +82,6 @@ describe('intake', () => {
     } as unknown as Ctx;
     expect(await intake(ctx)).toEqual([6]);
     expect(asked).toContain('hotfix');
-    expect(calls).toEqual(['addCard 6 Design', 'comment 6 The factory picked this up as a hotfix. It goes to design now.']);
+    expect(calls).toEqual(['addCard 6 Design']);
   });
 });

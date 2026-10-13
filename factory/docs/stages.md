@@ -1,6 +1,6 @@
 # Stages
 
-The rules of each step in [process.md](process.md). Each card stage comments on its issue when it finishes or fails, with the time it took. Agents write `.factory/needs-committee.md` only for a game design fork or a major save bump. A stage that ends with that file fails, so Hermes puts the question to the committee.
+The rules of each step in [process.md](process.md). A card stage comments on its issue only when it fails for good, with the time it took. The board shows every other move, and each comment counts toward GitHub's spam checks. Agents write `.factory/needs-committee.md` only for a game design fork or a major save bump. A stage that ends with that file fails, so Hermes puts the question to the committee.
 
 ## Intake
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Renew the GitHub App token of the ROAM game factory
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ service_user }}
+WorkingDirectory={{ code_dir }}/factory
+UMask=0077
+ExecStart=/usr/bin/npm run -s factory -- github-token
+StandardOutput=append:{{ home_dir }}/logs/github-token.log
+StandardError=append:{{ home_dir }}/logs/github-token.log
+TimeoutStartSec=2min

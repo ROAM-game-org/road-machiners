@@ -6,9 +6,10 @@ const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubRetries: 3
 const ok = (stdout: string): RunResult => ({ code: 0, stdout, stderr: '' });
 const RATE_LIMITED: RunResult = { code: 1, stdout: '', stderr: 'HTTP 403: API rate limit exceeded for user ID 1.' };
 
-const NODE = (number: number, voters: string[] = []) => ({
+const NODE = (number: number, voters: string[] = [], projects: string[] = []) => ({
   number, title: `t${number}`, body: '', labels: { nodes: [{ name: 'bug' }] }, createdAt: '2026-01-01T00:00:00Z', state: 'OPEN', author: { login: 'anna' },
   reactions: { pageInfo: { hasNextPage: false }, nodes: voters.map((login) => ({ user: { login } })) },
+  projectItems: { nodes: projects.map((id) => ({ project: { id } })) },
 });
 
 function searchPage(nodes: unknown[], endCursor = ''): string {
@@ -47,14 +48,25 @@ describe('ghClient', () => {
     const found = await ghClient(fake(calls, project(ALL)), CFG).candidates(['bug', 'feature-request']);
     expect(found.map((i) => i.number)).toEqual([1, 2, 3]);
     expect(found[0]).toMatchObject({ author: 'anna', labels: ['bug'], state: 'OPEN', thumbsUp: ['anna', 'boss'] });
-    expect(calls).toHaveLength(2);
-    expect(calls[0]).toContain('search=repo:o/r is:issue is:open label:"bug","feature-request"');
-    expect(calls[1]).toContain('cursor=C1');
+    const searches = calls.filter((args) => args.join(' ').includes('search(type: ISSUE'));
+    expect(searches).toHaveLength(2);
+    expect(searches[0]).toContain('search=repo:o/r is:issue is:open label:"bug","feature-request"');
+    expect(searches[1]).toContain('cursor=C1');
+  });
+
+  it('leaves out an issue the board already holds, though the board lists it late', async () => {
+    const run: Run = async (_cmd, args) => {
+      const text = args.join(' ');
+      if (text.includes('projectV2(number')) return ok(project(ALL));
+      return ok(searchPage([NODE(1, [], ['P1']), NODE(2, [], ['P-other'])]));
+    };
+    const found = await ghClient(run, CFG).candidates(['bug']);
+    expect(found.map((i) => i.number)).toEqual([2]);
   });
 
   it('stops intake when an issue has more thumbs-up than one search reads', async () => {
     const node = { ...NODE(1), reactions: { pageInfo: { hasNextPage: true }, nodes: [] } };
-    const client = ghClient(async () => ok(searchPage([node])), CFG);
+    const client = ghClient(async (_cmd, args) => ok(args.join(' ').includes('projectV2(number') ? project(ALL) : searchPage([node])), CFG);
     await expect(client.candidates(['bug'])).rejects.toThrow('over 100 thumbs-up');
   });
 
@@ -180,13 +192,26 @@ describe('ghClient', () => {
     expect(calls).toEqual([['issue', 'reopen', '7', '-R', 'o/r']]);
   });
 
-  it('creates a missing label before it opens an issue with it', async () => {
+  it('creates only a missing label before it opens an issue with it', async () => {
     const calls: string[][] = [];
-    const run: Run = async (_cmd, args) => { calls.push(args); return ok(args[0] === 'issue' ? 'https://github.com/o/r/issues/31\n' : ''); };
+    const run: Run = async (_cmd, args) => {
+      calls.push(args);
+      if (args[0] === 'label' && args[1] === 'list') return ok('maintenance\n');
+      return ok(args[0] === 'issue' ? 'https://github.com/o/r/issues/31\n' : '');
+    };
     const number = await ghClient(run, CFG).createIssue('T', 'B', ['release-task', 'maintenance']);
     expect(number).toBe(31);
-    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label create release-task', 'label create maintenance', 'issue create -R']);
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create release-task', 'issue create -R']);
     expect(calls[2]).toEqual(['issue', 'create', '-R', 'o/r', '--title', 'T', '--body', 'B', '--label', 'release-task', '--label', 'maintenance']);
+  });
+
+  it('reads the repo labels once and adds a known label with one write', async () => {
+    const calls: string[][] = [];
+    const run: Run = async (_cmd, args) => { calls.push(args); return ok(args[1] === 'list' ? 'factory-stuck\n' : ''); };
+    const client = ghClient(run, CFG);
+    await client.addLabel(4, 'factory-stuck');
+    await client.addLabel(5, 'factory-stuck');
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'issue edit 4', 'issue edit 5']);
   });
 
   it('finds the oldest error-report issue whose body holds the exact fingerprint line, open or closed', async () => {

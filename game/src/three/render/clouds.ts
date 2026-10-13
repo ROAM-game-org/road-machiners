@@ -15,7 +15,7 @@ export class CloudViews {
   }
 
   update(world: World, views: ReadonlyMap<string, VehicleView>, nowMs: number, clock: TurnClock | null, camera: THREE.Camera, cards: FxCards): void {
-    this.dust.update(world, world.terrain, nowMs);
+    this.dust.update(world, world.terrain, nowMs, views, clock);
     this.hazards.update(world, world.terrain, views, nowMs, clock, camera);
     this.dust.draw(cards);
     this.hazards.draw(cards);
