@@ -1,6 +1,6 @@
 # Voting moves to Telegram
 
-**Status:** executing
+**Status:** reviewing
 **Branch:** telegram-voting
 **Worktree:** .worktrees/telegram-voting
 **Goal:** Bugs and justified improvements reach Design with no votes. A real feature is posted to the public channel as a proposal, at most 4 a day, and reaches Design when its thumbs-up count reaches `FACTORY_MIN_VOTES`. Its build is posted as a reply to the proposal, and player comments and in-game reports reach the issue and route bugs to patch or redesign. Confirming it needs the user to add the bot to the discussion group, add `OPENAI_API_KEY`, merge into `main` and watch one real proposal go through. Tonight's proof is fixture tests, a replay of recorded updates through the plugin and the tick, and sample posts in the committee chat.
@@ -189,6 +189,15 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - RK2 — PH6 lands on `dev` and PH2 to PH5 on `main`. A game build before the factory route deploys gets 404 from `/feedback` and shows a failed send.
 
 ## Verify
+
+- Touched factory test files: 27 files, 451 tests pass after the merge. Typecheck clean. Hermes plugin tests 200 pass. Infra tests 22 pass. Game form tests pass on `feedback-form`.
+- End-to-end replay, `factory/tmp/e2e.ts` (gitignored): real posts in the committee chat as `FACTORY_PROPOSAL_CHAT`, recorded Bot API updates through the plugin's `handle_public_update`, then `publicTick` with a fake GitHub and a fake filter.
+  - The proposal posted to the committee chat. A repeated `update_id` counted once. Two thumbs-up and a fire gave 2 votes and no GitHub call. The third thumbs-up removed `voting` and moved the card to Design.
+  - The build post went out as a reply to the proposal. A reply on it became a digest under `## Player comments`. The ad was rejected and never reached GitHub.
+  - The bug reply routed the card to Testing under `## Player report`, edited the committee post, and closed both posts. The public inbox was empty after each tick.
+  - Reactions stopped before Hermes. Committee chat replies went on to Hermes.
+- Found and fixed while verifying: a player patch never reached the testing agent, since `taskText` read only `## Committee feedback`. A failed public build post threw after the committee post. One failing route blocked the rest every tick. `factory move` left `voting` on a moved card, which blocks every job.
+- Not checked live: channel `message_reaction_count` updates and discussion group forwards, since the bot is not in the discussion group yet (AS2, AS3). The real OpenAI call, since no key exists.
 
 ## Conclusion
 
