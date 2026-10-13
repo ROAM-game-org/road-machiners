@@ -26,6 +26,10 @@ LAYOUT_SCRIPT = f"{FACTORY_ROOT}/factory-layout.sh"
 # The caddy stack's compose file names this path for the tunnel's env.
 TUNNEL_ENV = f"{FACTORY_ROOT}/tunnel.env"
 UPDATE_MINUTES = 2
+GITHUB_APP_KEY = f"{FACTORY_ROOT}/github-app.pem"
+# The factory home, so Hermes reads the token through its mount of the home.
+GITHUB_TOKEN_FILE = f"{HOME_DIR}/github-token"
+TOKEN_RENEW_MINUTES = 30
 
 # The repo dir is the git clone of GitHub's main. A server that still has a real code folder keeps it, and factory-layout.sh moves it to the repo dir.
 repo_url = f"https://github.com/{factory_env['FACTORY_REPO']}.git"
@@ -51,10 +55,10 @@ server.shell(
     _sudo=True,
 )
 
-# The GitHub token joins the server-only env as GH_TOKEN. gh and git read it from there, so the server needs no gh login.
-factory_env_text = Path(settings.factory_env_file).read_text().rstrip("\n") + f"\nGH_TOKEN={settings.factory_gh_token}\n"
+# The factory acts on GitHub as the GitHub App. The App key and the token file join the server-only env.
+factory_env_text = Path(settings.factory_env_file).read_text().rstrip("\n") + f"\nFACTORY_GITHUB_APP_KEY={GITHUB_APP_KEY}\nFACTORY_GITHUB_TOKEN_FILE={GITHUB_TOKEN_FILE}\n"
 files.put(
-    name="Push the server-only factory env with the GitHub token",
+    name="Push the server-only factory env with the GitHub App paths",
     src=StringIO(factory_env_text),
     dest=FACTORY_ENV,
     user=FACTORY_USER,
@@ -63,12 +67,65 @@ files.put(
     add_deploy_dir=False,
     _sudo=True,
 )
+files.put(
+    name="Push the GitHub App private key",
+    src=str(INFRA_DIR / settings.factory_gh_app_key_file),
+    dest=GITHUB_APP_KEY,
+    user=FACTORY_USER,
+    group=FACTORY_USER,
+    mode="600",
+    _sudo=True,
+)
 
-# git asks gh for credentials, and gh answers with GH_TOKEN. The token stays in the env, never on a command line.
+# App tokens last an hour, so a timer renews the token file, and the gh wrapper reads it on every call of the factory user.
+files.template(
+    name="gh wrapper that reads the App token",
+    src=str(FILES / "gh.j2"),
+    dest="/usr/local/bin/gh",
+    mode="755",
+    factory_uid=FACTORY_UID,
+    token_file=GITHUB_TOKEN_FILE,
+    _sudo=True,
+)
+files.template(
+    name="token renewal service unit",
+    src=str(FILES / "roam-factory-github-token.service.j2"),
+    dest="/etc/systemd/system/roam-factory-github-token.service",
+    mode="644",
+    service_user=FACTORY_USER,
+    code_dir=CODE_DIR,
+    home_dir=HOME_DIR,
+    _sudo=True,
+)
+files.template(
+    name="token renewal timer unit",
+    src=str(FILES / "roam-factory-github-token.timer.j2"),
+    dest="/etc/systemd/system/roam-factory-github-token.timer",
+    mode="644",
+    renew_minutes=TOKEN_RENEW_MINUTES,
+    _sudo=True,
+)
+systemd.service(
+    name="token renewal timer enabled",
+    service="roam-factory-github-token.timer",
+    running=True,
+    enabled=True,
+    daemon_reload=True,
+    _sudo=True,
+)
 server.shell(
-    name="git credential helper through gh",
-    commands=["timeout 60 gh auth setup-git"],
-    _env={"GH_TOKEN": settings.factory_gh_token},
+    name="Make the first App token now",
+    commands=["timeout 120 systemctl start roam-factory-github-token.service"],
+    _sudo=True,
+)
+
+# git asks the wrapper for credentials, so pushes use the current App token too.
+server.shell(
+    name="git credential helper through the gh wrapper",
+    commands=[
+        "git config --global --replace-all credential.https://github.com.helper ''",
+        "git config --global --add credential.https://github.com.helper '!/usr/local/bin/gh auth git-credential'",
+    ],
     **as_factory,
 )
 
