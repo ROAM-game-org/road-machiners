@@ -6,7 +6,8 @@ import { gunzipSync } from 'node:zlib';
 import { withLockSync } from '../lock';
 import { mapsRoot, readPublished, type Published } from '../sourcemaps';
 import { BUG_LABEL, ERROR_REPORT_LABEL, fingerprintLine, type FactoryConfig, type FingerprintIssue, type GitHub } from '../types';
-import { commitOf, fingerprintOf, mapFrames, parseReport, Rejected, type ErrorReport, type Frame, type RejectReason } from './report';
+import { feedbackBodyBytes, type Feedback } from './feedback';
+import { commitOf,fingerprintOf, mapFrames, parseReport, Rejected, type ErrorReport, type Frame, type RejectReason } from './report';
 
 const LOCK_MS = 30_000;
 const MB = 1024 * 1024;
@@ -193,7 +194,7 @@ function issueBody(report: ErrorReport, frames: readonly Frame[], fingerprint: s
   ].join('\n');
 }
 
-export type ServerConfig = Pick<FactoryConfig, 'home' | 'publicUrl' | 'errorOrigins' | 'errorBodyKb' | 'errorIpPerHour'>;
+export type ServerConfig = Pick<FactoryConfig, 'home' | 'publicUrl' | 'errorOrigins' | 'errorBodyKb' | 'errorIpPerHour' | 'reportIpPerHour' | 'reportMaxChars'>;
 const HOUR_MS = 60 * 60 * 1000;
 
 export class ErrorServer {
@@ -201,7 +202,7 @@ export class ErrorServer {
   private readonly hits = new Map<string, number[]>();
   private readonly origins: Set<string>;
 
-  constructor(private readonly reports: ErrorReports, private readonly cfg: ServerConfig, private readonly now: () => Date, private readonly log: (line: string) => void) {
+  constructor(private readonly reports: ErrorReports, private readonly feedback: Feedback, private readonly cfg: ServerConfig, private readonly now: () => Date, private readonly log: (line: string) => void) {
     this.origins = new Set([new URL(cfg.publicUrl).origin, ...cfg.errorOrigins.split(/\s+/).filter(Boolean)]);
   }
 
@@ -238,13 +239,28 @@ export class ErrorServer {
   }
 
   private async serve(request: IncomingMessage, response: ServerResponse, origin: string): Promise<void> {
-    if (request.url !== '/errors') return send(response, 404, null, 'Not found');
-    if (!this.origins.has(origin)) throw new Rejected('origin', 403, `Origin ${origin || 'none'} may not send reports.`);
+    if (!isReportPath(request.url)) return send(response, 404, null, 'Not found');
+    this.checkOrigin(origin);
     if (request.method === 'OPTIONS') return preflight(response, origin);
     if (request.method !== 'POST') return send(response, 405, origin, 'Only POST');
+    await (request.url === '/feedback' ? this.serveFeedback(request, response, origin) : this.serveError(request, response, origin));
+  }
+
+  private checkOrigin(origin: string): void {
+    if (!this.origins.has(origin)) throw new Rejected('origin', 403, `Origin ${origin || 'none'} may not send reports.`);
+  }
+
+  private async serveError(request: IncomingMessage, response: ServerResponse, origin: string): Promise<void> {
     this.countHit(clientOf(request));
     await this.reports.take(await readBody(request, this.cfg.errorBodyKb * 1024));
     send(response, 204, origin, '');
+  }
+
+  private async serveFeedback(request: IncomingMessage, response: ServerResponse, origin: string): Promise<void> {
+    const address = clientOf(request);
+    const reply = await this.feedback.take(address, await readBody(request, feedbackBodyBytes(this.cfg.reportMaxChars)));
+    response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': origin, vary: 'Origin' });
+    response.end(JSON.stringify(reply));
   }
 
   private fail(response: ServerResponse, origin: string, error: unknown): void {
@@ -253,8 +269,14 @@ export class ErrorServer {
       return send(response, 500, origin, 'The report could not be filed.');
     }
     countReject(this.cfg.home, error.reason);
-    if (error.reason === 'rate') raiseAlert(this.cfg.home, `error reports: an address passed FACTORY_ERROR_IP_PER_HOUR=${this.cfg.errorIpPerHour} on ${dayOf(this.now())}`);
+    this.alertRate(error.reason);
     send(response, error.status, this.origins.has(origin) ? origin : null, error.message);
+  }
+
+  private alertRate(reason: RejectReason): void {
+    const day = dayOf(this.now());
+    if (reason === 'rate') raiseAlert(this.cfg.home, `error reports: an address passed FACTORY_ERROR_IP_PER_HOUR=${this.cfg.errorIpPerHour} on ${day}`);
+    if (reason === 'feedback-rate') raiseAlert(this.cfg.home, `feedback: an address passed FACTORY_REPORT_IP_PER_HOUR=${this.cfg.reportIpPerHour} on ${day}`);
   }
 
   private countHit(client: string): void {
@@ -265,6 +287,8 @@ export class ErrorServer {
     this.hits.set(client, [...recent, now]);
   }
 }
+
+const isReportPath = (url: string | undefined): boolean => url === '/errors' || url === '/feedback';
 
 function clientOf(request: IncomingMessage): string {
   const client = request.headers['cf-connecting-ip'];
