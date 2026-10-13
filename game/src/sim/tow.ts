@@ -446,8 +446,12 @@ export function followGoal(leader: Vehicle): NpcActivity {
   return { kind: 'follow', targetId: leader.id, destination: { ...leader.pos }, phase: 'travel', reason: 'followLeader' };
 }
 
+export function hireEscort(world: World, holder: Vehicle, leader: Vehicle, site: string | null, fee: number): void {
+  addState(world, 'escort', holder.id, leader.id, { kind: 'escort', site, fee });
+}
+
 export function startEscort(world: World, escort: Vehicle, leader: Vehicle, site: string | null, fee: number): NpcActivity {
-  addState(world, 'escort', escort.id, leader.id, { kind: 'escort', site, fee });
+  hireEscort(world, escort, leader, site, fee);
   const goal = followGoal(leader);
   placeBase(world, escort, goal);
   return goal;
@@ -508,6 +512,7 @@ function escortBroken(w: World, escort: Vehicle, leader: Vehicle): boolean {
 }
 
 export function payEscort(w: World, s: NpcState): void {
+  if (escortData(s).fee === 0) return;
   const leader = getResources(w, vehicleById(w, s.other));
   const fee = Math.min(escortData(s).fee, Math.max(0, leader.money));
   leader.money -= fee;

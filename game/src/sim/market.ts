@@ -4,7 +4,7 @@ import { PARTS, type PartKind } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
-import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Tier } from '../data/market';
+import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
 import { sampleWeighted } from './npc-loadout';
@@ -16,6 +16,7 @@ import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
 import { isDefeated } from './defeat';
 import { playerCommand } from './world';
+import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
@@ -156,6 +157,7 @@ export function addStockPart(state: ShopState, part: PartInstance): void {
 export type Contract =
   | { id: string; shop: string; kind: 'haul'; good: string; units: number; to: string; reward: number; deadline: number; window: number; rush: boolean; tier: Tier }
   | { id: string; shop: string; kind: 'fetch'; defId: string; reward: number; deadline: number; window: number; tier: Tier }
+  | { id: string; shop: string; kind: 'escort'; client: string; to: string; reward: number; deadline: number; window: number; tier: Tier; threat: Threat; span: number; together: number; seen: { x: number; y: number; turn: number } | null; apart: number; stuck: number; holdUntil: number | null }
   | { id: string; shop: string; kind: 'bounty'; template: string; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean };
 
 export function estimateTurns(from: Vec, to: Vec): number {
@@ -221,8 +223,10 @@ function pick<T>(world: World, list: T[]): T {
   return list[randInt(world.marketRng, 0, list.length - 1)];
 }
 
-function possibleKinds(input: RollInput): Contract['kind'][] {
-  const kinds: Contract['kind'][] = [];
+type BoardKind = Exclude<Contract['kind'], 'escort'>;
+
+function possibleKinds(input: RollInput): BoardKind[] {
+  const kinds: BoardKind[] = [];
   if (input.places.length > 0 && input.goods.length > 0) kinds.push('haul');
   if (input.partDefIds.length > 0) kinds.push('fetch');
   if (input.raiders.length > 0) kinds.push('bounty');
@@ -371,6 +375,7 @@ export function initializeShops(world: World): void {
 }
 
 export function advanceShops(world: World): void {
+  pruneEscortOffers(world);
   for (const [shopId, state] of Object.entries(world.shops)) {
     const restockAt = state.restockAt;
     advanceShop(world, shopId, state);
@@ -423,7 +428,8 @@ export function takeContract(w: World, contractId: string): void {
   if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
   if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
   if (contract.kind === 'haul') loadHaul(w, contract);
-  contract.deadline = w.turn + contract.window;
+  if (contract.kind === 'escort') takeEscortJob(w, contract);
+  else contract.deadline = w.turn + contract.window;
   board.splice(board.indexOf(contract), 1);
   w.player.contracts.push(contract);
   w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
@@ -447,6 +453,7 @@ export function deliverContract(world: World, contractId: string): World {
   return playerCommand(world, (w) => {
     const contract = w.player.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error(`No active contract ${contractId}`);
+    if (contract.kind === 'escort') throw new Error('An escort ends on the road, not at a counter');
     if (contract.kind === 'haul') handInHaul(w, contract);
     else if (contract.kind === 'fetch') handInFetch(w, contract);
     else handInBounty(w, contract);
@@ -488,18 +495,20 @@ export function contractXp(c: Contract): number {
   return Math.round(effort * CONTRACTS[c.kind].xpPerEffort);
 }
 
-function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed'): void {
+export function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed' | 'released'): void {
   if (outcome !== 'done' && isMetBounty(c)) throw new Error(`A fulfilled bounty cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
   world.events.push({ t: 'contract', contract: { ...c }, outcome });
-  if (outcome === 'done') payContract(world, c);
+  if (outcome === 'done') payContract(world, c, c.reward);
+  if (outcome === 'released') payContract(world, c, c.kind === 'escort' ? Math.round(c.reward * escortShare(c)) : 0);
   if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);
 }
 
-function payContract(world: World, c: Contract): void {
-  world.player.money += c.reward;
-  world.events.push({ t: 'money', amount: c.reward, reason: { kind: 'contract' } });
-  practice(world, 'contract', contractXp(c), null, c.shop);
+function payContract(world: World, c: Contract, amount: number): void {
+  if (amount <= 0) return;
+  world.player.money += amount;
+  world.events.push({ t: 'money', amount, reason: { kind: 'contract' } });
+  practice(world, 'contract', contractXp({ ...c, reward: amount }), null, c.shop);
 }
 
 function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
@@ -518,6 +527,7 @@ export function advanceContracts(world: World): void {
 }
 
 function settleContract(world: World, c: Contract): void {
+  if (c.kind === 'escort') return settleEscortJob(world, c);
   const outcome = contractOutcome(world, c);
   if (outcome) finishContract(world, c, outcome);
   else if (c.deadline - world.turn === CONTRACTS.warnTurns) world.events.push({ t: 'contract', contract: { ...c }, outcome: 'expiring' });

@@ -63,6 +63,7 @@ import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
+import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1312,5 +1313,18 @@ describe('save migration 60 to 61', () => {
     const roaming = { ...structuredClone(FORMAT_2_60), setup: { ...FORMAT_2_60.setup, mode: 'roaming' }, furyRoad: null };
 
     expect(MIGRATIONS[60](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 61 to 62', () => {
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_61), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[61](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[61](structuredClone(FORMAT_2_61))).toEqual(FORMAT_2_61);
   });
 });

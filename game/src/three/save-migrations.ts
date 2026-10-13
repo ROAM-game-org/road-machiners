@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_61_62(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -868,6 +872,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCatchUp_58_59,
   withDutyLegs_59_60,
   withoutOldRun_60_61,
+  withEscortJobs_61_62,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];

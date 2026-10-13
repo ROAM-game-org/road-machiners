@@ -33,6 +33,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       mercyBegged: { spare: { add: 3 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },
       lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
       escortSeen: { hire: { add: 1 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } },
+      escortWanted: { post: { add: 1 } },
     },
   },
   raider: {
@@ -51,7 +52,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { flee: { mul: 3 }, fight: { mul: 0.5 } }, attacked: { flee: { mul: 3 }, fightBack: { mul: 0.3 } },
       parley: { truce: { mul: 2 }, beg: { mul: 3 } }, threatened: { flee: { mul: 3 }, comply: { add: 1 } }, warnedOff: { comply: { add: 1 } },
       lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
-      escortSeen: { hire: { mul: 3 } }, fightWhim: { veer: { mul: 3 } },
+      escortSeen: { hire: { mul: 3 } }, escortWanted: { post: { mul: 3 } }, fightWhim: { veer: { mul: 3 } },
     },
   },
   lawman: {
