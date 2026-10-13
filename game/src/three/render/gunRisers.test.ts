@@ -6,7 +6,8 @@ import { PARTS } from '../../data/parts';
 import { CLIP_TOLERANCE, cellRect, highestUnder, restOn } from '../../sim/body';
 import { baseGrid, isMounted, itemCells } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
-import { loadModels, model, partModel } from './models';
+import { loadModels, model } from './models';
+import { partModel } from '../../render/partLooks';
 import * as THREE from 'three';
 import { armorPlacement, footprint, postColumn, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
@@ -103,21 +104,17 @@ describe('spare armor', () => {
       let placement;
       try {
         const obj = model(partModel(def.id));
-        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj).max.y);
-        const box = new THREE.Box3().setFromObject(obj);
-        const size = box.getSize(new THREE.Vector3());
-        const quarter = Math.abs(Math.sin(placement.yaw)) > 0.5;
-        const sx = size.x * placement.scale.x;
-        const sz = size.z * placement.scale.z;
-        const halfX = (quarter ? sz : sx) / 2;
-        const halfZ = (quarter ? sx : sz) / 2;
+        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj));
+        obj.position.copy(placement.pos);
+        obj.rotation.set(0, placement.yaw, 0);
+        obj.scale.copy(placement.scale);
+        obj.updateMatrixWorld(true);
+        const drawn = new THREE.Box3().setFromObject(obj);
         const rect = restOn(id, cellRect(id, itemCells(item))).rect;
-        const cx = (rect.x0 + rect.x1) / 2;
-        const cz = (rect.z0 + rect.z1) / 2;
         const tol = CLIP_TOLERANCE;
-        if (halfX > (rect.x1 - rect.x0) / 2 + tol || halfZ > (rect.z1 - rect.z0) / 2 + tol || Math.abs(placement.pos.x - cx) > tol || Math.abs(placement.pos.z - cz) > tol) out.push(label);
-      } catch {
-        return;
+        if (drawn.min.x < rect.x0 - tol || drawn.max.x > rect.x1 + tol || drawn.min.z < rect.z0 - tol || drawn.max.z > rect.z1 + tol) out.push(`${label} drawn ${drawn.min.x.toFixed(2)}..${drawn.max.x.toFixed(2)} x ${drawn.min.z.toFixed(2)}..${drawn.max.z.toFixed(2)} rect ${rect.x0.toFixed(2)}..${rect.x1.toFixed(2)} x ${rect.z0.toFixed(2)}..${rect.z1.toFixed(2)}`);
+      } catch (e) {
+        out.push(`${label} threw ${String(e)}`);
       }
     }, 'armor');
     expect(checked).toBeGreaterThan(100);

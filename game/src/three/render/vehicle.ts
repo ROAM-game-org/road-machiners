@@ -382,7 +382,7 @@ export class VehicleView {
     const def = partDef(item.part.defId);
     if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
     const obj = model(partModel(def.id));
-    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj).max.y));
+    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj)));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -670,24 +670,30 @@ function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
   return side;
 }
 
-export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, height: number): Placement {
+export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3): Placement {
   const def = partDef(item.part.defId);
   if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
   const side = armorSide(v, item);
   const across = side === 'F' || side === 'B';
   const n = Math.max(def.w, def.h);
-  const scaleOf = (depth: number, span: number) => new THREE.Vector3(depth / CELL.along, 1, span / (n * CELL.across));
   if (!isMounted(v.chassisId, item)) {
     const { rect, y } = restOf(v, item);
     const dx = rect.x1 - rect.x0;
     const dz = rect.z1 - rect.z0;
-    const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-    return { pos, yaw: SIDE_YAW[side], scale: across ? scaleOf(dx, dz) : scaleOf(dz, dx) };
+    const size = box.getSize(new THREE.Vector3());
+    const middle = box.getCenter(new THREE.Vector3());
+    const scale = across ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
+    const yaw = SIDE_YAW[side];
+    const shiftX = middle.x * scale.x;
+    const shiftZ = middle.z * scale.z;
+    const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
+    return { pos, yaw, scale };
   }
+  const scaleOf = (depth: number, span: number) => new THREE.Vector3(depth / CELL.along, 1, span / (n * CELL.across));
   const rect = rectOf(v, item);
   const depth = across ? CELL.along : SIDE_SKIN;
   const half = bodyOf(v.chassisId).half.y;
-  const y = { plates: half - height, ram: -half, cage: half - height }[def.look];
+  const y = { plates: half - box.max.y, ram: -half, cage: half - box.max.y }[def.look];
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
   seatArmor(pos, rect, side, depth);
   return { pos, yaw: SIDE_YAW[side], scale: scaleOf(depth, across ? rect.z1 - rect.z0 : rect.x1 - rect.x0) };
