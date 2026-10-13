@@ -31,11 +31,12 @@ Write each link as a plain URL in the post. Never guess a link and never reuse o
 - Write for players, as plain text, in the language the committee asked for. With no request, write in English. A Russian post is native, concise Russian, not a translation of an English draft.
 - Follow what the committee asked to put first. With no request, open with what this release is to a stranger, like the first big public release. Then the features a player notices most. A material localization is one of these.
 - Give a headline feature its context: what a player now does or meets in play because of it. "Destroyed cargo racks spill their goods" is a bare fact. "Shoot up a trader's cargo rack and the load spills on the road, and every raider nearby comes for it" is a moment a player can picture.
+- Changes that serve one moment of play can share a sentence. Never string unrelated changes into a row of short sentences.
 - Sum up broad work, like balance, economy, performance, sound or interface, in one sentence that names its areas. Do not drop it because it is no single moment, and do not cut it to one vague word like "clearer".
 - Leave out small changes so the headline features stand out. Never leave out a headline feature to fit a count or a length.
 - Most readers have never played ROAM. They do not know the Fallen Sun or J.J. Describe each new place and thing as it is.
 - End with the play link, the ideas link and the full changelog link.
-- Match the game in tone: a dark, dry but living wasteland. No hype, no marketing words, no emoji, no pretense roleplay. Write for adults.
+- Match the game in tone: a dark, dry but living wasteland. No hype, no marketing words, no emoji, no "hello fellow kids", no pretense roleplay. Write for adults.
 - Keep it short. A post of up to 1024 characters goes out as the caption of the screenshot. A longer one goes out as the screenshot alone, then the text as its own message. The tool takes at most 4096 characters. Fit 1024 only when that drops nothing the post needs.
 
 ## Example: the first big public release
