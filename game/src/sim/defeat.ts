@@ -21,7 +21,7 @@ import { sitePads, type Site } from "./sites";
 import { isFree } from "./spawn";
 import { npcHomeSite, towOf } from "./tow";
 import { dropGoal, pushGoal } from "./npc-activities";
-import { liesUp } from "./npc-service";
+import { rearming } from "./npc-service";
 import { isWeak, wantsLoot } from "./npc-decisions";
 import { endRun } from "./fury-road";
 import { modeRules } from "./settings";
@@ -211,7 +211,7 @@ function advanceRetreat(world: World, v: Vehicle): void {
 }
 
 function staysPut(world: World, v: Vehicle): boolean {
-  return liesUp(v) || towOf(world, v.id) !== null || answered(world, v);
+  return rearming(v) || towOf(world, v.id) !== null || answered(world, v);
 }
 
 function answered(world: World, v: Vehicle): boolean {
