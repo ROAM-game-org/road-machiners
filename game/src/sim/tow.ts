@@ -483,12 +483,6 @@ export function unguardedLeader(world: World, guard: Vehicle): Vehicle | null {
   return free.sort((a, b) => dist(guard.pos, a.pos) - dist(guard.pos, b.pos))[0] ?? null;
 }
 
-export function joinLeader(world: World, guard: Vehicle): NpcActivity {
-  const leader = unguardedLeader(world, guard);
-  if (!leader) throw new Error(`${guard.id} chose an escort with no unguarded leader`);
-  return startEscort(world, guard, leader, null, 0);
-}
-
 function escortData(s: NpcState): Extract<StateData, { kind: 'escort' }> {
   if (s.data.kind !== 'escort') throw new Error(`State ${s.id} holds no escort`);
   return s.data;
