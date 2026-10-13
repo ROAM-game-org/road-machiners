@@ -20,16 +20,18 @@ Prepare a public release post in the Telegram channel.
 
 Before you draft, look up each link and check it works:
 
-- Full changelog: the URL of the shipped release, from `gh release view release-<day> -R <FACTORY_REPO> --json url,body`. Its body must list the same changes as `releasePost.changelog`. If the release is missing or differs, tell the committee and send no draft.
-- Play: the itch.io page of `ITCH_TARGET`. Check it answers with `curl`.
-- Ideas and votes: the issues page of `FACTORY_REPO`.
+- Full changelog: the URL of the shipped release, from `gh release view release-<day> -R <FACTORY_REPO> --json url,body`. Its body must list the same changes as `releasePost.changelog`.
+- Play: `https://<user>.itch.io/<game>`, from `ITCH_TARGET` as `<user>/<game>`. Check it answers with `curl`.
+- Ideas and votes: `https://github.com/<FACTORY_REPO>/issues`.
+
+If a link fails its check, leave it out of the draft, send the draft anyway, and tell the committee in one short message which link failed and why. A member decides before Publish.
 
 Write each link as a plain URL in the post. Never guess a link and never reuse one from an older release.
 
 ## The post
 
 - Write for players, as plain text, in the language the committee asked for. With no request, write in English. A Russian post is native, concise Russian, not a translation of an English draft.
-- Follow what the committee asked to put first. With no request, open with what this release is to a stranger, like the first big public release. Then the features a player notices most. A material localization is one of these.
+- Follow what the committee asked to put first. With no request, open with what this release is to a stranger. A first public release says so. Then the features a player notices most. A material localization is one of these.
 - Give a headline feature its context: what a player now does or meets in play because of it. "Destroyed cargo racks spill their goods" is a bare fact. "Shoot up a trader's cargo rack and the load spills on the road, and every raider nearby comes for it" is a moment a player can picture.
 - Changes that serve one moment of play can share a sentence. Never string unrelated changes into a row of short sentences.
 - Sum up broad work, like balance, economy, performance, sound or interface, in one sentence that names its areas. Do not drop it because it is no single moment, and do not cut it to one vague word like "clearer".
@@ -41,7 +43,7 @@ Write each link as a plain URL in the post. Never guess a link and never reuse o
 
 ## Example: the first big public release
 
-The first draft of this release said Chaos Highway was driving alone past enemies, obstacles and repair outposts. The shipped mode is different:
+The first draft of that release said Chaos Highway was driving alone past enemies, obstacles and repair outposts. The shipped mode is different:
 
 - Wrong: "Chaos Highway: drive alone past enemies, obstacles and repair outposts."
 - Right: "Появляется новый режим «Шоссе хаоса» для любителей боёв и жанра roguelike. Это бесконечная дорога на север, где нужно охранять большой грузовик от набегов врагов. Большинство RPG и sandbox элементов опускаются ради постоянного экшена."
@@ -70,6 +72,6 @@ These are examples. A later release keeps what its own changelog ships.
 
 ## Steps
 
-1. Check the links, write the draft and send it to the committee chat with `factory_release_draft`. Then respond with [SILENT].
+1. Check the links, write the draft and send it to the committee chat with `factory_release_draft`. Then respond with [SILENT], or with the failed link when one failed its check.
 2. A member's reply to the draft reaches you with a header. Change the draft as the section Committee edits says, send it again with the tool, and answer in one short sentence.
 3. Publish posts the current draft exactly as you wrote it. Never post to the channel yourself unless explicitly asked, and even in this case ask for confirmation.
