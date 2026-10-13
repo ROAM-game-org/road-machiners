@@ -115,6 +115,19 @@ Hermes uses the `factory` CLI for every look at the factory and every change. Re
 
 While Hermes edits state, it pauses the factory with the file `$FACTORY_HOME/paused`, and every tick starts no job, applies no order, runs no cleanup and takes no intake. A paused tick still checks the running jobs, so a dead or timed-out job leaves `jobs` also during a pause. A line `pid: N` in that file ties the pause to a process, and the tick lifts the pause once that process ends.
 
+## Hermes's agy and codex
+
+Hermes runs `agy` and `codex` from its shell the way an agent does, for work like a Russian draft from agy. The Hermes image has no Gemini key and no Codex login. Its `agy` and `codex` are copies of `hermes/agent-tool`, which sends the call through `factory-host` to `factory tool <agy|codex>` on the server. That command runs the image's own wrapper in a fresh agent container, as `src/hermes-tools.ts` builds it.
+
+- Auth: agy gets `GEMINI_API_KEY` from the factory env, and codex gets the Codex login in `$FACTORY_HOME/codex`. Each secret goes to docker by env name or mount, never on a command line, and each tool gets only its own.
+- Models: agy runs on `AGY_MODEL`, and codex on `CODEX_MODEL` at `CODEX_EFFORT` unless the call names a model with `-m`.
+- Limits: Hermes's agy runs of one UTC day share one `AGY_MAX_RUNS`, counted in `$FACTORY_HOME/state/hermes-agy-runs.json`. A call past it fails before it starts a container. Each call runs on 1 CPU and 2 GB, behind the egress proxy, and stops at `FACTORY_JOB_MAX_MINUTES`. A `factory tool` stopped by a signal removes its container too.
+- Files: the tool's `/work` is `$FACTORY_HOME/hermes-tools`, which Hermes sees as `/factory/home/hermes-tools`. A call from a folder under it runs in the same folder under `/work`, and any other call runs in `/work`. So Hermes writes the inputs there, runs `agy` or `codex` from that folder, and reads the outputs there.
+- Arguments and stdin reach the tool unchanged, and its output and exit code come back. A long call runs in the background with its output in a file in that folder, since Hermes's own command may time out first.
+- Containers carry the label `factory-hermes-tool=1`. `docker ps --filter label=factory-hermes-tool=1` through `factory-host` lists the running calls.
+
+`infra/deploy/status.py` prints where the deployed Hermes finds both commands. `FACTORY_SMOKE_HERMES=factory-hermes npx vitest run hermes-tools`, run on the server from the deployed `factory/`, checks both commands in the deployed Hermes container. It also gets one real answer from agy when the factory env has `GEMINI_API_KEY`, and one from codex when the Codex login is there. The agy calls count against the day's `AGY_MAX_RUNS`.
+
 ## Activity and status
 
 Each job reports a heartbeat every `FACTORY_OBSERVATION_HEARTBEAT_MS`. Agents report their phase with `factory-status`, and Hermes with its hooks and `factory_report_activity`, with no free text. The tick reports why each job waits. The public [dashboard](../dashboard/README.md) shows all of it, and Hermes's `factory_status` tool reads the same snapshot.

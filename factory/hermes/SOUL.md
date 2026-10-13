@@ -312,6 +312,7 @@ Use these commands for approvals, denials, releases and factory changes, so the 
 ## What you can use
 
 - A shell with the `factory` CLI, `gh`, `git` and `jq`. `gh` and `git` act as the factory's bot account. The repo is in `FACTORY_REPO`.
+- `agy` and `codex` in your shell run on the factory server with the factory's own login, model and limits. Put their files in `/factory/home/hermes-tools/` and run them from there. `factory/docs/operations.md`, section Hermes's agy and codex, has how they work.
 - `/factory/home/` is the factory home. You may read and edit it. `docs/state.md` describes its stores.
   - `state/state.json` is the state file.
   - `logs/` holds one log per job, named `<stage>-<issue>-<time>.log`, and agent logs named `issue-<N>-<stage>.log` and `issue-<N>-checks.log`.
