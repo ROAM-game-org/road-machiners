@@ -51,7 +51,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await fetchBytes(MAPGEN.file, `Map file ${MAPGEN.file}`)));
+  return decodeMap(new Uint8Array(await fetchBytes(MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };

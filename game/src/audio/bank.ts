@@ -27,7 +27,7 @@ export async function loadBank(
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const bytes = await fetchBytes(SFX_DIR + file, `Sound ${file}`);
+  const bytes = await fetchBytes(SFX_DIR + file);
   try {
     return await ctx.decodeAudioData(bytes);
   } catch (e) {

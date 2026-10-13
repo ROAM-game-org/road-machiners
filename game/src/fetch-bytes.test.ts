@@ -21,26 +21,26 @@ describe('fetchBytes', () => {
   it('retries a rejected fetch', async () => {
     const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError('Load failed')).mockResolvedValue(ok);
     vi.stubGlobal('fetch', fetchMock);
-    expect(await settle(fetchBytes('/a', 'Sound a'))).toBe(bytes);
+    expect(await settle(fetchBytes('/a'))).toBe(bytes);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('retries a rejected body read', async () => {
     const broken = { ok: true, status: 200, arrayBuffer: async () => Promise.reject(new TypeError('Load failed')) };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(broken).mockResolvedValue(ok));
-    expect(await settle(fetchBytes('/a', 'Sound a'))).toBe(bytes);
+    expect(await settle(fetchBytes('/a'))).toBe(bytes);
   });
 
   it('retries a 503', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: false, status: 503 }).mockResolvedValue(ok));
-    expect(await settle(fetchBytes('/a', 'Sound a'))).toBe(bytes);
+    expect(await settle(fetchBytes('/a'))).toBe(bytes);
   });
 
-  it('fails a 404 at once, naming the label', async () => {
+  it('fails a 404 at once, naming the url', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404 });
     vi.stubGlobal('fetch', fetchMock);
-    const err = await settle(fetchBytes('/a', 'Sound a'));
-    expect((err as Error).message).toContain('Sound a');
+    const err = await settle(fetchBytes('/a'));
+    expect((err as Error).message).toContain('/a');
     expect((err as Error).message).toContain('HTTP 404');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -48,8 +48,8 @@ describe('fetchBytes', () => {
   it('gives up after the configured tries with the last error', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Load failed'));
     vi.stubGlobal('fetch', fetchMock);
-    const err = await settle(fetchBytes('/a', 'Sound a'));
-    expect((err as Error).message).toContain('Sound a');
+    const err = await settle(fetchBytes('/a'));
+    expect((err as Error).message).toContain('/a');
     expect((err as Error).message).toContain(`after ${CONFIG.assetFetchTries} tries`);
     expect((err as Error).message).toContain('Load failed');
     expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);

@@ -303,7 +303,7 @@ function checkWeaponSockets(): void {
 
 function fetchModel(name: ModelName): Promise<ArrayBuffer> {
   const url = `${import.meta.env.BASE_URL}models/${name}.glb`;
-  return fetchBytes(url, `Model ${url}`);
+  return fetchBytes(url);
 }
 
 function source(name: ModelName): THREE.Object3D {
