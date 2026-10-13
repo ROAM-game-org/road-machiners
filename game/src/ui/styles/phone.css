@@ -1,0 +1,182 @@
+/* The phone layout. Every rule is under #ui.phone, so a desktop window keeps the layout of the other files. The bottom bar
+   holds the drawer tabs, the LCD readouts and End turn. One drawer opens above it at a time, over the full width in portrait
+   and over one half of the screen in landscape. */
+#ui:not(.phone) .drawer-tabs {
+  display: none;
+}
+#ui.phone {
+  --phone-top-row: var(--icon-hero);
+  --drawer-bottom: calc(var(--safe-bottom) + var(--phone-bar-h) + var(--hud-gap));
+  --drawer-top: calc(var(--safe-top) + var(--phone-top-row) + var(--hud-gap));
+  --drawer-max-h: calc(100dvh - var(--drawer-bottom) - var(--drawer-top));
+  --drawer-w: calc((100vw - var(--safe-left) - var(--safe-right) - var(--hud-gap)) / 2);
+  --phone-tabs-w: calc(4 * var(--btn-h-l) + 3 * var(--space-2));
+  --right-column: 0px;
+}
+
+#ui.phone .bottom-left {
+  display: contents;
+}
+#ui.phone .top-center {
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: var(--drawer-top);
+}
+#ui.phone .top-left > .panel {
+  padding: var(--space-2) var(--space-4);
+}
+#ui.phone .bottom-left > .recenter {
+  position: fixed;
+  top: var(--drawer-top);
+  left: var(--safe-left);
+  right: auto;
+  bottom: auto;
+}
+
+#ui.phone .drawer-tabs {
+  position: fixed;
+  z-index: var(--z-hud);
+  left: var(--safe-left);
+  bottom: calc(var(--safe-bottom) + (var(--phone-readouts-h) - var(--btn-h-l)) / 2);
+  pointer-events: auto;
+}
+#ui.phone .turn-control {
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+}
+#ui.phone .end-turn {
+  width: var(--phone-end-w);
+  min-height: var(--btn-h-l);
+  flex-direction: row;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+#ui.phone .end-turn .icon {
+  width: var(--icon-l);
+  height: var(--icon-l);
+}
+
+#ui.phone .bottom-left > .instruments {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: calc(var(--safe-bottom) + var(--btn-h-l) + var(--hud-gap));
+  height: var(--phone-readouts-h);
+  overflow: hidden;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "heat money clock clock"
+    "fuel supplies engine driver";
+}
+
+#ui.phone :is(.truck-stack, .weapons, .right-dock, .log) {
+  display: none;
+}
+#ui.phone[data-drawer="truck"] .bottom-left > .truck-stack,
+#ui.phone[data-drawer="radio"] .right-dock,
+#ui.phone[data-drawer="log"] .log {
+  display: flex;
+}
+#ui.phone[data-drawer="guns"] .weapons {
+  display: block;
+}
+#ui.phone :is(.bottom-left > .truck-stack, .weapons, .right-dock, .log) {
+  position: fixed;
+  z-index: var(--z-hud);
+  box-sizing: border-box;
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: auto;
+  bottom: var(--drawer-bottom);
+  width: auto;
+  height: auto;
+  max-height: var(--drawer-max-h);
+  overflow: auto;
+  scrollbar-width: thin;
+  pointer-events: auto;
+}
+#ui.phone .bottom-left > .truck-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--hud-gap);
+}
+#ui.phone .truck-stack > .speedometer {
+  align-self: center;
+}
+#ui.phone .truck-stack > .instrument-actions {
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  background: var(--surface-panel);
+  border: 1px solid var(--line-strong);
+}
+#ui.phone .right-dock {
+  flex-direction: column;
+  gap: var(--hud-gap);
+}
+#ui.phone .log.log {
+  flex-direction: column;
+  height: min(var(--drawer-max-h), var(--panel-m-height));
+}
+#ui.phone .log .log-expand {
+  display: none;
+}
+
+#ui.phone .info {
+  right: var(--safe-right);
+  left: auto;
+  width: min(var(--panel-s), calc(100vw - var(--safe-left) - var(--safe-right)));
+  max-width: none;
+  overflow: auto;
+}
+
+#ui.phone:has(.modal:not([style*="display: none"])) > .top-center > .opening-tip {
+  visibility: hidden;
+}
+#ui.phone:has(.modal:not([style*="display: none"])) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
+  display: none;
+}
+#ui.phone:has(.info:not([style*="display: none"])) > .top-center > .tip {
+  visibility: hidden;
+}
+#ui.phone .modal {
+  left: var(--safe-left);
+  right: var(--safe-right);
+  top: var(--safe-top);
+  bottom: var(--safe-bottom);
+  width: auto;
+  height: auto;
+  max-height: none;
+  transform: none;
+  padding: var(--space-7);
+  overflow: auto;
+}
+#ui.phone .radio {
+  --knob-size: var(--touch-target);
+}
+
+@media (orientation: portrait) {
+  #ui.phone .drawer-tabs {
+    bottom: var(--safe-bottom);
+  }
+  #ui.phone .end-turn {
+    width: calc(100vw - var(--safe-left) - var(--safe-right) - var(--phone-tabs-w) - var(--hud-gap));
+  }
+}
+
+@media (orientation: landscape) {
+  #ui.phone .bottom-left > .instruments {
+    left: calc(var(--safe-left) + var(--phone-tabs-w) + var(--hud-gap));
+    right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
+    bottom: var(--safe-bottom);
+  }
+  #ui.phone :is(.bottom-left > .truck-stack, .weapons) {
+    right: auto;
+    width: var(--drawer-w);
+  }
+  #ui.phone :is(.right-dock, .log) {
+    left: auto;
+    width: var(--drawer-w);
+  }
+}

@@ -184,8 +184,13 @@ export class Hud {
   private floorOfInfo(): number {
     if (!phoneMode()) return this.radio.root.getBoundingClientRect().top;
     const open = this.drawers.open();
-    const frame = open === null ? this.drawers.element : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
-    return Math.min(this.drawers.element.getBoundingClientRect().top, frame?.getBoundingClientRect().top ?? Infinity);
+    const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
+    const card = this.info.getBoundingClientRect();
+    const tops = [this.top, this.drawers.element, frame]
+      .map((node) => node?.getBoundingClientRect())
+      .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
+      .map((box) => box!.top);
+    return Math.min(...tops);
   }
 
   private growForAim(top: number, slot: number): void {

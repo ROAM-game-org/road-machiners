@@ -247,7 +247,9 @@
   --safe-bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
   --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
   --touch-target: 32px;
-  --phone-bar-h: 92px;
+  --phone-readouts-h: 72px;
+  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
+  --phone-end-w: 120px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
@@ -279,5 +281,11 @@
 @media (max-width: 720px) {
   :root {
     --dock-width: 200px;
+  }
+}
+
+@media (orientation: landscape) {
+  :root {
+    --phone-bar-h: var(--phone-readouts-h);
   }
 }
