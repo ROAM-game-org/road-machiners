@@ -4,7 +4,7 @@ The rules of each step in [process.md](process.md). Each card stage comments on 
 
 ## Intake
 
-Intake puts an aged `feature-request` or `bug` issue into Triage. It needs `FACTORY_MIN_VOTES` thumbs-up, or one from a committee member. An issue labeled `hotfix` by a collaborator goes straight to Design with no votes.
+Intake puts an aged `feature-request` or `bug` issue into Triage. It needs `FACTORY_MIN_VOTES` thumbs-up, or one from a committee member. The author's own thumbs-up does not count. An issue labeled `hotfix` by a collaborator goes straight to Design with no votes.
 
 Intake runs last in each tick, so a card it adds starts on the next tick. It reads every open candidate issue and its thumbs-up in one GitHub search per 100 issues. GitHub sends no webhook for a new reaction, so intake polls.
 
@@ -103,7 +103,7 @@ The release cut opens two cleanup issues, for optimization and code janitor work
 The playtest checks that the merged features hold up together over a long run before the committee sees a candidate. It finds what the release broke, fixes it and confirms the fix in one job. It runs when no release task is open and the release head is not the commit it last passed. It runs on the tracking issue in the verify queue, counts toward the card job limit and has its own time limit, `FACTORY_PLAYTEST_TIMEOUT_MINUTES`.
 
 - The job never merges `main` into the release. The release meets `main` once, at Ship.
-- The factory clones the release head and runs the full game suite with no cache, so the checks' test cache cannot hide a broken release. A failing suite fails the job before the first play, so it spends no play.
+- The factory clones the release head, checks the clone is at that commit, runs `npm ci` and then the full game suite through the shared test cache, with the same command as the checks. The cache skips a test file only when an entry shows it passed with the same test, imports, disk reads, lockfile, test config, test tools, Node version and defines. A cold cache, any changed input, a test that read outside the game, and a missing, corrupt or old-format entry all run the test. Only passing test files are recorded. An input a test reads through a child process or the network escapes the cache here as at every checkpoint. This step was the last full uncached run, so only a release with no `test:cached` script still runs the suite uncached. A failing suite fails the job before the first play, so it spends no play.
 - Then it runs the game's `progression:playthrough` with one seed per release, the cut day as `YYYYMMDD`, for `FACTORY_PLAYTEST_TURNS` turns. 2250 turns are 5 in-game days, so the markov bot plays several of the other bot archetypes among the NPC traffic. The log holds every game event, snapshots of the player and every NPC, how the run ended and a summary.
 - The first play also runs the seed on the baseline, side by side: the last commit this release passed, or `main` where the release branched off it before any pass. So a replay after a pass judges only what changed since that pass.
 - Every truck travels in far mode and a scripted bot drives, so physics, close driving and choices the bot never makes do not happen. The log header, the prompt and the report say so.

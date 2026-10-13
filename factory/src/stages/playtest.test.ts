@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
 import type { AgentRun, Issue, ReleaseState } from '../types';
+import { CACHED_SUITE } from './checks';
 import { auditDir, playtest } from './playtest';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
@@ -27,14 +28,15 @@ const clean: Turn = { review: review(), report: '## Run\nAll good.' };
 
 type Turn = { review?: string; report?: string; commit?: string };
 type Run = {
-  f: Fake; shells: { clone: string; script: string; env: Record<string, string> }[]; prompts: string[]; sessions: AgentRun['session'][];
+  f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string> }[]; prompts: string[]; sessions: AgentRun['session'][];
   releaseHead: string; cloneHead: string; turns: Turn[]; checkFailures: number; dirty: string; pushFails: boolean; mainMerged: boolean;
   passedAncestor: boolean; changed: string[];
 };
 
 const harnessRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('progression:playthrough'));
 const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('[checks]'));
-const SUITE = stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', 'npm test']]);
+const SUITE = stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]);
+const CACHE_MOUNT = { [join(ROOT, 'test-cache')]: '/test-cache' };
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   const f = fake();
@@ -60,8 +62,8 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     run.releaseHead = commit;
   };
   f.ctx.github.candidates = async () => [{ number: 40, title: 'Old raider loop' } as Issue];
-  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}) => {
-    run.shells.push({ clone, script, env });
+  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}) => {
+    run.shells.push({ clone, script, env, mounts });
     if (script === SUITE) return;
     if (script.includes('[checks]')) {
       if (run.checkFailures-- > 0) throw new Error('npm test failed');
@@ -100,7 +102,7 @@ describe('playtest', () => {
     const run = setup();
     run.turns = [clean];
     await playtest(run.f.ctx, 11);
-    expect(run.shells[0]).toMatchObject({ clone: CLONE, script: SUITE });
+    expect(run.shells[0]).toMatchObject({ clone: CLONE, script: SUITE, mounts: CACHE_MOUNT });
     expect(harnessRuns(run).map((shell) => [shell.clone, shell.script])).toEqual([
       [CLONE, stepScript('Playing the release seed', [['npm ci', 'npm ci'], ['playtest', `npm run progression:playthrough -- --seed ${SEED} --turns 100 --sha abc1234 --out .factory/playtest/log.jsonl`]])],
       [join(ROOT, 'work', 'release-baseline'), stepScript('Playing the baseline seed', [['npm ci', 'npm ci'], ['playtest', `npm run progression:playthrough -- --seed ${SEED} --turns 100 --sha main001 --out .factory/playtest/log.jsonl`]])],
@@ -118,10 +120,20 @@ describe('playtest', () => {
     expect(comments(run.f)[0]).toContain('All good.');
   });
 
+  it('runs the full suite after npm ci through the shared test cache, with npm test where the release has no cached runner', async () => {
+    const run = setup();
+    run.turns = [clean];
+    await playtest(run.f.ctx, 11);
+    const script = run.shells[0]!.script;
+    expect(script.indexOf('npm ci')).toBeLessThan(script.indexOf('npm run test:cached -- --cache /test-cache'));
+    expect(script).toMatch(/if grep -q '"test:cached"' package.json; then\n\s+npm run test:cached -- --cache \/test-cache\nelse\n.*\n\s+npm test\nfi/);
+    expect(run.shells[0]!.mounts).toEqual(CACHE_MOUNT);
+  });
+
   it('fails on a failing full suite before the first play, so it spends no play', async () => {
     const run = setup();
     run.f.ctx.container.shell = async (clone: string, script: string) => {
-      run.shells.push({ clone, script, env: {} });
+      run.shells.push({ clone, script, env: {}, mounts: {} });
       throw new Error('suite failed');
     };
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('suite failed');
