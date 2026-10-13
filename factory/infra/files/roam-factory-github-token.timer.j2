@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew the GitHub App token every {{ renew_minutes }} minutes, well inside its one hour life
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec={{ renew_minutes }}min
+
+[Install]
+WantedBy=timers.target

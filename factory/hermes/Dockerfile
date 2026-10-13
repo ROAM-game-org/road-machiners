@@ -22,6 +22,14 @@ COPY config.yaml /opt/hermes-factory/config.yaml
 COPY SOUL.md /opt/hermes-factory/SOUL.md
 COPY --chmod=755 factory-incidents.sh /opt/hermes-factory/factory-incidents.sh
 COPY plugin /opt/hermes-factory/plugin
+# The factory renews the GitHub App token in its home every 30 minutes. This gh reads it on every call, so Hermes never holds a token past its hour.
+# Hermes never passes GH_TOKEN to its shell, since a model provider uses that name, so the token stays inside this wrapper.
+COPY --chmod=755 <<'EOF2' /usr/local/bin/gh
+#!/bin/sh
+GH_TOKEN="$(cat /factory/home/github-token)" || exit 1
+export GH_TOKEN
+exec /usr/bin/gh "$@"
+EOF2
 COPY --chmod=755 factory-host /usr/local/bin/factory-host
 COPY --chmod=755 factory /usr/local/bin/factory
 COPY --chmod=755 factory-incident-watch /usr/local/bin/factory-incident-watch
@@ -46,9 +54,8 @@ cp -r /opt/hermes-factory/hermes-session-reset-policy "$HERMES_HOME/plugins/herm
 # The repo config, with the settings Hermes changed itself kept on top.
 python3 "$HERMES_HOME/plugins/factory/config_sync.py" /opt/hermes-factory/config.yaml
 python3 "$HERMES_HOME/plugins/factory/allowlist.py"
-# Hermes never passes GH_TOKEN to its shell, since a model provider uses that name. So gh saves the login in the Hermes home, and git asks gh.
-printenv GH_TOKEN | env -u GH_TOKEN gh auth login --with-token
-env -u GH_TOKEN gh auth setup-git
+git config --global --replace-all credential.https://github.com.helper ''
+git config --global --add credential.https://github.com.helper '!/usr/local/bin/gh auth git-credential'
 git config --global user.name "ROAM Factory Hermes"
 git config --global user.email "hermes@roam.invalid"
 factory-incident-watch

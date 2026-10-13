@@ -1,9 +1,8 @@
-// The factory command line. Usage: npm run factory -- <tick | run <stage> <issue|-> | intake | command>
-// Any other command is a Hermes command of ctl.ts. `help` lists them.
 import { loadConfig, readEnvFiles } from './config';
 import { realContext } from './context';
 import { runCtl } from './ctl';
 import { writeHealth } from './health';
+import { readAppKeys, writeGithubToken } from './github-token';
 import { decodeToolCall, realToolDeps, runHermesTool } from './hermes-tools';
 import { drainInbox } from './inbox';
 import { intake } from './intake';
@@ -74,5 +73,13 @@ function parseIssue(value: string | undefined): number {
   return number;
 }
 
+async function githubToken(): Promise<void> {
+  loadEnv();
+  const expiresAt = await writeGithubToken(readAppKeys(process.env), fetch, new Date());
+  console.log(`GitHub App token written, it expires at ${expiresAt}`);
+}
+
 const argv = process.argv.slice(2).filter((arg) => arg !== '--');
-await (argv[0] === 'tool' ? hermesTool(argv) : main(argv));
+if (argv[0] === 'tool') await hermesTool(argv);
+else if (argv[0] === 'github-token') await githubToken();
+else await main(argv);
