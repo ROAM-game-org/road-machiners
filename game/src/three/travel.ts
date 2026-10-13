@@ -294,12 +294,25 @@ export class Travel {
   }
 }
 
+function workerErrorHead(workerStack: string): { name: string | null; message: string } {
+  const head = workerStack.split("\n")[0];
+  const named = /^(\w*Error): (.*)$/.exec(head);
+  return named ? { name: named[1], message: named[2] } : { name: null, message: head };
+}
+
+export function workerError(workerStack: string): Error {
+  const { name, message } = workerErrorHead(workerStack);
+  const error = new Error(message);
+  if (name) error.name = name;
+  error.stack = workerStack;
+  return error;
+}
+
 export class TurnFailure extends Error {
   constructor(workerStack: string, readonly drive: DriveSnapshot) {
-    const head = workerStack.split("\n")[0];
-    const named = /^(\w*Error): (.*)$/.exec(head);
-    super(named ? named[2] : head);
-    if (named) this.name = named[1];
+    const { name, message } = workerErrorHead(workerStack);
+    super(message);
+    if (name) this.name = name;
     this.stack = workerStack;
   }
 }

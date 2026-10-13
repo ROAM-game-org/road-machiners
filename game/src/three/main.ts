@@ -3,16 +3,12 @@ import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
-import { CHASSIS } from '../data/chassis';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
 import { perfSnapshot, resetPerf } from '../perf';
-import { playerVehicle } from '../sim/damage';
-import { warmRoutes } from '../sim/path';
-import { vehicleStats } from '../sim/stats';
 import { decodeMap, type BakedMap } from '../sim/terrain';
 import type { World, WorldSetup } from '../sim/types';
 import { newGame } from '../sim/new-game';
@@ -206,17 +202,9 @@ bootStep('running');
 reporter?.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');
 void boot.finish();
-setTimeout(() => warmAfterBoot(routeRadii(game.state)));
 if (import.meta.env.DEV) {
   (window as any).__ROAM__ = Object.assign(game, { language });
   (window as any).__ROAM_PERF__ = { snapshot: perfSnapshot, reset: resetPerf };
-}
-
-function warmAfterBoot(radii: number[]): void {
-  const radius = radii.shift();
-  if (radius === undefined) return;
-  warmRoutes(game.state, [radius]);
-  setTimeout(() => warmAfterBoot(radii));
 }
 
 function freshSeed(): number {
@@ -225,9 +213,4 @@ function freshSeed(): number {
 
 function freshRunId(): string {
   return [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function routeRadii(world: World): number[] {
-  const player = vehicleStats(world, playerVehicle(world)).radius;
-  return [...new Set([player, ...Object.values(CHASSIS).map((c) => c.radius)])];
 }
