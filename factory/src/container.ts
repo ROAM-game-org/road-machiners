@@ -17,7 +17,7 @@ export const CHECKS_TIMEOUT_MARK = 'the checks ran past their';
 const CLIENT_GRACE_MINUTES = 2;
 const REMOVE_TIMEOUT_MS = 60_000;
 
-const FACTORY_LABEL = 'factory=1';
+export const FACTORY_LABEL = 'factory=1';
 
 function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number | null, gpu: boolean): string[] {
   const label = jobId === null ? [] : ['--label', jobLabel(jobId)];
@@ -47,7 +47,7 @@ const NPM_CACHE = '/home/pwuser/.npm';
 const SESSIONS_MOUNT = '/home/pwuser/.claude/projects';
 const CODEX_HOME = '/home/pwuser/.codex';
 
-function codexMount(home: string): string[] {
+export function codexMount(home: string): string[] {
   return ['-v', `${requireCodexLogin(home)}:${CODEX_HOME}`];
 }
 
@@ -62,7 +62,7 @@ function envArgs(env: Record<string, string>): string[] {
   return Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]);
 }
 
-function networkArgs(open: boolean): string[] {
+export function networkArgs(open: boolean): string[] {
   if (open) return [];
   const proxyEnv = Object.fromEntries(
     ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy'].map((key) => [key, PROXY_URL]).concat([['NO_PROXY', NO_PROXY], ['no_proxy', NO_PROXY]]),
@@ -72,7 +72,7 @@ function networkArgs(open: boolean): string[] {
 
 const PROXY_LOCK_MS = 120_000;
 
-function ensureProxy(run: Run, cfg: FactoryConfig): Promise<void> {
+export function ensureProxy(run: Run, cfg: FactoryConfig): Promise<void> {
   return withLock(join(cfg.home, 'locks', 'proxy'), PROXY_LOCK_MS, () => setUpProxy(run, cfg));
 }
 
