@@ -53,3 +53,11 @@ The game opens at [http://localhost:5173](http://localhost:5173).
 ## Contribute
 
 Run `npm ci` at the root. Then run `npm run hooks:install` from the main checkout.
+
+## License
+
+ROAM is open source for non-commercial use. You can play, read, change and share it, but you cannot sell it or use it in a commercial product.
+
+- The code is under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+- The assets are under [CC BY-NC-SA 4.0](LICENSE-ASSETS). Assets are art, 3D models, sound, music and game writing such as quests, lore and dialogue. Everything under `game/public/` is an asset.
+- Files that come with their own license file, like the dashboard fonts, keep their own license.
