@@ -401,11 +401,11 @@ export class WeaponPanel {
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {
     if (this.host.autoTravel())
       return el('button', {
-        class: 'end-turn auto', title: t('turn.autoTitle'),
+        class: 'end-turn auto', 'data-hold': '', title: t('turn.autoTitle'),
         'aria-label': t('turn.stopAuto'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
       }, createIcon('turn'), el('span', {}, t('turn.auto')));
     return el('button', {
-      class: 'end-turn', disabled: phase !== null, title: t('turn.endTitle'),
+      class: 'end-turn', 'data-hold': '', disabled: phase !== null, title: t('turn.endTitle'),
       'aria-label': phase ? t('turn.inProgress', { phase: t(`phase.${phase}`) }) : t('turn.end'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
     }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : t('turn.space')));
   }

@@ -85,7 +85,8 @@ import { MIX } from "../data/sounds";
 import { CombatScore, CombatWatch, computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
-import { watchInputMode } from "../ui/input-mode";
+import { touchMode, watchInputMode } from "../ui/input-mode";
+import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
 import { PickRing } from "./render/pick-ring";
@@ -211,6 +212,7 @@ export class Game {
     setTimeout(() => this.travel.warm(this.world, this.drive));
 
     watchInputMode(uiRoot(), () => this.refreshUi());
+    installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
