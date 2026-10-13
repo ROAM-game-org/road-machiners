@@ -358,6 +358,7 @@ export class TurnPreparation {
     this.worker ??= this.createWorker();
     this.worker.postMessage(
       {
+        kind: "turn",
         id,
         world: state,
         drive: saved,
