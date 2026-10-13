@@ -1,8 +1,7 @@
-// Measures boot, turn, move preview and frame time in Chromium on the real GPU, and fails on any
-// budget miss from scripts/perf-budgets.json, a page error or the crash screen.
-// Usage: npm run perf -- --url http://localhost:5173
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -20,13 +19,20 @@ const VIEW_ZOOM = 0.35;
 const SETTLE_MS = 800;
 const SAMPLE_MS = 2000;
 
-const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: gpuArgs() });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
+const renderer = await rendererOf(page);
+console.log(`renderer ${renderer}`);
+if (isSoftware(renderer)) {
+  await browser.close();
+  console.error(`FAIL\nPerf got the software renderer ${renderer}. It needs a GPU.`);
+  process.exit(1);
+}
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
-await page.goto(url);
+await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__ && window.__ROAM_PERF__, null, { timeout: 60000 });
 await page.waitForTimeout(1000);
 const results = {};
@@ -147,7 +153,7 @@ const frameP95 = await townFrameP95(false);
 const nightP95 = await townFrameP95(true);
 results.frameP95Ms = Math.max(...frameP95, ...nightP95);
 
-const crashed = await page.evaluate(() => document.body.innerText.includes('The game crashed'));
+const crashed = await page.evaluate(() => document.querySelector('.crash-screen') !== null);
 await browser.close();
 
 console.log(`turn ms per call: ${turnMs.map((x) => x.toFixed(1)).join(', ')}`);

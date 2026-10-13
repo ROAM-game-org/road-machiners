@@ -1,25 +1,22 @@
-// Trucks drawn as one base model per chassis, with every grid item's model from the shared kit on its own cells.
-// Items stand on the model's top surface under their projected footprint. A mounted engine stands at the model's engine anchor.
-// Body space: +x is the nose, +z the truck's right, +y up, origin at the collider center. Models share that frame.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { chassisDef } from '../../data/chassis';
-import { partDef, type PartDef, type PartKind, type WeaponDef } from '../../data/parts';
+import { partDef, type PartDef, type PartKind } from '../../data/parts';
 import { PHYSICS } from '../../data/physics';
 import { wheelMounts } from '../../phys/body';
-import { aimWithin, fireSpans, openSides, type FireSpan } from '../../sim/armor';
+import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { FACTION_COLORS, PAL } from '../../render/palette';
-import { BODY_PARTS, baseModel, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
-import { baseGrid, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
+import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
 import { clearTop, headShape, sweepOf, type Obstacle } from './gunClearance';
 import { model, outlineOf, socket, TRUCK_BIT, type ModelName } from './models';
 import { hashStr } from '../../render/noise';
-import { onAir, radioSpeakers } from '../../sim/dialogue';
+import { callTrucks, radioSpeakers } from '../../sim/dialogue';
 import { TruckMotion, WHIPS } from './truckMotion';
 import { weaponHead } from './weaponHead';
 
@@ -35,7 +32,7 @@ const LAMP = 'light';
 const GLASS = 'glass';
 const TRIM = 'trim';
 
-const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6 };
+const BROKEN_TONE: Record<PartKind, number> = { weapon: 0.5, armor: 0.6, engine: 0.6, cargo: 0.6, core: 0.6, scanner: 0.6, store: 0.6, utility: 0.6 };
 
 const ROT_YAW = Math.PI / 2;
 
@@ -62,7 +59,7 @@ const RADIO_TIP = 1.6;
 const RADIO_HALO = 0.6;
 const CHAIN_SIDE = 0.4;
 
-type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[] };
+type Turret = { head: THREE.Group; tip: THREE.Vector3; spans: FireSpan[]; facing: number };
 
 type Look = { tone: number; step: number; partId: string | null };
 const THINNEST_FLOOR = 0.01;
@@ -187,11 +184,17 @@ export class VehicleView {
   aim(yawOf: (partId: string) => number | null): void {
     for (const [id, turret] of this.turrets) {
       const yaw = yawOf(id);
-      const want = yaw === null ? 0 : angleDiff(this.heading, yaw) / DEG;
-      const turn = aimWithin(sweepOf(turret.spans, true), want);
+      const want = yaw === null ? turret.facing : angleDiff(this.heading, yaw) / DEG;
+      const turn = aimWithin(sweepOf(turret.spans, true, turret.facing), want);
       const q = headingQuat(turn * DEG);
       turret.head.quaternion.set(q.x, q.y, q.z, q.w);
     }
+  }
+
+  covers(partId: string, heading: number, yaw: number): boolean {
+    const turret = this.turrets.get(partId);
+    if (!turret) throw new Error(`Vehicle view has no mounted weapon ${partId}`);
+    return spansHold(sweepOf(turret.spans, true, turret.facing), angleDiff(heading, yaw) / DEG);
   }
 
   muzzle(partId: string): { pos: V3; dir: V3 } {
@@ -288,6 +291,10 @@ export class VehicleView {
     }
   }
 
+  hasPart(partId: string): boolean {
+    return this.anchors.has(partId);
+  }
+
   partPoint(partId: string): V3 {
     const anchor = this.anchors.get(partId);
     if (!anchor) throw new Error(`Vehicle view has no part ${partId}`);
@@ -340,6 +347,7 @@ export class VehicleView {
     this.useLamp(obj);
     into.add(obj);
     const grid = baseGrid(v.chassisId);
+    if (drawsOwnBumpers(v.chassisId)) return;
     const stretch = (2 * body.half.y + SKIRT) / EDGE_H;
     const ends: [number, ModelName, number][] = [[0, 'bumper_front', 0], [grid.h - 1, 'bumper_rear', Math.PI]];
     for (const [y, bumperName, yaw] of ends) {
@@ -411,7 +419,8 @@ export class VehicleView {
 
     const stand = weaponStand(v, item);
     const headAt = socket(look.mount, 'head');
-    const spans = fireSpans((partDef(item.part.defId) as WeaponDef).arc, openSides(v, item));
+    const facing = signedDegrees(facingOf(item));
+    const spans = gunSpans(v, item);
     const shape = headShape(head, socket(look.receiver, 'muzzle').x);
     const mount = model(look.mount);
     place(mount, stand.at);
@@ -421,7 +430,7 @@ export class VehicleView {
     const ground = surfaceSamples(v.chassisId, pivot, Math.max(shape.core, shape.reach) + SAMPLE_REACH)
       .filter((s) => !(s.x >= own.x0 && s.x <= own.x1 && s.z >= own.z0 && s.z <= own.z1))
       .map((s): Obstacle => ({ x0: s.x - s.half, x1: s.x + s.half, z0: s.z - s.half, z1: s.z + s.half, top: s.y }));
-    const clear = clearTop(pivot, shape, sweepOf(spans, active), [...obstacles, ...ground], GUN_GAP);
+    const clear = clearTop(pivot, shape, sweepOf(spans, active, facing), [...obstacles, ...ground], GUN_GAP);
     const top = Math.max(stand.top, clear - headAt.y - shape.bottom);
     if (!Number.isFinite(top)) throw new Error(`Gun ${item.part.id} on ${v.chassisId} has a post height of ${top}`);
 
@@ -432,12 +441,14 @@ export class VehicleView {
     mount.updateMatrix();
     head.position.copy(headAt.applyMatrix4(mount.matrix));
     this.anchors.set(item.part.id, { local: head.position.clone(), parent: this.body });
+    const turn = headingQuat(facing * DEG);
+    head.quaternion.set(turn.x, turn.y, turn.z, turn.w);
     if (!active) {
       still.add(head);
       return;
     }
     this.body.add(head);
-    this.turrets.set(item.part.id, { head, tip, spans });
+    this.turrets.set(item.part.id, { head, tip, spans, facing });
   }
 
   private buildWheels(v: Vehicle, body: Body, items: PartItem[], paint: number): void {
@@ -577,10 +588,16 @@ function onChassis(v: Vehicle, item: GridItem): boolean {
 
 const BUMPER_LOOKS: readonly string[] = ['ram', 'cage'];
 
-function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+export function hidesInside(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  if (inCargoBay(v, item)) return true;
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
   return def.kind === 'core' && (def.role === 'transmission' || def.role === 'tank') && !chassisDef(v.chassisId).showsCores;
+}
+
+function inCargoBay(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
+  const grid = baseGrid(v.chassisId);
+  return itemCells(item).every((c) => grid.cells[c.y]?.[c.x] === 'C');
 }
 
 function replacesBumper(v: Vehicle, item: GridItem): boolean {
@@ -605,6 +622,11 @@ export function weaponStand(v: Pick<Vehicle, 'chassisId'>, item: GridItem): { at
     throw new Error(`The ${v.chassisId} model has no surface under the post of gun ${item.kind === 'part' ? item.part.defId : item.id} mounted on ${cells}`);
   }
   return { at, bottom: postBottom(foot, top), top, foot };
+}
+
+export function signedDegrees(deg: number): number {
+  const turn = ((deg % 360) + 360) % 360;
+  return turn > 180 ? turn - 360 : turn;
 }
 
 export function postBottom(foot: number, top: number): number {
@@ -708,7 +730,7 @@ export function footprint(v: Pick<Vehicle, 'chassisId'>, item: GridItem, y: numb
   const dz = rect.z1 - rect.z0 > 0 ? rect.z1 - rect.z0 : size.w * CELL.across;
   const own = item.kind === 'part' ? partDef(item.part.defId) : { w: 1, h: 1 };
   const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
-  if (item.rot === 0) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
+  if (item.rot % 2 === 0) return { pos, yaw: 0, scale: new THREE.Vector3(dx / (own.h * CELL.along), 1, dz / (own.w * CELL.across)) };
   return { pos, yaw: ROT_YAW, scale: new THREE.Vector3(dz / (own.h * CELL.along), 1, dx / (own.w * CELL.across)) };
 }
 
@@ -895,31 +917,107 @@ function isWheel(def: PartDef): boolean {
 }
 
 export const RADIO_LIGHT = {
-  periodMs: 700,
-  spokeMs: 3000,
+  flashMs: 200,
+  talkMs: 1200,
 };
 
+export type RadioCue = { start: number; end: number | null };
+
+function closeStart(cue: RadioCue): number {
+  return cue.end === null ? Infinity : Math.max(cue.end, cue.start + 4 * RADIO_LIGHT.flashMs);
+}
+
+function cueEnd(cue: RadioCue): number {
+  return closeStart(cue) + 2 * RADIO_LIGHT.flashMs;
+}
+
+export function radioLit(cue: RadioCue, now: number): boolean {
+  const f = RADIO_LIGHT.flashMs;
+  if (now < cue.start) return false;
+  const open = now - cue.start;
+  if (open < 4 * f) return Math.floor(open / f) % 2 === 0;
+  const close = now - closeStart(cue);
+  if (close < 0) return true;
+  return close >= f && close < 2 * f;
+}
+
 export class RadioLights {
-  private readonly until = new Map<string, number>();
+  private readonly cues = new Map<string, RadioCue[]>();
   private noted: World | null = null;
-  private air: { world: World; ids: Set<string> } | null = null;
+  private calling = new Set<string>();
+  private beacon = false;
 
   note(world: World, now: number): void {
-    for (const [id, end] of this.until) if (end <= now) this.until.delete(id);
+    this.prune(now);
     if (world === this.noted) return;
+    const first = this.noted === null;
     this.noted = world;
-    for (const id of radioSpeakers(world.events, world.player.vehicleId)) this.until.set(id, now + RADIO_LIGHT.spokeMs);
+    const call = new Set(callTrucks(world));
+    this.noteCall(call, now);
+    if (!first) this.noteTalk(world, call, now);
+    this.calling = call;
+    this.beacon = world.player.beacon;
   }
 
-  lit(world: World, id: string, now: number): boolean {
-    const end = this.until.get(id);
-    if (!this.onAir(world).has(id) && (end === undefined || end <= now)) return false;
-    const phase = (now / RADIO_LIGHT.periodMs + hashStr(id)) % 1;
-    return phase < 0.5;
+  private noteCall(call: Set<string>, now: number): void {
+    for (const id of call) if (!this.calling.has(id)) this.open(id, now);
+    for (const id of this.calling) if (!call.has(id)) this.close(id, now);
   }
 
-  private onAir(world: World): Set<string> {
-    if (this.air?.world !== world) this.air = { world, ids: new Set(onAir(world)) };
-    return this.air.ids;
+  private noteTalk(world: World, call: Set<string>, now: number): void {
+    for (const id of radioSpeakers(world.events, world.player.vehicleId)) {
+      if (!this.calling.has(id) && !call.has(id)) this.talk(id, now);
+    }
+    this.noteBeacon(world, call, now);
+  }
+
+  private noteBeacon(world: World, call: Set<string>, now: number): void {
+    const switchedOn = world.player.beacon && !this.beacon;
+    if (switchedOn && call.size === 0) this.talk(world.player.vehicleId, now);
+  }
+
+  lit(id: string, now: number): boolean {
+    const list = this.cues.get(id);
+    if (!list) return false;
+    for (const cue of list) if (radioLit(cue, now)) return true;
+    return false;
+  }
+
+  private open(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) joined.end = null;
+    else this.push(id, now, null);
+  }
+
+  private close(id: string, now: number): void {
+    const last = this.cues.get(id)?.at(-1);
+    if (last && last.end === null) last.end = now;
+  }
+
+  private talk(id: string, now: number): void {
+    const joined = this.joinable(id, now);
+    if (joined) {
+      if (joined.end !== null) joined.end = Math.max(joined.end, now + RADIO_LIGHT.talkMs);
+    } else this.push(id, now, now + RADIO_LIGHT.talkMs);
+  }
+
+  private joinable(id: string, now: number): RadioCue | null {
+    const last = this.cues.get(id)?.at(-1);
+    return last && now < closeStart(last) ? last : null;
+  }
+
+  private push(id: string, now: number, end: number | null): void {
+    const list = this.cues.get(id) ?? [];
+    const last = list.at(-1);
+    const start = last ? Math.max(now, cueEnd(last) + RADIO_LIGHT.flashMs) : now;
+    list.push({ start, end: end === null ? null : start + (end - now) });
+    this.cues.set(id, list);
+  }
+
+  private prune(now: number): void {
+    for (const [id, list] of this.cues) {
+      while (list.length > 0 && cueEnd(list[0]) <= now) list.shift();
+      if (list.length === 0) this.cues.delete(id);
+    }
   }
 }

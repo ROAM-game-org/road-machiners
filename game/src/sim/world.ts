@@ -1,5 +1,3 @@
-// World creation and the turn pipeline. No rendering or physics imports: this runs in Node tests.
-// Public functions take a world and return a new one. Inside, a cloned draft is mutated.
 
 import { CHASSIS } from '../data/chassis';
 import { GOODS } from '../data/goods';
@@ -15,19 +13,23 @@ import { gridOf, placementError } from './grid';
 import { addGoods } from './inventory';
 import { isPerkId, pickedFromPair, skillLevel } from './progress';
 import { fitStores } from './resources';
-import { generateObstacles, obstacleReach } from './mapgen';
+import { generateObstacles, touchesObstacle } from './mapgen';
+import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
 import { planNpcOrders } from './ai';
-import { applyGodMode } from './cheats';
+import { assignUtilityOrders } from './npc-utility';
+import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
+import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
+import { advanceIntro, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
 import { applyHazards } from './hazard';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
 import { nameStream, spawnInitial, spawnNpcs } from './spawn';
-import { clearPiles, initializeSalvage, renewSalvage } from './salvage';
+import { clearPiles, initializeSalvage, renewSalvage, stockOldSpots } from './salvage';
 import { spillDeadRows } from './spill';
 import { fadeCraters } from './craters';
 import { timed } from '../perf';
@@ -39,31 +41,41 @@ import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
-import type { GridItem, MoveOrder, PartInstance, Vehicle, WeaponOrder, World, XpSource } from './types';
-import { vehicleStats } from './stats';
-import { playerSees, refreshVision } from './vision';
+import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
+import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
+import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
+import { highwayStart } from './highway';
+import { advanceFuryRoad, startRun } from './fury-road';
+import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
+import { canOverdrive, vehicleStats } from './stats';
+import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
+import { searchStream } from './search';
+import { cookOffClaymores, settleClaymores } from './claymore';
+import { activateUtilities, advanceUtilityEffects, settleShutdowns, tickCharges, utilityOrderError } from './utility';
+import { caltropHits } from './hazards';
 import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
 import { nearestPad } from './sites';
+import { openingObstacles, setUpOpening } from './opening';
 import { clamp, dist, type Vec } from './vec';
 
-export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng'> {
+export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
-  return { seed, rngState: seed, marketRng: marketStream(seed), nameRng: nameStream(seed) };
+  return { seed, rngState: seed, marketRng: marketStream(seed), nameRng: nameStream(seed), searchRng: searchStream(seed) };
 }
 
-export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = true, start: { pos: Vec; heading: number } = startPose()): World {
-  if (map.terrain.size !== REGION.size)
-    throw new Error(`Map size ${map.terrain.size} does not match region size ${REGION.size}`);
+export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: WorldSetup, populate = true, start: { pos: Vec; heading: number } = kitStart(kit, seed, setup)): World {
+  requireMapFits(map, setup);
+  const size = map.terrain.size;
   const world: World = {
     ...seedStreams(seed),
     turn: 1,
-    size: REGION.size,
+    size,
     nextId: 0,
     vehicles: [],
     obstacles: [],
@@ -73,6 +85,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = 
     shops: {},
     terrain: map.terrain,
     mapHash: map.hash,
+    setup: parseSetup(setup),
     player: {
       vehicleId: "",
       money: kit.money,
@@ -91,11 +104,12 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = 
       perks: [],
       marked: [],
       rumored: [],
-      health: RULES.maxHealth,
+      notes: [],
+      health: startHealth(kit),
       fuel: kit.fuel,
       supplies: kit.supplies,
       autoFire: false,
-      autoRepair: true,
+      autoRepair: kit.autoRepair,
       townPatched: false,
       engineHeat: 0,
       overdrive: false,
@@ -111,9 +125,11 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = 
       beacon: false,
       call: null,
       talked: {},
+      quests: { world: {}, local: {}, session: null, live: null },
       god: false,
       fullLog: false,
-      explored: new Uint8Array(REGION.size * REGION.size),
+      frozen: false,
+      explored: new Uint8Array(size * size),
       visible: [],
       contacts: [],
       clouds: [],
@@ -125,13 +141,20 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = 
     weather: [],
     dustClouds: [],
     states: [],
+    smoke: [],
+    fields: [],
+    flares: [],
+    lines: [],
+    furyRoad: null,
   };
-  world.obstacles = generateObstacles(world, map);
+  world.obstacles = generateObstacles(world, map, openingObstacles(kit, start));
   const truck = makeVehicle(world, {
-    name: kit.name,
     faction: "player",
     chassisId: kit.chassis,
-    parts: kit.parts.map((defId) => ({ defId, wear: 0 })),
+    parts: [
+      ...(kit.placed ?? []).map(({ defId, ...at }) => ({ defId, wear: kit.wear, at })),
+      ...kit.parts.map((defId) => ({ defId, wear: kit.wear })),
+    ],
     spares: [],
     cargo: kit.cargo,
     pos: start.pos,
@@ -139,21 +162,53 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, populate = 
     brain: null,
   });
   const blocked = world.obstacles.filter(
-    (o) => dist(o.pos, truck.pos) < obstacleReach(o) + vehicleStats(world, truck).radius,
+    (o) => touchesObstacle(o, world.terrain, truck.pos, vehicleStats(world, truck).radius),
   );
   if (blocked.length > 0)
     throw new Error(
       `Player start overlaps ${blocked.map((o) => o.id).join(", ")}`,
     );
+  wearCoreParts(world, truck, kit.wear);
   world.vehicles.push(truck);
   world.player.vehicleId = truck.id;
-  initializeSalvage(world);
-  world.player.storage = kit.storage.map((defId) => makePart(world, defId, 0));
-  if (populate) spawnInitial(world);
-  initializeShops(world);
+  setUpWorldStock(world, map, truck, kit, populate);
   refreshVision(world);
   world.events = [];
   return world;
+}
+
+function startHealth(kit: StartKit): number {
+  return kit.intro ? kit.intro.health : RULES.maxHealth;
+}
+
+function kitStart(kit: StartKit, seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return kit.intro?.pose ?? startOf(seed, setup);
+}
+
+function requireMapFits(map: BakedMap, setup: WorldSetup): void {
+  const atlas = atlasOf(map.terrain);
+  if (atlas === icarusAtlas() && map.terrain.size !== REGION.size) throw new Error(`Map size ${map.terrain.size} does not match region size ${REGION.size}`);
+  const rules = modeRulesOf(setup.mode);
+  if ((rules.traffic || rules.rescue) && atlas.towns.length === 0) throw new Error(`Mode ${setup.mode} needs towns, and map ${map.hash} has none`);
+}
+
+function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: StartKit, populate: boolean): void {
+  const rules = modeRules(world);
+  if (rules.run) startRun(world);
+  if (rules.looting) initializeSalvage(world);
+  setUpOpening(world, truck, kit.opening);
+  world.player.storage = kit.storage.map((defId) => makePart(world, defId, kit.wear));
+  if (populate && rules.traffic) spawnInitial(world);
+  if (rules.traffic) initializeShops(world);
+  stockOldSpots(world, map);
+}
+
+export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'highway' ? highwayStart(seed) : startPose();
+}
+
+function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
+  for (const item of truck.items) if (item.kind === "part" && partDef(item.part.defId).kind === "core") item.part = makePart(world, item.part.defId, wear);
 }
 
 export function startPose(): { pos: Vec; heading: number } {
@@ -197,11 +252,27 @@ export function update(world: World, fn: (draft: World) => void): World {
   draft.removed = [];
   fn(draft);
   settleAims(draft);
+  settleOverdrive(draft);
   return draft;
 }
 
+function settleOverdrive(w: World): void {
+  if (!w.player.overdrive || canOverdrive(playerVehicle(w))) return;
+  w.player.overdrive = false;
+  w.events.push({ t: 'info', note: { id: 'overdriveCutOut' } });
+}
+
+export type ActBlock = 'knockedOut' | 'towed' | 'onRadio';
+
+export function actBlock(world: World): ActBlock | null {
+  if (world.player.state !== 'active') return 'knockedOut';
+  if (isTowed(world)) return 'towed';
+  if (world.player.call) return 'onRadio';
+  return null;
+}
+
 export function playerCanAct(world: World): boolean {
-  return world.player.state === 'active' && !isTowed(world) && !world.player.call;
+  return actBlock(world) === null;
 }
 
 export function requireActivePlayer(world: World): void {
@@ -212,7 +283,7 @@ export function requireActivePlayer(world: World): void {
 
 export function autoRuns(world: World): boolean {
   const p = world.player;
-  if (p.call) return false;
+  if (p.call || p.quests.live) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
   if (readyAid(world)) return false;
   return waitsOnBeacon(world);
@@ -226,6 +297,12 @@ function waitsOnBeacon(world: World): boolean {
   const p = world.player;
   const me = playerVehicle(world);
   return p.state === 'active' && p.beacon && isAtRest(me) && playerTow(world) === null;
+}
+
+export class Refused extends Error {
+  constructor(readonly refusal: Refusal) {
+    super(`Refused: ${refusal.id}`);
+  }
 }
 
 export function playerCommand(world: World, fn: (draft: World) => void): World {
@@ -258,23 +335,32 @@ export function endTurn(
     w.turn++;
     advanceWeather(w);
     planNpcOrders(w);
+    planHaulerOrder(w);
+    freezeDriving(w);
     move(w);
     if (!shopNear(w)) w.player.townPatched = false;
     followTower(w);
+    caltropHits(w);
     applyWear(w);
     spillDeadRows(w);
     advanceEngineHeat(w);
     advanceDust(w);
+    advanceUtilityEffects(w);
     clearPiles(w);
     renewSalvage(w);
     fadeCraters(w);
     advanceJobs(w);
     startAutoRepair(w);
-    refreshVision(w);
+    practiceContacts(w, refreshVision(w));
     raiseCalls(w);
     assignAutoOrders(w);
+    assignUtilityOrders(w);
+    freezeFire(w);
     settleAims(w);
+    activateUtilities(w);
+    tickCharges(w);
     fireWeapons(w);
+    cookOffClaymores(w);
     consumeSupplies(w);
     applyHazards(w);
     spillDeadRows(w);
@@ -284,6 +370,7 @@ export function endTurn(
     fitAllStores(w);
     applyGodMode(w);
     resolveDestroyed(w);
+    noteHaulerHits(w);
     dropStrandedTowers(w);
     advanceContracts(w);
     advancePatches(w);
@@ -295,15 +382,20 @@ export function endTurn(
     noteEngagements(w);
     discoverSites(w);
     checkDeath(w);
-    advanceKnockout(w);
+    wakeInTown(w, advanceKnockout(w));
     checkKnockout(w);
     advanceNpcKnockouts(w);
+    advanceFuryRoad(w);
     spawnNpcs(w);
+    advanceIntro(w);
     advanceShops(w);
-    refreshVision(w);
+    practiceContacts(w, refreshVision(w));
     noteEscape(w);
     noteHurt(w);
+    settleShutdowns(w);
+    settleClaymores(w);
     watchStalls(w);
+    watchHaulerStall(w);
     endCallIfOut(w);
     raiseCalls(w);
   }));
@@ -333,11 +425,30 @@ export function setWeaponOrder(
   });
 }
 
+export function setUtilityOrder(world: World, partId: string, order: UtilityOrder | null): World {
+  return playerCommand(world, (w) => {
+    const me = playerVehicle(w);
+    if (order === null) {
+      delete me.utilityOrders[partId];
+      return;
+    }
+    const error = utilityOrderError(w, me, partId, order);
+    if (error) throw new Refused(error);
+    me.utilityOrders[partId] = order;
+  });
+}
+
 export function reloadWeapon(world: World, weaponId: string): World {
   return playerCommand(world, (w) => {
     const mw = vehicleStats(w, playerVehicle(w)).weapons.find((m) => m.part.id === weaponId);
     if (!mw) throw new Error(`Player has no weapon ${weaponId}`);
     dropMagazine(mw.part);
+  });
+}
+
+export function cutPlayerLine(world: World, harpoonId: string): World {
+  return playerCommand(world, (w) => {
+    cutLine(w, playerVehicle(w), harpoonId);
   });
 }
 
@@ -355,6 +466,9 @@ export function setAutoRepair(world: World, on: boolean): World {
 
 export function setOverdrive(world: World, on: boolean): World {
   return update(world, (w) => {
+    if (on && !canOverdrive(playerVehicle(w))) {
+      throw new Error(`Cannot overdrive: the engine is at or below ${RULES.overdriveMinEngineShare * 100}% of its max HP`);
+    }
     w.player.overdrive = on;
   });
 }
@@ -374,7 +488,7 @@ export function hostileToPlayer(world: World, v: Vehicle): boolean {
 }
 
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };
-export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: 0 | 1 };
+export type CarriedItem = ({ kind: 'part'; part: CarriedPart } | { kind: 'good'; good: string }) & { x: number; y: number; rot: Rot };
 
 export type Carried = {
   seed: number | null;
@@ -390,29 +504,43 @@ export type Carried = {
   fuel: number | null;
   supplies: number | null;
   costBasis: Record<string, number>;
-  truck: { chassisId: string; name: string | null; items: CarriedItem[] } | null;
+  truck: { chassisId: string; items: CarriedItem[] } | null;
   storage: CarriedPart[];
+  setup: unknown;
+  quests: CarriedQuestVars;
 };
 
 export type CarryReport = {
   toGarage: string[];
   sold: { good: string; units: number; money: number }[];
   lost: string[];
+  settingsReset: (keyof WorldSettings)[];
 };
 
 const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
-export function carriedWorld(carried: Carried, kit: StartKit, map: BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
-  const report: CarryReport = { toGarage: [], sold: [], lost: [] };
+export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
+  const { setup, reset } = carriedSetup(carried.setup);
+  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
-  const world = newWorld(pick(carried.seed, freshSeed()), truckKit, map, true, townStart());
+  const seed = pick(carried.seed, freshSeed());
+  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup));
   carryPlayer(world, carried);
+  carryQuests(world, carried.quests, report);
   carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
   world.player.costBasis = heldBasis(playerVehicle(world), carried.costBasis);
   fitStores(world, playerVehicle(world));
   refreshVision(world);
   world.events = [];
   return { world, report };
+}
+
+function carriedStart(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup);
+}
+
+function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {
+  return setup === undefined ? { setup: defaultSetup('roaming'), reset: [] } : repairSetup(setup);
 }
 
 function carriedKit(carried: Carried, kit: StartKit, report: CarryReport): StartKit {
@@ -422,7 +550,7 @@ function carriedKit(carried: Carried, kit: StartKit, report: CarryReport): Start
     report.lost.push(saved.chassisId);
     return kit;
   }
-  return { ...kit, chassis: saved.chassisId, name: pick(saved.name, kit.name), parts: [], storage: [], cargo: {}, costBasis: {} };
+  return { ...kit, chassis: saved.chassisId, parts: [], storage: [], cargo: {}, costBasis: {} };
 }
 
 function pick<T>(value: T | null | undefined, fallback: T): T {
@@ -444,6 +572,12 @@ function carryPlayer(world: World, c: Carried): void {
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
   for (const source of Object.keys(XP_SOURCES) as XpSource[]) p.xpBySource[source] = pick(c.xpBySource[source], 0);
   carryPerks(world, c.perks);
+}
+
+function carryQuests(world: World, carried: CarriedQuestVars, report: CarryReport): void {
+  const { world: shared, local, lost } = fittingQuestVars(carried, QUESTS);
+  world.player.quests = { world: shared, local, session: null, live: null };
+  report.lost.push(...lost);
 }
 
 function carryPerks(world: World, perks: string[]): void {

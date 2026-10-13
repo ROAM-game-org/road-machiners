@@ -1,10 +1,12 @@
+import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from "vitest";
 import { CHASSIS, PLAYER_CHASSIS } from "./chassis";
 import { GOODS, GOOD_IDS } from "./goods";
 import { EFFORT, SHOPS, type ItemKind } from "./market";
-import { goodBasePrice } from "../sim/market";
+import { goodBasePrice, partPristineBuyPrice } from "../sim/market";
 import { PARTS, type PartDef, type PartKind, type WeaponDef } from "./parts";
 import { REGION } from "./region";
+import { SALVAGE, type LootTable } from "./salvage";
 import { bodyOf } from "../sim/body";
 import {
   buyChassis,
@@ -28,7 +30,7 @@ import { TEST_MAP } from "../test/map";
 let world: World;
 beforeAll(() => {
   world = emptyWorld(sitePads(REGION.towns[0])[0]);
-  world.player.money = 100000;
+  world.player.money = 3333333;
 });
 
 const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
@@ -36,7 +38,7 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
   weapon: [
     "shotgun", "longRifle", "flamer", "pneumobolter", "slugCannon",
     "heavyMg", "amRifle", "autocannon", "recoilless", "battleRifle",
-    "gatling", "rocketRack", "sniperCannon", "grenadeLauncher", "tankGun", "flechette",
+    "gatling", "rocketRack", "sniperCannon", "grenadeLauncher", "tankGun", "flechette", "harpoon",
   ],
   engine: ["flatFour", "workhorseDiesel", "racingV6", "heavyDiesel", "turbine"],
   armor: [
@@ -48,8 +50,13 @@ const addedParts: Record<Exclude<PartKind, "core" | "scanner">, string[]> = {
     "steelPlate",
     "scrapSheet",
     "ceramicTile",
+    "claymoreRam",
   ],
   cargo: ["panniers", "flatbed", "lightFrame", "enclosedFrame", "heavyFrame"],
+  utility: [
+    "sprout", "caltrops", "oilSpiller", "patcherCrane",
+    "smokeMortar", "flareCannon", "scrapersKnife", "emitter",
+  ],
 };
 const addedGoods = ["grain", "textiles", "tools", "batteries", "electronics"];
 const addedChassis = ["courier", "van", "longbed", "carrier", "tractor", "jeep", "convertible", "bus", "loader", "niva", "bukhanka", "lincoln"];
@@ -65,8 +72,8 @@ describe("equipment variety", () => {
     }
   });
 
-  it("gives each tier one gun per class set: three pure classes and three pairs", () => {
-    const weapons = Object.values(PARTS).filter((p): p is WeaponDef => p.kind === "weapon");
+  it("gives each tier one gun per class set: three pure classes and three pairs, beside the harpoon", () => {
+    const weapons = Object.values(PARTS).filter((p): p is WeaponDef => p.kind === "weapon" && p.line === undefined);
     for (const tier of [1, 2, 3]) {
       const sets = weapons.filter((w) => w.tier === tier).map((w) => [...w.classes].sort().join("+")).sort();
       expect(sets, `tier ${tier}`).toEqual(["chip", "chip+damager", "chip+precision", "damager", "damager+precision", "precision"]);
@@ -102,6 +109,7 @@ describe("equipment variety", () => {
         armor: 3,
         cargo: 2,
         store: 0,
+        utility: 0,
       };
       expect(Object.values(PARTS).filter((p) => p.kind === kind)).toHaveLength(
         originalCounts[kind] + ids.length,
@@ -113,7 +121,6 @@ describe("equipment variety", () => {
         const fits = PLAYER_CHASSIS.some((chassisId) => {
           const w = structuredClone(world);
           const v = makeVehicle(w, {
-            name: "Fit test",
             faction: "player",
             chassisId,
             parts: [],
@@ -131,7 +138,7 @@ describe("equipment variety", () => {
   );
 
   it("adds buyable chassis with valid built-in parts and physics bodies", () => {
-    expect(Object.keys(CHASSIS)).toHaveLength(16);
+    expect(Object.keys(CHASSIS)).toHaveLength(17);
     expect(PLAYER_CHASSIS).toHaveLength(16);
     for (const id of addedChassis) {
       expect(PLAYER_CHASSIS).toContain(id);
@@ -185,7 +192,7 @@ describe("equipment variety", () => {
     expect(Object.keys(GOODS)).toHaveLength(11);
     expect(GOOD_IDS).toEqual(Object.keys(GOODS));
     for (const id of addedGoods) {
-      expect(GOODS[id].mass).toBeGreaterThan(0);
+      expect(GOODS[id]).not.toHaveProperty('mass');
       const [cheap, dear] = [...REGION.towns].sort(
         (a, b) => goodBasePrice(a.id, id) - goodBasePrice(b.id, id),
       );
@@ -203,12 +210,68 @@ describe("equipment variety", () => {
     }
   });
 
-  it.each(["fuelDrums", "water"])("%s sells dear in Bowl and Nose, and no shop makes it", (good) => {
+  it.each([["fuelDrums", []], ["water", ["dustwell", "green-pit"]]])("%s sells dear in Bowl and Nose, and only %j make it", (good, makers) => {
     for (const town of ["bowl", "nose"]) {
       expect(SHOPS[town].needs).toContain(good);
       expect(sellPrice(world, town, good)).toBeGreaterThan(0);
     }
-    expect(Object.values(SHOPS).filter((shop) => shop.makes.includes(good))).toEqual([]);
+    expect(Object.values(SHOPS).filter((shop) => shop.makes.includes(good)).map((shop) => shop.id).sort()).toEqual(makers);
+  });
+});
+
+describe("utilities", () => {
+  const utilities = Object.values(PARTS).filter((p) => p.kind === "utility");
+
+  it("prices each of the eight utilities inside its one tier's effort band", () => {
+    expect(utilities).toHaveLength(8);
+    for (const def of utilities) {
+      const [lo, hi] = EFFORT.bands[def.tier].utility;
+      const effort = def.value / EFFORT.wage[def.tier];
+      expect(effort, `${def.id} tier ${def.tier}: ${effort.toFixed(1)} turns`).toBeGreaterThanOrEqual(lo);
+      expect(effort, `${def.id} tier ${def.tier}: ${effort.toFixed(1)} turns`).toBeLessThanOrEqual(hi);
+    }
+  });
+
+  it("gives a reload to every active utility and none to the crane and the scraper", () => {
+    const passive = utilities.filter((def) => def.reload === null).map((def) => def.effect.type).sort();
+    expect(passive).toEqual(["crane", "scraper"]);
+  });
+
+  it("stocks every utility in a stall or garage and drops it as field loot", () => {
+    const stalls = Object.values(SHOPS).filter((shop) => shop.kind === "stall");
+    const tables = Object.values(SALVAGE).filter((entry): entry is LootTable => typeof entry === "object" && "spareParts" in entry);
+    for (const def of utilities) {
+      expect(Object.values(SHOPS).some((shop) => shop.partStock.parts.some((e) => e.value === def.id)), def.id).toBe(true);
+      expect(tables.some((table) => table.spareParts.includes(def.id)), `${def.id} is in no loot table`).toBe(true);
+    }
+    expect(stalls.some((shop) => shop.partStock.parts.some((e) => e.value === "claymoreRam"))).toBe(true);
+  });
+
+  it("stocks garages with utilities three times as often as other parts, and the emitter at 0.6", () => {
+    const garages = Object.values(SHOPS).filter((shop) => shop.kind === "garage");
+    for (const shop of garages) {
+      const weightOf = (id: string) => shop.partStock.parts.find((e) => e.value === id)?.weight;
+      expect(weightOf("emitter"), shop.id).toBe(0.6);
+      for (const def of utilities.filter((u) => u.id !== "emitter")) expect(weightOf(def.id), `${shop.id} ${def.id}`).toBe(3);
+      expect(weightOf("mg"), shop.id).toBe(1);
+    }
+  });
+
+  it("lists each utility twice in the loot tables that have it, and the emitter only at landmarks", () => {
+    const tables = Object.entries(SALVAGE).filter((entry): entry is [string, LootTable] => typeof entry[1] === "object" && "spareParts" in entry[1]);
+    for (const [id, table] of tables) {
+      for (const def of utilities) {
+        const count = table.spareParts.filter((part) => part === def.id).length;
+        expect([0, 2], `${id} ${def.id}`).toContain(count);
+      }
+    }
+    const holders = tables.filter(([, table]) => table.spareParts.includes("emitter"));
+    expect(holders.map(([id]) => id)).toEqual(["landmark"]);
+  });
+
+  it("keeps the claymore ram an armor ram with a claymore", () => {
+    const def = PARTS.claymoreRam;
+    expect(def.kind === "armor" && def.look === "ram" && def.claymore !== undefined).toBe(true);
   });
 });
 
@@ -237,6 +300,8 @@ function partAxes(def: PartDef): number[] {
     }
     case "cargo":
       return [def.hp, -def.mass, def.armor, -cells, tall, def.extraRows];
+    case "utility":
+      return [def.hp, -def.mass, def.armor, -cells, tall, -(def.reload ?? 0)];
     default:
       return [];
   }
@@ -244,6 +309,7 @@ function partAxes(def: PartDef): number[] {
 
 function dominates(a: PartDef, b: PartDef): boolean {
   if (a.kind === "weapon" && b.kind === "weapon" && a.round.blast !== b.round.blast) return false;
+  if (a.kind === "utility" && b.kind === "utility" && a.effect.type !== b.effect.type) return false;
   const x = partAxes(a);
   const y = partAxes(b);
   return x.every((v, i) => v >= y[i]) && x.some((v, i) => v > y[i]);
@@ -275,6 +341,51 @@ describe("part weight by tier", () => {
     const lightestRam = Math.min(...armor.filter(isRam).map(perUnit));
     const heaviestOther = Math.max(...armor.filter((p) => !isRam(p)).map(perUnit));
     expect(lightestRam).toBeGreaterThan(heaviestOther);
+  });
+});
+
+describe("cargo tier curve", () => {
+  const cargo = Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: "cargo" }> => p.kind === "cargo");
+  const perCell = (p: { extraRows: number; w: number; h: number }): number => p.extraRows / (p.w * p.h);
+  const frames = cargo.filter((p) => p.w === 2 && p.h === 2);
+
+  it.each(frames.map((p) => p.id))("%s beats any stack of lower-tier carriers on the same cells", (id) => {
+    const frame = PARTS[id] as (typeof cargo)[number];
+    const small = cargo.filter((p) => p.tier < frame.tier && p.w * p.h < 4);
+    const best = small.reduce((a, p) => (perCell(p) > perCell(a) ? p : a));
+    const stack = 4 * perCell(best);
+    expect(frame.extraRows, `${id} gives ${frame.extraRows} rows, a stack of ${best.id} gives ${stack} on the same cells`).toBeGreaterThan(stack);
+  });
+
+  it("rows per deck cell rise with tier and the heavy frame beats every tier 2 part", () => {
+    const mean = (tier: number): number => {
+      const xs = cargo.filter((p) => p.tier === tier).map(perCell);
+      return xs.reduce((a, b) => a + b, 0) / xs.length;
+    };
+    expect(mean(2)).toBeGreaterThan(mean(1));
+    expect(mean(3)).toBeGreaterThan(mean(2));
+    const tier2 = cargo.filter((p) => p.tier === 2).map((p) => p.extraRows);
+    expect(PARTS.heavyFrame).toMatchObject({ kind: "cargo" });
+    expect((PARTS.heavyFrame as (typeof cargo)[number]).extraRows).toBeGreaterThan(Math.max(...tier2));
+  });
+
+  const DEV_CARGO: Record<string, { w: number; h: number; hp: number; extraRows: number }> = {
+    panniers: { w: 1, h: 1, hp: 20, extraRows: 1 },
+    rack: { w: 2, h: 1, hp: 30, extraRows: 1 },
+    flatbed: { w: 2, h: 1, hp: 50, extraRows: 2 },
+    trailerBox: { w: 2, h: 2, hp: 60, extraRows: 3 },
+    lightFrame: { w: 2, h: 2, hp: 24, extraRows: 3 },
+    enclosedFrame: { w: 2, h: 2, hp: 110, extraRows: 3 },
+    heavyFrame: { w: 2, h: 2, hp: 90, extraRows: 5 },
+  };
+
+  it("keeps every cargo part's footprint and HP and never lowers its rows", () => {
+    expect(cargo.map((p) => p.id).sort()).toEqual(Object.keys(DEV_CARGO).sort());
+    for (const p of cargo) {
+      const old = DEV_CARGO[p.id];
+      expect([p.w, p.h, p.hp]).toEqual([old.w, old.h, old.hp]);
+      expect(p.extraRows).toBeGreaterThanOrEqual(old.extraRows);
+    }
   });
 });
 
@@ -317,8 +428,43 @@ describe("NPC wallets and trade stakes", () => {
 
   it("starts every spawned driver with at least its upkeep reserve", () => {
     for (const seed of [1, 2, 3]) {
-      const w = newWorld(seed, START_KITS.standard, TEST_MAP);
+      const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
       for (const v of w.vehicles.filter((x) => x.brain)) expect(v.resources!.money, v.brain!.templateId).toBeGreaterThanOrEqual(getUpkeepReserve(v));
     }
   }, 30_000);
+});
+
+describe("cargo shop prices", () => {
+  const cargo = Object.values(PARTS).filter((p): p is Extract<PartDef, { kind: "cargo" }> => p.kind === "cargo");
+  const shopPrice = (p: PartDef): number => partPristineBuyPrice(p.id);
+  const rowsPerM = (p: { extraRows: number; id: string }): number => p.extraRows / shopPrice(PARTS[p.id]);
+  const money = START_KITS.standard.money;
+
+  it("lets the starting money buy panniers several times over", () => {
+    expect(shopPrice(PARTS.panniers) * 5).toBeLessThan(money);
+  });
+
+  it("keeps the dearest frame within a few days' worth of a tier 3 weapon price, not above the dearest tier 3 part", () => {
+    expect(shopPrice(PARTS.heavyFrame)).toBeLessThan(shopPrice(PARTS.emitter));
+  });
+
+  it("never asks more for a tier 1 carrier than for a tier 2 frame, and more for each tier", () => {
+    const top = (tier: number) => Math.max(...cargo.filter((p) => p.tier === tier).map(shopPrice));
+    const low = (tier: number) => Math.min(...cargo.filter((p) => p.tier === tier).map(shopPrice));
+    expect(top(1)).toBeLessThan(low(2));
+    expect(top(2)).toBeLessThan(low(3));
+  });
+
+  it("gives each tier at least as many rows per M as the tier below", () => {
+    const best = (tier: number) => Math.max(...cargo.filter((p) => p.tier === tier).map(rowsPerM));
+    expect(best(2)).toBeGreaterThanOrEqual(best(1));
+    expect(best(3)).toBeGreaterThanOrEqual(best(1));
+  });
+
+  it("prices a cargo carrier no higher than a tier peer weapon, engine or armor", () => {
+    for (const p of cargo) {
+      const peers = Object.values(PARTS).filter((q) => q.tier === p.tier && ["weapon", "engine", "armor"].includes(q.kind));
+      expect(shopPrice(p), p.id).toBeLessThanOrEqual(Math.max(...peers.map(shopPrice)));
+    }
+  });
 });

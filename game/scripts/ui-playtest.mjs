@@ -1,17 +1,19 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { gpuArgs } from './gpu.mjs';
+import { playUrl } from './game-url.mjs';
 
 const url = process.argv[2];
 if (!url) throw new Error('Usage: node scripts/ui-playtest.mjs <dev-server-url>');
-const browser = await chromium.launch({ args: process.env.CPU ? [] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ args: process.env.CPU ? [] : gpuArgs() });
 
 function doRectsOverlap(a, b) {
   return a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
 }
 
 async function checkVisibleReadouts(page) {
-  for (const label of ['Money', 'Fuel', 'Supplies', 'Driver']) {
+  for (const label of ['money', 'fuel', 'supplies', 'driver']) {
     assert(await page.locator(`[data-resource="${label}"]`).isVisible(), `${label} must remain visible`);
   }
   assert(await page.locator('.log').isVisible(), 'Event log must remain visible');
@@ -20,8 +22,104 @@ async function checkVisibleReadouts(page) {
   })));
   const modal = boxes.find(box => box.name.includes('modal'));
   for (const box of boxes.filter(box => box !== modal)) {
-    assert(!doRectsOverlap(modal.rect, box.rect), `${box.name} must not cover the modal`);
+    assert(!doRectsOverlap(modal.rect, box.rect), `${box.name} must not cover the modal: ${JSON.stringify([modal.rect, box.rect])}`);
   }
+}
+
+async function checkCoins(page, where) {
+  const result = await page.evaluate(where => {
+    const titlePattern = /^−?\d{1,3}(,\d{3})* M('s)?$/;
+    const coinSizeProblem = (text, coin, amount) => {
+      if (!coin) return [`${text}: no coin`];
+      const size = parseFloat(getComputedStyle(amount).fontSize);
+      const height = coin.getBoundingClientRect().height;
+      const sized = Math.abs(height / size - 1.15) <= 0.02;
+      const fits = height <= amount.getBoundingClientRect().height + 1;
+      return [sized ? '' : `${text}: coin ${height}px beside ${size}px text`, fits ? '' : `${text}: coin taller than its line`];
+    };
+    const titleProblems = (text, amount) => [
+      amount.querySelector('[title]') ? `${text}: a nested title shadows the amount` : '',
+      titlePattern.test(amount.title) ? '' : `${text}: bad title "${amount.title}"`,
+      amount.getAttribute('aria-label') === amount.title ? '' : `${text}: aria-label differs from title`,
+    ];
+    const letterProblem = (text, coin) => {
+      if (!coin) return [];
+      const ratio = coin.querySelector('path').getBBox().height / coin.querySelector('circle').getBBox().height;
+      return [ratio >= 0.25 && ratio <= 0.32 ? '' : `${text}: M is ${ratio.toFixed(2)} of the coin`];
+    };
+    const hsl = hex => {
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+      return { s, l };
+    };
+    const colourProblems = (text, coin) => {
+      if (!coin) return [];
+      return ['circle', 'path'].map(tag => {
+        const colour = coin.querySelector(tag).getAttribute('stroke');
+        const { s, l } = hsl(colour);
+        return s <= 0.45 && l <= 0.7 ? '' : `${text}: ${tag} colour ${colour} is too vivid`;
+      });
+    };
+    const amountProblems = amount => {
+      const text = amount.innerText.trim();
+      const coin = [...amount.children].find(child => child.classList.contains('coin'));
+      return [...coinSizeProblem(text, coin, amount), ...letterProblem(text, coin), ...colourProblems(text, coin), ...titleProblems(text, amount)];
+    };
+    const hudProblems = where === 'HUD' ? (() => {
+      const balance = document.querySelector('[data-resource="money"]');
+      if (!balance) return ['HUD: no balance readout'];
+      return [
+        balance.querySelector('small') ? 'HUD balance shows a label' : '',
+        balance.innerText.includes("M's") ? 'HUD balance shows the word M\'s' : '',
+        (balance.getAttribute('aria-label') ?? '').startsWith("M's: ") ? '' : 'HUD balance lost its aria-label',
+      ];
+    })() : [];
+    const shown = [...document.querySelectorAll('.amount')].filter(node => node.offsetParent !== null);
+    const icons = [...document.querySelectorAll('.icon[title="M\'s"]')].map(icon => `icon says M's: ${icon.outerHTML.slice(0, 60)}`);
+    return { problems: [...shown.flatMap(amountProblems), ...hudProblems, ...icons].filter(Boolean), count: shown.length };
+  }, where);
+  assert.deepEqual(result.problems, [], `Coin check failed (${where})`);
+  return result.count;
+}
+
+async function checkCoinSizes(page, where) {
+  const heights = await page.evaluate(() => {
+    const height = selector => document.querySelector(selector)?.getBoundingClientRect().height;
+    return { hud: height('.resource .amount > .coin'), market: height('.town-shop .trade .amount > .coin') };
+  });
+  assert(heights.hud && heights.market, `Coin sizes (${where}) need a HUD and a market coin`);
+  assert(Math.abs(heights.hud - heights.market) <= 2, `HUD coin ${heights.hud}px and market coin ${heights.market}px differ (${where})`);
+}
+
+async function checkSpeedTip(page, width) {
+  await page.focus('.speed-max');
+  assert(await page.locator('#speed-breakdown').isVisible(), 'Focusing max speed must open the tooltip');
+  const tip = await page.evaluate(() => {
+    const node = document.querySelector('.speed-tip');
+    return {
+      lines: [...node.querySelectorAll('.speed-line')].map(line => line.textContent),
+      nested: node.querySelectorAll('span, .speed-row, .total').length,
+      text: node.innerText,
+      rect: node.getBoundingClientRect().toJSON(),
+      view: { w: window.innerWidth, h: window.innerHeight },
+    };
+  });
+  assert(tip.lines.length >= 1, 'The tooltip must show a line');
+  const short = /^[^:%\u00b7|]+: ([+\u2212]\d+ km\/h|crawl( \d+ km\/h)?|max \d+ km\/h)$/;
+  for (const line of tip.lines) assert(line === 'No speed penalties' || short.test(line), `Tooltip line must be short: ${line}`);
+  assert.equal(tip.nested, 0, 'The tooltip must hold no table cells');
+  assert(!/%|Guns draw/.test(tip.text), `The tooltip must hold no percent or paragraph: ${tip.text}`);
+  assert(tip.rect.x >= 0 && tip.rect.y >= 0 && tip.rect.right <= tip.view.w && tip.rect.bottom <= tip.view.h, `The tooltip must lie on screen: ${JSON.stringify(tip.rect)}`);
+  await page.screenshot({ path: `.playtest/speed-tip-${width}.png`, timeout: 120000 });
+  await page.evaluate(() => document.activeElement?.blur());
+}
+
+function checkClockSpan(m) {
+  const span = `${m.clock.x}-${m.clock.right} vs ${m.dial.x}-${m.money.right}`;
+  assert(Math.abs(m.clock.x - m.dial.x) <= 1, `Clock must start at the dial: ${span}`);
+  assert(Math.abs(m.clock.right - m.money.right) <= 1, `Clock must end at the money readout: ${span}`);
 }
 
 async function checkInstruments(page) {
@@ -34,7 +132,7 @@ async function checkInstruments(page) {
       return node && node.offsetParent !== null ? node.getBoundingClientRect().toJSON() : null;
     };
     return {
-      panel: rect('.instruments'), clock: rect('.instrument-clock'), dial: rect('.truck-instrument'), readouts: rect('.readouts'),
+      panel: rect('.instruments'), clock: rect('.instrument-clock'), dial: rect('.truck-instrument'), readouts: rect('.readouts'), money: rect('.resource[data-resource="money"]'),
       log: visibleRect('.log'), weapons: visibleRect('.weapons'),
       clockText: document.querySelector('.instrument-clock').innerText,
       panelText: document.querySelector('.instruments').innerText,
@@ -46,20 +144,21 @@ async function checkInstruments(page) {
   const { panel } = m;
   assert(m.clock.x >= panel.x && m.clock.right <= panel.right && m.clock.y >= panel.y && m.clock.bottom <= panel.bottom, 'Clock must lie inside the instruments');
   assert(m.clock.bottom <= m.dial.y && m.clock.bottom <= m.readouts.y, 'Clock must sit above the dial and readouts');
-  assert(/Day \d+\s+\d+:\d\d/.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
-  assert.equal(m.panelText.match(/Day \d+\s+\d+:\d\d/g).length, 1, 'Time must show once');
+  checkClockSpan(m);
+  assert(/Day\s*\d+\s*\d+:\d\d/i.test(m.clockText), `Clock must show day and time, got ${m.clockText}`);
+  assert.equal(m.panelText.match(/Day\s*\d+\s*\d+:\d\d/gi).length, 1, 'Time must show once');
   assert(!m.actionsText.includes('broken'), 'No broken badge in the action row');
   assert(!/km\/h|\u00b7/.test(m.speedoText), 'No unit text under the dial');
   assert(m.heights.every(h => Math.abs(h - m.heights[0]) <= 1), `Action buttons must share one height: ${m.heights}`);
   for (const other of [m.log, m.weapons].filter(Boolean)) {
     assert(!doRectsOverlap(panel, other), 'Instruments must not overlap the log or weapons');
   }
+  await checkSpeedTip(page, page.viewportSize().width);
 }
 
 const DOCK_VIEWPORTS = [[1920, 1080], [1280, 720], [1280, 656], [1024, 656], [900, 656], [800, 656], [700, 800]];
 const DOCK_PANELS = ['.instruments', '.weapons', '.truck-condition', '.log', '.turn-control', '.recenter', '.info'];
 
-// Long weather, the Cool engine button, the most weapons a random truck mounts, and a hovered truck.
 async function loadHeavyHud(page) {
   await page.evaluate(async () => {
     const { runCommand } = await import('/src/ui/console.ts');
@@ -85,13 +184,11 @@ async function loadHeavyHud(page) {
       game.hovered = game.state.player.vehicleId;
       game.refreshInfo();
     }
-    // Tips are transient, not panels.
     document.head.append(Object.assign(document.createElement('style'), { textContent: '#ui .tip { display: none !important }' }));
     return { guns, other: other.id, seen: getComputedStyle(document.querySelector('.info')).display, hov: game.hovered };
   }).then(r => console.log(JSON.stringify(r)));
 }
 
-// Keeps the first `count` mounted weapons of the player's truck and drops the rest.
 async function trimGuns(page, count) {
   await page.evaluate(async count => {
     const game = window.__ROAM__;
@@ -120,7 +217,6 @@ const inside = (r, box, tol = 1) => r.x >= box.x - tol && r.right <= box.right +
 async function checkDockLayout(page, [width, height]) {
   await page.setViewportSize({ width, height });
   const m = await page.evaluate(([selectors, narrow]) => {
-    // Narrow screens let the inspection panel cover the dock's top by design.
     if (narrow) document.querySelector('.info').style.visibility = 'hidden';
     const shown = node => node && node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden';
     const box = node => node.getBoundingClientRect().toJSON();
@@ -142,6 +238,7 @@ async function checkDockLayout(page, [width, height]) {
       twoRows: grid.classList.contains('two-rows'),
     };
   }, [DOCK_PANELS, width <= 720]);
+  m.iconLooks = await readIconLooks(page);
   const guns = m.slots.length, at = `at ${width}x${height} with ${guns} guns`;
   console.log(at, Object.entries(m.rects).map(([n, r]) => `${n}=${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)}x${Math.round(r.height)}`).join(' '));
   await page.screenshot({ path: `.playtest/dock-${guns}g-${width}x${height}.png`, timeout: 180000 });
@@ -153,10 +250,10 @@ async function checkDockLayout(page, [width, height]) {
   assertDockSize(m, stacked, at);
   assertDockLevel(m, stacked, width, at);
   assertDockText(m, at);
+  assertDockIcons(m.iconLooks, at);
   for (const c of m.controls) assert(c.ok, `Weapon control "${c.name}" must take the click at its center ${at}, hit ${c.hit}`);
 }
 
-// The panel sits on the bottom edge, and below the instruments when they do not fit side by side. Gives whether it is stacked.
 function assertDockPlace(m, at) {
   const weapons = m.rects['.weapons'], instruments = m.rects['.instruments'];
   assert(near(m.viewport.height - weapons.bottom, 14), `Weapons bottom must sit 14px above the screen bottom ${at}: ${weapons.bottom} of ${m.viewport.height}`);
@@ -166,13 +263,11 @@ function assertDockPlace(m, at) {
   return stacked;
 }
 
-// Nothing scrolls or clips.
 function assertDockFits(m, at) {
   assert(m.fits.panel && m.fits.grid, `The weapons panel must not scroll or clip ${at}`);
   for (const c of m.controls) assert(inside(c.box, m.rects['.weapons']), `Weapon control "${c.name}" must lie inside the panel ${at}`);
 }
 
-// One row up to five guns, two balanced rows above that.
 function assertDockRows(slots, at) {
   const tops = [...new Set(slots.map(r => Math.round(r.y)))];
   assert.equal(tops.length, slots.length <= 5 ? 1 : 2, `Rows must be one up to five guns and two above ${at}: ${tops}`);
@@ -181,7 +276,6 @@ function assertDockRows(slots, at) {
   assert(slots.length > 10 || first <= 5, `No row may hold more than five guns ${at}`);
 }
 
-// Every element alike, two-row elements smaller, the panel no taller than the instruments and compact.
 function assertDockSize(m, stacked, at) {
   const weapons = m.rects['.weapons'], guns = m.slots.length;
   assert(m.slots.every(r => near(r.width, m.slots[0].width) && near(r.height, m.slots[0].height)), `All gun elements must share one size ${at}`);
@@ -191,34 +285,65 @@ function assertDockSize(m, stacked, at) {
   assert(guns < 6 || weapons.width * weapons.height <= 512 * 188 / 2 || m.viewport.width !== 1280 || m.viewport.height !== 656, `Six guns must take at most half of the old panel ${at}: ${weapons.width}x${weapons.height}`);
 }
 
-// On wide screens the weapons sit right of the instruments with level bottoms.
 function assertDockLevel(m, stacked, width, at) {
   if (width < 1280) return;
   assert(!stacked, `The weapons must sit beside the instruments ${at}`);
   assert(near(m.rects['.weapons'].bottom, m.rects['.instruments'].bottom), `Weapons and instruments bottoms must be level ${at}`);
 }
 
-// No filler text and no old glyphs, and one inventory icon per gun.
 function assertDockText(m, at) {
   assert(!/hold fire|no target|target unavailable/i.test(m.text), `The panel must carry no filler text ${at}: ${m.text}`);
   assert.equal(m.icons, m.slots.length, `Each gun must show one inventory icon ${at}`);
   assert.equal(m.oldIcons, 0, `No old weapon glyphs ${at}`);
 }
 
-// The weapons dock with one, five and the most guns a random truck mounts, at every viewport.
+const readIconLooks = page => page.evaluate(() => [...document.querySelectorAll('.weapon-pick .item-icon')].map(node => {
+  const style = getComputedStyle(node);
+  return { label: node.getAttribute('aria-label'), background: style.backgroundColor, image: style.backgroundImage, padding: style.padding };
+}));
+
+function assertDockIcons(looks, at) {
+  for (const icon of looks) {
+    assert.equal(icon.background, 'rgba(0, 0, 0, 0)', `Weapon icon "${icon.label}" must have no tile ${at}`);
+    assert.equal(icon.image, 'none', `Weapon icon "${icon.label}" must have no background image ${at}`);
+    assert.equal(icon.padding, '0px', `Weapon icon "${icon.label}" must have no padding ${at}`);
+  }
+}
+
 async function checkWeaponDock(page) {
   await loadHeavyHud(page);
+  await checkSpeedTip(page, 'guns');
   const most = await page.locator('.weapon-pick').count();
   assert(most >= 6, `A random kit must give six or more guns, got ${most}`);
   for (const guns of [most, 5, 1]) {
     if (guns !== most) await trimGuns(page, guns);
+    if (guns !== 1) await checkWeaponIcons(page, guns, guns === most);
     for (const viewport of DOCK_VIEWPORTS) await checkDockLayout(page, viewport);
   }
 }
 
+async function checkWeaponIcons(page, guns, distinct) {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const shoot = suffix => page.locator('.weapons').screenshot({ path: `.playtest/weapon-icons-${guns}g${suffix}.png`, timeout: 180000 });
+  const at = `in the ${guns}-gun panel`;
+  const looks = await readIconLooks(page);
+  assertDockIcons(looks, at);
+  const labels = new Set(looks.map(icon => icon.label));
+  console.log('weapon icons', [...labels].join(', '));
+  if (distinct) assert(labels.size >= 2, `The panel must show at least two distinct guns, got ${[...labels]}`);
+  await shoot('');
+  const first = page.locator('.weapon-pick').first();
+  await first.click();
+  assert(await page.locator('.weapon-pick.on').count(), `A clicked gun must show as selected ${at}`);
+  assertDockIcons(await readIconLooks(page), `${at} with a gun selected`);
+  await shoot('-selected');
+  await first.click();
+}
+
 async function fillLog(page) {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const game = window.__ROAM__;
+    const { verbatim } = await import('/src/text/msg.ts');
     const lines = [
       'Repair Scrap panels started: stay parked about three hours while the crew works',
       'Dust storm started and will sweep the whole valley until late in the evening',
@@ -227,7 +352,7 @@ async function fillLog(page) {
       'Raider Cass Dust regains consciousness', 'Repair Wheel started: stay parked about two hours',
       'Day turns to night over the long road east of the old bridge', 'Discovered Bowl',
     ];
-    for (let i = 0; i < 4; i++) for (const text of lines) game.hud.note(game.world, text, 'dim');
+    for (let i = 0; i < 4; i++) for (const text of lines) game.hud.note(game.world, verbatim(text), 'dim');
   });
 }
 
@@ -276,7 +401,6 @@ async function checkLogScroll(page) {
   const before = await topRow();
   await page.evaluate(() => { const g = window.__ROAM__; g.hud.note(g.world, 'A new line arrives', 'dim'); });
   assert.equal(await topRow(), before, 'A scrolled-back log must keep its top row when a line arrives');
-  // Expanding rewraps the lines at another width, so only the reading position, not the row, carries over.
   const scrolled = () => page.evaluate(() => document.querySelector('.log-lines').scrollTop > 0);
   await page.locator('.log-expand').click({ force: true });
   assert(await scrolled(), 'A scrolled-back log must stay scrolled back after expanding');
@@ -288,13 +412,10 @@ async function shotLog(page, name) {
   await page.screenshot({ path: `.playtest/${name}.png`, clip: await page.locator('.log').boundingBox(), animations: 'allow' });
 }
 
-// The gap between the log's top and the dock above it: the contracts' pre-issue spot, 246px from the bottom on wide
-// screens, and 8px above the narrow log.
 const dockGap = page => (page.viewportSize().width <= 720 ? 8 : 12);
 
 const near = (a, b) => Math.abs(a - b) <= 1;
 
-// Gives the player one or more held contracts copied from the boards, or none, and waits for the contracts panel.
 async function holdContracts(page, count) {
   await page.evaluate(count => {
     const g = window.__ROAM__;
@@ -306,7 +427,6 @@ async function holdContracts(page, count) {
   await page.waitForFunction(count => (getComputedStyle(document.querySelector('.contracts')).display !== 'none') === (count > 0), count);
 }
 
-// Hovers the player's truck, or ends the hover, and lets the layout settle for two frames.
 async function hover(page, on) {
   await page.evaluate(on => {
     const g = window.__ROAM__;
@@ -327,8 +447,6 @@ const boxes = page => page.evaluate(() => {
   };
 });
 
-// The radio sits above the log, or above the contracts while the player holds some, clear of the other right-hand
-// panels, with its knobs and a broadcast on screen.
 async function checkRadio(page) {
   await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 30000 });
   const size = page.viewportSize();
@@ -345,9 +463,6 @@ async function checkRadio(page) {
   }
 }
 
-// The contracts keep their pre-issue spot and the hover panel stops above the log. While the hover panel shows, the
-// radio is away or clear of it, and it comes back once the hover ends. On a tall screen it stays during the hover.
-// radioStays is null where the hover panel's content decides.
 async function checkRightColumn(page, radioStays) {
   const size = page.viewportSize();
   const at = `At ${size.width}x${size.height}`;
@@ -358,7 +473,6 @@ async function checkRightColumn(page, radioStays) {
   assert(m.contracts, `${at} the contracts must show`);
   assert(near(m.log.y - m.contracts.bottom, dockGap(page)), `${at} the contracts must sit ${dockGap(page)}px above the log, got ${m.log.y - m.contracts.bottom}`);
   assert(!doRectsOverlap(m.log, m.info), `${at} the hover panel must stop above the log`);
-  // Where the contracts at their old spot were clear of the hover panel, they still are.
   const old = { ...m.contracts, y: m.log.y - dockGap(page) - m.contracts.height, bottom: m.log.y - dockGap(page) };
   if (!doRectsOverlap(old, m.info)) assert(!doRectsOverlap(m.contracts, m.info), `${at} the hover panel must not cover the contracts`);
   if (m.radio) assert(!doRectsOverlap(m.radio, m.info), `${at} the hover panel must not cover the radio`);
@@ -369,13 +483,12 @@ async function checkRightColumn(page, radioStays) {
 
 const KNOB_BUSES = ['Music', 'Effects', 'Wind', 'Interface'];
 
-// Turns every radio knob with the real mouse from a point in its column outside the dial, at the given viewport.
 async function checkKnobs(url, viewport) {
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto(url);
+    await page.goto(playUrl(url));
     await page.waitForFunction(() => window.__ROAM__?.state, null, { timeout: 90000 });
     await page.waitForFunction(() => document.querySelector('.radio-text')?.textContent.trim(), null, { timeout: 90000 });
     const at = `At ${viewport.width}x${viewport.height}`;
@@ -463,7 +576,7 @@ async function checkKnobs(url, viewport) {
     await page.reload();
     await page.waitForFunction(() => document.querySelectorAll('.radio .knob').length === 4);
     assert.deepEqual(await values(), held, `${at} the levels must survive a reload`);
-    assert.equal(await page.locator('.speedometer [role=slider], .speedometer [tabindex]').count(), 0, `${at} the speedometer must hold no knob`);
+    assert.equal(await page.locator('.speedometer [role=slider], .speedometer .knob').count(), 0, `${at} the speedometer must hold no knob`);
     assert.deepEqual(errors, [], `${at} no uncaught page errors`);
   } finally {
     await page.close();
@@ -475,7 +588,7 @@ try {
   page.setDefaultTimeout(process.env.CPU ? 180000 : 30000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url);
+  await page.goto(playUrl(url));
   await page.waitForFunction(() => window.__ROAM__?.state);
   assert(await page.locator('.icon').evaluateAll(nodes => nodes.every(node => node.title)), 'Every icon needs a hover name');
   assert(await page.locator('#ui *').evaluateAll(nodes => nodes.filter(node => !node.closest('button.switch, .radio-next')).every(node => !getComputedStyle(node).backgroundImage.includes('gradient'))), 'UI must use flat surfaces, apart from the metal switches and the radio button');
@@ -485,8 +598,8 @@ try {
     console.log('PASS: weapons dock');
     process.exit(0);
   }
-  await checkInstruments(page);
   await mkdir('.playtest', { recursive: true });
+  await checkInstruments(page);
   await fillLog(page);
   await shotLog(page, 'log-compact');
   await checkLog(page, 'compact');
@@ -508,14 +621,15 @@ try {
   const name = (await movable.getAttribute('title')).split('\n')[0].split(' (')[0];
   await movable.click({ force: true });
   assert((await page.locator('.inv-inspection').innerText()).includes(name), 'Clicking a movable item must inspect it before drag/drop replaces its node');
+  assert.notEqual(await page.locator('.inv-inspection .item-icon').first().evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)', 'Item icons outside the weapon panel must keep their tone tile');
   const inventoryFrame = await page.locator('.modal:visible').boundingBox();
   await page.keyboard.press('Escape');
   await page.keyboard.press('c');
   await checkVisibleReadouts(page);
   assert.deepEqual(await page.locator('.modal:visible').boundingBox(), inventoryFrame, 'Character and inventory must share one frame');
   await page.keyboard.press('Escape');
-  // The truck starts in the wasteland now, so the town frame is checked only when E opens a modal.
   await page.keyboard.press('e');
+  await checkCoins(page, 'HUD');
   if (await page.locator('.modal:visible').count()) {
     await checkVisibleReadouts(page);
     assert.deepEqual(await page.locator('.modal:visible').boundingBox(), inventoryFrame, 'Town and inventory must share one frame');
@@ -523,6 +637,23 @@ try {
     await page.keyboard.press('i');
     await checkVisibleReadouts(page);
   }
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    g.apply(c.teleport(g.state, c.placeSpot(g.state, 'bowl')));
+    g.town.open();
+  });
+  await page.waitForSelector('.town-shop .tabs button', { timeout: 90000 });
+  assert((await checkCoins(page, 'town market')) > 1, 'The town market must show amounts');
+  await checkCoinSizes(page, 'market 1600');
+  const before = page.viewportSize();
+  await page.setViewportSize({ width: 1024, height: 640 });
+  await checkCoins(page, 'town market 1024');
+  await checkCoinSizes(page, 'market 1024');
+  await page.setViewportSize(before);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('i');
   for (const width of [1024, 800, 700]) {
     await page.setViewportSize({ width, height: 800 });
     await checkVisibleReadouts(page);
@@ -550,7 +681,7 @@ try {
   for (const viewport of [{ width: 1280, height: 720 }, { width: 700, height: 800 }]) await checkKnobs(url, viewport);
   assert.deepEqual(errors, [], 'No uncaught page errors');
   await page.screenshot({ path: '.playtest/ui-regression.png' });
-  console.log('PASS: hover names, flat surfaces, persistent resources/log, the radio above the log and contracts and clear of the hover panel, the contracts in their old spot, stable modal frames, movable-item inspection, and laptop/narrow layouts, clock strip, speedometer and action row, and the four radio knobs turned by a real mouse drag, wheel and keys');
+  console.log('PASS: hover names, coins sized by their text with one hover amount, flat surfaces, persistent resources/log, the radio above the log and contracts and clear of the hover panel, the contracts in their old spot, stable modal frames, movable-item inspection, and laptop/narrow layouts, clock strip, speedometer and action row, and the four radio knobs turned by a real mouse drag, wheel and keys');
 } finally {
   await browser.close();
 }

@@ -24,6 +24,7 @@ export class RenderScope {
   private readonly viewProjection = new THREE.Matrix4();
   private readonly test = new THREE.Box3();
   private readonly prepare: (obj: THREE.Object3D) => void;
+  private readonly frameHooks: (() => void)[] = [];
 
   constructor(private readonly root: THREE.Object3D, private readonly mapSize: number, private readonly limit: SightLimit, private readonly grey: boolean, outlined: boolean) {
     this.prepare = outlined ? outlineProps : () => {};
@@ -55,6 +56,10 @@ export class RenderScope {
     this.owner.delete(obj);
   }
 
+  onFrame(fn: () => void): void {
+    this.frameHooks.push(fn);
+  }
+
   update(camera: THREE.OrthographicCamera): void {
     this.root.updateWorldMatrix(true, false);
     if (!this.root.matrixWorld.equals(IDENTITY)) throw new Error('Render scope root moved away from the world origin');
@@ -69,6 +74,7 @@ export class RenderScope {
       else this.root.remove(chunk.group);
       chunk.shown = show;
     }
+    this.frameHooks.forEach((hook) => hook());
   }
 
   private shows(chunk: Chunk): boolean {
@@ -97,7 +103,7 @@ type Clipped = THREE.Material & { onBeforeCompile: THREE.Material['onBeforeCompi
 export class SightLimit {
   private readonly visible: THREE.DataTexture;
   private readonly uniforms;
-  private readonly patched = new WeakSet<THREE.Material>();
+  private readonly patched = new WeakMap<THREE.Material, boolean>();
 
   constructor(private readonly mapSize: number) {
     this.visible = new THREE.DataTexture(new Uint8Array(mapSize * mapSize), mapSize, mapSize, THREE.RedFormat, THREE.UnsignedByteType);
@@ -149,20 +155,31 @@ export class SightLimit {
   patch(obj: THREE.Object3D, grey: boolean): void {
     obj.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
+      const sampled = hasSightAt(o);
       const materials: THREE.Material[] = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of materials) this.patchMaterial(m, grey);
+      for (const m of materials) this.patchMaterial(m, grey, sampled);
     });
   }
 
-  private patchMaterial(mat: Clipped, grey: boolean): void {
-    if (this.patched.has(mat)) return;
-    this.patched.add(mat);
+  private patchMaterial(mat: Clipped, grey: boolean, sampled: boolean): void {
+    const was = this.patched.get(mat);
+    if (was !== undefined) {
+      if (was !== sampled) throw new Error(`Material ${mat.name || mat.uuid} is on meshes with and without sightAt points`);
+      return;
+    }
+    this.patched.set(mat, sampled);
+    const greyAt = sampled ? 'vSightAt' : 'vSightXZ';
     const before = mat.onBeforeCompile.bind(mat);
     const key = mat.customProgramCacheKey.bind(mat);
     mat.onBeforeCompile = (shader, renderer) => {
       before(shader, renderer);
       Object.assign(shader.uniforms, this.uniforms);
       shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'varying vec2 vSightXZ;');
+      if (sampled) {
+        shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'attribute vec2 sightAt;\nvarying vec2 vSightAt;');
+        shader.vertexShader = inject(shader.vertexShader, '#include <project_vertex>', 'vSightAt = sightAt;');
+        shader.fragmentShader = inject(shader.fragmentShader, '#include <common>', 'varying vec2 vSightAt;');
+      }
       shader.vertexShader = inject(
         shader.vertexShader,
         '#include <project_vertex>',
@@ -178,15 +195,22 @@ export class SightLimit {
         'varying vec2 vSightXZ;\nuniform vec2 sightCenter;\nuniform float sightRadius;\nuniform sampler2D sightVisible;\nuniform float sightMapMeters;\nuniform vec2 sightGrey;',
       );
       shader.fragmentShader = inject(shader.fragmentShader, '#include <clipping_planes_fragment>', 'if (distance(vSightXZ, sightCenter) > sightRadius) discard;');
-      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, vSightXZ / sightMapMeters).r;
+      if (grey) shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `float sightSeen = texture2D(sightVisible, ${greyAt} / sightMapMeters).r;
         float sightLuma = dot(outgoingLight, vec3(0.299, 0.587, 0.114));
         outgoingLight = mix(mix(outgoingLight, vec3(sightLuma), sightGrey.x) * sightGrey.y, outgoingLight, sightSeen);
         #include <opaque_fragment>`);
       if (grey && !shader.fragmentShader.includes('sightSeen')) throw new Error('Sight limit cannot grey a shader without #include <opaque_fragment>');
     };
-    mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}`;
+    mat.customProgramCacheKey = () => `${key()}|sight${grey ? '-grey' : ''}${sampled ? '-at' : ''}`;
     mat.needsUpdate = true;
   }
+}
+
+function hasSightAt(mesh: THREE.Mesh): boolean {
+  const sightAt = (mesh.geometry as THREE.BufferGeometry).getAttribute('sightAt');
+  if (sightAt === undefined) return false;
+  if (sightAt.itemSize !== 2) throw new Error(`Mesh ${mesh.name || mesh.id} has sightAt points of size ${sightAt.itemSize}, not 2`);
+  return true;
 }
 
 function inject(source: string, chunk: string, code: string): string {

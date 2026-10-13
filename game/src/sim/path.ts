@@ -1,11 +1,8 @@
-// Route planning around static obstacles and cliffs: A* on a grid weighted by terrain speed and a
-// cost for leaving the road, so routes prefer roads, then shortcut to visible corners. Moving vehicles are not in the
-// grid, so ramming and blocking still happen. The grid itself lives in ./nav. An NPC driver weighs the cost by
 
 import { REGION } from '../data/region';
 import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
-import { canStepOut, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
+import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
 import { CELL, CLEARANCE, blockerKey, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
@@ -25,7 +22,7 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
     const statics = staticSet(world.obstacles, world.terrain);
     const dynamic = dynamicBlockers(world.obstacles, world.terrain, extra);
     const reach = radius + CLEARANCE;
-    if (!taste?.roads && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
+    if (!taste?.shy && lineCost(nav, statics, dynamic, from, to, reach, 1, nav.tileCost, null) < Infinity) return [to];
     const layer = navLayer(world.terrain, world.obstacles, radius);
     const start = cellOf(layer, from);
     const target = cellOf(layer, to);
@@ -46,6 +43,11 @@ function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined):
 function insideMap(world: World, p: Vec, radius: number): Vec {
   const hi = world.terrain.size - radius;
   return { x: Math.min(hi, Math.max(radius, p.x)), y: Math.min(hi, Math.max(radius, p.y)) };
+}
+
+export function drivable(world: World, from: Vec, to: Vec, radius: number): boolean {
+  const layer = navLayer(world.terrain, world.obstacles, radius);
+  return connected(layer, cellOf(layer, from), cellOf(layer, to));
 }
 
 export function warmRoutes(world: World, radii: number[]): void {
@@ -85,9 +87,14 @@ function exitCell(layer: NavLayer, overlay: Overlay, start: number, target: numb
 }
 
 export function straightClear(world: World, a: Vec, b: Vec, radius: number, extra: Blocker[]): boolean {
+  return clearLines(world, radius, extra)(a, b);
+}
+
+export function clearLines(world: World, radius: number, extra: Blocker[]): (a: Vec, b: Vec) => boolean {
   const statics = staticSet(world.obstacles, world.terrain);
   const nav = terrainNav(world.terrain);
-  return lineCost(nav, statics, dynamicBlockers(world.obstacles, world.terrain, extra), a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
+  const blockers = dynamicBlockers(world.obstacles, world.terrain, extra);
+  return (a, b) => lineCost(nav, statics, blockers, a, b, radius + CLEARANCE, Infinity, nav.tileCost, null) < Infinity;
 }
 
 export type KeptRoute = { dest: Vec; points: Vec[]; blockers: string[]; offRoad: boolean };
@@ -223,7 +230,7 @@ function costliestFlat(nav: TerrainNav, cur: Vec, points: Vec[], i: number, last
 
 function lineCost(nav: TerrainNav, statics: StaticSet, dynamic: Blocker[], a: Vec, b: Vec, reach: number, maxCost: number, capCost: Float64Array, taste: Taste | null): number {
   for (const o of dynamic) if (segmentDist(o.pos, a, b) < o.r + reach) return Infinity;
-  if (crossesRail(a, b, reach)) return Infinity;
+  if (crossesRail(nav.decks, a, b, reach)) return Infinity;
   for (const o of statics.buckets.alongSegment(a, b, reach)) if (segmentDist(o.pos, a, b) < o.r + reach) return Infinity;
   return groundCost(nav, a, b, reach, maxCost, capCost, taste);
 }

@@ -1,10 +1,8 @@
-// Paid services. Goods and part trade happen at any shop (src/sim/market.ts owns shop state). Supplies, repairs,
-// mounting and garage storage are offered at any shop. Rebuilds and chassis need a town. Raider camps service raiders.
-// Invalid requests throw: the UI only offers valid ones.
 
 import { chassisDef, PLAYER_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
 import { shopDef } from "../data/market";
+import { UNITS } from "../data/units";
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
 import { NPC_UPKEEP } from "../data/npcs";
@@ -12,7 +10,7 @@ import { REGION, type TownDef } from "../data/region";
 import { CONDITION } from "../data/wear";
 import { fitStores, getResources } from "./resources";
 import { isJunk, maxHp, partValue, rebuildJunk, restorePart, scrapPatchPart, scrapValue, wearFactor } from "./wear";
-import { playerVehicle, vehicleById } from "./damage";
+import { playerTrucks, playerVehicle, vehicleById } from "./damage";
 import { inFeud } from "./combat";
 import { meetGoal } from "./npc-activities";
 import { addState, endState, stateOf } from "./states";
@@ -23,10 +21,11 @@ import { addStockPart, goodPrice, lotPrice, recordTrade, requireShop, shopAt, sh
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
 import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowPart } from "./inventory";
-import type { NpcState, PartInstance, Vehicle, World } from "./types";
-import { playerCommand } from "./world";
+import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
+import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
+import { modeRules } from './settings';
 
 export type Supply = "fuel" | "supplies";
 
@@ -96,12 +95,12 @@ export function tradeGoods(
 
 function buyGoods(world: World, vehicle: Vehicle, good: string, count: number, total: number): void {
   const resources = getResources(world, vehicle);
-  if (resources.money < total) throw new Error("Not enough money");
-  if (cargoRoom(vehicle, good) < count) throw new Error("Not enough cargo space");
+  if (resources.money < total) throw new Refused({ id: "noMoney" });
+  if (cargoRoom(vehicle) < count) throw new Refused({ id: "noCargoRoom" });
   if (vehicle.id === world.player.vehicleId) noteCostBasis(world, good, total / count, count);
   const added = addGoods(world, vehicle, good, count);
   if (added !== count) throw new Error("Cargo capacity invariant failed");
-  resources.money -= total;
+  shopMoney(world, vehicle, -total, "cargoBuy");
 }
 
 export function noteCostBasis(world: World, good: string, price: number, count: number): void {
@@ -113,7 +112,7 @@ function sellGoods(world: World, vehicle: Vehicle, shopId: string, good: string,
   const held = goodsCount(vehicle)[good] ?? 0;
   if (count > held) throw new Error(`Cannot sell ${count} ${good}, holding ${held}`);
   removeGoods(vehicle, good, count);
-  getResources(world, vehicle).money += total;
+  shopMoney(world, vehicle, total, "cargoSale");
   if (vehicle.id === world.player.vehicleId) practiceSale(world, shopId, good, total / count, count);
 }
 
@@ -148,10 +147,9 @@ export function sellVehicleCargo(
     const sellCount = good === 'parts' ? Math.max(0, count - retainedParts) : count;
     if (sellCount > 0 && traded.includes(good)) tradeGoods(world, vehicle, shopId, good, sellCount, "sell");
   }
-  const resources = getResources(world, vehicle);
   const spares = spareParts(vehicle);
   for (const part of spares) {
-    resources.money += partTradePrice(world, vehicle, part, "sell");
+    shopMoney(world, vehicle, partTradePrice(world, vehicle, part, "sell"), "partSale");
     addStockPart(shopState(world, shopId), part);
   }
   vehicle.items = vehicle.items.filter((item) => item.kind !== "part" || !spares.includes(item.part));
@@ -190,15 +188,14 @@ function requireCampService(vehicle: Vehicle, campId: string): void {
 
 export function sellAtCamp(world: World, vehicle: Vehicle, campId: string, retainedParts: number): void {
   requireCampService(vehicle, campId);
-  const resources = getResources(world, vehicle);
   for (const [good, count] of Object.entries(goodsCount(vehicle))) {
     const sellCount = good === "parts" ? Math.max(0, count - retainedParts) : count;
     if (sellCount <= 0) continue;
     removeGoods(vehicle, good, sellCount);
-    resources.money += sellCount * campGoodPrice(good);
+    shopMoney(world, vehicle, sellCount * campGoodPrice(good), "campSale");
   }
   const spares = spareParts(vehicle);
-  for (const part of spares) resources.money += campPartPrice(part);
+  for (const part of spares) shopMoney(world, vehicle, campPartPrice(part), "campSale");
   vehicle.items = vehicle.items.filter((item) => item.kind !== "part" || !spares.includes(item.part));
 }
 
@@ -233,20 +230,32 @@ export function serviceAtStall(
 }
 
 function refuelAndRepair(world: World, vehicle: Vehicle): void {
-  topUp(world, vehicle, ['fuel', 'supplies']);
+  topUp(world, vehicle, ['supplies', 'fuel']);
+  if (getResources(world, vehicle).money < 0) return;
+  const parts = repairableParts(vehicle);
+  repairWithin(world, vehicle, parts.filter(isWorkPart), 0);
+  repairWithin(world, vehicle, parts.filter((part) => !isWorkPart(part)), getUpkeepReserve(vehicle));
+}
+
+const WORK_PART_KINDS: readonly string[] = ['core', 'engine', 'weapon'];
+
+function isWorkPart(part: PartInstance): boolean {
+  return WORK_PART_KINDS.includes(partDef(part.defId).kind);
+}
+
+function repairWithin(world: World, vehicle: Vehicle, parts: readonly PartInstance[], kept: number): void {
   const resources = getResources(world, vehicle);
-  if (resources.money < 0) return;
-  const multiplier =
-    vehicle.id === world.player.vehicleId ? repairMult(world) : 1;
-  for (const part of repairableParts(vehicle)) {
-    const unitCost = (ECONOMY.repairShare * partValue(part) * multiplier) / maxHp(part);
-    const hp = Math.min(
-      maxHp(part) - part.hp,
-      Math.floor(resources.money / unitCost),
-    );
+  for (const part of parts) {
+    const unitCost = (ECONOMY.repairShare * partValue(part)) / maxHp(part);
+    const budget = Math.max(0, resources.money - kept);
+    const hp = Math.min(maxHp(part) - part.hp, Math.floor(budget / unitCost));
     restorePart(part, part.hp + hp);
-    resources.money -= Math.ceil(hp * unitCost);
+    shopMoney(world, vehicle, -Math.ceil(hp * unitCost), "repair");
   }
+}
+
+export function getUpkeepReserve(vehicle: Vehicle): number {
+  return (fuelCap(vehicle) * ECONOMY.supplyPrice.fuel + suppliesCap(vehicle) * ECONOMY.supplyPrice.supplies) * NPC_UPKEEP.reserveLoads;
 }
 
 export function buyFuel(world: World, vehicle: Vehicle): void {
@@ -269,11 +278,12 @@ function topUp(world: World, vehicle: Vehicle, kinds: readonly Supply[]): void {
       ),
     );
     resources[kind] += count;
-    resources.money -= count * ECONOMY.supplyPrice[kind];
+    shopMoney(world, vehicle, -count * ECONOMY.supplyPrice[kind], kind);
   }
 }
 
 export function scrapPatch(world: World): void {
+  if (!modeRules(world).rescue) return;
   const town = needsPatchInTown(world);
   if (!town) return;
   const me = playerVehicle(world);
@@ -299,7 +309,7 @@ export function scrapFuel(world: World, v: Vehicle): number {
 export function enterTown(world: World): World {
   return playerCommand(world, (w) => {
     if (!shopAt(w)) throw new Error('Not at a shop gate');
-    if (w.player.townPatched) return;
+    if (w.player.townPatched || !modeRules(w).rescue) return;
     w.player.townPatched = true;
     const worn = criticalParts(playerVehicle(w)).filter((part) => !isJunk(part) && part.hp < Math.ceil(maxHp(part) * RULES.townPatch));
     for (const part of worn) scrapPatchPart(part, RULES.townPatch);
@@ -364,9 +374,8 @@ function repairMult(world: World): number {
   );
 }
 
-function pay(world: World, amount: number, reason: string): void {
-  if (world.player.money < 0 || amount > world.player.money)
-    throw new Error(`Not enough money for ${reason}`);
+export function pay(world: World, amount: number): void {
+  if (world.player.money < 0 || amount > world.player.money) throw new Refused({ id: 'noMoney' });
   world.player.money -= amount;
 }
 
@@ -382,13 +391,9 @@ export function sellGood(world: World, good: string, n: number): World {
   });
 }
 
-export function supplyRoom(world: World, kind: Supply): number {
-  const p = world.player;
-  const cap =
-    kind === 'fuel'
-      ? fuelCap(playerVehicle(world))
-      : suppliesCap(playerVehicle(world));
-  return Math.max(0, Math.floor(cap - p[kind]));
+export function supplyRoom(world: World, kind: Supply, truck: Vehicle = playerVehicle(world)): number {
+  const cap = kind === 'fuel' ? fuelCap(truck) : suppliesCap(truck);
+  return Math.max(0, Math.floor(cap - getResources(world, truck)[kind]));
 }
 
 export function buySupply(world: World, kind: Supply, n: number): World {
@@ -398,7 +403,7 @@ export function buySupply(world: World, kind: Supply, n: number): World {
       throw new Error(`${shopId} does not sell ${kind}`);
     if (n <= 0 || n > supplyRoom(w, kind))
       throw new Error(`Cannot buy ${n} ${kind}`);
-    pay(w, ECONOMY.supplyPrice[kind] * n, kind);
+    pay(w, ECONOMY.supplyPrice[kind] * n);
     w.player[kind] += n;
   });
 }
@@ -406,7 +411,7 @@ export function buySupply(world: World, kind: Supply, n: number): World {
 export function partRepairCost(world: World, part: PartInstance): number {
   if (isJunk(part)) {
     if (!canRebuild(world, part))
-      throw new Error(`${partDef(part.defId).name} is junk and cannot be rebuilt`);
+      throw new Error(`${part.defId} is junk and cannot be rebuilt`);
     return partRepairCost(world, { ...part, wear: CONDITION.maxWear, hp: 0 });
   }
   const missingShare = 1 - part.hp / maxHp(part);
@@ -420,7 +425,7 @@ export function repairPart(world: World, partId: string): World {
     requireShop(w);
     const part = allParts(playerVehicle(w)).find((p) => p.id === partId);
     if (!part) throw new Error(`No truck part ${partId}`);
-    pay(w, partRepairCost(w, part), "repairs");
+    pay(w, partRepairCost(w, part));
     garageRepair(part);
   });
 }
@@ -429,7 +434,7 @@ export function canRebuild(world: World, part: PartInstance): boolean {
   return townAt(world) !== null && isJunk(part) && !part.rebuilt && vehicleHasPerk(world, playerVehicle(world), "rebuild");
 }
 
-function garageRepair(part: PartInstance): void {
+export function garageRepair(part: PartInstance): void {
   if (isJunk(part)) rebuildJunk(part);
   else restorePart(part, maxHp(part));
 }
@@ -438,7 +443,7 @@ function repairParts(world: World, pick: (w: World, v: Vehicle) => PartInstance[
   return playerCommand(world, (w) => {
     requireShop(w);
     const parts = pick(w, playerVehicle(w));
-    pay(w, costOf(w, parts), "repairs");
+    pay(w, costOf(w, parts));
     for (const p of parts) garageRepair(p);
   });
 }
@@ -456,7 +461,7 @@ export function repairDrive(world: World): World {
 }
 
 export function partTradePrice(world: World, vehicle: Vehicle, part: PartInstance, direction: 'buy' | 'sell'): number {
-  return partPriceAt(part, vehicle.id === world.player.vehicleId ? spread(world) : ECONOMY.spread, direction);
+  return partPriceAt(part, playerTrucks(world).includes(vehicle) ? spread(world) : ECONOMY.spread, direction);
 }
 
 export function truckPartPrice(world: World, part: PartInstance, direction: 'buy' | 'sell'): number {
@@ -482,9 +487,13 @@ export function buyStockPart(world: World, partId: string): World {
   return playerCommand(world, (w) => {
     const shopId = requireShop(w);
     const part = takeStockPart(shopState(w, shopId), partId);
-    pay(w, partTradePrice(w, playerVehicle(w), part, "buy"), partDef(part.defId).name);
-    if (!stowPart(w, playerVehicle(w), part)) w.player.storage.push(part);
+    pay(w, partTradePrice(w, playerVehicle(w), part, "buy"));
+    receiveBoughtPart(w, part);
   });
+}
+
+export function receiveBoughtPart(world: World, part: PartInstance, truck: Vehicle = playerVehicle(world)): void {
+  if (!stowPart(world, truck, part)) world.player.storage.push(part);
 }
 
 export function sellPart(world: World, partId: string): World {
@@ -526,12 +535,12 @@ function costOf(world: World, parts: PartInstance[]): number {
   return parts.reduce((a, p) => a + partRepairCost(world, p), 0);
 }
 
-export function repairCost(world: World): number {
-  return costOf(world, garageParts(world, playerVehicle(world)));
+export function repairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
+  return costOf(world, garageParts(world, truck));
 }
 
-export function basicsRepairCost(world: World): number {
-  return costOf(world, basicParts(world, playerVehicle(world)));
+export function basicsRepairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
+  return costOf(world, basicParts(world, truck));
 }
 
 function allParts(v: Vehicle): PartInstance[] {
@@ -542,11 +551,11 @@ function repairableParts(v: Vehicle): PartInstance[] {
   return allParts(v).filter((p) => !isJunk(p));
 }
 
-function garageParts(world: World, v: Vehicle): PartInstance[] {
+export function garageParts(world: World, v: Vehicle): PartInstance[] {
   return allParts(v).filter((p) => !isJunk(p) || canRebuild(world, p));
 }
 
-function basicParts(world: World, v: Vehicle): PartInstance[] {
+export function basicParts(world: World, v: Vehicle): PartInstance[] {
   return garageParts(world, v).filter((p) => partDef(p.defId).kind === "core");
 }
 
@@ -559,8 +568,8 @@ export function driveRepairCost(world: World): number {
 }
 
 function payChassisCost(world: World, chassisId: string): void {
-  const cost = chassisDef(chassisId).value - chassisTradeIn(world);
-  if (cost >= 0) pay(world, cost, chassisDef(chassisId).name);
+  const cost = chassisPrice(world, chassisId);
+  if (cost >= 0) pay(world, cost);
   else world.player.money -= cost;
 }
 
@@ -569,41 +578,52 @@ export function buyChassis(world: World, chassisId: string): World {
     requireTown(w);
     if (!PLAYER_CHASSIS.includes(chassisId))
       throw new Error(`${chassisId} is not for sale`);
-    const me = playerVehicle(w);
-    if (me.chassisId === chassisId)
-      throw new Error("You already drive this chassis");
-    payChassisCost(w, chassisId);
-    const mounted = new Set(mountedParts(me).map((p) => p.id));
-    const goods = goodsCount(me);
-    const old = me.items;
-    me.chassisId = chassisId;
-    me.items = [];
-    addCoreParts(w, me);
-    const parts = old.flatMap((it) =>
-      it.kind === "part" && partDef(it.part.defId).kind !== "core"
-        ? [it.part]
-        : [],
-    );
-    parts.sort(
-      (a, b) =>
-        Number(partDef(b.defId).kind === "cargo") -
-        Number(partDef(a.defId).kind === "cargo"),
-    );
-    for (const part of parts) {
-      const placed = mounted.has(part.id)
-        ? mountPart(w, me, part) || stowPart(w, me, part)
-        : stowPart(w, me, part);
-      if (!placed) w.player.storage.push(part);
-    }
-    for (const [good, n] of Object.entries(goods)) {
-      if (addGoods(w, me, good, n) < n)
-        throw new Error(
-          "Cargo would not fit the new chassis. Sell some first.",
-        );
-    }
-    me.weaponOrders = {};
-    fitStores(w, me);
+    swapChassis(w, chassisId);
   });
+}
+
+export function swapChassis(world: World, chassisId: string): void {
+  const me = playerVehicle(world);
+  if (me.chassisId === chassisId)
+    throw new Error("You already drive this chassis");
+  payChassisCost(world, chassisId);
+  const mounted = new Set(mountedParts(me).map((p) => p.id));
+  const goods = goodsCount(me);
+  const parts = movableParts(me);
+  me.chassisId = chassisId;
+  me.items = [];
+  addCoreParts(world, me);
+  for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));
+  for (const [good, n] of Object.entries(goods)) {
+    if (addGoods(world, me, good, n) < n) throw new Refused({ id: "noCargoRoom" });
+  }
+  me.weaponOrders = {};
+  fitStores(world, me);
+}
+
+function movableParts(v: Vehicle): PartInstance[] {
+  const parts = v.items.flatMap((it) => (it.kind === "part" && partDef(it.part.defId).kind !== "core" ? [it.part] : []));
+  const isRack = (p: PartInstance) => Number(partDef(p.defId).kind === "cargo");
+  return parts.sort((a, b) => isRack(b) - isRack(a));
+}
+
+function placeSwappedPart(world: World, v: Vehicle, part: PartInstance, wasMounted: boolean): void {
+  const placed = (wasMounted && mountPart(world, v, part)) || stowPart(world, v, part);
+  if (!placed) world.player.storage.push(part);
+}
+
+export function chassisPrice(world: World, chassisId: string): number {
+  return chassisDef(chassisId).value - chassisTradeIn(world);
+}
+
+export function chassisSwapRefusal(world: World, chassisId: string): Refusal | null {
+  try {
+    swapChassis(cloneWorld(world), chassisId);
+    return null;
+  } catch (err) {
+    if (err instanceof Refused) return err.refusal;
+    throw err;
+  }
 }
 
 function isParked(v: Vehicle): boolean {
@@ -616,13 +636,15 @@ export function tradeWith(world: World, npc: Vehicle): NpcState | null {
 
 export function startTrade(world: World, npc: Vehicle): void {
   addState(world, "trade", npc.id, world.player.vehicleId, { kind: "none" });
-  meetGoal(world, npc, playerVehicle(world), "pull over to trade");
+  meetGoal(world, npc, playerVehicle(world), "pullOver");
+}
+
+export function inMeetingReach(world: World, s: NpcState): boolean {
+  return inTowReach(vehicleById(world, s.holder), vehicleById(world, s.other));
 }
 
 export function isMeeting(world: World, s: NpcState): boolean {
-  const npc = vehicleById(world, s.holder);
-  const me = vehicleById(world, s.other);
-  return isParked(npc) && isParked(me) && inTowReach(npc, me);
+  return isParked(vehicleById(world, s.holder)) && isParked(vehicleById(world, s.other)) && inMeetingReach(world, s);
 }
 
 export function checkTrade(world: World, s: NpcState): "broken" | null {
@@ -631,9 +653,13 @@ export function checkTrade(world: World, s: NpcState): "broken" | null {
   return npc && me && inFeud(world, npc, me) ? "broken" : null;
 }
 
-export function tradePartner(world: World): Vehicle | null {
-  const s = world.states.find((x) => x.kind === "trade" && x.other === world.player.vehicleId);
-  return s ? vehicleById(world, s.holder) : null;
+export function playerTrades(world: World): NpcState[] {
+  return world.states.filter((x) => x.kind === "trade" && x.other === world.player.vehicleId);
+}
+
+export function canTradeWith(world: World, npcId: string): boolean {
+  const s = playerTrades(world).find((x) => x.holder === npcId);
+  return s !== undefined && isMeeting(world, s);
 }
 
 export function tradeReady(world: World): Vehicle | null {
@@ -644,7 +670,7 @@ export function tradeReady(world: World): Vehicle | null {
 function requireMeeting(world: World, npcId: string): { npc: Vehicle; state: NpcState } {
   const npc = vehicleById(world, npcId);
   const state = tradeWith(world, npc);
-  if (!state) throw new Error(`No trade agreed with ${npc.name}`);
+  if (!state) throw new Error(`No trade agreed with ${npc.id}`);
   if (!isMeeting(world, state)) throw new Error("Both trucks must be parked side by side");
   return { npc, state };
 }
@@ -689,9 +715,19 @@ function requireCount(n: number): void {
 
 export function transfer(world: World, payer: Vehicle, payee: Vehicle, amount: number): void {
   const from = getResources(world, payer);
-  if (from.money < 0 || from.money < amount) throw new Error(payer.id === world.player.vehicleId ? 'Not enough money' : `${payer.name} cannot pay that much`);
+  const short = from.money < 0 || from.money < amount;
+  if (short && payer.id === world.player.vehicleId) throw new Refused({ id: 'noMoney' });
+  if (short) throw new Error(`${payer.id} cannot pay that much`);
   from.money -= amount;
   getResources(world, payee).money += amount;
+  world.events.push({ t: 'transfer', from: payer.id, to: payee.id, amount });
+}
+
+export function shopMoney(world: World, vehicle: Vehicle, amount: number, kind: ShopMoneyKind): void {
+  if (!Number.isFinite(amount)) throw new Error(`${vehicle.id} cannot get ${amount} money for ${kind}`);
+  if (amount === 0) return;
+  getResources(world, vehicle).money += amount;
+  world.events.push({ t: 'shopMoney', vehicle: vehicle.id, amount, kind });
 }
 
 export function buyTruckGood(world: World, npcId: string, good: string, n: number): World {
@@ -699,8 +735,8 @@ export function buyTruckGood(world: World, npcId: string, good: string, n: numbe
     const { npc } = requireMeeting(w, npcId);
     const me = playerVehicle(w);
     requireCount(n);
-    if (truckGoodsForSale(npc, good) < n) throw new Error(`${npc.name} will not sell ${n} ${GOODS[good].name}`);
-    if (freeCells(me) < n) throw new Error("Not enough cargo space");
+    if (truckGoodsForSale(npc, good) < n) throw new Error(`${npc.id} will not sell ${n} ${good}`);
+    if (freeCells(me) < n) throw new Refused({ id: "noCargoRoom" });
     const price = truckGoodPrice(w, good, "buy");
     transfer(w, me, npc, price * n);
     noteCostBasis(w, good, price, n);
@@ -714,8 +750,8 @@ export function sellTruckGood(world: World, npcId: string, good: string, n: numb
     const { npc } = requireMeeting(w, npcId);
     const me = playerVehicle(w);
     requireCount(n);
-    if ((goodsCount(me)[good] ?? 0) < n) throw new Error(`Cannot sell ${n} ${GOODS[good].name}`);
-    if (cargoRoom(npc, good) < n) throw new Error(`No room on ${npc.name}'s truck`);
+    if ((goodsCount(me)[good] ?? 0) < n) throw new Error(`Cannot sell ${n} ${good}`);
+    if (cargoRoom(npc) < n) throw new Refused({ id: 'theyHaveNoRoom' });
     const price = truckGoodPrice(w, good, "sell");
     transfer(w, npc, me, price * n);
     removeGoods(me, good, n);
@@ -726,7 +762,7 @@ export function sellTruckGood(world: World, npcId: string, good: string, n: numb
 
 function takeSpare(v: Vehicle, partId: string): PartInstance {
   const part = spareParts(v).find((p) => p.id === partId);
-  if (!part) throw new Error(`${v.name} has no spare part ${partId}`);
+  if (!part) throw new Error(`${v.id} has no spare part ${partId}`);
   v.items = v.items.filter((it) => it.kind !== "part" || it.part.id !== partId);
   return part;
 }
@@ -737,7 +773,7 @@ export function buyTruckPart(world: World, npcId: string, partId: string): World
     const me = playerVehicle(w);
     const part = takeSpare(npc, partId);
     transfer(w, me, npc, truckPartPrice(w, part, "buy"));
-    if (!stowPart(w, me, part)) throw new Error(`No room in the truck for ${partDef(part.defId).name}`);
+    if (!stowPart(w, me, part)) throw new Refused({ id: 'noCargoRoom' });
   });
 }
 
@@ -747,7 +783,7 @@ export function sellTruckPart(world: World, npcId: string, partId: string): Worl
     const me = playerVehicle(w);
     const part = takeSpare(me, partId);
     transfer(w, npc, me, truckPartPrice(w, part, "sell"));
-    if (!stowPart(w, npc, part)) throw new Error(`No room on ${npc.name}'s truck for ${partDef(part.defId).name}`);
+    if (!stowPart(w, npc, part)) throw new Refused({ id: 'theyHaveNoRoom' });
   });
 }
 
@@ -755,8 +791,8 @@ export function buyTruckSupply(world: World, npcId: string, kind: Supply, n: num
   return playerCommand(world, (w) => {
     const { npc } = requireMeeting(w, npcId);
     requireCount(n);
-    if (n > truckSupplyForSale(npc, kind)) throw new Error(`${npc.name} will not sell that much ${kind}`);
-    if (n > supplyRoom(w, kind)) throw new Error(`No room for ${n} ${kind}`);
+    if (n > truckSupplyForSale(npc, kind)) throw new Error(`${npc.id} will not sell that much ${kind}`);
+    if (n > supplyRoom(w, kind)) throw new Refused({ id: 'noSupplyRoom' });
     transfer(w, playerVehicle(w), npc, truckSupplyPrice(w, kind) * n);
     npc.resources![kind] -= n;
     w.player[kind] += n;

@@ -1,5 +1,3 @@
-// Field repair: a parked job that spends parts to restore one part's HP up to a field cap.
-// Parts are spent only when the job finishes. Machining shortens the job and cuts parts use.
 
 import { partDef } from '../data/parts';
 import { GOODS } from '../data/goods';
@@ -12,7 +10,7 @@ import type { Job, PartInstance, Vehicle, World } from './types';
 
 function findRepairPart(v: Vehicle, partId: string): PartInstance {
   const part = mountedParts(v).find((p) => p.id === partId);
-  if (!part) throw new Error(`${partId} is not a mounted part on ${v.name}`);
+  if (!part) throw new Error(`${partId} is not a mounted part on ${v.id}`);
   return part;
 }
 
@@ -27,6 +25,11 @@ export function repairPlan(world: World, v: Vehicle, partId: string, maxParts = 
   return planPartRepair(part, partFieldCap(world, v, part), machiningMult(world, v), goodsCount(v).parts ?? 0, maxParts);
 }
 
+export function engineNeedsPatch(world: World, v: Vehicle): boolean {
+  const engine = mountedParts(v).find((p) => partDef(p.defId).kind === 'engine');
+  return engine !== undefined && !isJunk(engine) && repairPlan(world, v, engine.id).needed > 0;
+}
+
 function partFieldCap(world: World, v: Vehicle, part: PartInstance): number {
   const def = partDef(part.defId);
   if (def.kind !== 'armor' || def.fieldRepair === 'capped') return fieldCapShare(world, v);
@@ -38,7 +41,7 @@ function fieldCapShare(world: World, v: Vehicle): number {
 }
 
 export function planPartRepair(part: PartInstance, capShare: number, mult: number, partsHeld: number, maxParts: number): RepairPlan {
-  if (isJunk(part)) throw new Error(`${partDef(part.defId).name} is junk and cannot be rebuilt`);
+  if (isJunk(part)) throw new Error(`${part.defId} is junk and cannot be rebuilt`);
   const max = maxHp(part);
   const cap = Math.min(max, max * capShare);
   const gap = Math.max(0, cap - part.hp);

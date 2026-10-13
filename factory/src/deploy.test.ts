@@ -113,6 +113,15 @@ describe('deployDev', () => {
     expect(readPublished(home)).toEqual([{ sha: SHA, kind: 'dev', publishedAt: '2026-10-07T12:00:00.000Z' }]);
   });
 
+  it('builds /dev/ with error reports on and keeps its maps on the host, not in the web root', async () => {
+    const { ctx, home, envs } = devSetup(false);
+    await deployDev(ctx, '/l');
+    expect(envs).toEqual([{ SAVE_SCOPE: 'dev', ERROR_REPORT_URL: 'http://x/errors', ERROR_REPORT_BUILD: 'dev' }]);
+    expect(existsSync(join(home, 'sourcemaps', SHA, 'index.js.map'))).toBe(true);
+    expect(existsSync(join(home, 'web', 'dev', 'index.js.map'))).toBe(false);
+    expect(readPublished(home)).toEqual([{ sha: SHA, kind: 'dev', publishedAt: '2026-10-07T12:00:00.000Z' }]);
+  });
+
   it('posts the dev link to the committee after a rebuild', async () => {
     const { ctx } = devSetup(false);
     const sent: string[] = [];

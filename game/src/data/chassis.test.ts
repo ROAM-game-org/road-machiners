@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CHASSIS, type ChassisDef } from './chassis';
+import { CHASSIS, PLAYER_CHASSIS, type ChassisDef } from './chassis';
+import { FURY_ROAD } from './modes';
+import { NPCS } from './npcs';
 import { PARTS, partDef } from './parts';
 
 type Cell = { x: number; y: number };
@@ -47,11 +49,12 @@ const SEAT_CAB: Record<string, string> = {
 };
 
 const VALUES = {
-  scout: 2444, hauler: 3676, buggy: 1928, wagon: 3022, courier: 2320, van: 3080, longbed: 5384,
-  carrier: 4876, tractor: 4382, jeep: 2186, convertible: 2992, bus: 3800, loader: 5088, niva: 3148, bukhanka: 3450, lincoln: 4288,
+  scout: 81467, hauler: 122534, buggy: 64267, wagon: 100733, courier: 77333, van: 102666, longbed: 179466,
+  carrier: 162534, tractor: 146067, jeep: 72867, convertible: 99734, bus: 126667, loader: 169600, niva: 104934, bukhanka: 115000, lincoln: 142933, semi: 140000,
 };
 
 const NO_DECK_BLOCK: Record<string, string> = {
+  semi: 'The hauler grid has cargo bay cells and no deck cells, so no gun can mount on it.',
   scout: 'A cab clear of the wheels on 5 columns leaves only single deck columns.',
 };
 
@@ -99,7 +102,7 @@ describe('chassis grids', () => {
   });
 
   it('keeps the scout worth what it was before its cab moved', () => {
-    expect(CHASSIS.scout.value).toBe(2444);
+    expect(CHASSIS.scout.value).toBe(81467);
     expect(CHASSIS.scout.ratedMass).toBe(RATED_MASS);
   });
 
@@ -214,7 +217,7 @@ describe('deck blocks for the bigger guns', () => {
   });
 
   it('keeps a free 2 across by 3 along block of deck cells on every tier 2 and 3 chassis', () => {
-    for (const [id, c] of Object.entries(CHASSIS).filter(([, ch]) => ch.tier >= 2)) expect(hasDeckBlock(c, 2, 3), id).toBe(true);
+    for (const [id, c] of Object.entries(CHASSIS).filter(([id, ch]) => ch.tier >= 2 && !(id in NO_DECK_BLOCK))) expect(hasDeckBlock(c, 2, 3), id).toBe(true);
   });
 });
 
@@ -251,5 +254,24 @@ describe('chassis tradeoffs', () => {
         expect(axes(CHASSIS[id]), `${id} matches ${other.id}`).not.toEqual(axes(other));
       }
     }
+  });
+});
+
+describe('the semi', () => {
+  it('has cargo bay cells and no deck cells, so a gun, scanner, utility or store part never mounts', () => {
+    const cells = CHASSIS.semi.layout.join('');
+    expect(cells).not.toContain('D');
+    expect(cells).toContain('C');
+  });
+
+  it('is in no outpost offer and no NPC template', () => {
+    expect(FURY_ROAD.trucks.pool).not.toContain('semi');
+    expect(PLAYER_CHASSIS).not.toContain('semi');
+    for (const tpl of Object.values(NPCS)) expect(tpl.loadout.chassis.map((c) => c.value)).not.toContain('semi');
+  });
+
+  it('weighs over ten scouts and over twice any other chassis, so its rams land massive hits', () => {
+    expect(CHASSIS.semi.mass / CHASSIS.scout.mass).toBeGreaterThan(10);
+    for (const def of Object.values(CHASSIS)) if (def.id !== 'semi') expect(CHASSIS.semi.mass / def.mass, def.id).toBeGreaterThan(2);
   });
 });

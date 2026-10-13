@@ -1,6 +1,3 @@
-// Wear and part condition. Parts lose HP with distance driven, speed and rough ground, and rarely break down.
-// The distance driven comes from each vehicle's trail. One rule for the player and NPCs. The player's driving also
-// practices from the rough ground it crosses.
 
 import { ECONOMY } from '../data/goods';
 import { partDef, type PartDef } from '../data/parts';
@@ -101,26 +98,54 @@ function practiceRoughGround(world: World): void {
 }
 
 export function maxHp(part: PartInstance): number {
-  return Math.round(partDef(part.defId).hp * (1 - CONDITION.hpLoss * part.wear));
+  return Math.round(partDef(part.defId).hp * worse(part.wear));
+}
+
+function worse(steps: number): number {
+  return 1 - CONDITION.stepLoss * steps;
+}
+
+function costlier(steps: number): number {
+  return 1 + CONDITION.stepLoss * steps;
 }
 
 export function wornDef<T extends PartDef>(part: PartInstance): T {
   const def = partDef(part.defId);
   const steps = part.wear;
   const hp = maxHp(part);
-  const loss = CONDITION.statLoss;
+  const keep = worse(steps);
   switch (def.kind) {
-    case 'weapon':
-      return { ...def, hp, spread: def.spread * (1 + loss.spread * steps) } as T;
+    case 'weapon': {
+      const round = { ...def.round, damage: def.round.damage * keep, pen: def.round.pen * keep };
+      return { ...def, hp, round, range: def.range * keep, spread: def.spread * costlier(steps) } as T;
+    }
     case 'engine':
-      return { ...def, hp, speedBonus: def.speedBonus - loss.speedBonus * steps, accelBonus: def.accelBonus - loss.accelBonus * steps } as T;
+      return {
+        ...def,
+        hp,
+        speedBonus: def.speedBonus - CONDITION.speedLoss.speedBonus * steps,
+        accelBonus: def.accelBonus - CONDITION.speedLoss.accelBonus * steps,
+        capacity: def.capacity * keep,
+        fuelMult: def.fuelMult * costlier(steps),
+        heat: def.heat * costlier(steps),
+      } as T;
     case 'armor':
-      return { ...def, hp, armor: def.armor * (1 - loss.armor * steps), blastArmor: def.blastArmor * (1 - loss.armor * steps) } as T;
+      return { ...def, hp, armor: def.armor * keep, blastArmor: def.blastArmor * keep } as T;
     case 'scanner':
-      return { ...def, hp, range: def.range * (1 - loss.scannerRange * steps) } as T;
+      return { ...def, hp, range: def.range * keep } as T;
+    case 'utility':
+      return { ...def, hp, reload: wornReloadTurns(def.reload, steps) } as T;
     default:
       return { ...def, hp } as T;
   }
+}
+
+export function wornTurns(turns: number, steps: number): number {
+  return Math.ceil((turns * (100 + CONDITION.reloadPercent * steps)) / 100);
+}
+
+function wornReloadTurns(reload: number | null, steps: number): number | null {
+  return reload === null ? null : wornTurns(reload, steps);
 }
 
 export function isJunk(part: PartInstance): boolean {
@@ -135,10 +160,16 @@ export function damagePart(part: PartInstance, amount: number, floor: number): v
   part.wear = partDef(part.defId).kind === 'core' ? Math.min(CONDITION.maxWear, part.wear + 1) : part.wear + 1;
 }
 
+export function setStartHp(part: PartInstance, share: number): void {
+  if (!(share > 0 && share <= 1)) throw new Error(`Start HP share ${share} for ${part.id} is outside (0, 1]`);
+  if (part.hp !== maxHp(part)) throw new Error(`${part.id} is not fresh`);
+  damagePart(part, part.hp - Math.round(maxHp(part) * share), 1);
+}
+
 export function restorePart(part: PartInstance, hp: number): void {
   const next = Math.min(maxHp(part), hp);
   if (next < part.hp) throw new Error(`Restore of ${part.id} to ${hp} HP would lower it from ${part.hp}`);
-  if (part.hp === 0 && next > 0 && isJunk(part)) throw new Error(`${partDef(part.defId).name} is junk and cannot be rebuilt`);
+  if (part.hp === 0 && next > 0 && isJunk(part)) throw new Error(`${part.defId} is junk and cannot be rebuilt`);
   part.hp = next;
 }
 
@@ -148,7 +179,7 @@ export function carryHp(part: PartInstance, hp: number): void {
 }
 
 export function rebuildJunk(part: PartInstance): void {
-  const name = partDef(part.defId).name;
+  const name = part.defId;
   if (!isJunk(part)) throw new Error(`${name} is not junk`);
   if (part.rebuilt) throw new Error(`${name} was rebuilt before`);
   part.wear = CONDITION.maxWear;

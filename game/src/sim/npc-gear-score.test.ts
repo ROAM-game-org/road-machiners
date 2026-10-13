@@ -3,6 +3,9 @@ import { SIDES } from './armor';
 import { makePart } from './factory';
 import { mountPart } from './inventory';
 import { toughness } from './fight-odds';
+import { armorQuality, gearScorer } from './npc-gear-score';
+import { CONDITION } from '../data/wear';
+import type { LoadoutPriorities } from '../data/npcs';
 import { addVehicle, emptyWorld } from './testkit';
 import type { Cell } from './grid';
 
@@ -23,7 +26,6 @@ describe('gear toughness', () => {
     expect(plated[side('rear')]).toBeCloseTo(bare[side('rear')]);
   });
 
-  // Flank plates sit in corner cells that front lanes also cross. Their wear must not count as the front armor's.
   it('never makes the front weaker when the flanks get plates', () => {
     const front = (v: ReturnType<typeof vanWith>) => toughness(v)[side('front')];
     const plated = vanWith([{ id: 'plates', side: 'F', count: 1 }]);
@@ -35,5 +37,55 @@ describe('gear toughness', () => {
     const plates = toughness(vanWith([{ id: 'plates', side: 'F', count: 1 }]));
     const cages = toughness(vanWith([{ id: 'cage', side: 'F', count: 1 }]));
     expect(plates[side('front')]).toBeGreaterThan(cages[side('front')]);
+  });
+});
+
+describe('gear score', () => {
+  const priorities = (change: Partial<LoadoutPriorities>): LoadoutPriorities => ({ speed: 0, firepower: 0, armor: 0, cargo: 0, ...change });
+  const scorer = (p: LoadoutPriorities) => {
+    const w = emptyWorld();
+    return { w, score: gearScorer(w, p, vanWith([]), true) };
+  };
+
+  it('scores armor higher when the armor priority is set', () => {
+    const { score } = scorer(priorities({ armor: 3 }));
+    expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([])));
+  });
+
+  it('scores armor of a better quality higher on the same side', () => {
+    const { score } = scorer(priorities({ armor: 3 }));
+    expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeGreaterThan(score(vanWith([{ id: 'cage', side: 'F', count: 1 }])));
+  });
+
+  it('scores armor at nothing when the armor priority is zero', () => {
+    const { score } = scorer(priorities({ firepower: 3 }));
+    expect(score(vanWith([{ id: 'plates', side: 'F', count: 1 }]))).toBeCloseTo(score(vanWith([])));
+  });
+
+  it('scores a gun higher with firepower priority and lower with only the speed priority', () => {
+    const armed = () => {
+      const v = vanWith([]);
+      expect(mountPart(emptyWorld(), v, makePart(emptyWorld(), 'mg', 0))).toBe(true);
+      return v;
+    };
+    expect(scorer(priorities({ firepower: 3 })).score(armed())).toBeGreaterThan(scorer(priorities({ firepower: 3 })).score(vanWith([])));
+    expect(scorer(priorities({ speed: 3 })).score(armed())).toBeLessThan(scorer(priorities({ speed: 3 })).score(vanWith([])));
+  });
+
+  it('weighs speed against the fuel it burns only for a driver who pays for fuel', () => {
+    const w = emptyWorld();
+    const powered = (engine: string) => addVehicle(w, 'traders', 'van', [engine], { x: 30, y: 30 });
+    const speedy = priorities({ speed: 3 });
+    const paying = gearScorer(w, speedy, powered('stockEngine'), true);
+    const free = gearScorer(w, speedy, powered('stockEngine'), false);
+    expect(paying(powered('workhorseDiesel'))).toBeGreaterThan(paying(powered('turbine')));
+    expect(free(powered('turbine'))).toBeGreaterThan(free(powered('workhorseDiesel')));
+  });
+});
+
+describe('armor quality of a worn-out plate', () => {
+  it('scores a plate worn past the last wear step like one at the last wear step, instead of throwing', () => {
+    const w = emptyWorld();
+    expect(armorQuality(w, 'plates', CONDITION.maxWear + 1)).toBe(armorQuality(w, 'plates', CONDITION.maxWear));
   });
 });

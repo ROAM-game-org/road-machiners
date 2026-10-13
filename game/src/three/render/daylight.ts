@@ -1,5 +1,3 @@
-// Light from the clock, and the lights that switch on at night. The sun moves continuously: warm white at noon, gold in the late afternoon,
-// red at the horizon with long shadows, then a short twilight hands over to blue moonlight.
 
 import * as THREE from "three";
 import { TERRAIN } from "../../data/terrain";
@@ -11,6 +9,7 @@ import { PAL } from "../../render/palette";
 import { bodyOf } from "../../sim/body";
 import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
+export { enableSunShadows } from "./shadowFilter";
 
 const MIN_LIGHT_ELEVATION = 6;
 const TWILIGHT = 10;
@@ -18,7 +17,7 @@ const MOON_ELEVATION = 25;
 const MOON_DIR = TERRAIN.light;
 const WHITE = new THREE.Color(0xffffff);
 const GLASS_SATURATION = 0.9;
-const SHADOW_SOFTNESS = 3;
+const SHADOW_SOFTNESS = 1;
 
 type Key = {
   h: number;
@@ -90,10 +89,10 @@ const KEYS: Key[] = [
   {
     h: -TWILIGHT,
     sun: 0x8090c0,
-    sunI: 0.6,
+    sunI: 0.7,
     sky: 0x5a6c9c,
     ground: 0x1c1e2a,
-    skyI: 0.78,
+    skyI: 0.88,
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
@@ -179,10 +178,35 @@ export function daylightAt(turn: number): Daylight {
 
 const SUN_RADIUS = 150;
 
-export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, focus: V3, light: Daylight): void {
-  const horiz = Math.cos(light.elevation) * SUN_RADIUS;
+const snapZ = new THREE.Vector3();
+const snapX = new THREE.Vector3();
+const snapY = new THREE.Vector3();
+const snapF = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+
+export function snapToShadowTexels(focus: V3, toLight: V3, texel: number): V3 {
+  if (!(texel > 0) || !Number.isFinite(texel)) throw new Error(`Shadow texel must be positive, got ${texel}`);
+  if (!Number.isFinite(focus.x + focus.y + focus.z + toLight.x + toLight.y + toLight.z))
+    throw new Error("Shadow snap needs finite vectors");
+  snapZ.set(toLight.x, toLight.y, toLight.z).normalize();
+  snapX.crossVectors(UP, snapZ).normalize();
+  snapY.crossVectors(snapZ, snapX);
+  snapF.set(focus.x, focus.y, focus.z);
+  const fx = snapF.dot(snapX);
+  const fy = snapF.dot(snapY);
+  snapF.addScaledVector(snapX, Math.round(fx / texel) * texel - fx).addScaledVector(snapY, Math.round(fy / texel) * texel - fy);
+  return { x: snapF.x, y: snapF.y, z: snapF.z };
+}
+
+export function lightScene(sun: THREE.DirectionalLight, sky: THREE.HemisphereLight, drawn: V3, light: Daylight): void {
+  const flat = Math.cos(light.elevation);
+  const horiz = flat * SUN_RADIUS;
+  const lift = Math.sin(light.elevation);
+  const { camera, mapSize } = sun.shadow;
+  const texel = (camera.right - camera.left) / mapSize.x;
+  const focus = snapToShadowTexels(drawn, { x: light.dir.x * flat, y: lift, z: light.dir.y * flat }, texel);
   sun.target.position.set(focus.x, focus.y, focus.z);
-  sun.position.set(focus.x + light.dir.x * horiz, focus.y + Math.sin(light.elevation) * SUN_RADIUS, focus.z + light.dir.y * horiz);
+  sun.position.set(focus.x + light.dir.x * horiz, focus.y + lift * SUN_RADIUS, focus.z + light.dir.y * horiz);
   sun.color.copy(light.sun);
   sun.intensity = light.sunIntensity;
   sky.color.copy(light.sky);

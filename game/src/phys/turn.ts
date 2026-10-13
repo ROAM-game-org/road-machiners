@@ -10,6 +10,7 @@ import { perfSnapshot, resetPerf, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
+import { tearLine } from '../sim/harpoon';
 import { breakProp } from '../sim/salvage';
 import { isOnRope } from '../sim/tow';
 import { burnFuel } from '../sim/resources';
@@ -104,6 +105,7 @@ export function applyTurn(w: World, r: TurnResult): void {
   }
   applyCrashes(w, r);
   applyLandings(w, r);
+  for (const t of r.tears) tearLine(w, t.line);
 }
 
 function applyCrashes(w: World, r: TurnResult): void {

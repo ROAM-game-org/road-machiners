@@ -83,8 +83,7 @@ export class ContactsView {
       const hearsSound = SHOW_SOUND_WAVES && c.sources.includes('sound');
       m.fronts.forEach((f) => (f.line.visible = hearsSound));
       if (hearsSound) m.fronts.forEach((f, k) => this.advanceFront(terrain, c, listener, f, dt, (nowMs - m.burstMs) / 1000 >= k * WAVE.stagger));
-      m.blip.visible = c.sources.includes('radio');
-      if (m.blip.visible) m.blip.position.set(c.center.x * S, heightAt(terrain, c.center.x, c.center.y) * S + LIFT, c.center.y * S);
+      placeBlip(terrain, m.blip, c);
     }
   }
 
@@ -189,6 +188,21 @@ function makeBlip(): THREE.Group {
   const group = new THREE.Group();
   group.add(ring, dot);
   return group;
+}
+
+function placeBlip(terrain: Terrain, blip: THREE.Group, c: Contact): void {
+  const color = blipColor(c);
+  blip.visible = color !== null;
+  if (color === null) return;
+  blip.traverse((o) => {
+    if (o instanceof THREE.Mesh) (o.material as THREE.MeshBasicMaterial).color.setHex(color);
+  });
+  blip.position.set(c.center.x * S, heightAt(terrain, c.center.x, c.center.y) * S + LIFT, c.center.y * S);
+}
+
+function blipColor(c: Contact): number | null {
+  if (c.sources.includes('radio')) return PAL.radio;
+  return c.sources.includes('flare') ? PAL.flare.marker : null;
 }
 
 function disposeMarker(m: Marker): void {

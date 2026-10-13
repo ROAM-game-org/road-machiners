@@ -1,19 +1,17 @@
-// Static navigation layers: per-tile cliff flags and route costs, and per-cell blocked flags and step
-// costs for one vehicle radius. Road and kill wrecks and parked vehicles are not in here; the A* overlay
-// stamps them per query. Breakable props make their cells costly instead of blocked. Per-driver route taste
 
-import { hazardZones } from '../territory';
 import { REGION } from '../../data/region';
 import { BREAKABLE } from '../../data/rules';
 import { TERRAIN, TERRAIN_TYPES, type TerrainTypeId } from '../../data/terrain';
-import { nearRail } from '../bridge';
+import { atlasOf, atlasSites } from '../atlas';
+import { nearRail, type DeckSet } from '../bridge';
 import { blockingBoxes, boxDistance, isBreakable, isDriveObstacle, propKey, propReach, type PosedBox } from '../mapgen';
 import { isCliff, tileSlope, type Terrain } from '../terrain';
 import { hashRandom } from '../rng';
 import type { Obstacle, Vehicle, World } from '../types';
-import { siteGap } from '../sites';
+import { isTerritory, siteGap, type Site } from '../sites';
 import { dist, type Vec } from '../vec';
-import { marksOf, ObstacleBuckets, sameMarks, type Blocker, type ObstacleMark } from './buckets';
+import { ObstacleBuckets, type Blocker } from './buckets';
+import { ObstacleCache } from './obstacle-cache';
 
 export const CELL = 0.5;
 export const CLEARANCE = 0.4;
@@ -25,7 +23,9 @@ export type TerrainNav = {
   tileCost: Float64Array;
   flatCost: Float64Array;
   roadTile: Uint8Array;
+  roadShy: Float32Array;
   slow: Float32Array;
+  decks: DeckSet;
 };
 
 export const COARSE = 8;
@@ -68,25 +68,59 @@ function terrainEntry(t: Terrain) {
     const tiles = tileLayers(t);
     const slow = new Float32Array(n * n);
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) slow[y * n + x] = tiles.tileCost[tileIndex(t.size, (x + 0.5) * CELL, (y + 0.5) * CELL)];
-    e = { nav: { size: t.size, n, ...tiles, slow }, cellCliff: new Map(), solidGrids: new Map(), layers: new Map() };
+    e = { nav: { size: t.size, n, ...tiles, slow, decks: atlasOf(t).decks }, cellCliff: new Map(), solidGrids: new Map(), layers: new Map() };
     terrains.set(t, e);
   }
   return e;
 }
 
-function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile'> {
+function tileLayers(t: Terrain): Pick<TerrainNav, 'cliffTile' | 'tileCost' | 'flatCost' | 'roadTile' | 'roadShy'> {
   const cliffTile = new Uint8Array(t.size * t.size);
   const tileCost = new Float64Array(t.size * t.size);
   const flatCost = new Float64Array(t.size * t.size);
   const roadTile = new Uint8Array(t.size * t.size);
+  const sites = atlasSites(atlasOf(t)).filter((s) => !isTerritory(s));
   for (let i = 0; i < t.size * t.size; i++) {
     cliffTile[i] = isCliff(t, i) ? 1 : 0;
-    const bySite = nearSite((i % t.size) + 0.5, Math.floor(i / t.size) + 0.5);
+    const bySite = nearSite(sites, (i % t.size) + 0.5, Math.floor(i / t.size) + 0.5);
     flatCost[i] = routeCost(t.types[i], bySite);
     tileCost[i] = flatCost[i] * slopeCost(t, i);
     roadTile[i] = t.types[i] === 'road' && !bySite ? 1 : 0;
   }
-  return { cliffTile, tileCost, flatCost, roadTile };
+  return { cliffTile, tileCost, flatCost, roadTile, roadShy: roadShyField(t.size, roadTile) };
+}
+
+function roadShyField(size: number, roadTile: Uint8Array): Float32Array {
+  const { roadShyCost, roadShyBand } = REGION.navigation;
+  const far = size * 2;
+  const d = new Float32Array(size * size);
+  for (let i = 0; i < d.length; i++) d[i] = roadTile[i] === 1 ? 0 : far;
+  const relax = (i: number, j: number, step: number): void => { if (d[j] + step < d[i]) d[i] = d[j] + step; };
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (x > 0) relax(i, i - 1, 1);
+      if (y > 0) {
+        relax(i, i - size, 1);
+        if (x > 0) relax(i, i - size - 1, Math.SQRT2);
+        if (x < size - 1) relax(i, i - size + 1, Math.SQRT2);
+      }
+    }
+  }
+  for (let y = size - 1; y >= 0; y--) {
+    for (let x = size - 1; x >= 0; x--) {
+      const i = y * size + x;
+      if (x < size - 1) relax(i, i + 1, 1);
+      if (y < size - 1) {
+        relax(i, i + size, 1);
+        if (x < size - 1) relax(i, i + size + 1, Math.SQRT2);
+        if (x > 0) relax(i, i + size - 1, Math.SQRT2);
+      }
+    }
+  }
+  const shy = new Float32Array(size * size);
+  for (let i = 0; i < shy.length; i++) shy[i] = 1 + (roadShyCost - 1) * Math.max(0, 1 - d[i] / (roadShyBand + 1));
+  return shy;
 }
 
 function routeCost(type: TerrainTypeId, bySite: boolean): number {
@@ -98,10 +132,8 @@ function slopeCost(t: Terrain, tile: number): number {
   return 1 + REGION.navigation.slopeCost * (Math.hypot(s.x, s.y) / TERRAIN.drive.maxSlope) ** 2;
 }
 
-const SITES = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')];
-
-function nearSite(x: number, y: number): boolean {
-  return SITES.some((s) => siteGap(s, { x, y }) < REGION.roadWidth);
+function nearSite(sites: readonly Site[], x: number, y: number): boolean {
+  return sites.some((s) => siteGap(s, { x, y }) < REGION.roadWidth);
 }
 
 export function terrainNav(t: Terrain): TerrainNav {
@@ -124,31 +156,24 @@ export function nearCliff(nav: TerrainNav, x: number, y: number, reach: number):
   return c[tileIndex(s, x, y)] === 1 || c[tileIndex(s, x + reach, y)] === 1 || c[tileIndex(s, x - reach, y)] === 1 || c[tileIndex(s, x, y + reach)] === 1 || c[tileIndex(s, x, y - reach)] === 1;
 }
 
-const STATIC_SETS_KEPT = 4;
-const staticSets: { marks: ObstacleMark[]; terrain: Terrain; set: StaticSet }[] = [];
+const staticSets = new ObstacleCache<StaticSet>(4);
 
 export function staticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
-  const at = staticSets.findIndex((e) => e.terrain === terrain && sameMarks(e.marks, obstacles));
-  if (at === 0) return staticSets[0].set;
-  if (at > 0) {
-    const [hit] = staticSets.splice(at, 1);
-    staticSets.unshift(hit);
-    return hit.set;
-  }
+  return staticSets.get(obstacles, terrain, () => buildStaticSet(obstacles, terrain));
+}
+
+function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
   const statics = obstacles.filter((o) => isDriveObstacle(o) && !isTransientWreck(o));
-  const all = [...statics.map((o) => driveBlocker(o, terrain)), ...hazardZones().map((z) => ({ pos: z.pos, r: z.radius }))];
+  const all = [...statics.map((o) => driveBlocker(o, terrain)), ...atlasOf(terrain).hazards.map((z) => ({ pos: z.pos, r: z.radius }))];
   const breakable = statics.map(isBreakable);
   const solid = all.filter((_, i) => !breakable[i]);
-  const set = {
+  return {
     key: blockerKey(all),
     solidKey: blockerKey(solid),
     solid,
     costly: all.filter((_, i) => breakable[i]),
     buckets: new ObstacleBuckets(all, terrain.size),
   };
-  staticSets.unshift({ marks: marksOf(obstacles), terrain, set });
-  staticSets.length = Math.min(staticSets.length, STATIC_SETS_KEPT);
-  return set;
 }
 
 export function dynamicBlockers(obstacles: Obstacle[], terrain: Terrain, extra: Blocker[]): Blocker[] {
@@ -196,7 +221,7 @@ function markCliffCells(nav: TerrainNav, reach: number): Uint8Array {
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const cx = (x + 0.5) * CELL;
     const cy = (y + 0.5) * CELL;
-    if (nearCliff(nav, cx, cy, reach) || nearRail(cx, cy, reach)) cliff[y * n + x] = 1;
+    if (nearCliff(nav, cx, cy, reach) || nearRail(nav.decks, cx, cy, reach)) cliff[y * n + x] = 1;
   }
   return cliff;
 }
@@ -406,7 +431,7 @@ function components(count: number, edgeStart: Int32Array, edges: Int32Array): In
   return comp;
 }
 
-export type Taste = { seed: number; side: number; values: Float32Array; roads: Uint8Array | null; size: number };
+export type Taste = { seed: number; side: number; values: Float32Array; shy: Float32Array | null; size: number };
 
 const TASTES_MAX = 256;
 const tastes = new Map<string, Taste>();
@@ -430,11 +455,11 @@ export function makeTaste(seed: number, size: number): Taste {
   const side = Math.ceil(size / scale) + 2;
   const values = new Float32Array(side * side);
   for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) values[y * side + x] = 1 + strength * (hashRandom(seed, x, y) - 0.5);
-  return { seed, side, values, roads: null, size };
+  return { seed, side, values, shy: null, size };
 }
 
 export function offRoadTaste(taste: Taste, nav: TerrainNav): Taste {
-  return { ...taste, roads: nav.roadTile, size: nav.size };
+  return { ...taste, shy: nav.roadShy, size: nav.size };
 }
 
 export function tasteAt(t: Taste, x: number, y: number): number {
@@ -455,12 +480,12 @@ export function tasteAt(t: Taste, x: number, y: number): number {
 export function tasted(t: Taste | null, cost: number, x: number, y: number): number {
   if (!t) return cost;
   const c = cost * tasteAt(t, x, y);
-  return t.roads && t.roads[tileIndex(t.size, x, y)] === 1 ? c * REGION.navigation.roadShyCost : c;
+  return t.shy ? c * t.shy[tileIndex(t.size, x, y)] : c;
 }
 
 export function tasteKey(t: Taste | null): string {
   if (!t) return 'plain';
-  return t.roads ? `${t.seed}:off` : String(t.seed);
+  return t.shy ? `${t.seed}:off` : String(t.seed);
 }
 
 function smooth(f: number): number {

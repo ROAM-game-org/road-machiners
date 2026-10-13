@@ -25,6 +25,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | chassis | niva | base_niva |
 | chassis | bukhanka | base_bukhanka |
 | chassis | lincoln | base_lincoln |
+| chassis | semi | base_semi |
 | part | transmission | transmission |
 | part | transmissionMid | transmission |
 | part | transmissionHeavy | transmission |
@@ -53,6 +54,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | steelPlate | arm_plate |
 | part | scrapSheet | arm_scrap_sheet |
 | part | ceramicTile | arm_ceramic_tile |
+| part | claymoreRam | arm_claymore_ram |
 | part | rack | cargo_rack |
 | part | trailerBox | cargo_trailer_box |
 | part | panniers | cargo_panniers |
@@ -63,6 +65,14 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | part | scanner | scanner |
 | part | jerrycans | store_jerrycans |
 | part | supplyLocker | store_locker |
+| part | sprout | util_sprout |
+| part | caltrops | util_caltrops |
+| part | oilSpiller | util_oil |
+| part | patcherCrane | util_crane |
+| part | smokeMortar | util_mortar |
+| part | flareCannon | util_flare |
+| part | scrapersKnife | util_scraper |
+| part | emitter | util_emitter |
 | good | scrap | good_scrap |
 | good | salt | good_salt |
 | good | meds | good_meds |
@@ -101,6 +111,7 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | gatling | wmount_ring_wide | wrec_autocannon | wbar_twin | wext_drum |
 | grenadeLauncher | wmount_ring_wide | wrec_shotgun | wbar_autocannon | wext_drum |
 | flechette | wmount_ring_small | wrec_mg_a | wbar_mg_long | wext_scope |
+| harpoon | wmount_pintle, wmount_ring_small | wrec_harpoon | wbar_harpoon |  |
 <!-- /wiki:weapon-pools -->
 
 ## Sound cues
@@ -128,12 +139,25 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | explosion | sfx | false | 1 | 2 | 3 |
 | horn | sfx | false | 0.8 | 4 | 2 |
 | crash | sfx | false | 0.9 | 2 | 2 |
+| harpoon-fire | sfx | false | 0.8 | 2 | 2 |
+| harpoon-hook | sfx | false | 0.7 | 2 | 2 |
+| line-tear | sfx | false | 0.8 | 2 | 2 |
+| mortar-fire | sfx | false | 0.8 | 2 | 2 |
+| smoke-burst | sfx | false | 0.6 | 2 | 2 |
+| flare-fire | sfx | false | 0.7 | 2 | 2 |
+| flare-burst | sfx | false | 0.6 | 2 | 2 |
+| caltrops-drop | sfx | false | 0.6 | 2 | 2 |
+| caltrops-hit | sfx | false | 0.7 | 3 | 1 |
+| oil-spill | sfx | false | 0.6 | 2 | 2 |
+| emitter-pulse | sfx | false | 0.8 | 2 | 2 |
 | engine | sfx | true | 0.6 | 1 | 3 |
+| engine-strain | sfx | true | 0.6 | 1 | 2 |
 | wind | ambient | true | 1 | 1 | 3 |
 | music-calm | music | true | 1 | 1 | 5 |
 | music-town | music | true | 1 | 1 | 1 |
 | music-outpost | music | true | 1 | 1 | 1 |
-| music-abandoned | music | true | 0.7 | 1 | 1 |
+| music-abandoned | music | true | 0.7 | 1 | 3 |
+| music-quest | music | true | 0.8 | 1 | 3 |
 | score-drums | music | true | 0.9 | 1 | 1 |
 | score-bass | music | true | 0.8 | 1 | 1 |
 | score-horns | music | true | 0.8 | 1 | 1 |

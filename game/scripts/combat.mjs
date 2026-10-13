@@ -1,8 +1,5 @@
-// Runs the combat harness (src/test/combat-harness.ts) and writes its report to tmp/combat/.
-// Usage: npm run combat -- --kit standard --enemies buggy,gunwagon,buggy+buggy --policy all --seeds 1-20
-//   [--guns mg,shotgun --armor plates] [--levels poor,loaded] [--foe-gun mg --foe-armor plates --foe-ram plowRam]
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { formatReport, POLICIES, runFight, setNumber, turnLine } from '../src/test/combat-harness.ts';
+import { formatReport, parseLineup, parseRoad, runFight, setNumber, turnLine } from '../src/test/combat-harness.ts';
 import { initPhysics } from '../src/phys/drive.ts';
 
 function argOf(name, fallback) {
@@ -30,23 +27,19 @@ function parseSeeds(text) {
 const trace = process.argv.includes('--trace');
 const sets = argsOf('set');
 for (const s of sets) setNumber(s);
-const policyArg = argOf('policy', 'all');
-const policies = policyArg === 'all' ? POLICIES : policyArg.split(',');
-for (const p of policies) if (!POLICIES.includes(p)) throw new Error(`Unknown policy "${p}". Known: ${POLICIES.join(', ')}`);
-const lineups = argOf('enemies', 'buggy,gunwagon').split(',').map((l) => l.split('+'));
-const seeds = parseSeeds(argOf('seeds', '1-10'));
-const armor = argOf('armor', null);
-const mes = argOf('guns', null)?.split(',').map((gun) => ({ gun, armor })) ?? [null];
-const foeGun = argOf('foe-gun', null);
-const foe = foeGun ? { gun: foeGun, armor: argOf('foe-armor', null), ram: argOf('foe-ram', undefined) } : null;
-const levels = argOf('levels', null)?.split(',') ?? [null];
-const base = { kit: argOf('kit', 'standard'), gap: positiveInt('gap', '8'), orbit: positiveInt('orbit', '6'), maxTurns: positiveInt('turns', '40') };
+const sideA = argOf('a', 'merc').split(',').map(parseLineup);
+const sideB = argOf('b', 'buggy,gunwagon').split(',').map(parseLineup);
+const seeds = parseSeeds(argOf('seeds', '1-5'));
+const arena = argOf('arena', null);
+const road = parseRoad(argOf('map', null));
+if (road !== null && arena !== null) throw new Error('--map and --arena do not mix: the road has its own ground');
+const base = { gap: positiveInt('gap', '8'), orbit: positiveInt('orbit', '6'), maxTurns: positiveInt('turns', arena === null ? '40' : '400'), arena: arena === null ? null : positiveInt('arena'), road };
 
 await initPhysics();
-console.log(`Running ${mes.length} guns x ${lineups.length} lineups x ${levels.length} levels x ${policies.length} policies x ${seeds.length} seeds...`);
+console.log(`Running ${sideA.length} x ${sideB.length} lineups x ${seeds.length} seeds...`);
 const reports = [];
-const fights = mes.flatMap((me) => lineups.flatMap((enemies) => levels.flatMap((level) => policies.flatMap((policy) => seeds.map((seed) => ({ ...base, me, enemies, level, foe, policy, seed }))))));
-const label = (f) => `${f.me?.gun ?? 'kit'} ${f.enemies.join('+')} ${f.level ?? 'rolled'} ${f.policy} s${f.seed}`;
+const fights = sideA.flatMap((a) => sideB.flatMap((b) => seeds.map((seed) => ({ ...base, a, b, seed }))));
+const label = (f) => `${f.a.map((t) => t.label).join('+')} vs ${f.b.map((t) => t.label).join('+')} s${f.seed}`;
 for (const f of fights) reports.push(runFight(f, trace ? (w, t) => console.log(`${label(f)} ${turnLine(w, t)}`) : undefined));
 
 const out = argOf('out', 'tmp/combat');

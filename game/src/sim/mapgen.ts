@@ -1,26 +1,39 @@
-// Obstacle placement: the baked map's props, then seeded site props and road wrecks.
-
+import { FORTRESS } from '../data/fortress';
+import { FORT_MODELS, type FortModel } from './fortress';
 import { PHYSICS } from '../data/physics';
 import SHAPES from '../data/prop-shapes.json';
 import { REGION } from '../data/region';
 import { BREAKABLE } from '../data/rules';
+import { STORY_WRECKS } from '../data/salvage';
+import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
+import { siteGap } from './sites';
 import { TERRAIN } from '../data/terrain';
-import { PROP_KINDS, type BakedMap, type BakedProp, type Terrain } from './terrain';
 import { randInt, randRange } from './rng';
 import { hulkBoxes } from './body';
-import { DECKS, propBase, underDeck } from './bridge';
+import { chassisDef } from '../data/chassis';
+import { propBase, underDeck } from './bridge';
+import { atlasOf, atlasSites, type Atlas } from './atlas';
+import { modeRules } from './settings';
 import type { LandmarkLook, Obstacle, World } from './types';
-import { siteGap } from './sites';
-import { angleDiff, bearing, dist, segmentDist, type Vec } from './vec';
+import { dist, segmentDist, type Vec } from './vec';
 
 const O = REGION.obstacles;
-
-export function generateObstacles(world: World, map: BakedMap): Obstacle[] {
-  const baked = mapObstacles(map);
-  const sites = placeSites(world);
-  const out = [...baked, ...sites];
-  placeRoadWrecks(world, out);
+export function generateObstacles(world: World, map: BakedMap, fixed: Obstacle[]): Obstacle[] {
+  const atlas = atlasOf(map.terrain);
+  const out = mapObstacles(map);
+  for (const o of fixed) {
+    if (overlapsAny(out, o.pos, o.r) || !clearOfSites(atlas, o.pos, o.r) || !clearOfDecks(atlas, o.pos, o.r))
+      throw new Error(`Obstacle ${o.id} at ${o.pos.x.toFixed(1)}, ${o.pos.y.toFixed(1)} overlaps a prop, a site or a deck`);
+    out.push(o);
+  }
+  placeModeWrecks(world, out);
   return out;
+}
+
+function placeModeWrecks(world: World, out: Obstacle[]): void {
+  const rules = modeRules(world);
+  if (rules.roadWrecks) placeRoadWrecks(world, out);
+  if (rules.looting) out.push(...STORY_WRECKS.map((w): Obstacle => ({ id: w.id, pos: { ...w.pos }, r: w.r, kind: 'wreck', hulk: { chassisId: w.chassisId, yaw: w.yaw } })));
 }
 
 export function mapObstacles(map: BakedMap): Obstacle[] {
@@ -33,50 +46,23 @@ export function mapObstacles(map: BakedMap): Obstacle[] {
   return out;
 }
 
-function propObstacle(p: BakedProp, k: number): Obstacle {
+export function propObstacle(p: BakedProp, k: number): Obstacle {
+  if (p.hulk !== undefined) return hulkObstacle(p, k, p.hulk);
   if (p.kind === 'rock') return { id: `rock${k}`, pos: { ...p.pos }, r: p.r, kind: 'rock' };
-  const id = p.kind === 'pole' ? `pole-${p.group}-${p.step}` : `${p.kind}-${k}`;
+  const id = p.kind === 'pole' ? `${p.kind}-${p.group}-${p.step}` : `${p.kind}-${k}`;
   return { id, pos: { ...p.pos }, r: p.r, kind: 'landmark', look: p.kind, yaw: p.yaw };
 }
 
-const BAKED_ID = new RegExp(`^(rock\\d+|pole-\\d+-\\d+|(${PROP_KINDS.filter((k) => k !== 'rock' && k !== 'pole').join('|')})-\\d+)$`);
+function hulkObstacle(p: BakedProp, k: number, chassisId: string): Obstacle {
+  chassisDef(chassisId);
+  return { id: `hulk-${k}`, pos: { ...p.pos }, r: p.r, kind: 'wreck', hulk: { chassisId, yaw: p.yaw } };
+}
+
+let bakedId: RegExp | null = null;
 
 export function isBakedObstacle(o: Obstacle): boolean {
-  return BAKED_ID.test(o.id);
-}
-
-function placeSites(world: World): Obstacle[] {
-  const S = REGION.sites;
-  const out: Obstacle[] = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')].map((s) => ({ id: `site-${s.id}`, pos: { ...s.pos }, r: s.radius, kind: 'site' }));
-  for (const town of REGION.towns) {
-    const exits = roadExits(town.pos);
-    for (let i = 0; i < S.buildingsPerTown; i++) {
-      const a = (i / S.buildingsPerTown) * Math.PI * 2 + randRange(world, -0.3, 0.3);
-      if (exits.some((e) => Math.abs(angleDiff(a, e)) < S.roadGapAngle)) continue;
-      const d = town.radius * randRange(world, S.buildingRing[0], S.buildingRing[1]);
-      const pos = { x: town.pos.x + Math.cos(a) * d, y: town.pos.y + Math.sin(a) * d };
-      const r = randRange(world, S.buildingRadius[0], S.buildingRadius[1]);
-      if (!overlapsAny(out, pos, r)) out.push({ id: `bld-${town.id}-${i}`, pos, r, kind: 'building' });
-    }
-  }
-  for (const loc of REGION.locations) {
-    if (loc.kind === 'oasis') out.push({ id: `pond-${loc.id}`, pos: { ...loc.pos }, r: S.pondRadius, kind: 'water' });
-    if (loc.kind === 'convoy')
-      S.convoyWrecks.forEach((o, i) => out.push({ id: `cw-${loc.id}-${i}`, pos: { x: loc.pos.x + o.x, y: loc.pos.y + o.y }, r: 0.65, kind: 'wreck' }));
-  }
-  return out;
-}
-
-export function roadExits(p: Vec): number[] {
-  const exits: number[] = [];
-  for (const road of REGION.roads) {
-    road.forEach((q, i) => {
-      if (dist(q, p) > 0.01) return;
-      if (i > 0) exits.push(bearing(p, road[i - 1]));
-      if (i + 1 < road.length) exits.push(bearing(p, road[i + 1]));
-    });
-  }
-  return exits;
+  bakedId ??= new RegExp(`^(rock\\d+|hulk-\\d+|pole-\\d+-\\d+|(${PROP_KINDS.filter((k) => k !== 'rock' && k !== 'pole').join('|')})-\\d+)$`);
+  return bakedId.test(o.id);
 }
 
 function placeRoadWrecks(world: World, out: Obstacle[]): void {
@@ -97,12 +83,13 @@ export function findRoadWreckSpot(world: World, obstacles: Obstacle[], allowed: 
     const len = dist(a, b);
     const pos = { x: a.x + (b.x - a.x) * t - ((b.y - a.y) / len) * side, y: a.y + (b.y - a.y) * t + ((b.x - a.x) / len) * side };
     const r = randRange(world, 0.55, 0.8);
-    if (clearOfSites(pos, r) && !overlapsAny(obstacles, pos, r) && clearOfDecks(pos, r) && allowed(pos, r)) return { pos, r };
+    const atlas = atlasOf(world.terrain);
+    if (clearOfSites(atlas, pos, r) && !overlapsAny(obstacles, pos, r) && clearOfDecks(atlas, pos, r) && allowed(pos, r)) return { pos, r };
   }
   throw new Error('Road wreck placement ran out of tries');
 }
 
-function overlapsAny(out: Obstacle[], pos: Vec, r: number): boolean {
+export function overlapsAny(out: Obstacle[], pos: Vec, r: number): boolean {
   return out.some((o) => o.kind !== 'site' && dist(pos, o.pos) < o.r + r + O.gap);
 }
 
@@ -114,16 +101,16 @@ export function isBreakable(o: Obstacle): boolean {
   return o.kind === 'landmark' && BREAKABLE.kinds.includes(o.look);
 }
 
-export function onDeck(pos: Vec, r: number): boolean {
-  return DECKS.some((deck) => segmentDist(pos, deck.from, deck.to) < deck.width / 2 + r);
+export function onDeck(atlas: Atlas, pos: Vec, r: number): boolean {
+  return atlas.decks.decks.some((deck) => segmentDist(pos, deck.from, deck.to) < deck.width / 2 + r);
 }
 
-function clearOfDecks(pos: Vec, r: number): boolean {
-  return !onDeck(pos, r) && TERRAIN.features.mounds.every((m) => dist(pos, m.center) >= m.radius + m.bank + r);
+export function clearOfDecks(atlas: Atlas, pos: Vec, r: number): boolean {
+  return !onDeck(atlas, pos, r) && (!atlas.landforms || TERRAIN.features.mounds.every((m) => dist(pos, m.center) >= m.radius + m.bank + r));
 }
 
-export function clearOfSites(pos: Vec, r: number): boolean {
-  return [...REGION.towns, ...REGION.locations].every((s) => siteGap(s, pos) > O.siteClearance + r);
+export function clearOfSites(atlas: Atlas, pos: Vec, r: number): boolean {
+  return atlasSites(atlas).every((s) => siteGap(s, pos) > O.siteClearance + r);
 }
 
 export type PropScale = { x: number; y: number; z: number };
@@ -132,12 +119,13 @@ export type PropPose =
   | { model: 'hulk'; chassisId: string; pos: Vec; yaw: number; scale: PropScale };
 export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 
+type FortLook = Extract<PropKind, `fort${string}`>;
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
-type PropModel = 'rock' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'tank_trap';
+type PropModel = 'rock' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | FortModel;
 
 const M = PHYSICS.metersPerTile;
 const TURN = Math.PI * 2;
-const LANDMARK_MODELS: Record<LandmarkLook, PropModel> = {
+const LANDMARK_MODELS: Record<Exclude<LandmarkLook, FortLook>, PropModel> = {
   crag: 'crag',
   ruin: 'ruin_house',
   house: 'building',
@@ -153,7 +141,7 @@ const LANDMARK_MODELS: Record<LandmarkLook, PropModel> = {
   junk: 'junk',
   carWreck: 'wreck',
   hullChunk: 'hull_chunk',
-  shipCache: 'crates',
+  shipCache: 'cargo_pod',
   reactor: 'reactor',
   deadTree: 'dead_tree',
   armyCache: 'crates',
@@ -169,7 +157,8 @@ const LANDMARK_MODELS: Record<LandmarkLook, PropModel> = {
   drums: 'drums',
   woodpile: 'woodpile',
   shipWing: 'ship_wing',
-  hullCache: 'crates',
+  hullCache: 'hull_bay',
+  engineCache: 'engine_section',
   shipBow: 'ship_bow',
   shipCage: 'ship_cage',
   shipHub: 'ship_hub',
@@ -179,6 +168,19 @@ const LANDMARK_MODELS: Record<LandmarkLook, PropModel> = {
   hullTower: 'hull_tower',
   hullGantry: 'hull_gantry',
   rimRock: 'rim_rock',
+  noseRise: 'nose_rise',
+  noseCrag: 'nose_crag',
+  engineNozzle: 'engine_nozzle',
+  engineFrame: 'engine_frame',
+  watchtower: 'watchtower',
+  ruinCompound: 'ruin_compound',
+  deadTruck: 'wreck',
+  glassSpire: 'glass_spire',
+  scrapWall: 'scrap_wall',
+  escapePod: 'escape_pod',
+  habitat: 'habitat_cylinder',
+  wingShard: 'wing_shard',
+  powerCell: 'power_cell',
 };
 const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   crag: 1,
@@ -213,7 +215,20 @@ const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   hull_tower: 6,
   hull_gantry: 22,
   rim_rock: 8,
+  escape_pod: 2.4,
+  hull_bay: 2.8,
+  cargo_pod: 2.8,
+  engine_section: 2.8,
+  habitat_cylinder: 8,
+  wing_shard: 7,
+  power_cell: 1.6,
   tank_trap: 1,
+  engine_nozzle: 13,
+  engine_frame: 15,
+  watchtower: 2.4,
+  ruin_compound: 9.8,
+  glass_spire: 5,
+  scrap_wall: 3.8,
 };
 const WRECK_RADIUS = 0.7;
 const BUILDING_FILL = 0.78;
@@ -239,9 +254,16 @@ export function propShape(model: string): readonly ShapeBox[] {
   return boxes;
 }
 
+function landmarkModel(look: LandmarkLook): PropModel {
+  const model = FORT_MODELS.get(look)?.model ?? LANDMARK_MODELS[look as Exclude<LandmarkLook, FortLook>];
+  if (model === undefined) throw new Error(`Landmark look ${look} has no model`);
+  return model;
+}
+
 function landmarkPose(o: Landmark): PropPose {
-  const model = LANDMARK_MODELS[o.look];
+  const model = landmarkModel(o.look);
   const pos = { ...o.pos };
+  if (FORT_MODELS.get(o.look)?.piece === 'wall') return { model, pos, yaw: o.yaw, scale: { x: o.r / FORTRESS.wallLength * 2, y: 1, z: 1 } };
   const yaw = o.look === 'pole' ? o.yaw + Math.PI / 2 : o.yaw;
   if (model === 'building') return { model, pos, yaw, scale: buildingScale(o) };
   const radius = MODEL_RADIUS[model];
@@ -315,6 +337,13 @@ export function propReach(o: Obstacle): number {
 
 export function obstacleReach(o: Obstacle): number {
   return o.kind === 'site' || o.kind === 'water' ? o.r : propReach(o);
+}
+
+export function touchesObstacle(o: Obstacle, t: Terrain, pos: Vec, r: number, margin: number = 0): boolean {
+  const reach = obstacleReach(o);
+  if (dist(o.pos, pos) >= reach + r + margin) return false;
+  if (o.kind === 'site' || o.kind === 'water') return true;
+  return blockingBoxes(o, t).some((b) => boxDistance(b, pos) < r + margin);
 }
 
 export function propKey(o: Obstacle): string {

@@ -1,13 +1,10 @@
-// Shops: goods price pressure, finite random part stock and contract boards. Pure functions on an
-// explicit ShopState.
-// IV1: every price here derives from a good's base value through goodBasePrice/goodPrice.
 
 import { ECONOMY, GOODS } from '../data/goods';
-import { PARTS } from '../data/parts';
+import { PARTS, type PartKind } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
-import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type ShopDef, type Tier } from '../data/market';
+import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Tier } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
 import { sampleWeighted } from './npc-loadout';
@@ -36,17 +33,40 @@ export function goodValue(good: string): number {
   return def.value;
 }
 
-function rollStock(world: World, def: ShopDef, count: number): PartInstance[] {
+export function rollPartStock(world: World, rng: Rng, table: PartStockTable, count: number, seller: string): PartInstance[] {
   const stock: PartInstance[] = [];
   for (let i = 0; i < count; i++) {
-    const defId = sampleWeighted(world.marketRng, def.partStock.parts);
-    const wear = sampleWeighted(world.marketRng, def.partStock.wear);
+    const defId = sampleWeighted(rng, table.parts);
+    const wear = sampleWeighted(rng, table.wear);
     if (!Number.isInteger(wear) || wear < 0 || wear > CONDITION.maxWear) {
-      throw new Error(`Shop ${def.id} rolled a bad wear step ${wear} for ${defId}`);
+      throw new Error(`${seller} rolled a bad wear step ${wear} for ${defId}`);
     }
     stock.push(makePart(world, defId, wear));
   }
   return stock;
+}
+
+export function rollPartStockPerKind(world: World, rng: Rng, table: PartStockTable, perKind: Partial<Record<PartKind, number>>, seller: string): PartInstance[] {
+  const kinds = [...new Set(table.parts.map((p) => PARTS[p.value].kind))];
+  return kinds.flatMap((kind) => rollDistinctStock(world, rng, { ...table, parts: table.parts.filter((p) => PARTS[p.value].kind === kind) }, countOfKind(perKind, kind, seller), seller));
+}
+
+function rollDistinctStock(world: World, rng: Rng, table: PartStockTable, count: number, seller: string): PartInstance[] {
+  if (count > table.parts.length) throw new Error(`${seller} asks for ${count} different parts of a kind that has only ${table.parts.length}`);
+  const left = [...table.parts];
+  const stock: PartInstance[] = [];
+  while (stock.length < count) {
+    const defId = sampleWeighted(rng, left);
+    left.splice(left.findIndex((p) => p.value === defId), 1);
+    stock.push(...rollPartStock(world, rng, { ...table, parts: [{ value: defId, weight: 1 }] }, 1, seller));
+  }
+  return stock;
+}
+
+function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind, seller: string): number {
+  const count = perKind[kind];
+  if (count === undefined) throw new Error(`${seller} has no stock count for ${kind} parts`);
+  return count;
 }
 
 export function initShop(world: World, shopId: string): ShopState {
@@ -54,7 +74,7 @@ export function initShop(world: World, shopId: string): ShopState {
   const pressure: Record<string, number> = {};
   for (const good of def.goods) pressure[good] = 0;
   const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-  return { contracts: [], pressure, stock: rollStock(world, def, count), restockAt: world.turn + def.restockTurns };
+  return { contracts: [], pressure, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns };
 }
 
 export function advanceShop(world: World, shopId: string, state: ShopState): void {
@@ -62,7 +82,7 @@ export function advanceShop(world: World, shopId: string, state: ShopState): voi
   for (const good of def.goods) state.pressure[good] = (state.pressure[good] ?? 0) * (1 - def.driftPerTurn);
   if (world.turn >= state.restockAt) {
     const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-    state.stock = rollStock(world, def, count);
+    state.stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
     state.restockAt = world.turn + def.restockTurns;
   }
 }
@@ -136,20 +156,28 @@ export function addStockPart(state: ShopState, part: PartInstance): void {
 export type Contract =
   | { id: string; shop: string; kind: 'haul'; good: string; units: number; to: string; reward: number; deadline: number; window: number; rush: boolean; tier: Tier }
   | { id: string; shop: string; kind: 'fetch'; defId: string; reward: number; deadline: number; window: number; tier: Tier }
-  | { id: string; shop: string; kind: 'bounty'; template: string; targetName: string; reward: number; deadline: number; window: number; tier: Tier };
+  | { id: string; shop: string; kind: 'bounty'; template: string; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean };
 
 export function estimateTurns(from: Vec, to: Vec): number {
   return (dist(from, to) * EFFORT.routeFactor) / EFFORT.refSpeed + EFFORT.handlingTurns;
 }
 
-export function contractReward(turns: number, tier: Tier, cargoValue: number, rush: boolean): number {
+export function contractReward(turns: number, cargoValue: number, rush: boolean): number {
+  requireNonNegative('turns', turns);
+  requireNonNegative('cargo value', cargoValue);
   const commission = cargoValue * CONTRACTS.haul.valueShare;
-  const standard = turns * EFFORT.wage[tier] * CONTRACTS.haul.rewardFactor + commission;
+  const standard = turns * EFFORT.wage[1] * CONTRACTS.haul.rewardFactor + commission;
   return Math.round(rush ? standard * CONTRACTS.haul.rush.premium : standard);
 }
 
 export function haulWindow(turns: number, rush: boolean): number {
-  return Math.round(turns * (rush ? CONTRACTS.haul.rush.durationFactor : CONTRACTS.haul.durationFactor));
+  requireNonNegative('turns', turns);
+  const haul = CONTRACTS.haul;
+  return Math.round(rush ? turns * haul.rush.durationFactor : turns * haul.durationFactor + haul.slackTurns);
+}
+
+function requireNonNegative(what: string, n: number): void {
+  if (!Number.isFinite(n) || n < 0) throw new Error(`A haul needs a finite ${what} of at least 0, got ${n}`);
 }
 
 export function vehicleValue(v: Vehicle): number {
@@ -208,7 +236,7 @@ function rollHaul(world: World, input: RollInput, id: string): Contract {
   const units = randInt(world.marketRng, CONTRACTS.haul.units[0], CONTRACTS.haul.units[1]);
   const turns = estimateTurns(input.shop.pos, to.pos);
   const rush = chance(world.marketRng, CONTRACTS.haul.rush.chance);
-  const reward = contractReward(turns, tier, units * goodValue(good), rush);
+  const reward = contractReward(turns, units * goodValue(good), rush);
   const window = haulWindow(turns, rush);
   return { id, shop: input.shop.id, kind: 'haul', good, units, to: to.id, reward, deadline: world.turn + window, window, rush, tier };
 }
@@ -227,7 +255,7 @@ function rollBounty(world: World, input: RollInput, id: string): Contract {
   const tier = highestPartTier(target);
   const turns = randInt(world.marketRng, CONTRACTS.bounty.durationTurns[0], CONTRACTS.bounty.durationTurns[1]);
   const reward = bountyReward(target.brain.templateId);
-  return { id, shop: input.shop.id, kind: 'bounty', template: target.brain.templateId, targetName: target.name, reward, deadline: world.turn + turns, window: turns, tier };
+  return { id, shop: input.shop.id, kind: 'bounty', template: target.brain.templateId, reward, deadline: world.turn + turns, window: turns, tier, fulfilled: false };
 }
 
 const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty };
@@ -277,11 +305,16 @@ function beatenTruck(world: World, id: string): Vehicle {
   return v;
 }
 
+export function fulfilBounty(world: World, template: string): void {
+  const c = world.player.contracts.find((x): x is Extract<Contract, { kind: 'bounty' }> => x.kind === 'bounty' && x.template === template && !x.fulfilled);
+  if (!c) return;
+  c.fulfilled = true;
+  world.events.push({ t: 'contract', contract: { ...c }, outcome: 'fulfilled' });
+}
+
 export function creditBounty(world: World, npc: Vehicle): void {
   if (!npc.brain) throw new Error(`${npc.id} has no driver to name in a bounty`);
-  const template = npc.brain.templateId;
-  const c = world.player.contracts.find((x) => x.kind === 'bounty' && x.template === template);
-  if (c) finishContract(world, c, 'done');
+  fulfilBounty(world, npc.brain.templateId);
 }
 
 export function bountyLapsed(world: World, c: Contract): boolean {
@@ -358,7 +391,7 @@ export function shopAt(world: World): string | null {
 
 export function shopNear(world: World): string | null {
   const pos = playerVehicle(world).pos;
-  return Object.keys(SHOPS).find((id) => canUseSite(pos, siteOf(id))) ?? null;
+  return Object.keys(world.shops).find((id) => canUseSite(pos, siteOf(id))) ?? null;
 }
 
 export function siteOf(siteId: string): Site {
@@ -378,20 +411,26 @@ function requireParkedAt(world: World, shopId: string): void {
 }
 
 export function acceptContract(world: World, contractId: string): World {
-  return playerCommand(world, (w) => {
-    const shopId = shopAt(w);
-    if (!shopId) throw new Error('Not parked at a shop');
-    const board = shopState(w, shopId).contracts;
-    const contract = board.find((c) => c.id === contractId);
-    if (!contract) throw new Error(`No contract ${contractId} at ${shopId}`);
-    if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
-    if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
-    if (contract.kind === 'haul') loadHaul(w, contract);
-    contract.deadline = w.turn + contract.window;
-    board.splice(board.indexOf(contract), 1);
-    w.player.contracts.push(contract);
-    w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
-  });
+  return playerCommand(world, (w) => takeContract(w, contractId));
+}
+
+export function takeContract(w: World, contractId: string): void {
+  const shopId = shopAt(w);
+  if (!shopId) throw new Error('Not parked at a shop');
+  const board = shopState(w, shopId).contracts;
+  const contract = board.find((c) => c.id === contractId);
+  if (!contract) throw new Error(`No contract ${contractId} at ${shopId}`);
+  if (isExpired(w, contract)) throw new Error(`Offer ${contractId} has expired`);
+  if (w.player.contracts.length >= CONTRACTS.maxActive) throw new Error(`You already hold ${CONTRACTS.maxActive} contracts`);
+  if (contract.kind === 'haul') loadHaul(w, contract);
+  contract.deadline = w.turn + contract.window;
+  board.splice(board.indexOf(contract), 1);
+  w.player.contracts.push(contract);
+  w.events.push({ t: 'contract', contract: { ...contract }, outcome: 'accepted' });
+}
+
+export function haulBlocked(world: World, c: Contract): boolean {
+  return c.kind === 'haul' && (world.player.money < 0 || freeCells(playerVehicle(world)) < c.units);
 }
 
 function loadHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
@@ -408,17 +447,22 @@ export function deliverContract(world: World, contractId: string): World {
   return playerCommand(world, (w) => {
     const contract = w.player.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error(`No active contract ${contractId}`);
-    if (contract.kind === 'bounty') throw new Error('A bounty pays when you knock out or wreck the target');
     if (contract.kind === 'haul') handInHaul(w, contract);
-    else handInFetch(w, contract);
+    else if (contract.kind === 'fetch') handInFetch(w, contract);
+    else handInBounty(w, contract);
     finishContract(w, contract, 'done');
   });
+}
+
+function handInBounty(world: World, c: Extract<Contract, { kind: 'bounty' }>): void {
+  requireParkedAt(world, c.shop);
+  if (!c.fulfilled) throw new Error('The bounty is not met yet');
 }
 
 function handInHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
   requireParkedAt(world, c.to);
   const v = playerVehicle(world);
-  if ((goodsCount(v)[c.good] ?? 0) < c.units) throw new Error(`Needs ${c.units} ${GOODS[c.good].name}`);
+  if ((goodsCount(v)[c.good] ?? 0) < c.units) throw new Error(`Needs ${c.units} ${c.good}`);
   removeGoods(v, c.good, c.units);
 }
 
@@ -435,7 +479,7 @@ function handInFetch(world: World, c: Extract<Contract, { kind: 'fetch' }>): voi
     return;
   }
   const stored = world.player.storage.findIndex((p) => fitsFetch(c, p));
-  if (stored < 0) throw new Error(`Needs a spare ${PARTS[c.defId].name}, working and rebuilt at most ${CONTRACTS.fetch.maxWear} time${CONTRACTS.fetch.maxWear === 1 ? '' : 's'}`);
+  if (stored < 0) throw new Error(`Needs a spare ${c.defId}, working and rebuilt at most ${CONTRACTS.fetch.maxWear} time${CONTRACTS.fetch.maxWear === 1 ? '' : 's'}`);
   world.player.storage.splice(stored, 1);
 }
 
@@ -445,39 +489,41 @@ export function contractXp(c: Contract): number {
 }
 
 function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed'): void {
+  if (outcome !== 'done' && isMetBounty(c)) throw new Error(`A fulfilled bounty cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
   world.events.push({ t: 'contract', contract: { ...c }, outcome });
-  if (outcome === 'done') {
-    world.player.money += c.reward;
-    world.events.push({ t: 'money', amount: c.reward, reason: 'contract' });
-    practice(world, 'contract', contractXp(c), null, c.shop);
-  }
-  if (outcome === 'failed' && c.kind === 'haul') {
-    const penalty = haulPenalty(c, goodValue(c.good));
-    world.player.money -= penalty;
-    world.events.push({ t: 'money', amount: -penalty, reason: 'failed haul contract' });
-  }
+  if (outcome === 'done') payContract(world, c);
+  if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);
+}
+
+function payContract(world: World, c: Contract): void {
+  world.player.money += c.reward;
+  world.events.push({ t: 'money', amount: c.reward, reason: { kind: 'contract' } });
+  practice(world, 'contract', contractXp(c), null, c.shop);
+}
+
+function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
+  const penalty = haulPenalty(c, goodValue(c.good));
+  world.player.money -= penalty;
+  world.events.push({ t: 'money', amount: -penalty, reason: { kind: 'failedHaul' } });
+}
+
+function isMetBounty(c: Contract): boolean {
+  return c.kind === 'bounty' && c.fulfilled;
 }
 
 export function advanceContracts(world: World): void {
-  const defeats = playerDefeats(world);
-  for (const c of [...world.player.contracts]) {
-    const outcome = contractOutcome(world, c, defeats);
-    if (outcome) finishContract(world, c, outcome);
-    else if (c.deadline - world.turn === CONTRACTS.warnTurns) world.events.push({ t: 'contract', contract: { ...c }, outcome: 'expiring' });
-  }
+  for (const [template, count] of playerDefeats(world)) for (let i = 0; i < count; i++) fulfilBounty(world, template);
+  for (const c of world.player.contracts.filter((x) => !isMetBounty(x))) settleContract(world, c);
 }
 
-function bountyOutcome(world: World, c: Extract<Contract, { kind: 'bounty' }>, defeats: Map<string, number>): 'done' | 'lapsed' | null {
-  const left = defeats.get(c.template) ?? 0;
-  if (left > 0) {
-    defeats.set(c.template, left - 1);
-    return 'done';
-  }
-  return bountyLapsed(world, c) ? 'lapsed' : null;
+function settleContract(world: World, c: Contract): void {
+  const outcome = contractOutcome(world, c);
+  if (outcome) finishContract(world, c, outcome);
+  else if (c.deadline - world.turn === CONTRACTS.warnTurns) world.events.push({ t: 'contract', contract: { ...c }, outcome: 'expiring' });
 }
 
-function contractOutcome(world: World, c: Contract, defeats: Map<string, number>): 'done' | 'failed' | 'lapsed' | null {
-  if (c.kind === 'bounty') return bountyOutcome(world, c, defeats) ?? (isExpired(world, c) ? 'failed' : null);
+function contractOutcome(world: World, c: Contract): 'failed' | 'lapsed' | null {
+  if (c.kind === 'bounty' && bountyLapsed(world, c)) return 'lapsed';
   return isExpired(world, c) ? 'failed' : null;
 }

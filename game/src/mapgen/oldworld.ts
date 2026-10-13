@@ -1,6 +1,3 @@
-// Old-world layer: what stood on the map before, placed by rules from terrain, flow and today's sites and
-// roads. It reads the draft after geology. It appends props and marks old-road and field tiles in d.built.
-// Numbers live in OLD_WORLD in src/data/terrain.ts. Every rule draws from the map seed and its own seed offset.
 
 import { REGION } from '../data/region';
 import {
@@ -12,13 +9,16 @@ import {
   type FieldRules,
   type HighwayRules,
   type OldRoadRules,
+  type DebrisLook,
   type OverlookRules,
   type PowerLineRules,
   type SettlementRules,
+  type ShipDebrisRules,
   type TankRules,
 } from '../data/terrain';
-import { deckAt } from '../sim/bridge';
+import { deckAt, ICARUS_DECKS } from '../sim/bridge';
 import { clearOfSites, onDeck } from '../sim/mapgen';
+import { icarusAtlas } from '../sim/atlas';
 import { ROAD_INDEX } from '../sim/road-index';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
 import type { BakedProp, PropKind } from '../sim/terrain';
@@ -44,6 +44,7 @@ export function oldWorldLayer(seed: number, d: MapDraft): MapDraft {
   billboards(seed, d, W.billboards);
   tankHulks(seed, d, roads, W.tanks);
   fields(seed, d, towns, W.fields);
+  shipDebris(seed, d, W.shipDebris);
   return d;
 }
 
@@ -105,7 +106,7 @@ export function clearGround(size: number, pos: Vec, r: number, roadGap: number):
   if (Math.min(pos.x, pos.y, size - pos.x, size - pos.y) < O.edgeMargin + r) return false;
   const reach = HALF + roadGap + r;
   if (ROAD_INDEX.nearestWithin(pos.x, pos.y, reach) < reach) return false;
-  return clearOfSites(pos, r) && !onDeck(pos, HALF + r);
+  return clearOfSites(icarusAtlas(), pos, r) && !onDeck(icarusAtlas(), pos, HALF + r);
 }
 
 export function place(d: MapDraft, p: BakedProp, roadGap: number): boolean {
@@ -117,8 +118,8 @@ export function place(d: MapDraft, p: BakedProp, roadGap: number): boolean {
 }
 
 export function builtGround(c: Vec): boolean {
-  if (deckAt(c.x, c.y) !== null) return true;
-  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || !clearOfSites(c, 0);
+  if (deckAt(ICARUS_DECKS, c.x, c.y) !== null) return true;
+  return ROAD_INDEX.nearestWithin(c.x, c.y, HALF) < HALF || !clearOfSites(icarusAtlas(), c, 0);
 }
 
 export function isCutTile(d: MapDraft, tile: number): boolean {
@@ -696,6 +697,56 @@ function placeHulk(d: MapDraft, rng: Rng, rules: TankRules, road: OldRoad, s: nu
     const pos = offset(road.line.pointAt(at), out, road.width / 2 + rules.gap + rules.radius + randRange(rng, 0, rules.spread));
     if (place(d, prop('tank', pos, rules.radius, randRange(rng, 0, TURN)), rules.gap)) return;
   }
+}
+
+export function shipDebris(seed: number, d: MapDraft, rules: ShipDebrisRules): void {
+  const rng = ruleRng(seed, rules.seedOffset);
+  const line = new RoadLine(rules.trail);
+  for (const s of stations(line.length, rules.clusterStep)) impactCluster(d, rng, rules, line, s);
+  for (let k = 0; k < rules.strays.count; k++) {
+    const look = pickLook(rng, rules.strays.looks);
+    const pick = (): Vec => ({ x: randRange(rng, 0, d.size), y: randRange(rng, 0, d.size) });
+    placeDebris(d, rng, look, pick, null, rules);
+  }
+}
+
+function impactCluster(d: MapDraft, rng: Rng, rules: ShipDebrisRules, line: RoadLine, s: number): void {
+  const along = clamp(s + randRange(rng, -rules.clusterStep / 3, rules.clusterStep / 3), 0, line.length);
+  const dir = line.dirAt(along);
+  const center = offset(line.pointAt(along), sideOf(dir, 1), randRange(rng, -rules.sideSpread, rules.sideSpread));
+  const heading = facing(dir);
+  const count = randInt(rng, rules.pieces[0], rules.pieces[1]);
+  let looks = rules.trailLooks;
+  for (let k = 0; k < count; k++) {
+    const look = pickLook(rng, looks);
+    if (look.look === 'habitat') looks = looks.filter((l) => l.look !== 'habitat');
+    const pick = (): Vec => offset(center, { x: Math.cos(randRange(rng, 0, TURN)), y: Math.sin(randRange(rng, 0, TURN)) }, randRange(rng, 0, rules.clusterReach));
+    placeDebris(d, rng, look, pick, heading, rules);
+  }
+}
+
+function placeDebris(d: MapDraft, rng: Rng, look: DebrisLook, pick: () => Vec, heading: number | null, rules: ShipDebrisRules): void {
+  for (let t = 0; t < rules.placeTries; t++) {
+    const pos = pick();
+    const r = range(rng, look.radius);
+    const yaw = look.aligned && heading !== null ? heading + randRange(rng, -rules.yawJitter, rules.yawJitter) : randRange(rng, 0, TURN);
+    if (offOldRoad(d, pos, r) && place(d, prop(look.look, pos, r, yaw), 0)) return;
+  }
+}
+
+export function pickLook(rng: Rng, looks: readonly DebrisLook[]): DebrisLook {
+  const total = looks.reduce((sum, l) => sum + l.weight, 0);
+  if (looks.length === 0 || total <= 0) throw new Error('A debris look table needs at least one look with weight');
+  let at = randRange(rng, 0, total);
+  for (const l of looks) {
+    at -= l.weight;
+    if (at < 0) return l;
+  }
+  return looks[looks.length - 1];
+}
+
+function offOldRoad(d: MapDraft, pos: Vec, r: number): boolean {
+  return tilesWithin(d.size, pos, r + Math.SQRT1_2).every((tile) => d.built[tile] !== BUILT_OLD_ROAD);
 }
 
 type Rect = { center: Vec; angle: number; w: number; h: number };

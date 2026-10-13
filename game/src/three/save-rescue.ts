@@ -1,13 +1,12 @@
-// Rescue of a save that cannot load: reads what the player cannot get back from its raw JSON and carries it to
-// a new world on the current map. It checks JSON shapes only. What the ids mean is known by carriedWorld().
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
 import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarryReport } from '../sim/world';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
-import { pooledSkills_9_10 } from './save-migrations';
-import { storedSave, tryWriteSave } from './save';
+import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
+import { newMapFor, savedRunId, storedSave, writeSave } from './save';
+import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
 
@@ -47,8 +46,8 @@ function isGridInt(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value);
 }
 
-function spotOf(item: Json): { x: number; y: number; rot: 0 | 1 } | null {
-  return isGridInt(item.x) && isGridInt(item.y) ? { x: item.x, y: item.y, rot: item.rot === 1 ? 1 : 0 } : null;
+function spotOf(item: Json): { x: number; y: number; rot: 0 | 1 | 2 | 3 } | null {
+  return isGridInt(item.x) && isGridInt(item.y) ? { x: item.x, y: item.y, rot: item.rot === 1 || item.rot === 2 || item.rot === 3 ? item.rot : 0 } : null;
 }
 
 function itemOf(value: unknown): CarriedItem | null {
@@ -73,21 +72,22 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
   const chassisId = idOf(vehicle?.chassisId);
   if (!vehicle || chassisId === null) return null;
   const items = listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
-  return { chassisId, name: idOf(vehicle.name), items };
+  return { chassisId, items };
 }
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [],
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} },
 };
 
 export function readCarried(raw: unknown): Carried {
   const world = objectOf(objectOf(raw)?.world);
   const player = objectOf(world?.player);
   if (!world || !player) return NO_CARRIED;
+  const scale = moneyScale_29_30(raw);
   return {
     seed: isGridInt(world.seed) ? world.seed : null,
-    money: countOf(player.money),
+    money: centsOf(player.money, scale),
     ...pooledOf(player),
     xpBySource: countsOf(player.xpBySource),
     perks: listOf(player.perks).flatMap((id) => idOf(id) ?? []),
@@ -97,10 +97,29 @@ export function readCarried(raw: unknown): Carried {
     autoRepair: flagOf(player.autoRepair),
     fuel: countOf(player.fuel),
     supplies: countOf(player.supplies),
-    costBasis: countsOf(player.costBasis),
+    costBasis: Object.fromEntries(Object.entries(countsOf(player.costBasis)).map(([good, basis]) => [good, basis * scale])),
     truck: truckOf(world, player),
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
+    setup: world.setup,
+    quests: questVarsOf(player.quests),
   };
+}
+
+function questVarsOf(value: unknown): Carried['quests'] {
+  const quests = objectOf(value);
+  const local = Object.entries(objectOf(quests?.local) ?? {}).flatMap(([id, vars]) => (objectOf(vars) ? [[id, objectOf(vars) as Json] as const] : []));
+  return { world: objectOf(quests?.world) ?? {}, local: Object.fromEntries(local) };
+}
+
+function moneyScale_29_30(raw: unknown): number {
+  const format = objectOf(objectOf(raw)?.format);
+  const part = (key: 'major' | 'minor'): number => (typeof format?.[key] === 'number' ? format[key] : 0);
+  return part('major') * 1000 + part('minor') < 2030 ? CENTS_PER_MONEY_29_30 : 1;
+}
+
+function centsOf(value: unknown, scale: number): number | null {
+  const money = countOf(value);
+  return money === null ? null : Math.round(money * scale);
 }
 
 function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
@@ -108,10 +127,11 @@ function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
   return pooledSkills_9_10(countsOf(player.skills));
 }
 
-export function rescueSave(storage: Storage, slot: SlotId, map: BakedMap, kit: StartKit, freshSeed: () => number, savedAt: number): { world: World; report: CarryReport } | null {
-  const parsed = storedSave(storage, slot);
+export function rescueSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string, savedAt: number): { world: World; report: CarryReport; runId: string } | null {
+  const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
-  const rescued = carriedWorld(readCarried(parsed), kit, map, freshSeed);
-  tryWriteSave(storage, slot, rescued.world, savedAt);
-  return rescued;
+  const rescued = carriedWorld(readCarried(parsed), kit, (setup, seed) => newMapFor(setup, seed, icarus), freshSeed);
+  const runId = savedRunId(parsed) ?? freshRunId();
+  writeSave(slots, slot, rescued.world, runId, savedAt);
+  return { ...rescued, runId };
 }

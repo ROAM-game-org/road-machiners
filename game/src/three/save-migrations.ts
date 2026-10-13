@@ -1,7 +1,7 @@
-// The save format and the steps that carry an old save to it. A save loads only in its own major format. Within
-// it, load runs every step from the save's minor format on, so the minor format is the number of steps.
 
 import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
+import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
+import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
 export type SavedJson = Record<string, unknown>;
 
@@ -292,6 +292,69 @@ function withFleePerceived_20_21(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(truck), removed: (world.removed as SavedJson[]).map(truck) };
 }
 
+function withLieUpSpot_41_42(world: SavedJson): SavedJson {
+  const truck = (v: SavedJson): SavedJson => {
+    if (!v.brain) return v;
+    const pos = v.pos as SavedJson;
+    const goal = (g: SavedJson): SavedJson => (g.kind === 'rearm' ? { ...g, destination: { x: pos.x, y: pos.y } } : g);
+    return { ...v, brain: { ...(v.brain as SavedJson), goals: ((v.brain as SavedJson).goals as SavedJson[]).map(goal) } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(truck) };
+}
+
+const FOOTPRINTS_2_34: Record<string, readonly [number, number]> = {
+  shotgun: [1, 2], longRifle: [1, 2], flamer: [1, 2], pneumobolter: [2, 2], slugCannon: [1, 2], heavyMg: [1, 2], cannon: [2, 2], amRifle: [1, 3], autocannon: [2, 2],
+  recoilless: [1, 3], battleRifle: [1, 3], gatling: [2, 2], rocketRack: [2, 2], sniperCannon: [2, 3], grenadeLauncher: [2, 2], tankGun: [2, 3], flechette: [2, 2], harpoon: [1, 2],
+  patcherCrane: [1, 2], smokeMortar: [1, 2], scrapersKnife: [1, 2], emitter: [2, 2], stockEngine: [2, 2], tunedEngine: [2, 2], flatFour: [2, 2], workhorseDiesel: [2, 2],
+  racingV6: [2, 2], heavyDiesel: [2, 2], turbine: [2, 2], plates: [1, 3], cage: [1, 2], ram: [3, 1], scrapPanels: [1, 2], ceramicPlates: [1, 2], spacedArmor: [1, 4],
+  reinforcedCage: [1, 3], plowRam: [3, 1], claymoreRam: [3, 1], rack: [2, 1], trailerBox: [2, 2], flatbed: [2, 1], lightFrame: [2, 2], enclosedFrame: [2, 2], heavyFrame: [2, 2],
+  cab: [1, 2], cabPickup: [3, 2], cabHardtop: [3, 2], transmission: [2, 2], transmissionMid: [2, 2], transmissionHeavy: [2, 2], wheel: [1, 2], wheelMid: [1, 2],
+  wheelHeavy: [1, 2], tank: [1, 2], tankLong: [1, 2], tankMid: [1, 2], tankHeavy: [1, 2],
+};
+
+function footprintCells_42_43(item: SavedJson, defId: string | null): string[] {
+  const [w, h] = defId === 'mg' ? [1, 2] : (defId && FOOTPRINTS_2_34[defId]) || [1, 1];
+  const odd = (item.rot as number) % 2 === 1;
+  const [cw, ch] = odd ? [h, w] : [w, h];
+  const cells: string[] = [];
+  for (let dy = 0; dy < ch; dy++) for (let dx = 0; dx < cw; dx++) cells.push(`${(item.x as number) + dx},${(item.y as number) + dy}`);
+  return cells;
+}
+
+function withWideMg_42_43(world: SavedJson): SavedJson {
+  const player = world.player as Player;
+  const storage = [...player.storage];
+  const widen = (v: SavedJson): SavedJson => {
+    const layout = LAYOUTS_2_34[v.chassisId as string];
+    const defOf = (item: SavedJson) => ((item.part as SavedJson | undefined)?.defId as string | undefined) ?? null;
+    const items = v.items as SavedJson[];
+    const taken = new Set(items.filter((item) => defOf(item) !== 'mg').flatMap((item) => footprintCells_42_43(item, defOf(item))));
+    const letterAt = (cell: string) => {
+      const [x, y] = cell.split(',').map(Number);
+      return layout[y]?.[x];
+    };
+    const kept: SavedJson[] = [];
+    for (const item of items) {
+      if (defOf(item) !== 'mg') {
+        kept.push(item);
+        continue;
+      }
+      const first = letterAt(`${item.x},${item.y}`);
+      const sits = (rot: number) => footprintCells_42_43({ ...item, rot }, 'mg').every((c) => !taken.has(c) && letterAt(c) === first);
+      const fit = [item.rot as number, 1 - (item.rot as number)].find(sits);
+      if (fit === undefined) {
+        if (v.id === player.vehicleId) storage.push(item.part as SavedJson);
+        continue;
+      }
+      footprintCells_42_43({ ...item, rot: fit }, 'mg').forEach((c) => taken.add(c));
+      kept.push({ ...item, rot: fit });
+    }
+    return { ...v, items: kept };
+  };
+  const vehicles = (world.vehicles as SavedJson[]).map(widen);
+  return { ...world, vehicles, player: { ...player, storage } };
+}
+
 function withFightWorn_21_22(world: SavedJson): SavedJson {
   const turn = world.turn as number;
   const goal = (g: SavedJson): SavedJson => (g.kind === 'fight' ? { ...g, worn: { turn, condition: 1 } } : g);
@@ -344,6 +407,359 @@ function withSeenSince_23_24(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, tracks } };
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(truck), removed: (world.removed as SavedJson[]).map(truck) };
+}
+
+const RETIRED_STOCK_27_28 = 'glass-flats';
+
+function withoutRetiredStock_27_28(world: SavedJson): SavedJson {
+  const idle = (v: SavedJson): SavedJson => ((v.job as SavedJson | null | undefined)?.stockId === RETIRED_STOCK_27_28 ? { ...v, job: null } : v);
+  const player = world.player as SavedJson;
+  return {
+    ...world,
+    salvage: (world.salvage as SavedJson[]).filter((stock) => stock.id !== RETIRED_STOCK_27_28),
+    player: { ...player, scavenged: (player.scavenged as string[]).filter((id) => id !== RETIRED_STOCK_27_28) },
+    vehicles: (world.vehicles as SavedJson[]).map(idle),
+  };
+}
+
+const FORTRESS_OBSTACLES_24_25 = new Set(
+  ['bowl', 'nose', 'dustwell', 'green-pit', 'pump-station', 'granary', 'salvage-yard', 'south-lock', 'scrapjaw', 'kiln'].map((id) => `site-${id}`),
+);
+
+function isGoneObstacle_24_25(o: SavedJson): boolean {
+  const id = o.id as string;
+  return FORTRESS_OBSTACLES_24_25.has(id) || id.startsWith('bld-bowl-') || id.startsWith('bld-nose-')
+    || id === 'pond-dustwell' || id === 'pond-green-pit' || id.startsWith('cw-salvage-yard-');
+}
+
+const SEARCH_SALT_25_26 = 0x73656172;
+const NO_HIDDEN_25_26 = (): SavedJson => ({ goods: {}, parts: [], fuel: 0, supplies: 0 });
+
+function withUtilities_25_26(world: SavedJson): SavedJson {
+  const ordered = (v: SavedJson): SavedJson => ({ ...v, utilityOrders: {} });
+  return {
+    ...world,
+    vehicles: (world.vehicles as SavedJson[]).map(ordered),
+    removed: (world.removed as SavedJson[]).map(ordered),
+    smoke: [],
+    fields: [],
+    flares: [],
+    lines: [],
+    searchRng: { rngState: (world.seed as number) ^ SEARCH_SALT_25_26 },
+  };
+}
+
+const LOOT_SITES_25_26 = new Set(['burnt-convoy', 'podfield', 'canyon-bridge', 'glass-flats', 'south-lock', 'ridge-wrecks', 'broken-wing']);
+const LOOT_SPOT_25_26 = /^(farmhouse|barn|quonset|bunker|guardPost|armyTruck|armyCache|deckBay|shipCache)-\d+$/;
+const ROAD_WRECK_25_26 = /^wreck\d+$/;
+
+function isRolledStock_25_26(stock: SavedJson): boolean {
+  const id = stock.id as string;
+  return !stock.pile && (LOOT_SITES_25_26.has(id) || LOOT_SPOT_25_26.test(id) || ROAD_WRECK_25_26.test(id));
+}
+
+function withHiddenStock_25_26(world: SavedJson): SavedJson {
+  const searched = new Set((world.player as SavedJson).scavenged as string[]);
+  const hide = (stock: SavedJson): SavedJson => {
+    if (searched.has(stock.id as string) || !isRolledStock_25_26(stock)) return { ...stock, hidden: NO_HIDDEN_25_26() };
+    const hidden = { goods: stock.goods, parts: stock.parts, fuel: stock.fuel ?? 0, supplies: stock.supplies ?? 0 };
+    return { ...stock, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
+  };
+  return { ...world, salvage: (world.salvage as SavedJson[]).map(hide) };
+}
+
+function withFreeze_25_26(world: SavedJson): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), frozen: false } };
+}
+
+function withFulfilledFlag_26_27(world: SavedJson): SavedJson {
+  const flagged = (c: SavedJson): SavedJson => (c.kind === 'bounty' ? { ...c, fulfilled: false } : c);
+  const player = world.player as SavedJson;
+  const shops = Object.fromEntries(
+    Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(flagged) }]),
+  );
+  return { ...world, player: { ...player, contracts: (player.contracts as SavedJson[]).map(flagged) }, shops };
+}
+
+export const CENTS_PER_MONEY_29_30 = 100 / 3;
+const MONEY_PRACTICE_29_30 = ['profit', 'freeTow', 'aid'];
+
+function scaled_29_30(value: unknown, what: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`Saved ${what} is ${String(value)}, not a number`);
+  return value * CENTS_PER_MONEY_29_30;
+}
+
+function cents_29_30(value: unknown, what: string): number {
+  return Math.round(scaled_29_30(value, what));
+}
+
+function scaledRecord_29_30(record: SavedJson, what: string): SavedJson {
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, scaled_29_30(v, `${what} ${k}`)]));
+}
+
+function contractCents_29_30(c: SavedJson): SavedJson {
+  return { ...c, reward: cents_29_30(c.reward, `contract ${String(c.id)} reward`) };
+}
+
+function callVarsCents_29_30(vars: SavedJson): SavedJson {
+  const centsVar = (v: SavedJson): SavedJson => {
+    if (v.kind === 'money') return { ...v, amount: cents_29_30(v.amount, 'call money') };
+    if (v.kind === 'deal') return { ...v, price: cents_29_30(v.price, 'call deal price') };
+    if (v.kind === 'prices') {
+      const goods = (v.goods as SavedJson[]).map((g) => ({ ...g, buy: cents_29_30(g.buy, 'call buy price'), sell: cents_29_30(g.sell, 'call sell price') }));
+      return { ...v, goods };
+    }
+    return v;
+  };
+  return Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, centsVar(v as SavedJson)]));
+}
+
+function callCents_29_30(call: SavedJson): SavedJson {
+  const line = call.line as SavedJson;
+  return { ...call, vars: callVarsCents_29_30(call.vars as SavedJson), line: { ...line, vars: callVarsCents_29_30(line.vars as SavedJson) } };
+}
+
+function stateCents_29_30(state: SavedJson): SavedJson {
+  const data = state.data as SavedJson;
+  const what = `${String(data.kind)} state ${String(state.id)}`;
+  if (data.kind === 'tow') return { ...state, data: { ...data, fee: cents_29_30(data.fee, `${what} fee`), waived: cents_29_30(data.waived, `${what} waived fee`) } };
+  if (data.kind === 'towPromise' || data.kind === 'escort') return { ...state, data: { ...data, fee: cents_29_30(data.fee, `${what} fee`) } };
+  if (data.kind === 'patch' || data.kind === 'aid') return { ...state, data: { ...data, price: cents_29_30(data.price, `${what} price`) } };
+  return state;
+}
+
+function feeCents_29_30(e: SavedJson): SavedJson {
+  return { ...e, fee: cents_29_30(e.fee, `${String(e.t)} fee`) };
+}
+
+const EVENT_CENTS_29_30: Record<string, (e: SavedJson) => SavedJson> = {
+  money: (e) => ({ ...e, amount: cents_29_30(e.amount, 'money event') }),
+  practice: (e) => (MONEY_PRACTICE_29_30.includes(e.source as string) ? { ...e, amount: scaled_29_30(e.amount, `${String(e.source)} practice`) } : e),
+  contract: (e) => ({ ...e, contract: contractCents_29_30(e.contract as SavedJson) }),
+  towOffer: feeCents_29_30,
+  towDone: feeCents_29_30,
+  escortPaid: feeCents_29_30,
+  escortHired: feeCents_29_30,
+  aid: (e) => ({ ...e, paid: cents_29_30(e.paid, 'aid paid') }),
+  stateEnded: (e) => ({ ...e, state: stateCents_29_30(e.state as SavedJson) }),
+  say: (e) => ({ ...e, vars: callVarsCents_29_30(e.vars as SavedJson) }),
+};
+
+function eventCents_29_30(e: SavedJson): SavedJson {
+  const convert = EVENT_CENTS_29_30[e.t as string];
+  return convert ? convert(e) : e;
+}
+
+function vehicleCents_29_30(v: SavedJson): SavedJson {
+  const resources = v.resources as SavedJson | null;
+  if (!resources) return v;
+  return { ...v, resources: { ...resources, money: cents_29_30(resources.money, `vehicle ${String(v.id)} money`) } };
+}
+
+function withCents_29_30(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  return {
+    ...world,
+    player: {
+      ...player,
+      money: cents_29_30(player.money, 'player money'),
+      costBasis: scaledRecord_29_30(player.costBasis as SavedJson, 'cost basis'),
+      contracts: (player.contracts as SavedJson[]).map(contractCents_29_30),
+      call: call ? callCents_29_30(call) : null,
+    },
+    shops: Object.fromEntries(
+      Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(contractCents_29_30) }]),
+    ),
+    vehicles: (world.vehicles as SavedJson[]).map(vehicleCents_29_30),
+    removed: (world.removed as SavedJson[]).map(vehicleCents_29_30),
+    salvage: (world.salvage as SavedJson[]).map((stock) => {
+      const pile = stock.pile as SavedJson | undefined;
+      return pile ? { ...stock, pile: { ...pile, basis: scaledRecord_29_30(pile.basis as SavedJson, `pile ${String(stock.id)} basis`) } } : stock;
+    }),
+    states: (world.states as SavedJson[]).map(stateCents_29_30),
+    events: (world.events as SavedJson[]).map(eventCents_29_30),
+  };
+}
+
+const RETIRED_SITES_36_37 = new Set(['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing']);
+const OUTPOST_GOODS_36_37: Record<string, string[]> = {
+  dustwell: ['water', 'scrap', 'tools', 'meds'],
+  'green-pit': ['water', 'grain', 'salt', 'textiles'],
+};
+
+function isRetired_36_37(id: unknown): boolean {
+  return typeof id === 'string' && RETIRED_SITES_36_37.has(id);
+}
+
+function retiredObstacle_36_37(o: SavedJson): boolean {
+  const id = o.id as string;
+  for (const site of RETIRED_SITES_36_37) if (id === `site-${site}` || id.startsWith(`cw-${site}-`)) return true;
+  return false;
+}
+
+function jobOnRetired_36_37(job: SavedJson | null | undefined): boolean {
+  if (!job) return false;
+  if (job.kind === 'search') return isRetired_36_37(job.stockId);
+  const pickup = job.pickup as SavedJson | null | undefined;
+  return job.kind === 'refit' && pickup?.from === 'stock' && isRetired_36_37(pickup.stockId);
+}
+
+function idleVehicle_36_37(v: SavedJson): SavedJson {
+  const brain = v.brain as SavedJson | null | undefined;
+  const job = jobOnRetired_36_37(v.job as SavedJson | null | undefined) ? { job: null } : {};
+  return { ...v, ...job, ...(brain ? { brain: withoutRetiredMemory_36_37(brain) } : {}) };
+}
+
+function withOutposts_36_37(shops: Record<string, SavedJson>, turn: unknown): Record<string, SavedJson> {
+  const added = Object.entries(OUTPOST_GOODS_36_37)
+    .filter(([id]) => !(id in shops))
+    .map(([id, goods]) => [id, { contracts: [], pressure: Object.fromEntries(goods.map((good) => [good, 0])), stock: [], restockAt: turn }]);
+  return { ...shops, ...Object.fromEntries(added) };
+}
+
+function withoutRetiredSites_43_44(world: SavedJson): SavedJson {
+  const keep = (id: string) => !isRetired_36_37(id);
+  const player = world.player as SavedJson;
+  return {
+    ...world,
+    salvage: (world.salvage as SavedJson[]).filter((stock) => keep(stock.id as string)),
+    shops: withOutposts_36_37(world.shops as Record<string, SavedJson>, world.turn),
+    obstacles: (world.obstacles as SavedJson[]).filter((o) => !retiredObstacle_36_37(o)),
+    player: { ...player, scavenged: (player.scavenged as string[]).filter(keep), discovered: (player.discovered as string[]).filter(keep) },
+    vehicles: (world.vehicles as SavedJson[]).map(idleVehicle_36_37),
+  };
+}
+
+function withoutRetiredMemory_36_37(brain: SavedJson): SavedJson {
+  const retired = (key: string) => isRetired_36_37(key) || isRetired_36_37(key.slice(key.indexOf(':') + 1));
+  const goals = (brain.goals as SavedJson[]).filter((g) => !isRetired_36_37(g.targetId));
+  const memories = (brain.memories as SavedJson[]).filter((m) => !isRetired_36_37((m.fact as SavedJson).stock));
+  const noticed = Object.fromEntries(Object.entries(brain.noticed as Record<string, number>).filter(([key]) => !retired(key)));
+  const unfit = ((brain.unfit as string[] | undefined) ?? []).filter((id) => !isRetired_36_37(id));
+  return { ...brain, goals, memories, noticed, ...('unfit' in brain ? { unfit } : {}) };
+}
+
+const UNITS_2_19 = new Set(['part']);
+
+function withGoalIds_34_35(v: SavedJson): SavedJson {
+  const { name: _name, ...rest } = v;
+  const brain = v.brain as SavedJson | null;
+  if (!brain) return rest;
+  const goals = (brain.goals as SavedJson[]).map((g) => ({ ...g, reason: GOAL_REASONS_2_19[g.reason as string] ?? 'legacy' }));
+  return { ...rest, brain: { ...brain, goals } };
+}
+
+function withLineVars_34_35(vars: SavedJson): SavedJson | null {
+  const out: SavedJson = {};
+  for (const [key, v] of Object.entries(vars)) {
+    const item = v as SavedJson;
+    if (item.kind !== 'line') {
+      out[key] = item;
+      continue;
+    }
+    const line = WARN_LINES_2_19[item.text as string];
+    if (!line) return null;
+    out[key] = { kind: 'line', line };
+  }
+  return out;
+}
+
+function knownUnits_34_35(vars: SavedJson): boolean {
+  return Object.values(vars).every((v) => (v as SavedJson).kind !== 'count' || UNITS_2_19.has((v as SavedJson).unit as string));
+}
+
+function callWithLineId_34_35(call: SavedJson | null): SavedJson | null {
+  if (!call) return null;
+  const said = call.line as SavedJson;
+  const line = LINES_2_19[said.text as string];
+  if (!line || !knownUnits_34_35(call.vars as SavedJson) || !knownUnits_34_35(said.vars as SavedJson)) return null;
+  const vars = withLineVars_34_35(call.vars as SavedJson);
+  const sayVars = withLineVars_34_35(said.vars as SavedJson);
+  if (!vars || !sayVars) return null;
+  return { ...call, vars, line: { line, vars: sayVars } };
+}
+
+const withoutTargetName_34_35 = (c: SavedJson): SavedJson => {
+  const { targetName: _targetName, ...rest } = c;
+  return rest;
+};
+
+function withTextIds_34_35(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const shops = Object.fromEntries(
+    Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withoutTargetName_34_35) }]),
+  );
+  return {
+    ...world,
+    vehicles: (world.vehicles as SavedJson[]).map(withGoalIds_34_35),
+    player: { ...player, call: callWithLineId_34_35(player.call as SavedJson | null), contracts: (player.contracts as SavedJson[]).map(withoutTargetName_34_35) },
+    shops,
+  };
+}
+
+const WAGON_SEVEN_34_35 = {
+  obstacle: { id: 'story-wagon-seven', pos: { x: 171, y: 381 }, r: 0.8, kind: 'wreck', hulk: { chassisId: 'wagon', yaw: 2.2 } },
+  stock: {
+    id: 'story-wagon-seven',
+    pos: { x: 171, y: 381 },
+    radius: 0.8,
+    goods: { scrap: 3, meds: 1, parts: 1 },
+    parts: [{ id: 'story-wagon-seven-cannon', defId: 'cannon', hp: 48, wear: 2, gun: { cooldown: 0, ammo: 2, reloadWork: 0 } }],
+    fuel: 10,
+    supplies: 4,
+    hidden: { goods: {}, parts: [], fuel: 0, supplies: 0 },
+  },
+};
+
+function withNotesAndWagon_34_35(world: SavedJson): SavedJson {
+  const has = (list: SavedJson[]) => list.some((x) => x.id === WAGON_SEVEN_34_35.obstacle.id);
+  const obstacles = world.obstacles as SavedJson[];
+  const salvage = world.salvage as SavedJson[];
+  return {
+    ...world,
+    player: { ...(world.player as SavedJson), notes: [] },
+    obstacles: has(obstacles) ? obstacles : [...obstacles, structuredClone(WAGON_SEVEN_34_35.obstacle)],
+    salvage: has(salvage) ? salvage : [...salvage, structuredClone(WAGON_SEVEN_34_35.stock)],
+  };
+}
+
+function withoutIcarusRun_47_48(world: SavedJson): SavedJson {
+  const run = world.gauntlet as SavedJson | null;
+  return run !== null && 'course' in run ? { ...world, gauntlet: null } : world;
+}
+
+function renamedFuryRoad_48_49(world: SavedJson): SavedJson {
+  const { gauntlet, ...rest } = world;
+  const setup = world.setup as SavedJson;
+  return { ...rest, setup: { ...setup, mode: setup.mode === 'gauntlet' ? 'furyRoad' : setup.mode }, furyRoad: gauntlet };
+}
+
+function withRunPacing_49_50(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const groups = (run.groups as SavedJson[]).map(({ at: _at, ...group }) => ({ ...group, engaged: [] }));
+  return { ...world, furyRoad: { ...run, groups, quietFrom: world.turn } };
+}
+
+function withOutpostTrucks_50_51(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const outposts = (run.outposts as SavedJson[]).map((post) => ({ ...post, trucksSold: [] }));
+  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, counted: [] }));
+  return { ...world, furyRoad: { ...run, outposts, groups } };
+}
+
+const PERSONALITIES_51_52 = ['talkative', 'tightLipped', 'gossip', 'braggart', 'suspicious', 'kind', 'grim', 'pious'] as const;
+
+function personalityOf_51_52(vehicleId: string): string {
+  const hash = [...vehicleId].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
+  return PERSONALITIES_51_52[hash % PERSONALITIES_51_52.length];
+}
+
+function withPersonalities_51_52(world: SavedJson): SavedJson {
+  const talking = (v: SavedJson): SavedJson => (v.brain ? { ...v, brain: { ...(v.brain as SavedJson), personality: personalityOf_51_52(v.id as string) } } : v);
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
@@ -406,7 +822,207 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withFightWorn_21_22,
   withTracks_22_23,
   withSeenSince_23_24,
+  (world) => ({ ...world, obstacles: (world.obstacles as SavedJson[]).filter((o) => !isGoneObstacle_24_25(o)) }),
+  (world) => withFreeze_25_26(withHiddenStock_25_26(withUtilities_25_26(world))),
+  withFulfilledFlag_26_27,
+  withoutRetiredStock_27_28,
+  (world) => ({ ...world, setup: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } }),
+  withCents_29_30,
   (world) => world,
+  (world) => {
+    const { events: _events, removed: _removed, ...rest } = world;
+    const { visible: _visible, ...player } = world.player as SavedJson;
+    const vehicles = (world.vehicles as SavedJson[]).map(({ trail: _trail, ...vehicle }) => vehicle);
+    const broken = (world.broken as SavedJson[]).map((b) => ({ id: (b.obstacle as SavedJson).id, turn: b.turn }));
+    return { ...rest, player, vehicles, broken };
+  },
+  (world) => {
+    const { contacts: _contacts, clouds: _clouds, ...player } = world.player as SavedJson;
+    return { ...world, player };
+  },
+  (world) => world,
+  (world) => world,
+  (world) => world,
+  withTextIds_34_35,
+  withNotesAndWagon_34_35,
+  (world) => ({ ...world, player: { ...(world.player as SavedJson), quests: { world: {}, local: {}, session: null } } }),
+  (world) => dropQuestVar(dropQuest(dropQuest(world, 'sample_bowl'), 'sample_nose'), null, 'sample_wagon_heard'),
+  (world) => dropQuestVar(dropQuestVar(world, 'nose_depot_leak', 'evidence'), 'nose_depot_leak', 'misled'),
+  withLieUpSpot_41_42,
+  withWideMg_42_43,
+  withoutRetiredSites_43_44,
+  (world) => world,
+  (world) => world,
+  (world) => ({ ...world, gauntlet: null }),
+  withoutIcarusRun_47_48,
+  renamedFuryRoad_48_49,
+  withRunPacing_49_50,
+  withOutpostTrucks_50_51,
+  withPersonalities_51_52,
+  withChoiceFreeScenes_52_53,
+  withoutCutQuests_53_54,
+  withoutKovacKessel_54_55,
+  withHattieGlass_55_56,
+  withoutCutPumpVars_56_57,
+  withEnemyGearGrowth_57_58,
+  withoutCatchUp_58_59,
+  withDutyLegs_59_60,
+  withoutOldRun_60_61,
 ];
+
+const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
+const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
+const CONVOY_DUTIES_59_60: readonly string[] = ['haul', 'trade', 'sell'];
+
+function isDutyGoal_59_60(templateId: string, goal: SavedJson): boolean {
+  if (LAWMEN_59_60.includes(templateId)) return goal.kind === 'patrol' && goal.reason === 'patrolTown';
+  if (templateId === 'courier') return goal.kind === 'travel' && SHOPS_59_60.includes(goal.targetId as string);
+  return templateId === 'convoy' && CONVOY_DUTIES_59_60.includes(goal.kind as string);
+}
+
+function withDutyLegs_59_60(world: SavedJson): SavedJson {
+  const vehicles = (world.vehicles as SavedJson[]).map((v) => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain) return v;
+    const goals = (brain.goals as SavedJson[]).map((goal) => (isDutyGoal_59_60(brain.templateId as string, goal) ? { ...goal, leg: { from: { ...(v.pos as SavedJson) }, turn: world.turn } } : goal));
+    return { ...v, brain: { ...brain, goals } };
+  });
+  return { ...world, vehicles };
+}
+
+function withoutOldRun_60_61(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  return run !== null && !('hauler' in run) ? { ...world, furyRoad: null } : world;
+}
+
+function withoutCatchUp_58_59(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const groups = (run.groups as SavedJson[]).map(({ engaged: _engaged, ...group }) => ({ ...group, from: group.from === 'behind' ? 'ahead' : group.from }));
+  return { ...world, furyRoad: { ...run, groups } };
+}
+
+function withEnemyGearGrowth_57_58(world: SavedJson): SavedJson {
+  const setup = world.setup as { mode: string; settings: SavedJson };
+  return { ...world, setup: { ...setup, settings: { ...setup.settings, enemyGearGrowth: 1 } } };
+}
+
+const CUT_PUMP_VARS_56_57: readonly (readonly [string, string])[] = [
+  ['pump_agnes', 'knows_senate'],
+  ['pump_agnes', 'knows_marr'],
+  ['pump_agnes', 'knows_carry'],
+  ['pump_agnes', 'knows_envelope'],
+  ['pump_pipe', 'early_lines'],
+  ['pump_pipe', 'report_named'],
+  ['pump_pipe', 'parts'],
+];
+
+function withoutCutPumpVars_56_57(world: SavedJson): SavedJson {
+  return CUT_PUMP_VARS_56_57.reduce((w, [quest, name]) => dropQuestVar(w, quest, name), world);
+}
+
+function withHattieGlass_55_56(world: SavedJson): SavedJson {
+  return renameQuestVar(world, 'bowl_hattie', 'hattie_sunward', 'hattie_glass');
+}
+
+function withoutKovacKessel_54_55(world: SavedJson): SavedJson {
+  return ['heard_kessel', 'asked_kessel'].reduce((w, name) => dropQuestVar(w, 'nose_kovac', name), world);
+}
+
+const CUT_QUESTS_53_54 = [
+  'bowl_bo', 'nose_ines', 'nose_clerk', 'granary_driver', 'granary_odile', 'granary_sack', 'granary_lamps', 'orchard_count',
+  'nose_constance', 'crates_hook', 'yard_mara', 'pin_emil', 'yard_silver', 'bend_north', 'nose_courier', 'bowl_names', 'salvage_hooks',
+] as const;
+
+const CUT_WORLD_VARS_53_54 = [
+  'sack_fate', 'lamps_fate', 'count_fate', 'lien_standing', 'courier_fate', 'names_vosk', 'hooks_report',
+  'pin_fate', 'pin_pact', 'bend_fate', 'crates_fate', 'yard_power', 'post_file', 'kiln_word', 'letter_fate',
+] as const;
+
+const CUT_NOTES_53_54: ReadonlySet<string> = new Set([
+  'talkSunwardNumber', 'talkWestTowns', 'talkClerkWest',
+  'pinAsk', 'pinStamp', 'pinRoster', 'pinBoots', 'bendOffers', 'bendKaplan', 'bendAsh', 'bendRise',
+  'cratesAsk', 'cratesLid', 'cratesTally', 'cratesFiles', 'cratesCopy',
+  'sackGate', 'sackStore', 'sackDrop', 'sackBeam', 'lampsLien', 'lampsOil', 'countWall', 'countGap', 'countRelease', 'countLog',
+  'courierVesna', 'courierLetter', 'courierRider', 'courierKarl', 'namesReading', 'namesDrunk', 'namesBook', 'namesLetter',
+  'hooksSoldier', 'hooksSheet', 'hooksDrop',
+]);
+
+function withoutCutQuests_53_54(world: SavedJson): SavedJson {
+  const noQuests = CUT_QUESTS_53_54.reduce(dropQuest, world);
+  const noVars = CUT_WORLD_VARS_53_54.reduce((w, name) => dropQuestVar(w, null, name), noQuests);
+  const player = noVars.player as SavedJson;
+  const notes = (player.notes as { id: string }[]).filter((n) => !CUT_NOTES_53_54.has(n.id));
+  return { ...noVars, player: { ...player, notes } };
+}
+
+const DROPPED_SCENE_CHECKPOINTS_52_53: readonly (readonly [string, string])[] = [
+  ['intro_arrival', 'rim'],
+  ['intro_arrival', 'slope'],
+  ['intro_arrival', 'farm'],
+  ['intro_arrival', 'shed'],
+  ['intro_arrival', 'truck'],
+  ['first_fall', 'look'],
+];
+
+function withChoiceFreeScenes_52_53(world: SavedJson): SavedJson {
+  const started = DROPPED_SCENE_CHECKPOINTS_52_53.reduce((w, [quest, checkpoint]) => moveQuestCheckpoint(w, quest, checkpoint, 'start'), world);
+  const quests = questsOf(started);
+  if (quests.world.intro_step !== 'walk') return started;
+  const { intro_step: _walk, ...rest } = quests.world;
+  return withQuests(started, { ...quests, world: rest });
+}
+
+type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
+
+function questsOf(world: SavedJson): SavedQuests {
+  return (world.player as { quests: SavedQuests }).quests;
+}
+
+function withQuests(world: SavedJson, quests: SavedQuests): SavedJson {
+  return { ...world, player: { ...(world.player as SavedJson), quests } };
+}
+
+function questVars(quests: SavedQuests, quest: string | null): SavedJson {
+  return quest === null ? quests.world : (quests.local[quest] ?? {});
+}
+
+function withQuestVars(quests: SavedQuests, quest: string | null, vars: SavedJson): SavedQuests {
+  if (quest === null) return { ...quests, world: vars };
+  const { [quest]: _old, ...others } = quests.local;
+  return { ...quests, local: Object.keys(vars).length > 0 ? { ...others, [quest]: vars } : others };
+}
+
+export function renameQuestVar(world: SavedJson, quest: string | null, from: string, to: string): SavedJson {
+  const quests = questsOf(world);
+  const { [from]: value, ...rest } = questVars(quests, quest);
+  if (value === undefined) return world;
+  if (to in rest) throw new Error(`Quest variable ${to} already holds a value, so ${from} cannot move there`);
+  return withQuests(world, withQuestVars(quests, quest, { ...rest, [to]: value }));
+}
+
+export function dropQuestVar(world: SavedJson, quest: string | null, name: string): SavedJson {
+  const quests = questsOf(world);
+  const { [name]: _dropped, ...rest } = questVars(quests, quest);
+  return withQuests(world, withQuestVars(quests, quest, rest));
+}
+
+export function moveQuestCheckpoint(world: SavedJson, quest: string, from: string, to: string): SavedJson {
+  const quests = questsOf(world);
+  const session = quests.session;
+  if (session?.quest !== quest || session.checkpoint !== from) return world;
+  return withQuests(world, { ...quests, session: { ...session, checkpoint: to } });
+}
+
+export function endQuestSession(world: SavedJson, quest: string): SavedJson {
+  const quests = questsOf(world);
+  return quests.session?.quest === quest ? withQuests(world, { ...quests, session: null }) : world;
+}
+
+export function dropQuest(world: SavedJson, quest: string): SavedJson {
+  const quests = endQuestSession(world, quest);
+  const { [quest]: _dropped, ...local } = questsOf(quests).local;
+  return withQuests(quests, { ...questsOf(quests), local });
+}
 
 export const SAVE_FORMAT = { major: SAVE_MAJOR, minor: MIGRATIONS.length } as const;

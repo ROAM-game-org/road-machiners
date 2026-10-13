@@ -1,10 +1,8 @@
-// Towing a stranded truck. An NPC that sees a stranded truck may choose to help at its strandedSeen decision. It
-// drives over and claims the job, so no other driver answers. A tow is a `tow` state held by the tower toward its
-// client. Once hitched, the client leaves physics and trails the tower along its path. Arrival fulfils the state,
 
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { ECONOMY } from '../data/goods';
+import { EFFORT } from '../data/market';
 import { NPC_BEHAVIOR, NPCS } from '../data/npcs';
 import { BEACON, TOW } from '../data/tow';
 import { inCombat, inCombatWithOther, isHostile } from './combat';
@@ -12,18 +10,22 @@ import { bodyOf } from './body';
 import { playerVehicle, vehicleById } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { contactsOf, hearsBeacon } from './detect';
+import { dutyPrice } from './duty';
+import { estimateTurns } from './market';
 import { route, routeLength } from './path';
 import { decide, getKnownSite, getUpkeepReserve, isWeak, npcProfile } from './npc-decisions';
 import { placeBase, popGoal } from './npc-activities';
 import { skillEffect } from './progress';
-import { canUseSite, nearestPad, reachedSite, type Site } from './sites';
+import { canUseSite, nearestPad, parkedOn, reachedSite, type Site } from './sites';
 import { addState, endState, stateOf, towData, towPromiseData } from './states';
 import { isStranded, vehicleStats } from './stats';
+import { modeRules } from './settings';
 import { getResources } from './resources';
-import type { GameEvent, NpcActivity, NpcState, Pose, StateData, StateEnding, StateKindId, Vehicle, World } from './types';
+import type { GameEvent, GoalReason, NpcActivity, NpcState, Pose, StateData, StateEnding, StateKindId, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { playerCommand, update } from './world';
+import { atlasOf } from './atlas';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -58,6 +60,10 @@ export function isTowed(world: World): boolean {
 
 function hitchedTows(world: World): NpcState[] {
   return world.states.filter((s) => s.kind === 'tow' && towData(s).hitched);
+}
+
+export function getHitchedTowIds(world: World): Set<string> {
+  return new Set(hitchedTows(world).map((s) => s.other));
 }
 
 export function isOnRope(world: World, id: string): boolean {
@@ -123,11 +129,12 @@ function answeredByOther(world: World, tower: Vehicle, client: Vehicle): boolean
 
 function towDestination(world: World, tower: Vehicle, client: Vehicle): Site | null {
   if (!isPlayer(world, client) && !client.brain) return null;
-  const site = isPlayer(world, client) ? nearestSite(npcProfile(tower).towns, client.pos) : npcHomeSite(client);
+  const site = isPlayer(world, client) ? nearestSite(npcProfile(tower).towns, client.pos) : npcHomeSite(world, client);
   return site && !canUseSite(client.pos, site) ? site : null;
 }
 
-export function npcHomeSite(v: Vehicle): Site | null {
+export function npcHomeSite(world: Pick<World, 'terrain'>, v: Vehicle): Site | null {
+  if (atlasOf(world.terrain).towns.length === 0) return null;
   const profile = npcProfile(v);
   return nearestSite(profile.bases.length > 0 ? profile.bases : profile.towns, v.pos);
 }
@@ -188,10 +195,24 @@ export function towGoal(world: World, vehicle: Vehicle): NpcActivity {
   const tow = towHeldBy(world, vehicle.id);
   if (!tow) throw new Error(`${vehicle.id} holds no tow`);
   const data = towData(tow);
-  if (!data.hitched) return { kind: 'tow', targetId: tow.other, destination: null, phase: 'act', reason: 'wait for an answer to a tow offer' };
+  if (!data.hitched) return { kind: 'tow', targetId: tow.other, destination: null, phase: 'act', reason: 'waitTowAnswer' };
   const site = getKnownSite(data.site);
-  const reason = tow.other === world.player.vehicleId ? 'tow the player to town' : 'tow a stranded truck';
+  const reason = tow.other === world.player.vehicleId ? 'towPlayer' : 'towStranded';
   return { kind: 'tow', targetId: site.id, destination: { ...site.pos }, phase: 'travel', reason };
+}
+
+export function towStop(world: World, vehicle: Vehicle, site: Site): Vec {
+  const clientId = ropeClientOf(world, vehicle.id);
+  const client = clientId === null ? null : vehicleById(world, clientId);
+  const delivered = client !== null && canUseSite(client.pos, site);
+  return delivered && parkedOn(vehicle, site) ? { ...vehicle.pos } : towSpot(vehicle, site, client);
+}
+
+function towSpot(vehicle: Vehicle, site: Site, client: Vehicle | null): Vec {
+  const pad = nearestPad(site, vehicle.pos);
+  const pull = client && dist(client.pos, pad) > 0 ? { from: client.pos, to: pad } : { from: pad, to: site.pos };
+  const angle = Math.atan2(pull.to.y - pull.from.y, pull.to.x - pull.from.x);
+  return { x: pad.x + Math.cos(angle) * TOW.gap / 2, y: pad.y + Math.sin(angle) * TOW.gap / 2 };
 }
 
 export function strandedAt(world: World, vehicle: Vehicle, client: Vehicle): Vec | null {
@@ -218,6 +239,7 @@ function beaconCenter(world: World, listener: Vehicle, me: Vehicle): Vec | null 
 
 export function setBeacon(world: World, on: boolean): World {
   return playerCommand(world, (w) => {
+    if (on && !modeRules(w).rescue) throw new Error('No one answers a beacon in this game mode');
     if (on && !isStranded(w, playerVehicle(w))) throw new Error('The beacon needs a stranded truck');
     w.player.beacon = on;
   });
@@ -228,25 +250,25 @@ export function checkBeacon(world: World): void {
   if (isTowed(world) || !isStranded(world, playerVehicle(world))) world.player.beacon = false;
 }
 
-export function runTow(world: World, vehicle: Vehicle, activity: NpcActivity): string | null {
+export function runTow(world: World, vehicle: Vehicle, activity: NpcActivity): GoalReason | null {
   const held = towHeldBy(world, vehicle.id);
   if (held && !towData(held).hitched) {
     if (inTowReach(vehicle, vehicleById(world, held.other))) return null;
     refuse(world, held);
-    return 'the player drove away from the tow offer';
+    return 'towOfferLeft';
   }
   if (held) {
     if (!canUseSite(vehicleById(world, held.other).pos, getKnownSite(towData(held).site))) return null;
     activity.phase = 'act';
     endState(world, held, 'fulfilled');
-    return held.other === world.player.vehicleId ? 'towed the player to town' : 'towed a stranded truck';
+    return held.other === world.player.vehicleId ? 'towedPlayer' : 'towedStranded';
   }
   return reachClient(world, vehicle, activity, vehicleById(world, activity.targetId!));
 }
 
-function reachClient(world: World, tower: Vehicle, activity: NpcActivity, client: Vehicle): string | null {
-  if (!isStranded(world, client) || !towDestination(world, tower, client)) return 'the truck needs no tow anymore';
-  if (!stateOf(world, 'answering', tower.id, client.id)) return 'could not get through to the truck';
+function reachClient(world: World, tower: Vehicle, activity: NpcActivity, client: Vehicle): GoalReason | null {
+  if (!isStranded(world, client) || !towDestination(world, tower, client)) return 'towNotNeeded';
+  if (!stateOf(world, 'answering', tower.id, client.id)) return 'towUnanswered';
   if (!readyToTow(world, tower, client)) return null;
   activity.phase = 'act';
   if (isPlayer(world, client)) offer(world, tower, client);
@@ -330,7 +352,7 @@ export function dropStrandedTowers(world: World): void {
     const tower = world.vehicles.find((v) => v.id === tow.holder);
     if (!tower || !isStranded(world, tower)) continue;
     dropTow(world, tow, 'stranded');
-    if (tower.brain && popGoal(world, tower, 'cannot drive').kind !== 'tow') throw new Error(`${tower.id} held a tow without a tow goal on top`);
+    if (tower.brain && popGoal(world, tower, 'cannotDrive').kind !== 'tow') throw new Error(`${tower.id} held a tow without a tow goal on top`);
   }
 }
 
@@ -421,7 +443,7 @@ export function follows(world: World, follower: Vehicle, leaderId: string): bool
 }
 
 export function followGoal(leader: Vehicle): NpcActivity {
-  return { kind: 'follow', targetId: leader.id, destination: { ...leader.pos }, phase: 'travel', reason: 'follow its leader' };
+  return { kind: 'follow', targetId: leader.id, destination: { ...leader.pos }, phase: 'travel', reason: 'followLeader' };
 }
 
 export function startEscort(world: World, escort: Vehicle, leader: Vehicle, site: string | null, fee: number): NpcActivity {
@@ -500,8 +522,10 @@ export function tripSite(client: Vehicle): string | null {
   return base && TRIPS.includes(base.kind) ? base.targetId : null;
 }
 
-export function escortFee(client: Vehicle, site: string): number {
-  return Math.round(dist(client.pos, getKnownSite(site).pos) * NPC_BEHAVIOR.escortFeePerTile);
+export function escortFee(world: World, client: Vehicle, merc: Vehicle, site: string): number {
+  const to = getKnownSite(site).pos;
+  const roundTrip = 2;
+  return dutyPrice(world, merc, roundTrip * dist(client.pos, to) * EFFORT.routeFactor, roundTrip * estimateTurns(client.pos, to));
 }
 
 export function isFreeMerc(world: World, v: Vehicle): boolean {
@@ -517,7 +541,7 @@ export function mercsInSight(world: World, client: Vehicle): Vehicle[] {
 export function canHire(world: World, client: Vehicle, merc: Vehicle): boolean {
   const site = tripSite(client);
   if (site === null || escortsOf(world, client.id).length > 0) return false;
-  if (getResources(world, client).money - getUpkeepReserve(client) < escortFee(client, site)) return false;
+  if (getResources(world, client).money - getUpkeepReserve(client) < escortFee(world, client, merc, site)) return false;
   return mercsInSight(world, client).some((v) => v.id === merc.id);
 }
 
@@ -528,7 +552,7 @@ export function offerEscort(world: World, client: Vehicle, merc: Vehicle): void 
     world.events.push({ t: 'escortRefused', by: merc.id, client: client.id });
     return;
   }
-  const fee = escortFee(client, site);
+  const fee = escortFee(world, client, merc, site);
   startEscort(world, merc, client, site, fee);
   world.events.push({ t: 'escortHired', by: merc.id, client: client.id, site, fee });
 }

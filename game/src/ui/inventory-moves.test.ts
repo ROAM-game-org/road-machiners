@@ -3,12 +3,13 @@ import { REGION } from "../data/region";
 import { partDef } from "../data/parts";
 import { makePart } from "../sim/factory";
 import { isMounted, mountedParts } from "../sim/grid";
-import { mountPart, removeAllGoods, spareParts, stowPart } from "../sim/inventory";
+import { mountPart, plannedRefitTurns, removeAllGoods, spareParts, startRefit, stowPart, stowSpot } from "../sim/inventory";
 import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
-import type { GridItem, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, selectionAfterClick, type ClickedItem } from "./inventory-moves";
+import type { GridItem, Rot, World } from "../sim/types";
+import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
+import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
 const gridClick = (item: GridItem): ClickedItem => ({ source: "grid", item, id: item.id, stockId: null, truckId: null });
@@ -114,15 +115,15 @@ describe("double click outside a garage", () => {
     expect(doubleClickCommand(w, gridClick(partOf(w, "mg")))).toBeNull();
   });
 
-  it("does nothing on the truck grid on an oasis pad", () => {
-    const w = emptyWorld(sitePads(REGION.locations.find((l) => l.id === "dustwell")!)[0]);
+  it("does nothing on the truck grid on a raider camp pad", () => {
+    const w = emptyWorld(sitePads(REGION.locations.find((l) => l.id === "scrapjaw")!)[0]);
     expect(doubleClickCommand(w, gridClick(partOf(w, "mg")))).toBeNull();
   });
 
   it("moves a loot good into storage", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind === "part");
-    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: 1 }, parts: [] });
+    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: { scrap: 1 }, parts: [], hidden: emptyHidden() });
     w.player.scavenged.push("rich");
     const chip: ClickedItem = { source: "loot", id: "scrap", item: { id: "loot-scrap", x: 0, y: 0, rot: 0, kind: "good", good: "scrap" }, stockId: "rich", truckId: null };
     const next = doubleClickCommand(w, chip)!(w);
@@ -134,7 +135,7 @@ describe("double click outside a garage", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     removeAllGoods(w.vehicles[0]);
     const part = makePart(w, "cage", 0);
-    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: {}, parts: [part] });
+    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: {}, parts: [part], hidden: emptyHidden() });
     w.player.scavenged.push("rich");
     const chip: ClickedItem = { source: "loot", id: part.id, item: { id: `loot-${part.id}`, x: 0, y: 0, rot: 0, kind: "part", part }, stockId: "rich", truckId: null };
     const next = doubleClickCommand(w, chip)!(w);
@@ -146,9 +147,49 @@ describe("double click outside a garage", () => {
     const w = emptyWorld({ x: 30, y: 30 });
     while (stowPart(w, w.vehicles[0], makePart(w, "cage", 0)));
     const part = makePart(w, "cage", 0);
-    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: {}, parts: [part] });
+    w.salvage.push({ id: "rich", pos: { x: 30, y: 30 }, radius: 1, goods: {}, parts: [part], hidden: emptyHidden() });
     w.player.scavenged.push("rich");
     const chip: ClickedItem = { source: "loot", id: part.id, item: { id: `loot-${part.id}`, x: 0, y: 0, rot: 0, kind: "part", part }, stockId: "rich", truckId: null };
     expect(doubleClickCommand(w, chip)).toBeNull();
+  });
+});
+
+describe("field refit plan", () => {
+  it("moves and turns a part any number of times without starting a job", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const away = stowSpot(me, mg);
+    if (!away) throw new Error("No storage room");
+    const turned = { ...away, rot: ((away.rot + 2) % 4) as Rot };
+    let plan = planAfterMove(me, {}, mg.id, away);
+    plan = planAfterMove(me, plan, mg.id, turned);
+    expect(plan).toEqual({ [mg.id]: turned });
+    expect(plannedVehicle(me, plan).items.find((it) => it.id === mg.id)).toMatchObject(turned);
+    expect(me.items.find((it) => it.id === mg.id)).toMatchObject({ x: mg.x, y: mg.y });
+    expect(me.job).toBeNull();
+  });
+
+  it("drops a part from the plan when it returns to its start", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const mg = partOf(w, "mg");
+    const away = stowSpot(me, mg);
+    if (!away) throw new Error("No storage room");
+    const plan = planAfterMove(me, {}, mg.id, away);
+    expect(planAfterMove(me, plan, mg.id, { x: mg.x, y: mg.y, rot: mg.rot })).toEqual({});
+  });
+
+  it("turns a gun round in place and starts one job from the plan", () => {
+    const w = emptyWorld();
+    const mg = partOf(w, "mg");
+    const plan = planAfterMove(w.vehicles[0], {}, mg.id, { x: mg.x, y: mg.y, rot: 2 });
+    expect(plannedRefitTurns(w, w.vehicles[0], plan)).toBeGreaterThan(0);
+    expect(startRefit(w, plan).vehicles[0].job).toMatchObject({ kind: "refit" });
+  });
+
+  it("refuses a move the sim refuses", () => {
+    const w = emptyWorld();
+    expect(() => planAfterMove(w.vehicles[0], {}, partOf(w, "mg").id, { x: 9, y: 0, rot: 0 })).toThrow();
   });
 });

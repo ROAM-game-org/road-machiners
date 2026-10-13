@@ -1,6 +1,3 @@
-// Ruts: a grounded wheel on soft ground lays one segment per step of travel, never on roads, in the air or from a
-// truck the player cannot see, and the pool never passes its cap. tirePoints, which ruts and wheel dust share, is
-// checked here too.
 
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
@@ -17,7 +14,7 @@ import { Fx3D, TruckFx } from './fx';
 import { RUT, Ruts, tirePoints } from './ruts';
 
 const S = PHYSICS.metersPerTile;
-const Y = 30; // the map row the test truck drives along, facing +x
+const Y = 30;
 
 function worldOn(ground: TerrainTypeId): World {
   const w = emptyWorld();
@@ -30,25 +27,22 @@ function truckOf(w: World): Vehicle {
   return w.vehicles[0];
 }
 
-// The truck's pose with its center x meters along the row, every wheel on the ground or in the air.
 function frameAt(v: Vehicle, x: number, ground = true, y = Y * S): VehicleFrame {
   const wheels = wheelMounts(bodyOf(v.chassisId)).map(() => ({ steer: 0, spin: 0, suspension: 0, ground }));
   return { pos: { x, y: 1, z: y }, rot: headingQuat(0), acc: { x: 0, y: 0, z: 0 }, wheels };
 }
 
-const FRAME_MOVE = 0.125; // meters per frame; exact in binary, so steps land on frames without rounding
+const FRAME_MOVE = 0.125;
 
 function track(ruts: Ruts, w: World, v: Vehicle, f: VehicleFrame): void {
   ruts.layTracks(w, v, f, tirePoints(w.terrain, v.chassisId, f));
 }
 
-// Drives the truck from x0 to x1 meters in small frame moves, as playback does.
 function drive(ruts: Ruts, w: World, x0: number, x1: number, ground = true): void {
   const v = truckOf(w);
   for (let i = 0; x0 + i * FRAME_MOVE <= x1; i++) track(ruts, w, v, frameAt(v, x0 + i * FRAME_MOVE, ground));
 }
 
-// The wheels that mark: a pair, however many wheels the truck has.
 const marking = RUT.wheels.length;
 
 describe('Ruts', () => {
@@ -65,7 +59,7 @@ describe('Ruts', () => {
     const w = worldOn('sand');
     const v = truckOf(w);
     const ruts = new Ruts(new THREE.Scene());
-    const radius = 12; // meters, the turn's centre line
+    const radius = 12;
     const centre = { x: 100, z: Y * S + radius };
     for (let a = 0; a < 1.2; a += 0.01) {
       const f = frameAt(v, centre.x + radius * Math.sin(a), true, centre.z - radius * Math.cos(a));
@@ -73,8 +67,8 @@ describe('Ruts', () => {
     }
 
     const stepsOfArc = Math.ceil((radius * 1.2) / RUT.step);
-    expect(ruts.mesh.count).toBeGreaterThan(stepsOfArc); // both tracks lay segments
-    expect(ruts.mesh.count).toBeLessThanOrEqual(2 * (stepsOfArc + 2)); // and no more than a left and a right strip
+    expect(ruts.mesh.count).toBeGreaterThan(stepsOfArc);
+    expect(ruts.mesh.count).toBeLessThanOrEqual(2 * (stepsOfArc + 2));
   });
 
   it('lays nothing below one step of travel', () => {
@@ -204,9 +198,10 @@ describe('Ruts', () => {
   it('never marks from a truck the player does not see, or between turns', () => {
     const w = worldOn('sand');
     const v = truckOf(w);
-    const element = { style: {}, appendChild: () => undefined };
+    const paint = { filter: '', fillStyle: '', beginPath: () => undefined, arc: () => undefined, fill: () => undefined };
+    const element = { style: {}, appendChild: () => undefined, getContext: () => paint };
     vi.stubGlobal('document', { createElement: () => element });
-    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig);
+    const fx = new Fx3D(new THREE.Scene(), element as unknown as HTMLElement, {} as CameraRig, () => w);
     const truckFx = new TruckFx(fx);
 
     for (let i = 0; i <= 16; i++) {
@@ -225,14 +220,13 @@ describe('tirePoints', () => {
   it('gives each tire’s ground point under the pose, in wheelMounts order, as wheel dust used', () => {
     const w = worldOn('sand');
     const t = editableTerrain(w);
-    t.heights.forEach((_, k) => (t.heights[k] = (k % (t.size + 1)) * 0.05)); // a slope rising along +x
+    t.heights.forEach((_, k) => (t.heights[k] = (k % (t.size + 1)) * 0.05));
     const v = truckOf(w);
-    const f: VehicleFrame = { ...frameAt(v, 100), rot: headingQuat(Math.PI / 2) }; // facing map +y
+    const f: VehicleFrame = { ...frameAt(v, 100), rot: headingQuat(Math.PI / 2) };
     const mounts = wheelMounts(bodyOf(v.chassisId));
 
     const points = tirePoints(t, v.chassisId, f);
 
-    // Facing +y, a mount's forward x runs along map +y and its side z along map -x.
     const expected = mounts.map((m) => groundPoint(t, { x: (f.pos.x - m.z) / S, y: (f.pos.z + m.x) / S }));
     expect(points).toHaveLength(mounts.length);
     for (const [i, p] of points.entries()) {

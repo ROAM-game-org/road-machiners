@@ -32,12 +32,13 @@ export const RULES = {
   hardCrashSpeed: 4,
   cellPen: 0.5,
   crashPen: 4,
+  crashFalloff: 0.6,
   groundCrash: 3,
   landingDamage: 0.25,
   wheelLoss: 0.15,
   tankLeak: 1,
 
-  weaponDamage: 1.2375,
+  weaponDamage: 1.60875,
   crashDamage: 1.125,
 
   stray: {
@@ -45,8 +46,9 @@ export const RULES = {
     feudDamage: 40,
   },
 
-  accelScale: 0.67,
+  accelScale: 0.5695,
   overdriveBoost: 1.33,
+  overdriveMinEngineShare: 0.15,
   overloadExponent: 4,
 
   critChance: 0.04,

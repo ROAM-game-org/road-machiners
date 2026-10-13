@@ -9,7 +9,7 @@ import { TIME } from '../data/time';
 import { ENGINE_HEAT } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { playerVehicle } from './damage';
-import { advanceEngineHeat, douseEngine } from './engine-heat';
+import { advanceEngineHeat, douseBlock, douseEngine, engineOverheating } from './engine-heat';
 import { mountedParts } from './grid';
 import { route } from './path';
 import { nearestPad } from './sites';
@@ -18,6 +18,7 @@ import { addVehicle, emptyWorld, practiceOf } from './testkit';
 import { heatAt } from './sun';
 import type { Vec } from './vec';
 import { newWorld } from './world';
+import { defaultSetup } from './settings';
 
 const NOON = 1 + (((TIME.sunrise + TIME.sunset) / 2 - TIME.startHour) * TIME.turnsPerDay) / 24;
 const NIGHT = 1 + ((23 - TIME.startHour) * TIME.turnsPerDay) / 24;
@@ -40,10 +41,23 @@ describe('engine heat', () => {
       expect(turns).toBeLessThan(60);
     }
     expect(turns).toBeGreaterThan(20);
-    expect(w.events.some((e) => e.t === 'info' && e.text.startsWith('Engine running hot'))).toBe(true);
+    expect(w.events.some((e) => e.t === 'info' && e.note.id === 'engineHot')).toBe(true);
     expect(engine(w).hp).toBe(hp - ENGINE_HEAT.overheatDamage);
     advanceEngineHeat(w);
     expect(engine(w).hp).toBe(hp - 2 * ENGINE_HEAT.overheatDamage);
+  });
+
+  it('never warms or hurts an engine shut down by an emitter pulse, even rolling fast at noon', () => {
+    const w = emptyWorld();
+    w.turn = NOON;
+    const me = w.vehicles[0];
+    me.speed = 6;
+    me.shutDown = { from: w.turn, until: w.turn + 2 };
+    w.player.engineHeat = 1;
+    const hp = engine(w).hp;
+    advanceEngineHeat(w);
+    expect(w.player.engineHeat).toBeLessThan(1);
+    expect(engine(w).hp).toBe(hp);
   });
 
   it('never warms while driving at night', () => {
@@ -152,7 +166,7 @@ describe('engine heat on the road', () => {
   }
 
   it('overheats every engine on the shortest Bowl to Nose trip at top speed from 10:00', () => {
-    const base = newWorld(1337, START_KITS[CONFIG.startKit], TEST_MAP);
+    const base = newWorld(1337, START_KITS[CONFIG.startKit], TEST_MAP, defaultSetup('roaming'));
     base.weather = [];
     const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
     const nose = REGION.towns.find((t) => t.id === 'nose')!;
@@ -195,6 +209,7 @@ describe('engine overdrive', () => {
     const w = emptyWorld();
     w.turn = NIGHT;
     w.player.overdrive = true;
+    engine(w).wear = 0;
     const me = w.vehicles[0];
     me.speed = vehicleStats(w, me).maxSpeed;
     let turns = 0;
@@ -231,6 +246,56 @@ describe('engine overdrive', () => {
     w.vehicles[0].speed = 0;
     advanceEngineHeat(w);
     expect(w.player.engineHeat).toBeCloseTo(0.5 - ENGINE_HEAT.coolParked);
+  });
+});
+
+describe('engineOverheating', () => {
+  function driving(heat: number) {
+    const w = emptyWorld();
+    w.turn = NIGHT;
+    const me = w.vehicles[0];
+    me.speed = vehicleStats(w, me).maxSpeed;
+    w.player.engineHeat = heat;
+    return w;
+  }
+
+  it('is false in the running-hot band before full heat', () => {
+    expect(engineOverheating(driving(ENGINE_HEAT.warnAt))).toBe(false);
+    expect(engineOverheating(driving(0.99))).toBe(false);
+  });
+
+  it('is false at full heat while parked', () => {
+    const w = driving(1);
+    w.vehicles[0].speed = 0;
+    expect(engineOverheating(w)).toBe(false);
+  });
+
+  it('is false at full heat with a broken engine', () => {
+    const w = driving(1);
+    engine(w).hp = 0;
+    expect(engineOverheating(w)).toBe(false);
+  });
+
+  it('is true at full heat while driving a working engine', () => {
+    expect(engineOverheating(driving(1))).toBe(true);
+  });
+
+  it('marks exactly the turns that cost the engine HP', () => {
+    const w = emptyWorld();
+    w.turn = NOON;
+    const me = w.vehicles[0];
+    me.speed = vehicleStats(w, me).maxSpeed;
+    w.player.engineHeat = 0.98;
+    let damaged = 0;
+    for (let turn = 0; turn < 12; turn++) {
+      if (turn === 6) me.speed = 0;
+      const hp = engine(w).hp;
+      advanceEngineHeat(w);
+      expect(engine(w).hp < hp).toBe(engineOverheating(w));
+      if (engine(w).hp < hp) damaged++;
+    }
+    expect(damaged).toBeGreaterThan(0);
+    expect(damaged).toBeLessThan(12);
   });
 });
 
@@ -284,5 +349,19 @@ describe('desert rat', () => {
     me.speed = vehicleStats(w, me).maxSpeed;
     advanceEngineHeat(w);
     expect(practiceOf(w, 'heat')[0].difficulty).toBeCloseTo((heatAt(w, me.pos) - 1) / (TIME.sunHeat - 1));
+  });
+});
+
+describe('douse reasons', () => {
+  it('names what blocks cooling the engine', () => {
+    const w = emptyWorld();
+    w.player.supplies = 0;
+    w.player.engineHeat = 0.5;
+    expect(douseBlock(w)).toBe('noSupplies');
+    w.player.supplies = ENGINE_HEAT.douseSupplies;
+    w.player.engineHeat = 0;
+    expect(douseBlock(w)).toBe('engineCool');
+    w.player.engineHeat = 0.5;
+    expect(douseBlock(w)).toBeNull();
   });
 });

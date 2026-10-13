@@ -13,11 +13,14 @@ import { bodyOf } from '../sim/body';
 import { coreParts } from '../sim/grid';
 import { vehicleStats } from '../sim/stats';
 import { maxHp } from '../sim/wear';
-import { deckAt, deckById } from '../sim/bridge';
+import { deckAt, deckById, type Deck } from '../sim/bridge';
 import { groundAt, heightAt } from '../sim/terrain';
 import { dist, segmentDist, type Vec } from '../sim/vec';
 import { propPose, propShape } from '../sim/mapgen';
 import { emptyWorld } from '../sim/testkit';
+import { atlasOf } from '../sim/atlas';
+import { highwayMap } from '../sim/highway';
+import { stretchLayout } from '../sim/road-hazards';
 import type { LandmarkLook, Obstacle, World } from '../sim/types';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -25,6 +28,8 @@ import { bodyState, buildDrive, captureDrive, freeDrive, GROUND, initPhysics, RA
 import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { budget } from '../test/budget';
+import { defaultSetup } from '../sim/settings';
+import { ICARUS_DECKS } from '../sim/bridge';
 
 beforeAll(async () => {
   await initPhysics();
@@ -275,7 +280,7 @@ describe('Broken Wing', () => {
   const across = (p: Vec) => (p.y - deck.from.y) * deck.axis.x - (p.x - deck.from.x) * deck.axis.y;
 
   function onMap(from: Vec, heading: number, to: Vec): World {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, false);
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     me(w).pos = { ...from };
     me(w).heading = heading;
@@ -305,12 +310,12 @@ describe('Broken Wing', () => {
 
   it('a truck drives the road under the hoop, up the root ramp, along the deck and down the tip ramp', () => {
     const end = BROKEN_WING_POINT(50, 0);
-    const { w, hits, frames } = drive(onMap(BROKEN_WING_POINT(BROKEN_WING.hoopAt - 8, 0), 0, end), 14);
+    const { w, hits, frames } = drive(onMap(BROKEN_WING_POINT(BROKEN_WING.hoopAt - 8, 0), 0, end), 17);
     expect(hits).toEqual([]);
     expect(me(w).pos.x).toBeGreaterThan(end.x - 2);
     const b = bodyOf(me(w).chassisId);
     const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
-    const onDeck = frames.filter((f) => deckAt(f.at.x, f.at.y)?.deck.id === deck.id);
+    const onDeck = frames.filter((f) => deckAt(ICARUS_DECKS, f.at.x, f.at.y)?.deck.id === deck.id);
     expect(onDeck.length).toBeGreaterThan(0);
     for (const f of onDeck) expect(Math.abs(f.y - heightAt(w.terrain, f.at.x, f.at.y) * S - rest)).toBeLessThan(0.5);
   }, budget(60_000));
@@ -333,7 +338,7 @@ describe('a Fallen Sun flap', () => {
   type JumpTurn = { landing: Landing | null; upright: boolean; air: number };
 
   function jump(turns: number): { w: World; hp: Map<string, number>; after: JumpTurn[]; hits: string[]; lipSpeed: number } {
-    let w = newWorld(1337, START_KITS.standard, TEST_MAP);
+    let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const [start, end] = [on(-12), on(flap.length + 36)];
     const onRun = (p: Vec, margin: number) => segmentDist(p, start, end) < flap.width / 2 + margin;
     const level = groundAt(w.terrain, flap.from.x, flap.from.y);
@@ -391,4 +396,55 @@ describe('a Fallen Sun flap', () => {
       expect(hp.get(wheel.id)! - wheel.hp).toBeLessThan(maxHp(wheel) * WEAR.breakdownHpShare);
     }
   }, 120_000);
+});
+
+describe('a Fury Road hull-plate ramp', () => {
+  function rampWorld(): { w: World; ramp: Deck } {
+    for (let seed = 1; seed <= 40; seed++) {
+      const plain = stretchLayout(seed, 1).scenes.filter((s) => s.kind === 'ramp' && s.craters.length === 0).flatMap((s) => s.ramps.map((r) => r.id));
+      if (plain.length === 0) continue;
+      const w = newWorld(seed, START_KITS.combat, highwayMap(seed, 0), defaultSetup('furyRoad'));
+      const ramp = atlasOf(w.terrain).decks.decks.find((d) => plain.includes(d.id));
+      if (ramp) return { w, ramp };
+    }
+    throw new Error('No seed puts a ramp on the first window');
+  }
+
+  it('lifts a hauler at road speed off its lip and lands it upright on the highway', () => {
+    let { w, ramp } = rampWorld();
+    const on = (along: number): Vec => ({ x: ramp.from.x + ramp.axis.x * along, y: ramp.from.y + ramp.axis.y * along });
+    const alongOf = (p: Vec) => (p.x - ramp.from.x) * ramp.axis.x + (p.y - ramp.from.y) * ramp.axis.y;
+    const [start, end] = [on(-14), on(ramp.length + 24)];
+    w.obstacles = w.obstacles.filter((o) => segmentDist(o.pos, start, end) > ramp.width / 2 + 3);
+    w.furyRoad!.groups = [];
+    me(w).pos = on(-10);
+    me(w).heading = Math.atan2(ramp.axis.y, ramp.axis.x);
+    me(w).speed = vehicleStats(w, me(w)).maxSpeed;
+    me(w).direct = true;
+    w.player.fuel = 999;
+    w = setMoveOrder(w, { kind: 'through', dest: on(ramp.length + 20) });
+    let d = buildDrive(w);
+    const hits: string[] = [];
+    let air = 0;
+    let upright = true;
+    for (let i = 0; i < 7; i++) {
+      let r: TurnResult | null = null;
+      const id = me(w).id;
+      w = endTurn(w, physicsMove(d, (x) => (r = x)));
+      hits.push(...r!.crashes.map((c) => c.b));
+      const b = bodyOf(me(w).chassisId);
+      const rest = b.wheelRadius + PHYSICS.truck.suspensionRest - b.wheelY;
+      air = Math.max(air, ...r!.frames[id].filter((f) => alongOf(toMap(f.pos)) > ramp.length).map((f) => f.pos.y - heightAt(w.terrain, toMap(f.pos).x, toMap(f.pos).y) * S - rest));
+      freeDrive(d);
+      d = r!.next;
+      upright &&= bodyState(d, id).upright;
+    }
+    freeDrive(d);
+
+    expect(me(w).chassisId).toBe('hauler');
+    expect(alongOf(me(w).pos)).toBeGreaterThan(ramp.length + 4);
+    expect(air).toBeGreaterThan(0.2);
+    expect(upright).toBe(true);
+    expect(hits).toEqual([]);
+  }, budget(120_000));
 });

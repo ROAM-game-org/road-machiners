@@ -1,6 +1,4 @@
-// Game settings. Change these values to configure a new game and playback.
 
-// The version from the save format and git, worked out by src/version.ts at build time in vite.config.ts and vitest.config.ts.
 declare const __GAME_VERSION__: string;
 export const GAME_VERSION = __GAME_VERSION__;
 
@@ -10,16 +8,19 @@ export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
 export const CONFIG = {
-  startKit: 'standard',
+  startKit: 'arrival',
   seed: null as number | null,
-  combatShotMs: 1000,
-  combatFireSpreadMs: 300,
-  combatBurstMaxMs: 450,
+  utilityBandMs: 1000,
   combatReadMs: 1100,
+  playEaseMs: 350,
+  fxFillScreens: 8,
   saveTurns: 20,
   saveSlots: 3,
-  autoTurnMs: 250,
   travelHoldMs: 250,
   travelFastSpeed: 4,
   playbackFrameMs: 50,
+  questCharMs: 25,
+  questWordMs: 125,
+  questLineMs: 300,
+  questPauseMs: 700,
 };

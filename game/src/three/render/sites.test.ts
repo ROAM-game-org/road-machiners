@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { Box3, BoxGeometry, InstancedMesh, Matrix4, Mesh, Vector3, type Object3D } from 'three';
-import { loadModels } from './models';
+import { Box3, InstancedMesh, Matrix4, Mesh, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
+import { loadModels, MODEL_GLOW } from './models';
 import { buildSites } from './sites';
+import { FORTRESS } from '../../data/fortress';
+import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
 import { REGION } from '../../data/region';
-import { siteGates } from '../../sim/sites';
+import { fortressGates, fortressPieces, insideCurtain, onFortressRock, pitDepth } from '../../sim/fortress';
+import { GATE_CLEAR, riseFront } from './interiors/nose';
+import { boxDistance, propBoxes, propObstacle, propShape } from '../../sim/mapgen';
+import { noseRocks } from '../../sim/nose';
+import { isFortress } from '../../sim/sites';
+import { deckAt, deckById } from '../../sim/bridge';
+import { heightAt, type Terrain } from '../../sim/terrain';
+import { TEST_MAP } from '../../test/map';
+import { ICARUS_DECKS } from '../../sim/bridge';
+import { ICARUS_KEY } from '../../sim/atlas';
+import { highwayMap } from '../../sim/highway';
+import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL } from './siteLights';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -12,7 +25,12 @@ await loadModels(async (name) => {
   if (!url) throw new Error(`Missing model file for ${name}`);
   return Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (c) => c.charCodeAt(0)).buffer;
 });
-const sites = buildSites({ size: 1, heights: [0, 0, 0, 0], types: ['hardpan'] });
+const built = buildSites({ size: 1, heights: [0, 0, 0, 0], types: ['hardpan'], atlas: ICARUS_KEY });
+const { root: sites, movers } = built;
+
+const FORTRESS_WALL_TILES = 4;
+const LIT_LAMPS = new Set([PAL.lamp.on, PAL.lamp.amber]);
+const ALL = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')];
 
 function measureSite(id: string): Vector3 {
   const site = sites.getObjectByName(`landmark-${id}`);
@@ -20,56 +38,65 @@ function measureSite(id: string): Vector3 {
   return new Box3().setFromObject(site).getSize(new Vector3());
 }
 
-function outsideEdge(o: Object3D): boolean {
-  for (let p: Object3D | null = o; p; p = p.parent) if (p.userData.outsideEdge) return true;
-  return false;
-}
-
 describe('landmark scale', () => {
   it('builds inhabited settlements rather than truck-sized props', () => {
     for (const id of ['bowl', 'nose']) {
       const size = measureSite(id);
-      expect(size.x).toBeGreaterThan(180);
-      expect(size.z).toBeGreaterThan(180);
-      expect(sites.getObjectByName(`landmark-${id}`)!.userData.homes).toBeGreaterThan(30);
+      expect(size.x).toBeGreaterThan(100);
+      expect(size.z).toBeGreaterThan(100);
+      expect(sites.getObjectByName(`landmark-${id}`)!.userData.homes).toBeGreaterThan(15);
     }
   });
 
-  it('walls each town with a gate per road', () => {
-    for (const id of ['bowl', 'nose']) {
-      const town = sites.getObjectByName(`landmark-${id}`)!;
-      expect(town.userData.wallSections).toBeGreaterThan(40);
-      expect(town.userData.gates).toBe(2);
-    }
+  it('counts each Nose shelter as a home', () => {
+    const group = sites.getObjectByName('landmark-nose')!;
+    let shelters = 0;
+    group.traverse((o) => {
+      if (o.name === 'nose-shelters') shelters += (o.children[0] as InstancedMesh).count;
+    });
+    expect(shelters).toBeGreaterThan(40);
+    expect(group.userData.homes).toBe(shelters);
   });
 
-  it('closes every site with an edge and shut doors at each gate', () => {
-    for (const site of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
+  it('draws no edge for a fortress site, whose curtain is baked, and leaves no site without one (IV7)', () => {
+    expect(ALL.every(isFortress)).toBe(true);
+    for (const site of ALL.filter(isFortress)) {
       const group = sites.getObjectByName(`landmark-${site.id}`)!;
-      expect(group.userData.wallSections, site.id).toBeGreaterThan(5);
-      expect(group.userData.gates, site.id).toBe(siteGates(site).length);
-      expect(group.userData.doors, site.id).toBe(2 * siteGates(site).length);
+      expect(group.userData.wallSections, site.id).toBeUndefined();
+      expect(group.userData.gates, site.id).toBeUndefined();
     }
   });
 
-  it('draws each edge on the collision edge, at most 1.5 tiles thick', () => {
-    for (const site of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
-      const group = sites.getObjectByName(`landmark-${site.id}`)!;
-      const reach = group.userData.edgeReach as [number, number];
-      expect(reach[0], site.id).toBeGreaterThan(site.radius - 1.5);
-      expect(reach[1], site.id).toBeLessThanOrEqual(site.radius + 0.01);
+  it('builds no site model for a territory, whose props are baked', () => {
+    const territories = REGION.locations.filter((l) => l.kind === 'territory');
+    expect(territories.map((l) => l.id)).toContain('glass-flats');
+    for (const site of territories) expect(sites.getObjectByName(`landmark-${site.id}`), site.id).toBeUndefined();
+  });
+
+  it('keeps every pulled-in interior piece at its height over the ground on a slope', () => {
+    const size = 800;
+    const heights = Array.from({ length: (size + 1) ** 2 }, (_, k) => 0.004 * (k % (size + 1)) + 0.003 * Math.floor(k / (size + 1)));
+    const slope: Terrain = { size, heights, types: Array.from({ length: size * size }, () => 'hardpan' as const), atlas: ICARUS_KEY };
+    const sloped = buildSites(slope).root;
+    for (const site of ALL.filter(isFortress)) {
+      const flat = sites.getObjectByName(`landmark-${site.id}`)!.children;
+      const hill = sloped.getObjectByName(`landmark-${site.id}`)!.children;
+      expect(hill.length, site.id).toBe(flat.length);
+      hill.forEach((child, i) => {
+        if (child.userData.gateFurniture) return;
+        const ground = heightAt(slope, child.position.x / PHYSICS.metersPerTile, child.position.z / PHYSICS.metersPerTile) * PHYSICS.metersPerTile;
+        expect(child.position.y - ground, `${site.id} child ${i}`).toBeCloseTo(flat[i].position.y, 4);
+      });
     }
   });
 
-  it('keeps everything a truck could touch inside the site edge', () => {
-    const S = PHYSICS.metersPerTile;
-    const reach = 1;
+  it('keeps every vertex of a fortress interior inside its curtain, inset by half a wall depth, or in its rock (IV8)', () => {
     const v = new Vector3();
     const m = new Matrix4();
-    for (const site of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
-      let worst = 0;
+    for (const site of ALL.filter(isFortress)) {
+      const bad: string[] = [];
       sites.getObjectByName(`landmark-${site.id}`)!.traverse((o) => {
-        if (!(o instanceof Mesh) || outsideEdge(o)) return;
+        if (!(o instanceof Mesh) || o.userData.gateFurniture) return;
         o.updateWorldMatrix(true, false);
         const pos = o.geometry.getAttribute('position');
         const copies = o instanceof InstancedMesh ? o.count : 1;
@@ -78,36 +105,610 @@ describe('landmark scale', () => {
           if (o instanceof InstancedMesh) at.multiply(o.getMatrixAt(k, m));
           for (let i = 0; i < pos.count; i++) {
             v.fromBufferAttribute(pos, i).applyMatrix4(at);
-            if (v.y > reach * S) continue;
-            worst = Math.max(worst, Math.hypot(v.x / S - site.pos.x, v.z / S - site.pos.y) - site.radius);
+            const p = { x: v.x / PHYSICS.metersPerTile, y: v.z / PHYSICS.metersPerTile };
+            if (!insideCurtain(site, p) && !onFortressRock(site, p)) {
+              bad.push(`${o.name || o.geometry.type} at ${(v.x / PHYSICS.metersPerTile - site.pos.x).toFixed(1)},${(v.z / PHYSICS.metersPerTile - site.pos.y).toFixed(1)}`);
+              return;
+            }
           }
         }
       });
-      expect.soft(worst, site.id).toBeLessThanOrEqual(0.05);
+      expect(bad.slice(0, 5), `${site.id}: ${bad.length} outside`).toEqual([]);
     }
   });
 
-  it('stands each gate on two plain posts, with no tower over the wall', () => {
+  it('hangs two lit lamps within one gate width of every gate face (IV11, IV7)', () => {
     const S = PHYSICS.metersPerTile;
-    const topLimit = REGION.settlement.wallHeight * 1.4 + 0.01;
-    for (const site of [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')]) {
-      const group = sites.getObjectByName(`landmark-${site.id}`)!;
-      const thickness = group.userData.wallThickness as number;
-      let posts = 0;
-      const towers: string[] = [];
-      for (const o of group.children) {
-        if (!(o instanceof Mesh) || !(o.geometry instanceof BoxGeometry)) continue;
-        const { width, height, depth } = o.geometry.parameters;
-        const [w, h, d] = [width / S, height / S, depth / S];
-        const r = Math.hypot(o.position.x / S - site.pos.x, o.position.z / S - site.pos.y);
-        if (r < site.radius - 1.5 || r > site.radius) continue;
-        const bottom = o.position.y / S - h / 2;
-        const top = o.position.y / S + h / 2;
-        if (bottom <= 0 && Math.min(w, d) >= thickness * 1.5) posts++;
-        if (Math.min(w, d) > 0.25 && top > topLimit) towers.push(`${w.toFixed(2)}x${d.toFixed(2)} to ${top.toFixed(2)}`);
+    for (const site of ALL) {
+      const lit: Vector3[] = [];
+      sites.getObjectByName(`landmark-${site.id}`)!.traverse((o) => {
+        if (o instanceof Mesh && LIT_LAMPS.has((o.material as MeshLambertMaterial).color.getHex())) lit.push(o.position.clone());
+      });
+      const faces = fortressGates(site).map((g) => ({ at: g.face, width: g.width }));
+      for (const face of faces) {
+        const near = lit.filter((p) => Math.hypot(p.x / S - face.at.x, p.z / S - face.at.y) <= face.width);
+        expect(near.length, `${site.id} gate at ${face.at.x.toFixed(0)},${face.at.y.toFixed(0)}`).toBeGreaterThanOrEqual(2);
       }
-      expect.soft(posts, site.id).toBe(2 * siteGates(site).length);
-      expect.soft(towers, site.id).toEqual([]);
+    }
+  });
+
+  it('lights every lit lamp box with its own color (IV21)', () => {
+    let lamps = 0;
+    sites.traverse((o) => {
+      if (!(o instanceof Mesh)) return;
+      const material = o.material as MeshLambertMaterial;
+      if (!LIT_LAMPS.has(material.color.getHex())) return;
+      expect(material.emissive.getHex(), o.parent?.name).toBe(material.name === 'glow' ? MODEL_GLOW.emissive : material.color.getHex());
+      lamps++;
+    });
+    expect(lamps).toBeGreaterThan(0);
+  });
+
+  it('hands out each moving part once, from inside its site (IV20)', () => {
+    const nodes = movers.map((m) => m.node);
+    expect(new Set(nodes).size).toBe(nodes.length);
+    for (const { node } of movers) {
+      let site: Object3D | null = node;
+      while (site !== null && !site.name.startsWith('landmark-')) site = site.parent;
+      expect(site, node.name).not.toBeNull();
+    }
+  });
+
+  it('stands every Bowl house, tree and crop row on one pit level across its footprint (IV18)', () => {
+    const S = PHYSICS.metersPerTile;
+    const bowl = ALL.find((s) => s.id === 'bowl')!;
+    const counts: Record<string, number> = { 'bowl-houses': 0, 'bowl-trees': 0, 'bowl-crops': 0 };
+    const m = new Matrix4();
+    sites.getObjectByName('landmark-bowl')!.traverse((o) => {
+      const tag = [o.name, o.parent?.name].find((n) => n !== undefined && n in counts);
+      if (!(o instanceof InstancedMesh) || tag === undefined) return;
+      o.updateWorldMatrix(true, false);
+      o.geometry.computeBoundingBox();
+      for (let k = 0; k < o.count; k++) {
+        const box = o.geometry.boundingBox!.clone().applyMatrix4(o.matrixWorld.clone().multiply(o.getMatrixAt(k, m)));
+        const xs = [box.min.x / S, box.max.x / S, (box.min.x + box.max.x) / 2 / S];
+        const ys = [box.min.z / S, box.max.z / S, (box.min.z + box.max.z) / 2 / S];
+        const depths = new Set(xs.flatMap((x) => ys.map((y) => pitDepth(bowl, { x, y }))));
+        expect(depths.size, `${tag} ${k} at ${(xs[2] - bowl.pos.x).toFixed(1)},${(ys[2] - bowl.pos.y).toFixed(1)}`).toBe(1);
+        counts[tag]++;
+      }
+    });
+    for (const [tag, n] of Object.entries(counts)) expect(n, tag).toBeGreaterThan(10);
+  });
+
+  it('turns the Bowl windmill wheel as its one moving part, inside the site over its whole turn (IV20)', () => {
+    const S = PHYSICS.metersPerTile;
+    const bowl = ALL.find((s) => s.id === 'bowl')!;
+    const own = movers.filter(({ node }) => {
+      let p: Object3D | null = node;
+      while (p !== null && p.name !== 'landmark-bowl') p = p.parent;
+      return p !== null;
+    });
+    expect(own.map((m) => m.node.name)).toEqual(['windmill-rotor']);
+    const { node, motion } = own[0];
+    const rest = { position: node.position.clone(), quaternion: node.quaternion.clone() };
+    for (const seconds of [0, 0.75, 1.5, 2.25]) {
+      motion(seconds, node, rest);
+      node.updateMatrix();
+      const box = new Box3().setFromObject(node);
+      for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) expect(Math.hypot(x / S - bowl.pos.x, z / S - bowl.pos.y)).toBeLessThan(bowl.radius);
+    }
+    motion(0, node, rest);
+    node.updateMatrix();
+  });
+
+  it('rocks the Dustwell pumpjack beam as its one moving part, inside the curtain at rest and at both ends of its stroke (IV8, IV20)', () => {
+    const S = PHYSICS.metersPerTile;
+    const dustwell = ALL.find((s) => s.id === 'dustwell')!;
+    const own = movers.filter(({ node }) => {
+      let p: Object3D | null = node;
+      while (p !== null && p.name !== 'landmark-dustwell') p = p.parent;
+      return p !== null;
+    });
+    expect(own.map((m) => m.node.name)).toEqual(['pumpjack-beam']);
+    const { node, motion } = own[0];
+    const rest = { position: node.position.clone(), quaternion: node.quaternion.clone() };
+    const v = new Vector3();
+    const tilts: number[] = [];
+    for (const seconds of [0, 1.5, 4.5]) {
+      motion(seconds, node, rest);
+      node.updateMatrix();
+      node.updateWorldMatrix(true, true);
+      tilts.push(node.quaternion.angleTo(rest.quaternion));
+      const outside: string[] = [];
+      node.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const pos = o.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          if (!insideCurtain(dustwell, { x: v.x / S, y: v.z / S })) outside.push(`${(v.x / S - dustwell.pos.x).toFixed(2)},${(v.z / S - dustwell.pos.y).toFixed(2)}`);
+          expect(v.y, `beam at ${seconds} s`).toBeGreaterThan(0);
+        }
+      });
+      expect(outside.slice(0, 3), `beam at ${seconds} s`).toEqual([]);
+    }
+    expect(tilts[0]).toBeCloseTo(0, 5);
+    expect(tilts[1]).toBeCloseTo((18 * Math.PI) / 180, 3);
+    expect(tilts[2]).toBeCloseTo((18 * Math.PI) / 180, 3);
+    motion(0, node, rest);
+    node.updateMatrix();
+  });
+
+  it('keeps palm trees out of Green Pit and Dustwell and leaves the Green Pit shacks standing', () => {
+    for (const id of ['green-pit', 'dustwell']) {
+      const names = new Set<string>();
+      sites.getObjectByName(`landmark-${id}`)!.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) names.add(m.name);
+      });
+      expect(names.has('palm'), id).toBe(false);
+      expect(names.has('palm_dark'), id).toBe(false);
+    }
+    const shacks: Object3D[] = [];
+    sites.getObjectByName('landmark-green-pit')!.traverse((o) => {
+      if (o.name === 'green-pit-shack') shacks.push(o);
+    });
+    expect(shacks).toHaveLength(2);
+  });
+
+  it('stands one pumpjack, three storage tanks and a shed with a shut door and a lit lantern inside Dustwell (IV22)', () => {
+    const group = sites.getObjectByName('landmark-dustwell')!;
+    const named = (name: string) => {
+      const found: Object3D[] = [];
+      group.traverse((o) => {
+        if (o.name === name) found.push(o);
+      });
+      return found;
+    };
+    expect(named('pumpjack')).toHaveLength(1);
+    expect(named('pumpjack-beam')).toHaveLength(1);
+    expect(named('dustwell-shed')).toHaveLength(1);
+    expect(named('dustwell-tank')).toHaveLength(3);
+    const door = named('dustwell-shed-door');
+    expect(door).toHaveLength(1);
+    expect(((door[0] as Mesh).material as MeshLambertMaterial).emissive.getHex(), 'a shut door does not glow').toBe(0);
+    const lamp = (named('dustwell-shed-lamp')[0] as Mesh).material as MeshLambertMaterial;
+    expect(lamp.color.getHex()).toBe(PAL.lamp.on);
+    expect(lamp.emissive.getHex()).toBe(PAL.lamp.on);
+  });
+
+  it('runs the Granary sacks up the conveyor as its one moving part, inside the curtain over the whole loop (IV8, IV20)', () => {
+    const S = PHYSICS.metersPerTile;
+    const granary = ALL.find((s) => s.id === 'granary')!;
+    const own = movers.filter(({ node }) => {
+      let p: Object3D | null = node;
+      while (p !== null && p.name !== 'landmark-granary') p = p.parent;
+      return p !== null;
+    });
+    expect(own.map((m) => m.node.name)).toEqual(['granary-sacks']);
+    const { node, motion } = own[0];
+    expect(node.children).toHaveLength(4);
+    node.updateWorldMatrix(true, false);
+    expect(new Vector3(0, 1, 0).transformDirection(node.matrixWorld).y).toBeGreaterThan(0.7);
+    const rest = { position: node.position.clone(), quaternion: node.quaternion.clone() };
+    const v = new Vector3();
+    const heights: number[] = [];
+    for (const seconds of [0, 2.4, 4.9]) {
+      motion(seconds, node, rest);
+      node.updateMatrix();
+      node.updateWorldMatrix(true, true);
+      heights.push(node.position.y);
+      const outside: string[] = [];
+      node.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const pos = o.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          if (!insideCurtain(granary, { x: v.x / S, y: v.z / S })) outside.push(`${(v.x / S - granary.pos.x).toFixed(2)},${(v.z / S - granary.pos.y).toFixed(2)}`);
+        }
+      });
+      expect(outside.slice(0, 3), `sacks at ${seconds} s`).toEqual([]);
+    }
+    expect(heights[1]).toBeGreaterThan(heights[0] + 0.5);
+    expect(heights[2]).toBeGreaterThan(heights[1] + 0.5);
+    motion(0, node, rest);
+    node.updateMatrix();
+  });
+
+  it('stands four silos, an elevator, two shelters with a lit lamp and four grain bins inside the Granary', () => {
+    const group = sites.getObjectByName('landmark-granary')!;
+    const count = (name: string) => {
+      let n = 0;
+      group.traverse((o) => {
+        if (o.name === name) n++;
+      });
+      return n;
+    };
+    expect(count('granary-silo')).toBe(4);
+    expect(count('granary-elevator')).toBe(1);
+    expect(count('granary-belt')).toBe(1);
+    expect(count('granary-shelter')).toBe(2);
+    expect(count('granary-bin')).toBe(4);
+    const shelter = group.getObjectByName('granary-shelter')!;
+    const glowing: number[] = [];
+    shelter.traverse((o) => {
+      if (o instanceof Mesh) glowing.push(...[o.material].flat().map((m) => (m as MeshLambertMaterial).emissive.getHex()));
+    });
+    expect(glowing).toContain(MODEL_GLOW.emissive);
+  });
+
+  it('slews the Salvage Yard crane and hoists its grab, inside the curtain at rest and at both ends of the slew (IV8, IV20)', () => {
+    const S = PHYSICS.metersPerTile;
+    const yard = ALL.find((s) => s.id === 'salvage-yard')!;
+    const own = movers.filter(({ node }) => {
+      let p: Object3D | null = node;
+      while (p !== null && p.name !== 'landmark-salvage-yard') p = p.parent;
+      return p !== null;
+    });
+    expect(own.map((m) => m.node.name)).toEqual(['crane-upper', 'crane-grab']);
+    const [upper, grab] = own;
+    expect(grab.node.parent).toBe(upper.node);
+    const rests = own.map(({ node }) => ({ position: node.position.clone(), quaternion: node.quaternion.clone() }));
+    const v = new Vector3();
+    const turns: number[] = [];
+    const lifts: number[] = [];
+    for (const seconds of [0, 3.5, 10.5]) {
+      own.forEach(({ node, motion }, i) => {
+        motion(seconds, node, rests[i]);
+        node.updateMatrix();
+      });
+      upper.node.updateWorldMatrix(true, true);
+      turns.push(upper.node.quaternion.angleTo(rests[0].quaternion));
+      lifts.push(grab.node.position.y - rests[1].position.y);
+      const outside: string[] = [];
+      upper.node.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const pos = o.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          if (!insideCurtain(yard, { x: v.x / S, y: v.z / S })) outside.push(`${o.name} ${(v.x / S - yard.pos.x).toFixed(2)},${(v.z / S - yard.pos.y).toFixed(2)}`);
+        }
+      });
+      expect(outside.slice(0, 3), `crane at ${seconds} s`).toEqual([]);
+    }
+    expect(turns[0]).toBeCloseTo(0, 5);
+    expect(turns[1]).toBeCloseTo((35 * Math.PI) / 180, 3);
+    expect(turns[2]).toBeCloseTo((35 * Math.PI) / 180, 3);
+    expect(lifts[0]).toBeCloseTo(0, 5);
+    expect(lifts[1]).toBeCloseTo(2, 3);
+    own.forEach(({ node, motion }, i) => {
+      motion(0, node, rests[i]);
+      node.updateMatrix();
+    });
+  });
+
+  it('stands a crane, stacked wrecks, a tall tank, a container, a jeep and a shed with a shut door and a lit lantern inside the Salvage Yard (IV22)', () => {
+    const group = sites.getObjectByName('landmark-salvage-yard')!;
+    const named = (name: string) => {
+      const found: Object3D[] = [];
+      group.traverse((o) => {
+        if (o.name === name) found.push(o);
+      });
+      return found;
+    };
+    expect(named('salvage-crane')).toHaveLength(1);
+    expect(named('salvage-stack').length).toBeGreaterThanOrEqual(3);
+    expect(named('salvage-container')).toHaveLength(1);
+    expect(named('salvage-jeep')).toHaveLength(1);
+    expect(named('salvage-shed')).toHaveLength(1);
+    const door = named('salvage-shed-door');
+    expect(door).toHaveLength(1);
+    expect(((door[0] as Mesh).material as MeshLambertMaterial).emissive.getHex(), 'a shut door does not glow').toBe(0);
+    const lamp = (named('salvage-shed-lamp')[0] as Mesh).material as MeshLambertMaterial;
+    expect(lamp.emissive.getHex()).toBe(PAL.lamp.on);
+    const cab: number[] = [];
+    named('crane-upper')[0].traverse((o) => {
+      if (o instanceof Mesh) cab.push(...[o.material].flat().map((m) => (m as MeshLambertMaterial).emissive.getHex()));
+    });
+    expect(cab).toContain(MODEL_GLOW.emissive);
+  });
+
+  it('turns the Nose radar dish as its one moving part, inside the curtain over its whole turn (IV8, IV20)', () => {
+    const S = PHYSICS.metersPerTile;
+    const nose = ALL.find((s) => s.id === 'nose')!;
+    const own = movers.filter(({ node }) => {
+      let p: Object3D | null = node;
+      while (p !== null && p.name !== 'landmark-nose') p = p.parent;
+      return p !== null;
+    });
+    expect(own.map((m) => m.node.name)).toEqual(['nose-radar-dish']);
+    const { node, motion } = own[0];
+    const rest = { position: node.position.clone(), quaternion: node.quaternion.clone() };
+    const v = new Vector3();
+    const turns: number[] = [];
+    for (const seconds of [0, 2, 4, 6]) {
+      motion(seconds, node, rest);
+      node.updateMatrix();
+      node.updateWorldMatrix(true, true);
+      turns.push(node.quaternion.angleTo(rest.quaternion));
+      const outside: string[] = [];
+      node.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const pos = o.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          if (!insideCurtain(nose, { x: v.x / S, y: v.z / S })) outside.push(`${(v.x / S - nose.pos.x).toFixed(2)},${(v.z / S - nose.pos.y).toFixed(2)}`);
+        }
+      });
+      expect(outside.slice(0, 3), `dish at ${seconds} s`).toEqual([]);
+    }
+    expect(turns.map((t) => +t.toFixed(3))).toEqual([0, +(Math.PI / 2).toFixed(3), +Math.PI.toFixed(3), +(Math.PI / 2).toFixed(3)]);
+    motion(0, node, rest);
+    node.updateMatrix();
+  });
+
+  describe('Nose from its concept (IV8, IV27-IV29)', () => {
+    const S = PHYSICS.metersPerTile;
+    const nose = ALL.find((s) => s.id === 'nose')!;
+    const group = sites.getObjectByName('landmark-nose')!;
+    const gates = fortressGates(nose);
+    const south = gates[0].out.y > gates[1].out.y ? gates[0] : gates[1];
+    const uAxis = { x: -south.out.y, y: south.out.x };
+    const toFrame = (p: { x: number; y: number }) => ({ u: (p.x - nose.pos.x) * uAxis.x + (p.y - nose.pos.y) * uAxis.y, v: -((p.x - nose.pos.x) * south.out.x + (p.y - nose.pos.y) * south.out.y) });
+    const discs = gates.map((g) => ({ ...toFrame(g.face), r: g.width / 2 + GATE_CLEAR }));
+    const rockBoxes = noseRocks(nose).flatMap((p, k) => propBoxes(propObstacle(p, k)));
+    const inRise = (p: { x: number; y: number }) => rockBoxes.some((b) => boxDistance(b, p) === 0);
+    const interior: { x: number; y: number; u: number; v: number }[] = [];
+    for (let x = Math.floor(nose.pos.x - nose.radius); x <= nose.pos.x + nose.radius; x++) {
+      for (let y = Math.floor(nose.pos.y - nose.radius); y <= nose.pos.y + nose.radius; y++) {
+        if (insideCurtain(nose, { x, y }, 1)) interior.push({ x, y, ...toFrame({ x, y }) });
+      }
+    }
+
+    it('keeps every Nose mesh inside the curtain, or in the rock where the rock closes it (IV8)', () => {
+      const v = new Vector3();
+      const outside: string[] = [];
+      group.updateWorldMatrix(true, true);
+      group.traverse((o) => {
+        if (!(o instanceof Mesh) || o instanceof InstancedMesh) return;
+        let ours = false;
+        for (let p: Object3D | null = o; p !== null; p = p.parent) ours = ours || p.name.startsWith('nose-');
+        if (!ours) return;
+        const pos = o.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+          const p = { x: v.x / S, y: v.z / S };
+          if (!insideCurtain(nose, p) && !onFortressRock(nose, p)) outside.push(`${o.name || o.parent?.name} ${(v.x / S - nose.pos.x).toFixed(1)},${(v.z / S - nose.pos.y).toFixed(1)}`);
+        }
+      });
+      expect(outside.slice(0, 5)).toEqual([]);
+    });
+
+    it('stands the ship on the rise, pitched nose-up, its belly a wall height over the yard (IV28)', () => {
+      const frame = group.getObjectByName('nose-frame')!;
+      const ship = group.getObjectByName('nose-ship')!;
+      frame.updateWorldMatrix(true, true);
+      expect((ship.rotation.z * 180) / Math.PI).toBeGreaterThanOrEqual(6);
+      expect((ship.rotation.z * 180) / Math.PI).toBeLessThanOrEqual(10);
+      const inFrame = new Matrix4().copy(frame.matrixWorld).invert();
+      const v = new Vector3();
+      let belly = Infinity;
+      const shipBox = new Box3();
+      const nose0 = ship.children.find((o) => o.name === 'nose-ship-section')!;
+      const dish = group.getObjectByName('nose-radar-dish')!;
+      for (const section of ship.children) {
+        section.traverse((o) => {
+          if (!(o instanceof Mesh)) return;
+          for (let d: Object3D | null = o; d !== null; d = d.parent) if (d === dish) return;
+          const pos = o.geometry.getAttribute('position');
+          for (let i = 0; i < pos.count; i++) {
+            v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+            if (section === nose0) belly = Math.min(belly, v.y);
+            shipBox.expandByPoint(v.applyMatrix4(inFrame));
+          }
+        });
+      }
+      expect(belly / S, 'the lowest point of ship_nose').toBeGreaterThanOrEqual(FORTRESS_WALL_TILES);
+      const diameter = 2 * (nose.radius - FORTRESS.inset) * S;
+      const length = shipBox.max.x - shipBox.min.x;
+      expect(length / diameter).toBeGreaterThanOrEqual(0.7);
+      expect(length / diameter).toBeLessThanOrEqual(0.8);
+      for (const d of discs.map((x) => ({ ...x, r: x.r - GATE_CLEAR + 1.5 }))) {
+        const gx = d.u * S;
+        const gy = -d.v * S;
+        const dx = Math.max(shipBox.min.x - gx, 0, gx - shipBox.max.x);
+        const dz = Math.max(shipBox.min.z - -gy, 0, -gy - shipBox.max.z);
+        expect(Math.hypot(dx, dz), 'the ship box to a gate disc').toBeGreaterThanOrEqual(d.r * S);
+      }
+    });
+
+    it('covers 35 to 55% of the interior with the rise and crag, all behind the front edge, and tops the crag over the towers (IV29)', () => {
+      const covered = interior.filter((p) => inRise(p));
+      expect(covered.length / interior.length).toBeGreaterThanOrEqual(0.35);
+      expect(covered.length / interior.length).toBeLessThanOrEqual(0.55);
+      for (const p of covered) expect(p.v, `${p.u}, ${p.v}`).toBeGreaterThan(riseFront(p.u) - 0.5);
+      expect(Math.max(...propShape('nose_crag').map((b) => b.z1))).toBeGreaterThanOrEqual(1.5 * 22);
+    });
+
+    it('builds the yard up: no yard point is more than 4 tiles from a structure (IV27)', () => {
+      const structures = group.userData.structures as { x: number; z: number; r: number }[];
+      const yard = interior.filter((p) => !inRise(p) && !discs.some((d) => Math.hypot(p.u - d.u, p.v - d.v) < d.r));
+      expect(yard.length).toBeGreaterThan(500);
+      const bare = yard.filter((p) => structures.every((s) => Math.hypot(p.x - nose.pos.x - s.x, p.y - nose.pos.y - s.z) - s.r > 4));
+      expect(bare.slice(0, 5).map((p) => `${p.u.toFixed(0)},${p.v.toFixed(0)}`)).toEqual([]);
+    });
+  });
+
+  it('lights the Nose shelter lamps and the cockpit windows (IV22)', () => {
+    const group = sites.getObjectByName('landmark-nose')!;
+    const glowsIn = (name: string) => {
+      const found: number[] = [];
+      group.traverse((o) => {
+        if (o.name !== name) return;
+        o.traverse((m) => {
+          if (m instanceof Mesh) found.push(...[m.material].flat().map((x) => (x as MeshLambertMaterial).emissive.getHex()));
+        });
+      });
+      return found;
+    };
+    expect(glowsIn('nose-shelters')).toContain(MODEL_GLOW.emissive);
+    const nose = group.getObjectByName('nose-ship')!.children[0];
+    const cockpit: number[] = [];
+    const dish = group.getObjectByName('nose-radar-dish')!;
+    nose.traverse((m) => {
+      let inDish = false;
+      for (let p: Object3D | null = m; p !== null; p = p.parent) if (p === dish) inDish = true;
+      if (m instanceof Mesh && !inDish) cockpit.push(...[m.material].flat().map((x) => (x as MeshLambertMaterial).emissive.getHex()));
+    });
+    expect(cockpit).toContain(MODEL_GLOW.emissive);
+  });
+
+});
+
+describe('deck models', () => {
+  const S = PHYSICS.metersPerTile;
+  const onMap = buildSites(TEST_MAP.terrain).root;
+
+  it('grey by a point on their own deck centre line, in a tile whose centre is on that deck', () => {
+    for (const [name, id] of [['landmark-canyon-bridge', 'canyon-bridge'], ['landmark-wing-deck', 'broken-wing']] as const) {
+      const deck = deckById(id);
+      const meshes: Mesh[] = [];
+      onMap.getObjectByName(name)!.traverse((o) => {
+        if (o instanceof Mesh && o.geometry.getAttribute('sightAt')) meshes.push(o);
+      });
+      expect(meshes.length).toBeGreaterThan(0);
+      for (const mesh of meshes) {
+        const at = mesh.geometry.getAttribute('sightAt');
+        expect(at.itemSize).toBe(2);
+        expect(at.count).toBe(mesh.geometry.getAttribute('position').count);
+        for (let i = 0; i < at.count; i++) {
+          const x = at.getX(i) / S;
+          const y = at.getY(i) / S;
+          const along = (x - deck.from.x) * deck.axis.x + (y - deck.from.y) * deck.axis.y;
+          const across = (y - deck.from.y) * deck.axis.x - (x - deck.from.x) * deck.axis.y;
+          expect(Math.abs(across)).toBeLessThan(1e-3);
+          expect(along).toBeGreaterThanOrEqual(Math.SQRT1_2 - 1e-3);
+          expect(along).toBeLessThanOrEqual(deck.length - Math.SQRT1_2 + 1e-3);
+          expect(deckAt(ICARUS_DECKS, Math.floor(x) + 0.5, Math.floor(y) + 0.5)?.deck).toBe(deck);
+        }
+      }
+    }
+  });
+
+  it('are the only site meshes with sight sample points', () => {
+    const decks = ['landmark-canyon-bridge', 'landmark-wing-deck'].map((n) => onMap.getObjectByName(n)!);
+    const bridgeModel = (o: Object3D) => {
+      for (let p: Object3D | null = o; p; p = p.parent) if (p.userData.outsideEdge || p === decks[1]) return true;
+      return false;
+    };
+    onMap.traverse((o) => {
+      if (o instanceof Mesh && !bridgeModel(o)) expect(o.geometry.getAttribute('sightAt'), o.name).toBeUndefined();
+    });
+  });
+});
+
+describe('a Fury Road outpost fort', () => {
+  it('builds the Salvage Yard interior inside its own curtain beside the highway', () => {
+    const map = highwayMap(3, 0);
+    const { root } = buildSites(map.terrain);
+    const fort = root.getObjectByName('landmark-outpost-1');
+    const yard = sites.getObjectByName('landmark-salvage-yard')!;
+
+    expect(fort).toBeDefined();
+    expect(fort!.children.length).toBe(yard.children.length);
+  });
+});
+
+describe('site work lights (#402)', () => {
+  const S = PHYSICS.metersPerTile;
+  const FORTS = ALL.filter(isFortress);
+  const flat = built.lights;
+  const of = (id: string) => flat.filter((l) => l.siteId === id);
+  const tiles = (p: { x: number; z: number }) => ({ x: p.x / S, y: p.z / S });
+
+  it('gives each of the nine inhabited sites an interior light and one gate light per gate (IV1)', () => {
+    expect(FORTS).toHaveLength(9);
+    for (const site of FORTS) {
+      const lights = of(site.id);
+      expect(lights.filter((l) => l.kind === 'gate'), site.id).toHaveLength(fortressGates(site).length);
+      expect(lights.filter((l) => l.kind !== 'gate').length, site.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps each site within the pool and every light id unique (IV4)', () => {
+    for (const site of FORTS) expect(of(site.id).length, site.id).toBeLessThanOrEqual(SITE_LIGHT_POOL);
+    expect(new Set(flat.map((l) => l.id)).size).toBe(flat.length);
+  });
+
+  it('keeps every flood and fire cone on the ground inside its curtain (IV2)', () => {
+    const leaks: string[] = [];
+    for (const site of FORTS) {
+      for (const light of of(site.id).filter((l) => l.kind !== 'gate' && l.kind !== 'fill')) {
+        for (const hit of groundHits(light, 16)) {
+          const p = tiles(hit);
+          if (!insideCurtain(site, p) && !onFortressRock(site, p)) leaks.push(`${light.id} hits ${(p.x - site.pos.x).toFixed(1)},${(p.y - site.pos.y).toFixed(1)}`);
+        }
+      }
+    }
+    expect(leaks).toEqual([]);
+  });
+
+  it('keeps every gate cone on the apron outside its gate face (IV3)', () => {
+    for (const site of FORTS) {
+      const gates = fortressGates(site);
+      for (const light of of(site.id).filter((l) => l.kind === 'gate')) {
+        const at = tiles(light.at);
+        const gate = gates.reduce((a, b) => (Math.hypot(a.face.x - at.x, a.face.y - at.y) < Math.hypot(b.face.x - at.x, b.face.y - at.y) ? a : b));
+        for (const hit of groundHits(light, 16)) {
+          const p = tiles(hit);
+          const out = (p.x - gate.face.x) * gate.out.x + (p.y - gate.face.y) * gate.out.y;
+          expect(out, `${light.id} behind its gate`).toBeGreaterThanOrEqual(-0.01);
+          expect(Math.hypot(p.x - gate.face.x, p.y - gate.face.y), `${light.id} far from its gate`).toBeLessThanOrEqual(REGION.sites.pad.length + GATE_APRON_MARGIN);
+        }
+      }
+    }
+  });
+
+  it('puts every light head inside its curtain, a mast height over the ground', () => {
+    for (const site of FORTS) {
+      for (const light of of(site.id)) {
+        const p = tiles(light.at);
+        expect(insideCurtain(site, p) || light.kind === 'gate' || onFortressRock(site, p), light.id).toBe(true);
+        expect(light.at.y, light.id).toBeGreaterThan(light.ground);
+      }
+    }
+  });
+});
+
+describe('fortress lamps (#402)', () => {
+  const FORTS = ALL.filter(isFortress);
+  const TOWER_HANG = FORTRESS.towerSize / 2 + 0.7;
+  const lampsOf = (id: string) => built.lamps.filter((l) => l.site.id === id);
+  const near = (p: { x: number; y: number }, l: { x: number; z: number }, r: number) => Math.hypot(l.x - p.x, l.z - p.y) <= r;
+  const onTower = (t: { pos: { x: number; y: number } }, l: { x: number; z: number }) => Math.abs(Math.hypot(l.x - t.pos.x, l.z - t.pos.y) - TOWER_HANG) < 0.01;
+
+  it('hangs exactly one outside lamp on every tower (IV2)', () => {
+    for (const site of FORTS) {
+      const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
+      const nearest = (l: { x: number; z: number }) => towers.reduce((a, b) => (Math.hypot(a.pos.x - l.x, a.pos.y - l.z) <= Math.hypot(b.pos.x - l.x, b.pos.y - l.z) ? a : b));
+      for (const tower of towers) {
+        const hung = lampsOf(site.id).filter((l) => !l.inside && onTower(tower, l) && nearest(l) === tower);
+        expect(hung.length, `${site.id} tower at ${tower.pos.x.toFixed(1)},${tower.pos.y.toFixed(1)}: ${hung.map((l) => `${l.x.toFixed(2)},${l.z.toFixed(2)}`).join(' ')}`).toBe(1);
+      }
+    }
+  });
+
+  it('hangs no lamp outside a curtain except at towers and gates (IV2)', () => {
+    for (const site of FORTS) {
+      const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
+      const gates = fortressGates(site);
+      for (const lamp of lampsOf(site.id).filter((l) => !l.inside)) {
+        const placed = towers.some((t) => onTower(t, lamp)) || gates.some((g) => near(g.face, lamp, g.width));
+        expect(placed, `${site.id} lamp at ${lamp.x.toFixed(1)},${lamp.z.toFixed(1)}`).toBe(true);
+      }
+    }
+  });
+
+  it('gives every fortress lamp head one halo and one light pool (IV3)', () => {
+    for (const site of FORTS) {
+      const root = sites.getObjectByName(`landmark-${site.id}`);
+      if (!root) throw new Error(`Missing site ${site.id}`);
+      const halos: Object3D[] = [];
+      root.traverse((o) => {
+        if (o.name === 'halo') halos.push(o);
+      });
+      expect(halos.length, site.id).toBe(lampsOf(site.id).length);
+      for (const halo of halos) expect(((halo.parent as Mesh).material as MeshLambertMaterial).color.getHex(), site.id).toBe(PAL.lamp.amber);
     }
   });
 });

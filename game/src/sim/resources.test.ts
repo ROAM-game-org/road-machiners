@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
+import { CONDITION } from '../data/wear';
 import { SKILL_EFFECTS } from '../data/skills';
 import { TIME } from '../data/time';
 import { burnFuel, consumeVehicleSupplies, getResources } from './resources';
@@ -7,7 +8,7 @@ import { addVehicle, emptyWorld } from './testkit';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { CHASSIS } from '../data/chassis';
 import { fuelCap } from './stats';
-import { corePart } from './grid';
+import { corePart, mountedParts } from './grid';
 import { heatAt } from './sun';
 
 describe('NPC upkeep', () => {
@@ -104,7 +105,6 @@ describe('store overflow', () => {
 });
 
 describe('base drain rates', () => {
-  // Old drains at heat 1, before the 40% cut: 1.875 fuel per 100 tiles and 0.015 supplies per turn.
   function trucks() {
     const w = emptyWorld();
     const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 10 });
@@ -118,7 +118,7 @@ describe('base drain rates', () => {
       const resources = getResources(w, v);
       const before = resources.fuel;
       burnFuel(w, v, 100);
-      expect(before - resources.fuel).toBeCloseTo(0.6 * 1.875 * heatAt(w, v.pos), 9);
+      expect(before - resources.fuel).toBeCloseTo(0.6 * 1.875 * heatAt(w, v.pos) * (1 + CONDITION.stepLoss * mountedParts(v, 'engine')[0].wear), 9);
     }
   });
 

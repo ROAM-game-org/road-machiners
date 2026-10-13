@@ -10,10 +10,13 @@ import { advanceJobs } from './jobs';
 import { optionWeights } from './npc-decisions';
 import { thinkNpc, topGoal } from './npc-activities';
 import { addVehicle, emptyWorld, forceOption, npcBrain } from './testkit';
-import { lootTruckTurn, takeFromTruck } from './salvage';
+import { lootTruckTurn, takeFromTruck, emptyHidden } from './salvage';
 import { lootBlockerHere } from './locations';
 import type { GridItem, Vehicle, World } from './types';
 import { refreshVision } from './vision';
+import { WORK } from '../data/utilities';
+
+const FIELD_TURNS = Math.ceil(RULES.refitTurnsPerPart * WORK.noCraneTime);
 
 function downed(): { w: World; me: Vehicle; buggy: Vehicle } {
   const w = emptyWorld();
@@ -30,7 +33,7 @@ function downed(): { w: World; me: Vehicle; buggy: Vehicle } {
 
 function itemOf(v: Vehicle, test: (it: GridItem) => boolean): GridItem {
   const item = v.items.find(test);
-  if (!item) throw new Error(`No such item on ${v.name}`);
+  if (!item) throw new Error(`No such item on ${v.id}`);
   return item;
 }
 
@@ -60,8 +63,8 @@ describe('the player looting a knocked-out truck', () => {
     const { w, me, buggy } = downed();
     const gun = gunOn(buggy);
     const next = takeFromTruck(w, buggy.id, gun.id, spareSpot(me, gun));
-    expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', turnsLeft: Math.ceil(RULES.refitTurnsPerPart) });
-    for (let turn = 1; turn < Math.ceil(RULES.refitTurnsPerPart); turn++) advanceJobs(next);
+    expect(next.vehicles[0].job).toMatchObject({ kind: 'refit', turnsLeft: FIELD_TURNS });
+    for (let turn = 1; turn < FIELD_TURNS; turn++) advanceJobs(next);
     const target = () => next.vehicles.find((v) => v.id === buggy.id)!;
     expect(target().items.some((it) => it.id === gun.id)).toBe(true);
     advanceJobs(next);
@@ -93,7 +96,7 @@ describe('the player looting a knocked-out truck', () => {
   it('refuses a built-in part', () => {
     const { w, me, buggy } = downed();
     const cab = cabOn(buggy);
-    expect(() => takeFromTruck(w, buggy.id, cab.id, spareSpot(me, cab))).toThrow('Built-in parts stay on the truck');
+    expect(() => takeFromTruck(w, buggy.id, cab.id, spareSpot(me, cab))).toThrow('Refused: builtInStays');
   });
 
   it('refuses a truck out of reach or awake', () => {
@@ -118,7 +121,7 @@ describe('the player and another looter at one knocked-out truck', () => {
     lootTruckTurn(w, looter, buggy);
     const gun = gunOn(buggy);
     const items = buggy.items.length;
-    expect(() => takeFromTruck(w, buggy.id, gun.id, spareSpot(me, gun))).toThrow(`${looter.name} is looting this truck`);
+    expect(() => takeFromTruck(w, buggy.id, gun.id, spareSpot(me, gun))).toThrow('Refused: looting');
     expect(buggy.items).toHaveLength(items);
     expect(lootBlockerHere(w, buggy.id)).toBe(looter);
   });
@@ -141,14 +144,14 @@ describe('an NPC looting a knocked-out truck', () => {
     const looter = looterBeside(w, buggy);
     expect(lootTruckTurn(w, looter, buggy)).toBeNull();
     expect(goodsCount(looter).scrap).toBe(2);
-    expect(looter.job).toMatchObject({ kind: 'refit', turnsLeft: Math.ceil(RULES.refitTurnsPerPart) });
-    for (let turn = 0; turn < Math.ceil(RULES.refitTurnsPerPart); turn++) advanceJobs(w);
+    expect(looter.job).toMatchObject({ kind: 'refit', turnsLeft: FIELD_TURNS });
+    for (let turn = 0; turn < FIELD_TURNS; turn++) advanceJobs(w);
     const left = buggy.items.filter((it) => it.kind === 'part' && partDef(it.part.defId).kind !== 'core');
     expect(left).toHaveLength(1);
     expect(looter.items.filter((it) => it.kind === 'part' && !isMounted(looter.chassisId, it))).toHaveLength(1);
     expect(lootTruckTurn(w, looter, buggy)).toBeNull();
-    for (let turn = 0; turn < Math.ceil(RULES.refitTurnsPerPart); turn++) advanceJobs(w);
-    expect(lootTruckTurn(w, looter, buggy)).toBe('nothing left to loot');
+    for (let turn = 0; turn < FIELD_TURNS; turn++) advanceJobs(w);
+    expect(lootTruckTurn(w, looter, buggy)).toBe('nothingToLoot');
   });
 
   it('takes the full refit turns while the player holds the Cannibal perk', () => {
@@ -157,7 +160,7 @@ describe('an NPC looting a knocked-out truck', () => {
     me.pos = { x: 200, y: 200 };
     const looter = looterBeside(w, buggy);
     lootTruckTurn(w, looter, buggy);
-    expect(looter.job).toMatchObject({ kind: 'refit', turnsLeft: Math.ceil(RULES.refitTurnsPerPart) });
+    expect(looter.job).toMatchObject({ kind: 'refit', turnsLeft: FIELD_TURNS });
   });
 
   it('rolls the same loot decision for a knocked-out truck as for a wreck in sight', () => {
@@ -165,7 +168,7 @@ describe('an NPC looting a knocked-out truck', () => {
     me.pos = { x: 200, y: 200 };
     const looter = looterBeside(w, buggy);
     looter.pos = { x: buggy.pos.x, y: buggy.pos.y + 6 };
-    w.salvage.push({ id: 'wreck-road', pos: { x: buggy.pos.x + 1, y: buggy.pos.y + 6 }, radius: 0.7, goods: { scrap: 2 }, parts: [] });
+    w.salvage.push({ id: 'wreck-road', pos: { x: buggy.pos.x + 1, y: buggy.pos.y + 6 }, radius: 0.7, goods: { scrap: 2 }, parts: [], hidden: emptyHidden() });
     refreshVision(w);
     expect(optionWeights(w, looter, 'salvageSeen', buggy.id, null)).toEqual(optionWeights(w, looter, 'salvageSeen', 'wreck-road', null));
   });
@@ -175,7 +178,7 @@ describe('an NPC looting a knocked-out truck', () => {
     me.pos = { x: 200, y: 200 };
     const looter = looterBeside(w, buggy);
     looter.pos = { x: buggy.pos.x, y: buggy.pos.y + 6 };
-    looter.brain!.goals = [{ kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'test' }];
+    looter.brain!.goals = [{ kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'tripToSite' }];
     forceOption('salvageSeen', 'loot');
     refreshVision(w);
     thinkNpc(w, looter);

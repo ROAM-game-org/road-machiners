@@ -1,6 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PHYSICS } from '../data/physics';
-import { START_KITS } from '../data/start';
 import { beforeAll, expect, it } from 'vitest';
 import { randRange } from '../sim/rng';
 import { deckAt } from '../sim/bridge';
@@ -12,13 +11,17 @@ import { toMap } from './frames';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { furyRoadWorld, PLAIN_KIT } from '../sim/testkit';
+import { defaultSetup } from '../sim/settings';
+import { ICARUS_DECKS } from '../sim/bridge';
+import { atlasOf } from '../sim/atlas';
 
 beforeAll(async () => {
   await initPhysics();
 });
 
 function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: number; minDeckRise: number } {
-  let w = newWorld(1337, START_KITS.standard, TEST_MAP);
+  let w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.vehicles[0].pos = { ...start };
   w.player.fuel = 999;
@@ -34,7 +37,7 @@ function driveRoute(start: Vec, target: Vec): { maxTilt: number; remaining: numb
       const q = frame.rot;
       maxTilt = Math.max(maxTilt, Math.acos(Math.min(1, 1 - 2 * (q.x * q.x + q.z * q.z))));
       const p = toMap(frame.pos);
-      if (deckAt(p.x, p.y) !== null) minDeckRise = Math.min(minDeckRise, frame.pos.y - heightAt(w.terrain, p.x, p.y) * PHYSICS.metersPerTile);
+      if (deckAt(ICARUS_DECKS, p.x, p.y) !== null) minDeckRise = Math.min(minDeckRise, frame.pos.y - heightAt(w.terrain, p.x, p.y) * PHYSICS.metersPerTile);
     }
     freeDrive(drive);
     drive = result!.next;
@@ -62,7 +65,7 @@ it('a truck crosses Canyon Bridge on the deck, above the canyon', () => {
 }, budget(60_000));
 
 it('the Bowl crater exit leans the truck without rolling it onto its side', () => {
-  const start = newWorld(1337, START_KITS.standard, TEST_MAP).vehicles[0].pos;
+  const start = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')).vehicles[0].pos;
   const result = driveRoute(start, { x: 101, y: 432 });
   expect(result.remaining).toBeLessThan(3);
   expect(result.maxTilt).toBeLessThan(45);
@@ -70,7 +73,7 @@ it('the Bowl crater exit leans the truck without rolling it onto its side', () =
 
 it('the terrain collider is a heightfield whose surface matches the corner grid', () => {
   const S = PHYSICS.metersPerTile;
-  const w = newWorld(1, START_KITS.standard, TEST_MAP);
+  const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
   const t = w.terrain;
   const drive = buildDrive(w);
   const ground = drive.world.getCollider(drive.terrain);
@@ -102,3 +105,16 @@ it('the terrain collider is a heightfield whose surface matches the corner grid'
   expect(flat).toBeGreaterThan(0);
   freeDrive(drive);
 });
+
+it('builds only the ramp decks on the Fury Road highway, and every Icarus deck on Icarus', () => {
+  const road = furyRoadWorld(5);
+  const highway = buildDrive(road);
+  const icarus = buildDrive(newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
+  const ramps = atlasOf(road.terrain).decks.decks;
+
+  expect(ramps.every((d) => d.id.startsWith('ramp-'))).toBe(true);
+  expect(highway.decks).toHaveLength(ramps.length);
+  expect(icarus.decks).toHaveLength(ICARUS_DECKS.decks.length);
+  freeDrive(highway);
+  freeDrive(icarus);
+}, budget(30_000));

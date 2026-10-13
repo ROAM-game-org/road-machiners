@@ -1,6 +1,3 @@
-// Debug console: Backquote or § opens a command line that runs cheat commands on the live world.
-// The command table parses typed text into arguments for the sim cheats. Every user-input problem
-// throws CheatError, so the console can tell it from a bug.
 
 import {
   CheatError,
@@ -16,6 +13,7 @@ import {
   randomKit,
   repairAll,
   revealMap,
+  setEngineHeat,
   setFuel,
   setHealth,
   setMoney,
@@ -25,19 +23,24 @@ import {
   startBattle,
   startWeather,
   teleport,
+  toggleFrozen,
   toggleFullLog,
   toggleGod,
 } from "../sim/cheats";
-import { PERKS, SKILL_IDS, XP_RULES } from "../data/skills";
+import { SKILL_IDS, XP_RULES } from "../data/skills";
 import { playerVehicle } from "../sim/damage";
 import { mountedParts } from "../sim/grid";
 import { partDef } from "../data/parts";
 import { xpTodayOf } from "../sim/progress";
 import { dist } from "../sim/vec";
 import type { World, XpSource } from "../sim/types";
-import { el, panel } from "./dom";
+import { devEl, el, panel } from "./dom";
+import { partName, perkName } from "../text/names";
+import { resolve } from "../text/resolve";
+import { UNITS } from "../data/units";
+import { moneyText } from "./units";
 
-export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true };
+export type CommandResult = { world: World | null; lines: string[]; toggleFps?: true; noclip?: true; fullShop?: true };
 
 export type Command = {
   name: string;
@@ -89,11 +92,21 @@ function setter(name: string, help: string, set: (world: World, n: number) => Wo
   });
 }
 
+function moneySetter(): Command {
+  return command("money <n>", "Set money in M.", { min: 1, max: 1 }, (world, [text], usage) => {
+    const cents = parseNumber(text, usage) * UNITS.centsPerM;
+    const whole = Math.round(cents);
+    if (Math.abs(cents - whole) > 1e-6) throw new CheatError(`Money takes at most two decimals, got ${text}`);
+    return changed(setMoney(world, whole), `money set to ${moneyText(whole)}`);
+  });
+}
+
 export const COMMANDS: readonly Command[] = [
-  setter("money", "Set money.", setMoney),
+  moneySetter(),
   setter("fuel", "Set fuel, capped by the tanks.", setFuel),
   setter("supplies", "Set supplies, capped by the storage.", setSupplies),
   setter("health", "Set driver health.", setHealth),
+  setter("engineheat", "Set engine heat, 0 cold to 1 overheated.", setEngineHeat),
   command("xp <n>", "Add XP to the pool to spend on ranks.", { min: 1, max: 1 }, (world, [text], usage) => {
     const n = parseNumber(text, usage);
     return changed(addXp(world, n), `XP added: ${n}`);
@@ -101,7 +114,7 @@ export const COMMANDS: readonly Command[] = [
   command("perk <perk id>", "Grant a perk at any skill rank.", { min: 1, max: 1 }, (world, [id]) => {
     const next = grantPerk(world, id);
     const granted = next.player.perks[next.player.perks.length - 1];
-    return changed(next, `perk granted: ${PERKS[granted].name}`);
+    return changed(next, `perk granted: ${resolve(perkName(granted), 'en')}`);
   }),
   command("skills", "Show the XP pool, skill ranks, today's XP per activity and XP per source.", { min: 0, max: 0 }, (world) => ({
     world: null,
@@ -127,8 +140,13 @@ export const COMMANDS: readonly Command[] = [
     const next = toggleFullLog(world);
     return changed(next, `full log ${next.player.fullLog ? "on" : "off"}`);
   }),
+  command("freeze", "Toggle frozen NPCs: no driver, so they roll free, hold fire, use no utilities and raise no radio calls.", { min: 0, max: 0 }, (world) => {
+    const next = toggleFrozen(world);
+    return changed(next, `NPCs ${next.player.frozen ? "frozen" : "unfrozen"}`);
+  }),
 
   command("fps", "Toggle the frame rate panel.", { min: 0, max: 0 }, () => ({ world: null, lines: [], toggleFps: true })),
+  command("fullshop", "Open a shop of every part, free, where parts fit at once, anywhere and in combat.", { min: 0, max: 0 }, () => ({ world: null, lines: [], fullShop: true })),
 
   command("tp <location id> | tp <x> <y>", "Move the truck to a location or map point.", { min: 1, max: 2 }, (world, args, usage) => {
     if (args.length === 1) return changed(teleport(world, placeSpot(world, args[0])), `teleported to ${args[0]}`);
@@ -156,11 +174,11 @@ export const COMMANDS: readonly Command[] = [
   command("randomkit [level 1-5]", "Swap the truck for a random NPC truck at a gear level from 1 poor to 5 loaded, or a random level.", { min: 0, max: 1 }, (world, [level]) => {
     const next = randomKit(world, level === undefined ? null : Number(level));
     const me = next.vehicles.find((v) => v.id === next.player.vehicleId)!;
-    return changed(next, `randomkit: ${me.chassisId} with ${mountedParts(me).filter((p) => partDef(p.defId).kind !== 'core').map((p) => partDef(p.defId).name).join(', ')}`);
+    return changed(next, `randomkit: ${me.chassisId} with ${mountedParts(me).filter((p) => partDef(p.defId).kind !== 'core').map((p) => resolve(partName(p.defId), 'en')).join(', ')}`);
   }),
-  command("battle", "Place a random hostile NPC of any kind near the truck.", { min: 0, max: 0 }, (world) => {
+  command("battle", "Place a random hostile NPC of any kind ahead of the truck.", { min: 0, max: 0 }, (world) => {
     const next = startBattle(world);
-    return changed(next, `battle: ${next.vehicles[next.vehicles.length - 1].name} is hostile`);
+    return changed(next, `battle: ${next.vehicles[next.vehicles.length - 1].id} is hostile`);
   }),
   command("hostile <vehicle id>", "Make a vehicle hostile to the player.", { min: 1, max: 1 }, (world, [id]) =>
     changed(makeHostile(world, id), `${id} is hostile`),
@@ -172,7 +190,7 @@ export const COMMANDS: readonly Command[] = [
     const rows = nearbyVehicles(world);
     if (rows.length === 0) return { world: null, lines: ["no vehicles nearby"] };
     const lines = rows.map(
-      (r) => `${r.id}  ${r.name}  ${r.templateId ?? "-"}  ${r.faction}  ${Math.round(r.distance)} tiles${r.hostile ? "  hostile" : ""}`,
+      (r) => `${r.id}  ${r.driver ?? "-"}  ${r.templateId ?? "-"}  ${r.faction}  ${Math.round(r.distance)} tiles${r.hostile ? "  hostile" : ""}`,
     );
     return { world: null, lines };
   }),
@@ -214,6 +232,7 @@ export type ConsoleGame = {
   readonly state: World;
   readonly busy: boolean;
   apply(w: World): void;
+  openFullShop(): void;
 };
 
 export type NoclipView = {
@@ -342,6 +361,10 @@ export class DebugConsole {
     if (result.world !== null) this.game.apply(result.world);
     if (result.toggleFps) this.print(`fps panel ${this.fps.toggle() ? "on" : "off"}`);
     for (const text of result.lines) this.print(text);
+    if (result.fullShop) {
+      this.close();
+      this.game.openFullShop();
+    }
   }
 
   private run(line: string): CommandResult | null {
@@ -361,7 +384,7 @@ export class DebugConsole {
   }
 
   private print(text: string, cls?: "dim" | "bad"): void {
-    this.log.append(el("div", { class: cls }, text));
+    this.log.append(devEl("div", { class: cls }, text));
     while (this.log.children.length > LOG_LINES) this.log.children[0].remove();
     this.log.scrollTop = this.log.scrollHeight;
   }

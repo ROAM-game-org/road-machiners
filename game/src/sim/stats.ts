@@ -1,5 +1,3 @@
-// Derived vehicle numbers: chassis + installed parts + load + damage + player skills.
-// Every rule that needs speed, turning or capacity reads it from here.
 
 import { chassisDef } from '../data/chassis';
 import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/parts';
@@ -8,16 +6,18 @@ import { RULES } from '../data/rules';
 import { skillEffect } from './progress';
 import { TOW } from '../data/tow';
 import { maxHp, wornDef } from './wear';
-import { openSides, type Side } from './armor';
-import { corePart, coreParts, mountedItems, mountedParts } from './grid';
+import { gunSpans, type FireSpan } from './armor';
+import { corePart, coreParts, facingOf, mountedItems, mountedParts } from './grid';
 import { loadFactor, vehicleMass } from './mass';
 import { getResources } from './resources';
 import { isTowing } from './tow';
+import { isShutDown } from './utility';
 import type { PartInstance, Vehicle, World } from './types';
 import { DEG } from './vec';
 import { weatherOn } from './weather';
+import { fuelUseScale } from './settings';
 
-export type MountedWeapon = { part: PartInstance; def: WeaponDef; sides: Side[] };
+export type MountedWeapon = { part: PartInstance; def: WeaponDef; spans: FireSpan[]; facing: number };
 
 export type VehicleStats = {
   maxSpeed: number;
@@ -145,9 +145,16 @@ function conditionSpeed(world: World, v: Vehicle, from: number, steps: SpeedStep
   return speed;
 }
 
+export function plainFuelPerTile(world: World, v: Vehicle): number {
+  return fuelPerTileWith(world, v, 1);
+}
+
+function fuelPerTileWith(world: World, v: Vehicle, fuelMult: number): number {
+  return chassisDef(v.chassisId).fuelPerTile * fuelMult * RULES.fuelUseFactor * fuelUseScale(world);
+}
+
 export function vehicleStats(world: World, v: Vehicle): VehicleStats {
   const ch = chassisDef(v.chassisId);
-  const engines = mountedParts(v, 'engine');
   const mass = vehicleMass(v);
   const load = loadFactor(v);
   const force = ch.handlingMass / mass;
@@ -157,16 +164,7 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
   const limpSpeed = limpSpeedOf(world, v);
   const limpAccel = limpSpeed * ch.accel;
 
-  const maxSpeed = walkSpeed(world, v, limpSpeed, load, brokenWheels, null);
-  let accel = limpAccel;
-  let fuelMult = 0;
-  if (hasWorkingEngine(v) && !isStalled(world, v)) {
-    const e = wornDef<EngineDef>(engines[0]);
-    const drag = gunDragOf(gunDraw(v), e.capacity);
-    accel = (ch.accel + e.accelBonus) * force * RULES.accelScale * drag;
-    fuelMult = e.fuelMult;
-    if (inOverdrive(world, v)) accel *= RULES.overdriveBoost;
-  }
+  const { maxSpeed, accel, fuelMult } = driveOf(world, v, { limpSpeed, limpAccel, load, brokenWheels, force });
 
   return {
     maxSpeed,
@@ -175,14 +173,28 @@ export function vehicleStats(world: World, v: Vehicle): VehicleStats {
     turnSlow: ch.turnSlow * DEG * turnMult,
     turnFast: ch.turnFast * DEG * turnMult,
     reverseTurn: ch.reverseTurn * DEG * turnMult,
-    fuelPerTile: ch.fuelPerTile * fuelMult * RULES.fuelUseFactor,
+    fuelPerTile: fuelPerTileWith(world, v, fuelMult),
     limpSpeed,
     limpAccel,
     roughSkill: skillEffect(world, v, 'driving', 'roughSpeed'),
     mass,
     radius: ch.radius,
-    weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: wornDef<WeaponDef>(item.part), sides: openSides(v, item) })),
+    weapons: mountedItems(v, 'weapon').map((item) => ({ part: item.part, def: wornDef<WeaponDef>(item.part), spans: gunSpans(v, item), facing: facingOf(item) })),
   };
+}
+
+type Drive = { maxSpeed: number; accel: number; fuelMult: number };
+type DriveShares = { limpSpeed: number; limpAccel: number; load: number; brokenWheels: number; force: number };
+
+function driveOf(world: World, v: Vehicle, s: DriveShares): Drive {
+  if (isShutDown(world, v)) return { maxSpeed: 0, accel: 0, fuelMult: 0 };
+  const maxSpeed = walkSpeed(world, v, s.limpSpeed, s.load, s.brokenWheels, null);
+  if (!hasWorkingEngine(v) || isStalled(world, v)) return { maxSpeed, accel: s.limpAccel, fuelMult: 0 };
+  const ch = chassisDef(v.chassisId);
+  const e = wornDef<EngineDef>(mountedParts(v, 'engine')[0]);
+  const boost = inOverdrive(world, v) ? RULES.overdriveBoost : 1;
+  const accel = (ch.accel + e.accelBonus) * s.force * RULES.accelScale * gunDragOf(gunDraw(v), e.capacity) * boost;
+  return { maxSpeed, accel, fuelMult: e.fuelMult };
 }
 
 export function gunDraw(v: Vehicle): number {
@@ -241,7 +253,12 @@ function templateSpeedShare(v: Vehicle): number {
 }
 
 export function inOverdrive(world: World, v: Vehicle): boolean {
-  return v.id === world.player.vehicleId && world.player.overdrive;
+  return v.id === world.player.vehicleId && world.player.overdrive && canOverdrive(v);
+}
+
+export function canOverdrive(v: Vehicle): boolean {
+  const engine = mountedParts(v, 'engine')[0];
+  return engine !== undefined && engine.hp > RULES.overdriveMinEngineShare * maxHp(engine);
 }
 
 export function fuelCap(v: Vehicle): number {

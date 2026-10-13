@@ -1,22 +1,24 @@
-// Inventory commands. Field equipment changes use parked refit jobs.
 
-import { GOODS } from '../data/goods';
+import { CRATE_MASS } from '../data/goods';
 import { partDef } from '../data/parts';
 import { skillEffect, vehicleHasPerk } from './progress';
-import { playerVehicle } from './damage';
+import { playerVehicle, truckFor } from './damage';
 import { newId } from './factory';
 import { cabShieldWith, gunLayoutScore } from './armor';
 import { findSpot, freeCells, gridOf, isMounted, itemCells, MOUNT_CELLS, mountSpots, placementError, type Cell, type Spot } from './grid';
-import { requireShop, shopAt } from './market';
+import { atGarage, requireGarage } from './garage';
+import { disarm } from './claymore';
+import { workTimeMult } from './utility';
 import { startJob } from './jobs';
 import { RULES } from '../data/rules';
 import { PERK_NUMBERS } from '../data/skills';
 import { canReachSalvage, dumpOnPile, truckPickupItem } from './salvage';
+import { modeRules } from './settings';
 import { fitStores } from './resources';
 import { itemMass } from './mass';
 import { npcMassRoom, vehicleStats } from './stats';
-import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, Vehicle, World } from './types';
-import { playerCommand } from './world';
+import type { GridItem, PartInstance, RefitJob, RefitMove, RefitPickup, Refusal, Vehicle, World } from './types';
+import { playerCommand, Refused } from './world';
 
 export function mountPart(world: World, v: Vehicle, part: PartInstance, mount: Cell[] = MOUNT_CELLS[partDef(part.defId).kind]): boolean {
   const item: PartItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'part', part };
@@ -66,15 +68,15 @@ export function cargoMassRoom(v: Vehicle): number {
   return v.brain ? npcMassRoom(v) : Infinity;
 }
 
-export function cargoRoom(v: Vehicle, good: string): number {
-  return Math.min(freeCells(v), Math.floor(cargoMassRoom(v) / GOODS[good].mass));
+export function cargoRoom(v: Vehicle): number {
+  return Math.min(freeCells(v), Math.floor(cargoMassRoom(v) / CRATE_MASS));
 }
 
 export function hasCargoRoom(v: Vehicle): boolean {
-  return Object.keys(GOODS).some((good) => cargoRoom(v, good) > 0);
+  return cargoRoom(v) > 0;
 }
 
-function stowPlace(v: Vehicle, item: GridItem): Spot | null {
+export function stowPlace(v: Vehicle, item: GridItem): Spot | null {
   return itemMass(item) > cargoMassRoom(v) ? null : stowSpot(v, item);
 }
 
@@ -91,7 +93,7 @@ export function stowPart(world: World, v: Vehicle, part: PartInstance): boolean 
 }
 
 export function addGoods(world: World, v: Vehicle, good: string, n: number): number {
-  const count = Math.min(n, cargoRoom(v, good));
+  const count = Math.min(n, cargoRoom(v));
   for (let i = 0; i < count; i++) {
     const item: GridItem = { id: newId(world, 'i'), x: 0, y: 0, rot: 0, kind: 'good', good };
     const spot = findSpot(gridOf(v), v.items, item, null, null);
@@ -116,64 +118,106 @@ export function spareParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === 'part' && !isMounted(v.chassisId, it) ? [it.part] : []));
 }
 
-export function moveItem(world: World, itemId: string, to: Spot): World {
+function refitTruck(w: World, truckId: string | undefined, atGarageOnly: boolean): Vehicle {
+  const truck = truckFor(w, truckId);
+  if (atGarageOnly && truck.id !== w.player.vehicleId) requireGarage(w, truck.id);
+  return truck;
+}
+
+export function moveItem(world: World, itemId: string, to: Spot, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const me = playerVehicle(w);
+    const me = refitTruck(w, truckId, true);
     const result = planItemMove(me, itemId, to);
-    if (result.error !== null) throw new Error(result.error);
-    const { moves, items, turns } = result.plan;
-    if (turns > 0 && !shopAt(w)) {
-      const work = refitTurns(w, me, turns);
-      startJob(w, me, { kind: 'refit', moves, pickup: null, turnsLeft: work, total: work });
-    } else applyRefitLayout(w, me, items);
+    if (result.error !== null) throw new Refused(result.error);
+    commitRefit(w, me, result.plan);
   });
 }
 
+export type RefitLayout = Record<string, Spot>;
+
+export function startRefit(world: World, layout: RefitLayout, truckId?: string): World {
+  return playerCommand(world, (w) => {
+    const me = refitTruck(w, truckId, true);
+    commitRefit(w, me, layoutPlan(me, layout));
+  });
+}
+
+export function plannedRefitTurns(world: World, v: Vehicle, layout: RefitLayout): number {
+  const { turns } = layoutPlan(v, layout);
+  return turns > 0 && !atGarage(world, v.id) ? refitTurns(world, v, turns) : 0;
+}
+
+function layoutPlan(v: Vehicle, layout: RefitLayout): RefitPlan {
+  requireIdleRefit(v);
+  const moves: RefitMove[] = [];
+  for (const [itemId, to] of Object.entries(layout)) {
+    const item = findItem(v, itemId);
+    if (!matchesSpot(item, to)) moves.push({ itemId, from: getSpot(item), to: getSpot(to) });
+  }
+  if (moves.length === 0) throw new Error('The layout changes nothing');
+  const result = planMoves(v, moves);
+  if (result.error !== null) throw new Refused(result.error);
+  return result.plan;
+}
+
+function commitRefit(w: World, me: Vehicle, plan: RefitPlan): void {
+  for (const move of plan.moves) {
+    const moving = findItem(me, move.itemId);
+    if (moving.kind === 'part') disarm(moving.part);
+  }
+  if (plan.turns > 0 && !atGarage(w, me.id)) {
+    const work = refitTurns(w, me, plan.turns);
+    startJob(w, me, { kind: 'refit', moves: plan.moves, pickup: null, turnsLeft: work, total: work });
+  } else applyRefitLayout(w, me, plan.items);
+}
+
 export function refitTurns(world: World, v: Vehicle, planned: number): number {
-  return Math.max(1, Math.ceil(planned * (1 - skillEffect(world, v, 'machining', 'refit'))));
+  return Math.max(1, Math.ceil(planned * workTimeMult(v) * (1 - skillEffect(world, v, 'machining', 'refit'))));
 }
 
 export function lootRefitTurns(world: World, v: Vehicle, planned: number): number {
   return vehicleHasPerk(world, v, 'cannibal') ? PERK_NUMBERS.cannibal.turns : refitTurns(world, v, planned);
 }
 
-export function storePart(world: World, itemId: string): World {
+export function storePart(world: World, itemId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireShop(w);
-    const me = playerVehicle(w);
+    requireGarage(w, truckId);
+    const me = truckFor(w, truckId);
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (item.kind !== 'part') throw new Error('Only parts go into garage storage');
     requireRemovable(item);
     me.items = me.items.filter((it) => it.id !== itemId);
+    disarm(item.part);
     w.player.storage.push(item.part);
-    afterRefit(w);
+    afterRefit(w, me);
   });
 }
 
-export function takeFromStorage(world: World, partId: string, to: Spot): World {
+export function takeFromStorage(world: World, partId: string, to: Spot, truckId?: string): World {
   return playerCommand(world, (w) => {
-    requireShop(w);
-    const me = playerVehicle(w);
+    requireGarage(w, truckId);
+    const me = truckFor(w, truckId);
     requireIdleRefit(me);
     const i = w.player.storage.findIndex((p) => p.id === partId);
     if (i < 0) throw new Error(`No stored part ${partId}`);
     const item: GridItem = { id: newId(w, 'i'), kind: 'part', part: w.player.storage[i], ...to };
     const err = placementError(gridOf(me), me.items, item, null);
-    if (err) throw new Error(err);
+    if (err) throw new Refused(err);
     w.player.storage.splice(i, 1);
     me.items.push(item);
-    afterRefit(w);
+    afterRefit(w, me);
   });
 }
 
-export function dumpItem(world: World, itemId: string): World {
+export function dumpItem(world: World, itemId: string, truckId?: string): World {
   return playerCommand(world, (w) => {
-    const me = playerVehicle(w);
+    const me = refitTruck(w, truckId, true);
     requireIdleRefit(me);
     const item = findItem(me, itemId);
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
-    dumpOnPile(w, me, item);
+    if (modeRules(w).looting) dumpOnPile(w, me, item);
+    else me.items = me.items.filter((it) => it.id !== item.id);
   });
 }
 
@@ -184,43 +228,42 @@ function findItem(v: Vehicle, itemId: string): GridItem {
 }
 
 function requireRemovable(item: GridItem): void {
-  if (item.kind === 'part' && partDef(item.part.defId).kind === 'core') throw new Error(`${partDef(item.part.defId).name} is built in. It can only be repaired.`);
+  if (item.kind === 'part' && partDef(item.part.defId).kind === 'core') throw new Refused({ id: 'builtInFixed' });
 }
 
-export function afterRefit(w: World): void {
-  const me = playerVehicle(w);
+export function afterRefit(w: World, me: Vehicle = playerVehicle(w)): void {
   const error = getLayoutError(me, me.items);
-  if (error) throw new Error(error);
+  if (error) throw new Refused(error);
   applyRefitLayout(w, me, me.items);
 }
 
 type RefitPlan = { moves: RefitMove[]; items: GridItem[]; turns: number };
-type PlanResult = { plan: RefitPlan; error: null } | { plan: null; error: string };
+type PlanResult = { plan: RefitPlan; error: null } | { plan: null; error: Refusal };
 
 export function requireIdleRefit(v: Vehicle): void {
-  if (v.job?.kind === 'refit') throw new Error('Finish the refit before changing inventory');
+  if (v.job?.kind === 'refit') throw new Refused({ id: 'refitRunning' });
 }
 
-export function getLayoutError(v: Vehicle, items: GridItem[]): string | null {
+export function getLayoutError(v: Vehicle, items: GridItem[]): Refusal | null {
   const grid = gridOf({ ...v, items });
   for (const item of items) {
     const error = placementError(grid, items, item, item.id);
-    if (error) return `${error}. Items would fall off the grid or overlap.`;
+    if (error) return { id: 'badLayout', cause: error };
   }
   return null;
 }
 
 export function planItemMove(v: Vehicle, itemId: string, to: Spot): PlanResult {
   const item = v.items.find((entry) => entry.id === itemId);
-  if (!item) return { plan: null, error: `No item ${itemId}` };
-  if (v.job?.kind === 'refit') return { plan: null, error: 'Finish the refit before changing inventory' };
+  if (!item) return { plan: null, error: { id: 'itemGone' } };
+  if (v.job?.kind === 'refit') return { plan: null, error: { id: 'refitRunning' } };
   const moved = { ...item, ...getSpot(to) };
   const cells = new Set(itemCells(moved).map((cell) => `${cell.x},${cell.y}`));
   const targets = v.items.filter((other) => other.id !== itemId && itemCells(other).some((cell) => cells.has(`${cell.x},${cell.y}`)));
-  if (targets.length > 1) return { plan: null, error: 'More than one item is in the way' };
+  if (targets.length > 1) return { plan: null, error: { id: 'twoInTheWay' } };
   const moves: RefitMove[] = [{ itemId, from: getSpot(item), to: getSpot(to) }];
   const target = targets[0];
-  if (target) moves.push({ itemId: target.id, from: getSpot(target), to: { x: item.x, y: item.y, rot: target.rot } });
+  if (target) moves.push({ itemId: target.id, from: getSpot(target), to: getSpot(item) });
   return planMoves(v, moves);
 }
 
@@ -241,32 +284,32 @@ function planMoves(v: Vehicle, moves: RefitMove[]): PlanResult {
   return error ? { plan: null, error } : { plan: { moves, items, turns }, error: null };
 }
 
-function getMoveError(item: GridItem | undefined, move: RefitMove): string | null {
-  if (!item || !matchesSpot(item, move.from)) return 'An item needed for the refit has moved or disappeared';
-  if (item.kind === 'part' && partDef(item.part.defId).kind === 'core') return 'Built-in parts cannot be moved';
+function getMoveError(item: GridItem | undefined, move: RefitMove): Refusal | null {
+  if (!item || !matchesSpot(item, move.from)) return { id: 'refitItemMoved' };
+  if (item.kind === 'part' && partDef(item.part.defId).kind === 'core') return { id: 'builtInFixed' };
   return null;
 }
 
-export function getRefitLayout(world: World, v: Vehicle, job: RefitJob): { items: GridItem[]; error: null } | { items: null; error: string } {
+export function getRefitLayout(world: World, v: Vehicle, job: RefitJob): { items: GridItem[]; error: null } | { items: null; error: Refusal } {
   const result = planMoves(v, job.moves);
   if (result.error !== null) return { items: null, error: result.error };
   const items = result.plan.items;
   if (job.pickup) {
     const pickup = getRefitPickup(world, v, job.pickup);
-    if (typeof pickup === 'string') return { items: null, error: pickup };
+    if (!('kind' in pickup)) return { items: null, error: pickup };
     items.push(pickup);
   }
   const error = getLayoutError(v, items);
   return error ? { items: null, error } : { items, error: null };
 }
 
-function getRefitPickup(world: World, v: Vehicle, pickup: RefitPickup): GridItem | string {
+function getRefitPickup(world: World, v: Vehicle, pickup: RefitPickup): GridItem | Refusal {
   if (pickup.from === 'truck') return truckPickupItem(world, v, pickup);
   const { stockId, partId, itemId, to } = pickup;
   const stock = world.salvage.find((entry) => entry.id === stockId);
-  if (!stock || !world.player.scavenged.includes(stockId) || !canReachSalvage(v, stock)) return 'Salvage is no longer in reach';
+  if (!stock || !world.player.scavenged.includes(stockId) || !canReachSalvage(v, stock)) return { id: 'salvageOutOfReach' };
   const part = stock.parts.find((entry) => entry.id === partId);
-  if (!part) return 'The salvage part is no longer available';
+  if (!part) return { id: 'salvagePartGone' };
   return { kind: 'part', id: itemId, part, ...to };
 }
 

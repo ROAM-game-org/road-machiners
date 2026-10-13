@@ -12,7 +12,7 @@ import { spawnNpcs } from './spawn';
 import { addState, advanceStates, endState, settleStates, stateOf } from './states';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
-import { escortsOf, isOnRope, startEscort, towOf } from './tow';
+import { escortFee, escortsOf, isOnRope, startEscort, towOf } from './tow';
 import type { GameEvent, NpcActivity, NpcState, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { refreshVision } from './vision';
@@ -103,7 +103,7 @@ describe('the follow goal', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const convoy = convoyAt(w, { x: 60, y: 60 });
     const guard = guardAt(w, { x: 50, y: 60 });
-    guard.brain!.goals = [{ kind: 'fight', targetId: 'gone', destination: null, phase: 'act', reason: 'test fight', worn: { turn: w.turn, condition: 1 } }];
+    guard.brain!.goals = [{ kind: 'fight', targetId: 'gone', destination: null, phase: 'act', reason: 'fightHostile', worn: { turn: w.turn, condition: 1 } }];
     startEscort(w, guard, convoy, null, 0);
     expect(guard.brain!.goals.map((g) => g.kind)).toEqual(['follow', 'fight']);
     forceOption('resume', 'new');
@@ -170,7 +170,7 @@ describe('escort tows', () => {
     forceOption('idle', 'wait');
     const convoy = convoyAt(w, outFrom(BOWL, 30));
     convoy.resources!.fuel = 0;
-    convoy.resources!.money = 1000;
+    convoy.resources!.money = 33333;
     const guard = guardAt(w, outFrom(BOWL, 38));
     startEscort(w, guard, convoy, null, 0);
     refreshVision(w);
@@ -216,7 +216,7 @@ describe('escort pay', () => {
     const trader = createNpc(w, 'trader', ['trader'], 'hauler', ['stockEngine'], { x: 60, y: 60 });
     trader.resources!.money = money;
     const merc = createNpc(w, 'merc', ['merc'], 'scout', ['mg', 'stockEngine'], { x: 50, y: 60 });
-    merc.resources!.money = 100;
+    merc.resources!.money = 3333;
     startEscort(w, merc, trader, site, fee);
     aged(escortOf(w, merc, trader));
     return { w, trader, merc };
@@ -225,20 +225,20 @@ describe('escort pay', () => {
   const paid = (w: World) => w.events.filter((e) => e.t === 'escortPaid');
 
   it('pays the fee once when the leader can use its destination site', () => {
-    const { w, trader, merc } = hired(50, 1000);
+    const { w, trader, merc } = hired(1667, 33333);
     advanceStates(w);
     expect(paid(w)).toEqual([]);
 
     trader.pos = { ...sitePads(BOWL)[0] };
     advanceStates(w);
-    expect(paid(w)).toEqual([{ t: 'escortPaid', by: merc.id, client: trader.id, fee: 50 }]);
-    expect(trader.resources!.money).toBe(950);
-    expect(merc.resources!.money).toBe(150);
+    expect(paid(w)).toEqual([{ t: 'escortPaid', by: merc.id, client: trader.id, fee: 1667 }]);
+    expect(trader.resources!.money).toBe(31666);
+    expect(merc.resources!.money).toBe(5000);
     expect(escortOf(w, merc, trader)).toBeNull();
 
     advanceStates(w);
     expect(paid(w)).toHaveLength(1);
-    expect(merc.resources!.money).toBe(150);
+    expect(merc.resources!.money).toBe(5000);
   });
 
   describe.each(['orchard', 'fallen-sun'])('to the territory %s', (id) => {
@@ -273,7 +273,7 @@ describe('escort pay', () => {
       const { w, trader, merc } = leaderAt(entry);
       expect(paid(w)).toEqual([{ t: 'escortPaid', by: merc.id, client: trader.id, fee: 50 }]);
       expect(trader.resources!.money).toBe(950);
-      expect(merc.resources!.money).toBe(150);
+      expect(merc.resources!.money).toBe(3383);
       expect(escortOf(w, merc, trader)).toBeNull();
     });
 
@@ -289,15 +289,15 @@ describe('escort pay', () => {
   });
 
   it('pays no more than the leader holds', () => {
-    const { w, trader, merc } = hired(50, 30);
+    const { w, trader, merc } = hired(1667, 1000);
     trader.pos = { ...sitePads(BOWL)[0] };
     advanceStates(w);
     expect(trader.resources!.money).toBe(0);
-    expect(merc.resources!.money).toBe(130);
+    expect(merc.resources!.money).toBe(4333);
   });
 
   it('a broken escort pays nothing', () => {
-    const { w, trader, merc } = hired(50, 1000);
+    const { w, trader, merc } = hired(1667, 33333);
     addState(w, 'feud', merc.id, trader.id, { kind: 'feud', robbery: false });
     advanceStates(w);
     expect(escortOf(w, merc, trader)).toBeNull();
@@ -305,12 +305,12 @@ describe('escort pay', () => {
     trader.pos = { ...sitePads(BOWL)[0] };
     advanceStates(w);
     expect(paid(w)).toEqual([]);
-    expect(trader.resources!.money).toBe(1000);
-    expect(merc.resources!.money).toBe(100);
+    expect(trader.resources!.money).toBe(33333);
+    expect(merc.resources!.money).toBe(3333);
   });
 
   it('breaks when the leader is knocked out', () => {
-    const { w, trader, merc } = hired(50, 1000);
+    const { w, trader, merc } = hired(1667, 33333);
     trader.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: true };
     advanceStates(w);
     expect(escortOf(w, merc, trader)).toBeNull();
@@ -374,7 +374,7 @@ describe('hiring a merc', () => {
   function onTrip(money: number): { w: World; trader: Vehicle; merc: Vehicle } {
     const w = emptyWorld({ x: 200, y: 200 });
     const trader = createNpc(w, 'trader', ['trader'], 'hauler', ['mg', 'workhorseDiesel', 'trailerBox'], { x: 60, y: 60 });
-    trader.brain!.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'test trip' }];
+    trader.brain!.goals = [{ kind: 'sell', targetId: 'nose', destination: { ...NOSE.pos }, phase: 'travel', reason: 'tripToSite' }];
     trader.resources!.money = money;
     const merc = createNpc(w, 'merc', ['merc'], 'scout', ['mg', 'stockEngine'], { x: 66, y: 60 });
     refreshVision(w);
@@ -382,19 +382,20 @@ describe('hiring a merc', () => {
   }
 
   it('a client that hires a merc that takes the job gets an escort to its destination for the fee', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     forceOption('escortSeen', 'hire');
     forceOption('hireOffered', 'take');
     w.rngState = rngStateForForcedRolls(6);
+    const fee = escortFee(w, trader, merc, 'nose');
     thinkNpc(w, trader);
     const escort = escortOf(w, merc, trader);
-    expect(escort?.data).toEqual({ kind: 'escort', site: 'nose', fee: Math.round(dist(trader.pos, NOSE.pos) * NPC_BEHAVIOR.escortFeePerTile) });
+    expect(escort?.data).toEqual({ kind: 'escort', site: 'nose', fee });
     expect(merc.brain!.goals[0].kind).toBe('follow');
     expect(w.events.some((e) => e.t === 'escortHired' && e.by === merc.id && e.client === trader.id)).toBe(true);
   });
 
   it('a merc that declines leaves both drivers as they were', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     forceOption('escortSeen', 'hire');
     forceOption('hireOffered', 'decline');
     w.rngState = rngStateForForcedRolls(6);
@@ -405,13 +406,13 @@ describe('hiring a merc', () => {
   });
 
   it('a merc already on a job cannot take another', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     startEscort(w, merc, convoyAt(w, { x: 120, y: 120 }), null, 0);
     expect(optionWeights(w, trader, 'escortSeen', merc.id, null)).not.toHaveProperty('hire');
   });
 
   it('a merc in combat with another truck cannot be hired', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     startCombat(w, addVehicle(w, 'scavengers', 'scout', [], { x: 90, y: 90 }), merc);
     expect(optionWeights(w, trader, 'escortSeen', merc.id, null)).not.toHaveProperty('hire');
   });
@@ -422,13 +423,13 @@ describe('hiring a merc', () => {
   });
 
   it('a client with no trip cannot hire', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     trader.brain!.goals = [];
     expect(optionWeights(w, trader, 'escortSeen', merc.id, null)).not.toHaveProperty('hire');
   });
 
   it('a weak merc declines far more often', () => {
-    const { w, trader, merc } = onTrip(5000);
+    const { w, trader, merc } = onTrip(166667);
     const healthy = optionChances(optionWeights(w, merc, 'hireOffered', trader.id, null)).decline!;
     merc.resources!.health = 1;
     const weak = optionChances(optionWeights(w, merc, 'hireOffered', trader.id, null)).decline!;
@@ -438,7 +439,7 @@ describe('hiring a merc', () => {
 });
 
 describe('a leader with escorts', () => {
-  function pair(escortX: number, leaderGoal: NpcActivity = { kind: 'sell', targetId: 'nose', destination: { x: 150, y: 60 }, phase: 'travel', reason: 'test trip' }): { w: World; convoy: Vehicle } {
+  function pair(escortX: number, leaderGoal: NpcActivity = { kind: 'sell', targetId: 'nose', destination: { x: 150, y: 60 }, phase: 'travel', reason: 'tripToSite' }): { w: World; convoy: Vehicle } {
     const w = emptyWorld({ x: 200, y: 200 });
     const convoy = convoyAt(w, { x: 60, y: 60 });
     convoy.brain!.goals = [leaderGoal];
@@ -462,7 +463,7 @@ describe('a leader with escorts', () => {
   it('drives on while a lagging escort is busy with a goal of its own', () => {
     const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1);
     const guard = escortsOf(w, convoy.id)[0];
-    guard.brain!.goals.push({ kind: 'resupply', targetId: 'bowl', destination: { ...BOWL.pos }, phase: 'travel', reason: 'low fuel' });
+    guard.brain!.goals.push({ kind: 'resupply', targetId: 'bowl', destination: { ...BOWL.pos }, phase: 'travel', reason: 'lowFuel' });
     planNpcOrders(w);
     expect(convoy.order?.kind).not.toBe('brake');
   });
@@ -474,7 +475,7 @@ describe('a leader with escorts', () => {
   });
 
   it('drives on to its own service stop while an escort lags', () => {
-    const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1, { kind: 'resupply', targetId: 'bowl', destination: { ...BOWL.pos }, phase: 'travel', reason: 'low fuel' });
+    const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortWaitGap - 1, { kind: 'resupply', targetId: 'bowl', destination: { ...BOWL.pos }, phase: 'travel', reason: 'lowFuel' });
     planNpcOrders(w);
     expect(convoy.order?.kind).not.toBe('brake');
   });

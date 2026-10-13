@@ -1,4 +1,3 @@
-// The stall watchdog: no driver stays stuck for good, whatever bug stranded it.
 
 import { NPC_BEHAVIOR, SPAWN } from '../data/npcs';
 import { RULES } from '../data/rules';
@@ -7,18 +6,18 @@ import { isKnockedOut } from './defeat';
 import { awaitsTower, exploreGoal, idleGoal, logChange, pushGoal, saleGoal, topGoal } from './npc-activities';
 import { hasSaleCargo, npcProfile } from './npc-decisions';
 import { liesUp } from './npc-service';
+import { isShutDown } from './utility';
 import { route } from './path';
 import { randRange } from './rng';
 import { nearestPad } from './sites';
+import { modeRules } from './settings';
 import { isFree } from './spawn';
-import { vehicleStats } from './stats';
+import { isStranded, vehicleStats } from './stats';
 import { isOnRope, npcHomeSite } from './tow';
 import type { Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
 
-// Runs each turn. A driver with no progress for NPC_BEHAVIOR.stallTurns turns gives up its top goal, or with no goal
-// drives off to explore. Each give-up logs a stall event, and the progression recorder fails on any.
 export function watchStalls(world: World): void {
   for (const v of world.vehicles) {
     if (!v.brain) continue;
@@ -27,20 +26,19 @@ export function watchStalls(world: World): void {
   }
 }
 
-// A driver waiting on a timed state, knocked out, towed, with a tower on its way, lying up at its site or parked at its
-// spot beside its leader, counts as making progress: the state or the leader ends the wait, and the watchdog judges
-// the leader on its own.
 function madeProgress(world: World, v: Vehicle): boolean {
   if (isKnockedOut(v) || waits(world, v)) return true;
   return v.brain!.progress?.key !== progressKey(v);
 }
 
 function waits(world: World, v: Vehicle): boolean {
-  return isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v);
+  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || strandedForGood(world, v);
 }
 
-// A follower at its spot waits. So does one that stands as near a parked leader as its spot does: the spot lies on the
-// far side of the leader, which a parked leader's turn put there, and the follower does not drive around it.
+function strandedForGood(world: World, v: Vehicle): boolean {
+  return !modeRules(world).rescue && isStranded(world, v);
+}
+
 function waitsOnLeader(world: World, v: Vehicle): boolean {
   const top = topGoal(v);
   if (top?.kind !== 'follow' || top.destination === null) return false;
@@ -52,36 +50,31 @@ function besideParkedLeader(world: World, v: Vehicle, leaderId: string | null, s
   return leader !== undefined && leader.speed <= RULES.parkedSpeed && dist(v.pos, leader.pos) <= dist(spot, leader.pos) + RULES.arriveRadius;
 }
 
-// The driver's tile, top goal and job turn. Any change is progress.
 function progressKey(v: Vehicle): string {
   const top = topGoal(v);
   const goal = top ? `${top.kind}:${top.targetId}:${top.reason}` : 'idle';
   return `${Math.round(v.pos.x)},${Math.round(v.pos.y)} ${goal} ${v.job ? `${v.job.kind}:${v.job.turnsLeft}` : '-'}`;
 }
 
-// The driver drops every goal, jumps clear and starts over with a fresh goal.
 function giveUp(world: World, v: Vehicle): void {
   const top = topGoal(v);
   world.events.push({ t: 'stall', vehicle: v.id, goal: top?.kind ?? null, reason: top?.reason ?? 'idle' });
   v.brain!.goals = [];
-  logChange(world, v, top, 'no progress for too long');
+  logChange(world, v, top, 'noProgress');
   jumpClear(world, v);
   freshGoal(world, v);
   v.brain!.progress = { key: progressKey(v), since: world.turn };
 }
 
-// What an empty stack would pick, but never a wait: a wait rolls explore instead.
 function freshGoal(world: World, v: Vehicle): void {
   const next = hasSaleCargo(v) ? saleGoal(world, v, npcProfile(v)) : idleGoal(world, v);
   const goal = next.kind === 'wait' ? exploreGoal(world, v) : next;
   if (goal.kind !== 'wait') pushGoal(world, v, goal);
 }
 
-// A stuck driver out of the player's sight jumps to a free spot within NPC_BEHAVIOR.stallJump tiles that has a route
-// to its home, so a jam it cannot drive out of cannot hold it. The player never sees a truck vanish or appear.
 function jumpClear(world: World, v: Vehicle): void {
   const player = vehicleById(world, world.player.vehicleId);
-  const home = npcHomeSite(v);
+  const home = npcHomeSite(world, v);
   if (!home || canVehicleSee(world, player, v.pos)) return;
   const spot = jumpSpot(world, v, player, nearestPad(home, v.pos));
   if (!spot) return;

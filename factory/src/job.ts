@@ -102,7 +102,17 @@ function batchOf(ctx: Ctx, job: Job | null): number[] {
   return readState(ctx.statePath).jobs.find((other) => other.id === job.id)?.batch ?? [];
 }
 
-function ledgerEntry(ctx: Ctx, job: Job | null, stage: JobStage, issue: number | null): { id: string | null; stage: JobStage; issue: number | null; startedAt: string } {
+function ledgerEntry(
+  ctx: Ctx,
+  job: Job | null,
+  stage: JobStage,
+  issue: number | null,
+): {
+  id: string | null;
+  stage: JobStage;
+  issue: number | null;
+  startedAt: string;
+} {
   if (job === null) return { id: null, stage, issue, startedAt: ctx.now().toISOString() };
   return { id: job.id, stage, issue, startedAt: job.startedAt };
 }

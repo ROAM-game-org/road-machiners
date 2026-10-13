@@ -1,6 +1,6 @@
-// How far trucks climb a straight ramp through the real physics turn pipeline, and what the climb rule leaves alone.
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { RULES } from '../data/rules';
 import type { TerrainTypeId } from '../data/terrain';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
@@ -14,14 +14,11 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const RAMP_FOOT = 28; // tile x where the ramp starts to rise
-// Grade where the loaded hauler gains nothing in eight turns from rest with the climb reserve, measured on this ramp.
-const HAULER_LIMIT = 0.45;
+const RAMP_FOOT = 28;
+const HAULER_LIMIT = 0.5;
 
-// The standard player truck, or the hauler with a full load of scrap from the hill test in drive.test.ts.
 type Build = 'scout' | 'loadedHauler';
 
-// A world with the build at rest at x 26, facing a ramp of grade height per tile that rises from x 28, under a drive-through order up it.
 function ramp(build: Build, grade: number, type: TerrainTypeId): World {
   const w = emptyWorld({ x: 26, y: 30 });
   const t = editableTerrain(w);
@@ -29,15 +26,14 @@ function ramp(build: Build, grade: number, type: TerrainTypeId): World {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) t.heights[j * (n + 1) + i] = Math.max(0, i - RAMP_FOOT) * grade;
   t.types.fill(type);
   if (build === 'loadedHauler') {
-    const hauler = makeVehicle(w, { name: 'hauler', faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
+    const hauler = makeVehicle(w, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
     w.vehicles[0] = { ...hauler, id: w.vehicles[0].id };
-    addGoods(w, w.vehicles[0], 'scrap', 999);
+    addGoods(w, w.vehicles[0], 'scrap', 122);
   }
   w.player.fuel = 999;
   return setMoveOrder(w, { kind: 'through', dest: { x: 120, y: 30 } });
 }
 
-// The truck's x after each of the given number of turns.
 function drive(start: World, turns: number): number[] {
   let w = start;
   let d: Drive = buildDrive(w);
@@ -53,13 +49,16 @@ function drive(start: World, turns: number): number[] {
   return xs;
 }
 
-// Tiles gained up the ramp after eight turns from rest.
 const climbTiles = (build: Build, grade: number, type: TerrainTypeId = 'road') => drive(ramp(build, grade, type), 8)[7] - RAMP_FOOT;
 
 describe('climbing', () => {
   it('a loaded hauler keeps climbing a grade it stalled on before the climb reserve', () => {
-    // Before the reserve it gained 0.8 tiles here.
     expect(climbTiles('loadedHauler', 0.35)).toBeGreaterThan(3);
+  }, 90_000);
+
+  it('a loaded hauler still climbs a grade a tenth gentler in sine than its limit', () => {
+    const sine = 0.9 * Math.sin(Math.atan(HAULER_LIMIT));
+    expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeGreaterThan(1);
   }, 90_000);
 
   it('a climb a tenth steeper in sine than its limit still stops the loaded hauler', () => {
@@ -67,11 +66,26 @@ describe('climbing', () => {
     expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeLessThan(1);
   }, 90_000);
 
-  it('flat ground acceleration from rest is unchanged', () => {
-    // Measured before the climb reserve: the scout's x after each of its first three turns from rest at x 26.
+  it('flat ground launch from rest is pinned', () => {
     const xs = drive(ramp('scout', 0, 'road'), 3);
-    expect(xs[0]).toBeCloseTo(26.945196, 5);
-    expect(xs[1]).toBeCloseTo(29.37628, 5);
-    expect(xs[2]).toBeCloseTo(33.271481, 5);
+    expect(xs[0]).toBeCloseTo(26.741779, 5);
+    expect(xs[1]).toBeCloseTo(28.652094, 5);
+    expect(xs[2]).toBeCloseTo(31.714815, 5);
+  }, 90_000);
+
+  it('a launch from rest gains about 85% of the distance it did at the old acceleration scale', () => {
+    const rules = RULES as { accelScale: number };
+    const scale = rules.accelScale;
+    const now = drive(ramp('scout', 0, 'road'), 3);
+    let old: number[];
+    try {
+      rules.accelScale = scale / 0.85;
+      old = drive(ramp('scout', 0, 'road'), 3);
+    } finally {
+      rules.accelScale = scale;
+    }
+    const ratio = (now[2] - 26) / (old[2] - 26);
+    expect(ratio).toBeGreaterThan(0.82);
+    expect(ratio).toBeLessThan(0.88);
   }, 90_000);
 });

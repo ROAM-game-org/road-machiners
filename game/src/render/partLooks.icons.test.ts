@@ -1,4 +1,3 @@
-// The icon catalog gives every model-backed item and every chassis one entry, and no two entries draw alike.
 
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
@@ -35,9 +34,7 @@ describe('icon catalog', () => {
   });
 
   it('labels each entry with its def name', () => {
-    expect(entry('mg').label).toBe(PARTS.mg.name);
-    expect(entry('salt').label).toBe(GOODS.salt.name);
-    expect(entry('bus').label).toBe(CHASSIS.bus.name);
+    expect([entry('mg').label, entry('salt').label, entry('bus').label]).toEqual(['MG turret', 'Salt', 'Bus']);
   });
 
   it.each(Object.keys(ICON_WEAPON_PICKS))('picks %s from its own pool', (id) => {
@@ -87,7 +84,7 @@ describe('icon catalog', () => {
   });
 
   it('fails naming a part that has no model', () => {
-    const parts: Record<string, PartDef> = { ...PARTS, hoverPad: { ...PARTS.scanner, id: 'hoverPad', name: 'Hover pad' } };
+    const parts: Record<string, PartDef> = { ...PARTS, hoverPad: { ...PARTS.scanner, id: 'hoverPad' } };
     expect(() => iconCatalog(parts, GOODS, CHASSIS, ICON_WEAPON_PICKS)).toThrow(/hoverPad/);
   });
 

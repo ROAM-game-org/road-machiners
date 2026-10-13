@@ -1,11 +1,11 @@
-// Roadside patches between two trucks. A patch lifts the broken engine, transmission and tank that strand a truck to
-// PATCH.share of their max HP, with the repair math of src/sim/repair.ts and the patcher's Machining. The terms are
-// the NPC's `patchDeal` decision, so traits and states shape them. A deal is a `patch` state held by the patcher
+// Roadside patches between two trucks. A patch lifts the broken engine, transmission and tank that strand a truck, or
+// the badly worn ones of a truck that still drives, to PATCH.share of their max HP, with the repair math of
+// src/sim/repair.ts and the patcher's Machining. The agreement fixes which parts it covers. The terms are
 
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
 import { REGION } from '../data/region';
-import { PATCH } from '../data/wear';
+import { PATCH, REPAIR } from '../data/wear';
 import { isJunk, maxHp, restorePart } from './wear';
 import { playerVehicle, vehicleById } from './damage';
 import { getTradePrice } from './economy';
@@ -18,10 +18,11 @@ import { getResources } from './resources';
 import { addState, type WorkLeft } from './states';
 import { isStranded } from './stats';
 import { inTowReach } from './tow';
+import { workTimeMult } from './utility';
 import type { CallVar, NpcState, PartInstance, PatchDeal, StateData, Vehicle, World } from './types';
 import { dist } from './vec';
 
-export type PatchPlan = { parts: number; turns: number };
+export type PatchPlan = { parts: number; turns: number; priceTurns: number };
 type Roles = { patcher: Vehicle; client: Vehicle };
 
 function patchable(v: Vehicle): PartInstance[] {
@@ -60,7 +61,9 @@ export function canFixItself(world: World, v: Vehicle): boolean {
 export function patchPlan(world: World, { patcher, client }: Roles): PatchPlan {
   const mult = machiningMult(world, patcher);
   const plans = patchParts(world, client).map((p) => planPartRepair(p, PATCH.share, mult, Infinity, Infinity));
-  return { parts: plans.reduce((sum, p) => sum + p.parts, 0), turns: plans.reduce((sum, p) => sum + p.turns, 0) };
+  const time = workTimeMult(patcher);
+  const turns = plans.reduce((sum, p) => sum + Math.max(1, Math.ceil(p.parts * REPAIR.turnsPerPart * mult * time)), 0);
+  return { parts: plans.reduce((sum, p) => sum + p.parts, 0), turns, priceTurns: plans.reduce((sum, p) => sum + p.turns, 0) };
 }
 
 function rolesWith(world: World, npc: Vehicle): Roles {
@@ -79,7 +82,7 @@ function partsValue(world: World, client: Vehicle, parts: number): number {
 }
 
 function priceOf(world: World, deal: PatchDeal, roles: Roles, plan: PatchPlan): number {
-  const labor = plan.turns * PATCH.laborPerTurn;
+  const labor = plan.priceTurns * PATCH.laborPerTurn;
   if (deal === 'free') return 0;
   const full = deal === 'ownParts' ? labor : labor + partsValue(world, roles.client, plan.parts);
   const mechanic = vehicleHasPerk(world, roles.patcher, 'roadMechanic') ? PERK_NUMBERS.roadMechanic.price : 1;

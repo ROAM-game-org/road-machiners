@@ -15,23 +15,24 @@ Sound tells the player what happens without making them read the log: where a sh
 Four buses feed the master: `ui`, `sfx`, `ambient` and `music`. Each has a player-set volume and a low-pass filter. The `sfx` bus also runs through a compressor and a short open-air reverb, so sounds from different sources sit in one place.
 
 - World sounds, like guns, hits and crashes, play where they happen. Pan follows the screen position, and level halves at `MIX.halfGainMeters` from the camera focus. They use the same points as the visual effects, so fog of war silences what the player cannot see.
-- Each turn plays at most one result sting, the most important one: defeat, level-up, discovery or money.
-- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state.
+- Each turn plays at most one result sting, the most important one: level-up, discovery or money. A knockout is an attention alert and has no sting.
+- The engine is one recorded loop per chassis. Its pitch and level follow speed over the turn, so speeding up revs and braking drops. Continuous sounds are always bent loops like this, never short clips per state. While heat damages the engine, the loop crossfades to a strained loop, one for light trucks and one for heavy ones, started with it and bent the same way, and falls back to the healthy note over two turns once the damage stops.
 - A hard slowdown adds the air brake where the truck is. Passing or reaching an order point makes no sound of its own.
 - Wind rises near dust storms.
 - Calm music plays out of combat, from a playlist shuffled once per session. After each fight it comes back as the next track, so every track plays before any repeats.
-- Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of outposts, the trading stalls that are not towns. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Combat music plays over all of them.
+- Town music replaces calm music while the player is within guard range of a town gate. Outpost music does the same near the gates of outposts, the trading stalls that are not towns. Abandoned music plays inside territories, the abandoned places like Fallen Sun and Old Orchard. Each entry starts the next track of a playlist shuffled once per session. Combat music plays over all of them.
+- Quest music plays over all music, combat included, while the quest screen is open. Each quest starts the next track of a playlist shuffled once per session. It is never muffled in a pause, since the player reads while no turn plays.
 - Between turns, once no turn has played for `MIX.music.pauseDelayMs`, the music bus is muffled a little. The delay keeps the gaps between automatic turns clear.
 
 The volume knobs and the mute switch sit on the radio panel above the log. The whole column under a knob is its handle. Drag it up or right to raise the volume and down or left to lower it, 160px for the whole range. The label shows the level while you use the knob. The wheel and the focused arrow keys turn it in 5% steps. A next key above the radio's screen crossfades to another calm track. The knob and mute settings are stored in local storage. A knob the player never turned follows `MIX.busVolume`, so a new default reaches everyone who kept the old one.
 
 ## Combat score
 
-Combat music is built live from a base loop and short accents, so each fight sounds like one song that reacts to the fight. It went through several designs. What works is fixed structure with a little variety inside, few sounds, and each sound tied to its event:
+Combat music is built live from a base loop and short accents, so each fight sounds like one song that reacts to the fight. It keeps a fixed structure with a little variety inside, few sounds, and each sound tied to its event:
 
-- Per-event dice, like chance rolls, recalled accents and random mode changes, made it sound random.
-- Queuing phrases to start on bar lines made sounds late and hard to tie to their events.
-- Speeding the base up and down with the fight's intensity felt chaotic.
+- No per-event dice, like chance rolls, recalled accents or random mode changes. They make it sound random.
+- No phrases queued to start on bar lines. They sound late and detached from their events.
+- No tempo change with the fight's intensity. It feels chaotic.
 
 How it plays:
 
@@ -61,21 +62,35 @@ A cue with several prompts is a family of different sounds, one prompt per varia
 
 Every music loop also gets the palette finish at import, so tracks from different generations sound like one set. Its tone moves part of the way toward one target curve, taken from the town and outpost tracks. Its stereo width goes to one level. All loops share the same glue compression, one short room and one soft top end. The settings are at the end of `scripts/sfx-lib.mjs`. The finish changes timing by a few milliseconds, so measure the phase of a combat base again after it.
 
+World one-shots, the `sfx` cues with the `field` setup that do not loop, get two more steps at import, so they sound like one place:
+
+- A gentle cut above 8 kHz puts every take at the 10 m the prompt asks for. Generated takes come out close and bright.
+- Bass and treble move back to within `MIX.tone.spread` of the anchor's tone in `MIX.tone`. A cut may go up to 12 dB and a boost up to 6 dB, since a boost also raises noise.
+
+`npm run sfx:report` lists every world one-shot's loudness and tone beside the anchor. It flags the takes that import could not bring into range. Fix those by hand, as [Fixing a take](#fixing-a-take) shows.
+
 ## Generating with ElevenLabs
 
 `npm run sfx:gen -- <cue> <count>` generates variants and imports them. It costs credits, so ask before running it. `SFX_MAX_GENERATIONS` in `.env` caps one run.
 
 - Every prompt starts with the `SOUND_STYLE` of the cue's setup, so a set of sounds shares one microphone and place. Combat accents use the `stinger` style, and base loops use `score`.
 - Prompt style plus subject must stay under 450 characters, or the API refuses it.
-- Generated heavy sounds come out thin. Check the spectrogram and process the take with ffmpeg rather than generating again. [Processed takes](#processed-takes) lists the processing used.
-- Raw takes stay in `tmp/sfx-raw/`, and each file's tag names its source. After an import change, `npm run sfx:reimport` rebuilds every file from those sources.
+- Generated heavy sounds come out thin. Check the spectrogram and fix the take as [Fixing a take](#fixing-a-take) shows, rather than generating again.
+- Raw takes stay in `tmp/sfx-raw/`, and each file's tag names its source. After an import change, `npm run sfx:reimport` rebuilds every file from those sources. `npm run sfx:reimport -- field` rebuilds only the world one-shots, and cue names rebuild those cues.
 
-## Processed takes
+## Fixing a take
 
-These takes went through ffmpeg before import. Each filter chain is the `-af` argument.
+A near-miss take is cheaper to fix with ffmpeg or Demucs than to generate again. Write the fixed file next to the raw take in `tmp/sfx-raw/` and import that file, so reimport rebuilds from it.
 
-- Horns came out thin and high. Each generated take runs through `asetrate=44100*0.55,aresample=44100,bass=g=8:f=120,volume=8dB,asoftclip=type=tanh`.
-- Air brakes are the one approved take, `arrive-1790459643829.mp3`. It runs through `asetrate=44100*<rate>,aresample=44100,lowpass=f=1400:p=1,highpass=f=60,afade=t=in:d=0.12` at rates 0.88, 0.8 and 0.95.
+- A thin heavy sound, like a horn or a harpoon, gets pitched down with `asetrate=44100*0.85,aresample=44100` and a bass boost like `bass=g=6:f=120`. Pitch down more for a bigger sound.
+- A bright hiss gets two low-passes, like `lowpass=f=3000,lowpass=f=3000`.
+- A music take that is too loud or bright gets a high-shelf cut like `treble=g=-3:f=4000` and glue compression.
+- A slowdown over about 6% sounds artificial. Generate again for a bigger tempo change.
+- Clanks or rustle in a music take come from its drums. Split it into stems with Demucs, muffle the drums stem with a low-pass and mix the stems back with `amix=inputs=4:normalize=0`. Run Demucs with `-d cpu` on a Mac, since the GPU backend fails on it.
+
+```bash
+uvx --python 3.11 --from demucs --with "torch<2.6" --with "torchaudio<2.6" --with soundfile demucs -d cpu -n htdemucs -o tmp/demucs <take.mp3>
+```
 
 ## Beat loops
 

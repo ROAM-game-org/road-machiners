@@ -1,9 +1,10 @@
+import { bindAttr, say } from "../text/language";
+import { t } from "../text/msg";
 import { el, panel } from "./dom";
-import { clockLabel, type LogLine } from "./format";
+import { clock, type LogLine } from "./format";
 
 export const LOG_HISTORY = 200;
 
-// The session's log lines, newest first, each led by the game day and time.
 export class LogBook {
   private history: LogLine[] = [];
 
@@ -12,9 +13,9 @@ export class LogBook {
   }
 
   add(turn: number, line: LogLine): LogLine {
-    const stamp = clockLabel(turn);
+    const stamp = clock(turn).full;
     const stamped: LogLine = {
-      text: `${stamp} ${line.text}`,
+      text: t("log.stamped", { time: stamp, line: line.text }),
       cls: line.cls,
       spans: [{ text: stamp, cls: "log-time" }, ...(line.spans ?? [{ text: line.text, cls: line.cls }])],
     };
@@ -33,33 +34,31 @@ function lineRow(l: LogLine): HTMLElement {
   );
 }
 
-// The log panel. New lines go on top, and a reader scrolled back in the history keeps their place.
 export class LogPanel {
   private book = new LogBook();
-  private root = panel("log");
+  readonly root = panel("log dock-panel");
   private box = el("div", { class: "log-lines", tabindex: 0 });
   private toggle = el(
     "button",
     {
       class: "log-expand",
-      title: "Expand log",
-      "aria-label": "Expand log",
+      title: t("log.expand"),
+      "aria-label": t("log.expand"),
       onclick: () => this.flip(),
     },
-    "⤢",
+    t("log.expandMark"),
   );
 
   constructor() {
-    this.root.setAttribute("aria-label", "Event log");
+    bindAttr(this.root, "aria-label", t("log.panel"));
     this.root.append(
-      el("div", { class: "log-head" }, el("h3", {}, "Log"), this.toggle),
+      el("div", { class: "log-head" }, el("h3", { class: "panel-title" }, t("log.title")), this.toggle),
       this.box,
     );
   }
 
-  // The session's log text, newest first.
   get texts(): string[] {
-    return this.book.lines.map((line) => line.text);
+    return this.book.lines.map((line) => say(line.text));
   }
 
   add(turn: number, lines: LogLine[]): void {
@@ -75,8 +74,8 @@ export class LogPanel {
 
   private flip(): void {
     const expanded = this.root.classList.toggle("expanded");
-    const title = expanded ? "Shrink log" : "Expand log";
-    this.toggle.title = title;
-    this.toggle.setAttribute("aria-label", title);
+    const title = expanded ? t("log.shrink") : t("log.expand");
+    bindAttr(this.toggle, "title", title);
+    bindAttr(this.toggle, "aria-label", title);
   }
 }

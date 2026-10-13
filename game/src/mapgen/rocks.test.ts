@@ -7,7 +7,7 @@ import { decodeMap, isCliff, tileAt, type BakedMap, type BakedProp, type Terrain
 import { siteGap } from '../sim/sites';
 import { dist, segmentDist } from '../sim/vec';
 import { newDraft, rockLayer, type MapDraft } from './bake';
-import { BUILT_TRACK } from './newworld';
+import { BUILT_GLASS, BUILT_TRACK } from './newworld';
 import { tileOf, tilesWithin } from './oldworld';
 import { budget } from '../test/budget';
 
@@ -89,6 +89,18 @@ describe('boulders', () => {
     const away = (rock: BakedProp) => rock.pos.y < 200 - 3 || rock.pos.y > 206 + 3;
     expect(without.filter((rock) => !away(rock)).length).toBeGreaterThan(0);
     expect(withTrack.filter(away)).toEqual(without.filter(away));
+  });
+
+  it('keeps every boulder off fused glass', () => {
+    const marked = cliffDraft();
+    for (let y = 200; y < 230; y++) for (let x = FOOT - 20; x < FOOT + 20; x++) marked.built[y * SIZE + x] = BUILT_GLASS;
+    const onGlass = (rock: BakedProp) => [tileOf(SIZE, rock.pos), ...tilesWithin(SIZE, rock.pos, rock.r)].some((tile) => marked.built[tile] === BUILT_GLASS);
+    const without = rockLayer(1337, cliffDraft()).props;
+
+    const withGlass = rockLayer(1337, marked).props;
+
+    expect(without.filter(onGlass).length).toBeGreaterThan(0);
+    expect(withGlass.filter(onGlass)).toEqual([]);
   });
 
   it('places the same boulders for the same seed', () => {

@@ -1,5 +1,6 @@
 // Replay runs a recorded trace through the XP rules. It takes milliseconds, so XP numbers can be tuned without a new
-// recording. Perks and the feedback of skills into behavior are ignored.
+// recording. Perks and the feedback of skills into behavior are ignored. Each activity family keeps its own running
+// total of earned XP, and its curve marks the turn that total covers the cumulative cost of each rank: the pace of a
 
 import { TIME } from '../../data/time';
 import { MAIN_SKILL, MAX_RANK, SKILL_IDS, TARGET_DAYS, TARGET_TOLERANCE, XP_SOURCES } from '../../data/skills';

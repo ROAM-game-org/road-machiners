@@ -1,13 +1,9 @@
-// Truck chassis. Speeds are tiles per turn. Turn rates are degrees per turn. Masses are kilograms.
-// Speed, turn, accel and brake numbers hold for a truck at handlingMass. A lighter truck beats them and a heavier one
-// falls short. Past ratedMass it slows hard. See loadFactor() in src/sim/mass.ts.
 
 import type { Tier } from './market';
 import { PARTS } from './parts';
 
 export type ChassisDef = {
   id: string;
-  name: string;
   maxSpeed: number;
   accel: number;
   brake: number;
@@ -26,10 +22,10 @@ export type ChassisDef = {
   value: number;
   showsCores: boolean;
   tier: Tier;
-  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln';
+  look: 'pickup' | 'hauler' | 'buggy' | 'wagon' | 'courier' | 'van' | 'longbed' | 'carrier' | 'tractor' | 'jeep' | 'convertible' | 'bus' | 'loader' | 'niva' | 'bukhanka' | 'lincoln' | 'semi';
 };
 
-export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 60, perArmorCell: 30, perTopSpeed: 80 };
+export const CHASSIS_PRICE_MODIFIERS = { perDeckCell: 2000, perArmorCell: 1000, perTopSpeed: 2666.67 };
 
 export type ChassisInput = Omit<ChassisDef, 'value' | 'ratedMass'>;
 
@@ -40,14 +36,14 @@ export function chassisModifier(def: ChassisInput): number {
   return m.perDeckCell * count('D') + m.perArmorCell * count('FBLR') + m.perTopSpeed * def.maxSpeed;
 }
 
-export const RATED_KIT = { engine: 'stockEngine', armorPerCell: 'scrapSheet', gun: 'mg', gunDeckShare: 0.5 };
+export const RATED_KIT = { engine: 'stockEngine', armorKgPerCell: 100, gun: 'mg', gunDeckShare: 0.5 };
 
 export function ratedMassOf(def: ChassisInput): number {
   const cells = def.layout.join('');
   const count = (marks: string) => [...cells].filter((c) => marks.includes(c)).length;
   const core = def.core.reduce((sum, c) => sum + PARTS[c.defId].mass, 0);
   const guns = Math.ceil(count('D') * RATED_KIT.gunDeckShare);
-  return def.mass + core + PARTS[RATED_KIT.engine].mass + count('FBLR') * PARTS[RATED_KIT.armorPerCell].mass + guns * PARTS[RATED_KIT.gun].mass;
+  return def.mass + core + PARTS[RATED_KIT.engine].mass + count('FBLR') * RATED_KIT.armorKgPerCell + guns * PARTS[RATED_KIT.gun].mass;
 }
 
 function finishChassis(def: ChassisInput): ChassisDef {
@@ -59,7 +55,6 @@ function finishChassis(def: ChassisInput): ChassisDef {
 const CHASSIS_INPUTS: Record<string, ChassisInput> = {
   scout: {
     id: 'scout',
-    name: 'Scout pickup',
     maxSpeed: 7.8,
     accel: 2,
     brake: 3,
@@ -81,12 +76,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 40,
     fuelPerTile: 0.25,
-    base: 800, showsCores: true, tier: 1,
+    base: 26667, showsCores: true, tier: 1,
     look: 'pickup',
   },
   hauler: {
     id: 'hauler',
-    name: 'Hauler',
     maxSpeed: 5.2,
     accel: 1,
     brake: 2,
@@ -108,12 +102,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 80,
     fuelPerTile: 0.4,
-    base: 920, showsCores: false, tier: 2,
+    base: 30667, showsCores: false, tier: 2,
     look: 'hauler',
   },
   buggy: {
     id: 'buggy',
-    name: 'Buggy',
     maxSpeed: 9.1,
     accel: 3,
     brake: 3,
@@ -135,12 +128,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 30,
     fuelPerTile: 0.2,
-    base: 360, showsCores: false, tier: 1,
+    base: 12000, showsCores: false, tier: 1,
     look: 'buggy',
   },
   wagon: {
     id: 'wagon',
-    name: 'Gunwagon',
     maxSpeed: 3.9,
     accel: 1,
     brake: 2,
@@ -162,11 +154,11 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
     ],
     fuelCap: 60,
     fuelPerTile: 0.4,
-    base: 1450, showsCores: true, tier: 2,
+    base: 48333, showsCores: true, tier: 2,
     look: 'wagon',
   },
   courier: {
-    id: 'courier', name: 'Courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
+    id: 'courier', maxSpeed: 9.75, accel: 3, brake: 3, turnSlow: 125, turnFast: 42, reverseTurn: 80,
     mass: 280, handlingMass: 1100, radius: 0.5,
     layout: [' FFFF ', 'LXXXXR', 'LXXXXR', 'LDEEXR', 'LDEEXR', 'LDXXDR', 'LXDDXR', 'LXDDXR', ' BBBB '],
     core: [
@@ -178,10 +170,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 6 },
       { defId: 'wheel', x: 4, y: 6 },
     ],
-    fuelCap: 24, fuelPerTile: 0.18, base: 400, showsCores: true, tier: 1, look: 'courier',
+    fuelCap: 24, fuelPerTile: 0.18, base: 13333, showsCores: true, tier: 1, look: 'courier',
   },
   van: {
-    id: 'van', name: 'Utility van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
+    id: 'van', maxSpeed: 6.5, accel: 1.5, brake: 3, turnSlow: 100, turnFast: 35, reverseTurn: 65,
     mass: 1100, handlingMass: 3000, radius: 0.7,
     layout: [' FFFFF ', 'LXEEDXR', 'LXEEDXR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LXXXXXR', 'LXXXXXR', ' BBBBB '],
     core: [
@@ -193,10 +185,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 6 },
       { defId: 'wheelMid', x: 5, y: 6 },
     ],
-    fuelCap: 55, fuelPerTile: 0.24, base: 1180, showsCores: false, tier: 2, look: 'van',
+    fuelCap: 55, fuelPerTile: 0.24, base: 39333, showsCores: false, tier: 2, look: 'van',
   },
   longbed: {
-    id: 'longbed', name: 'Longbed truck', maxSpeed: 4.55, accel: 0.8, brake: 1.8, turnSlow: 70, turnFast: 20, reverseTurn: 40,
+    id: 'longbed', maxSpeed: 4.55, accel: 0.8, brake: 1.8, turnSlow: 70, turnFast: 20, reverseTurn: 40,
     mass: 2900, handlingMass: 7200, radius: 0.95,
     layout: [' FFFFFFF ', 'LXDEEDDXR', 'LXDEEDDXR', 'LDDXXXDDR', 'LDDXXXDDR', 'LDDDDDDDR', 'LDDXXXDDR', 'LDDXXXDDR', 'LXDDDDDXR', 'LXDDDDDXR', ' BBBBBBB '],
     core: [
@@ -208,10 +200,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 8 },
       { defId: 'wheelHeavy', x: 7, y: 8 },
     ],
-    fuelCap: 100, fuelPerTile: 0.48, base: 1720, showsCores: false, tier: 3, look: 'longbed',
+    fuelCap: 100, fuelPerTile: 0.48, base: 57333, showsCores: false, tier: 3, look: 'longbed',
   },
   carrier: {
-    id: 'carrier', name: 'Armored carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
+    id: 'carrier', maxSpeed: 5.2, accel: 1, brake: 2.5, turnSlow: 75, turnFast: 28, reverseTurn: 50,
     mass: 3200, handlingMass: 5200, radius: 0.85,
     layout: [' FFFFFF ', 'LXDXXDXR', 'LXDXXDXR', 'LDEEXXDR', 'LDEEXXDR', 'LDDDXXDR', 'LXDDXXXR', 'LXDDDDXR', ' BBBBBB '],
     core: [
@@ -223,10 +215,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 6, y: 6 },
     ],
-    fuelCap: 70, fuelPerTile: 0.5, base: 2600, showsCores: false, tier: 3, look: 'carrier',
+    fuelCap: 70, fuelPerTile: 0.5, base: 86667, showsCores: false, tier: 3, look: 'carrier',
   },
   tractor: {
-    id: 'tractor', name: 'Heavy tractor', maxSpeed: 3.9, accel: 1.8, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 55,
+    id: 'tractor', maxSpeed: 3.9, accel: 1.8, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 55,
     mass: 3600, handlingMass: 6500, radius: 0.9,
     layout: [' FFFFFFF ', 'LXDEEDDXR', 'LXDEEDDXR', 'LDDXXXDDR', 'LDDXXXDDR', 'LDDDDXDDR', 'LXDXXXDXR', 'LXDXXDDXR', ' BBBBBBB '],
     core: [
@@ -238,10 +230,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 120, fuelPerTile: 0.6, base: 1730, showsCores: false, tier: 3, look: 'tractor',
+    fuelCap: 120, fuelPerTile: 0.6, base: 57667, showsCores: false, tier: 3, look: 'tractor',
   },
   jeep: {
-    id: 'jeep', name: 'Jeep', maxSpeed: 8.2, accel: 2.5, brake: 3, turnSlow: 115, turnFast: 42, reverseTurn: 80,
+    id: 'jeep', maxSpeed: 8.2, accel: 2.5, brake: 3, turnSlow: 115, turnFast: 42, reverseTurn: 80,
     mass: 450, handlingMass: 1400, radius: 0.55,
     layout: [' FFFF ', 'LXXXXR', 'LXXXXR', 'LDXDDR', 'LDXDDR', 'LXEEXR', 'LXEEXR', 'LDXXDR', ' BBBB '],
     core: [
@@ -253,10 +245,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 5 },
       { defId: 'wheel', x: 4, y: 5 },
     ],
-    fuelCap: 35, fuelPerTile: 0.2, base: 390, showsCores: false, tier: 1, look: 'jeep',
+    fuelCap: 35, fuelPerTile: 0.2, base: 13000, showsCores: false, tier: 1, look: 'jeep',
   },
   convertible: {
-    id: 'convertible', name: 'Convertible', maxSpeed: 9.4, accel: 2.5, brake: 3, turnSlow: 110, turnFast: 40, reverseTurn: 70,
+    id: 'convertible', maxSpeed: 9.4, accel: 2.5, brake: 3, turnSlow: 110, turnFast: 40, reverseTurn: 70,
     mass: 750, handlingMass: 2000, radius: 0.6,
     layout: [' FFFFF ', 'LXXXXXR', 'LXXXXXR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LXEEDXR', 'LXEEDXR', ' BBBBB '],
     core: [
@@ -268,10 +260,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 6 },
       { defId: 'wheel', x: 5, y: 6 },
     ],
-    fuelCap: 45, fuelPerTile: 0.26, base: 860, showsCores: false, tier: 2, look: 'convertible',
+    fuelCap: 45, fuelPerTile: 0.26, base: 28667, showsCores: false, tier: 2, look: 'convertible',
   },
   bus: {
-    id: 'bus', name: 'Bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
+    id: 'bus', maxSpeed: 5.5, accel: 0.9, brake: 2, turnSlow: 65, turnFast: 22, reverseTurn: 40,
     mass: 3000, handlingMass: 6800, radius: 0.9,
     layout: [' FFFFFF ', 'LXXXXDXR', 'LXXXXDXR', 'LDDDDDDR', 'LDDDDDDR', 'LDDDDDDR', 'LDDXXXDR', 'LDDXXXDR', 'LDDEEDDR', 'LXDEEDXR', 'LXDDDDXR', ' BBBBBB '],
     core: [
@@ -283,10 +275,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 9 },
       { defId: 'wheelMid', x: 6, y: 9 },
     ],
-    fuelCap: 110, fuelPerTile: 0.45, base: 240, showsCores: false, tier: 2, look: 'bus',
+    fuelCap: 110, fuelPerTile: 0.45, base: 8000, showsCores: false, tier: 2, look: 'bus',
   },
   loader: {
-    id: 'loader', name: 'Wheel loader', maxSpeed: 3.6, accel: 1.6, brake: 2.5, turnSlow: 85, turnFast: 30, reverseTurn: 60,
+    id: 'loader', maxSpeed: 3.6, accel: 1.6, brake: 2.5, turnSlow: 85, turnFast: 30, reverseTurn: 60,
     mass: 4200, handlingMass: 7000, radius: 0.9,
     layout: [' FFFFFFF ', 'LXDDDDDXR', 'LXXXDDDXR', 'LDXXXXDDR', 'LDXXXXDDR', 'LDXEEDDDR', 'LXXEEDDXR', 'LXDDDDDXR', ' BBBBBBB '],
     core: [
@@ -298,10 +290,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelHeavy', x: 1, y: 6 },
       { defId: 'wheelHeavy', x: 7, y: 6 },
     ],
-    fuelCap: 130, fuelPerTile: 0.65, base: 2460, showsCores: false, tier: 3, look: 'loader',
+    fuelCap: 130, fuelPerTile: 0.65, base: 82000, showsCores: false, tier: 3, look: 'loader',
   },
   niva: {
-    id: 'niva', name: 'Niva', maxSpeed: 7.6, accel: 2.2, brake: 3, turnSlow: 115, turnFast: 40, reverseTurn: 80,
+    id: 'niva', maxSpeed: 7.6, accel: 2.2, brake: 3, turnSlow: 115, turnFast: 40, reverseTurn: 80,
     mass: 520, handlingMass: 1700, radius: 0.55,
     layout: [' FFFF ', 'LXEEXR', 'LXEEXR', 'LDXDDR', 'LDXDDR', 'LDXDDR', 'LDXDDR', 'LXXXXR', 'LXXXXR', ' BBBB '],
     core: [
@@ -313,10 +305,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 7 },
       { defId: 'wheelMid', x: 4, y: 7 },
     ],
-    fuelCap: 42, fuelPerTile: 0.21, base: 1100, showsCores: false, tier: 2, look: 'niva',
+    fuelCap: 42, fuelPerTile: 0.21, base: 36667, showsCores: false, tier: 2, look: 'niva',
   },
   bukhanka: {
-    id: 'bukhanka', name: 'Bukhanka', maxSpeed: 6.0, accel: 1.4, brake: 2.5, turnSlow: 95, turnFast: 30, reverseTurn: 60,
+    id: 'bukhanka', maxSpeed: 6.0, accel: 1.4, brake: 2.5, turnSlow: 95, turnFast: 30, reverseTurn: 60,
     mass: 1250, handlingMass: 3300, radius: 0.65,
     layout: [' FFFFF ', 'LXXXXXR', 'LXXXXXR', 'LDEEDDR', 'LDEEDDR', 'LDDDDDR', 'LDXXXDR', 'LXXXXXR', 'LXDDDXR', ' BBBBB '],
     core: [
@@ -328,10 +320,10 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheelMid', x: 1, y: 7 },
       { defId: 'wheelMid', x: 5, y: 7 },
     ],
-    fuelCap: 78, fuelPerTile: 0.30, base: 1230, showsCores: false, tier: 2, look: 'bukhanka',
+    fuelCap: 78, fuelPerTile: 0.30, base: 41000, showsCores: false, tier: 2, look: 'bukhanka',
   },
   lincoln: {
-    id: 'lincoln', name: 'Lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
+    id: 'lincoln', maxSpeed: 8.6, accel: 2.0, brake: 2.2, turnSlow: 80, turnFast: 26, reverseTurn: 45,
     mass: 900, handlingMass: 2400, radius: 0.85,
     layout: [' FFFFF ', 'LXDDDXR', 'LXEEDXR', 'LDEEDDR', 'LDXXDDR', 'LDXXDDR', 'LDXXDDR', 'LDXXXDR', 'LXXXXXR', 'LXDDDXR', ' BBBBB '],
     core: [
@@ -343,7 +335,52 @@ const CHASSIS_INPUTS: Record<string, ChassisInput> = {
       { defId: 'wheel', x: 1, y: 8 },
       { defId: 'wheel', x: 5, y: 8 },
     ],
-    fuelCap: 85, fuelPerTile: 0.36, base: 1500, showsCores: false, tier: 3, look: 'lincoln',
+    fuelCap: 85, fuelPerTile: 0.36, base: 50000, showsCores: false, tier: 3, look: 'lincoln',
+  },
+  semi: {
+    id: 'semi', maxSpeed: 6.0, accel: 0.8, brake: 1.5, turnSlow: 60, turnFast: 18, reverseTurn: 30,
+    mass: 9000, handlingMass: 14100, radius: 1.2,
+    layout: [
+      ' FFFFFFF ',
+      'LCCCCCCCR',
+      'LXCEEECXR',
+      'LXCEEECXR',
+      'LCCCCCCCR',
+      'LCCXXXCCR',
+      'LCCXXXCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCXXXCCR',
+      'LCCXXXCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LCCCCCCCR',
+      'LXCCCCCXR',
+      'LXCCCCCXR',
+      ' BBBBBBB ',
+    ],
+    core: [
+      { defId: 'cabPickup', x: 3, y: 5 },
+      { defId: 'transmissionMid', x: 3, y: 9 },
+      { defId: 'tankMid', x: 5, y: 9 },
+      { defId: 'wheelMid', x: 1, y: 2 },
+      { defId: 'wheelMid', x: 7, y: 2 },
+      { defId: 'wheelMid', x: 1, y: 26 },
+      { defId: 'wheelMid', x: 7, y: 26 },
+    ],
+    fuelCap: 160, fuelPerTile: 0.5, base: 56000, showsCores: false, tier: 3, look: 'semi',
   },
 };
 
@@ -352,6 +389,8 @@ export const CHASSIS: Record<string, ChassisDef> = Object.fromEntries(
 );
 
 export const PLAYER_CHASSIS = ['scout', 'hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'];
+
+export const HAULER_CHASSIS = 'semi';
 
 export function chassisDef(id: string): ChassisDef {
   const def = CHASSIS[id];

@@ -5,7 +5,7 @@ import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { getMobilityCondition, isStranded, vehicleStats } from './stats';
 import { angleDiff, bearing, dist, type Vec } from './vec';
-import { laneCount, passShare, ramMult, sideToward, walkLane, type PartHit, type Side } from './armor';
+import { laneCount, passShare, planCrashLane, planLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
 import { damagePart } from './damage';
@@ -15,7 +15,9 @@ import { PERK_NUMBERS } from '../data/skills';
 import { vehicleMass } from './mass';
 import { bodyOf } from './body';
 import { towsClient } from './tow';
+import { claymoresSetOff, detonateOnCrash, detonateOnObstacle } from './claymore';
 import type { Vehicle, World } from './types';
+import { damageScale } from './settings';
 
 export type CrashContact = { side: Side; lanes: number[] };
 export type CrashGeometry = { a: CrashContact; b: CrashContact | null };
@@ -24,20 +26,25 @@ export function applyContactCrash(world: World, a: Vehicle, b: Vehicle | null, w
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad crash impact ${impact}`);
   if (Boolean(b) !== Boolean(contact.b)) throw new Error('Crash geometry does not match the bodies');
   if (b) {
+    const blasts = claymoreBlasts(world, a, b, impact, contact);
     const { hitsA, hitsB } = damageVehicleCrash(world, a, b, impact, contact);
     stallRammed(world, a, b, hitsA, hitsB);
     noteCollision(world, a, b, hitsA, hitsB);
     world.events.push({ t: 'collision', a: a.id, b: b.id, hitsA, hitsB });
+    blasts();
     practiceRam(world, a, b, hitsA, hitsB);
     return;
   }
+  const crash = { impact, own: contact.a, theirs: null };
+  const rams = world.obstacles.some((o) => o.id === what) ? claymoresSetOff(world, a, null, crash) : [];
   const hitsA = applyContactDamage(world, a, contact.a, impact, 1, hardCrash(impact));
   world.events.push({ t: 'collision', a: a.id, b: what, hitsA, hitsB: [] });
+  detonateOnObstacle(world, a, what, rams, crash);
 }
 
 export function applyGroundCrash(world: World, v: Vehicle, what: string, impact: number, contact: CrashContact): void {
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad ground crash impact ${impact}`);
-  const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash);
+  const hitsA = applyContactDamage(world, v, contact, impact, 1, RULES.groundCrash, true);
   world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
 }
 
@@ -45,9 +52,21 @@ export function applyLanding(world: World, v: Vehicle, what: string, impact: num
   if (!Number.isFinite(impact) || impact < 0) throw new Error(`Bad landing impact ${impact}`);
   if (impact < RULES.collisionMinImpact) return;
   const driving = skillEffect(world, v, 'driving', 'crashDamage');
-  const damage = RULES.ramDamage * RULES.crashDamage * RULES.landingDamage * impact * impact * Math.max(0, 1 - driving);
+  const damage = RULES.ramDamage * RULES.crashDamage * damageScale(world) * RULES.landingDamage * impact * impact * Math.max(0, 1 - driving);
   const hitsA = coreParts(v, 'wheel').filter((wheel) => wheel.hp > 0).map((wheel) => ({ part: wheel.id, damage: damagePart(world, v, wheel, damage) }));
   world.events.push({ t: 'collision', a: v.id, b: what, hitsA, hitsB: [] });
+}
+
+function claymoreBlasts(world: World, a: Vehicle, b: Vehicle, impact: number, contact: CrashGeometry): () => void {
+  if (!contact.b) throw new Error('Vehicle crash has no target contact');
+  const forA = { impact, own: contact.a, theirs: contact.b };
+  const forB = { impact, own: contact.b, theirs: contact.a };
+  const ramsA = claymoresSetOff(world, a, b, forA);
+  const ramsB = claymoresSetOff(world, b, a, forB);
+  return () => {
+    detonateOnCrash(world, a, b, ramsA, forA);
+    detonateOnCrash(world, b, a, ramsB, forB);
+  };
 }
 
 function hardCrash(impact: number): number {
@@ -86,25 +105,36 @@ function damageVehicleCrash(world: World, a: Vehicle, b: Vehicle, impact: number
   return { hitsA, hitsB };
 }
 
-function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number): PartHit[] {
+function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContact, impact: number, share: number, mult: number, ground = false): PartHit[] {
   if (contact.lanes.length === 0) throw new Error('Crash has no touched lanes');
   if (impact < RULES.collisionMinImpact) return [];
   const energy = computeCrashEnergy(world, vehicle, impact, share, mult);
   const hits = new Map<string, number>();
   const round = { damage: energy / laneCount(vehicle, contact.side), pen: RULES.crashPen * mult, blast: false, armorShare: 1 };
-  for (const lane of contact.lanes) {
-    const copy = structuredClone(vehicle);
-    const draft = { ...world, player: structuredClone(world.player), events: [] };
-    for (const hit of walkLane(draft, copy, contact.side, lane, round)) {
-      hits.set(hit.part, (hits.get(hit.part) ?? 0) + hit.damage);
-    }
-  }
+  const spill = { ...round, damage: round.damage * RULES.crashFalloff };
+  for (const lane of contact.lanes) strikeLane(world, vehicle, contact.side, lane, round, hits, ground);
+  for (const lane of spillLanes(vehicle, contact)) strikeLane(world, vehicle, contact.side, lane, spill, hits, ground);
   return applyCrashHits(world, vehicle, hits);
+}
+
+function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
+  const copy = structuredClone(vehicle);
+  const draft = { ...world, player: structuredClone(world.player), events: [] };
+  // A fixed ground strike carries through the crushed body; vehicle-to-vehicle strikes lose energy with depth.
+  for (const hit of (ground ? planLane : planCrashLane)(copy, side, lane, round)) {
+    hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
+  }
+}
+
+function spillLanes(vehicle: Vehicle, contact: CrashContact): number[] {
+  const first = Math.min(...contact.lanes);
+  const last = Math.max(...contact.lanes);
+  return [first - 1, last + 1].filter((lane) => lane >= 0 && lane < laneCount(vehicle, contact.side));
 }
 
 function computeCrashEnergy(world: World, vehicle: Vehicle, impact: number, share: number, mult: number): number {
   const driving = skillEffect(world, vehicle, 'driving', 'crashDamage');
-  return RULES.ramDamage * RULES.crashDamage * impact * impact * share * mult * Math.max(0, 1 - driving);
+  return RULES.ramDamage * RULES.crashDamage * damageScale(world) * impact * impact * share * mult * Math.max(0, 1 - driving);
 }
 
 function applyCrashHits(world: World, vehicle: Vehicle, hits: Map<string, number>): PartHit[] {

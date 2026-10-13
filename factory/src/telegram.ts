@@ -73,7 +73,15 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
     },
     async editCaption(chat, messageId, caption) {
       if (caption.length > CAPTION_LIMIT) throw new Error(`Telegram caption is ${caption.length} chars, the limit is ${CAPTION_LIMIT}.`);
-      await call('editMessageCaption', JSON.stringify({ chat_id: chat, message_id: messageId, caption, reply_markup: { inline_keyboard: [] } }));
+      await call(
+        'editMessageCaption',
+        JSON.stringify({
+          chat_id: chat,
+          message_id: messageId,
+          caption,
+          reply_markup: { inline_keyboard: [] },
+        }),
+      );
     },
   };
 }

@@ -1,6 +1,3 @@
-// Records progression traces: a bot plays each archetype on each seed, and every practice event goes to
-// tmp/progression/<archetype>-<seed>.jsonl. The first line holds the run, then one trace line per event. A run the
-// player did not survive ends early with a {"end":"death","turn":N} line.
 import { spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, renameSync, writeSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,13 +8,15 @@ const patchAt = argv.indexOf('--patch');
 if (patchAt >= 0) await import(pathToFileURL(resolve(argv[patchAt + 1])).href);
 const { TIME } = await import('../src/data/time.ts');
 const { isArchetype } = await import('../src/sim/progression/bot.ts');
-const { recordTurns } = await import('../src/sim/progression/record.ts');
+const { recordTurns, FAR_MOVER } = await import('../src/sim/progression/record.ts');
+const { RunLog } = await import('../src/sim/progression/run-log.ts');
 const { turnLine, worldLine } = await import('../src/sim/progression/turn-log.ts');
+const { JobTally } = await import('../src/sim/progression/job-checks.ts');
 
-const USAGE = 'Usage: npm run progression:record -- --archetypes <a,b> --seeds <1,2> --turns <n> [--markov-turns <k>] [--tolerate-stalls true] [--kit <id>] [--out <dir>] [--patch <file>]';
+const USAGE = 'Usage: npm run progression:record -- --archetypes <a,b> --seeds <1,2> --turns <n> [--markov-turns <k>] [--tolerate-stalls true] [--kit <id>] [--settings <id=value,...>] [--physics true] [--out <dir>] [--patch <file>]';
 
 const args = parseArgs(argv);
-if (args.job) recordOne(args.job, args.turns, args.options, args.place);
+if (args.job) await recordOne(args.job, args.turns, args.options, args.place);
 else await recordAll(args);
 
 function parseArgs(argv) {
@@ -32,11 +31,24 @@ function parseArgs(argv) {
 }
 
 function parseOptions(flags) {
-  return { ...parseMarkov(flags), ...parseTolerance(flags), ...parseKit(flags) };
+  return { ...parseMarkov(flags), ...parseTolerance(flags), ...parseKit(flags), ...parseSettings(flags), ...parsePhysics(flags) };
+}
+
+function parsePhysics(flags) {
+  if (flags.physics === undefined) return {};
+  if (flags.physics !== 'true') throw new Error(`--physics takes the value true. ${USAGE}`);
+  return { physics: true };
 }
 
 function parseKit(flags) {
   return flags.kit === undefined ? {} : { kit: flags.kit };
+}
+
+function parseSettings(flags) {
+  if (flags.settings === undefined) return {};
+  const pairs = flags.settings.split(',').map((pair) => pair.split('='));
+  for (const pair of pairs) if (pair.length !== 2 || !Number.isFinite(Number(pair[1]))) throw new Error(`--settings takes id=value pairs, got ${flags.settings}. ${USAGE}`);
+  return { settings: Object.fromEntries(pairs.map(([id, value]) => [id, Number(value)])) };
 }
 
 function parseMarkov(flags) {
@@ -105,15 +117,26 @@ function runChild({ archetype, seed }, turns, options, place) {
   const markov = options.markovTurns === undefined ? [] : ['--markov-turns', String(options.markovTurns)];
   const tolerate = options.tolerateStalls ? ['--tolerate-stalls', 'true'] : [];
   const kit = options.kit === undefined ? [] : ['--kit', options.kit];
+  const settings = options.settings === undefined ? [] : ['--settings', Object.entries(options.settings).map(([id, value]) => `${id}=${value}`).join(',')];
   const patch = place.patch === null ? [] : ['--patch', place.patch];
-  const child = spawn(viteNode, [script, '--', '--job', `${archetype}:${seed}`, '--turns', String(turns), '--out', place.out, ...patch, ...markov, ...tolerate, ...kit], { stdio: 'inherit' });
+  const child = spawn(viteNode, [script, '--', '--job', `${archetype}:${seed}`, '--turns', String(turns), '--out', place.out, ...patch, ...markov, ...tolerate, ...kit, ...settings, ...physicsArgs(options)], { stdio: 'inherit' });
   return new Promise((resolve, reject) => {
     child.on('error', reject);
     child.on('exit', (code) => resolve(code));
   });
 }
 
-function recordOne({ archetype, seed }, turns, options, place) {
+function physicsArgs(options) {
+  return options.physics ? ['--physics', 'true'] : [];
+}
+
+async function moverFor(physics) {
+  if (!physics) return FAR_MOVER;
+  const { physicsMover } = await import('../src/phys/recorder-mover.ts');
+  return physicsMover();
+}
+
+async function recordOne({ archetype, seed }, turns, options, place) {
   const name = `${archetype}-${seed}`;
   const path = `${place.out}/${name}.jsonl`;
   mkdirSync(place.out, { recursive: true });
@@ -122,11 +145,15 @@ function recordOne({ archetype, seed }, turns, options, place) {
   const turnsFd = openSync(`${turnsPath}.part`, 'w');
   const worldPath = `${place.out}/${name}.world.jsonl`;
   const worldFd = openSync(`${worldPath}.part`, 'w');
+  const runPath = `${place.out}/${name}.run.jsonl`;
+  const runFd = openSync(`${runPath}.part`, 'w');
   const started = Date.now();
   writeSync(fd, `${JSON.stringify({ archetype, seed, turns, ...options, patch: place.patch })}\n`);
   const progress = { count: 0, end: null, lastTurn: 1 };
+  const { physics, ...botOptions } = options;
+  const mover = await moverFor(physics);
   try {
-    writeSteps({ fd, turnsFd, worldFd }, name, recordTurns(seed, archetype, turns, options), progress);
+    writeSteps({ fd, turnsFd, worldFd, runFd }, name, archetype, recordTurns(seed, archetype, turns, botOptions, mover), progress);
   } catch (error) {
     console.error(error);
     progress.end = { end: 'error', turn: progress.lastTurn, message: error instanceof Error ? error.message : String(error) };
@@ -137,24 +164,41 @@ function recordOne({ archetype, seed }, turns, options, place) {
   closeSync(fd);
   closeSync(turnsFd);
   closeSync(worldFd);
+  closeSync(runFd);
   renameSync(`${path}.part`, path);
   renameSync(`${turnsPath}.part`, turnsPath);
   renameSync(`${worldPath}.part`, worldPath);
+  renameSync(`${runPath}.part`, runPath);
   const ending = end ? `${end.end === 'death' ? 'died' : 'failed'} on turn ${end.turn}` : `${turns} turns`;
   console.log(`${name}: ${ending}, ${count} events in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }
 
-function writeSteps({ fd, turnsFd, worldFd }, name, steps, progress) {
+function writeRunLines(runFd, runLog, before, step) {
+  if (before === null) return;
+  const lines = runLog.note(before, step.world, step.events);
+  if (lines.length > 0) writeSync(runFd, lines.map((line) => `${JSON.stringify(line)}\n`).join(''));
+}
+
+function writeSteps({ fd, turnsFd, worldFd, runFd }, name, archetype, steps, progress) {
+  const job = new JobTally();
+  const runLog = new RunLog();
+  let before = null;
   for (const step of steps) {
     const { world, lines, rows } = step;
+    writeRunLines(runFd, runLog, before, step);
+    before = world;
     const written = [...lines, ...rows];
     if (written.length > 0) writeSync(fd, written.map((line) => `${JSON.stringify(line)}\n`).join(''));
-    writeSync(turnsFd, `${JSON.stringify(turnLine(world, step.events, step.ledger))}\n`);
-    const all = worldLine(world, step.events);
+    const line = turnLine(world, step.events, step.ledger);
+    writeSync(turnsFd, `${JSON.stringify(line)}\n`);
+    job.note(line);
+    const all = worldLine(world, step.events, step.npcMoney);
     if (all) writeSync(worldFd, `${JSON.stringify(all)}\n`);
     progress.count += lines.length;
     progress.end = step.death;
     progress.lastTurn = world.turn;
     if ((world.turn - 1) % TIME.turnsPerDay === 0) console.log(`${name}: day ${(world.turn - 1) / TIME.turnsPerDay} done, ${progress.count} events`);
+    const failure = job.failure(archetype);
+    if (failure) throw new Error(failure);
   }
 }

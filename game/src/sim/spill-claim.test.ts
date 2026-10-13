@@ -11,9 +11,13 @@ import { spillDeadRows } from './spill';
 import { addState } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat } from './testkit';
 import type { Faction, GridItem, SalvageStock, Vehicle, World } from './types';
+import { lineKey } from '../text/names';
+import { entryText } from '../text/resolve';
 import { canVehicleSee, refreshVision } from './vision';
 
-const ACCEPT = "It's yours.";
+const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', lineKey(line));
+
+const ACCEPT = 'It is yours.';
 const REFUSE = 'Over my wreck.';
 
 function quietWorld(): World {
@@ -30,8 +34,8 @@ function npcAt(w: World, faction: Faction, x: number, y = 30): Vehicle {
 }
 
 function pick(w: World, text: string): World {
-  const i = currentOptions(w).findIndex((o) => o.text === text);
-  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => o.text).join(' | ')}`);
+  const i = currentOptions(w).findIndex((o) => en(o.line) === text);
+  if (i < 0) throw new Error(`No option "${text}" in ${currentOptions(w).map((o) => en(o.line)).join(' | ')}`);
   return chooseOption(w, i);
 }
 
@@ -39,7 +43,6 @@ const lastRow = (v: Vehicle) => gridOf(v).h - 1;
 const onRow = (v: Vehicle, y: number) => v.items.filter((it) => itemCells(it).some((c) => c.y === y));
 const spillPile = (w: World): SalvageStock => w.salvage.find((s) => s.id.startsWith('spill-'))!;
 
-// Fills the truck's last cargo row with salt and breaks the cargo part that gives it.
 function breakLoadedCargo(w: World, v: Vehicle): void {
   const y = lastRow(v);
   v.items = v.items.filter((it) => !onRow(v, y).includes(it));
@@ -48,7 +51,6 @@ function breakLoadedCargo(w: World, v: Vehicle): void {
   for (const p of mountedParts(v, 'cargo')) p.hp = 0;
 }
 
-// A raider in a fight with the player, robbing it for its cargo, whose demand call is already behind it.
 function robbedPlayer(): { w: World; raider: Vehicle; kept: GridItem[] } {
   const w = quietWorld();
   const me = playerVehicle(w);
@@ -164,7 +166,7 @@ describe('a robber claims spilled cargo', () => {
     forceOption('threatened', 'fightBack');
     const w = quietWorld();
     const victim = addVehicle(w, 'traders', 'scout', ['stockEngine', 'mg', 'panniers'], { x: 40, y: 40 });
-    victim.brain = npcBrain('trader', victim.pos, ['raider']); // a trait that fights back when threatened
+    victim.brain = npcBrain('trader', victim.pos, ['raider']);
     const raider = npcAt(w, 'raiders', 46, 40);
     startCombat(w, raider, victim);
     breakLoadedCargo(w, victim);
@@ -175,11 +177,11 @@ describe('a robber claims spilled cargo', () => {
   });
 
   it('warns a third driver off the claimed pile', () => {
-    forceOption('threatened', 'comply');
+    forceOption('warnedOff', 'comply');
     const { w } = robbedPlayer();
     const pile = spillPile(w);
     const other = npcAt(w, 'scavengers', pile.pos.x + 1, pile.pos.y);
-    pushGoal(w, other, { kind: 'loot', targetId: pile.id, destination: { ...pile.pos }, phase: 'travel', reason: 'test' });
+    pushGoal(w, other, { kind: 'loot', targetId: pile.id, destination: { ...pile.pos }, phase: 'travel', reason: 'lootOnTheWay' });
     w.rngState = rngStateForForcedRolls(6);
     expect(warnedOff(w, other, pile)).toBe(true);
     expect(backedOff(pile, other.id)).toBe(true);

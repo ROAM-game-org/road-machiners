@@ -7,7 +7,7 @@ import { cueOf, importFile } from './sfx-lib.mjs';
 
 const API = 'https://api.elevenlabs.io/v1';
 const RAW_DIR = 'tmp/sfx-raw';
-const SFX_CREDITS_PER_SECOND = 40;
+const SFX_CREDITS_PER_SECOND = 10;
 const PROMPT_INFLUENCE = 0.7;
 
 if (existsSync('.env')) process.loadEnvFile('.env');

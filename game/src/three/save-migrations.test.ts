@@ -31,9 +31,46 @@ import FORMAT_2_21 from './save-fixtures/format-2-21.json';
 import FORMAT_2_22 from './save-fixtures/format-2-22.json';
 import FORMAT_2_23 from './save-fixtures/format-2-23.json';
 import FORMAT_2_24 from './save-fixtures/format-2-24.json';
+import FORMAT_2_25 from './save-fixtures/format-2-25.json';
+import FORMAT_2_26 from './save-fixtures/format-2-26.json';
+import FORMAT_2_27 from './save-fixtures/format-2-27.json';
+import FORMAT_2_28 from './save-fixtures/format-2-28.json';
+import FORMAT_2_29 from './save-fixtures/format-2-29.json';
+import FORMAT_2_30 from './save-fixtures/format-2-30.json';
+import FORMAT_2_41 from './save-fixtures/format-2-41.json';
+import FORMAT_2_42 from './save-fixtures/format-2-42.json';
+import { LAYOUTS_2_34 } from './save-layouts-2-34';
+import SAVE_SHAPE from './save-shape.json';
+import FORMAT_2_31 from './save-fixtures/format-2-31.json';
+import FORMAT_2_32 from './save-fixtures/format-2-32.json';
+import FORMAT_2_33 from './save-fixtures/format-2-33.json';
+import FORMAT_2_35 from './save-fixtures/format-2-35.json';
+import FORMAT_2_36 from './save-fixtures/format-2-36.json';
+import { STORY_WRECKS } from '../data/salvage';
+import FORMAT_2_43 from './save-fixtures/format-2-43.json';
+import FORMAT_2_44 from './save-fixtures/format-2-44.json';
+import FORMAT_2_47 from './save-fixtures/format-2-47.json';
+import FORMAT_2_48 from './save-fixtures/format-2-48.json';
+import FORMAT_2_49 from './save-fixtures/format-2-49.json';
+import FORMAT_2_50 from './save-fixtures/format-2-50.json';
+import FORMAT_2_51 from './save-fixtures/format-2-51.json';
+import FORMAT_2_52 from './save-fixtures/format-2-52.json';
+import FORMAT_2_53 from './save-fixtures/format-2-53.json';
+import FORMAT_2_54 from './save-fixtures/format-2-54.json';
+import FORMAT_2_55 from './save-fixtures/format-2-55.json';
+import FORMAT_2_56 from './save-fixtures/format-2-56.json';
+import FORMAT_2_57 from './save-fixtures/format-2-57.json';
+import FORMAT_2_58 from './save-fixtures/format-2-58.json';
+import FORMAT_2_59 from './save-fixtures/format-2-59.json';
+import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
+import { searchStream } from '../sim/search';
 import { packExplored } from './save';
-import { MIGRATIONS, pooledSkills_9_10 } from './save-migrations';
+import { dropQuest, dropQuestVar, endQuestSession, MIGRATIONS, moveQuestCheckpoint, pooledSkills_9_10, renameQuestVar, type SavedJson } from './save-migrations';
+import FORMAT_2_37 from './save-fixtures/format-2-37.json';
+import FORMAT_2_38 from './save-fixtures/format-2-38.json';
+import FORMAT_2_39 from './save-fixtures/format-2-39.json';
+import FORMAT_2_40 from './save-fixtures/format-2-40.json';
 
 describe('save migrations', () => {
   it('0 to 1 gives the player townPatched false and keeps every other field', () => {
@@ -108,11 +145,13 @@ describe('save migration 1 to 2', () => {
   });
 
   it('puts every item of every truck on a free cell, and every non-core part still mounted', () => {
+    const wide = (item: { kind: string; part?: { defId: string } }) => item.kind === 'part' && item.part?.defId === 'mg';
     for (const v of all) {
       const grid = baseGrid(v.chassisId);
-      v.items.forEach((item, i) => {
-        expect(placementError(grid, v.items.filter((_, j) => j !== i), item, null), `${v.id} ${item.id}`).toBeNull();
-        if (item.kind === 'part' && !['mg', 'rack', 'cannon'].includes(item.part.defId)) expect(isMounted(v.chassisId, item), `${v.id} ${item.id}`).toBe(true);
+      const others = v.items.filter((it) => !wide(it));
+      others.forEach((item, i) => {
+        expect(placementError(grid, others.filter((_, j) => j !== i), item, null), `${v.id} ${item.id}`).toBeNull();
+        if (item.kind === 'part' && !['rack', 'cannon'].includes(item.part.defId)) expect(isMounted(v.chassisId, item), `${v.id} ${item.id}`).toBe(true);
       });
     }
   });
@@ -487,7 +526,791 @@ describe('save migration 23 to 24', () => {
 });
 
 describe('save migration 24 to 25', () => {
+  const before = structuredClone(FORMAT_2_24);
+
+  it('does not mutate its input', () => {
+    MIGRATIONS[24](FORMAT_2_24);
+    expect(FORMAT_2_24).toEqual(before);
+  });
+
+  it('drops the circles of the fortress sites and the Bowl and Nose buildings, and keeps every other obstacle', () => {
+    const next = MIGRATIONS[24](FORMAT_2_24) as { obstacles: { id: string }[] };
+
+    expect(next.obstacles.map((o) => o.id)).toEqual(['site-old-mill', 'bld-dustwell-1', 'cw-convoy-0', 'wreck4']);
+    expect(next.obstacles[0]).toEqual(FORMAT_2_24.obstacles[5]);
+  });
+
+  it('drops both obsolete oasis ponds but keeps water elsewhere', () => {
+    const world = { ...FORMAT_2_24, obstacles: [
+      { id: 'pond-dustwell' }, { id: 'pond-green-pit' }, { id: 'pond-old-mill' }, { id: 'lake-west' },
+    ] };
+    const next = MIGRATIONS[24](world) as { obstacles: { id: string }[] };
+    expect(next.obstacles.map((o) => o.id)).toEqual(['pond-old-mill', 'lake-west']);
+  });
+
+  it('drops the old salvage yard wrecks, which a fortress yard no longer has', () => {
+    const world = { ...FORMAT_2_24, obstacles: [{ id: 'cw-salvage-yard-0' }, { id: 'cw-convoy-0' }] };
+    const next = MIGRATIONS[24](world) as { obstacles: { id: string }[] };
+
+    expect(next.obstacles.map((o) => o.id)).toEqual(['cw-convoy-0']);
+  });
+});
+
+describe('save migration 25 to 26', () => {
+  type Loot = { goods: Partial<Record<string, number>>; parts: unknown[]; fuel?: number; supplies?: number };
+  type Stock = Loot & { id: string; hidden: Loot };
+  type Saved = {
+    vehicles: { id: string; utilityOrders: object }[];
+    removed: { id: string; utilityOrders: object }[];
+    smoke: unknown[];
+    fields: unknown[];
+    flares: unknown[];
+    lines: unknown[];
+    searchRng: { rngState: number };
+    salvage: Stock[];
+  };
+  const next = MIGRATIONS[25](FORMAT_2_25) as Saved;
+  const stock = (id: string) => next.salvage.find((s) => s.id === id)!;
+  const before = (id: string) => FORMAT_2_25.salvage.find((s) => s.id === id)!;
+  const NO_HIDDEN = { goods: {}, parts: [], fuel: 0, supplies: 0 };
+
+  it('gives the player the freeze switch, off', () => {
+    expect((next as unknown as { player: object }).player).toEqual({ ...FORMAT_2_25.player, frozen: false });
+  });
+
+  it('gives every vehicle and removed vehicle empty utility orders, keeping its other fields', () => {
+    expect(next.vehicles).toEqual(FORMAT_2_25.vehicles.map((v) => ({ ...v, utilityOrders: {} })));
+    expect(next.removed).toEqual(FORMAT_2_25.removed.map((v) => ({ ...v, utilityOrders: {} })));
+  });
+
+  it('starts empty smoke, fields, flares and lines, and the search stream a new game of the same seed has', () => {
+    expect([next.smoke, next.fields, next.flares, next.lines]).toEqual([[], [], [], []]);
+    expect(next.searchRng).toEqual(searchStream(FORMAT_2_25.seed));
+  });
+
+  it.each(['burnt-convoy', 'barn-759', 'wreck12'])('hides all the loot of the unsearched rolled stock %s', (id) => {
+    const old = before(id);
+    expect(stock(id)).toEqual({
+      ...old,
+      goods: {},
+      parts: [],
+      fuel: 0,
+      supplies: 0,
+      hidden: { goods: old.goods, parts: old.parts, fuel: old.fuel, supplies: old.supplies },
+    });
+  });
+
+  it('counts a rolled stock without fuel or supplies fields as none of them', () => {
+    expect(stock('deckBay-1450').hidden).toEqual({ goods: { scrap: 4 }, parts: [], fuel: 0, supplies: 0 });
+  });
+
+  it.each(['podfield', 'wreck4', 'wreck-v40', 'cargo-v41-30'])('leaves the searched stock, truck wreck or pile %s in the open', (id) => {
+    expect(stock(id)).toEqual({ ...before(id), hidden: NO_HIDDEN });
+  });
+
+  it('keeps the loot total of every stock', () => {
+    const total = (s: Loot) => Object.values(s.goods).reduce((a: number, b) => a + (b ?? 0), 0) + s.parts.length + (s.fuel ?? 0) + (s.supplies ?? 0);
+    for (const s of next.salvage) expect(total(s) + total(s.hidden), s.id).toBe(total(before(s.id)));
+  });
+});
+
+describe('save migration 26 to 27', () => {
+  type Contracts = { contracts: Record<string, unknown>[] };
+  const next = MIGRATIONS[26](FORMAT_2_26) as { turn: number; player: Contracts & { money: number }; shops: Record<string, Contracts> };
+
+  it('starts every held and posted bounty unfulfilled', () => {
+    expect(next.player.contracts[0]).toEqual({ ...FORMAT_2_26.player.contracts[0], fulfilled: false });
+    expect(next.shops.bowl.contracts[0]).toEqual({ ...FORMAT_2_26.shops.bowl.contracts[0], fulfilled: false });
+  });
+
+  it('keeps every other contract and field', () => {
+    expect(next.player.contracts[1]).toEqual(FORMAT_2_26.player.contracts[1]);
+    expect(next.shops.bowl.contracts[1]).toEqual(FORMAT_2_26.shops.bowl.contracts[1]);
+    expect(next.shops.nose).toEqual(FORMAT_2_26.shops.nose);
+    expect({ ...next, player: { ...next.player, contracts: [] }, shops: {} }).toEqual({ ...FORMAT_2_26, player: { ...FORMAT_2_26.player, contracts: [] }, shops: {} });
+  });
+});
+
+describe('save migration 27 to 28', () => {
+  const before = structuredClone(FORMAT_2_27);
+  const next = MIGRATIONS[27](FORMAT_2_27) as { salvage: { id: string }[]; player: { scavenged: string[] }; vehicles: { job: { stockId: string } | null }[] };
+
+  it('drops the Glass Flats stock and its searched mark, and keeps every other stock', () => {
+    expect(next.salvage.map((stock) => stock.id)).toEqual(FORMAT_2_27.salvage.map((stock) => stock.id).filter((id) => id !== 'glass-flats'));
+    expect(next.player.scavenged).toEqual(['podfield', 'wreck4']);
+  });
+
+  it('ends a search of the old stock, keeps other searches and does not mutate its input', () => {
+    expect(next.vehicles[0].job).toBeNull();
+    expect(next.vehicles[1]).toEqual(FORMAT_2_27.vehicles[1]);
+    expect(FORMAT_2_27).toEqual(before);
+  });
+});
+
+describe('save migration 28 to 29', () => {
+  it('gives the world the default Roaming setup and keeps every other field', () => {
+    const next = MIGRATIONS[28](FORMAT_2_28);
+
+    expect(next).toEqual({ ...FORMAT_2_28, setup: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } } });
+  });
+});
+
+describe('save migration 29 to 30', () => {
+  const next = MIGRATIONS[29](structuredClone(FORMAT_2_29)) as typeof FORMAT_2_29;
+  const cents = (money: number) => Math.round((money * 100) / 3);
+
+  it('turns player money, debt included, cost basis and contract rewards into cents', () => {
+    expect(next.player.money).toBe(-33333);
+    expect(next.player.costBasis).toEqual({ scrap: 350, salt: 700 });
+    expect(next.player.contracts[0].reward).toBe(4000);
+    expect(next.shops.bowl.contracts[0].reward).toBe(10000);
+    expect(next.shops.bowl.pressure).toEqual(FORMAT_2_29.shops.bowl.pressure);
+  });
+
+  it('turns the open call\'s money, deal and prices into cents and leaves other vars alone', () => {
+    const { vars, line } = next.player.call;
+    expect(vars.fee).toEqual({ kind: 'money', amount: 1500 });
+    expect(vars.deal).toEqual({ ...FORMAT_2_29.player.call.vars.deal, price: 1000 });
+    expect(vars.town).toEqual(FORMAT_2_29.player.call.vars.town);
+    expect(line.vars.prices.goods).toEqual([{ good: 'salt', buy: cents(31), sell: 700 }]);
+    expect(line.vars.far).toEqual(FORMAT_2_29.player.call.line.vars.far);
+    expect(line.text).toBe(FORMAT_2_29.player.call.line.text);
+  });
+
+  it('turns driver wallets and pile bases into cents and keeps fuel, memories and stock', () => {
+    expect(next.vehicles[0]).toEqual(FORMAT_2_29.vehicles[0]);
+    expect(next.vehicles[1]).toEqual({ ...FORMAT_2_29.vehicles[1], resources: { ...FORMAT_2_29.vehicles[1].resources, money: cents(1250) } });
+    expect(next.removed[0].resources.money).toBe(233);
+    expect(next.salvage[0]).toEqual(FORMAT_2_29.salvage[0]);
+    expect(next.salvage[1].pile).toEqual({ ...FORMAT_2_29.salvage[1].pile, basis: { salt: 750 } });
+  });
+
+  it('turns every fee and price in a deal state into cents and nothing else', () => {
+    const data = next.states.map((s) => s.data as Record<string, unknown>);
+    expect(data[0]).toEqual({ ...FORMAT_2_29.states[0].data, fee: cents(55), waived: 0 });
+    expect(data[1]).toEqual({ ...FORMAT_2_29.states[1].data, fee: 600 });
+    expect(data[2]).toEqual({ ...FORMAT_2_29.states[2].data, fee: 2600 });
+    expect(data[3]).toEqual({ ...FORMAT_2_29.states[3].data, price: cents(32) });
+    expect(data[4]).toEqual({ ...FORMAT_2_29.states[4].data, price: cents(22) });
+    expect(next.states[5]).toEqual(FORMAT_2_29.states[5]);
+  });
+
+  it('turns money in events into cents, and scales only money practice amounts', () => {
+    const e = next.events as Record<string, unknown>[];
+    expect(e[0].amount).toBe(-400);
+    expect(e[1].amount).toBeCloseTo(450);
+    expect(e[2].amount).toBeCloseTo(1000);
+    expect(e[3].amount).toBeCloseTo(300);
+    expect(e[4]).toEqual(FORMAT_2_29.events[4]);
+    expect((e[5].contract as { reward: number }).reward).toBe(5000);
+    expect([e[6].fee, e[7].fee, e[8].fee, e[9].fee]).toEqual([cents(55), 600, 2600, 2600]);
+    expect(e[10].paid).toBe(cents(22));
+    expect(((e[11].state as { data: { price: number } }).data).price).toBe(500);
+    expect(e[12].vars).toEqual({ fee: { kind: 'money', amount: 100 } });
+    expect(e[13]).toEqual(FORMAT_2_29.events[13]);
+    for (const [i, ev] of e.entries()) if (ev.t === 'practice') expect(ev.xp, `event ${i}`).toBe(FORMAT_2_29.events[i].xp);
+  });
+
+  it('keeps the turn and touches nothing outside money', () => {
+    expect(next.turn).toBe(FORMAT_2_29.turn);
+    expect(next.player.fuel).toBe(FORMAT_2_29.player.fuel);
+  });
+
+  it('throws on a money field that is not a number', () => {
+    const bad = { ...structuredClone(FORMAT_2_29), player: { ...structuredClone(FORMAT_2_29.player), money: 'x' } };
+    expect(() => MIGRATIONS[29](bad)).toThrow(/player money/);
+  });
+
+  it('converts every money-named field of the saved shape', () => {
+    const MONEY_KEYS = new Set(['money', 'reward', 'fee', 'waived', 'price', 'paid', 'amount', 'buy', 'sell', 'basis', 'costBasis']);
+    const CONVERTED = new Set([
+      '.player.money', '.player.costBasis', '.player.contracts[].reward', '.shops.*.contracts[].reward',
+      '.vehicles[].resources.money', '.removed[].resources.money', '.salvage[].pile.basis',
+      '.states[].data.fee', '.states[].data.waived', '.states[].data.price',
+    ]);
+    const found: string[] = [];
+    const walk = (node: unknown, path: string): void => {
+      if (Array.isArray(node)) return node.forEach((x) => walk(x, `${path}[]`));
+      if (!node || typeof node !== 'object') return;
+      for (const [key, value] of Object.entries(node)) {
+        const at = path === '.shops' ? `${path}.*` : `${path}.${key}`;
+        if (MONEY_KEYS.has(key)) found.push(at);
+        walk(value, at);
+      }
+    };
+    walk(SAVE_SHAPE.shape, '');
+    expect(found.length).toBeGreaterThan(0);
+    for (const at of found) expect(CONVERTED.has(at), at).toBe(true);
+  });
+});
+
+describe('save migration 30 to 31', () => {
+  const next = MIGRATIONS[30](FORMAT_2_30) as typeof FORMAT_2_30;
+
+  it('keeps the world as it was', () => {
+    expect(next).toEqual(FORMAT_2_30);
+  });
+
+  it('leaves a raid on its way without a watch end, so it watches once it arrives', () => {
+    const raid = next.vehicles[1].brain!.goals[0];
+
+    expect(raid.phase).toBe('travel');
+    expect('watchUntil' in raid).toBe(false);
+  });
+});
+
+describe('save migration 31 to 32', () => {
+  const next = MIGRATIONS[31](FORMAT_2_31) as Record<string, unknown> & { vehicles: object[]; player: object; broken: object[] };
+
+  it('drops trails, the visible tiles, the last turn events and removed vehicles', () => {
+    expect(next.vehicles).toEqual(FORMAT_2_31.vehicles.map(({ trail: _t, ...rest }) => rest));
+    expect('events' in next).toBe(false);
+    expect('removed' in next).toBe(false);
+    const { visible: _v, ...player } = FORMAT_2_31.player;
+    expect(next.player).toEqual(player);
+  });
+
+  it('keeps only the id and turn of a broken prop', () => {
+    expect(next.broken).toEqual([{ id: 'deadTree-1354', turn: 2559 }]);
+  });
+
+  it('keeps dust clouds, contacts and clouds', () => {
+    expect(next.dustClouds).toEqual(FORMAT_2_31.dustClouds);
+    expect(next.turn).toBe(FORMAT_2_31.turn);
+  });
+});
+
+describe('save migration 32 to 33', () => {
+  it('drops the contacts and seen clouds and keeps the dust clouds', () => {
+    const next = MIGRATIONS[32](FORMAT_2_32);
+    const { contacts: _c, clouds: _s, ...player } = FORMAT_2_32.player;
+
+    expect(next).toEqual({ ...FORMAT_2_32, player });
+  });
+});
+
+describe('save migration 33 to 34', () => {
   it('keeps a save with only price memories as it is', () => {
-    expect(MIGRATIONS[24](structuredClone(FORMAT_2_24))).toEqual(FORMAT_2_24);
+    expect(MIGRATIONS[33](structuredClone(FORMAT_2_33))).toEqual(FORMAT_2_33);
+  });
+});
+
+describe('save migration 34 to 35', () => {
+  it('leaves a save from before old-world loot spots as it is, for the load to stock them', () => {
+    const before = MIGRATIONS[33](structuredClone(FORMAT_2_33));
+
+    expect(MIGRATIONS[34](structuredClone(before))).toEqual(before);
+  });
+});
+
+describe('save migration 35 to 36', () => {
+  it('keeps the states and the open call as they are', () => {
+    expect(MIGRATIONS[35](FORMAT_2_35)).toEqual(FORMAT_2_35);
+  });
+});
+
+describe('save migration 36 to 37', () => {
+  type Goal = { reason: string };
+  type Saved = {
+    vehicles: { id: string; name?: string; brain: { goals: Goal[] } | null }[];
+    player: { call: { line: unknown; vars: Record<string, unknown> } | null; contracts: Record<string, unknown>[] };
+    shops: Record<string, { contracts: Record<string, unknown>[] }>;
+  };
+  const next = MIGRATIONS[36](FORMAT_2_36) as unknown as Saved;
+  const reasons = (v: { brain: { goals: Goal[] } | null }) => v.brain?.goals.map((g) => g.reason);
+
+  it('turns known goal reasons into ids, an old phrase into the id that replaced it, and an unknown one into legacy', () => {
+    expect(reasons(next.vehicles[1])).toEqual(['buyCargo', 'lowFuel']);
+    expect(reasons(next.vehicles[2])).toEqual(['explore', 'legacy']);
+    expect(reasons(next.vehicles[3])).toEqual(['raid']);
+  });
+
+  it('removes the names of trucks and bounty targets', () => {
+    expect(next.vehicles.some((v) => 'name' in v)).toBe(false);
+    expect(next.player.contracts.map((c) => 'targetName' in c)).toEqual([false, false]);
+    expect('targetName' in next.shops.nose.contracts[0]).toBe(false);
+    expect(next.player.contracts[0]).toEqual({ id: 'c1', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 400, deadline: 990, window: 300, tier: 2 });
+  });
+
+  it('keeps an open call on a known line as its id', () => {
+    expect(next.player.call?.line).toEqual({ line: 'dealTerms', vars: FORMAT_2_36.player.call.line.vars });
+  });
+
+  it('turns the warning line of an open loot call into its id', () => {
+    const call = { ...FORMAT_2_36.player.call, topic: 'lootWarning', line: { text: '{warnLine}', vars: {} }, vars: { warnLine: { kind: 'line', text: "That's my pick. Roll on." } } };
+    const saved = { ...FORMAT_2_36, player: { ...FORMAT_2_36.player, call } };
+    const migrated = MIGRATIONS[36](saved) as unknown as Saved;
+    expect(migrated.player.call?.vars).toEqual({ warnLine: { kind: 'line', line: 'thatsMyPick' } });
+    expect(migrated.player.call?.line).toEqual({ line: 'warnTerms', vars: {} });
+  });
+
+  it('hangs up a call on a line no table knows', () => {
+    const unknown = { ...FORMAT_2_36, player: { ...FORMAT_2_36.player, call: { ...FORMAT_2_36.player.call, line: { text: 'Words from a mod', vars: {} } } } };
+    expect((MIGRATIONS[36](unknown) as unknown as Saved).player.call).toBeNull();
+  });
+});
+
+describe('save migration 37 to 38', () => {
+  const wagon = STORY_WRECKS[0];
+  const fresh = emptyWorld();
+
+  it('gives the player an empty journal and puts wagon Seven in place as a new game has it', () => {
+    const next = MIGRATIONS[37](FORMAT_2_37) as typeof FORMAT_2_37 & { player: { notes: unknown[] } };
+
+    expect(next.player).toEqual({ ...FORMAT_2_37.player, notes: [] });
+    expect(next.obstacles).toEqual([...FORMAT_2_37.obstacles, { id: wagon.id, pos: wagon.pos, r: wagon.r, kind: 'wreck', hulk: { chassisId: wagon.chassisId, yaw: wagon.yaw } }]);
+    const placed = (list: { id: string; parts?: object[] }[]) => list.map((s) => (s.id === wagon.id ? { ...s, parts: [] } : s));
+    expect(placed(next.salvage as never)).toEqual(placed([...FORMAT_2_37.salvage, fresh.salvage.find((s) => s.id === wagon.id)!] as never));
+    expect(next.turn).toBe(FORMAT_2_37.turn);
+  });
+
+  it('adds no second wagon to a save that holds one', () => {
+    const once = MIGRATIONS[37](FORMAT_2_37);
+
+    const twice = MIGRATIONS[37](once) as typeof FORMAT_2_37;
+
+    expect(twice.obstacles.filter((o) => o.id === wagon.id)).toHaveLength(1);
+    expect(twice.salvage.filter((s) => s.id === wagon.id)).toHaveLength(1);
+  });
+});
+
+describe('save migration 38 to 39', () => {
+  it('gives the player empty quest state with no open quest', () => {
+    const next = MIGRATIONS[38](FORMAT_2_38);
+
+    expect(next).toEqual({ ...FORMAT_2_38, player: { ...FORMAT_2_38.player, quests: { world: {}, local: {}, session: null } } });
+  });
+});
+
+describe('save migration 39 to 40', () => {
+  it('drops the sample quests and their world variable and keeps every other quest name', () => {
+    const next = MIGRATIONS[39](FORMAT_2_39);
+
+    expect(next).toEqual({
+      ...FORMAT_2_39,
+      player: { ...FORMAT_2_39.player, quests: { world: { kept_flag: true }, local: { kept_quest: { n: 2 } }, session: null } },
+    });
+  });
+});
+
+describe('save migration 40 to 41', () => {
+  it('drops the depot quest counters that facts replaced and keeps the rest of the open quest', () => {
+    const next = MIGRATIONS[40](FORMAT_2_40);
+
+    expect(next).toEqual({
+      ...FORMAT_2_40,
+      player: { ...FORMAT_2_40.player, quests: { ...FORMAT_2_40.player.quests, local: { nose_depot_leak: { watches: 3, ledger_read: true } } } },
+    });
+  });
+});
+
+describe('save migration 41 to 42', () => {
+  it('sets every lie-up spot to its driver place and keeps every other field', () => {
+    const next = MIGRATIONS[41](FORMAT_2_41);
+    const [player, resting, patrol] = FORMAT_2_41.vehicles;
+
+    expect(next).toEqual({
+      ...FORMAT_2_41,
+      vehicles: [player, { ...resting, brain: { goals: [resting.brain!.goals[0], { ...resting.brain!.goals[1], destination: { x: 198.5, y: 230.2 } }] } }, patrol],
+    });
+  });
+});
+
+describe('save migration 42 to 43', () => {
+  const next = MIGRATIONS[42](FORMAT_2_42) as { vehicles: { id: string; items: { id: string; rot: number }[] }[]; player: { storage: { id: string }[] } };
+  const itemsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.items;
+
+  it('keeps a machine gun whose second cell is free on the same kind of cell as it was', () => {
+    expect(itemsOf('player').filter((it) => ['i1', 'i2'].includes(it.id)).map((it) => it.rot)).toEqual([0, 1]);
+  });
+
+  it('turns a machine gun a quarter turn when only that way keeps it on deck cells', () => {
+    expect(itemsOf('player').find((it) => it.id === 'i4')!.rot).toBe(0);
+  });
+
+  it('stows the player machine gun with no deck room either way and drops an npc one', () => {
+    expect(itemsOf('player').some((it) => it.id === 'i5')).toBe(false);
+    expect(next.player.storage.map((p) => p.id)).toEqual(['s1', 'p5']);
+    expect(itemsOf('npc-3').some((it) => it.id === 'i8')).toBe(false);
+  });
+
+  it('leaves every other item alone', () => {
+    expect(itemsOf('player').filter((it) => ['i3', 'i6', 'i7'].includes(it.id))).toEqual(FORMAT_2_42.vehicles[0].items.filter((it) => ['i3', 'i6', 'i7'].includes(it.id)));
+  });
+
+  it('holds a copy of the chassis layouts that equals the live chassis data', () => {
+    for (const c of Object.values(CHASSIS).filter((it) => LAYOUTS_2_34[it.id])) expect(LAYOUTS_2_34[c.id], c.id).toEqual(c.layout);
+  });
+});
+
+describe('quest migration helpers', () => {
+  const saved = (): SavedJson => ({
+    turn: 3000,
+    player: {
+      vehicleId: 'v1',
+      quests: {
+        world: { wagon_heard: true },
+        local: { bowl: { trust: 2, paid: true } },
+        session: { quest: 'bowl', checkpoint: 'start.talk', seed: 77 },
+      },
+    },
+  });
+  const questsIn = (world: SavedJson) => (world.player as { quests: unknown }).quests;
+
+  it('renames a world variable and keeps its value', () => {
+    expect(questsIn(renameQuestVar(saved(), null, 'wagon_heard', 'heard_of_wagon'))).toMatchObject({ world: { heard_of_wagon: true } });
+  });
+
+  it('renames a quest variable', () => {
+    expect(questsIn(renameQuestVar(saved(), 'bowl', 'trust', 'faith'))).toMatchObject({ local: { bowl: { faith: 2, paid: true } } });
+  });
+
+  it('leaves a save without the variable as it was', () => {
+    expect(renameQuestVar(saved(), 'bowl', 'missing', 'other')).toEqual(saved());
+  });
+
+  it('refuses to rename onto a variable that holds a value', () => {
+    expect(() => renameQuestVar(saved(), 'bowl', 'trust', 'paid')).toThrow('Quest variable paid already holds a value');
+  });
+
+  it('drops a quest variable and the quest entry once it is empty', () => {
+    const once = dropQuestVar(saved(), 'bowl', 'trust');
+    expect(questsIn(once)).toMatchObject({ local: { bowl: { paid: true } } });
+    expect(questsIn(dropQuestVar(once, 'bowl', 'paid'))).toMatchObject({ local: {} });
+  });
+
+  it('moves the open session to a renamed checkpoint', () => {
+    expect(questsIn(moveQuestCheckpoint(saved(), 'bowl', 'start.talk', 'start.chat'))).toMatchObject({ session: { quest: 'bowl', checkpoint: 'start.chat', seed: 77 } });
+  });
+
+  it('ends the session of a quest and leaves another quest session open', () => {
+    expect(questsIn(endQuestSession(saved(), 'bowl'))).toMatchObject({ session: null });
+    expect(endQuestSession(saved(), 'nose')).toEqual(saved());
+  });
+
+  it('drops a whole quest with its session and variables but keeps world variables', () => {
+    expect(questsIn(dropQuest(saved(), 'bowl'))).toEqual({ world: { wagon_heard: true }, local: {}, session: null });
+  });
+});
+
+describe('save migration 43 to 44', () => {
+  const before = structuredClone(FORMAT_2_43);
+  const next = MIGRATIONS[43](FORMAT_2_43) as {
+    salvage: { id: string }[];
+    shops: Record<string, { contracts: unknown[]; pressure: Record<string, number>; stock: unknown[]; restockAt: number }>;
+    obstacles: { id: string }[];
+    player: { scavenged: string[]; discovered: string[] };
+    vehicles: { id: string; job: unknown; brain: { goals: { targetId: string }[]; noticed: Record<string, number>; unfit: string[]; memories: { fact: { kind: string; stock?: string } }[] } | null }[];
+  };
+
+  it('drops the six retired stocks and keeps every other stock', () => {
+    expect(next.salvage.map((s) => s.id)).toEqual(['wreck4', 'farmhouse-1']);
+  });
+
+  it('drops the retired ids from the searched and discovered lists', () => {
+    expect(next.player.scavenged).toEqual(['wreck4', 'farmhouse-1']);
+    expect(next.player.discovered).toEqual(['bowl', 'dustwell']);
+  });
+
+  it('adds both outpost shops empty, to roll their stock on the next turn, and leaves the old shops', () => {
+    expect(next.shops.dustwell).toEqual({ contracts: [], pressure: { water: 0, scrap: 0, tools: 0, meds: 0 }, stock: [], restockAt: 1200 });
+    expect(next.shops['green-pit']).toEqual({ contracts: [], pressure: { water: 0, grain: 0, salt: 0, textiles: 0 }, stock: [], restockAt: 1200 });
+    expect(next.shops.bowl).toEqual(FORMAT_2_43.shops.bowl);
+    expect(next.shops.nose).toEqual(FORMAT_2_43.shops.nose);
+  });
+
+  it('ends a search or a refit pickup of a retired stock and keeps other jobs', () => {
+    expect(next.vehicles[0].job).toBeNull();
+    expect(next.vehicles[1].job).toBeNull();
+    expect(next.vehicles[2].job).toEqual(FORMAT_2_43.vehicles[2].job);
+  });
+
+  it('drops goals, stripped memories, unfit entries and noticed marks of retired stocks', () => {
+    const brain = next.vehicles[1].brain!;
+    expect(brain.goals.map((g) => g.targetId)).toEqual(['bowl']);
+    expect(brain.memories.map((m) => m.fact.kind)).toEqual(['stripped', 'prices']);
+    expect(brain.memories[0].fact.stock).toBe('wreck4');
+    expect(brain.unfit).toEqual(['wreck4']);
+    expect(brain.noticed).toEqual({ 'salvageSeen:wreck4': 5 });
+  });
+
+  it('drops the retired site and convoy wreck obstacles and keeps the rest', () => {
+    expect(next.obstacles.map((o) => o.id)).toEqual(['pond-dustwell', 'wreck0', 'rock1']);
+  });
+
+  it('does not mutate its input', () => {
+    expect(FORMAT_2_43).toEqual(before);
+  });
+});
+
+describe('save migration 44 to 45', () => {
+  it('keeps a save holding a call that names a haul as it is', () => {
+    expect(MIGRATIONS[44](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
+  });
+});
+
+describe('save migration 45 to 46', () => {
+  it('returns the world unchanged, since no old save holds a business job', () => {
+    expect(MIGRATIONS[45](structuredClone(FORMAT_2_44))).toEqual(FORMAT_2_44);
+  });
+});
+
+describe('save migration 47 to 48', () => {
+  it('drops a Gauntlet run laid on Icarus roads and keeps the mode, for the load to rescue it', () => {
+    const next = MIGRATIONS[47](structuredClone(FORMAT_2_47));
+
+    expect(next).toEqual({ ...FORMAT_2_47, gauntlet: null });
+    expect((next.setup as { mode: string }).mode).toBe('gauntlet');
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...FORMAT_2_47, setup: { ...FORMAT_2_47.setup, mode: 'roaming' }, gauntlet: null };
+
+    expect(MIGRATIONS[47](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 50 to 51', () => {
+  it('starts each outpost with no trucks sold and each group with no trucks counted', () => {
+    const run = structuredClone(FORMAT_2_50.furyRoad);
+    const outposts = run.outposts.map((post) => ({ ...post, trucksSold: [] }));
+    const groups = run.groups.map((group) => ({ ...group, counted: [] }));
+
+    expect(MIGRATIONS[50](structuredClone(FORMAT_2_50))).toEqual({ ...FORMAT_2_50, furyRoad: { ...run, outposts, groups } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_50), setup: { ...FORMAT_2_50.setup, mode: 'roaming' }, furyRoad: null };
+
+    expect(MIGRATIONS[50](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 49 to 50', () => {
+  it('drops each group anchor, starts each engaged list empty and dates the quiet from the saved turn', () => {
+    const run = structuredClone(FORMAT_2_49.furyRoad);
+    const groups = run.groups.map(({ at: _at, ...group }) => ({ ...group, engaged: [] }));
+
+    expect(MIGRATIONS[49](structuredClone(FORMAT_2_49))).toEqual({ ...FORMAT_2_49, furyRoad: { ...run, groups, quietFrom: 412 } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_49), setup: { ...FORMAT_2_49.setup, mode: 'roaming' }, furyRoad: null };
+
+    expect(MIGRATIONS[49](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 48 to 49', () => {
+  it('renames the Gauntlet mode and its run to Fury Road and keeps the run', () => {
+    const { gauntlet, ...rest } = structuredClone(FORMAT_2_48);
+
+    expect(MIGRATIONS[48](structuredClone(FORMAT_2_48))).toEqual({ ...rest, setup: { ...rest.setup, mode: 'furyRoad' }, furyRoad: gauntlet });
+  });
+
+  it('keeps a Roaming world as it is but for the run key', () => {
+    const { gauntlet: _run, ...rest } = structuredClone(FORMAT_2_48);
+    const roaming = { ...rest, setup: { ...rest.setup, mode: 'roaming' }, gauntlet: null };
+
+    expect(MIGRATIONS[48](structuredClone(roaming))).toEqual({ ...rest, setup: roaming.setup, furyRoad: null });
+  });
+});
+
+describe('save migration 46 to 47', () => {
+  it('adds an empty Gauntlet run and keeps the rest of the world', () => {
+    expect(MIGRATIONS[46](structuredClone(FORMAT_2_44))).toEqual({ ...FORMAT_2_44, gauntlet: null });
+  });
+});
+
+describe('save migration 51 to 52', () => {
+  const personalityIn = (world: { vehicles: { id: string; brain: object | null }[] }, id: string) => (world.vehicles.find((v) => v.id === id)!.brain as { personality?: string } | null)?.personality;
+
+  it('gives every driver a personality from its vehicle id and leaves the rest of the brain alone', () => {
+    const next = MIGRATIONS[51](FORMAT_2_51) as typeof FORMAT_2_51;
+
+    expect(personalityIn(next, 'npc1')).toBe('braggart');
+    expect(personalityIn(next, 'npc2')).toBe('grim');
+    expect(personalityIn(next, 'npc3')).toBe('tightLipped');
+    expect(next.vehicles[1].brain).toEqual({ ...FORMAT_2_51.vehicles[1].brain, personality: 'braggart' });
+  });
+
+  it('gives the player no personality', () => {
+    const next = MIGRATIONS[51](FORMAT_2_51) as typeof FORMAT_2_51;
+
+    expect(next.vehicles[0]).toEqual(FORMAT_2_51.vehicles[0]);
+  });
+
+  it('draws the same personality each time it runs', () => {
+    expect(MIGRATIONS[51](FORMAT_2_51)).toEqual(MIGRATIONS[51](FORMAT_2_51));
+  });
+});
+
+describe('save migration 52 to 53', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const questsIn = (world: object) => (world as { player: { quests: Quests } }).player.quests;
+  const withSession = (quest: string, checkpoint: string) => {
+    const world = structuredClone(FORMAT_2_52);
+    world.player.quests.session = { quest, checkpoint, seed: 17 };
+    return world;
+  };
+
+  it('sends a save made inside the arrival back to its first page and forgets the walk step', () => {
+    const next = questsIn(MIGRATIONS[52](structuredClone(FORMAT_2_52)));
+
+    expect(next.session).toEqual({ quest: 'intro_arrival', checkpoint: 'start', seed: 17 });
+    expect(next.world).toEqual({ first_knockout_seen: true });
+  });
+
+  it('sends a save made inside the first fall back to its first page', () => {
+    expect(questsIn(MIGRATIONS[52](withSession('first_fall', 'look'))).session?.checkpoint).toBe('start');
+  });
+
+  it('leaves other quests and later intro steps alone', () => {
+    const other = withSession('nose_kovac', 'start.hub');
+    other.player.quests.world.intro_step = 'ambush';
+
+    expect(MIGRATIONS[52](structuredClone(other))).toEqual(other);
+  });
+});
+
+describe('save migration 53 to 54', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it('drops the cut quests, their world variables and their notes, and keeps the rest', () => {
+    const next = playerOf(MIGRATIONS[53](structuredClone(FORMAT_2_53)));
+
+    expect(next.quests).toEqual({ world: { intro_step: 'done', pipe_fate: 'delivered' }, local: { bowl_hattie: { hattie_flats: true } }, session: null });
+    expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl', 'pipeBook']);
+    expect(next.money).toBe(1200);
+  });
+
+  it('keeps a session inside a kept quest', () => {
+    const world = structuredClone(FORMAT_2_53);
+    world.player.quests.session = { quest: 'pump_pipe', checkpoint: 'road', seed: 17 };
+
+    expect(playerOf(MIGRATIONS[53](world)).quests.session).toEqual({ quest: 'pump_pipe', checkpoint: 'road', seed: 17 });
+  });
+});
+
+describe('save migration 54 to 55', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("drops Kovac's Kessel variables and keeps his other talk, the session and the rest", () => {
+    const next = playerOf(MIGRATIONS[54](structuredClone(FORMAT_2_54)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { nose_kovac: { heard_paper: true, asked_paper: true }, bowl_hattie: { hattie_flats: true } },
+      session: { quest: 'nose_kovac', checkpoint: 'start.hub', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['wagonBowl']);
+    expect(next.money).toBe(1200);
+  });
+});
+
+describe('save migration 55 to 56', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("moves Hattie's heard-the-glass mark to hattie_glass, so her Sunward question still waits, and keeps the rest", () => {
+    const next = playerOf(MIGRATIONS[55](structuredClone(FORMAT_2_55)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { bowl_hattie: { hattie_flats: true, hattie_glass: true, hattie_strangers: true } },
+      session: { quest: 'bowl_hattie', checkpoint: 'start.hub', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['talkGlassLean']);
+    expect(next.money).toBe(1200);
+  });
+
+  it('leaves a save that never heard of the glass as it was', () => {
+    const fresh = structuredClone(FORMAT_2_54);
+    expect(MIGRATIONS[55](fresh)).toEqual(fresh);
+  });
+});
+
+describe('save migration 56 to 57', () => {
+  type Quests = { world: Record<string, unknown>; local: Record<string, unknown>; session: { quest: string; checkpoint: string; seed: number } | null };
+  const playerOf = (world: object) => (world as { player: { money: number; notes: { id: string }[]; quests: Quests } }).player;
+
+  it("drops the Pump Station variables the rewrite cut and keeps Agnes's trust, the road, the session and the rest", () => {
+    const next = playerOf(MIGRATIONS[56](structuredClone(FORMAT_2_56)));
+
+    expect(next.quests).toEqual({
+      world: { intro_step: 'done' },
+      local: { pump_agnes: { knows_book: true, knows_pipe: true, trusted: true }, pump_pipe: { taken: true, sluice: 'watched' } },
+      session: { quest: 'pump_pipe', checkpoint: 'road', seed: 17 },
+    });
+    expect(next.notes.map((n) => n.id)).toEqual(['pipeBook']);
+    expect(next.money).toBe(1200);
+  });
+});
+
+describe('save migration 57 to 58', () => {
+  it('gives the setup the default enemy gear growth and keeps the other settings and fields', () => {
+    const next = MIGRATIONS[57](structuredClone(FORMAT_2_57));
+
+    expect(next).toEqual({
+      turn: 3,
+      setup: { mode: 'furyRoad', settings: { damage: 1.5, fuelUse: 0.75, supplyUse: 1, enemyGearGrowth: 1 } },
+      player: { money: 1200 },
+    });
+  });
+});
+
+describe('save migration 58 to 59', () => {
+  it('drops the engaged list and turns groups from behind into groups from ahead, keeping the rest', () => {
+    const next = MIGRATIONS[58](structuredClone(FORMAT_2_58));
+    const groups = FORMAT_2_58.furyRoad.groups.map(({ engaged: _engaged, ...g }) => g);
+
+    expect(next).toEqual({ ...FORMAT_2_58, furyRoad: { ...FORMAT_2_58.furyRoad, groups: [{ ...groups[0], from: 'ahead' }, groups[1]] } });
+  });
+
+  it('leaves a Roaming save alone', () => {
+    const roaming = { ...structuredClone(FORMAT_2_58), furyRoad: null };
+
+    expect(MIGRATIONS[58](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 59 to 60', () => {
+  it('starts each in-flight duty leg where the truck stands on the save turn, and leaves other goals alone', () => {
+    const next = MIGRATIONS[59](structuredClone(FORMAT_2_59)) as typeof FORMAT_2_59;
+    const leg = (id: string) => ({ from: FORMAT_2_59.vehicles.find((v) => v.id === id)!.pos, turn: 820 });
+    const goalsOf = (id: string) => next.vehicles.find((v) => v.id === id)!.brain!.goals;
+    const before = (id: string) => FORMAT_2_59.vehicles.find((v) => v.id === id)!.brain!.goals;
+
+    expect(goalsOf('v2')).toEqual([{ ...before('v2')[0], leg: leg('v2') }, before('v2')[1]]);
+    expect(goalsOf('v3')).toEqual([{ ...before('v3')[0], leg: leg('v3') }]);
+    expect(goalsOf('v4')).toEqual(before('v4'));
+    expect(goalsOf('v5')).toEqual([{ ...before('v5')[0], leg: leg('v5') }]);
+    expect(goalsOf('v6')).toEqual(before('v6'));
+    expect(next.vehicles[0]).toEqual(FORMAT_2_59.vehicles[0]);
+    expect(next.turn).toBe(820);
+  });
+});
+
+describe('save migration 60 to 61', () => {
+  it('drops a Fury Road run without a hauler and keeps the mode, for the load to rescue it', () => {
+    const next = MIGRATIONS[60](structuredClone(FORMAT_2_60));
+
+    expect(next).toEqual({ ...FORMAT_2_60, furyRoad: null });
+    expect((next.setup as { mode: string }).mode).toBe('furyRoad');
+  });
+
+  it('keeps a run that has a hauler as it is', () => {
+    const run = { ...structuredClone(FORMAT_2_60.furyRoad), hauler: { id: 'v9', alarmUntil: null } };
+    const world = { ...structuredClone(FORMAT_2_60), furyRoad: run };
+
+    expect(MIGRATIONS[60](structuredClone(world))).toEqual(world);
+  });
+
+  it('keeps a Roaming world as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_60), setup: { ...FORMAT_2_60.setup, mode: 'roaming' }, furyRoad: null };
+
+    expect(MIGRATIONS[60](structuredClone(roaming))).toEqual(roaming);
   });
 });

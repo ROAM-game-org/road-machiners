@@ -1,6 +1,7 @@
 // Travel for vehicles far from the player. They have no physics body: each turn they follow their
 // stored route at the speed the physics driver would plan and burn fuel for the distance, like the physics turn. They never
-// crash, but they cannot drive into another vehicle: a truck in the way stops them just short of it. A breakable prop
+// crash, but they cannot drive into another vehicle: a truck in the way holds them just short of it at its speed, and
+// the next route goes around it. A breakable prop on the way breaks.
 
 import { chassisDef } from '../data/chassis';
 import { RULES } from '../data/rules';
@@ -13,7 +14,8 @@ import { breakProp } from './salvage';
 import { burnFuel, getResources } from './resources';
 import { fuelCap, vehicleStats, type VehicleStats } from './stats';
 import { parkedVehicles, throughSpeed } from './steering';
-import { isOnRope, ropeClientOf } from './tow';
+import { fieldBlockers } from './hazards';
+import { getHitchedTowIds, isOnRope, ropeClientOf } from './tow';
 import type { Blocker } from './nav/buckets';
 import type { MoveOrder, Obstacle, Pose, Vehicle, World } from './types';
 import { bearing, dist, segmentDist, type Vec } from './vec';
@@ -30,10 +32,13 @@ export function fuelLimit(w: World, v: Vehicle, burnsFuel: boolean): 'low' | 'em
   return fuel < fuelCap(v) * RULES.lowFuelThreshold ? 'low' : null;
 }
 
+export function lowFuelSpeed(maxSpeed: number): number {
+  return maxSpeed * RULES.lowFuelSpeedFactor;
+}
 export function fuelLimited(w: World, v: Vehicle, s: VehicleStats, speed: number, order: MoveOrder | null): VehicleStats {
   const fuel = getResources(w, v).fuel;
   const low = fuelLimit(w, v, s.fuelPerTile > 0) === 'low';
-  const limit = low ? Math.max(s.maxSpeed * RULES.lowFuelSpeedFactor, speed - s.brake) : s.maxSpeed;
+  const limit = low ? Math.max(lowFuelSpeed(s.maxSpeed), speed - s.brake) : s.maxSpeed;
   const capped = low ? { ...s, maxSpeed: limit } : s;
   const wanted = order?.kind === 'through' ? throughSpeed(capped, speed, dist(v.pos, order.dest), order.pace) : Math.min(capped.maxSpeed, speed + capped.accel);
   if (wanted * s.fuelPerTile <= fuel) return capped;
@@ -78,16 +83,17 @@ export function advanceFar(w: World, v: Vehicle): void {
 }
 
 function farPoints(w: World, v: Vehicle, dest: Vec, offRoad: boolean, full: VehicleStats, s: VehicleStats): Vec[] {
+  const onRope = getHitchedTowIds(w);
   const stored = keptFarRoute(v);
   if (stored && stored.dest.x === dest.x && stored.dest.y === dest.y && keptOffRoad(stored) === offRoad) return stored.points;
-  return route(w, v.pos, dest, full.radius, farBlockers(w, v, s), v);
+  return route(w, v.pos, dest, full.radius, [...farBlockers(w, v, s, onRope), ...fieldBlockers(w, v)], v);
 }
 
-function farBlockers(w: World, v: Vehicle, s: VehicleStats): Blocker[] {
+function farBlockers(w: World, v: Vehicle, s: VehicleStats, onRope: ReadonlySet<string>): Blocker[] {
   const target = v.brain?.ramTarget;
   const reach = s.maxSpeed + radiusOf(v);
-  const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
-  return [...parkedVehicles(w, v.id), ...slower.map((o) => ({ pos: o.pos, r: radiusOf(o) }))];
+  const slower = w.vehicles.filter((o) => o.id !== v.id && o.id !== target && !onRope.has(o.id) && o.speed >= RULES.parkedSpeed && o.speed < s.maxSpeed && dist(o.pos, v.pos) <= reach + radiusOf(o));
+  return [...parkedVehicles(w, v.id, onRope), ...slower.map((o) => ({ pos: o.pos, r: radiusOf(o) }))];
 }
 
 function radiusOf(v: Vehicle): number {

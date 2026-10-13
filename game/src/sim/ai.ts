@@ -1,16 +1,16 @@
-// Activity execution uses the same steering and route planner as the player.
 import { NPC_BEHAVIOR, NPCS, SPAWN } from "../data/npcs";
 import { sustainedDamage } from "../data/parts";
 import { RULES } from "../data/rules";
 import { isKnockedOut } from "./defeat";
 import { isNear } from "./far";
-import { getActivityDestination, thinkNpc, topGoal } from "./npc-activities";
-import { route, routeLength, type Blocker } from "./path";
+import { getActivityDestination, thinkNpc, topGoal, turnCornered } from "./npc-activities";
+import { clearLines, route, routeLength, type Blocker } from "./path";
 import { randRange } from "./rng";
 import { isFree } from "./spawn";
 import { parkedVehicles } from "./steering";
+import { fieldBlockers } from "./hazards";
 import { vehicleStats, type MountedWeapon } from "./stats";
-import { escortsOf, followPace, isOnRope, ropeClientOf } from "./tow";
+import { escortsOf, followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
@@ -19,6 +19,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
+import { runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -43,7 +44,7 @@ function thinkOrderPoint(world: World, v: Vehicle): Plan {
 function setOrder(world: World, { v, activity, goal }: Plan): void {
   noteStuck(world, v, goal);
   const stops = goal !== null && trafficStops(world, v, goal);
-  noteStall(v, stops && activity.kind !== "fight" && activity.kind !== "flee");
+  noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
   v.order = nextOrder(world, v, activity, goal, stops);
   v.direct = false;
 }
@@ -52,6 +53,10 @@ function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {
   const b = v.brain!;
   b.stuck = heldAway(v, goal) ? (b.stuck ?? 0) + 1 : 0;
   if (b.stuck < RULES.unstick.turns) return;
+  if (turnCornered(world, v)) {
+    b.stuck = 0;
+    return;
+  }
   const spot = freeSpotNear(world, v);
   if (!spot) return;
   b.recovery = RULES.unstick.driveTurns;
@@ -76,11 +81,13 @@ function freeSpotNear(world: World, v: Vehicle): Vec | null {
   return null;
 }
 
-function noteStall(v: Vehicle, yielding: boolean): void {
+function noteStall(world: World, v: Vehicle, yielding: boolean): void {
   const b = v.brain!;
   b.stalled = !yielding && barelyMoved(v) ? (b.stalled ?? 0) + 1 : 0;
   b.lastPos = { ...v.pos };
-  if (b.stalled >= RULES.npcStuckTurns) startRecovery(v);
+  if (b.stalled < RULES.npcStuckTurns) return;
+  if (turnCornered(world, v)) b.stalled = 0;
+  else startRecovery(v);
 }
 
 function barelyMoved(v: Vehicle): boolean {
@@ -125,6 +132,11 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
   if (v.brain!.ramTarget) return { kind: "through", dest };
   const foe = foeInSight(world, v, activity);
   if (foe) return fightOrder(world, v, foe, dest);
+  if (runsDown(world, v)) return { kind: "through", dest };
+  return followOrder(world, v, activity, dest);
+}
+
+function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
   if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
@@ -138,7 +150,7 @@ function foeInSight(world: World, v: Vehicle, activity: NpcActivity): Vehicle | 
 
 function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehicle): Vec | null {
   const b = v.brain!;
-  if (rams(world, v, target)) {
+  if (charges(world, v, target)) {
     b.ramTarget = target.id;
     return leadOf(target);
   }
@@ -167,6 +179,10 @@ function rams(world: World, v: Vehicle, target: Vehicle): boolean {
   return b.whim?.kind === "rush" || (b.ramChoice === target.id && ramImpact(world, v, target) !== null);
 }
 
+function charges(world: World, v: Vehicle, target: Vehicle): boolean {
+  return rams(world, v, target) || vehicleStats(world, v).weapons.length === 0;
+}
+
 function shortestRange(world: World, v: Vehicle): number {
   return Math.min(...gunRanges(world, v));
 }
@@ -177,7 +193,7 @@ function longestRange(world: World, v: Vehicle): number {
 
 function gunRanges(world: World, v: Vehicle): number[] {
   const weapons = vehicleStats(world, v).weapons;
-  if (weapons.length === 0) throw new Error(`${v.name} is fighting without a gun`);
+  if (weapons.length === 0) throw new Error(`${v.id} is fighting without a gun`);
   return weapons.map((weapon) => weapon.def.range);
 }
 
@@ -192,7 +208,8 @@ export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance:
   const lead = leadOf(target);
   const turn = circleTurn(world, v);
   const reach = longestRange(world, v) - RULES.arriveRadius;
-  let best: { p: Vec; score: number; fires: boolean } | null = null;
+  const clear = clearLines(world, vehicleStats(world, v).radius, []);
+  let best: Candidate | null = null;
   for (const share of F.rings) {
     const r = Math.max(clearance, share * reach);
     for (let i = 0; i < F.angles; i++) {
@@ -200,13 +217,17 @@ export function fightPoint(world: World, v: Vehicle, target: Vehicle, clearance:
       const p = { x: lead.x + Math.cos(a) * r, y: lead.y + Math.sin(a) * r };
       const score = scorePoint(world, v, target, lead, p, turn);
       const fires = bearingShare(world, v, { ...target, pos: lead }, p) > 0;
-      if (!best || beats({ score, fires }, best)) best = { p, score, fires };
+      const open = clear(v.pos, p);
+      if (!best || beats({ p, score, fires, open }, best)) best = { p, score, fires, open };
     }
   }
   return best!.p;
 }
 
-function beats(a: { score: number; fires: boolean }, b: { score: number; fires: boolean }): boolean {
+type Candidate = { p: Vec; score: number; fires: boolean; open: boolean };
+
+function beats(a: Candidate, b: Candidate): boolean {
+  if (a.open !== b.open) return a.open;
   return a.fires === b.fires ? a.score > b.score : a.fires;
 }
 
@@ -272,9 +293,9 @@ export function fightOrder(world: World, v: Vehicle, target: Vehicle, dest: Vec)
 }
 
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
-  const parked = parkedVehicles(world, v.id);
-  if (!v.brain) return parked;
-  return [...parked, ...conflicts(world, v, 1).flatMap((x) => sweptPath(world, v, x))];
+  const standing = [...parkedVehicles(world, v.id, getHitchedTowIds(world)), ...fieldBlockers(world, v)];
+  if (!v.brain) return standing;
+  return [...standing, ...conflicts(world, v, 1).flatMap((x) => sweptPath(world, v, x))];
 }
 
 export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
@@ -283,7 +304,7 @@ export function trafficStops(world: World, v: Vehicle, dest: Vec): boolean {
   if (facesOncoming(world, v)) return true;
   const moving = conflicts(world, v, 0);
   if (moving.length === 0) return false;
-  const parked = parkedVehicles(world, v.id);
+  const parked = parkedVehicles(world, v.id, getHitchedTowIds(world));
   const radius = vehicleStats(world, v).radius;
   const open = route(world, v.pos, dest, radius, parked, v);
   const around = route(world, v.pos, dest, radius, [...parked, ...moving.flatMap((x) => sweptPath(world, v, x))], v);

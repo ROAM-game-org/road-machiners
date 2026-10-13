@@ -1,4 +1,3 @@
-// Physics driving numbers. Lengths in meters, time in seconds, mass in kilograms.
 
 export const PHYSICS = {
   metersPerTile: 4,
@@ -18,9 +17,10 @@ export const PHYSICS = {
     suspensionRelaxation: 5,
     maxSuspensionForce: 100000,
     frictionSlip: 2,
-    sideFrictionStiffness: 1,
+    sideFrictionStiffness: 0.4,
+    rearSideGrip: 0.5,
     engineAccel: 12,
-    climbReserve: 0.25,
+    climbReserve: 0.47,
     brakeForce: 60,
     maxSteer: 0.6,
     steerRate: 3,
@@ -42,6 +42,7 @@ export const PHYSICS = {
     niva: { halfHeight: 0.4, wheelY: -0.25, wheelX: 1.3, wheelZ: 0.726, engine: { x: 1.485, y: -0.3, z: 0 }, wheelRadius: 0.45, wheelHalfWidth: 0.18 },
     bukhanka: { halfHeight: 0.5, wheelY: -0.35, wheelX: 1.45, wheelZ: 0.968, engine: { x: 0.52, y: 1, z: -0.242 }, wheelRadius: 0.55, wheelHalfWidth: 0.2 },
     lincoln: { halfHeight: 0.35, wheelY: -0.2, wheelX: 1.95, wheelZ: 0.968, engine: { x: 1.625, y: -0.25, z: -0.242 }, wheelRadius: 0.42, wheelHalfWidth: 0.17 },
+    semi: { halfHeight: 1.12, wheelY: -0.75, wheelX: 8.95, wheelZ: 1.24, engine: { x: 8.35, y: -0.15, z: 0 }, wheelRadius: 0.65, wheelHalfWidth: 0.18 },
     loader: { halfHeight: 0.65, wheelY: -0.45, wheelX: 1.95, wheelZ: 1.452, engine: { x: -0.975, y: 0.5, z: -0.242 }, wheelRadius: 0.8, wheelHalfWidth: 0.32 },
   },
   driver: {
@@ -53,6 +54,7 @@ export const PHYSICS = {
     reverseBelow: 4,
     reverseSpeed: 5,
     stallSpeed: 0.3,
+    pushSpeed: 1,
     stallSeconds: 0.5,
   },
   rockHeight: 3,

@@ -3,7 +3,7 @@
 //    bar length, so layers stay locked.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { beatLoopSeconds } from '../src/data/sounds.ts';
+import { beatLoopSeconds, MIX } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
 const PEAK_DB = -1;
@@ -41,18 +41,24 @@ export function importFile(source, id, cue, level) {
   const out = `${SFX_DIR}/${name}`;
   if (existsSync(out)) throw new Error(`${out} exists`);
   const src = paletteFinish(playable(source, name, cue), name, cue);
-  const base = [...shapeFilters(src, cue), channels(src, cue), EQ];
-  const family = (cue.prompts?.length ?? 0) > 1;
-  const shaped = [...base, ...(family ? [] : toneMatch(src, base.join(','), id))].join(',');
+  const shaped = toneChain(src, source, id, cue);
   const rawPeak = measure(src, 'anull').peak;
   if (rawPeak < SILENT_PEAK_DB) throw new Error(`${src} peaks at ${rawPeak} dB; it is near silence. Skip it.`);
   const { loudness, peak } = measure(src, shaped);
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-metadata', `comment=${source}`, out]);
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
   const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
   console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
   return name;
+}
+
+function toneChain(src, source, id, cue) {
+  const field = isField(cue);
+  const base = [...shapeFilters(src, cue), channels(src, cue), EQ, ...(field ? [DISTANCE] : [])];
+  const family = (cue.prompts?.length ?? 0) > 1;
+  const matched = [...base, ...(family ? [] : toneMatch(src, base.join(','), id))];
+  return [...matched, ...(field ? fieldTone(src, matched.join(','), source) : [])].join(',');
 }
 
 function playable(source, name, cue) {
@@ -107,17 +113,56 @@ function toneMatch(src, shaped, id) {
   return [`bass=g=${low.toFixed(2)}:f=250`, `treble=g=${high.toFixed(2)}:f=4000`];
 }
 
+export function isField(cue) {
+  return cue.bus === 'sfx' && cue.setup === 'field' && !cue.loop;
+}
+
+const DISTANCE = 'lowpass=f=8000:p=1';
+
+const MAX_FIELD_CUT_DB = 12;
+const MAX_FIELD_BOOST_DB = 6;
+const FIT_PASSES = 3;
+const MAX_SHELF_DB = 24;
+
+function fieldTone(src, shaped, source) {
+  const start = bandBalance(src, shaped);
+  const goal = { low: start.low + backToSpread(start, 'low'), high: start.high + backToSpread(start, 'high') };
+  if (goal.low === start.low && goal.high === start.high) return [];
+  const gain = { low: 0, high: 0 };
+  let have = start;
+  for (let i = 0; i < FIT_PASSES; i++) {
+    for (const band of ['low', 'high']) gain[band] = clampDb(gain[band] + goal[band] - have[band], MAX_SHELF_DB);
+    have = bandBalance(src, [shaped, ...shelves(gain)].join(','));
+  }
+  console.log(`  ${source} toward the anchor: low ${(have.low - start.low).toFixed(1)} dB, high ${(have.high - start.high).toFixed(1)} dB`);
+  return shelves(gain);
+}
+
+function backToSpread(balance, band) {
+  const off = balance[band] - MIX.tone[band];
+  const over = Math.sign(off) * Math.max(0, Math.abs(off) - MIX.tone.spread);
+  return Math.max(-MAX_FIELD_CUT_DB, Math.min(MAX_FIELD_BOOST_DB, -over));
+}
+
+function clampDb(db, max) {
+  return Math.max(-max, Math.min(max, db));
+}
+
+function shelves(gain) {
+  return [`bass=g=${gain.low.toFixed(2)}:f=250`, `treble=g=${gain.high.toFixed(2)}:f=4000`];
+}
+
 function variantNumber(file) {
   return Number(file.match(/-(\d+)\.ogg$/)[1]);
 }
 
-function bandBalance(src, shaped) {
+export function bandBalance(src, shaped) {
   const rms = (band) => statValue(ffmpegLog(src, `${shaped},${band},astats=measure_perchannel=0:measure_overall=RMS_level`), 'RMS level dB');
   const mid = rms(MID);
   return { low: rms(BANDS.low) - mid, high: rms(BANDS.high) - mid };
 }
 
-function measure(src, shaped) {
+export function measure(src, shaped) {
   const log = ffmpegLog(src, `${shaped},apad=whole_dur=${METER_S},ebur128=peak=sample`);
   const momentary = [...log.matchAll(/ M: *(-?[\d.]+)/g)].map((m) => Number(m[1]));
   if (momentary.length === 0) throw new Error(`Could not meter ${src}`);

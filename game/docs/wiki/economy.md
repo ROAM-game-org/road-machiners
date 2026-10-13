@@ -26,15 +26,17 @@ A shop holds a finite, random stock of parts and restocks every so many turns. O
 | salvage-yard | stall | scrap, parts | tools | scrap, parts, tools | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | granary | stall | grain | salt, textiles | grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 | pump-station | stall | batteries | scrap, parts | batteries, scrap, parts | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
+| dustwell | stall | water | tools, meds | water, scrap, tools, meds | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
+| green-pit | stall | water | salt, textiles | water, grain, salt, textiles | fuel, supplies | 2 to 4 | 300 | 0.02 | 0.0075 | 1 |
 <!-- /wiki:shops -->
 
 ## Repair and wear
 
-Repair costs `ECONOMY.repairShare` of a part's value per share of HP restored. A part gains a wear step each time it drops to 0 HP, up to `CONDITION.maxWear`, and each step costs `CONDITION.hpLoss` of its max HP. Wear hits come at `WEAR.chancePerTile` per part per tile driven. A field repair never lifts a part above `REPAIR.fieldCapShare` of its max HP and takes `REPAIR.turnsPerPart` turns per unit of parts. A roadside patch gives `PATCH.share` of max HP.
+Repair costs `ECONOMY.repairShare` of a part's value per share of HP restored. A part gains a wear step each time it drops to 0 HP, up to `CONDITION.maxWear`, and each step costs `CONDITION.stepLoss` of its max HP and of its job stats. Wear hits come at `WEAR.chancePerTile` per part per tile driven. A field repair never lifts a part above `REPAIR.fieldCapShare` of its max HP and takes `REPAIR.turnsPerPart` turns per unit of parts. A roadside patch gives `PATCH.share` of max HP.
 
 ## Contracts
 
-The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries.
+The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type.
 
 ## Upkeep
 
@@ -50,21 +52,21 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `PRICE_FACTOR.make` | 0.75 |
 | `DISTANCE_PREMIUM.perTile` | 0.0021 |
 | `CONDITION.valueFactor` | 1, 0.7, 0.55, 0.45, 0.35 |
-| `ECONOMY.scrapPerKg` | 0.19 |
-| `EFFORT.wage` | {"1":0.37,"2":1,"3":2.2} |
-| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
-| `ECONOMY.supplyPrice.fuel` | 3 |
-| `ECONOMY.supplyPrice.supplies` | 5 |
+| `ECONOMY.scrapPerKg` | 6.33 |
+| `EFFORT.wage` | {"1":12.33,"2":33.33,"3":73.33} |
+| `EFFORT.bands` | {"1":{"weapon":[250,700],"engine":[250,700],"armor":[250,700],"cargo":[250,700],"scanner":[250,700],"store":[250,700],"utility":[250,700],"chassis":[5000,7500],"good":[40,100]},"2":{"weapon":[180,480],"engine":[180,480],"armor":[180,480],"cargo":[180,480],"scanner":[180,480],"store":[180,480],"utility":[180,480],"chassis":[2800,4200],"good":[50,100]},"3":{"weapon":[180,380],"engine":[180,380],"armor":[180,380],"cargo":[180,380],"scanner":[180,380],"store":[180,380],"utility":[180,380],"chassis":[1900,2800],"good":[40,80]}} |
+| `ECONOMY.supplyPrice.fuel` | 100 |
+| `ECONOMY.supplyPrice.supplies` | 167 |
 | `ECONOMY.repairShare` | 0.85 |
 | `CONDITION.maxWear` | 4 |
-| `CONDITION.hpLoss` | 0.1 |
+| `CONDITION.stepLoss` | 0.027 |
 | `WEAR.chancePerTile` | 0.00055 |
 | `REPAIR.fieldCapShare` | 0.7 |
 | `REPAIR.turnsPerPart` | 2 |
 | `PATCH.share` | 0.25 |
 | `CONTRACTS.maxActive` | 3 |
-| `CONTRACTS.haul.durationFactor` | 8 |
-| `CONTRACTS.haul.rewardFactor` | 5 |
+| `CONTRACTS.haul.durationFactor` | 2.5 |
+| `CONTRACTS.haul.rewardFactor` | 24 |
 | `CONTRACTS.haul.rush.chance` | 0.25 |
 | `CONTRACTS.haul.rush.durationFactor` | 1.5 |
 | `CONTRACTS.haul.rush.premium` | 1.75 |

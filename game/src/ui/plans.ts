@@ -1,10 +1,8 @@
-// Truck outlines and tinted part icons drawn from symbols that join the page once. A truck outline is the chassis plan
-// from npm run icons, stretched over its grid. A tinted part icon takes its colors from the CSS variables --tint-*.
 
 import { baseGrid } from "../sim/grid";
 import { PLAN_PAD } from "../render/partLooks";
-import PLANS from "../../public/icons/plans.svg?raw";
-import TINTS from "../../public/icons/tint.svg?raw";
+import PLANS from "./plans.svg?raw";
+import TINTS from "./tint.svg?raw";
 import { el } from "./dom";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -16,8 +14,6 @@ function loadSheets(): void {
   document.body.insertAdjacentHTML("beforeend", PLANS + TINTS);
 }
 
-// The chassis outline over its grid with cell-pixel cells: the inner columns and every chassis row, with PLAN_PAD
-// cells around them.
 export function truckOutline(chassisId: string, cell: number): HTMLElement {
   const grid = baseGrid(chassisId);
   const box = el("div", { class: "truck-outline", "aria-hidden": "true" }, useSvg(`plan-${chassisId}`, true));
@@ -26,12 +22,10 @@ export function truckOutline(chassisId: string, cell: number): HTMLElement {
   return box;
 }
 
-// A part's tinted icon, fit inside its box.
 export function tintedIcon(defId: string): SVGSVGElement {
   return useSvg(`tint-${defId}`, false);
 }
 
-// A symbol filling its box: stretched for an outline, which matches the grid, or fit inside for a part.
 function useSvg(id: string, stretch: boolean): SVGSVGElement {
   loadSheets();
   const svg = document.createElementNS(SVG_NS, "svg");

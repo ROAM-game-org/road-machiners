@@ -1,27 +1,26 @@
-// Debug console commands. Each returns a new world through update() and throws CheatError on bad input.
-// God mode is the one cheat that acts inside the turn pipeline.
 
 import { chassisDef, PLAYER_CHASSIS } from '../data/chassis';
 import { GOOD_IDS, GOODS } from '../data/goods';
 import { GEAR_LEVEL_IDS, NPCS, type GearLevel, type NpcTemplate } from '../data/npcs';
-import { PARTS, partDef } from '../data/parts';
+import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
 import { CHEATS } from '../data/rules';
-import { PERK_IDS, PERKS } from '../data/skills';
+import { PERK_IDS } from '../data/skills';
 import { TIME } from '../data/time';
 import { resolveDestroyed, wreckVehicle } from './combat';
 import { damagePart, isJunk, maxHp, restorePart } from './wear';
 import { playerVehicle } from './damage';
 import { makePart, makeVehicle } from './factory';
 import { maxHealthOf } from './health';
-import { corePart, mountedParts } from './grid';
-import { addGoods, stowPart } from './inventory';
+import { corePart, mountedParts, type Spot } from './grid';
+import { addGoods, applyRefitLayout, planItemMove, stowPart } from './inventory';
+import { disarm } from './claymore';
 import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
 import { isTerritory, nearestPad, type Site } from './sites';
 import { territoryEntries } from './territory';
 import { isFree, spawnAt } from './spawn';
-import { addState, settleStates, stateOf } from './states';
+import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
 import type { Faction, Vehicle, World } from './types';
@@ -38,7 +37,7 @@ export class CheatError extends Error {}
 
 export type VehicleRow = {
   id: string;
-  name: string;
+  driver: string | null;
   templateId: string | null;
   faction: Faction;
   distance: number;
@@ -73,6 +72,11 @@ export function setSupplies(world: World, n: number): World {
   return update(world, (w) => { w.player.supplies = n; });
 }
 
+export function setEngineHeat(world: World, n: number): World {
+  requireRange('Engine heat', n, 0, 1);
+  return update(world, (w) => { w.player.engineHeat = n; });
+}
+
 export function setHealth(world: World, n: number): World {
   requireInteger('Health', n, 0, maxHealthOf(world));
   return update(world, (w) => { w.player.health = n; });
@@ -86,7 +90,7 @@ export function addXp(world: World, n: number): World {
 export function grantPerk(world: World, id: string): World {
   if (!isPerkId(id)) throw new CheatError(`No perk ${id}. Perks: ${PERK_IDS.join(', ')}`);
   const picked = pickedFromPair(world, id);
-  if (picked) throw new CheatError(`${PERKS[picked].name} is already picked from the pair of ${PERKS[id].name}`);
+  if (picked) throw new CheatError(`${picked} is already picked from the pair of ${id}`);
   return update(world, (w) => { w.player.perks.push(id); });
 }
 
@@ -109,7 +113,7 @@ export function damagePartTo(world: World, defId: string, hp: number): World {
       spillDeadRows(w);
       return;
     }
-    if (part.hp === 0 && isJunk(part)) throw new CheatError(`${partDef(defId).name} is junk and cannot be rebuilt`);
+    if (part.hp === 0 && isJunk(part)) throw new CheatError(`${defId} is junk and cannot be rebuilt`);
     restorePart(part, hp);
   });
 }
@@ -132,12 +136,44 @@ function giveGoods(w: World, good: string, count: number): void {
   if (addGoods(w, playerVehicle(w), good, count) < count) throw new CheatError(`No room for ${count} ${good}`);
 }
 
+export function instantMoveItem(world: World, itemId: string, to: Spot): World {
+  return update(world, (w) => {
+    const me = playerVehicle(w);
+    const result = planItemMove(me, itemId, to);
+    if (result.error !== null) throw new CheatError(result.error.id);
+    const item = me.items.find((it) => it.id === itemId);
+    if (item?.kind === 'part') disarm(item.part);
+    applyRefitLayout(w, me, result.plan.items);
+  });
+}
+
 export function toggleGod(world: World): World {
   return update(world, (w) => { w.player.god = !w.player.god; });
 }
 
 export function toggleFullLog(world: World): World {
   return update(world, (w) => { w.player.fullLog = !w.player.fullLog; });
+}
+
+export function toggleFrozen(world: World): World {
+  return update(world, (w) => { w.player.frozen = !w.player.frozen; });
+}
+
+export function freezeDriving(world: World): void {
+  if (!world.player.frozen) return;
+  for (const v of npcs(world)) v.order = null;
+}
+
+export function freezeFire(world: World): void {
+  if (!world.player.frozen) return;
+  for (const v of npcs(world)) {
+    v.weaponOrders = {};
+    v.utilityOrders = {};
+  }
+}
+
+function npcs(world: World): Vehicle[] {
+  return world.vehicles.filter((v) => v.brain !== null && v.id !== world.player.vehicleId);
 }
 
 export function applyGodMode(world: World): void {
@@ -163,6 +199,14 @@ function freeSpotNear(w: World, center: Vec, radius: number, ignoreId: string | 
 function circlePoints(center: Vec, r: number, count: number): Vec[] {
   return Array.from({ length: count }, (_, i) => {
     const a = (2 * Math.PI * i) / count;
+    return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
+  });
+}
+
+function frontFirst(center: Vec, heading: number, r: number, count: number): Vec[] {
+  const step = (2 * Math.PI) / count;
+  return Array.from({ length: count }, (_, i) => {
+    const a = heading + Math.ceil(i / 2) * step * (i % 2 === 0 ? -1 : 1);
     return { x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r };
   });
 }
@@ -286,7 +330,7 @@ export function randomKit(world: World, level: number | null): World {
     const spot = freeSpotNear(w, old.pos, chassisDef(chassisId).radius, old.id);
     if (!spot) throw new CheatError(`No free spot for a ${chassisId} here`);
     const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
-    const truck = makeVehicle(w, { name: old.name, faction: 'player', chassisId, parts: loadout.parts, spares: [], cargo: {}, pos: spot, heading: old.heading, brain: null });
+    const truck = makeVehicle(w, { faction: 'player', chassisId, parts: loadout.parts, spares: [], cargo: {}, pos: spot, heading: old.heading, brain: null });
     truck.id = old.id;
     w.vehicles = w.vehicles.map((v) => (v.id === old.id ? truck : v));
     w.player.fuel = Math.min(w.player.fuel, fuelCap(truck));
@@ -304,21 +348,12 @@ function gearLevelOf(level: number): GearLevel {
 function spawnInDraft(w: World, tpl: NpcTemplate, hostile: boolean): void {
   const loadout = generateNpcLoadout(w, tpl);
   const radius = chassisDef(loadout.chassisId).radius;
-  const center = playerVehicle(w).pos;
-  const circle = circlePoints(center, CHEATS.spawnDistance, CHEATS.spawnAngles);
-  const spot = firstFree(w, circle, radius, null) ?? freeSpotNear(w, center, radius, null);
-  if (!spot) throw new CheatError(`No free spot to spawn ${tpl.name}`);
+  const me = playerVehicle(w);
+  const circle = frontFirst(me.pos, me.heading, CHEATS.spawnDistance, CHEATS.spawnAngles);
+  const spot = firstFree(w, circle, radius, null) ?? freeSpotNear(w, me.pos, radius, null);
+  if (!spot) throw new CheatError(`No free spot to spawn ${tpl.id}`);
   const v = spawnAt(w, tpl, loadout, spot);
-  if (hostile) turnHostile(w, v);
-}
-
-function turnHostile(w: World, v: Vehicle): void {
-  const me = w.player.vehicleId;
-  if (!stateOf(w, 'feud', v.id, me)) {
-    addState(w, 'feud', v.id, me, { kind: 'feud', robbery: false });
-    w.events.push({ t: 'hostile', vehicle: v.id, against: me });
-  }
-  if (v.brain && !(me in v.brain.attackers)) v.brain.attackers[me] = false;
+  if (hostile) declareFeud(w, v, w.player.vehicleId);
 }
 
 function otherVehicle(w: World, vehicleId: string): Vehicle {
@@ -329,7 +364,7 @@ function otherVehicle(w: World, vehicleId: string): Vehicle {
 }
 
 export function makeHostile(world: World, vehicleId: string): World {
-  return update(world, (w) => turnHostile(w, otherVehicle(w, vehicleId)));
+  return update(world, (w) => declareFeud(w, otherVehicle(w, vehicleId), w.player.vehicleId));
 }
 
 function killTargets(w: World, target: string): Vehicle[] {
@@ -358,7 +393,7 @@ export function nearbyVehicles(world: World): VehicleRow[] {
     .filter((v) => v.id !== me.id)
     .map((v) => ({
       id: v.id,
-      name: v.name,
+      driver: v.brain ? v.brain.driver : null,
       templateId: v.brain ? v.brain.templateId : null,
       faction: v.faction,
       distance: dist(me.pos, v.pos),

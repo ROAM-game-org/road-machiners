@@ -11,16 +11,17 @@ import { refreshVision } from './vision';
 import { bodyOf } from './body';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { defaultSetup } from './settings';
 
 const original = [
-  [16, 94], [102, 35], [22.8, 56.8], [33.8, 32], [50, 32.8], [60, 18.8], [78.2, 21],
-  [106.2, 70], [90.3, 86.3], [71.8, 89], [56.8, 94], [41, 90.2], [40.7, 51.7], [64, 54], [82, 52.2],
+  [16, 94], [102, 35], [22.8, 56.8], [33.8, 32], [50, 32.8],
+  [81, 75.6], [71.8, 89], [40.7, 51.7], [64, 54], [82, 52.2],
   [22, 14], [66, 76],
 ];
 
 describe('Icarus exploration distances', () => {
   it('multiplies every pairwise destination distance by five', () => {
-    const sites = [...REGION.towns, ...REGION.locations].filter((s) => s.id !== 'broken-wing');
+    const sites = [...REGION.towns, ...REGION.locations];
     expect(sites).toHaveLength(original.length);
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) {
       expect(dist(sites[i].pos, sites[j].pos)).toBeCloseTo(Math.hypot(original[i][0] - original[j][0], original[i][1] - original[j][1]) * 5);
@@ -28,7 +29,7 @@ describe('Icarus exploration distances', () => {
   });
 
   it('starts off the trunk road facing it, the road in grey vision past clear sight, out of clear sight of every site', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP));
+    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
     const player = world.vehicles.find((v) => v.id === world.player.vehicleId)!;
     refreshVision(world);
     discoverSites(world);
@@ -53,7 +54,7 @@ describe('Icarus exploration distances', () => {
   });
 
   it('shares immutable terrain between turns without sharing mutable state', () => {
-    const world = newWorld(1337, START_KITS.standard, TEST_MAP);
+    const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const next = setMoveOrder(world, { kind: 'stopAt', dest: { x: 100, y: 440 } });
     expect(next.terrain).toBe(world.terrain);
     expect(Object.isFrozen(next.terrain.heights)).toBe(true);
@@ -69,14 +70,14 @@ describe('discovering an outlined territory', () => {
   const at = (s: number, c: number): Vec => ({ x: orchard.pos.x + onOrchardRoad(s, c).x, y: orchard.pos.y + onOrchardRoad(s, c).y });
 
   it('discovers the orchard from one seen tile of its north-west pocket', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP));
+    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
     world.player.visible = [tileAt(world.terrain.size, at(60, 30))];
     discoverSites(world);
     expect(world.player.discovered).toEqual(['orchard']);
   }, budget(15_000));
 
   it('does not discover it from a tile inside its bounding radius but past its outline', () => {
-    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP));
+    const world = cloneWorld(newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
     const beyond = at(-30, 44);
     expect(dist(beyond, orchard.pos)).toBeLessThan(orchard.radius);
     world.player.visible = [tileAt(world.terrain.size, beyond)];

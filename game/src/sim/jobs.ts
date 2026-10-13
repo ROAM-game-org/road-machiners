@@ -1,11 +1,9 @@
-// Parked jobs: work that needs the truck to stay parked for several turns. One rule for every driver.
-// A job is cancelled on any turn its truck ends above parked speed, and its finished turns are lost.
-// A player truck with a drive order counts as moving too, since it still rolls slowly as it starts.
 
 import { GOODS } from "../data/goods";
 import { partDef } from "../data/parts";
 import { RULES } from "../data/rules";
 import { STRIP } from "../data/salvage";
+import { WORK } from "../data/utilities";
 import { PERK_NUMBERS } from "../data/skills";
 import { inCombat } from "./combat";
 import { playerVehicle } from "./damage";
@@ -19,8 +17,11 @@ import { repairPlan, repairTurn } from "./repair";
 import { practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
+import { hasWorkingUtility } from "./utility";
 import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Vehicle, World } from "./types";
-import { playerCommand } from "./world";
+import { getKnownSite } from "./npc-decisions";
+import { canUseSite } from "./sites";
+import { playerCommand, Refused } from "./world";
 
 export { repairPlan };
 
@@ -42,12 +43,12 @@ export function dropLeftoverOrder(world: World, v: Vehicle): void {
 }
 
 export function startJob(world: World, v: Vehicle, job: Job): void {
-  if (inCombat(world, v)) throw new Error("Not while in combat");
+  if (inCombat(world, v)) throw new Refused({ id: "inCombat" });
   if (isAutoPatch(v.job)) cancelJob(world, v);
   if (v.job)
-    throw new Error(`${v.name} is already busy with a ${v.job.kind} job`);
+    throw new Error(`${v.id} is already busy with a ${v.job.kind} job`);
   dropLeftoverOrder(world, v);
-  if (!isParkedForWork(world, v)) throw new Error("Stop the truck first");
+  if (!isParkedForWork(world, v)) throw new Refused({ id: "stopFirst" });
   v.job = job;
   world.events.push({
     t: "job",
@@ -114,7 +115,7 @@ function canAutoPatch(world: World, v: Vehicle): boolean {
 export function startStrip(world: World, partId: string): World {
   return playerCommand(world, (w) => {
     const v = playerVehicle(w);
-    if (!stripFits(v, findStripItem(v, partId))) throw new Error("No room for the stripped parts");
+    if (!stripFits(v, findStripItem(v, partId))) throw new Refused({ id: "noCargoRoom" });
     startJob(w, v, {
       kind: "strip",
       partId,
@@ -128,7 +129,7 @@ type PartItem = Extract<GridItem, { kind: "part" }>;
 
 function findStripItem(v: Vehicle, partId: string): PartItem {
   const item = stripItem(v, partId);
-  if (!item) throw new Error(`No spare part ${partId} on ${v.name}`);
+  if (!item) throw new Error(`No spare part ${partId} on ${v.id}`);
   if (isMounted(v.chassisId, item)) throw new Error("Only a spare part can be stripped, not a mounted one");
   if (partDef(item.part.defId).kind === "core") throw new Error("A built-in part cannot be stripped");
   return item;
@@ -139,13 +140,14 @@ function stripItem(v: Vehicle, partId: string): PartItem | null {
   return item?.kind === "part" ? item : null;
 }
 
-export function stripYield(part: PartInstance): number {
-  return Math.max(1, Math.round((partValue(part) * STRIP.yieldShare) / GOODS.parts.value));
+export function stripYield(v: Vehicle, part: PartInstance): number {
+  const share = hasWorkingUtility(v, "scraper") ? WORK.scraperStripShare : STRIP.yieldShare;
+  return Math.max(1, Math.round((partValue(part) * share) / GOODS.parts.value));
 }
 
 function stripFits(v: Vehicle, item: PartItem): boolean {
   const size = itemSize(item);
-  return freeCells(v) + size.w * size.h >= stripYield(item.part);
+  return freeCells(v) + size.w * size.h >= stripYield(v, item.part);
 }
 
 function isStripStalled(v: Vehicle, partId: string): boolean {
@@ -158,7 +160,7 @@ export function startWeld(world: World): World {
     const v = playerVehicle(w);
     if (!vehicleHasPerk(w, v, "welder")) throw new Error("Welding needs the Welder perk");
     if (!hasWeldScrap(v)) throw new Error(`Welding needs ${PERK_NUMBERS.welder.scrap} scrap metal`);
-    if (!weldFits(v)) throw new Error("No room for the welded part");
+    if (!weldFits(v)) throw new Refused({ id: "noCargoRoom" });
     const turns = PERK_NUMBERS.welder.turns;
     startJob(w, v, { kind: "weld", turnsLeft: turns, total: turns });
   });
@@ -177,7 +179,7 @@ function weldTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "weld" }>)
   job.turnsLeft = Math.max(0, job.turnsLeft - 1);
   if (job.turnsLeft > 0) return false;
   removeGoods(v, "scrap", PERK_NUMBERS.welder.scrap);
-  if (!stowPart(world, v, makePart(world, PERK_NUMBERS.welder.part, 0))) throw new Error(`Welded part would not fit on ${v.name}`);
+  if (!stowPart(world, v, makePart(world, PERK_NUMBERS.welder.part, 0))) throw new Error(`Welded part would not fit on ${v.id}`);
   return true;
 }
 
@@ -194,9 +196,14 @@ function advanceJob(world: World, v: Vehicle, job: Job): void {
 
 function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return isRepairStalled(world, v, job);
-  if (job.kind === "weld") return !hasWeldScrap(v) || !weldFits(v);
+  if (job.kind === "strip") return isStripStalled(v, job.partId);
   if (job.kind === "search") return isSearchStalled(world, v, job);
-  return job.kind === "strip" && isStripStalled(v, job.partId);
+  return isSiteWorkStalled(v, job);
+}
+
+function isSiteWorkStalled(v: Vehicle, job: Job): boolean {
+  if (job.kind === "business") return !canUseSite(v.pos, getKnownSite(job.siteId));
+  return job.kind === "weld" && (!hasWeldScrap(v) || !weldFits(v));
 }
 
 function jobTurn(world: World, v: Vehicle, job: Job): boolean {
@@ -204,7 +211,13 @@ function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "search") return searchTurn(world, v, job);
   if (job.kind === "strip") return stripTurn(world, v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
+  if (job.kind === "business") return businessTurn(job);
   throw new Error(`Unhandled job kind ${job.kind}`);
+}
+
+function businessTurn(job: Extract<Job, { kind: "business" }>): boolean {
+  job.turnsLeft = Math.max(0, job.turnsLeft - 1);
+  return job.turnsLeft === 0;
 }
 
 function stripTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "strip" }>): boolean {
@@ -216,10 +229,10 @@ function stripTurn(world: World, v: Vehicle, job: Extract<Job, { kind: "strip" }
 
 function finishStrip(world: World, v: Vehicle, partId: string): void {
   const part = findStripItem(v, partId).part;
-  const units = stripYield(part);
+  const units = stripYield(v, part);
   v.items = v.items.filter((it) => !(it.kind === "part" && it.part.id === partId));
   const added = addGoods(world, v, "parts", units);
-  if (added < units) throw new Error(`Stripped parts would not fit on ${v.name}`);
+  if (added < units) throw new Error(`Stripped parts would not fit on ${v.id}`);
 }
 
 function isRepairStalled(world: World, v: Vehicle, job: Extract<Job, { kind: "repair" }>): boolean {

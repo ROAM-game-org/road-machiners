@@ -1,6 +1,3 @@
-// Blender-made models from public/models/, built by the scripts in tools/blender/.
-// loadModels() runs once at boot. model() hands out clones with their own materials.
-// socket() gives the attach points that scripts mark with Kit.socket().
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -25,6 +22,7 @@ const NAMES = [
   'base_niva',
   'base_bukhanka',
   'base_lincoln',
+  'base_semi',
   'wmount_riser',
   'wreck',
   'rock',
@@ -36,7 +34,6 @@ const NAMES = [
   'building',
   'crates',
   'water_tower',
-  'palm',
   'dead_tree',
   'bunker',
   'sandbags',
@@ -58,7 +55,6 @@ const NAMES = [
   'bridge',
   'pump_station',
   'lock_gate',
-  'glass_flats',
   'power_pole',
   'billboard',
   'crag',
@@ -67,6 +63,13 @@ const NAMES = [
   'bridge_broken',
   'gas_station',
   'ship_wing',
+  'escape_pod',
+  'hull_bay',
+  'cargo_pod',
+  'engine_section',
+  'habitat_cylinder',
+  'wing_shard',
+  'power_cell',
   'wing_deck',
   'ship_wing_deck',
   'ship_flap',
@@ -81,6 +84,64 @@ const NAMES = [
   'guard_post',
   'army_truck',
   'barrier',
+  'engine_nozzle',
+  'engine_frame',
+  'ruin_compound',
+  'watchtower',
+  'glass_spire',
+  'scrap_wall',
+  'fort_pumpworks_wall',
+  'fort_pumpworks_tower',
+  'fort_pumpworks_gate',
+  'fort_pumpworks_inner',
+  'fort_cistern_wall',
+  'fort_cistern_tower',
+  'fort_cistern_gate',
+  'fort_cistern_inner',
+  'fort_ship_wall',
+  'fort_ship_tower',
+  'fort_ship_gate',
+  'fort_scrap_wall',
+  'fort_scrap_tower',
+  'fort_scrap_gate',
+  'fort_scrap_inner',
+  'fort_patchwork_wall',
+  'fort_patchwork_tower',
+  'fort_patchwork_gate',
+  'fort_compound_wall',
+  'fort_compound_tower',
+  'fort_compound_gate',
+  'fort_ring_wall',
+  'fort_ring_gate',
+  'fort_yard_wall',
+  'fort_yard_tower',
+  'fort_yard_gate',
+  'bowl_house_rust',
+  'bowl_house_red',
+  'bowl_house_grey',
+  'windmill_tower',
+  'windmill_rotor',
+  'stilt_tank',
+  'fruit_tree',
+  'pumpjack_base',
+  'pumpjack_beam',
+  'storage_tank',
+  'grain_silo',
+  'grain_elevator',
+  'lean_to',
+  'crane_base',
+  'crane_upper',
+  'crane_grab',
+  'ship_hull_ring',
+  'ship_hull_ribs',
+  'ship_hull_stern',
+  'nose_rise',
+  'nose_crag',
+  'radar_dish',
+  'scrap_shelter_flat',
+  'scrap_shelter_lean',
+  'hull_scaffold',
+  'jib_crane',
 
   'bumper_front',
   'bumper_rear',
@@ -95,6 +156,14 @@ const NAMES = [
   'store_jerrycans',
   'store_locker',
 
+  'util_sprout',
+  'util_caltrops',
+  'util_oil',
+  'util_crane',
+  'util_mortar',
+  'util_flare',
+  'util_scraper',
+  'util_emitter',
   'cab_seat',
   'cab_pickup',
   'cab_hardtop',
@@ -118,6 +187,7 @@ const NAMES = [
   'arm_plate',
   'arm_scrap_sheet',
   'arm_ceramic_tile',
+  'arm_claymore_ram',
 
   'cargo_rack',
   'cargo_trailer_box',
@@ -152,6 +222,7 @@ const NAMES = [
   'wrec_tank',
   'wrec_rocket_pod',
   'wrec_sniper',
+  'wrec_harpoon',
 
   'wbar_mg_short',
   'wbar_mg_long',
@@ -162,6 +233,7 @@ const NAMES = [
   'wbar_tank',
   'wbar_sniper',
   'wbar_rocket_tubes',
+  'wbar_harpoon',
 
   'wext_scope',
   'wext_shield',
@@ -174,13 +246,19 @@ const SOCKET_PREFIX = 'socket_';
 const loaded = new Map<ModelName, THREE.Object3D>();
 const sockets = new Map<ModelName, Map<string, THREE.Vector3>>();
 
-export async function loadModels(read: (name: ModelName) => Promise<ArrayBuffer> = fetchModel): Promise<void> {
+export async function loadModels(
+  read: (name: ModelName) => Promise<ArrayBuffer> = fetchModel,
+  progress?: (done: number, total: number) => void,
+): Promise<void> {
   const loader = new GLTFLoader();
+  let done = 0;
+  progress?.(0, NAMES.length);
   await Promise.all(
     NAMES.map(async (name) => {
       const gltf = await loader.parseAsync(await read(name), '');
       sockets.set(name, takeSockets(name, gltf.scene));
       loaded.set(name, toLambert(gltf.scene));
+      progress?.(++done, NAMES.length);
     }),
   );
   checkWeaponSockets();
@@ -275,6 +353,10 @@ export function instancedModel(name: ModelName, placements: THREE.Matrix4[], tin
   return group;
 }
 
+const GLOW_MATERIAL = 'glow';
+const GLOW = { color: new THREE.Color(PAL.lamp.amber), strength: 0.4 };
+export const MODEL_GLOW = { color: GLOW.color.getHex(), emissive: GLOW.color.clone().multiplyScalar(GLOW.strength).getHex() };
+
 function toLambert(root: THREE.Object3D): THREE.Object3D {
   root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
@@ -282,6 +364,10 @@ function toLambert(root: THREE.Object3D): THREE.Object3D {
     const lambert = mats.map((m) => {
       if (!(m instanceof THREE.MeshStandardMaterial)) throw new Error(`Model mesh ${o.name} has unexpected material ${m.type}`);
       const l = new THREE.MeshLambertMaterial({ color: m.color, flatShading: true, name: m.name });
+      if (m.name === GLOW_MATERIAL) {
+        l.color.copy(GLOW.color);
+        l.emissive.copy(GLOW.color).multiplyScalar(GLOW.strength);
+      }
       m.dispose();
       return l;
     });

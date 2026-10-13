@@ -10,7 +10,7 @@ import { TRAITS } from '../../data/npcs';
 import { formatIncomeReport, gateReport, pairedDifference } from './income-report';
 
 const SHORT_TURNS = 30;
-const RUN_TIMEOUT = 300_000; // a new world takes about 400 ms and a turn about 40 ms, many times that on a loaded host
+const RUN_TIMEOUT = 300_000;
 const LABEL = { candidate: 'test', commit: 'abc' };
 
 describe('playIncome', () => {
@@ -40,20 +40,19 @@ describe('sampleWorld', () => {
     const w = emptyWorld({ x: 60, y: 60 });
     const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 160, y: 60 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 0, y: 0 }, phase: 'travel', reason: 'deliver purchased cargo' }];
+    trader.brain.goals = [{ kind: 'sell', targetId: 'nose', destination: { x: 0, y: 0 }, phase: 'travel', reason: 'deliverCargo' }];
     addGoods(w, trader, 'electronics', 4);
     expect(sampleWorld(w).targets).toEqual([expect.objectContaining({ kind: 'trader', guarded: false, qualifies: true, boughtGoods: 4 })]);
-    trader.brain.goals[0].reason = 'load cargo at its source';
+    trader.brain.goals[0].reason = 'loadCargo';
     expect(sampleWorld(w).targets[0].boughtGoods).toBe(0);
   });
 });
 
 describe('largestTraderLoad', () => {
-  // G4 compares this with the hauler's mean net per day. It moves with the trader stake and the start prices.
   it('is the trader stake at the best ratio of the player sell price to the trader buy price', () => {
     const load = largestTraderLoad(startWorld(1, INCOME_KIT, INCOME_SKILL_RANK));
     expect(load).toBeGreaterThan(TRAITS.trader.tradeStake);
-    expect(load).toBeCloseTo(4292.93, 1);
+    expect(load).toBeCloseTo(143424.3, 1);
   }, RUN_TIMEOUT);
 });
 
@@ -96,7 +95,6 @@ describe('formatIncomeReport', () => {
 
 describe('pairedDifference', () => {
   it('gives the mean difference by seed, its 80% t-interval and the ratio of the means', () => {
-    // Differences 10, 20 and 30: mean 20, SE 10 / sqrt(3), t at 2 degrees of freedom 1.886.
     const robber = [fakeRun('robber', 1, 60), fakeRun('robber', 2, 70), fakeRun('robber', 3, 80)];
     const hauler = [fakeRun('trader', 1, 50), fakeRun('trader', 2, 50), fakeRun('trader', 3, 50)];
 

@@ -1,6 +1,3 @@
-// Detection beyond sight: engine sound, dust trails and radio scanners give rough contacts, and the player's
-// emergency beacon gives a tight one.
-// The same rules run for the player and every NPC: contactsOf takes any observer.
 
 import { DETECT } from '../data/detect';
 import { RULES } from '../data/rules';
@@ -15,19 +12,25 @@ import { hashRandom } from './rng';
 import { heightAt, tileAt } from './terrain';
 import { hasWorkingEngine, isStalled, isStranded, vehicleStats } from './stats';
 import { sunAt } from './sun';
-import type { Contact, DustCloud, Vehicle, World } from './types';
+import type { Contact, DustCloud, Refusal, Vehicle, World } from './types';
 import { BEACON } from '../data/tow';
 import { WEATHER } from '../data/weather';
 import { dist, type Vec } from './vec';
+import { flareSightings, litAt, type FlareSighting } from './hazards';
+import { isShutDown } from './utility';
 import { weatherOn } from './weather';
 import { isCheapMeeting } from './fidelity';
 import { canVehicleSee, playerSees, sightRadius } from './vision';
-import { playerCanAct, update } from './world';
+import { playerCanAct, Refused, update } from './world';
 
 export function soundRange(world: World, v: Vehicle): number {
-  if (v.speed <= RULES.parkedSpeed || !hasWorkingEngine(v) || isStalled(world, v) || isStranded(world, v)) return 0;
+  if (v.speed <= RULES.parkedSpeed || !engineRuns(world, v) || isStranded(world, v)) return 0;
   const noise = (partDef(mountedParts(v, 'engine')[0].defId) as EngineDef).noise;
   return (DETECT.sound.limp + DETECT.sound.perSpeed * Math.max(0, v.speed - RULES.limpSpeed)) * noise;
+}
+
+function engineRuns(world: World, v: Vehicle): boolean {
+  return hasWorkingEngine(v) && !isStalled(world, v) && !isShutDown(world, v);
 }
 
 function ownHearingPenalty(observer: Vehicle): number {
@@ -64,9 +67,9 @@ function dustVisible(world: World, a: Vec, b: Vec, age: number): boolean {
   return true;
 }
 
-export function scannerRange(v: Vehicle): number {
+export function scannerRange(world: World, v: Vehicle): number {
   const scanners = mountedParts(v, 'scanner');
-  if (scanners.length === 0) return 0;
+  if (scanners.length === 0 || isShutDown(world, v)) return 0;
   return wornDef<ScannerDef>(scanners[0]).range;
 }
 
@@ -83,14 +86,15 @@ export function contactsOf(world: World, observer: Vehicle, within: number): Con
 export function sensesOf(world: World, observer: Vehicle, within: number): { seen: Vehicle[]; contacts: Contact[] } {
   const seen: Vehicle[] = [];
   const contacts: Contact[] = [];
-  const sight = sightRadius(world, observer);
-  const listener = { scanned: scannerRange(observer), clouds: cloudsSeenBy(world, observer).filter((c) => dist(observer.pos, c.pos) <= within) };
+  const sight = sightTo(world, observer);
+  const listener = { scanned: scannerRange(world, observer), clouds: cloudsSeenBy(world, observer).filter((c) => dist(observer.pos, c.pos) <= within) };
   for (const v of world.vehicles) {
     const d = dist(observer.pos, v.pos);
     if (v.id === observer.id || d > within) continue;
-    if (d <= sight && canVehicleSee(world, observer, v.pos)) seen.push(v);
+    if (seesNear(world, observer, sight, v, d)) seen.push(v);
     else contacts.push(...contactWith(world, observer, listener, v, d));
   }
+  addFlares(world, observer, within, sight, contacts);
   return { seen, contacts };
 }
 
@@ -118,6 +122,38 @@ function hears(world: World, observer: Vehicle, v: Vehicle, d: number): boolean 
   return heard > 0 && d <= heard;
 }
 
+function sightTo(world: World, observer: Vehicle): (p: Vec) => number {
+  const dark = sightRadius(world, observer);
+  const lit = sightRadius(world, observer, true);
+  return (p) => (litAt(world, p) ? lit : dark);
+}
+
+function seesNear(world: World, observer: Vehicle, sight: (p: Vec) => number, v: Vehicle, d: number): boolean {
+  return d <= sight(v.pos) && canVehicleSee(world, observer, v.pos);
+}
+
+function addFlares(world: World, observer: Vehicle, within: number, sight: (p: Vec) => number, out: Contact[]): void {
+  for (const s of flareSightings(world, observer)) {
+    const d = dist(observer.pos, s.launcher.pos);
+    if (d <= within && !seesNear(world, observer, sight, s.launcher, d)) addFlare(out, s.launcher, flareCircle(world, s));
+  }
+}
+
+function addFlare(out: Contact[], v: Vehicle, circle: { center: Vec; radius: number }): void {
+  const known = out.find((c) => c.vehicleId === v.id);
+  if (!known) {
+    out.push({ vehicleId: v.id, ...circle, sources: ['flare'], loudness: null });
+    return;
+  }
+  if (!known.sources.includes('flare')) known.sources.push('flare');
+  if (circle.radius < known.radius) Object.assign(known, circle);
+}
+
+function flareCircle(world: World, s: FlareSighting): { center: Vec; radius: number } {
+  if (s.at) return { center: { ...s.at }, radius: DETECT.fuzz.base + dist(s.at, s.launcher.pos) };
+  return { center: jittered(world, s.launcher, DETECT.fuzz.base), radius: DETECT.fuzz.base };
+}
+
 function trackingSources(world: World, observer: Vehicle, v: Vehicle): Contact['sources'] {
   return [...(hearsBeacon(world, observer, v) ? ['beacon' as const] : []), ...(isMarkedFor(world, observer, v) ? ['mark' as const] : [])];
 }
@@ -126,17 +162,17 @@ function isMarkedFor(world: World, observer: Vehicle, v: Vehicle): boolean {
   return observer.id === world.player.vehicleId && world.player.marked.some((m) => m.vehicleId === v.id && world.turn <= m.until);
 }
 
-export function markError(world: World, vehicleId: string): string | null {
-  if (!hasPerk(world, 'spotter')) return 'Marking a truck needs the spotter perk';
-  if (!playerCanAct(world)) return 'The player cannot act now';
+export function markError(world: World, vehicleId: string): Refusal | null {
+  if (!hasPerk(world, 'spotter')) return { id: 'needsSpotter' };
+  if (!playerCanAct(world)) return { id: 'cannotAct' };
   const v = world.vehicles.find((x) => x.id === vehicleId && x.id !== world.player.vehicleId);
-  if (!v) return `No other truck ${vehicleId} to mark`;
-  return playerSees(world, v.pos) ? null : `The player does not see ${vehicleId}`;
+  if (!v) return { id: 'noTruck' };
+  return playerSees(world, v.pos) ? null : { id: 'unseen' };
 }
 
 export function markVehicle(world: World, vehicleId: string): World {
   const error = markError(world, vehicleId);
-  if (error) throw new Error(error);
+  if (error) throw new Refused(error);
   return update(world, (w) => {
     const others = w.player.marked.filter((m) => m.vehicleId !== vehicleId);
     w.player.marked = [...others, { vehicleId, until: w.turn + PERK_NUMBERS.spotter.turns }];
@@ -151,7 +187,7 @@ export function contactDifficulty(world: World, observer: Vehicle, contact: Cont
 }
 
 function channelShare(world: World, observer: Vehicle, v: Vehicle, source: Contact['sources'][number]): number {
-  if (source === 'mark') return 0;
+  if (source === 'mark' || source === 'flare') return 0;
   if (source === 'dust') {
     const cloud = newestCloud(cloudsSeenBy(world, observer), v.id);
     if (!cloud) throw new Error(`Dust contact on ${v.id} has no seen cloud`);
@@ -160,10 +196,10 @@ function channelShare(world: World, observer: Vehicle, v: Vehicle, source: Conta
   return reachShare(dist(observer.pos, v.pos), sourceReach(world, observer, v, source), source);
 }
 
-function sourceReach(world: World, observer: Vehicle, v: Vehicle, source: Exclude<Contact['sources'][number], 'dust' | 'mark'>): number {
+function sourceReach(world: World, observer: Vehicle, v: Vehicle, source: Exclude<Contact['sources'][number], 'dust' | 'mark' | 'flare'>): number {
   switch (source) {
     case 'sound': return hearingRange(world, observer, v);
-    case 'radio': return scannerRange(observer);
+    case 'radio': return scannerRange(world, observer);
     case 'beacon': return BEACON.range;
   }
 }
@@ -182,10 +218,14 @@ function contactCircle(world: World, observer: Vehicle, v: Vehicle, sources: Con
   const fix = 1 - skillEffect(world, observer, 'perception', 'contactFix');
   const sensed = (DETECT.fuzz.base + (sources.includes('radio') || sources.includes('mark') ? DETECT.fuzz.radioPerTile : DETECT.fuzz.perTile) * d) * fix;
   const radius = sources.includes('beacon') ? Math.min(BEACON.radius, sensed) : sensed;
+  return { center: jittered(world, v, radius), radius };
+}
+
+function jittered(world: World, v: Vehicle, radius: number): Vec {
   const key = idKey(v.id);
   const angle = hashRandom(world.seed, world.turn, key, 1) * Math.PI * 2;
   const frac = hashRandom(world.seed, world.turn, key, 2);
-  return { center: { x: v.pos.x + Math.cos(angle) * frac * radius, y: v.pos.y + Math.sin(angle) * frac * radius }, radius };
+  return { x: v.pos.x + Math.cos(angle) * frac * radius, y: v.pos.y + Math.sin(angle) * frac * radius };
 }
 
 export function advanceDust(world: World): void {
@@ -216,11 +256,11 @@ function raisesScreen(world: World, v: Vehicle): boolean {
 }
 
 export function cloudsSeenBy(world: World, observer: Vehicle): DustCloud[] {
-  const sight = sightRadius(world, observer);
+  const sight = sightTo(world, observer);
   return world.dustClouds.filter((c) => {
     if (c.source === observer.id) return false;
     const d = dist(observer.pos, c.pos);
-    if (d <= sight && canVehicleSee(world, observer, c.pos)) return true;
+    if (d <= sight(c.pos) && canVehicleSee(world, observer, c.pos)) return true;
     return seesRisenCloud(world, observer, c, d);
   });
 }

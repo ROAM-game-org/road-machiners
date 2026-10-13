@@ -1,6 +1,8 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
 import { REGION } from "../data/region";
+import { siteName } from "../text/names";
+import { resolve } from "../text/resolve";
 import { TERRAIN, TERRAIN_TYPES, type DeckSpec, type TerrainTypeId } from "../data/terrain";
 import { route } from "./path";
 import { PHYSICS } from "../data/physics";
@@ -16,6 +18,9 @@ import {
   type Terrain,
 } from "./terrain";
 import { emptyWorld } from "./testkit";
+import { FORTRESS_SITES } from "../data/fortress";
+import { SHOPS } from "../data/market";
+import { pitDepth } from "./fortress";
 import { ROAD_INDEX } from "./road-index";
 import { dist, polylineDist, type Vec } from "./vec";
 import { newWorld } from "./world";
@@ -23,10 +28,12 @@ import { siteEdgeCrossings, siteGap } from "./sites";
 import type { World } from "./types";
 import { TEST_MAP } from "../test/map";
 import { FALLEN_SUN_DECKS, TERRITORIES } from "../data/territory";
+import { defaultSetup } from "./settings";
+import { ICARUS_KEY } from './atlas';
 
 let startWorld: World | undefined;
 function worldOnMap(): World {
-  startWorld ??= newWorld(1337, START_KITS.standard, TEST_MAP);
+  startWorld ??= newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   return startWorld;
 }
 
@@ -37,7 +44,7 @@ function flatWith(
   const heights: number[] = [];
   for (let j = 0; j <= size; j++)
     for (let i = 0; i <= size; i++) heights.push(lift(i, j));
-  return { size, heights, types: new Array(size * size).fill("hardpan") };
+  return { size, heights, types: new Array(size * size).fill("hardpan"), atlas: ICARUS_KEY };
 }
 
 describe("road index", () => {
@@ -59,10 +66,14 @@ describe('terrain variety', () => {
     const ruled = Object.keys(TERRAIN_TYPES).filter((id) => !unruled.includes(id));
     const t = TEST_MAP.terrain;
     expect(new Set(t.types)).toEqual(new Set(ruled));
+    const pits = [...REGION.towns, ...REGION.locations].filter((s) => FORTRESS_SITES[s.id]?.pit !== undefined);
+    expect(pits.length).toBeGreaterThan(0);
     for (let y = 0; y < t.size; y++) for (let x = 0; x < t.size; x++) {
       const point = { x: x + 0.5, y: y + 0.5 };
       const kind = t.types[y * t.size + x];
-      if (ROAD_INDEX.nearestWithin(point.x, point.y, REGION.roadWidth / 2) < REGION.roadWidth / 2) expect(kind).toBe('road');
+      const depths = pits.flatMap((s) => [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]].map(([i, j]) => pitDepth(s, { x: i, y: j })));
+      if (depths.some((d) => d > 0)) expect(kind).toBe(depths.every((d) => d === depths[0]) ? 'field' : 'scree');
+      else if (ROAD_INDEX.nearestWithin(point.x, point.y, REGION.roadWidth / 2) < REGION.roadWidth / 2) expect(kind).toBe('road');
       else if ([...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')].some((s) => dist(point, s.pos) < s.radius + TERRAIN.types.siteMargin)) expect(kind).toBe('hardpan');
     }
   });
@@ -83,19 +94,18 @@ describe('terrain variety', () => {
 });
 
 describe("terrain grid", () => {
-  it('has seventeen distinct Icarus destinations with road access', () => {
+  it('has twelve distinct Icarus destinations with road access', () => {
     const w = worldOnMap();
     expect(w.size).toBe(600);
     expect(w.terrain.heights).toHaveLength(601 * 601);
     expect(REGION.name).toBe('Icarus');
-    expect(REGION.towns.map((town) => town.name)).toEqual(['Bowl', 'Nose']);
-    expect(REGION.locations.map((site) => site.name)).toEqual([
-      'Old Orchard', 'Dustwell', 'The Granary', 'Burnt Convoy', 'Podfield',
-      'Canyon Bridge', 'Glass Flats', 'Green Pit', 'South Lock', 'Ridge Wrecks',
-      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Broken Wing', 'Scrapjaw Camp', 'Kiln Camp',
+    expect(REGION.towns.map((town) => resolve(siteName(town.id), 'en'))).toEqual(['Bowl', 'Nose']);
+    expect(REGION.locations.map((site) => resolve(siteName(site.id), 'en'))).toEqual([
+      'Old Orchard', 'Dustwell', 'The Granary', 'Glass Flats', 'Green Pit',
+      'Pump Station', 'Fallen Sun', 'Salvage Yard', 'Scrapjaw Camp', 'Kiln Camp',
     ]);
     const sites = [...REGION.towns, ...REGION.locations];
-    expect(new Set(sites.map((site) => site.id)).size).toBe(18);
+    expect(new Set(sites.map((site) => site.id)).size).toBe(12);
     for (const site of sites) {
       expect(site.pos.x).toBeGreaterThan(site.radius);
       expect(site.pos.y).toBeGreaterThan(site.radius);
@@ -104,6 +114,13 @@ describe("terrain grid", () => {
       expect(REGION.roads.some((road) => road.some((p) => dist(p, site.pos) <= ('kind' in site && site.kind === 'territory' ? site.radius : 0.01)))).toBe(true);
     }
     for (let i = 0; i < sites.length; i++) for (let j = i + 1; j < sites.length; j++) expect(dist(sites[i].pos, sites[j].pos)).toBeGreaterThan(60);
+  });
+
+  it('keeps no loot site: every location is a territory, a camp or a shop outpost, and every non-territory one is a fortress (IV1)', () => {
+    const retired = ['burnt-convoy', 'podfield', 'ridge-wrecks', 'canyon-bridge', 'south-lock', 'broken-wing'];
+    for (const id of retired) expect(REGION.locations.some((site) => site.id === id), id).toBe(false);
+    for (const site of REGION.locations.filter((l) => l.kind !== 'territory')) expect(site.id in FORTRESS_SITES, site.id).toBe(true);
+    for (const id of ['dustwell', 'green-pit']) expect(SHOPS[id].kind).toBe('stall');
   });
 
   it('links both towns by northern and southern canyon crossings', () => {
@@ -120,11 +137,10 @@ describe("terrain grid", () => {
       return REGION.roads.some((road) => passes(road, p) && (passes(road, q) || REGION.roads.some((other) => passes(other, q) && road.some((point) => passes(other, point)))));
     };
     for (const [a, b] of [
-      ['bowl', 'orchard'], ['orchard', 'dustwell'], ['dustwell', 'granary'], ['granary', 'burnt-convoy'],
-      ['burnt-convoy', 'podfield'], ['podfield', 'nose'], ['bowl', 'ridge-wrecks'], ['ridge-wrecks', 'south-lock'],
-      ['south-lock', 'green-pit'], ['green-pit', 'glass-flats'], ['glass-flats', 'canyon-bridge'], ['canyon-bridge', 'nose'],
-      ['orchard', 'pump-station'], ['pump-station', 'salvage-yard'], ['salvage-yard', 'podfield'],
-      ['granary', 'pump-station'], ['south-lock', 'pump-station'], ['salvage-yard', 'glass-flats'],
+      ['bowl', 'orchard'], ['orchard', 'dustwell'], ['dustwell', 'granary'], ['granary', 'nose'],
+      ['bowl', 'green-pit'], ['green-pit', 'glass-flats'], ['glass-flats', 'nose'],
+      ['orchard', 'pump-station'], ['pump-station', 'salvage-yard'], ['salvage-yard', 'nose'],
+      ['granary', 'pump-station'], ['green-pit', 'pump-station'], ['salvage-yard', 'glass-flats'],
     ]) expect(connects(a, b), `${a} to ${b}`).toBe(true);
   });
 
@@ -156,6 +172,31 @@ describe("terrain grid", () => {
         for (let k = 0; k <= steps; k++) {
           const p = { x: road[i - 1].x + ((road[i].x - road[i - 1].x) * k) / steps, y: road[i - 1].y + ((road[i].y - road[i - 1].y) * k) / steps };
           expect(siteGap(orchard, p)).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('enters Glass Flats by a spur from the south road and an approach from the Salvage Yard road, with no road through it', () => {
+    const flats = REGION.locations.find((site) => site.id === 'glass-flats')!;
+    const entering = REGION.roads.filter((road) => road.some((p) => siteGap(flats, p) < 0));
+    expect(entering).toHaveLength(2);
+    const [s1, s2] = entering;
+    expect(s1).toHaveLength(2);
+    expect(dist(s1[0], { x: 440, y: 420 })).toBeLessThan(0.01);
+    expect(dist(s2[0], { x: 485, y: 310 })).toBeLessThan(0.01);
+    for (const road of entering) {
+      expect(REGION.roads.some((other) => other !== road && other.some((p) => dist(p, road[0]) < 0.01))).toBe(true);
+      const firstInside = road.findIndex((p) => siteGap(flats, p) < 0);
+      expect(firstInside).toBe(road.length - 1);
+      for (let i = 1; i < firstInside; i++) expect(siteEdgeCrossings(flats, road[i - 1], road[i])).toEqual([]);
+    }
+    for (const road of REGION.roads.filter((r) => !entering.includes(r))) {
+      for (let i = 1; i < road.length; i++) {
+        const steps = Math.ceil(dist(road[i - 1], road[i]) * 4);
+        for (let k = 0; k <= steps; k++) {
+          const p = { x: road[i - 1].x + ((road[i].x - road[i - 1].x) * k) / steps, y: road[i - 1].y + ((road[i].y - road[i - 1].y) * k) / steps };
+          expect(siteGap(flats, p)).toBeGreaterThan(0);
         }
       }
     }
@@ -228,7 +269,8 @@ describe("terrain grid", () => {
     const t = w.terrain;
     for (const road of REGION.roads)
       for (const p of road) expect(isCliff(t, tileAt(t, p))).toBe(false);
-    expect(t.types[tileAt(t, REGION.roads[0][1])]).toBe("road");
+    const open = REGION.roads[0].find((p) => [...REGION.towns, ...REGION.locations].every((s) => !(s.id in FORTRESS_SITES) || dist(p, s.pos) > s.radius))!;
+    expect(t.types[tileAt(t, open)]).toBe("road");
     expect(isCliff(t, tileAt(t, w.vehicles[0].pos))).toBe(false);
   });
 

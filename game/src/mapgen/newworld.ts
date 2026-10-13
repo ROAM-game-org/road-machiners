@@ -14,6 +14,7 @@ import {
   type ScrubRules,
 } from '../data/terrain';
 import { chance, randInt, randRange, type Rng } from '../sim/rng';
+import { isTerritory, territoryRoads } from '../sim/territory';
 import type { BakedProp, PropKind } from '../sim/terrain';
 import { DEG, dist, polylineDist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
@@ -46,6 +47,7 @@ export const BUILT_TOXIC = 5;
 export const BUILT_TRACK = 6;
 export const BUILT_CANAL = 7;
 export const BUILT_PAD = 8;
+export const BUILT_GLASS = 9;
 
 export type Camp = { pos: Vec; radius: number };
 
@@ -70,8 +72,14 @@ function isPool(code: number): boolean {
   return code === BUILT_DIRTY_WATER || code === BUILT_TOXIC;
 }
 
+const SPURS = REGION.locations.filter(isTerritory).flatMap((t) => territoryRoads(t).spurs);
+
+function onSpur(p: BakedProp): boolean {
+  return SPURS.some((s) => polylineDist(p.pos, s.points) < s.width / 2 + p.r + O.gap);
+}
+
 function settle(d: MapDraft, p: BakedProp, roadGap: number): boolean {
-  if (isPool(d.built[tileOf(d.size, p.pos)])) return false;
+  if (isPool(d.built[tileOf(d.size, p.pos)]) || onSpur(p)) return false;
   return place(d, p, roadGap);
 }
 

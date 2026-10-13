@@ -7,10 +7,10 @@ import { propsAlong, propsAround, propSlotsAlong, shadeCastersAround } from './p
 import type { Obstacle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
+import { defaultSetup } from './settings';
 
 const SIGHT_KINDS: Obstacle['kind'][] = ['rock', 'wreck', 'building', 'landmark'];
 
-// The full scans the index replaced, kept as the reference answers.
 const scanSight = (w: World, a: Vec, b: Vec) => w.obstacles.filter((o) => SIGHT_KINDS.includes(o.kind) && dist(a, o.pos) < dist(a, b) + propReach(o));
 const scanSightAround = (w: World, c: Vec, r: number) => w.obstacles.filter((o) => SIGHT_KINDS.includes(o.kind) && dist(c, o.pos) < r + propReach(o));
 const scanShade = (w: World, c: Vec, r: number) => w.obstacles.filter((o) => TIME.obstacleShade[o.kind] !== undefined && dist(c, o.pos) <= r + TIME.shadeReach + o.r);
@@ -22,7 +22,7 @@ function lcg(seed: number): () => number {
 }
 
 function worldAndSamples(): { w: World; points: Vec[] } {
-  const w = newWorld(1, START_KITS.standard, TEST_MAP);
+  const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   const next = lcg(7);
   const points = Array.from({ length: 80 }, () => ({ x: next() * w.size, y: next() * w.size }));
   return { w, points };
@@ -93,5 +93,23 @@ describe('prop index', () => {
 
     w.obstacles.push(rock);
     expect(propsAround(w, 'sight', rock.pos, 1).map((o) => o.id)).toContain(rock.id);
+  });
+
+  it('sees a prop pushed onto the same obstacles array', () => {
+    const { w } = worldAndSamples();
+    const at = { x: 3, y: 3 };
+    const pushed = (kind: Obstacle['kind']) => ({ id: `pushed-${kind}`, kind, pos: at, r: 1 }) as Obstacle;
+    const tree = w.obstacles.find((o) => TIME.obstacleShade[o.kind] !== undefined);
+    const fence = w.obstacles.find(isBreakable);
+    if (!tree || !fence) throw new Error('The test map has no shade caster or breakable prop');
+    const sightBefore = propsAround(w, 'sight', at, 1).length;
+    const shadeBefore = shadeCastersAround(w, at, 1).length;
+    const breakBefore = propsAround(w, 'breakable', at, 1).length;
+
+    w.obstacles.push({ ...tree, id: 'pushed-shade', pos: at }, { ...fence, id: 'pushed-fence', pos: at }, pushed('rock'));
+
+    expect(propsAround(w, 'sight', at, 1).length).toBeGreaterThan(sightBefore);
+    expect(shadeCastersAround(w, at, 1).length).toBeGreaterThan(shadeBefore);
+    expect(propsAround(w, 'breakable', at, 1).length).toBeGreaterThan(breakBefore);
   });
 });

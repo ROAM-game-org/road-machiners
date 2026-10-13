@@ -30,7 +30,7 @@ describe('NPC transactions', () => {
     const npc = addVehicle(w, 'traders', 'hauler', [], sitePads(REGION.towns[0])[0]);
     npc.resources!.money = 1;
     const before = structuredClone(npc);
-    expect(() => economy.tradeGoods(w, npc, 'bowl', 'scrap', 2, 'buy')).toThrow('money');
+    expect(() => economy.tradeGoods(w, npc, 'bowl', 'scrap', 2, 'buy')).toThrow('Refused: noMoney');
     expect(npc).toEqual(before);
   });
 
@@ -40,14 +40,14 @@ describe('NPC transactions', () => {
     const money = npc.resources!.money;
     const playerMoney = w.player.money;
     expect(economy.tradeGoods).toBeTypeOf('function');
-    const buy = economy.getTradePrice(w, npc, 'bowl', 'scrap', 'buy');
+    const buy = economy.getLotTradePrice(w, npc, 'bowl', 'scrap', 2, 'buy');
     economy.tradeGoods(w, npc, 'bowl', 'scrap', 2, 'buy');
     expect(goodsCount(npc).scrap).toBe(2);
-    expect(npc.resources!.money).toBe(money - 2 * buy);
-    const sell = economy.getTradePrice(w, npc, 'bowl', 'scrap', 'sell');
+    expect(npc.resources!.money).toBe(money - buy);
+    const sell = economy.getLotTradePrice(w, npc, 'bowl', 'scrap', 2, 'sell');
     economy.tradeGoods(w, npc, 'bowl', 'scrap', 2, 'sell');
     expect(goodsCount(npc).scrap ?? 0).toBe(0);
-    expect(npc.resources!.money).toBe(money - 2 * buy + 2 * sell);
+    expect(npc.resources!.money).toBe(money - buy + sell);
     expect(w.player.money).toBe(playerMoney);
   });
 
@@ -60,7 +60,7 @@ describe('NPC transactions', () => {
     expect(npc).toEqual(before);
   });
 
-  it('buys only affordable fuel before other service', () => {
+  it('buys affordable supplies before fuel', () => {
     const w = emptyWorld();
     const npc = addVehicle(w, 'scavengers', 'scout', [], sitePads(REGION.towns[0])[0]);
     npc.resources!.fuel = 0;
@@ -68,9 +68,9 @@ describe('NPC transactions', () => {
     npc.resources!.money = ECONOMY.supplyPrice.fuel * 2;
     expect(economy.serviceVehicle).toBeTypeOf('function');
     economy.serviceVehicle(w, npc, 'bowl', 0);
-    expect(npc.resources!.fuel).toBe(2);
-    expect(npc.resources!.money).toBe(0);
-    expect(npc.resources!.supplies).toBe(0);
+    expect(npc.resources!.supplies).toBe(1);
+    expect(npc.resources!.fuel).toBe(0);
+    expect(npc.resources!.money).toBe(ECONOMY.supplyPrice.fuel * 2 - ECONOMY.supplyPrice.supplies);
   });
 
   it('serves like a town garage at a stall', () => {
@@ -81,7 +81,7 @@ describe('NPC transactions', () => {
       corePart(npc, 'cab').hp -= 2;
       npc.resources!.fuel = 0;
       npc.resources!.supplies = 0;
-      npc.resources!.money = 10_000;
+      npc.resources!.money = 333_333;
       return npc;
     };
     const atStall = make(sitePads(granary)[0]);
@@ -101,7 +101,7 @@ describe('NPC transactions', () => {
     const npc = addVehicle(w, 'raiders', 'scout', [], sitePads(yard)[0]);
     corePart(npc, 'cab').hp -= 2;
     npc.resources!.fuel = 0;
-    npc.resources!.money = 10_000;
+    npc.resources!.money = 333_333;
     const before = structuredClone(npc);
     expect(() => economy.serviceAtStall(w, npc, 'salvage-yard', 0)).toThrow('Only non-raiders');
     expect(npc).toEqual(before);

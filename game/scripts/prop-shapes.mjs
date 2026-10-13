@@ -1,6 +1,3 @@
-// Writes src/data/prop-shapes.json: the collision boxes of every static prop model in public/models/.
-// scripts/shape-lib.mjs explains how boxes come from a model. Rerun after a prop model changes.
-// The shape test fails while a stored hash differs from its .glb.
 
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { capBoxes, fnv1a, formatShapes, loadTriangles, mergeCells, rasterize, roundBox, shapeOf } from './shape-lib.mjs';
@@ -14,13 +11,45 @@ const PROP_MODELS = [
   'building',
   'bunker',
   'crag',
+  'cargo_pod',
   'crates',
   'dead_tree',
   'drums',
+  'engine_frame',
+  'engine_nozzle',
+  'engine_section',
   'farmhouse',
   'fence',
+  'fort_cistern_gate',
+  'fort_cistern_inner',
+  'fort_cistern_tower',
+  'fort_cistern_wall',
+  'fort_compound_gate',
+  'fort_compound_tower',
+  'fort_compound_wall',
+  'fort_patchwork_gate',
+  'fort_patchwork_tower',
+  'fort_patchwork_wall',
+  'fort_pumpworks_gate',
+  'fort_pumpworks_inner',
+  'fort_pumpworks_tower',
+  'fort_pumpworks_wall',
+  'fort_ring_gate',
+  'fort_ring_wall',
+  'fort_scrap_gate',
+  'fort_scrap_inner',
+  'fort_scrap_tower',
+  'fort_scrap_wall',
+  'fort_ship_gate',
+  'fort_ship_tower',
+  'fort_ship_wall',
+  'fort_yard_gate',
+  'fort_yard_tower',
+  'fort_yard_wall',
   'gas_station',
+  'glass_spire',
   'guard_post',
+  'hull_bay',
   'hull_chunk',
   'hull_drum',
   'hull_gantry',
@@ -28,13 +57,17 @@ const PROP_MODELS = [
   'hull_shell',
   'hull_tower',
   'junk',
+  'nose_crag',
+  'nose_rise',
   'power_pole',
   'quonset',
   'reactor',
   'rim_rock',
   'rock',
   'sandbags',
+  'ruin_compound',
   'ruin_house',
+  'scrap_wall',
   'shack',
   'ship_bow',
   'ship_cage',
@@ -43,6 +76,11 @@ const PROP_MODELS = [
   'tank_hulk',
   'tank_trap',
   'ship_wing',
+  'watchtower',
+  'escape_pod',
+  'habitat_cylinder',
+  'wing_shard',
+  'power_cell',
   'water_tower',
   'woodpile',
   'wreck',
@@ -60,7 +98,7 @@ const CFG = {
   rayShift: { x: 0.0137, y: 0.0291 },
 };
 
-const SPLIT_AT_CLEARANCE = new Set(['dead_tree']);
+const SPLIT_AT_CLEARANCE = new Set(['dead_tree', 'engine_frame', 'engine_nozzle']);
 const CLEARANCE = 2.8;
 const LOW_BOXES = 8;
 
@@ -72,11 +110,19 @@ function splitShapeOf(triangles) {
   return [...capBoxes(low, { ...CFG, maxBoxes: lowCap }), ...capBoxes(high, { ...CFG, maxBoxes: CFG.maxBoxes - lowCap })].map(roundBox);
 }
 
+const MASS_CFG = {
+  ...CFG,
+  cell: 2,
+  band: 64,
+  maxBoxes: 96,
+};
+const MASSES = new Set(['nose_rise', 'nose_crag']);
+
 const shapes = {};
 for (const name of PROP_MODELS) {
   const bytes = readFileSync(`public/models/${name}.glb`);
   const triangles = await loadTriangles(bytes);
-  const boxes = SPLIT_AT_CLEARANCE.has(name) ? splitShapeOf(triangles) : shapeOf(triangles, CFG);
+  const boxes = SPLIT_AT_CLEARANCE.has(name) ? splitShapeOf(triangles) : shapeOf(triangles, MASSES.has(name) ? MASS_CFG : CFG);
   shapes[name] = { hash: fnv1a(bytes), boxes };
   console.log(`${name}: ${boxes.length} boxes`);
 }

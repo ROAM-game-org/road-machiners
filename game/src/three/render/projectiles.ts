@@ -1,20 +1,17 @@
-// What flies from a muzzle to where each round lands: tracers, shells and missiles, with their look and speed per
-// weapon. Rounds fly straight from the barrel tip. Hits end on the truck they struck, and misses end on the ground
-// at the point the sim put them, so the sim's spread shows. Render-only: randomness here never changes rules.
 
 import * as THREE from 'three';
 import { PARTS } from '../../data/parts';
 import { TIME } from '../../data/time';
-import { computeRoundPoint, groundPoint, toMap, type V3 } from '../../phys/frames';
+import { groundPoint, toMap, type V3 } from '../../phys/frames';
 import { PAL } from '../../render/palette';
 import type { Terrain } from '../../sim/terrain';
-import type { ShotRound } from '../../sim/types';
+import { reelRope, Rope, ROPE_LOOK, type GroundAt } from './lines';
 
 export type Muzzle = { pos: V3; dir: V3 };
 
 export type ShotCues = { fired: (m: Muzzle) => void; landed: () => void };
 
-type Look = 'tracer' | 'shell' | 'missile' | 'grenade';
+type Look = 'tracer' | 'shell' | 'missile' | 'grenade' | 'bolt';
 
 export type ProjectileSpec = {
   look: Look;
@@ -27,6 +24,7 @@ export type ProjectileSpec = {
   wobble: number;
   casing: CasingSize | null;
   pellets?: true;
+  rope?: true;
 };
 
 export function roundSpec(spec: ProjectileSpec, k: number): ProjectileSpec {
@@ -51,6 +49,7 @@ export const PROJECTILES: Record<string, ProjectileSpec> = {
   slugCannon: { look: 'shell', speed: 100, gapMs: 150, length: 0.4, width: 0.14, color: 0xffad50, flash: 1, wobble: 0, casing: 'large' },
   recoilless: { look: 'shell', speed: 60, gapMs: 0, length: 0.7, width: 0.2, color: 0xffad50, flash: 1.6, wobble: 0, casing: null },
   grenadeLauncher: { look: 'grenade', speed: 45, gapMs: 160, length: 0.3, width: 0.3, color: 0x4a4a3c, flash: 0.9, wobble: 0, casing: null },
+  harpoon: { look: 'bolt', speed: 110, gapMs: 0, length: 1.1, width: 0.16, color: 0x2e2a26, flash: 0.5, wobble: 0, casing: null, rope: true },
   rocketRack: { look: 'missile', speed: 40, gapMs: 110, length: 0.9, width: 0.16, color: 0x6a6a64, flash: 0.9, wobble: 0.5, casing: null },
 };
 
@@ -66,8 +65,6 @@ export function projectileOf(key: string): ProjectileSpec {
   return spec;
 }
 
-const HIT = { drop: 0.8, band: 0.7 };
-const MISS_DEPTH = 1;
 const GRENADE_ARC = 3;
 const SHELL_TAIL = 3;
 const MISSILE = {
@@ -79,44 +76,6 @@ const MISSILE = {
 
 export type Impact = 'truck' | 'ground' | 'none';
 export type RoundPlan = { land: V3; impact: Impact; delayMs: number; flightMs: number };
-export type RoundAim = { impact: 'truck'; b: V3; offset: number } | { impact: 'ground' | 'none'; land: V3 };
-
-export function roundAims(b: V3, targetId: string, rounds: ShotRound[], pointOf: (id: string) => V3 | null, missAt: (offset: number) => V3): RoundAim[] {
-  return rounds.map((r): RoundAim => {
-    if (r.struck === null) return { impact: 'ground', land: missAt(r.offset) };
-    if (r.struck === targetId) return { impact: 'truck', b, offset: r.offset };
-    const p = pointOf(r.struck);
-    return p ? { impact: 'truck', b: p, offset: 0 } : { impact: 'none', land: missAt(r.offset) };
-  });
-}
-
-export type VolleyTiming = { startMs: number; windowMs: number; burstMaxMs: number };
-
-export function planVolley(spec: ProjectileSpec, a: V3, rounds: RoundAim[], timing: VolleyTiming, groundY: (p: V3) => number, blastRadius: number): RoundPlan[] {
-  const { startMs, windowMs, burstMaxMs } = timing;
-  const gap = rounds.length > 1 ? Math.min(spec.gapMs, burstMaxMs / (rounds.length - 1)) : 0;
-  if (startMs + Math.max(0, rounds.length - 1) * gap >= windowMs) throw new Error(`A volley starting at ${startMs} ms leaves no time to fire ${rounds.length} rounds in ${windowMs} ms`);
-  return rounds.map((r, k) => {
-    const land = r.impact === 'truck' ? hitPoint(a, r.b, r.offset) : r.impact === 'ground' && blastRadius === 0 ? groundMiss(a, r.land, groundY) : r.land;
-    const delayMs = startMs + k * gap;
-    const meters = Math.hypot(land.x - a.x, land.y - a.y, land.z - a.z);
-    return { land, impact: r.impact, delayMs, flightMs: Math.min((meters / spec.speed) * 1000, windowMs - delayMs) };
-  });
-}
-
-function hitPoint(a: V3, b: V3, offset: number): V3 {
-  const p = computeRoundPoint(a, b, offset);
-  return { x: p.x, y: b.y - HIT.drop + (Math.random() - 0.5) * HIT.band, z: p.z };
-}
-
-function groundMiss(a: V3, land: V3, groundY: (p: V3) => number): V3 {
-  const dx = land.x - a.x;
-  const dz = land.z - a.z;
-  const len = Math.hypot(dx, dz);
-  const shift = (Math.random() * 2 - 1) * MISS_DEPTH;
-  const end = { x: land.x + (dx / len) * shift, y: 0, z: land.z + (dz / len) * shift };
-  return { ...end, y: groundY(end) };
-}
 
 type Flight = {
   spec: ProjectileSpec;
@@ -130,9 +89,14 @@ type Flight = {
   life: number;
   onFire: (m: Muzzle) => void;
   onLand: () => void;
+  rope: Rope | null;
+  struck: boolean;
+  ground: GroundAt;
 };
 
-export type Launch = { spec: ProjectileSpec; muzzle: () => Muzzle; plan: RoundPlan; onFire: (m: Muzzle) => void; onLand: () => void };
+type Reel = { rope: Rope; from: THREE.Vector3; to: THREE.Vector3; age: number; ground: GroundAt };
+
+export type Launch = { spec: ProjectileSpec; muzzle: () => Muzzle; plan: RoundPlan; onFire: (m: Muzzle) => void; onLand: () => void; ground: GroundAt };
 
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 
@@ -150,7 +114,21 @@ class ProjectileKit {
     if (spec.look === 'tracer') return this.tracer(spec);
     if (spec.look === 'shell') return this.shell(spec);
     if (spec.look === 'grenade') return this.grenade(spec);
+    if (spec.look === 'bolt') return this.bolt(spec);
     return this.missile(spec);
+  }
+
+  private bolt(spec: ProjectileSpec): THREE.Object3D {
+    const g = new THREE.Group();
+    const iron = this.paintOf(spec.color);
+    const shaft = new THREE.Mesh(this.body, iron);
+    shaft.scale.set(spec.length * 0.75, spec.width * 0.35, spec.width * 0.35);
+    shaft.position.x = -spec.length * 0.25;
+    const head = new THREE.Mesh(this.cone, iron);
+    head.scale.set(spec.length * 0.3, spec.width, spec.width);
+    head.position.x = spec.length * 0.3;
+    g.add(shaft, head);
+    return g;
   }
 
   private tracer(spec: ProjectileSpec): THREE.Object3D {
@@ -236,6 +214,7 @@ class ProjectileKit {
 export class Projectiles {
   private kit = new ProjectileKit();
   private flights: Flight[] = [];
+  private reels: Reel[] = [];
   private at = new THREE.Vector3();
   private ahead = new THREE.Vector3();
   private dir = new THREE.Vector3();
@@ -259,6 +238,9 @@ export class Projectiles {
       life: l.plan.flightMs / 1000,
       onFire: l.onFire,
       onLand: l.onLand,
+      rope: l.spec.rope ? new Rope() : null,
+      struck: l.plan.impact === 'truck',
+      ground: l.ground,
     });
   }
 
@@ -272,10 +254,34 @@ export class Projectiles {
       if (f.age >= f.life) {
         this.scene.remove(f.obj);
         this.flights.splice(i, 1);
+        this.landRope(f);
         f.onLand();
         continue;
       }
       this.place(f, dt);
+    }
+    this.reel(dt);
+  }
+
+  private landRope(f: Flight): void {
+    if (!f.rope) return;
+    if (f.struck) return void this.scene.remove(f.rope.root);
+    f.rope.set(f.from, f.to, f.from.distanceTo(f.to), f.ground);
+    this.reels.push({ rope: f.rope, from: f.from, to: f.to, age: 0, ground: f.ground });
+  }
+
+  private reel(dt: number): void {
+    for (let i = this.reels.length - 1; i >= 0; i--) {
+      const r = this.reels[i];
+      r.age += dt;
+      const left = 1 - Math.max(0, r.age * 1000 - ROPE_LOOK.restMs) / ROPE_LOOK.reelMs;
+      if (left <= 0) {
+        this.scene.remove(r.rope.root);
+        this.reels.splice(i, 1);
+        continue;
+      }
+      if (r.age * 1000 < ROPE_LOOK.restMs) r.rope.set(r.from, r.to, r.from.distanceTo(r.to) * (1 + ROPE_LOOK.missSlack), r.ground);
+      else reelRope(r.rope, r.from, r.to, left, r.ground);
     }
   }
 
@@ -284,6 +290,7 @@ export class Projectiles {
     f.from.set(m.pos.x, m.pos.y, m.pos.z);
     f.side.set(-(f.to.z - f.from.z), 0, f.to.x - f.from.x).normalize();
     f.obj.visible = true;
+    if (f.rope) this.scene.add(f.rope.root);
     f.onFire(m);
   }
 
@@ -296,6 +303,7 @@ export class Projectiles {
     f.obj.quaternion.setFromUnitVectors(X_AXIS, this.dir);
     if (f.spec.look === 'tracer') f.obj.scale.x = Math.min(f.spec.length, this.at.distanceTo(f.from));
     if (f.spec.look === 'missile') this.trail(f, dt);
+    if (f.rope) f.rope.set(f.from, this.at, f.from.distanceTo(this.at), f.ground);
   }
 
   private pointAt(f: Flight, t: number, out: THREE.Vector3): THREE.Vector3 {

@@ -1,12 +1,14 @@
+import { FORT_MODELS } from './fortress';
 import { describe, expect, it } from 'vitest';
 import { BROKEN_WING, BROKEN_WING_POINT, REGION } from '../data/region';
 import { FALLEN_SUN_DECKS, TERRITORIES } from '../data/territory';
 import { START_KITS } from '../data/start';
 import { PHYSICS } from '../data/physics';
 import { deckAt, deckById, underDeck } from './bridge';
-import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, propBoxes, propKey, propPose, propReach, propShape, segmentCrossesBox } from './mapgen';
+import { blockingBoxes, boxDistance, boxSegmentDistance, isBakedObstacle, isBreakable, isDriveObstacle, mapObstacles, propBoxes, propKey, propPose, propReach, propShape, segmentCrossesBox, touchesObstacle } from './mapgen';
 import { hulkBoxes } from './body';
 import { ROAD_INDEX } from './road-index';
+import { isFortress } from './sites';
 import type { Obstacle } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
@@ -15,6 +17,9 @@ import { boxesOverlap } from '../test/boxes';
 import { deckHeight, groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp } from './terrain';
 import type { PosedBox } from './mapgen';
 import { budget } from '../test/budget';
+import { defaultSetup } from './settings';
+import { ICARUS_DECKS } from './bridge';
+import { ICARUS_KEY } from './atlas';
 
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
 
@@ -23,6 +28,9 @@ const prop = (kind: BakedProp['kind'], x: number, extra: Partial<BakedProp> = {}
 function mapWith(props: BakedProp[]): BakedMap {
   return { ...TEST_MAP, props };
 }
+
+const isFortPiece = (o: Obstacle) => o.kind === 'landmark' && FORT_MODELS.has(o.look);
+const isNoseRock = (o: Obstacle) => o.kind === 'landmark' && (o.look === 'noseRise' || o.look === 'noseCrag');
 
 describe('baked map obstacles', () => {
   it('turns rocks into rock obstacles and other props into landmarks, with ids by prop order', () => {
@@ -54,7 +62,7 @@ describe('baked map obstacles', () => {
 
   it('knows every obstacle it makes as baked, and no other', () => {
     const baked = mapObstacles(mapWith([prop('rock', 10), prop('pole', 20, { group: 4, step: 7 }), prop('tank', 30), prop('bridgeSpan', 40)]));
-    const world = newWorld(1337, START_KITS.standard, TEST_MAP);
+    const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const others = world.obstacles.filter((o) => !mapObstacles(TEST_MAP).some((b) => b.id === o.id));
     const runtimeWrecks: Obstacle[] = [{ id: 'wreck-v12', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }, { id: 'wreck31', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }];
 
@@ -88,7 +96,7 @@ describe('breakable props', () => {
 });
 
 describe('world from the baked map', () => {
-  const world = newWorld(1337, START_KITS.standard, TEST_MAP);
+  const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   const baked = world.obstacles.filter(isBakedObstacle);
 
   it('takes its terrain, hash and baked props from the map', () => {
@@ -99,13 +107,13 @@ describe('world from the baked map', () => {
   });
 
   it('places the same baked props for every world seed', () => {
-    const bakedOf = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP).obstacles.filter(isBakedObstacle);
+    const bakedOf = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).obstacles.filter(isBakedObstacle);
     expect(bakedOf(7)).toEqual(bakedOf(1337));
   });
 
   it('keeps every baked landmark off every road surface and out of every site', () => {
     const sites = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'territory')];
-    const landmarks = baked.filter((o): o is Landmark => o.kind === 'landmark' && o.look !== 'shipWing');
+    const landmarks = baked.filter((o): o is Landmark => o.kind === 'landmark' && !isFortPiece(o) && !isNoseRock(o) && o.look !== 'shipWing');
     expect(landmarks.length).toBeGreaterThan(0);
     for (const o of landmarks) {
       const reach = REGION.roadWidth / 2 + o.r;
@@ -128,6 +136,10 @@ describe('world from the baked map', () => {
       return side(a, b, c) * side(a, b, e) < 0 && side(c, e, a) * side(c, e, b) < 0;
     };
     const overlap = (a: Obstacle, b: Obstacle): boolean => {
+      const walled = (o: Obstacle) => isFortPiece(o) || isNoseRock(o);
+      if (walled(a) && walled(b)) return false;
+      if (walled(a)) return touchesObstacle(a, world.terrain, b.pos, b.r);
+      if (walled(b)) return touchesObstacle(b, world.terrain, a.pos, a.r);
       if (rimPair(a, b)) return false;
       if (boxed(a) && boxed(b)) return low(a).some((p) => low(b).some((q) => boxesOverlap(p, q)));
       if (boxed(a) || boxed(b)) {
@@ -146,9 +158,17 @@ describe('world from the baked map', () => {
     expect(overlaps).toEqual([]);
   });
 
+  it('puts a pond only at an oasis that is no fortress', () => {
+    const ponds = world.obstacles.filter((o) => o.kind === 'water').map((o) => o.id);
+    expect(ponds).not.toContain('pond-dustwell');
+    expect(ponds).not.toContain('pond-green-pit');
+    const open = REGION.locations.filter((l) => l.kind === 'oasis' && !isFortress(l)).map((l) => `pond-${l.id}`);
+    expect(ponds).toEqual(open);
+  });
+
   it('rejects a map of another size than the region', () => {
-    const small: BakedMap = { ...TEST_MAP, terrain: { size: 10, heights: [], types: [] } };
-    expect(() => newWorld(1337, START_KITS.standard, small)).toThrow(/size/);
+    const small: BakedMap = { ...TEST_MAP, terrain: { size: 10, heights: [], types: [], atlas: ICARUS_KEY } };
+    expect(() => newWorld(1337, START_KITS.standard, small, defaultSetup('roaming'))).toThrow(/size/);
   });
 });
 
@@ -188,6 +208,16 @@ describe('prop poses', () => {
     expect(propKey(hulk('bus', 0))).not.toBe(propKey(hulk('buggy', 0)));
     expect(propReach(hulk('bus', 0))).toBeGreaterThan(propReach(hulk('buggy', 0)));
     expect(blockingBoxes(hulk('buggy', 0), TEST_MAP.terrain).length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['hullCache', 'hull_bay'],
+    ['shipCache', 'cargo_pod'],
+    ['engineCache', 'engine_section'],
+  ] as const)('draws a %s loot spot as a %s section scaled to its radius', (look, model) => {
+    const pose = propPose(landmark(look, 0.7, 1.2));
+    expect(pose).toEqual({ model, pos: { x: 12, y: 34 }, yaw: 1.2, scale: even(1) });
+    expect(propReach(landmark(look, 0.7))).toBeLessThanOrEqual(0.9 * S);
   });
 
   it('keeps the generic wreck pose and shape for a kill wreck without a hulk', () => {
@@ -314,7 +344,7 @@ describe('prop poses', () => {
   });
 });
 
-const HULL_PIECES = new Set<string>(['shipBow', 'shipCage', 'shipHub', 'hullShell', 'hullDrum', 'hullShard', 'hullTower', 'hullGantry']);
+const HULL_PIECES = new Set<string>(Object.values(TERRITORIES).flatMap((t) => t.wreck?.pieces.map((p) => p.look) ?? []));
 
 describe('Broken Wing on the baked map', () => {
   const M = PHYSICS.metersPerTile;
@@ -362,7 +392,7 @@ describe('Broken Wing on the baked map', () => {
   });
 
   it('keeps every other prop, road wreck and site off the road under the hoop, on the ramps and on the deck', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP);
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const points = [...under, ...stretch];
     const on = w.obstacles.filter((o) => o.id !== hoop.id && o.kind !== 'water' && points.some((p) => dist(o.pos, p) <= o.r));
     expect(on.map((o) => o.id)).toEqual([]);
@@ -415,17 +445,17 @@ describe('props under a deck', () => {
 
   it('of a prop beside the deck, drops exactly the low boxes inside the outline and under the deck line', () => {
     const junk: Obstacle = { id: 'junk-under', kind: 'landmark', look: 'junk', pos: on(3.5, 1.7), r: 0.8, yaw: 3 };
-    expect(deckAt(junk.pos.x, junk.pos.y)).toBeNull();
+    expect(deckAt(ICARUS_DECKS, junk.pos.x, junk.pos.y)).toBeNull();
     const base = heightAt(t, junk.pos.x, junk.pos.y);
     const low = propBoxes(junk).filter((b) => b.z0 < PHYSICS.truckClearance);
-    const inside = (b: PosedBox) => corners(b).every((c) => deckAt(c.x, c.y)?.deck === flap);
+    const inside = (b: PosedBox) => corners(b).every((c) => deckAt(ICARUS_DECKS, c.x, c.y)?.deck === flap);
     const under = (b: PosedBox) => {
       const along = (b.center.x - flap.from.x) * flap.axis.x + (b.center.y - flap.from.y) * flap.axis.y;
       return inside(b) && b.z1 < (deckHeight(t, flap, along) - base) * M;
     };
 
     expect(low.filter(under).length).toBeGreaterThan(0);
-    expect(low.filter((b) => !under(b) && deckAt(b.center.x, b.center.y) !== null).length).toBeGreaterThan(0);
+    expect(low.filter((b) => !under(b) && deckAt(ICARUS_DECKS, b.center.x, b.center.y) !== null).length).toBeGreaterThan(0);
     expect(blockingBoxes(junk, t)).toEqual(low.filter((b) => !under(b)));
   });
 

@@ -1,6 +1,3 @@
-// Fuel and supply aid between the player and one NPC. One truck gives the other fuel, supplies or both, paid or
-// free. A deal is an `aid` state held by the NPC toward the player. Once agreed, the NPC's meet goal brings the two
-// trucks side by side. The player then starts the handover with [E]: one turn of shared work, paused when a truck moves and
 
 import { ECONOMY } from '../data/goods';
 import { AID } from '../data/npc-behavior';
@@ -93,13 +90,13 @@ export function offerAid(world: World, npc: Vehicle): void {
 
 export function agreeAid(world: World, npc: Vehicle, terms: AidTerms): NpcState {
   const s = addState(world, 'aid', npc.id, world.player.vehicleId, { kind: 'aid', ...terms, agreed: true, ...HANDOVER });
-  meetGoal(world, npc, playerVehicle(world), terms.giver === 'npc' ? 'bring fuel and supplies' : 'pick up fuel and supplies');
+  meetGoal(world, npc, playerVehicle(world), terms.giver === 'npc' ? 'bringAid' : 'pickUpAid');
   return s;
 }
 
 export function refuseAid(world: World, npc: Vehicle): void {
   const s = stateOf(world, 'aid', npc.id, world.player.vehicleId);
-  if (!s || aidData(s).agreed) throw new Error(`${npc.name} has no aid offer pending`);
+  if (!s || aidData(s).agreed) throw new Error(`${npc.id} has no aid offer pending`);
   endState(world, s, 'broken');
 }
 

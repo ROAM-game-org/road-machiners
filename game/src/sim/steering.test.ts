@@ -2,9 +2,12 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, setDownSpot, throttleFor, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
+import { addState } from "./states";
+import { getHitchedTowIds } from "./tow";
+import { TEST_MAP } from '../test/map';
 
 function setup(speed: number) {
   const w = emptyWorld();
@@ -44,23 +47,23 @@ describe("click orders", () => {
   });
 
   it("a nearby ground click remains a destination", () => {
-    expect(clickOrder({ x: 31, y: 30 }, false, { pos: { x: 1, y: 1 }, order: null })).toEqual({ kind: "through", dest: { x: 31, y: 30 } });
-    expect(clickOrder({ x: 36, y: 30 }, false, { pos: { x: 1, y: 1 }, order: null }).kind).toBe("through");
-    expect(clickOrder({ x: 31, y: 30 }, true, { pos: { x: 1, y: 1 }, order: null }).kind).toBe("stopAt");
+    expect(clickOrder(TEST_MAP.terrain, { x: 31, y: 30 }, false, { pos: { x: 1, y: 1 }, order: null })).toEqual({ kind: "through", dest: { x: 31, y: 30 } });
+    expect(clickOrder(TEST_MAP.terrain, { x: 36, y: 30 }, false, { pos: { x: 1, y: 1 }, order: null }).kind).toBe("through");
+    expect(clickOrder(TEST_MAP.terrain, { x: 31, y: 30 }, true, { pos: { x: 1, y: 1 }, order: null }).kind).toBe("stopAt");
   });
 
   it("a click on the order's point switches it between driving through and stopping", () => {
     const dest = { x: 31, y: 30 };
     const near = { x: 31 + RULES.reclickRadius / 2, y: 30 };
-    const stop = clickOrder(near, false, { pos: { x: 1, y: 1 }, order: { kind: "through", dest } });
+    const stop = clickOrder(TEST_MAP.terrain, near, false, { pos: { x: 1, y: 1 }, order: { kind: "through", dest } });
     expect(stop).toEqual({ kind: "stopAt", dest });
-    expect(clickOrder(near, false, { pos: { x: 1, y: 1 }, order: stop })).toEqual({ kind: "through", dest });
+    expect(clickOrder(TEST_MAP.terrain, near, false, { pos: { x: 1, y: 1 }, order: stop })).toEqual({ kind: "through", dest });
   });
 
   it("a click away from the order's point sets a new drive-through point", () => {
     const far = { x: 31 + RULES.reclickRadius * 2, y: 30 };
-    expect(clickOrder(far, false, { pos: { x: 1, y: 1 }, order: { kind: "stopAt", dest: { x: 31, y: 30 } } })).toEqual({ kind: "through", dest: far });
-    expect(clickOrder(far, false, { pos: { x: 1, y: 1 }, order: { kind: "brake" } })).toEqual({ kind: "through", dest: far });
+    expect(clickOrder(TEST_MAP.terrain, far, false, { pos: { x: 1, y: 1 }, order: { kind: "stopAt", dest: { x: 31, y: 30 } } })).toEqual({ kind: "through", dest: far });
+    expect(clickOrder(TEST_MAP.terrain, far, false, { pos: { x: 1, y: 1 }, order: { kind: "brake" } })).toEqual({ kind: "through", dest: far });
   });
 });
 
@@ -80,6 +83,17 @@ describe("backing up", () => {
     expect(backsToDestination(npc, 5, 0)).toBe(false);
     npc.brain.recovery = 1;
     expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(true);
+  });
+});
+
+describe("parked blockers", () => {
+  it("leaves a truck on a tow rope out of the tower's route", () => {
+    const w = emptyWorld();
+    const tower = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 30, y: 30 });
+    const towed = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 32, y: 30 });
+    addState(w, "tow", tower.id, towed.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
+
+    expect(parkedVehicles(w, tower.id, getHitchedTowIds(w))).not.toContainEqual({ pos: towed.pos, r: chassisDef(towed.chassisId).radius });
   });
 });
 

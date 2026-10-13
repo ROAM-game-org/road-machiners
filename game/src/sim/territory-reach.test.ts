@@ -1,3 +1,4 @@
+import { defaultSetup } from './settings';
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { REGION, type TerritoryDef } from '../data/region';
@@ -7,25 +8,23 @@ import { TEST_MAP } from '../test/map';
 import { propReach } from './mapgen';
 import { findCells, nearestFreeCell, stampOverlay, startComponent } from './nav/astar';
 import { CELL, CLEARANCE, componentOf, navLayer } from './nav/layer';
+import { salvageInRange } from './salvage';
 import { siteGap } from './sites';
-import { isLootSpot, territoryEntries, territoryGrounds } from './territory';
+import { isLootSpot, territoryAt, territoryCaches, territoryEntries, territoryGrounds } from './territory';
 import type { Obstacle } from './types';
 import { dist, lerp, type Vec } from './vec';
 import { newWorld } from './world';
 
-// Reach through Old Orchard on the committed map, measured on the same nav layer routes search.
 const orchard = REGION.locations.find((l) => l.id === 'orchard') as TerritoryDef;
 const farm = TERRITORIES.orchard.farm!;
 const abs = (at: Vec): Vec => ({ x: orchard.pos.x + at.x, y: orchard.pos.y + at.y });
-// The five main roads come first in the farm's list, each ending on the outline. R1, the old highway, starts at the
-// south entry and leaves by the north.
 const MAIN_ROADS = farm.roads.slice(0, 5);
 const [R1, R2, , R4] = MAIN_ROADS;
-const ROUTE_RATIO = 1.5; // longest route from the south entry to a spot's parking ring, per tile of straight line
-const NEAR = 2; // tiles past a parking ring, or from a point, where a free cell still counts
+const ROUTE_RATIO = 1.5;
+const NEAR = 2;
 
 const radius = CHASSIS[START_KITS.standard.chassis].radius;
-const world = newWorld(1337, START_KITS.standard, TEST_MAP);
+const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
 const layer = navLayer(world.terrain, world.obstacles, radius);
 const overlay = stampOverlay(layer, [], radius);
 const cellOf = (p: Vec): number => Math.floor(p.y / CELL) * layer.n + Math.floor(p.x / CELL);
@@ -39,15 +38,12 @@ function nearest(points: readonly Vec[], to: Vec): Vec {
   return points.reduce((a, b) => (dist(b, to) < dist(a, to) ? b : a));
 }
 
-// Tiles along a cell path.
 function pathLength(cells: Int32Array): number {
   let length = 0;
   for (let i = 1; i < cells.length; i++) length += dist(centreOf(cells[i - 1]), centreOf(cells[i]));
   return length;
 }
 
-// The lowest ratio of route length to straight line from `from` to a free cell on the spot's parking ring, where a
-// truck's edge meets the spot's, or up to NEAR tiles past it. Infinity when no such cell is reachable.
 function bestRingRatio(from: Vec, spot: Obstacle): number {
   const start = cellOf(from);
   const component = startComponent(layer, start);
@@ -65,13 +61,10 @@ function bestRingRatio(from: Vec, spot: Obstacle): number {
   return best;
 }
 
-// Whether a free cell of the south entry's component lies within NEAR tiles of the point.
 function reachableNear(p: Vec): boolean {
   return nearestFreeCell(layer, overlay, cellOf(p), southComponent, NEAR / CELL) !== null;
 }
 
-// The authored openings of the perimeter: between two polylines of one side, the ends within 15 tiles of each other.
-// Each gives a point BREACH tiles outside its middle, toward the outline, and one as far inside.
 const BREACH = 2.5;
 function breaches(): { outside: Vec; inside: Vec }[] {
   const isPerimeter = (run: Run): boolean => run.look === PERIMETER.look && run.broken === PERIMETER.broken && run.knocked.share === PERIMETER.knocked.share;
@@ -88,8 +81,6 @@ function breaches(): { outside: Vec; inside: Vec }[] {
   return out;
 }
 
-// Where trucks drive into the orchard: both ends of the old highway, the outer ends of the other main roads and the
-// perimeter's authored openings.
 function entryPoints(): Vec[] {
   return [abs(R1.points[0]), ...MAIN_ROADS.map((road) => abs(road.points.at(-1)!)), ...breaches().map((b) => b.outside)];
 }
@@ -130,4 +121,54 @@ describe('reach through Old Orchard', () => {
       expect(pathLength(cells!), where).toBeLessThanOrEqual(2 * BREACH * 2);
     }
   });
+});
+
+describe('reach to the Fallen Sun and Glass Flats loot spots', () => {
+  const standard = { ...world.vehicles[0] };
+  const territoryOf = (id: string): TerritoryDef => REGION.locations.find((l) => l.id === id) as TerritoryDef;
+
+  function parkedInRange(spot: Obstacle, cell: number): boolean {
+    const stock = world.salvage.find((s) => s.id === spot.id)!;
+    return salvageInRange({ ...standard, pos: centreOf(cell) }, stock);
+  }
+
+  function lootSpots(t: TerritoryDef): Obstacle[] {
+    return world.obstacles.filter((o) => isLootSpot(o) && territoryAt(o.pos)?.id === t.id);
+  }
+
+  function reachableRingCell(entries: readonly Vec[], spot: Obstacle): number | null {
+    const ring = propReach(spot) + radius + CLEARANCE;
+    for (const entry of entries) {
+      const start = cellOf(entry);
+      const component = startComponent(layer, start);
+      for (let k = 0; k < 24; k++) {
+        const angle = (k / 24) * 2 * Math.PI;
+        const goal = cellOf({ x: spot.pos.x + Math.cos(angle) * ring, y: spot.pos.y + Math.sin(angle) * ring });
+        if (componentOf(layer, goal) !== component || !parkedInRange(spot, goal)) continue;
+        if (findCells(layer, overlay, start, goal, null)) return goal;
+      }
+    }
+    return null;
+  }
+
+  it.each([['fallen-sun', 24], ['glass-flats', 21]] as const)('routes a standard truck from an entry of %s to a parking cell in reach of each of its %i loot spots (IV4)', (id, count) => {
+    const t = territoryOf(id);
+    const spotsHere = lootSpots(t);
+    expect(spotsHere).toHaveLength(count);
+    for (const spot of spotsHere) expect(reachableRingCell(territoryEntries(t), spot), spot.id).not.toBeNull();
+  }, 120_000);
+
+  it.each(['fallen-sun', 'glass-flats'] as const)('keeps the ground ahead of every authored cache hatch of %s free in an entry component (IV5)', (id) => {
+    const t = territoryOf(id);
+    const entries = territoryEntries(t);
+    for (const cache of territoryCaches(t)) {
+      const spot = lootSpots(t).find((o) => dist(o.pos, cache.pos) < 1e-3)!;
+      const ahead = propReach(spot) + radius + CLEARANCE;
+      const goal = cellOf({ x: cache.pos.x + Math.cos(cache.yaw) * ahead, y: cache.pos.y + Math.sin(cache.yaw) * ahead });
+      const where = `${spot.id} at ${cache.pos.x.toFixed(1)},${cache.pos.y.toFixed(1)}`;
+      const reaches = entries.some((entry) => componentOf(layer, goal) === startComponent(layer, cellOf(entry)) && findCells(layer, overlay, cellOf(entry), goal, null) !== null);
+      expect(reaches, where).toBe(true);
+      expect(parkedInRange(spot, goal), where).toBe(true);
+    }
+  }, 120_000);
 });

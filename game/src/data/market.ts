@@ -1,18 +1,18 @@
-// Market data: shop profiles and stock, the effort model and contract terms. See src/sim/market.ts.
 
-import { PARTS } from './parts';
+import { PARTS, type PartDef } from './parts';
 import type { Weighted } from './npcs';
 import { TIME } from './time';
 
+
 export type Tier = 1 | 2 | 3;
 
-export type ItemKind = 'weapon' | 'engine' | 'armor' | 'cargo' | 'scanner' | 'store' | 'chassis' | 'good';
+export type ItemKind = 'weapon' | 'engine' | 'armor' | 'cargo' | 'scanner' | 'store' | 'utility' | 'chassis' | 'good';
 
 export const EFFORT = {
   wage: {
-    1: 0.37,
-    2: 1,
-    3: 2.2,
+    1: 12.33,
+    2: 33.33,
+    3: 73.33,
   } as Record<Tier, number>,
 
   bands: {
@@ -23,6 +23,7 @@ export const EFFORT = {
       cargo: [250, 700],
       scanner: [250, 700],
       store: [250, 700],
+      utility: [250, 700],
       chassis: [5000, 7500],
       good: [40, 100],
     },
@@ -33,6 +34,7 @@ export const EFFORT = {
       cargo: [180, 480],
       scanner: [180, 480],
       store: [180, 480],
+      utility: [180, 480],
       chassis: [2800, 4200],
       good: [50, 100],
     },
@@ -43,6 +45,7 @@ export const EFFORT = {
       cargo: [180, 380],
       scanner: [180, 380],
       store: [180, 380],
+      utility: [180, 380],
       chassis: [1900, 2800],
       good: [40, 80],
     },
@@ -63,12 +66,13 @@ export const CONTRACTS = {
   warnTurns: Math.round(TIME.turnsPerDay / 12),
 
   haul: {
-    durationFactor: 8,
-    rewardFactor: 5,
+    durationFactor: 2.5,
+    slackTurns: Math.round(TIME.turnsPerDay / 4),
+    rewardFactor: 24,
     valueShare: 0.05,
     units: [3, 12] as [number, number],
     penaltyShare: 1,
-    xpPerEffort: 0.1,
+    xpPerEffort: 0.003,
     rush: {
       chance: 0.25,
       durationFactor: 1.5,
@@ -80,13 +84,13 @@ export const CONTRACTS = {
     durationTurns: [300, 800] as [number, number],
     searchFeeTurns: 240,
     maxWear: 1,
-    xpPerEffort: 0.15,
+    xpPerEffort: 0.0045,
   },
 
   bounty: {
     durationTurns: [400, 1000] as [number, number],
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
-    xpPerEffort: 0.25,
+    xpPerEffort: 0.0075,
   },
 };
 
@@ -98,7 +102,6 @@ export const DISTANCE_PREMIUM = { perTile: 0.0021 };
 
 export const GOOD_SOURCES: Record<string, string[]> = {
   fuelDrums: ['pump-station'],
-  water: ['dustwell', 'green-pit'],
 };
 
 const GARAGE_WEAR: Weighted<number>[] = [
@@ -114,12 +117,18 @@ const STALL_WEAR: Weighted<number>[] = [
   { value: 4, weight: 1 },
 ];
 
-const NON_CORE_PART_IDS = Object.values(PARTS)
-  .filter((def) => def.kind !== 'core')
-  .map((def) => def.id);
-const GARAGE_PARTS: Weighted<string>[] = NON_CORE_PART_IDS.map((id) => ({ value: id, weight: 1 }));
+const NON_CORE_PARTS = Object.values(PARTS).filter((def) => def.kind !== 'core');
+const PART_SHELF_WEIGHT = { utility: 3, emitter: 0.6, other: 1 };
+const GARAGE_PARTS: Weighted<string>[] = NON_CORE_PARTS.map((def) => ({ value: def.id, weight: shelfWeightOf(def) }));
+
+function shelfWeightOf(def: PartDef): number {
+  if (def.id === 'emitter') return PART_SHELF_WEIGHT.emitter;
+  return def.kind === 'utility' ? PART_SHELF_WEIGHT.utility : PART_SHELF_WEIGHT.other;
+}
 
 export type PartStockTable = { parts: Weighted<string>[]; wear: Weighted<number>[] };
+
+export const GARAGE_STOCK: PartStockTable = { parts: GARAGE_PARTS, wear: GARAGE_WEAR };
 
 export type ShopDef = {
   id: string;
@@ -181,7 +190,10 @@ export const SHOPS: Record<string, ShopDef> = {
     goods: ['scrap', 'parts', 'tools'],
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: ([
+        'plates', 'steelPlate', 'cage', 'scrapPanels', 'scrapSheet', 'ram', 'plowRam', 'mg', 'shotgun', 'rack', 'panniers',
+        'caltrops', 'oilSpiller', 'scrapersKnife', 'patcherCrane', 'claymoreRam',
+      ] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -199,7 +211,7 @@ export const SHOPS: Record<string, ShopDef> = {
     goods: ['grain', 'salt', 'textiles'],
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['rack', 'panniers', 'flatbed', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['rack', 'panniers', 'flatbed', 'scrapPanels', 'scrapSheet', 'cage', 'supplyLocker', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],
@@ -217,7 +229,43 @@ export const SHOPS: Record<string, ShopDef> = {
     goods: ['batteries', 'scrap', 'parts'],
     priceFactor: PRICE_FACTOR,
     partStock: {
-      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'plates', 'jerrycans'] as const).map((id) => ({ value: id, weight: 1 })),
+      parts: (['stockEngine', 'flatFour', 'workhorseDiesel', 'scanner', 'plates', 'jerrycans', 'oilSpiller', 'flareCannon'] as const).map((id) => ({ value: id, weight: 1 })),
+      wear: STALL_WEAR,
+    },
+    stockSize: [2, 4],
+    restockTurns: 300,
+    pressurePerUnit: STALL_PRESSURE_PER_UNIT,
+    driftPerTurn: 0.0075,
+    contractSlots: 1,
+    supplies: ['fuel', 'supplies'],
+  },
+  dustwell: {
+    id: 'dustwell',
+    kind: 'stall',
+    makes: ['water'],
+    needs: ['tools', 'meds'],
+    goods: ['water', 'scrap', 'tools', 'meds'],
+    priceFactor: PRICE_FACTOR,
+    partStock: {
+      parts: (['jerrycans', 'supplyLocker', 'rack', 'panniers', 'scrapPanels', 'plates', 'mg', 'scanner'] as const).map((id) => ({ value: id, weight: 1 })),
+      wear: STALL_WEAR,
+    },
+    stockSize: [2, 4],
+    restockTurns: 300,
+    pressurePerUnit: STALL_PRESSURE_PER_UNIT,
+    driftPerTurn: 0.0075,
+    contractSlots: 1,
+    supplies: ['fuel', 'supplies'],
+  },
+  'green-pit': {
+    id: 'green-pit',
+    kind: 'stall',
+    makes: ['water'],
+    needs: ['salt', 'textiles'],
+    goods: ['water', 'grain', 'salt', 'textiles'],
+    priceFactor: PRICE_FACTOR,
+    partStock: {
+      parts: (['supplyLocker', 'jerrycans', 'flatbed', 'cage', 'scrapSheet', 'shotgun', 'caltrops', 'patcherCrane'] as const).map((id) => ({ value: id, weight: 1 })),
       wear: STALL_WEAR,
     },
     stockSize: [2, 4],

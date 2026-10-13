@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
-import { engineFileFor, hornSoundFor, MIX, scorePhaseOf, SOUNDS } from "../data/sounds";
-import type { SoundPlayer } from "../audio/player";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, scorePhaseOf, SOUNDS } from "../data/sounds";
+import type { Glide, SoundPlayer } from "../audio/player";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { accentOf, CombatScore, CombatWatch, engineGlide, loopLevels, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
+import { accentOf, CombatScore, CombatWatch, engineGlide, EngineStrain, loopLevels, musicPlaceAt, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
 import type { CameraRig } from "./render/camera";
+import { TEST_MAP } from '../test/map';
 
 describe("stingOf", () => {
   it("plays the most important result only", () => {
     const events: GameEvent[] = [
-      { t: "money", amount: 20, reason: "sale" },
+      { t: "money", amount: 20, reason: { kind: "contract" } },
       { t: "skillUp", skill: "driving", level: 2 },
       { t: "discover", location: "oasis" },
     ];
@@ -19,20 +20,29 @@ describe("stingOf", () => {
   });
   it("ignores spending and arrivals", () => {
     const events: GameEvent[] = [
-      { t: "money", amount: -5, reason: "fuel" },
+      { t: "money", amount: -5, reason: { kind: "failedHaul" } },
       { t: "arrived", vehicle: "npc1" },
     ];
     expect(stingOf(events, "p")).toBeNull();
     expect(stingOf([{ t: "arrived", vehicle: "p" }], "p")).toBeNull();
   });
-  it("plays the defeat cue on a knockout", () => {
-    expect(stingOf([{ t: "skillUp", skill: "driving", level: 2 }, { t: "knockout" }], "p")).toBe("defeat");
+  it("plays no sting on a knockout, which is only a log line and a mark", () => {
+    expect(stingOf([{ t: "knockout" }], "p")).toBeNull();
   });
 });
 
 describe("loopLevels", () => {
-  const calm = { stormShare: 0, inCombat: false, place: null, paused: false } as const;
+  const calm = { stormShare: 0, inCombat: false, inQuest: false, place: null, paused: false } as const;
   const gains = (l: ReturnType<typeof loopLevels>) => [l.calmGain, l.townGain, l.outpostGain, l.abandonedGain, l.combatGain];
+  it("plays quest music over every other music while a quest is open, unmuffled", () => {
+    for (const place of [null, "town", "outpost", "abandoned"] as const)
+      for (const inCombat of [true, false]) {
+        const l = loopLevels({ ...calm, place, inCombat, inQuest: true, paused: true }, MIX);
+        expect([l.questGain, ...gains(l)]).toEqual([1, 0, 0, 0, 0, 0]);
+        expect(l.musicCutoffHz).toBe(MIX.music.openCutoffHz);
+      }
+    expect(loopLevels(calm, MIX).questGain).toBe(0);
+  });
   it("raises the wind with the player's storm share", () => {
     expect(loopLevels(calm, MIX).windGain).toBe(MIX.wind.baseGain);
     expect(loopLevels({ ...calm, stormShare: 0.5 }, MIX).windGain).toBeCloseTo((MIX.wind.baseGain + MIX.wind.stormGain) / 2);
@@ -44,11 +54,11 @@ describe("loopLevels", () => {
   });
   it("finds the music place of a town, an outpost, a territory and the open road", () => {
     const territory = (id: string) => REGION.locations.find((l) => l.id === id)!.pos;
-    expect(musicPlaceAt(siteGates(REGION.towns[0])[0])).toBe("town");
-    expect(musicPlaceAt(siteGates(OUTPOSTS[0])[0])).toBe("outpost");
-    expect(musicPlaceAt(territory("fallen-sun"))).toBe("abandoned");
-    expect(musicPlaceAt(territory("orchard"))).toBe("abandoned");
-    expect(musicPlaceAt({ x: 0, y: 0 })).toBeNull();
+    expect(musicPlaceAt(TEST_MAP.terrain, siteGates(REGION.towns[0])[0])).toBe("town");
+    expect(musicPlaceAt(TEST_MAP.terrain, siteGates(OUTPOSTS[0])[0])).toBe("outpost");
+    expect(musicPlaceAt(TEST_MAP.terrain, territory("fallen-sun"))).toBe("abandoned");
+    expect(musicPlaceAt(TEST_MAP.terrain, territory("orchard"))).toBe("abandoned");
+    expect(musicPlaceAt(TEST_MAP.terrain, { x: 0, y: 0 })).toBeNull();
   });
   it("plays each place's own music, and combat music over it", () => {
     expect(gains(loopLevels({ ...calm, place: "town" }, MIX))).toEqual([0, 1, 0, 0, 0]);
@@ -105,44 +115,169 @@ describe("engine sound assignment", () => {
     expect(() => engineFileFor("unknown")).toThrow("Unknown chassis");
   });
 
-  it("changes the engine loop only when the chassis changes", () => {
+  it("gives light trucks and heavy trucks different strained loops", () => {
+    for (const id of Object.keys(CHASSIS)) expect(SOUNDS["engine-strain"].files).toContain(engineStrainFileFor(id));
+    expect(engineStrainFileFor("scout")).not.toBe(engineStrainFileFor("hauler"));
+    expect(() => engineStrainFileFor("unknown")).toThrow("Unknown chassis");
+  });
+
+  it("changes the healthy and strained engine loops together, and only when the chassis changes", () => {
     const started: string[] = [];
-    const stopped: number[] = [];
+    const stopped: string[] = [];
+    const glides: Record<string, Glide[]> = {};
     const player = {
       loop: (id: string, _at: unknown, file?: string) => {
-        if (id === "engine") started.push(file ?? "random");
-        return { glide: () => {}, once: () => {}, setGain: () => {}, stop: (ms: number) => stopped.push(ms) };
+        const name = file ?? id;
+        if (id === "engine" || id === "engine-strain") started.push(name);
+        return {
+          glide: (g: Glide) => (glides[name] ??= []).push(g),
+          once: () => {},
+          setGain: () => {},
+          stop: () => stopped.push(name),
+        };
       },
     } as unknown as SoundPlayer;
     const loops = new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} });
     const glide = engineGlide(0, 10, 1, MIX, false)!;
 
-    loops.drive(glide, "scout");
-    loops.drive(glide, "scout");
-    loops.drive(glide, "hauler");
+    loops.drive(glide, "scout", { from: 0, to: 0 });
+    loops.drive(glide, "scout", { from: 1, to: 1 });
+    loops.drive(glide, "scout", { from: 1, to: 0.5 });
+    loops.drive(glide, "hauler", { from: 0, to: 0 });
 
-    expect(started).toEqual([engineFileFor("scout"), engineFileFor("hauler")]);
-    expect(stopped).toEqual([0]);
+    expect(started).toEqual([
+      engineFileFor("scout"),
+      engineStrainFileFor("scout"),
+      engineFileFor("hauler"),
+      engineStrainFileFor("hauler"),
+    ]);
+    expect(stopped).toEqual([engineFileFor("scout"), engineStrainFileFor("scout")]);
+    expect(glides[engineFileFor("scout")].map((g) => g.gainFrom)).toEqual([glide.gainFrom, 0, 0]);
+    expect(glides[engineStrainFileFor("scout")].map((g) => g.gainFrom)).toEqual([0, glide.gainFrom, glide.gainFrom]);
+  });
+
+  it("plays the strained engine on the same bus and level as the engine, so mute and volume match", () => {
+    expect(SOUNDS["engine-strain"].bus).toBe(SOUNDS.engine.bus);
+    expect(SOUNDS["engine-strain"].volume).toBe(SOUNDS.engine.volume);
+    expect(SOUNDS["engine-strain"].loop).toBe(true);
+  });
+});
+
+describe("engine strain", () => {
+  const run = (turns: [number, boolean][]) => {
+    const strain = new EngineStrain();
+    return turns.map(([turn, damaging]) => strain.next(turn, damaging));
+  };
+
+  it("strains fully from the start of the first damaging turn", () => {
+    expect(run([[5, true]])).toEqual([{ from: 1, to: 1 }]);
+  });
+
+  it("falls back to healthy over two turns once damage stops, then stays healthy", () => {
+    expect(run([[1, true], [2, false], [3, false], [4, false]])).toEqual([
+      { from: 1, to: 1 },
+      { from: 1, to: 1 - MIX.engine.strainRelease },
+      { from: 0.5, to: 0 },
+      { from: 0, to: 0 },
+    ]);
+  });
+
+  it("never drops to none and back to full when damage flips every turn", () => {
+    const levels = run([[1, true], [2, false], [3, true], [4, false]]);
+    expect(levels.map((s) => s.to)).toEqual([1, 0.5, 1, 0.5]);
+    expect(levels.every((s) => s.from > 0)).toBe(true);
+  });
+
+  it("starts healthy after a gap in turns, like a parked turn or a loaded save", () => {
+    expect(run([[1, true], [3, false]])).toEqual([{ from: 1, to: 1 }, { from: 0, to: 0 }]);
+    expect(run([[9, true], [2, false]])).toEqual([{ from: 1, to: 1 }, { from: 0, to: 0 }]);
+  });
+
+  it("never strains a turn without heat damage", () => {
+    expect(run([[1, false], [2, false], [3, false]]).every((s) => s.from === 0 && s.to === 0)).toBe(true);
+  });
+});
+
+describe("strainGlides", () => {
+  const g = engineGlide(5, 15, 1, MIX, true)!;
+
+  it("splits the engine level between the layers and keeps both rates", () => {
+    const { healthy, strained } = strainGlides(g, { from: 1, to: 0.5 });
+    expect(healthy.gainFrom + strained.gainFrom).toBeCloseTo(g.gainFrom);
+    expect(healthy.gainTo + strained.gainTo).toBeCloseTo(g.gainTo);
+    expect(strained.gainFrom).toBeCloseTo(g.gainFrom);
+    expect(strained.gainTo).toBeCloseTo(g.gainTo / 2);
+    for (const layer of [healthy, strained]) {
+      expect([layer.rateFrom, layer.rateTo, layer.seconds, layer.fadeSeconds]).toEqual([g.rateFrom, g.rateTo, g.seconds, g.fadeSeconds]);
+    }
+  });
+
+  it("leaves the strained layer silent without strain", () => {
+    const { healthy, strained } = strainGlides(g, { from: 0, to: 0 });
+    expect([strained.gainFrom, strained.gainTo]).toEqual([0, 0]);
+    expect([healthy.gainFrom, healthy.gainTo]).toEqual([g.gainFrom, g.gainTo]);
+  });
+});
+
+describe("engine strain log", () => {
+  it("logs strain only on turns that have some", () => {
+    const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
+    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null });
+    director.engineStrain({ from: 0, to: 0 });
+    director.engineStrain({ from: 1, to: 0.5 });
+    director.engineStrain({ from: 0.5, to: 0 });
+    expect(director.log).toEqual(["engine-strain 1.0->0.5", "engine-strain 0.5->0.0"]);
   });
 });
 
 describe("next track", () => {
   const fake = () => {
     const calm: { file?: string; gains: number[]; stops: number[] }[] = [];
+    const quest: { file?: string; gains: number[]; stops: number[] }[] = [];
+    const abandoned: { file?: string; gains: number[]; stops: number[] }[] = [];
     const player = {
       setBusTone: () => {},
       loop: (id: string, _at: unknown, file?: string) => {
         const handle = { file, gains: [] as number[], stops: [] as number[] };
         if (id === "music-calm") calm.push(handle);
+        if (id === "music-quest") quest.push(handle);
+        if (id === "music-abandoned") abandoned.push(handle);
         return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
-    return { calm, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
+    return { calm, quest, abandoned, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
   };
+  const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
+
+  it("starts the next quest track on each quest and fades the calm music under it", () => {
+    const { calm, quest, loops } = fake();
+    loops.update(road);
+    loops.update({ ...road, inQuest: true });
+    loops.update(road);
+    loops.update({ ...road, inQuest: true });
+    expect(quest.map((q) => q.gains)).toEqual([[0], [1, 0], [1]]);
+    expect(quest[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
+    expect(new Set(quest.slice(0, 3).map((q) => q.file)).size).toBe(SOUNDS["music-quest"].files.length);
+    expect(calm[0].gains).toEqual([1, 0]);
+    expect(calm[1].gains).toEqual([1, 0]);
+  });
+
+  it("starts the next ruin track each time the player enters a territory", () => {
+    const { abandoned, loops } = fake();
+    const ruins = { ...road, place: "abandoned" } as const;
+    loops.update(road);
+    loops.update(ruins);
+    loops.update(road);
+    loops.update(ruins);
+    loops.update(road);
+    loops.update(ruins);
+    expect(abandoned.map((a) => a.gains)).toEqual([[0], [1, 0], [1, 0], [1]]);
+    expect(new Set(abandoned.slice(0, 3).map((a) => a.file)).size).toBe(SOUNDS["music-abandoned"].files.length);
+  });
 
   it("crossfades the calm music to a new track at its current level", () => {
     const { calm, loops } = fake();
-    loops.update({ stormShare: 1, inCombat: false, place: null, paused: false });
+    loops.update(road);
     loops.nextTrack();
     expect(calm).toHaveLength(2);
     expect(calm[0].stops).toEqual([MIX.music.fadeSeconds * 1000]);
@@ -160,7 +295,7 @@ describe("next track", () => {
 
   it("keeps the new track silent in combat", () => {
     const { calm, loops } = fake();
-    loops.update({ stormShare: 1, inCombat: true, place: null, paused: false });
+    loops.update({ ...road, inCombat: true });
     loops.nextTrack();
     expect(calm[1].gains).toEqual([0]);
   });

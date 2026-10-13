@@ -8,6 +8,10 @@ import { deckSegments, heightFromElevation } from './terrain';
 import { gradePaths, gradeRoads } from './road-grade';
 import { TEST_MAP } from '../test/map';
 import { dist, type Vec } from './vec';
+import { insideCurtain } from './fortress';
+import { isFortress } from './sites';
+import { ICARUS_DECKS } from './bridge';
+import { ICARUS_KEY } from './atlas';
 
 const STORED_STEP = 1 / MAPGEN.heightScale;
 
@@ -22,15 +26,22 @@ function walk(road: readonly Vec[]): Vec[] {
   return points;
 }
 
+const FORTRESSES = [...REGION.towns, ...REGION.locations].filter(isFortress);
+
+function behindCurtain(p: Vec): boolean {
+  return FORTRESSES.some((site) => insideCurtain(site, p, 0));
+}
+
 function steepest(road: readonly Vec[]): number {
   const t = TEST_MAP.terrain;
   const n = t.size + 1;
   let max = 0;
   for (const p of walk(road)) {
+    if (behindCurtain(p)) continue;
     const x = Math.floor(p.x);
     const y = Math.floor(p.y);
     const corners = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
-    if (corners.some(([cx, cy]) => bridgeCut(cx, cy) > 0)) continue;
+    if (corners.some(([cx, cy]) => bridgeCut(ICARUS_DECKS, cx, cy) > 0)) continue;
     for (const [ax, ay] of corners) for (const [bx, by] of corners) {
       if (ax === bx && ay === by) continue;
       max = Math.max(max, Math.abs(t.heights[by * n + bx] - t.heights[ay * n + ax]) / Math.hypot(bx - ax, by - ay));
@@ -45,6 +56,15 @@ describe('road grades', () => {
     for (const grade of grades) expect(grade).toBeLessThanOrEqual(TERRAIN.roadGrade + STORED_STEP);
   });
 
+  it('skips only road behind fortress curtains, which includes the road into the Bowl pit', () => {
+    const skipped = REGION.roads.flatMap((road) => walk(road).filter(behindCurtain));
+    const bowl = FORTRESSES.find((site) => site.id === 'bowl');
+    if (bowl === undefined) throw new Error('Bowl is no fortress');
+    expect(skipped.some((p) => insideCurtain(bowl, p, 0))).toBe(true);
+    const outside = REGION.roads.flatMap((road) => walk(road).filter((p) => !behindCurtain(p)));
+    expect(outside.length).toBeGreaterThan(skipped.length);
+  });
+
   it('keeps the Canyon Bridge deck of the baked map within the road grade', () => {
     const deck = deckById('canyon-bridge');
     const [{ h0, h1, length }] = deckSegments(TEST_MAP.terrain, deck);
@@ -55,7 +75,7 @@ describe('road grades', () => {
     const size = REGION.size;
     const heights: number[] = [];
     for (let j = 0; j <= size; j++) for (let i = 0; i <= size; i++) heights.push(heightFromElevation(elevationAt(1337, i, j)));
-    const graded = gradeRoads({ size, heights, types: [] });
+    const graded = gradeRoads({ size, heights, types: [], atlas: ICARUS_KEY });
     const reach = REGION.roadWidth / 2 + TERRAIN.flattenMargin;
     let checked = 0;
     for (let j = 0; j <= size; j += 7) for (let i = 0; i <= size; i += 7) {
@@ -71,7 +91,7 @@ describe('path grades', () => {
   const SIZE = 40;
   const ROW = SIZE + 1;
   const hump = (x: number) => 2 * Math.exp(-((x - 20) ** 2) / (2 * 5 ** 2));
-  const raw = { size: SIZE, heights: Array.from({ length: ROW * ROW }, (_, k) => hump(k % ROW)), types: [] };
+  const raw = { size: SIZE, heights: Array.from({ length: ROW * ROW }, (_, k) => hump(k % ROW)), types: [], atlas: ICARUS_KEY };
   const path = { points: [{ x: 2, y: 20 }, { x: 38, y: 20 }], width: 2, grade: TERRAIN.roadGrade };
   const [GRADE, MARGIN] = [TERRAIN.roadGrade, 4];
   const graded = gradePaths(raw, [path], MARGIN);

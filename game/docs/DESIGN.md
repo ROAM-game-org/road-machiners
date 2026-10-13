@@ -4,6 +4,8 @@ RoaM or Road Machiners is a turn-based post-apocalyptic wasteland RPG where you 
 
 Inspired by Ex Machina, Space Rangers 2, Kenshi, Dustland Delivery, Caravaneer 2 and more.
 
+The idea behind the game is in [Theme](theme.md). Every principle below answers to it.
+
 # Staple Principles
 
 1. Immersive role-playing sandbox
@@ -40,6 +42,10 @@ The player is not a Chosen one, gets no plot armor or special treatment. It's do
 
 The lore and atmosphere is based on contrasts between the pre-apocalypse Old World and the currently living New World. Armed trucks are riding around crashed spaceships on what used to be farming fields.
 
+9. Show, don't tell
+
+The game shows how things are through the world and the screen, not through words. A gun's reach is a drawn arc, a hurt truck looks more worn as it takes damage, a driver's nature shows in how it drives and fights. Text explains only what nothing else can show, and never repeats what the player already sees.
+
 # Core systems
 
 Each section states what a system is for and the rules it must keep. The detailed rules live in [docs/wiki/mechanics/](wiki/mechanics/), and the numbers and content tables in [docs/wiki/](wiki/README.md).
@@ -52,7 +58,7 @@ Details: [character](wiki/mechanics/character.md), [skills tables](wiki/skills.m
 
 ## Truck
 
-The truck is equipment, not the character. It can be changed, upgraded, stripped and lost. The inventory grid is a top view of the truck where every cell is a tradeoff: a deck cell holds a gun, a scanner or cargo, never all three. Mass and engine power are soft limits: each kilogram and each gun costs speed, so no truck is best at everything. Every part has one job and one weakness, and no part beats another of its kind at everything but price. Parts wear, break down on the road and finally turn to junk, so a loadout never settles for good and old trucks give way to new ones.
+The truck is equipment, not the character. It can be changed, upgraded, stripped and lost. The inventory grid is a top view of the truck where every cell is a tradeoff: a deck cell holds a gun, a scanner or cargo, never all three. Mass and engine power are soft limits: each kilogram and each gun costs speed, so no truck is best at everything. Every part has one job and one weakness, and no part beats another of its kind at everything but price. Parts wear, break down on the road and finally turn to junk, so a loadout never settles for good and old trucks give way to new ones. Most trucks run on rebuilt parts and pristine ones are rare. Better gear tilts a fight but does not decide it: of two like trucks, the one with parts two wear steps less worn wins about two fights in three.
 
 Details: [truck](wiki/mechanics/truck.md), [items tables](wiki/items.md).
 
@@ -84,7 +90,7 @@ Details: [sight and detection](wiki/mechanics/detection.md).
 
 Icarus is one fixed region where danger is set by place, not by the player's level. The land tells the story of the Old World under the New World: farm fields, ruins and old highways around crash wreckage and truck roads. Towns and sites are fixed places that trucks use from pads outside their gates. Lawmen patrol the roads around their towns, so few drivers start trouble at a town gate, and raiders patrol around their camps. Time of day, sun, shade and weather change what a route costs in fuel, supplies, sight and engine heat.
 
-Details: [world](wiki/mechanics/world.md), [lore](lore.md), [visual design](VISUAL_DESIGN.md).
+Details: [world](wiki/mechanics/world.md), [world settings](wiki/mechanics/world-settings.md), [lore](lore.md), [visual design](VISUAL_DESIGN.md).
 
 ## NPCs
 
@@ -94,13 +100,13 @@ Details: [NPCs](wiki/mechanics/npcs.md), [NPC tables](wiki/npcs.md).
 
 ## Social
 
-Every truck has a radio, as in Space Rangers 2. Talk is the main way the wasteland resolves things: directions, trade, tows, patches, aid, demands, truces and mercy. Most fights can end in a deal instead of a wreck. Helping others pays in experience and in goodwill. Robbing pays in cargo and in feuds. A driver's traits decide its voice and what it will talk about.
+Every truck has a radio, as in Space Rangers 2. Talk is the main way the wasteland resolves things: directions, trade, tows, patches, aid, demands, truces and mercy. Most fights can end in a deal instead of a wreck. Drivers argue over loot, and anyone can warn anyone off a wreck. Helping others pays in experience and in goodwill. Robbing pays in cargo and in feuds. A driver's traits decide its voice and what it will talk about.
 
 Details: [social](wiki/mechanics/social.md).
 
 ## Economy
 
-The wasteland is a living economy that NPC traders move as much as the player. Every item has one value, and every price is a formula from it. Goods are cheap where they are made and dear far away, so profit comes from knowing routes, as in Dustland Delivery. Loot is finite and refills slowly, and nothing appears offscreen to keep the economy going. One turn of play is the unit of effort, and every price and reward is balanced against what a turn earns. Fuel and supplies limit how far a truck can go.
+The wasteland is a living economy that NPC traders move as much as the player. Every item has one value, and every price is a formula from it. Goods are cheap where they are made and dear far away, so profit comes from knowing routes, as in Dustland Delivery. Loot is finite and refills slowly, and nothing appears offscreen to keep the economy going. One turn of play is the unit of effort, and every price and reward is balanced against what a turn earns. One M is the price of 5 L of fuel at a town, and every price reads against it. Fuel and supplies limit how far a truck can go.
 
 Details: [economy](wiki/mechanics/economy.md), [economy reference](wiki/economy.md), [prototype content](wiki/mechanics/content.md).
 
@@ -109,3 +115,19 @@ Details: [economy](wiki/mechanics/economy.md), [economy reference](wiki/economy.
 The game shows what the player needs to decide and hides what they should discover. The HUD shows state. The log tells important events and the story, never mechanical state like reloads. Hidden things, like a driver's traits, show themselves through behavior first.
 
 In-character and out-of-character info is separated. For example, in talking NPCs never mention "turns", "quests" or things like that to avoid immersion-breaking. 
+
+## Game modes
+
+Roaming is the sandbox every section above describes. Another mode is a separate world picked at New game, and it changes only the rules it names. Every mode keeps the world settings, the truck, driving and tactical combat.
+
+Chaos Highway is a highway combat run on its own map, never on Icarus: an endless generated four-lane highway that runs north, from the bottom left of the screen to the top right under the same camera, and bends now and then so the player must steer. Walled forts stand at its milestones. Flat verges either side give room to turn and fight at gun range. The road carries hazard scenes built from the game's wrecks, barriers, rocks and hull plates, each with a cause and a way through, between open stretches where the fights happen. Each stretch between forts is a level. Its hostile groups mix every kind of vehicle and driver, come from ahead and either side at their own speed, and arrive about 20 seconds of quiet driving apart. The player owns two trucks: a gun truck, and a heavy 18-wheeler, the hauler, that drives itself north on its own lane at a steady speed and never fights, and whose driver is the player's employee. The hostile groups go for the hauler first. They grow stronger and more numerous every stretch without end, measured against the gear a winning player could own by then, so every run ends sooner or later. The hauler reaching the fort wins the level at once, even in pursuit: it pays a fixed sum, and the hostiles left leave the road. Driving the gun truck ahead wins nothing, so a fast truck cannot skip the fights. The next level starts when the player chooses to wait for the road there, and its land is generated seamless with the last. It has no traffic, salvage or shops. Each mode difference is a named switch in the mode's row. The committee approved these exceptions for Chaos Highway only:
+
+- Combat: hostile groups find the hauler and fight until a truck is beaten. They hold their fire on the gun truck until it shoots them or hurts them in a crash, and then they turn on it until it leaves their sight. A fight ends when a truck is knocked out or wrecked, or the two part. A beaten truck leaves no loot. A knocked-out one gets up later and leaves the road. Beating a truck pays nothing.
+- Defeat and recovery: a beaten NPC is knocked out or wrecked by the normal rules. A beaten player truck, or a beaten hauler, is never knocked out and ends the run. The hauler is the player's own truck, so it follows the rule for the player's truck and not the NPC rules. A stranded truck of the two with no way to patch ends the run. There are no tows, beacon or town patches. Restart run starts a new run with the same settings.
+- Social: no radio, hails, horn, pleas, truces, mercy or surrender.
+- Economy: money comes from fixed outpost payouts, not loot, trade or beaten trucks. Outposts are garages with storage and instant refits for both trucks, from one wallet. They sell repairs, fuel, supplies, repair parts, six armor parts, five guns, two parts of every other type and three trucks. The hauler takes armor, engine and cargo parts only.
+- The hauler's driver never fights, flees or swerves at random. The NPC section says anything a driver can do keeps a small chance, and this is the exception: the hauler is an escort the player has to read, so its driver is predictable.
+- Life is valued (principle 4) does not hold: nobody surrenders or flees.
+
+Details: [Chaos Highway](wiki/mechanics/fury-road.md).
+

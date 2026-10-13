@@ -1,30 +1,43 @@
-// The Save and Load panels. Save lists the manual slots and writes the world into the one clicked. Load lists every
-// filled slot, newest first, and loads the one clicked. Save writes at once. Load asks first, since it drops progress.
 
-import { clockOf } from "../sim/sun";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
+import { bindAttr, say } from "../text/language";
+import { date, t, type Msg } from "../text/msg";
+import { modeName } from "../text/names";
 import { el, panel } from "./dom";
+import { clock } from "./format";
 
 export type SavePanelActions = {
   list: () => SlotInfo[];
   manualSlots: () => SlotId[];
   save: (slot: SlotId) => void;
-  requestBoot: (slot: SlotId) => void;
+  reboot: (slot: SlotId) => void;
+  exportSave: () => void;
+  exportLog: () => void;
 };
 
-const DAMAGED = "Old or damaged save";
-
-function clockText(turn: number): string {
-  const { day, hour } = clockOf(turn);
-  const h = Math.floor(hour);
-  const m = Math.floor((hour - h) * 60);
-  return `Day ${day}, ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+export function slotDetail(info: SlotInfo | null): { text: Msg; tone: "dim" | "bad" | "num" } {
+  if (info === null) return { text: t("save.empty"), tone: "dim" };
+  if (info.turn === null) return { text: t("save.damaged"), tone: "bad" };
+  return { text: clock(info.turn).full, tone: "num" };
 }
 
-function savedText(info: SlotInfo): string {
-  const real = info.savedAt > 0 ? ` (${new Date(info.savedAt).toLocaleString()})` : "";
-  return info.turn === null ? DAMAGED : `${clockText(info.turn)}${real}`;
+export function slotRealTime(info: SlotInfo | null): Msg | null {
+  return info !== null && info.savedAt > 0 ? date(info.savedAt) : null;
+}
+
+function detailEl(info: SlotInfo | null): HTMLElement {
+  const { text, tone } = slotDetail(info);
+  return el("span", { class: `save-when ${tone}` }, text);
+}
+
+export function slotMode(info: SlotInfo | null): Msg | null {
+  return info?.mode ? modeName(info.mode) : null;
+}
+
+function nameEl(slot: SlotId, info: SlotInfo | null): HTMLElement {
+  const mode = slotMode(info);
+  return el("span", { class: "save-name" }, el("b", {}, slotLabel(slot)), ...(mode ? [el("span", { class: "dim" }, mode)] : []));
 }
 
 export class SavePanel {
@@ -50,12 +63,18 @@ export class SavePanel {
   openSave(): void {
     const infos = new Map(this.actions.list().map((info) => [info.slot, info]));
     const rows = this.actions.manualSlots().map((slot) => this.row(slot, infos.get(slot) ?? null, () => this.saveInto(slot)));
-    this.show("Save", rows);
+    const exports = el(
+      "div",
+      { class: "save-exports" },
+      el("button", { onclick: () => this.actions.exportSave(), title: t("save.exportSaveTitle") }, t("save.exportSave")),
+      el("button", { onclick: () => this.actions.exportLog(), title: t("save.exportLogTitle") }, t("save.exportLog")),
+    );
+    this.show(t("menu.save"), [...rows, exports]);
   }
 
   openLoad(): void {
     const rows = this.actions.list().map((info) => this.row(info.slot, info, () => this.loadFrom(info.slot)));
-    this.show("Load", rows.length > 0 ? rows : [el("div", { class: "dim" }, "No saves yet")]);
+    this.show(t("menu.load"), rows.length > 0 ? rows : [el("div", { class: "dim" }, t("save.none"))]);
   }
 
   private saveInto(slot: SlotId): void {
@@ -64,22 +83,20 @@ export class SavePanel {
   }
 
   private loadFrom(slot: SlotId): void {
-    if (!window.confirm("Load this save? Progress since your last save is lost.")) return;
-    this.actions.requestBoot(slot);
-    window.location.reload();
+    if (!window.confirm(say(t("save.confirmLoad")))) return;
+    this.actions.reboot(slot);
   }
 
   private row(slot: SlotId, info: SlotInfo | null, onclick: () => void): HTMLElement {
-    const detail = info === null ? "Empty" : savedText(info);
-    return el("button", { class: "save-row", "data-slot": slot, onclick }, el("b", {}, slotLabel(slot)), el("span", {}, detail));
+    return el("button", { class: "save-row", "data-slot": slot, title: slotRealTime(info) ?? undefined, onclick }, nameEl(slot, info), detailEl(info));
   }
 
-  private show(title: string, rows: HTMLElement[]): void {
+  private show(title: Msg, rows: HTMLElement[]): void {
     this.close();
-    this.root = panel("save-panel");
+    this.root = panel("save-panel dialog");
     this.root.setAttribute("role", "dialog");
-    this.root.setAttribute("aria-label", title);
-    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, "Close"));
+    bindAttr(this.root, "aria-label", title);
+    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc")));
     window.addEventListener("keydown", this.onKey, true);
   }
 }

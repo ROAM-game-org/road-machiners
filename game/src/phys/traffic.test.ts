@@ -11,6 +11,7 @@ import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { defaultSetup } from '../sim/settings';
 
 beforeAll(async () => {
   await initPhysics();
@@ -18,7 +19,7 @@ beforeAll(async () => {
 
 describe('invariants under AI traffic', () => {
   it('no negative HP, fuel, supplies, health or money over 80 turns', async () => {
-    let w = setMoveOrder(newWorld(11, START_KITS.standard, TEST_MAP), { kind: 'stopAt', dest: { x: 45, y: 15 } });
+    let w = setMoveOrder(newWorld(11, START_KITS.standard, TEST_MAP, defaultSetup('roaming')), { kind: 'stopAt', dest: { x: 45, y: 15 } });
     let d = buildDrive(w);
     for (let i = 0; i < 80; i++) {
       if (w.player.call) w = hangUp(w);

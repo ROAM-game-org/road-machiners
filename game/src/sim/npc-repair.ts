@@ -1,5 +1,3 @@
-// NPC field repairs: which part to patch, where to park for it, and the repair jobs. Shared jobs complete repairs
-// and spend parts. src/sim/npc-activities.ts decides when a repair goal goes on the stack.
 
 import { NPC_BEHAVIOR, NPC_UPKEEP } from '../data/npcs';
 import { isJunk, maxHp } from './wear';
@@ -82,7 +80,7 @@ export function chooseNpcRepair(world: World, vehicle: Vehicle, condition: numbe
     targetId: null,
     destination,
     phase: destination ? 'travel' : 'act',
-    reason: 'patch damaged parts',
+    reason: 'patchParts',
   };
 }
 

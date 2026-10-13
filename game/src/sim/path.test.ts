@@ -8,19 +8,23 @@ import { resetPerf, perfSnapshot } from '../perf';
 import { PHYSICS } from '../data/physics';
 import { boxDistance, boxSegmentDistance, isDriveObstacle, propBoxes, propReach } from './mapgen';
 import { findCells, nearestFreeCell, stampOverlay } from './nav/astar';
-import { COARSE, componentOf, dynamicBlockers, navLayer, onRouteRoad, terrainNav, tileIndex } from './nav/layer';
+import { COARSE, componentOf, dynamicBlockers, navLayer, offRoadTaste, onRouteRoad, tasteKey, tasteOf, terrainNav, tileIndex } from './nav/layer';
 import { continueRoute, keepRoute, route, routeLength, straightClear, type Blocker } from './path';
 import { nextRandom } from './rng';
 import { isCliff, tileAt, tileSlope, type Terrain } from './terrain';
-import type { Obstacle, Vehicle, World } from './types';
-import { siteGap, siteGates } from './sites';
+import type { NpcActivity, Obstacle, Vehicle, World } from './types';
+import type { TraitId } from '../data/npcs';
+import { siteGap, siteGates, sitePads } from './sites';
+import { raiderGrounds, raiderPatrolPosts } from './npc-decisions';
+import { ROAD_INDEX } from './road-index';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain } from './testkit';
 import { dist, polylineDist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { defaultSetup } from './settings';
 
-const w1337 = newWorld(1337, START_KITS.standard, TEST_MAP);
+const w1337 = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
 
 describe("route", () => {
   it("goes straight when nothing is in the way", () => {
@@ -119,15 +123,6 @@ describe("route", () => {
     expect(dist(pts.at(-1)!, { x: 70, y: 30 })).toBeLessThan(0.01);
   });
 
-
-  it('town buildings fit inside the blocked site instead of the road', () => {
-    const w = w1337;
-    for (const town of REGION.towns) {
-      const buildings = w.obstacles.filter((o) => o.kind === 'building' && o.id.startsWith(`bld-${town.id}-`));
-      expect(buildings.length).toBeGreaterThan(0);
-      for (const building of buildings) expect(dist(building.pos, town.pos) + building.r).toBeLessThanOrEqual(town.radius);
-    }
-  });
 
   it('player routes on the real map stay direct', () => {
     const w = w1337;
@@ -373,6 +368,91 @@ describe('routes prefer roads', () => {
     const pts = route(w, a, b, 0.6, []);
     expect(routeLength(a, pts)).toBeLessThan(1.2 * dist(a, b));
   });
+
+  describe('hunting raiders', () => {
+    function driverOn(w: World, faction: 'raiders' | 'traders', traits: TraitId[], kind: NpcActivity['kind']): Vehicle {
+      const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 0, y: 0 });
+      v.id = 'v7';
+      v.brain = npcBrain('buggy', { x: 0, y: 0 }, traits);
+      v.brain.goals = [{ kind, targetId: null, destination: null, phase: 'travel', reason: 'idle' }];
+      return v;
+    }
+    function drivers(w: World) {
+      return { raider: driverOn(structuredClone(w), 'raiders', ['raider'], 'raid'), trader: driverOn(structuredClone(w), 'traders', ['trader'], 'trade') };
+    }
+    const straightRoad = () => roadWorld([{ x: 40, y: 100 }, { x: 220, y: 100 }]);
+    const onRoadLength = (w: World, from: Vec, pts: Vec[]) => roadShare(w, from, pts) * routeLength(from, pts);
+
+    it('a raider on a raid routes off the road between two open points beside it, while a trader takes it', () => {
+      const w = straightRoad();
+      const { raider, trader } = drivers(w);
+      const a = { x: 100, y: 106 };
+      const b = { x: 160, y: 106 };
+
+      const hunting = route(w, a, b, 0.6, [], raider);
+      const trading = route(w, a, b, 0.6, [], trader);
+
+      expect(roadShare(w, a, hunting)).toBeLessThan(0.05);
+      expect(roadShare(w, a, trading)).toBeGreaterThan(0.7);
+    });
+
+    it('a raider on a raid leaves a straight road between two points on it', () => {
+      const w = straightRoad();
+      const { raider, trader } = drivers(w);
+      const a = { x: 100, y: 100 };
+      const b = { x: 160, y: 100 };
+
+      const hunting = route(w, a, b, 0.6, [], raider);
+
+      expect(roadShare(w, a, hunting)).toBeLessThan(0.25);
+      expect(route(w, a, b, 0.6, [], trader)).toEqual([b]);
+    });
+
+    it('a raider crossing a road crosses it rather than following it', () => {
+      const w = straightRoad();
+      const { raider, trader } = drivers(w);
+      const a = { x: 110, y: 85 };
+      const b = { x: 170, y: 115 };
+
+      const hunting = route(w, a, b, 0.6, [], raider);
+      const trading = route(w, a, b, 0.6, [], trader);
+
+      expect(onRoadLength(w, a, hunting)).toBeLessThan(3 * REGION.roadWidth);
+      expect(onRoadLength(w, a, trading)).toBeGreaterThan(3 * REGION.roadWidth);
+    });
+
+    it("keeps the trader's taste, cache key and route, and keys the hunting style apart", () => {
+      const w = straightRoad();
+      const { raider, trader } = drivers(w);
+      const a = { x: 100, y: 106 };
+      const b = { x: 160, y: 106 };
+      const traderTaste = tasteOf(w, trader)!;
+      const huntingTaste = offRoadTaste(tasteOf(w, raider)!, terrainNav(w.terrain));
+
+      const hunting = route(w, a, b, 0.6, [], raider);
+      const trading = route(w, a, b, 0.6, [], trader);
+
+      expect(traderTaste.shy).toBeNull();
+      expect(tasteKey(traderTaste)).toBe(String(traderTaste.seed));
+      expect(tasteKey(huntingTaste)).toBe(`${traderTaste.seed}:off`);
+      expect(trading).not.toEqual(hunting);
+      expect(route(w, a, b, 0.6, [], driverOn(structuredClone(w), 'raiders', ['raider'], 'sell'))).toEqual(trading);
+    });
+
+    it('plans off-road legs on the real map that a truck can drive straight', () => {
+      const w = w1337;
+      const { raider, trader } = drivers(w);
+      const gate = (id: string) => siteGates([...REGION.towns, ...REGION.locations].find((s) => s.id === id)!)[0];
+      const from = gate('nose');
+      const to = gate('dustwell');
+
+      const hunting = route(w, from, to, 0.8, [], raider);
+
+      expect(hunting.length).toBeGreaterThan(2);
+      for (let i = 1; i < hunting.length; i++) if (dist(hunting[i - 1], hunting[i]) >= 1) expect(straightClear(w, hunting[i - 1], hunting[i], 0.8, [])).toBe(true);
+      expect(roadShare(w, from, hunting)).toBeLessThan(roadShare(w, from, route(w, from, to, 0.8, [], trader)));
+    });
+  });
 });
 
 describe('raiders that keep off roads', () => {
@@ -387,11 +467,11 @@ describe('raiders that keep off roads', () => {
   function raider(w: World, pos: Vec): Vehicle {
     const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], pos);
     v.brain = npcBrain('test', pos, []);
-    v.brain.goals = [{ kind: 'patrol', targetId: null, destination: null, phase: 'travel', reason: 'test patrol' }];
+    v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     return v;
   }
   function flee(v: Vehicle): void {
-    v.brain!.goals.push({ kind: 'flee', targetId: null, destination: null, phase: 'travel', reason: 'test flee' });
+    v.brain!.goals.push({ kind: 'flee', targetId: null, destination: null, phase: 'travel', reason: 'escapeAttacker' });
   }
 
   function roadRuns(w: World, from: Vec, points: Vec[]): number[] {
@@ -459,7 +539,7 @@ describe('raiders that keep off roads', () => {
   });
 
   it('turns off the road toward its camp on the real map', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP);
+    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
     const kiln = REGION.locations.find((l) => l.id === 'kiln')!;
     const pad = siteGates(kiln)[0];
     const start = { x: 354.5, y: 331.5 };
@@ -784,7 +864,7 @@ function mulberry(seed: number): () => number {
 }
 
 describe('nav layers match the old grid rules', () => {
-  const w = newWorld(1, START_KITS.standard, TEST_MAP);
+  const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   const rand = mulberry(7);
   const at = (lo: number, hi: number) => lo + (hi - lo) * rand();
   for (let i = 0; i < 4; i++) w.obstacles.push({ id: `wreck-t${i}`, pos: { x: at(40, w.size - 40), y: at(40, w.size - 40) }, r: 1, kind: 'wreck' });
@@ -874,7 +954,7 @@ describe('nav layers match the old grid rules', () => {
 });
 
 describe('long routes search a coarse corridor', () => {
-  const w = newWorld(1, START_KITS.standard, TEST_MAP);
+  const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
 
   it('coarse regions are the connected pieces of each block, linked where their cells touch', () => {
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
@@ -997,4 +1077,85 @@ describe('long routes search a coarse corridor', () => {
     expect(found).toBeGreaterThanOrEqual(5);
     expect(perfSnapshot()['route-corridor-miss']).toBeUndefined();
   }, budget(60_000));
+});
+
+describe('raider hunting routes on the map', () => {
+  const camps = REGION.locations.filter((l) => l.kind === 'camp');
+
+  function legsOf(w: World): [Vec, Vec][] {
+    const legs: [Vec, Vec][] = [];
+    for (const camp of camps) {
+      const raid = raiderGrounds(w, camp);
+      const patrol = raiderPatrolPosts(w, camp);
+      const pad = sitePads(camp)[0];
+      for (const post of raid) legs.push([pad, post]);
+      for (const chain of [raid, patrol]) for (let i = 0; i + 1 < chain.length; i++) legs.push([chain[i], chain[i + 1]]);
+    }
+    return legs;
+  }
+
+  function measure(band: number) {
+    const saved = REGION.navigation.roadShyBand;
+    REGION.navigation.roadShyBand = band;
+    try {
+      const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      w.terrain = { ...TEST_MAP.terrain };
+      const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 100, y: 100 });
+      driver.brain = npcBrain('buggy', driver.pos, ['raider']);
+      driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
+      let length = 0, road = 0, near6 = 0, near10 = 0, samples = 0;
+      const legs = legsOf(w);
+      for (const [from, to] of legs) {
+        const points = route(w, from, to, 0.8, [], driver);
+        length += routeLength(from, points);
+        let prev = from;
+        for (const p of points) {
+          const n = Math.max(1, Math.ceil(dist(prev, p) * 2));
+          for (let k = 0; k < n; k++) {
+            const x = prev.x + ((p.x - prev.x) * k) / n;
+            const y = prev.y + ((p.y - prev.y) * k) / n;
+            const edge = ROAD_INDEX.nearestWithin(x, y, 12 + REGION.roadWidth) - REGION.roadWidth / 2;
+            samples++;
+            if (edge <= 0) road++;
+            if (edge <= 6) near6++;
+            if (edge <= 10) near10++;
+          }
+          prev = p;
+        }
+      }
+      return { legs: legs.length, meanLength: length / legs.length, road: road / samples, near6: near6 / samples, near10: near10 / samples };
+    } finally {
+      REGION.navigation.roadShyBand = saved;
+    }
+  }
+
+  it('stay off roads and keep a band from them, at a bounded detour', () => {
+    const shy = measure(REGION.navigation.roadShyBand);
+    const plain = measure(0);
+    console.log('hunting routes', JSON.stringify({ shy, plain }));
+    expect(shy.road).toBeLessThanOrEqual(0.04);
+    expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
+    expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.6);
+    expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
+  });
+
+  it('still cross a road to reach the far side', () => {
+    const road = REGION.roads[0];
+    const mid = Math.floor(road.length / 2);
+    const a = road[mid];
+    const b = road[mid + 1];
+    const along = { x: b.x - a.x, y: b.y - a.y };
+    const len = Math.hypot(along.x, along.y);
+    const normal = { x: -along.y / len, y: along.x / len };
+    const centre = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const side = (s: number): Vec => ({ x: centre.x + normal.x * 14 * s, y: centre.y + normal.y * 14 * s });
+    const w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const driver = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], side(-1));
+    driver.brain = npcBrain('buggy', driver.pos, ['raider']);
+    driver.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'travel', reason: 'raid' }];
+    const points = route(w, side(-1), side(1), 0.8, [], driver);
+    expect(dist(points.at(-1)!, side(1))).toBeLessThanOrEqual(4);
+    const across = (p: Vec): number => Math.sign((p.x - centre.x) * normal.x + (p.y - centre.y) * normal.y);
+    expect(across(side(-1))).not.toBe(across(points.at(-1)!));
+  });
 });

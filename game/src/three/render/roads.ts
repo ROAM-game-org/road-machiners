@@ -1,16 +1,18 @@
-// Roads and site pads are drawn by the ground shader, so they lie exactly on the ground that wheels touch.
-// The shader splits the ground into road pixels a third the size of the ground paint pixels. A road pixel
-// takes the road look where the road mask covers its center, and the slow tone and a per-pixel dither fray
 
 import * as THREE from "three";
 import { PHYSICS } from "../../data/physics";
 import { REGION } from "../../data/region";
 import { TERRAIN_TYPES } from "../../data/terrain";
-import { desertWeight, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
+import { desertWeight, glassField, lookTypes, ROAD_PLAIN, ROAD_SAND, type PaintCanvas } from "../../render/groundPaint";
+import { atlasOf, atlasSites, type Atlas } from "../../sim/atlas";
 import { sitePads } from "../../sim/sites";
 import type { Terrain } from "../../sim/terrain";
-import { PAL } from "../../render/palette";
-import { paintRoadDetail, paintRoadMask, paintRoadTone, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadImage } from "../../render/roadPaint";
+import { mix, PAL } from "../../render/palette";
+import { HIGHWAY } from "../../data/modes";
+import { fromRoad } from "../../sim/highway";
+import { windowCraters } from "../../sim/road-hazards";
+import { paintRoadDetail, paintRoadMask, type RoadHole, paintRoadTone, ROAD_DETAIL_SIDE, ROAD_TONE_PIXELS, ROAD_TONE_SIDE, type RoadImage } from "../../render/roadPaint";
+import { paintHighwayWear, PATCH_UNIT } from "../../render/highwayWear";
 
 const S = PHYSICS.metersPerTile;
 const PIXEL_SPLIT = 3;
@@ -25,15 +27,36 @@ const DIRT_EDGE = 0.44;
 const DIRT_WANDER = 0.2;
 const DIRT_SOFT = 0.15;
 const DIRT_SHOULDER = 0.9;
+const BAND_FROM = "0.1";
+const BAND_FULL = "0.25";
+const GLASS_PLATE = 2;
+const GLASS_TINT = 0.16;
+const GLASS_SEAM = 0.25;
+const GLASS_SEAM_MIX = 0.45;
+const GLASS_WARP = 2.2;
+const GLASS_WARP_SCALE = 2.5;
+const GLASS_EDGE_WOBBLE = 0.35;
+const GLASS_EDGE_SCALE = 1.6;
+const GLASS_EDGE_FINE = 0.12;
+const GLASS_EDGE_FINE_SCALE = 0.5;
+const GLASS_DUST_MIX = 0.35;
+const GLASS_BASE = mix(TERRAIN_TYPES.glass.color, PAL.sand[3], 0.07);
+const GLASS_DUST = mix(PAL.glass.top, 0xb9a47c, 0.6);
+const GLASS_SEAM_COLOR = mix(PAL.glass.top, 0xffffff, 0.45);
+const WEAR_YELLOW = mix(0xd9a93a, PAL.sand[3], 0.2);
+const WEAR_TEAR_FROM = 0.92;
+const WEAR_GRAIN = 2;
+const WEAR_DUST = 0.05;
 
 export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas, t: Terrain): void {
-  paintRoadMask(mask);
+  paintRoadMask(mask, atlasOf(t), roadHoles(t));
   const pixel = S / mask.res / PIXEL_SPLIT;
   const uniforms = {
     roadMask: { value: maskTexture(mask) },
     roadDetail: { value: imageTexture(paintRoadDetail(), THREE.NearestFilter, THREE.SRGBColorSpace) },
     roadTone: { value: imageTexture(paintRoadTone(), THREE.LinearFilter, THREE.NoColorSpace) },
     roadPixel: { value: pixel },
+    asphaltColor: { value: new THREE.Color(PAL.highwayAsphalt) },
     roadOrigin: { value: mask.from * S },
     roadMaskMeters: { value: (mask.size / mask.res) * S },
     roadDetailMeters: { value: ROAD_DETAIL_SIDE * pixel },
@@ -51,8 +74,18 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
     stoneColor: { value: new THREE.Color(PAL.stoneGrey) },
     dirtGroundLuma: { value: luma(new THREE.Color(DIRT_UNDER)) },
     dirtTint: { value: dirtTint() },
-    ...padUniforms(pixel),
+    glassField: { value: glassTexture(t) },
+    glassFieldMeters: { value: t.size * S },
+    glassBase: { value: new THREE.Color(GLASS_BASE) },
+    glassPlate: { value: GLASS_PLATE * S },
+    glassTint: { value: GLASS_TINT },
+    glassSeam: { value: GLASS_SEAM },
+    glassSeamColor: { value: new THREE.Color(GLASS_SEAM_COLOR) },
+    glassDust: { value: new THREE.Color(GLASS_DUST) },
+    ...padUniforms(atlasOf(t), pixel),
+    ...wearUniforms(mask, t),
   };
+  const worn = "highwayWear" in uniforms;
   const before = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
@@ -62,11 +95,27 @@ export function drawRoads(material: THREE.MeshLambertMaterial, mask: PaintCanvas
       .replace("#include <common>", "#include <common>\nvarying vec2 vRoadXZ;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvRoadXZ = (modelMatrix * vec4(transformed, 1.0)).xz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n#define PAD_COUNT ${uniforms.padCenters.value.length}\n${ROAD_UNIFORMS}`)
+      .replace("#include <common>", `#include <common>\n#define PAD_COUNT ${uniforms.padCenters.value.length}\n${worn ? "#define HIGHWAY_WEAR\n" : ""}${ROAD_UNIFORMS}`)
       .replace("#include <map_fragment>", `#include <map_fragment>\n${ROAD_FRAGMENT}`);
   };
-  material.customProgramCacheKey = () => `${key()}|roads`;
+  material.customProgramCacheKey = () => `${key()}|roads${worn ? "|wear" : ""}`;
   material.needsUpdate = true;
+}
+
+function wearUniforms(mask: PaintCanvas, t: Terrain) {
+  const key = t.atlas;
+  if (key.kind !== "highway") return {};
+  const pixels = paintHighwayWear(mask, atlasOf(t).roads[0].points, key.seed);
+  const texture = new THREE.DataTexture(pixels, mask.size, mask.size, THREE.RGBAFormat);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.needsUpdate = true;
+  return {
+    highwayWear: { value: texture },
+    wearBaseLuma: { value: luma(new THREE.Color(PAL.road)) },
+    wearYellow: { value: new THREE.Color(WEAR_YELLOW) },
+    wearSand: { value: new THREE.Color(PAL.desertSand) },
+  };
 }
 
 const ROAD_UNIFORMS = `varying vec2 vRoadXZ;
@@ -74,6 +123,7 @@ uniform sampler2D roadMask;
 uniform sampler2D roadDetail;
 uniform sampler2D roadTone;
 uniform float roadPixel;
+uniform vec3 asphaltColor;
 uniform float roadOrigin;
 uniform float roadMaskMeters;
 uniform float roadDetailMeters;
@@ -91,18 +141,97 @@ uniform vec3 rimColor;
 uniform vec3 stoneColor;
 uniform float dirtGroundLuma;
 uniform vec3 dirtTint;
+uniform sampler2D glassField;
+uniform float glassFieldMeters;
+uniform vec3 glassBase;
+uniform float glassPlate;
+uniform float glassTint;
+uniform float glassSeam;
+uniform vec3 glassSeamColor;
+uniform vec3 glassDust;
+#if PAD_COUNT > 0
 uniform vec2 padCenters[PAD_COUNT];
 uniform vec2 padAxes[PAD_COUNT];
+#endif
 uniform vec2 padHalf;
 uniform float padBorder;
 uniform vec3 padDust;
-uniform vec3 padMark;`;
+uniform vec3 padMark;
+#ifdef HIGHWAY_WEAR
+uniform sampler2D highwayWear;
+uniform float wearBaseLuma;
+uniform vec3 wearYellow;
+uniform vec3 wearSand;
+float wearHash(float a, float k) {
+  return fract(a * 255.0 * k + 0.31);
+}
+vec3 wearPaint(vec3 color, vec4 wear, vec4 roadLook, float wander) {
+  float yellow = floor(wear.r * 255.0 + 0.5) / 15.0;
+  float paintHash = wearHash(roadLook.a, 0.618034);
+  vec3 paintShade = vec3(0.82 + 0.18 * wander);
+  if (yellow > 0.0 && paintHash <= yellow) color = wearYellow * paintShade;
+  return color;
+}
+vec3 wearPatch(vec3 color, vec4 wear, vec4 roadLook) {
+  float kind = floor(wear.a * 255.0 / ${PATCH_UNIT}.0 + 0.5);
+  float show = (kind == 2.0 || kind == 4.0) ? step(0.5, wearHash(roadLook.a, 0.754878)) : 1.0;
+  if (kind == 1.0) return color * 0.8;
+  if (kind == 2.0 || kind == 3.0) return color * mix(1.0, 0.82, show);
+  if (kind >= 4.0) return color * mix(1.0, 1.34, show);
+  return color;
+}
+vec3 wearSandOver(vec3 color, vec4 wear, vec4 roadLook, float wander) {
+  float sandHash = wearHash(roadLook.a, 0.569840);
+  vec3 sand = wearSand * (0.92 + 0.12 * wander);
+  if (sandHash < wear.g) return sand;
+  if (wear.g > 0.0 && sandHash < wear.g + 0.2) return mix(color, sand, 0.35);
+  return color;
+}
+#endif
+float glassHash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float glassNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(glassHash(i), glassHash(i + vec2(1.0, 0.0)), f.x), mix(glassHash(i + vec2(0.0, 1.0)), glassHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}`;
 
 const ROAD_FRAGMENT = `{
+  float glassEdge = texture2D(glassField, vRoadXZ / glassFieldMeters).r
+    + (glassNoise(vRoadXZ / ${(GLASS_EDGE_SCALE * S).toFixed(2)}) - 0.5) * ${GLASS_EDGE_WOBBLE.toFixed(2)}
+    + (glassNoise(vRoadXZ / ${(GLASS_EDGE_FINE_SCALE * S).toFixed(2)} + 53.1) - 0.5) * ${GLASS_EDGE_FINE.toFixed(2)};
+  float glassSoft = fwidth(glassEdge) * 0.75;
+  float glassCover = smoothstep(0.5 - glassSoft, 0.5 + glassSoft, glassEdge);
+  if (glassCover > 0.0) {
+    vec3 groundColor = diffuseColor.rgb;
+    diffuseColor.rgb = glassBase;
+    vec2 glassAt = vRoadXZ + (vec2(glassNoise(vRoadXZ / ${GLASS_WARP_SCALE.toFixed(2)}), glassNoise(vRoadXZ / ${GLASS_WARP_SCALE.toFixed(2)} + 31.7)) - 0.5) * ${GLASS_WARP.toFixed(2)};
+    vec2 plateAt = glassAt / glassPlate;
+    vec2 plateCell = floor(plateAt);
+    vec2 plateIn = plateAt - plateCell;
+    float plateFlip = step(0.5, fract(sin(dot(plateCell, vec2(27.17, 91.43))) * 43758.5453));
+    float plateU = mix(plateIn.x, 1.0 - plateIn.x, plateFlip);
+    float plateHalf = plateU + plateIn.y > 1.0 ? 1.0 : 0.0;
+    float plateHash = fract(sin(dot(plateCell + plateHalf * vec2(0.53, 0.29), vec2(12.9898, 78.233))) * 43758.5453);
+    float glassBroad = glassNoise(vRoadXZ / 7.0);
+    float glassFine = glassNoise(vRoadXZ / 0.8);
+    diffuseColor.rgb *= 1.0 + (plateHash - 0.5) * 2.0 * glassTint + (glassBroad - 0.5) * 0.16 + (glassFine - 0.5) * 0.06;
+    diffuseColor.rgb = mix(diffuseColor.rgb, glassDust, smoothstep(0.35, 0.8, glassNoise(vRoadXZ / 4.0 + 7.3)) * ${GLASS_DUST_MIX.toFixed(2)});
+    float plateEdge = min(min(plateIn.x, 1.0 - plateIn.x), min(plateIn.y, 1.0 - plateIn.y));
+    float seamDist = min(plateEdge, abs(plateU + plateIn.y - 1.0) * 0.70710678) * glassPlate;
+    float seamSoft = fwidth(seamDist) * 1.5;
+    float seam = 1.0 - smoothstep(glassSeam * 0.5 - seamSoft, glassSeam * 0.5 + seamSoft, seamDist);
+    seam *= smoothstep(0.4, 0.8, glassNoise(vRoadXZ / 3.0 + 19.1)) * (0.4 + 0.6 * glassFine);
+    diffuseColor.rgb = mix(diffuseColor.rgb, glassSeamColor, seam * ${GLASS_SEAM_MIX});
+    diffuseColor.rgb = mix(groundColor, diffuseColor.rgb, glassCover);
+  }
   vec2 roadAt = roadOrigin + (floor((vRoadXZ - roadOrigin) / roadPixel) + 0.5) * roadPixel;
-  vec2 roadMaskAt = texture2D(roadMask, (roadAt - roadOrigin) / roadMaskMeters).rg;
+  vec3 roadMaskAt = texture2D(roadMask, (roadAt - roadOrigin) / roadMaskMeters).rgb;
   float roadCover = roadMaskAt.r;
   float dirtCover = roadMaskAt.g;
+  float bandMask = roadMaskAt.b;
   vec4 roadLook = texture2D(roadDetail, (roadAt - roadOrigin) / roadDetailMeters);
   float roadWander = texture2D(roadTone, (roadAt - roadOrigin) / roadToneMeters).r;
   float roadSand = texture2D(roadDesert, roadAt / roadDesertMeters).r;
@@ -127,6 +256,24 @@ const ROAD_FRAGMENT = `{
     float dirtShade = mix(${DIRT_SHOULDER}, 1.0, smoothstep(dirtEdge, dirtEdge + ${DIRT_SOFT}, dirtCover));
     diffuseColor.rgb = mix(diffuseColor.rgb, dirtColor * dirtShade, dirtIn);
   }
+  float bandCover = smoothstep(${BAND_FROM}, ${BAND_FULL}, bandMask);
+#ifdef HIGHWAY_WEAR
+  if (bandCover > 0.0) {
+    vec4 wear = texture2D(highwayWear, (roadAt - roadOrigin) / roadMaskMeters);
+    float grain = dot(roadLook.rgb, vec3(0.299, 0.587, 0.114)) / wearBaseLuma;
+    vec3 worn = asphaltColor * (0.94 + 0.12 * roadWander) * (1.0 + (grain - 1.0) * ${WEAR_GRAIN.toFixed(1)});
+    worn = mix(worn, wearSand, ${WEAR_DUST} + 0.1 * roadWander);
+    worn = wearPatch(worn, wear, roadLook);
+    worn = wearPaint(worn, wear, roadLook, roadWander);
+    worn = wearSandOver(worn, wear, roadLook, roadWander);
+    float tear = smoothstep(${WEAR_TEAR_FROM}, 1.0, wear.b * 255.0 / 254.0) * 0.6;
+    if (wearHash(roadLook.a, 0.381966) < tear) worn = wearSand * (0.92 + 0.12 * roadWander);
+    diffuseColor.rgb = mix(diffuseColor.rgb, worn, bandCover);
+  }
+#else
+  if (bandCover > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, asphaltColor * (0.94 + 0.12 * roadWander) * (0.96 + 0.08 * roadLook.a), bandCover);
+#endif
+#if PAD_COUNT > 0
   for (int i = 0; i < PAD_COUNT; i++) {
     vec2 padOff = roadAt - padCenters[i];
     vec2 padIn = padHalf - abs(vec2(dot(padOff, padAxes[i]), dot(padOff, vec2(-padAxes[i].y, padAxes[i].x))));
@@ -135,12 +282,20 @@ const ROAD_FRAGMENT = `{
     diffuseColor.rgb = mix(roadColor, padDust * groundShade, 0.35);
     if (padDepth < padBorder && roadLook.a > 0.12) diffuseColor.rgb = padMark * groundShade;
   }
+#endif
 }`;
 
-function padUniforms(pixel: number) {
+function roadHoles(t: Terrain): RoadHole[] {
+  const key = t.atlas;
+  if (key.kind !== 'highway') return [];
+  const inset = HIGHWAY.road.paint.holeInset;
+  return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
+}
+
+function padUniforms(atlas: Atlas, pixel: number) {
   const centers: THREE.Vector2[] = [];
   const axes: THREE.Vector2[] = [];
-  for (const site of [...REGION.towns, ...REGION.locations])
+  for (const site of atlasSites(atlas))
     for (const pad of sitePads(site)) {
       centers.push(new THREE.Vector2(pad.x * S, pad.y * S));
       axes.push(new THREE.Vector2(pad.x - site.pos.x, pad.y - site.pos.y).normalize());
@@ -157,13 +312,17 @@ function padUniforms(pixel: number) {
 }
 
 function maskTexture(c: PaintCanvas): THREE.DataTexture {
-  const rgba = c.ctx.getImageData(0, 0, c.size, c.size).data;
-  const cover = new Uint8Array(c.size * c.size * 2);
-  for (let i = 0; i < c.size * c.size; i++) {
-    cover[i * 2] = rgba[i * 4];
-    cover[i * 2 + 1] = rgba[i * 4 + 1];
-  }
-  const texture = new THREE.DataTexture(cover, c.size, c.size, THREE.RGFormat);
+  const cover = new Uint8Array(c.ctx.getImageData(0, 0, c.size, c.size).data.buffer);
+  const texture = new THREE.DataTexture(cover, c.size, c.size, THREE.RGBAFormat);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function glassTexture(t: Terrain): THREE.DataTexture {
+  const texture = new THREE.DataTexture(glassField(t), t.size, t.size, THREE.RedFormat);
+  texture.unpackAlignment = 1;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;
   texture.needsUpdate = true;

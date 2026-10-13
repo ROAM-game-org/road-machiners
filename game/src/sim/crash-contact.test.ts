@@ -8,6 +8,13 @@ import { isHostile } from './combat';
 import { addState } from './states';
 import { vehicleMass } from './mass';
 import { mountedParts } from './grid';
+import type { Vehicle } from './types';
+
+function wheelLoss(v: Vehicle, x: number, y: number): number {
+  const item = v.items.find((it) => it.kind === 'part' && it.part.defId === 'wheel' && it.x === x && it.y === y);
+  if (item?.kind !== 'part') throw new Error(`No wheel at ${x},${y}`);
+  return partDef('wheel').hp - item.part.hp;
+}
 
 describe('crash contacts', () => {
   it('ignores sliding speed and separating contacts', () => {
@@ -32,14 +39,35 @@ describe('crash contacts', () => {
     expect(run(Math.PI)).toEqual(run(0));
   });
 
-  it('does not damage wheels outside the touched bumper lane', () => {
+  it('does not damage wheels outside the touched lanes and the lanes beside them', () => {
     const world = emptyWorld();
     const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
     const wheels = mountedParts(vehicle).filter((part) => part.defId === 'wheel');
     const before = wheels.map((part) => part.hp);
-    applyContactCrash(world, vehicle, null, 'rock', 6, { a: { side: 'front', lanes: [2] }, b: null });
+    applyContactCrash(world, vehicle, null, 'rock', 6, { a: { side: 'front', lanes: [3] }, b: null });
     expect(wheels.map((part) => part.hp)).toEqual(before);
     expect(mountedParts(vehicle).find((part) => part.defId === 'ram')?.hp).toBeLessThan(partDef('ram').hp);
+  });
+
+  it('a hard front crash hurts the rear wheel in the same lane far less than the front wheel', () => {
+    const world = emptyWorld();
+    const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    applyContactCrash(world, vehicle, null, 'rock', RULES.hardCrashSpeed * 1.5, { a: { side: 'front', lanes: [1] }, b: null });
+    expect(wheelLoss(vehicle, 1, 1)).toBeGreaterThan(0);
+    expect(wheelLoss(vehicle, 1, 5)).toBeGreaterThan(0);
+    expect(wheelLoss(vehicle, 1, 5)).toBeLessThan(wheelLoss(vehicle, 1, 1) * RULES.crashFalloff ** 3);
+  });
+
+  it('spills a smaller hit into the lanes beside the touched lane', () => {
+    const run = (lane: number) => {
+      const world = emptyWorld();
+      const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+      applyContactCrash(world, vehicle, null, 'rock', 3, { a: { side: 'front', lanes: [lane] }, b: null });
+      return wheelLoss(vehicle, 1, 1);
+    };
+    expect(run(2)).toBeGreaterThan(0);
+    expect(run(2)).toBeCloseTo(run(1) * RULES.crashFalloff, 0);
+    expect(run(3)).toBe(0);
   });
 
   it('keeps armor protection across simultaneous contact lanes', () => {
@@ -51,7 +79,7 @@ describe('crash contacts', () => {
     if (!ram || !engine) throw new Error('Missing front armor or engine');
     ram.hp = 1;
     const hp = engine.hp;
-    applyContactCrash(world, vehicle, null, 'rock', 9, { a: { side: 'front', lanes: [1, 2, 3] }, b: null });
+    applyContactCrash(world, vehicle, null, 'rock', 5, { a: { side: 'front', lanes: [1, 2, 3] }, b: null });
     expect(ram.hp).toBe(0);
     expect(engine.hp).toBe(hp);
   });
@@ -218,5 +246,18 @@ describe('crash with a tow client', () => {
     applyContactCrash(world, client, tower, tower.id, 6, geometry);
     expect(damages(world).onA).toBeGreaterThan(0);
     expect(damages(world).onB).toBeGreaterThan(0);
+  });
+});
+
+describe('the hauler semi ramming a buggy', () => {
+  it('wrecks the buggy side and barely scratches its own nose', () => {
+    const world = emptyWorld();
+    const semi = addVehicle(world, 'player', 'semi', ['workhorseDiesel'], { x: 30, y: 30 });
+    const buggy = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 34, y: 30 });
+    applyContactCrash(world, semi, buggy, buggy.id, 6, { a: { side: 'front', lanes: [3, 4] }, b: { side: 'left', lanes: [1, 2] } });
+    const collision = world.events.find((e) => e.t === 'collision');
+    if (collision?.t !== 'collision') throw new Error('No collision');
+    const sum = (hits: { damage: number }[]) => hits.reduce((total, hit) => total + hit.damage, 0);
+    expect(sum(collision.hitsB)).toBeGreaterThan(15 * sum(collision.hitsA));
   });
 });

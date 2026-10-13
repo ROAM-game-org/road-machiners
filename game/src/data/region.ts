@@ -1,19 +1,20 @@
-// The one region of the prototype. Coordinates are in tiles.
 
 import type { Vec } from "../sim/vec";
 
-export type TownDef = { id: string; name: string; pos: Vec; radius: number };
+export type TownDef = { id: string; pos: Vec; radius: number };
 export type SiteLocationDef = {
   id: string;
-  name: string;
   kind: "oasis" | "convoy" | "landmark" | "camp";
   pos: Vec;
   radius: number;
-  edge: SiteEdge;
+  edge?: SiteEdge;
+  look?: string;
+  turn?: number;
+  gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; name: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
 export type LocationDef = SiteLocationDef | TerritoryDef;
-export type SiteEdge = "palisade" | "camp" | "stone" | "fence" | "wrecks";
+export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = 5;
 
 export function scalePoint(p: Vec): Vec {
@@ -144,6 +145,46 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
+export const GLASS_FLATS_POS = scalePoint({ x: 81, y: 75.6 });
+const GLASS_FLATS_OUTLINE: Vec[] = [
+  [0, 71],
+  [11.25, 61],
+  [22.5, 56],
+  [33.75, 51],
+  [45, 47],
+  [56.25, 48],
+  [67.5, 49],
+  [78.75, 55],
+  [90, 67],
+  [101.25, 76],
+  [112.5, 78],
+  [123.75, 66],
+  [135, 78],
+  [146.25, 90],
+  [157.5, 80],
+  [168.75, 68],
+  [180, 60],
+  [-168.75, 58],
+  [-157.5, 59],
+  [-146.25, 60],
+  [-135, 58],
+  [-123.75, 62],
+  [-112.5, 74],
+  [-101.25, 86],
+  [-90, 95],
+  [-78.75, 95],
+  [-67.5, 95],
+  [-56.25, 95],
+  [-45, 95],
+  [-33.75, 95],
+  [-22.5, 95],
+  [-11.25, 83],
+].map(([deg, r]) => ({ x: r * Math.cos((deg * Math.PI) / 180), y: r * Math.sin((deg * Math.PI) / 180) }));
+const GLASS_FLATS_S1 = scalePoint({ x: 88, y: 84 });
+const GLASS_FLATS_S2 = scalePoint({ x: 97, y: 62 });
+const GLASS_FLATS_APPROACHES: Vec[][] = [GLASS_FLATS_S1, GLASS_FLATS_S2].map((from) => [from, edgePoint(from, GLASS_FLATS_POS, GLASS_FLATS_POS, GLASS_FLATS_OUTLINE)]);
+export const GLASS_FLATS_ENDS: Vec[] = GLASS_FLATS_APPROACHES.map(([, end]) => ({ x: end.x - GLASS_FLATS_POS.x, y: end.y - GLASS_FLATS_POS.y }));
+
 function fromFallenSun(x: number, y: number): Vec {
   return { x: FALLEN_SUN_POS.x + x, y: FALLEN_SUN_POS.y + y };
 }
@@ -154,8 +195,6 @@ export const BROKEN_WING = {
   deckHalf: 19.5,
   mound: { gap: 4.5, flat: 2, bank: 14, height: 1.8 },
   hoopAt: -44,
-  siteAt: 44,
-  siteSide: 14,
   trench: { side: -22, half: 30, width: 3, bank: 6, depth: 2 },
 };
 
@@ -164,7 +203,6 @@ export function BROKEN_WING_POINT(along: number, across: number): Vec {
   const s = Math.sin(BROKEN_WING.yaw);
   return { x: BROKEN_WING.road.x + c * along - s * across, y: BROKEN_WING.road.y + s * along + c * across };
 }
-export const BROKEN_WING_SITE: Vec = BROKEN_WING_POINT(BROKEN_WING.siteAt, BROKEN_WING.siteSide);
 
 export const REGION = {
   name: "Icarus",
@@ -178,96 +216,47 @@ export const REGION = {
     slopeCost: 1,
     straighten: 0.05,
     roadShyCost: 6,
+    roadShyBand: 10,
   },
   towns: [
-    { id: "bowl", name: "Bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
-    { id: "nose", name: "Nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
+    { id: "bowl", pos: scalePoint({ x: 16, y: 94 }), radius: 28 },
+    { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
   ] as TownDef[],
   locations: [
-    { id: "orchard", name: "Old Orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
+    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
     {
       id: "dustwell",
-      edge: "stone",
-      name: "Dustwell",
       kind: "oasis",
       pos: scalePoint({ x: 33.8, y: 32 }),
       radius: 6,
     },
     {
       id: "granary",
-      edge: "palisade",
-      name: "The Granary",
       kind: "landmark",
       pos: scalePoint({ x: 50, y: 32.8 }),
       radius: 6,
     },
     {
-      id: "burnt-convoy",
-      edge: "wrecks",
-      name: "Burnt Convoy",
-      kind: "convoy",
-      pos: scalePoint({ x: 60, y: 18.8 }),
-      radius: 6,
-    },
-    {
-      id: "podfield",
-      edge: "wrecks",
-      name: "Podfield",
-      kind: "convoy",
-      pos: scalePoint({ x: 78.2, y: 21 }),
-      radius: 6,
-    },
-    {
-      id: "canyon-bridge",
-      edge: "fence",
-      name: "Canyon Bridge",
-      kind: "landmark",
-      pos: scalePoint({ x: 106.2, y: 70 }),
-      radius: 6,
-    },
-    {
       id: "glass-flats",
-      edge: "fence",
-      name: "Glass Flats",
-      kind: "landmark",
-      pos: scalePoint({ x: 90.3, y: 86.3 }),
-      radius: 6,
+      kind: "territory",
+      pos: GLASS_FLATS_POS,
+      radius: boundingRadius(GLASS_FLATS_OUTLINE),
+      outline: GLASS_FLATS_OUTLINE,
     },
     {
       id: "green-pit",
-      edge: "stone",
-      name: "Green Pit",
       kind: "oasis",
       pos: scalePoint({ x: 71.8, y: 89 }),
       radius: 6,
     },
     {
-      id: "south-lock",
-      edge: "fence",
-      name: "South Lock",
-      kind: "landmark",
-      pos: scalePoint({ x: 56.8, y: 94 }),
-      radius: 6,
-    },
-    {
-      id: "ridge-wrecks",
-      edge: "wrecks",
-      name: "Ridge Wrecks",
-      kind: "convoy",
-      pos: scalePoint({ x: 41, y: 90.2 }),
-      radius: 6,
-    },
-    {
       id: "pump-station",
-      edge: "fence",
-      name: "Pump Station",
       kind: "landmark",
       pos: scalePoint({ x: 40.7, y: 51.7 }),
       radius: 6,
     },
     {
       id: "fallen-sun",
-      name: "Fallen Sun",
       kind: "territory",
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
@@ -275,32 +264,18 @@ export const REGION = {
     },
     {
       id: "salvage-yard",
-      edge: "palisade",
-      name: "Salvage Yard",
       kind: "convoy",
       pos: scalePoint({ x: 82, y: 52.2 }),
       radius: 6,
     },
     {
-      id: "broken-wing",
-      edge: "wrecks",
-      name: "Broken Wing",
-      kind: "landmark",
-      pos: BROKEN_WING_SITE,
-      radius: 6,
-    },
-    {
       id: "scrapjaw",
-      edge: "camp",
-      name: "Scrapjaw Camp",
       kind: "camp",
       pos: scalePoint({ x: 22, y: 14 }),
       radius: 6,
     },
     {
       id: "kiln",
-      edge: "camp",
-      name: "Kiln Camp",
       kind: "camp",
       pos: scalePoint({ x: 66, y: 76 }),
       radius: 6,
@@ -372,22 +347,16 @@ export const REGION = {
     scaleRoad([
       { x: 82, y: 49 },
       { x: 90, y: 56 },
-      { x: 93, y: 70 },
-      { x: 88, y: 84 },
+      { x: 97, y: 62 },
+      { x: 103, y: 70 },
     ]),
     [scalePoint({ x: 28, y: 64 }), edgePoint(scalePoint({ x: 28, y: 64 }), { x: ORCHARD_POS.x + ORCHARD_SOUTH.x, y: ORCHARD_POS.y + ORCHARD_SOUTH.y }, ORCHARD_POS, ORCHARD_OUTLINE)],
-    [BROKEN_WING_POINT(BROKEN_WING.siteAt, 0), BROKEN_WING_SITE],
     scaleRoad([{ x: 37, y: 32 }, { x: 33.8, y: 32 }], [0]),
     scaleRoad([{ x: 50, y: 36 }, { x: 50, y: 32.8 }], [0]),
-    scaleRoad([{ x: 63, y: 20 }, { x: 60, y: 18.8 }], [0]),
-    scaleRoad([{ x: 77, y: 24 }, { x: 78.2, y: 21 }], [0]),
-    scaleRoad([{ x: 103, y: 70 }, { x: 106.2, y: 70 }], [0]),
-    scaleRoad([{ x: 88, y: 84 }, { x: 90.3, y: 86.3 }], [0]),
     scaleRoad([{ x: 73, y: 92 }, { x: 71.8, y: 89 }], [0]),
-    scaleRoad([{ x: 58, y: 91 }, { x: 56.8, y: 94 }], [0]),
-    scaleRoad([{ x: 41, y: 87 }, { x: 41, y: 90.2 }], [0]),
     scaleRoad([{ x: 43, y: 54 }, { x: 40.7, y: 51.7 }], [0]),
     scaleRoad([{ x: 82, y: 49 }, { x: 82, y: 52.2 }], [0]),
+    ...GLASS_FLATS_APPROACHES,
     scaleRoad([
       { x: 37, y: 32 },
       { x: 30, y: 22 },
@@ -432,10 +401,6 @@ export const REGION = {
     maxTries: 20000,
   },
   sites: {
-    buildingsPerTown: 10,
-    buildingRing: [0.62, 0.82] as [number, number],
-    buildingRadius: [0.75, 1.2] as [number, number],
-    roadGapAngle: 0.38,
     convoyWrecks: [
       { x: -2.6, y: 0.6 },
       { x: 0.8, y: -2.6 },
@@ -448,29 +413,15 @@ export const REGION = {
     multiGateRadius: 12,
   },
   settlement: {
-    streetSpacing: 5,
-    houseWidth: 2.7,
-    houseDepth: 2.1,
-    houseHeights: [1.1, 1.8],
-    wallHeight: 1.6,
-    wallThickness: 1.2,
-    wallSegment: 3,
     gateWidth: 5,
-    palisadeHeight: 1,
-    palisadeThickness: 0.6,
-    palisadeSegment: 1.5,
-    stoneHeight: 0.6,
-    stoneThickness: 0.9,
-    stoneSegment: 1.2,
     fenceHeight: 0.8,
     fenceThickness: 0.15,
     fenceSegment: 1.5,
     wreckHeight: 0.9,
     wreckThickness: 1,
     wreckSegment: 1.1,
-    gatePostRise: 0.4,
     gatePoleHeight: 5.5,
     lampHeight: 1.6,
   },
-  playerStart: { road: 0, distance: 125, offset: 45 },
+  playerStart: { road: 0, distance: 125, offset: 45, wreck: { ahead: 6, side: 5 } },
 };

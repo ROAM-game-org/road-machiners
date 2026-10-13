@@ -1,6 +1,3 @@
-// Ending or dodging a fight by talk. A truce ends the feuds between two sides for a while. Mercy is a truce the
-// loser buys with its cargo. A threat asks a driver at peace for its cargo, and a warning asks a looter at the player's
-// wreck to back off. An NPC answers each with a weighted decision. Radio talk with the player lives in src/sim/dialogue.ts, and this module owns what the answers do.
 
 import { SPAWN } from '../data/npcs';
 import { isHostile } from './combat';
@@ -11,21 +8,23 @@ import { partSellPrice } from './economy';
 import { corePart, isMounted } from './grid';
 import { applyRefitLayout } from './inventory';
 import { creditBounty } from './market';
-import { backOffLoot, defyThreat, finishGoal, pushGoal, topGoal } from './npc-activities';
-import { decide, firepower, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
+import { defyThreat, finishGoal, pushGoal, topGoal } from './npc-activities';
+import { canArgue, fightOver, warnTruck } from './loot-warning';
+import { decide, holdsUp, perceiveDanger, robbedFor, visibleHostiles, wantsLoot } from './npc-decisions';
 import { SPARE_LINE } from '../data/dialogue';
 import { vehicleHasPerk } from './progress';
-import { backedOff, canReachSalvage, claimantOf, claimPile, createCargoSalvage, dumpOnPile, hasCargo, lootClaimedBy, salvageInRange, takeError } from './salvage';
+import { modeRules } from './settings';
+import { cargoHaul, removableParts, surrenderHaul } from './haul';
+import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile, hasCargo, lootClaimedBy, looseCargo, salvageInRange, takeError } from './salvage';
 import { isStranded } from './stats';
-import { addState, endState, pleaData, stateOf } from './states';
-import { inTowReach } from './tow';
+import { addState, endState, lootWarningData, pleaData, stateOf } from './states';
 import type { DecisionOptions } from '../data/npcs';
-import type { Aim, GridItem, Plea, SalvageStock, Vehicle, World } from './types';
+import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
+import { isIntroAmbusher } from './quests';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
-export type WarnAnswer = DecisionOptions['warnedOff'];
 
 function sideOf(world: World, v: Vehicle): Vehicle[] {
   if (!v.brain) return [v];
@@ -55,30 +54,39 @@ function holdFire(v: Vehicle, target: Vehicle): void {
   if (v.brain) delete v.brain.attackers[target.id];
 }
 
-export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, dumped: SalvageStock | null = null): void {
-  const stock = hasCargo(loser) ? createCargoSalvage(world, loser, 1) : dumped;
-  cede(world, loser, winner, stock, 'take the handed-over cargo');
+export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridItem[] {
+  return winner.brain ? cargoHaul(winner, loser) : looseCargo(loser);
+}
+
+export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
+  if (!modeRules(world).looting) throw new Error(`${loser.id} cannot hand over cargo where nothing is looted`);
+  const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
+  cede(world, loser, winner, stock, 'takeHandedCargo');
   creditYield(world, loser, winner);
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
-  cede(world, loser, winner, stock, 'take the spilled cargo');
+  cede(world, loser, winner, stock, 'takeSpilledCargo');
 }
 
-function cede(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, reason: string): void {
+function cede(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock | null, reason: GoalReason): void {
   makePeace(world, loser, winner);
+  endFight(world, loser, winner);
   const grudge = stateOf(world, 'revenge', winner.id, loser.id);
   if (grudge) endState(world, grudge, 'fulfilled');
   if (stock && winner.brain) goTake(world, winner, stock, [loser.id], reason);
 }
 
-function goTake(world: World, npc: Vehicle, stock: SalvageStock, warned: string[], reason: string): void {
+function goTake(world: World, npc: Vehicle, stock: SalvageStock, warned: string[], reason: GoalReason): void {
   pushGoal(world, npc, { kind: 'loot', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason });
   claimPile(world, stock, npc, warned);
 }
 
 export function surrenderTo(world: World, loser: Vehicle, robber: Vehicle): void {
-  yieldTo(world, loser, robber, dumpWantedParts(world, loser));
+  const haul = robber.brain ? surrenderHaul(robber, loser) : [...looseCargo(loser), ...removableParts(loser).slice(0, RULES.surrenderParts)];
+  const mounted = haul.some((item) => item.kind === 'part' && isMounted(loser.chassisId, item));
+  yieldTo(world, loser, robber, haul);
+  if (mounted) applyRefitLayout(world, loser, loser.items);
 }
 
 export function giveUpTo(world: World, loser: Vehicle, winner: Vehicle): void {
@@ -95,13 +103,25 @@ export function standDownTo(world: World, loser: Vehicle, winner: Vehicle): void
   creditYield(world, loser, winner);
 }
 
+function endFight(world: World, a: Vehicle, b: Vehicle): void {
+  for (const [p, q] of [[a, b], [b, a]]) {
+    const fight = stateOf(world, 'combat', p.id, q.id);
+    if (fight) endState(world, fight, 'broken');
+  }
+}
+
 function creditYield(world: World, loser: Vehicle, winner: Vehicle): void {
   if (loser.brain && vehicleHasPerk(world, winner, 'bountyTalk')) creditBounty(world, loser);
 }
 
 export type PleaAnswer = 'yes' | 'no' | 'demand';
 
+export function demandsFirst(world: World, robber: Vehicle, targetId: string): boolean {
+  return !isIntroAmbusher(world, robber.id) && decide(world, robber, 'mugging', targetId, null) === 'demand';
+}
+
 export function answersPlea(world: World, answerer: Vehicle, pleader: Vehicle, plea: Plea): PleaAnswer {
+  if (isIntroAmbusher(world, answerer.id)) return 'no';
   const danger = perceiveDanger(world, answerer, pleader);
   if (plea === 'truce') {
     if (holdsUp(world, answerer, pleader, danger)) return 'demand';
@@ -125,6 +145,7 @@ function grantPlea(world: World, pleader: Vehicle, answerer: Vehicle, plea: Plea
 }
 
 export function plead(world: World, npc: Vehicle, foe: Vehicle, plea: Plea): void {
+  requireRadio(world, npc, foe);
   addState(world, 'plea', npc.id, foe.id, { kind: 'plea', plea, answered: foe.brain !== null });
   if (!foe.brain) {
     world.events.push({ t: 'plea', from: npc.id, to: foe.id, plea, accepted: null });
@@ -139,6 +160,10 @@ export function plead(world: World, npc: Vehicle, foe: Vehicle, plea: Plea): voi
   if (reply !== 'comply') return;
   const held = stateOf(world, 'plea', npc.id, foe.id);
   if (held) endState(world, held, 'fulfilled');
+}
+
+function requireRadio(world: World, npc: Vehicle, foe: Vehicle): void {
+  if (!modeRules(world).radio) throw new Error(`${npc.id} cannot plead with ${foe.id} with no radio`);
 }
 
 export function settlePlayerPlea(world: World, npc: Vehicle, plea: Plea, accepted: boolean): void {
@@ -189,22 +214,19 @@ export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): 
 }
 
 export function defendClaim(world: World, claimant: Vehicle, trespasser: Vehicle): void {
-  defyThreat(world, claimant, trespasser, firepower(world, claimant) > 0 ? 'fightBack' : 'flee', 'defend its claimed loot');
+  fightOver(world, claimant, trespasser, 'defendLoot');
 }
 
 export function warnedOff(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
   const claimant = claimantOf(world, stock);
   if (!claimant || claimant.id === vehicle.id || !canVehicleSee(world, claimant, vehicle.pos)) return false;
-  if (!backedOff(stock, vehicle.id)) {
-    const answer = decide(world, vehicle, 'threatened', claimant.id, perceiveDanger(world, vehicle, claimant));
-    if (answer === 'fightBack') {
-      defyThreat(world, vehicle, claimant, 'fightBack', 'take the claimed loot');
-      defendClaim(world, claimant, vehicle);
-      return true;
-    }
-    stock.pile!.claim!.warned.push(vehicle.id);
-  }
-  finishGoal(world, vehicle, 'the loot is claimed');
+  if (backsOffClaim(world, claimant, vehicle, stock) && !backedOff(stock, vehicle.id)) stock.pile!.claim!.warned.push(vehicle.id);
+  return true;
+}
+
+function backsOffClaim(world: World, claimant: Vehicle, vehicle: Vehicle, stock: SalvageStock): boolean {
+  if (!backedOff(stock, vehicle.id) && canArgue(world, claimant, vehicle)) return lootWarningData(warnTruck(world, claimant, vehicle, stock.id, 'fight')).answer === 'comply';
+  finishGoal(world, vehicle, 'lootClaimed');
   return true;
 }
 
@@ -217,7 +239,7 @@ export function claimSpill(world: World, victim: Vehicle, stock: SalvageStock): 
   const robbers = world.vehicles.filter((npc) => npc.brain && npc.id !== victim.id && claimsSpillOf(world, npc, victim, stock));
   const robber = robbers.sort((a, b) => dist(a.pos, stock.pos) - dist(b.pos, stock.pos))[0];
   if (!robber) return;
-  goTake(world, robber, stock, [], 'take the spilled cargo');
+  goTake(world, robber, stock, [], 'takeSpilledCargo');
   if (!victim.brain || isKnockedOut(victim)) return;
   if (decide(world, victim, 'threatened', robber.id, perceiveDanger(world, victim, robber)) === 'comply') abandonSpill(world, victim, robber, stock);
 }
@@ -257,24 +279,6 @@ export function defyClaims(world: World, npc: Vehicle): void {
   defendClaim(world, npc, me);
 }
 
-export function lootsBesidePlayer(world: World, npc: Vehicle): boolean {
-  const target = lootClaimedBy(world, npc);
-  const me = playerVehicle(world);
-  if (target === null || target === me.id) return false;
-  const stock = world.salvage.find((s) => s.id === target);
-  return stock ? salvageInRange(me, stock) : inTowReach(me, vehicleById(world, target));
-}
-
-export function answersWarning(world: World, npc: Vehicle): WarnAnswer {
-  const me = playerVehicle(world);
-  return decide(world, npc, 'warnedOff', me.id, perceiveDanger(world, npc, me));
-}
-
-export function settleWarning(world: World, npc: Vehicle, answer: WarnAnswer): void {
-  if (answer === 'comply') backOffLoot(world, npc);
-  else if (answer === 'fightBack') defyThreat(world, npc, playerVehicle(world), 'fightBack');
-}
-
 type PartItem = Extract<GridItem, { kind: 'part' }>;
 
 function fightsPlayer(world: World, npc: Vehicle): boolean {
@@ -288,7 +292,7 @@ export function hasStrandedPrey(world: World, npc: Vehicle): boolean {
 
 export function strandedPrey(world: World, npc: Vehicle): Vehicle | null {
   const prey = fightTarget(world, npc);
-  if (!prey || !isBeaten(world, npc, prey)) return null;
+  if (!prey || isIntroAmbusher(world, npc.id) || !modeRules(world).yielding || !isBeaten(world, npc, prey)) return null;
   return visibleHostiles(world, npc).every((foe) => foe.id === prey.id) ? prey : null;
 }
 
@@ -303,7 +307,7 @@ function isBeaten(world: World, npc: Vehicle, prey: Vehicle): boolean {
 }
 
 function strips(world: World, npc: Vehicle, prey: Vehicle): boolean {
-  return wantsLoot(world, npc, prey) && hasStrippable(prey);
+  return wantsLoot(world, npc, prey) && hasStrippable(world, npc, prey);
 }
 
 export function offersGiveUp(world: World, npc: Vehicle): boolean {
@@ -320,7 +324,7 @@ export function judgeStrandedFoe(world: World, npc: Vehicle): void {
 }
 
 function spare(world: World, npc: Vehicle, prey: Vehicle): void {
-  if (!prey.brain) world.events.push({ t: 'say', speaker: npc.id, text: SPARE_LINE, vars: {} });
+  if (!prey.brain) world.events.push({ t: 'say', speaker: npc.id, line: SPARE_LINE, vars: {} });
   makePeace(world, npc, prey);
 }
 
@@ -343,25 +347,8 @@ export function judgedWorthOffer(world: World, npc: Vehicle): boolean {
   return `strandedFoe:${world.player.vehicleId}` in npc.brain!.noticed;
 }
 
-function removableParts(victim: Vehicle): PartItem[] {
-  return victim.items
-    .filter((item): item is PartItem => item.kind === 'part' && isMounted(victim.chassisId, item) && takeError(victim, item) === null)
-    .sort((a, b) => partSellPrice(b.part) - partSellPrice(a.part));
-}
-
-export function hasStrippable(victim: Vehicle): boolean {
-  return hasCargo(victim) || removableParts(victim).length > 0;
-}
-
-function dumpWantedParts(world: World, victim: Vehicle): SalvageStock | null {
-  let pile: SalvageStock | null = null;
-  for (let taken = 0; taken < RULES.surrenderParts; taken++) {
-    const best = removableParts(victim)[0];
-    if (!best) break;
-    pile = dumpOnPile(world, victim, best);
-  }
-  if (pile) applyRefitLayout(world, victim, victim.items);
-  return pile;
+export function hasStrippable(world: World, robber: Vehicle, victim: Vehicle): boolean {
+  return surrenderHaul(robber, victim).length > 0;
 }
 
 function refusedOffer(world: World, shooter: Vehicle, prey: Vehicle): boolean {

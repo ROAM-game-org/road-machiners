@@ -1,7 +1,11 @@
-// All colors in one place. Warm dust palette.
 
 import type { Faction } from '../sim/types';
 import type { ItemTone } from './partLooks';
+import { tokenColor } from '../ui/tokens';
+
+function tokenColorCss(name: string): string {
+  return `#${tokenColor(name).toString(16).padStart(6, '0')}`;
+}
 
 export const PAL = {
   bg: 0x1a1410,
@@ -15,6 +19,7 @@ export const PAL = {
   roadRim: 0xf8a667,
   stoneGrey: 0x8a847d,
   padMark: 0xd86a2a,
+  highwayAsphalt: 0x6c6a6c,
   pebble: 0x9c7c54,
   scorch: 0x2a2218,
   craterRim: 0x7a6242,
@@ -39,28 +44,39 @@ export const PAL = {
   metal: 0x5a5a58,
   metalLight: 0x8a8a84,
   crate: 0x9a7a4a,
-  plan: 0xf0e0b8,
-  dest: 0xe05030,
-  throttle: { brake: 0xe05a3a, hold: 0xf0d060, accelerate: 0x7cc85a },
-  select: 0xf0d060,
-  arcSpent: 0x9a9a94,
-  contact: 0xf4f1ea,
+  plan: tokenColor('--path-plan'),
+  dest: tokenColor('--path-dest'),
+  throttle: { brake: tokenColor('--path-brake'), hold: tokenColor('--path-hold'), accelerate: tokenColor('--path-accelerate') },
+  select: tokenColor('--select'),
+  utility: tokenColor('--accent-dim'),
+  arcSpent: tokenColor('--path-spent'),
+  contact: tokenColor('--path-contact'),
+  smoke: 0x100e0d,
+  caltrops: { spike: 0x9a9a94 },
+  oil: { slick: 0x0c0b0a },
+  rope: 0x16130f,
+  pulse: { flash: 0xc8ecff, arc: 0x9fd8ff, spark: 0xd8f0ff },
+  flare: { core: 0xffffff, halo: 0xff3a2a, light: 0xff4a3a, marker: tokenColor('--path-flare'), casing: 0x9a3426, trail: 0xb8b0a8 },
+  shell: { casing: 0x2a2622, trail: 0x8a8580 },
   dustTrail: 0xe0c49a,
-  radio: 0x8fe0c8,
-  beacon: 0xff4030,
+  radio: tokenColor('--path-radio'),
+  beacon: tokenColor('--path-beacon'),
   flash: 0xfff0a0,
   brass: 0xc8a048,
-  lamp: { on: 0xfff2c8, off: 0x8a8470 },
+  lamp: { on: 0xfff2c8, off: 0x8a8470, amber: 0xffb45a },
+  siteLight: { sodium: 0xffb060, warm: 0xffd8a0, cold: 0xcfe0ff, fire: 0xff7a30, amber: 0xff7018 },
   radioLight: { on: 0xff3020, off: 0x4a1a14 },
   truckGlow: 0xffffff,
   reactorLight: 0x38d6e8,
   reactorGlow: 0x5cf0b4,
+  semi: { orange: 0xd9701c, stripe: 0x1e1c1a, chrome: 0xc4c9cc, amber: 0xf2a22c, white: 0xe6e4da, rib: 0xb9b8b0 },
   hull: { light: 0xc4baa6, grey: 0x8e887c, dark: 0x6e6a62, rust: 0x7e5634 },
+  glass: { top: 0x9cb8ac, side: 0x6f8f88, dark: 0x4c6460 },
   scree: 0x8e5e44,
   dirtRoad: 0x8e7d69,
-  text: '#f0e0b8',
+  shipGlow: 0x6fe4ff,
   textDim: '#b8a888',
-  damageText: '#ff4a3a',
+  damageText: tokenColorCss('--path-damage'),
 };
 
 export const FACTION_COLORS: Record<Faction, { top: number; side: number; cab: number; cabSide: number }> = {

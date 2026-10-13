@@ -1,15 +1,68 @@
-// Any uncaught error stops the game behind a fullscreen message, so a crash is never silent.
-// Outside dev, once boot is done, the game keeps running: an error goes to the browser log and the debug console.
-// A failed command changes nothing, since commands mutate a clone of the world. Boot errors still crash.
+
+
+import { GAME_VERSION } from '../config';
+import { noWebGLText, WebGLUnavailable } from './webgl';
+
+import { setText } from '../text/language';
+import { t } from '../text/msg';
 
 let shown = false;
 let report: ((text: string) => void) | null = null;
 const reported = new Set<string>();
+const warned = new Set<string>();
+let step = 'starting the page';
 const listeners: (() => void)[] = [];
+const FOREIGN_NOTE = 'Ignored an error from a script outside the game';
+const MUTED_MESSAGE = /^script error\.?$/i;
+
+export interface ErrorFacts {
+  error: unknown;
+  message: string;
+  filename: string;
+  lineno: number;
+  colno: number;
+}
+
+export function isForeignError(event: ErrorFacts, pageOrigin: string): boolean {
+  if (event.error != null || !MUTED_MESSAGE.test(event.message)) return false;
+  if (event.filename === '') return true;
+  try {
+    return new URL(event.filename).origin !== pageOrigin;
+  } catch {
+    return false;
+  }
+}
+
+export interface CrashContext {
+  version: string;
+  step: string;
+  userAgent: string;
+  page: string;
+}
+
+export function bootStep(name: string): void {
+  step = name;
+}
+
+export function crashText(err: unknown, facts: ErrorFacts | null, context: CrashContext): string {
+  const lines = [err instanceof Error ? err.message : String(err)];
+  if (facts && facts.filename !== '') lines.push(`Source: ${facts.filename}:${facts.lineno}:${facts.colno}`);
+  if (err instanceof Error && err.stack) lines.push('', err.stack);
+  lines.push(
+    '',
+    `Version: ${context.version}`,
+    `Boot step: ${context.step}`,
+    `Browser: ${context.userAgent}`,
+    `Page: ${context.page.split(/[?#]/)[0]}`,
+  );
+  return lines.join('\n');
+}
 const sinks: ((err: unknown) => void)[] = [];
 
 export function installCrashScreen(): void {
-  window.addEventListener('error', (e) => onError(e.error ?? e.message));
+  window.addEventListener('error', (e) =>
+    onWindowError({ error: e.error, message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno }),
+  );
   window.addEventListener('unhandledrejection', (e) => onError(e.reason));
 }
 
@@ -29,32 +82,73 @@ export function reportError(err: unknown): void {
   onError(err);
 }
 
-function onError(err: unknown): void {
+function onWindowError(facts: ErrorFacts): void {
+  if (isForeignError(facts, location.origin)) return ignoreForeign(facts);
+  onError(facts.error ?? facts.message, facts);
+}
+
+function ignoreForeign(facts: ErrorFacts): void {
+  const key = `${facts.message} ${facts.filename}`;
+  if (!warned.has(key)) console.warn(FOREIGN_NOTE, facts.message, facts.filename);
+  warned.add(key);
+  if (!report || reported.has(FOREIGN_NOTE)) return;
+  reported.add(FOREIGN_NOTE);
+  report(FOREIGN_NOTE);
+}
+
+function onError(err: unknown, facts: ErrorFacts | null = null): void {
+  if (err instanceof WebGLUnavailable) showNoWebGL(err);
+  else onFault(err, facts);
+}
+
+function onFault(err: unknown, facts: ErrorFacts | null): void {
   for (const sink of sinks) sink(err);
   for (const listener of listeners) listener();
-  if (!report) return showCrash(err);
+  if (!report) return showCrash(err, facts);
   const text = err instanceof Error ? err.message : String(err);
   if (reported.has(text)) return;
   reported.add(text);
   report(`Error: ${text}`);
 }
 
-function showCrash(err: unknown): void {
+function showCrash(err: unknown, facts: ErrorFacts | null): void {
   if (shown) return;
   shown = true;
-  const text = err instanceof Error ? `${err.message}\n\n${err.stack ?? ''}` : String(err);
+  const text = crashText(err, facts, { version: GAME_VERSION, step, userAgent: navigator.userAgent, page: location.href });
   const box = document.createElement('div');
-  box.style.cssText =
-    'position:fixed;inset:0;z-index:100000;background:rgba(40,8,6,0.96);color:#ffd8c8;padding:40px;overflow:auto;' +
-    'font:14px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;';
+  box.className = 'crash-screen';
   const title = document.createElement('div');
-  title.style.cssText = 'font-size:28px;color:#ff7058;margin-bottom:20px;';
-  title.textContent = 'The game crashed';
+  title.className = 'crash-title';
+  setText(title, t('crash.title'));
   const body = document.createElement('div');
   body.textContent = text;
   const hint = document.createElement('div');
-  hint.style.cssText = 'margin-top:24px;color:#c8a898;';
-  hint.textContent = 'Reload the page to start again.';
+  hint.className = 'crash-hint';
+  setText(hint, t('crash.hint'));
   box.append(title, body, hint);
+  document.body.appendChild(box);
+}
+
+function showNoWebGL(err: WebGLUnavailable): void {
+  if (shown) return;
+  shown = true;
+  const text = noWebGLText(err, navigator.userAgent);
+  const box = document.createElement('div');
+  box.className = 'crash-screen';
+  const title = document.createElement('div');
+  title.className = 'crash-title';
+  setText(title, text.title);
+  box.append(title);
+  for (const line of text.lines) {
+    const row = document.createElement('div');
+    setText(row, line);
+    box.append(row);
+  }
+  if (text.detail) {
+    const detail = document.createElement('div');
+    detail.className = 'crash-hint';
+    detail.textContent = text.detail;
+    box.append(detail);
+  }
   document.body.appendChild(box);
 }

@@ -1,28 +1,28 @@
-// Weighted NPC decisions. A decision point offers options. An option is available when the driver physically can
-// take it now. Each available option's final weight is (base + adds) x muls x situation factor. Bases live in
-// DECISIONS. Adds and muls come from the NPC's traits, and from the states it holds toward the decision's subject.
 
 import { dealAvailable } from './patch';
 import { canSpareFor } from './aid';
 import { ECONOMY } from '../data/goods';
 import { GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
 import {
-  DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, STATE_WEIGHTS, TRAITS,
+  DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
+import { modeRules } from './settings';
 import { RULES } from '../data/rules';
-import { fightsAgainst, huntsForLoot, inCombatWithOther, isHostile } from './combat';
+import { fightsAgainst, huntsForLoot, inCombatWithOther, inFeud, inTruce, isHostile } from './combat';
 import { ramFactor, ramImpact } from './crash-contact';
 import { isDefeated, isKnockedOut } from './defeat';
 import { fightOdds, type FightOdds } from './fight-odds';
 import { vehicleById } from './damage';
 import { sensesOf } from './detect';
-import { affordableBuyCount, getTradePrice } from './economy';
+import { affordableBuyCount, getTradePrice, getUpkeepReserve } from './economy';
+export { getUpkeepReserve } from './economy';
 import { cargoRoom } from './inventory';
 import { cargoValue } from './market';
 import { maxHp } from './wear';
 import { corePart, freeCells, hasLoot, mountedParts } from './grid';
+import { cargoHaul } from './haul';
 import { hasCargoRoom } from './inventory';
 import { topGoal } from './npc-activities';
 import { sampleWeighted } from './npc-loadout';
@@ -30,22 +30,25 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, siteLootTable, STRIPPED } from './salvage';
-import { canUseSite, isTerritory, siteGap, siteGates, sitePads, siteUnder, type Site } from './sites';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
+import { passesUpLoot } from './loot-warning';
+import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
-import { fuelCap, isStranded, suppliesCap, vehicleStats } from './stats';
+import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
-import type { Contact, NpcActivity, SalvageStock, Vehicle, World } from './types';
+import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
+import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
+import { huntsOffRoad } from './hunt-style';
+import { postsOf } from './watch-posts';
 
 export type NpcProfile = {
   towns: string[];
   bases: string[];
   markets: string[];
   salvageSites: string[];
-  supplySites: string[];
   travelSites: string[];
   haulSites: string[];
   contactReactRadius: number;
@@ -73,13 +76,12 @@ export function profileOf(traits: TraitId[]): NpcProfile {
     if (!Object.hasOwn(TRAITS, id)) throw new Error(`Unknown trait ${id}`);
     return TRAITS[id];
   });
-  const union = (key: 'towns' | 'bases' | 'markets' | 'salvageSites' | 'supplySites' | 'travelSites' | 'haulSites') => [...new Set(defs.flatMap((t) => t[key]))];
+  const union = (key: 'towns' | 'bases' | 'markets' | 'salvageSites' | 'travelSites' | 'haulSites') => [...new Set(defs.flatMap((t) => t[key]))];
   return {
     towns: union('towns'),
     bases: union('bases'),
     markets: union('markets'),
     salvageSites: union('salvageSites'),
-    supplySites: union('supplySites'),
     travelSites: union('travelSites'),
     haulSites: union('haulSites'),
     contactReactRadius: Math.max(...defs.map((t) => t.contactReactRadius)),
@@ -204,9 +206,6 @@ export function isHostileContact(world: World, vehicle: Vehicle, contact: Contac
   return world.vehicles.some((other) => other.id === contact.vehicleId && isHostile(world, vehicle, other));
 }
 
-export function getUpkeepReserve(vehicle: Vehicle): number {
-  return (fuelCap(vehicle) * ECONOMY.supplyPrice.fuel + suppliesCap(vehicle) * ECONOMY.supplyPrice.supplies) * NPC_UPKEEP.reserveLoads;
-}
 
 export type TradePlan = { source: string; good: string; sellShop: string };
 
@@ -217,6 +216,7 @@ export function tradeSpend(world: World, vehicle: Vehicle): number {
 }
 
 export function tradeOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
+  if (!modeRules(world).traffic) return [];
   const spend = tradeSpend(world, vehicle);
   const shops = Object.values(SHOPS);
   return shops.flatMap((source) => shops.filter((buyer) => buyer.id !== source.id).flatMap((buyer) => runOffers(world, vehicle, source, buyer, spend)));
@@ -235,7 +235,7 @@ function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopD
     const buy = getTradePrice(world, vehicle, source.id, good, 'buy');
     const profit = getTradePrice(world, vehicle, buyer.id, good, 'sell') - buy;
     if (spend < buy || profit <= 0) return [];
-    const loadProfit = affordableBuyCount(world, vehicle, source.id, good, cargoRoom(vehicle, good), spend) * profit;
+    const loadProfit = affordableBuyCount(world, vehicle, source.id, good, cargoRoom(vehicle), spend) * profit;
     return loadProfit > fuel ? [{ value: { source: source.id, good, sellShop: buyer.id }, weight: (loadProfit - fuel) / trip }] : [];
   });
 }
@@ -269,9 +269,10 @@ function seesSalvage(world: World, vehicle: Vehicle, stock: SalvageStock, stripp
   return (!canReachSalvage(vehicle, stock) || canTakeAny(world, vehicle, stock)) && lootTaken(world, vehicle, stock.id) === null;
 }
 
-export function lootTaken(world: World, vehicle: Vehicle, targetId: string | null): string | null {
+export function lootTaken(world: World, vehicle: Vehicle, targetId: string | null): GoalReason | null {
   if (targetId === null || worksOnLoot(vehicle, targetId)) return null;
-  return lootBlocker(world, vehicle, targetId) ? 'someone else is looting it' : null;
+  const looter = lootBlocker(world, vehicle, targetId);
+  return looter && passesUpLoot(world, vehicle, looter, targetId) ? 'lootTaken' : null;
 }
 
 export function worksOnLoot(vehicle: Vehicle, targetId: string): boolean {
@@ -319,10 +320,10 @@ function afterSale(vehicle: Vehicle): Vehicle {
   return { ...vehicle, items: kept };
 }
 
-export function lootPassedUp(vehicle: Vehicle, targetId: string | null): string | null {
+export function lootPassedUp(vehicle: Vehicle, targetId: string | null): GoalReason | null {
   if (targetId !== null && worksOnLoot(vehicle, targetId)) return null;
-  if (holdFull(vehicle)) return 'the hold is full';
-  return targetId !== null && knownUnfit(vehicle, targetId) ? 'the loot will not fit' : null;
+  if (holdFull(vehicle)) return 'holdFull';
+  return targetId !== null && knownUnfit(vehicle, targetId) ? 'lootWontFit' : null;
 }
 
 export function forgetFullHold(world: World, vehicle: Vehicle): void {
@@ -334,18 +335,18 @@ export function forgetFullHold(world: World, vehicle: Vehicle): void {
   else delete brain.unfit;
 }
 
-export function stockLootInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): string | null {
+export function stockLootInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
   const stock = world.salvage.find((s) => s.id === goal.targetId);
-  if (!stock) return 'the loot is gone';
+  if (!stock) return 'lootGone';
   if (!canReachSalvage(vehicle, stock)) return !hasCargoRoom(vehicle) ? CANNOT_HOLD : null;
   if (!hasSalvage(stock)) return STRIPPED;
   return canTakeAny(world, vehicle, stock) ? null : CANNOT_HOLD;
 }
 
-export function truckLootInvalid(vehicle: Vehicle, truck: Vehicle): string | null {
-  if (!isKnockedOut(truck)) return 'the truck got away';
+export function truckLootInvalid(vehicle: Vehicle, truck: Vehicle): GoalReason | null {
+  if (!isKnockedOut(truck)) return 'truckGotAway';
   if (vehicle.job?.kind === 'refit' || !inTowReach(vehicle, truck)) return null;
-  return canTakeFromTruck(vehicle, truck) ? null : CANNOT_HOLD;
+  return canTakeFromTruck(vehicle, truck) ? null : 'cargoFullLoot';
 }
 
 function stands(vehicle: Vehicle, site: Site): boolean {
@@ -363,9 +364,8 @@ export function huntingGrounds(): readonly Vec[] {
   const sites = [...REGION.towns, ...REGION.locations];
   const lonely = (p: Vec) => sites.every((site) => siteGap(site, p) >= HUNT.siteDistance);
   const roadPoints = REGION.roads.flatMap((road) => pointsAlong(road, HUNT.roadSpacing)).filter(lonely);
-  const lootPads = REGION.locations.filter((site) => site.kind !== 'camp' && siteLootTable(site)).flatMap((site) => sitePads(site));
   const inTerritories = REGION.locations.filter(isTerritory).flatMap(territoryGrounds);
-  grounds = [...roadPoints, ...lootPads, ...inTerritories];
+  grounds = [...roadPoints, ...inTerritories];
   return grounds;
 }
 
@@ -408,7 +408,17 @@ export function nearLawGate(pos: Vec): boolean {
   return lawGates.some((gate) => dist(gate, pos) <= NPC_BEHAVIOR.lawGateReach);
 }
 
-export function raiderGrounds(camp: Site): readonly Vec[] {
+export function raiderGrounds(world: World, camp: Site): readonly Vec[] {
+  return campPosts(world, camp, campGrounds(camp), 'raid');
+}
+
+function campPosts(world: World, camp: Site, grounds: readonly Vec[], kind: string): readonly Vec[] {
+  const posts = postsOf(world, `${kind}:${camp.id}`, grounds);
+  if (posts.length === 0) throw new Error(`Camp ${camp.id} has no ${kind} post`);
+  return posts;
+}
+
+function campGrounds(camp: Site): readonly Vec[] {
   const cached = raiderStops.get(camp.id);
   if (cached) return cached;
   const camps = REGION.locations.filter((site) => site.kind === 'camp');
@@ -419,8 +429,8 @@ export function raiderGrounds(camp: Site): readonly Vec[] {
   return points;
 }
 
-export function raiderGroundsAway(vehicle: Vehicle): Vec[] {
-  return raiderGrounds(homeCamp(vehicle)).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
+export function raiderGroundsAway(world: World, vehicle: Vehicle): Vec[] {
+  return raiderGrounds(world, homeCamp(vehicle)).filter((point) => dist(vehicle.pos, point) > RULES.arriveRadius * 2);
 }
 
 function nearestHome(vehicle: Vehicle, ids: readonly string[]): Site {
@@ -441,12 +451,26 @@ export function patrolSite(vehicle: Vehicle): Site {
 const patrolStops = new Map<string, readonly Vec[]>();
 
 export function patrolPoints(site: Site): readonly Vec[] {
-  const cached = patrolStops.get(site.id);
+  return roadStops(site, NPC_BEHAVIOR.patrolSpacing);
+}
+
+export function raiderPatrolPosts(world: World, camp: Site): readonly Vec[] {
+  return campPosts(world, camp, roadStops(camp, HUNT.patrolPostSpacing), 'patrol');
+}
+
+export function patrolStopsOf(world: World, vehicle: Vehicle): readonly Vec[] {
+  const site = patrolSite(vehicle);
+  return hasTrait(vehicle, 'raider') ? raiderPatrolPosts(world, site) : patrolPoints(site);
+}
+
+function roadStops(site: Site, spacing: number): readonly Vec[] {
+  const key = `${site.id}:${spacing}`;
+  const cached = patrolStops.get(key);
   if (cached) return cached;
   const gates = siteGates(site);
   const near = (p: Vec) => gates.some((gate) => dist(gate, p) <= NPC_BEHAVIOR.patrolRadius);
-  const points = REGION.roads.flatMap((road) => pointsAlong(road, NPC_BEHAVIOR.patrolSpacing)).filter((p) => near(p) && siteUnder(p) === null);
-  patrolStops.set(site.id, points);
+  const points = REGION.roads.flatMap((road) => pointsAlong(road, spacing)).filter((p) => near(p) && siteUnder(icarusAtlas(), p) === null);
+  patrolStops.set(key, points);
   return points;
 }
 
@@ -466,7 +490,7 @@ export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id);
+  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id) && !inTruce(w, robber, target);
 }
 
 function isRobbable(w: World, target: Vehicle): boolean {
@@ -495,12 +519,12 @@ function subjectOf(world: World, decision: DecisionId, subject: string | null): 
   return vehicleById(world, subject);
 }
 
-function canFight(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
-  return firepower(world, vehicle) > 0 && canVehicleSee(world, vehicle, subjectOf(world, decision, subject).pos);
+export function canStartFight(world: World, vehicle: Vehicle, target: Vehicle): boolean {
+  return firepower(world, vehicle) > 0 && canVehicleSee(world, vehicle, target.pos) && !holdsOffRobbery(world, vehicle, target);
 }
 
 function canFightSubject(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
-  return canFight(world, vehicle, decision, subject) && !holdsOffRobbery(world, vehicle, subjectOf(world, decision, subject));
+  return canStartFight(world, vehicle, subjectOf(world, decision, subject));
 }
 
 function canInvestigate(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
@@ -553,16 +577,16 @@ function canLootSubject(world: World, vehicle: Vehicle, decision: DecisionId, su
   return truck !== undefined && seesDowned(world, vehicle, truck);
 }
 
-function canRaid(_world: World, vehicle: Vehicle): boolean {
-  return huntsPrey(vehicle) && raiderGroundsAway(vehicle).length > 0;
+function canRaid(world: World, vehicle: Vehicle): boolean {
+  return huntsPrey(vehicle) && raiderGroundsAway(world, vehicle).length > 0;
 }
 
 function canProwl(world: World, vehicle: Vehicle): boolean {
   return canDrive(world, vehicle) && !holdFull(vehicle) && huntingGroundsAway(vehicle).length > 0;
 }
 
-function canPatrol(_world: World, vehicle: Vehicle): boolean {
-  return (hasTrait(vehicle, 'lawman') || hasTrait(vehicle, 'raider')) && patrolPoints(patrolSite(vehicle)).length > 0;
+function canPatrol(world: World, vehicle: Vehicle): boolean {
+  return (hasTrait(vehicle, 'lawman') || hasTrait(vehicle, 'raider')) && patrolStopsOf(world, vehicle).length > 0;
 }
 
 function canTravel(_world: World, vehicle: Vehicle): boolean {
@@ -582,7 +606,7 @@ type OptionName = DecisionOptions[DecisionId];
 const AVAILABLE: Record<OptionName, Availability> = {
   keep: always,
   fight: canFightSubject,
-  fightBack: canFight,
+  fightBack: canFightSubject,
   flee: canDrive,
   investigate: canInvestigate,
   rob: canRobSubject,
@@ -624,6 +648,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   decline: always,
   give: canSpareSubject,
   aid: canSpareSubject,
+  warn: always,
+  leave: always,
 };
 
 type SituationFactor = (world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null) => number;
@@ -640,12 +666,16 @@ function threatFlee(world: World, vehicle: Vehicle, decision: DecisionId, subjec
   return odds.getaway > 0 && odds.getaway >= odds.win ? NPC_BEHAVIOR.threatFlee : NPC_BEHAVIOR.trappedFlee;
 }
 
+function hunterFlee(vehicle: Vehicle, manageable: boolean): number {
+  return huntsPrey(vehicle) && manageable ? NPC_BEHAVIOR.hunterFlee : 1;
+}
+
 function fleeSeenFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
-  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle);
+  return threatFlee(world, vehicle, decision, subject, danger) * weakFlee(world, vehicle) * hunterFlee(vehicle, danger !== null && isManageable(vehicle, danger));
 }
 
 function fleeHeardFactor(world: World, vehicle: Vehicle): number {
-  return weakFlee(world, vehicle);
+  return weakFlee(world, vehicle) * hunterFlee(vehicle, true);
 }
 
 function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
@@ -687,11 +717,23 @@ function guardFactor(vehicle: Vehicle, subject: Vehicle, nearGuards: number): nu
   return nearLawGate(vehicle.pos) || nearLawGate(subject.pos) ? nearGuards : 1;
 }
 
+export function huntCurve(vehicle: Vehicle): AppealCurve {
+  return huntsOffRoad(vehicle.brain ?? undefined) ? NPC_BEHAVIOR.lootAppeal.hunt : NPC_BEHAVIOR.lootAppeal.raid;
+}
+
+export function passReason(world: World, hunter: Vehicle, other: Vehicle, danger: number): PassReason {
+  if (!huntsPrey(hunter)) throw new Error(`${hunter.id} is not a raider, so it has no pass reason`);
+  if (!hasLoot(other) && !inFeud(world, hunter, other)) return 'nothing';
+  if (inCombatWithOther(world, hunter, other.id)) return 'busy';
+  if (!isManageable(hunter, danger)) return 'outgunned';
+  return appealOf(world, hunter, other, huntCurve(hunter)) < 1 ? 'poorLoad' : 'chance';
+}
+
 function fightFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const target = subjectOf(world, decision, subject);
   const eager = !isBusy(vehicle) && danger !== null && isManageable(vehicle, danger);
   const lootOnly = decision === 'hostileSeen' && huntsForLoot(world, vehicle, target);
-  const appeal = lootOnly ? appealOf(world, vehicle, target, NPC_BEHAVIOR.lootAppeal.raid) : 1;
+  const appeal = lootOnly ? appealOf(world, vehicle, target, huntCurve(vehicle)) : 1;
   return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
 }
 
@@ -746,7 +788,7 @@ export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): bool
 }
 
 export function holdsUp(world: World, robber: Vehicle, prey: Vehicle, danger: number | null): boolean {
-  return wantsLoot(world, robber, prey) && hasCargo(prey) && !wantsPeace(world, robber, danger);
+  return wantsLoot(world, robber, prey) && cargoHaul(robber, prey).length > 0 && !wantsPeace(world, robber, danger);
 }
 
 export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): boolean {
@@ -755,6 +797,10 @@ export function robbedFor(world: World, vehicle: Vehicle, target: Vehicle): bool
 
 export function holdsOffRobbery(world: World, vehicle: Vehicle, target: Vehicle): boolean {
   return isStranded(world, vehicle) && robbedFor(world, vehicle, target) && !fightsAgainst(world, target, vehicle);
+}
+
+function leaveFactor(_world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
+  return danger !== null && !isManageable(vehicle, danger) ? NPC_BEHAVIOR.threatLeave : 1;
 }
 
 function complyFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
@@ -786,6 +832,12 @@ function investigateFactor(world: World, vehicle: Vehicle): number {
   return getCombatCondition(world, vehicle) <= NPC_BEHAVIOR.recoverCondition ? NPC_BEHAVIOR.crippledInvestigate : 1;
 }
 
+function lootedResumeFactor(_world: World, vehicle: Vehicle): number {
+  const base = vehicle.brain!.goals[0].kind;
+  const hunting = base === 'raid' || base === 'patrol';
+  return hasTrait(vehicle, 'raider') && hunting && hasSaleCargo(vehicle) ? NPC_BEHAVIOR.lootedResume : 1;
+}
+
 function scavengeFactor(world: World, vehicle: Vehicle): number {
   return visibleSalvage(world, vehicle).length > 0 ? NPC_BEHAVIOR.visibleSalvage : 1;
 }
@@ -801,7 +853,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   tow: towFactor,
   demand: neutral,
   attack: neutral,
-  resume: neutral,
+  resume: lootedResumeFactor,
   new: neutral,
   trade: neutral,
   scavenge: scavengeFactor,
@@ -835,6 +887,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   decline: (world, vehicle) => declineFactor(world, vehicle),
   give: neutral,
   aid: neutral,
+  warn: neutral,
+  leave: leaveFactor,
 };
 
 function changeTables(world: World, vehicle: Vehicle, subject: string | null): TraitWeights[] {
@@ -854,7 +908,7 @@ export function optionWeights<D extends DecisionId>(world: World, vehicle: Vehic
   const tables = changeTables(world, vehicle, subject);
   const out: Partial<Record<OptionName, number>> = {};
   for (const option of Object.keys(base) as OptionName[]) {
-    if (!AVAILABLE[option](world, vehicle, decision, subject)) continue;
+    if (!optionOpen(world, vehicle, decision, subject, option)) continue;
     const { add, mul } = sumChanges(tables, decision, option);
     const factor = SITUATION[option](world, vehicle, decision, subject, danger);
     if (!(factor > 0)) throw new Error(`${vehicle.id} has situation factor ${factor} for ${option} at ${decision}`);
@@ -910,6 +964,8 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   mercyBegged: 'response',
   threatened: 'response',
   warnedOff: 'response',
+  lootContested: 'response',
+  warnRefused: 'response',
   mugging: 'response',
   strandedFoe: 'response',
   surrenderOffered: 'response',
@@ -932,7 +988,16 @@ export function offersChoice(world: World, vehicle: Vehicle, decision: DecisionI
   if (keepsWord(world, vehicle, decision, subject)) return false;
   const options = Object.keys(DECISIONS[decision]) as OptionName[];
   if (!options.includes('keep')) return true;
-  return options.some((option) => option !== 'keep' && AVAILABLE[option](world, vehicle, decision, subject));
+  return options.some((option) => option !== 'keep' && optionOpen(world, vehicle, decision, subject, option));
+}
+
+function optionOpen(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, option: OptionName): boolean {
+  return allowedByMode(world, option) && AVAILABLE[option](world, vehicle, decision, subject);
+}
+
+function allowedByMode(world: World, option: OptionName): boolean {
+  const rules = modeRules(world);
+  return (rules.yielding || !YIELD_OPTIONS.includes(option)) && (rules.rescue || !RESCUE_OPTIONS.includes(option));
 }
 
 export function optionChances<O extends string>(weights: Partial<Record<O, number>>): Partial<Record<O, number>> {
@@ -959,8 +1024,16 @@ function checkWeights(vehicle: Vehicle, decision: DecisionId, weights: Partial<R
   }
 }
 
+export function yields(world: World): boolean {
+  return modeRules(world).yielding;
+}
+
+export function givesUpUnarmed(world: World, vehicle: Vehicle): boolean {
+  return yields(world) && firepower(world, vehicle) <= 0;
+}
+
 export function giveUpStrandedRobberies(world: World, vehicle: Vehicle): void {
-  if (!isStranded(world, vehicle)) return;
+  if (!yields(world) || !isStranded(world, vehicle)) return;
   for (const s of statesHeld(world, vehicle.id).filter(isRobberyFeud)) {
     const other = world.vehicles.find((v) => v.id === s.other);
     if (!other || !holdsOffRobbery(world, vehicle, other)) continue;

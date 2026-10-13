@@ -14,7 +14,6 @@ import { dist, polylineDist } from './vec';
 
 const sun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const hazard = TERRITORIES['fallen-sun'].reactor!.hazard!;
-// The reactor in the bow's breach, the hazard's centre.
 const core = reactorPos(sun as never);
 const outsidePos = { x: core.x + hazard.radius + 3, y: core.y };
 
@@ -67,7 +66,7 @@ describe('the reactor hazard', () => {
     applyHazards(w);
     const lines = w.events.filter((e) => e.t === 'info');
     expect(lines).toHaveLength(1);
-    expect(lines[0].t === 'info' && /\d/.test(lines[0].text)).toBe(false);
+    expect(lines[0]).toEqual({ t: 'info', note: { id: 'hazard' } });
     me.trail = [{ ...core, heading: 0 }];
     applyHazards(w);
     expect(w.events.filter((e) => e.t === 'info')).toHaveLength(1);

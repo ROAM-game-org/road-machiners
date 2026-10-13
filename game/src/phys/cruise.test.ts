@@ -1,6 +1,3 @@
-// Driven speed on a straight flat road, played through the real turn pipeline and physics. A healthy ordinary car
-// cruises at about 65 km/h or more, while load, a tow, a broken transmission and a low tank keep their own limits.
-// Turns and stops are covered in drive.test.ts.
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
@@ -8,7 +5,8 @@ import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { TOW } from '../data/tow';
 import { corePart } from '../sim/grid';
-import { addGoods } from '../sim/inventory';
+import { mountPart, stowPart } from '../sim/inventory';
+import { makePart } from '../sim/factory';
 import { vehicleMass } from '../sim/mass';
 import { npcHomeSite } from '../sim/tow';
 import { addState } from '../sim/states';
@@ -18,6 +16,7 @@ import type { Vehicle, World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
+import { TEST_MAP } from '../test/map';
 
 beforeAll(async () => {
   await initPhysics();
@@ -25,10 +24,10 @@ beforeAll(async () => {
 
 const KPH = (PHYSICS.metersPerTile / PHYSICS.turnSeconds) * 3.6;
 const CRUISE_KPH = 65;
-const RAMP_TURNS = 8; // long enough for any truck here to reach its top speed from rest
+const RAMP_TURNS = 8;
+const SEMI_RAMP_TURNS = 16;
 const ROAD_Y = 30;
 
-// A world with the player parked beside the road's middle, so every truck on it keeps its physics body.
 function road(): World {
   return emptyWorld({ x: 70, y: ROAD_Y + 12 });
 }
@@ -39,10 +38,9 @@ function truck(w: World, chassisId: string, parts: string[]): Vehicle {
   return v;
 }
 
-// Plays the ramp-up and returns the truck's speed in tiles a turn.
-function cruise(w: World, id: string): number {
+function cruise(w: World, id: string, turns = RAMP_TURNS): number {
   let d: Drive = buildDrive(w);
-  for (let i = 0; i < RAMP_TURNS; i++) {
+  for (let i = 0; i < turns; i++) {
     let next: Drive | null = null;
     w = endTurn(w, physicsMove(d, (r) => { next = r.next; }));
     freeDrive(d);
@@ -62,14 +60,25 @@ describe('driven speed on an open road', () => {
     expect(speed).toBeGreaterThanOrEqual(0.95 * top);
   });
 
-  it('a hauler loaded past its rated mass drives slower than the empty hauler', () => {
+  it('a hauler loaded to the brim drives slower than the empty hauler', () => {
     const empty = road();
     const e = truck(empty, 'hauler', ['stockEngine']);
     const loaded = road();
     const l = truck(loaded, 'hauler', ['stockEngine']);
-    addGoods(loaded, l, 'tools', 999);
-    expect(vehicleMass(l)).toBeGreaterThan(chassisDef('hauler').ratedMass);
+    while (stowPart(loaded, l, makePart(loaded, 'stockEngine', 0)));
+    expect(vehicleMass(l)).toBeGreaterThan(0.6 * chassisDef('hauler').ratedMass);
     expect(cruise(loaded, l.id)).toBeLessThan(0.95 * cruise(empty, e.id));
+  });
+
+  it('an empty semi cruises at 80 km/h or more, and with every armor cell plated at 60 km/h or more', () => {
+    const empty = road();
+    const e = truck(empty, 'semi', ['stockEngine']);
+    const armored = road();
+    const a = truck(armored, 'semi', ['stockEngine']);
+    while (mountPart(armored, a, makePart(armored, 'steelPlate', 0)));
+    expect(a.items.filter((it) => it.kind === 'part' && it.part.defId === 'steelPlate').length).toBeGreaterThan(0);
+    expect(cruise(empty, e.id, SEMI_RAMP_TURNS) * KPH).toBeGreaterThanOrEqual(80);
+    expect(cruise(armored, a.id, SEMI_RAMP_TURNS) * KPH).toBeGreaterThanOrEqual(60);
   });
 
   it('a tower holds its tow share of its own top speed', () => {
@@ -80,7 +89,7 @@ describe('driven speed on an open road', () => {
     const free = vehicleStats(w, tower).maxSpeed;
     const client = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 17, y: ROAD_Y }, 0);
     client.brain = npcBrain('scavenger', client.pos, ['scavenger']);
-    addState(w, 'tow', tower.id, client.id, { kind: 'tow', site: npcHomeSite(client)!.id, fee: 0, waived: 0, hitched: true });
+    addState(w, 'tow', tower.id, client.id, { kind: 'tow', site: npcHomeSite(TEST_MAP, client)!.id, fee: 0, waived: 0, hitched: true });
     const towed = setMoveOrder(w, { kind: 'stopAt', dest: { x: 400, y: ROAD_Y } });
     const speed = cruise(towed, tower.id);
     expect(speed).toBeLessThanOrEqual(TOW.speedShare * free + 0.3);

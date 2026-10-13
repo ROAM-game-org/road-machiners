@@ -1,64 +1,98 @@
-// The boot screens for a save the game cannot load: the choice between migrating it and starting over,
-// and the report of what the migration kept, refunded and lost.
 
 import type { CarryReport } from '../sim/world';
-import { GOODS } from '../data/goods';
-import { partDef } from '../data/parts';
-import { el, panel } from './dom';
+import { bindAttr } from '../text/language';
+import { list, t, verbatim, type Msg } from '../text/msg';
+import { goodName, partName, settingName } from '../text/names';
+import { WORLD_SETTINGS } from '../data/modes';
+import type { SaveError } from '../three/save';
+import type { SlotId } from '../three/save-slots';
+import { disabledWith, download, el, panel } from './dom';
+import { openNewGame, type NewGameActions } from './new-game';
+import { OptionsPanel } from './options';
+import { moneyMsg } from './units';
 
-export type SaveFate = 'migrate' | 'new';
+export function saveErrorText(error: SaveError): Msg {
+  const code = error.code;
+  if (code !== 'incompatible' && code !== 'newer' && code !== 'notMigrated') return t(`save.error.${code}`);
+  if (!error.format) throw new Error(`Save error ${code} names no format`);
+  return t(`save.error.${code}`, error.format);
+}
 
-export const CONFIRM_NEW_GAME = 'Start a new game? The autosaves are deleted. Your save slots stay.';
-
-export function chooseSaveFate(reason: string, canMigrate: boolean): Promise<SaveFate> {
+export function chooseSaveFate(reason: Msg, canMigrate: boolean, stored: unknown, newGame: NewGameActions): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel('Your save needs migrating');
-    const done = (fate: SaveFate) => {
+    const root = savePanel(t('save.needsMigrating'));
+    const migrate = () => {
       root.remove();
-      resolve(fate);
-    };
-    const confirmNew = () => {
-      if (window.confirm(CONFIRM_NEW_GAME)) done('new');
+      resolve();
     };
     root.append(
-      el('div', {}, 'This update changed the world. Migrate keeps your skills, perks, money, truck, parts and cargo, and moves you to a town. The rest of the world starts fresh.'),
+      el('div', {}, t('save.migrateExplain')),
       el('div', { class: 'dim' }, reason),
       el(
         'div',
         { class: 'death-buttons' },
-        el('button', { onclick: () => done('migrate'), disabled: !canMigrate }, 'Migrate save'),
-        el('button', { onclick: confirmNew }, 'New game'),
+        el('button', disabledWith(canMigrate ? null : t('save.unreadable'), migrate), t('save.migrate')),
+        el('button', { onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame')),
+        el('button', { onclick: () => downloadSave(stored) }, t('save.download')),
       ),
     );
-    if (!canMigrate) root.append(el('div', { class: 'dim' }, 'The save is unreadable'));
+    root.append(el('div', { class: 'dim' }, t('save.reportBug')));
+  });
+}
+
+const TITLE = verbatim('Road Machiners');
+
+export function chooseStart(newest: SlotId | null, newGame: NewGameActions): Promise<SlotId> {
+  return new Promise((resolve) => {
+    const root = panel('start-menu');
+    root.setAttribute('role', 'dialog');
+    bindAttr(root, 'aria-label', TITLE);
+    const play = (slot: SlotId) => {
+      root.remove();
+      resolve(slot);
+    };
+    const continueAttrs = newest === null ? disabledWith(t('save.none'), () => {}) : { onclick: () => play(newest) };
+    const continueButton = el('button', { class: 'btn-l', ...continueAttrs }, t('menu.continue'));
+    const newGameButton = el('button', { class: 'btn-l', onclick: () => openNewGame(newGame, () => {}) }, t('menu.newGame'));
+    const optionsButton = el('button', { class: 'btn-l' }, t('menu.options'));
+    const startOptions = new OptionsPanel(() => optionsButton.focus());
+    optionsButton.addEventListener('click', () => startOptions.open());
+    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, continueButton, newGameButton, optionsButton));
+    (newest === null ? newGameButton : continueButton).focus();
   });
 }
 
 export function showCarryReport(report: CarryReport): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel('Save migrated');
+    const root = savePanel(t('save.migrated'));
     const lines = reportLines(report);
     root.append(
-      ...(lines.length === 0 ? [el('div', {}, 'Everything carried over')] : lines.map((line) => el('div', {}, line))),
-      el('div', { class: 'death-buttons' }, el('button', { onclick: () => { root.remove(); resolve(); } }, 'Drive on')),
+      ...(lines.length === 0 ? [el('div', {}, t('save.allCarried'))] : lines.map((line) => el('div', {}, line))),
+      el('div', { class: 'death-buttons' }, el('button', { onclick: () => { root.remove(); resolve(); } }, t('save.driveOn'))),
     );
   });
 }
 
-function savePanel(title: string): HTMLElement {
+function downloadSave(stored: unknown): void {
+  download('roam-save.json', typeof stored === 'string' ? stored : JSON.stringify(stored), 'application/json');
+}
+
+const options = new OptionsPanel(() => document.querySelector<HTMLElement>('.save-screen .options-button')?.focus());
+
+function savePanel(title: Msg): HTMLElement {
   const root = panel('death save-screen');
   root.setAttribute('role', 'alertdialog');
-  root.setAttribute('aria-label', title);
-  root.append(el('h3', {}, title));
+  bindAttr(root, 'aria-label', title);
+  root.append(el('h3', {}, title), el('button', { class: 'options-button', onclick: () => options.open() }, t('menu.options')));
   return root;
 }
 
-function reportLines(report: CarryReport): string[] {
-  const garage = report.toGarage.map((id) => partDef(id).name);
-  const sold = report.sold.map((s) => `${s.units} ${GOODS[s.good].name} sold for $${s.money}`);
+function reportLines(report: CarryReport): Msg[] {
+  const sold = report.sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
   return [
-    ...(garage.length > 0 ? [`Moved to the garage: ${garage.join(', ')}`] : []),
+    ...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []),
     ...sold,
-    ...(report.lost.length > 0 ? [`Lost, no longer in the game: ${report.lost.join(', ')}`] : []),
+    ...(report.lost.length > 0 ? [t('save.lost', { ids: list(report.lost.map(verbatim)) })] : []),
+    ...report.settingsReset.map((id) => t('save.settingReset', { setting: settingName(id), pct: Math.round(WORLD_SETTINGS[id].default * 100) })),
   ];
 }

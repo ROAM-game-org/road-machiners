@@ -1,6 +1,3 @@
-// The progression recorder. It plays a bot in the player truck through the real turn pipeline, with every truck on
-// far travel, so no physics runs and nothing crashes. Each practice event becomes a trace line. The player starts
-// with no XP, so the trace holds every XP the run gives.
 
 import { startKit } from '../../data/start';
 import { partDef } from '../../data/parts';
@@ -19,30 +16,36 @@ import { isStranded } from '../stats';
 import { buyCheapestRanks } from '../progress';
 import { clockOf } from '../sun';
 import { isTowed } from '../tow';
-import type { GameEvent, NpcActivity, Vehicle, World, XpSource } from '../types';
+import type { GameEvent, GameModeId, MoneyReason, NpcActivity, Vehicle, World, WorldSetup, XpSource } from '../types';
 import { dist, type Vec } from '../vec';
 import { canVehicleSee } from '../vision';
 import { maxHp, partValue, restorePart } from '../wear';
 import { endTurn, newWorld, update } from '../world';
 import { botOrders, parkedOnPurpose, type Archetype, type BotOptions, type Policy } from './bot';
 import { emptyLedger, LEDGER_KEYS, type BotTurn, type Ledger } from './orders';
+import { npcLedger, type NpcLedger } from './npc-ledger';
 import { TEST_MAP } from '../../test/map';
+import { newMapFor } from '../highway';
+import { defaultSetup, modeRules, parseSetup } from '../settings';
 
 export type TraceLine = { turn: number; source: XpSource; amount: number; difficulty: number | null; target: string };
 export type RunEnd = { end: 'death'; turn: number };
 export type RunFailure = { end: 'error'; turn: number; message: string };
-export type RecordStep = { world: World; lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null; events: GameEvent[]; ledger: Ledger };
+export type RecordStep = { world: World; lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null; events: GameEvent[]; ledger: Ledger; npcMoney: NpcLedger };
 export type Recording = { lines: TraceLine[]; rows: DayRow[]; death: RunEnd | null };
 
 const STALL_TILES = 1;
 
+export type Mover = { headless: boolean; step: (world: World) => (draft: World) => void; free: () => void };
+export const FAR_MOVER: Mover = { headless: true, step: () => moveAllFar, free: () => {} };
+
 export function record(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
-  return recordFrom(startWorld(seed, options.kit), `seed ${seed} ${archetype}`, archetype, turns, options);
+  return recordFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options);
 }
 
 export function recordFrom(start: World, label: string, archetype: Archetype, turns: number, options: BotOptions = {}): Recording {
   const recording: Recording = { lines: [], rows: [], death: null };
-  for (const step of stepsFrom(start, label, archetype, turns, options)) {
+  for (const step of stepsFrom(start, label, archetype, turns, options, FAR_MOVER)) {
     recording.lines.push(...step.lines);
     recording.rows.push(...step.rows);
     recording.death = step.death;
@@ -50,37 +53,37 @@ export function recordFrom(start: World, label: string, archetype: Archetype, tu
   return recording;
 }
 
-export function recordTurns(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}): Generator<RecordStep> {
-  return stepsFrom(startWorld(seed, options.kit), `seed ${seed} ${archetype}`, archetype, turns, options);
+export function recordTurns(seed: number, archetype: Archetype, turns: number, options: BotOptions = {}, mover: Mover = FAR_MOVER): Generator<RecordStep> {
+  return stepsFrom(startWorld(seed, kitOf(archetype, options), 0, options.settings, modeOf(archetype)), `seed ${seed} ${archetype}`, archetype, turns, options, mover);
 }
 
-export function* stepsFrom(start: World, label: string, archetype: Policy, turns: number, options: BotOptions = {}): Generator<RecordStep> {
+export function* stepsFrom(start: World, label: string, archetype: Policy, turns: number, options: BotOptions, mover: Mover): Generator<RecordStep> {
   const tally = new DayTally();
   let carried: DayRow[] = [tally.close(0, start)];
   let i = 0;
-  for (const played of playTurns(start, label, archetype, turns, options)) {
+  for (const played of playTurns(start, label, archetype, turns, options, mover)) {
     const { before, next: world } = played;
     tally.note(before, world, played.events, played.ledger);
     const dead = world.player.state === 'dead';
     const closed = dayEnds(before, world, ++i === turns || dead) ? [tally.close(clockOf(before.turn).day, world)] : [];
     const rows = [...carried, ...closed];
     carried = [];
-    yield { world, lines: played.lines, rows, death: dead ? { end: 'death', turn: world.turn } : null, events: played.events, ledger: played.ledger };
+    yield { world, lines: played.lines, rows, death: dead ? { end: 'death', turn: world.turn } : null, events: played.events, ledger: played.ledger, npcMoney: played.npcMoney };
   }
 }
 
-export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions = {}): Generator<PlayedTurn> {
+export function* playTurns(start: World, label: string, policy: Policy, turns: number, options: BotOptions, mover: Mover): Generator<PlayedTurn> {
   if (!Number.isInteger(turns) || turns <= 0) throw new Error(`A recording needs a positive whole number of turns, got ${turns}`);
-  setHeadless(true);
+  setHeadless(mover.headless);
   clearFarRoutes();
   try {
     let world = start;
     const watch = new StallWatch(label, world.turn, playerVehicle(world).pos);
     for (let i = 0; i < turns; i++) {
       const before = world;
-      const played = inContext(label, before, () => playTurn(before, policy, options));
+      const played = inContext(label, before, () => playTurn(before, policy, options, mover));
       world = played.next;
-      if (world.player.state === 'dead') {
+      if (runOver(world)) {
         yield played;
         return;
       }
@@ -88,18 +91,40 @@ export function* playTurns(start: World, label: string, policy: Policy, turns: n
       yield played;
     }
   } finally {
+    mover.free();
     setHeadless(false);
     clearFarRoutes();
   }
+}
+
+function runOver(world: World): boolean {
+  return world.player.state === 'dead';
 }
 
 function dayEnds(before: World, after: World, last: boolean): boolean {
   return last || clockOf(after.turn).day > clockOf(before.turn).day;
 }
 
-export function startWorld(seed: number, kit = 'standard', rank = 0): World {
+const ARCHETYPE_KITS: Partial<Record<Archetype, string>> = { hunter: 'snowball', escort: 'furyRoad', sprinter: 'furyRoad' };
+const ARCHETYPE_MODES: Partial<Record<Archetype, GameModeId>> = { escort: 'furyRoad', sprinter: 'furyRoad' };
+
+function modeOf(archetype: Archetype): GameModeId {
+  return ARCHETYPE_MODES[archetype] ?? 'roaming';
+}
+
+function kitOf(archetype: Archetype, options: BotOptions): string {
+  return options.kit ?? ARCHETYPE_KITS[archetype] ?? 'standard';
+}
+
+function modeSetup(picked: GameModeId | undefined, settings: Record<string, number> = {}): WorldSetup {
+  const mode = picked ?? 'roaming';
+  return parseSetup({ mode, settings: { ...defaultSetup(mode).settings, ...settings } });
+}
+
+export function startWorld(seed: number, kit = 'standard', rank = 0, settings?: Record<string, number>, mode?: GameModeId): World {
   if (!Number.isInteger(rank) || rank < 0 || rank > MAX_RANK) throw new Error(`No skill rank ${rank}; ranks run 0 to ${MAX_RANK}`);
-  return update(newWorld(seed, startKit(kit), TEST_MAP), (w) => {
+  const setup = modeSetup(mode, settings);
+  return update(newWorld(seed, startKit(kit), newMapFor(setup, seed, TEST_MAP), setup), (w) => {
     const p = w.player;
     p.xp = 0;
     for (const skill of Object.keys(p.ranks) as (keyof typeof p.ranks)[]) {
@@ -111,7 +136,7 @@ export function startWorld(seed: number, kit = 'standard', rank = 0): World {
   });
 }
 
-export type PlayedTurn = { before: World; orders: BotTurn; next: World; lines: TraceLine[]; events: GameEvent[]; ledger: Ledger };
+export type PlayedTurn = { before: World; orders: BotTurn; next: World; lines: TraceLine[]; events: GameEvent[]; ledger: Ledger; npcMoney: NpcLedger };
 
 const MONEY_EPSILON = 1e-6;
 
@@ -129,7 +154,7 @@ export function turnLedger(orders: BotTurn, next: World): Ledger {
   return ledger;
 }
 
-type Move = { key: 'contracts' | 'fees'; amount: number };
+type Move = { key: 'contracts' | 'fees' | 'payouts'; amount: number };
 
 function playerMove(e: GameEvent, me: string): Move | null {
   if (e.t === 'money') return { key: moneyEventKey(e.reason), amount: e.amount };
@@ -148,21 +173,20 @@ function paidBetween(payee: string, payer: string, me: string, fee: number): Mov
   return payer === me ? { key: 'fees', amount: -fee } : null;
 }
 
-function moneyEventKey(reason: string): 'contracts' | 'fees' {
-  if (reason === 'contract' || reason === 'failed haul contract') return 'contracts';
-  if (reason.startsWith('towing ')) return 'fees';
-  throw new Error(`Money event with an unknown reason "${reason}"`);
+function moneyEventKey(reason: MoneyReason): Move['key'] {
+  if (reason.kind === 'outpost') return 'payouts';
+  return reason.kind === 'towing' ? 'fees' : 'contracts';
 }
 
-function playTurn(world: World, archetype: Policy, options: BotOptions): PlayedTurn {
+function playTurn(world: World, archetype: Policy, options: BotOptions, mover: Mover): PlayedTurn {
   const orders = botOrders(buyCheapestRanks(world), archetype, options);
   const goals = topGoals(orders.world);
-  const next = endTurn(orders.world, moveAllFar);
+  const next = orders.world.player.state === 'dead' ? orders.world : endTurn(orders.world, mover.step(orders.world));
   failOnStall(next, goals, options.tolerateStalls === true);
   failOnDryMajority(next);
   const events = [...orders.events, ...next.events];
   const lines = [...traceOf(orders.events, orders.world.turn), ...traceOf(next.events, next.turn)];
-  return { before: world, orders, next, lines, events, ledger: turnLedger(orders, next) };
+  return { before: world, orders, next, lines, events, ledger: turnLedger(orders, next), npcMoney: npcLedger(world, next, events) };
 }
 
 function inContext<T>(label: string, world: World, fn: () => T): T {
@@ -217,6 +241,7 @@ function failOnStall(w: World, goals: Map<string, NpcActivity>, tolerate: boolea
 }
 
 function failOnDryMajority(w: World): void {
+  if (!modeRules(w).traffic) return;
   const drivers = w.vehicles.filter((v) => v.brain);
   const dry = drivers.filter((v) => getResources(w, v).fuel <= 0).length;
   if (dry * 2 > drivers.length) throw new Error(`turn ${w.turn}: ${dry} of ${drivers.length} NPCs are dry at once, a majority`);

@@ -1,4 +1,3 @@
-// Building vehicles and parts with world-unique ids.
 
 import { chassisDef } from '../data/chassis';
 import { partDef } from '../data/parts';
@@ -14,7 +13,6 @@ import type { Vec } from './vec';
 export type PartSpec = { defId: string; wear: number; at?: Pick<GridItem, 'x' | 'y' | 'rot'> };
 
 export type VehicleSpec = {
-  name: string;
   faction: Faction;
   chassisId: string;
   parts: PartSpec[];
@@ -23,6 +21,7 @@ export type VehicleSpec = {
   pos: Vec;
   heading: number;
   brain: NpcBrain | null;
+  driver?: 'own';
 };
 
 export type IdSource = Pick<World, 'nextId'>;
@@ -33,8 +32,12 @@ export function newId(world: IdSource, prefix: string): string {
 }
 
 export function makePart(world: IdSource, defId: string, wear: number): PartInstance {
+  return partWithId(newId(world, 'p'), defId, wear);
+}
+
+export function partWithId(id: string, defId: string, wear: number): PartInstance {
   if (!Number.isInteger(wear) || wear < 0 || wear > CONDITION.maxWear) throw new Error(`Bad wear ${wear} for a new ${defId}`);
-  const part: PartInstance = { id: newId(world, 'p'), defId, hp: 0, wear, ...gunFor(defId) };
+  const part: PartInstance = { id, defId, hp: 0, wear, ...gunFor(defId), ...chargeFor(defId) };
   return { ...part, hp: maxHp(part) };
 }
 
@@ -43,14 +46,20 @@ export function gunFor(defId: string): Pick<PartInstance, 'gun'> {
   return def.kind === 'weapon' ? { gun: { cooldown: 0, ammo: def.magazine, reloadWork: 0 } } : {};
 }
 
+export function chargeFor(defId: string): Pick<PartInstance, 'charge'> {
+  const def = partDef(defId);
+  const active = (def.kind === 'utility' && def.reload !== null) || (def.kind === 'armor' && def.claymore !== undefined);
+  return active ? { charge: { reload: 0 } } : {};
+}
+
 export function addCoreParts(world: IdSource, v: Vehicle): void {
   for (const c of chassisDef(v.chassisId).core) {
     const def = partDef(c.defId);
     if (def.kind !== 'core') throw new Error(`${c.defId} on ${v.chassisId} is not a core part`);
     const item: GridItem = { id: newId(world, 'i'), x: c.x, y: c.y, rot: c.rot ?? 0, kind: 'part', part: makePart(world, c.defId, 0) };
     const err = placementError(gridOf(v), v.items, item, null);
-    if (err) throw new Error(`${def.name} at ${c.x},${c.y} on ${v.chassisId}: ${err}`);
-    if (!isMounted(v.chassisId, item)) throw new Error(`${def.name} at ${c.x},${c.y} on ${v.chassisId} is not on built-in cells`);
+    if (err) throw new Error(`${c.defId} at ${c.x},${c.y} on ${v.chassisId}: ${err.id}`);
+    if (!isMounted(v.chassisId, item)) throw new Error(`${c.defId} at ${c.x},${c.y} on ${v.chassisId} is not on built-in cells`);
     v.items.push(item);
   }
 }
@@ -65,7 +74,6 @@ export function bareVehicle(world: IdSource, spec: Omit<VehicleSpec, 'parts' | '
   chassisDef(spec.chassisId);
   const v: Vehicle = {
     id: newId(world, 'v'),
-    name: spec.name,
     faction: spec.faction,
     chassisId: spec.chassisId,
     items: [],
@@ -76,9 +84,10 @@ export function bareVehicle(world: IdSource, spec: Omit<VehicleSpec, 'parts' | '
     order: null,
     direct: false,
     weaponOrders: {},
+    utilityOrders: {},
     trail: [],
     brain: spec.brain,
-    resources: spec.faction === 'player' ? null : { ...NPC_RESOURCES, fuel: Math.min(NPC_RESOURCES.fuel, chassisDef(spec.chassisId).fuelCap), health: RULES.maxHealth },
+    resources: spec.faction === 'player' && spec.driver !== 'own' ? null : { ...NPC_RESOURCES, fuel: Math.min(NPC_RESOURCES.fuel, chassisDef(spec.chassisId).fuelCap), health: RULES.maxHealth },
     lastHitBy: null,
     job: null,
   };
@@ -98,7 +107,7 @@ function loadVehicle(world: World, v: Vehicle, spec: VehicleSpec): void {
 function placeAt(world: World, v: Vehicle, part: PartInstance, at: NonNullable<PartSpec['at']>): void {
   const item: GridItem = { id: newId(world, 'i'), kind: 'part', part, ...at };
   const error = placementError(gridOf(v), v.items, item, item.id);
-  if (error) throw new Error(`Cannot place ${part.defId} at ${at.x},${at.y} on ${v.chassisId}: ${error}`);
+  if (error) throw new Error(`Cannot place ${part.defId} at ${at.x},${at.y} on ${v.chassisId}: ${error.id}`);
   v.items.push(item);
 }
 

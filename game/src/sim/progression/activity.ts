@@ -1,6 +1,3 @@
-// The activity log of a progression run: everything the bot and the NPCs did, turn by turn, for a reader who checks a
-// whole run for bugs and dull stretches. The record trace keeps only XP. This log keeps every game event, a snapshot of
-// the player and every NPC at a fixed interval, how the run ended and a summary of counts.
 
 import { SKILL_IDS } from '../../data/skills';
 import { TIME } from '../../data/time';
@@ -9,7 +6,7 @@ import { skillLevel } from '../progress';
 import type { DriverResources, GameEvent, NpcActivity, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import type { Archetype } from './bot';
-import { playTurns, type PlayedTurn } from './record';
+import { FAR_MOVER, playTurns, type PlayedTurn } from './record';
 
 export const ACTIVITY_LIMITS = [
   'every truck travels in far mode, so no physics, close driving or crash contact runs',
@@ -49,7 +46,7 @@ export function* activityFrom(start: World, options: ActivityOptions): Generator
   yield { k: 'run', ...options, limits: ACTIVITY_LIMITS };
   yield snapshot(start);
   try {
-    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, BOT_OPTIONS));
+    yield* play.turns(playTurns(start, `seed ${options.seed} ${options.archetype}`, options.archetype, options.turns, BOT_OPTIONS, FAR_MOVER));
   } catch (error) {
     play.fail(error);
   }
@@ -127,7 +124,7 @@ function levels(world: World): Record<string, number> {
 function npcSnapshot(v: Vehicle): NpcSnapshot {
   const brain = v.brain;
   return {
-    id: v.id, name: brain ? brain.driver : v.name, faction: v.faction, template: brain ? brain.templateId : null, pos: at(v.pos),
+    id: v.id, name: brain ? brain.driver : v.id, faction: v.faction, template: brain ? brain.templateId : null, pos: at(v.pos),
     ...goalOf(brain ? brain.goals.at(-1) : undefined), ...resourcesOf(v.resources), defeat: v.defeat ? v.defeat.phase : null,
   };
 }

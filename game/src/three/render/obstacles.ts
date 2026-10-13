@@ -1,6 +1,3 @@
-// Static map obstacles: rocks, wrecks, buildings, water and baked landmarks. Map rocks are drawn once
-// as an instanced model per terrain chunk. Other obstacles are synced by id, so wrecks that appear mid-game (a vehicle dying)
-// get added without touching the rest. Loose loot piles and the debris of broken props are synced the same way.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -20,6 +17,8 @@ import type { TurnResult } from '../../phys/drive';
 import { DebrisSim, disposeTree, FLY_REACH, truckBoxes } from './debris';
 import { jag } from './vehicle';
 import { instancedModel, model, socket } from './models';
+import { NIGHT_POOLS } from './lightPools';
+import { FORT_MODELS } from '../../sim/fortress';
 import { PartDebris } from './partDebris';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
@@ -233,10 +232,20 @@ function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   if (pose.model === 'hulk') return buildHulk(t, o, pose);
   const g = posed(propBase(t, o), pose);
   const obj = model(pose.model);
+  if (FORT_PIECE_MODELS.has(pose.model)) lightFortPiece(obj);
   if (pose.model === 'building') paintRoof(obj, o.id);
   g.add(obj);
+  paintShipGlow(obj);
   if (pose.model === 'reactor') lightCore(obj, g);
   return g;
+}
+
+const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...FORT_MODELS.values()].map((f) => f.model));
+
+function lightFortPiece(obj: THREE.Object3D): void {
+  obj.traverse((o) => {
+    if (o instanceof THREE.Mesh) for (const material of Array.isArray(o.material) ? o.material : [o.material]) NIGHT_POOLS.light(material);
+  });
 }
 
 export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
@@ -275,6 +284,15 @@ function lightCore(reactor: THREE.Object3D, g: THREE.Group): void {
   g.add(light);
   const glow: Glow = { materials, light };
   g.userData.glow = glow;
+}
+
+export function paintShipGlow(obj: THREE.Object3D): void {
+  eachMaterial(obj, (m) => {
+    if (m.name !== 'ship_glow') return;
+    m.emissive.setHex(PAL.shipGlow);
+    m.emissiveIntensity = SHIP_GLOW.emissive;
+    m.color.multiplyScalar(SHIP_GLOW.base);
+  });
 }
 
 function paintRoof(house: THREE.Object3D, id: string): void {
@@ -323,6 +341,7 @@ function syncTrees(fixed: Fixed, obstacles: readonly Obstacle[]): void {
 }
 
 const REACTOR_GLOW = { emissive: 2.2, intensity: 500, range: 40, decay: 1.5, height: 8 };
+const SHIP_GLOW = { emissive: 1.0, base: 0.2 };
 const REACTOR_PULSE = { share: 0.2, period: 5 };
 type Glow = { materials: THREE.MeshLambertMaterial[]; light: THREE.PointLight };
 const WIRES = ['wire0', 'wire1', 'wire2'];

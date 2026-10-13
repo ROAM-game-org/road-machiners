@@ -1,6 +1,3 @@
-// One line per recorded turn: the player truck's state after the turn, the hostiles it sees, the money the turn moved
-// and every event that touches the player. A batch writes these beside its traces, so one run answers every later
-// question about it without a replay.
 
 import { inCombat } from '../combat';
 import { playerVehicle } from '../damage';
@@ -8,6 +5,8 @@ import { goodsCount, mountedParts } from '../grid';
 import { onRouteRoad, terrainNav } from '../nav/layer';
 import { fightOddsAgainst } from '../npc-decisions';
 import { keepsOffRoads } from '../off-road';
+import { REGION } from '../../data/region';
+import { ROAD_INDEX } from '../road-index';
 import { getResources } from '../resources';
 import { isStranded, vehicleStats } from '../stats';
 import { isTowed } from '../tow';
@@ -18,9 +17,9 @@ import { maxHp } from '../wear';
 import { hostileToPlayer } from '../world';
 import type { Ledger } from './orders';
 import { netWorth } from './record';
+import type { NpcLedger } from './npc-ledger';
+import { furyRoadReadout } from '../fury-road';
 
-// A hostile in sight: id, driver template, chassis, distance, the player's odds in percent to win a fight against
-// its group, and its top speed.
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
 
 export type TurnLine = {
@@ -32,18 +31,20 @@ export type TurnLine = {
   sup: number;
   heat: number;
   chassis: string;
-  speed: number; // top speed now
+  speed: number;
+  v: number;
   state: string;
   goods: Record<string, number>;
-  parts: string[]; // defId:hp percent of each mounted part
+  parts: string[];
   contracts: string[];
   order: string | null;
   job: string | null;
-  flags: string[]; // combat, stranded, towed, beacon, fire
+  flags: string[];
   call: string | null;
   foes: SeenFoe[];
   ledger: Partial<Ledger>;
   ev: string[];
+  run?: string;
 };
 
 export function turnLine(world: World, events: readonly GameEvent[], ledger: Ledger): TurnLine {
@@ -60,6 +61,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
     heat: round(p.engineHeat),
     chassis: me.chassisId,
     speed: round(vehicleStats(world, me).maxSpeed),
+    v: round(me.speed),
     state: p.state,
     goods: goodsCount(me),
     parts: mountedParts(me).map((part) => `${part.defId}:${Math.round((100 * part.hp) / maxHp(part))}`),
@@ -71,26 +73,34 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
     foes: foesSeen(world, me),
     ledger: Object.fromEntries(Object.entries(ledger).filter(([, v]) => v !== 0)),
     ev: events.filter((e) => touchesPlayer(e, me.id)).map((e) => describe(world, e)),
+    ...runField(world),
   };
 }
 
-// Every truck is snapshotted every SNAPSHOT_TURNS turns: a truck drives under 10 tiles a turn, so ten turns keeps a
-// route followable and the file small enough to read whole.
-const SNAPSHOT_TURNS = 10;
-
-// The world log of one turn: every event of the turn raw, whoever it touches, and on a snapshot turn the position,
-// order, goal stack, money, fuel and part health of every truck, whether it keeps off roads and whether it is on one.
-export type WorldLine = { t: number; events?: GameEvent[]; trucks?: TruckSnap[] };
-export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; hp: number; states: string[]; offRoad: boolean; onRoad: boolean };
-
-export function worldLine(world: World, events: readonly GameEvent[]): WorldLine | null {
-  const line: WorldLine = { t: world.turn };
-  if (events.length > 0) line.events = [...events];
-  if (world.turn % SNAPSHOT_TURNS === 0) line.trucks = world.vehicles.map((v) => snap(world, v));
-  return line.events || line.trucks ? line : null;
+function runField(world: World): { run?: string } {
+  const run = furyRoadReadout(world);
+  return run ? { run: `${run.stretch} ${Math.round(run.toOutpost)}` } : {};
 }
 
-// The mean health of the mounted parts, in percent.
+const SNAPSHOT_TURNS = 10;
+
+export type WorldLine = { t: number; events?: GameEvent[]; money?: NpcLedger; trucks?: TruckSnap[] };
+export type TruckSnap = { id: string; who: string; faction: string; chassis: string; pos: [number, number]; speed: number; order: string | null; goals: string[]; money: number; fuel: number; sup: number; stranded: boolean; hp: number; states: string[]; offRoad: boolean; onRoad: boolean; roadGap: number };
+
+export function worldLine(world: World, events: readonly GameEvent[], npcMoney: NpcLedger = {}): WorldLine | null {
+  const line: WorldLine = { t: world.turn, ...eventsField(events), ...moneyField(npcMoney) };
+  if (world.turn % SNAPSHOT_TURNS === 0) line.trucks = world.vehicles.map((v) => snap(world, v));
+  return Object.keys(line).length > 1 ? line : null;
+}
+
+function eventsField(events: readonly GameEvent[]): Pick<WorldLine, 'events'> {
+  return events.length > 0 ? { events: [...events] } : {};
+}
+
+function moneyField(npcMoney: NpcLedger): Pick<WorldLine, 'money'> {
+  return Object.keys(npcMoney).length > 0 ? { money: npcMoney } : {};
+}
+
 function meanHp(v: Vehicle): number {
   const parts = mountedParts(v);
   return Math.round(parts.reduce((sum, p) => sum + (100 * p.hp) / maxHp(p), 0) / Math.max(1, parts.length));
@@ -109,11 +119,21 @@ function snap(world: World, v: Vehicle): TruckSnap {
     goals: v.brain?.goals.map((g) => `${g.kind}${g.targetId ? `:${g.targetId}` : ''}`) ?? [],
     money: Math.round(getResources(world, v).money),
     fuel: Math.round(getResources(world, v).fuel),
+    sup: Math.round(getResources(world, v).supplies * 10) / 10,
+    stranded: isStranded(world, v),
     hp,
     states: world.states.filter((s) => s.holder === v.id).map((s) => `${s.kind}>${s.other}`),
     offRoad: keepsOffRoads(world, v),
     onRoad: onRouteRoad(terrainNav(world.terrain), v.pos.x, v.pos.y),
+    roadGap: roadGap(v),
   };
+}
+
+const ROAD_GAP_CAP = 20;
+
+function roadGap(v: Vehicle): number {
+  const centre = ROAD_INDEX.nearestWithin(v.pos.x, v.pos.y, ROAD_GAP_CAP + REGION.roadWidth / 2);
+  return Math.min(ROAD_GAP_CAP, Math.round(Math.max(0, centre - REGION.roadWidth / 2)));
 }
 
 function flagsOf(world: World, me: Vehicle): string[] {
@@ -128,8 +148,7 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
     .map((v) => ({ id: v.id, who: `${v.brain?.templateId ?? v.faction}/${v.chassisId}`, dist: Math.round(dist(v.pos, me.pos)), odds: Math.round(100 * fightOddsAgainst(world, me, v).win), speed: Math.round(vehicleStats(world, v).maxSpeed * 10) / 10 }));
 }
 
-// Events with no vehicle field are the player's own.
-const OWN = new Set(['money', 'contract', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover']);
+const OWN = new Set(['money', 'contract', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
 const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
@@ -138,16 +157,15 @@ export function touchesPlayer(e: GameEvent, me: string): boolean {
   return JSON.stringify(e).includes(`"${me}"`);
 }
 
-// A truck id with its driver template and chassis, such as v76:raider-gunwagon/gunwagon.
 function truck(world: World, id: string): string {
   const v = world.vehicles.find((x) => x.id === id);
   return v ? `${id}:${v.brain?.templateId ?? 'player'}/${v.chassisId}` : id;
 }
 
 export function describe(world: World, e: GameEvent): string {
-  if (e.t === 'say') return `say ${e.speaker}: ${e.text}`;
+  if (e.t === 'say') return `say ${e.speaker}: ${e.line}`;
   if (e.t === 'shot') return `shot ${truck(world, e.shooter)}>${truck(world, e.target)} ${e.weapon} hits ${e.rounds.filter((r) => r.hit).length}/${e.rounds.length}`;
-  if (e.t === 'money') return `money ${e.amount} ${e.reason}`;
+  if (e.t === 'money') return `money ${e.amount} ${e.reason.kind}`;
   if (e.t === 'contract') return `contract ${e.outcome} ${e.contract.kind}`;
   if (e.t === 'stateEnded') return `stateEnded ${e.state.kind}:${e.state.holder}>${e.state.other} ${e.ending}`;
   const { t, ...rest } = e;
