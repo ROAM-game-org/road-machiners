@@ -69,7 +69,7 @@ files.put(
 )
 files.put(
     name="Push the GitHub App private key",
-    src=settings.factory_gh_app_key_file,
+    src=str(INFRA_DIR / settings.factory_gh_app_key_file),
     dest=GITHUB_APP_KEY,
     user=FACTORY_USER,
     group=FACTORY_USER,
