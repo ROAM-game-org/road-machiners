@@ -462,7 +462,10 @@ export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): 
   const back = radii * (1 + 2 * Math.floor(rank / 2)) - leader.speed;
   const fx = Math.cos(leader.heading);
   const fy = Math.sin(leader.heading);
-  goal.destination = { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
+  const fresh = { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
+  const gap = dist(vehicle.pos, leader.pos);
+  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
+  if (!holds) goal.destination = fresh;
 }
 
 export function followPace(follower: Vehicle, leader: Vehicle, spot: Vec): number {

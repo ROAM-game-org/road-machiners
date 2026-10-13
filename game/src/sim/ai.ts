@@ -9,7 +9,7 @@ import { randRange } from "./rng";
 import { isFree } from "./spawn";
 import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
-import { vehicleStats, type MountedWeapon } from "./stats";
+import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
 import { escortsOf, followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
@@ -124,6 +124,7 @@ function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolea
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
   return escortsOf(world, v.id).some((e) => {
     const gap = dist(e.pos, v.pos);
+    if (isStranded(world, e) || isOnRope(world, e.id)) return false;
     return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= NPC_BEHAVIOR.escortCatchUpGap;
   });
 }

@@ -17,6 +17,7 @@ export const NPC_BEHAVIOR = {
   weakDecline: 20,
   escortWaitGap: 12,
   escortCatchUpGap: 40,
+  followReaimShare: 0.25,
   lawGateReach: LAW_GATE_REACH,
   patrolRadius: LAW_GATE_REACH + TERRAIN.vision.radius * 4,
   patrolSpacing: 4,
