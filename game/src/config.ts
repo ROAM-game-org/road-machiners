@@ -7,6 +7,11 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+export const TOUCH = {
+  slopPx: 10,
+  longPressMs: 500,
+};
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
