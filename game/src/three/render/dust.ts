@@ -48,7 +48,7 @@ export function fitToTruck(center: { x: number; z: number }, truck: { x: number;
 function reachAt(life: number): number {
   const span = DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life;
   const size = DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * LARGEST_BREATHE;
-  return (span / 2 + DUST_LOOK.wobble + size / 2) * S;
+  return ((span / 2 + DUST_LOOK.wobble) * Math.SQRT2 + size / 2) * S;
 }
 
 export class DustCloudsView {
