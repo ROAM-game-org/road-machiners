@@ -129,7 +129,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - `factory/src/stages/triage.ts`: verdict `vote` with `pitch`. `vote()` applies the routing labels, adds `voting`, writes the pitch with `addProposal`, comments once, and leaves the card in Triage. Parser refuses `vote` with `hotfix`, `releaseFix` or a bug label.
 - `factory/prompts/triage.md`: the bug, improvement and vote rules and the `pitch` field.
 - `factory/src/stages/bundle.ts`: `voting` blocks a bundle candidate.
-- `factory/src/tick.ts`: `voting` keeps triage from running like `needs-info`, adds the wait reason `voting`, and calls `publicTick(ctx)` (IF4) before `intake`.
+- `factory/src/tick.ts`: `voting` keeps triage from running like `needs-info` and adds the wait reason `voting`.
 - `factory/src/dashboard/labels.ts`, `factory/src/position.ts`: the `voting` wait reason and flag.
 - Commit: Triage sends bugs and improvements to work and puts real features to a vote.
 
@@ -172,8 +172,8 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 ### Interfaces
 - IF1 — `PublicStore` in `factory/src/public/store.ts`, committed.
 - IF2 — `$FACTORY_HOME/public-inbox/<updateId>.json` holds one `PublicEvent`, written to a temp name and renamed.
-- IF3 — `classify(cfg: Pick<FactoryConfig, 'openaiKey' | 'filterModel'>, input: { source: 'comment' | 'report'; text: string; kind: string | null }, fetch: typeof globalThis.fetch): Promise<Decision>`, with `Decision = { verdict: 'accept' | 'reject'; kind: 'bug' | 'feature' | 'feedback'; route: PublicRoute; title: string; reason: string }`. It throws on any failed call or bad answer.
-- IF4 — `publicTick(ctx: Ctx): Promise<void>` in `factory/src/public/tick-steps.ts`.
+- IF3 — `filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify` in `factory/src/public/filter.ts`. The types live in `factory/src/public/decision.ts`, committed. The returned function throws on any failed call or bad answer.
+- IF4 — `publicTick(ctx: Ctx, classify: Classify): Promise<void>` in `factory/src/public/tick-steps.ts`. PH7 wires it into `tick.ts` with the real filter, since PH2 and PH4 typecheck apart.
 - IF5 — `postBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void>` in `factory/src/public/build-post.ts`. It does nothing for an issue with no posted proposal.
 - IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent' | 'refused', message }`, or an error status with a plain text message.
 
