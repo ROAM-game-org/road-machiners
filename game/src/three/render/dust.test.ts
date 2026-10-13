@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { DETECT } from '../../data/detect';
 import { PHYSICS } from '../../data/physics';
-import { flatTerrain } from '../../sim/testkit';
-import type { DustCloud, World } from '../../sim/types';
+import { CHASSIS } from '../../data/chassis';
+import { bodyOf } from '../../sim/body';
+import { dropClearance } from '../../sim/hazards';
+import { addVehicle, emptyWorld, flatTerrain } from '../../sim/testkit';
+import type { DustCloud, Vehicle, World } from '../../sim/types';
+import { cloneWorld } from '../../sim/world';
+import type { VehicleView } from './vehicle';
 import type { Card, FxCards } from './particles/cards';
 import { DUST_LOOK, DustCloudsView, puffsPerCloud } from './dust';
 
@@ -63,5 +68,73 @@ describe('DustCloudsView', () => {
     expect(puffsPerCloud(1)).toBe(DUST_LOOK.puffs);
     expect(puffsPerCloud(DUST_LOOK.maxCards / 2)).toBe(2);
     expect(puffsPerCloud(0)).toBe(0);
+  });
+});
+
+function drove(chassisId: string): { world: World; me: Vehicle } {
+  const world = emptyWorld();
+  const me = addVehicle(world, 'player', chassisId, [], { x: 30, y: 30 });
+  world.player.vehicleId = me.id;
+  me.trail = Array.from({ length: 11 }, (_, i) => ({ x: 25 + i * 0.5, y: 30, heading: 0 }));
+  me.pos = { x: 30, y: 30 };
+  world.dustClouds = [{ id: 'd1', source: me.id, pos: { x: 27.5, y: 30 }, vel: { x: 0, y: 0 }, age: 0, range: 5 }];
+  return { world, me };
+}
+
+const viewAt = (x: number, z: number) => ({ center: () => ({ x, y: 0, z }) }) as unknown as VehicleView;
+const clockAt = (before: World, progress: number, moved = false) => ({ before, progress, moved, hookedLines: new Set<string>() });
+
+function updated(world: World, views: Map<string, VehicleView>, clock: ReturnType<typeof clockAt> | null): Card[] {
+  const view = new DustCloudsView();
+  view.update(world, world.terrain, 0, views, clock);
+  return drawn(view);
+}
+
+describe('DustCloudsView reveal', () => {
+  it('hides a cloud raised this turn until the truck rear has passed it', () => {
+    const { world, me } = drove('scout');
+    const before = cloneWorld(world);
+    const passed = 0.5 + dropClearance(me, 0) / 2.5;
+    expect(updated(world, new Map(), clockAt(before, 0))).toHaveLength(0);
+    expect(updated(world, new Map(), clockAt(before, 0.5))).toHaveLength(0);
+    expect(updated(world, new Map(), clockAt(before, passed + 0.05))).toHaveLength(DUST_LOOK.puffs);
+  });
+
+  it('shows it with no clock, after the move, or for an older cloud', () => {
+    const { world } = drove('scout');
+    const before = cloneWorld(world);
+    expect(updated(world, new Map(), null)).toHaveLength(DUST_LOOK.puffs);
+    expect(updated(world, new Map(), clockAt(before, 0.2, true))).toHaveLength(DUST_LOOK.puffs);
+    world.dustClouds[0].age = 1;
+    expect(updated(world, new Map(), clockAt(before, 0))).toHaveLength(DUST_LOOK.puffs);
+  });
+});
+
+describe('DustCloudsView fit', () => {
+  const byLength = Object.keys(CHASSIS).sort((a, b) => bodyOf(a).half.x - bodyOf(b).half.x);
+  const ends = [byLength[0], byLength[byLength.length - 1]];
+
+  it.each(ends.flatMap((id) => [0.3, 1].map((tiles) => [id, tiles] as const)))('keeps every card of %s clear of the truck at %s tiles', (id, tiles) => {
+    const { world, me } = drove(id);
+    const half = bodyOf(id).half.x;
+    for (const heading of [0, Math.PI / 2]) {
+      me.heading = heading;
+      const truck = viewAt(27.5 * S + Math.cos(heading) * tiles * S, 30 * S + Math.sin(heading) * tiles * S);
+      for (const c of updated(world, new Map([[me.id, truck]]), null)) {
+        const gap = Math.hypot(c.x - truck.center().x, c.z - truck.center().z) - c.size / 2;
+        expect(gap).toBeGreaterThanOrEqual(half - 1e-6);
+      }
+    }
+  });
+
+  it('grows back to full size as the truck drives away', () => {
+    const { world, me } = drove('scout');
+    const largest = (tiles: number | null) => {
+      const views = new Map(tiles === null ? [] : [[me.id, viewAt((27.5 + tiles) * S, 30 * S)] as const]);
+      return Math.max(...updated(world, views, null).map((c) => c.size));
+    };
+    expect(largest(3)).toBeGreaterThanOrEqual(largest(1));
+    expect(largest(8)).toBeGreaterThanOrEqual(largest(3));
+    expect(largest(8)).toBe(largest(null));
   });
 });
