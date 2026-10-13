@@ -1,4 +1,3 @@
-// Trucks dropped onto flat ground and onto slopes through the real physics turn pipeline.
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { coreParts, mountedParts } from '../sim/grid';

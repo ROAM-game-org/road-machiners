@@ -5,7 +5,7 @@ import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
 import { acceptContract, type Contract } from './market';
-import { chooseQuestOption, QUESTS, questView, startQuest } from './quests';
+import { chooseQuestOption, QUESTS, restoreQuest, questView, startQuest } from './quests';
 import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import { emptyWorld } from './testkit';
@@ -41,6 +41,7 @@ const haul = (id: string, reward: number): Extract<Contract, { kind: 'haul' }> =
 const WAGON = 'About that scavenger with the Army radio.';
 const WAGON_FOUND = 'We found wagon Seven.';
 const WORK = 'Any work?';
+const PIERCE = 'What came of the Pierce loan?';
 
 describe('settlement locals', () => {
   it('lists the town locals first and keeps every local at a place with a shop', () => {
@@ -87,9 +88,41 @@ describe('settlement locals', () => {
 
   it('opens a question after the answer that mentions it', () => {
     const w = parkedAt('bowl');
-    expect(choices(w, 'bowl_ruben')).not.toContain('Why did the Senate refuse the loan from Pierce?');
+    expect(choices(w, 'bowl_ruben')).not.toContain(PIERCE);
     const asked = talk(w, 'bowl_ruben', ['Who runs Bowl?', 'Goodbye.']);
-    expect(choices(asked, 'bowl_ruben')).toContain('Why did the Senate refuse the loan from Pierce?');
+    expect(choices(asked, 'bowl_ruben')).toContain(PIERCE);
+    expect(choices(asked, 'bowl_ruben').some((c) => /refuse/i.test(c))).toBe(false);
+    const answer = talk(w, 'bowl_ruben', ['Who runs Bowl?', PIERCE]);
+    expect(questView(answer, QUESTS).lines.map((l) => l.text).join(' ')).toContain('The Senate turned it down.');
+  });
+
+  it('keeps the Pierce question after a save and load', () => {
+    const open = talk(parkedAt('bowl'), 'bowl_ruben', ['Who runs Bowl?']);
+    const loaded = structuredClone(open);
+    loaded.player.quests.live = null;
+    restoreQuest(loaded, QUESTS);
+    expect(questView(loaded, QUESTS).choices).toContain(PIERCE);
+  });
+
+  it('asks Jory about votes, patrol and Nose only after the answers that bring them up', () => {
+    const w = parkedAt('bowl');
+    expect(choices(w, 'bowl_jory')).toEqual(['Who are the tenants?', 'Goodbye.']);
+    const asked = talk(w, 'bowl_jory', ['Who are the tenants?', 'Goodbye.']);
+    expect(choices(asked, 'bowl_jory')).toContain('How does a tenant get a vote?');
+    expect(choices(asked, 'bowl_jory')).not.toContain('What do you make of Nose?');
+    asked.player.discovered.push('nose');
+    expect(choices(asked, 'bowl_jory')).toContain('What do you make of Nose?');
+    const voted = talk(asked, 'bowl_jory', ['How does a tenant get a vote?', 'Goodbye.']);
+    expect(choices(voted, 'bowl_jory')).toContain('Do tenants take up the patrol?');
+  });
+
+  it('greets with the copy line only when Agnes has told of a copy', () => {
+    const lines = (w: World) => questView(startQuest(w, QUESTS, 'pump_agnes', 'start'), QUESTS).lines.map((l) => l.text).join(' ');
+    const w = parkedAt('pump-station');
+    w.player.quests.local.pump_agnes = { trusted: true };
+    expect(lines(w)).not.toContain('Changed your mind about the copy?');
+    w.player.quests.local.pump_agnes = { trusted: true, knows_copy: true };
+    expect(lines(w)).toContain('Changed your mind about the copy?');
   });
 
   it('writes a rumor into the journal and changes nothing else', () => {
@@ -164,6 +197,11 @@ describe('wagon Seven', () => {
   const ASK_TELLER = 'Ask Teller in front of Lena what happened on the bend.';
   const PUT = 'Put the stub on the bench and say where it came from.';
   const TAP = 'Spend an hour tapping the stub out.';
+
+  it('shows the painted number in the wreck scene, so the later questions can say Seven', () => {
+    const wreck = questView(startQuest(parkedAt('bowl'), QUESTS, 'wagon_seven', 'start'), QUESTS);
+    expect(wreck.lines.map((l) => l.text).join(' ')).toContain('a white 7');
+  });
 
   function skilled(w: World, level: number): World {
     for (const skill of ['perception', 'machining', 'social'] as const) w.player.ranks[skill] = level;
@@ -316,7 +354,7 @@ describe('the depot leak at Nose', () => {
   const GATE = 'Check the gate log for the same nights.';
   const SABINE = 'Talk to the trader by the gate.';
   const PAY = 'Pay her 20 M to talk.';
-  const SOLID_CASE = [...OPEN, LEDGER, GATE, 'Talk to Pell, the fuel clerk.', 'Watch the depot all night.'];
+  const SOLID_CASE = [...OPEN, LEDGER, GATE, 'Talk to the fuel clerk.', 'Watch the depot all night.'];
   const vars = (w: World) => w.player.quests.local.nose_depot_leak ?? {};
 
   it('shows the depot quest as pages with its numbers and the facts found so far', () => {
@@ -350,10 +388,9 @@ describe('the depot leak at Nose', () => {
 
   it('turns Kovac away from a name with no proof, and locks up the wrong man on the ledger alone', () => {
     const w = parkedAt('nose');
-    const early = talk(w, 'nose_kovac', [...OPEN, 'Go to Kovac with a name.', 'Corporal Vance.']);
+    const early = talk(w, 'nose_kovac', [...OPEN, SABINE, PAY, 'Go to Kovac with a name.', 'The corporal with the scar.']);
     expect(vars(early)).toMatchObject({ alarm: 1 });
     expect(early.player.quests.world).toEqual({ depot_thief: 'open' });
-    expect(questView(talk(w, 'nose_kovac', [...OPEN, 'Go to Kovac with a name.', 'Pell, the clerk.']), QUESTS).ended).toBe(false);
 
     const weak = talk(w, 'nose_kovac', [...OPEN, LEDGER, GATE, 'Go to Kovac with a name.', 'Corporal Vance.']);
     expect(weak.player.quests.world).toEqual({ depot_thief: 'open' });
@@ -390,9 +427,22 @@ describe('the depot leak at Nose', () => {
     expect(() => chooseQuestOption(short, QUESTS, pickIndex(short, PAY))).toThrow('costs 20 M, more than the player holds');
   });
 
+  it('names no one before a lead has named them', () => {
+    const w = parkedAt('nose');
+    const desk = talk(w, 'nose_kovac', OPEN);
+    expect(questView(desk, QUESTS).choices.filter((c) => /Vance|Pell/.test(c))).toEqual([]);
+    expect(questView(desk, QUESTS).choices).not.toContain('Go to Kovac with a name.');
+
+    const scar = talk(w, 'nose_kovac', [...OPEN, SABINE, PAY, 'Go to Kovac with a name.']);
+    expect(questView(scar, QUESTS).choices).toEqual(['The corporal with the scar.', 'Not yet.']);
+
+    const logged = talk(w, 'nose_kovac', [...OPEN, LEDGER, GATE, 'Go to Kovac with a name.']);
+    expect(questView(logged, QUESTS).choices).toEqual(['Corporal Vance.', 'Pell, the clerk.', 'Not yet.']);
+  });
+
   it('runs out of watches into a last call', () => {
     const w = parkedAt('nose');
-    const slow = talk(w, 'nose_kovac', [...OPEN, 'Talk to Pell, the fuel clerk.', LEDGER, 'Watch the depot all night.', GATE, SABINE, 'Leave her be.']);
+    const slow = talk(w, 'nose_kovac', [...OPEN, 'Talk to the fuel clerk.', LEDGER, 'Watch the depot all night.', GATE, SABINE, 'Leave her be.']);
     expect(vars(slow)).toMatchObject({ watches: 0, alarm: 1 });
     expect(questView(slow, QUESTS).choices).toEqual(['Name Corporal Vance.', 'Name Pell, the clerk.', 'Let it go.']);
   });

@@ -1,6 +1,6 @@
 import { CONDITION } from '../data/wear';
 import { GEAR_SCORE, PRIORITY_TOP, type LoadoutPriorities } from '../data/npcs';
-import { PARTS, partDef, type WeaponDef } from '../data/parts';
+import { PARTS, partDef, type EngineDef, type WeaponDef } from '../data/parts';
 import { makePart } from './factory';
 import { gunsBySide, killRate, targetOf, THREATS } from './fight-odds';
 import { baseGrid, freeCells, itemCells, mountedItems, plateSide, type SideLetter } from './grid';
@@ -27,7 +27,7 @@ export function armorQuality(world: World, defId: string, wear: number): number 
   return quality;
 }
 
-export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle): (v: Vehicle) => number {
+export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle, paysFuel: boolean): (v: Vehicle) => number {
   const edge = Object.fromEntries(SIDE_LETTERS.map((letter) => [letter, baseGrid(bare.chassisId).cells.flat().filter((cell) => cell === letter).length]));
   const target = targetOf(bare);
   const tierOne = Object.values(PARTS).filter((d): d is WeaponDef => d.kind === 'weapon' && d.tier === 1 && d.line === undefined);
@@ -52,6 +52,8 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle): (
     return sides.reduce((a, b) => a + b, 0) / sides.length;
   };
 
+  const speedValue = (v: Vehicle) => vehicleStats(world, v).maxSpeed / bareSpeed / (paysFuel ? engineFuelUse(v) : 1);
+
   const fireValue = (v: Vehicle) => {
     const guns = gunsBySide(v);
     const sides = SIDE_LETTERS.map((letter) => {
@@ -64,6 +66,11 @@ export function gearScorer(world: World, p: LoadoutPriorities, bare: Vehicle): (
   return (v) =>
     (p.armor / PRIORITY_TOP) * armorValue(v) +
     (p.firepower / PRIORITY_TOP) * fireValue(v) +
-    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * (vehicleStats(world, v).maxSpeed / bareSpeed) +
+    GEAR_SCORE.speedWeight * (p.speed / PRIORITY_TOP) * speedValue(v) +
     (p.cargo / PRIORITY_TOP) * (1 - (1 - Math.min(1, freeCells(v) / bareCells)) ** GEAR_SCORE.cargoCurvePower);
+}
+
+function engineFuelUse(v: Vehicle): number {
+  const engine = mountedItems(v, 'engine')[0];
+  return engine ? wornDef<EngineDef>(engine.part).fuelMult : 1;
 }

@@ -293,6 +293,12 @@ def route_setup(tmp_path, session=None):
     return inbox, plugin.make_route_handler(cfg, make_readiness(tmp_path), session_env=lambda key: values.get(key, ""))
 
 
+def test_only_the_redesign_reply_asks_hermes_to_set_the_implementation_model():
+    assert "implementation-opus" in plugin.ROUTE_DONE["redesign"]
+    assert "implementation-opus" not in plugin.ROUTE_DONE["patch"]
+    assert "implementation-opus" not in plugin.ROUTE_DONE["answer"]
+
+
 @pytest.mark.parametrize("route_name", ["answer", "patch", "redesign"])
 def test_route_tool_writes_a_route_command_for_an_open_post(tmp_path, route_name):
     inbox, handle = route_setup(tmp_path)

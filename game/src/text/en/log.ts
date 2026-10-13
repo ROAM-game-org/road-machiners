@@ -163,7 +163,6 @@ export const LOG = {
   'log.debugStall': m('Bug: {who} stuck on {what} ({why}), gave it up', { who: 'text', what: 'text', why: 'text' }),
   'log.moneyGain': m('+{n}: {reason}', { n: 'text', reason: 'text' }),
   'log.moneyLoss': m('−{n}: {reason}', { n: 'text', reason: 'text' }),
-  'log.guardShot': m('{site} guards → {target}, {hits}/{rounds} hit', { site: 'text', target: 'text', hits: 'int', rounds: 'int' }),
   'log.discovered': m('Discovered {site}', { site: 'text' }),
   'log.partDisabled': m('{who}: {part} disabled', { who: 'text', part: 'text' }),
   'log.breakdown': m('{part} broke down', { part: 'text' }),

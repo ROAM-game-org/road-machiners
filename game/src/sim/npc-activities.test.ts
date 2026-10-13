@@ -631,10 +631,10 @@ describe('NPC activities', () => {
       const moveFar = (next: World) => next.vehicles.forEach((v) => v.brain && advanceFar(next, v));
       forceOption('salvageSeen', 'keep');
       overlookSalvage(w, npc);
-      const scrapIn = (world: World) => {
-        const stock = world.salvage.find((s) => s.id === spot.id)!;
-        return (stock.goods.scrap ?? 0) + (stock.hidden.goods.scrap ?? 0);
-      };
+      const furrowIds = new Set(inFurrow.map((s) => s.id));
+      const scrapIn = (world: World) => world.salvage
+        .filter((s) => furrowIds.has(s.id))
+        .reduce((sum, stock) => sum + (stock.goods.scrap ?? 0) + (stock.hidden.goods.scrap ?? 0), 0);
       const before = scrapIn(w);
 
       let next = w;
