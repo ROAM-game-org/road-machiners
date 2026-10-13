@@ -7,6 +7,9 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+declare const __SFX_BYTES__: Record<string, number>;
+export const SFX_BYTES = __SFX_BYTES__;
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
