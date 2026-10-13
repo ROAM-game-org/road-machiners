@@ -68,7 +68,7 @@ export function rightDock(): HTMLElement {
   const root = uiRoot();
   const found = root.querySelector<HTMLElement>(':scope > .right-dock');
   if (found) return found;
-  const dock = el('div', { class: 'right-dock' });
+  const dock = el('div', { class: 'right-dock', 'data-drawer-frame': 'radio' });
   root.append(dock);
   return dock;
 }

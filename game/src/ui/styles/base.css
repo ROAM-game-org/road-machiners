@@ -122,3 +122,11 @@ body {
   stroke-linejoin: round;
   stroke-linecap: round;
 }
+#ui:not(.touch) .touch-only {
+  display: none;
+}
+#ui .info-touch {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}

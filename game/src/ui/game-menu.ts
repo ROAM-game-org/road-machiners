@@ -1,4 +1,5 @@
 
+import { closeLabel, touchMode } from "./input-mode";
 import { ERROR_REPORT_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -83,7 +84,23 @@ export const CONTROLS: ControlGroup[] = [
   },
 ];
 
-export function controlsFor(rules: ModeRules): ControlGroup[] {
+const TOUCH_CONTROLS: ControlGroup[] = [
+  {
+    title: t("help.group.touch"),
+    controls: [
+      { keys: [t("help.key.tap")], on: t("help.on.ground"), does: t("help.does.driveByRoad") },
+      { keys: [t("help.key.hold")], on: t("help.on.ground"), does: t("help.does.stopThere") },
+      { keys: [t("help.key.drag")], does: t("help.does.moveView") },
+      { keys: [t("help.key.pinch")], does: t("help.does.zoom") },
+      { keys: [t("help.key.tap")], on: t("help.on.truck"), does: t("help.does.look") },
+      { keys: [t("help.key.tapAgain")], on: t("help.on.truck"), does: t("help.does.aimGun") },
+      { keys: [t("help.key.hold")], on: t("help.on.control"), does: t("help.does.why") },
+    ],
+  },
+];
+
+export function controlsFor(rules: ModeRules, touch = false): ControlGroup[] {
+  if (touch) return TOUCH_CONTROLS;
   return CONTROLS.map((group) => ({ ...group, controls: group.controls.filter((c) => !c.needs || rules[c.needs]) }));
 }
 
@@ -133,8 +150,8 @@ export class HelpPanel {
     const setup = this.setup();
     const notes = [verbatim(versionLabel()), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
-      el("button", { class: "close btn-s", onclick: () => this.close() }, t("menu.closeEsc")),
-      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode)).map(controlGroup)),
+      el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
+      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
       el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;

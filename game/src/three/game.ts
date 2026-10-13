@@ -313,6 +313,8 @@ export class Game {
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
+      unpin: () => this.unpin(),
+      markInspected: () => this.markInspected(),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (w) => this.apply(w) }),
     }, radio);
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
@@ -432,6 +434,7 @@ export class Game {
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld());
+    this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld());
     if (!this.anim && this.world.player.state === "dead") this.death.show(this.world);
     this.weapons.render();
@@ -554,12 +557,21 @@ export class Game {
     KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
-    KeyN: { run: () => this.inspected() && !markError(this.world, this.inspected()!) && this.apply(markVehicle(this.world, this.inspected()!)), noModal: true, idle: true },
+    KeyN: { run: () => this.markInspected(), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggle(this.screens.character), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
-    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.pin.clear(); this.selectUtility(null); } },
+    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
+
+  unpin(): void {
+    this.pin.clear();
+  }
+
+  markInspected(): void {
+    const id = this.inspected();
+    if (id && !markError(this.world, id)) this.apply(markVehicle(this.world, id));
+  }
 
   private selectUtility(id: string | null): void {
     if (this.anim || (id !== null && this.modalOpen())) return;
