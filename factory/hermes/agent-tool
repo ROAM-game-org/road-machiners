@@ -1,0 +1,7 @@
+#!/bin/bash
+# Installed as agy and codex. Runs the tool of its own name on the factory server, in the agent image with the factory's login, model and limits.
+# The cwd and the arguments travel NUL-separated and base64-encoded as one word, so any text survives the server's shell and stdin stays free for a prompt.
+set -euo pipefail
+tool=$(basename "$0")
+payload=$(printf '%s\0' "$PWD" "$@" | base64 -w0)
+exec factory-host "cd /opt/factory/code/factory && npm run -s factory -- tool $tool $payload"

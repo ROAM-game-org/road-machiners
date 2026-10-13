@@ -1,8 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { countAgyRun, decodeToolCall, HERMES_TOOL_LABEL, runHermesTool, toolDockerArgs, toolWorkdir, type ToolDeps } from './hermes-tools';
+import { readEnvFiles } from './config';
+import { countAgyRun, decodeToolCall, HERMES_TOOL_LABEL, HERMES_TOOLS_SHARED, runHermesTool, toolDockerArgs, toolWorkdir, type ToolDeps } from './hermes-tools';
 import { AGENT_NETWORK, type FactoryConfig } from './types';
 
 const SECRET = 'gemini-secret-value';
@@ -161,4 +163,66 @@ describe('runHermesTool', () => {
     await running;
     expect(deps.removed).toEqual([deps.spawned[0][deps.spawned[0].indexOf('--name') + 1]]);
   });
+});
+
+const HERMES_DIR = resolve(__dirname, '../hermes');
+
+describe('the agy and codex commands of the Hermes image', () => {
+  it('are both copies of the wrapper', () => {
+    const dockerfile = readFileSync(join(HERMES_DIR, 'Dockerfile'), 'utf8');
+    expect(dockerfile).toContain('COPY --chmod=755 agent-tool /usr/local/bin/agy');
+    expect(dockerfile).toContain('COPY --chmod=755 agent-tool /usr/local/bin/codex');
+  });
+
+  it('send their tool, cwd and arguments to factory tool on the server, with stdin passed on', () => {
+    const bin = join(home, 'bin');
+    const cwd = join(home, 'work dir');
+    mkdirSync(bin);
+    mkdirSync(cwd);
+    writeFileSync(join(bin, 'factory-host'), `#!/bin/bash\nprintf '%s' "$1" > "${home}/command"\ncat > "${home}/stdin"\n`);
+    chmodSync(join(bin, 'factory-host'), 0o755);
+    symlinkSync(join(HERMES_DIR, 'agent-tool'), join(bin, 'codex'));
+    const result = spawnSync(join(bin, 'codex'), ['exec', 'Скажи "ok"; rm -rf $HOME', ''], { cwd, input: 'prompt text', env: { PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
+    expect(result.status, result.stderr).toBe(0);
+    const command = readFileSync(join(home, 'command'), 'utf8');
+    const [prefix, tool, payload] = command.split(' tool ').flatMap((part, index) => (index === 0 ? [part] : part.split(' ')));
+    expect(prefix).toBe('cd /opt/factory/code/factory && npm run -s factory --');
+    expect(decodeToolCall(tool, payload)).toEqual({ tool: 'codex', cwd, args: ['exec', 'Скажи "ok"; rm -rf $HOME', ''] });
+    expect(readFileSync(join(home, 'stdin'), 'utf8')).toBe('prompt text');
+  });
+});
+
+const hermes = process.env.FACTORY_SMOKE_HERMES;
+
+function hostSecrets(): { gemini: boolean; codex: boolean } {
+  if (!existsSync('.env')) return { gemini: false, codex: false };
+  const env = readEnvFiles('settings.env', '.env');
+  return { gemini: (env.GEMINI_API_KEY ?? '') !== '', codex: existsSync(join(env.FACTORY_HOME ?? '', 'codex/auth.json')) };
+}
+
+function inHermes(...command: string[]): { code: number | null; out: string } {
+  const result = spawnSync('docker', ['exec', '-u', String(process.getuid?.()), '-w', HERMES_TOOLS_SHARED, hermes as string, ...command], { encoding: 'utf8', timeout: 600_000 });
+  return { code: result.status, out: `${result.stdout}${result.stderr}` };
+}
+
+describe.skipIf(hermes === undefined)('agy and codex in the deployed Hermes container', () => {
+  it('has both commands in its PATH, and each runs on the server', () => {
+    expect(inHermes('sh', '-c', 'command -v agy codex').out.trim().split('\n')).toEqual(['/usr/local/bin/agy', '/usr/local/bin/codex']);
+    const codex = inHermes('codex', '--version');
+    expect(codex.code, codex.out).toBe(0);
+    const agy = inHermes('agy', '--version');
+    expect(agy.code, agy.out).toBe(0);
+  }, 300_000);
+
+  it.skipIf(!hostSecrets().gemini)('gets an answer from agy with the factory Gemini key', () => {
+    const agy = inHermes('agy', '--dangerously-skip-permissions', '-p', 'Reply with the single word ok.');
+    expect(agy.code, agy.out).toBe(0);
+    expect(agy.out.toLowerCase()).toContain('ok');
+  }, 600_000);
+
+  it.skipIf(!hostSecrets().codex)('gets an answer from codex with the factory Codex login', () => {
+    const codex = inHermes('codex', 'exec', '--skip-git-repo-check', 'Reply with the single word ok.');
+    expect(codex.code, codex.out).toBe(0);
+    expect(codex.out.toLowerCase()).toContain('ok');
+  }, 600_000);
 });

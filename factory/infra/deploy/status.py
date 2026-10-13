@@ -24,6 +24,7 @@ checks = {
     "gh auth": f"timeout 30 sudo -H -u {FACTORY_USER} sh -c 'GH_TOKEN=$(grep ^GH_TOKEN= {FACTORY_ENV} | cut -d= -f2-) gh auth status' 2>&1 | head -6 || true",
     "containers": "timeout 30 docker ps --format '{{.Names}}\t{{.Status}}' 2>&1 || true",
     "hermes health": "timeout 30 docker inspect --format '{{.Name}}\t{{.State.Status}}\t{{if .State.Health}}{{.State.Health.Status}}{{end}}' factory-hermes 2>&1 || true",
+    "hermes tools": "timeout 30 docker exec factory-hermes sh -c 'command -v agy codex' 2>&1 || true",
     "agent image": "timeout 30 docker images --format '{{.Repository}}:{{.Tag}}\t{{.CreatedSince}}\t{{.Size}}' 2>&1 | head -10 || true",
     "web root": f"timeout 20 sh -c 'ls {FACTORY_ROOT}/www | head -20' 2>&1 || true",
     "published ports": "timeout 30 docker ps --format '{{.Names}}\t{{.Ports}}' 2>&1 || true",
