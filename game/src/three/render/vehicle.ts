@@ -273,7 +273,7 @@ export class VehicleView {
   private placedPart(v: Vehicle, body: Body, item: PartItem, def: PartDef, paint: number): THREE.Object3D {
     const mounted = isMounted(v.chassisId, item);
     if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
-    if (def.kind === 'armor') return this.placeArmor(v, body, item, paint, mounted);
+    if (def.kind === 'armor') return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
     return this.placeItem(v, item, paint, standingY(v, item));
   }
@@ -378,22 +378,11 @@ export class VehicleView {
     return obj;
   }
 
-  private placeArmor(v: Vehicle, body: Body, item: PartItem, paint: number, mounted: boolean): THREE.Object3D {
+  private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
     if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
-    const side = armorSide(v, item);
-    const across = side === 'F' || side === 'B';
-    const rect = rectOf(v, item);
-    const at = mounted ? { pos: new THREE.Vector3((rect.x0 + rect.x1) / 2, 0, (rect.z0 + rect.z1) / 2) } : footprint(v, item, standingY(v, item));
-    const depth = armorDepth(mounted, across);
     const obj = model(partModel(def.id));
-    if (mounted) {
-      const height = new THREE.Box3().setFromObject(obj).max.y;
-      at.pos.y = { plates: body.half.y - height, ram: -body.half.y, cage: body.half.y - height }[def.look];
-      seatArmor(at.pos, rect, side, depth);
-    }
-    const n = Math.max(def.w, def.h);
-    place(obj, { pos: at.pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depth / CELL.along, 1, armorSpan(item, rect, mounted, across) / (n * CELL.across)) });
+    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj).max.y));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -661,8 +650,8 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 function alwaysDrawn(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
-  if (def.kind === 'weapon' || def.kind === 'armor') return true;
-  return (def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
+  if (def.kind === 'weapon') return true;
+  return (def.kind === 'armor' || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
 }
 
 function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
@@ -673,7 +662,7 @@ export function standingY(v: Pick<Vehicle, 'chassisId'>, item: GridItem): number
   return restOf(v, item).y;
 }
 
-function armorSide(v: Vehicle, item: PartItem): SideLetter {
+function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
   const size = itemSize(item);
   const side = plateSide(v.chassisId, item);
   const depthCells = ['F', 'B'].includes(side) ? size.h : size.w;
@@ -681,10 +670,27 @@ function armorSide(v: Vehicle, item: PartItem): SideLetter {
   return side;
 }
 
-function armorSpan(item: PartItem, rect: CellRect, mounted: boolean, across: boolean): number {
-  const size = itemSize(item);
-  if (!mounted) return across ? size.w * CELL.across : size.h * CELL.along;
-  return across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
+export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, height: number): Placement {
+  const def = partDef(item.part.defId);
+  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+  const side = armorSide(v, item);
+  const across = side === 'F' || side === 'B';
+  const n = Math.max(def.w, def.h);
+  const scaleOf = (depth: number, span: number) => new THREE.Vector3(depth / CELL.along, 1, span / (n * CELL.across));
+  if (!isMounted(v.chassisId, item)) {
+    const { rect, y } = restOf(v, item);
+    const dx = rect.x1 - rect.x0;
+    const dz = rect.z1 - rect.z0;
+    const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
+    return { pos, yaw: SIDE_YAW[side], scale: across ? scaleOf(dx, dz) : scaleOf(dz, dx) };
+  }
+  const rect = rectOf(v, item);
+  const depth = across ? CELL.along : SIDE_SKIN;
+  const half = bodyOf(v.chassisId).half.y;
+  const y = { plates: half - height, ram: -half, cage: half - height }[def.look];
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
+  seatArmor(pos, rect, side, depth);
+  return { pos, yaw: SIDE_YAW[side], scale: scaleOf(depth, across ? rect.z1 - rect.z0 : rect.x1 - rect.x0) };
 }
 
 function seatArmor(pos: THREE.Vector3, rect: CellRect, side: SideLetter, depth: number): void {
@@ -697,11 +703,6 @@ function bumperPlacement(rect: CellRect, nose: boolean, top: number, yaw: number
   const x = nose ? rect.x1 - CELL.along / 2 : rect.x0 + CELL.along / 2;
   const width = rect.z1 > rect.z0 ? (rect.z1 - rect.z0) / CELL.across : 1;
   return { pos: new THREE.Vector3(x, top, (rect.z0 + rect.z1) / 2), yaw, scale: new THREE.Vector3(1, stretch, width) };
-}
-
-function armorDepth(mounted: boolean, across: boolean): number {
-  if (across) return CELL.along;
-  return mounted ? SIDE_SKIN : CELL.across;
 }
 
 function itemModel(item: GridItem) {

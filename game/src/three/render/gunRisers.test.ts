@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../../data/chassis';
 import { PARTS } from '../../data/parts';
 import { CLIP_TOLERANCE, cellRect, highestUnder, restOn } from '../../sim/body';
-import { baseGrid, itemCells } from '../../sim/grid';
+import { baseGrid, isMounted, itemCells } from '../../sim/grid';
 import type { GridItem } from '../../sim/types';
-import { loadModels } from './models';
-import { footprint, postColumn, standingY, weaponStand, wouldFloat } from './vehicle';
+import { loadModels, model, partModel } from './models';
+import * as THREE from 'three';
+import { armorPlacement, footprint, postColumn, standingY, weaponStand, wouldFloat } from './vehicle';
 import { budget } from '../../test/budget';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -47,23 +48,80 @@ describe('gun risers', () => {
   });
 });
 
-describe('parts that are always drawn', () => {
-  it('never hides a weapon or armor for lack of a surface, on any chassis and cell', () => {
-    const kept = Object.values(PARTS).filter((p) => p.kind === 'weapon' || p.kind === 'armor');
-    const hidden: string[] = [];
-    for (const id of Object.keys(CHASSIS)) {
-      const { w, h } = baseGrid(id);
-      for (const def of kept) {
-        for (let y = 0; y + def.h <= h; y++) {
-          for (let x = 0; x + def.w <= w; x++) {
-            const item = { id: 'g', kind: 'part', x, y, rot: 0, part: { id: 'p', defId: def.id, hp: 1, wear: 0 } } as unknown as GridItem;
-            if (!itemCells(item).every((c) => baseGrid(id).cells[c.y]?.[c.x])) continue;
-            if (wouldFloat({ chassisId: id }, item)) hidden.push(`${def.id} on ${id} at ${x},${y}`);
-          }
+function eachPlacement(visit: (id: string, def: (typeof PARTS)[string], item: GridItem, label: string) => void, kind: string): void {
+  const defs = Object.values(PARTS).filter((p) => p.kind === kind);
+  for (const id of Object.keys(CHASSIS)) {
+    const { w, h, cells } = baseGrid(id);
+    for (const def of defs) {
+      for (let y = 0; y + def.h <= h; y++) {
+        for (let x = 0; x + def.w <= w; x++) {
+          const item = { id: 'g', kind: 'part', x, y, rot: 0, part: { id: 'p', defId: def.id, hp: 1, wear: 0 } } as unknown as GridItem;
+          if (!itemCells(item).every((c) => cells[y + (c.y - y)]?.[c.x])) continue;
+          visit(id, def, item, `${def.id} on ${id} at ${x},${y}`);
         }
       }
     }
+  }
+}
+
+describe('parts that are always drawn', () => {
+  it('never hides a weapon or mounted armor for lack of a surface, on any chassis and cell', () => {
+    const hidden: string[] = [];
+    const check = (id: string, _d: unknown, item: GridItem, label: string) => {
+      if (item.kind === 'part' && partDefKind(item) === 'armor' && !isMounted(id, item)) return;
+      if (wouldFloat({ chassisId: id }, item)) hidden.push(label);
+    };
+    eachPlacement(check, 'weapon');
+    eachPlacement(check, 'armor');
     expect(hidden).toEqual([]);
+  });
+});
+
+function partDefKind(item: GridItem): string {
+  return item.kind === 'part' ? PARTS[item.part.defId].kind : '';
+}
+
+describe('spare armor', () => {
+  const spare = (id: string, item: GridItem) => !isMounted(id, item);
+
+  it('is hidden exactly when it has no surface to rest on', () => {
+    const wrong: string[] = [];
+    eachPlacement((id, _d, item, label) => {
+      if (!spare(id, item)) return;
+      if (wouldFloat({ chassisId: id }, item) !== restOn(id, cellRect(id, itemCells(item))).perched) wrong.push(label);
+    }, 'armor');
+    expect(wrong).toEqual([]);
+  });
+
+  it('is drawn inside its rest rect', () => {
+    let checked = 0;
+    const out: string[] = [];
+    eachPlacement((id, def, item, label) => {
+      if (!spare(id, item) || wouldFloat({ chassisId: id }, item)) return;
+      if (item.kind !== 'part') return;
+      checked++;
+      let placement;
+      try {
+        const obj = model(partModel(def.id));
+        placement = armorPlacement({ chassisId: id }, item, new THREE.Box3().setFromObject(obj).max.y);
+        const box = new THREE.Box3().setFromObject(obj);
+        const size = box.getSize(new THREE.Vector3());
+        const quarter = Math.abs(Math.sin(placement.yaw)) > 0.5;
+        const sx = size.x * placement.scale.x;
+        const sz = size.z * placement.scale.z;
+        const halfX = (quarter ? sz : sx) / 2;
+        const halfZ = (quarter ? sx : sz) / 2;
+        const rect = restOn(id, cellRect(id, itemCells(item))).rect;
+        const cx = (rect.x0 + rect.x1) / 2;
+        const cz = (rect.z0 + rect.z1) / 2;
+        const tol = CLIP_TOLERANCE;
+        if (halfX > (rect.x1 - rect.x0) / 2 + tol || halfZ > (rect.z1 - rect.z0) / 2 + tol || Math.abs(placement.pos.x - cx) > tol || Math.abs(placement.pos.z - cz) > tol) out.push(label);
+      } catch {
+        return;
+      }
+    }, 'armor');
+    expect(checked).toBeGreaterThan(100);
+    expect(out).toEqual([]);
   });
 });
 
