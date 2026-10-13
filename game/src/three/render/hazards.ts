@@ -76,7 +76,11 @@ export function fieldShown(world: World, f: GroundField, clock: TurnClock | null
   if (clock === null || clock.moved || !madeThisTurn(clock, 'fields', f.id)) return true;
   const dropper = world.vehicles.find((v) => v.id === f.source);
   if (!dropper) return false;
-  return arcAt(dropper.trail, clock.progress) >= arcOf(pathOf(dropper), f.pos) + dropClearance(dropper, f.r);
+  return trailPassed(dropper, f.pos, dropClearance(dropper, f.r), clock.progress);
+}
+
+export function trailPassed(v: Vehicle, pos: Vec, clearance: number, progress: number): boolean {
+  return arcAt(v.trail, progress) >= arcOf(pathOf(v), pos) + clearance;
 }
 
 function pathOf(v: Vehicle): Vec[] {
