@@ -220,6 +220,8 @@ Use the `factory` CLI first. `docs/state.md` describes each store and what a val
 - A factory update never pauses the factory or stops jobs. Running jobs finish on the code they started with.
 - A card job whose process died, or that ran past its time limit, resumes once by itself. The tick log says so, and it is no incident.
 - Every change to the game repo goes through an issue, so the factory tracks it to its release. Open the issue and let the stages run. Never open a pull request of your own.
+- Put an issue you open on the board yourself with `gh project item-add` and its column. Never react to an issue or vote on it. Votes come from players, and a bot vote breaks GitHub's terms. The gh wrapper refuses reactions.
+- Write to GitHub as little as the work allows. GitHub suspended the factory's first account for bulk automated posting. Say everything in one comment rather than several, and never post a comment that only reports progress.
 - When the committee asks to skip the stages for a game change, open the issue anyway, then run `factory merge N` with the member as `--by`. By hand, merge into `dev` with the title `Merge issue #N: <issue title>`, and add the label `release-candidate` to the issue. The release lists only merges with that title, and it closes their issues when it ships.
 - Prefer the factory's own steps to doing their work by hand. A step also builds, publishes and records what it did. A merge with `gh pr merge` does none of that.
 - Keep the state file valid JSON with every field. Write a new file and rename it over the old one.

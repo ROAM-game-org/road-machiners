@@ -92,6 +92,15 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     return (await gh(args)).split('\n').filter((line) => line.trim() !== '');
   }
 
+  let repoLabels: Set<string> | null = null;
+
+  async function ensureLabel(label: string): Promise<void> {
+    repoLabels ??= new Set(await lines(['label', 'list', '-R', repo, '--limit', '1000', '--json', 'name', '--jq', '.[].name']));
+    if (repoLabels.has(label)) return;
+    await gh(['label', 'create', label, '-R', repo]);
+    repoLabels.add(label);
+  }
+
   async function thumbsUp(number: number): Promise<string[]> {
     return lines(['api', `repos/${repo}/issues/${number}/reactions`, '--paginate',
       '--jq', '.[] | select(.content == "+1") | .user.login']);
@@ -182,7 +191,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await gh(['issue', 'comment', String(number), '-R', repo, '--body', `${body}\n\n${FACTORY_MARK}`]);
     },
     async addLabel(number, label) {
-      await gh(['label', 'create', label, '-R', repo, '--force']);
+      await ensureLabel(label);
       await gh(['issue', 'edit', String(number), '-R', repo, '--add-label', label]);
     },
     async removeLabel(number, label) {
@@ -192,7 +201,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
       await gh(['issue', 'close', String(number), '-R', repo, '--reason', reason]);
     },
     async createIssue(title, body, labels) {
-      for (const label of labels) await gh(['label', 'create', label, '-R', repo, '--force']);
+      for (const label of labels) await ensureLabel(label);
       const args = ['issue', 'create', '-R', repo, '--title', title, '--body', body];
       for (const label of labels) args.push('--label', label);
       const url = (await gh(args)).trim();

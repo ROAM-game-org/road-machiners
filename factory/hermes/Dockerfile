@@ -26,6 +26,12 @@ COPY plugin /opt/hermes-factory/plugin
 # Hermes never passes GH_TOKEN to its shell, since a model provider uses that name, so the token stays inside this wrapper.
 COPY --chmod=755 <<'EOF2' /usr/local/bin/gh
 #!/bin/sh
+refuse() { echo "gh wrapper: the factory never reacts or votes on GitHub" >&2; exit 1; }
+case "$*" in
+  *addReaction*) refuse ;;
+  *graphql*) ;;
+  *reactions*) case " $* " in *" -X"*|*" --method"*|*" -f "*|*" -F "*|*" --field"*|*" --raw-field"*|*" --input"*) refuse ;; esac ;;
+esac
 GH_TOKEN="$(cat /factory/home/github-token)" || exit 1
 export GH_TOKEN
 exec /usr/bin/gh "$@"

@@ -192,13 +192,26 @@ describe('ghClient', () => {
     expect(calls).toEqual([['issue', 'reopen', '7', '-R', 'o/r']]);
   });
 
-  it('creates a missing label before it opens an issue with it', async () => {
+  it('creates only a missing label before it opens an issue with it', async () => {
     const calls: string[][] = [];
-    const run: Run = async (_cmd, args) => { calls.push(args); return ok(args[0] === 'issue' ? 'https://github.com/o/r/issues/31\n' : ''); };
+    const run: Run = async (_cmd, args) => {
+      calls.push(args);
+      if (args[0] === 'label' && args[1] === 'list') return ok('maintenance\n');
+      return ok(args[0] === 'issue' ? 'https://github.com/o/r/issues/31\n' : '');
+    };
     const number = await ghClient(run, CFG).createIssue('T', 'B', ['release-task', 'maintenance']);
     expect(number).toBe(31);
-    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label create release-task', 'label create maintenance', 'issue create -R']);
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'label create release-task', 'issue create -R']);
     expect(calls[2]).toEqual(['issue', 'create', '-R', 'o/r', '--title', 'T', '--body', 'B', '--label', 'release-task', '--label', 'maintenance']);
+  });
+
+  it('reads the repo labels once and adds a known label with one write', async () => {
+    const calls: string[][] = [];
+    const run: Run = async (_cmd, args) => { calls.push(args); return ok(args[1] === 'list' ? 'factory-stuck\n' : ''); };
+    const client = ghClient(run, CFG);
+    await client.addLabel(4, 'factory-stuck');
+    await client.addLabel(5, 'factory-stuck');
+    expect(calls.map((args) => args.slice(0, 3).join(' '))).toEqual(['label list -R', 'issue edit 4', 'issue edit 5']);
   });
 
   it('finds the oldest error-report issue whose body holds the exact fingerprint line, open or closed', async () => {
