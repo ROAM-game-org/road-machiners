@@ -6,7 +6,7 @@ Sound tells the player what happens without making them read the log: where a sh
 
 - `src/data/sounds.ts` holds the cue catalog, the prompt styles and every mix number in `MIX`. Tune there.
 - `public/sfx/` holds the files, one `<cue>-<n>.ogg` per variant. A test fails when a file has no cue or a cue claims a missing file.
-- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file at boot, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` times the combat accents.
+- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file at boot, a few at a time. A file that fails twice gets a sibling or silent stand-in and one error report instead of stopping the boot, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` times the combat accents.
 - `src/three/sound.ts` turns game events into sound: `SoundDirector` for one-shots, `SoundLoops` for engine, wind and music, and `CombatScore` for the combat music.
 - `scripts/sfx-*.mjs` generate and import files. `scripts/sfx-phase.py` measures beat loops.
 
