@@ -14,6 +14,10 @@ export const HOLD_TO_DRAG_MS = 300;
 
 export const DOUBLE_CLICK_MS = 350;
 
+export function dragStartOf(pointerType: string, mounted: boolean): "now" | "hold" {
+  return pointerType === "touch" || mounted ? "hold" : "now";
+}
+
 export type ItemSource = "grid" | "storage" | "loot" | "truck";
 
 export type ClickedItem = {
