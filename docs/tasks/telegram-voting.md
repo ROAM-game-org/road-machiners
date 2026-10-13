@@ -1,6 +1,6 @@
 # Voting moves to Telegram
 
-**Status:** design
+**Status:** executing
 **Branch:** telegram-voting
 **Worktree:** .worktrees/telegram-voting
 **Goal:** Bugs and justified improvements reach Design with no votes. A real feature is posted to the public channel as a proposal, at most 4 a day, and reaches Design when its thumbs-up count reaches `FACTORY_MIN_VOTES`. Its build is posted as a reply to the proposal, and player comments and in-game reports reach the issue and route bugs to patch or redesign. Confirming it needs the user to add the bot to the discussion group, add `OPENAI_API_KEY`, merge into `main` and watch one real proposal go through. Tonight's proof is fixture tests, a replay of recorded updates through the plugin and the tick, and sample posts in the committee chat.
@@ -117,6 +117,77 @@ TDD: yes. The store, the plugin handlers, the tick steps, the triage parser and 
 
 ## Plan
 
+Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel worktrees with disjoint paths and merge back. PH7 wires, documents and checks the whole.
+
+### PH1 — Contract (done, e3b4f9f2)
+- `factory/src/public/store.ts` (create): `openStore(home)`, `PublicStore` with every query, `PublicEvent` types.
+- `factory/src/types.ts`, `factory/src/config.ts`, `factory/settings.env`, `factory/.env.example`: the new keys and the labels `voting`, `player-report`, the sender `public` and the two player headings.
+
+### PH2 — Triage and intake
+- `factory/src/intake.ts`: drop `isMarked` votes and the committee path. Keep the age gate. Respects IV8.
+- `factory/src/github.ts`: `candidates()` stops reading thumbs-up. `Issue.thumbsUp` goes where nothing else reads it.
+- `factory/src/stages/triage.ts`: verdict `vote` with `pitch`. `vote()` applies the routing labels, adds `voting`, writes the pitch with `addProposal`, comments once, and leaves the card in Triage. Parser refuses `vote` with `hotfix`, `releaseFix` or a bug label.
+- `factory/prompts/triage.md`: the bug, improvement and vote rules and the `pitch` field.
+- `factory/src/stages/bundle.ts`: `voting` blocks a bundle candidate.
+- `factory/src/tick.ts`: `voting` keeps triage from running like `needs-info`, adds the wait reason `voting`, and calls `publicTick(ctx)` (IF4) before `intake`.
+- `factory/src/dashboard/labels.ts`, `factory/src/position.ts`: the `voting` wait reason and flag.
+- Commit: Triage sends bugs and improvements to work and puts real features to a vote.
+
+### PH3 — Hermes plugin public handlers
+- `factory/hermes/plugin/public.py` (create): `make_public_factory(cfg)` wires a `MessageReactionHandler` for counts and per-user reactions, and a `MessageHandler` for the discussion group and for replies in `FACTORY_PROPOSAL_CHAT` when it is a group. Each writes an IF2 file and raises `ApplicationHandlerStop`, except a committee chat reply, which goes on to Hermes. Respects IV1, IV4, PC1.
+- `factory/hermes/plugin/__init__.py`: register it before the button factory, read the two new keys.
+- `factory/hermes/compose.yaml`: pass `FACTORY_PUBLIC_DISCUSSION`, `FACTORY_PROPOSAL_CHAT` and the public inbox path.
+- `factory/hermes/test_public.py` (create): fixtures of each update type.
+- Commit: Hermes's plugin hands reactions and player comments to the factory and keeps them from Hermes.
+
+### PH4 — Tick public steps
+- `factory/src/public/tick-steps.ts` (create): `publicTick(ctx)` runs ingest, classify, proposals, votes, digests and routes, each its own function. A failing step records a failure for Hermes and the next steps still run.
+- `factory/src/public/ingest.ts`, `proposals.ts`, `votes.ts`, `digest.ts`, `routes.ts`, `build-post.ts` (create).
+- `factory/src/telegram.ts`: `sendMessage` gains a reply-to post id if it lacks one.
+- `factory/src/stages/checks.ts`: `post()` calls `postBuild` (IF5) after the committee post.
+- `factory/src/stages/approval.ts`: `routeFeedback` takes the heading, so `public` gets `## Player report`. Respects IV4, IV5.
+- `factory/src/inbox.ts`: unchanged. Public routes never pass through it.
+- `factory/src/ctl.ts`: read command `factory public` prints proposals, votes and open build posts.
+- `factory/src/ledger.ts`: line kind `voted`.
+- `factory/prompts/test.md`, `factory/prompts/design.md`: the player headings are untrusted player text.
+- Commit: The tick posts proposals, counts votes, sends player comments to GitHub and routes player bug reports.
+
+### PH5 — Filter and feedback route
+- `factory/src/public/filter.ts` (create): `classify` (IF3) with one Responses API call and a strict schema.
+- `factory/src/error-reports/feedback.ts` (create): `takeFeedback` for `POST /feedback`: origin, per-address limit in the store, size, filter, build lookup from `state.json`, then a stored comment or a new issue within `FACTORY_REPORT_DAILY_ISSUES`. Respects IV7.
+- `factory/src/error-reports/service.ts`: route `/feedback` beside `/errors`.
+- `factory/src/sourcemaps.ts`, `factory/src/deploy.ts` and the checks build: every build gets `FEEDBACK_URL`.
+- `factory/infra/stacks/caddy/Caddyfile`, `factory/infra/deploy/errors.py`: route `/feedback` to the error socket.
+- Commit: The error service takes in-game reports through the filter.
+
+### PH6 — Game form (branch `feedback-form` off `origin/dev`)
+- `game/src/ui/feedback-form.ts` (create): the panel. `game/src/ui/hud.ts`: the menu opens it. `game/src/ui/hud-readout.ts`: the GitHub links go. `game/vite.config.ts`: `__FEEDBACK_URL__`. Strings in both languages.
+- Commit: Players send bug reports and ideas from the game.
+
+### PH7 — Wiring, docs and check
+- Merge PH2 to PH5, run the factory suite parts they touched, typecheck and the plugin tests.
+- `factory/docs/process.md`, `stages.md`, `state.md`, `operations.md`, the `.dot` diagrams and their renders, `hermes/SOUL.md` pointer, `.github/ISSUE_TEMPLATE` vote text.
+- Replay recorded update fixtures through the plugin, then `publicTick` against a fake GitHub and Telegram.
+
+### Interfaces
+- IF1 — `PublicStore` in `factory/src/public/store.ts`, committed.
+- IF2 — `$FACTORY_HOME/public-inbox/<updateId>.json` holds one `PublicEvent`, written to a temp name and renamed.
+- IF3 — `classify(cfg: Pick<FactoryConfig, 'openaiKey' | 'filterModel'>, input: { source: 'comment' | 'report'; text: string; kind: string | null }, fetch: typeof globalThis.fetch): Promise<Decision>`, with `Decision = { verdict: 'accept' | 'reject'; kind: 'bug' | 'feature' | 'feedback'; route: PublicRoute; title: string; reason: string }`. It throws on any failed call or bad answer.
+- IF4 — `publicTick(ctx: Ctx): Promise<void>` in `factory/src/public/tick-steps.ts`.
+- IF5 — `postBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void>` in `factory/src/public/build-post.ts`. It does nothing for an issue with no posted proposal.
+- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent' | 'refused', message }`, or an error status with a plain text message.
+
+### Interface graph
+- PH2 IF4 -> @ factory/src/intake.ts, factory/src/github.ts, factory/src/stages/triage.ts, factory/src/stages/bundle.ts, factory/prompts/triage.md, factory/src/tick.ts, factory/src/dashboard/labels.ts, factory/src/position.ts
+- PH3 -> IF2 @ factory/hermes/
+- PH4 IF2, IF3 -> IF4, IF5 @ factory/src/public/ except store.ts and filter.ts, factory/src/telegram.ts, factory/src/stages/checks.ts, factory/src/stages/approval.ts, factory/src/ctl.ts, factory/src/ledger.ts, factory/prompts/test.md, factory/prompts/design.md
+- PH5 -> IF3, IF6 @ factory/src/public/filter.ts, factory/src/error-reports/, factory/src/sourcemaps.ts, factory/src/deploy.ts, factory/infra/
+- PH6 IF6 -> @ game/
+
+### Risks / rollback
+- RK1 — Every key is required, so the factory stops on a host whose `.env` lacks the three new keys. The deferred list says to add them before the merge into `main`.
+- RK2 — PH6 lands on `dev` and PH2 to PH5 on `main`. A game build before the factory route deploys gets 404 from `/feedback` and shows a failed send.
+
 ## Verify
 
 ## Conclusion
@@ -131,6 +202,10 @@ TDD: yes. The store, the plugin handlers, the tick steps, the triage parser and 
 - udesign: `FACTORY_FILTER_MODEL=gpt-5.4-nano` — OpenAI's docs name it for classification. Change it in settings.env.
 - udesign: one public route per build post, since the route closes the post — limits money spent on player reports with no new number.
 - udesign: `voting` cards are not bundled — a posted proposal keeps its text.
+- udesign: `FACTORY_PUBLIC_DIGEST_MINUTES=60`, `FACTORY_REPORT_DAILY_ISSUES=20`, `FACTORY_REPORT_IP_PER_HOUR=5`, `FACTORY_REPORT_MAX_CHARS=3000` — new numbers with their reasons in settings.env. Change any of them there.
+- udesign: `FACTORY_PROPOSAL_CHAT` is its own key, so a test can point proposals at the committee chat.
+- uplan: plan auto-approved (hands-off).
+- uplan: PH6 goes on its own branch `feedback-form` off `origin/dev`, since game work lands on `dev` and factory work on `main`.
 
 ### Deferred (needs user input)
 - Add the bot to the channel's discussion group as admin, and set `FACTORY_PUBLIC_DISCUSSION` in `.env` to the group id `-1004432761257`.
