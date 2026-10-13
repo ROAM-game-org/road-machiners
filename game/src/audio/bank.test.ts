@@ -42,6 +42,21 @@ describe('loadBank', () => {
     expect(Math.max(...calls)).toBe(2);
   });
 
+  it('gives a file that never decodes the buffer of a decoded sibling', async () => {
+    const good = { id: 'good' } as unknown as AudioBuffer;
+    const fetch = vi.fn(async (url: string) => ({ ...ok, arrayBuffer: async () => new TextEncoder().encode(url).buffer }));
+    vi.stubGlobal('fetch', fetch);
+    const decode = vi.fn(async (data: ArrayBuffer) => {
+      if (new TextDecoder().decode(data).endsWith('hit-2.ogg')) throw new Error('EncodingError');
+      return good;
+    });
+    const { bank, failures } = await loadBank(ctxOf(decode), PAIR);
+    expect(bank.get('hit-1.ogg')).toBe(good);
+    expect(bank.get('hit-2.ogg')).toBe(good);
+    expect(failures.map((f) => f.file)).toEqual(['hit-2.ogg']);
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('hit-2.ogg'))).toHaveLength(BANK.tries);
+  });
+
   it('retries a file that fails once', async () => {
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
