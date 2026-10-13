@@ -38,7 +38,7 @@ async function startDashboard(): Promise<void> {
   const env = { ...factoryEnv, ...dashboardEnv, ...process.env };
   env.DASHBOARD_CHANNEL_URL = await resolveChannelUrl(env);
   const config = loadDashboardConfig(env);
-  const githubEnv = { PATH: process.env.PATH, HOME: process.env.HOME, GH_CONFIG_DIR: process.env.GH_CONFIG_DIR, GH_TOKEN: env.GH_TOKEN };
+  const githubEnv = { PATH: process.env.PATH, HOME: process.env.HOME, GH_CONFIG_DIR: process.env.GH_CONFIG_DIR };
   const github = new PublicGitHub(config, createGithubRun(config.commandTimeoutMs, githubEnv));
   const collector = new SnapshotCollector(config, github, new HostSampler(config.home, config.commandTimeoutMs), await AnalyticsRunner.open());
   const server = new DashboardServer(collector, fileURLToPath(new URL('../../dashboard', import.meta.url)), config);

@@ -1,4 +1,5 @@
 prod.env
+*.pem
 .venv/
 __pycache__/
 .pytest_cache/

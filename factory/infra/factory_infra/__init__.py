@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     factory_domain: str
     factory_tunnel_token: str
     factory_env_file: str
-    factory_gh_token: str
+    factory_gh_app_key_file: str
 
 
 settings = Settings()  # pyright: ignore[reportCallIssue] -- required values come from prod.env
