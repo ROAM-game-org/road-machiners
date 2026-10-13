@@ -7,6 +7,8 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000] };
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
