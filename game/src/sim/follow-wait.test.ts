@@ -51,7 +51,7 @@ describe('a far follower', () => {
 
   it('keeps its aim while the leader moves 10 tiles', () => {
     const { w, leader, guard, goal } = farFollower();
-    const held = { ...goal.destination };
+    const held = goal.destination && { ...goal.destination };
     leader.pos = { x: leader.pos.x + 10, y: leader.pos.y };
     steerFollow(w, guard, goal);
     expect(goal.destination).toEqual(held);
@@ -59,11 +59,11 @@ describe('a far follower', () => {
 
   it('re-aims once the leader has moved 40 tiles', () => {
     const { w, leader, guard, goal } = farFollower();
-    const held = { ...goal.destination };
+    const held = goal.destination && { ...goal.destination };
     leader.pos = { x: leader.pos.x + 40, y: leader.pos.y };
     steerFollow(w, guard, goal);
     expect(goal.destination).not.toEqual(held);
-    expect(goal.destination.x).toBeGreaterThan(held.x + 30);
+    expect(goal.destination!.x).toBeGreaterThan(held!.x + 30);
   });
 
   it('re-aims every turn within the catch-up gap', () => {

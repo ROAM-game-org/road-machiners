@@ -464,7 +464,7 @@ export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): 
   const fy = Math.sin(leader.heading);
   const fresh = { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
   const gap = dist(vehicle.pos, leader.pos);
-  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
+  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && goal.destination !== null && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
   if (!holds) goal.destination = fresh;
 }
 
