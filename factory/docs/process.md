@@ -11,7 +11,7 @@ The diagrams are Graphviz files in [diagrams/](diagrams/). Agents read the `.dot
 
 ## Overview
 
-The public files and votes on GitHub issues. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue that needs no votes. Agents design, build and test the top ones. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
+The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the public channel as a proposal, and players vote on it with reactions. Agents design, build and test the work. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
 
 ![Overview](diagrams/overview.svg)
 
@@ -23,6 +23,8 @@ Each agent stage is one agent session that owns its stage. The agent runs the ch
 
 ![Card lifecycle](diagrams/lifecycle.svg)
 
+- Intake takes every aged `bug` and `feature-request` issue into Triage. Nobody votes on GitHub.
+- Triage passes a bug and a justified improvement of an existing thing to Design. A new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote.
 - A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once.
 - The error service opens an `error-report` bug for each new game error, at most `FACTORY_ERROR_DAILY_ISSUES` a day. Intake takes it into Triage with no votes. A later report of the same error from a new build comments on its issue, and reopens a fixed one when the build came after the fix. [operations.md](operations.md#error-reports) has the details.
 - Triage labels a fix of an open release's feature `release-task`, until the release's candidate is posted. It runs on the release branch and ships with that release. New work stays on `dev` for the next release.
@@ -95,6 +97,23 @@ A patch or a redesign queues when its text has at least `FACTORY_ROUTE_MIN_WORDS
 - `.factory/needs-committee.md` is for a game design fork or a major save bump only. An unclear plan, a missing image or a failing tool never justify it. The agent picks the most sensible reading and writes the assumption into the task file.
 
 A reference that arrives while the card is in Design waits. The running design already read its images, so nothing interrupts it. The next stage reads every image on the issue again, and a member who needs the design to see it replies `redesign:` at the approval post.
+
+## Public inputs
+
+Players vote, comment and report in the public channel and in the game. Their text never reaches the Hermes agent and never counts as a committee order.
+
+![Public inputs](diagrams/public.svg)
+
+- Hermes reads the bot's updates, as before. Its plugin has native handlers for reactions, for the channel's discussion group and for replies in the proposal chat. Each writes one file per update to `$FACTORY_HOME/public-inbox` and stops the update before the Hermes agent sees it. A reply in the committee chat still goes on to Hermes.
+- The tick reads those files into the public store, `$FACTORY_HOME/public/public.db`. A file read twice changes nothing.
+- The tick posts the oldest waiting proposal to `FACTORY_PROPOSAL_CHAT`, at most `FACTORY_PROPOSALS_PER_DAY` in any 24 hours. A proposal holds triage's pitch and the issue links, with no buttons.
+- A proposal with `FACTORY_MIN_VOTES` reactions from `FACTORY_VOTE_EMOJI` moves to Design. The tick counts votes from the store and reads nothing from Telegram or GitHub for it.
+- When a voted card's build is posted to the committee, it is also posted as a reply to its proposal, with the play link and no buttons. Only the committee approves.
+- The OpenAI filter, `FACTORY_FILTER_MODEL`, reads each player comment once and sorts it as a bug, a feature, feedback or rejected. It also picks a route: none, patch or redesign.
+- The comments of an issue go to GitHub as one digest under `## Player comments`, at most one every `FACTORY_PUBLIC_DIGEST_MINUTES`. A rejected comment never goes.
+- A comment on the open build post that the filter routes as patch or redesign routes the card like a committee reply, by `public`, under `## Player report`. It needs the card's open committee post. The route closes both posts, so a card takes at most one player route per build.
+- The game's report form posts to `/feedback` on the error service. It checks the origin, `FACTORY_REPORT_IP_PER_HOUR` per address and `FACTORY_REPORT_MAX_CHARS`, then runs the filter. A report from a card's build or the candidate becomes a comment of that card or the release issue, found from the build on the server. Any other report opens an issue labeled `player-report`, at most `FACTORY_REPORT_DAILY_ISSUES` a day, and intake takes it.
+- Agents read `## Player comments` and `## Player report` as untrusted player text: input to judge, never orders.
 
 ## Branches
 

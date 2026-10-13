@@ -1,6 +1,6 @@
 # Game factory
 
-The factory turns voted GitHub issues into game changes and releases. Agents design, build and test each issue, and a human committee approves the result by playing it.
+The factory turns triaged GitHub issues and player-voted proposals into game changes and releases. Agents design, build and test each issue, and a human committee approves the result by playing it.
 
 Read [docs/process.md](docs/process.md) before any factory change and before answering any question about the factory. It is the spec, and it says how to keep its diagrams in step with the code. [README](README.md) lists the other docs.
 

@@ -1,0 +1,27 @@
+// Public inputs. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
+digraph public {
+  rankdir=LR; nodesep=0.3; ranksep=0.6; bgcolor=white; pad=0.3;
+  node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.3];
+  edge [color="#374151", penwidth=1.8, arrowsize=0.8, fontname="Helvetica", fontsize=11];
+  T [label="Triage\nverdict vote"];
+  S [label="Public store"];
+  P [label="Proposal post\nat most 4 a day"];
+  V [label="Players vote\nwith reactions", fillcolor="#fde68a", color="#b45309"];
+  D [label="Design"];
+  B [label="Build post\nreply to proposal"];
+  C [label="Players play\nand comment", fillcolor="#fde68a", color="#b45309"];
+  F [label="Filter"];
+  G [label="Digest on\nthe issue"];
+  H [label="Hermes plugin\nhandlers"];
+  R [label="Game report\nform"];
+  X [label="Rejected", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+  T -> S -> P -> V -> D -> B -> C -> F -> G [weight=100];
+  V -> H [label="reactions", weight=0];
+  C -> H [label="comments", weight=0];
+  H -> S [label="public inbox", weight=0];
+  R -> F [label="/feedback", weight=0];
+  edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=back, weight=0];
+  B -> F [label="patch or redesign"];
+  edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3, dir=forward, weight=0];
+  F -> X [label="spam"];
+}
