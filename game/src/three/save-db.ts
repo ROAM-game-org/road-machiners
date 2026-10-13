@@ -65,7 +65,7 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
 }
 
 function written(db: IDBDatabase, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
-  const tx = db.transaction(store, 'readwrite', { durability: 'strict' });
+  const tx = db.transaction(store, 'readwrite');
   write(tx.objectStore(store));
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
