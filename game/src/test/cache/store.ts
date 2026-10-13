@@ -11,7 +11,7 @@ export function entryPath(cache: string, test: string, fingerprint: string): str
   return join(cache, 'entries', testId(test), `${fingerprint}.json`);
 }
 
-function readEntry(file: string): Input[] {
+function parseEntry(file: string): Input[] {
   let entry: unknown;
   try {
     entry = JSON.parse(readFileSync(file, 'utf8'));
@@ -24,10 +24,19 @@ function readEntry(file: string): Input[] {
   return inputs as Input[];
 }
 
+function readEntry(file: string): Input[] | null {
+  try {
+    return parseEntry(file);
+  } catch (error) {
+    console.warn(`[test-cache] ${(error as Error).message}. It counts as no pass, so its test file runs.`);
+    return null;
+  }
+}
+
 export function passedFingerprints(cache: string, test: string): Input[][] {
   const dir = join(cache, 'entries', testId(test));
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((name) => name.endsWith('.json')).sort().map((name) => readEntry(join(dir, name)));
+  return readdirSync(dir).filter((name) => name.endsWith('.json')).sort().map((name) => readEntry(join(dir, name))).filter((inputs) => inputs !== null);
 }
 
 export function hasPass(cache: string, test: string, fingerprint: string): boolean {
