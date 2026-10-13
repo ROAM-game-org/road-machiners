@@ -138,6 +138,29 @@ describe("contract text", () => {
     expect([en(line.text), line.cls]).toEqual(["Bounty met: Raider outrider beaten, claim 1 M at Bowl", "good"]);
   });
 
+  describe("search", () => {
+    const search: Contract = {
+      id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 100, window: 100, tier: 1, found: false,
+    };
+
+    it("names the person to find and where to claim", () => {
+      expect(en(contractSummary(search))).toBe("Find Trader Jed Cobb and radio them, claim at Bowl");
+    });
+
+    it("reads a found search as ready to claim", () => {
+      const met: Contract = { ...search, found: true };
+      expect(en(contractSummary(met))).toBe("Found Trader Jed Cobb, claim at Bowl");
+      expect(en(heldContractDue(met))).toBe("Ready");
+      expect(en(heldContractDue(search))).toBe(en(contractDue(search)));
+    });
+
+    it("logs the find with its reward and where to claim it", () => {
+      const line = eventText(emptyWorld(), { t: "contract", contract: { ...search, found: true }, outcome: "fulfilled" })!;
+      expect([en(line.text), line.cls]).toEqual(["Found Trader Jed Cobb. Claim 37 M's at Bowl.", "good"]);
+    });
+  });
+
   it("says the hand-in part must still work and be rebuilt at most once", () => {
     expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
   });

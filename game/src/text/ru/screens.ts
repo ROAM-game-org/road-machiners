@@ -632,6 +632,7 @@ export const SCREENS: Translation<typeof EN> = {
   'trade.theyLack': 'Им не хватает {price}',
   'trade.perUnit': 'За {unit}',
   'trade.eachUnit': 'За штуку',
+  'map.lead': '{driver}, {ago}',
   'contract.offers': 'Предложения',
   'contract.needMore': 'Не хватает: {good}, ещё {n}',
   'contract.accept': 'Взять',

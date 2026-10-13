@@ -631,6 +631,7 @@ export const SCREENS = {
   'trade.theyLack': m('They lack {price}', { price: 'text' }),
   'trade.perUnit': m('Per {unit}', { unit: 'text' }),
   'trade.eachUnit': 'Each',
+  'map.lead': m('{driver}, {ago}', { driver: 'text', ago: 'text' }),
   'contract.offers': 'Offers',
   'contract.needMore': m('Need {n} more {good}', { n: 'int', good: 'text' }),
   'contract.accept': 'Accept',

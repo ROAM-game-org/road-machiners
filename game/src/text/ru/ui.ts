@@ -69,6 +69,8 @@ export const UI: Translation<typeof EN> = {
   'contract.claim': 'Забрать награду',
   'contract.claimAt': 'Награда {site, case, at}',
   'contract.notMet': 'Условие ещё не выполнено',
+  'contract.oneSearch': 'Вы уже ищете человека',
+  'contract.findFirst': 'Сначала найдите его',
   'contract.ready': 'Готово',
   'short.util': 'Обор.',
   'log.found': 'Найдено: {items}.',

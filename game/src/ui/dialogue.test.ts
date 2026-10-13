@@ -4,7 +4,7 @@ import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
-import { aidWords, haulText, lineText, tipText } from './dialogue';
+import { aidWords, foundText, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -140,5 +140,21 @@ describe('a driver\'s own line', () => {
     const warn = TOPICS.lootWarning.nodes.warn.line;
     const vars: CallVars = { warnLine: { kind: 'line', line: HANG_UP_LINE } };
     expect(en(lineText(warn, vars))).toBe(en(lineText(HANG_UP_LINE, {})));
+  });
+});
+
+describe('sighting words', () => {
+  it('tells the age, place and heading of what the driver saw', () => {
+    const seen = { bearing: 0, tiles: 300, turns: 60, heading: Math.PI / 2 };
+    const words = en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen }));
+    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* east of you, heading south\.$/);
+  });
+
+  it('says they never crossed paths when nothing was seen', () => {
+    expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
+  });
+
+  it('tells where to report the find', () => {
+    expect(en(foundText({ kind: 'found', driver: 'Jed Cobb', site: 'bowl' }))).toBe('That is me. Tell them at Bowl that Jed Cobb is alive and driving.');
   });
 });

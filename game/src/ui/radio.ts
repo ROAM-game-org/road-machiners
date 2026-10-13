@@ -10,7 +10,7 @@ import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
-import { goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
 import { el, panel, rightDock } from './dom';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
@@ -201,6 +201,7 @@ function contractVars(c: Contract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
+  if (c.kind === 'search') return { shop, target: fullName(c.driver) };
   return { shop, target: templateName(c.template) };
 }
 
