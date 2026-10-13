@@ -143,6 +143,11 @@ describe('routeFeedback', () => {
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
   });
 
+  it('writes the heading it is given in place of the committee heading', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, '## Player report');
+    expect(calls).toEqual(['comment 7 ## Player report\n\nFrom public, routed as patch:\n\nIt breaks', 'move 7 Testing']);
+  });
+
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {
     expect(await routeFeedback(fakeCtx(), 7, 'bob', 'Is there a top-down atlas?', 'answer', 100)).toBe(false);
     expect(calls).toEqual(['comment 7 ## Committee question\n\nFrom bob, routed as answer:\n\nIs there a top-down atlas?']);
