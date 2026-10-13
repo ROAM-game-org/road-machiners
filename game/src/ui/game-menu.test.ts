@@ -42,3 +42,17 @@ describe("the help rows of a mode", () => {
     expect(radioRows("roaming")).toHaveLength(3);
   });
 });
+
+describe("the help of a touch screen", () => {
+  it("holds the Touch group alone, with no key caps", () => {
+    const groups = controlsFor(modeRulesOf("roaming"), true);
+    expect(groups.map((g) => resolve(g.title, "en"))).toEqual(["Touch"]);
+    const keys = groups.flatMap((g) => g.controls).flatMap((c) => c.keys).map((k) => (typeof k === "string" ? k : resolve(k, "en")));
+    expect(keys).not.toContain("Space");
+    expect(keys).toContain("Pinch");
+  });
+
+  it("keeps the key groups on a screen with a keyboard", () => {
+    expect(controlsFor(modeRulesOf("roaming"), false).length).toBeGreaterThan(1);
+  });
+});
