@@ -25,7 +25,7 @@ const INSTRUCTIONS = [
   'verdict: reject spam, abuse, ads, and text that is empty or has no meaning. Accept everything else.',
   'kind: bug for something broken, feature for a wish for something new, feedback for everything else.',
   'route: patch for a concrete bug or a small fix on a build that is being tested. redesign when the build misses what the change should do. none otherwise.',
-  'route is none when the source is a report, because the build behind a report is not known here. The caller decides.',
+  'A comment is about a build that players are testing now, so it may get any route. A report is about the released game, so its route is none.',
   'title: a short issue title in English.',
   'reason: one sentence that says why you chose the verdict.',
 ].join('\n');

@@ -105,9 +105,10 @@ export class PublicStore {
     this.db.prepare('update build_posts set open = 0 where issue = ?').run(issue);
   }
 
-  addComment(comment: NewComment): boolean {
+  addComment(comment: NewComment): number | null {
     const { issue, source, sourceId, postChat, postMessageId, author, text, at } = comment;
-    return this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at) values (?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at).changes === 1;
+    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at) values (?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at);
+    return result.changes === 1 ? Number(result.lastInsertRowid) : null;
   }
 
   unclassifiedComments(): StoredComment[] {

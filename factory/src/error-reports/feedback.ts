@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import type { Classify, Decision } from '../public/decision';
-import type { CommentKind, PublicRoute, PublicStore } from '../public/store';
+import type { Classify, Decision, FilterInput } from '../public/decision';
+import type { PublicStore } from '../public/store';
 import { readState } from '../state';
 import { BUG_LABEL, PLAYER_REPORT_LABEL, type FactoryConfig, type GitHub } from '../types';
 import { Rejected } from './report';
@@ -41,21 +41,21 @@ export class Feedback {
     const { cfg, store, now } = this.deps;
     if (store.countHit(address, now()) > cfg.reportIpPerHour) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
     const request = parseRequest(body, cfg.reportMaxChars);
-    const decision = await this.classify(request);
+    const issue = issueOf(this.deps, request.build);
+    const decision = await this.classify(request, issue === null ? 'report' : 'comment');
     const at = now().toISOString();
     const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, reason: decision.reason, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
       return { status: 'refused', message: decision.reason };
     }
-    const issue = issueOf(this.deps, request.build);
     if (issue !== null) return this.comment(row, request, decision, issue);
     return this.open(row, request, decision);
   }
 
-  private async classify(request: FeedbackRequest): Promise<Decision> {
+  private async classify(request: FeedbackRequest, source: FilterInput['source']): Promise<Decision> {
     try {
-      return await this.deps.classify({ source: 'report', text: request.text, kind: request.kind });
+      return await this.deps.classify({ source, text: request.text, kind: request.kind });
     } catch (error) {
       this.deps.log(`feedback filter failed: ${error instanceof Error ? error.message : String(error)}`);
       throw new Rejected('filter', 503, 'The report could not be checked now. Try again later.');
@@ -66,9 +66,9 @@ export class Feedback {
     const { store, now } = this.deps;
     const id = store.addReport({ ...row, verdict: 'accept', issue, createdIssue: null });
     const comment = { issue, source: 'game' as const, sourceId: `report:${id}`, postChat: null, postMessageId: null, author: 'Player', text: request.text, at: row.at };
-    store.addComment(comment);
-    const stored = store.unclassifiedComments().find((candidate) => candidate.source === 'game' && candidate.issue === issue && candidate.text === request.text && candidate.at === row.at);
-    if (stored) store.classify(stored.id, commentKind(decision), routeOf(decision), now());
+    const stored = store.addComment(comment);
+    if (stored === null) throw new Error(`The comment of report ${id} is already stored.`);
+    store.classify(stored, decision.kind, decision.route, now());
     return { status: 'sent', message: `Thank you. Your report went to issue #${issue}.` };
   }
 
@@ -124,13 +124,6 @@ function issueOf(deps: FeedbackDeps, build: string): number | null {
   const found = Object.entries(state.builds).find(([, hash]) => hash === build);
   if (!found || !open.has(Number(found[0]))) return null;
   return Number(found[0]);
-}
-
-const commentKind = (decision: Decision): CommentKind => decision.kind;
-
-function routeOf(decision: Decision): PublicRoute {
-  if (decision.route === 'none' && decision.kind === 'bug') return 'patch';
-  return decision.route;
 }
 
 const issueTitle = (title: string): string => title.replace(/\s+/g, ' ').replace(/`/g, "'").trim().slice(0, TITLE_CHARS);

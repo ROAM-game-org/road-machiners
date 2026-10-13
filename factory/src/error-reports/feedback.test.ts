@@ -74,9 +74,11 @@ describe('feedback route', () => {
   });
 
   it('turns a report on the open release build into a classified comment on the tracking issue', async () => {
-    const { url, store, created } = await start();
+    const { url, store, created, asked, setDecision } = await start();
+    setDecision({ ...ACCEPT_BUG, route: 'patch' });
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent', message: 'Thank you. Your report went to issue #40.' });
     expect(created).toEqual([]);
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', kind: 'bug' }]);
     expect(store.unclassifiedComments()).toEqual([]);
     expect(store.unsentComments()).toMatchObject([{ issue: 40, source: 'game', author: 'Player', text: 'The truck sinks\ninto the road', kind: 'bug', route: 'patch' }]);
   });
