@@ -1,5 +1,5 @@
 
-import { ERROR_REPORT_URL } from "../config";
+import { ERROR_REPORT_BUILD, ERROR_REPORT_URL, FEEDBACK_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
 import { setupText } from "../text/names";
@@ -151,6 +151,127 @@ export class HelpPanel {
   toggle(): void {
     if (this.root) this.close();
     else this.open();
+  }
+}
+
+export const FEEDBACK_TEXT_LIMIT = 3000;
+
+export type FeedbackKind = "bug" | "idea";
+
+export type FeedbackReport = { kind: FeedbackKind; text: string; version: string; build: string };
+
+export type FeedbackResult = { status: "sent" | "refused"; message: string } | { status: "failed" };
+
+type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+
+export function feedbackBuild(releaseFlag: string, pathname: string): string {
+  if (releaseFlag === "release") return "release";
+  return pathname.split("/").find((part) => part !== "") ?? "";
+}
+
+function isAnswer(body: unknown): body is { status: "sent" | "refused"; message: string } {
+  if (typeof body !== "object" || body === null) return false;
+  const answer = body as { status?: unknown; message?: unknown };
+  return (answer.status === "sent" || answer.status === "refused") && typeof answer.message === "string";
+}
+
+export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
+  if (url === "") throw new Error("Feedback is off in this build: FEEDBACK_URL is empty");
+  if (report.text.length > FEEDBACK_TEXT_LIMIT) throw new Error(`Feedback text is over ${FEEDBACK_TEXT_LIMIT} characters`);
+  try {
+    const response = await post(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
+    if (!response.ok) return { status: "failed" };
+    const body: unknown = await response.json();
+    return isAnswer(body) ? { status: body.status, message: body.message } : { status: "failed" };
+  } catch {
+    return { status: "failed" };
+  }
+}
+
+export class FeedbackForm {
+  private root: HTMLElement | null = null;
+  private readonly onKey = (e: KeyboardEvent) => {
+    if (e.code === "Escape") this.close();
+  };
+
+  constructor(
+    private readonly post: Fetch = (url, init) => fetch(url, init),
+    private readonly url: string = FEEDBACK_URL,
+  ) {}
+
+  isOpen(): boolean {
+    return this.root !== null;
+  }
+
+  open(kind: FeedbackKind): void {
+    this.close();
+    const root = panel("feedback-form dialog");
+    bindAttr(root, "aria-label", t("feedback.title"));
+    root.append(...(this.url === "" ? this.offContent() : this.formContent(kind)));
+    this.root = root;
+    window.addEventListener("keydown", this.onKey);
+  }
+
+  close(): void {
+    if (!this.root) return;
+    this.root.remove();
+    this.root = null;
+    window.removeEventListener("keydown", this.onKey);
+  }
+
+  private closeButton(): HTMLElement {
+    return el("button", { class: "btn-s feedback-close", onclick: () => this.close() }, t("menu.closeEsc"));
+  }
+
+  private offContent(): HTMLElement[] {
+    return [el("div", {}, t("feedback.off")), this.closeButton()];
+  }
+
+  private formContent(first: FeedbackKind): HTMLElement[] {
+    let kind = first;
+    let busy = false;
+    const kinds: Record<FeedbackKind, HTMLElement> = {
+      bug: el("button", { onclick: () => choose("bug") }, t("feedback.bug")),
+      idea: el("button", { onclick: () => choose("idea") }, t("feedback.idea")),
+    };
+    const box = el("textarea", { class: "feedback-text", maxlength: FEEDBACK_TEXT_LIMIT, rows: 8, "aria-label": t("feedback.title") }) as HTMLTextAreaElement;
+    const count = el("span", { class: "num dim" });
+    const status = el("div", { class: "feedback-status" });
+    const send = el("button", { class: "feedback-send", onclick: () => submit() }, t("feedback.send"));
+
+    const refresh = () => {
+      for (const [name, button] of Object.entries(kinds)) button.classList.toggle("on", name === kind);
+      setText(count, verbatim(`${box.value.length} / ${FEEDBACK_TEXT_LIMIT}`));
+      const blocked = busy || box.value.trim() === "";
+      if (blocked) send.setAttribute("aria-disabled", "true");
+      else send.removeAttribute("aria-disabled");
+    };
+    const choose = (next: FeedbackKind) => {
+      kind = next;
+      refresh();
+    };
+    const submit = async () => {
+      if (busy || box.value.trim() === "") return;
+      busy = true;
+      refresh();
+      const report = { kind, text: box.value, version: versionLabel(), build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname) };
+      const result = await sendFeedback(this.post, this.url, report);
+      busy = false;
+      if (result.status === "sent") box.value = "";
+      setText(status, result.status === "failed" ? t("feedback.failed") : verbatim(result.message));
+      status.classList.toggle("bad", result.status !== "sent");
+      refresh();
+    };
+
+    box.addEventListener("input", refresh);
+    refresh();
+    queueMicrotask(() => box.focus());
+    return [
+      el("div", { class: "feedback-kinds" }, kinds.bug, kinds.idea),
+      box,
+      el("div", { class: "feedback-foot" }, count, status),
+      el("div", { class: "feedback-actions" }, this.closeButton(), send),
+    ];
   }
 }
 
