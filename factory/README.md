@@ -29,7 +29,8 @@ Run every command in this file from `factory/`. The factory reads two files.
 
 ## GitHub setup
 
-- The host needs `gh` logged in with the `repo`, `project` and `read:org` scopes. Run `gh auth setup-git` so git pushes with it.
+- The server acts as a GitHub App. `infra/README.md` says how to make it. A timer renews its token in `$FACTORY_HOME/github-token` every 30 minutes, and a `gh` wrapper reads that file on every call.
+- A Mac host needs `gh` logged in with the `repo`, `project` and `read:org` scopes. Run `gh auth setup-git` so git pushes with it. Its Hermes reads a token from `$FACTORY_HOME/github-token`, so write `gh auth token` there.
 - The host needs a git identity, since the merge queue makes merge commits.
 - Make a GitHub Project for the repo. Its Status field needs the options Triage, Design, Implementation, Testing, Approval, Hardening, Merging and Done. Put its owner and number in `settings.env`.
 - The repo needs a `dev` branch.

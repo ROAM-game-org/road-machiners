@@ -1,0 +1,7 @@
+#!/bin/sh
+# The factory user's gh reads the GitHub App token on every call, since the token lasts an hour and jobs run longer. Other users get their own gh login.
+if [ "$(id -u)" = "{{ factory_uid }}" ]; then
+  GH_TOKEN="$(cat {{ token_file }})" || exit 1
+  export GH_TOKEN
+fi
+exec /usr/bin/gh "$@"
