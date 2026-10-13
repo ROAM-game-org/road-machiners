@@ -267,6 +267,17 @@ describe('a defeated raider', () => {
     expect(itemIds(v)).toEqual(items);
   });
 
+  it('is not pulled back to its pad while it drives to its lie-up spot', () => {
+    const { w, v } = retreating();
+    for (let turn = 0; turn < RULES.retreatTeleportTurns; turn++) advanceNpcKnockouts(w);
+    npcTurn(w, v);
+    const destination = topGoal(v)!.destination!;
+    v.pos = { x: (v.pos.x + destination.x) / 2 + 0.5, y: (v.pos.y + destination.y) / 2 + 0.5 };
+    const at = { ...v.pos };
+    for (let turn = 0; turn < RULES.retreatTeleportTurns * 2; turn++) advanceNpcKnockouts(w);
+    expect(v.pos).toEqual(at);
+  });
+
   it('mints at most one fresh loadout per camp refill time however often it is knocked out and stripped', () => {
     const { w, v } = retreating();
     v.pos = { ...sitePads(npcHomeSite(TEST_MAP, v)!)[0] };
