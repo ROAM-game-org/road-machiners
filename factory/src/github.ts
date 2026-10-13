@@ -22,11 +22,13 @@ const ITEMS_QUERY = `query($project: ID!, $cursor: String) { node(id: $project) 
 
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
-    reactions(content: THUMBS_UP, first: 100) { pageInfo { hasNextPage } nodes { user { login } } } } } } }`;
+    reactions(content: THUMBS_UP, first: 100) { pageInfo { hasNextPage } nodes { user { login } } }
+    projectItems(first: 20) { nodes { project { id } } } } } } }`;
 
 type CandidateNode = {
   number: number; title: string; body: string; createdAt: string; state: Issue['state']; author: { login: string } | null;
   labels: { nodes: { name: string }[] };
+  projectItems: { nodes: { project: { id: string } }[] };
   reactions: { pageInfo: { hasNextPage: boolean }; nodes: { user: { login: string } | null }[] };
 };
 
@@ -101,12 +103,15 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
 
   async function candidates(labels: string[]): Promise<Issue[]> {
     const search = `repo:${repo} is:issue is:open label:${labels.map((label) => `"${label}"`).join(',')}`;
+    const { projectId } = await loadBoard();
     const found: Issue[] = [];
     let cursor = '';
     for (;;) {
       const vars: Vars = cursor ? { search, cursor } : { search };
       const page = JSON.parse(await graphql(CANDIDATES_QUERY, vars)) as CandidatesPage;
-      for (const node of page.data.search.nodes) found.push(toIssue(node));
+      for (const node of page.data.search.nodes) {
+        if (!node.projectItems.nodes.some((item) => item.project.id === projectId)) found.push(toIssue(node));
+      }
       if (!page.data.search.pageInfo.hasNextPage) return found;
       cursor = page.data.search.pageInfo.endCursor;
     }
