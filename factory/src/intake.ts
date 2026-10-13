@@ -11,7 +11,8 @@ export function isMarked(issue: Issue, now: Date, rules: MarkRules): boolean {
   const ageHours = (now.getTime() - new Date(issue.createdAt).getTime()) / HOUR_MS;
   if (ageHours < rules.minAgeHours) return false;
   const byCommittee = issue.thumbsUp.some((login) => rules.committee.includes(login));
-  return byCommittee || issue.thumbsUp.length >= rules.minVotes;
+  const votes = issue.thumbsUp.filter((login) => login !== issue.author);
+  return byCommittee || votes.length >= rules.minVotes;
 }
 
 export async function intake(ctx: Ctx): Promise<number[]> {

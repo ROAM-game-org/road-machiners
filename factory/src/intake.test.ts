@@ -22,6 +22,10 @@ describe('isMarked', () => {
     expect(isMarked(issue({ thumbsUp: ['boss'] }), NOW, RULES)).toBe(true);
   });
 
+  it('does not count the author vote', () => {
+    expect(isMarked(issue({ thumbsUp: ['a', 'b', 'anna'] }), NOW, RULES)).toBe(false);
+  });
+
   it('rejects too few votes and no committee vote', () => {
     expect(isMarked(issue({ thumbsUp: ['a', 'b'] }), NOW, RULES)).toBe(false);
   });
