@@ -7,7 +7,7 @@ Run: `uv run pyinfra -y inventory.py deploy/status.py`
 from pyinfra import host
 from pyinfra.facts.server import Command
 
-from factory_infra import FACTORY_ENV, FACTORY_ROOT, FACTORY_USER, HOME_DIR
+from factory_infra import CODE_DIR, FACTORY_ROOT, FACTORY_USER, HOME_DIR
 
 # Every check ends in a success exit. pyinfra drops the output of a failed fact command,
 # so a check that reports a fault would go blank when the fault appears.
@@ -20,8 +20,9 @@ checks = {
     "running job and state": f"timeout 20 sh -c 'jq -c .job {HOME_DIR}/state/state.json' 2>&1 || true",
     "inbox": f"timeout 20 sh -c 'stat -c \"%A %U:%G\" {HOME_DIR}/inbox; ls {HOME_DIR}/inbox | wc -l' 2>&1 || true",
     "committee": f"timeout 20 sh -c 'stat -c \"%A %U:%G\" {HOME_DIR}/committee; ls {HOME_DIR}/committee' 2>&1 || true",
-    # gh signs in with GH_TOKEN from the factory env, as the tick does. gh masks the token in its output.
-    "gh auth": f"timeout 30 sudo -H -u {FACTORY_USER} sh -c 'GH_TOKEN=$(grep ^GH_TOKEN= {FACTORY_ENV} | cut -d= -f2-) gh auth status' 2>&1 | head -6 || true",
+    # The factory user's gh wrapper reads the App token, as the tick does. An App token cannot read /user, so this reads the repo instead.
+    "gh auth": f"timeout 30 sudo -H -u {FACTORY_USER} gh api repos/$(grep ^FACTORY_REPO= {CODE_DIR}/factory/settings.env | cut -d= -f2-) --jq .full_name 2>&1 | head -3 || true",
+    "token renewal": f"timeout 20 sh -c 'systemctl is-active roam-factory-github-token.timer; tail -n 3 {HOME_DIR}/logs/github-token.log' 2>&1 || true",
     "containers": "timeout 30 docker ps --format '{{.Names}}\t{{.Status}}' 2>&1 || true",
     "hermes health": "timeout 30 docker inspect --format '{{.Name}}\t{{.State.Status}}\t{{if .State.Health}}{{.State.Health.Status}}{{end}}' factory-hermes 2>&1 || true",
     "hermes tools": "timeout 30 docker exec factory-hermes sh -c 'command -v agy codex' 2>&1 || true",

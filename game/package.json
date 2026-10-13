@@ -45,7 +45,7 @@
     "quest:playtest": "node scripts/quest-playtest.mjs",
     "quest:view": "node scripts/quest-view.mjs"
   },
-  "license": "ISC",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "description": "",
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

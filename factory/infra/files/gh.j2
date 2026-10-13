@@ -1,0 +1,14 @@
+#!/bin/sh
+# The factory user's gh reads the GitHub App token on every call, since the token lasts an hour and jobs run longer. Other users get their own gh login.
+# The factory never reacts or votes on GitHub. Votes come from players, and a bot vote breaks GitHub's terms.
+if [ "$(id -u)" = "{{ factory_uid }}" ]; then
+  refuse() { echo "gh wrapper: the factory never reacts or votes on GitHub" >&2; exit 1; }
+  case "$*" in
+    *addReaction*) refuse ;;
+    *graphql*) ;;
+    *reactions*) case " $* " in *" -X"*|*" --method"*|*" -f "*|*" -F "*|*" --field"*|*" --raw-field"*|*" --input"*) refuse ;; esac ;;
+  esac
+  GH_TOKEN="$(cat {{ token_file }})" || exit 1
+  export GH_TOKEN
+fi
+exec /usr/bin/gh "$@"

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { progressNote, runJob } from './job';
+import { failureNote, runJob } from './job';
 import { appendUsage, readLedger } from './ledger';
 import { markResumed, resumeError, resumedStage } from './sessions';
 import { BudgetError } from './stages/checkpoint';
@@ -87,7 +87,7 @@ describe('runJob', () => {
       expect(labels).toEqual([]);
       expect(resumedStage(ROOT, 4)).toBe('verify');
       expect(resumeError(ROOT, 4)).toContain('GitHub is down');
-      expect(comments).toEqual(['Testing stopped. It resumes in its own session on the next tick, with the error.']);
+      expect(comments).toEqual([]);
     });
 
     it('goes to Hermes when it fails again after its resume', async () => {
@@ -281,13 +281,12 @@ describe('runJob', () => {
     });
   });
 
-  it('writes a finished note with the stage time', () => {
+  it('writes a failure note with the stage time', () => {
     const ctx = {
       now: () => new Date('2026-01-10T12:00:00Z'),
     } as unknown as Ctx;
-    expect(progressNote(ctx, 'implement', '2026-01-10T11:15:00Z', 'finished')).toBe('Implementation finished after 45 min.');
-    expect(progressNote(ctx, 'verify', null, 'finished')).toBe('Testing finished.');
-    expect(progressNote(ctx, 'checks', null, 'failed')).toBe('Post failed. Hermes is looking into it.');
+    expect(failureNote(ctx, 'implement', '2026-01-10T11:15:00Z')).toBe('Implementation failed after 45 min. Hermes is looking into it.');
+    expect(failureNote(ctx, 'checks', null)).toBe('Post failed. Hermes is looking into it.');
   });
 
   it('drops only the failed removal from the queue', async () => {
