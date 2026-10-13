@@ -21,4 +21,33 @@ describe('loadBank progress', () => {
     await expect(loadBank(ctx, SOUNDS, (done) => calls.push(done))).rejects.toThrow('b.mp3');
     expect(Math.max(...calls)).toBeLessThan(2);
   });
+
+  it('retries a body that drops and keeps the count rising', async () => {
+    vi.useFakeTimers();
+    let dropped = false;
+    vi.stubGlobal('fetch', async (url: string) => ({
+      ok: true,
+      arrayBuffer: async () => {
+        if (url.endsWith('a.mp3') && !dropped) {
+          dropped = true;
+          throw new TypeError('Failed to fetch');
+        }
+        return new ArrayBuffer(1);
+      },
+    }));
+    const calls: [number, number][] = [];
+    const loading = loadBank(ctx, SOUNDS, (done, total) => calls.push([done, total]));
+    await vi.runAllTimersAsync();
+    await loading;
+    vi.useRealTimers();
+    expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
+  });
+
+  it('says decode when the bytes do not decode, without a retry', async () => {
+    const fetchFn = vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }));
+    vi.stubGlobal('fetch', fetchFn);
+    const bad = { decodeAudioData: async () => Promise.reject(new Error('bad')) } as unknown as BaseAudioContext;
+    await expect(loadBank(bad, { a: SOUNDS.a }, undefined)).rejects.toThrow('failed to decode');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,4 +1,5 @@
 
+import { download } from '../download';
 import { loadBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
@@ -50,9 +51,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  const response = await fetch(MAPGEN.file);
-  if (!response.ok) throw new Error(`Map file ${MAPGEN.file} failed to load: ${response.status} ${response.statusText}`);
-  return decodeMap(new Uint8Array(await response.arrayBuffer()));
+  return decodeMap(new Uint8Array(await download(MAPGEN.file, "map")));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };

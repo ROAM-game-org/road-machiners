@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { crashText, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { DownloadFailed } from '../download';
+import { WebGLUnavailable } from './webgl';
+import { crashText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -65,5 +67,19 @@ describe('crashText', () => {
 
   it('leaves out the source line when the event names no file', () => {
     expect(crashText('boom', { error: null, message: 'boom', filename: '', lineno: 0, colno: 0 }, context)).not.toContain('Source:');
+  });
+});
+
+describe('routeOf', () => {
+  it('keeps a dropped download out of the fault path', () => {
+    expect(routeOf(new DownloadFailed('Sound a', '/a', 4, 'x'))).toBe('download');
+  });
+
+  it('keeps the WebGL route', () => {
+    expect(routeOf(new WebGLUnavailable(null))).toBe('webgl');
+  });
+
+  it('sends every other error to the fault path', () => {
+    expect(routeOf(new Error('x'))).toBe('fault');
   });
 });
