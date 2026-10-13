@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
-import { loadBank, SoundDecodeFailure } from './bank';
+import { loadBank, SoundDecodeFailure, SoundUnreachable } from './bank';
 
 const SOUNDS = { a: { files: ['a.mp3'] }, b: { files: ['b.mp3'] } } as unknown as Record<string, Cue>;
 const PAIR = { hit: { files: ['hit-1.ogg', 'hit-2.ogg'] } } as unknown as Record<string, Cue>;
@@ -76,8 +76,9 @@ describe('loadBank', () => {
 
   it('treats a 404 like a decode failure', async () => {
     vi.stubGlobal('fetch', async () => ({ ...ok, ok: false, status: 404 }));
-    const { bank, failures } = await loadBank(ctx, SOUNDS);
+    const { bank, failures, unreachable } = await loadBank(ctx, SOUNDS);
     expect(failures).toHaveLength(2);
+    expect(unreachable).toEqual([]);
     expect(bank.size).toBe(2);
   });
 
@@ -94,6 +95,49 @@ describe('loadBank', () => {
     });
     await loadBank(counting, many);
     expect(peak).toBe(BANK.decodeAtOnce);
+  });
+});
+
+describe('loadBank with the network down', () => {
+  const down = new TypeError('Failed to fetch');
+
+  it('stands in for an unreachable file and does not report it', async () => {
+    const fetch = vi.fn(async () => { throw down; });
+    vi.stubGlobal('fetch', fetch);
+    const { bank, failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a });
+    expect(failures).toEqual([]);
+    expect(unreachable.map((f) => f.file)).toEqual(['a.mp3']);
+    expect(bank.get('a.mp3')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
+    expect(fetch).toHaveBeenCalledTimes(BANK.tries);
+  });
+
+  it('recovers when the second try gets through', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => {
+      if (++calls === 1) throw down;
+      return ok;
+    });
+    const { failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a });
+    expect(failures).toEqual([]);
+    expect(unreachable).toEqual([]);
+  });
+
+  it('gives an unreachable file the buffer of its sibling', async () => {
+    const good = { id: 'good' } as unknown as AudioBuffer;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('hit-2.ogg')) throw down;
+      return ok;
+    });
+    const { bank, failures, unreachable } = await loadBank(ctxOf(async () => good), PAIR);
+    expect(bank.get('hit-2.ogg')).toBe(good);
+    expect(failures).toEqual([]);
+    expect(unreachable.map((f) => f.file)).toEqual(['hit-2.ogg']);
+  });
+
+  it('keeps the network error as the cause', () => {
+    const error = new SoundUnreachable('a.mp3', down);
+    expect(error.cause).toBe(down);
+    expect(error.message).toContain('a.mp3');
   });
 });
 

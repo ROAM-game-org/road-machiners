@@ -2,7 +2,14 @@ import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
 export type DecodeFailure = { file: string; error: unknown };
-export type LoadedBank = { bank: Bank; failures: DecodeFailure[] };
+export type LoadedBank = { bank: Bank; failures: DecodeFailure[]; unreachable: DecodeFailure[] };
+
+export class SoundUnreachable extends Error {
+  constructor(file: string, cause: unknown) {
+    super(`Sound ${file} could not be fetched`, { cause });
+    this.name = "SoundUnreachable";
+  }
+}
 
 export const SFX_DIR = `${import.meta.env.BASE_URL}sfx/`;
 
@@ -25,7 +32,7 @@ export async function loadBank(
 ): Promise<LoadedBank> {
   const files = Object.values(sounds).flatMap((c) => c.files);
   const decoded = new Map<string, AudioBuffer>();
-  const failures: DecodeFailure[] = [];
+  const failed: DecodeFailure[] = [];
   let done = 0;
   let next = 0;
   progress?.(0, files.length);
@@ -34,13 +41,18 @@ export async function loadBank(
       const file = files[next++];
       const result = await decodeWithRetry(ctx, file);
       if (result.buffer) decoded.set(file, result.buffer);
-      else failures.push({ file, error: result.error });
+      else failed.push({ file, error: result.error });
       progress?.(++done, files.length);
     }
   }
   await Promise.all(Array.from({ length: Math.min(BANK.decodeAtOnce, files.length) }, worker));
   const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
-  return { bank, failures: files.flatMap((f) => failures.filter((x) => x.file === f)) };
+  const inFileOrder = files.flatMap((f) => failed.filter((x) => x.file === f));
+  return {
+    bank,
+    failures: inFileOrder.filter((x) => !(x.error instanceof SoundUnreachable)),
+    unreachable: inFileOrder.filter((x) => x.error instanceof SoundUnreachable),
+  };
 }
 
 async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ buffer?: AudioBuffer; error?: unknown }> {
@@ -56,7 +68,9 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const res = await fetch(SFX_DIR + file);
+  const res = await fetch(SFX_DIR + file).catch((e: unknown) => {
+    throw new SoundUnreachable(file, e);
+  });
   if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
   return ctx.decodeAudioData(await res.arrayBuffer());
 }
