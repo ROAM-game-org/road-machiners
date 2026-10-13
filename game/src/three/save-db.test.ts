@@ -1,10 +1,10 @@
 import { defaultSetup } from '../sim/settings';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { memoryBackend, SaveSlots, type SaveBackend } from './save-db';
+import { idbBackend, memoryBackend, SaveSlots, type SaveBackend } from './save-db';
 import { allSlots } from './save-slots';
 
 const SLOTS = allSlots(3);
@@ -109,5 +109,40 @@ describe('SaveSlots', () => {
 
     expect(errors.map((e) => (e as Error).message)).toEqual(['Quota exceeded']);
     expect((await backend.readAll()).get('auto')).toEqual({ world: { turn: 3 } });
+  });
+});
+
+describe('idbBackend writes', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubIndexedDb(transactionArgs: unknown[][]): void {
+    const store = { put: () => ({}), add: () => ({}), delete: () => ({}), openCursor: () => ({}) };
+    const db = {
+      transaction: (...args: unknown[]) => {
+        transactionArgs.push(args);
+        if (args.length > 2) throw new Error('This browser aborts a transaction with options');
+        const tx: { oncomplete?: () => void; objectStore: () => typeof store } = { objectStore: () => store };
+        setTimeout(() => tx.oncomplete?.());
+        return tx;
+      },
+    };
+    vi.stubGlobal('indexedDB', {
+      open: () => {
+        const open: { result: unknown; onsuccess?: () => void } = { result: db };
+        setTimeout(() => open.onsuccess?.());
+        return open;
+      },
+    });
+  }
+
+  it('opens each write transaction with the default options', async () => {
+    const transactionArgs: unknown[][] = [];
+    stubIndexedDb(transactionArgs);
+    const backend = await idbBackend('roam-test');
+
+    await backend.put('auto', { world: { turn: 1 } });
+    await backend.remove('auto');
+
+    expect(transactionArgs).toEqual([['saves', 'readwrite'], ['saves', 'readwrite']]);
   });
 });
