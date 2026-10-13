@@ -9,6 +9,7 @@ import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
+import { fetchAsset } from '../fetch-asset';
 import { perfSnapshot, resetPerf } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { warmRoutes } from '../sim/path';
@@ -50,9 +51,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  const response = await fetch(MAPGEN.file);
-  if (!response.ok) throw new Error(`Map file ${MAPGEN.file} failed to load: ${response.status} ${response.statusText}`);
-  return decodeMap(new Uint8Array(await response.arrayBuffer()));
+  return decodeMap(new Uint8Array(await fetchAsset('Map file', MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
@@ -151,7 +150,8 @@ language.subscribe(() => {
   relocalize(element('overlay'));
   relocalizeGame?.();
 });
-const boot = BootScreen.adopt();
+let flushSaves = (): Promise<void> => Promise.resolve();
+const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, ERROR_REPORT_BUILD, GAME_VERSION) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
@@ -166,6 +166,7 @@ const loading = Promise.all([
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
 const slots = await SaveSlots.open(await idbBackend(saveKey), window.localStorage, saveKey, allSlots(CONFIG.saveSlots));
+flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),

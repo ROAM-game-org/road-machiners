@@ -21,7 +21,7 @@ export class AssetUnreachable extends Error {
     readonly attempts: number,
     readonly cause: unknown,
   ) {
-    super(`${label} did not arrive after ${attempts} attempts: ${cause}`);
+    super(`${label} ${url} did not arrive after ${attempts} attempts: ${cause}`);
     this.name = 'AssetUnreachable';
   }
 }
@@ -36,7 +36,7 @@ async function attempt(label: string, url: string, net: AssetNet): Promise<Attem
     return { transient: e };
   }
   if (TRANSIENT_STATUS.has(res.status)) return { transient: new Error(`HTTP ${res.status} ${res.statusText}`) };
-  if (!res.ok) throw new Error(`${label} failed to load: HTTP ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(`${label} ${url} failed to load: HTTP ${res.status} ${res.statusText}`);
   try {
     return { bytes: await res.arrayBuffer() };
   } catch (e) {

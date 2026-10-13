@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { fetchAsset } from '../../fetch-asset';
 import { PAL } from '../../render/palette';
 import { WEAPON_POOLS } from '../../render/partLooks';
 
@@ -302,9 +303,7 @@ function checkWeaponSockets(): void {
 
 async function fetchModel(name: ModelName): Promise<ArrayBuffer> {
   const url = `${import.meta.env.BASE_URL}models/${name}.glb`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Model ${url} failed to load: HTTP ${res.status}`);
-  return res.arrayBuffer();
+  return fetchAsset('Model', url);
 }
 
 function source(name: ModelName): THREE.Object3D {

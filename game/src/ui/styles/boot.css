@@ -10,6 +10,7 @@
   align-items: center;
   justify-content: center;
 }
+#boot .boot-retry { pointer-events: auto; width: 100%; }
 #boot[hidden] { display: none; }
 #boot.leaving { opacity: 0; transition: opacity 250ms; }
 #boot .boot-box { width: min(var(--panel-l), calc(100vw - var(--space-10))); display: flex; flex-direction: column; gap: var(--space-6); }

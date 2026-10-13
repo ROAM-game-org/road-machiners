@@ -1,6 +1,7 @@
 // Decodes every catalog file at boot. A missing or broken file stops the boot with its name.
 
 import type { Cue } from "../data/sounds";
+import { fetchAsset } from "../fetch-asset";
 
 export type Bank = Map<string, AudioBuffer>;
 
@@ -26,10 +27,9 @@ export async function loadBank(
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const res = await fetch(SFX_DIR + file);
-  if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
+  const bytes = await fetchAsset('Sound', SFX_DIR + file);
   try {
-    return await ctx.decodeAudioData(await res.arrayBuffer());
+    return await ctx.decodeAudioData(bytes);
   } catch (e) {
     throw new Error(`Sound ${file} failed to decode: ${e}`);
   }
