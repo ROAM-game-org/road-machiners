@@ -18,7 +18,7 @@ export type ErrorReport = {
   drive: object | null;
 };
 
-export type RejectReason = 'origin' | 'address' | 'rate' | 'size' | 'shape' | 'commit' | 'stack' | 'disk';
+export type RejectReason = 'origin' | 'address' | 'rate' | 'size' | 'shape' | 'commit' | 'stack' | 'disk' | 'feedback-rate' | 'filter';
 
 export class Rejected extends Error {
   constructor(readonly reason: RejectReason, readonly status: number, message: string) {

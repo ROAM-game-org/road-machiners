@@ -6,6 +6,7 @@ import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
 import { stripAnsi } from '../fail';
+import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
 import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type InlineButton, type Stage } from '../types';
 import { bundleOf } from './bundle';
@@ -136,7 +137,7 @@ async function runScript(ctx: Ctx, issue: number, base: string, build: string, s
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(`${ctx.cfg.home}/work`, { recursive: true });
   await ctx.repo.prepareWorkClone(BRANCH(issue), base, dir);
-  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build });
+  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) });
 }
 
 const PROGRESS_MS = 5 * 60_000;

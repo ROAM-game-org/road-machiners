@@ -2,7 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import { openStore } from '../public/store';
 import type { FingerprintIssue } from '../types';
+import { Feedback } from './feedback';
 import { alertPath, ErrorReports, ErrorServer, issueReports, readStore, reportsDir, type ReportDeps } from './service';
 
 const SHA = 'abc1234'.padEnd(40, '0');
@@ -152,8 +154,9 @@ describe('error server', () => {
 
   async function start(ipPerHour = 2): Promise<{ url: string; home: string; calls: string[] }> {
     const { home, deps, calls } = setup();
-    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour };
-    const server = new ErrorServer(new ErrorReports(deps), cfg, deps.now, () => undefined);
+    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour, reportIpPerHour: 5, reportMaxChars: 3000 };
+    const feedback = new Feedback({ cfg: { ...cfg, reportDailyIssues: 20 }, store: openStore(home), classify: async () => { throw new Error('no filter in this test'); }, github: deps.github, now: deps.now, log: () => undefined, alert: () => undefined });
+    const server = new ErrorServer(new ErrorReports(deps), feedback, cfg, deps.now, () => undefined);
     servers.push(server);
     return { url: `http://127.0.0.1:${await server.listenPort(0)}/errors`, home, calls };
   }
