@@ -18,7 +18,7 @@ One card position spans several stores. A position is consistent when every stor
 - Telegram: the posts with buttons. Written by testing, the post-only checks, candidate, approve and ship.
 - Source maps: `$FACTORY_HOME/sourcemaps/<commit>/` holds the maps of each release, dev and candidate build, and `published.jsonl` lists those builds. Written by ship, hotfix, the dev build and candidate. Read by the error service.
 - Test cache: `$FACTORY_HOME/test-cache/` holds the pass entries of the game test tool. The tool writes and reads them in the check containers of the post and merge checkpoints, the only ones that mount the folder. The tick deletes files older than `FACTORY_TEST_CACHE_DAYS`.
-- Hermes's agy runs: `$FACTORY_HOME/state/hermes-agy-runs.json` holds the UTC `day` and its `runs`. Written only by `factory tool agy` under the lock `locks/hermes-agy-runs`, which refuses a run past `AGY_MAX_RUNS` of the day. A new day starts at 0. [operations.md](operations.md#hermess-agy-and-codex) has the rules.
+- Hermes's agy runs: `$FACTORY_HOME/state/hermes-agy-runs.json` holds the UTC `day` and its `runs`. Written only by `factory tool agy`, never by hand, under the lock `locks/hermes-agy-runs`, which refuses a run past `AGY_MAX_RUNS` of the day. A new day starts at 0. [operations.md](operations.md#hermess-agy-and-codex) has the rules.
 - Error reports: `$FACTORY_HOME/error-reports/` holds `store.json`, which ties each error fingerprint to its issue and counts reports and rejects, and `reports/<fingerprint>/<commit>.json.gz`. Written only by the error service. Agent stages of an `error-report` issue read its reports.
 
 ## Card positions

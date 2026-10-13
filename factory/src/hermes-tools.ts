@@ -1,9 +1,10 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { constants } from 'node:os';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { codexMount, ensureProxy, FACTORY_LABEL, networkArgs } from './container';
+import { must } from './exec';
 import { withLockSync } from './lock';
 import type { FactoryConfig, Run } from './types';
 
@@ -20,6 +21,7 @@ export type ToolCall = { tool: HermesTool; cwd: string; args: string[] };
 export type ToolDeps = {
   spawn: (args: string[], env: Record<string, string>) => Promise<number>;
   remove: (name: string) => Promise<void>;
+  kill: () => void;
   ensureProxy: () => Promise<void>;
   now: () => Date;
   onStop: (stop: () => Promise<void> | void) => void;
@@ -82,14 +84,26 @@ export function toolDockerArgs(cfg: FactoryConfig, call: ToolCall, name: string)
   return { args, env };
 }
 
+const FREE_CALLS = new Set(['--help', '-h', '--version']);
+
+async function stopContainer(deps: ToolDeps, name: string): Promise<void> {
+  try {
+    await deps.remove(name);
+  } catch (error) {
+    deps.error(`removing container ${name} failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    deps.kill();
+  }
+}
+
 export async function runHermesTool(cfg: FactoryConfig, call: ToolCall, deps: ToolDeps): Promise<number> {
   const name = `factory-hermes-${call.tool}-${randomUUID()}`;
   const { args, env } = toolDockerArgs(cfg, call, name);
-  if (call.tool === 'agy') countAgyRun(cfg.home, cfg.agyMaxRuns, deps.now());
   await deps.ensureProxy();
+  if (call.tool === 'agy' && !FREE_CALLS.has(call.args.join(' '))) countAgyRun(cfg.home, cfg.agyMaxRuns, deps.now());
   let timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; void deps.remove(name); }, deps.limitMs(cfg.agentJobMaxMinutes));
-  deps.onStop(() => deps.remove(name));
+  const timer = setTimeout(() => { timedOut = true; void stopContainer(deps, name); }, deps.limitMs(cfg.agentJobMaxMinutes));
+  deps.onStop(() => stopContainer(deps, name));
   try {
     const code = await deps.spawn(args, env);
     if (!timedOut) return code;
@@ -104,13 +118,15 @@ const STOP_SIGNALS = ['SIGHUP', 'SIGINT', 'SIGTERM'] as const;
 const SIGNAL_EXIT = 128;
 
 export function realToolDeps(run: Run, cfg: FactoryConfig): ToolDeps {
+  let child: ChildProcess | null = null;
   return {
     spawn: (args, env) => new Promise((done, fail) => {
-      const child = spawn('docker', args, { stdio: 'inherit', env: { ...process.env, ...env } });
+      child = spawn('docker', args, { stdio: 'inherit', env: { ...process.env, ...env } });
       child.on('error', fail);
       child.on('close', (code) => done(code ?? 1));
     }),
-    remove: async (name) => { await run('docker', ['rm', '-f', name], { timeoutMs: 60_000 }); },
+    remove: async (name) => { must(await run('docker', ['rm', '-f', name], { timeoutMs: 60_000 }), `docker rm ${name}`); },
+    kill: () => { child?.kill('SIGKILL'); },
     ensureProxy: () => ensureProxy(run, cfg),
     now: () => new Date(),
     onStop: (stop) => {

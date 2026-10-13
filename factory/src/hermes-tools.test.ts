@@ -95,14 +95,15 @@ describe('toolDockerArgs', () => {
   });
 });
 
-type Fake = ToolDeps & { spawned: string[][]; removed: string[]; stop: (() => void) | null; finish: (code: number) => void; proxied: number };
+type Fake = ToolDeps & { spawned: string[][]; removed: string[]; killed: number; stop: (() => Promise<void> | void) | null; finish: (code: number) => void; proxied: number };
 
 function fakeDeps(): Fake {
   let finish: (code: number) => void = () => undefined;
   const fake: Fake = {
-    spawned: [], removed: [], stop: null, proxied: 0, finish: (code) => finish(code),
+    spawned: [], removed: [], killed: 0, stop: null, proxied: 0, finish: (code) => finish(code),
     spawn: (args) => { fake.spawned.push(args); return new Promise((done) => { finish = done; }); },
     remove: async (name) => { fake.removed.push(name); finish(137); },
+    kill: () => { fake.killed += 1; finish(137); },
     ensureProxy: async () => { fake.proxied += 1; },
     now: () => new Date('2026-10-13T10:00:00Z'),
     onStop: (stop) => { fake.stop = stop; },
@@ -119,12 +120,12 @@ async function settle(): Promise<void> {
 describe('runHermesTool', () => {
   it('returns the exit code of the tool and counts an agy run', async () => {
     const deps = fakeDeps();
-    const running = runHermesTool(config(), { tool: 'agy', cwd: '/', args: ['--help'] }, deps);
+    const running = runHermesTool(config(), { tool: 'agy', cwd: '/', args: ['-p', 'hi'] }, deps);
     await settle();
     deps.finish(0);
     expect(await running).toBe(0);
     expect(deps.proxied).toBe(1);
-    expect(deps.spawned[0]).toContain('--help');
+    expect(deps.spawned[0]).toContain('hi');
     expect(JSON.parse(readFileSync(join(home, 'state/hermes-agy-runs.json'), 'utf8')).runs).toBe(1);
   });
 
@@ -134,6 +135,34 @@ describe('runHermesTool', () => {
     countAgyRun(home, 2, deps.now());
     await expect(runHermesTool(config(), { tool: 'agy', cwd: '/', args: [] }, deps)).rejects.toThrow('AGY_MAX_RUNS');
     expect(deps.spawned).toEqual([]);
+  });
+
+  it('does not count agy --help or --version', async () => {
+    for (const args of [['--help'], ['--version']]) {
+      const deps = fakeDeps();
+      const running = runHermesTool(config(), { tool: 'agy', cwd: '/', args }, deps);
+      await settle();
+      deps.finish(0);
+      await running;
+    }
+    expect(existsSync(join(home, 'state/hermes-agy-runs.json'))).toBe(false);
+  });
+
+  it('spends no agy run when the proxy cannot start', async () => {
+    const deps = { ...fakeDeps(), ensureProxy: async () => { throw new Error('no proxy image'); } };
+    await expect(runHermesTool(config(), { tool: 'agy', cwd: '/', args: ['-p', 'hi'] }, deps)).rejects.toThrow('no proxy image');
+    expect(existsSync(join(home, 'state/hermes-agy-runs.json'))).toBe(false);
+  });
+
+  it('kills the docker client and says why when removing the container fails at the limit', async () => {
+    const errors: string[] = [];
+    const deps = { ...fakeDeps(), limitMs: () => 1, remove: async () => { throw new Error('daemon gone'); }, error: (line: string) => errors.push(line) };
+    let killed = 0;
+    const finishing = deps.finish;
+    deps.kill = () => { killed += 1; finishing(137); };
+    expect(await runHermesTool(config(), { tool: 'codex', cwd: '/', args: [] }, deps)).toBe(124);
+    expect(killed).toBe(1);
+    expect(errors.join('\n')).toContain('daemon gone');
   });
 
   it('does not count a codex run', async () => {
@@ -159,7 +188,7 @@ describe('runHermesTool', () => {
     const deps = fakeDeps();
     const running = runHermesTool(config(), { tool: 'codex', cwd: '/', args: [] }, deps);
     await settle();
-    deps.stop?.();
+    await deps.stop?.();
     await running;
     expect(deps.removed).toEqual([deps.spawned[0][deps.spawned[0].indexOf('--name') + 1]]);
   });
@@ -195,10 +224,12 @@ describe('the agy and codex commands of the Hermes image', () => {
 const hermes = process.env.FACTORY_SMOKE_HERMES;
 
 function hostSecrets(): { gemini: boolean; codex: boolean } {
-  if (!existsSync('.env')) return { gemini: false, codex: false };
   const env = readEnvFiles('settings.env', '.env');
-  return { gemini: (env.GEMINI_API_KEY ?? '') !== '', codex: existsSync(join(env.FACTORY_HOME ?? '', 'codex/auth.json')) };
+  if (!env.FACTORY_HOME) throw new Error('FACTORY_SMOKE_HERMES needs the factory env: run it from the deployed factory/ folder.');
+  return { gemini: (env.GEMINI_API_KEY ?? '') !== '', codex: existsSync(join(env.FACTORY_HOME, 'codex/auth.json')) };
 }
+
+const secrets = hermes === undefined ? { gemini: false, codex: false } : hostSecrets();
 
 function inHermes(...command: string[]): { code: number | null; out: string } {
   const result = spawnSync('docker', ['exec', '-u', String(process.getuid?.()), '-w', HERMES_TOOLS_SHARED, hermes as string, ...command], { encoding: 'utf8', timeout: 600_000 });
@@ -214,13 +245,13 @@ describe.skipIf(hermes === undefined)('agy and codex in the deployed Hermes cont
     expect(agy.code, agy.out).toBe(0);
   }, 300_000);
 
-  it.skipIf(!hostSecrets().gemini)('gets an answer from agy with the factory Gemini key', () => {
+  it.skipIf(!secrets.gemini)('gets an answer from agy with the factory Gemini key', () => {
     const agy = inHermes('agy', '--dangerously-skip-permissions', '-p', 'Reply with the single word ok.');
     expect(agy.code, agy.out).toBe(0);
     expect(agy.out.toLowerCase()).toContain('ok');
   }, 600_000);
 
-  it.skipIf(!hostSecrets().codex)('gets an answer from codex with the factory Codex login', () => {
+  it.skipIf(!secrets.codex)('gets an answer from codex with the factory Codex login', () => {
     const codex = inHermes('codex', 'exec', '--skip-git-repo-check', 'Reply with the single word ok.');
     expect(codex.code, codex.out).toBe(0);
     expect(codex.out.toLowerCase()).toContain('ok');
