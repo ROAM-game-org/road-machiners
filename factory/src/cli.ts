@@ -1,15 +1,17 @@
 // The factory command line. Usage: npm run factory -- <tick | run <stage> <issue|-> | intake | command>
 // Any other command is a Hermes command of ctl.ts. `help` lists them.
-import { readEnvFiles } from './config';
+import { loadConfig, readEnvFiles } from './config';
 import { realContext } from './context';
 import { runCtl } from './ctl';
 import { writeHealth } from './health';
+import { decodeToolCall, realToolDeps, runHermesTool } from './hermes-tools';
 import { drainInbox } from './inbox';
 import { intake } from './intake';
 import { runJob } from './job';
 import { parseStage } from './jobs';
 import { liftEndedPause, pausedReason } from './pause';
 import { reportScheduler } from './observability';
+import { realRun } from './exec';
 import { checkJobs, tick } from './tick';
 import { guardTick } from './tick-guard';
 
@@ -47,6 +49,17 @@ async function manage(ctx: ReturnType<typeof realContext>, args: string[]): Prom
   }
 }
 
+async function hermesTool([, tool, payload]: string[]): Promise<void> {
+  try {
+    loadEnv();
+    const cfg = loadConfig(process.env);
+    process.exitCode = await runHermesTool(cfg, decodeToolCall(tool, payload), realToolDeps(realRun, cfg));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+}
+
 function paused(ctx: ReturnType<typeof realContext>): boolean {
   const lifted = liftEndedPause(ctx.cfg.home);
   if (lifted !== null) ctx.log('tick', null, `pause lifted, its process ended: ${lifted.replaceAll('\n', ' ')}`);
@@ -61,4 +74,5 @@ function parseIssue(value: string | undefined): number {
   return number;
 }
 
-await main(process.argv.slice(2).filter((arg) => arg !== '--'));
+const argv = process.argv.slice(2).filter((arg) => arg !== '--');
+await (argv[0] === 'tool' ? hermesTool(argv) : main(argv));

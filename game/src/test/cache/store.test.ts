@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Input } from './fingerprint';
 import { entryPath, hasPass, passedFingerprints, recordPass } from './store';
 
@@ -45,17 +45,26 @@ describe('cache store', () => {
     expect(readdirSync(join(cache, 'entries', readdirSync(join(cache, 'entries'))[0]!))).toEqual(['fp1.json']);
   });
 
-  it('throws with the entry path when an entry is not JSON', () => {
+  it('drops an entry that is not JSON with a warning naming it, so its test file runs', () => {
     recordPass(cache, 'src/a.test.ts', 'fp1', inputs);
+    recordPass(cache, 'src/a.test.ts', 'fp2', inputs);
     const file = entryPath(cache, 'src/a.test.ts', 'fp1');
     writeFileSync(file, '{not json');
-    expect(() => passedFingerprints(cache, 'src/a.test.ts')).toThrow(file);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(passedFingerprints(cache, 'src/a.test.ts')).toEqual([inputs]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(file));
+    warn.mockRestore();
   });
 
-  it('throws with the entry path when an entry has the wrong shape', () => {
+  it('drops an entry with the wrong shape or an older format with a warning naming it', () => {
     recordPass(cache, 'src/a.test.ts', 'fp1', inputs);
     const file = entryPath(cache, 'src/a.test.ts', 'fp1');
-    writeFileSync(file, JSON.stringify({ inputs: [{ path: 3, kind: 'file' }] }));
-    expect(() => passedFingerprints(cache, 'src/a.test.ts')).toThrow(file);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    for (const text of [JSON.stringify({ inputs: [{ path: 3, kind: 'file' }] }), JSON.stringify(['src/a.ts']), 'null']) {
+      writeFileSync(file, text);
+      expect(passedFingerprints(cache, 'src/a.test.ts')).toEqual([]);
+    }
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
   });
 });

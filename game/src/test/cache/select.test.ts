@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fingerprint, type Input } from './fingerprint';
 import { inputsOf, recordRun, selectTests, type RunResult } from './select';
 import { hasPass, passedFingerprints } from './store';
@@ -108,6 +108,24 @@ describe('selectTests', () => {
     expect(select().skipped).toEqual(['src/a.test.ts']);
     put('src/a.ts', 'import a');
     expect(select().skipped).toEqual(['src/a.test.ts']);
+  });
+
+  it('runs a test file whose pass entry is corrupt', () => {
+    record();
+    const [dir] = readdirSync(join(cache, 'entries'));
+    const [name] = readdirSync(join(cache, 'entries', dir!));
+    writeFileSync(join(cache, 'entries', dir!, name!), '{cut');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(select().run).toEqual(['src/a.test.ts']);
+    warn.mockRestore();
+  });
+
+  it('keeps running a test file that failed after its inputs changed, until it passes', () => {
+    record();
+    put('src/a.ts', 'import a broken');
+    expect(select().run).toEqual(['src/a.test.ts']);
+    recordRun(root, cache, 'k', [result({ passed: false })]);
+    expect(select().run).toEqual(['src/a.test.ts']);
   });
 
   it('splits several test files', () => {

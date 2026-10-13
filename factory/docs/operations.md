@@ -50,7 +50,7 @@ Every tick, after it checks the running jobs:
 - It deletes the clones in `$FACTORY_HOME/work` of finished work: issues whose card is Done or off the board, `check-issue-*`, `merge-queue`, `dev-build`, `release-main`, `change-*` and `incident-*` not queued, `release-playtest`, `release-baseline`, and `release-candidate` with no release open. The playtest audit in `$FACTORY_HOME/playtest/` stays. A clone that stays loses its `node_modules`. A running or interrupted job keeps its clones. Folders with other names stay, and the tick log names them.
 - It deletes job logs older than `FACTORY_LOG_DAYS`, except `tick.log`, `update.log` and the logs that `failures` names.
 - It deletes archived agent transcripts older than `FACTORY_TRANSCRIPT_DAYS`.
-- It deletes files older than `FACTORY_TEST_CACHE_DAYS` in `$FACTORY_HOME/test-cache/`, then the empty folders. The game test tool owns this folder and touches an entry each time it skips a test file on it. Only the check containers of the post and merge checkpoints mount the folder, and the release playtest runs the full suite without it.
+- It deletes files older than `FACTORY_TEST_CACHE_DAYS` in `$FACTORY_HOME/test-cache/`, then the empty folders. The game test tool owns this folder and touches an entry each time it skips a test file on it. Only the check containers of the post, merge and ship checkpoints and the release playtest's full suite mount the folder.
 
 Every tick writes `$FACTORY_HOME/health` with its time, the free disk and the available memory, also while paused. Under `FACTORY_MIN_FREE_GB` free, the tick starts no job. Memory under `FACTORY_MIN_AVAILABLE_GB` blocks nothing, and a host with no `/proc/meminfo` records none.
 
@@ -114,6 +114,19 @@ Hermes manages the factory. Its incident watch wakes it on a stuck issue, a fail
 Hermes uses the `factory` CLI for every look at the factory and every change. Read commands print the state and change nothing. Write commands become inbox commands, and the next tick applies each one before it picks jobs. A write that cannot apply changes nothing and becomes a failure that names the reason. Each write names who ordered it and why, on the issue and in the ledger. Only a member's order runs `merge` or `move N harden` of a card the committee has not approved, `ship` and `merge-change`. `factory help` lists every command. [state.md](state.md) lists the commands.
 
 While Hermes edits state, it pauses the factory with the file `$FACTORY_HOME/paused`, and every tick starts no job, applies no order, runs no cleanup and takes no intake. A paused tick still checks the running jobs, so a dead or timed-out job leaves `jobs` also during a pause. A line `pid: N` in that file ties the pause to a process, and the tick lifts the pause once that process ends.
+
+## Hermes's agy and codex
+
+Hermes runs `agy` and `codex` from its shell the way an agent does, for work like a Russian draft from agy. The Hermes image has no Gemini key and no Codex login. Its `agy` and `codex` are copies of `hermes/agent-tool`, which sends the call through `factory-host` to `factory tool <agy|codex>` on the server. That command runs the image's own wrapper in a fresh agent container, as `src/hermes-tools.ts` builds it.
+
+- Auth: agy gets `GEMINI_API_KEY` from the factory env, and codex gets the Codex login in `$FACTORY_HOME/codex`. Each secret goes to docker by env name or mount, never on a command line, and each tool gets only its own. The secrets stay out of Hermes's image, env and chat, but this is no wall against Hermes: its `factory-host` shell and its mount of the factory home already reach them, and a tool prints what Hermes asks. So Hermes never asks a tool for its env or login.
+- Models: agy runs on `AGY_MODEL`, and codex on `CODEX_MODEL` at `CODEX_EFFORT` unless the call names a model with `-m`.
+- Limits: Hermes's agy runs of one UTC day share one `AGY_MAX_RUNS`, counted in `$FACTORY_HOME/state/hermes-agy-runs.json` once the proxy is up. A call past it fails before it starts a container. `agy --help`, `agy -h` and `agy --version` count nothing. The cap stops a runaway loop. Hermes can edit the file, so SOUL.md tells it never to. Each call runs on 1 CPU and 2 GB, behind the egress proxy, and stops at `FACTORY_JOB_MAX_MINUTES`. A `factory tool` stopped by a signal removes its container too. When Hermes's own command times out, the ssh session ends with no signal on the server, so the call runs on until it ends or reaches the limit.
+- Files: the tool's `/work` is `$FACTORY_HOME/hermes-tools`, which Hermes sees as `/factory/home/hermes-tools`. A call from a folder under it runs in the same folder under `/work`, and any other call runs in `/work`. So Hermes writes the inputs there, runs `agy` or `codex` from that folder, and reads the outputs there.
+- Arguments and stdin reach the tool unchanged, and its output and exit code come back. A long call runs in the background with its output in a file in that folder, since Hermes's own command may time out first.
+- Containers carry the label `factory-hermes-tool=1`. `docker ps --filter label=factory-hermes-tool=1` through `factory-host` lists the running calls.
+
+`infra/deploy/status.py` prints where the deployed Hermes finds both commands. `FACTORY_SMOKE_HERMES=factory-hermes npx vitest run hermes-tools`, run on the server from the deployed `factory/`, checks both commands in the deployed Hermes container. It also gets one real answer from agy when the factory env has `GEMINI_API_KEY`, and one from codex when the Codex login is there. That agy answer counts against the day's `AGY_MAX_RUNS`. Without the factory env in its folder the test fails.
 
 ## Activity and status
 

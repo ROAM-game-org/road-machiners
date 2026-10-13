@@ -25,6 +25,9 @@ COPY plugin /opt/hermes-factory/plugin
 COPY --chmod=755 factory-host /usr/local/bin/factory-host
 COPY --chmod=755 factory /usr/local/bin/factory
 COPY --chmod=755 factory-incident-watch /usr/local/bin/factory-incident-watch
+# agy and codex run on the server in the agent image, so their key and login never enter this container.
+COPY --chmod=755 agent-tool /usr/local/bin/agy
+COPY --chmod=755 agent-tool /usr/local/bin/codex
 
 # The image supervises the gateway with s6, and the gateway reads its env from $HERMES_HOME/.env.
 # So the start script writes the repo's config, identity and committee allow list there, then hands over.
