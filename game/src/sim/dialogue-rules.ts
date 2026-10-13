@@ -10,7 +10,7 @@ import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
 import { inCombat, isHostile } from './combat';
 import { patchGoal, startTow, topGoal } from './npc-activities';
-import { haulBlocked, isExpired, shopAt, shopState, takeContract, type Contract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { haulBlocked, searchBlocked, isExpired, shopAt, shopState, takeContract, type Contract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { recall } from './memory';
 import { hasPerk, practice } from './progress';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
@@ -474,7 +474,7 @@ export function townOffers(world: World): Contract[] {
 }
 
 export function townWork(world: World): Contract | null {
-  const open = townOffers(world).filter((c) => !haulBlocked(world, c));
+  const open = townOffers(world).filter((c) => !haulBlocked(world, c) && !searchBlocked(world, c));
   if (boardFull(world)) return null;
   return open.reduce<Contract | null>((best, c) => (best === null || c.reward > best.reward ? c : best), null);
 }

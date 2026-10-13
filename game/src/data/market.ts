@@ -92,6 +92,13 @@ export const CONTRACTS = {
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
     xpPerEffort: 0.0075,
   },
+
+  search: {
+    durationTurns: [300, 600] as [number, number],
+    rewardTurns: 300,
+    freshTurns: Math.round(TIME.turnsPerDay / 4),
+    xpPerEffort: 0.0045,
+  },
 };
 
 export type ShopKind = 'garage' | 'stall';
