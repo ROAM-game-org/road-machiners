@@ -21,7 +21,7 @@ import {
 import { chooseNpcRepair, continueNpcRepair, isDamaged, isStrandedForGood, repairsHere, resolveNpcRepair } from './npc-repair';
 import { getResources } from './resources';
 import { standingPressures } from './market';
-import { remember } from './memory';
+import { remember, rememberSightings } from './memory';
 import { chance, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
@@ -865,6 +865,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   const { seen, contacts } = npcSenses(world, vehicle);
   forget(world, vehicle, contacts);
   senseTracks(world, vehicle, seen, contacts);
+  rememberSightings(world, vehicle, seen);
   pruneAttackers(world, vehicle);
   forgetFullHold(world, vehicle);
   breakOffDeals(world, vehicle);

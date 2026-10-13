@@ -105,7 +105,7 @@ export const HUNT = {
 };
 
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, sighting: TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };
