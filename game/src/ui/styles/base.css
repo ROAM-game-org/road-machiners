@@ -130,3 +130,15 @@ body {
   gap: var(--space-3);
   align-items: center;
 }
+#ui.touch :is(.btn-s, .tip-close) {
+  min-width: var(--touch-target);
+}
+#ui.touch :is(.weapon-hold, .weapon-reload, .weapon-cut, .radio-next) {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
+#ui.touch .instrument-actions button.instrument-button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  align-items: center;
+}

@@ -152,7 +152,7 @@ export class Hud {
   private readonly dialogue: DialoguePanel;
 
   private placeInfo = (): void => {
-    if (this.info.style.display === "none") return;
+    if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
     const top = topRight().getBoundingClientRect().bottom + gap;
     this.info.style.top = `${top}px`;

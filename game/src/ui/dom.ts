@@ -320,7 +320,7 @@ export function findLayoutFaults(root: Element, opts: LayoutOptions): LayoutFaul
 export type MobileOptions = { primary: readonly string[]; minTarget: number; sidewaysOk: readonly string[]; smallOk: readonly string[] };
 
 function hasClippingAncestor(el: Element): boolean {
-  for (let node = el.parentElement; node; node = node.parentElement) {
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
     if (getComputedStyle(node).overflowX !== "visible") return true;
   }
   return false;

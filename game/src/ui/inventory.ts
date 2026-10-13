@@ -1014,7 +1014,17 @@ export class InventoryScreen {
   render(): void {
     if (!this.isOpen()) return;
     const truck = el("div", { class: "inv-body" }, this.view.render());
-    const rotate = el("button", { class: "btn-s touch-only", onclick: () => this.view.rotateHeld() }, t("inv.rotate"));
+    const rotate = el(
+      "button",
+      {
+        class: "btn-s touch-only",
+        onpointerdown: () => this.view.rotateHeld(),
+        onclick: (e: Event) => {
+          if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
+        },
+      },
+      t("inv.rotate"),
+    );
     this.view.holdChanged = () => this.markRotate(rotate);
     this.markRotate(rotate);
     this.root.replaceChildren(
