@@ -11,6 +11,13 @@ import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type InlineButton, type Stage } fr
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
 
+export const CACHED_SUITE = `if grep -q '"test:cached"' package.json; then
+  npm run test:cached -- --cache /test-cache
+else
+  step "branch has no test:cached, full suite"
+  npm test
+fi`;
+
 export const checkScript = (playtest: string) => `set -e
 step() { echo "[checks] $(date -u +%T) $1"; }
 mkdir -p tmp
@@ -19,12 +26,7 @@ npm ci
 step "tests and typecheck"
 npm run typecheck > tmp/typecheck.log 2>&1 &
 typecheck=$!
-if grep -q '"test:cached"' package.json; then
-  npm run test:cached -- --cache /test-cache
-else
-  step "branch has no test:cached, full suite"
-  npm test
-fi
+${CACHED_SUITE}
 step "tests done"
 if ! wait "$typecheck"; then cat tmp/typecheck.log; exit 1; fi
 step "dev server"
