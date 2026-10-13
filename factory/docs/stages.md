@@ -4,7 +4,7 @@ The rules of each step in [process.md](process.md). Each card stage comments on 
 
 ## Intake
 
-Intake puts an aged `feature-request` or `bug` issue into Triage. It needs `FACTORY_MIN_VOTES` thumbs-up, or one from a committee member. An issue labeled `hotfix` by a collaborator goes straight to Design with no votes.
+Intake puts an aged `feature-request` or `bug` issue into Triage. It needs `FACTORY_MIN_VOTES` thumbs-up, or one from a committee member. The author's own thumbs-up does not count. An issue labeled `hotfix` by a collaborator goes straight to Design with no votes.
 
 Intake runs last in each tick, so a card it adds starts on the next tick. It reads every open candidate issue and its thumbs-up in one GitHub search per 100 issues. GitHub sends no webhook for a new reaction, so intake polls.
 
