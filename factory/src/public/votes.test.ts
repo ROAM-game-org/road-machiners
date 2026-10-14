@@ -37,6 +37,22 @@ describe('countVotes', () => {
     expect(f.calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
   });
 
+  it('passes a proposal on one thumbs-up from a committee member, like a committee thumbs-up on GitHub did', async () => {
+    const f = posted({});
+    f.store.applyEvent({ updateId: 2, kind: 'reaction', chat: CHANNEL, messageId: 100, user: '42', emoji: ['👍'] });
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
+    expect(f.messages[0]!.text).toBe('A committee member accepted this proposal. The factory starts work on it now.');
+  });
+
+  it('does not pass a proposal on a committee thumbs-down or on one player thumbs-up', async () => {
+    const f = posted({});
+    f.store.applyEvent({ updateId: 2, kind: 'reaction', chat: CHANNEL, messageId: 100, user: '42', emoji: ['👎'] });
+    f.store.applyEvent({ updateId: 3, kind: 'reaction', chat: CHANNEL, messageId: 100, user: '7', emoji: ['👍'] });
+    await countVotes(f.ctx, f.store);
+    expect(f.calls).toEqual([]);
+  });
+
   it('makes no GitHub or Telegram call below the votes needed', async () => {
     const f = posted({ '👍': 2 });
     await countVotes(f.ctx, f.store);
