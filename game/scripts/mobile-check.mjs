@@ -388,7 +388,7 @@ async function townAndShop(session, step) {
     const frame = g.frames[window.__me().id];
     if (!frame) return false;
     const at = g.rig.screenOf(frame.pos);
-    return Math.hypot(at.x - window.innerWidth / 2, at.y - window.innerHeight / 2) < 120;
+    return Math.hypot(at.x - window.innerWidth / 2, at.y - window.innerHeight / 2) < 25;
   }, null, { timeout: 30000 });
   const spot = await game(page, async (center) => {
     const g = window.__ROAM__;
