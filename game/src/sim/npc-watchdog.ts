@@ -14,21 +14,26 @@ import { modeRules } from './settings';
 import { isFree } from './spawn';
 import { isStranded, vehicleStats } from './stats';
 import { isOnRope, npcHomeSite } from './tow';
-import type { Vehicle, World } from './types';
+import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
 
 export function watchStalls(world: World): void {
   for (const v of world.vehicles) {
     if (!v.brain) continue;
-    if (madeProgress(world, v)) v.brain.progress = { key: progressKey(v), since: world.turn };
+    if (madeProgress(world, v)) v.brain.progress = progressHere(world, v);
     else if (world.turn - v.brain.progress!.since >= NPC_BEHAVIOR.stallTurns) giveUp(world, v);
   }
 }
 
 function madeProgress(world: World, v: Vehicle): boolean {
   if (isKnockedOut(v) || waits(world, v)) return true;
-  return v.brain!.progress?.key !== progressKey(v);
+  const last = v.brain!.progress;
+  return !last || last.key !== progressKey(v) || dist(v.pos, last.at) > NPC_BEHAVIOR.progressReach;
+}
+
+function progressHere(world: World, v: Vehicle): NonNullable<NpcBrain['progress']> {
+  return { key: progressKey(v), since: world.turn, at: { ...v.pos } };
 }
 
 function waits(world: World, v: Vehicle): boolean {
@@ -53,7 +58,7 @@ function besideParkedLeader(world: World, v: Vehicle, leaderId: string | null, s
 function progressKey(v: Vehicle): string {
   const top = topGoal(v);
   const goal = top ? `${top.kind}:${top.targetId}:${top.reason}` : 'idle';
-  return `${Math.round(v.pos.x)},${Math.round(v.pos.y)} ${goal} ${v.job ? `${v.job.kind}:${v.job.turnsLeft}` : '-'}`;
+  return `${goal} ${v.job ? `${v.job.kind}:${v.job.turnsLeft}` : '-'}`;
 }
 
 function giveUp(world: World, v: Vehicle): void {
@@ -63,7 +68,7 @@ function giveUp(world: World, v: Vehicle): void {
   logChange(world, v, top, 'noProgress');
   jumpClear(world, v);
   freshGoal(world, v);
-  v.brain!.progress = { key: progressKey(v), since: world.turn };
+  v.brain!.progress = progressHere(world, v);
 }
 
 function freshGoal(world: World, v: Vehicle): void {

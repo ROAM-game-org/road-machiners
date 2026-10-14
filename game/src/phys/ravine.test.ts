@@ -89,16 +89,16 @@ describe('a truck in a ravine', () => {
     const r = run(w, npc.id, 60);
     expect(r.arrived).not.toBeNull();
     expect(r.stalls).toBe(0);
-    expect(Math.max(...r.trail.filter((p) => p.y < 55).map((p) => p.x))).toBeLessThan(FOOT + 4);
+    expect(Math.max(...r.trail.map((p) => p.y))).toBeGreaterThan(60);
   }, 300_000);
 
-  it('a light truck takes the wall directly and arrives sooner', () => {
+  it('a light truck takes the wall directly', () => {
     const w = emptyWorld(FAR);
     raise(w, ravineWithMouth(LIGHT_WALL));
     const npc = trucker(w, 'scout');
     const r = run(w, npc.id, 60);
     expect(r.arrived).not.toBeNull();
-    expect(Math.max(...r.trail.filter((p) => p.y < 55).map((p) => p.x))).toBeGreaterThan(FOOT + 4);
+    expect(Math.max(...r.trail.map((p) => p.y))).toBeLessThan(55);
   }, 300_000);
 
   it('a loaded hauler in a closed pit raises a stall and changes its goal without being moved in sight', () => {

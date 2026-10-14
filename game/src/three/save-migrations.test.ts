@@ -64,6 +64,7 @@ import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
+import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1341,5 +1342,15 @@ describe('MIGRATIONS[61]', () => {
     const none = at('x', 'y');
     none.player.quests.session = null;
     expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('MIGRATIONS[62]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[62](structuredClone(FORMAT_2_62)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_62.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_62.vehicles[2]);
   });
 });
