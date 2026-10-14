@@ -162,7 +162,7 @@ describe("contract text", () => {
 
 describe("jobLabel of site business", () => {
   const town = REGION.towns[0];
-  const label = (deal: "resupply" | "sell" | "trade" | "haul", siteId = town.id) => {
+  const label = (deal: "resupply" | "sell" | "trade", siteId = town.id) => {
     const w = emptyWorld();
     return en(jobLabel(w, w.vehicles[0], { kind: "business", siteId, deal, turnsLeft: 2, total: 3 }));
   };
@@ -171,7 +171,6 @@ describe("jobLabel of site business", () => {
     expect(label("resupply")).toBe(`Refuel and repair at ${en(siteName(town.id))}`);
     expect(label("sell")).toBe(`Sell cargo at ${en(siteName(town.id))}`);
     expect(label("trade")).toBe(`Buy cargo at ${en(siteName(town.id))}`);
-    expect(label("haul")).toBe(`Load cargo at ${en(siteName(town.id))}`);
   });
 
   it("reads an oasis resupply as filling water", () => {
@@ -617,7 +616,7 @@ describe("saleEstimate", () => {
 
 describe("goods table words", () => {
   it("has terse column heads", () => {
-    expect(Object.fromEntries(Object.entries(GOODS_COLUMNS).map(([k, v]) => [k, en(v)]))).toEqual({ good: "Good", theirs: "Theirs", buy: "Buy", sell: "Sell", held: "Held", profit: "Profit/crate" });
+    expect(Object.fromEntries(Object.entries(GOODS_COLUMNS).map(([k, v]) => [k, en(v)]))).toEqual({ good: "Good", theirs: "Theirs", buy: "Buy", sell: "Sell", stock: "Stock", held: "Held", profit: "Profit/crate" });
   });
 
   it("says prices are per crate of the one crate mass", () => {

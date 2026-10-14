@@ -869,6 +869,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
+  withShopGoods_62_63,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -981,6 +982,56 @@ const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[]
 
 function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
+}
+
+const TOWN_GOODS_62_63: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
+
+const STOCK_TARGETS_62_63: Record<string, Record<string, number>> = {
+  bowl: Object.fromEntries(TOWN_GOODS_62_63.map((good) => [good, 120])),
+  nose: Object.fromEntries(TOWN_GOODS_62_63.filter((good) => good !== 'grain').map((good) => [good, 120])),
+  'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30 },
+  granary: { rations: 38, grain: 30, salt: 30, water: 30, tools: 30, fuelDrums: 30 },
+  'pump-station': { fuelDrums: 229, tools: 30, batteries: 30, rations: 30 },
+  dustwell: { water: 30, tools: 30, meds: 30, rations: 30, fuelDrums: 30 },
+  'green-pit': { water: 30, salt: 30, textiles: 30, rations: 30, fuelDrums: 30 },
+};
+
+const ELASTICITY_62_63 = 0.6;
+
+function stockFromPressure_62_63(target: number, pressure: number | undefined): number {
+  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_62_63)));
+}
+
+function tradesAt_62_63(shopId: string, good: string): boolean {
+  return good in (STOCK_TARGETS_62_63[shopId] ?? {});
+}
+
+function haulStillRuns_62_63(contract: SavedJson): boolean {
+  return contract.kind !== 'haul' || (tradesAt_62_63(contract.shop as string, contract.good as string) && tradesAt_62_63(contract.to as string, contract.good as string));
+}
+
+function shopWithGoods_62_63(shopId: string, shop: SavedJson): SavedJson {
+  const { pressure = {}, ...rest } = shop as SavedJson & { pressure?: Record<string, number> };
+  const targets = STOCK_TARGETS_62_63[shopId];
+  if (!targets) throw new Error(`Save holds an unknown shop ${shopId}`);
+  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_62_63(target, pressure[good])]));
+  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_62_63);
+  return { ...rest, contracts, goods, event: null, shortSince: {}, opened: {} };
+}
+
+function withoutHaulGoal_62_63(vehicle: SavedJson): SavedJson {
+  const brain = vehicle.brain as SavedJson | null;
+  if (!brain) return vehicle;
+  const goals = (brain.goals as SavedJson[]).filter((goal) => goal.kind !== 'haul').map(({ load: _load, ...goal }) => goal);
+  const job = vehicle.job as SavedJson | null | undefined;
+  const hauling = job?.kind === 'business' && job.deal === 'haul';
+  return { ...vehicle, job: hauling ? null : job, brain: { ...brain, goals } };
+}
+
+function withShopGoods_62_63(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_62_63(id, shop)]));
+  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_62_63);
+  return { ...world, shops, vehicles, roadNews: [] };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

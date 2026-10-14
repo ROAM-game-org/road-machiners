@@ -10,6 +10,7 @@ import { callVehicle, chooseOption, currentOptions, talkOf } from './dialogue';
 import { remember } from './memory';
 import { defaultSetup } from './settings';
 import { addVehicle, emptyWorld, npcBrain } from './testkit';
+import { standingPressures } from './market';
 import { refreshVision } from './vision';
 import { newWorld } from './world';
 import type { Vehicle, World } from './types';
@@ -25,7 +26,7 @@ function driver(traits: TraitId[], personality: PersonalityId): { w: World; npc:
 
 function backFromNose(w: World, npc: Vehicle): void {
   w.player.perks = ['marketEars'];
-  remember(w, npc, { kind: 'prices', shop: 'nose', pressure: { ...w.shops.nose.pressure } });
+  remember(w, npc, { kind: 'prices', shop: 'nose', pressure: standingPressures(w, 'nose') });
 }
 
 const offered = (w: World): LineId[] => currentOptions(w).map((o) => o.line);

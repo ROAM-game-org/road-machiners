@@ -1,5 +1,5 @@
 {
- "format": "2.62",
+ "format": "2.63",
  "shape": {
   "broken": [],
   "craters": [],
@@ -123,6 +123,7 @@
    }
   },
   "rngState": "number",
+  "roadNews": [],
   "salvage": [
    {
     "fuel": "number",
@@ -1170,20 +1171,24 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
      "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1244,13 +1249,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "meds": "number",
-     "scrap": "number",
+     "rations": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1311,12 +1320,18 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "grain": "number",
+     "rations": "number",
      "salt": "number",
-     "textiles": "number"
+     "tools": "number",
+     "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1377,13 +1392,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
-     "grain": "number",
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
+     "rations": "number",
      "salt": "number",
      "textiles": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1444,20 +1463,23 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
      "electronics": "number",
      "fuelDrums": "number",
-     "grain": "number",
      "meds": "number",
      "parts": "number",
+     "rations": "number",
      "salt": "number",
      "scrap": "number",
      "textiles": "number",
      "tools": "number",
      "water": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1518,12 +1540,16 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
      "batteries": "number",
-     "parts": "number",
-     "scrap": "number"
+     "fuelDrums": "number",
+     "rations": "number",
+     "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {
@@ -1584,12 +1610,17 @@
       "window": "number"
      }
     ],
-    "pressure": {
+    "event": "null",
+    "goods": {
+     "fuelDrums": "number",
      "parts": "number",
+     "rations": "number",
      "scrap": "number",
      "tools": "number"
     },
+    "opened": {},
     "restockAt": "number",
+    "shortSince": {},
     "stock": [
      {
       "charge": {

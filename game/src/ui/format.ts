@@ -29,9 +29,10 @@ import { clockOf } from '../sim/sun';
 import type { PartHit } from '../sim/armor';
 import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
-import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
+import type { GameEvent, GridItem, Job, NpcActivity, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
-import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { siteRecipes } from '../data/market';
+import { goalText, goodLower, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
@@ -51,7 +52,7 @@ function partJobLabel(v: Vehicle, job: Extract<Job, { kind: 'repair' | 'strip' }
   return job.kind === 'repair' ? t('job.repair', { part: what }) : t('job.strip', { part: what });
 }
 
-const BUSINESS_LABELS = { resupply: 'job.business.resupply', sell: 'job.business.sell', trade: 'job.business.trade', haul: 'job.business.haul' } as const;
+const BUSINESS_LABELS = { resupply: 'job.business.resupply', sell: 'job.business.sell', trade: 'job.business.trade' } as const;
 
 function businessLabel(job: Extract<Job, { kind: 'business' }>): Msg {
   const key: (typeof BUSINESS_LABELS)[keyof typeof BUSINESS_LABELS] | undefined = BUSINESS_LABELS[job.deal];
@@ -159,7 +160,12 @@ export function formatNpcActivity(world: World, vehicle: Vehicle): Msg | null {
   if (!vehicle.brain || !playerSees(world, vehicle.pos)) return null;
   if (isKnockedOut(vehicle)) return gaveUp(vehicle) ? t('npc.gaveUp') : t('npc.knockedOut');
   const activity = topGoal(vehicle);
-  return activity ? goalText(activity.reason) : null;
+  return activity ? goalLine(activity) : null;
+}
+
+function goalLine(activity: NpcActivity): Msg {
+  const shipment = activity.shipment;
+  return shipment ? t('goal.deliverShipment', { good: goodLower(shipment.good), site: siteName(shipment.to) }) : goalText(activity.reason);
 }
 
 export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
@@ -250,6 +256,12 @@ export type LogSpan = { text: Msg; cls: string };
 export type LogLine = { text: Msg; cls: string; spans?: LogSpan[] };
 
 const line = (text: Msg, cls: string): LogLine => ({ text, cls });
+
+function recipeOutput(shopId: string, recipeId: string): string {
+  const recipe = siteRecipes(shopId).find((r) => r.id === recipeId);
+  if (!recipe) throw new Error(`${shopId} has no recipe ${recipeId}`);
+  return Object.keys(recipe.outputs)[0];
+}
 
 function spanLine(cls: string, spans: LogSpan[]): LogLine {
   return { text: concat(spans.map((s) => s.text)), cls, spans };
@@ -552,8 +564,12 @@ export function contractSummary(c: Contract): Msg {
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
 }
 
+export function gameHours(turns: number): number {
+  return Math.max(1, Math.round(turns / (TIME.turnsPerDay / 24)));
+}
+
 export function contractWindow(c: Contract): Msg {
-  return t('contract.window', { h: Math.max(1, Math.round(c.window / (TIME.turnsPerDay / 24))) });
+  return t('contract.window', { h: gameHours(c.window) });
 }
 
 export function contractDue(c: Contract): Msg {
@@ -687,6 +703,10 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   preyPassed: preyPassedText,
   info: infoText,
   townPatch: () => line(t('log.townPatch'), 'good'),
+  siteEvent: (_, e) => {
+    const params = { site: siteName(e.shop), good: goodLower(recipeOutput(e.shop, e.recipe)) };
+    return line(e.kind === 'surge' ? t('log.siteEvent.surge', params) : t('log.siteEvent.breakdown', params), 'dim');
+  },
   scrapPatch: (_, e) => line(e.fuel > 0 ? t('log.scrapPatchFuel', { liters: fuelLiters(e.fuel) }) : t('log.scrapPatch'), 'good'),
   npcKnockout: (world, e) => line(t('log.npcKnockout', { who: vehicleName(world, e.vehicle) }), 'good'),
   npcWake: (world, e) => line(t('log.npcWake', { who: vehicleName(world, e.vehicle) }), 'dim'),
@@ -757,7 +777,7 @@ export type SaleEstimate =
   | { kind: "even"; avgCost: number };
 
 export const GOODS_COLUMNS = {
-  good: t('goods.good'), theirs: t('goods.theirs'), buy: t('goods.buy'), sell: t('goods.sell'), held: t('goods.held'), profit: t('goods.profit'),
+  good: t('goods.good'), theirs: t('goods.theirs'), buy: t('goods.buy'), sell: t('goods.sell'), stock: t('goods.stock'), held: t('goods.held'), profit: t('goods.profit'),
 } as const;
 
 export const CRATE_NOTE = t('goods.crateNote', { mass: kg(CRATE_MASS) });

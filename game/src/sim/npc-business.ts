@@ -6,7 +6,7 @@ import type { BusinessDeal, Job, NpcActivity, Vehicle, World } from './types';
 
 type BusinessJob = Extract<Job, { kind: 'business' }>;
 
-const DEALS: readonly string[] = ['resupply', 'sell', 'trade', 'haul'] satisfies BusinessDeal[];
+const DEALS: readonly string[] = ['resupply', 'sell', 'trade'] satisfies BusinessDeal[];
 
 export function businessBelongs(job: BusinessJob, goal: NpcActivity | null): boolean {
   return goal?.kind === job.deal && goal.targetId === job.siteId;

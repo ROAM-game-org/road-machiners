@@ -1,12 +1,13 @@
 
-import type { Tier } from './market';
+import { EFFORT, type Tier } from './market';
+import { rationsValue } from './market';
 import { MASS_SCALE } from './mass-scale';
 
 export type GoodDef = { id: string; value: number; tier: Tier };
 
 export const CRATE_MASS = 50 * MASS_SCALE.cargo;
 
-export const GOODS: Record<string, GoodDef> = {
+const BASE_GOODS: Record<string, GoodDef> = {
   scrap: { id: 'scrap', value: 633, tier: 1 },
   salt: { id: 'salt', value: 867, tier: 1 },
   meds: { id: 'meds', value: 2333, tier: 2 },
@@ -18,6 +19,13 @@ export const GOODS: Record<string, GoodDef> = {
   parts: { id: 'parts', value: 667, tier: 1 },
   fuelDrums: { id: 'fuelDrums', value: 933, tier: 1 },
   water: { id: 'water', value: 600, tier: 1 },
+};
+
+const BASE_VALUES = Object.fromEntries(Object.values(BASE_GOODS).map((g) => [g.id, g.value]));
+
+export const GOODS: Record<string, GoodDef> = {
+  ...BASE_GOODS,
+  rations: { id: 'rations', value: rationsValue(BASE_VALUES, EFFORT.wage[1]), tier: 1 },
 };
 
 export const GOOD_IDS = Object.keys(GOODS);

@@ -3,8 +3,8 @@ import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { pressureHint } from "./town";
 import { shortBy } from "./shop-rows";
-import type { ShopDef } from "../data/market";
-import type { ShopState } from "../sim/market";
+import { SHOPS } from "../data/market";
+import { stockTarget, type ShopState } from "../sim/market";
 
 const en = (msg: Msg | null): string | null => (msg === null ? null : resolve(msg, "en"));
 const hint = (...args: Parameters<typeof pressureHint>) => {
@@ -28,20 +28,16 @@ describe("the reason a purchase is out of reach", () => {
 });
 
 describe("the price hint of a good", () => {
-  const def = { makes: ["salt"], needs: ["scrap"] } as unknown as ShopDef;
-  const state = (pressure: Record<string, number>) => ({ pressure }) as unknown as ShopState;
+  const def = SHOPS.nose;
+  const state = (goods: Record<string, number>) => ({ goods: { salt: stockTarget("nose", "salt"), scrap: stockTarget("nose", "scrap"), ...goods } }) as unknown as ShopState;
 
   it("tints a made good as cheap and a needed good as dear", () => {
     expect(hint(def, state({}), "salt")).toEqual({ tone: "good", title: "Cheap here" });
     expect(hint(def, state({}), "scrap")).toEqual({ tone: "bad", title: "Dear here" });
   });
 
-  it("says nothing about a good the shop neither makes nor needs", () => {
-    expect(pressureHint(def, state({}), "parts")).toBeNull();
-  });
-
-  it("lets a strong price pressure outrank what the shop makes", () => {
-    expect(hint(def, state({ salt: 1 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
-    expect(hint(def, state({ scrap: -1 }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  it("lets a strong stock shortage or glut outrank what the shop makes", () => {
+    expect(hint(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
+    expect(hint(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
   });
 });
