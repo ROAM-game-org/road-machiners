@@ -20,12 +20,12 @@ import {
 } from './npc-decisions';
 import { chooseNpcRepair, continueNpcRepair, isDamaged, isStrandedForGood, repairsHere, resolveNpcRepair } from './npc-repair';
 import { getResources } from './resources';
-import { handInClaimBy, standingPressures } from './market';
-import { carriesPart, claimPartHeld, findClaim } from './claims';
+import { standingPressures } from './market';
+import { claimInvalid, resolveClaim } from './claim-run';
 import { remember } from './memory';
 import { chance, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
-import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, collectSalvage, hasSalvage, type ClaimContract, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
+import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, isStockGoal, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
 import { vehicleById } from './damage';
@@ -68,7 +68,7 @@ function jobBelongs(job: Job, v: Vehicle): boolean {
 }
 
 function searchBelongs(job: Job, goal: NpcActivity | null): boolean {
-  return job.kind === 'search' && (goal?.kind === 'scavenge' || goal?.kind === 'loot' || goal?.kind === 'claim') && goal.targetId === job.stockId;
+  return job.kind === 'search' && isStockGoal(goal) && goal.targetId === job.stockId;
 }
 
 function refitBelongs(job: RefitJob, goal: NpcActivity | null): boolean {
@@ -340,10 +340,6 @@ function resumeOrDrop(world: World, vehicle: Vehicle): void {
   if (isWatching(vehicle)) popGoal(world, vehicle, 'leftPost');
 }
 
-function heldTow(world: World, vehicle: Vehicle): NpcState | null {
-  return towHeldBy(world, vehicle.id);
-}
-
 type GoalCheck = (world: World, vehicle: Vehicle, goal: NpcActivity, contacts: Contact[]) => GoalReason | null;
 
 const GAVE_UP_ROBBERY = 'strandedRobbery';
@@ -437,27 +433,8 @@ function lootInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalRea
   return lootPassedUp(vehicle, goal.targetId) ?? lootTaken(world, vehicle, goal.targetId) ?? (truck ? truckLootInvalid(vehicle, truck) : stockLootInvalid(world, vehicle, goal));
 }
 
-function claimInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  const claim = findClaim(world, claimIdOf(goal));
-  if (!claim || claim.rival !== vehicle.id) return 'claimOver';
-  const where = claimPartHeld(world, claim);
-  if (where === 'rival') return null;
-  const searching = goal.targetId !== claim.shop && (goal.targetId === claim.stockId || goalLeft(goal).includes(claim.stockId));
-  return where === 'stock' && searching ? null : 'claimOver';
-}
-
-function claimIdOf(goal: NpcActivity): string {
-  if (goal.claim === undefined) throw new Error(`A claim run names no claim`);
-  return goal.claim;
-}
-
-function goalLeft(goal: NpcActivity): string[] {
-  if (!goal.left) throw new Error(`Claim run ${goal.claim} has no candidate list`);
-  return goal.left;
-}
-
 function towInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  if (heldTow(world, vehicle)) return null;
+  if (towHeldBy(world, vehicle.id)) return null;
   const client = world.vehicles.find((v) => v.id === goal.targetId);
   if (!client || stateOf(world, 'turnedDown', vehicle.id, client.id)) return 'towOff';
   if (!stateOf(world, 'answering', vehicle.id, client.id)) return 'towUnanswered';
@@ -501,7 +478,7 @@ const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {
   if (!inCombat(world, vehicle)) return;
-  const tow = heldTow(world, vehicle);
+  const tow = towHeldBy(world, vehicle.id);
   if (tow) dropTow(world, tow, 'danger');
   for (const s of world.states.filter((x) => BROKEN_OFF.includes(x.kind) && (x.holder === vehicle.id || x.other === vehicle.id))) endState(world, s, 'broken');
 }
@@ -629,7 +606,7 @@ function seenFleeReason(world: World, vehicle: Vehicle, enemy: Vehicle): GoalRea
 }
 
 function interrupt(world: World, vehicle: Vehicle, goal: NpcActivity): void {
-  const tow = heldTow(world, vehicle);
+  const tow = towHeldBy(world, vehicle.id);
   if (tow) {
     dropTow(world, tow, 'danger');
     if (popGoal(world, vehicle, 'droppedTow').kind !== 'tow') throw new Error(`${vehicle.id} held a tow without a tow goal on top`);
@@ -664,7 +641,7 @@ function onHostilesSeen(world: World, vehicle: Vehicle, profile: NpcProfile): vo
 }
 
 function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[]): void {
-  if (heldTow(world, vehicle)) return;
+  if (towHeldBy(world, vehicle.id)) return;
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
@@ -854,7 +831,7 @@ type Steer = (world: World, vehicle: Vehicle, goal: NpcActivity, profile: NpcPro
 const STEERS: Partial<Record<NpcActivity['kind'], Steer>> = {
   fight: steerFight,
   flee: (world, vehicle, goal, profile, contacts) => steerFlee(world, vehicle, profile, contacts, goal),
-  tow: (world, vehicle, goal) => { if (!heldTow(world, vehicle)) steerToStranded(world, vehicle, goal); },
+  tow: (world, vehicle, goal) => { if (!towHeldBy(world, vehicle.id)) steerToStranded(world, vehicle, goal); },
   meet: (world, _vehicle, goal) => { if (goal.destination) goal.destination = { ...vehicleById(world, goal.targetId!).pos }; },
   follow: steerFollow,
   investigate: steerInvestigate,
@@ -942,7 +919,7 @@ function dropInvalidGoals(world: World, vehicle: Vehicle, contacts: Contact[]): 
 }
 
 function applyFixedRules(world: World, vehicle: Vehicle, profile: NpcProfile): void {
-  if (heldTow(world, vehicle)) {
+  if (towHeldBy(world, vehicle.id)) {
     keepTowGoal(world, vehicle);
     return;
   }
@@ -1070,48 +1047,6 @@ function resolveSearch(world: World, vehicle: Vehicle, activity: NpcActivity): v
   if (!canReachSalvage(vehicle, stock)) return;
   activity.phase = 'act';
   searchStock(world, vehicle, stock);
-}
-
-function resolveClaim(world: World, vehicle: Vehicle, activity: NpcActivity): void {
-  const ended = claimInvalid(world, vehicle, activity);
-  if (ended) return void finishGoal(world, vehicle, ended);
-  const claim = findClaim(world, claimIdOf(activity))!;
-  if (carriesPart(vehicle, claim.partId)) return void bringClaim(world, vehicle, activity, claim);
-  const stock = world.salvage.find((s) => s.id === activity.targetId);
-  if (!stock) throw new Error(`${vehicle.id} runs claim ${claim.id} to a missing wreck ${activity.targetId}`);
-  if (!canReachSalvage(vehicle, stock)) return;
-  activity.phase = 'act';
-  if (heldByLooter(world, vehicle, activity) || vehicle.job) return;
-  if (stock.parts.some((p) => p.id === claim.partId)) return void takeClaimed(world, vehicle, stock, claim);
-  if (!goalLeft(activity).includes(stock.id)) return void nextCandidate(world, vehicle, activity);
-  if (inCombat(world, vehicle) || warnedOff(world, vehicle, stock)) return;
-  if (!stock.hidden.parts.some((p) => p.id === claim.partId)) activity.left = goalLeft(activity).filter((id) => id !== stock.id);
-  beginSearch(world, vehicle, stock.id);
-}
-
-function takeClaimed(world: World, vehicle: Vehicle, stock: SalvageStock, claim: ClaimContract): void {
-  collectSalvage(world, vehicle, stock.id, Infinity);
-  if (!carriesPart(vehicle, claim.partId)) finishGoal(world, vehicle, 'claimOver');
-}
-
-function nextCandidate(world: World, vehicle: Vehicle, activity: NpcActivity): void {
-  const next = world.salvage.find((s) => s.id === goalLeft(activity)[0]);
-  if (!next) return void finishGoal(world, vehicle, 'claimOver');
-  activity.targetId = next.id;
-  activity.destination = { ...next.pos };
-  activity.phase = 'travel';
-}
-
-function bringClaim(world: World, vehicle: Vehicle, activity: NpcActivity, claim: ClaimContract): void {
-  if (activity.targetId !== claim.shop) {
-    activity.targetId = claim.shop;
-    activity.destination = { ...getKnownSite(claim.shop).pos };
-    activity.phase = 'travel';
-    activity.left = [];
-  }
-  if (!reachSite(vehicle, activity)) return;
-  handInClaimBy(world, vehicle, claim);
-  finishGoal(world, vehicle, 'claimOver');
 }
 
 function resolveTruckLoot(world: World, vehicle: Vehicle, activity: NpcActivity, truck: Vehicle): void {

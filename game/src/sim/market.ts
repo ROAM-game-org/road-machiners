@@ -542,11 +542,15 @@ export function contractXp(c: Contract): number {
 
 function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed', cause?: 'rival'): void {
   if (outcome !== 'done' && isMetBounty(c)) throw new Error(`A fulfilled bounty cannot be ${outcome}`);
-  if (!world.player.contracts.includes(c)) throw new Error(`Contract ${c.id} is not held`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
-  world.events.push(cause ? { t: 'contract', contract: { ...c }, outcome, cause } : { t: 'contract', contract: { ...c }, outcome });
+  world.events.push(contractEvent(c, outcome, cause));
   if (outcome === 'done') payContract(world, c);
   if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);
+}
+
+function contractEvent(c: Contract, outcome: 'done' | 'failed' | 'lapsed', cause: 'rival' | undefined): GameEvent {
+  const event: GameEvent = { t: 'contract', contract: { ...c }, outcome };
+  return cause ? { ...event, cause } : event;
 }
 
 function payContract(world: World, c: Contract): void {

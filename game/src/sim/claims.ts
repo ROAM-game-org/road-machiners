@@ -81,11 +81,19 @@ export function carriesPart(v: Vehicle, partId: string): boolean {
   return v.items.some((it) => it.kind === 'part' && it.part.id === partId);
 }
 
+function heldByPlayer(world: World, partId: string): boolean {
+  return world.player.storage.some((p) => p.id === partId) || carriesPart(playerVehicle(world), partId);
+}
+
+function heldByRival(world: World, c: ClaimContract): boolean {
+  const rival = world.vehicles.find((v) => v.id === c.rival);
+  return rival !== undefined && carriesPart(rival, c.partId);
+}
+
 export function claimPartHeld(world: World, c: ClaimContract): PartWhere {
   if (inStock(world, c)) return 'stock';
-  if (world.player.storage.some((p) => p.id === c.partId) || carriesPart(playerVehicle(world), c.partId)) return 'player';
-  const rival = c.rival === null ? undefined : world.vehicles.find((v) => v.id === c.rival);
-  return rival && carriesPart(rival, c.partId) ? 'rival' : 'gone';
+  if (heldByPlayer(world, c.partId)) return 'player';
+  return heldByRival(world, c) ? 'rival' : 'gone';
 }
 
 export function findClaim(world: World, id: string): ClaimContract | null {
@@ -102,10 +110,16 @@ function onClaimRun(v: Vehicle): boolean {
   return !!v.brain?.goals.some((g) => g.kind === 'claim');
 }
 
+function hasRivalTrait(world: World, v: Vehicle): boolean {
+  return !!v.brain && !playerTrucks(world).includes(v) && v.brain.traits.some((t) => CONTRACTS.claim.rivalTraits.includes(t));
+}
+
+function isIdle(world: World, v: Vehicle): boolean {
+  return !isKnockedOut(v) && !isDefeated(v) && !v.job && !onClaimRun(v) && !busyInState(world, v);
+}
+
 export function isFreeRival(world: World, v: Vehicle, part: PartInstance): boolean {
-  if (!v.brain || playerTrucks(world).includes(v) || !v.brain.traits.some((t) => CONTRACTS.claim.rivalTraits.includes(t))) return false;
-  if (isKnockedOut(v) || isDefeated(v) || v.job || onClaimRun(v) || busyInState(world, v)) return false;
-  return canStowPart(v, part);
+  return hasRivalTrait(world, v) && isIdle(world, v) && canStowPart(v, part);
 }
 
 function claimPart(world: World, c: ClaimContract): PartInstance {

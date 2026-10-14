@@ -692,12 +692,18 @@ function actsOn(world: World, v: Vehicle, targetId: string): boolean {
 }
 
 function isLootActOn(goal: NpcActivity, targetId: string): boolean {
-  return (goal.kind === 'loot' || goal.kind === 'scavenge' || goal.kind === 'claim') && goal.targetId === targetId && goal.phase === 'act';
+  return isStockGoal(goal) && goal.targetId === targetId && goal.phase === 'act';
 }
 
 export function inLootReach(world: World, v: Vehicle, targetId: string): boolean {
   const stock = world.salvage.find((s) => s.id === targetId);
   return stock ? canReachSalvage(v, stock) : canLootTruck(world, v, vehicleById(world, targetId));
+}
+
+const STOCK_GOALS: readonly NpcActivity['kind'][] = ['loot', 'scavenge', 'claim'];
+
+export function isStockGoal(goal: NpcActivity | null | undefined): goal is NpcActivity {
+  return !!goal && STOCK_GOALS.includes(goal.kind);
 }
 
 export const CANNOT_HOLD: GoalReason = 'cargoFullLoot';
