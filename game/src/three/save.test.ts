@@ -5,10 +5,13 @@ import { playerVehicle } from '../sim/damage';
 import { mountedParts } from '../sim/grid';
 import { inOverdrive } from '../sim/stats';
 import { addVehicle, emptyWorld, npcBrain } from '../sim/testkit';
+import { noteAttack } from '../sim/combat';
+import { noteDeed } from '../sim/relations';
+import { addState } from '../sim/states';
 import { canStowPart, moveItem, storePart, stowPart, stowSpot, takeFromStorage } from '../sim/inventory';
 import { buyStockPart } from '../sim/economy';
 import { makePart } from '../sim/factory';
-import type { GridItem, World } from '../sim/types';
+import type { Faction, GridItem, World } from '../sim/types';
 import { advanceContracts, siteOf, type Contract } from '../sim/market';
 import { advanceJobs } from '../sim/jobs';
 import { CHASSIS } from '../data/chassis';
@@ -741,5 +744,36 @@ describe('full browser storage', () => {
     await slots.flush();
     expect(errors).toEqual([quota]);
     expect((await backend.readAll()).has('auto')).toBe(true);
+  });
+});
+
+describe('relations in a save', () => {
+  const npcAt = (w: World, faction: Faction, template: string, pos: { x: number; y: number }) => {
+    const v = addVehicle(w, faction, 'scout', ['mg', 'stockEngine'], pos);
+    v.brain = npcBrain(template, pos, ['trader']);
+    return v;
+  };
+
+  it('saves and loads standing, deeds, memories, feuds, truces and escorts as they are and awards nothing', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = playerVehicle(w);
+    const victim = npcAt(w, 'bowl', 'trader', { x: 30, y: 34 });
+    const guard = npcAt(w, 'bowl', 'convoyGuard', { x: 32, y: 36 });
+    addState(w, 'escort', guard.id, victim.id, { kind: 'escort', site: null, fee: 0 });
+    const friend = npcAt(w, 'guidestar', 'courier', { x: 40, y: 30 });
+    addState(w, 'truce', friend.id, me.id, { kind: 'none' });
+    noteAttack(w, me, victim, true);
+    noteDeed(w, me, friend, 'towed', true);
+    w.events = [];
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    writeSave(slots, 'auto', w, 'run-1', 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.player.standing).toEqual(w.player.standing);
+    expect(loaded.player.deeds).toEqual(w.player.deeds);
+    expect(loaded.vehicles.find((v) => v.id === victim.id)!.brain!.memories).toEqual(victim.brain!.memories);
+    expect(loaded.states).toEqual(w.states);
+    expect(loaded.events).toEqual([]);
+    expect(loaded.player.xp).toBe(w.player.xp);
+    expect(loaded.player.money).toBe(w.player.money);
   });
 });

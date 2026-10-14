@@ -21,6 +21,7 @@ import { inTowReach } from './tow';
 import { workTimeMult } from './utility';
 import type { CallVar, NpcState, PartInstance, PatchDeal, StateData, Vehicle, World } from './types';
 import { dist } from './vec';
+import { noteDeed } from './relations';
 
 export type PatchPlan = { parts: number; turns: number; priceTurns: number };
 type Roles = { patcher: Vehicle; client: Vehicle };
@@ -199,6 +200,7 @@ export function settlePatch(world: World, s: NpcState): void {
   if (s.holder === world.player.vehicleId) practice(world, 'patch', 1, null, s.other);
   if (s.holder === world.player.vehicleId) practice(world, 'deal', 1, null, s.other);
   if (s.other === world.player.vehicleId) practice(world, 'deal', 1, null, s.holder);
+  noteDeed(world, roles.patcher, roles.client, 'patched', true);
 }
 
 export function breakPatch(world: World, s: NpcState): void {

@@ -29,7 +29,7 @@ import type { SalvageStock, Vehicle, World } from "./types";
 import { wreckStockId } from "./salvage";
 import { dist, type Vec } from "./vec";
 import { canVehicleSee, grayRadius } from "./vision";
-import { isRaider } from "./relations";
+import { isRaider, noteDefeat } from "./relations";
 
 export function checkDeath(world: World): void {
   const p = world.player;
@@ -130,6 +130,7 @@ export function standDown(world: World, v: Vehicle, winnerId: string): void {
 }
 
 export function knockOutNpc(world: World, v: Vehicle): void {
+  noteDefeat(world, v, false);
   layDown(world, v, foesOf(world, v), false);
   const by = beatenBy(world, v);
   world.events.push({ t: "npcKnockout", vehicle: v.id, by });

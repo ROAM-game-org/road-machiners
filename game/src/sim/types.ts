@@ -2,6 +2,7 @@
 import type { PartHit, Side } from "./armor";
 import type { FireBlock } from "./combat";
 import type { GearLevel, TraitId } from "../data/npcs";
+import type { Band } from "../data/npc-behavior";
 import type { PropKind, Terrain } from "./terrain";
 import type { Vec } from "./vec";
 import type { LineId, TopicId } from "../data/dialogue";
@@ -472,6 +473,7 @@ export type GameEvent =
   | { t: 'despawn'; vehicle: string }
   | { t: 'hostile'; vehicle: string; against: string }
   | { t: 'joins'; vehicle: string; against: string; victim: string }
+  | { t: 'standing'; faction: StandingFactionId; band: Band }
   | { t: 'preyPassed'; vehicle: string; prey: string; reason: PassReason }
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }

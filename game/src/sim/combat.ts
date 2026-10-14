@@ -31,7 +31,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { attacks, isAlly, preys, reportIncident } from "./relations";
+import { attacks, isAlly, noteDefeat, preys, reportIncident } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -927,6 +927,7 @@ function damagedByShots(world: World): Set<string> {
 }
 
 export function wreckVehicle(world: World, v: Vehicle): void {
+  noteDefeat(world, v, true);
   const by = beatenBy(world, v);
   if (modeRules(world).looting) createWreckSalvage(world, v);
   world.vehicles = world.vehicles.filter((x) => x.id !== v.id);

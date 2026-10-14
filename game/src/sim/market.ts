@@ -19,7 +19,8 @@ import { playerCommand } from './world';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
-import { isOutlaw } from './relations';
+import { isOutlaw, noteContractDeed } from './relations';
+import { SITE_FACTIONS } from '../data/npc-behavior';
 
 export type ShopState = {
   contracts: Contract[];
@@ -501,6 +502,8 @@ function payContract(world: World, c: Contract): void {
   world.player.money += c.reward;
   world.events.push({ t: 'money', amount: c.reward, reason: { kind: 'contract' } });
   practice(world, 'contract', contractXp(c), null, c.shop);
+  const faction = SITE_FACTIONS[c.shop];
+  if (faction) noteContractDeed(world, c.id, faction);
 }
 
 function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>): void {

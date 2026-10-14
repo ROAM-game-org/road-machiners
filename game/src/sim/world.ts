@@ -64,6 +64,7 @@ import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
+import { driftStanding } from "./relations";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -381,6 +382,7 @@ export function endTurn(
     advanceStates(w);
     checkBeacon(w);
     forgetOld(w);
+    driftStanding(w);
     resolveNpcActivities(w);
     noteEngagements(w);
     discoverSites(w);
