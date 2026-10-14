@@ -15,7 +15,7 @@ import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
-import { buildDrive, freeDrive, toMps, initPhysics, restWheels, routeAim, simulateTurn, syncDrive, tailKick, trailFrames, TURN_STEPS, type Drive, type TurnResult } from './drive';
+import { buildDrive, freeDrive, GROUND, toMps, initPhysics, restWheels, routeAim, simulateTurn, syncDrive, tailKick, trailFrames, TURN_STEPS, type Drive, type TurnResult } from './drive';
 import { headingOf, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
@@ -511,6 +511,43 @@ describe('physics turns', () => {
       expect(Math.max(...speeds)).toBeLessThan(limit * 1.3);
     });
 
+    function rockLine(w: World, from: Vec, to: Vec, count: number): void {
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        w.obstacles.push({ id: `k${w.obstacles.length}`, pos: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, r: 0.7, kind: 'rock' });
+      }
+    }
+
+    function crashesTurningBack(rocksBehind: boolean): { crashes: number; heading: number } {
+      let w = ordered({ kind: 'through', dest: { x: 5, y: 34 } }, 0);
+      const at = me(w).pos;
+      rockLine(w, { x: at.x + 1, y: at.y + 2.5 }, { x: at.x + 5, y: at.y + 2.5 }, 6);
+      rockLine(w, { x: at.x + 5, y: at.y + 2.5 }, { x: at.x + 5, y: at.y - 5 }, 8);
+      if (rocksBehind) rockLine(w, { x: at.x - 1.6, y: at.y - 4 }, { x: at.x - 1.6, y: at.y + 4 }, 9);
+      let d = buildDrive(w);
+      let crashes = 0;
+      for (let i = 0; i < 3; i++) {
+        let next: Drive | null = null;
+        w = endTurn(w, physicsMove(d, (r) => {
+          next = r.next;
+          crashes += r.crashes.filter((c) => c.b !== GROUND && !c.b.startsWith('v')).length;
+        }));
+        freeDrive(d);
+        d = next!;
+      }
+      freeDrive(d);
+      return { crashes, heading: me(w).heading };
+    }
+
+    it('a truck whose route lies behind, with rocks inside its forward turn, backs up before turning and does not hit them', () => {
+      expect(crashesTurningBack(false).crashes).toBe(0);
+    });
+
+    it('with rocks behind it too, it turns forward as before', () => {
+      const { heading } = crashesTurningBack(true);
+      expect(Math.abs(angleDiff(heading, 0))).toBeGreaterThan(0.3);
+    });
+
     it('a manual truck turning back keeps its speed', () => {
       const w = ordered({ kind: 'through', dest: behind }, 7.8);
       const limit = turnaroundSpeed(bodyOf(me(w).chassisId), PHYSICS.truck.maxSteer, 1);
@@ -584,6 +621,28 @@ describe('physics turns', () => {
     }
     expect(longest).toBeLessThan(RULES.reverse.distance + 1);
     expect(Math.abs(heading)).toBeLessThan(Math.PI / 4);
+    freeDrive(d);
+  });
+
+  it('a stuck truck with a rock right behind it does not back into the rock', () => {
+    let w = ordered({ kind: 'through', dest: { x: 45, y: 30 } });
+    const at = me(w).pos;
+    w.obstacles = [
+      ...[-3, -2, -1, 0, 1, 2, 3].map((i) => ({ id: `f${i}`, pos: { x: at.x + 1.8, y: at.y + i * 1.2 }, r: 0.7, kind: 'rock' as const })),
+      ...[-1, 0, 1].map((i) => ({ id: `b${i}`, pos: { x: at.x - 1.4, y: at.y + i * 1.2 }, r: 0.7, kind: 'rock' as const })),
+    ];
+    let d = buildDrive(w);
+    let hitBehind = 0;
+    for (let i = 0; i < 4; i++) {
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => {
+        next = r.next;
+        hitBehind += r.crashes.filter((c) => c.b.startsWith('b') && c.impact > 0.5).length;
+      }));
+      freeDrive(d);
+      d = next!;
+    }
+    expect(hitBehind).toBe(0);
     freeDrive(d);
   });
 
