@@ -148,7 +148,14 @@ language.subscribe(() => {
 });
 function whenVisible(run: () => void): void {
   if (document.visibilityState === 'visible') run();
-  else document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && run(), { once: true });
+  else {
+    const onChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', onChange);
+      run();
+    };
+    document.addEventListener('visibilitychange', onChange);
+  }
 }
 async function recoverSounds(loaded: LoadedBank): Promise<void> {
   const recovered = await recoverBank(mixer.ctx, loaded, soundOptions);
