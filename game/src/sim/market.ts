@@ -7,7 +7,7 @@ import { CONDITION } from '../data/wear';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Tier } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
-import { claimPartHeld, claimTargets, claimReward, claimWindow, fitsClaim, type ClaimTarget } from './claims';
+import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, type ClaimTarget } from './claims';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import type { ClaimContract } from './salvage';
@@ -155,10 +155,12 @@ export function addStockPart(state: ShopState, part: PartInstance): void {
   state.stock.push(part);
 }
 
+export type ClaimLead = { turn: number; from: Vec; driver: string };
+
 export type Contract =
   | { id: string; shop: string; kind: 'haul'; good: string; units: number; to: string; reward: number; deadline: number; window: number; rush: boolean; tier: Tier }
   | { id: string; shop: string; kind: 'fetch'; defId: string; reward: number; deadline: number; window: number; tier: Tier }
-  | { id: string; shop: string; kind: 'claim'; stockId: string; at: Vec; partId: string; defId: string; reward: number; deadline: number; window: number; tier: Tier }
+  | { id: string; shop: string; kind: 'claim'; stockId: string; at: Vec; partId: string; defId: string; reward: number; deadline: number; window: number; tier: Tier; rivalAt: number; rival: string | null; leads: ClaimLead[] }
   | { id: string; shop: string; kind: 'bounty'; template: string; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean };
 
 export function estimateTurns(from: Vec, to: Vec): number {
@@ -269,7 +271,9 @@ function rollClaim(world: World, input: RollInput, id: string): Contract {
   const turns = estimateTurns(input.shop.pos, stock.pos);
   const window = claimWindow(turns);
   const tier = PARTS[part.defId].tier;
-  return { id, shop: input.shop.id, kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: claimReward(part, turns), deadline: world.turn + window, window, tier };
+  const reward = claimReward(part, contractReward(turns, 0, false));
+  const rivalAt = claimRivalAt(world.turn, turns);
+  return { id, shop: input.shop.id, kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward, deadline: world.turn + window, window, tier, rivalAt, rival: null, leads: [] };
 }
 
 const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty, claim: rollClaim };

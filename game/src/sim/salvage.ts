@@ -176,6 +176,14 @@ export function claimedPartIn(world: World, stock: SalvageStock): string | null 
   return [...stock.parts, ...stock.hidden.parts].some((part) => part.id === partId) ? partId : null;
 }
 
+export function revealClaimed(world: World, stock: SalvageStock): void {
+  const partId = claimedPartIn(world, stock);
+  const hidden = stock.hidden.parts.find((p) => p.id === partId);
+  if (!hidden) return;
+  stock.hidden.parts = stock.hidden.parts.filter((p) => p !== hidden);
+  stock.parts.push(hidden);
+}
+
 export function mayTakeClaimed(world: World, vehicle: Vehicle): boolean {
   return vehicle.id === world.player.vehicleId;
 }

@@ -145,7 +145,7 @@ describe("contract text", () => {
   it("says where a claimed part lies from the posting shop, and in which territory", () => {
     const orchard = REGION.locations.find((l) => l.id === "orchard")!;
     const shop = REGION.towns.find((l) => l.id === "bowl")!;
-    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1 };
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
     const text = en(contractSummary(claim));
     expect(text.startsWith("Recover MG turret from a wreck ")).toBe(true);
     expect(text).toContain(" of Bowl, about ");

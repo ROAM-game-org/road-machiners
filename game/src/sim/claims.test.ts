@@ -5,9 +5,14 @@ import { TEST_MAP } from '../test/map';
 import { playerVehicle } from './damage';
 import { makePart } from './factory';
 import { spareParts, stowPart } from './inventory';
-import { acceptContract, advanceContracts, advanceShops, deliverContract, estimateTurns, rollContract, shopState, siteOf, type Contract } from './market';
+import { acceptContract, advanceContracts, advanceShops, contractReward, deliverContract, estimateTurns, rollContract, shopState, siteOf, type Contract } from './market';
 import { sellPart, partTradePrice } from './economy';
-import { claimPartHeld, claimReward, claimSpots, claimTargets, claimWindow } from './claims';
+import { claimCandidates, claimClue, claimLook, claimPartHeld, claimReward, claimRivalAt, claimSpots, claimTargets, claimWindow, clueRadius } from './claims';
+import { CONTRACTS, SHOPS } from '../data/market';
+import { SEARCH } from '../data/utilities';
+import { beginSearch, searchTurn } from './search';
+import { partValue } from './wear';
+import { dist } from './vec';
 import { resolveNpcActivities, pushGoal, topGoal } from './npc-activities';
 import { claimOnly, canTakeAny, claimedPartIn, collectSalvage, hasSalvage, type ClaimContract } from './salvage';
 import { defaultSetup } from './settings';
@@ -29,7 +34,7 @@ beforeAll(() => {
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
-  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 900, deadline: 900, window: 900, tier: PARTS[part.defId].tier, ...over };
+  return { id: 'ct-claim', shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: 900, deadline: 900, window: 900, tier: PARTS[part.defId].tier, rivalAt: 900, rival: null, leads: [], ...over };
 }
 
 function claimWorld(posted: 'board' | 'held' = 'board'): { w: World; stock: SalvageStock; part: PartInstance; claim: ClaimContract } {
@@ -92,18 +97,27 @@ describe('claim spots', () => {
     expect(rollContract(cloneWorld(real), shop, [], [], [], [], [])).toBeNull();
   });
 
-  it('pays more than any shop would for the part', () => {
-    for (const { part } of claimTargets(real)) {
+  it('pays more than any shop would for the part, at its value plus the travel pay of the trip', () => {
+    const rows: string[] = [];
+    for (const { stock, part } of claimTargets(real)) {
       const w = emptyWorld();
-      const turns = estimateTurns(siteOf('bowl').pos, { x: 0, y: 0 });
-      expect(claimReward(part, turns)).toBeGreaterThan(partTradePrice(w, playerVehicle(w), part, 'sell'));
+      for (const shopId of Object.keys(SHOPS)) {
+        const turns = estimateTurns(siteOf(shopId).pos, stock.pos);
+        const reward = claimReward(part, contractReward(turns, 0, false));
+        const old = Math.round(partValue(part) + (turns * 24 + CONTRACTS.claim.searchTurns) * 12.33);
+        rows.push(`${shopId} ${part.defId} ${Math.round(turns)} turns: old ${old} c, new ${reward} c`);
+        expect(reward).toBeGreaterThan(partTradePrice(w, playerVehicle(w), part, 'sell'));
+        expect(reward).toBeGreaterThanOrEqual(Math.round(partValue(part)));
+      }
     }
+    console.log(['claim reward, old against new:', ...rows].join('\n'));
   });
 
-  it('throws on a bad trip length', () => {
+  it('throws on a bad trip length or travel pay', () => {
     const part = claimTargets(real)[0].part;
     expect(() => claimReward(part, -1)).toThrow();
     expect(() => claimWindow(NaN)).toThrow();
+    expect(() => claimRivalAt(0, -1)).toThrow();
   });
 });
 
@@ -267,4 +281,97 @@ describe('claim days', () => {
     expect([...left.parts, ...left.hidden.parts].map((p) => p.id)).toContain(part.id);
     expect(visited.size + (left.hidden.parts.length === 0 ? 1 : 0)).toBeGreaterThan(0);
   }, 900_000);
+});
+
+describe('the clue', () => {
+  function claimAt(at: { x: number; y: number }, stockId = claimSpots(real)[0].id): ClaimContract {
+    const stock = real.salvage.find((s) => s.id === stockId)!;
+    return { ...claimFor(stock, stock.parts[0] ?? makePart(emptyWorld(), 'mg', 0)), at };
+  }
+
+  it('snaps the bearing to eight points and rounds the distance from the shop to the clue step', () => {
+    const shop = siteOf('bowl').pos;
+    const step = CONTRACTS.claim.clueStepTiles;
+    const clue = claimClue(real, claimAt({ x: shop.x + 3.4 * step * Math.cos(0.7), y: shop.y + 3.4 * step * Math.sin(0.7) }));
+    expect(clue.angle).toBeCloseTo(Math.PI / 4);
+    expect(clue.distance).toBe(3 * step);
+    expect(clue.from).toEqual(shop);
+    expect(dist(clue.point, shop)).toBeCloseTo(3 * step);
+  });
+
+  it('never rounds a near wreck down to no distance', () => {
+    const shop = siteOf('bowl').pos;
+    expect(claimClue(real, claimAt({ x: shop.x + 5, y: shop.y })).distance).toBe(CONTRACTS.claim.clueStepTiles);
+  });
+
+  it('names the look of the wreck the part lies in', () => {
+    const looks = new Set(claimSpots(real).map((s) => claimLook(s)));
+    expect([...looks].every((l) => ['armyTruck', 'deadTruck', 'tank', 'shipWreck'].includes(l))).toBe(true);
+    expect(claimClue(real, claimAt(claimSpots(real)[0].pos)).look).toBe(claimLook(claimSpots(real)[0]));
+  });
+
+  it('lists the true wreck among the candidates for every claim spot and every shop', () => {
+    for (const stock of claimSpots(real)) {
+      for (const shop of Object.keys(SHOPS)) {
+        const c = { ...claimAt(stock.pos, stock.id), shop };
+        const candidates = claimCandidates(real, c);
+        expect(candidates, `${stock.id} from ${shop}`).toContain(stock.id);
+        const clue = claimClue(real, c);
+        for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, clue.point)).toBeLessThanOrEqual(clueRadius(clue.distance));
+      }
+    }
+  });
+
+  it('orders the candidates nearest the clue point first, all of one look', () => {
+    const stock = claimSpots(real)[0];
+    const c = claimAt(stock.pos, stock.id);
+    const clue = claimClue(real, c);
+    const spots = claimCandidates(real, c).map((id) => real.salvage.find((s) => s.id === id)!);
+    expect(spots.every((s) => claimLook(s) === clue.look)).toBe(true);
+    const gaps = spots.map((s) => dist(s.pos, clue.point));
+    expect(gaps).toEqual([...gaps].sort((a, b) => a - b));
+  });
+
+  it('throws when the candidates would miss the true wreck', () => {
+    const stock = claimSpots(real)[0];
+    const shop = siteOf('bowl').pos;
+    const far = { x: shop.x + (shop.x - stock.pos.x), y: shop.y + (shop.y - stock.pos.y) };
+    expect(() => claimCandidates(real, { ...claimAt(stock.pos, stock.id), at: far })).toThrow(/miss/);
+  });
+});
+
+describe('a full search', () => {
+  function searchToEnd(w: World, stock: SalvageStock, who: 'player' | 'npc'): void {
+    const v = who === 'player' ? playerVehicle(w) : npcAt(w, stock);
+    v.pos = { x: stock.pos.x + 1, y: stock.pos.y };
+    beginSearch(w, v, stock.id);
+    const reveal = SEARCH.reveal;
+    (SEARCH as { reveal: number }).reveal = 0;
+    try {
+      for (let i = 0; i < 500 && v.job?.kind === 'search'; i++) if (searchTurn(w, v, v.job)) break;
+    } finally {
+      (SEARCH as { reveal: number }).reveal = reveal;
+    }
+  }
+
+  it('always turns up a hidden claimed part for the player', () => {
+    const { w, stock, part } = claimWorld();
+    searchToEnd(w, stock, 'player');
+    expect(stock.parts.map((p) => p.id)).toContain(part.id);
+    expect(stock.hidden.parts.map((p) => p.id)).not.toContain(part.id);
+  });
+
+  it('always turns up a hidden claimed part for a driver off the claim, who leaves it', () => {
+    const { w, stock, part } = claimWorld();
+    searchToEnd(w, stock, 'npc');
+    expect(stock.parts.map((p) => p.id)).toEqual([part.id]);
+  });
+
+  it('leaves other hidden parts to chance', () => {
+    const { w, stock } = claimWorld();
+    const other = makePart(w, 'stockEngine', 0);
+    stock.hidden.parts.push(other);
+    searchToEnd(w, stock, 'player');
+    expect(stock.hidden.parts.map((p) => p.id)).toEqual([other.id]);
+  });
 });

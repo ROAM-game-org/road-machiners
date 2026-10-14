@@ -1,6 +1,8 @@
 
 import { PARTS, type PartDef } from './parts';
-import type { Weighted } from './npcs';
+import type { TraitId, Weighted } from './npcs';
+import type { PropKind } from '../sim/terrain';
+import type { OldPlaceType } from './salvage';
 import { TIME } from './time';
 
 
@@ -90,8 +92,14 @@ export const CONTRACTS = {
   claim: {
     minTownGap: 15,
     minRoadGap: 5,
-    rewardFactor: 24,
     searchTurns: 60,
+    travelShare: 0.5,
+    rivalLeadFactor: 1,
+    rivalRetryTurns: 20,
+    clueStepTiles: 62,
+    clueRadiusShare: 0.4,
+    leadStepTiles: 12,
+    rivalTraits: ['scavenger', 'vulture', 'roamer', 'trader'] as readonly TraitId[],
     durationFactor: 2.5,
     slackTurns: Math.round(TIME.turnsPerDay / 2),
     xpPerEffort: 0.003,
@@ -102,6 +110,18 @@ export const CONTRACTS = {
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
     xpPerEffort: 0.0075,
   },
+};
+
+export type ClaimLook = 'armyTruck' | 'deadTruck' | 'tank' | 'shipWreck';
+
+export const CLAIM_LOOKS: Partial<Record<PropKind | OldPlaceType, ClaimLook>> = {
+  armyTruck: 'armyTruck',
+  deadTruck: 'deadTruck',
+  tank: 'tank',
+  hulks: 'tank',
+  shipCache: 'shipWreck',
+  hullCache: 'shipWreck',
+  engineCache: 'shipWreck',
 };
 
 export type ShopKind = 'garage' | 'stall';

@@ -1,4 +1,4 @@
-import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
+import { CLAIM_LOOKS, CONTRACTS, SHOPS, type ClaimLook } from '../data/market';
 import { REGION } from '../data/region';
 import { WRECK_LOOKS } from '../data/territory';
 import { playerVehicle } from './damage';
@@ -8,7 +8,7 @@ import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, World } from './types';
 import { isJunk, partValue } from './wear';
-import { dist } from './vec';
+import { dist, type Vec } from './vec';
 
 export type ClaimTarget = { stock: SalvageStock; part: PartInstance };
 
@@ -52,10 +52,14 @@ function requireTurns(turns: number): void {
   if (!Number.isFinite(turns) || turns < 0) throw new Error(`A claim needs a finite trip of at least 0 turns, got ${turns}`);
 }
 
-export function claimReward(part: PartInstance, turns: number): number {
+export function claimReward(part: PartInstance, travelPay: number): number {
+  if (!Number.isFinite(travelPay) || travelPay < 0) throw new Error(`A claim needs a finite travel pay of at least 0, got ${travelPay}`);
+  return Math.round(partValue(part) + travelPay * CONTRACTS.claim.travelShare);
+}
+
+export function claimRivalAt(postTurn: number, turns: number): number {
   requireTurns(turns);
-  const claim = CONTRACTS.claim;
-  return Math.round(partValue(part) + (turns * claim.rewardFactor + claim.searchTurns) * EFFORT.wage[1]);
+  return postTurn + Math.round(turns * CONTRACTS.claim.rivalLeadFactor) + CONTRACTS.claim.searchTurns;
 }
 
 export function claimWindow(turns: number): number {
@@ -75,4 +79,61 @@ export function claimPartHeld(world: World, c: ClaimContract): PartWhere {
 
 export function fitsClaim(c: ClaimContract, p: PartInstance): boolean {
   return p.id === c.partId;
+}
+
+export function claimLook(stock: { id: string }): ClaimLook {
+  const kind = oldSpotOf(stock)?.type ?? spotLookOf(stock);
+  const look = kind === null ? undefined : CLAIM_LOOKS[kind];
+  if (!look) throw new Error(`Stock ${stock.id} is no claim wreck`);
+  return look;
+}
+
+export type ClaimClue = { look: ClaimLook; from: Vec; angle: number; distance: number; point: Vec; territory: string | null };
+
+const COMPASS_POINTS = 8;
+
+function snapAngle(rad: number): number {
+  const step = (2 * Math.PI) / COMPASS_POINTS;
+  return Math.round(rad / step) * step;
+}
+
+function roundTo(n: number, step: number): number {
+  return Math.max(step, Math.round(n / step) * step);
+}
+
+function shopSite(shopId: string): { pos: Vec } {
+  const site = [...REGION.towns, ...REGION.locations].find((s) => s.id === shopId);
+  if (!site) throw new Error(`No shop site ${shopId}`);
+  return site;
+}
+
+export function claimClue(world: World, c: ClaimContract): ClaimClue {
+  const from = shopSite(c.shop).pos;
+  const angle = snapAngle(Math.atan2(c.at.y - from.y, c.at.x - from.x));
+  const distance = roundTo(dist(from, c.at), CONTRACTS.claim.clueStepTiles);
+  const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance };
+  const stock = world.salvage.find((s) => s.id === c.stockId);
+  const territory = stock ? territoryOfStock(stock)?.id ?? null : null;
+  return { look: claimLookOf(world, c), from: { ...from }, angle, distance, point, territory };
+}
+
+function claimLookOf(world: World, c: ClaimContract): ClaimLook {
+  return claimLook(world.salvage.find((s) => s.id === c.stockId) ?? { id: c.stockId });
+}
+
+export function clueRadius(distance: number): number {
+  return CONTRACTS.claim.clueRadiusShare * distance + CONTRACTS.claim.clueStepTiles;
+}
+
+export function claimCandidates(world: World, c: ClaimContract): string[] {
+  const clue = claimClue(world, c);
+  const radius = clueRadius(clue.distance);
+  const near = claimSpots(world).filter((stock) => claimLook(stock) === clue.look && dist(stock.pos, clue.point) <= radius);
+  const sorted = near.sort((a, b) => dist(a.pos, clue.point) - dist(b.pos, clue.point) || a.id.localeCompare(b.id)).map((stock) => stock.id);
+  if (!sorted.includes(c.stockId)) throw new Error(`Claim ${c.id} candidates miss its wreck ${c.stockId}`);
+  return sorted;
+}
+
+export function leadOf(stockPos: Vec, from: Vec): { angle: number; distance: number } {
+  return { angle: snapAngle(Math.atan2(stockPos.y - from.y, stockPos.x - from.x)), distance: roundTo(dist(from, stockPos), CONTRACTS.claim.leadStepTiles) };
 }

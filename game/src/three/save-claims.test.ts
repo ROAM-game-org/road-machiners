@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { claimReward, claimTargets, claimWindow } from '../sim/claims';
-import { estimateTurns, shopState, siteOf, type Contract } from '../sim/market';
+import { contractReward, estimateTurns, shopState, siteOf, type Contract } from '../sim/market';
 import { claimedPartIn } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { newWorld } from '../sim/world';
@@ -12,7 +12,7 @@ import { loadWorld, saveWorld } from './save';
 function claimOf(id: string, target: ReturnType<typeof claimTargets>[number]): Contract {
   const turns = estimateTurns(siteOf('bowl').pos, target.stock.pos);
   const window = claimWindow(turns);
-  return { id, shop: 'bowl', kind: 'claim', stockId: target.stock.id, at: { ...target.stock.pos }, partId: target.part.id, defId: target.part.defId, reward: claimReward(target.part, turns), deadline: 500 + window, window, tier: 1 };
+  return { id, shop: 'bowl', kind: 'claim', stockId: target.stock.id, at: { ...target.stock.pos }, partId: target.part.id, defId: target.part.defId, reward: claimReward(target.part, contractReward(turns, 0, false)), deadline: 500 + window, window, tier: 1, rivalAt: 500 + window, rival: null, leads: [] };
 }
 
 describe('saving salvage claims', () => {
