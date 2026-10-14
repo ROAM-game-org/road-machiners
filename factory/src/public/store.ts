@@ -38,6 +38,8 @@ export class PublicStore {
   constructor(private readonly db: DatabaseSync) {
     db.exec('pragma journal_mode = wal; pragma busy_timeout = 5000; pragma synchronous = normal;');
     db.exec(SCHEMA);
+    const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
+    if (!columns.includes('shown_votes')) db.exec('alter table proposals add column shown_votes integer');
   }
 
   close(): void {
@@ -70,7 +72,7 @@ export class PublicStore {
   }
 
   markProposalPosted(issue: number, chat: string, messageId: number, now: Date): void {
-    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ? where issue = ?').run(chat, messageId, now.toISOString(), issue);
+    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ?, shown_votes = 0 where issue = ?').run(chat, messageId, now.toISOString(), issue);
   }
 
   openProposals(): Proposal[] {
@@ -85,11 +87,20 @@ export class PublicStore {
     return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).length;
   }
 
-  positiveVoters(issue: number, positive: string[]): string[] {
+  votersWith(issue: number, wanted: string[]): string[] {
     const row = this.db.prepare('select chat, message_id from proposals where issue = ?').get(issue);
     if (row === undefined || row.message_id === null) return [];
     const users = this.db.prepare('select user_id, emoji from reactions where chat = ? and message_id = ?').all(String(row.chat), Number(row.message_id));
-    return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).map((user) => String(user.user_id));
+    return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => wanted.includes(emoji))).map((user) => String(user.user_id));
+  }
+
+  shownVotes(issue: number): number | null {
+    const row = this.db.prepare('select shown_votes from proposals where issue = ?').get(issue);
+    return row === undefined || row.shown_votes === null ? null : Number(row.shown_votes);
+  }
+
+  setShownVotes(issue: number, votes: number): void {
+    this.db.prepare('update proposals set shown_votes = ? where issue = ?').run(votes, issue);
   }
 
   closeProposal(issue: number, now: Date): void {
