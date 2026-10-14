@@ -153,7 +153,7 @@ These jobs run beside the cards.
 
 - change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it.
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
-- incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md` and may add an entry to `dev`.
+- incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md`, and on `dev` it may update the entry of the class the bug repeats or add a new class.
 - waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
 - dev: rebuilds `/dev/` when `dev` moved past its build.
 
@@ -178,4 +178,4 @@ Queues:
 - implement: implementation, ad hoc and change.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
-- branch: approve, merge, catch-up, remove, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each appends to the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.
+- branch: approve, merge, catch-up, remove, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each changes the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.

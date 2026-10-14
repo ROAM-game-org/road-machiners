@@ -24,7 +24,7 @@ A `ready` issue may bundle other free Triage cards that touch the same code. Eac
 
 ## Design
 
-Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It uses up:udesign and up:uplan in hands-off mode. A change to the game's UI or overlays is planned with the steps of `game/docs/ui.md`, and the task file gets a UI section with the decision, the tiers, the zone, the shared pieces and the event levels. It writes the task file `.factory-tasks/issue-N.md` in the work clone on branch `factory/issue-N`. Git ignores the task file, so design posts it to the issue as a comment, and later stages read it from the clone.
+Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It uses up:udesign and up:uplan in hands-off mode. A change to the game's UI or overlays is planned with the steps of `game/docs/ui.md`, and the task file gets a UI section with the decision, the tiers, the zone, the shared pieces and the event levels. The agent reads `docs/incident-log.md` from the clone, and the plan says how it keeps the rule of each class the change touches. It writes the task file `.factory-tasks/issue-N.md` in the work clone on branch `factory/issue-N`. Git ignores the task file, so design posts it to the issue as a comment, and later stages read it from the clone.
 
 - Before the agent starts, the factory merges GitHub's issue branch and the latest base into the work clone, as [process.md](process.md#branches) says. The agent cannot fetch. It never asks the author about branches or the network, and work it cannot find is an assumption.
 - `.factory/questions.md` sends the card back to Triage with the questions, as unclear triage does.
@@ -40,7 +40,7 @@ Implementation runs Sonnet with up:uexecute on the task file, and Opus advises i
 [process.md](process.md#testing-column) shows the flow. These are the rules behind it.
 
 - The job first merges the new commits of the issue branch on GitHub, then the current base, so the committee plays what the merge will take. A conflict with the branch goes to a merge agent at once. The testing session resolves a conflict with the base. An unfinished merge fails the stage.
-- The session runs `prompts/test.md`. It plays the build, fixes every problem it finds, and writes `.factory/approval.json`, the screenshots and the optional `.factory/evidence.json`. A patch reply after the last post is the whole task of the round. A hotfix session runs `prompts/harden.md` first.
+- The session runs `prompts/test.md`. It plays the build, fixes every problem it finds, and writes `.factory/approval.json`, the screenshots and the optional `.factory/evidence.json`. It reads `docs/incident-log.md` from the clone and plays the check of each class the change touches. A patch reply after the last post is the whole task of the round. A hotfix session runs `prompts/harden.md` first.
 - The session writes `.factory/needs-redesign.md` only when the plan itself contradicts the issue or the game docs. The reason goes on the issue under "## Committee feedback", and the card goes to Design.
 - The post checkpoint pushes the branch and runs `npm ci`, the typecheck, the playtest against the dev server and the build in a fresh clone. A hotfix also runs the full suite through `npm run test:cached -- --cache /test-cache`. A missing `.factory/approval.json` counts as a failure. The playtest prints the frame rate but does not check it, since the host runs other jobs at the same time. Only the release candidate fails under 50 fps.
 - A failure goes back into the testing session as its next message, with the end of the log. Timeouts alone rerun the checks with no agent, up to 3 runs. The loop ends when the checks pass, or when the session's runs cost `FACTORY_TESTING_BUDGET_USD`, which fails the stage for Hermes.
@@ -61,7 +61,7 @@ A branch whose every changed file since its base is a Markdown file outside `gam
 [process.md](process.md#hardening-and-merging-columns) shows the flow. These are the rules behind it.
 
 - The job merges the new commits of the issue branch on GitHub and the current base, so the merge queue meets only the conflicts of cards that harden at the same time.
-- The session runs `prompts/harden.md`, with `docs/incident-log.md` and `game/docs/architecture/principles.md` pasted in from `dev`. It runs up:uverify, then `/code-review`, and fixes every correctness finding and the cleanups that make the code shorter. No review gate follows it.
+- The session runs `prompts/harden.md`, with `game/docs/architecture/principles.md` pasted in from `dev`. It reads `docs/incident-log.md` from the clone and runs the check of each class the change touches. It runs up:uverify, then `/code-review`, and fixes every correctness finding and the cleanups that make the code shorter. No review gate follows it.
 - No checks run in Hardening. The card moves to Merging.
 
 ## Merging
@@ -134,7 +134,7 @@ A hotfix fixes a bug in the shipped game. Its jobs run before other cards and pa
 
 ## Incident
 
-Ship and the hotfix ship queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. A bug that meets the bar gets an entry, which the factory merges into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
+Ship and the hotfix ship queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. Each entry is a class of bug with a rule, a check and the bugs seen. A bug that repeats a class updates that entry. A bug that starts a class gets a new entry, and a one-off bug gets none. The factory merges the change into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
 
 ## Factory change
 
