@@ -382,8 +382,6 @@ export type CallVar =
   | { kind: "town"; id: string }
   | { kind: "site"; id: string }
   | { kind: "money"; amount: number }
-  | { kind: "distance"; tiles: number }
-  | { kind: "bearing"; rad: number }
   | { kind: "count"; n: number; unit: UnitId }
   | { kind: "deal"; deal: PatchDeal; patcher: "player" | "npc"; price: number; parts: number; turns: number }
   | { kind: "haul"; goods: Record<string, number>; parts: string[] }

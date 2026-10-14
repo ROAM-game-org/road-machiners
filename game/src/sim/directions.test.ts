@@ -5,7 +5,7 @@ import { cueAt, octantOf, spanOf } from './direction-cues';
 import { directionsTo } from './directions';
 import { followSteps } from './directions-follower.test-helper';
 import { nearestRoadPoints, roadNetworkOf } from './road-network';
-import { emptyWorld } from './testkit';
+import { emptyWorld, furyRoadWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
@@ -117,6 +117,11 @@ describe('directionsTo', () => {
   it('holds no coordinates, meters or bearings in a step', () => {
     const text = JSON.stringify(SITES.flatMap((s) => directionsTo(w, OFF_ROAD, to(s.id))));
     expect(text).not.toMatch(/"(x|y|rad|tiles|meters)"/);
+  });
+
+  it('knows no road to a town that is not on the highway map', () => {
+    const steps = directionsTo(furyRoadWorld(), { x: 300, y: 300 }, to('bowl'));
+    expect(kinds(steps)).toEqual(['noRoad']);
   });
 
   it('throws on an unknown site and on a start that is not a number', () => {

@@ -1,4 +1,5 @@
 import { DIRECTIONS } from '../data/directions';
+import { REGION } from '../data/region';
 import { atlasOf, atlasSites } from './atlas';
 import { cueAt, octantOf, roadName, spanOf, type CueSpot } from './direction-cues';
 import { exitsAt, isJunction, nearestRoadPoints, roadNetworkOf, shortestPath, splitAt, type RoadGraph, type RoadPath, type RoadPoint } from './road-network';
@@ -18,6 +19,7 @@ export function directionsTo(world: World, from: Vec, target: DirectionTarget): 
   if (target.kind === 'spot' && dist(from, aim) <= DIRECTIONS.directReach && clearLine(world, from, aim)) {
     return [{ do: 'straight', ...rough }, wreckSearch()];
   }
+  if (!onThisMap(world, target)) return [{ do: 'noRoad', ...rough }];
   const net = roadNetworkOf(world);
   const start = startPoint(world, from, net);
   const leave = target.kind === 'spot' ? leavePoint(world, net, target.pos) : null;
@@ -32,9 +34,13 @@ export function directionsTo(world: World, from: Vec, target: DirectionTarget): 
 
 function targetPos(world: World, target: DirectionTarget): Vec {
   if (target.kind === 'spot') return target.pos;
-  const site = atlasSites(atlasOf(world.terrain)).find((s) => s.id === target.id);
+  const site = [...REGION.towns, ...REGION.locations].find((s) => s.id === target.id);
   if (!site) throw new Error(`Directions to unknown site ${target.id}`);
   return site.pos;
+}
+
+function onThisMap(world: World, target: DirectionTarget): boolean {
+  return target.kind === 'spot' || atlasSites(atlasOf(world.terrain)).some((s) => s.id === target.id);
 }
 
 function goalNodes(graph: RoadGraph, site: string): number[] {
