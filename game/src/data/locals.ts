@@ -17,6 +17,8 @@ export const NOTE_IDS = [
 
 export type NoteId = (typeof NOTE_IDS)[number];
 
+export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
+
 export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes';
 
 export type LocalDef = { id: LocalId; town: string; quest: string };
