@@ -2,7 +2,7 @@
 // 1. Free music loses its quiet intro and outro and loops through a crossfade. A beat loop is stretched to its exact
 //    bar length, so layers stay locked.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { beatLoopSeconds, MIX } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
@@ -18,6 +18,9 @@ const MID = 'highpass=f=250,lowpass=f=4000';
 const MAX_MATCH_DB = 6;
 const METER_S = 0.4;
 const OPUS_KBPS = 96;
+const FALLBACK_KBPS = 128;
+const FRAME_RATE = 48000;
+export const LENGTHS = 'src/data/sound-lengths.json';
 const MUSIC_EDGE_DB = 15;
 const MUSIC_XFADE_S = 2;
 const SILENT_PEAK_DB = -40;
@@ -48,9 +51,41 @@ export function importFile(source, id, cue, level) {
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
+  writeFallback(name);
   const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
   console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
   return name;
+}
+
+export function fallbackName(name) {
+  return name.replace(/\.ogg$/, '.m4a');
+}
+
+export function framesOf(name) {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', `${SFX_DIR}/${name}`, '-ac', '1', '-ar', String(FRAME_RATE), '-f', 's16le', '-'], { maxBuffer: 1 << 30 });
+  if (r.status !== 0) throw new Error(`ffmpeg could not decode ${name}: ${String(r.stderr).slice(-400)}`);
+  return r.stdout.length / 2;
+}
+
+export function readLengths() {
+  return existsSync(LENGTHS) ? JSON.parse(readFileSync(LENGTHS, 'utf8')) : {};
+}
+
+export function saveLengths(lengths) {
+  const sorted = Object.fromEntries(Object.entries(lengths).sort(([a], [b]) => (a < b ? -1 : 1)));
+  writeFileSync(LENGTHS, `${JSON.stringify(sorted, null, 1)}\n`);
+}
+
+export function writeFallback(name) {
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', `${SFX_DIR}/${name}`, '-c:a', 'aac', '-b:a', `${FALLBACK_KBPS}k`, '-ar', String(FRAME_RATE), '-map_metadata', '-1', `${SFX_DIR}/${fallbackName(name)}`]);
+  saveLengths({ ...readLengths(), [name]: framesOf(name) });
+}
+
+export function dropFallback(name) {
+  const file = `${SFX_DIR}/${fallbackName(name)}`;
+  if (existsSync(file)) unlinkSync(file);
+  const { [name]: _gone, ...rest } = readLengths();
+  saveLengths(rest);
 }
 
 function toneChain(src, source, id, cue) {
