@@ -17,7 +17,6 @@ export const UI = {
   'feedback.failed': 'Could not send. Try again.',
   'feedback.sent': m('Thank you. Your report is issue #{n}.', { n: 'int' }),
   'feedback.refused': 'This report was not taken.',
-  'feedback.full': 'No more reports today. Try again tomorrow.',
   'hud.overdriveNoEngine': 'No engine',
   'hud.overdriveWorn': m('Engine too worn for overdrive: repair it above {pct}% [O]', { pct: 'int' }),
   'hit.cause.smoke': 'smoke',

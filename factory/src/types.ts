@@ -93,7 +93,6 @@ export type FactoryConfig = {
   openaiKey: string;
   filterModel: string;
   filterTimeoutSeconds: number;
-  reportDailyIssues: number;
   reportIpPerHour: number;
   reportMaxChars: number;
 };

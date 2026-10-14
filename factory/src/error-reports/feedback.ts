@@ -5,11 +5,11 @@ import { readState } from '../state';
 import { BUG_LABEL, PLAYER_REPORT_LABEL, type FactoryConfig, type GitHub } from '../types';
 import { Rejected } from './report';
 
-export type FeedbackReply = { status: 'sent'; issue: number } | { status: 'refused'; reason: 'filter' | 'full' };
+export type FeedbackReply = { status: 'sent'; issue: number } | { status: 'refused' };
 type FeedbackRequest = { kind: 'bug' | 'idea'; text: string; version: string; build: string };
 
 export type FeedbackDeps = {
-  cfg: Pick<FactoryConfig, 'home' | 'reportMaxChars' | 'reportIpPerHour' | 'reportDailyIssues'>;
+  cfg: Pick<FactoryConfig, 'home' | 'reportMaxChars' | 'reportIpPerHour'>;
   store: PublicStore;
   classify: Classify;
   github: Pick<GitHub, 'createIssue'>;
@@ -47,7 +47,7 @@ export class Feedback {
     const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, reason: decision.reason, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
-      return { status: 'refused', reason: 'filter' };
+      return { status: 'refused' };
     }
     if (issue !== null) return this.comment(row, request, decision, issue);
     return this.open(row, request, decision);
@@ -73,13 +73,7 @@ export class Feedback {
   }
 
   private async open(row: ReportFields, request: FeedbackRequest, decision: Decision): Promise<FeedbackReply> {
-    const { cfg, store, github, now } = this.deps;
-    const start = new Date(Date.UTC(now().getUTCFullYear(), now().getUTCMonth(), now().getUTCDate()));
-    if (store.issuesCreatedSince(start) >= cfg.reportDailyIssues) {
-      store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: null });
-      this.deps.alert(`feedback: the daily cap of ${cfg.reportDailyIssues} new issues was hit on ${start.toISOString().slice(0, 10)}`);
-      return { status: 'refused', reason: 'full' };
-    }
+    const { store, github } = this.deps;
     const labels = [decision.kind === 'bug' ? BUG_LABEL : 'feature-request', PLAYER_REPORT_LABEL];
     const created = await github.createIssue(issueTitle(decision.title), issueBody(request, decision), labels);
     store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: created });

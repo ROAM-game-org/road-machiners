@@ -160,7 +160,7 @@ export type FeedbackKind = "bug" | "idea";
 
 export type FeedbackReport = { kind: FeedbackKind; text: string; version: string; build: string };
 
-type FeedbackAnswer = { status: "sent"; issue: number } | { status: "refused"; reason: "filter" | "full" };
+type FeedbackAnswer = { status: "sent"; issue: number } | { status: "refused" };
 
 export type FeedbackResult = FeedbackAnswer | { status: "failed" };
 
@@ -173,14 +173,14 @@ export function feedbackBuild(releaseFlag: string, pathname: string): string {
 
 function isAnswer(body: unknown): body is FeedbackAnswer {
   if (typeof body !== "object" || body === null) return false;
-  const answer = body as { status?: unknown; issue?: unknown; reason?: unknown };
+  const answer = body as { status?: unknown; issue?: unknown };
   if (answer.status === "sent") return Number.isInteger(answer.issue);
-  return answer.status === "refused" && (answer.reason === "filter" || answer.reason === "full");
+  return answer.status === "refused";
 }
 
 export function feedbackStatus(result: FeedbackResult): Msg {
   if (result.status === "sent") return t("feedback.sent", { n: result.issue });
-  if (result.status === "refused") return result.reason === "full" ? t("feedback.full") : t("feedback.refused");
+  if (result.status === "refused") return t("feedback.refused");
   return t("feedback.failed");
 }
 

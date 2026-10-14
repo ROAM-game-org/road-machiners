@@ -69,7 +69,7 @@ The shared bot keeps its one consumer, Hermes's long polling, which already rece
 - `filter.ts` makes one OpenAI Responses API call with a strict JSON schema, model `FACTORY_FILTER_MODEL`, key `OPENAI_API_KEY`. It returns `verdict` (`accept` or `reject`), `kind` (`bug`, `feature`, `feedback`), `route` (`none`, `patch`, `redesign`), `title` and `reason`. A failed call fails the request loudly, and the report is not stored as accepted.
 - The error service gains `POST /feedback`. It takes `{ kind, text, version, build }` from a game build. It checks Origin against the game origins, the per-address limit from the store and the body size, then runs the filter. Caddy routes `/feedback` to the error service's socket.
 - The server finds the issue from `build`, never from the client: a hash in `state.builds` whose card is in Approval gives that issue, and `rc` gives the release tracking issue. Such a report becomes a comment on that issue's next digest and goes through public routes.
-- Any other accepted report opens a GitHub issue labeled `bug` or `feature-request` and `player-report`, at most `FACTORY_REPORT_DAILY_ISSUES` a day. Intake then takes it into Triage.
+- Any other accepted report opens a GitHub issue labeled `bug` or `feature-request` and `player-report`. Intake then takes it into Triage.
 - A rejected report is stored with its reason and creates nothing.
 
 ### E. Game form
@@ -154,7 +154,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 
 ### PH5 — Filter and feedback route
 - `factory/src/public/filter.ts` (create): `classify` (IF3) with one Responses API call and a strict schema.
-- `factory/src/error-reports/feedback.ts` (create): `takeFeedback` for `POST /feedback`: origin, per-address limit in the store, size, filter, build lookup from `state.json`, then a stored comment or a new issue within `FACTORY_REPORT_DAILY_ISSUES`. Respects IV7.
+- `factory/src/error-reports/feedback.ts` (create): `takeFeedback` for `POST /feedback`: origin, per-address limit in the store, size, filter, build lookup from `state.json`, then a stored comment or a new issue. Respects IV7.
 - `factory/src/error-reports/service.ts`: route `/feedback` beside `/errors`.
 - `factory/src/sourcemaps.ts`, `factory/src/deploy.ts` and the checks build: every build gets `FEEDBACK_URL`.
 - `factory/infra/stacks/caddy/Caddyfile`, `factory/infra/deploy/errors.py`: route `/feedback` to the error socket.
@@ -175,7 +175,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - IF3 — `filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify` in `factory/src/public/filter.ts`. The types live in `factory/src/public/decision.ts`, committed. The returned function throws on any failed call or bad answer.
 - IF4 — `publicTick(ctx: Ctx, classify: Classify): Promise<void>` in `factory/src/public/tick-steps.ts`. PH7 wires it into `tick.ts` with the real filter, since PH2 and PH4 typecheck apart.
 - IF5 — `postBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void>` in `factory/src/public/build-post.ts`. It does nothing for an issue with no posted proposal.
-- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent', issue }` or `{ status: 'refused', reason: 'filter' | 'full' }`, so the game shows the reply in the player's language, or an error status with a plain text message.
+- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent', issue }` or `{ status: 'refused' }` from the filter, so the game shows the reply in the player's language, or an error status with a plain text message.
 
 ### Interface graph
 - PH2 IF4 -> @ factory/src/intake.ts, factory/src/github.ts, factory/src/stages/triage.ts, factory/src/stages/bundle.ts, factory/prompts/triage.md, factory/src/tick.ts, factory/src/dashboard/labels.ts, factory/src/position.ts
@@ -251,7 +251,7 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 - udesign: `FACTORY_FILTER_MODEL=gpt-5.4-nano` — OpenAI's docs name it for classification. Change it in settings.env.
 - udesign: one public route per build post, since the route closes the post — limits money spent on player reports with no new number.
 - udesign: `voting` cards are not bundled — a posted proposal keeps its text.
-- udesign: `FACTORY_PUBLIC_DIGEST_MINUTES=60`, `FACTORY_REPORT_DAILY_ISSUES=20`, `FACTORY_REPORT_IP_PER_HOUR=5`, `FACTORY_REPORT_MAX_CHARS=3000` — new numbers with their reasons in settings.env. Change any of them there.
+- udesign: `FACTORY_PUBLIC_DIGEST_MINUTES=60`, `FACTORY_REPORT_IP_PER_HOUR=5`, `FACTORY_REPORT_MAX_CHARS=3000` — new numbers with their reasons in settings.env. Change any of them there.
 - udesign: `FACTORY_PROPOSAL_CHAT` is its own key, so a test can point proposals at the committee chat.
 - uplan: plan auto-approved (hands-off).
 - uplan: PH6 goes on its own branch `feedback-form` off `origin/dev`, since game work lands on `dev` and factory work on `main`.

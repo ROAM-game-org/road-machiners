@@ -14,7 +14,7 @@ type World = { url: string; home: string; store: PublicStore; created: string[];
 const servers: ErrorServer[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map((server) => server.close())); });
 
-async function start(over: { dailyIssues?: number; ipPerHour?: number; maxChars?: number } = {}): Promise<World> {
+async function start(over: { ipPerHour?: number; maxChars?: number } = {}): Promise<World> {
   mkdirSync('tmp', { recursive: true });
   const home = mkdtempSync(join('tmp', 'factory-feedback-'));
   mkdirSync(join(home, 'state'), { recursive: true });
@@ -28,7 +28,7 @@ async function start(over: { dailyIssues?: number; ipPerHour?: number; maxChars?
   const asked: FilterInput[] = [];
   let decision: Decision | Error = ACCEPT_BUG;
   const github = { createIssue: async (title: string, body: string, labels: string[]) => { created.push(`${title} [${labels.join(',')}]\n${body}`); return 200 + created.length; } };
-  const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: 5, reportIpPerHour: over.ipPerHour ?? 5, reportMaxChars: over.maxChars ?? 100, reportDailyIssues: over.dailyIssues ?? 2 };
+  const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: 5, reportIpPerHour: over.ipPerHour ?? 5, reportMaxChars: over.maxChars ?? 100 };
   const classify = async (input: FilterInput) => { asked.push(input); if (decision instanceof Error) throw decision; return decision; };
   const now = () => NOW;
   const feedback = new Feedback({ cfg, store, classify, github, now, log: () => undefined, alert: (line) => writeFileSync(join(home, 'alerts'), line, { flag: 'a' }) });
@@ -55,7 +55,13 @@ describe('feedback route', () => {
     expect(created[0]).toContain('> The truck sinks\n> into the road');
     expect(created[0]).toContain('- Version: 2.24.72+abc1234');
     expect(created[0]).toContain('- Build: release');
-    expect(store.issuesCreatedSince(new Date('2026-10-07T00:00:00Z'))).toBe(1);
+    expect(store.unsentComments()).toEqual([]);
+  });
+
+  it('opens an issue for every accepted report, with no daily limit', async () => {
+    const { url, created } = await start({ ipPerHour: 50 });
+    for (let i = 0; i < 30; i++) expect(await (await send(url, request())).json()).toEqual({ status: 'sent', issue: 201 + i });
+    expect(created).toHaveLength(30);
   });
 
   it('labels a feature report feature-request', async () => {
@@ -66,11 +72,10 @@ describe('feedback route', () => {
   });
 
   it('stores a rejected report with its reason and creates nothing', async () => {
-    const { url, store, created, setDecision } = await start();
+    const { url, created, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, verdict: 'reject', reason: 'This is an ad.' });
-    expect(await (await send(url, request())).json()).toEqual({ status: 'refused', reason: 'filter' });
+    expect(await (await send(url, request())).json()).toEqual({ status: 'refused' });
     expect(created).toEqual([]);
-    expect(store.issuesCreatedSince(new Date(0))).toBe(0);
   });
 
   it('turns a report on the open release build into a classified comment on the tracking issue', async () => {
@@ -90,7 +95,7 @@ describe('feedback route', () => {
   });
 
   it('opens an issue for a build with no open approval post and for an unknown build', async () => {
-    const { url, created } = await start({ dailyIssues: 5 });
+    const { url, created } = await start();
     await send(url, request({ build: 'hash13' }));
     await send(url, request({ build: 'ffffffff' }));
     expect(created).toHaveLength(2);
@@ -103,15 +108,6 @@ describe('feedback route', () => {
     expect(store.unsentComments()).toMatchObject([{ kind: 'feedback', route: 'none' }]);
   });
 
-  it('refuses past the daily issue cap, keeps the report and alerts', async () => {
-    const { url, home, store, created } = await start({ dailyIssues: 1 });
-    await send(url, request());
-    expect(await (await send(url, request())).json()).toEqual({ status: 'refused', reason: 'full' });
-    expect(created).toHaveLength(1);
-    expect(store.issuesCreatedSince(new Date('2026-10-07T00:00:00Z'))).toBe(1);
-    expect(readFileSync(join(home, 'alerts'), 'utf8')).toBe('feedback: the daily cap of 1 new issues was hit on 2026-10-07');
-  });
-
   it('answers 503 and stores nothing when the filter fails', async () => {
     const { url, store, created, setDecision } = await start();
     setDecision(new Error('The filter call failed with status 500.'));
@@ -119,12 +115,11 @@ describe('feedback route', () => {
     expect(response.status).toBe(503);
     expect(await response.text()).toBe('The report could not be checked now. Try again later.');
     expect(created).toEqual([]);
-    expect(store.issuesCreatedSince(new Date(0))).toBe(0);
     expect(store.unclassifiedComments()).toEqual([]);
   });
 
   it('limits reports per address per hour with 429 and alerts Hermes', async () => {
-    const { url, home } = await start({ ipPerHour: 2, dailyIssues: 9 });
+    const { url, home } = await start({ ipPerHour: 2 });
     const statuses = [];
     for (let i = 0; i < 3; i++) statuses.push((await send(url, request())).status);
     expect(statuses).toEqual([200, 200, 429]);

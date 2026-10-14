@@ -160,10 +160,6 @@ export class PublicStore {
     return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, reason, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, reason, issue, createdIssue, at).lastInsertRowid);
   }
 
-  issuesCreatedSince(since: Date): number {
-    return Number(this.db.prepare('select count(*) as n from reports where created_issue is not null and at >= ?').get(since.toISOString())?.n);
-  }
-
   private apply(event: PublicEvent): void {
     if (event.kind === 'reaction-count') return void this.db.prepare('update proposals set channel_counts = ? where chat = ? and message_id = ?').run(JSON.stringify(event.counts), event.chat, event.messageId);
     if (event.kind === 'reaction') return this.applyReaction(event);

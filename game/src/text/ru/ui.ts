@@ -18,7 +18,6 @@ export const UI: Translation<typeof EN> = {
   'feedback.failed': 'Не удалось отправить. Попробуйте ещё раз.',
   'feedback.sent': 'Спасибо. Отчет принят под номером #{n}.',
   'feedback.refused': 'Отчет не принят.',
-  'feedback.full': 'Сегодня отчеты больше не принимаются. Попробуйте завтра.',
   'hud.overdriveNoEngine': 'Нет двигателя',
   'hud.overdriveWorn': 'Двигатель слишком изношен для форсажа. Нужна прочность выше {pct}% [O]',
   'hit.cause.smoke': 'дым',
