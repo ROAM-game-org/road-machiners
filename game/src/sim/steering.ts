@@ -15,8 +15,8 @@ export function backsToDestination(
   distance: number,
   rearAngle: number,
 ): boolean {
-  if ((vehicle.brain?.recovery ?? 0) > 0) return true;
-  return vehicle.faction === "player" && distance < RULES.throttleZones.reach && Math.abs(rearAngle) < RULES.reverse.cone * DEG;
+  const hasReason = vehicle.faction === "player" || (vehicle.brain?.recovery ?? 0) > 0;
+  return hasReason && distance < RULES.throttleZones.reach && Math.abs(rearAngle) < RULES.reverse.cone * DEG;
 }
 
 export type Throttle = "brake" | "hold" | "accelerate";
