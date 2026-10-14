@@ -77,6 +77,7 @@ describe('download failure screen', () => {
   it('names the three catalog ids and holds the url and the cause in the detail', () => {
     const text = downloadFailedText(err);
     expect([text.title, ...text.lines].map((m) => m.key)).toEqual(['download.title', 'download.reload', 'download.saves']);
+    expect(text.action.key).toBe('download.action');
     expect(text.detail).toContain('models/truck.glb');
     expect(text.detail).toContain('Failed to fetch');
   });
