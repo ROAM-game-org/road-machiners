@@ -79,12 +79,6 @@ export function signatureOf(v: Vehicle): string {
   return `${v.chassisId}|${v.faction}|${items}`;
 }
 
-export function viewOf(views: Map<string, VehicleView>, id: string): VehicleView {
-  const view = views.get(id);
-  if (!view) throw new Error(`Vehicle ${id} has no view`);
-  return view;
-}
-
 export class VehicleView {
   readonly root = new THREE.Group();
   private readonly body = new THREE.Group();
