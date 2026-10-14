@@ -31,7 +31,7 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   f.store = openStore(home);
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
-    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, minVotes: 3, voteEmoji: '👍 ❤', publicDigestMinutes: 60, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
+    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, minVotes: 3, voteEmoji: '👍 ❤', vetoEmoji: '👎',publicDigestMinutes: 60, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
     statePath,
     now: () => f.clock.now,
     log: (stage: string, issue: number | null, msg: string) => { f.logs.push(`${stage} ${issue} ${msg}`); },
@@ -40,6 +40,8 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
       cards: async () => f.cards,
       comment: async (issue: number, body: string) => { note(`comment ${issue}`); f.comments.push({ issue, body }); },
       removeLabel: async (issue: number, label: string) => note(`removeLabel ${issue} ${label}`),
+      addLabel: async (issue: number, label: string) => note(`addLabel ${issue} ${label}`),
+      close: async (issue: number, reason: string) => note(`close ${issue} ${reason}`),
       move: async (issue: number, column: Column) => note(`move ${issue} ${column}`),
     },
     telegram: {

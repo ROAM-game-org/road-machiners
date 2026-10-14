@@ -9,10 +9,12 @@ export const pitchTitle = (pitch: string): string => pitch.split('\n')[0]!.trim(
 
 const issueLink = (ctx: Ctx, issue: number): string => `https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
-function proposalText(ctx: Ctx, issue: number, pitch: string): string {
+export const voteCount = (ctx: Ctx, votes: number): string => `${votes}/${ctx.cfg.minVotes}`;
+
+export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: string): string {
   const links = [issue, ...bundleOf(readState(ctx.statePath), issue)].map((number) => issueLink(ctx, number));
   const vote = `Vote with a thumbs-up reaction on this post. At ${ctx.cfg.minVotes} votes the factory builds it.`;
-  return `${pitch.trim()}\n\n${links.join('\n')}\n\n${vote}`;
+  return `${pitch.trim()}\n\n${links.join('\n')}\n\n${vote}\n\n${footer}`;
 }
 
 export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> {
@@ -25,7 +27,7 @@ export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> 
       store.closeProposal(proposal.issue, now);
       continue;
     }
-    const messageId = await ctx.telegram.sendMessage(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch));
+    const messageId = await ctx.telegram.sendMessage(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch, voteCount(ctx, 0)));
     store.markProposalPosted(proposal.issue, ctx.cfg.proposalChat, messageId, now);
     return;
   }

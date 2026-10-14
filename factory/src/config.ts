@@ -93,6 +93,7 @@ const KEYS = {
   publicDiscussion: 'FACTORY_PUBLIC_DISCUSSION',
   proposalsPerDay: 'FACTORY_PROPOSALS_PER_DAY',
   voteEmoji: 'FACTORY_VOTE_EMOJI',
+  vetoEmoji: 'FACTORY_VETO_EMOJI',
   publicDigestMinutes: 'FACTORY_PUBLIC_DIGEST_MINUTES',
   openaiKey: 'OPENAI_API_KEY',
   filterModel: 'FACTORY_FILTER_MODEL',

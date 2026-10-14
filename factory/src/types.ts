@@ -89,6 +89,7 @@ export type FactoryConfig = {
   publicDiscussion: string;
   proposalsPerDay: number;
   voteEmoji: string;
+  vetoEmoji: string;
   publicDigestMinutes: number;
   openaiKey: string;
   filterModel: string;
