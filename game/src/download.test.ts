@@ -41,6 +41,13 @@ describe('download', () => {
     expect(d.waits).toEqual([1000]);
   });
 
+  it('tries again after a body read that drops', async () => {
+    const broken = new Response(new ReadableStream({ pull: (c) => c.error(new TypeError('Load failed')) }));
+    const d = setup(broken, ok());
+    expect((await download(URL, d)).byteLength).toBe(3);
+    expect(d.waits).toEqual([1000]);
+  });
+
   it('throws DownloadFailed with the last error after every try dropped', async () => {
     const last = new TypeError('Failed to fetch');
     const d = setup(new TypeError('a'), new TypeError('b'), last);

@@ -301,7 +301,7 @@ function checkWeaponSockets(): void {
   }
 }
 
-async function fetchModel(name: ModelName): Promise<ArrayBuffer> {
+function fetchModel(name: ModelName): Promise<ArrayBuffer> {
   const url = `${import.meta.env.BASE_URL}models/${name}.glb`;
   return download(url);
 }
