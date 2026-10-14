@@ -18,6 +18,7 @@ COMMITTEE_CHAT = "-100"
 DISCUSSION = "-200"
 PROPOSAL_CHAT = "-300"
 CHANNEL = -1009
+BOT = public.Bot(555, "roam_bot")
 
 
 def cfg_for(tmp_path, proposal_chat=PROPOSAL_CHAT):
@@ -132,6 +133,7 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
+        "user": "42", "addressed": False, "standalone": True,
     }}
 
 
@@ -144,13 +146,45 @@ def test_comment_uses_reply_when_no_thread_and_caption_and_username(tmp_path):
     assert (event["threadId"], event["text"], event["author"]) == (77, "A photo", "bob")
 
 
-def test_discussion_message_without_thread_or_text_writes_nothing_but_stops(tmp_path):
-    no_thread = comment_update(message_thread_id=None, reply_to_message=None)
+def test_discussion_message_without_thread_is_a_standalone_comment(tmp_path):
+    raw = comment_update(message_thread_id=None, reply_to_message=None, text="The truck sinks into sand")
+    assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is True
+    event = written(tmp_path)["504.json"]
+    assert (event["threadId"], event["standalone"], event["addressed"]) == (None, True, False)
+
+
+def test_mention_and_reply_to_the_bot_are_addressed(tmp_path):
+    mention = comment_update(message_thread_id=None, reply_to_message=None, text="@ROAM_bot how do I vote?")
+    reply = comment_update(message_thread_id=None, reply_to_message={"message_id": 80, "from": {"id": 555, "is_bot": True}})
+    reply["update_id"] = 505
+    tagged = comment_update(message_thread_id=None, reply_to_message=None, text="bot, add maps", entities=[{"type": "text_mention", "offset": 0, "length": 3, "user": {"id": 555}}])
+    tagged["update_id"] = 506
+    other = comment_update(reply_to_message={"message_id": 81, "from": {"id": 9, "is_bot": False}})
+    other["update_id"] = 507
+    for raw in (mention, reply, tagged, other):
+        public.handle_public_update(raw, cfg_for(tmp_path), BOT)
+    found = written(tmp_path)
+    assert [found[name]["addressed"] for name in ("504.json", "505.json", "506.json", "507.json")] == [True, True, True, False]
+
+
+def test_bots_forwards_inline_bots_commands_and_empty_text_write_nothing_but_stop(tmp_path):
+    from_bot = comment_update()
+    from_bot["message"]["from"] = {"id": 9, "is_bot": True, "first_name": "Spam"}
+    forwarded = comment_update(forward_origin={"type": "user", "sender_user": {"id": 3}, "date": 1})
+    inline = comment_update(via_bot={"id": 8, "is_bot": True, "username": "gif"})
+    command = comment_update(text="/approve 568")
+    hermes_command = comment_update(text=" /committee add 5")
     no_text = comment_update(text=None)
     no_text["message"].pop("text")
-    for raw in (no_thread, no_text):
-        assert public.handle_public_update(raw, cfg_for(tmp_path)) is True
+    for raw in (from_bot, forwarded, inline, command, hermes_command, no_text):
+        assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is True
     assert written(tmp_path) == {}
+
+
+def test_proposal_chat_message_stops_hermes_unless_it_is_the_committee_chat(tmp_path):
+    raw = comment_update(chat_id=PROPOSAL_CHAT, message_thread_id=None, reply_to_message=None)
+    assert public.handle_public_update(raw, cfg_for(tmp_path), BOT) is True
+    assert written(tmp_path)["504.json"]["standalone"] is True
 
 
 def test_discussion_member_message_stops_hermes(tmp_path):
@@ -164,7 +198,7 @@ def test_committee_chat_reply_writes_comment_and_goes_on(tmp_path):
     stop = public.handle_public_update(comment_update(chat_id=COMMITTEE_CHAT), cfg)
     assert stop is False
     event = written(tmp_path)["504.json"]
-    assert (event["kind"], event["chat"], event["threadId"]) == ("comment", COMMITTEE_CHAT, 90)
+    assert (event["kind"], event["chat"], event["threadId"], event["standalone"]) == ("comment", COMMITTEE_CHAT, 90, False)
 
 
 def test_committee_chat_plain_message_writes_nothing_and_goes_on(tmp_path):
@@ -216,15 +250,19 @@ def test_handler_raises_stop_only_when_needed(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "telegram", SimpleNamespace(ext=telegram_ext))
     monkeypatch.setitem(sys.modules, "telegram.ext", telegram_ext)
     on_update = public.make_public_handler(cfg_for(tmp_path))
+    context = SimpleNamespace(bot=SimpleNamespace(id=555, username="roam_bot"))
+    mention = comment_update(message_thread_id=None, reply_to_message=None, text="@roam_bot hi")
     with pytest.raises(Stop):
-        asyncio.run(on_update(SimpleNamespace(to_dict=lambda: comment_update()), None))
-    asyncio.run(on_update(SimpleNamespace(to_dict=lambda: comment_update(chat_id="-777")), None))
+        asyncio.run(on_update(SimpleNamespace(to_dict=lambda: mention), context))
+    assert written(tmp_path)["504.json"]["addressed"] is True
+    asyncio.run(on_update(SimpleNamespace(to_dict=lambda: comment_update(chat_id="-777")), context))
 
 
-def test_hook_skips_discussion_group_even_for_a_member(tmp_path):
+@pytest.mark.parametrize("chat_id", [DISCUSSION, PROPOSAL_CHAT])
+def test_hook_skips_public_chats_even_for_a_member(tmp_path, chat_id):
     cfg = cfg_for(tmp_path)
-    source = SimpleNamespace(user_id="1", user_name="Ann", chat_id=int(DISCUSSION), platform="telegram")
-    event = SimpleNamespace(text="hello", reply_to_message_id=None, source=source, message_id="5")
+    source = SimpleNamespace(user_id="1", user_name="Ann", chat_id=int(chat_id), platform="telegram")
+    event = SimpleNamespace(text="/committee add 5", reply_to_message_id=None, source=source, message_id="5")
     result = asyncio.run(plugin.make_hook(cfg, None)(event, None, None))
     assert result == {"action": "skip", "reason": "factory-public-discussion"}
 
