@@ -26,6 +26,7 @@ export async function postBuild(ctx: Ctx, issue: number, build: string, url: str
   try {
     const proposal = store.proposal(issue);
     if (proposal === null || proposal.chat === null || proposal.messageId === null) return;
+    store.closeBuildPosts(issue);
     const messageId = await ctx.telegram.sendMessage(proposal.chat, buildPostText(pitchTitle(proposal.pitch), url, description), proposal.messageId);
     store.addBuildPost(issue, build, proposal.chat, messageId, ctx.now());
   } finally {

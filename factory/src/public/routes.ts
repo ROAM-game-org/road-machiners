@@ -34,8 +34,24 @@ export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> 
       store.markRouted(comment.id, ctx.now());
       continue;
     }
+    if (isOnOlderBuild(ctx, store, comment)) {
+      ctx.log('public', comment.issue, `comment ${comment.id} is on the post of an older build, so it does not route the card`);
+      store.markRouted(comment.id, ctx.now());
+      continue;
+    }
+    if (!store.beginRoute(comment.issue, post, ctx.now())) {
+      ctx.log('public', comment.issue, `comment ${comment.id} came after the route of committee post ${post}, so it does not route the card again`);
+      store.markRouted(comment.id, ctx.now());
+      continue;
+    }
     await sendBackOnce(ctx, store, comment, post);
   }
+}
+
+function isOnOlderBuild(ctx: Ctx, store: PublicStore, comment: StoredComment): boolean {
+  if (comment.source === 'game') return false;
+  const current = readState(ctx.statePath).builds[String(comment.issue)];
+  return store.openBuildPost(comment.issue)?.build !== current;
 }
 
 async function sendBackOnce(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {

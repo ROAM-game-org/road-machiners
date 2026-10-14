@@ -6,6 +6,7 @@ import { withLockSync } from '../lock';
 import { defang } from '../public/defang';
 import { mapsRoot, readPublished, type Published } from '../sourcemaps';
 import { BUG_LABEL, ERROR_REPORT_LABEL, fingerprintLine, type FactoryConfig, type FingerprintIssue, type GitHub } from '../types';
+import { limitKeyOf } from './address';
 import type { Feedback } from './feedback';
 import { checkRoom, dayOf, errorsHome, playerReportsDir, raiseAlert, reportsDir, unzip, writeReport } from './files';
 import { commitOf,fingerprintOf, mapFrames, parseReport, Rejected, type ErrorReport, type Frame, type RejectReason } from './report';
@@ -287,7 +288,7 @@ const isReportPath = (url: string | undefined): boolean => url === '/errors' || 
 function clientOf(request: IncomingMessage): string {
   const client = request.headers['cf-connecting-ip'];
   if (typeof client !== 'string' || client === '') throw new Rejected('address', 400, 'The request names no client address.');
-  return client;
+  return limitKeyOf(client);
 }
 
 async function readBody(request: IncomingMessage, maxBytes: number): Promise<Buffer> {

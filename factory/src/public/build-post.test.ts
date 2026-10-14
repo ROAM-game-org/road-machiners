@@ -28,6 +28,16 @@ describe('postBuild', () => {
     expect(f.store.openBuildPost(7)).toMatchObject({ build: 'bbb2222', messageId: 502 });
   });
 
+  it('leaves no open build post when the send of the next build fails', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
+    await postBuild(f.ctx, 7, 'aaa1111', 'u1', 'd');
+    f.ctx.telegram.sendMessage = async () => { throw new Error('telegram down'); };
+    await expect(postBuild(f.ctx, 7, 'bbb2222', 'u2', 'd')).rejects.toThrow('telegram down');
+    expect(f.store.openBuildPost(7)).toBeNull();
+  });
+
   it('cuts a long description so the post is one message, the one whose replies are recorded, and keeps the invitation', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
