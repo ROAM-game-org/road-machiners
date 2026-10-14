@@ -73,3 +73,8 @@ ID: R14
 repo: game
 what: In release 2.61.0, loadBank() in game/src/audio/bank.ts fetched every sound in one Promise.all, so one rejected fetch stopped the boot with "TypeError: Failed to fetch". Hotfixes #482 and #483 had already added the retry and the stand-in, but decodeFile() still sent a network failure into the same SoundDecodeFailure report as a missing or broken file. Hotfix #496 split out unreachable sounds, which get a stand-in and a console warning and send no error report.
 cost: An Android Chrome player on release 2.61.0 could not start the game. After the earlier hotfixes, every dropped mobile connection at boot would still have sent an error report and shown a line in the release error console for a game that ran fine. It took a third hotfix issue. It repeats the class of R10 and R12: one asset failure at boot rejected the whole boot.
+
+ID: R15
+repo: game
+what: CameraRig.resize() in game/src/three/render/camera.ts built the camera frustum from the container size with no check. When the game view had zero width or height, as a phone can report for a moment while it rotates, hides the page or switches fullscreen, the projection held NaN or Infinity. spatial() in game/src/audio/pick.ts passed the NaN screen x through Math.min and Math.max as a pan, and Web Audio threw "The provided float value is non-finite" at the start of a turn. Hotfix #537 kept the last frustum on a zero-size view, centred the pan with no width and made spatial() throw a named error on a non-finite position.
+cost: An Android Chrome player on release 2.61.43 had turn 8 fail with the error, so the turn did not play. Any phone player whose view briefly had no size could hit it. It took a hotfix to main and itch.io.
