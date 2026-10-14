@@ -107,8 +107,8 @@ describe('crashes between trucks at peace', () => {
 describe('peace', () => {
   it('ends feuds both ways between the sides, holds truces and drops aim at the other side', () => {
     const w = quietWorld();
-    const a = npcAt(w, 'independent', ['trader'], 34);
-    const mate = npcAt(w, 'independent', ['trader'], 34, 33);
+    const a = npcAt(w, 'bowl', ['trader'], 34);
+    const mate = npcAt(w, 'bowl', ['trader'], 34, 33);
     const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     feud(w, mate, b);
@@ -616,9 +616,10 @@ describe('pile claims', () => {
       expectsLoot(w, robber, victim);
     });
 
-    it('peace also ends the fights of a faction mate of either side', () => {
+    it('peace also ends the fights of an ally of either side', () => {
       const { w, robber, victim } = setup('npc');
-      const mate = npcAt(w, 'independent', ['raider'], 38);
+      robber.faction = 'scrapjaw';
+      const mate = npcAt(w, 'scrapjaw', ['raider'], 38);
       fightBetween(w, mate, victim);
       makePeace(w, robber, victim);
       expect(fights(w, mate, victim)).toEqual([]);
