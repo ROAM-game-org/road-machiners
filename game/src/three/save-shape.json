@@ -1,5 +1,5 @@
 {
- "format": "2.61",
+ "format": "2.62",
  "shape": {
   "broken": [],
   "craters": [],
@@ -1136,6 +1136,23 @@
    "bowl": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
@@ -1210,6 +1227,23 @@
    "dustwell": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
@@ -1277,6 +1311,23 @@
    "granary": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
@@ -1342,6 +1393,23 @@
    },
    "green-pit": {
     "contracts": [
+     {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
      {
       "deadline": "number",
       "defId": "string",
@@ -1409,6 +1477,23 @@
    },
    "nose": {
     "contracts": [
+     {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
      {
       "deadline": "number",
       "defId": "string",
@@ -1484,6 +1569,23 @@
    "pump-station": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
@@ -1549,6 +1651,23 @@
    },
    "salvage-yard": {
     "contracts": [
+     {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
      {
       "deadline": "number",
       "defId": "string",
