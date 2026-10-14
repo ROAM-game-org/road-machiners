@@ -11,6 +11,7 @@ export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | Co
 export type CommentKind = 'bug' | 'feature' | 'feedback' | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
+export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
 export type StoredComment = { id: number; issue: number; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null };
 export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string };
@@ -25,6 +26,7 @@ create table if not exists comments (id integer primary key autoincrement, issue
 create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, intent text not null, sincere real not null, issue integer, created_issue integer, at text not null);
 create table if not exists hits (address text not null, hour text not null, count integer not null, primary key (address, hour));
 create table if not exists digests (issue integer primary key, last_at text not null);
+create table if not exists post_attempts (id integer primary key autoincrement, issue integer not null, at text not null);
 `;
 
 export const storePath = (home: string): string => join(home, 'public', 'public.db');
@@ -37,9 +39,15 @@ export function openStore(home: string): PublicStore {
 export class PublicStore {
   constructor(private readonly db: DatabaseSync) {
     db.exec('pragma journal_mode = wal; pragma busy_timeout = 5000; pragma synchronous = normal;');
+    const hadAttempts = db.prepare("select 1 from sqlite_master where type = 'table' and name = 'post_attempts'").get() !== undefined;
     db.exec(SCHEMA);
     const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
-    if (!columns.includes('shown_votes')) db.exec('alter table proposals add column shown_votes integer');
+    if (!columns.includes('shown_footer')) db.exec('alter table proposals add column shown_footer text');
+    if (columns.includes('shown_votes')) db.exec('alter table proposals drop column shown_votes');
+    if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
+    const commentColumns = db.prepare('pragma table_info(comments)').all().map((column) => String(column.name));
+    if (!commentColumns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
+    if (!hadAttempts) db.exec('insert into post_attempts (issue, at) select issue, coalesce(posted_at, attempted_at) from proposals where coalesce(posted_at, attempted_at) is not null');
   }
 
   close(): void {
@@ -55,7 +63,10 @@ export class PublicStore {
   }
 
   addProposal(issue: number, pitch: string, now: Date): void {
-    this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null').run(issue, pitch, now.toISOString());
+    this.transaction(() => {
+      this.db.prepare('delete from proposals where issue = ? and closed_at is not null').run(issue);
+      this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null').run(issue, pitch, now.toISOString());
+    });
   }
 
   proposal(issue: number): Proposal | null {
@@ -67,24 +78,32 @@ export class PublicStore {
     return this.db.prepare('select * from proposals where posted_at is null and closed_at is null order by created_at, issue').all().map(toProposal);
   }
 
-  proposalsPostedSince(since: Date): number {
-    return Number(this.db.prepare('select count(*) as n from proposals where posted_at >= ?').get(since.toISOString())?.n);
+  proposalPostAttemptsSince(since: Date): number {
+    return Number(this.db.prepare('select count(*) as n from post_attempts where at >= ?').get(since.toISOString())?.n);
   }
 
-  markProposalPosted(issue: number, chat: string, messageId: number, now: Date): void {
-    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ?, shown_votes = 0 where issue = ?').run(chat, messageId, now.toISOString(), issue);
+  beginProposalPost(issue: number, now: Date): void {
+    this.transaction(() => {
+      this.db.prepare('update proposals set closed_at = ?, attempted_at = ? where issue = ?').run(now.toISOString(), now.toISOString(), issue);
+      this.db.prepare('insert into post_attempts (issue, at) values (?, ?)').run(issue, now.toISOString());
+    });
+  }
+
+  markProposalPosted(issue: number, chat: string, messageId: number, footer: string, now: Date): void {
+    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ?, closed_at = null, shown_footer = ? where issue = ?').run(chat, messageId, now.toISOString(), footer, issue);
   }
 
   openProposals(): Proposal[] {
     return this.db.prepare('select * from proposals where posted_at is not null and closed_at is null order by posted_at').all().map(toProposal);
   }
 
-  votes(issue: number, positive: string[]): number {
-    const row = this.db.prepare('select chat, message_id, channel_counts from proposals where issue = ?').get(issue);
-    if (row === undefined || row.message_id === null) return 0;
-    if (row.channel_counts !== null) return countPositive(JSON.parse(String(row.channel_counts)) as Record<string, number>, positive);
-    const users = this.db.prepare('select emoji from reactions where chat = ? and message_id = ?').all(String(row.chat), Number(row.message_id));
-    return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).length;
+  tally(issue: number, up: string[], down: string[]): Tally {
+    const row = this.db.prepare('select channel_counts from proposals where issue = ?').get(issue);
+    if (row !== undefined && row.channel_counts !== null) {
+      const counts = JSON.parse(String(row.channel_counts)) as Record<string, number>;
+      return { up: countOf(counts, up), down: countOf(counts, down) };
+    }
+    return { up: this.votersWith(issue, up).length, down: this.votersWith(issue, down).length };
   }
 
   votersWith(issue: number, wanted: string[]): string[] {
@@ -94,17 +113,20 @@ export class PublicStore {
     return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => wanted.includes(emoji))).map((user) => String(user.user_id));
   }
 
-  shownVotes(issue: number): number | null {
-    const row = this.db.prepare('select shown_votes from proposals where issue = ?').get(issue);
-    return row === undefined || row.shown_votes === null ? null : Number(row.shown_votes);
+  shownFooter(issue: number): string | null {
+    const row = this.db.prepare('select shown_footer from proposals where issue = ?').get(issue);
+    return row === undefined || row.shown_footer === null ? null : String(row.shown_footer);
   }
 
-  setShownVotes(issue: number, votes: number): void {
-    this.db.prepare('update proposals set shown_votes = ? where issue = ?').run(votes, issue);
+  setShownFooter(issue: number, footer: string): void {
+    this.db.prepare('update proposals set shown_footer = ? where issue = ?').run(footer, issue);
   }
 
   closeProposal(issue: number, now: Date): void {
-    this.db.prepare('update proposals set closed_at = ? where issue = ?').run(now.toISOString(), issue);
+    this.transaction(() => {
+      this.db.prepare('delete from post_attempts where id = (select max(id) from post_attempts where issue = ? and at = (select attempted_at from proposals where issue = ? and posted_at is null))').run(issue, issue);
+      this.db.prepare('update proposals set closed_at = ?, attempted_at = null where issue = ?').run(now.toISOString(), issue);
+    });
   }
 
   addBuildPost(issue: number, build: string, chat: string, messageId: number, now: Date): void {
@@ -138,7 +160,15 @@ export class PublicStore {
   }
 
   unsentComments(): StoredComment[] {
-    return this.db.prepare("select * from comments where classified_at is not null and sent_at is null and kind != 'rejected' order by issue, id").all().map(toComment);
+    return this.db.prepare("select * from comments where classified_at is not null and sent_at is null and dropped_at is null and kind != 'rejected' order by issue, id").all().map(toComment);
+  }
+
+  dropCommentsOnClosedPosts(now: Date): number {
+    const matches = (post: string): string => `(c.post_chat = ${post}.chat and c.post_message_id = ${post}.message_id) or (c.post_chat = ${post}.discussion_chat and c.post_message_id = ${post}.discussion_id)`;
+    const onOpenProposal = `exists (select 1 from proposals p where p.issue = c.issue and p.posted_at is not null and p.closed_at is null and (${matches('p')}))`;
+    const onOpenBuildPost = `exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and (${matches('b')}))`;
+    const sql = `update comments as c set dropped_at = ? where c.sent_at is null and c.dropped_at is null and c.post_chat is not null and not ${onOpenProposal} and not ${onOpenBuildPost}`;
+    return Number(this.db.prepare(sql).run(now.toISOString()).changes);
   }
 
   markSent(ids: number[], now: Date): void {
@@ -230,8 +260,8 @@ export class PublicStore {
 
 type Row = Record<string, unknown>;
 
-function countPositive(counts: Record<string, number>, positive: string[]): number {
-  return positive.reduce((sum, emoji) => sum + (counts[emoji] ?? 0), 0);
+function countOf(counts: Record<string, number>, wanted: string[]): number {
+  return wanted.reduce((sum, emoji) => sum + (counts[emoji] ?? 0), 0);
 }
 
 function toProposal(row: Row): Proposal {

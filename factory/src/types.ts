@@ -12,6 +12,7 @@ export type FactoryConfig = {
   repo: string;
   projectOwner: string;
   projectNumber: number;
+  githubAppId: string;
   githubRetries: number;
   githubRetryBaseSeconds: number;
   githubTimeoutSeconds: number;
@@ -57,6 +58,7 @@ export type FactoryConfig = {
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
+  testStallMinutes: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
@@ -106,7 +108,7 @@ export type RunResult = { code: number; stdout: string; stderr: string };
 export type Run = (cmd: string, args: string[], opts?: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
-export type IssueComment = { login: string; body: string; createdAt: string };
+export type IssueComment = { login: string; body: string; createdAt: string; byFactory: boolean };
 
 export type Issue = {
   number: number;
@@ -248,14 +250,18 @@ export interface Telegram {
   sendDocument(chat: string, path: string, replyTo?: number): Promise<number>;
   editCaption(chat: string, messageId: number, caption: string): Promise<void>;
   editText(chat: string, messageId: number, text: string): Promise<void>;
+  sendHtml(chat: string, html: string): Promise<number>;
+  editHtml(chat: string, messageId: number, html: string): Promise<void>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
 export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string };
 
+export type Pin = { cpus: string | null; testWorkers: number | null };
+
 export interface Container {
   agent(run: AgentRun): Promise<string>;
-  shell(clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number): Promise<void>;
+  shell(clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number, pin?: Pin): Promise<void>;
 }
 
 export type MergeStep = { branch: string; into: string; message: string };
