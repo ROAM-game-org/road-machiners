@@ -179,9 +179,16 @@ export class PublicStore {
   }
 
   private applyComment(event: CommentEvent): void {
-    const issue = this.threadIssue(event.chat, event.threadId);
-    if (issue === null) return;
-    this.addComment({ issue, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: event.threadId, author: event.author, text: event.text, at: event.at });
+    const thread = this.threadOf(event.chat, event.threadId);
+    if (thread === null) return;
+    this.addComment({ issue: thread.issue, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread.post, author: event.author, text: event.text, at: event.at });
+  }
+
+  private threadOf(chat: string, threadId: number): { issue: number; post: number } | null {
+    const issue = this.threadIssue(chat, threadId);
+    if (issue !== null) return { issue, post: threadId };
+    const parent = this.db.prepare('select issue, post_message_id from comments where source_id = ?').get(`${chat}:${threadId}`);
+    return parent === undefined ? null : { issue: Number(parent.issue), post: Number(parent.post_message_id) };
   }
 
   private threadIssue(chat: string, threadId: number): number | null {

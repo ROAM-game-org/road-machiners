@@ -3,7 +3,7 @@
 **Status:** validating
 **Branch:** telegram-voting
 **Worktree:** .worktrees/telegram-voting
-**Goal:** Bugs and justified improvements reach Design with no votes. A real feature is posted to the public channel as a proposal, at most 4 a day, and reaches Design when its thumbs-up count reaches `FACTORY_MIN_VOTES`. Its build is posted as a reply to the proposal, and player comments and in-game reports reach the issue and route bugs to patch or redesign. Confirming it needs the user to add the bot to the discussion group, add `OPENAI_API_KEY`, merge into `main` and watch one real proposal go through. Tonight's proof is fixture tests, a replay of recorded updates through the plugin and the tick, and sample posts in the committee chat.
+**Goal:** Bugs and justified improvements reach Design with no votes. A real feature is posted to the player chat, the channel's discussion group, as a proposal, at most 4 a day, and reaches Design when its thumbs-up count reaches `FACTORY_MIN_VOTES`. Its build is posted as a reply to the proposal, and player comments and in-game reports reach the issue and route bugs to patch or redesign. Confirming it needs the user to add the bot to the discussion group, add `OPENAI_API_KEY`, merge into `main` and watch one real proposal go through. Tonight's proof is fixture tests, a replay of recorded updates through the plugin and the tick, and sample posts in the committee chat.
 **Mode:** hands-off
 
 ## Context

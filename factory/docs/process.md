@@ -11,7 +11,7 @@ The diagrams are Graphviz files in [diagrams/](diagrams/). Agents read the `.dot
 
 ## Overview
 
-The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the public channel as a proposal, and players vote on it with reactions. Agents design, build and test the work. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
+The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the player chat as a proposal, and players vote on it with reactions. Agents design, build and test the work. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
 
 ![Overview](diagrams/overview.svg)
 
@@ -100,7 +100,7 @@ A reference that arrives while the card is in Design waits. The running design a
 
 ## Public inputs
 
-Players vote, comment and report in the public channel and in the game. Their text never reaches the Hermes agent and never counts as a committee order.
+Players vote, comment and report in the player chat and in the game. The player chat is the public channel's discussion group, set as `FACTORY_PROPOSAL_CHAT`. The channel itself carries only release posts. A comment counts when it replies to a proposal, to its build post, or to another counted comment. Their text never reaches the Hermes agent and never counts as a committee order.
 
 ![Public inputs](diagrams/public.svg)
 

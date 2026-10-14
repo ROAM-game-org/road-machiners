@@ -49,6 +49,16 @@ describe('public store', () => {
     expect(store.unclassifiedComments().map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
   });
 
+  it('maps a reply to a player comment to the issue and post of that comment', () => {
+    const store = postedStore();
+    store.addBuildPost(7, 'abc', CHANNEL, 200, now);
+    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', text: 'It crashes', at: now.toISOString() });
+    store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 202, threadId: 201, author: 'Bob', text: 'Same here on the bridge', at: now.toISOString() });
+    store.applyEvent({ updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 203, threadId: 202, author: 'Cid', text: 'Me too', at: now.toISOString() });
+    for (const comment of store.unclassifiedComments()) store.classify(comment.id, 'bug', 'patch', now);
+    expect(store.pendingRoutes().map((c) => [c.issue, c.text])).toEqual([[7, 'It crashes'], [7, 'Same here on the bridge'], [7, 'Me too']]);
+  });
+
   it('routes only comments on the open build post', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
