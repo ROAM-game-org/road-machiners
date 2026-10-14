@@ -43,10 +43,11 @@ import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
 import { outpostFort } from '../highway';
 import { runnerOrders } from './runner';
-import { BIGGEST_PART_CELLS, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
+import { searcherGoal } from './searcher';
+import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'escort' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'escort', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
 type RoadPolicy = 'escort' | 'sprinter';
@@ -62,6 +63,7 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   hunter: { skip: [], chassis: 'keep', job: 'fighter' },
   fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
   hauler: CARGO_GEAR,
+  searcher: CARGO_GEAR,
   robber: CARGO_GEAR,
   convoyRobber: CARGO_GEAR,
 };
@@ -472,7 +474,7 @@ function repairAtGarage(o: Orders): void {
   for (const part of garageFixes(o)) if (affordsRepair(o, part)) o.run((w) => repairPart(w, part.id), 'repairs');
 }
 
-const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
+const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
 
 function traderGoal(o: Orders): void {
   const held = heldHaul(o.world);
@@ -1142,11 +1144,6 @@ function nearestUndiscovered<T extends Site>(world: World, sites: readonly T[]):
   return byDistance(world, sites.filter((s) => !world.player.discovered.includes(s.id)))[0] ?? null;
 }
 
-function driveToSite(o: Orders, site: Site): void {
-  if (canUseSite(o.me.pos, site)) return;
-  driveTo(o, nearestPad(site, o.me.pos));
-}
-
 function besideStop(world: World, center: Vec, radius: number): Vec {
   const me = playerVehicle(world);
   const out = radius + vehicleStats(world, me).radius + RULES.arriveRadius;
@@ -1154,8 +1151,3 @@ function besideStop(world: World, center: Vec, radius: number): Vec {
   return { x: center.x + Math.cos(angle) * out, y: center.y + Math.sin(angle) * out };
 }
 
-function driveTo(o: Orders, dest: Vec): void {
-  const order = o.me.order;
-  if (order?.kind === 'stopAt' && order.dest.x === dest.x && order.dest.y === dest.y) return;
-  o.run((w) => setMoveOrder(w, { kind: 'stopAt', dest }));
-}
