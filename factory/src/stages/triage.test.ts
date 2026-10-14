@@ -275,6 +275,39 @@ describe('triage vote', () => {
     store.close();
   });
 
+  it('adds the voting label before it writes the proposal row, and comments after both', async () => {
+    const ctx = fakeCtx(vote());
+    const seen: string[] = [];
+    const add = ctx.github.addLabel;
+    ctx.github.addLabel = async (number: number, label: string) => {
+      const store = openStore(home);
+      seen.push(`${label} row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return add(number, label);
+    };
+    const comment = ctx.github.comment;
+    ctx.github.comment = async (number: number, body: string) => {
+      const store = openStore(home);
+      seen.push(`comment row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return comment(number, body);
+    };
+    await runStage(ctx, 7);
+    expect(seen).toContain('voting row absent');
+    expect(seen.at(-1)).toBe('comment row present');
+    expect(calls.filter((call) => call.startsWith('comment 7'))).toHaveLength(1);
+  });
+
+  it('writes no row and no comment when adding the voting label fails, so a rerun starts clean', async () => {
+    const ctx = fakeCtx(vote());
+    ctx.github.addLabel = async () => { throw new Error('GitHub down'); };
+    await expect(runStage(ctx, 7)).rejects.toThrow('GitHub down');
+    const store = openStore(home);
+    expect(store.proposal(7)).toBeNull();
+    store.close();
+    expect(calls.filter((call) => call.startsWith('comment'))).toEqual([]);
+  });
+
   it('adds the bundle like ready', async () => {
     cards = [card(7, 'Triage'), card(9, 'Triage')];
     await runStage(fakeCtx(vote({ bundle: [9] })), 7);

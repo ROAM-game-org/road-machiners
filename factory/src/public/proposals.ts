@@ -1,6 +1,7 @@
 import { bundleOf } from '../stages/bundle';
 import { readState } from '../state';
 import { VOTING_LABEL, type Ctx } from '../types';
+import { isolated } from './isolate';
 import type { PublicStore } from './store';
 
 const DAY_MS = 24 * 3_600_000;
@@ -32,21 +33,24 @@ export function longestProposalText(ctx: Ctx, issues: number[], pitch: string): 
 
 export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> {
   const now = ctx.now();
-  if (store.proposalsPostedSince(new Date(now.getTime() - DAY_MS)) >= ctx.cfg.proposalsPerDay) return;
+  if (store.proposalPostAttemptsSince(new Date(now.getTime() - DAY_MS)) >= ctx.cfg.proposalsPerDay) return;
   for (const proposal of store.unpostedProposals()) {
-    const item = await ctx.github.issue(proposal.issue);
-    if (item.state === 'CLOSED') {
-      ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
-      store.closeProposal(proposal.issue, now);
-      continue;
-    }
-    if (!item.labels.includes(VOTING_LABEL)) {
-      ctx.log('public', proposal.issue, 'the issue lost its voting label, so its proposal is closed unposted');
-      store.closeProposal(proposal.issue, now);
-      continue;
-    }
-    const messageId = await ctx.telegram.sendMessage(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch, voteCount(ctx, 0)));
-    store.markProposalPosted(proposal.issue, ctx.cfg.proposalChat, messageId, now);
-    return;
+    store.beginProposalPost(proposal.issue, now);
+    let skipped = false;
+    await isolated(ctx, proposal.issue, 'the proposal could not be posted and is closed without a post, so post it by hand or put the card to a vote again', async () => {
+      const item = await ctx.github.issue(proposal.issue);
+      if (item.state === 'CLOSED') {
+        ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
+        skipped = true;
+      } else if (!item.labels.includes(VOTING_LABEL)) {
+        ctx.log('public', proposal.issue, 'the issue lost its voting label, so its proposal is closed unposted');
+        skipped = true;
+      } else {
+        const messageId = await ctx.telegram.sendMessage(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch, voteCount(ctx, 0)));
+        store.markProposalPosted(proposal.issue, ctx.cfg.proposalChat, messageId, now);
+      }
+    });
+    if (!skipped) return;
+    store.closeProposal(proposal.issue, now);
   }
 }

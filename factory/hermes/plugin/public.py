@@ -8,6 +8,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 PUBLIC_GROUP = -1
+PUBLIC_ALERT = "public-alert"
 UPDATE_KINDS = ("message", "message_reaction", "message_reaction_count")
 
 
@@ -127,6 +128,19 @@ def write_public_event(public_inbox: str, event: dict) -> Path:
     return final
 
 
+def alert_path(cfg) -> Path:
+    return Path(cfg.public_inbox).parent / PUBLIC_ALERT
+
+
+def raise_public_alert(cfg, now: datetime) -> None:
+    line = f"public updates: the plugin could not write a player vote or comment to the inbox on {now.date().isoformat()}"
+    path = alert_path(cfg)
+    if path.is_file() and line in path.read_text().split("\n"):
+        return
+    with path.open("a") as alerts:
+        alerts.write(f"{line}\n")
+
+
 def handle_public_update(raw: dict, cfg) -> bool:
     stop = stops_hermes(raw, cfg)
     try:
@@ -135,6 +149,10 @@ def handle_public_update(raw: dict, cfg) -> bool:
             write_public_event(cfg.public_inbox, event)
     except Exception:
         log.exception("Factory could not hand public update %s to the inbox.", raw.get("update_id"))
+        try:
+            raise_public_alert(cfg, datetime.now(timezone.utc))
+        except Exception:
+            log.exception("Factory could not record the public inbox failure for the incident watch.")
     return stop
 
 

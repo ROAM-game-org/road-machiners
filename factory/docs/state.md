@@ -103,6 +103,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - Review pending: `$FACTORY_HOME/review-pending` names the issue of a finished waste review. Hermes's incident watch prints it, and Hermes deletes it once handled.
 - Review publishing: `$FACTORY_HOME/waste-review-publish.json` holds a created review issue with its period, bottleneck and proposal until the job has closed it, recorded it and written `review-pending`. Only the waste job writes it. A retry of the same period finishes it, and a later period deletes it.
 - Error service alert: `$FACTORY_HOME/error-reports/alert` holds one line per cap the error service hit that day: the daily issue cap, the disk cap or the per-address limit. Hermes's incident watch prints it, and Hermes deletes it once handled.
+- Public inbox alert: `$FACTORY_HOME/public-alert` holds one line per day on which the Hermes plugin could not write a player vote or comment to `$FACTORY_HOME/public-inbox`. That update is lost and still never reaches the Hermes agent. Hermes's incident watch prints the file, and Hermes deletes it once handled.
 - Pause: the pause file holds the reason and stops new work. A paused tick only checks the running jobs: it reaps a dead or timed-out job and resumes it once as usual. A second death or timeout fails it. It starts no job, applies no order, runs no cleanup and takes no intake. `pause <reason>` writes it and `resume` removes it when `pause` wrote it.
 
 ## Consistency rules

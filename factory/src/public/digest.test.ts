@@ -99,4 +99,15 @@ describe('sendDigests', () => {
     await sendDigests(f.ctx, f.store);
     expect(f.comments).toEqual([]);
   });
+
+  it('keeps mentions, team mentions and cross-repo references in a comment and an author from reaching GitHub live', async () => {
+    const f = publicFake();
+    comment(f, 7, 'a', '@torvalds', 'cc @octocat @github/security see torvalds/linux#1 and https://github.com/torvalds/linux/issues/2');
+    await sendDigests(f.ctx, f.store);
+    const body = f.comments[0]!.body;
+    expect(body).not.toMatch(/@\w/);
+    expect(body).not.toMatch(/(?<!\u200D)#\d/);
+    expect(body).not.toMatch(/github\.com/i);
+    expect(body.replaceAll('‍', '')).toContain('From @torvalds, bug:\n> cc @octocat @github/security see torvalds/linux#1 and https://github.com/torvalds/linux/issues/2');
+  });
 });

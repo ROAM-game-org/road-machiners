@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -201,6 +202,31 @@ def test_write_failure_is_logged_and_discussion_still_stops(tmp_path, caplog):
     blocked.write_text("a file, not a folder")
     assert public.handle_public_update(comment_update(), cfg_for(tmp_path)) is True
     assert "could not hand public update 504" in caplog.text
+
+
+def test_write_failure_raises_one_alert_line_per_day(tmp_path, caplog):
+    (tmp_path / "public-inbox").write_text("a file, not a folder")
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(comment_update(), cfg) is True
+    assert public.handle_public_update(comment_update(), cfg) is True
+    lines = (tmp_path / "public-alert").read_text().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("public updates: the plugin could not write a player vote or comment to the inbox on 20")
+    next_day = datetime.now(timezone.utc) + timedelta(days=1)
+    public.raise_public_alert(cfg, next_day)
+    assert len((tmp_path / "public-alert").read_text().splitlines()) == 2
+
+
+def test_a_good_write_raises_no_alert(tmp_path):
+    assert public.handle_public_update(comment_update(), cfg_for(tmp_path)) is True
+    assert not (tmp_path / "public-alert").exists()
+
+
+def test_alert_failure_is_logged_and_the_update_still_stops(tmp_path, caplog):
+    (tmp_path / "public-inbox").write_text("x")
+    (tmp_path / "public-alert").mkdir()
+    assert public.handle_public_update(comment_update(), cfg_for(tmp_path)) is True
+    assert "could not record the public inbox failure" in caplog.text
 
 
 def test_write_failure_in_committee_chat_still_goes_on(tmp_path, caplog):

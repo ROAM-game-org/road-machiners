@@ -105,8 +105,8 @@ describe('public store', () => {
 
   it('counts posted proposals in a window', () => {
     const store = postedStore();
-    expect(store.proposalsPostedSince(new Date(now.getTime() - 1000))).toBe(1);
-    expect(store.proposalsPostedSince(new Date(now.getTime() + 1000))).toBe(0);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() + 1000))).toBe(0);
     expect(store.unpostedProposals()).toEqual([]);
   });
 

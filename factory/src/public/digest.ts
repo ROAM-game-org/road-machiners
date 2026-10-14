@@ -1,5 +1,6 @@
 import { PLAYER_COMMENTS_HEADING, type Ctx } from '../types';
 import { COMMENT_TEXT_LIMIT, fitComment } from '../stages/common';
+import { defang } from './defang';
 import { isolated } from './isolate';
 import type { PublicStore, StoredComment } from './store';
 
@@ -7,10 +8,12 @@ const MINUTE_MS = 60_000;
 
 export const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
-export const quote = (text: string): string => text.split(/\r\n|\r|\n/).map((line) => `> ${line}`).join('\n');
+export const quote = (text: string): string => defang(text).split(/\r\n|\r|\n/).map((line) => `> ${line}`).join('\n');
+
+export const playerName = (name: string): string => defang(oneLine(name));
 
 function digestLine(comment: StoredComment): string {
-  return `From ${oneLine(comment.author)}, ${comment.kind}:\n${quote(comment.text)}`;
+  return `From ${playerName(comment.author)}, ${comment.kind}:\n${quote(comment.text)}`;
 }
 
 function groupByIssue(comments: StoredComment[]): Map<number, StoredComment[]> {

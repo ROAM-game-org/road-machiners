@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import type { Classify, Decision, FilterInput } from '../public/decision';
+import { defang } from '../public/defang';
 import { quote } from '../public/digest';
 import type { PublicStore } from '../public/store';
 import { readState } from '../state';
@@ -140,4 +141,4 @@ function issueBody(request: FeedbackRequest, decision: Decision): string {
   ].join('\n\n');
 }
 
-const issueTitle = (title: string): string => plain(title, TITLE_CHARS);
+const issueTitle = (title: string): string => defang(plain(title, TITLE_CHARS));

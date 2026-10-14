@@ -173,6 +173,8 @@ The service also keeps one file per kept player report from the game form, under
 
 A daily cap, the disk cap or an address past its limit writes a line to `$FACTORY_HOME/error-reports/alert`. Hermes's incident watch prints it, and Hermes deletes the file once handled.
 
+A Hermes plugin that cannot write a player vote or comment to `$FACTORY_HOME/public-inbox` writes one line per day to `$FACTORY_HOME/public-alert`. The plugin still stops that update, so player text never reaches the Hermes agent, and the update itself is lost. Hermes's incident watch prints the file, and Hermes finds why the inbox write failed, usually a full disk or a wrong mode, then deletes the file.
+
 ## Deploying the factory
 
 The server runs the factory from GitHub's `main`, and only from there. To change factory code or `settings.env`, merge it into `main`. Every 2 minutes, `factory-update` checks `main`. When `main` moved, it builds the new commit in its own release folder, with no pause, and records the commit in `$FACTORY_HOME/deployed`. It refuses a code dir with local edits. [infra/README.md](../infra/README.md) has the details.

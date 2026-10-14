@@ -47,16 +47,16 @@ async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseSta
 }
 
 async function vote(ctx: Ctx, issue: number, result: Vote): Promise<void> {
+  const note = await routeModels(ctx, issue, result.routing);
+  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
+  const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
+  await ctx.github.addLabel(issue, VOTING_LABEL);
   const store = openStore(ctx.cfg.home);
   try {
     store.addProposal(issue, `${result.pitch.title}\n\n${result.pitch.text}`, ctx.now());
   } finally {
     store.close();
   }
-  const note = await routeModels(ctx, issue, result.routing);
-  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
-  const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
-  await ctx.github.addLabel(issue, VOTING_LABEL);
   await ctx.github.comment(issue, `Triage put this to a player vote: ${result.reason}${carries}\n\n${note}`);
 }
 

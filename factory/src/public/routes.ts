@@ -3,7 +3,7 @@ import { markPost } from '../post-status';
 import { routeFeedback } from '../stages/approval';
 import { readState } from '../state';
 import { PLAYER_REPORT_HEADING, PUBLIC_SENDER, type Ctx } from '../types';
-import { oneLine, quote } from './digest';
+import { playerName, quote } from './digest';
 import type { PublicStore, StoredComment } from './store';
 
 function committeePost(ctx: Ctx, issue: number): number | null {
@@ -18,7 +18,7 @@ function routeOf(comment: StoredComment): 'patch' | 'redesign' {
 
 async function sendBack(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {
   const route = routeOf(comment);
-  const text = `${oneLine(comment.author)} wrote:\n${quote(comment.text)}`;
+  const text = `${playerName(comment.author)} wrote:\n${quote(comment.text)}`;
   await routeFeedback(ctx, comment.issue, PUBLIC_SENDER, text, route, post, PLAYER_REPORT_HEADING);
   store.closeBuildPosts(comment.issue);
   store.markRouted(comment.id, ctx.now());

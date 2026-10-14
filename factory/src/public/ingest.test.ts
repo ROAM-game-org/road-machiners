@@ -34,12 +34,20 @@ describe('ingest', () => {
     expect(f.store.votes(7, ['👍'])).toBe(1);
   });
 
-  it('fails loud on a file name that is not an update id plus .json', async () => {
+  it('moves a file whose name is not an update id plus .json to bad, reports it once and still applies the other votes', async () => {
     const { f, inbox, put } = setup();
     put('latest.json', count(1, { '👍': 1 }));
-    await expect(ingest(f.ctx, f.store)).rejects.toThrow('latest.json');
-    expect(existsSync(`${inbox}/latest.json`)).toBe(true);
-    expect(f.store.votes(7, ['👍'])).toBe(0);
+    put('10.json', count(10, { '👍': 3 }));
+    await ingest(f.ctx, f.store);
+    expect(existsSync(`${inbox}/bad/latest.json`)).toBe(true);
+    expect(existsSync(`${inbox}/latest.json`)).toBe(false);
+    expect(f.store.votes(7, ['👍'])).toBe(3);
+    expect(readdirSync(inbox)).toEqual(['bad']);
+    const failures = readState(f.ctx.statePath).failures;
+    expect(failures).toHaveLength(1);
+    expect(failures[0]!.error).toContain('latest.json');
+    await ingest(f.ctx, f.store);
+    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
   });
 
   it('changes nothing for a seen update id, and still deletes the file', async () => {

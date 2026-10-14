@@ -196,4 +196,13 @@ describe('feedback route', () => {
     expect(preflight.status).toBe(204);
     expect(preflight.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
   });
+
+  it('keeps mentions, team mentions and cross-repo references of a report from reaching GitHub live in the title and the body', async () => {
+    const { url, created } = await start({ maxChars: 400 });
+    await send(url, request({ text: 'cc @octocat @github/security see torvalds/linux#1' }));
+    expect(created[0]).not.toMatch(/@\w/);
+    expect(created[0]).not.toMatch(/(?<!\u200D)#\d/);
+    expect(created[0]!.replaceAll('‍', '')).toMatch(/^cc @octocat @github\/security see torvalds\/linux#1 \[bug,player-report\]\n/);
+    expect(created[0]!.replaceAll('‍', '')).toContain('> cc @octocat @github/security see torvalds/linux#1');
+  });
 });

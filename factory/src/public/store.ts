@@ -40,6 +40,7 @@ export class PublicStore {
     db.exec(SCHEMA);
     const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
     if (!columns.includes('shown_votes')) db.exec('alter table proposals add column shown_votes integer');
+    if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
   }
 
   close(): void {
@@ -70,12 +71,16 @@ export class PublicStore {
     return this.db.prepare('select * from proposals where posted_at is null and closed_at is null order by created_at, issue').all().map(toProposal);
   }
 
-  proposalsPostedSince(since: Date): number {
-    return Number(this.db.prepare('select count(*) as n from proposals where posted_at >= ?').get(since.toISOString())?.n);
+  proposalPostAttemptsSince(since: Date): number {
+    return Number(this.db.prepare('select count(*) as n from proposals where coalesce(posted_at, attempted_at) >= ?').get(since.toISOString())?.n);
+  }
+
+  beginProposalPost(issue: number, now: Date): void {
+    this.db.prepare('update proposals set closed_at = ?, attempted_at = ? where issue = ?').run(now.toISOString(), now.toISOString(), issue);
   }
 
   markProposalPosted(issue: number, chat: string, messageId: number, now: Date): void {
-    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ?, shown_votes = 0 where issue = ?').run(chat, messageId, now.toISOString(), issue);
+    this.db.prepare('update proposals set chat = ?, message_id = ?, posted_at = ?, closed_at = null, shown_votes = 0 where issue = ?').run(chat, messageId, now.toISOString(), issue);
   }
 
   openProposals(): Proposal[] {
@@ -107,7 +112,7 @@ export class PublicStore {
   }
 
   closeProposal(issue: number, now: Date): void {
-    this.db.prepare('update proposals set closed_at = ? where issue = ?').run(now.toISOString(), issue);
+    this.db.prepare('update proposals set closed_at = ?, attempted_at = null where issue = ?').run(now.toISOString(), issue);
   }
 
   addBuildPost(issue: number, build: string, chat: string, messageId: number, now: Date): void {
