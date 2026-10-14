@@ -24,7 +24,10 @@ function ctxOf(decode: (data: ArrayBuffer) => Promise<AudioBuffer>) {
   return { ...silent, decodeAudioData: decode } as unknown as BaseAudioContext;
 }
 const ctx = ctxOf(async () => ({}) as AudioBuffer);
-const rejecting = ctxOf(async () => { throw new Error('bad'); });
+const rejecting = ctxOf(async (data) => {
+  structuredClone(data, { transfer: [data] });
+  throw new Error('bad');
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -107,14 +110,94 @@ describe('loadBank', () => {
     await loadBank(counting, many);
     expect(peak).toBe(BANK.decodeAtOnce);
   });
+
+  it('retries failed files one at a time after every first try has settled', async () => {
+    const many = { m: { files: Array.from({ length: 8 }, (_, i) => `f${i}.ogg`) } } as unknown as Record<string, Cue>;
+    vi.stubGlobal('fetch', async (url: string) => ({ ...ok, arrayBuffer: async () => new TextEncoder().encode(url).buffer }));
+    const tries = new Map<string, number>();
+    const log: string[] = [];
+    let retrying = 0;
+    let retryPeak = 0;
+    const flaky = ctxOf(async (data) => {
+      const file = new TextDecoder().decode(data).split('/').pop()!;
+      const attempt = (tries.get(file) ?? 0) + 1;
+      tries.set(file, attempt);
+      if (attempt > 1) retryPeak = Math.max(retryPeak, ++retrying);
+      log.push(`start ${file} ${attempt}`);
+      await new Promise((r) => setTimeout(r, file === 'f7.ogg' ? 5 : 1));
+      log.push(`end ${file} ${attempt}`);
+      if (attempt > 1) retrying--;
+      if (attempt === 1 && (file === 'f0.ogg' || file === 'f1.ogg')) throw new Error('busy');
+      return { id: file } as unknown as AudioBuffer;
+    });
+    const { bank, failures } = await loadBank(flaky, many);
+    const lastFirstTry = Math.max(...log.flatMap((e, i) => (e.endsWith(' 1') && e.startsWith('end') ? [i] : [])));
+    expect(log.indexOf('start f0.ogg 2')).toBeGreaterThan(lastFirstTry);
+    expect(log.indexOf('start f1.ogg 2')).toBeGreaterThan(log.indexOf('end f0.ogg 2'));
+    expect(retryPeak).toBe(1);
+    expect(failures).toEqual([]);
+    expect(bank.get('f0.ogg')).toEqual({ id: 'f0.ogg' });
+  });
+
+  it('counts a file that recovers on retry once in progress', async () => {
+    vi.stubGlobal('fetch', async () => ok);
+    let calls = 0;
+    const flaky = ctxOf(async () => {
+      if (++calls === 1) throw new Error('once');
+      return {} as AudioBuffer;
+    });
+    const progress: [number, number][] = [];
+    await loadBank(flaky, SOUNDS, (done, total) => progress.push([done, total]));
+    expect(progress).toEqual([[0, 2], [1, 2], [2, 2]]);
+  });
+
+  it('gives a missing file the kind http', async () => {
+    vi.stubGlobal('fetch', async () => ({ ...ok, ok: false, status: 404 }));
+    const { failures } = await loadBank(ctx, { a: SOUNDS.a });
+    expect(failures.map((f) => f.kind)).toEqual(['http']);
+  });
+
+  it('gives a fetch that throws the kind http', async () => {
+    vi.stubGlobal('fetch', async () => { throw new TypeError('NetworkError'); });
+    const { failures } = await loadBank(ctx, { a: SOUNDS.a });
+    expect(failures.map((f) => f.kind)).toEqual(['http']);
+  });
+
+  it.each([
+    ['not-ogg', () => new ArrayBuffer(1)],
+    ['decoder', () => realOgg().buffer],
+    ['truncated', () => realOgg().slice(0, 200).buffer],
+  ])('gives refused bytes the kind %s from their shape', async (kind, bytes) => {
+    vi.stubGlobal('fetch', async () => ({ ...ok, arrayBuffer: async () => bytes() }));
+    const { failures } = await loadBank(rejecting, { a: SOUNDS.a });
+    expect(failures.map((f) => f.kind)).toEqual([kind]);
+  });
+
+  it('takes the kind from the last try', async () => {
+    let fetches = 0;
+    vi.stubGlobal('fetch', async () => (++fetches === 1 ? { ...ok, ok: false, status: 503 } : { ...ok, arrayBuffer: async () => realOgg().buffer }));
+    const { failures } = await loadBank(rejecting, { a: SOUNDS.a });
+    expect(failures.map((f) => f.kind)).toEqual(['decoder']);
+  });
 });
 
 describe('SoundDecodeFailure', () => {
+  const error = Object.assign(new Error('x'), { name: 'EncodingError' });
+
+  it('counts failures by kind in a fixed order', () => {
+    const failures = [
+      { file: 'a.ogg', kind: 'decoder' as const, error },
+      { file: 'b.ogg', kind: 'decoder' as const, error },
+      { file: 'c.ogg', kind: 'http' as const, error },
+    ];
+    expect(new SoundDecodeFailure(failures, 104, 'maybe').message)
+      .toBe('Sounds failed to decode: 3 of 104 (http 1, decoder 2), Ogg Opus support "maybe": EncodingError');
+  });
+
   it('names no files and reads the same for equal counts', () => {
-    const error = Object.assign(new Error('x'), { name: 'EncodingError' });
-    const one = new SoundDecodeFailure([{ file: 'a.ogg', error }], 104, 'maybe');
-    const two = new SoundDecodeFailure([{ file: 'zzz.ogg', error }], 104, 'maybe');
-    expect(one.message).toBe('Sounds failed to decode: 1 of 104, Ogg Opus support "maybe": EncodingError');
+    const one = new SoundDecodeFailure([{ file: 'a.ogg', kind: 'decoder', error }], 104, 'maybe');
+    const two = new SoundDecodeFailure([{ file: 'zzz.ogg', kind: 'decoder', error }], 104, 'maybe');
+    expect(one.message).toBe('Sounds failed to decode: 1 of 104 (decoder 1), Ogg Opus support "maybe": EncodingError');
     expect(one.message).toBe(two.message);
     expect(one.files).toEqual(['a.ogg']);
   });

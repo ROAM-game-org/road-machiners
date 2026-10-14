@@ -1,8 +1,11 @@
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
-export type DecodeFailure = { file: string; error: unknown };
+export const FAILURE_KINDS = ["http", "not-ogg", "truncated", "decoder"] as const;
+export type FailureKind = (typeof FAILURE_KINDS)[number];
+export type DecodeFailure = { file: string; kind: FailureKind; error: unknown };
 export type LoadedBank = { bank: Bank; failures: DecodeFailure[] };
+type Attempt = { buffer: AudioBuffer } | DecodeFailure;
 
 export type OggShape = "ok" | "not-ogg" | "truncated";
 type OggPage = { bodyStart: number; end: number; lastPage: boolean };
@@ -20,10 +23,17 @@ export class SoundDecodeFailure extends Error {
   constructor(failures: DecodeFailure[], total: number, opusSupport: string) {
     const first = failures[0]?.error;
     const name = first instanceof Error ? first.name : "unknown";
-    super(`Sounds failed to decode: ${failures.length} of ${total}, Ogg Opus support "${opusSupport}": ${name}`);
+    super(`Sounds failed to decode: ${failures.length} of ${total} (${kindCounts(failures)}), Ogg Opus support "${opusSupport}": ${name}`);
     this.name = "SoundDecodeFailure";
     this.files = failures.map((f) => f.file);
   }
+}
+
+function kindCounts(failures: DecodeFailure[]): string {
+  return FAILURE_KINDS.map((kind) => [kind, failures.filter((f) => f.kind === kind).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([kind, count]) => `${kind} ${count}`)
+    .join(", ");
 }
 
 export async function loadBank(
@@ -33,40 +43,56 @@ export async function loadBank(
 ): Promise<LoadedBank> {
   const files = Object.values(sounds).flatMap((c) => c.files);
   const decoded = new Map<string, AudioBuffer>();
-  const failures: DecodeFailure[] = [];
+  const failed = new Map<string, DecodeFailure>();
   let done = 0;
-  let next = 0;
+  const settle = (file: string, result: Attempt) => {
+    if ("buffer" in result) decoded.set(file, result.buffer);
+    else failed.set(file, result);
+    progress?.(++done, files.length);
+  };
   progress?.(0, files.length);
+  await firstPass(files, (file, result) => ("buffer" in result ? settle(file, result) : failed.set(file, result)), ctx);
+  for (const file of files.filter((f) => failed.has(f))) settle(file, await retry(ctx, file, failed.get(file)!));
+  const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
+  return { bank, failures: files.flatMap((f) => (decoded.has(f) ? [] : [failed.get(f)!])) };
+}
+
+async function firstPass(files: string[], onResult: (file: string, result: Attempt) => void, ctx: BaseAudioContext): Promise<void> {
+  let next = 0;
   async function worker(): Promise<void> {
     while (next < files.length) {
       const file = files[next++];
-      const result = await decodeWithRetry(ctx, file);
-      if (result.buffer) decoded.set(file, result.buffer);
-      else failures.push({ file, error: result.error });
-      progress?.(++done, files.length);
+      onResult(file, await attempt(ctx, file));
     }
   }
   await Promise.all(Array.from({ length: Math.min(BANK.decodeAtOnce, files.length) }, worker));
-  const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
-  return { bank, failures: files.flatMap((f) => failures.filter((x) => x.file === f)) };
 }
 
-async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ buffer?: AudioBuffer; error?: unknown }> {
-  let error: unknown;
-  for (let attempt = 0; attempt < BANK.tries; attempt++) {
-    try {
-      return { buffer: await decodeFile(ctx, file) };
-    } catch (e) {
-      error = e;
-    }
+async function retry(ctx: BaseAudioContext, file: string, failure: DecodeFailure): Promise<Attempt> {
+  let result: Attempt = failure;
+  for (let tries = 1; tries < BANK.tries && !("buffer" in result); tries++) result = await attempt(ctx, file);
+  return result;
+}
+
+async function attempt(ctx: BaseAudioContext, file: string): Promise<Attempt> {
+  let bytes: ArrayBuffer;
+  try {
+    const res = await fetch(SFX_DIR + file);
+    if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
+    bytes = await res.arrayBuffer();
+  } catch (error) {
+    return { file, kind: "http", error };
   }
-  return { error };
+  return decode(ctx, file, bytes);
 }
 
-async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const res = await fetch(SFX_DIR + file);
-  if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
-  return ctx.decodeAudioData(await res.arrayBuffer());
+async function decode(ctx: BaseAudioContext, file: string, bytes: ArrayBuffer): Promise<Attempt> {
+  const shape = oggShape(new Uint8Array(bytes));
+  try {
+    return { buffer: await ctx.decodeAudioData(bytes) };
+  } catch (error) {
+    return { file, kind: shape === "ok" ? "decoder" : shape, error };
+  }
 }
 
 function standIn(ctx: BaseAudioContext, sounds: Record<string, Cue>, decoded: Map<string, AudioBuffer>, file: string): AudioBuffer {

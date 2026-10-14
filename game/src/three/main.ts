@@ -198,7 +198,7 @@ if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
 if (failures.length) {
-  for (const failure of failures) console.warn(`Sound ${failure.file} failed to decode`, failure.error);
+  for (const failure of failures) console.warn(`Sound ${failure.file} failed to decode (${failure.kind})`, failure.error);
   reportError(new SoundDecodeFailure(failures, bank.size, new Audio().canPlayType('audio/ogg; codecs=opus')));
 }
 onEveryError(() => game.holdSaves());
