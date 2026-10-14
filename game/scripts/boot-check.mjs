@@ -225,6 +225,36 @@ async function failedCode(browser, viewport) {
   await page.context().close();
 }
 
+async function droppedModel(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  let seen = 0;
+  await page.route('**/models/base_carrier.glb', (route) => (++seen <= 2 ? route.abort('internetdisconnected') : route.continue()));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  const crashed = await page.locator('.crash-screen').count();
+  expect(crashed === 0, `${viewport.name}: a short model drop shows no crash or load-failed screen`);
+  expect(seen > 2, `${viewport.name}: the dropped model was asked for again`);
+  await page.context().close();
+}
+
+async function lostModel(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  const posts = [];
+  page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
+  await page.route('**/models/base_carrier.glb', (route) => route.abort('internetdisconnected'));
+  await page.goto(playUrl(url));
+  await page.waitForSelector('.crash-screen', { timeout: BOOT_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-load-failed.png`);
+  const title = await page.textContent('.crash-title');
+  const focused = await page.evaluate(() => document.activeElement?.textContent);
+  const text = await page.evaluate(() => document.body.innerText);
+  expect(title === 'The game failed to load', `${viewport.name}: the load-failed title shows`);
+  expect(focused === 'Reload', `${viewport.name}: Reload has focus`);
+  expect(!text.includes('The game crashed'), `${viewport.name}: a lost model is not a crash`);
+  expect(posts.length === 0, `${viewport.name}: a lost model sends no report ${posts.join(', ')}`);
+  await page.context().close();
+}
+
 mkdirSync('.playtest', { recursive: true });
 async function inBrowser(run) {
   const browser = await chromium.launch({ args: launchArgs() });
@@ -246,6 +276,8 @@ for (const viewport of VIEWPORTS) {
   if (!only || only === 'startMenu') await inBrowser((browser) => startMenu(browser, viewport));
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
+  if (!only || only === 'droppedModel') await inBrowser((browser) => droppedModel(browser, viewport));
+  if (!only || only === 'lostModel') await inBrowser((browser) => lostModel(browser, viewport));
 }
 if (problems.length) {
   console.error(`FAIL\n${problems.join('\n')}`);

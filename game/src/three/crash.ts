@@ -172,7 +172,7 @@ function showLoadFailed(err: DownloadFailed): void {
   const line = document.createElement('div');
   setText(line, text.line);
   const reload = document.createElement('button');
-  reload.className = 'btn-l crash-reload';
+  reload.className = 'crash-reload';
   setText(reload, text.action);
   reload.addEventListener('click', () => location.reload());
   const detail = document.createElement('div');
