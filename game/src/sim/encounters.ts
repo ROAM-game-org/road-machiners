@@ -6,7 +6,7 @@ import { inCombat, isHostile } from './combat';
 import { playerVehicle } from './damage';
 import { isKnockedOut } from './defeat';
 import { talkOf } from './dialogue';
-import { aidValue, hasAid, isLow, playerAid, wantedAid } from './aid';
+import { aidValue, hasAid, playerAid, wantedAid } from './aid';
 import { recall } from './memory';
 import { judgeDanger, firepower, hasTrait, isManageable, yields } from './npc-decisions';
 import { react } from './npc-activities';
@@ -93,7 +93,7 @@ function challengeAvailable(world: World, npc: Vehicle): boolean {
 
 function courierAvailable(world: World, npc: Vehicle): boolean {
   if (logOf(world).story !== null || !hasTrait(npc, 'courier') || wrongedBy(npc, world.player.vehicleId)) return false;
-  return isLow(world, npc) && hasAid(wantedAid(world, npc)) && playerAid(world) === null;
+  return hasAid(wantedAid(world, npc, true)) && playerAid(world) === null;
 }
 
 const AVAILABLE: Record<EncounterId, (world: World, npc: Vehicle) => boolean> = {
@@ -148,7 +148,7 @@ function storyOf(world: World, npc: Vehicle): CourierStory {
 
 function startStory(world: World, npc: Vehicle): void {
   if (logOf(world).story !== null) throw new Error('A courier story is already running');
-  logOf(world).story = { driver: npc.id, beat: 'asked', turn: world.turn, aidValue: aidValue(wantedAid(world, npc)), free: false };
+  logOf(world).story = { driver: npc.id, beat: 'asked', turn: world.turn, aidValue: aidValue(wantedAid(world, npc, true)), free: false };
 }
 
 export function moveStory(world: World, npc: Vehicle, from: readonly CourierBeat[], to: CourierBeat, free?: boolean): void {

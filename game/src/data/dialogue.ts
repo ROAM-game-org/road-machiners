@@ -21,7 +21,7 @@ export type EffectId =
   | 'tellTale' | 'buyTip' | 'declineEncounter' | 'endEncounter' | 'backDown' | 'answerChallenge' | 'acceptChallenge'
   | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor';
 export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'surrenderHaul'
-  | 'taleNews' | 'tipTerms' | 'courierNews' | 'courierFavorTerms';
+  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms';
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
 export type DialogueNode = { line: LineId; options: DialogueOption[] };
@@ -834,7 +834,7 @@ export const TOPICS: Record<TopicId, Topic> = {
     once: true,
     ask: null,
     raise: { when: ['asksCourierAid'], priority: 2, duringFeud: false, duringCombat: false },
-    prepare: 'aidWanted',
+    prepare: 'courierNeed',
     hangUp: ['courierRefuse'],
     start: 'terms',
     nodes: {

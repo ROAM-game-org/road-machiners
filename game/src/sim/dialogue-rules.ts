@@ -565,6 +565,10 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   courierFavorTerms: (world, npc): CallVars => ({ price: { kind: 'money', amount: favorAmount(world, npc) } }),
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
+  courierNeed: (world, npc) => {
+    const wanted = wantedAid(world, npc, true);
+    return { aid: aidVar(wanted), price: { kind: 'money', amount: aidPrice(world, npc, wanted) } };
+  },
   aidWanted: (world, npc) => {
     const wanted = wantedAid(world, npc);
     return { aid: aidVar(wanted), price: { kind: 'money', amount: aidPrice(world, npc, wanted) } };

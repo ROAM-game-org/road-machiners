@@ -5,7 +5,7 @@ import { REGION } from '../data/region';
 import { lineKey } from '../text/names';
 import { entryText } from '../text/resolve';
 import type { LineId } from '../data/dialogue';
-import { playerAid, readyAid, startAid } from './aid';
+import { hasAid, isLow, playerAid, readyAid, startAid, wantedAid } from './aid';
 import { playerVehicle } from './damage';
 import { chooseOption, currentOptions, hangUp, raiseCalls } from './dialogue';
 import { encounterAvailable, favorAmount, lapseEncounter, onStrangerSeen, storyBeatDue } from './encounters';
@@ -262,6 +262,42 @@ describe('the courier story, a wrong done to the courier', () => {
   it('rolls no courier call toward a truck that wronged the courier', () => {
     const { w, npc } = courierWorld();
     remember(w, npc, { kind: 'wronged', by: w.player.vehicleId });
+    expect(encounterAvailable(w, npc, 'courier')).toBe(false);
+  });
+});
+
+describe('a courier on its way to refuel', () => {
+  function resupplying(): { w: World; npc: Vehicle } {
+    const s = courierWorld();
+    s.npc.resources!.fuel = Math.floor(fuelCap(s.npc) * 0.5);
+    s.npc.brain!.goals = [{ kind: 'resupply', targetId: 'bowl', destination: { x: 90, y: 90 }, phase: 'travel', reason: 'lowFuel' }];
+    return s;
+  }
+
+  it('asks the player for the fuel it is short of before the pump', () => {
+    const { w, npc } = resupplying();
+    expect(isLow(w, npc)).toBe(false);
+    expect(hasAid(wantedAid(w, npc))).toBe(false);
+    expect(hasAid(wantedAid(w, npc, true))).toBe(true);
+    expect(encounterAvailable(w, npc, 'courier')).toBe(true);
+  });
+
+  it('raises the first call through the turn pipeline, with one encounter event and no stall', () => {
+    forceOption('strangerSeen', 'courier');
+    const { w, npc } = resupplying();
+    let next = w;
+    for (let i = 0; i < 6 && !next.player.call; i++) {
+      next = endTurn(next, testDrive);
+      expect(next.events.filter((e) => e.t === 'stall')).toEqual([]);
+    }
+    expect(next.player.call).toMatchObject({ with: npc.id, topic: 'courierShort' });
+    expect(next.player.encounters.story?.beat).toBe('asked');
+    expect(next.events.filter((e) => e.t === 'encounter')).toEqual([{ t: 'encounter', vehicle: npc.id, encounter: 'courierShort' }]);
+  });
+
+  it('does not ask while it is not on the way to refuel', () => {
+    const { w, npc } = resupplying();
+    npc.brain!.goals = [];
     expect(encounterAvailable(w, npc, 'courier')).toBe(false);
   });
 });
