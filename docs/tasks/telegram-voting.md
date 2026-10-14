@@ -1,6 +1,6 @@
 # Voting moves to Telegram
 
-**Status:** reviewing
+**Status:** validating
 **Branch:** telegram-voting
 **Worktree:** .worktrees/telegram-voting
 **Goal:** Bugs and justified improvements reach Design with no votes. A real feature is posted to the public channel as a proposal, at most 4 a day, and reaches Design when its thumbs-up count reaches `FACTORY_MIN_VOTES`. Its build is posted as a reply to the proposal, and player comments and in-game reports reach the issue and route bugs to patch or redesign. Confirming it needs the user to add the bot to the discussion group, add `OPENAI_API_KEY`, merge into `main` and watch one real proposal go through. Tonight's proof is fixture tests, a replay of recorded updates through the plugin and the tick, and sample posts in the committee chat.
@@ -201,6 +201,32 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 
 ## Conclusion
 
+Outcome: built, verified and reviewed on `telegram-voting` at 9352fc7b, and the game form on `feedback-form` at 46407788. The Goal waits for the live run on the server.
+
+Invariants:
+- IV1 — no new `setWebhook`, `deleteWebhook` or `getUpdates`; the plugin reads Hermes's existing stream.
+- IV2 — `votes.test.ts` checks no call below the threshold. The replay made no call for 2 votes.
+- IV3 — `store.test.ts` and the replay counted a repeated `update_id` once.
+- IV4 — the replay put the player route under `## Player report`. Discussion group updates and reactions stop before Hermes in `test_public.py`.
+- IV5 — public routes call `routeFeedback` only for an open build post with an open committee post. They never write the inbox.
+- IV6 — `proposals.test.ts` and `digest.test.ts` check the caps.
+- IV7 — `feedback.test.ts` finds the issue from `state.json` only.
+- IV8 — the triage parser refuses `vote` on a `bug` issue.
+- IV9 — the new keys are required by `loadConfig` and by the plugin's `REQUIRED_KEYS`.
+
+### Assumptions check
+- AS1 — held: `node:sqlite` loads under vitest and vite-node on Node 23.9. The server runs Node 24.
+- AS2 — unverifiable tonight: group `message_reaction` was replayed from recorded shapes, and channel counts need the bot's live stream.
+- AS3 — unverifiable until the bot joins the discussion group.
+- AS4 — unverifiable with no key. The parser fails loud on a bad answer.
+- AS5 — unverifiable: the pinned v2026.9.24 image was not pulled. The plugin's own tests pass.
+
+### Unknowns
+- UK1 — open until the live run.
+- UK2 — deferred: proposals never expire.
+
+Review: the reviewer found four retry problems and no permission leak. All are fixed in 9352fc7b. Fixing them also surfaced that `reportFailure` with an issue labels the card `factory-stuck`, so a public failure would have blocked a card. The `public` stage is now exempt, like `catch-up`.
+
 ### Hands-off decisions
 - make: size Large, full flow — five parts across factory, infra and game.
 - make: branch `telegram-voting` off `origin/main` in `.worktrees/telegram-voting`, since the server runs only `main`. The game form merges into it too, and the user picks where it lands.
@@ -216,6 +242,14 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - uplan: plan auto-approved (hands-off).
 - uplan: PH6 goes on its own branch `feedback-form` off `origin/dev`, since game work lands on `dev` and factory work on `main`.
 
+- uexecute: the plugin's public handlers run in handler group -1, so a committee chat reply still reaches Hermes's group 0.
+- uexecute: a report on a feature build or the candidate is filtered as a comment on that build, so it can route.
+- ureview: a comment whose filter call fails is stored rejected and reported once, not retried. An OpenAI outage drops those comments from the digest.
+- ureview: `FACTORY_FILTER_TIMEOUT_SECONDS=30`, with its reason in settings.env.
+- ureview: a passed proposal closes before its GitHub writes. A failed move is reported once, and Hermes moves the card by hand.
+
 ### Deferred (needs user input)
-- Add the bot to the channel's discussion group as admin, and set `FACTORY_PUBLIC_DISCUSSION` in `.env` to the group id `-1004432761257`.
-- Add `OPENAI_API_KEY` to `.env`, with a spend limit on its project.
+- Before merging into `main`, add to the server `.env`: `FACTORY_PUBLIC_DISCUSSION=-1004432761257`, `FACTORY_PROPOSAL_CHAT` set to the channel id `-1003923325496`, and `OPENAI_API_KEY` with a spend limit. Every key is required, so the factory, the error service and Hermes stop without them.
+- Add the bot to the channel's discussion group as admin.
+- Have agy check the Russian strings of the game form on `feedback-form`.
+- Merge `telegram-voting` into `main` and `feedback-form` into `dev`. Then watch one real proposal: votes from the channel, a build reply, a comment digest.
