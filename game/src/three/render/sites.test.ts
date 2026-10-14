@@ -684,7 +684,7 @@ describe('fortress lamps (#402)', () => {
     const d = Math.abs(a - b) % (2 * Math.PI);
     return Math.min(d, 2 * Math.PI - d);
   };
-  const towerLamps = (site: Site, tower: { pos: { x: number; y: number } }, inside: boolean) => {
+  const towerLamps = (site: (typeof FORTS)[number], tower: { pos: { x: number; y: number } }, inside: boolean) => {
     const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
     const nearest = (l: { x: number; z: number }) => towers.reduce((a, b) => (Math.hypot(a.pos.x - l.x, a.pos.y - l.z) <= Math.hypot(b.pos.x - l.x, b.pos.y - l.z) ? a : b));
     return lampsOf(site.id).filter((l) => l.inside === inside && onTower(tower, l) && nearest(l).pos.x === tower.pos.x && nearest(l).pos.y === tower.pos.y);
