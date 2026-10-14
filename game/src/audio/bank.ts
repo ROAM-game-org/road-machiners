@@ -1,3 +1,4 @@
+import { fetchBody, HttpStatusError } from "../fetch-bytes";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -134,10 +135,10 @@ async function decodeWithRetry(
   return { fault: fault! };
 }
 
-type Probe = (res: Response | null, bytes: Uint8Array | null) => DecodeEvidence;
+type Probe = (res: Response | null, bytes: Uint8Array | null, status?: number | null) => DecodeEvidence;
 
-function responseFacts(res: Response | null) {
-  if (!res) return { status: null, contentType: "", redirected: false };
+function responseFacts(res: Response | null, status: number | null = null) {
+  if (!res) return { status, contentType: "", redirected: false };
   return { status: res.status, contentType: res.headers.get("content-type") ?? "", redirected: res.redirected };
 }
 
@@ -160,23 +161,20 @@ function browserFacts(ctx: BaseAudioContext, decodedMegabytes: number) {
 }
 
 function probeOf(ctx: BaseAudioContext, expectedBytes: number, decodedMegabytes: () => number): Probe {
-  return (res, bytes) => ({ ...responseFacts(res), ...bodyFacts(bytes), expectedBytes, ...browserFacts(ctx, decodedMegabytes()) });
+  return (res, bytes, status) => ({ ...responseFacts(res, status), ...bodyFacts(bytes), expectedBytes, ...browserFacts(ctx, decodedMegabytes()) });
 }
 
-async function fetchSound(file: string, attempt: number, probe: Probe): Promise<Response> {
-  try {
-    return await (attempt > 0 ? fetch(SFX_DIR + file, { cache: "reload" }) : fetch(SFX_DIR + file));
-  } catch (e) {
-    throw new SoundFileFault("fetch", probe(null, null), e);
-  }
+function statusOf(e: unknown): number | null {
+  const last = e instanceof Error && e.cause ? e.cause : e;
+  return last instanceof HttpStatusError ? last.status : null;
 }
 
-async function readSound(res: Response, file: string, probe: Probe): Promise<Uint8Array> {
+async function fetchSound(file: string, attempt: number, probe: Probe): Promise<{ response: Response; bytes: Uint8Array }> {
   try {
-    if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
-    return new Uint8Array(await res.arrayBuffer());
+    const { response, bytes } = await fetchBody(SFX_DIR + file, attempt > 0 ? { cache: "reload" } : undefined);
+    return { response, bytes: new Uint8Array(bytes) };
   } catch (e) {
-    throw new SoundFileFault("fetch", probe(res, null), e);
+    throw new SoundFileFault("fetch", probe(null, null, statusOf(e)), e);
   }
 }
 
@@ -190,9 +188,8 @@ async function decodeFile(
   const expected = options.expectedBytes[file];
   if (expected === undefined) throw new Error(`Sound ${file} has no expected size`);
   const probe = probeOf(ctx, expected, decodedMegabytes);
-  const res = await fetchSound(file, attempt, probe);
-  const bytes = await readSound(res, file, probe);
-  const facts = probe(res, bytes);
+  const { response, bytes } = await fetchSound(file, attempt, probe);
+  const facts = probe(response, bytes);
   if (bytes.length !== expected || !facts.ogg) {
     throw new SoundFileFault("bytes", facts, new Error(`Sound ${file} arrived as ${bytes.length} of ${expected} bytes`));
   }

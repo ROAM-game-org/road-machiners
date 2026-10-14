@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CONFIG } from '../config';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
 import { loadBank, recoverBank, reportFailures, type BankOptions } from './bank';
 
@@ -28,7 +29,10 @@ function ctxOf(decode: (data: ArrayBuffer) => Promise<AudioBuffer>) {
 const ctx = ctxOf(async () => real);
 const rejecting = ctxOf(async () => { throw new Error('bad'); });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('loadBank', () => {
   it('reports 0 first, then each decoded file', async () => {
@@ -226,16 +230,37 @@ describe('reportFailures', () => {
   it('sends one report per class with the evidence, the counts and the browser text', async () => {
     vi.stubGlobal('fetch', async (url: string) => (url.endsWith('hit-2.ogg') ? reply({ ok: false, status: 503 }) : ok));
     const named = ctxOf(async () => { throw Object.assign(new Error('The buffer is bad'), { name: 'EncodingError' }); });
-    const loaded = await loadBank(named, PAIR, options());
+    vi.useFakeTimers();
+    const run = loadBank(named, PAIR, options());
+    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    const loaded = await run;
     const reports = reportFailures(loaded.failures, 104, new Set(['hit-1.ogg']));
     expect(reports.map((r) => r.message)).toEqual([
       'Sound decode failed (decoder): 1 of 104, got 8 of 8 bytes, Ogg yes, HTTP 200 audio/ogg, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 1: EncodingError: The buffer is bad',
-      'Sound decode failed (fetch): 1 of 104, got no of 8 bytes, Ogg no, HTTP 503 audio/ogg, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: Error: Sound hit-2.ogg failed to load: HTTP 503',
+      'Sound decode failed (fetch): 1 of 104, got no of 8 bytes, Ogg no, HTTP 503 no content type, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: Error: /sfx/hit-2.ogg failed to load after 3 tries: Error: /sfx/hit-2.ogg failed to load: HTTP 503',
     ]);
     expect(reports[0].files).toEqual(['hit-1.ogg']);
   });
 
   it('sends nothing when nothing failed', () => {
     expect(reportFailures([], 104, new Set())).toEqual([]);
+  });
+
+  it('counts a file once when its download is retried', async () => {
+    vi.useFakeTimers();
+    let first = true;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('a.mp3') && first) {
+        first = false;
+        throw new TypeError('Load failed');
+      }
+      return ok;
+    });
+    const calls: [number, number][] = [];
+    const run = loadBank(ctx, SOUNDS, options({ progress: (done, total) => calls.push([done, total]) }));
+    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    const { failures } = await run;
+    expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
+    expect(failures).toEqual([]);
   });
 });
