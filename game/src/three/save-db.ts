@@ -2,7 +2,7 @@
 import { reportError } from './crash';
 import { slotKey, type SlotId } from './save-slots';
 
-export type LogEntry = { kind: string; turn: number; day: number } & Record<string, unknown>;
+export type LogEntry = { kind: string; turn: number } & Record<string, unknown>;
 
 export type LogRecord = LogEntry & { runId: string; seq: number };
 
