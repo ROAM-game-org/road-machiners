@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DownloadFailed } from '../fetch-bytes';
+import { DownloadFailed } from '../download';
 import { WebGLUnavailable } from './webgl';
-import { crashText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, downloadFailedText, isForeignError, screenFor, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -70,16 +70,21 @@ describe('crashText', () => {
   });
 });
 
-describe('routeOf', () => {
-  it('keeps a dropped download out of the fault path', () => {
-    expect(routeOf(new DownloadFailed('/a failed', 'x'))).toBe('download');
+describe('download failure screen', () => {
+  const cause = new TypeError('Failed to fetch');
+  const err = new DownloadFailed('models/truck.glb', 3, cause);
+
+  it('names the three catalog ids and holds the url and the cause in the detail', () => {
+    const text = downloadFailedText(err);
+    expect([text.title, ...text.lines].map((m) => m.key)).toEqual(['download.title', 'download.reload', 'download.saves']);
+    expect(text.detail).toContain('models/truck.glb');
+    expect(text.detail).toContain('Failed to fetch');
   });
 
-  it('keeps the WebGL route', () => {
-    expect(routeOf(new WebGLUnavailable(null))).toBe('webgl');
-  });
-
-  it('sends every other error to the fault path', () => {
-    expect(routeOf(new Error('x'))).toBe('fault');
+  it('routes each kind of error to its own screen', () => {
+    expect(screenFor(err)).toBe('download');
+    expect(screenFor(new WebGLUnavailable('no context'))).toBe('webgl');
+    expect(screenFor(new Error('File models/a.glb failed to load: HTTP 404'))).toBe('crash');
+    expect(screenFor('text')).toBe('crash');
   });
 });
