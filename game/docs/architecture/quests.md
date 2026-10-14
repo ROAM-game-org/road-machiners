@@ -128,11 +128,11 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 
 ## The Archon's tanker
 
-`pump_agnes.ink` is the talk of Agnes Ondra, a local at the Pump Station, which is a stall. Every driver reads her the big dial, and she writes the number with the driver's name, so the player's reading is the testimony the quest turns on. The opening shows that every hose at the bay has a meter except the household tanker's. Reading the dial shows her book: pumped up by the dial, loaded onto Bowl's trucks by their meters, and the tanker by its meter until the Senate ordered it off. Asking why the meter came off brings the watchman over to ask what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player and name the copy under her pillow. Telling him sets `pipe_fate` to `searched` and ends the quest, and his purse of 20 M is a separate choice. A trusted driver who leaves can come back and say yes later.
+`pump_agnes.ink` is the talk of Agnes Ondra, a local at Dustwell, which is a stall. Every driver reads her the big dial, and she writes the number with the driver's name, so the player's reading is the testimony the quest turns on. The opening shows that every hose at the tanks has a meter except the household tanker's. Reading the dial shows her book: pumped up by the dial, loaded onto Bowl's trucks by their meters, and the tanker by its meter until the Senate ordered it off. Asking why the meter came off brings the watchman over to ask what she said. Covering for her, or warning her about him, which perception shows early, makes her trust the player and name the copy under her pillow. Telling him sets `pipe_fate` to `searched` and ends the quest, and his purse of 20 M is a separate choice. A trusted driver who leaves can come back and say yes later.
 
 Saying yes opens `pump_pipe.ink`, shown as pages. Agnes writes this week's line into the copy with the player's name beside the dial, seals it, and offers the meter she took off the tanker's hose. Taking the meter is its own choice and sets `meter_taken`. The player can ask her about the household's envelope in her drawer, which pays her to stay quiet, and about what to say at the gate.
 
-The steward Aurel Brede meets the player where the pump track meets the Bowl road and offers 100 M to lose the copy and forget the dial. The quest variable `sluice` keeps how the player stands with the patrol at the Bowl gate.
+The steward Aurel Brede meets the player where the Dustwell track meets the Bowl road and offers 100 M to lose the copy and forget the dial. The quest variable `sluice` keeps how the player stands with the patrol at the Bowl gate.
 
 - Asking the steward what the tanker fills needs no check. Half its water is the Senate's dry-year store under the top terrace. Mirela hears it as a way to split the Senate.
 - Social 2 on the steward gets a household pass and half the offer, and the player keeps the copy. A failure sends his rider ahead, and every later check at the gate needs one more rank.
@@ -158,7 +158,7 @@ The world variable `wagon_fate` keeps the outcome. Its values are `none`, `logge
 
 ## Locals at stalls
 
-The Pump Station is a stall with no board of work. Its locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Agnes.
+Dustwell is a stall with no board of work. Its locals never call `has_work()`, `has_offers()`, `board_full()` or `take_work()`. The checker parks each local's quest at their place, as it does for Bowl and Nose, and `src/sim/locals.test.ts` talks to Agnes.
 
 ## The arrival
 
