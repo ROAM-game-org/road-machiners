@@ -1,0 +1,13 @@
+{
+  "turn": 500,
+  "player": {
+    "vehicleId": "v1",
+    "contracts": [
+      { "id": "ct-1", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 1000, "deadline": 900, "window": 500, "tier": 1, "fulfilled": false }
+    ]
+  },
+  "shops": {
+    "bowl": { "contracts": [], "pressure": {}, "stock": [], "restockAt": 600 }
+  },
+  "vehicles": [{ "id": "v1", "job": null }]
+}

@@ -10,6 +10,10 @@ describe("parseSettings", () => {
     const s = { muted: true, volume: { ui: 0, sfx: 1, ambient: 0.5, music: 0.2 } };
     expect(parseSettings(JSON.stringify(s))).toEqual(s);
   });
+  it("keeps an unmuted profile with custom volumes", () => {
+    const s = { muted: false, volume: { ui: 0.3, sfx: 0.6, ambient: 0.1, music: 0.9 } };
+    expect(parseSettings(JSON.stringify(s))).toEqual(s);
+  });
   it("fails loud on invalid settings", () => {
     expect(() => parseSettings('{"muted":true}')).toThrow();
     expect(() => parseSettings('{"muted":false,"volume":{"ui":2,"sfx":1,"ambient":1,"music":1}}')).toThrow();

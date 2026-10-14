@@ -53,3 +53,58 @@ ID: R10
 repo: game
 what: The boot downloaded about 120 assets at once, the 104 sounds, every model and the map, and none of them retried a network failure. One dropped download rejected the whole boot. decodeFile() in game/src/audio/bank.ts read the body inside the same check as the decode, so a broken download was reported as "Sound music-calm-3.ogg failed to decode: TypeError: Load failed". Hotfix #483 added fetchBytes() in game/src/fetch-bytes.ts, which retries a dropped connection or a 5xx up to 3 times for sounds, models and the map.
 cost: A Safari player on the itch.io release 2.61.0 could not start the game, and the boot screen stayed on the failed step. Issue #485 reported the same file failing on another browser. The wrong "decode" message sent triage toward a corrupt file or a format bug instead of the network.
+
+ID: R11
+repo: game
+what: A quest load replays from the last checkpoint up to its first choices. The checkpoints of the arrival farm, the wagon_seven hub and the wagon_bench hub sat on bare choice lists in page quests, so a load showed the image, heading and choices with an empty story panel. The arrival shed had no checkpoint of its own, so a save at the shed seat loaded back into the house and offered the 50 M house loot again. Hotfix #478 moved the checkpoints to each scene's opening line, added a start.shed checkpoint, added save step 61 to 62 for old hub saves, and made `npm run quests:check` fail a page load that shows choices and no text.
+cost: Any player who loaded a save in the first scene of a new game, or at either wagon hub, lost the text that explains the choice. A save and reload at the shed paid the house loot twice. It shipped on main and itch.io until the hotfix. The fix took two issues, #474 and #478, and three test runs that hit the 45-minute limit, so it shipped with no factory checks.
+
+ID: R12
+repo: game
+what: The boot decoded every sound and threw "Sound X failed to decode" when one file failed decodeAudioData, so one sound the browser could not decode stopped the whole boot. The sound files were valid. Firefox on Android failed to decode them. Hotfix #482 retried each decode and gave a file that still failed a sibling's buffer or a silent stand-in, so the game boots and reports the failures. Hotfix #493 only added a test for a two-file cue with one file that never decodes.
+cost: A Firefox on Android player on release 2.61.0 could not start the game when mortar-fire-2.ogg failed to decode, after the same failure with hit-metal-2.ogg in #482. It took two hotfix issues. It repeats the class of R10: one asset failure at boot rejected the whole boot.
+
+ID: R13
+repo: game
+what: The path preview ran on the main thread in the first frame after each turn. It cloned the world and simulated up to three physics turns there, so each turn seam froze a frame. warmAfterBoot() in game/src/three/main.ts also built route grids for every chassis radius on the main thread right after boot. Issue #40 had moved turns to a worker but left the preview and this warm-up on the main thread. Hotfix #494 moved the preview into its own worker and removed the main-thread warm-up.
+cost: A committee player on the main release saw pauses between turns right after starting a new game. Their overlay showed the last preview at 59.9 ms against a 50 ms budget and the last turn at 189.5 ms against 100 ms, while FPS read 60. On the factory host, each seam froze for 115 to 265 ms and boot ran 10 long tasks of 250 to 990 ms. It repeats the turn-seam stutter of issue #40 and took a hotfix with cross-system profiling.
+
+ID: R14
+repo: game
+what: In release 2.61.0, loadBank() in game/src/audio/bank.ts fetched every sound in one Promise.all, so one rejected fetch stopped the boot with "TypeError: Failed to fetch". Hotfixes #482 and #483 had already added the retry and the stand-in, but decodeFile() still sent a network failure into the same SoundDecodeFailure report as a missing or broken file. Hotfix #496 split out unreachable sounds, which get a stand-in and a console warning and send no error report.
+cost: An Android Chrome player on release 2.61.0 could not start the game. After the earlier hotfixes, every dropped mobile connection at boot would still have sent an error report and shown a line in the release error console for a game that ran fine. It took a third hotfix issue. It repeats the class of R10 and R12: one asset failure at boot rejected the whole boot.
+
+ID: R15
+repo: game
+what: CameraRig.resize() in game/src/three/render/camera.ts built the camera frustum from the container size with no check. When the game view had zero width or height, as a phone can report for a moment while it rotates, hides the page or switches fullscreen, the projection held NaN or Infinity. spatial() in game/src/audio/pick.ts passed the NaN screen x through Math.min and Math.max as a pan, and Web Audio threw "The provided float value is non-finite" at the start of a turn. Hotfix #537 kept the last frustum on a zero-size view, centred the pan with no width and made spatial() throw a named error on a non-finite position.
+cost: An Android Chrome player on release 2.61.43 had turn 8 fail with the error, so the turn did not play. Any phone player whose view briefly had no size could hit it. It took a hotfix to main and itch.io.
+
+ID: R16
+repo: game
+what: Mixer.unlockOn() in game/src/audio/mixer.ts called ctx.resume() once on the first pointerdown or keydown, with each listener set to fire only once. A browser can refuse to start audio on a mouse or touch pointerdown, so the AudioContext stayed suspended and the listener was already spent. A player who only clicked heard nothing until a key press, and the game seemed muted though mute was off. Hotfix #492 retried the unlock on pointerup, click and keydown until the context ran.
+cost: The committee found the shipped game on main silent at the start of a fresh game. Any new player who started with the mouse heard no music, UI or gameplay sound until they pressed a key. It took a hotfix to main and itch.io.
+
+ID: R17
+repo: game
+what: Boot in game/src/three/main.ts awaited idbBackend() with no catch, so a browser that refused indexedDB.open() stopped the whole boot on the crash screen with "The game keeps saves in IndexedDB, and this browser refused it: The operation was aborted." There was no retry and no other place to keep saves, though local storage worked and the save code could already read saves from it. Hotfix #519 added openSaves() in game/src/three/save-db.ts, which retries the open once and then keeps saves in local storage under the old keys with the run log in memory.
+cost: An iPhone Safari player on release 2.61.43 could not start the game at all. Any browser that refuses IndexedDB, like iOS Safari in the itch.io frame, could not play. It took a hotfix to main and itch.io. It repeats the class of R10, R12 and R14: one browser refusal at boot rejected the whole boot.
+
+ID: R18
+repo: game
+what: idbBackend() in game/src/three/save-db.ts opened one IndexedDB connection at boot and kept it for the whole session. It never listened for a close and never reopened. When Safari closed the connection on its own, db.transaction() threw "InvalidStateError: The database connection is closing" synchronously, before SaveSlots.put() could catch it. The throw went up through saveWorld and finishPlayback and out of the turn, and every later save and log write in that session failed the same way. Hotfix #524 reopens a dropped or closing connection and retries the call once, and makes SaveSlots and RunLog send any backend throw to the existing save note.
+cost: A Safari player on macOS on release 2.61.43 had the turn 21 autosave crash the turn. The save did not land, and no later save in that session could land, so progress since the last good save was at risk. It took a hotfix to main and itch.io. It repeats the class of R17: a browser IndexedDB failure that the save code did not survive.
+
+ID: R19
+repo: game
+what: The inventory in game/src/ui/inventory.ts decided whether a selected part was mounted from the truck with the pending refit plan applied, then built its field patch button by asking repairPlan() about the real truck. A part dragged onto a mount cell but not yet refitted was mounted in the plan only, so findRepairPart() in game/src/sim/repair.ts threw "p48 is not a mounted part on v1" and the inventory render died. Hotfix #515 shows the patch button only for a part mounted on the real truck.
+cost: A player on release 2.61.0 had the inventory crash at turn 10 after a drag, and the same error came again from players on releases 2.61.30 and 2.61.43 before the fix. Each time the inventory stopped working in the middle of a refit. It took a hotfix to main and itch.io.
+
+ID: R20
+repo: game
+what: anchorUndrawn() in game/src/three/render/vehicle.ts anchored every hidden part on the chassis with surfaceAt() in game/src/sim/body.ts, which throws when the model has no surface under the part's cells. The cargo rules allow a part on a bare nose or tail cell, and restOn() already gave such a part a rest height there. So a raider buggy with caltrops on its nose cell threw "The buggy model has no surface under ..." while its view was built, on every frame it was in view. The same throw hit 35 legal placements on 7 chassis. Hotfix #502 falls back to the part's rest height from standingY() when there is no surface.
+cost: A player on release 2.61.0 had the game crash at turn 343 when that buggy came into view, and the game could not continue. Any truck with a part on a bare nose or tail cell could crash any player's game near it. It took a hotfix to main and itch.io. It repeats the class of R19: a view asked a sim function about a state the rules allow and the function threw.
+
+ID: R21
+repo: game
+what: written() in game/src/three/save-db.ts opened every save and run log transaction with the non-default option { durability: 'strict' }. Safari aborted that transaction with no tx.error, so every write rejected with "The saves write was aborted" and the game showed "The game could not save." Hotfix #481 drops the option and keeps the default durability, which still lands each write whole or not at all.
+cost: A Safari player on macOS on release 2.61.0 had the first save fail on turn 1, so no save could land in that session and all progress was at risk. It took a hotfix to main and itch.io, and an itch.io upload clash delayed its release. It repeats the class of R17 and R18: a browser IndexedDB failure that the save code did not survive.
