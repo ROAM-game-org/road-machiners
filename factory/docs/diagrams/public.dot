@@ -1,27 +1,54 @@
-// Public inputs. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
+// Public inputs: voting, build feedback and game reports. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
 digraph public {
-  rankdir=LR; nodesep=0.3; ranksep=0.6; bgcolor=white; pad=0.3;
-  node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.3];
+  rankdir=LR; nodesep=0.3; ranksep=0.55; bgcolor=white; pad=0.3; newrank=true;
+  node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.5];
   edge [color="#374151", penwidth=1.8, arrowsize=0.8, fontname="Helvetica", fontsize=11];
-  T [label="Triage\nverdict vote"];
-  S [label="Public store"];
-  P [label="Proposal post\nat most 4 a day"];
-  V [label="Players vote\nwith reactions", fillcolor="#fde68a", color="#b45309"];
-  D [label="Design"];
-  B [label="Build post\nreply to proposal"];
-  C [label="Players play\nand comment", fillcolor="#fde68a", color="#b45309"];
-  F [label="Filter"];
-  G [label="Digest on\nthe issue"];
-  H [label="Hermes plugin\nhandlers"];
-  R [label="Game report\nform"];
-  X [label="Rejected", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
-  T -> S -> P -> V -> D -> B -> C -> F -> G [weight=100];
-  V -> H [label="reactions", weight=0];
-  C -> H [label="comments", weight=0];
-  H -> S [label="public inbox", weight=0];
-  R -> F [label="/feedback", weight=0];
-  edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=back, weight=0];
-  B -> F [label="patch or redesign"];
-  edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3, dir=forward, weight=0];
-  F -> X [label="spam"];
+
+  subgraph cluster_vote {
+    label="1. Voting"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
+    triage [label="Triage\nverdict vote\nlabel voting"];
+    proposal [label="Proposal post\nin the public channel\nat most 4 a day"];
+    votes [label="Players react 👍", fillcolor="#fde68a", color="#b45309"];
+    design [label="Design\nat 10 votes"];
+    triage -> proposal -> votes -> design;
+  }
+
+  subgraph cluster_build {
+    label="2. Build feedback"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
+    testing [label="Testing\nbuilds the card"];
+    committeePost [label="Committee post\nwith Approve and Deny"];
+    reply [label="Reply to the proposal\nplay link, no buttons"];
+    comment [label="Players play\nand comment", fillcolor="#fde68a", color="#b45309"];
+    testing -> committeePost;
+    testing -> reply -> comment;
+  }
+
+  subgraph cluster_report {
+    label="3. Game reports"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
+    form [label="Player sends a bug\nor an idea in the game", fillcolor="#fde68a", color="#b45309"];
+    feedback [label="/feedback\nchecks origin, size\nand 5 an hour per address"];
+    form -> feedback;
+  }
+
+  filter [label="OpenAI filter\nkind and route"];
+  digest [label="Digest comment\non the issue\nat most one an hour"];
+  newIssue [label="New issue\nlabel player-report"];
+  intake [label="Intake\nthen Triage"];
+  patch [label="Card to Testing\nthe comment is the task"];
+  redesign [label="Card to Design"];
+  rejected [label="Dropped as spam", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+
+  design -> testing [weight=0];
+  comment -> filter;
+  feedback -> filter;
+  filter -> digest [label="comment, or report\nfrom a card's build\nor the candidate"];
+  filter -> newIssue [label="any other\nreport"];
+  newIssue -> intake;
+
+  edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
+  filter -> patch [label="patch"];
+  filter -> redesign [label="redesign"];
+
+  edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
+  filter -> rejected [label="spam"];
 }
