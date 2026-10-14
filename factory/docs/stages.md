@@ -15,12 +15,13 @@ Triage runs Haiku, set by `FACTORY_TRIAGE_MODEL`, at `FACTORY_TRIAGE_EFFORT`. It
 - `ready` moves the card to Design and rates its complexity, as Model routing says. A clear bug is `ready`, and so is a justified improvement of an existing thing.
 - `vote` is for a new feature or a substantial change. A bug is never `vote`. It rates complexity like `ready`, adds `voting`, writes its `pitch` to the public store and comments once. The card waits in Triage until players vote it to Design, as [process.md](process.md#public-inputs) says. Triage skips a `voting` card, and a `voting` card is no bundle candidate.
 - `wont-do` comments the reason, labels the issue `wont-do`, closes it and moves the card to Done.
+- `duplicate` names a card already in work, from Design to Merging, that fixes the same thing. A hotfix counts too. The issue joins that card's bundle, as below. It gets no card of its own, so a flood of reports with one cause costs one card. A card that left the work columns while triage ran fails the stage, and the retry sees the new board.
 - `unclear` comments up to three questions, labels the issue `needs-info` and leaves the card in Triage. The committee chat gets one notice per new question set, with no quotes. The tick removes `needs-info` once someone answers on GitHub, or once `FACTORY_NEEDS_INFO_HOURS` pass since the questions, and triage runs again. Without an answer, triage and design go on with the most sensible reading, and design writes the assumptions into its comment.
 - A request for a new authored location needs a reference image. Without one, triage is `unclear` and asks once for an upload.
 - Triage can label a bug `hotfix` when it loses saves, crashes the game or blocks play. The committee chat gets a warning.
 - Triage can label a card `release-task` when it fixes a feature of the open release. This works only while the release has no candidate post. New work waits for the next release. The release fix runs on the release branch and merges into it.
 
-A `ready` issue may bundle other free Triage cards that touch the same code. Each bundled issue gets a comment and the label `bundled`, and its card moves to Done while the issue stays open. The state records it under `bundles`. Later stages read the bundled issues after the lead, and they close when the lead ships. A denied or refused lead sends each bundled issue back to Triage. A hotfix never bundles.
+A `ready` issue may bundle other free Triage cards that touch the same code. Each bundled issue gets a comment and the label `bundled`, and its card moves to Done while the issue stays open. The state records it under `bundles`. Later stages read the bundled issues after the lead, and they close when the lead ships. A denied or refused lead sends each bundled issue back to Triage. A hotfix bundles only duplicates of itself.
 
 ## Design
 

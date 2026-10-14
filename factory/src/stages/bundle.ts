@@ -1,6 +1,6 @@
 import { moveCard } from '../card-events';
 import { readState, updateState } from '../state';
-import { BUNDLED_LABEL, HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type Ctx, type FactoryState } from '../types';
+import { BUNDLED_LABEL, HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type Column, type Ctx, type FactoryState } from '../types';
 
 export function bundleOf(state: FactoryState, lead: number): number[] {
   return state.bundles[String(lead)] ?? [];
@@ -12,6 +12,15 @@ export function bundleCandidates(state: FactoryState, cards: Card[], lead: numbe
   return cards
     .filter((card) => card.column === 'Triage' && card.issue !== lead && !busy.has(card.issue) && bundleOf(state, card.issue).length === 0)
     .filter((card) => !blocked.some((label) => card.labels.includes(label)))
+    .map((card) => card.issue)
+    .sort((a, b) => a - b);
+}
+
+const IN_WORK: Column[] = ['Design', 'Implementation', 'Testing', 'Approval', 'Hardening', 'Merging'];
+
+export function duplicateLeads(cards: Card[], issue: number): number[] {
+  return cards
+    .filter((card) => IN_WORK.includes(card.column) && card.issue !== issue && !card.labels.includes(BUNDLED_LABEL))
     .map((card) => card.issue)
     .sort((a, b) => a - b);
 }

@@ -10,8 +10,10 @@ let calls: string[] = [];
 let prompt = '';
 let effort: string | undefined;
 let related = '';
+let inWork = '';
 let releaseInput = '';
 let cards: Card[] = [];
+let cardsAfterAgent: Card[] | null = null;
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -19,7 +21,9 @@ beforeEach(() => {
   calls = [];
   prompt = '';
   related = '';
+  inWork = '';
   cards = [card(7, 'Triage')];
+  cardsAfterAgent = null;
   writeState(`${home}/state.json`, structuredClone(EMPTY_STATE));
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
@@ -43,6 +47,8 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
         calls.push(`agent ${run.model}`);
         effort = run.effort;
         related = readFileSync(`${run.clone}/${run.dir}/.factory/related.md`, 'utf8');
+        inWork = readFileSync(`${run.clone}/${run.dir}/.factory/in-work.md`, 'utf8');
+        cards = cardsAfterAgent ?? cards;
         releaseInput = readFileSync(`${run.clone}/${run.dir}/.factory/release.md`, 'utf8');
         prompt = run.prompt;
         if (verdict !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/triage.json`, verdict);
@@ -197,7 +203,8 @@ describe('triage stage', () => {
     [verdict({ bundle: ['9'] }), 'bundle as a list of issue numbers'],
     [verdict({ bundle: [11] }), 'bundles #11, which is not an offered Triage card'],
     [verdict({ bundle: [9, 9] }), 'bundles an issue twice'],
-    [verdict({ bundle: [9], hotfix: true }), 'bundles issues into a hotfix'],
+    [JSON.stringify({ verdict: 'duplicate', reason: 'Same error' }), 'duplicateOf as an issue number'],
+    [JSON.stringify({ verdict: 'duplicate', reason: 'Same error', duplicateOf: 9 }), '#9 as the duplicate\'s card, which is not an offered card in work'],
     [verdict({ releaseFix: 'yes' }), 'releaseFix as true or false'],
     [verdict({ releaseFix: true }), 'no release takes fixes now'],
   ])('throws on a bad triage.json %#', async (text, message) => {
@@ -365,6 +372,36 @@ describe('triage bundles', () => {
     expect(calls.find((call) => call.startsWith('comment 7 Triage passed:'))).toMatch(/^comment 7 Triage passed: Both ask for a horn\.\n\nThis card also carries #9, #10\.\n\n/);
     expect(calls.at(-1)).toBe('move 7 Design');
     expect(readState(`${home}/state.json`).bundles).toEqual({ '7': [9, 10] });
+  });
+
+  it('offers every card in work, hotfixes included, as the card of a duplicate', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage'), card(11, 'Design'), card(12, 'Testing', ['hotfix']), card(13, 'Approval'), card(14, 'Merging'), card(15, 'Done'), card(16, 'Testing', ['bundled'])];
+    await runStage(fakeCtx(verdict({})), 7);
+    expect(inWork.match(/^# #\d+/gm)).toEqual(['# #11', '# #12', '# #13', '# #14']);
+    expect(inWork).toContain('UNTRUSTED USER TEXT');
+  });
+
+  it('folds a duplicate into its card in work, also a hotfix, and gives it no card of its own', async () => {
+    cards = [card(7, 'Triage'), card(12, 'Testing', ['hotfix'])];
+    await runStage(fakeCtx(JSON.stringify({ verdict: 'duplicate', reason: 'The same sound fails to decode.', duplicateOf: 12 })), 7);
+    expect(calls).toContain('comment 7 Triage bundled this into #12, which carries it from here: The same sound fails to decode.\n\nIt closes when #12 ships.');
+    expect(calls).toContain('addLabel 7 bundled');
+    expect(calls.at(-1)).toBe('move 7 Done');
+    expect(readState(`${home}/state.json`).bundles).toEqual({ '12': [7] });
+  });
+
+  it('refuses a duplicate whose card left the work columns while triage ran', async () => {
+    cards = [card(7, 'Triage'), card(12, 'Testing', ['hotfix'])];
+    cardsAfterAgent = [card(7, 'Triage'), card(12, 'Done', ['hotfix'])];
+    await expect(runStage(fakeCtx(JSON.stringify({ verdict: 'duplicate', reason: 'Same error', duplicateOf: 12 })), 7)).rejects.toThrow('#12 left the work columns');
+    expect(readState(`${home}/state.json`).bundles).toEqual({});
+  });
+
+  it('lets a hotfix bundle a duplicate request', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage')];
+    await runStage(fakeCtx(verdict({ bundle: [9], hotfix: true, reason: 'Saves fail to load. Both report it.' })), 7);
+    expect(readState(`${home}/state.json`).bundles).toEqual({ '7': [9] });
+    expect(calls).toContain('addLabel 7 hotfix');
   });
 
   describe('visual-reference gate for a new location', () => {
