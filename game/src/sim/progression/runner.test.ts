@@ -160,6 +160,22 @@ describe('the Fury Road escort bot', () => {
     expect(dist(order.dest, playerVehicle(w).pos)).toBeGreaterThan(dist(escortSpotOf(w), playerVehicle(w).pos));
   });
 
+  it('keeps running ahead while the hostile truck that shot it stays in sight, and rides behind again when it is gone', () => {
+    const w = furyRoadWorld();
+    const foe = hostileNear(w);
+    w.events = [shotAt(foe, playerVehicle(w))];
+    const first = botOrders(w, 'escort').world;
+    first.events = [];
+
+    const running = playerVehicle(botOrders(first, 'escort').world).order as { dest: Vec };
+    const clear = structuredClone(first);
+    clear.vehicles = clear.vehicles.filter((v) => v.id !== foe.id);
+    const back = playerVehicle(botOrders(clear, 'escort').world).order as { dest: Vec };
+
+    expect(dist(running.dest, outpostPad(w, 1))).toBeLessThan(dist(back.dest, outpostPad(w, 1)));
+    expect(dist(back.dest, escortSpotOf(clear))).toBeLessThan(1);
+  });
+
   it('ignores a shot at the hauler', () => {
     const w = furyRoadWorld();
     const foe = hostileNear(w);

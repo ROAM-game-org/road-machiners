@@ -25,6 +25,6 @@ export function keepsPace(maxSpeed: number, haulerTopSpeed: number): boolean {
   return maxSpeed >= haulerTopSpeed;
 }
 
-export function underFire(lastTurn: readonly GameEvent[], myId: string, seenHostileIds: ReadonlySet<string>): boolean {
-  return lastTurn.some((e) => e.t === 'shot' && e.target === myId && seenHostileIds.has(e.shooter));
+export function underFire(lastTurn: readonly GameEvent[], myId: string): boolean {
+  return lastTurn.some((e) => e.t === 'shot' && e.target === myId);
 }

@@ -52,13 +52,12 @@ describe('keepsPace', () => {
 describe('underFire', () => {
   const shot = (shooter: string, target: string) => ({ t: 'shot', shooter, target }) as unknown as GameEvent;
 
-  it('is true when a hostile truck in sight shot the player truck last turn', () => {
-    expect(underFire([shot('foe', 'me')], 'me', new Set(['foe']))).toBe(true);
+  it('is true when a truck shot the player truck last turn, seen or not', () => {
+    expect(underFire([shot('foe', 'me')], 'me')).toBe(true);
   });
 
-  it('is false for shots at other trucks, shots from unseen trucks and no shots', () => {
-    expect(underFire([shot('foe', 'hauler')], 'me', new Set(['foe']))).toBe(false);
-    expect(underFire([shot('far', 'me')], 'me', new Set(['foe']))).toBe(false);
-    expect(underFire([], 'me', new Set(['foe']))).toBe(false);
+  it('is false for shots at other trucks and for no shots', () => {
+    expect(underFire([shot('foe', 'hauler')], 'me')).toBe(false);
+    expect(underFire([], 'me')).toBe(false);
   });
 });

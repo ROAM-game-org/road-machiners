@@ -32,6 +32,7 @@ export type RoadStyle = 'escort' | 'sprinter';
 const PATCH_GOODS = 4;
 const HAULER_SHARE = 0.15;
 const FOLLOW_BEHIND = 10;
+const HUNTER_SIGHT = TERRAIN.vision.radius;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
@@ -104,7 +105,17 @@ function seenHostiles(o: Orders): Vehicle[] {
 }
 
 function underAttack(o: Orders): boolean {
-  return underFire(o.lastTurn, o.me.id, new Set(seenHostiles(o).map((v) => v.id)));
+  const seen = seenHostiles(o);
+  if (underFire(o.lastTurn, o.me.id)) return true;
+  return runningAhead(o) && seen.some((v) => dist(v.pos, o.me.pos) <= HUNTER_SIGHT);
+}
+
+function runningAhead(o: Orders): boolean {
+  const order = o.me.order;
+  if (order?.kind !== 'stopAt') return false;
+  const window = o.world.furyRoad!.window;
+  const along = (p: Vec) => alongOf(o.world.seed, toRoad(window, p));
+  return along(order.dest) > along(haulerOf(o.world).pos);
 }
 
 function chosenFoe(o: Orders): Vehicle | null {
