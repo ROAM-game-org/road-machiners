@@ -7,10 +7,11 @@ import { CONDITION } from '../data/wear';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Tier } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
-import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, type ClaimTarget } from './claims';
+import { claimPartHeld, claimRivalAt, claimTargets, claimReward, claimWindow, fitsClaim, rivalDue, sendRival, type ClaimTarget } from './claims';
+import { shopMoney } from './economy';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
-import type { ClaimContract } from './salvage';
+import { liveClaims, type ClaimContract } from './salvage';
 import { freeCells, goodsCount } from './grid';
 import { addGoods, removeGoods, spareParts } from './inventory';
 import { practice } from './progress';
@@ -398,6 +399,20 @@ export function advanceShops(world: World): void {
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
   }
+  for (const c of liveClaims(world)) if (rivalDue(world, c)) sendRival(world, c);
+}
+
+export function handInClaimBy(world: World, v: Vehicle, c: ClaimContract): void {
+  if (v.id !== c.rival) throw new Error(`${v.id} is not the rival on claim ${c.id}`);
+  if (!canUseSite(v.pos, siteOf(c.shop))) throw new Error(`${v.id} is not at ${c.shop} to hand in claim ${c.id}`);
+  const item = v.items.find((it) => it.kind === 'part' && it.part.id === c.partId);
+  if (item?.kind !== 'part') throw new Error(`${v.id} does not carry the claimed ${c.partId}`);
+  v.items = v.items.filter((it) => it !== item);
+  addStockPart(shopState(world, c.shop), item.part);
+  shopMoney(world, v, c.reward, 'claimReward');
+  const board = shopState(world, c.shop);
+  if (board.contracts.includes(c)) board.contracts = board.contracts.filter((x) => x !== c);
+  else finishContract(world, c, 'lapsed', 'rival');
 }
 
 function claimGone(world: World, c: Contract): boolean {
@@ -525,10 +540,11 @@ export function contractXp(c: Contract): number {
   return Math.round(effort * CONTRACTS[c.kind].xpPerEffort);
 }
 
-function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed'): void {
+function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed', cause?: 'rival'): void {
   if (outcome !== 'done' && isMetBounty(c)) throw new Error(`A fulfilled bounty cannot be ${outcome}`);
+  if (!world.player.contracts.includes(c)) throw new Error(`Contract ${c.id} is not held`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
-  world.events.push({ t: 'contract', contract: { ...c }, outcome });
+  world.events.push(cause ? { t: 'contract', contract: { ...c }, outcome, cause } : { t: 'contract', contract: { ...c }, outcome });
   if (outcome === 'done') payContract(world, c);
   if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);
 }

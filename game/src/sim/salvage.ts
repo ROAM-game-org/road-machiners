@@ -168,10 +168,14 @@ export function liveClaims(world: World): ClaimContract[] {
   return contracts.filter((c): c is ClaimContract => c.kind === 'claim');
 }
 
-export function claimedPartIn(world: World, stock: SalvageStock): string | null {
+function claimOn(world: World, stock: SalvageStock): ClaimContract | null {
   const named = liveClaims(world).filter((c) => c.stockId === stock.id);
   if (named.length > 1) throw new Error(`Stock ${stock.id} is named by ${named.length} claims`);
-  const partId = named[0]?.partId;
+  return named[0] ?? null;
+}
+
+export function claimedPartIn(world: World, stock: SalvageStock): string | null {
+  const partId = claimOn(world, stock)?.partId;
   if (partId === undefined) return null;
   return [...stock.parts, ...stock.hidden.parts].some((part) => part.id === partId) ? partId : null;
 }
@@ -184,12 +188,17 @@ export function revealClaimed(world: World, stock: SalvageStock): void {
   stock.parts.push(hidden);
 }
 
-export function mayTakeClaimed(world: World, vehicle: Vehicle): boolean {
-  return vehicle.id === world.player.vehicleId;
+export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContract): boolean {
+  return vehicle.id === world.player.vehicleId || vehicle.id === claim.rival;
 }
 
 function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
-  return mayTakeClaimed(world, vehicle) ? null : claimedPartIn(world, stock);
+  const claim = claimOn(world, stock);
+  return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
+}
+
+function rivalPartIn(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
+  return claimOn(world, stock)?.rival === vehicle.id ? claimedPartIn(world, stock) : null;
 }
 
 export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
@@ -216,12 +225,13 @@ function canTakeRevealed(world: World, vehicle: Vehicle, stock: SalvageStock, pa
   if ((['fuel', 'supplies'] as const).some((kind) => (stock[kind] ?? 0) > 0 && room[kind] >= 1)) return true;
   const grid = gridOf(vehicle);
   const good: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'good', good: 'scrap' };
-  const massRoom = cargoMassRoom(vehicle);
-  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= massRoom) && findSpot(grid, vehicle.items, good, null, null)) return true;
-  return parts.some((part) => {
-    const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
-    return itemMass(item) <= massRoom && findSpot(grid, vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
-  });
+  if (Object.values(stock.goods).some((count) => count > 0 && CRATE_MASS <= cargoMassRoom(vehicle)) && findSpot(grid, vehicle.items, good, null, null)) return true;
+  return parts.some((part) => canStowPart(vehicle, part));
+}
+
+export function canStowPart(vehicle: Vehicle, part: PartInstance): boolean {
+  const item: GridItem = { id: 'fit-check', x: 0, y: 0, rot: 0, kind: 'part', part };
+  return itemMass(item) <= cargoMassRoom(vehicle) && findSpot(gridOf(vehicle), vehicle.items, item, null, MOUNT_CELLS[partDef(part.defId).kind]) !== null;
 }
 
 export function hasStores(stock: SalvageStock): boolean {
@@ -253,8 +263,9 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
   const reserved = reservedFrom(world, vehicle, stock);
+  const mine = rivalPartIn(world, vehicle, stock);
   let moved = 0;
-  stock.parts = stock.parts.filter((part) => {
+  stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
     if (part.id === reserved || moved >= units || !stowPart(world, vehicle, part)) return true;
     moved++;
     return false;
@@ -681,7 +692,7 @@ function actsOn(world: World, v: Vehicle, targetId: string): boolean {
 }
 
 function isLootActOn(goal: NpcActivity, targetId: string): boolean {
-  return (goal.kind === 'loot' || goal.kind === 'scavenge') && goal.targetId === targetId && goal.phase === 'act';
+  return (goal.kind === 'loot' || goal.kind === 'scavenge' || goal.kind === 'claim') && goal.targetId === targetId && goal.phase === 'act';
 }
 
 export function inLootReach(world: World, v: Vehicle, targetId: string): boolean {

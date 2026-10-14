@@ -60,6 +60,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   lootWarningTerms: ['warnLine', 'answer'],
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
+  claimWreckBearing: ['bearing', 'distance'],
 };
 
 const SAMPLE: Record<string, CallVar> = {

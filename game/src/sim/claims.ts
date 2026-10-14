@@ -1,12 +1,14 @@
 import { CLAIM_LOOKS, CONTRACTS, SHOPS, type ClaimLook } from '../data/market';
 import { REGION } from '../data/region';
 import { WRECK_LOOKS } from '../data/territory';
-import { playerVehicle } from './damage';
-import { liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
+import { playerTrucks, playerVehicle } from './damage';
+import { isDefeated, isKnockedOut } from './defeat';
+import { pushGoal } from './npc-activities';
+import { canStowPart, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
 import { navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryOfStock } from './territory';
-import type { PartInstance, SalvageStock, World } from './types';
+import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
 
@@ -68,13 +70,74 @@ export function claimWindow(turns: number): number {
   return Math.round(2 * turns * claim.durationFactor + claim.searchTurns + claim.slackTurns);
 }
 
-export type PartWhere = 'stock' | 'player' | 'gone';
+export type PartWhere = 'stock' | 'player' | 'rival' | 'gone';
+
+function inStock(world: World, c: ClaimContract): boolean {
+  const stock = world.salvage.find((s) => s.id === c.stockId);
+  return !!stock && [...stock.parts, ...stock.hidden.parts].some((p) => p.id === c.partId);
+}
+
+export function carriesPart(v: Vehicle, partId: string): boolean {
+  return v.items.some((it) => it.kind === 'part' && it.part.id === partId);
+}
 
 export function claimPartHeld(world: World, c: ClaimContract): PartWhere {
+  if (inStock(world, c)) return 'stock';
+  if (world.player.storage.some((p) => p.id === c.partId) || carriesPart(playerVehicle(world), c.partId)) return 'player';
+  const rival = c.rival === null ? undefined : world.vehicles.find((v) => v.id === c.rival);
+  return rival && carriesPart(rival, c.partId) ? 'rival' : 'gone';
+}
+
+export function findClaim(world: World, id: string): ClaimContract | null {
+  return liveClaims(world).find((c) => c.id === id) ?? null;
+}
+
+const BUSY_STATES: readonly StateKindId[] = ['tow', 'towPromise', 'answering', 'patch', 'trade', 'escort', 'aid', 'combat', 'plea', 'lootWarning'];
+
+function busyInState(world: World, v: Vehicle): boolean {
+  return world.states.some((s) => BUSY_STATES.includes(s.kind) && (s.holder === v.id || s.other === v.id));
+}
+
+function onClaimRun(v: Vehicle): boolean {
+  return !!v.brain?.goals.some((g) => g.kind === 'claim');
+}
+
+export function isFreeRival(world: World, v: Vehicle, part: PartInstance): boolean {
+  if (!v.brain || playerTrucks(world).includes(v) || !v.brain.traits.some((t) => CONTRACTS.claim.rivalTraits.includes(t))) return false;
+  if (isKnockedOut(v) || isDefeated(v) || v.job || onClaimRun(v) || busyInState(world, v)) return false;
+  return canStowPart(v, part);
+}
+
+function claimPart(world: World, c: ClaimContract): PartInstance {
   const stock = world.salvage.find((s) => s.id === c.stockId);
-  if (stock && [...stock.parts, ...stock.hidden.parts].some((p) => p.id === c.partId)) return 'stock';
-  const held = world.player.storage.some((p) => p.id === c.partId) || playerVehicle(world).items.some((it) => it.kind === 'part' && it.part.id === c.partId);
-  return held ? 'player' : 'gone';
+  const part = stock && [...stock.parts, ...stock.hidden.parts].find((p) => p.id === c.partId);
+  if (!part) throw new Error(`Claim ${c.id} part ${c.partId} is not in its wreck`);
+  return part;
+}
+
+export function rivalDue(world: World, c: ClaimContract): boolean {
+  if (c.rival !== null || world.turn < c.rivalAt) return false;
+  return (world.turn - c.rivalAt) % CONTRACTS.claim.rivalRetryTurns === 0 && claimPartHeld(world, c) === 'stock';
+}
+
+export function sendRival(world: World, c: ClaimContract): Vehicle | null {
+  if (c.rival !== null) throw new Error(`Claim ${c.id} already has a rival ${c.rival}`);
+  const part = claimPart(world, c);
+  const shop = shopSite(c.shop).pos;
+  const free = world.vehicles.filter((v) => isFreeRival(world, v, part));
+  const rival = free.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop) || a.id.localeCompare(b.id))[0];
+  if (!rival) return null;
+  const left = claimCandidates(world, c);
+  const first = world.salvage.find((s) => s.id === left[0])!;
+  pushGoal(world, rival, { kind: 'claim', claim: c.id, left, targetId: first.id, destination: { ...first.pos }, phase: 'travel', reason: 'claimRun' });
+  c.rival = rival.id;
+  world.events.push({ t: 'claimRival', contract: c.id, vehicle: rival.id });
+  return rival;
+}
+
+export function rivalRunning(world: World, c: ClaimContract): Vehicle | null {
+  const rival = c.rival === null ? undefined : world.vehicles.find((v) => v.id === c.rival);
+  return rival?.brain?.goals.some((g) => g.kind === 'claim' && g.claim === c.id) ? rival : null;
 }
 
 export function fitsClaim(c: ClaimContract, p: PartInstance): boolean {

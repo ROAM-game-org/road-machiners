@@ -219,6 +219,8 @@ export const LOG: Translation<typeof EN> = {
   'goal.cargoFullLoad': 'Некуда грузить',
   'goal.cargoFullLoot': 'Добыча не влезает',
   'goal.claimedWreck': 'Обломки застолбили',
+  'goal.claimRun': 'Забрать деталь по заказу',
+  'goal.claimOver': 'Заказ отменен',
   'goal.cargoFullSalvage': 'Лом не влезает',
   'goal.choseNew': 'Выбрал другое дело',
   'goal.collectSalvage': 'Собрать замеченный лом',

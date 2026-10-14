@@ -218,6 +218,8 @@ export const LOG = {
   'goal.cargoFullLoad': 'Cargo cannot hold the load',
   'goal.cargoFullLoot': 'Cargo cannot hold the loot',
   'goal.claimedWreck': 'Claimed wreck',
+  'goal.claimRun': 'After a claimed part',
+  'goal.claimOver': 'Claim is off',
   'goal.cargoFullSalvage': 'Cargo cannot hold salvage',
   'goal.choseNew': 'Chose something new',
   'goal.collectSalvage': 'Collect visible salvage',

@@ -163,7 +163,7 @@ export type WeatherEvent =
 
 export type GoalReason =
   | 'arrived' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
-  | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'claimedWreck' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
+  | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'claimedWreck' | 'claimOver' | 'claimRun' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
   | 'combatStopsSearch' | 'contactGone' | 'damagedThreatened' | 'defendLoot' | 'deliverCargo' | 'droppedTow'
   | 'escapeAttacker' | 'escapeThreat' | 'explore' | 'exploredSpot' | 'fightBack' | 'fightHostile' | 'finishedRepairs'
   | 'finishedService' | 'fitAgain' | 'followLeader' | 'foundNothing' | 'heardHostile' | 'helpStranded'
@@ -244,7 +244,7 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'claim';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
@@ -257,6 +257,8 @@ export type NpcActivity = {
   until?: number;
   watchUntil?: number;
   leg?: { from: Vec; turn: number };
+  claim?: string;
+  left?: string[];
 };
 
 export type NpcBrain = {
@@ -442,7 +444,7 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward';
 
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
@@ -463,7 +465,9 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed'; cause?: 'rival' }
+  | { t: 'claimRival'; contract: string; vehicle: string }
+  | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }

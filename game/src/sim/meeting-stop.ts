@@ -8,7 +8,7 @@ import type { NpcActivity, Vehicle, World } from './types';
 import type { Vec } from './vec';
 
 function stockRadius(world: World, activity: NpcActivity): number | undefined {
-  if (activity.kind !== 'scavenge' && activity.kind !== 'loot') return undefined;
+  if (activity.kind !== 'scavenge' && activity.kind !== 'loot' && activity.kind !== 'claim') return undefined;
   return world.salvage.find((entry) => entry.id === activity.targetId)?.radius;
 }
 

@@ -178,7 +178,7 @@ export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; co
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 
-const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'haul'];
+const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'haul', 'claim'];
 
 function isBusy(vehicle: Vehicle): boolean {
   const kind = topGoal(vehicle)?.kind;

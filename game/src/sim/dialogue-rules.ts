@@ -17,7 +17,8 @@ import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, g
 import { answerLootWarning, answerWarning, lootsBesidePlayer, pendingWarningTo, playerWarns, warnRefusalOf, type WarnAnswer } from './loot-warning';
 import { talkOf } from './dialogue';
 import { cargoHaul, haulVar, showsHaul, surrenderHaul } from './haul';
-import { hasCargo, hasSalvage, isStoryWreck, storyStock } from './salvage';
+import { hasCargo, hasSalvage, isStoryWreck, storyStock, type ClaimContract } from './salvage';
+import { claimPartHeld, leadOf, rivalRunning } from './claims';
 import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } from './patch';
 import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
@@ -262,6 +263,9 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
   heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
+  nearClaimWreck: (world, npc) => claimSeenBy(world, npc) !== null,
+  rivalAsked: (world, npc) => rivalNearWreck(world, requireClaimSeen(world, npc)),
+  noRivalAsked: (world, npc) => !rivalNearWreck(world, requireClaimSeen(world, npc)),
 };
 
 export const EFFECTS: Record<EffectId, Effect> = {
@@ -393,6 +397,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
   },
   refuseAidOffer: (world, npc) => refuseAid(world, npc),
   noteWagonRoad: (world) => learnNote(world, 'wagonRoad'),
+  noteClaimLead: (world, npc) => noteClaimLead(world, npc),
   settleDone: (world, npc, call) => settle(world, npc, call, 'done'),
   settleRefused: (world, npc, call) => settle(world, npc, call, 'refused'),
 };
@@ -444,6 +449,11 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   aidAnswer,
   aidOffered: (world, npc) => ({ aid: aidVar(aidData(requirePendingAid(world, npc))) }),
+  claimWreckBearing: (world, npc) => {
+    const claim = requireClaimSeen(world, npc);
+    const lead = leadOf(claim.at, playerVehicle(world).pos);
+    return { bearing: { kind: 'bearing', rad: lead.angle }, distance: { kind: 'distance', tiles: lead.distance } };
+  },
   nearestTown: (world, npc) => {
     const me = playerVehicle(world).pos;
     const town = nearestKnownTown(world, npc);
@@ -498,4 +508,33 @@ export function learnNote(world: World, id: NoteId): void {
 
 export function holdsNote(world: World, id: NoteId): boolean {
   return world.player.notes.some((n) => n.id === id);
+}
+
+function nearWreck(v: Vehicle, claim: ClaimContract): boolean {
+  return dist(v.pos, claim.at) <= PERK_NUMBERS.rumorMill.radius;
+}
+
+export function claimSeenBy(world: World, npc: Vehicle): ClaimContract | null {
+  const held = world.player.contracts.filter((c): c is ClaimContract => c.kind === 'claim');
+  return held.find((c) => c.rival !== npc.id && nearWreck(npc, c) && claimPartHeld(world, c) === 'stock') ?? null;
+}
+
+function requireClaimSeen(world: World, npc: Vehicle): ClaimContract {
+  const claim = claimSeenBy(world, npc);
+  if (!claim) throw new Error(`${npc.id} has seen no claimed wreck`);
+  return claim;
+}
+
+function rivalNearWreck(world: World, claim: ClaimContract): boolean {
+  const rival = rivalRunning(world, claim);
+  return rival !== null && nearWreck(rival, claim);
+}
+
+function noteClaimLead(world: World, npc: Vehicle): void {
+  const claim = requireClaimSeen(world, npc);
+  const driver = npc.brain?.driver;
+  if (!driver) throw new Error(`${npc.id} has no driver to give a lead`);
+  if (claim.leads.some((l) => l.driver === driver)) return;
+  claim.leads.push({ turn: world.turn, from: { ...playerVehicle(world).pos }, driver });
+  world.events.push({ t: 'claimLead', contract: claim.id, driver });
 }

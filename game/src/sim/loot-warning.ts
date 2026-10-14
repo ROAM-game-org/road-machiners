@@ -137,7 +137,7 @@ export function leaveLoot(world: World, v: Vehicle, targetId: string, reason: Go
 }
 
 function isLootGoalOn(goal: NpcActivity | null, targetId: string): boolean {
-  return (goal?.kind === 'loot' || goal?.kind === 'scavenge') && goal.targetId === targetId;
+  return (goal?.kind === 'loot' || goal?.kind === 'scavenge' || goal?.kind === 'claim') && goal.targetId === targetId;
 }
 
 function logArgument(world: World, warner: Vehicle, looter: Vehicle, targetId: string, end: ArgumentEnd): void {
