@@ -24,9 +24,9 @@ seen: Issue #97 fixed tow offers of 2.4 days of earnings. Issue #94 fixed a bloc
 
 ID: R4
 repo: game
-rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch, gives a failed asset a stand-in, reports it and goes on. Each error names its real cause.
+rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch, gives a failed asset a stand-in, reports it and goes on. A model or map download that fails all its tries shows the player a connection screen, not a crash. Each error names its real cause.
 check: Boot with one sound, model or map fetch dropped, with one sound that never decodes, and with IndexedDB refused. The game must reach the menu each time. A network failure must not be reported as a decode failure.
-seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file.
+seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #485 fixed an Android Chrome player on 2.61.0 whose sound fetch failed and was reported as a decode failure, so the game did not boot. It also made a model or map download that fails every retry throw DownloadFailed and show a connection screen instead of a crash report.
 
 ID: R5
 repo: game
