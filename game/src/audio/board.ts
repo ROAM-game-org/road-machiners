@@ -65,7 +65,7 @@ function rejectButton(file: string): HTMLElement {
 const copyButton = el("button", { onclick: () => void navigator.clipboard.writeText([...rejected].sort().join(" ")) }, "copy 0 rejects");
 root.append(el("div", { class: "row" }, el("button", { onclick: () => playing?.stop() }, "stop"), copyButton));
 for (const failure of unreachable) root.append(el("div", { class: "missing" }, `${failure.file} could not be fetched`));
-for (const failure of failures) root.append(el("div", { class: "missing" }, `${failure.file} failed to decode: ${failure.error}`));
+for (const failure of failures) root.append(el("div", { class: "missing" }, `${failure.file} failed to decode: ${failure.errors.join(", ")}`));
 for (const bus of BUSES) {
   const ids = Object.keys(sounds).filter((id) => sounds[id].bus === bus);
   root.append(el("h2", {}, `${bus}  bus volume ${MIX.busVolume[bus]}  target ${MIX.level[bus]} dB RMS`));
