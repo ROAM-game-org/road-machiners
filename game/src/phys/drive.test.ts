@@ -15,11 +15,12 @@ import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
-import { buildDrive, freeDrive, initPhysics, restWheels, routeAim, simulateTurn, syncDrive, tailKick, trailFrames, TURN_STEPS, type Drive, type TurnResult } from './drive';
+import { buildDrive, freeDrive, toMps, initPhysics, restWheels, routeAim, simulateTurn, syncDrive, tailKick, trailFrames, TURN_STEPS, type Drive, type TurnResult } from './drive';
 import { headingOf, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
 import { physicsMove } from './turn';
+import { turnaroundSpeed } from './turnaround';
 import type { VehicleFrame } from './frames';
 import { playerTow, unhitch } from '../sim/tow';
 import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
@@ -479,6 +480,42 @@ describe('physics turns', () => {
     expect(Math.abs(angleDiff(me(w).heading, Math.PI))).toBeLessThan(Math.PI / 4);
     expect(me(w).speed).toBeGreaterThan(0);
     freeDrive(d);
+  });
+
+  describe('turning around on a route', () => {
+    const behind = { x: 12, y: 30 };
+
+    function speedsWhileAimBehind(direct: boolean): number[] {
+      let w = ordered({ kind: 'through', dest: behind }, 7.8);
+      if (direct) w = setDirect(w, true);
+      const speeds: number[] = [];
+      let d = buildDrive(w);
+      for (let i = 0; i < 4; i++) {
+        let next: Drive | null = null;
+        w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+        freeDrive(d);
+        d = next!;
+        const m = me(w);
+        if (Math.abs(angleDiff(m.heading, bearing(m.pos, behind))) > Math.PI / 2) speeds.push(toMps(m.speed));
+      }
+      freeDrive(d);
+      return speeds;
+    }
+
+    it('a fast truck whose route turns back slows to its turn speed', () => {
+      const w = ordered({ kind: 'through', dest: behind }, 7.8);
+      const v = me(w);
+      const limit = turnaroundSpeed(bodyOf(v.chassisId), PHYSICS.truck.maxSteer, 1);
+      const speeds = speedsWhileAimBehind(false);
+      expect(speeds.length).toBeGreaterThan(0);
+      expect(Math.max(...speeds)).toBeLessThan(limit * 1.3);
+    });
+
+    it('a manual truck turning back keeps its speed', () => {
+      const w = ordered({ kind: 'through', dest: behind }, 7.8);
+      const limit = turnaroundSpeed(bodyOf(me(w).chassisId), PHYSICS.truck.maxSteer, 1);
+      expect(Math.max(...speedsWhileAimBehind(true))).toBeGreaterThan(limit * 1.3);
+    });
   });
 
   it('a click behind outside the reverse cone turns the truck around nose first', () => {

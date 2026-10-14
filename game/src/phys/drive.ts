@@ -21,6 +21,7 @@ import type { Crater, MoveOrder, Obstacle, Pose, Vehicle, World } from '../sim/t
 import { angleDiff, bearing, clamp, DEG, dist, type Vec } from '../sim/vec';
 import { bodyOf, type Body } from '../sim/body';
 import { wheelMounts } from './body';
+import { turnaroundSpeed } from './turnaround';
 import { computeClosingSpeed, locateCrashContact, type CrashGeometry } from '../sim/crash-contact';
 import { headingOf, headingQuat, noseRise, rotateBy, toPhys, toPhysCircle, upOf, type Circle, type Quat, type TurnFrames, type V3, type VehicleFrame, type WheelFrame } from './frames';
 import { oilPatches } from '../sim/hazards';
@@ -757,8 +758,13 @@ function commandToward(c: Car, dest: Vec, speed: number): Command {
     const gain = c.mem.backFrom ? D.steerGain : -D.steerGain;
     return { target: -Math.min(D.reverseSpeed, plan.target), steerTo: clamp(rearAng * gain, -plan.maxSteer, plan.maxSteer) };
   }
-  const corner = Math.min(cornerSpeed(dist(at, aim) * S, ang), routeCornerSpeed(plan.route, at, Math.abs(speed), plan.stopDecel * c.grip));
+  const corner = Math.min(aimSpeed(c, ang, dist(at, aim) * S), routeCornerSpeed(plan.route, at, Math.abs(speed), plan.stopDecel * c.grip));
   return { target: Math.min(target, corner), steerTo: clamp(ang * D.steerGain, -plan.maxSteer, plan.maxSteer) };
+}
+
+function aimSpeed(c: Car, ang: number, aimDist: number): number {
+  const turnsBack = c.plan.route !== null && Math.abs(ang) > Math.PI / 2;
+  return turnsBack ? turnaroundSpeed(c.b, c.plan.maxSteer, c.grip) : cornerSpeed(aimDist, ang);
 }
 
 function arrivalTarget(c: Car, dest: Vec, at: Vec, heading: number, speed: number): number {
