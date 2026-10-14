@@ -66,7 +66,7 @@ The shared bot keeps its one consumer, Hermes's long polling, which already rece
 
 ### D. Filter and report route
 
-- `filter.ts` makes one OpenAI Decisions API call, `POST /v1/decisions`, model `FACTORY_FILTER_MODEL`, key `OPENAI_API_KEY`. It asks a `spam` predicate, a `kind` choice of `bug`, `feature` or `feedback`, and for a comment a `route` choice of `none`, `patch` or `redesign`. It returns `verdict`, `spam`, `kind` and `route`, with `reject` at `FACTORY_FILTER_SPAM_PROBABILITY` or more. A failed call fails the request loudly, and the report is not stored as accepted.
+- `filter.ts` makes one OpenAI Decisions API call, `POST /v1/decisions`, model `FACTORY_FILTER_MODEL`, key `OPENAI_API_KEY`. It asks an `intent` choice of `sincere`, `troll` or `spam`, a `kind` choice of `bug`, `feature` or `feedback`, and for a comment a `route` choice of `none`, `patch` or `redesign`, each with short labeled examples, on the player text and the game brief in `prompts/filter-game.md`. It returns `verdict`, `intent`, `sincere`, `kind` and `route`, with `reject` below `FACTORY_FILTER_SINCERE_MIN`. A failed call fails the request loudly, and the report is not stored as accepted.
 - The error service gains `POST /feedback`. It takes `{ kind, text, version, build }` from a game build. It checks Origin against the game origins, the per-address limit from the store and the body size, then runs the filter. Caddy routes `/feedback` to the error service's socket.
 - The server finds the issue from `build`, never from the client: a hash in `state.builds` whose card is in Approval gives that issue, and `rc` gives the release tracking issue. Such a report becomes a comment on that issue's next digest and goes through public routes.
 - Any other accepted report opens a GitHub issue labeled `bug` or `feature-request` and `player-report`. Intake then takes it into Triage.
@@ -248,7 +248,7 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 - udesign: `voting` is a label on a Triage card, not a new column — a new Project option is a manual GitHub change.
 - udesign: `FACTORY_MIN_VOTES` stays 10 and counts Telegram thumbs-up — same value as before.
 - udesign: `FACTORY_PROPOSALS_PER_DAY=4` — the user's number.
-- filter: the Decisions API the user asked for, with `FACTORY_FILTER_MODEL=gpt-6-luna` and `FACTORY_FILTER_SPAM_PROBABILITY=0.5`. A live test of eleven texts, including Russian, junk and an injection attempt, sorted all eleven right at about 0.3 seconds each. Change both in settings.env.
+- filter: the Decisions API the user asked for, with `FACTORY_FILTER_MODEL=gpt-6-luna` and `FACTORY_FILTER_SINCERE_MIN=0.8`. Live tests on ten real player issues, eleven made-up comments and seven sloppy sincere reports put every sincere text at 0.84 or more and the troll issue #517 at 0.49, at about 0.3 seconds a call. Change both in settings.env.
 - udesign: one public route per build post, since the route closes the post — limits money spent on player reports with no new number.
 - udesign: `voting` cards are not bundled — a posted proposal keeps its text.
 - udesign: `FACTORY_PUBLIC_DIGEST_MINUTES=60`, `FACTORY_REPORT_IP_PER_HOUR=5`, `FACTORY_REPORT_MAX_CHARS=3000` — new numbers with their reasons in settings.env. Change any of them there.

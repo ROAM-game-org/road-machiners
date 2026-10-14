@@ -44,7 +44,7 @@ export class Feedback {
     const issue = issueOf(this.deps, request.build);
     const decision = await this.classify(request, issue === null ? 'report' : 'comment');
     const at = now().toISOString();
-    const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, spam: decision.spam, at };
+    const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, intent: decision.intent, sincere: decision.sincere, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
       return { status: 'refused' };
@@ -81,7 +81,7 @@ export class Feedback {
   }
 }
 
-type ReportFields = { address: string; build: string; version: string; kind: string; text: string; spam: number; at: string };
+type ReportFields = { address: string; build: string; version: string; kind: string; text: string; intent: string; sincere: number; at: string };
 
 function parseObject(body: Buffer): Record<string, unknown> {
   let parsed: unknown;

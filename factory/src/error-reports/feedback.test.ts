@@ -6,7 +6,7 @@ import { openStore, type PublicStore } from '../public/store';
 import { alertPath, ErrorReports, ErrorServer, readStore } from './service';
 import { Feedback } from './feedback';
 
-const ACCEPT_BUG: Decision = { verdict: 'accept', spam: 0.01, kind: 'bug', route: 'none' };
+const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none' };
 const NOW = new Date('2026-10-07T12:00:00Z');
 
 type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; setDecision: (next: Decision | Error) => void };
@@ -73,7 +73,7 @@ describe('feedback route', () => {
 
   it('stores a rejected report with its reason and creates nothing', async () => {
     const { url, created, setDecision } = await start();
-    setDecision({ ...ACCEPT_BUG, verdict: 'reject', spam: 0.97 });
+    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'spam', sincere: 0.02 });
     expect(await (await send(url, request())).json()).toEqual({ status: 'refused' });
     expect(created).toEqual([]);
   });
