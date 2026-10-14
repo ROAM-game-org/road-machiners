@@ -78,3 +78,8 @@ ID: R15
 repo: game
 what: CameraRig.resize() in game/src/three/render/camera.ts built the camera frustum from the container size with no check. When the game view had zero width or height, as a phone can report for a moment while it rotates, hides the page or switches fullscreen, the projection held NaN or Infinity. spatial() in game/src/audio/pick.ts passed the NaN screen x through Math.min and Math.max as a pan, and Web Audio threw "The provided float value is non-finite" at the start of a turn. Hotfix #537 kept the last frustum on a zero-size view, centred the pan with no width and made spatial() throw a named error on a non-finite position.
 cost: An Android Chrome player on release 2.61.43 had turn 8 fail with the error, so the turn did not play. Any phone player whose view briefly had no size could hit it. It took a hotfix to main and itch.io.
+
+ID: R16
+repo: game
+what: Mixer.unlockOn() in game/src/audio/mixer.ts called ctx.resume() once on the first pointerdown or keydown, with each listener set to fire only once. A browser can refuse to start audio on a mouse or touch pointerdown, so the AudioContext stayed suspended and the listener was already spent. A player who only clicked heard nothing until a key press, and the game seemed muted though mute was off. Hotfix #492 retried the unlock on pointerup, click and keydown until the context ran.
+cost: The committee found the shipped game on main silent at the start of a fresh game. Any new player who started with the mouse heard no music, UI or gameplay sound until they pressed a key. It took a hotfix to main and itch.io.
