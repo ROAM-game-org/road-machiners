@@ -78,9 +78,9 @@ async function pass(ctx: Ctx, issue: number, reason: string, result: Ready, rele
 async function announce(ctx: Ctx, issue: number, reason: string, note: string, { hotfix, releaseFix }: Ready, release: ReleaseState | null): Promise<'hotfix' | 'release-task' | undefined> {
   if (hotfix) {
     await ctx.github.addLabel(issue, HOTFIX_LABEL);
-    await ctx.github.comment(issue, `Triage passed as a hotfix: ${reason}\n\nIt branches from main, and its approval ships it to main and itch.io at once.\n\n${note}`);
+    await ctx.github.comment(issue, `Triage passed as a hotfix: ${reason}\n\nIt branches from main. Its approval merges it into main, and the next hotfix upload puts it on itch.io.\n\n${note}`);
     const { title } = await ctx.github.issue(issue);
-    await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `⚠️ Triage marked #${issue} ${title} as a hotfix.\n${reason}\nIt skips dev. Its approval will merge into main and ship to itch.io at once. Remove the label hotfix on GitHub if it can wait for a release.`);
+    await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `⚠️ Triage marked #${issue} ${title} as a hotfix.\n${reason}\nIt skips dev. Its approval will merge it into main, and the next hotfix upload puts it on itch.io. Remove the label hotfix on GitHub if it can wait for a release.`);
     return 'hotfix';
   }
   if (releaseFix && release !== null) {

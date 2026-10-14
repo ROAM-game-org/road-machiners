@@ -89,8 +89,8 @@ describe('triage stage', () => {
     await runStage(fakeCtx(verdict({ hotfix: true, reason: 'Saves from 0.3 fail to load.' })), 7);
     expect(calls.slice(-4)).toEqual([
       'addLabel 7 hotfix',
-      expect.stringContaining('comment 7 Triage passed as a hotfix: Saves from 0.3 fail to load.\n\nIt branches from main, and its approval ships it to main and itch.io at once.\n\nModel routing from triage:'),
-      'message chat ⚠️ Triage marked #7 Big horn as a hotfix.\nSaves from 0.3 fail to load.\nIt skips dev. Its approval will merge into main and ship to itch.io at once. Remove the label hotfix on GitHub if it can wait for a release.',
+      expect.stringContaining('comment 7 Triage passed as a hotfix: Saves from 0.3 fail to load.\n\nIt branches from main. Its approval merges it into main, and the next hotfix upload puts it on itch.io.\n\nModel routing from triage:'),
+      'message chat ⚠️ Triage marked #7 Big horn as a hotfix.\nSaves from 0.3 fail to load.\nIt skips dev. Its approval will merge it into main, and the next hotfix upload puts it on itch.io. Remove the label hotfix on GitHub if it can wait for a release.',
       'move 7 Design',
     ]);
   });
