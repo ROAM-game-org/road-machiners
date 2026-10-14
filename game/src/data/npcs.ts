@@ -541,6 +541,7 @@ export type DecisionOptions = {
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
   needySeen: 'keep' | 'aid';
+  strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -575,6 +576,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
   needySeen: { keep: 1, aid: 0 },
+  strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
 };
 
 export type WeightChange = { add?: number; mul?: number };

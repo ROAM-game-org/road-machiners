@@ -37,6 +37,7 @@ import { noteHurt, resolveNpcActivities } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
 import { advanceStates } from './states';
 import { forgetOld } from './memory';
+import { lapseEncounter } from './encounters';
 import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from './tow';
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
@@ -379,6 +380,7 @@ export function endTurn(
     advanceStates(w);
     checkBeacon(w);
     forgetOld(w);
+    lapseEncounter(w);
     resolveNpcActivities(w);
     noteEngagements(w);
     discoverSites(w);

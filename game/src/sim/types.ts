@@ -162,7 +162,7 @@ export type WeatherEvent =
 
 
 export type GoalReason =
-  | 'arrived' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
+  | 'arrived' | 'calledOut' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
   | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
   | 'combatStopsSearch' | 'contactGone' | 'damagedThreatened' | 'defendLoot' | 'deliverCargo' | 'droppedTow'
   | 'escapeAttacker' | 'escapeThreat' | 'explore' | 'exploredSpot' | 'fightBack' | 'fightHostile' | 'finishedRepairs'

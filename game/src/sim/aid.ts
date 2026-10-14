@@ -71,7 +71,7 @@ export function hasAid(a: AidAmounts): boolean {
   return a.fuel > 0 || a.supplies > 0;
 }
 
-function aidValue(a: AidAmounts): number {
+export function aidValue(a: AidAmounts): number {
   return a.fuel * ECONOMY.supplyPrice.fuel + a.supplies * ECONOMY.supplyPrice.supplies;
 }
 

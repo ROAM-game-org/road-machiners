@@ -7,4 +7,5 @@ export const ENCOUNTERS = {
   wrongedTurns: TIME.turnsPerDay * 6,
   tip: { valueShare: 0.1 },
   favorShare: 2,
+  favorReserve: 500,
 };

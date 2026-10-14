@@ -27,6 +27,7 @@ import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
+import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { answersHoldUp, demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
@@ -517,7 +518,7 @@ function perceives(world: World, vehicle: Vehicle, decision: string, id: string,
   return PERCEIVES[decision as NoticedDecision](world, vehicle, id, contacts);
 }
 
-export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested';
+export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen';
 
 type Perception = (world: World, vehicle: Vehicle, id: string, contacts: Contact[]) => boolean;
 
@@ -545,6 +546,7 @@ const PERCEIVES: Record<NoticedDecision, Perception> = {
   surrenderOffered: seesVehicle,
   needySeen: seesVehicle,
   lootContested: seesVehicle,
+  strangerSeen: seesVehicle,
 };
 
 export function react<D extends NoticedDecision>(world: World, vehicle: Vehicle, decision: D, id: string): DecisionOptions[D] | null {
@@ -805,10 +807,7 @@ function rollWhim(world: World, vehicle: Vehicle, target: string): void {
   brain.whim = { kind, until: world.turn + NPC_BEHAVIOR.fight.whimTurns, angle };
 }
 
-export function inDanger(vehicle: Vehicle): boolean {
-  const top = topGoal(vehicle)?.kind;
-  return top === 'fight' || top === 'flee';
-}
+export function inDanger(vehicle: Vehicle): boolean { return ['fight', 'flee'].includes(topGoal(vehicle)?.kind ?? ''); }
 
 function fightTarget(vehicle: Vehicle): string | null {
   const top = topGoal(vehicle);
@@ -885,6 +884,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onHoldUp(world, vehicle);
   onStrandedSeen(world, vehicle);
   onNeedySeen(world, vehicle);
+  onStrangerSeen(world, vehicle);
   onSalvageSeen(world, vehicle);
   onEscortSeen(world, vehicle);
   onRamChance(world, vehicle);
@@ -1027,9 +1027,7 @@ function siteSpot(world: World, vehicle: Vehicle, site: ReturnType<typeof getKno
   return { x: pad.x - Math.sin(angle) * side, y: pad.y + Math.cos(angle) * side };
 }
 
-function charCodes(text: string): number[] {
-  return Array.from(text, (ch) => ch.charCodeAt(0));
-}
+function charCodes(text: string): number[] { return Array.from(text, (ch) => ch.charCodeAt(0)); }
 
 type Resolver = (world: World, vehicle: Vehicle, activity: NpcActivity) => void;
 

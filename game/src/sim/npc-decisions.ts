@@ -1,5 +1,6 @@
 
 import { dealAvailable } from './patch';
+import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { ECONOMY } from '../data/goods';
 import { GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
@@ -143,7 +144,7 @@ export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle):
   return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
 }
 
-function isManageable(vehicle: Vehicle, danger: number): boolean {
+export function isManageable(vehicle: Vehicle, danger: number): boolean {
   return danger <= NPC_BEHAVIOR.threatRatio * npcProfile(vehicle).boldness;
 }
 
@@ -650,6 +651,10 @@ const AVAILABLE: Record<OptionName, Availability> = {
   aid: canSpareSubject,
   warn: always,
   leave: always,
+  tale: (world, vehicle) => encounterAvailable(world, vehicle, 'tale'),
+  tip: (world, vehicle) => encounterAvailable(world, vehicle, 'tip'),
+  challenge: (world, vehicle) => encounterAvailable(world, vehicle, 'challenge'),
+  courier: (world, vehicle) => encounterAvailable(world, vehicle, 'courier'),
 };
 
 type SituationFactor = (world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null) => number;
@@ -889,6 +894,10 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   aid: neutral,
   warn: neutral,
   leave: leaveFactor,
+  tale: neutral,
+  tip: neutral,
+  challenge: neutral,
+  courier: neutral,
 };
 
 function changeTables(world: World, vehicle: Vehicle, subject: string | null): TraitWeights[] {
@@ -975,6 +984,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   hireOffered: 'response',
   aidAsked: 'response',
   needySeen: 'venture',
+  strangerSeen: 'venture',
 };
 
 export function keepsWord(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
