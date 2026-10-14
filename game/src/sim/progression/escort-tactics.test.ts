@@ -1,27 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { bestTruck, keepsPace, pickTarget } from './escort-tactics';
+import type { GameEvent } from '../types';
+import { bestTruck, keepsPace, pickTarget, underFire } from './escort-tactics';
 
 const hauler = { x: 100, y: 100 };
 
 describe('pickTarget', () => {
   it('picks the foe nearest the hauler', () => {
     const foes = [{ id: 'a', pos: { x: 120, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, null, 60)).toBe('b');
+    expect(pickTarget(foes, hauler, null)).toBe('b');
   });
 
   it('keeps the current target while it lives and stays in reach', () => {
     const foes = [{ id: 'a', pos: { x: 120, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, 'a', 60)).toBe('a');
+    expect(pickTarget(foes, hauler, 'a')).toBe('a');
   });
 
   it('drops a current target out of reach or gone', () => {
     const foes = [{ id: 'a', pos: { x: 300, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, 'a', 60)).toBe('b');
-    expect(pickTarget(foes, hauler, 'gone', 60)).toBe('b');
+    expect(pickTarget(foes, hauler, 'a')).toBe('b');
+    expect(pickTarget(foes, hauler, 'gone')).toBe('b');
   });
 
   it('picks nothing when no foe is in reach', () => {
-    expect(pickTarget([{ id: 'a', pos: { x: 500, y: 0 } }], hauler, null, 60)).toBeNull();
+    expect(pickTarget([{ id: 'a', pos: { x: 500, y: 0 } }], hauler, null)).toBeNull();
   });
 });
 
@@ -45,5 +46,19 @@ describe('keepsPace', () => {
   it('needs a top speed at the hauler top speed or better', () => {
     expect(keepsPace(6, 6)).toBe(true);
     expect(keepsPace(5.9, 6)).toBe(false);
+  });
+});
+
+describe('underFire', () => {
+  const shot = (shooter: string, target: string) => ({ t: 'shot', shooter, target }) as unknown as GameEvent;
+
+  it('is true when a hostile truck in sight shot the player truck last turn', () => {
+    expect(underFire([shot('foe', 'me')], 'me', new Set(['foe']))).toBe(true);
+  });
+
+  it('is false for shots at other trucks, shots from unseen trucks and no shots', () => {
+    expect(underFire([shot('foe', 'hauler')], 'me', new Set(['foe']))).toBe(false);
+    expect(underFire([shot('far', 'me')], 'me', new Set(['foe']))).toBe(false);
+    expect(underFire([], 'me', new Set(['foe']))).toBe(false);
   });
 });

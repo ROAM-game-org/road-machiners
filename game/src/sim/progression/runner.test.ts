@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { dist } from '../vec';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
 import { onOutpostPad, outpostPad } from '../fury-road';
-import { outpostFort } from '../highway';
 import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
-import type { World } from '../types';
+import type { GameEvent, Vehicle, World } from '../types';
+import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
+import { dist, type Vec } from '../vec';
 import { maxHp } from '../wear';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
@@ -21,6 +21,23 @@ function atFirstOutpost(): World {
   hauler.pos = { x: pad.x + 2, y: pad.y };
   hauler.speed = 0;
   return endTurn(w, () => {});
+}
+
+function hostileNear(w: World): Vehicle {
+  const me = playerVehicle(w);
+  const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+  foe.brain = npcBrain('merc', foe.pos, []);
+  return foe;
+}
+
+function shotAt(shooter: Vehicle, target: Vehicle): GameEvent {
+  return { t: 'shot', shooter: shooter.id, weapon: 'none', target: target.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [] };
+}
+
+function escortSpotOf(w: World): Vec {
+  const run = w.furyRoad!;
+  const at = toRoad(run.window, haulerOf(w).pos);
+  return roadPoint(w.seed, run.window, alongOf(w.seed, at) - 10, acrossOf(w.seed, at));
 }
 
 describe('the Fury Road escort bot', () => {
@@ -116,34 +133,39 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
   });
 
-  it('follows the hauler with its guns quiet until a truck attacks it', () => {
+  it('follows the hauler with its guns quiet while no truck shoots it', () => {
     const w = furyRoadWorld();
     w.player.autoFire = true;
-    const quiet = botOrders(w, 'escort');
-    expect(quiet.world.player.autoFire).toBe(false);
+    hostileNear(w);
 
-    const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: playerVehicle(w).pos.x + 6, y: playerVehicle(w).pos.y });
-    foe.brain = npcBrain('merc', foe.pos, []);
-    foe.brain.attackers[playerVehicle(w).id] = true;
-    const attacked = botOrders(w, 'escort');
+    const turn = botOrders(w, 'escort');
+    const order = playerVehicle(turn.world).order;
 
-    expect(attacked.world.player.autoFire).toBe(true);
+    expect(turn.world.player.autoFire).toBe(false);
+    expect(order).toMatchObject({ kind: 'stopAt' });
+    expect(dist((order as { dest: Vec }).dest, escortSpotOf(w))).toBeLessThan(1);
   });
 
-  it('drives on toward the next pad when a truck attacks it, and follows the hauler again when none does', () => {
+  it('fires and drives toward the next pad after a visible hostile truck shot it', () => {
     const w = furyRoadWorld();
-    const me = playerVehicle(w);
-    const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
-    foe.brain = npcBrain('merc', foe.pos, []);
-    foe.brain.attackers[me.id] = true;
+    const foe = hostileNear(w);
+    w.events = [shotAt(foe, playerVehicle(w))];
 
-    const fleeing = playerVehicle(botOrders(w, 'escort').world).order;
-    foe.brain.attackers = {};
-    const following = playerVehicle(botOrders(w, 'escort').world).order;
+    const turn = botOrders(w, 'escort');
+    const order = playerVehicle(turn.world).order as { kind: string; dest: Vec };
 
-    expect(fleeing).toMatchObject({ kind: 'stopAt' });
-    expect(following).toMatchObject({ kind: 'stopAt' });
-    expect(fleeing).not.toEqual(following);
+    expect(turn.world.player.autoFire).toBe(true);
+    expect(order.kind).toBe('stopAt');
+    expect(dist(order.dest, outpostPad(w, 1))).toBeLessThan(dist(playerVehicle(w).pos, outpostPad(w, 1)));
+    expect(dist(order.dest, playerVehicle(w).pos)).toBeGreaterThan(dist(escortSpotOf(w), playerVehicle(w).pos));
+  });
+
+  it('ignores a shot at the hauler', () => {
+    const w = furyRoadWorld();
+    const foe = hostileNear(w);
+    w.events = [shotAt(foe, haulerOf(w))];
+
+    expect(botOrders(w, 'escort').world.player.autoFire).toBe(false);
   });
 });
 

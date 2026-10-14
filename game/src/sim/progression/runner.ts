@@ -22,7 +22,7 @@ import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { bestTruck, keepsPace, KEEP_TARGET_REACH, pickTarget } from './escort-tactics';
+import { bestTruck, keepsPace, pickTarget, underFire } from './escort-tactics';
 import { aimGuns } from './aim';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
@@ -99,15 +99,19 @@ function escort(o: Orders): void {
   driveTo(o, escortSpot(o.world, haulerOf(o.world)));
 }
 
+function seenHostiles(o: Orders): Vehicle[] {
+  return o.world.vehicles.filter((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && playerSees(o.world, v.pos));
+}
+
 function underAttack(o: Orders): boolean {
-  return o.world.vehicles.some((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && v.brain !== null && o.me.id in v.brain.attackers);
+  return underFire(o.lastTurn, o.me.id, new Set(seenHostiles(o).map((v) => v.id)));
 }
 
 function chosenFoe(o: Orders): Vehicle | null {
   const hauler = haulerOf(o.world);
-  const foes = o.world.vehicles.filter((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && playerSees(o.world, v.pos));
+  const foes = seenHostiles(o);
   const current = Object.values(o.me.weaponOrders).find((w) => w.targetId && foes.some((f) => f.id === w.targetId))?.targetId ?? null;
-  const id = pickTarget(foes.map((f) => ({ id: f.id, pos: f.pos })), hauler.pos, current, KEEP_TARGET_REACH);
+  const id = pickTarget(foes.map((f) => ({ id: f.id, pos: f.pos })), hauler.pos, current);
   return foes.find((f) => f.id === id) ?? null;
 }
 
