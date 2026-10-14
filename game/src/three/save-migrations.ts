@@ -870,6 +870,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
   withSalvageClaims_62_63,
+  withClaimRivals_63_64,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -894,6 +895,18 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
 
 function withSalvageClaims_62_63(world: SavedJson): SavedJson {
   return world;
+}
+
+const CLAIM_KIND_63_64 = 'claim';
+
+function withRival_63_64(contract: SavedJson): SavedJson {
+  return contract.kind === CLAIM_KIND_63_64 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
+}
+
+function withClaimRivals_63_64(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_63_64) }]));
+  const player = world.player as SavedJson;
+  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_63_64) } };
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {

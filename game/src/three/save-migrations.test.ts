@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_63 from './save-fixtures/format-2-63.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1350,5 +1351,16 @@ describe('save migration 62 to 63', () => {
     const next = MIGRATIONS[62](structuredClone(FORMAT_2_62));
 
     expect(next).toEqual(FORMAT_2_62);
+  });
+
+  it('63 to 64 gives every posted and held claim no rival, no leads and a rival turn at its deadline, and leaves other contracts be', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_63)) as typeof FORMAT_2_63;
+    const [fetch, posted] = next.shops.bowl.contracts;
+    const [held, haul] = next.player.contracts;
+    expect(fetch).toEqual(FORMAT_2_63.shops.bowl.contracts[0]);
+    expect(posted).toEqual({ ...FORMAT_2_63.shops.bowl.contracts[1], rivalAt: 1400, rival: null, leads: [] });
+    expect(held).toEqual({ ...FORMAT_2_63.player.contracts[0], rivalAt: 1100, rival: null, leads: [] });
+    expect(haul).toEqual(FORMAT_2_63.player.contracts[1]);
+    expect(next.turn).toBe(530);
   });
 });
