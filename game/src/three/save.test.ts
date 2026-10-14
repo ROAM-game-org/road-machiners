@@ -32,6 +32,10 @@ import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questNames } from '../test/save-shape';
 import { chooseQuestOption, QUESTS, questView, startQuest } from '../sim/quests';
 import { defaultSetup, parseSetup } from '../sim/settings';
+import { TOPICS } from '../data/dialogue';
+import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
+import { resolve } from '../text/resolve';
+import { lineText } from '../ui/dialogue';
 
 const SLOTS = allSlots(3);
 const RUN = 'run-1';
@@ -117,6 +121,27 @@ describe('game save', () => {
     expect(back.resources).toEqual(lawman.resources);
     expect(loaded.player.money).toBe(world.player.money);
     expect(loaded.events.filter((e) => ['shopMoney', 'transfer', 'guardPaid', 'money'].includes(e.t))).toEqual([]);
+  });
+
+  it('keeps an open directions call and its words through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld({ x: 100, y: 450 });
+    const npc = addVehicle(world, 'traders', 'scout', ['stockEngine'], { x: 106, y: 450 });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    refreshVision(world);
+    let opened = callVehicle(world, npc.id);
+    opened = chooseOption(opened, currentOptions(opened).findIndex((o) => o.line === TOPICS.directions.ask!.say));
+    expect(opened.player.call?.line.line).toBe('townWay');
+    writeSave(slots, 'auto', opened, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.player.call).toEqual(opened.player.call);
+    const said = (w: World) => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), 'en');
+    expect(said(loaded)).toBe(said(opened));
+    expect(loaded.player.xp).toBe(opened.player.xp);
+    expect(loaded.player.money).toBe(opened.player.money);
+    expect(loaded.events.filter((e) => e.t === 'discover' || e.t === 'money')).toEqual([]);
   });
 
   it('loads a save with overdrive on and a worn engine as not overdriving, and clears the flag on the next update', () => {
