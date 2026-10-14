@@ -105,6 +105,9 @@
   align-items: stretch;
   gap: var(--hud-gap);
 }
+#ui.phone .truck-stack > * {
+  flex: none;
+}
 #ui.phone .truck-stack > .speedometer {
   align-self: center;
 }
@@ -141,6 +144,7 @@
 #ui.phone:has(.modal:not([style*="display: none"])) :is(.drawer-tabs, .turn-control, .bottom-left > .instruments, .truck-stack, .weapons, .right-dock, .log, .info) {
   display: none;
 }
+#ui.phone[data-drawer] > .top-center > .tip,
 #ui.phone:has(.info:not([style*="display: none"])) > .top-center > .tip {
   visibility: hidden;
 }
@@ -222,9 +226,20 @@
     right: calc(var(--safe-right) + var(--phone-end-w) + var(--hud-gap));
     bottom: var(--safe-bottom);
   }
-  #ui.phone :is(.bottom-left > .truck-stack, .weapons) {
+  #ui.phone .weapons {
     right: auto;
     width: var(--drawer-w);
+  }
+  #ui.phone .bottom-left > .truck-stack {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  #ui.phone .truck-stack > .instrument-actions {
+    flex: 1 1 var(--panel-s);
+  }
+  #ui.phone .truck-stack > .speedometer {
+    align-self: flex-start;
   }
   #ui.phone :is(.right-dock, .log) {
     left: auto;
