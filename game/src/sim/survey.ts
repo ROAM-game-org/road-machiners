@@ -1,17 +1,22 @@
 import { CONTRACTS, EFFORT } from '../data/market';
+import { ECONOMY } from '../data/goods';
+import { RULES } from '../data/rules';
 import { REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
 import { estimateTurns, haulWindow, type Contract } from './market';
+import { playerVehicle } from './damage';
+import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
-import { MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable } from './salvage';
+import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable } from './salvage';
 import { randInt, randRange } from './rng';
+import { playerCommand } from './world';
 import { siteGap } from './sites';
 import type { BakedMap } from './terrain';
-import type { World } from './types';
-import { dist, type Vec } from './vec';
+import type { Job, Vehicle, World } from './types';
+import { bearing, dist, type Vec } from './vec';
 
 export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; reach: number };
 
@@ -99,4 +104,66 @@ export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: S
   const turns = surveyLoopTurns(shop.pos, sites.map((s) => s.pos));
   const window = haulWindow(turns, false);
   return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
+}
+
+export type SurveyAction = { contractId: string; site: string; ready: boolean };
+
+type SurveyJob = Extract<Job, { kind: 'survey' }>;
+
+function inSurveyReach(v: Vehicle, site: SurveySite): boolean {
+  return dist(v.pos, site.pos) <= (site.reach + ECONOMY.useRange) * ECONOMY.interactionScale;
+}
+
+function heldSurveys(world: World): SurveyContract[] {
+  return world.player.contracts.filter((c): c is SurveyContract => c.kind === 'survey');
+}
+
+export function surveyActions(world: World): SurveyAction[] {
+  const me = playerVehicle(world);
+  return heldSurveys(world).flatMap((c) =>
+    c.points.flatMap((p) => (!p.done && inSurveyReach(me, surveySite(world, p.site)) ? [{ contractId: c.id, site: p.site, ready: me.speed <= RULES.parkedSpeed }] : [])),
+  );
+}
+
+export function startSurvey(world: World, contractId: string, site: string): World {
+  return playerCommand(world, (w) => {
+    const me = playerVehicle(w);
+    const action = surveyActions(w).find((a) => a.contractId === contractId && a.site === site);
+    if (!action) throw new Error(`Not in reach of an open survey site ${site} of ${contractId}`);
+    const turns = CONTRACTS.survey.surveyTurns;
+    startJob(w, me, { kind: 'survey', contractId, site, turnsLeft: turns, total: turns });
+  });
+}
+
+function jobPoint(world: World, job: SurveyJob): { contract: SurveyContract; point: SurveyPoint } | null {
+  const contract = heldSurveys(world).find((c) => c.id === job.contractId);
+  const point = contract?.points.find((p) => p.site === job.site);
+  return contract && point && !point.done ? { contract, point } : null;
+}
+
+export function isSurveyStalled(world: World, job: SurveyJob): boolean {
+  return jobPoint(world, job) === null;
+}
+
+export function surveyTurn(world: World, job: SurveyJob): boolean {
+  const open = jobPoint(world, job);
+  if (!open) throw new Error(`Survey ${job.contractId} no longer holds open site ${job.site}`);
+  job.turnsLeft = Math.max(0, job.turnsLeft - 1);
+  if (job.turnsLeft > 0) return false;
+  open.point.done = true;
+  world.events.push({ t: 'contract', contract: { ...open.contract }, outcome: 'surveyed' });
+  if (isSurveyMet(open.contract)) world.events.push({ t: 'contract', contract: { ...open.contract }, outcome: 'fulfilled' });
+  rumorAround(world, surveySite(world, job.site));
+  return true;
+}
+
+function rumorAround(world: World, site: SurveySite): void {
+  const { scavenged, rumored } = world.player;
+  for (const stock of world.salvage)
+    if (dist(stock.pos, site.pos) <= CONTRACTS.survey.knowledgeRange && hasSalvage(stock) && !scavenged.includes(stock.id) && !rumored.includes(stock.id)) rumored.push(stock.id);
+}
+
+export function surveyBearing(from: Vec, c: SurveyContract): { rad: number; tiles: number } | null {
+  const open = c.points.filter((p) => !p.done).sort((a, b) => dist(from, a.area) - dist(from, b.area));
+  return open.length ? { rad: bearing(from, open[0].area), tiles: dist(from, open[0].area) } : null;
 }

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { sitePads } from './sites';
-import { emptyWorld } from './testkit';
+import { emptyWorld, testDrive } from './testkit';
 import { acceptContract, advanceContracts, deliverContract, haulWindow, initializeShops, siteOf, type Contract } from './market';
-import { isSurveyMet, liveSurveySites, surveyLoopTurns, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
+import { endTurn } from './world';
+import { nearestRoadPoint } from './salvage';
+import { isSurveyMet, startSurvey, surveyActions, liveSurveySites, surveyLoopTurns, surveyReward, surveySite, surveySites, type SurveyContract } from './survey';
 import { TEST_MAP } from '../test/map';
 import { dist } from './vec';
-import type { World } from './types';
+import type { Job, SalvageStock, World } from './types';
+import type { Vec } from './vec';
 
 const rules = CONTRACTS.survey;
 
@@ -128,5 +131,110 @@ describe('survey hand-in', () => {
     advanceContracts(held);
     expect(held.player.contracts).toHaveLength(0);
     expect(held.player.money).toBe(money);
+  });
+});
+
+describe('survey job', () => {
+  function heldAtSite() {
+    const { w, c } = offerAt('bowl');
+    const held = acceptContract(w, c.id);
+    const mine = held.player.contracts[0] as SurveyContract;
+    const site = surveySite(held, mine.points[0].site);
+    held.vehicles[0].pos = { x: site.pos.x + 1, y: site.pos.y };
+    held.vehicles[0].speed = 0;
+    return { w: held, mine, site };
+  }
+
+  function surveyTurns(w: World): World {
+    let next = w;
+    for (let i = 0; i < rules.surveyTurns; i++) next = endTurn(next, testDrive);
+    return next;
+  }
+
+  it('offers Survey only in reach of an open site of a held survey', () => {
+    const { w, mine, site } = heldAtSite();
+    expect(surveyActions(w)).toEqual([{ contractId: mine.id, site: site.id, ready: true }]);
+    w.vehicles[0].pos = { x: site.pos.x + 30, y: site.pos.y };
+    expect(surveyActions(w)).toEqual([]);
+  });
+
+  it('never offers Survey from the road, for a site on no held contract, or at a site already done', () => {
+    const { w, mine, site } = heldAtSite();
+    const road = nearestRoadPoint(site.pos);
+    w.vehicles[0].pos = road;
+    expect(surveyActions(w)).toEqual([]);
+    w.vehicles[0].pos = { x: site.pos.x + 1, y: site.pos.y };
+    mine.points[0].done = true;
+    expect(surveyActions(w)).toEqual([]);
+    const free = emptyWorld();
+    free.vehicles[0].pos = { ...site.pos };
+    expect(surveyActions(free)).toEqual([]);
+  });
+
+  it('marks the site done after the survey turns, and not before', () => {
+    const { w, mine, site } = heldAtSite();
+    let next = startSurvey(w, mine.id, site.id);
+    expect(next.vehicles[0].job?.kind).toBe('survey');
+    for (let i = 0; i < rules.surveyTurns - 1; i++) next = endTurn(next, testDrive);
+    expect((next.player.contracts[0] as SurveyContract).points[0].done).toBe(false);
+    next = endTurn(next, testDrive);
+    expect((next.player.contracts[0] as SurveyContract).points[0].done).toBe(true);
+    expect(next.vehicles[0].job).toBeNull();
+  });
+
+  it('meets the contract when the last site is done and raises fulfilled once', () => {
+    const { w, mine, site } = heldAtSite();
+    mine.points.slice(1).forEach((p) => (p.done = true));
+    const next = surveyTurns(startSurvey(w, mine.id, site.id));
+    const outcomes = next.events.flatMap((e) => (e.t === 'contract' ? [e.outcome] : []));
+    expect(outcomes.filter((o) => o === 'fulfilled')).toHaveLength(1);
+    expect(outcomes).toContain('surveyed');
+    expect(isSurveyMet(next.player.contracts[0] as SurveyContract)).toBe(true);
+  });
+
+  it('throws when moving, in combat or out of reach', () => {
+    const { w, mine, site } = heldAtSite();
+    expect(() => startSurvey(w, mine.id, 'survey-nowhere')).toThrow();
+    w.vehicles[0].pos = { x: site.pos.x + 40, y: site.pos.y };
+    expect(() => startSurvey(w, mine.id, site.id)).toThrow(/reach/);
+  });
+
+  it('is cancelled by moving and marks nothing', () => {
+    const { w, mine, site } = heldAtSite();
+    const next = startSurvey(w, mine.id, site.id);
+    next.vehicles[0].speed = 5;
+    const after = endTurn(next, testDrive);
+    expect(after.vehicles[0].job).toBeNull();
+    expect((after.player.contracts[0] as SurveyContract).points[0].done).toBe(false);
+  });
+
+  it('ends with no effect when the contract fails mid-job', () => {
+    const { w, mine, site } = heldAtSite();
+    const next = startSurvey(w, mine.id, site.id);
+    next.turn = mine.deadline + 1;
+    const after = endTurn(next, testDrive);
+    expect(after.player.contracts).toHaveLength(0);
+    expect(after.vehicles[0].job).toBeNull();
+    expect(after.events.some((e) => e.t === 'contract' && e.outcome === 'surveyed')).toBe(false);
+  });
+
+  it('does not count a job of another contract', () => {
+    const { w, mine, site } = heldAtSite();
+    const next = startSurvey(w, mine.id, site.id);
+    (next.vehicles[0].job as Extract<Job, { kind: 'survey' }>).contractId = 'ct-other';
+    const after = surveyTurns(next);
+    expect((after.player.contracts[0] as SurveyContract).points[0].done).toBe(false);
+  });
+
+  it('adds unsearched stocks with salvage near the site to the rumors', () => {
+    const { w, mine, site } = heldAtSite();
+    const stock = (id: string, pos: Vec, fuel: number): SalvageStock => ({ id, pos, radius: 1, goods: {}, parts: [], fuel, hidden: { goods: {}, parts: [], fuel: 0, supplies: 0 } });
+    w.salvage.push(stock('rumor-near', { ...site.pos }, 5), stock('rumor-far', { x: site.pos.x + 60, y: site.pos.y }, 5), stock('rumor-empty', { ...site.pos }, 0), stock('rumor-searched', { ...site.pos }, 5));
+    w.player.scavenged.push('rumor-searched');
+    const after = surveyTurns(startSurvey(w, mine.id, site.id));
+    expect(after.player.rumored).toContain('rumor-near');
+    expect(after.player.rumored).not.toContain('rumor-far');
+    expect(after.player.rumored).not.toContain('rumor-empty');
+    expect(after.player.rumored).not.toContain('rumor-searched');
   });
 });

@@ -11,6 +11,7 @@ import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { freeCells, goodsCount } from './grid';
 import { addGoods, removeGoods, spareParts } from './inventory';
+import { cancelJob } from './jobs';
 import { practice } from './progress';
 import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
@@ -515,6 +516,8 @@ export function contractXp(c: Contract): number {
 function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed'): void {
   if (outcome !== 'done' && isMet(c)) throw new Error(`A met contract cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
+  const me = playerVehicle(world);
+  if (me.job?.kind === 'survey' && me.job.contractId === c.id) cancelJob(world, me);
   world.events.push({ t: 'contract', contract: { ...c }, outcome });
   if (outcome === 'done') payContract(world, c);
   if (outcome === 'failed' && c.kind === 'haul') chargeHaulPenalty(world, c);

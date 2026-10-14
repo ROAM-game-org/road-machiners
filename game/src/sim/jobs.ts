@@ -17,6 +17,7 @@ import { repairPlan, repairTurn } from "./repair";
 import { practice, vehicleHasPerk } from "./progress";
 import { finishTruckPickup } from "./salvage";
 import { isSearchStalled, searchTurn } from "./search";
+import { isSurveyStalled, surveyTurn } from "./survey";
 import { hasWorkingUtility } from "./utility";
 import type { GridItem, Job, PartInstance, RefitJob, RefitPickup, Vehicle, World } from "./types";
 import { getKnownSite } from "./npc-decisions";
@@ -198,6 +199,7 @@ function isStalled(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return isRepairStalled(world, v, job);
   if (job.kind === "strip") return isStripStalled(v, job.partId);
   if (job.kind === "search") return isSearchStalled(world, v, job);
+  if (job.kind === "survey") return isSurveyStalled(world, job);
   return isSiteWorkStalled(v, job);
 }
 
@@ -209,6 +211,7 @@ function isSiteWorkStalled(v: Vehicle, job: Job): boolean {
 function jobTurn(world: World, v: Vehicle, job: Job): boolean {
   if (job.kind === "repair") return repairTurn(world, v, job);
   if (job.kind === "search") return searchTurn(world, v, job);
+  if (job.kind === "survey") return surveyTurn(world, job);
   if (job.kind === "strip") return stripTurn(world, v, job);
   if (job.kind === "weld") return weldTurn(world, v, job);
   if (job.kind === "business") return businessTurn(job);
