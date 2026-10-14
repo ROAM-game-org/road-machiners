@@ -79,4 +79,19 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     expect(f.store.unclassifiedComments().map((comment) => comment.text)).toEqual(['The truck stalls']);
   });
+
+  it('stores a standalone chat message with its sender, and reads an old file with no sender fields', async () => {
+    const { f, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', user: '42', addressed: true, standalone: true });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bob', text: 'Old file', at: '2026-10-14T10:00:00Z' });
+    await ingest(f.ctx, f.store);
+    expect(f.store.unclassifiedComments().map((c) => [c.issue, c.user, c.addressed, c.messageId])).toEqual([[null, '42', true, 32], [7, null, false, 33]]);
+  });
+
+  it('moves a comment with a bad sender flag to bad', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', text: 'x', at: 'x', addressed: 'yes' });
+    await ingest(f.ctx, f.store);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
+  });
 });

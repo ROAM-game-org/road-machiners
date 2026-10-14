@@ -1,27 +1,36 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { DecisionKind, Relevance } from './decision';
 
 export type ReactionCountEvent = { updateId: number; kind: 'reaction-count'; chat: string; messageId: number; counts: Record<string, number> };
 export type ReactionEvent = { updateId: number; kind: 'reaction'; chat: string; messageId: number; user: string; emoji: string[] };
 export type ForwardEvent = { updateId: number; kind: 'forward'; chat: string; messageId: number; channelChat: string; channelMessageId: number };
-export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number; author: string; text: string; at: string };
+export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number | null; author: string; text: string; at: string; user?: string; addressed?: boolean; standalone?: boolean };
 export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | CommentEvent;
 
-export type CommentKind = 'bug' | 'feature' | 'feedback' | 'rejected';
+export type CommentKind = DecisionKind | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
-export type StoredComment = { id: number; issue: number; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null };
-export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string };
+export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; user: string | null; addressed: boolean; relevance: Relevance | null; topic: string | null; filedIssue: number | null; filedAt: string | null };
+export type IssueComment = StoredComment & { issue: number };
+export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string; messageId?: number; user?: string; addressed?: boolean };
+export type CommentDetails = { relevance: Relevance; topic: string };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
+
+const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at';
+const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, message_id integer, user_id text, addressed integer not null default 0, relevance text, topic text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer';
+const ON_TOPIC = "(relevance is null or relevance = 'parent')";
+
+export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 const SCHEMA = `
 create table if not exists updates (update_id integer primary key);
 create table if not exists proposals (issue integer primary key, pitch text not null, created_at text not null, chat text, message_id integer, discussion_chat text, discussion_id integer, posted_at text, channel_counts text, closed_at text);
 create table if not exists reactions (chat text not null, message_id integer not null, user_id text not null, emoji text not null, primary key (chat, message_id, user_id));
 create table if not exists build_posts (chat text not null, message_id integer not null, issue integer not null, build text not null, discussion_chat text, discussion_id integer, posted_at text not null, open integer not null, primary key (chat, message_id));
-create table if not exists comments (id integer primary key autoincrement, issue integer not null, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text);
+create table if not exists comments (${COMMENT_COLUMNS});
 create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, intent text not null, sincere real not null, issue integer, created_issue integer, at text not null);
 create table if not exists hits (address text not null, hour text not null, count integer not null, primary key (address, hour));
 create table if not exists digests (issue integer primary key, last_at text not null);
@@ -40,6 +49,18 @@ export class PublicStore {
     db.exec(SCHEMA);
     const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
     if (!columns.includes('shown_votes')) db.exec('alter table proposals add column shown_votes integer');
+    this.migrateComments();
+  }
+
+  private migrateComments(): void {
+    const issue = this.db.prepare('pragma table_info(comments)').all().find((column) => column.name === 'issue');
+    if (Number(issue?.notnull) !== 1) return;
+    this.transaction(() => {
+      this.db.exec('alter table comments rename to comments_old');
+      this.db.exec(`create table comments (${COMMENT_COLUMNS})`);
+      this.db.exec(`insert into comments (${OLD_COMMENT_COLUMNS}, filed_at, replied_at) select ${OLD_COMMENT_COLUMNS}, at, at from comments_old`);
+      this.db.exec('drop table comments_old');
+    });
   }
 
   close(): void {
@@ -125,20 +146,63 @@ export class PublicStore {
 
   addComment(comment: NewComment): number | null {
     const { issue, source, sourceId, postChat, postMessageId, author, text, at } = comment;
-    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at) values (?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at);
+    const extra = [comment.messageId ?? null, comment.user ?? null, comment.addressed ? 1 : 0] as const;
+    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, message_id, user_id, addressed) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at, ...extra);
     return result.changes === 1 ? Number(result.lastInsertRowid) : null;
+  }
+
+  parentPitch(issue: number): string | null {
+    const row = this.db.prepare('select pitch from proposals where issue = ?').get(issue);
+    return row === undefined ? null : String(row.pitch).split('\n')[0]!.trim();
   }
 
   unclassifiedComments(): StoredComment[] {
     return this.db.prepare('select * from comments where classified_at is null order by id').all().map(toComment);
   }
 
-  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date): void {
-    this.db.prepare('update comments set kind = ?, route = ?, classified_at = ? where id = ?').run(kind, route, now.toISOString(), id);
+  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, details: CommentDetails = { relevance: 'parent', topic: 'none' }): void {
+    this.db.prepare('update comments set kind = ?, route = ?, relevance = ?, topic = ?, classified_at = ? where id = ?').run(kind, route, details.relevance, details.topic, now.toISOString(), id);
   }
 
-  unsentComments(): StoredComment[] {
-    return this.db.prepare("select * from comments where classified_at is not null and sent_at is null and kind != 'rejected' order by issue, id").all().map(toComment);
+  unsentComments(): IssueComment[] {
+    return this.db.prepare(`select * from comments where classified_at is not null and sent_at is null and kind not in ('rejected', 'chatter') and issue is not null and ${ON_TOPIC} order by issue, id`).all().map(toIssueComment);
+  }
+
+  toFile(): StoredComment[] {
+    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and filed_at is null and kind in ('bug', 'feature') and not (issue is not null and ${ON_TOPIC}) order by id`).all().map(toComment);
+  }
+
+  claimFiling(id: number, text: string, now: Date): number | null {
+    const key = textKey(text);
+    this.db.prepare('update comments set filed_at = ?, text_key = ? where id = ?').run(now.toISOString(), key, id);
+    const earlier = this.db.prepare('select filed_issue from comments where text_key = ? and filed_issue is not null and id != ? order by id limit 1').get(key, id);
+    return earlier === undefined ? null : Number(earlier.filed_issue);
+  }
+
+  setFiled(id: number, issue: number): void {
+    this.db.prepare('update comments set filed_issue = ? where id = ?').run(issue, id);
+  }
+
+  filedBefore(comment: StoredComment): boolean {
+    if (comment.filedIssue === null) return false;
+    return this.db.prepare('select 1 from comments where filed_issue = ? and id < ?').get(comment.filedIssue, comment.id) !== undefined;
+  }
+
+  toReply(): StoredComment[] {
+    const filed = `(filed_at is not null or kind not in ('bug', 'feature') or (issue is not null and ${ON_TOPIC}))`;
+    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and replied_at is null and message_id is not null and ${filed} order by id`).all().map(toComment);
+  }
+
+  markReplied(id: number, now: Date): void {
+    this.db.prepare('update comments set replied_at = ? where id = ?').run(now.toISOString(), id);
+  }
+
+  setReplyId(id: number, replyId: number): void {
+    this.db.prepare('update comments set reply_id = ? where id = ?').run(replyId, id);
+  }
+
+  recentChat(limit: number): StoredComment[] {
+    return this.db.prepare("select * from comments where source = 'telegram' and classified_at is not null order by id desc limit ?").all(limit).map(toComment);
   }
 
   markSent(ids: number[], now: Date): void {
@@ -156,10 +220,10 @@ export class PublicStore {
     this.db.prepare('insert into digests (issue, last_at) values (?, ?) on conflict (issue) do update set last_at = excluded.last_at').run(issue, now.toISOString());
   }
 
-  pendingRoutes(): StoredComment[] {
+  pendingRoutes(): IssueComment[] {
     const onOpenPost = 'exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and ((c.post_chat = b.chat and c.post_message_id = b.message_id) or (c.post_chat = b.discussion_chat and c.post_message_id = b.discussion_id)))';
-    const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' and (c.source = 'game' or ${onOpenPost}) order by c.id`;
-    return this.db.prepare(sql).all().map(toComment);
+    const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' and c.issue is not null and (c.relevance is null or c.relevance = 'parent') and (c.source = 'game' or ${onOpenPost}) order by c.id`;
+    return this.db.prepare(sql).all().map(toIssueComment);
   }
 
   markRouted(id: number, now: Date): void {
@@ -197,15 +261,16 @@ export class PublicStore {
   }
 
   private applyComment(event: CommentEvent): void {
-    const thread = this.threadOf(event.chat, event.threadId);
-    if (thread === null) return;
-    this.addComment({ issue: thread.issue, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread.post, author: event.author, text: event.text, at: event.at });
+    const thread = event.threadId === null ? null : this.threadOf(event.chat, event.threadId);
+    if (thread === null && !event.standalone) return;
+    const sender = { messageId: event.messageId, user: event.user, addressed: event.addressed };
+    this.addComment({ issue: thread?.issue ?? null, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread?.post ?? null, author: event.author, text: event.text, at: event.at, ...sender });
   }
 
   private threadOf(chat: string, threadId: number): { issue: number; post: number } | null {
     const issue = this.threadIssue(chat, threadId);
     if (issue !== null) return { issue, post: threadId };
-    const parent = this.db.prepare('select issue, post_message_id from comments where source_id = ?').get(`${chat}:${threadId}`);
+    const parent = this.db.prepare('select issue, post_message_id from comments where issue is not null and (source_id = ? or (post_chat = ? and reply_id = ?)) order by id limit 1').get(`${chat}:${threadId}`, chat, threadId);
     return parent === undefined ? null : { issue: Number(parent.issue), post: Number(parent.post_message_id) };
   }
 
@@ -242,6 +307,19 @@ function toBuildPost(row: Row): BuildPost {
   return { issue: Number(row.issue), build: String(row.build), chat: String(row.chat), messageId: Number(row.message_id), postedAt: String(row.posted_at) };
 }
 
+const numberOrNull = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
+const textOrNull = (value: unknown): string | null => (value === null || value === undefined ? null : String(value));
+
+function toIssueComment(row: Row): IssueComment {
+  const comment = toComment(row);
+  if (comment.issue === null) throw new Error(`Player comment ${comment.id} has no issue.`);
+  return comment as IssueComment;
+}
+
 function toComment(row: Row): StoredComment {
-  return { id: Number(row.id), issue: Number(row.issue), source: row.source as StoredComment['source'], author: String(row.author), text: String(row.text), at: String(row.at), kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null };
+  return {
+    id: Number(row.id), issue: numberOrNull(row.issue), source: row.source as StoredComment['source'], author: String(row.author), text: String(row.text), at: String(row.at),
+    kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null, chat: textOrNull(row.post_chat), messageId: numberOrNull(row.message_id), user: textOrNull(row.user_id),
+    addressed: Number(row.addressed) === 1, relevance: row.relevance as Relevance | null, topic: textOrNull(row.topic), filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at),
+  };
 }

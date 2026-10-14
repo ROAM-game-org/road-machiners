@@ -4,19 +4,19 @@ import { routeFeedback } from '../stages/approval';
 import { readState } from '../state';
 import { PLAYER_REPORT_HEADING, PUBLIC_SENDER, type Ctx } from '../types';
 import { oneLine, quote } from './digest';
-import type { PublicStore, StoredComment } from './store';
+import type { PublicStore, IssueComment } from './store';
 
 function committeePost(ctx: Ctx, issue: number): number | null {
   const found = Object.entries(readState(ctx.statePath).approvalPosts).find(([, number]) => number === issue);
   return found === undefined ? null : Number(found[0]);
 }
 
-function routeOf(comment: StoredComment): 'patch' | 'redesign' {
+function routeOf(comment: IssueComment): 'patch' | 'redesign' {
   if (comment.route !== 'patch' && comment.route !== 'redesign') throw new Error(`Comment ${comment.id} has route ${comment.route} and cannot route a card`);
   return comment.route;
 }
 
-async function sendBack(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {
+async function sendBack(ctx: Ctx, store: PublicStore, comment: IssueComment, post: number): Promise<void> {
   const route = routeOf(comment);
   const text = `${oneLine(comment.author)} wrote:\n${quote(comment.text)}`;
   await routeFeedback(ctx, comment.issue, PUBLIC_SENDER, text, route, post, PLAYER_REPORT_HEADING);
@@ -38,7 +38,7 @@ export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> 
   }
 }
 
-async function sendBackOnce(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {
+async function sendBackOnce(ctx: Ctx, store: PublicStore, comment: IssueComment, post: number): Promise<void> {
   try {
     await sendBack(ctx, store, comment, post);
   } catch (error) {
