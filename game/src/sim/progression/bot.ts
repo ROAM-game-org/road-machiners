@@ -34,6 +34,7 @@ import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, take
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
+import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
 import { towData } from '../states';
@@ -482,7 +483,12 @@ function traderGoal(o: Orders): void {
   if (!trade(o) && !takeHaul(o) && !scavenge(o, false)) checkNextBoard(o);
 }
 
-const SURVEY_MOVES: SurveyorMoves = { driveToSite, driveBeside: (o, center, radius) => driveTo(o, besideStop(o.world, center, radius)), fuelReaches: (o, pos) => fuelReaches(o.world, { pos }) };
+const SURVEY_MOVES: SurveyorMoves = {
+  driveToSite,
+  driveBeside: (o, center, radius) => driveTo(o, besideStop(o.world, center, radius)),
+  fuelReaches: (o, pos) => fuelReaches(o.world, { pos }),
+  drivable: (o, to) => drivable(o.world, o.me.pos, to, vehicleStats(o.world, o.me).radius),
+};
 
 function surveyorGoal(o: Orders): void {
   if (!surveyGoal(o, SURVEY_MOVES) && !trade(o) && !scavenge(o, false)) checkNextBoard(o);

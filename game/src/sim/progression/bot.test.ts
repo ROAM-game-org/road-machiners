@@ -13,7 +13,8 @@ import { makePart, makeVehicle } from '../factory';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { addGoods, mountPart, removeAllGoods, stowPart } from '../inventory';
 import { siteOf, type Contract } from '../market';
-import { surveySites } from '../survey';
+import { surveyClue, surveySites } from '../survey';
+import { cluePoint } from './surveyor';
 import { TEST_MAP } from '../../test/map';
 import { playerSees } from '../vision';
 import { nearestPad, nearestTown, sitePads, siteGates } from '../sites';
@@ -928,6 +929,25 @@ describe('the hunter', () => {
     w.shops.bowl.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 }];
 
     expect(botOrders(w, 'hauler').world.player.contracts.map((c) => c.id)).toEqual(['ct-haul']);
+  });
+
+  it('has a surveyor search from the clue, never the place, until it finds it', () => {
+    const site = surveySites(TEST_MAP)[0];
+    const w = parkedAt('bowl');
+    const survey: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    w.player.contracts = [survey];
+    const clue = cluePoint(w, surveyClue(survey, survey.points[0]));
+    const heading = (world: World) => {
+      const order = playerVehicle(world).order;
+      return order && order.kind !== 'brake' ? order.dest : null;
+    };
+
+    const searching = botOrders(w, 'surveyor').world;
+    expect(dist(heading(searching)!, clue)).toBeLessThan(10);
+
+    (w.player.contracts[0] as Extract<Contract, { kind: 'survey' }>).points[0].found = true;
+    const found = botOrders(w, 'surveyor').world;
+    expect(dist(heading(found)!, site.pos)).toBeLessThan(10);
   });
 
   it('has a surveyor take a survey on the board it is parked at, survey in reach of a site and report it done at the shop', () => {
