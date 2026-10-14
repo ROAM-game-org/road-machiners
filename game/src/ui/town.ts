@@ -376,7 +376,7 @@ function threatPips(threat: number): HTMLElement {
 function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child[] {
   const trader = w.vehicles.find((v) => v.id === c.client);
   if (!trader) return [];
-  return [el("span", { class: "dim" }, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatPips(c.threat)];
+  return [el("span", {}, t("contract.trader", { who: vehicleName(w, c.client), n: kph(vehicleStats(w, trader).maxSpeed) })), threatPips(c.threat)];
 }
 
 function notReady(w: World, c: Contract): Msg {
@@ -471,7 +471,8 @@ function profitCell(e: SaleEstimate): HTMLElement {
 
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
   if (posted) return el("span", { class: "price", title: t("contract.leavesTitle", { n: Math.max(0, c.deadline - w.turn) }) }, createIcon("clock"), escortLeaves(c));
-  return el("span", { class: "price dim", title: heldContractDue(c) }, createIcon("clock"), escortStatusText(w, c));
+  const status = escortStatusText(w, c);
+  return status ? el("span", { class: "price dim", title: heldContractDue(c) }, createIcon("clock"), status) : el("span", {});
 }
 
 function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
@@ -483,7 +484,9 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
-    el("span", {}, contractSummary(c), ...(c.kind === "escort" && posted ? escortDetail(w, c) : [])),
+    c.kind === "escort" && posted
+      ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
+      : el("span", {}, contractSummary(c)),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
