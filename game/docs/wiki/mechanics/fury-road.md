@@ -116,12 +116,15 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 ## Balance evidence
 
-`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each, with the numbers in this page, gave:
+`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each with `--physics true`, with the numbers in this page, gave:
 
-- Measured gear share of pay on both trucks: median 0.31 over 69 outposts, which is the 0.3 `gearShare` the danger uses.
-- Fight 66 of 72 beaten stretches had a player shot and an encounter, short of the 95% asked for. Damage 53 of 82 stretches hurt the hauler. Variety, Choice and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions, 45 of 72 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 5 on stretches 1 to 3 to 121 on stretches 8 to 10.
-- Beatable fails: 3 of 10 escort seeds beat stretch 10, where 6 are asked for. The escort bot loses its own truck, mostly a scout, in a fight with one or two trucks.
-- Not sprintable misses by one seed: 9 of 10 sprinter seeds lost the run before stretch 10, and one carried the hauler through 16 stretches.
+- Measured gear share of pay on both trucks: median 0.43 over 160 outposts.
+- Beatable passes: 10 of 10 escort seeds beat stretch 10, and 8 of them reached stretch 13 or later. The escort rides behind the hauler and fires only when a truck attacks it.
+- Fight fails: 28 of 161 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort rarely shoots, and it still wins. Hostile groups shoot only the hauler, so a gun truck that holds its fire and stays clear is never punished, and an armored hauler drives through. A bot that stood and fought every group it rated winnable reached stretch 10 on 11 of 20 seeds, and one that fought only groups it outgunned by gear value reached it on 8 of 20.
+- Damage passes: 130 of 165 stretches hurt the hauler. Variety and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions in every full run, and the mean hauler damage rose from 14 on stretches 1 to 3 to 81 on stretches 8 to 10.
+- Choice fails: 55 of 161 outposts offered a useful part to afford and more useful parts than the money buys.
+- Not sprintable fails: 3 of 10 sprinter seeds lost the run before stretch 10. The sprinter bot is unchanged from before the escort work, and it gave the same 3 of 10 before the escort work.
+- The hauler can stall for good in physics. When the gun truck rides beside the hauler, the semi stops against the ground at the start of some road bends on 2 of 10 seeds and the recorder fails the run on a `stall` event. It does not stall with the gun truck 10 tiles behind in the hauler's lane.
 
 ## Defeat
 
