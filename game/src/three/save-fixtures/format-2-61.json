@@ -1,0 +1,37 @@
+{
+  "turn": 530,
+  "setup": {
+    "mode": "roaming",
+    "settings": {
+      "damage": 1,
+      "fuelUse": 1,
+      "supplyUse": 1,
+      "enemyGearGrowth": 1
+    }
+  },
+  "furyRoad": null,
+  "shops": {
+    "bowl": {
+      "contracts": [
+        {
+          "id": "ct-12",
+          "shop": "bowl",
+          "kind": "fetch",
+          "defId": "mg",
+          "reward": 900,
+          "deadline": 900,
+          "window": 500,
+          "tier": 1
+        }
+      ],
+      "pressure": {},
+      "stock": [],
+      "restockAt": 600
+    }
+  },
+  "player": {
+    "vehicleId": "v1",
+    "contracts": [],
+    "storage": []
+  }
+}
