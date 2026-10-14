@@ -163,6 +163,24 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
   });
 
+  it('keeps a part-done survey, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const survey: Contract = { id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: 'survey-a', area: { x: 90, y: 100 }, done: true }, { site: 'survey-b', area: { x: 120, y: 80 }, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 };
+    const offer: Contract = { ...survey, id: 'ct-o', points: [{ site: 'survey-c', area: { x: 10, y: 20 }, done: false }] };
+    world.player.contracts = [survey];
+    world.shops.nose.contracts.push(offer);
+    world.vehicles[0].job = { kind: 'survey', contractId: 'ct-s', site: 'survey-b', turnsLeft: 4, total: 10 };
+    writeSave(slots, 'auto', world, RUN, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(loaded.player.contracts).toEqual([survey]);
+    expect(loaded.shops.nose.contracts).toContainEqual(offer);
+    expect(loaded.vehicles[0].job).toEqual(world.vehicles[0].job);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events).toEqual(world.events);
+  });
+
   it('loads light and heavy crates, a haul, a cost basis and hidden goods as they were saved', () => {
     const slots = makeSlots();
     const world = emptyWorld();

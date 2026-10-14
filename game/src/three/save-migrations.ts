@@ -868,6 +868,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCatchUp_58_59,
   withDutyLegs_59_60,
   withoutOldRun_60_61,
+  (world) => world,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
