@@ -81,6 +81,7 @@ const VAR_TEXT: VarText = {
   haul: haulText,
   tip: tipText,
   line: (v) => lineText(v.line, {}),
+  directions: () => { throw new Error('Directions are not spoken yet'); },
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };
 
