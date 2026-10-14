@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Break, Crash, Landing } from "../phys/drive";
 import { addVehicle, emptyWorld } from "../sim/testkit";
 import type { GameEvent, ShotRound } from "../sim/types";
@@ -438,7 +438,9 @@ describe("playShotFx through the move", () => {
       poses: posesOf(world, frames, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
       startMs: 0,
     } as unknown as CombatHost;
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     playShotFx(host, new BreakCues(world.events));
+    vi.restoreAllMocks();
     return { launched, hooked, gunId: gunPart.part.id };
   };
 
