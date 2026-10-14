@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readState, updateState } from '../state';
 import { CHANNEL, publicFake } from './public-fakes';
-import { postProposal } from './proposals';
+import { postProposal, proposalText } from './proposals';
 
 const HOUR_MS = 3_600_000;
 
@@ -34,6 +34,20 @@ describe('postProposal', () => {
     const text = f.messages[0]!.text;
     expect(text.split('\n\n').slice(0, 2)).toEqual(['<b>Proposal: Tow &lt;b&gt;&amp; winch&lt;/b&gt;</b>', 'Pulls &lt;a href="x"&gt;trucks&lt;/a&gt; &amp; cars &gt; 3 t.']);
     expect(text.match(/<[^>]*>/g)).toEqual(['<b>', '</b>']);
+  });
+
+  it('shortens a pitch too long for one message, so the post and its later edits fit', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, `Winch\n\n${'Tow & pull. '.repeat(500)}`, f.clock.now);
+    await postProposal(f.ctx, f.store);
+    const text = f.messages[0]!.text;
+    expect(text.length).toBeLessThanOrEqual(4096);
+    expect(text).toMatch(/^<b>Proposal: Winch<\/b>\n\nTow &amp; pull\./);
+    expect(text).not.toMatch(/&(?!amp;|lt;|gt;)/);
+    expect(text).toContain('…\n\nhttps://github.com/o/r/issues/7\n\nNeeds 3 more 👍 than 👎 to pass.');
+    const concluded = proposalText(f.ctx, 7, f.store.proposal(7)!.pitch, 'Needs 3 more 👍 than 👎 to pass. Current: 120 👍, 3 👎, net +117/3\n❌ Rejected by committee member');
+    expect(concluded.length).toBeLessThanOrEqual(4096);
+    expect(concluded).toMatch(/❌ Rejected by committee member$/);
   });
 
   it('uses the configured emoji in the rule and stops when a vote side names none', async () => {

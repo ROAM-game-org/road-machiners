@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import { readPhoto } from './photo-file';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
 
-const MESSAGE_LIMIT = 4096;
+export const MESSAGE_LIMIT = 4096;
 const CAPTION_LIMIT = 1024;
 const CALLBACK_DATA_LIMIT = 64;
 const ALBUM_MAX = 10;
