@@ -1,6 +1,6 @@
 # Game factory
 
-The public files and votes on GitHub issues. Agents design and build the top ones. A human committee approves each result by playing it, and approved work ships to itch.io as a weekly release. Hermes, a chat agent, manages the factory and handles its failures.
+The public files GitHub issues and sends reports from the game. Triage sends bugs and improvements to work, and players vote on new features in the Telegram channel. Agents design and build them. A human committee approves each result by playing it, and approved work ships to itch.io as a weekly release. Hermes, a chat agent, manages the factory and handles its failures.
 
 ## Docs
 

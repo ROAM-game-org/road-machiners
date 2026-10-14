@@ -57,12 +57,12 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, publicUrl: 'https://play.test' },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     github: {
-      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
       move: async (issue: number, column: string) => { calls.push(`move ${issue} ${column}`); },
       comment: async (issue: number, body: string) => { calls.push(`comment ${issue}`); commentBodies.push(body); },
       comments: async () => priorComments,
@@ -103,7 +103,6 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       prepareWorkClone: async (_b: string, base: string, dir: string) => { bases.push(`prepare ${base}`); mkdirSync(dir, { recursive: true }); },
       readFile: async (branch: string, path: string) => {
         if (branch !== 'dev') throw new Error(`readFile from ${branch}`);
-        if (path === 'docs/incident-log.md') return 'ID: R3\nwhat: propsNear scans every prop.\n';
         if (path === 'game/docs/architecture/principles.md') return '## 3. Hot code uses an index\n';
         throw new Error(`no file ${path}`);
       },
@@ -243,8 +242,9 @@ describe('testing in one job', () => {
     labels = ['hotfix', 'bug'];
     await runVerify(fakeCtx((run, index) => { if (index === 1) posts(run); }), 7);
     expect(runs[0]!.prompt).toContain('This is the hardening stage');
-    expect(runs[0]!.prompt).toContain('ID: R3');
+    expect(runs[0]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.prompt).toContain('This is the testing stage');
+    expect(runs[1]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
     expect(shellScripts[0]).toContain('test:cached');
     expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
@@ -310,17 +310,25 @@ describe('a patch reply', () => {
     expect(taskText([feedback, post])).toContain('This round gets the change ready');
     expect(taskText([])).toContain('This round gets the change ready');
   });
+
+  it('takes a player report as untrusted text the agent must reproduce', () => {
+    const report = { login: 'factory', body: '## Player report\n\nFrom public, routed as patch:\n\nAnn wrote:\n> The horn never stops.', createdAt: '' };
+    const task = taskText([post, report]);
+    expect(task).toContain('untrusted player text');
+    expect(task).toContain('> The horn never stops.');
+    expect(task).not.toContain('The committee played the last build');
+  });
 });
 
 describe('hardening in one session', () => {
   beforeEach(() => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), approvedResolving: { 7: 'Ann' } }));
 
-  it('merges dev, runs one agent with the incident log and the principles, and moves the card to Merging with no checks', async () => {
+  it('merges dev, runs one agent that reads the incident log and gets the principles, and moves the card to Merging with no checks', async () => {
     await runHarden(fakeCtx(() => undefined), 7);
     expect(bases).toContain('merge dev');
     expect(runs).toHaveLength(1);
     expect(runs[0]!.prompt).toContain('/code-review');
-    expect(runs[0]!.prompt).toContain('ID: R3');
+    expect(runs[0]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[0]!.prompt).toContain('Hot code uses an index');
     expect(shellScripts).toEqual([]);
     expect(calls).toContain('push w1 factory/issue-7');

@@ -240,6 +240,11 @@ function reloaded(walk: Walk, bundle: QuestBundle): Walk {
     const loaded = cloneWorld(walk.worlds[lang]);
     loaded.player.quests.live = null;
     restoreQuest(loaded, bundle);
+    const { session } = loaded.player.quests;
+    const view = session ? questView(loaded, bundle) : null;
+    if (view && view.view === 'page' && view.choices.length > 0 && view.lines.length === 0) {
+      throw new Error(`a load at checkpoint ${session?.checkpoint} shows no text before its choices. Put the checkpoint on the scene's opening line, and keep the choices in an untagged stitch`);
+    }
   });
   return walk;
 }

@@ -4,7 +4,7 @@ export type Column = typeof COLUMNS[number];
 
 export type CardStage = 'triage' | 'design' | 'implement' | 'verify' | 'harden';
 export type ReleaseStage = 'release' | 'playtest' | 'candidate' | 'ship' | 'remove';
-export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control';
+export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
 
 export type FactoryConfig = {
   observationHeartbeatMs: number;
@@ -85,6 +85,18 @@ export type FactoryConfig = {
   errorUnzippedMb: number;
   errorIpPerHour: number;
   errorOrigins: string;
+  proposalChat: string;
+  publicDiscussion: string;
+  proposalsPerDay: number;
+  voteEmoji: string;
+  vetoEmoji: string;
+  publicDigestMinutes: number;
+  openaiKey: string;
+  filterModel: string;
+  filterTimeoutSeconds: number;
+  filterSincereMin: number;
+  reportIpPerHour: number;
+  reportMaxChars: number;
 };
 
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };
@@ -104,7 +116,6 @@ export type Issue = {
   createdAt: string;
   state: 'OPEN' | 'CLOSED';
   author: string;
-  thumbsUp: string[];
 };
 
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
@@ -340,6 +351,11 @@ export const CANDIDATE_LABELS = ['feature-request', BUG_LABEL];
 export const INCIDENT_LOG = 'docs/incident-log.md';
 export const INCIDENT_BRANCH = (issue: number): string => `factory/incident-${issue}`;
 export const NEEDS_INFO_LABEL = 'needs-info';
+export const VOTING_LABEL = 'voting';
+export const PLAYER_REPORT_LABEL = 'player-report';
+export const PUBLIC_SENDER = 'public';
+export const PLAYER_COMMENTS_HEADING = '## Player comments';
+export const PLAYER_REPORT_HEADING = '## Player report';
 export const FACTORY_MARK = '<!-- roam-factory -->';
 export const QUESTIONS_HEADING = '## Questions from the factory';
 export const FEEDBACK_HEADING = '## Committee feedback';

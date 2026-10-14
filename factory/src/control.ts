@@ -12,7 +12,8 @@ import { readState, updateState } from './state';
 import { agentHome, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
 import { moveCard, type CardStep } from './card-events';
-import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
+import { openStore } from './public/store';
+import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
 export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
@@ -195,7 +196,17 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
 }
 
 async function clearFlags(ctx: Ctx, card: Card): Promise<void> {
-  for (const label of [STUCK_LABEL, NEEDS_INFO_LABEL]) if (card.labels.includes(label)) await ctx.github.removeLabel(card.issue, label);
+  for (const label of [STUCK_LABEL, NEEDS_INFO_LABEL, VOTING_LABEL]) if (card.labels.includes(label)) await ctx.github.removeLabel(card.issue, label);
+  if (card.labels.includes(VOTING_LABEL)) closeProposal(ctx, card.issue);
+}
+
+function closeProposal(ctx: Ctx, issue: number): void {
+  const store = openStore(ctx.cfg.home);
+  try {
+    store.closeProposal(issue, ctx.now());
+  } finally {
+    store.close();
+  }
 }
 
 async function requireBranch(ctx: Ctx, issue: number): Promise<void> {

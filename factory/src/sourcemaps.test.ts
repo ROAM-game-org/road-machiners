@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { errorUrl, readPublished, takeMaps, type ReportBuild } from './sourcemaps';
+import { errorUrl, feedbackEnv, readPublished, reportEnv, takeMaps, type ReportBuild } from './sourcemaps';
 import type { Ctx } from './types';
 
 const sha = (n: number) => String(n).padStart(40, 'a');
@@ -63,5 +63,13 @@ describe('takeMaps', () => {
 describe('errorUrl', () => {
   it('puts the endpoint at the root of the play site', () => {
     expect(errorUrl('https://roam.example/play')).toBe('https://roam.example/errors');
+  });
+});
+
+describe('feedbackEnv', () => {
+  it('puts the feedback endpoint at the root of the play site, in the env of a feature build and of a reporting build', () => {
+    const cfg = { publicUrl: 'https://roam.example/play' };
+    expect(feedbackEnv(cfg)).toEqual({ FEEDBACK_URL: 'https://roam.example/feedback' });
+    expect(reportEnv(cfg, 'dev')).toEqual({ ERROR_REPORT_URL: 'https://roam.example/errors', ERROR_REPORT_BUILD: 'dev', FEEDBACK_URL: 'https://roam.example/feedback' });
   });
 });

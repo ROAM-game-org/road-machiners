@@ -1,0 +1,67 @@
+import { describe, expect, it } from 'vitest';
+import { readState, updateState } from '../state';
+import { CHANNEL, publicFake } from './public-fakes';
+import { postProposal } from './proposals';
+
+const HOUR_MS = 3_600_000;
+
+describe('postProposal', () => {
+  it('posts the oldest proposal with pitch, links, bundle links and the vote line, and marks it posted', async () => {
+    const f = publicFake();
+    updateState(f.ctx.statePath, (state) => ({ ...state, bundles: { 7: [8, 9] } }));
+    f.store.addProposal(7, 'Winch\nPull stuck trucks out of sand.', new Date('2026-10-14T08:00:00Z'));
+    f.store.addProposal(12, 'Radio\nTalk to traders.', new Date('2026-10-14T09:00:00Z'));
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(1);
+    const { chat, text, replyTo } = f.messages[0]!;
+    expect(chat).toBe(CHANNEL);
+    expect(replyTo).toBeUndefined();
+    expect(text).toContain('Winch\nPull stuck trucks out of sand.');
+    for (const issue of [7, 8, 9]) expect(text).toContain(`https://github.com/o/r/issues/${issue}`);
+    expect(text).toContain('thumbs-up');
+    expect(text).toContain('3 votes');
+    expect(f.store.proposal(7)?.messageId).toBe(501);
+    expect(f.store.proposal(12)?.postedAt).toBeNull();
+    expect(readState(f.ctx.statePath).bundles).toEqual({ 7: [8, 9] });
+  });
+
+  it('posts one proposal per tick', async () => {
+    const f = publicFake({ proposalsPerDay: 5 });
+    f.store.addProposal(7, 'A', f.clock.now);
+    f.store.addProposal(8, 'B', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(2);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(2);
+  });
+
+  it('posts nothing at the cap of the last 24 hours and posts again once the oldest post leaves the window', async () => {
+    const f = publicFake({ proposalsPerDay: 2 });
+    for (const [issue, hoursAgo] of [[1, 23], [2, 5]] as const) {
+      f.store.addProposal(issue, 'old', f.clock.now);
+      f.store.markProposalPosted(issue, CHANNEL, issue, new Date(f.clock.now.getTime() - hoursAgo * HOUR_MS));
+    }
+    f.store.addProposal(3, 'waiting', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toEqual([]);
+    expect(f.calls).toEqual([]);
+    f.clock.now = new Date(f.clock.now.getTime() + 2 * HOUR_MS);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(1);
+  });
+
+  it('closes the proposal of a closed issue unposted, posts the next open one, and never reads the closed issue again', async () => {
+    const f = publicFake();
+    f.issueState[7] = 'CLOSED';
+    f.store.addProposal(7, 'Closed one', new Date('2026-10-14T08:00:00Z'));
+    f.store.addProposal(8, 'Open one', new Date('2026-10-14T09:00:00Z'));
+    await postProposal(f.ctx, f.store);
+    expect(f.messages[0]!.text).toContain('Open one');
+    expect(f.store.proposal(7)?.postedAt).toBeNull();
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
+    expect(f.logs.join('\n')).toContain('7 the issue is closed');
+    await postProposal(f.ctx, f.store);
+    expect(f.calls.filter((call) => call === 'issue 7')).toHaveLength(1);
+  });
+});

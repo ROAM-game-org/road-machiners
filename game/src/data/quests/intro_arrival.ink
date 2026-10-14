@@ -13,15 +13,18 @@ To the north a thin line might be a road. Past it, something in the haze might b
 At the foot of the slope stands a water tower over a few roofs. No smoke, and nothing moves. But a tower means a well. Or it used to.
 You go down sideways, heels dug in, and the stones slide out from under your boots and clatter away ahead of you. # page
 Halfway down you stop sweating. You know what that means. If you sit down now, you might not get up, so you don't sit down.
+-> farm
+
+= farm
+# checkpoint: start.farm
 Up close the tank is rusted brown and stands on thin iron legs. A gun mount is bolted to the rail at the top, with no gun in it. Somebody kept watch from up there, and then somebody stopped. # page # place: The farm
 The house has lost its roof. The fence posts lean every which way, like drunks holding each other up. The goat pen holds dry droppings and no goats.
 The tap under the tower squeals when you work the handle. The pipe coughs a thread of rust onto your boots and gives nothing else. You hold the handle down a while longer anyway, as if the pipe might change its mind.
 A rope lies coiled beside the well, with a knot tied every arm's length.
 Behind the tower, what's left of a shed has folded in on itself. Something long and square sits under the fallen roof sheet. The house is closer, though, and a house might have a jar of something in a corner.
--> farm
+-> yard
 
-= farm
-# checkpoint: start.farm
+= yard
 + {not arrival_rope} [Drop the rope down the well.]
   -> rope
 + [Go into the house.]
@@ -33,7 +36,7 @@ Behind the tower, what's left of a shed has folded in on itself. Something long 
 ~ arrival_rope = true
 You drop the end down the shaft and let it run through your hands until it goes slack. Then you haul it back up, knot by knot.
 Not one knot is wet. Somebody measured water with this rope, back when there was water to measure.
--> farm
+-> yard
 
 = house
 # checkpoint: start.house
@@ -51,6 +54,7 @@ You put it in your shirt and go out to the shed.
 -> shed
 
 = shed
+# checkpoint: start.shed
 Under the fallen roof sheet, in the shade, sits a pickup. # page # place: The farm # img: arrival_pickup
 It's old and square, the kind of truck that outlives its owners. The sun has bleached the paint to the color of sand, and rust shows through it in patches. Bars are welded over the windows, and a heavy grille guard covers the lamps. The tires are soft but whole. A few empty cans roll around in the bed.
 A machine gun stands on a turning mount on the hood, its barrel wrapped in rag against the dust. Two steel pins lock the mount. One pin is bright and new and the other worn dull. Somebody replaced one and never got round to the other.
