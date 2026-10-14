@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONFIG } from '../config';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOWNLOAD } from '../config';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
 import { loadBank, recoverBank, reportFailures, type BankOptions } from './bank';
 
@@ -217,7 +217,10 @@ describe('recoverBank', () => {
 
   it('leaves fetch and codec failures alone', async () => {
     vi.stubGlobal('fetch', async (url: string) => (flaw('hit-2.ogg')(url) ? reply({ ok: false, status: 503 }) : ok));
-    const loaded = await loadBank(rejecting, PAIR, options({ opusSupport: '' }));
+    vi.useFakeTimers();
+    const run = loadBank(rejecting, PAIR, options({ opusSupport: '' }));
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b) * 2);
+    const loaded = await run;
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
     expect(loaded.failures.map((f) => f.kind).sort()).toEqual(['codec', 'fetch']);
@@ -246,15 +249,18 @@ describe('recoverBank', () => {
 
 describe('loadBank with the network down', () => {
   const down = new TypeError('Failed to fetch');
+  beforeEach(() => { vi.useFakeTimers(); });
 
   it('stands in for an unreachable file and does not report it', async () => {
     const fetch = vi.fn(async () => { throw down; });
     vi.stubGlobal('fetch', fetch);
-    const { bank, failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a }, options());
+    const run = loadBank(ctx, { a: SOUNDS.a }, options());
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    const { bank, failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['a.mp3']);
     expect(bank.get('a.mp3')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
-    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+    expect(fetch).toHaveBeenCalledTimes(DOWNLOAD.tries);
   });
 
   it('recovers when a later try gets through', async () => {
@@ -263,7 +269,9 @@ describe('loadBank with the network down', () => {
       if (++calls === 1) throw down;
       return ok;
     });
-    const { failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a }, options());
+    const run = loadBank(ctx, { a: SOUNDS.a }, options());
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0]);
+    const { failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable).toEqual([]);
   });
@@ -273,7 +281,9 @@ describe('loadBank with the network down', () => {
       if (url.endsWith('hit-2.ogg')) throw down;
       return ok;
     });
-    const { bank, failures, unreachable } = await loadBank(ctx, PAIR, options());
+    const run = loadBank(ctx, PAIR, options());
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    const { bank, failures, unreachable } = await run;
     expect(bank.get('hit-2.ogg')).toBe(bank.get('hit-1.ogg'));
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['hit-2.ogg']);
@@ -286,12 +296,12 @@ describe('reportFailures', () => {
     const named = ctxOf(async () => { throw Object.assign(new Error('The buffer is bad'), { name: 'EncodingError' }); });
     vi.useFakeTimers();
     const run = loadBank(named, PAIR, options());
-    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b) * 2);
     const loaded = await run;
     const reports = reportFailures(loaded.failures, 104, new Set(['hit-1.ogg']));
     expect(reports.map((r) => r.message)).toEqual([
       'Sound decode failed (decoder): 1 of 104, got 8 of 8 bytes, Ogg yes, HTTP 200 audio/ogg, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 1: EncodingError: The buffer is bad',
-      'Sound decode failed (fetch): 1 of 104, got no of 8 bytes, Ogg no, HTTP 503 no content type, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: Error: /sfx/hit-2.ogg failed to load: HTTP 503',
+      'Sound decode failed (fetch): 1 of 104, got no of 8 bytes, Ogg no, HTTP 503 no content type, context suspended, page visible, 0 MB decoded, device memory unknown, recovered later 0: Error: File /sfx/hit-2.ogg failed to load: HTTP 503',
     ]);
     expect(reports[0].files).toEqual(['hit-1.ogg']);
   });
@@ -312,7 +322,7 @@ describe('reportFailures', () => {
     });
     const calls: [number, number][] = [];
     const run = loadBank(ctx, SOUNDS, options({ progress: (done, total) => calls.push([done, total]) }));
-    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0] * 10);
     const { failures } = await run;
     expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
     expect(failures).toEqual([]);

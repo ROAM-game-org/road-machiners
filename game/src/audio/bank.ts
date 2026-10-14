@@ -1,4 +1,4 @@
-import { fetchBody, HttpStatusError } from "../fetch-bytes";
+import { downloadBody, DownloadFailed, HttpStatusError } from "../download";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -117,7 +117,7 @@ export async function recoverBank(ctx: BaseAudioContext, loaded: LoadedBank, opt
 }
 
 function isUnreachable(f: { kind: FailureKind; error: unknown }): boolean {
-  return f.kind === "fetch" && !(f.error instanceof HttpStatusError);
+  return f.kind === "fetch" && f.error instanceof DownloadFailed;
 }
 
 function megabytesOf(buffers: Iterable<AudioBuffer>): number {
@@ -181,7 +181,7 @@ function statusOf(e: unknown): number | null {
 
 async function fetchSound(file: string, attempt: number, probe: Probe): Promise<{ response: Response; bytes: Uint8Array }> {
   try {
-    const { response, bytes } = await fetchBody(SFX_DIR + file, attempt > 0 ? { cache: "reload" } : undefined);
+    const { response, bytes } = await downloadBody(SFX_DIR + file, attempt > 0 ? { cache: "reload" } : undefined);
     return { response, bytes: new Uint8Array(bytes) };
   } catch (e) {
     throw new SoundFileFault("fetch", probe(null, null, statusOf(e)), e);

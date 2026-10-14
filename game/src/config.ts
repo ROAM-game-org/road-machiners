@@ -9,6 +9,7 @@ export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
 declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
+export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000] };
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 
@@ -28,6 +29,4 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
-  assetFetchTries: 3,
-  assetRetryMs: 500,
 };
