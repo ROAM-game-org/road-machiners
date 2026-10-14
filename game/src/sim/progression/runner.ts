@@ -1,5 +1,4 @@
 import { chassisDef } from '../../data/chassis';
-import { FURY_ROAD } from '../../data/modes';
 import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
@@ -21,7 +20,8 @@ import { haulerTakes, outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpost
 import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
-import { isJunk } from '../wear';
+import { isJunk, maxHp } from '../wear';
+import { breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
 import { aimGuns } from './aim';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
@@ -33,7 +33,6 @@ const HAULER_SHARE = 0.15;
 const BESIDE = { ahead: 3, across: 2 };
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
-const FOE_REACH = 1;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
@@ -72,7 +71,7 @@ function keepSwitches(o: Orders, style: RoadStyle): void {
   if (!o.world.player.autoRepair) o.run((w) => setAutoRepair(w, true));
   const fires = style === 'escort';
   if (o.world.player.autoFire !== fires) o.run((w) => setAutoFire(w, fires));
-  const foe = fires ? nearestFoe(o.world, o.me) : null;
+  const foe = fires ? chosenFoe(o) : null;
   if (foe) aimGuns(o, foe);
 }
 
@@ -85,14 +84,23 @@ function drive(o: Orders, style: RoadStyle): void {
 
 function escort(o: Orders): void {
   const hauler = haulerOf(o.world);
-  const foe = foeNear(o.world, o.me, hauler);
-  if (foe) order(o, fighterOrder(o.world, o.me, foe));
-  else driveTo(o, escortSpot(o.world, hauler));
+  const foe = chosenFoe(o);
+  if (!foe) return driveTo(o, escortSpot(o.world, hauler));
+  if (shouldBreakOff(conditionOf(o.me))) driveTo(o, breakOffPoint(hauler.pos, foe.pos));
+  else order(o, fighterOrder(o.world, o.me, foe));
 }
 
-function foeNear(world: World, me: Vehicle, hauler: Vehicle): Vehicle | null {
-  const foes = world.vehicles.filter((v) => v.id !== me.id && hostileToPlayer(world, v) && playerSees(world, v.pos) && dist(v.pos, hauler.pos) <= FOE_REACH * FURY_ROAD.pacing.near);
-  return foes.sort((a, b) => dist(hauler.pos, a.pos) - dist(hauler.pos, b.pos))[0] ?? null;
+function chosenFoe(o: Orders): Vehicle | null {
+  const hauler = haulerOf(o.world);
+  const foes = o.world.vehicles.filter((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && playerSees(o.world, v.pos));
+  const current = Object.values(o.me.weaponOrders).find((w) => w.targetId && foes.some((f) => f.id === w.targetId))?.targetId ?? null;
+  const id = pickTarget(foes.map((f) => ({ id: f.id, pos: f.pos })), hauler.pos, current, KEEP_TARGET_REACH);
+  return foes.find((f) => f.id === id) ?? null;
+}
+
+function conditionOf(me: Vehicle): number {
+  const vital = [...mountedParts(me, 'core'), ...mountedParts(me, 'engine')];
+  return Math.min(...vital.map((p) => p.hp / maxHp(p)));
 }
 
 function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
@@ -126,7 +134,7 @@ function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
 function fighterOrder(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
   const fighter = asFighter(me);
   if (vehicleStats(world, me).weapons.length === 0) return { kind: 'stopAt', dest: leadOf(foe) };
-  const clearance = vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance;
+  const clearance = Math.max(STANDOFF, vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance);
   return fightOrder(world, fighter, foe, fightPoint(world, fighter, foe, clearance));
 }
 
@@ -137,11 +145,6 @@ function asFighter(me: Vehicle): Vehicle {
 
 function order(o: Orders, next: MoveOrder): void {
   if (JSON.stringify(o.me.order) !== JSON.stringify(next)) o.run((w) => setMoveOrder(w, next));
-}
-
-function nearestFoe(world: World, me: Vehicle): Vehicle | null {
-  const foes = world.vehicles.filter((v) => v.id !== me.id && hostileToPlayer(world, v) && playerSees(world, v.pos));
-  return foes.sort((a, b) => dist(me.pos, a.pos) - dist(me.pos, b.pos))[0] ?? null;
 }
 
 function canPatchOn(world: World, me: Vehicle): boolean {
