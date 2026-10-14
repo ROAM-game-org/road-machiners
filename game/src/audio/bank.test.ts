@@ -63,7 +63,7 @@ describe('loadBank', () => {
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
     await loadBank(rejecting, { a: SOUNDS.a });
-    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+    expect(fetch).toHaveBeenCalledTimes(BANK.tries);
   });
 
   it('gives a cue with no decoded file a silent buffer', async () => {
