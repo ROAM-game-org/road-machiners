@@ -41,7 +41,7 @@ TDD: yes for the pure choices. The batch run checks the whole bot.
 ## Conclusion
 
 ### Hands-off decisions
-- Behaviors were judged by 20-seed batches with `--physics true`. Stretch 10 reached: baseline bot 3 of 10 on 3 seeds with early losses, one target plus stand-off plus break-off about 9 of 20, the same bot standing to shoot 11 of 20, a pacifist that never fires 15 of 20, fire only when a truck attacks it 14 of 20, and the same with a run toward the next pad on attack 18 of 20 (10 of 10 on seeds 1 to 10).
+- Behaviors were judged by 20-seed batches with `--physics true`. Stretch 10 reached: baseline bot 3 of 10 on 3 seeds with early losses, one target plus stand-off plus break-off about 9 of 20, the same bot standing to shoot 11 of 20, a pacifist that never fires 15 of 20, fire only when a truck attacks it, riding beside the hauler, 14 of 20, riding behind the hauler 15 of 20, and the same with a run toward the next pad on attack 18 of 20. The shipped bot gave 10 of 10 on seeds 1 to 10.
 - Cut for no measurable gain: ram opening, guard from the verge, body-blocking, break-off point, stand-off distance, saving for a truck, and odds or gear-value engage rules. Fighting groups the bot rated winnable lost more runs than holding fire. `fightOdds` rated 85 to 93 percent on fights the bot lost.
 - Kept: one target for the guns (`pickTarget`), the truck-first shop with a pace check (`bestTruck`, `keepsPace`), the engine douse at the heat warning, and the ride 10 tiles behind the hauler in its lane.
 - The gun truck rides behind the hauler in its lane and not beside it. Beside the hauler, the physics hauler stalls for good on 2 of 10 seeds (a sim defect, see Deferred).
@@ -56,11 +56,12 @@ TDD: yes for the pure choices. The batch run checks the whole bot.
 - Sim defect: with the gun truck beside the hauler, the physics hauler stops against the ground at the start of some bends and raises `stall` (seed 4 at turn 20, seed 9 at turn 438, window 0 and later). Alone or with the gun truck far behind it passes. Not fixed, since sim rules are out of scope.
 - The Not sprintable criterion already failed before this work: 3 of 10 sprinter seeds lost before stretch 10. IV3 cannot hold on today's balance. Not touched.
 - The Choice criterion fails (55 of 161 outposts): the escort spends money on repairs and a truck, so fewer outposts show more useful parts than money. It is a balance criterion for later tuning.
+- The wiki defines the danger's gear share as what the escort spends on parts. The old bot measured 0.31 against the 0.3 `gearShare`. The new bot measures 0.43, so balance tuning must re-measure `gearShare`.
 - UK1 stays open: `escort:report` still reads `run.jsonl`.
 
 ## Verify
 
-Final batch: `--physics true`, 1600 turns, seeds 1 to 10, code at the last code commit of the branch. Logs: `game/tmp/final/`.
+Final batch: `--physics true`, 1600 turns, seeds 1 to 10, code of the commit before the `keepSwitches` split, which does not change behavior. Logs: `game/tmp/final/`.
 
 Escort, last stretch beaten per seed: 19, 16, 19, 20, 19, 13, 12, 14, 10, 19. 10 of 10 seeds beat stretch 10, against the bar of 9 of 10. Seeds 1, 2, 3, 4, 5 and 10 were alive at the turn limit. Seeds 6, 7 and 8 ended abandoned and seed 9 ended wrecked, all after stretch 10.
 

@@ -118,7 +118,7 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 `npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each with `--physics true`, with the numbers in this page, gave:
 
-- Measured gear share of pay on both trucks: median 0.43 over 160 outposts.
+- Measured gear share of pay on both trucks: median 0.43 over 160 outposts, against the 0.3 `gearShare` the danger uses. The danger rule defines that share as what the escort bot spends, so it needs a re-measure in the next balance pass.
 - Beatable passes: 10 of 10 escort seeds beat stretch 10, and 8 of them reached stretch 13 or later. The escort rides behind the hauler and fires only when a truck attacks it.
 - Fight fails: 28 of 161 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort rarely shoots, and it still wins. Hostile groups shoot only the hauler, so a gun truck that holds its fire and stays clear is never punished, and an armored hauler drives through. A bot that stood and fought every group it rated winnable reached stretch 10 on 11 of 20 seeds, and one that fought only groups it outgunned by gear value reached it on 8 of 20.
 - Damage passes: 130 of 165 stretches hurt the hauler. Variety and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions in every full run, and the mean hauler damage rose from 14 on stretches 1 to 3 to 81 on stretches 8 to 10.
