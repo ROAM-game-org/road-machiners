@@ -175,7 +175,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - IF3 — `filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify` in `factory/src/public/filter.ts`. The types live in `factory/src/public/decision.ts`, committed. The returned function throws on any failed call or bad answer.
 - IF4 — `publicTick(ctx: Ctx, classify: Classify): Promise<void>` in `factory/src/public/tick-steps.ts`. PH7 wires it into `tick.ts` with the real filter, since PH2 and PH4 typecheck apart.
 - IF5 — `postBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void>` in `factory/src/public/build-post.ts`. It does nothing for an issue with no posted proposal.
-- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent' | 'refused', message }`, or an error status with a plain text message.
+- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent', issue }` or `{ status: 'refused', reason: 'filter' | 'full' }`, so the game shows the reply in the player's language, or an error status with a plain text message.
 
 ### Interface graph
 - PH2 IF4 -> @ factory/src/intake.ts, factory/src/github.ts, factory/src/stages/triage.ts, factory/src/stages/bundle.ts, factory/prompts/triage.md, factory/src/tick.ts, factory/src/dashboard/labels.ts, factory/src/position.ts

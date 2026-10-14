@@ -5,7 +5,7 @@ import { readState } from '../state';
 import { BUG_LABEL, PLAYER_REPORT_LABEL, type FactoryConfig, type GitHub } from '../types';
 import { Rejected } from './report';
 
-export type FeedbackReply = { status: 'sent' | 'refused'; message: string };
+export type FeedbackReply = { status: 'sent'; issue: number } | { status: 'refused'; reason: 'filter' | 'full' };
 type FeedbackRequest = { kind: 'bug' | 'idea'; text: string; version: string; build: string };
 
 export type FeedbackDeps = {
@@ -47,7 +47,7 @@ export class Feedback {
     const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, reason: decision.reason, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
-      return { status: 'refused', message: decision.reason };
+      return { status: 'refused', reason: 'filter' };
     }
     if (issue !== null) return this.comment(row, request, decision, issue);
     return this.open(row, request, decision);
@@ -69,7 +69,7 @@ export class Feedback {
     const stored = store.addComment(comment);
     if (stored === null) throw new Error(`The comment of report ${id} is already stored.`);
     store.classify(stored, decision.kind, decision.route, now());
-    return { status: 'sent', message: `Thank you. Your report went to issue #${issue}.` };
+    return { status: 'sent', issue };
   }
 
   private async open(row: ReportFields, request: FeedbackRequest, decision: Decision): Promise<FeedbackReply> {
@@ -78,12 +78,12 @@ export class Feedback {
     if (store.issuesCreatedSince(start) >= cfg.reportDailyIssues) {
       store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: null });
       this.deps.alert(`feedback: the daily cap of ${cfg.reportDailyIssues} new issues was hit on ${start.toISOString().slice(0, 10)}`);
-      return { status: 'refused', message: 'No more reports are taken today. Try again tomorrow.' };
+      return { status: 'refused', reason: 'full' };
     }
     const labels = [decision.kind === 'bug' ? BUG_LABEL : 'feature-request', PLAYER_REPORT_LABEL];
     const created = await github.createIssue(issueTitle(decision.title), issueBody(request, decision), labels);
     store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: created });
-    return { status: 'sent', message: `Thank you. Your report is issue #${created}.` };
+    return { status: 'sent', issue: created };
   }
 }
 

@@ -49,7 +49,7 @@ describe('feedback route', () => {
     const response = await send(url, request());
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
-    expect(await response.json()).toEqual({ status: 'sent', message: 'Thank you. Your report is issue #201.' });
+    expect(await response.json()).toEqual({ status: 'sent', issue: 201 });
     expect(asked).toEqual([{ source: 'report', text: 'The truck sinks\ninto the road', kind: 'bug' }]);
     expect(created[0]).toMatch(/^Truck sinks 'into' the road \[bug,player-report\]/);
     expect(created[0]).toContain('> The truck sinks\n> into the road');
@@ -68,7 +68,7 @@ describe('feedback route', () => {
   it('stores a rejected report with its reason and creates nothing', async () => {
     const { url, store, created, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, verdict: 'reject', reason: 'This is an ad.' });
-    expect(await (await send(url, request())).json()).toEqual({ status: 'refused', message: 'This is an ad.' });
+    expect(await (await send(url, request())).json()).toEqual({ status: 'refused', reason: 'filter' });
     expect(created).toEqual([]);
     expect(store.issuesCreatedSince(new Date(0))).toBe(0);
   });
@@ -76,7 +76,7 @@ describe('feedback route', () => {
   it('turns a report on the open release build into a classified comment on the tracking issue', async () => {
     const { url, store, created, asked, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, route: 'patch' });
-    expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent', message: 'Thank you. Your report went to issue #40.' });
+    expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent', issue: 40 });
     expect(created).toEqual([]);
     expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', kind: 'bug' }]);
     expect(store.unclassifiedComments()).toEqual([]);
@@ -106,8 +106,7 @@ describe('feedback route', () => {
   it('refuses past the daily issue cap, keeps the report and alerts', async () => {
     const { url, home, store, created } = await start({ dailyIssues: 1 });
     await send(url, request());
-    const second = await (await send(url, request())).json() as { status: string; message: string };
-    expect(second).toEqual({ status: 'refused', message: 'No more reports are taken today. Try again tomorrow.' });
+    expect(await (await send(url, request())).json()).toEqual({ status: 'refused', reason: 'full' });
     expect(created).toHaveLength(1);
     expect(store.issuesCreatedSince(new Date('2026-10-07T00:00:00Z'))).toBe(1);
     expect(readFileSync(join(home, 'alerts'), 'utf8')).toBe('feedback: the daily cap of 1 new issues was hit on 2026-10-07');
