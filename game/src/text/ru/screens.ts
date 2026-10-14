@@ -96,6 +96,7 @@ export const SCREENS: Translation<typeof EN> = {
   'crash.title': 'Игра упала',
   'download.title': 'Road Machiners не удалось скачать файлы',
   'download.reload': 'Проверьте подключение и перезагрузите страницу.',
+  'download.action': 'Перезагрузить',
   'download.saves': 'Ваши сохранения остаются в этом браузере.',
   'webgl.title': 'Road Machiners нужен WebGL',
   'webgl.intro': 'Браузер не смог запустить 3D-графику. Попробуйте одно из этого:',

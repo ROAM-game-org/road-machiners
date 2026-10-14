@@ -24,6 +24,10 @@ function setup(...outcomes: (Response | Error)[]) {
   return { fetch, wait, waits };
 }
 
+function drops(n: number): Error[] {
+  return Array.from({ length: n }, () => new TypeError('Failed to fetch'));
+}
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe('download', () => {
@@ -38,25 +42,25 @@ describe('download', () => {
     const d = setup(new TypeError('Failed to fetch'), ok());
     expect((await download(URL, d)).byteLength).toBe(3);
     expect(d.fetch).toHaveBeenCalledTimes(2);
-    expect(d.waits).toEqual([1000]);
+    expect(d.waits).toEqual([500]);
   });
 
   it('tries again after a body read that drops', async () => {
     const broken = new Response(new ReadableStream({ pull: (c) => c.error(new TypeError('Load failed')) }));
     const d = setup(broken, ok());
     expect((await download(URL, d)).byteLength).toBe(3);
-    expect(d.waits).toEqual([1000]);
+    expect(d.waits).toEqual([500]);
   });
 
   it('throws DownloadFailed with the last error after every try dropped', async () => {
     const last = new TypeError('Failed to fetch');
-    const d = setup(new TypeError('a'), new TypeError('b'), last);
+    const d = setup(...drops(5), last);
     const err = await download(URL, d).catch((e) => e);
     expect(err).toBeInstanceOf(DownloadFailed);
     expect(err.url).toBe(URL);
     expect(err.cause).toBe(last);
-    expect(d.fetch).toHaveBeenCalledTimes(3);
-    expect(d.waits).toEqual([1000, 3000]);
+    expect(d.fetch).toHaveBeenCalledTimes(6);
+    expect(d.waits).toEqual([500, 1000, 2000, 4000, 4000]);
   });
 
   it('throws at once on a 404 with a plain error naming the url and status', async () => {
@@ -74,15 +78,15 @@ describe('download', () => {
   });
 
   it('throws the plain HTTP error when every try got a 503', async () => {
-    const d = setup(status(503), status(503), status(503));
+    const d = setup(...Array.from({ length: 6 }, () => status(503)));
     const err = await download(URL, d).catch((e) => e);
     expect(err).not.toBeInstanceOf(DownloadFailed);
     expect(err.message).toContain('503');
-    expect(d.fetch).toHaveBeenCalledTimes(3);
+    expect(d.fetch).toHaveBeenCalledTimes(6);
   });
 
   it('throws the plain HTTP error when the last try got a 503 after drops', async () => {
-    const d = setup(new TypeError('x'), new TypeError('y'), status(503));
+    const d = setup(...drops(5), status(503));
     const err = await download(URL, d).catch((e) => e);
     expect(err).not.toBeInstanceOf(DownloadFailed);
   });

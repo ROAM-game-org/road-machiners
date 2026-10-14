@@ -95,6 +95,7 @@ export const SCREENS = {
   'crash.title': 'The game crashed',
   'download.title': 'Road Machiners could not download its files',
   'download.reload': 'Check the connection, then reload the page.',
+  'download.action': 'Reload',
   'download.saves': 'Your saves stay in this browser.',
   'webgl.title': 'Road Machiners needs WebGL',
   'webgl.intro': 'Your browser could not start 3D graphics. Try one of these:',
