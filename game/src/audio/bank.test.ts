@@ -1,6 +1,18 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
-import { loadBank, SoundDecodeFailure } from './bank';
+import { loadBank, oggShape, SoundDecodeFailure } from './bank';
+
+const SFX = 'public/sfx/';
+const sfxFiles = readdirSync(SFX).filter((f) => f.endsWith('.ogg'));
+const realOgg = () => new Uint8Array(readFileSync(SFX + sfxFiles[0]));
+
+function withLastPageOpen(bytes: Uint8Array): Uint8Array {
+  const copy = bytes.slice();
+  const last = Buffer.from(copy).lastIndexOf('OggS');
+  copy[last + 5] &= ~4;
+  return copy;
+}
 
 const SOUNDS = { a: { files: ['a.mp3'] }, b: { files: ['b.mp3'] } } as unknown as Record<string, Cue>;
 const PAIR = { hit: { files: ['hit-1.ogg', 'hit-2.ogg'] } } as unknown as Record<string, Cue>;
@@ -105,5 +117,30 @@ describe('SoundDecodeFailure', () => {
     expect(one.message).toBe('Sounds failed to decode: 1 of 104, Ogg Opus support "maybe": EncodingError');
     expect(one.message).toBe(two.message);
     expect(one.files).toEqual(['a.ogg']);
+  });
+});
+
+describe('oggShape', () => {
+  it('finds every committed sound a whole Ogg Opus stream', () => {
+    expect(sfxFiles.length).toBeGreaterThan(0);
+    const bad = sfxFiles.filter((f) => oggShape(new Uint8Array(readFileSync(SFX + f))) !== 'ok');
+    expect(bad).toEqual([]);
+  });
+
+  it('calls bytes cut in half truncated', () => {
+    const bytes = realOgg();
+    expect(oggShape(bytes.slice(0, bytes.length >> 1))).toBe('truncated');
+  });
+
+  it('calls a stream whose last page has no end flag truncated', () => {
+    expect(oggShape(withLastPageOpen(realOgg()))).toBe('truncated');
+  });
+
+  it('calls an HTML page not Ogg', () => {
+    expect(oggShape(new TextEncoder().encode('<!doctype html><html><body>Not found</body></html>'))).toBe('not-ogg');
+  });
+
+  it('calls empty bytes not Ogg', () => {
+    expect(oggShape(new Uint8Array(0))).toBe('not-ogg');
   });
 });
