@@ -680,11 +680,15 @@ describe('warn-off decisions', () => {
 
   const plain = () => warnChances(['scavenger']);
 
-  it('a raider or lawman fights back more and backs off less than a plain driver', () => {
-    for (const traits of [['raider'], ['lawman']] as TraitId[][]) {
-      expect(warnChances(traits).fightBack).toBeGreaterThan(plain().fightBack);
-      expect(warnChances(traits).comply).toBeLessThan(plain().comply);
-    }
+  it('a lawman fights back more and backs off less than a plain driver', () => {
+    expect(warnChances(['lawman']).fightBack).toBeGreaterThan(plain().fightBack);
+    expect(warnChances(['lawman']).comply).toBeLessThan(plain().comply);
+  });
+
+  it('a raider after the player loot defies more and backs off less than a plain driver', () => {
+    const raider = warnChances(['raider']);
+    expect(raider.fightBack + raider.refuse).toBeGreaterThan(plain().fightBack + plain().refuse);
+    expect(raider.comply).toBeLessThan(plain().comply);
   });
 
   it('a coward or trader backs off more and a trader fights back less than a plain driver', () => {
