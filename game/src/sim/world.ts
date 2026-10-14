@@ -104,6 +104,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       perks: [],
       marked: [],
       rumored: [],
+      encounters: { next: 0, pending: null, story: null },
       notes: [],
       health: startHealth(kit),
       fuel: kit.fuel,

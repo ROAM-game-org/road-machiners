@@ -1,4 +1,5 @@
 
+import { ENCOUNTERS } from './encounters';
 import { RULES } from './rules';
 import { TERRAIN } from './terrain';
 import { TIME } from './time';
@@ -105,7 +106,7 @@ export const HUNT = {
 };
 
 export const MEMORY = {
-  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay } satisfies Record<MemoryFact['kind'], number>,
+  turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns } satisfies Record<MemoryFact['kind'], number>,
 };
 
 export const TRADE_TIP = { share: 0.2 };

@@ -292,7 +292,10 @@ export type NpcBrain = {
 export type TrackChoice = 'keep' | 'fight' | 'flee' | 'investigate';
 export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number | null; choice: TrackChoice | null; chosenInSight: boolean };
 
-export type MemoryFact = { kind: 'prices'; shop: string; pressure: Record<string, number> } | { kind: 'stripped'; stock: string };
+export type MemoryFact =
+  | { kind: 'prices'; shop: string; pressure: Record<string, number> }
+  | { kind: 'stripped'; stock: string }
+  | { kind: 'wronged'; by: string };
 export type Memory = { turn: number; fact: MemoryFact };
 
 export type Vehicle = {
@@ -385,6 +388,13 @@ export type QuestLive = { quest: string; lang: QuestLanguage; ink: string; lines
 export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null };
 export type TopicOutcome = "agreed" | "refused" | "done";
 
+export type EncounterId = 'tale' | 'tip' | 'challenge' | 'courier';
+export type PendingEncounter = { encounter: EncounterId; driver: string; until: number };
+export type CourierBeat = 'asked' | 'promised' | 'helped' | 'paid' | 'refused' | 'owed' | 'ended';
+export type CourierTopic = 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor';
+export type CourierStory = { driver: string; beat: CourierBeat; turn: number; aidValue: number; free: boolean };
+export type EncounterLog = { next: number; pending: PendingEncounter | null; story: CourierStory | null };
+
 export type Player = {
   vehicleId: string;
   money: number;
@@ -427,6 +437,7 @@ export type Player = {
   rumored: string[];
   notes: { id: NoteId; turn: number }[];
   hostilesSeen: string[];
+  encounters: EncounterLog;
 };
 
 export type ShotRound = {
@@ -465,6 +476,7 @@ export type GameEvent =
   | { t: 'money'; amount: number; reason: MoneyReason }
   | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' }
   | { t: 'discover'; location: string }
+  | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
   | { t: 'death' }
