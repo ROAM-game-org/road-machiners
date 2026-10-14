@@ -20,7 +20,7 @@ import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
-import { cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
@@ -31,7 +31,7 @@ import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengt
 import { fightOdds } from '../fight-odds';
 import { warnedOffTarget } from '../loot-warning';
 import { claimPartHeld } from '../claims';
-import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, takeFromTruck } from '../salvage';
+import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
@@ -113,6 +113,7 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 
 function act(o: Orders, goal: Goal, archetype: Policy): void {
   if (holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
+  if (goal === 'scavenger') grabClaimed(o);
   if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
 }
@@ -533,18 +534,33 @@ function claimGoal(o: Orders): boolean {
   return recoverClaimed(o, held);
 }
 
+function grabClaimed(o: Orders): void {
+  if (o.world.player.contracts.some(isClaim)) lootHere(o);
+}
+
 function recoverClaimed(o: Orders, claim: Claim): boolean {
   const stock = o.world.salvage.find((s) => s.id === claim.stockId);
-  if (!stock || freeCells(o.me) === 0) return false;
+  const part = stock && claimedPart(stock, claim);
+  if (!stock || !part || !canStowPart(o.me, part)) return false;
   lootHere(o);
-  if (needsSearch(o.world, stock) || !canReachSalvage(o.me, stock)) visitStock(o, stock);
+  if (needsSearch(o.world, stock) || !salvageInRange(o.me, stock)) visitStock(o, stock);
   return true;
+}
+
+function claimedPart(stock: SalvageStock, claim: Claim): PartInstance | undefined {
+  return [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId);
+}
+
+function fitsAboard(o: Orders, claim: Claim): boolean {
+  const stock = o.world.salvage.find((s) => s.id === claim.stockId);
+  const part = stock && claimedPart(stock, claim);
+  return part !== undefined && canStowPart(o.me, part);
 }
 
 function takeClaim(o: Orders): boolean {
   const shop = shopAt(o.world);
   if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
-  const reaches = (c: Claim) => c.deadline > o.world.turn && fuelReaches(o.world, { ...siteOf(c.shop), pos: c.at });
+  const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: c.at });
   const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
   if (best) o.run((w) => acceptContract(w, best.id));
   return best !== undefined;
