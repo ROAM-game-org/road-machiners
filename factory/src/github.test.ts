@@ -6,9 +6,8 @@ const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubRetries: 3
 const ok = (stdout: string): RunResult => ({ code: 0, stdout, stderr: '' });
 const RATE_LIMITED: RunResult = { code: 1, stdout: '', stderr: 'HTTP 403: API rate limit exceeded for user ID 1.' };
 
-const NODE = (number: number, voters: string[] = [], projects: string[] = []) => ({
+const NODE = (number: number, projects: string[] = []) => ({
   number, title: `t${number}`, body: '', labels: { nodes: [{ name: 'bug' }] }, createdAt: '2026-01-01T00:00:00Z', state: 'OPEN', author: { login: 'anna' },
-  reactions: { pageInfo: { hasNextPage: false }, nodes: voters.map((login) => ({ user: { login } })) },
   projectItems: { nodes: projects.map((id) => ({ project: { id } })) },
 });
 
@@ -27,7 +26,7 @@ function fake(calls: string[][], projectJson: string): Run {
   return async (_cmd, args) => {
     calls.push(args);
     const text = args.join(' ');
-    if (text.includes('search(type: ISSUE')) return ok(text.includes('cursor=') ? searchPage([NODE(3)]) : searchPage([NODE(1, ['anna', 'boss']), NODE(2)], 'C1'));
+    if (text.includes('search(type: ISSUE')) return ok(text.includes('cursor=') ? searchPage([NODE(3)]) : searchPage([NODE(1), NODE(2)], 'C1'));
     if (text.includes('repos/o/r/issues/1/comments')) return ok('{"login":"a","body":"hi\\nthere"}\n');
     if (text.includes('projectV2(number')) return ok(projectJson);
     if (text.includes('items(first')) {
@@ -43,11 +42,11 @@ function fake(calls: string[][], projectJson: string): Run {
 }
 
 describe('ghClient', () => {
-  it('reads candidates of any label with their thumbs-up in one search, page by page', async () => {
+  it('reads candidates of any label in one search, page by page', async () => {
     const calls: string[][] = [];
     const found = await ghClient(fake(calls, project(ALL)), CFG).candidates(['bug', 'feature-request']);
     expect(found.map((i) => i.number)).toEqual([1, 2, 3]);
-    expect(found[0]).toMatchObject({ author: 'anna', labels: ['bug'], state: 'OPEN', thumbsUp: ['anna', 'boss'] });
+    expect(found[0]).toMatchObject({ author: 'anna', labels: ['bug'], state: 'OPEN' });
     const searches = calls.filter((args) => args.join(' ').includes('search(type: ISSUE'));
     expect(searches).toHaveLength(2);
     expect(searches[0]).toContain('search=repo:o/r is:issue is:open label:"bug","feature-request"');
@@ -58,16 +57,16 @@ describe('ghClient', () => {
     const run: Run = async (_cmd, args) => {
       const text = args.join(' ');
       if (text.includes('projectV2(number')) return ok(project(ALL));
-      return ok(searchPage([NODE(1, [], ['P1']), NODE(2, [], ['P-other'])]));
+      return ok(searchPage([NODE(1, ['P1']), NODE(2, ['P-other'])]));
     };
     const found = await ghClient(run, CFG).candidates(['bug']);
     expect(found.map((i) => i.number)).toEqual([2]);
   });
 
-  it('stops intake when an issue has more thumbs-up than one search reads', async () => {
-    const node = { ...NODE(1), reactions: { pageInfo: { hasNextPage: true }, nodes: [] } };
-    const client = ghClient(async (_cmd, args) => ok(args.join(' ').includes('projectV2(number') ? project(ALL) : searchPage([node])), CFG);
-    await expect(client.candidates(['bug'])).rejects.toThrow('over 100 thumbs-up');
+  it('reads no reactions with the search', async () => {
+    const calls: string[][] = [];
+    await ghClient(fake(calls, project(ALL)), CFG).candidates(['bug']);
+    expect(calls.flat().join(' ')).not.toMatch(/reactions/);
   });
 
   it('counts a release tag that already exists as made, and fails on any other error', async () => {

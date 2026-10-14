@@ -57,12 +57,12 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, publicUrl: 'https://play.test' },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     github: {
-      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
       move: async (issue: number, column: string) => { calls.push(`move ${issue} ${column}`); },
       comment: async (issue: number, body: string) => { calls.push(`comment ${issue}`); commentBodies.push(body); },
       comments: async () => priorComments,
@@ -309,6 +309,14 @@ describe('a patch reply', () => {
   it('is not a task once a later post answered it', () => {
     expect(taskText([feedback, post])).toContain('This round gets the change ready');
     expect(taskText([])).toContain('This round gets the change ready');
+  });
+
+  it('takes a player report as untrusted text the agent must reproduce', () => {
+    const report = { login: 'factory', body: '## Player report\n\nFrom public, routed as patch:\n\nAnn wrote:\n> The horn never stops.', createdAt: '' };
+    const task = taskText([post, report]);
+    expect(task).toContain('untrusted player text');
+    expect(task).toContain('> The horn never stops.');
+    expect(task).not.toContain('The committee played the last build');
   });
 });
 

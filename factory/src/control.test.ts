@@ -5,6 +5,7 @@ import { cardDrift } from './position';
 import { replyMediaDir } from './reply-media';
 import { workDir } from './stages/common';
 import { readLedger } from './ledger';
+import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type ReleaseState } from './types';
 
@@ -191,6 +192,20 @@ describe('isGated', () => {
 });
 
 describe('move', () => {
+  it('of a voting card drops the label and closes its proposal, so the tick never moves it again', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
+    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    expect(calls).toContain('removeLabel 9 voting');
+    const after = openStore(ROOT);
+    expect(after.openProposals()).toEqual([]);
+    after.close();
+  });
+
   it('to design stops the job and clears every store of the old position (IV1)', async () => {
     busyCard();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));

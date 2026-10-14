@@ -1,0 +1,47 @@
+#ui .feedback-form {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-save);
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--space-4);
+  width: var(--panel-l);
+  max-width: calc(100vw - 2 * var(--hud-inset));
+  font-size: var(--text-body);
+}
+.feedback-kinds {
+  display: flex;
+  gap: var(--space-3);
+}
+.feedback-text {
+  box-sizing: border-box;
+  width: 100%;
+  resize: none;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-well);
+  border: 1px solid var(--line-strong);
+  padding: var(--space-3) var(--space-4);
+}
+.feedback-text:focus-visible {
+  outline: 1px solid var(--accent);
+}
+.feedback-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--text-dense);
+}
+.feedback-status:empty {
+  display: none;
+}
+.feedback-form > .feedback-close {
+  justify-self: end;
+}
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}

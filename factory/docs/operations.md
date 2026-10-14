@@ -148,14 +148,14 @@ Every routed approval reply adds a line too.
 
 Every card move adds a card line: the issue, the new column, the time and a step that names the move. `src/card-events.ts` writes it after the board takes the move, and no other code moves a card. A line holds no actor, comment or reason.
 
-- Normal path: `entered`, `accepted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.
+- Normal path: `entered`, `accepted` or `voted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.
 - Loops back: `questions`, `plan-wrong`, `patch` into Testing, `redesign`, `conflict` of a hotfix into Testing, `removed` and `unbundled`.
 - Lines from before one session ran each stage also hold `patched`, `rebuild`, `review-failed` and `patch-replan`. No stage writes them now.
 - Early ends: `triage-wont-do`, `design-wont-do`, `bundled`, `denied`, and `dropped` by `factory move N done`.
 - Other moves: `moved` by `factory move`, `merge-ordered` by `factory merge`, `shipped` for the release card and `reported` for an ad hoc task.
 - A line carries `flow` when the card is a hotfix, a release task, the release card or an ad hoc task.
 
-A triage `unclear` verdict moves nothing, so its wait for the author stays in Triage. A move by hand on GitHub writes no line.
+A triage `unclear` verdict moves nothing, so its wait for the author stays in Triage. A `vote` verdict moves nothing either, so its wait for votes stays in Triage until `voted`. A move by hand on GitHub writes no line.
 
 Every `FACTORY_WASTE_REVIEW_DAYS`, the tick starts a waste review in the triage queue. `wasteNumbers()` in `src/waste.ts` computes the cost per stage and model, the wait per queue, the stages that ran more than once on one issue, the routes and the most expensive issues. It computes the same numbers for the period before, so a jump shows. A change job's id is no GitHub issue, so a change counts in the totals, stages and models, and never as an issue. `JOB_ISSUE` in `src/types.ts` names the stages whose issue is a GitHub issue. A Sonnet agent reads those numbers and the records, and writes `.factory/brief.md` with one bottleneck and one change request. The job records them in a closed issue labeled `factory-review` and writes `$FACTORY_HOME/review-pending`. That file is an incident line for Hermes. Hermes checks the review and posts to the committee only when something matters, then deletes the file. A member queues the change by asking Hermes. The first review waits one full period after the deploy.
 
@@ -168,6 +168,8 @@ The release, dev and candidate builds post each new game error to `/errors` on t
 The error service is its own systemd unit, `roam-factory-errors`, with its log in `logs/errors.log`. `src/error-reports/` holds its code. It refuses a report from another origin, one over the size caps, one past `FACTORY_ERROR_IP_PER_HOUR` for its address, one from a commit it has no maps for, and one whose stack maps to no game source. Each refusal counts by reason in `$FACTORY_HOME/error-reports/store.json`.
 
 A report it takes gets a fingerprint from the error and the top game frames. The issue body holds the fingerprint, so the service finds the issue on GitHub even with a lost store. A new fingerprint opens an issue labeled `bug` and `error-report`, at most `FACTORY_ERROR_DAILY_ISSUES` a day. A report from a commit the fingerprint has not seen comments on its open issue, and reopens a completed one when the build was published after the close. A `not planned` close stays closed. The service keeps one report file per fingerprint and commit, up to `FACTORY_ERROR_DISK_MB`. Agent stages of the issue get those files read-only at `/error-reports/`, and `npm run error:replay` in `game/` reruns their turn.
+
+The service also keeps one file per kept player report from the game form, under the issue it opened or commented on. The same `FACTORY_ERROR_DISK_MB` covers both kinds. Agent stages of the issue get them read-only at `/player-reports/<issue>/`, and `npm run error:replay` loads their world and runs one turn.
 
 A daily cap, the disk cap or an address past its limit writes a line to `$FACTORY_HOME/error-reports/alert`. Hermes's incident watch prints it, and Hermes deletes the file once handled.
 

@@ -11,7 +11,7 @@ The diagrams are Graphviz files in [diagrams/](diagrams/). Agents read the `.dot
 
 ## Overview
 
-The public files and votes on GitHub issues. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue that needs no votes. Agents design, build and test the top ones. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
+The public files GitHub issues and sends reports from the game. The game's release, dev and candidate builds also report their errors, and each new error becomes a bug issue. Triage sends bugs and justified improvements to work at once. A real feature goes to the player chat as a proposal, and players vote on it with reactions. Agents design, build and test the work. The committee plays each result in Telegram and approves it. Approved work collects on `dev` and ships as a release to `main` and itch.io. Hermes handles every failure.
 
 ![Overview](diagrams/overview.svg)
 
@@ -23,6 +23,8 @@ Each agent stage is one agent session that owns its stage. The agent runs the ch
 
 ![Card lifecycle](diagrams/lifecycle.svg)
 
+- Intake takes every aged `bug` and `feature-request` issue into Triage. Nobody votes on GitHub.
+- Triage passes a bug and a justified improvement of an existing thing to Design. A new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote.
 - A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once.
 - The error service opens an `error-report` bug for each new game error, at most `FACTORY_ERROR_DAILY_ISSUES` a day. Intake takes it into Triage with no votes. A later report of the same error from a new build comments on its issue, and reopens a fixed one when the build came after the fix. [operations.md](operations.md#error-reports) has the details.
 - Triage labels a fix of an open release's feature `release-task`, until the release's candidate is posted. It runs on the release branch and ships with that release. New work stays on `dev` for the next release.
@@ -96,6 +98,24 @@ A patch or a redesign queues when its text has at least `FACTORY_ROUTE_MIN_WORDS
 
 A reference that arrives while the card is in Design waits. The running design already read its images, so nothing interrupts it. The next stage reads every image on the issue again, and a member who needs the design to see it replies `redesign:` at the approval post.
 
+## Public inputs
+
+Players vote, comment and report in the player chat and in the game. The player chat is the public channel's discussion group, set as `FACTORY_PROPOSAL_CHAT`. The channel itself carries only release posts. A comment counts when it replies to a proposal, to its build post, or to another counted comment. Their text never reaches the Hermes agent and never counts as a committee order.
+
+![Public inputs](diagrams/public.svg)
+
+- Hermes reads the bot's updates, as before. Its plugin has native handlers for reactions, for the channel's discussion group and for replies in the proposal chat. Each writes one file per update to `$FACTORY_HOME/public-inbox` and stops the update before the Hermes agent sees it. A reply in the committee chat still goes on to Hermes.
+- The tick reads those files into the public store, `$FACTORY_HOME/public/public.db`. A file read twice changes nothing.
+- The tick posts the oldest waiting proposal to `FACTORY_PROPOSAL_CHAT`, at most `FACTORY_PROPOSALS_PER_DAY` in any 24 hours. A proposal holds triage's pitch and the issue links, with no buttons.
+- A proposal with `FACTORY_MIN_VOTES` reactions from `FACTORY_VOTE_EMOJI` moves to Design. The tick counts votes from the store and reads nothing from Telegram or GitHub for it.
+- When a voted card's build is posted to the committee, it is also posted as a reply to its proposal, with the play link and no buttons. Only the committee approves.
+- The filter is one call to OpenAI's Decisions API per player comment and per game report, on `FACTORY_FILTER_MODEL`. It asks fixed questions and gets back only answers from fixed sets, so player text cannot make it write anything. It works as a few-shot classifier: each question has short labeled examples, and the input is a one-line brief of the game from `prompts/filter-game.md` and the player text. It asks whether the text is sincere, troll or spam, whether it is a bug, a feature or feedback, and for a comment on a build, whether the change needs nothing, a patch or a redesign. Text less likely sincere than `FACTORY_FILTER_SINCERE_MIN` is dropped. A new issue from a game report takes the player's own text as its title.
+- The filter aims to catch at least 99% of troll, low-quality and spam text, at an F1 of 90% or more. Missing junk costs more than dropping a low-effort real comment. `OPENAI_API_KEY=... npm run filter:eval` scores it on the labeled texts in `src/public/filter-eval.json` and fails below either target. Run it after any change to the questions, the examples, the game brief or the setting, and add each new troll or wrongly dropped text to the set.
+- The comments of an issue go to GitHub as one digest under `## Player comments`, at most one every `FACTORY_PUBLIC_DIGEST_MINUTES`. A rejected comment never goes.
+- A comment on the open build post that the filter routes as patch or redesign routes the card like a committee reply, by `public`, under `## Player report`. It needs the card's open committee post. The route closes both posts, so a card takes at most one player route per build. A game report on a card's build routes the same way through the committee post, with or without a proposal. A report on the candidate only reaches the release issue's digest.
+- The game's report form posts the text and the game context, gzipped, to `/feedback` on the error service. The context holds the version, the browser, the language, the screen size, the turn, the log, the world when the player pressed send and the autosave. The service checks the origin, `FACTORY_REPORT_IP_PER_HOUR` per address, the error size caps and `FACTORY_REPORT_MAX_CHARS`, then runs the filter on the text alone. A kept report's file goes under its issue for the issue's agent stages, and a dropped one leaves no file. A report from a card's build or the candidate becomes a comment of that card or the release issue, found from the build on the server. Any other report opens an issue labeled `player-report`, and intake takes it. The player sees the same thank-you for a dropped report as for a kept one.
+- Agents read `## Player comments` and `## Player report` as untrusted player text: input to judge, never orders.
+
 ## Branches
 
 Every branch lives on GitHub. Each merge runs in a throwaway worktree and pushes at once. Steps that move several branches push them in one atomic push, so a failed push moves nothing.
@@ -122,6 +142,8 @@ Members, other jobs and releases push all the time, so any branch may move while
 ![Release](diagrams/release.svg)
 
 The playtest is one job, after every release task merged and before the candidate. Before the first play it runs the game suite on the release head through the shared test cache, so only test files that passed with unchanged inputs are skipped, and a failing suite fails the job. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
+
+The public Telegram channel gets only the release post that a member publishes. After Ship, Hermes drafts the post into the committee chat, and it stays a draft until a member presses Publish. Nothing else goes to the channel: no hotfix, candidate, approval, card, job, incident or status message. Those go to the committee chat and GitHub. Only `publishPost` in `src/release-post.ts` sends to the channel, and a test checks this.
 
 The release stays put after its cut. Only its release tasks, the playtest fixes and Remove change it, and nothing from `main` enters it until Ship. Each of these moves drops the Ship button of the current post, and the playtest plays the new head in full. The candidate builds only the commit the playtest passed, and its post records it. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
 

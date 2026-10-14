@@ -62,10 +62,10 @@ export async function closeMerged(ctx: Ctx, issue: number, labels: string[], mes
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, message);
 }
 
-export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number): Promise<boolean> {
+export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string = FEEDBACK_HEADING): Promise<boolean> {
   await requireApproval(ctx, issue);
   const state = readState(ctx.statePath);
-  await ctx.github.comment(issue, routeComment(ctx, issue, by, text, route, post));
+  await ctx.github.comment(issue, routeComment(ctx, issue, by, text, route, post, heading));
   appendLedger(ctx.cfg.home, { kind: 'route', issue, route, by, at: ctx.now().toISOString() });
   if (route === 'answer') return false;
   await moveCard(ctx, issue, route === 'patch' ? 'Testing' : 'Design', route);
@@ -73,10 +73,10 @@ export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: s
   return String(issue) in state.pendingApprovals;
 }
 
-function routeComment(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number): string {
+function routeComment(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string): string {
   if (route === 'answer') return `${QUESTION_HEADING}\n\nFrom ${by}, routed as answer:\n\n${text}`;
   const media = replyMediaLines(adoptReplyMedia(ctx.cfg.home, post, mediaDir(ctx, issue), by));
-  return `${FEEDBACK_HEADING}\n\nFrom ${by}, routed as ${route}:\n\n${text}${media}`;
+  return `${heading}\n\nFrom ${by}, routed as ${route}:\n\n${text}${media}`;
 }
 
 export async function deny(ctx: Ctx, issue: number, by: string): Promise<void> {

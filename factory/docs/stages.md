@@ -4,15 +4,16 @@ The rules of each step in [process.md](process.md). A card stage comments on its
 
 ## Intake
 
-Intake puts an aged `feature-request` or `bug` issue into Triage. It needs `FACTORY_MIN_VOTES` thumbs-up, or one from a committee member. The author's own thumbs-up does not count. An issue labeled `hotfix` by a collaborator goes straight to Design with no votes.
+Intake puts every `feature-request` or `bug` issue older than `FACTORY_MIN_AGE_HOURS` into Triage. Nobody votes on GitHub. An issue labeled `hotfix` by a collaborator goes straight to Design.
 
-Intake runs last in each tick, so a card it adds starts on the next tick. It reads every open candidate issue and its thumbs-up in one GitHub search per 100 issues. GitHub sends no webhook for a new reaction, so intake polls.
+Intake runs last in each tick, so a card it adds starts on the next tick. It reads every open candidate issue in one GitHub search per 100 issues.
 
 ## Triage
 
 Triage runs Haiku, set by `FACTORY_TRIAGE_MODEL`, at `FACTORY_TRIAGE_EFFORT`. It scores the issue on a clear goal, a checkable result, a scope of one task and a fit with `game/docs/DESIGN.md`, and writes `.factory/triage.json`.
 
-- `ready` moves the card to Design and rates its complexity, as Model routing says.
+- `ready` moves the card to Design and rates its complexity, as Model routing says. A clear bug is `ready`, and so is a justified improvement of an existing thing.
+- `vote` is for a new feature or a substantial change. A bug is never `vote`. It rates complexity like `ready`, adds `voting`, writes its `pitch` to the public store and comments once. The card waits in Triage until players vote it to Design, as [process.md](process.md#public-inputs) says. Triage skips a `voting` card, and a `voting` card is no bundle candidate.
 - `wont-do` comments the reason, labels the issue `wont-do`, closes it and moves the card to Done.
 - `unclear` comments up to three questions, labels the issue `needs-info` and leaves the card in Triage. The committee chat gets one notice per new question set, with no quotes. The tick removes `needs-info` once someone answers on GitHub, or once `FACTORY_NEEDS_INFO_HOURS` pass since the questions, and triage runs again. Without an answer, triage and design go on with the most sensible reading, and design writes the assumptions into its comment.
 - A request for a new authored location needs a reference image. Without one, triage is `unclear` and asks once for an upload.
@@ -129,7 +130,7 @@ Ship runs on the current candidate post only, with no release task open and the 
 
 ## Hotfix
 
-A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges and ships it like a release. The public channel and a GitHub release tagged `hotfix-<day>-issue-<N>` get a one-line changelog. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
+A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges and ships it like a release. A GitHub release tagged `hotfix-<day>-issue-<N>` gets a one-line changelog, and the committee chat says the hotfix shipped. The public channel gets nothing. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
 
 ## Incident
 

@@ -1,5 +1,3 @@
-// Web Audio graph: one bus per sound group, each through a low-pass tone filter, into a master gain. The effects bus runs through a compressor
-// and a short reverb, so sounds from different sources sit in one space.
 
 import { MIX, type Bus } from "../data/sounds";
 
