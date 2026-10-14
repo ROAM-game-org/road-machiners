@@ -94,8 +94,8 @@ export const CONTRACTS = {
   },
 
   search: {
-    durationTurns: [300, 600] as [number, number],
-    rewardTurns: 300,
+    durationTurns: [600, 900] as [number, number],
+    rewardTurns: 750,
     freshTurns: Math.round(TIME.turnsPerDay / 4),
     xpPerEffort: 0.0045,
   },

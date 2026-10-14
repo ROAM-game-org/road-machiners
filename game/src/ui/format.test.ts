@@ -141,23 +141,30 @@ describe("contract text", () => {
   describe("search", () => {
     const search: Contract = {
       id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",
-      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 100, window: 100, tier: 1, found: false,
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9200, deadline: 100, window: 100, tier: 1, delivered: false,
     };
 
-    it("names the person to find and where to claim", () => {
-      expect(en(contractSummary(search))).toBe("Find Trader Jed Cobb and radio them, claim at Bowl");
+    it("names who gets the parcel and where to claim", () => {
+      expect(en(contractSummary(search))).toBe("Bring a parcel to Trader Jed Cobb, claim at Bowl");
     });
 
-    it("reads a found search as ready to claim", () => {
-      const met: Contract = { ...search, found: true };
-      expect(en(contractSummary(met))).toBe("Found Trader Jed Cobb, claim at Bowl");
+    it("reads a delivered search as ready to claim", () => {
+      const met: Contract = { ...search, delivered: true };
+      expect(en(contractSummary(met))).toBe("Parcel delivered to Trader Jed Cobb, claim at Bowl");
       expect(en(heldContractDue(met))).toBe("Ready");
       expect(en(heldContractDue(search))).toBe(en(contractDue(search)));
     });
 
-    it("logs the find with its reward and where to claim it", () => {
-      const line = eventText(emptyWorld(), { t: "contract", contract: { ...search, found: true }, outcome: "fulfilled" })!;
-      expect([en(line.text), line.cls]).toEqual(["Found Trader Jed Cobb. Claim 37 M's at Bowl.", "good"]);
+    it("logs the handover with its reward and where to claim it", () => {
+      const line = eventText(emptyWorld(), { t: "contract", contract: { ...search, delivered: true }, outcome: "fulfilled" })!;
+      expect([en(line.text), line.cls]).toEqual(["Handed the parcel to Trader Jed Cobb. Claim 92 M's at Bowl.", "good"]);
+    });
+
+    it("says the parcel is void when the search fails or lapses", () => {
+      const failed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "failed" })!;
+      const lapsed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "lapsed" })!;
+      expect(en(failed.text)).toBe("Contract failed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
+      expect(en(lapsed.text)).toBe("Contract lapsed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
     });
   });
 

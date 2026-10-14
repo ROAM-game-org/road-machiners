@@ -470,12 +470,12 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   loot: lootInvalid,
   tow: towInvalid,
   patch: patchInvalid,
-  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
+  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
 };
 
 const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
-const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'aid'];
+const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];
 const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {

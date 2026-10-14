@@ -40,6 +40,7 @@ import { driverName, factionName, templateName, vehicleTitle } from "../text/nam
 export type ContextTarget =
   | { kind: 'aid'; id: string }
   | { kind: 'trade'; id: string }
+  | { kind: 'parcel'; id: string }
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }

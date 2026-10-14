@@ -128,7 +128,7 @@ describe('RadioStation', () => {
     const w2 = later(w, RADIO.minGapTurns);
     w2.shops.bowl.contracts = [{
       id: 's1', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed Cobb', template: 'trader',
-      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 9999, window: 100, tier: 1, found: false,
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 9999, window: 100, tier: 1, delivered: false,
     }];
     s.hear(w2);
     const b = s.next()!;

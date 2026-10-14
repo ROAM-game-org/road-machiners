@@ -174,6 +174,7 @@ export const SCREENS = {
   'action.giveAid': m('Give {goods} to {truck}', { goods: 'text', truck: 'text' }),
   'action.takeAid': m('Take {goods} from {truck}', { goods: 'text', truck: 'text' }),
   'action.trade': m('Trade with {truck}', { truck: 'text' }),
+  'action.handParcel': m('Hand the parcel to {truck}', { truck: 'text' }),
   'action.enter': m('Enter {site}', { site: 'text' }),
   'action.lootTruck': m('Loot {truck}', { truck: 'text' }),
   'action.refill': m('Refill supplies at {site}', { site: 'text' }),

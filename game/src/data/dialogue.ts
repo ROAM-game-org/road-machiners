@@ -2,20 +2,20 @@
 import { DETECT } from './detect';
 import type { TraitId } from './npcs';
 
-export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'lastSeen' | 'found';
+export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'lastSeen' | 'parcel';
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
   | 'npcLow' | 'playerLow' | 'noAid' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
-  | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk' | 'seeksSomeone' | 'isSought' | 'sawSought' | 'missedSought';
+  | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk' | 'seeksSomeone' | 'sawSought' | 'missedSought' | 'hasParcelFor' | 'noHandover';
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
   | 'acceptPlea' | 'refusePlea' | 'settlePlea' | 'payToll' | 'refuseToll' | 'withdrawPlea' | 'settleThreat' | 'settleWarning' | 'hitchNpc' | 'hitchNpcFree' | 'releaseNpc' | 'startTrade'
   | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad'
-  | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'noteLead' | 'confirmFound';
-export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'surrenderHaul' | 'lastSighting' | 'searchFound';
+  | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'noteLead' | 'startHandover';
+export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'surrenderHaul' | 'lastSighting';
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
 export type DialogueNode = { line: LineId; options: DialogueOption[] };
@@ -56,7 +56,7 @@ export const LINE_IDS = [
   'youHeardMeLeave', 'youKnowHowThen', 'youLookDryI', 'youSaidThat', 'youWantToPick', 'yourCallLastChance',
   'yourEngineSoundsRough', 'yourFuneral', 'yourLoadIsInThe', 'yourTruckIsFinished', 'yourTruckLooksDead',
   'warnTerms', 'thisOneIsSpokenFor', 'thatsMyPick', 'offMyLootNow', 'leaveThatSalvageBe', 'imTakingThatOne', 'sawThisOneFirst', 'mineGoPickAnother', 'weAreTakingThisOne', 'backAwayFromThat', 'thatsMineWalkAway', 'findYourOwn', 'makeMe', 'keepYourScrapsThen', 'thoughtSo', 'thenWeSettleIt', 'bringIt', 'nothingHereICanCarry',
-  'lookingForSomebody', 'sightingTold', 'someoneAsksAfterYou', 'foundTold', 'willPassItOn',
+  'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 
@@ -700,20 +700,20 @@ export const TOPICS: Record<TopicId, Topic> = {
       },
     },
   },
-  found: {
-    id: 'found',
-    once: true,
-    ask: { say: 'someoneAsksAfterYou', when: ['isSought'], duringFeud: false },
+  parcel: {
+    id: 'parcel',
+    once: false,
+    ask: { say: 'gotParcelForYou', when: ['hasParcelFor', 'noHandover', 'npcCalm'], duringFeud: false },
     raise: null,
-    prepare: 'searchFound',
+    prepare: null,
     hangUp: [],
-    start: 'tell',
+    start: 'offer',
     nodes: {
-      [TOLL]: tollNode('tell'),
-      tell: {
-        line: 'foundTold',
+      offer: {
+        line: 'parcelPullOver',
         options: [
-          { say: 'willPassItOn', when: [], effects: ['confirmFound', 'settleDone'], go: END },
+          { say: 'pullingOver', when: [], effects: ['startHandover'], go: END },
+          { say: 'neverMind', when: [], effects: [], go: HUB },
         ],
       },
     },
@@ -814,17 +814,17 @@ export const HONK_RANGE = DETECT.sound.limp;
 const PARLEY: TopicId[] = ['spillClaim', 'surrender', 'giveUp', 'claim', 'truce', 'mercy', 'yieldDemand', 'buyTruce', 'rob', 'lootWarning', 'warnOff', 'truceOffer', 'mercyPlea', 'offerTow', 'releaseTow', 'offerPatch', 'offerPatchWorn', 'offerAid'];
 
 export const TRAIT_TALK: Record<TraitId, TraitTalk> = {
-  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
-  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
+  trader: { voice: { greeting: 'goAhead', repeatLine: 'weAlreadyTalkedAbout', refusal: 'nothingToSayTo', warnOff: 'thisOneIsSpokenFor', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
+  scavenger: { voice: { greeting: 'yeahMakeItQuick', repeatLine: 'iToldYouAlready', refusal: 'getOffMyChannel', warnOff: 'thatsMyPick', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
   raider: { voice: { greeting: 'getLost', repeatLine: 'getLost', refusal: 'hehNo', warnOff: 'offMyLootNow', honksBack: false }, topics: ['demand', ...PARLEY] },
   scumbag: { voice: null, topics: ['demand', ...PARLEY] },
   coward: { voice: null, topics: PARLEY },
   brave: { voice: null, topics: PARLEY },
-  lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
-  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...PARLEY] },
-  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
-  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'found', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', ...PARLEY] },
-  supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: ['directions', 'lastSeen', 'found', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...PARLEY] },
-  guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: ['directions', 'lastSeen', 'found', ...PARLEY] },
-  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'found', ...PARLEY] },
+  lawman: { voice: { greeting: 'speakUp', repeatLine: 'heardYouTheFirst', refusal: 'clearTheChannel', warnOff: 'leaveThatSalvageBe', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', ...PARLEY] },
+  courier: { voice: { greeting: 'makeItShort', repeatLine: 'saidThatAlready', refusal: 'noTimeOut', warnOff: 'imTakingThatOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...PARLEY] },
+  roamer: { voice: { greeting: 'whatDoYouWant', repeatLine: 'oldNewsFriend', refusal: 'notTalking', warnOff: 'sawThisOneFirst', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'patch', 'patchRequest', 'trade', ...PARLEY] },
+  vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', ...PARLEY] },
+  supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...PARLEY] },
+  guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...PARLEY] },
+  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...PARLEY] },
 };

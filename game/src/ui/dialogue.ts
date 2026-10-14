@@ -64,10 +64,6 @@ export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
   return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compass(bearing), heading: compass(heading) });
 }
 
-export function foundText(v: Extract<CallVar, { kind: 'found' }>): Msg {
-  return t('found.told', { driver: fullName(v.driver), site: siteName(v.site) });
-}
-
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
   const names = [
     ...Object.entries(v.goods).map(([good, n]) => t('call.haulGood', { n, good: goodLower(good) })),
@@ -92,7 +88,6 @@ const VAR_TEXT: VarText = {
   haul: haulText,
   tip: tipText,
   sighting: sightingText,
-  found: foundText,
   line: (v) => lineText(v.line, {}),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };

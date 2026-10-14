@@ -4,7 +4,7 @@ import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
-import { aidWords, foundText, haulText, lineText, sightingText, tipText } from './dialogue';
+import { aidWords, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -61,7 +61,6 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
-  searchFound: ['found'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
@@ -78,7 +77,6 @@ const SAMPLE: Record<string, CallVar> = {
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
   sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
-  found: { kind: 'found', driver: 'Jed Cobb', site: 'bowl' },
 };
 
 const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line)));
@@ -152,9 +150,5 @@ describe('sighting words', () => {
 
   it('says they never crossed paths when nothing was seen', () => {
     expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
-  });
-
-  it('tells where to report the find', () => {
-    expect(en(foundText({ kind: 'found', driver: 'Jed Cobb', site: 'bowl' }))).toBe('That is me. Tell them at Bowl that Jed Cobb is alive and driving.');
   });
 });

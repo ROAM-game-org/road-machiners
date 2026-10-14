@@ -57,7 +57,7 @@ export class Labels {
 
   private updateLead(world: World, rig: CameraRig, limit: SightLimit): void {
     const search = heldSearch(world);
-    if (!search || search.found) {
+    if (!search || search.delivered) {
       this.lead?.remove();
       this.lead = null;
       return;

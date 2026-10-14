@@ -175,6 +175,7 @@ export const SCREENS: Translation<typeof EN> = {
   'action.giveAid': 'Передать {goods} {truck, case, dat}',
   'action.takeAid': 'Забрать {goods} у {truck, case, gen}',
   'action.trade': 'Торговать с {truck, case, ins}',
+  'action.handParcel': 'Передать посылку {truck, case, dat}',
   'action.enter': 'Въехать {site, case, to}',
   'action.lootTruck': 'Обобрать {truck, case, acc}',
   'action.refill': 'Пополнить припасы {site, case, at}',

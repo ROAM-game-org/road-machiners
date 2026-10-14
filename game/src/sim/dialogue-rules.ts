@@ -10,7 +10,7 @@ import { playerVehicle } from './damage';
 import { discoverSite } from './locations';
 import { inCombat, isHostile } from './combat';
 import { patchGoal, startTow, topGoal } from './npc-activities';
-import { confirmSearch, heldSearch, noteSearchLead, haulBlocked, searchBlocked, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { heldSearch, noteSearchLead, haulBlocked, searchRefusal, isExpired, shopAt, shopState, takeContract, type Contract, type SearchContract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
 import { recall, sightingOf } from './memory';
 import { hasPerk, practice } from './progress';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
@@ -24,6 +24,7 @@ import { isStranded } from './stats';
 import { aidData, stateOf, towData } from './states';
 import { agreeAid, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
+import { askHandover, handoverWith, parcelFor } from './parcel';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
 import type { Call, CallVar, CallVars, GridItem, MemoryFact, NpcState, Plea, SalvageStock, TopicOutcome, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
@@ -35,7 +36,7 @@ function demandsOnTop(world: World, npc: Vehicle): boolean {
 
 function requireOpenSearch(world: World): SearchContract {
   const search = heldSearch(world);
-  if (!search || search.found) throw new Error('No open search to talk about');
+  if (!search || search.delivered) throw new Error('No open search to talk about');
   return search;
 }
 
@@ -275,12 +276,10 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
   seeksSomeone: (world, npc) => {
     const search = heldSearch(world);
-    return search !== null && !search.found && search.target !== npc.id;
+    return search !== null && !search.delivered && search.target !== npc.id;
   },
-  isSought: (world, npc) => {
-    const search = heldSearch(world);
-    return search !== null && !search.found && search.target === npc.id;
-  },
+  hasParcelFor: (world, npc) => parcelFor(world, npc) !== null,
+  noHandover: (world, npc) => handoverWith(world, npc) === null,
   sawSought: (_world, _npc, vars) => sightingVar(vars).seen !== null,
   missedSought: (_world, _npc, vars) => sightingVar(vars).seen === null,
   heardWagonNearby: (world, npc) => holdsNote(world, 'wagonBowl') && dist(npc.pos, storyStock(world, WAGON_SEVEN).pos) <= PERK_NUMBERS.rumorMill.radius,
@@ -422,7 +421,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     if (!memory || told.seen === null || told.seen.turns !== world.turn - memory.turn) throw new Error(`${npc.id} no longer remembers the sighting it told`);
     noteSearchLead(world, memory.fact.at, memory.turn);
   },
-  confirmFound: (world, npc) => confirmSearch(world, npc.id),
+  startHandover: (world, npc) => askHandover(world, npc),
   settleDone: (world, npc, call) => settle(world, npc, call, 'done'),
   settleRefused: (world, npc, call) => settle(world, npc, call, 'refused'),
 };
@@ -473,10 +472,6 @@ export const PREPARES: Record<PrepareId, Prepare> = {
     const seen = memory && { bearing: bearing(me, memory.fact.at), tiles: dist(me, memory.fact.at), turns: world.turn - memory.turn, heading: memory.fact.heading };
     return { sighting: { kind: 'sighting', driver: search.driver, seen } };
   },
-  searchFound: (world) => {
-    const search = requireOpenSearch(world);
-    return { found: { kind: 'found', driver: search.driver, site: search.shop } };
-  },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
   aidWanted: (world, npc) => {
@@ -515,7 +510,7 @@ export function townOffers(world: World): Contract[] {
 }
 
 export function townWork(world: World): Contract | null {
-  const open = townOffers(world).filter((c) => !haulBlocked(world, c) && !searchBlocked(world, c));
+  const open = townOffers(world).filter((c) => !haulBlocked(world, c) && searchRefusal(world, c) === null);
   if (boardFull(world)) return null;
   return open.reduce<Contract | null>((best, c) => (best === null || c.reward > best.reward ? c : best), null);
 }

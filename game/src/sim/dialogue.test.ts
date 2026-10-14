@@ -16,7 +16,8 @@ import { MEMORY, NPC_UPKEEP, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { aidPrice, offerAid, playerAid, spareAid, wantedAid } from './aid';
 import { corePart, isMounted } from './grid';
-import { addGoods, cargoRoom } from './inventory';
+import { addGoods, cargoRoom, stowParcel } from './inventory';
+import { askHandover } from './parcel';
 import { cargoHaul, showsHaul } from './haul';
 import { hasCargo, emptyHidden } from './salvage';
 import { fuelCap, suppliesCap, vehicleStats } from './stats';
@@ -1219,7 +1220,7 @@ describe('robber truce', () => {
 
 describe('asking after someone', () => {
   const askText = en(TOPICS.lastSeen.ask!.say);
-  const foundText = en(TOPICS.found.ask!.say);
+  const parcelText = en(TOPICS.parcel.ask!.say);
 
   function searchWorld(): { w: World; witness: Vehicle; target: Vehicle } {
     const { w, npc: witness } = withNpc('trader', 'traders');
@@ -1228,8 +1229,9 @@ describe('asking after someone', () => {
     target.brain.driver = 'Mack Holt';
     w.player.contracts.push({
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 3700, deadline: 900, window: 600, tier: 1, found: false,
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 3700, deadline: 900, window: 600, tier: 1, delivered: false,
     });
+    stowParcel(playerVehicle(w), { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
     return { w, witness, target };
   }
 
@@ -1313,25 +1315,30 @@ describe('asking after someone', () => {
     expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(askText);
   });
 
-  it('offers the confirmation only to the target of an open search, and confirms it once', () => {
+  it('offers the parcel only to its target, and the call alone delivers nothing', () => {
     const { w, witness, target } = searchWorld();
     target.pos = { x: 36, y: 31 };
     witness.pos = { x: 200, y: 200 };
     refreshVision(w);
     const open = callVehicle(w, target.id);
-    expect(currentOptions(open).map((o) => en(o.line))).toContain(foundText);
-    let next = chooseOption(open, optionIndex(open, foundText));
-    next = chooseOption(next, optionIndex(next, en('willPassItOn')));
-    const contract = next.player.contracts[0];
-    expect(contract).toMatchObject({ kind: 'search', found: true });
-    expect(next.events.filter((e) => e.t === 'contract' && e.outcome === 'fulfilled')).toHaveLength(1);
-    expect(CONDITIONS.isSought(next, target, {})).toBe(false);
+    expect(currentOptions(open).map((o) => en(o.line))).toContain(parcelText);
+    let next = chooseOption(open, optionIndex(open, parcelText));
+    expect(en(next.player.call!.line.line)).toBe(en('parcelPullOver'));
+    next = chooseOption(next, optionIndex(next, en('pullingOver')));
+    expect(next.player.contracts[0]).toMatchObject({ kind: 'search', delivered: false });
+    expect(next.events.filter((e) => e.t === 'contract')).toEqual([]);
+    expect(next.states.filter((x) => x.kind === 'handover')).toMatchObject([{ holder: target.id, other: next.player.vehicleId }]);
+    expect(next.vehicles.find((v) => v.id === target.id)!.brain!.goals[0]).toMatchObject({ kind: 'meet', targetId: next.player.vehicleId, reason: 'pullOver' });
+    expect(CONDITIONS.noHandover(next, next.vehicles.find((v) => v.id === target.id)!, {})).toBe(false);
   });
 
-  it('does not offer the confirmation to another driver', () => {
-    const { w, witness } = searchWorld();
-    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(foundText);
-    expect(EFFECTS.confirmFound).toBeDefined();
-    expect(() => PREPARES.searchFound(emptyWorld(), witness)).toThrow();
+  it('does not offer the parcel to another driver, or without the parcel aboard', () => {
+    const { w, witness, target } = searchWorld();
+    expect(currentOptions(callVehicle(w, witness.id)).map((o) => en(o.line))).not.toContain(parcelText);
+    expect(CONDITIONS.hasParcelFor(w, target, {})).toBe(true);
+    const me = playerVehicle(w);
+    me.items = me.items.filter((it) => it.kind !== 'parcel');
+    expect(CONDITIONS.hasParcelFor(w, target, {})).toBe(false);
+    expect(() => askHandover(w, target)).toThrow('no parcel');
   });
 });

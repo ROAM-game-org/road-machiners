@@ -1,6 +1,6 @@
 
 import { PLAYER_CHASSIS } from "../data/chassis";
-import { ECONOMY, GOOD_IDS } from "../data/goods";
+import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
@@ -38,7 +38,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, searchBlocked, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
@@ -52,7 +52,7 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { goodName, localName, localRole, siteName, vehicleTitle } from "../text/names";
+import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
@@ -336,7 +336,7 @@ export class TownScreen {
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
     const refusal = (c: Contract): Msg | null => {
       if (full) return t("contract.full", { n: CONTRACTS.maxActive });
-      return searchBlocked(w, c) ? t("contract.oneSearch") : null;
+      return searchRefusalText(w, searchRefusal(w, c));
     };
     const accept = (c: Contract) => this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
     return el(
@@ -361,10 +361,15 @@ export class TownScreen {
   }
 }
 
+function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null {
+  if (refusal === null) return null;
+  return refusal === "oneSearch" ? t("contract.oneSearch") : refusalText(w, { id: refusal });
+}
+
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
-  if (c.kind === "search") return t("contract.findFirst");
+  if (c.kind === "search") return t("contract.handOverFirst");
   return bountyPays(w);
 }
 
@@ -412,7 +417,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
-  search: () => createBareItemIcon("scanner"),
+  search: () => createBareItemIcon(PARCEL.id),
 };
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -483,7 +488,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
-  return c.kind === "bounty" ? c.fulfilled : c.found;
+  return c.kind === "bounty" ? c.fulfilled : c.delivered;
 }
 
 type TradeTab = "goods" | "parts" | "supplies";

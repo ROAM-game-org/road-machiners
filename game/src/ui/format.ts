@@ -207,6 +207,7 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   grievance: () => t('state.grievance'),
   plea: (s) => (pleaData(s).plea === 'truce' ? t('state.pleaTruce') : t('state.pleaMercy')),
   trade: () => t('state.trade'),
+  handover: () => t('state.handover'),
   revenge: () => t('state.revenge'),
   escort: () => t('state.escort'),
   aid: (s) => (aidData(s).giver === 'npc' ? t('state.aidBringing') : t('state.aidWaiting')),
@@ -534,14 +535,19 @@ const CONTRACT_CLS = { accepted: '', fulfilled: 'good', expiring: 'bad', done: '
 
 function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
   const cls = CONTRACT_CLS[outcome];
-  if (outcome === 'fulfilled') {
-    if (c.kind === 'search') return line(t('log.contract.found', { who: searchTarget(c), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
-    if (c.kind !== 'bounty') throw new Error(`Only a bounty or a search is fulfilled, not a ${c.kind} contract`);
-    return line(t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
-  }
+  if (outcome === 'fulfilled') return line(fulfilledText(c), cls);
   const what = contractSummary(c);
+  if (c.kind === 'search' && (outcome === 'failed' || outcome === 'lapsed')) return line(t(SEARCH_ENDS[outcome], { what }), cls);
   const text = outcome === 'expiring' ? t('log.contract.expiring', { what, due: contractDue(c) }) : t(`log.contract.${outcome}`, { what, reward: moneyMsg(c.reward) });
   return line(text, cls);
+}
+
+const SEARCH_ENDS = { failed: 'log.contract.searchFailed', lapsed: 'log.contract.searchLapsed' } as const;
+
+function fulfilledText(c: Contract): Msg {
+  if (c.kind === 'search') return t('log.contract.parcelHanded', { who: searchTarget(c), reward: moneyMsg(c.reward), site: siteName(c.shop) });
+  if (c.kind !== 'bounty') throw new Error(`Only a bounty or a search is fulfilled, not a ${c.kind} contract`);
+  return t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) });
 }
 
 export function parcelTitle(world: World, parcel: Extract<GridItem, { kind: 'parcel' }>): Msg {
@@ -560,7 +566,7 @@ export function contractSummary(c: Contract): Msg {
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
-  if (c.kind === 'search') return t(c.found ? 'contract.searchMet' : 'contract.search', { who: searchTarget(c), site: siteName(c.shop) });
+  if (c.kind === 'search') return t(c.delivered ? 'contract.searchMet' : 'contract.search', { who: searchTarget(c), site: siteName(c.shop) });
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
 }

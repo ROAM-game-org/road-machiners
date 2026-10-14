@@ -12,6 +12,8 @@ import type { LineId } from '../data/dialogue';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
 import { refreshVision } from './vision';
+import { playerVehicle } from './damage';
+import { handOverParcel, readyHandover } from './parcel';
 import { endTurn } from './world';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
@@ -36,7 +38,7 @@ function ask(w: World, npcId: string, line: LineId): World {
 }
 
 describe('a search contract from the board to the pay', () => {
-  it('is taken, led by a witness, confirmed with the target and claimed', () => {
+  it('is taken, led by a witness, handed to the target after it pulls over, and claimed', () => {
     const w = emptyWorld(sitePads(bowl)[0]);
     const pad = sitePads(bowl)[0];
     const witness = driver(w, { x: pad.x + 4, y: pad.y }, 'Abe Cobb');
@@ -45,7 +47,7 @@ describe('a search contract from the board to the pay', () => {
     remember(w, target, { kind: 'prices', shop: 'bowl', pressure: {} });
     w.shops.bowl.contracts = [{
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
-      lead: { at: { ...siteOf('bowl').pos }, turn: 200 }, reward: searchReward(), deadline: 900, window: 600, tier: 1, found: false,
+      lead: { at: { ...siteOf('bowl').pos }, turn: 200 }, reward: searchReward(), deadline: 900, window: 600, tier: 1, delivered: false,
     }];
     refreshVision(w);
 
@@ -68,9 +70,21 @@ describe('a search contract from the board to the pay', () => {
 
     noted.vehicles.find((v) => v.id === target.id)!.pos = { x: pad.x + 8, y: pad.y };
     refreshVision(noted);
-    const found = ask(noted, target.id, TOPICS.found.ask!.say);
-    const done = chooseOption(found, option(found, en('willPassItOn')));
-    expect(done.player.contracts[0]).toMatchObject({ kind: 'search', found: true });
+    const parcel = playerVehicle(noted).items.find((it) => it.kind === 'parcel');
+    expect(parcel).toMatchObject({ kind: 'parcel', contract: 'ct-s' });
+    const asked = ask(noted, target.id, TOPICS.parcel.ask!.say);
+    let met = chooseOption(asked, option(asked, en('pullingOver')));
+    expect(met.player.contracts[0]).toMatchObject({ kind: 'search', delivered: false });
+    for (let i = 0; i < 40 && !readyHandover(met); i++) met = endTurn(met, testDrive);
+    expect(readyHandover(met)).toMatchObject({ kind: 'handover', holder: target.id });
+    expect(() => handOverParcel(met, witness.id)).toThrow();
+    met.events = [];
+    const done = handOverParcel(met, target.id);
+    expect(done.player.contracts[0]).toMatchObject({ kind: 'search', delivered: true });
+    expect(playerVehicle(done).items.some((it) => it.kind === 'parcel')).toBe(false);
+    expect(done.events.filter((e) => e.t === 'contract')).toEqual([expect.objectContaining({ outcome: 'fulfilled' })]);
+    expect(done.events.filter((e) => e.t === 'stateEnded')).toEqual([expect.objectContaining({ ending: 'fulfilled' })]);
+    expect(done.states.some((x) => x.kind === 'handover')).toBe(false);
 
     const money = done.player.money;
     const xp = done.player.xp;
