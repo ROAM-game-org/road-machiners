@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpuSets, poolOf } from './cpus';
+import { cpuSets, poolOf, testPoolPin } from './cpus';
 
 const SHARES = { cpuLight: 0.25, cpuImplement: 0.25, cpuTest: 0.5 };
 
@@ -26,5 +26,11 @@ describe('cpuSets', () => {
   it('throws when the pools need more CPUs than the server has', () => {
     expect(() => cpuSets(SHARES, 2)).toThrow('need 3 CPUs (light 1, implement 1, test 1), and the server has 2');
     expect(() => cpuSets({ cpuLight: 0.1, cpuImplement: 0.1, cpuTest: 0.8 }, 4)).toThrow('need 5 CPUs');
+  });
+});
+
+describe('testPoolPin', () => {
+  it('gives the test pool CPUs and its test worker count', () => {
+    expect(testPoolPin({ ...SHARES, vitestWorkersImplement: 2, vitestWorkersTest: 4 }, 8)).toEqual({ cpus: '4-7', testWorkers: 4 });
   });
 });

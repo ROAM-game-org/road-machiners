@@ -1,6 +1,7 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { phaseLine, stepScript } from '../activity';
+import { testPoolPin } from '../cpus';
 import { checkScope } from '../deploy';
 import { must } from '../exec';
 import { roundSession } from '../sessions';
@@ -56,7 +57,7 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
 }
 
 async function fullSuite(ctx: Ctx, dir: string): Promise<void> {
-  await ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx));
+  await ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg));
 }
 
 async function cloneAt(ctx: Ctx, dir: string, sha: string): Promise<boolean> {
@@ -184,7 +185,7 @@ async function checkFixes(ctx: Ctx, session: Session, sha: string): Promise<stri
   checkScope(sha);
   const log = releaseLog(ctx, 'playtest-checks');
   const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false))}`;
-  const check = (): Promise<string | null> => runChecks(ctx, { stage: 'playtest', issue: session.release.issue }, session.dir, script, log, { BUILD_SCOPE: sha });
+  const check = (): Promise<string | null> => runChecks(ctx, { stage: 'playtest', issue: session.release.issue }, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg));
   return checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
 }
 
