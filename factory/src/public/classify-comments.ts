@@ -16,7 +16,7 @@ export async function classifyComments(ctx: Ctx, store: PublicStore, filter: Pub
 
 function overLimit(ctx: Ctx, store: PublicStore, comment: StoredComment): boolean {
   if (comment.source !== 'telegram' || comment.sender === null) return false;
-  return store.countHit(`telegram:${comment.sender}`, ctx.now()) > ctx.cfg.reportIpPerHour;
+  return !store.takeHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour).taken;
 }
 
 function filterInput(store: PublicStore, comment: StoredComment): FilterInput {

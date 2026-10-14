@@ -26,7 +26,7 @@ digraph public {
   subgraph cluster_report {
     label="3. Game reports"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     form [label="Player sends a bug\nor an idea in the game", fillcolor="#fde68a", color="#b45309"];
-    feedback [label="/feedback\nchecks origin, size\nand 5 an hour per address"];
+    feedback [label="/feedback\nchecks origin, size\nand 20 an hour per address"];
     form -> feedback;
   }
 
@@ -37,7 +37,7 @@ digraph public {
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind,\nabout its thread, route\n5 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind,\nabout its thread, route\n20 chat messages an hour per player"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
   answer [label="Reply in the thread\nissue link and status,\na quoted wiki passage\nor an honest fallback"];

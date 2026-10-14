@@ -6,7 +6,7 @@ import { readState } from '../state';
 import { issueTitle, plainText, playerLabels } from '../public/player-issue';
 import type { FactoryConfig, GitHub } from '../types';
 import { checkRoom, playerReportsDir, unzip, writeReport } from './files';
-import { parseContext, Rejected, type ReportContext } from './report';
+import { parseContext, RateLimited, Rejected, type ReportContext } from './report';
 
 export type FeedbackReply = { status: 'sent' };
 
@@ -36,7 +36,8 @@ export class Feedback {
 
   admit(address: string): void {
     const { cfg, store, now } = this.deps;
-    if (store.countHit(address, now()) > cfg.reportIpPerHour) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
+    const hit = store.takeHit(address, now(), cfg.reportIpPerHour);
+    if (!hit.taken) throw new RateLimited(hit.resetAt);
   }
 
   take(address: string, body: Buffer): Promise<FeedbackReply> {
