@@ -20,7 +20,7 @@ ID: R3
 repo: game
 rule: A stranded truck is never stuck for good, as DESIGN.md says. Every rescue finishes for a player with no money, and every claim on a rescue has a timer.
 check: Play a stranded player with money 0 or less, and a responder whose path is blocked. The rescue must arrive, must not cost more than the player can pay, and must free its claim when it cannot get through.
-seen: Issue #97 fixed tow offers of 2.4 days of earnings. Issue #94 fixed a blocked tower that held its claim for good, and a responder that rammed a patrol. Issue #93 fixed an offer that put a broke player into debt. All three shipped until release 2026-10-07.
+seen: Issue #97 fixed tow offers of 2.4 days of earnings. Issue #94 fixed a blocked tower that held its claim for good, and a responder that rammed a patrol. Issue #93 fixed an offer that put a broke player into debt. All three shipped until release 2026-10-07. Issue #581 fixed a pickup hung on a rock with two wheels in the air on release 2.62.121, which the flipped-truck set-down missed, so its player could only load an older save.
 
 ID: R4
 repo: game
