@@ -119,6 +119,33 @@ describe('routeReports', () => {
     expect(f.logs.join('\n')).toContain('does not route the card again');
   });
 
+  it.each([
+    ['a committee approval is queued', { pendingApprovals: { 7: 'Ann' } }],
+    ['an approve job is running', { jobs: [{ id: 'j1', stage: 'approve' as const, issue: 7, pid: 1, startedAt: '2026-01-01T00:00:00Z', log: 'x' }] }],
+  ])('never routes a card when %s', async (_name, patch) => {
+    const f = reported('patch', true);
+    updateState(f.ctx.statePath, (state) => ({ ...state, ...patch }));
+    const before = readState(f.ctx.statePath);
+    await routeReports(f.ctx, f.store);
+    expect(f.comments).toEqual([]);
+    expect(f.calls).toEqual([]);
+    expect(f.edits).toEqual([]);
+    expect(f.messages.filter((message) => message.chat === COMMITTEE)).toEqual([]);
+    expect(f.store.pendingRoutes()).toEqual([]);
+    expect(readState(f.ctx.statePath)).toEqual(before);
+    expect(f.logs.join('\n')).toContain('committee approval');
+  });
+
+  it('never routes a game report when a committee approval is queued', async () => {
+    const f = reported('none', true);
+    updateState(f.ctx.statePath, (state) => ({ ...state, pendingApprovals: { 7: 'Ann' } }));
+    const id = f.store.addComment({ issue: 7, source: 'game', sourceId: 'report:5', postChat: null, postMessageId: null, author: 'Player', text: 'Broken', at: f.clock.now.toISOString() })!;
+    f.store.classify(id, 'bug', 'patch', f.clock.now);
+    await routeReports(f.ctx, f.store);
+    expect(f.calls).toEqual([]);
+    expect(f.store.pendingRoutes()).toEqual([]);
+  });
+
   it('does nothing for a comment with route none', async () => {
     const f = reported('none', true);
     await routeReports(f.ctx, f.store);

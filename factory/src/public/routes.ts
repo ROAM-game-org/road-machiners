@@ -1,7 +1,7 @@
 import { reportFailure } from '../fail';
 import { markPost } from '../post-status';
 import { routeFeedback } from '../stages/approval';
-import { readState } from '../state';
+import { isQueued, readState } from '../state';
 import { PLAYER_REPORT_HEADING, PUBLIC_SENDER, type Ctx } from '../types';
 import { playerName, quote } from './digest';
 import type { PublicStore, StoredComment } from './store';
@@ -9,6 +9,11 @@ import type { PublicStore, StoredComment } from './store';
 function committeePost(ctx: Ctx, issue: number): number | null {
   const found = Object.entries(readState(ctx.statePath).approvalPosts).find(([, number]) => number === issue);
   return found === undefined ? null : Number(found[0]);
+}
+
+function hasCommitteeApproval(ctx: Ctx, issue: number): boolean {
+  const state = readState(ctx.statePath);
+  return isQueued(state, 'approve', issue) || state.jobs.some((job) => job.stage === 'approve' && job.issue === issue);
 }
 
 function routeOf(comment: StoredComment): 'patch' | 'redesign' {
@@ -31,6 +36,11 @@ export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> 
     const post = committeePost(ctx, comment.issue);
     if (post === null) {
       ctx.log('public', comment.issue, `comment ${comment.id} came too late, the card has no open committee post`);
+      store.markRouted(comment.id, ctx.now());
+      continue;
+    }
+    if (hasCommitteeApproval(ctx, comment.issue)) {
+      ctx.log('public', comment.issue, `comment ${comment.id} came after a committee approval, so it does not route the card`);
       store.markRouted(comment.id, ctx.now());
       continue;
     }
