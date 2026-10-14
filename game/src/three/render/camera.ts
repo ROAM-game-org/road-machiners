@@ -41,6 +41,7 @@ export class CameraRig {
   resize(): void {
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
+    if (!(w > 0 && h > 0)) return;
     const half = VIEW_METERS / 2 / this.zoom;
     const aspect = w / h;
     Object.assign(
