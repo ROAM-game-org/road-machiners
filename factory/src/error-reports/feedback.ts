@@ -11,6 +11,7 @@ import { parseContext, Rejected, type ReportContext } from './report';
 export type FeedbackReply = { status: 'sent' };
 
 const SENT: FeedbackReply = { status: 'sent' };
+export type Hit = { address: string; at: Date };
 type FeedbackRequest = { kind: 'bug' | 'idea'; text: string; build: string; context: ReportContext };
 
 export type FeedbackDeps = {
@@ -34,13 +35,18 @@ export class Feedback {
 
   constructor(private readonly deps: FeedbackDeps) {}
 
-  admit(address: string): void {
+  admit(address: string): Hit {
     const { cfg, store, now } = this.deps;
-    if (store.countHit(address, now()) > cfg.reportIpPerHour) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
+    const at = now();
+    if (!store.takeHit(address, at, cfg.reportIpPerHour)) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
+    return { address, at };
   }
 
-  take(address: string, body: Buffer): Promise<FeedbackReply> {
-    const result = this.queue.then(() => this.handle(address, body));
+  take(hit: Hit, body: Buffer): Promise<FeedbackReply> {
+    const result = this.queue.then(() => this.handle(hit.address, body)).catch((error: unknown) => {
+      if (isFactoryFailure(error)) this.deps.store.returnHit(hit.address, hit.at, this.deps.cfg.reportIpPerHour);
+      throw error;
+    });
     this.queue = result.catch(() => undefined);
     return result;
   }
@@ -89,6 +95,8 @@ export class Feedback {
     return SENT;
   }
 }
+
+const isFactoryFailure = (error: unknown): boolean => !(error instanceof Rejected) || error.status >= 500;
 
 const needsOwnIssue = (decision: Decision): boolean => decision.relevance === 'other' && (decision.kind === 'bug' || decision.kind === 'feature');
 

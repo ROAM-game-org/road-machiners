@@ -38,6 +38,9 @@ create table if not exists post_attempts (id integer primary key autoincrement, 
 create table if not exists route_attempts (issue integer not null, committee_post integer not null, at text not null, primary key (issue, committee_post));
 `;
 
+const FAILED_HIT = 'failed:';
+const hourOf = (time: Date): string => time.toISOString().slice(0, 13);
+
 export const storePath = (home: string): string => join(home, 'public', 'public.db');
 
 export function openStore(home: string): PublicStore {
@@ -280,10 +283,25 @@ export class PublicStore {
   }
 
   countHit(address: string, now: Date): number {
-    const hour = now.toISOString().slice(0, 13);
+    const hour = hourOf(now);
     this.db.prepare('insert into hits (address, hour, count) values (?, ?, 1) on conflict (address, hour) do update set count = count + 1').run(address, hour);
-    this.db.prepare('delete from hits where hour < ?').run(new Date(now.getTime() - 3_600_000).toISOString().slice(0, 13));
-    return Number(this.db.prepare('select count from hits where address = ? and hour = ?').get(address, hour)?.count);
+    this.db.prepare('delete from hits where hour < ?').run(hourOf(new Date(now.getTime() - 3_600_000)));
+    return this.hitsOf(address, hour);
+  }
+
+  takeHit(address: string, now: Date, limit: number): boolean {
+    if (this.hitsOf(address, hourOf(now)) >= limit) return false;
+    this.countHit(address, now);
+    return true;
+  }
+
+  returnHit(address: string, takenAt: Date, limit: number): void {
+    if (this.countHit(`${FAILED_HIT}${address}`, takenAt) > limit) return;
+    this.db.prepare('update hits set count = count - 1 where address = ? and hour = ? and count > 0').run(address, hourOf(takenAt));
+  }
+
+  private hitsOf(address: string, hour: string): number {
+    return Number(this.db.prepare('select count from hits where address = ? and hour = ?').get(address, hour)?.count ?? 0);
   }
 
   addReport(report: ReportRow): number {

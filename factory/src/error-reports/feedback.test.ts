@@ -11,7 +11,7 @@ import { Feedback } from './feedback';
 const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent' };
 const NOW = new Date('2026-10-07T12:00:00Z');
 
-type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; setDecision: (next: Decision | Error) => void };
+type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; logged: string[]; setDecision: (next: Decision | Error) => void };
 
 const servers: ErrorServer[] = [];
 afterEach(async () => { await Promise.all(servers.splice(0).map((server) => server.close())); });
@@ -28,16 +28,17 @@ async function start(over: { ipPerHour?: number; maxChars?: number; diskMb?: num
   const store = openStore(home);
   const created: string[] = [];
   const asked: FilterInput[] = [];
+  const logged: string[] = [];
   let decision: Decision | Error = ACCEPT_BUG;
   const github = { createIssue: async (title: string, body: string, labels: string[]) => { created.push(`${title} [${labels.join(',')}]\n${body}`); return 200 + created.length; } };
   const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: 5, reportIpPerHour: over.ipPerHour ?? 5, reportMaxChars: over.maxChars ?? 100, errorDiskMb: over.diskMb ?? 1, errorUnzippedMb: 1 };
   const classify = async (input: FilterInput) => { asked.push(input); if (decision instanceof Error) throw decision; return decision; };
   const now = () => NOW;
-  const feedback = new Feedback({ cfg, store, classify, github, now, log: () => undefined, alert: (line) => writeFileSync(join(home, 'alerts'), line, { flag: 'a' }) });
+  const feedback = new Feedback({ cfg, store, classify, github, now, log: (line) => logged.push(line), alert: (line) => writeFileSync(join(home, 'alerts'), line, { flag: 'a' }) });
   const reports = new ErrorReports({ cfg: { ...cfg, errorDailyIssues: 1 }, github: {} as never, now });
-  const server = new ErrorServer(reports, feedback, cfg, now, () => undefined);
+  const server = new ErrorServer(reports, feedback, cfg, now, (line) => logged.push(line));
   servers.push(server);
-  return { url: `http://127.0.0.1:${await server.listenPort(0)}/feedback`, home, store, created, asked, setDecision: (next) => { decision = next; } };
+  return { url: `http://127.0.0.1:${await server.listenPort(0)}/feedback`, home, store, created, asked, logged, setDecision: (next) => { decision = next; } };
 }
 
 const send = (url: string, body: unknown, headers: Record<string, string> = {}) =>
@@ -194,6 +195,67 @@ describe('feedback route', () => {
     expect(statuses).toEqual([200, 200, 429]);
     expect((await send(url, request(), { 'cf-connecting-ip': '5.6.7.8' })).status).toBe(200);
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_REPORT_IP_PER_HOUR=2');
+  });
+
+  it('takes exactly the limit of reports an hour and files each one', async () => {
+    const { url, created } = await start({ ipPerHour: 20 });
+    const statuses = [];
+    for (let i = 0; i < 21; i++) statuses.push((await send(url, request())).status);
+    expect(statuses).toEqual([...Array(20).fill(200), 429]);
+    expect(created).toHaveLength(20);
+  });
+
+  it('keeps the budget of an address through refused retries', async () => {
+    const { url, store } = await start({ ipPerHour: 2 });
+    await send(url, request());
+    await send(url, request());
+    for (let i = 0; i < 10; i++) expect((await send(url, request())).status).toBe(429);
+    expect(store.countHit('1.2.3.4', NOW)).toBe(3);
+  });
+
+  it('gives the hit back when the filter fails, so the retry files the report', async () => {
+    const { url, created, setDecision } = await start({ ipPerHour: 2 });
+    setDecision(new Error('The filter call failed with status 500.'));
+    for (let i = 0; i < 2; i++) expect((await send(url, request())).status).toBe(503);
+    setDecision(ACCEPT_BUG);
+    expect((await send(url, request())).status).toBe(200);
+    expect((await send(url, request())).status).toBe(200);
+    expect((await send(url, request())).status).toBe(429);
+    expect(created).toHaveLength(2);
+  });
+
+  it('bounds the filter calls of an address while the filter fails', async () => {
+    const { url, asked, setDecision } = await start({ ipPerHour: 2 });
+    setDecision(new Error('The filter call failed with status 500.'));
+    const statuses = [];
+    for (let i = 0; i < 6; i++) statuses.push((await send(url, request())).status);
+    expect(statuses).toEqual([503, 503, 503, 503, 429, 429]);
+    expect(asked).toHaveLength(4);
+  });
+
+  it('counts a malformed report against the address', async () => {
+    const { url } = await start({ ipPerHour: 2 });
+    expect((await send(url, 'not gzip')).status).toBe(400);
+    expect((await send(url, request({ kind: 'rant' }))).status).toBe(400);
+    expect((await send(url, request())).status).toBe(429);
+  });
+
+  it('counts a report the filter drops against the address', async () => {
+    const { url, setDecision } = await start({ ipPerHour: 1 });
+    setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'spam', sincere: 0.02 });
+    expect((await send(url, request())).status).toBe(200);
+    expect((await send(url, request())).status).toBe(429);
+  });
+
+  it('logs and alerts no address and no report text when it refuses or fails', async () => {
+    const { url, home, logged, setDecision } = await start({ ipPerHour: 1 });
+    setDecision(new Error('The filter call failed with status 500.'));
+    await send(url, request());
+    await send(url, request());
+    await send(url, request());
+    const written = [...logged, readFileSync(alertPath(home), 'utf8')].join('\n');
+    expect(written).not.toContain('1.2.3.4');
+    expect(written).not.toContain('truck sinks');
   });
 
   it('counts every address of one IPv6 /64 together', async () => {
