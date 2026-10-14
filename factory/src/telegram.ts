@@ -68,8 +68,16 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
       return callForId('sendDocument', form);
     },
     async editText(chat, messageId, text) {
-      if (text.length > MESSAGE_LIMIT) throw new Error(`Telegram message is ${text.length} chars, the limit is ${MESSAGE_LIMIT}.`);
+      refuseLongText(text);
       await call('editMessageText', JSON.stringify({ chat_id: chat, message_id: messageId, text, reply_markup: { inline_keyboard: [] } }));
+    },
+    async sendHtml(chat, html) {
+      refuseLongText(html);
+      return callForId('sendMessage', JSON.stringify({ chat_id: chat, text: html, parse_mode: 'HTML' }));
+    },
+    async editHtml(chat, messageId, html) {
+      refuseLongText(html);
+      await call('editMessageText', JSON.stringify({ chat_id: chat, message_id: messageId, text: html, parse_mode: 'HTML' }));
     },
     async editCaption(chat, messageId, caption) {
       if (caption.length > CAPTION_LIMIT) throw new Error(`Telegram caption is ${caption.length} chars, the limit is ${CAPTION_LIMIT}.`);
@@ -137,6 +145,10 @@ function keyboard(buttons: InlineButton[][]): string {
   return JSON.stringify({
     inline_keyboard: buttons.map((row) => row.map(({ text, data }) => ({ text, callback_data: data }))),
   });
+}
+
+function refuseLongText(text: string): void {
+  if (text.length > MESSAGE_LIMIT) throw new Error(`Telegram message is ${text.length} chars, the limit is ${MESSAGE_LIMIT}.`);
 }
 
 function splitText(text: string): string[] {

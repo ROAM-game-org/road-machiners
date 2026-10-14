@@ -47,6 +47,8 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
     telegram: {
       sendMessage: async (chat: string, text: string, replyTo?: number | null) => { note('sendMessage'); f.messages.push({ chat, text, replyTo }); return 500 + f.messages.length; },
       editText: async (_chat: string, id: number, text: string) => { f.edits.push(`${id} ${text}`); },
+      sendHtml: async (chat: string, text: string) => { note('sendHtml'); f.messages.push({ chat, text, replyTo: undefined }); return 500 + f.messages.length; },
+      editHtml: async (_chat: string, id: number, text: string) => { f.edits.push(`${id} ${text}`); },
       editCaption: async (_chat: string, id: number, text: string) => { f.edits.push(`${id} ${text}`); },
     },
   } as unknown as Ctx;

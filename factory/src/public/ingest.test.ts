@@ -9,7 +9,7 @@ const count = (updateId: number, counts: Record<string, number>) => ({ updateId,
 function setup() {
   const f = publicFake();
   f.store.addProposal(7, 'Winch\nPull trucks out.', f.clock.now);
-  f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+  f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   const inbox = `${f.home}/public-inbox`;
   mkdirSync(inbox, { recursive: true });
   const put = (name: string, body: unknown) => writeFileSync(`${inbox}/${name}`, typeof body === 'string' ? body : JSON.stringify(body));
@@ -22,7 +22,7 @@ describe('ingest', () => {
     put('0000000001.json', count(1, { '👍': 1 }));
     put('0000000002.json', count(2, { '👍': 4 }));
     await ingest(f.ctx, f.store);
-    expect(f.store.votes(7, ['👍'])).toBe(4);
+    expect(f.store.tally(7, ['👍'], ['👎']).up).toBe(4);
     expect(readdirSync(inbox)).toEqual([]);
   });
 
@@ -32,7 +32,7 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     put('b.json', count(5, { '👍': 9 }));
     await ingest(f.ctx, f.store);
-    expect(f.store.votes(7, ['👍'])).toBe(2);
+    expect(f.store.tally(7, ['👍'], ['👎']).up).toBe(2);
     expect(readdirSync(inbox)).toEqual([]);
   });
 
@@ -43,7 +43,7 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     expect(existsSync(`${inbox}/bad/9.json`)).toBe(true);
     expect(existsSync(`${inbox}/9.json`)).toBe(false);
-    expect(f.store.votes(7, ['👍'])).toBe(3);
+    expect(f.store.tally(7, ['👍'], ['👎']).up).toBe(3);
     const failures = readState(f.ctx.statePath).failures;
     expect(failures).toHaveLength(1);
     expect(failures[0]!.error).toContain('9.json');

@@ -197,7 +197,7 @@ describe('move', () => {
     seed({});
     const store = openStore(ROOT);
     store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
-    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
     store.close();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
     expect(calls).toContain('removeLabel 9 voting');
