@@ -11,9 +11,10 @@ function committeePost(ctx: Ctx, issue: number): number | null {
   return found === undefined ? null : Number(found[0]);
 }
 
-function hasCommitteeApproval(ctx: Ctx, issue: number): boolean {
+function hasCommitteeDecision(ctx: Ctx, issue: number): boolean {
   const state = readState(ctx.statePath);
-  return isQueued(state, 'approve', issue) || state.jobs.some((job) => job.stage === 'approve' && job.issue === issue);
+  const approving = isQueued(state, 'approve', issue) || state.jobs.some((job) => job.stage === 'approve' && job.issue === issue);
+  return approving || Object.values(state.unroutedReplies).some((reply) => reply.issue === issue);
 }
 
 function routeOf(comment: StoredComment): 'patch' | 'redesign' {
@@ -39,8 +40,8 @@ export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> 
       store.markRouted(comment.id, ctx.now());
       continue;
     }
-    if (hasCommitteeApproval(ctx, comment.issue)) {
-      ctx.log('public', comment.issue, `comment ${comment.id} came after a committee approval, so it does not route the card`);
+    if (hasCommitteeDecision(ctx, comment.issue)) {
+      ctx.log('public', comment.issue, `comment ${comment.id} came after a committee approval or reply, so it does not route the card`);
       store.markRouted(comment.id, ctx.now());
       continue;
     }

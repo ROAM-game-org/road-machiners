@@ -105,6 +105,15 @@ describe('public store', () => {
     expect(store.unclassifiedComments().map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
   });
 
+  it('never offers a dropped comment to the filter', () => {
+    const store = postedStore();
+    store.addBuildPost(7, 'abc', CHANNEL, 200, now);
+    store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', text: 'Stalls', at: now.toISOString() });
+    store.closeBuildPosts(7);
+    expect(store.dropCommentsOnClosedPosts(now)).toBe(1);
+    expect(store.unclassifiedComments()).toEqual([]);
+  });
+
   it('maps a reply to a player comment to the issue and post of that comment', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);

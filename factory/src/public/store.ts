@@ -153,7 +153,7 @@ export class PublicStore {
   }
 
   unclassifiedComments(): StoredComment[] {
-    return this.db.prepare('select * from comments where classified_at is null order by id').all().map(toComment);
+    return this.db.prepare('select * from comments where classified_at is null and dropped_at is null order by id').all().map(toComment);
   }
 
   classify(id: number, kind: CommentKind, route: PublicRoute, now: Date): void {

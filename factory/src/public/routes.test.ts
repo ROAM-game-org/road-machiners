@@ -122,6 +122,7 @@ describe('routeReports', () => {
   it.each([
     ['a committee approval is queued', { pendingApprovals: { 7: 'Ann' } }],
     ['an approve job is running', { jobs: [{ id: 'j1', stage: 'approve' as const, issue: 7, pid: 1, startedAt: '2026-01-01T00:00:00Z', log: 'x' }] }],
+    ['a committee reply waits to be routed', { unroutedReplies: { 555: { issue: 7, postId: 300, text: 'Make it faster', at: '2026-01-01T00:00:00Z' } } }],
   ])('never routes a card when %s', async (_name, patch) => {
     const f = reported('patch', true);
     updateState(f.ctx.statePath, (state) => ({ ...state, ...patch }));
