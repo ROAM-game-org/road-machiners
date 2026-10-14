@@ -160,7 +160,9 @@ export type FeedbackKind = "bug" | "idea";
 
 export type FeedbackReport = { kind: FeedbackKind; text: string; version: string; build: string };
 
-export type FeedbackResult = { status: "sent" | "refused"; message: string } | { status: "failed" };
+type FeedbackAnswer = { status: "sent"; issue: number } | { status: "refused"; reason: "filter" | "full" };
+
+export type FeedbackResult = FeedbackAnswer | { status: "failed" };
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -169,10 +171,17 @@ export function feedbackBuild(releaseFlag: string, pathname: string): string {
   return pathname.split("/").find((part) => part !== "") ?? "";
 }
 
-function isAnswer(body: unknown): body is { status: "sent" | "refused"; message: string } {
+function isAnswer(body: unknown): body is FeedbackAnswer {
   if (typeof body !== "object" || body === null) return false;
-  const answer = body as { status?: unknown; message?: unknown };
-  return (answer.status === "sent" || answer.status === "refused") && typeof answer.message === "string";
+  const answer = body as { status?: unknown; issue?: unknown; reason?: unknown };
+  if (answer.status === "sent") return Number.isInteger(answer.issue);
+  return answer.status === "refused" && (answer.reason === "filter" || answer.reason === "full");
+}
+
+export function feedbackStatus(result: FeedbackResult): Msg {
+  if (result.status === "sent") return t("feedback.sent", { n: result.issue });
+  if (result.status === "refused") return result.reason === "full" ? t("feedback.full") : t("feedback.refused");
+  return t("feedback.failed");
 }
 
 export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
@@ -182,7 +191,7 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
     const response = await post(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
     if (!response.ok) return { status: "failed" };
     const body: unknown = await response.json();
-    return isAnswer(body) ? { status: body.status, message: body.message } : { status: "failed" };
+    return isAnswer(body) ? body : { status: "failed" };
   } catch {
     return { status: "failed" };
   }
@@ -258,7 +267,7 @@ export class FeedbackForm {
       const result = await sendFeedback(this.post, this.url, report);
       busy = false;
       if (result.status === "sent") box.value = "";
-      setText(status, result.status === "failed" ? t("feedback.failed") : verbatim(result.message));
+      setText(status, feedbackStatus(result));
       status.classList.toggle("bad", result.status !== "sent");
       refresh();
     };

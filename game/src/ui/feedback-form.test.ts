@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { feedbackBuild, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./game-menu";
+import { resolve } from "../text/resolve";
+import type { Msg } from "../text/msg";
+import { feedbackBuild, feedbackStatus, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./game-menu";
+
+const render = (msg: Msg) => resolve(msg, "en");
 
 const report: FeedbackReport = { kind: "bug", text: "the door sticks", version: "v1.2.3", build: "dev" };
 const URL_OF_SERVER = "https://example.test/feedback";
@@ -8,8 +12,8 @@ const answer = (status: number, body: unknown) => new Response(typeof body === "
 
 describe("sendFeedback", () => {
   it("posts the report as JSON and returns a sent answer", async () => {
-    const post = vi.fn().mockResolvedValue(answer(200, { status: "sent", message: "Thanks" }));
-    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent", message: "Thanks" });
+    const post = vi.fn().mockResolvedValue(answer(200, { status: "sent", issue: 41 }));
+    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent", issue: 41 });
     const [url, init] = post.mock.calls[0];
     expect(url).toBe(URL_OF_SERVER);
     expect(init.method).toBe("POST");
@@ -18,8 +22,15 @@ describe("sendFeedback", () => {
   });
 
   it("returns the reason of a refused answer", async () => {
-    const post = vi.fn().mockResolvedValue(answer(200, { status: "refused", message: "Too many today" }));
-    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "refused", message: "Too many today" });
+    const post = vi.fn().mockResolvedValue(answer(200, { status: "refused", reason: "full" }));
+    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "refused", reason: "full" });
+  });
+
+  it("shows each answer in the player's language", () => {
+    expect(render(feedbackStatus({ status: "sent", issue: 41 }))).toBe("Thank you. Your report is issue #41.");
+    expect(render(feedbackStatus({ status: "refused", reason: "filter" }))).toBe("This report was not taken.");
+    expect(render(feedbackStatus({ status: "refused", reason: "full" }))).toBe("No more reports today. Try again tomorrow.");
+    expect(render(feedbackStatus({ status: "failed" }))).toBe("Could not send. Try again.");
   });
 
   it("fails on an error status", async () => {
@@ -33,8 +44,10 @@ describe("sendFeedback", () => {
   });
 
   it("fails on an answer that is not the contract", async () => {
-    const post = vi.fn().mockResolvedValue(answer(200, { status: "maybe", message: 3 }));
-    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "failed" });
+    for (const body of [{ status: "maybe" }, { status: "sent", issue: "41" }, { status: "refused", reason: "rude" }]) {
+      const post = vi.fn().mockResolvedValue(answer(200, body));
+      expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "failed" });
+    }
   });
 
   it("throws and sends nothing with an empty URL", async () => {
