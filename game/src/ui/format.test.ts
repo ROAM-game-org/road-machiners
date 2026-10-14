@@ -142,6 +142,17 @@ describe("contract text", () => {
     expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
   });
 
+  it("says where a claimed part lies from the posting shop, and in which territory", () => {
+    const orchard = REGION.locations.find((l) => l.id === "orchard")!;
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1 };
+    const text = en(contractSummary(claim));
+    expect(text.startsWith("Recover MG turret from a wreck ")).toBe(true);
+    expect(text).toContain(" of Bowl, about ");
+    expect(text.endsWith(", in " + en(siteName("orchard")))).toBe(true);
+    expect(shop).toBeDefined();
+  });
+
   it("starts a rush haul's summary with Rush and leaves a standard haul plain", () => {
     const haul: Contract = { id: "c3", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 100, deadline: 100, window: 100, rush: false, tier: 1 };
     expect(en(contractSummary(haul)).startsWith("Haul 3")).toBe(true);
