@@ -227,6 +227,20 @@ Invariants:
 
 Review: the reviewer found four retry problems and no permission leak. All are fixed in 9352fc7b. Fixing them also surfaced that `reportFailure` with an issue labels the card `factory-stuck`, so a public failure would have blocked a card. The `public` stage is now exempt, like `catch-up`.
 
+A final check in 61360e55 fixed three more gaps. Game reports from a bug or improvement build could not route, since routing needed a proposal's build post; they now route through the committee post. The design prompt did not act on a player redesign. A chat `@name` in the new chat keys would have silently matched no update; both sides now refuse it at start.
+
+Facts checked for the deploy: the channel allows 👍 reactions. Intake will take 4 open issues that are off the board today. The tick, the error service and Hermes run as one factory user, so they share `public.db` and `public-inbox`.
+
+## Code smells
+- `factory/src/inbox.ts:91` — deletes the inbox file before it parses or handles it, so a crash loses the member's command.
+- `factory/src/committee.ts:12` — a missing `committee.json` falls back to the bootstrap member with no warning (GPC6).
+- `factory/src/error-reports/service.ts:238` — the per-address limit of `/errors` lives in memory and resets on restart.
+- `factory/src/error-reports/service.ts` `readBody` — its 413 message always names `FACTORY_ERROR_BODY_KB`, also for `/feedback`.
+- `factory/src/stages/triage.ts:113` — `readQuestions` does not enforce the three-question cap of `prompts/triage.md`.
+- `factory/src/deploy.test.ts` — one `it(...)` block appears twice.
+- `factory/src/stages/approval.ts:78` — a player route adopts committee reply media of the same post and labels it as from `public`.
+- `game/src/three/error-report.ts:50` — a failed error report send only logs a warning.
+
 ### Hands-off decisions
 - make: size Large, full flow — five parts across factory, infra and game.
 - make: branch `telegram-voting` off `origin/main` in `.worktrees/telegram-voting`, since the server runs only `main`. The game form merges into it too, and the user picks where it lands.
@@ -252,4 +266,5 @@ Review: the reviewer found four retry problems and no permission leak. All are f
 - Before merging into `main`, add to the server `.env`: `FACTORY_PUBLIC_DISCUSSION=-1004432761257`, `FACTORY_PROPOSAL_CHAT` set to the channel id `-1003923325496`, and `OPENAI_API_KEY` with a spend limit. Every key is required, so the factory, the error service and Hermes stop without them.
 - Add the bot to the channel's discussion group as admin.
 - Have agy check the Russian strings of the game form on `feedback-form`.
+- A report from the candidate build reaches only the release issue's digest. Routing it would open a release task like a committee reply on the candidate post. Decide if players should be able to do that.
 - Merge `telegram-voting` into `main` and `feedback-form` into `dev`. Then watch one real proposal: votes from the channel, a build reply, a comment digest.
