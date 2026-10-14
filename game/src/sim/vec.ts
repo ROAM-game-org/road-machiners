@@ -21,6 +21,10 @@ export function pointsAway(from: Vec, to: Vec, threat: Vec): boolean {
   return (to.x - from.x) * (threat.x - from.x) + (to.y - from.y) * (threat.y - from.y) < 0;
 }
 
+export function leadsAwayBy(from: Vec, to: Vec, threat: Vec, degrees: number): boolean {
+  return Math.abs(angleDiff(bearing(from, threat), bearing(from, to))) >= degrees * DEG;
+}
+
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
