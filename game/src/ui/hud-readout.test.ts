@@ -678,9 +678,16 @@ describe('survey interaction', () => {
   function atSurveySite() {
     const [site] = surveySites(TEST_MAP);
     const w = emptyWorld({ x: site.pos.x + 1, y: site.pos.y });
-    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, area: { ...site.pos }, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
+    w.player.contracts = [{ id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: true, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 }];
     return w;
   }
+
+  it('offers no Survey by a place not found yet', () => {
+    const w = atSurveySite();
+    const contract = w.player.contracts[0];
+    if (contract.kind === 'survey') contract.points[0].found = false;
+    expect(actions(w)).toEqual([]);
+  });
 
   it('offers Survey the area when stopped in reach of an open site, and not once it is done', () => {
     const w = atSurveySite();

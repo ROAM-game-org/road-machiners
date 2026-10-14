@@ -5,15 +5,16 @@ import { REGION } from '../data/region';
 import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
-import { estimateTurns, haulWindow, type Contract } from './market';
+import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
 import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
-import { randInt, randRange } from './rng';
+import { randInt } from './rng';
 import { playerCommand } from './world';
 import { siteGap, type Site } from './sites';
+import { tileOf } from './vision';
 import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { Job, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
@@ -34,12 +35,6 @@ export function surveySites(map: { hash: string; terrain: { atlas: AtlasKey } })
 
 export function landmarks(): Site[] {
   return [...REGION.towns, ...REGION.locations];
-}
-
-export function landmarkOf(id: string): Site {
-  const site = landmarks().find((s) => s.id === id);
-  if (!site) throw new Error(`No landmark ${id}`);
-  return site;
 }
 
 export function compassSector(rad: number): number {
@@ -111,7 +106,7 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
   });
 }
 
-export type SurveyPoint = { site: string; area: Vec; done: boolean };
+export type SurveyPoint = { site: string; found: boolean; done: boolean };
 export type SurveyContract = Extract<Contract, { kind: 'survey' }>;
 
 export function surveyPlaceType(id: string): OldPlaceType {
@@ -142,7 +137,7 @@ export function freeSurveySites(world: World, shopPos: Vec): SurveySite[] {
 
 export function surveyLoopTurns(shopPos: Vec, sites: Vec[]): number {
   let at = shopPos;
-  let turns = sites.length * CONTRACTS.survey.surveyTurns;
+  let turns = sites.length * (CONTRACTS.survey.surveyTurns + CONTRACTS.survey.searchTurns);
   const left = [...sites];
   while (left.length > 0) {
     left.sort((a, b) => dist(at, a) - dist(at, b));
@@ -167,19 +162,51 @@ function pickSites(world: World, free: SurveySite[]): SurveySite[] {
   return chosen;
 }
 
-function areaAround(world: World, site: SurveySite): Vec {
-  const angle = randRange(world.marketRng, 0, 2 * Math.PI);
-  const offset = randRange(world.marketRng, 0, CONTRACTS.survey.areaOffset);
-  return { x: site.pos.x + Math.cos(angle) * offset, y: site.pos.y + Math.sin(angle) * offset };
-}
-
 export function rollSurvey(world: World, shop: { id: string; pos: Vec }, free: SurveySite[], id: string): Contract {
   if (free.length === 0) throw new Error('A survey needs a free site');
   const sites = pickSites(world, free);
-  const points = sites.map((s) => ({ site: s.id, area: areaAround(world, s), done: false }));
+  const points = sites.map((s) => ({ site: s.id, found: false, done: false }));
   const turns = surveyLoopTurns(shop.pos, sites.map((s) => s.pos));
   const window = haulWindow(turns, false);
   return { id, shop: shop.id, kind: 'survey', points, reward: surveyReward(turns), deadline: world.turn + window, window, tier: 1 };
+}
+
+export type SurveyClue = { type: OldPlaceType; landmark: string; rad: number; tiles: number; lay: SurveyLay };
+
+export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
+  const site = SURVEY_SITES.sites.find((s) => s.id === point.site);
+  if (!site) throw new Error(`No survey site ${point.site}`);
+  const told = site.clues.find((k) => k.landmark === c.shop) ?? site.clues[0];
+  if (!told) throw new Error(`Survey site ${site.id} has no fair clue`);
+  const rad = sectorBearing(compassSector(bearing(siteOf(told.landmark).pos, site.pos)));
+  return { type: site.type, landmark: told.landmark, rad, tiles: told.tiles, lay: site.lay };
+}
+
+export function openSurveyPoint(c: SurveyContract): SurveyPoint | null {
+  return c.points.find((p) => !p.done) ?? null;
+}
+
+function seesTile(world: World, p: Vec): boolean {
+  const tile = tileOf(world, p);
+  const seen = world.player.visible;
+  let lo = 0;
+  let hi = seen.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (seen[mid] === tile) return true;
+    if (seen[mid] < tile) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return false;
+}
+
+export function findSurveySites(world: World): void {
+  for (const c of heldSurveys(world))
+    for (const point of c.points) {
+      if (point.found || !surveySite(world, point.site).props.some((p) => seesTile(world, p.pos))) continue;
+      point.found = true;
+      world.events.push({ t: 'contract', contract: { ...c, points: c.points.map((p) => ({ ...p })) }, outcome: 'found', site: point.site });
+    }
 }
 
 export type SurveyAction = { contractId: string; site: string; ready: boolean };
@@ -197,7 +224,7 @@ function heldSurveys(world: World): SurveyContract[] {
 export function surveyActions(world: World): SurveyAction[] {
   const me = playerVehicle(world);
   return heldSurveys(world).flatMap((c) =>
-    c.points.flatMap((p) => (!p.done && inSurveyReach(me, surveySite(world, p.site)) ? [{ contractId: c.id, site: p.site, ready: me.speed <= RULES.parkedSpeed }] : [])),
+    c.points.flatMap((p) => (p.found && !p.done && inSurveyReach(me, surveySite(world, p.site)) ? [{ contractId: c.id, site: p.site, ready: me.speed <= RULES.parkedSpeed }] : [])),
   );
 }
 
@@ -237,9 +264,4 @@ function rumorAround(world: World, site: SurveySite): void {
   const { scavenged, rumored } = world.player;
   for (const stock of world.salvage)
     if (dist(stock.pos, site.pos) <= CONTRACTS.survey.knowledgeRange && hasSalvage(stock) && !scavenged.includes(stock.id) && !rumored.includes(stock.id)) rumored.push(stock.id);
-}
-
-export function surveyBearing(from: Vec, c: SurveyContract): { rad: number; tiles: number } | null {
-  const open = c.points.filter((p) => !p.done).sort((a, b) => dist(from, a.area) - dist(from, b.area));
-  return open.length ? { rad: bearing(from, open[0].area), tiles: dist(from, open[0].area) } : null;
 }

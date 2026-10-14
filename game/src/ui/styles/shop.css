@@ -365,6 +365,9 @@
   border-left: 4px solid var(--line);
   line-height: 1.4;
 }
+.journal-place {
+  margin-top: var(--space-4);
+}
 .journal-note .journal-head {
   display: flex;
   justify-content: space-between;

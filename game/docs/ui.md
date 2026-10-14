@@ -211,7 +211,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - Good marks gain, health and success: `--good`, `--good-bright`, `--good-deep` and `--good-well` for a meter track.
 - The condition ramp `--cond-pristine` to `--cond-junk` colors part condition and must fall in brightness. A test checks it.
 - `--cell-*` colors the truck grid in the inventory and `--map-*` the small grid on truck cards. The cargo bay cell `C` of the semi has its own look: a green hatch in the inventory (`--cell-bay`, `--cell-bay-line`) and a flat green on truck cards (`--map-bay`). It differs from the deck cell, so the grid shows by itself that a gun has no place on the hauler.
-- `--path-*` colors the path preview on the ground through `tokenColor()`. `--path-survey` colors the dashed ring of a survey area not yet surveyed, a goal and not a committed path.
+- `--path-*` colors the path preview on the ground through `tokenColor()`.
 - `--steel-0` to `--steel-11`, `--lcd-*` and `--dial-*` color the drawn hardware only.
 - Spacing steps run `--space-1` 2px to `--space-10` 32px. Padding, margin and gap use them. A 1px hairline and 0 stay raw.
 - `--radius-s` and `--radius-m` round corners. A circle stays `50%`.

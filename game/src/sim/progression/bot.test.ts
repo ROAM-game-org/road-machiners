@@ -933,11 +933,13 @@ describe('the hunter', () => {
   it('has a surveyor take a survey on the board it is parked at, survey in reach of a site and report it done at the shop', () => {
     const site = surveySites(TEST_MAP)[0];
     const w = parkedAt('bowl');
-    const offer: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, area: { ...site.pos }, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    const offer: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
     w.shops.bowl.contracts = [offer];
     const taken = botOrders(w, 'surveyor').world;
     expect(taken.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
 
+    const mine = taken.player.contracts[0];
+    if (mine.kind === 'survey') mine.points[0].found = true;
     taken.vehicles[0].pos = { x: site.pos.x + 1, y: site.pos.y };
     taken.vehicles[0].speed = 0;
     expect(playerVehicle(botOrders(taken, 'surveyor').world).job?.kind).toBe('survey');

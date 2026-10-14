@@ -9,7 +9,8 @@ import {
   heldContractDue,
   contractSummary,
   surveyProgress,
-  surveyWhere,
+  isNotable,
+  nextSurveyClue,
   eventText,
   formatNpcPass,
   workLabel,
@@ -35,7 +36,7 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, say, setText } from "../text/language";
-import { concat, list, num, SPACE, t, type Msg } from "../text/msg";
+import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, setupText, templateName, vehicleTitle } from "../text/names";
 
@@ -371,10 +372,9 @@ export class Hud {
     );
   }
 
-  private surveyProgress(w: World, c: Contract): HTMLElement | null {
+  private surveyProgress(c: Contract): HTMLElement | null {
     if (c.kind !== "survey" || isMet(c)) return null;
-    const where = surveyWhere(playerVehicle(w).pos, c);
-    return el("span", { class: "dim" }, SPACE, surveyProgress(c), where ? concat([SPACE, where]) : null);
+    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
   }
 
   private renderContracts(w: World): void {
@@ -389,7 +389,7 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c), this.surveyProgress(w, c)),
+          el("span", {}, contractSummary(c), this.surveyProgress(c)),
           el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
@@ -574,7 +574,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover") this.toast(line.text);
+      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);

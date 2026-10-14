@@ -465,6 +465,7 @@ export type GameEvent =
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
   | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' }
+  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string }
   | { t: 'discover'; location: string }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }

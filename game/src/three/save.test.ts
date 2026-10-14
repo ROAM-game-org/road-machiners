@@ -24,7 +24,8 @@ import { TEST_MAP } from '../test/map';
 import { isBakedObstacle, isBreakable, mapObstacles } from '../sim/mapgen';
 import { breakProp, oldSpotOf, oldSpotPicks, oldStockId } from '../sim/salvage';
 import { sunAt } from '../sim/sun';
-import { practiceContacts, refreshVision } from '../sim/vision';
+import { playerSees, practiceContacts, refreshVision } from '../sim/vision';
+import { surveySites } from '../sim/survey';
 import { TIME } from '../data/time';
 import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
@@ -163,16 +164,27 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
   });
 
-  it('keeps a part-done survey, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
+  it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
     const slots = makeSlots();
-    const world = emptyWorld();
-    const survey: Contract = { id: 'ct-s', shop: 'bowl', kind: 'survey', points: [{ site: 'survey-a', area: { x: 90, y: 100 }, done: true }, { site: 'survey-b', area: { x: 120, y: 80 }, done: false }], reward: 3000, deadline: 900, window: 900, tier: 1 };
-    const offer: Contract = { ...survey, id: 'ct-o', points: [{ site: 'survey-c', area: { x: 10, y: 20 }, done: false }] };
+    const [a, b, c, d] = surveySites(TEST_MAP);
+    const world = emptyWorld({ x: c.pos.x + 4, y: c.pos.y });
+    const survey: Contract = {
+      id: 'ct-s',
+      shop: 'bowl',
+      kind: 'survey',
+      points: [{ site: a.id, found: true, done: true }, { site: b.id, found: true, done: false }, { site: c.id, found: false, done: false }],
+      reward: 3000,
+      deadline: 900,
+      window: 900,
+      tier: 1,
+    };
+    const offer: Contract = { ...survey, id: 'ct-o', points: [{ site: d.id, found: false, done: false }] };
     world.player.contracts = [survey];
     world.shops.nose.contracts.push(offer);
-    world.vehicles[0].job = { kind: 'survey', contractId: 'ct-s', site: 'survey-b', turnsLeft: 4, total: 10 };
+    world.vehicles[0].job = { kind: 'survey', contractId: 'ct-s', site: b.id, turnsLeft: 4, total: 10 };
     writeSave(slots, 'auto', world, RUN, 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+    expect(playerSees(loaded, c.pos)).toBe(true);
     expect(loaded.player.contracts).toEqual([survey]);
     expect(loaded.shops.nose.contracts).toContainEqual(offer);
     expect(loaded.vehicles[0].job).toEqual(world.vehicles[0].job);

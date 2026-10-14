@@ -4,7 +4,7 @@ import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
 import type { Contract } from '../sim/market';
 import { isMet } from '../sim/market';
-import { surveyBearing, surveyPlaceType, type SurveyContract } from '../sim/survey';
+import { openSurveyPoint, surveyClue, surveyPlaceType, type SurveyClue, type SurveyContract } from '../sim/survey';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
@@ -12,7 +12,7 @@ import { playerVehicle, vehicleById } from '../sim/damage';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
 import type { Work, WorkLeft } from '../sim/states';
-import { dist, type Vec } from '../sim/vec';
+import { dist } from '../sim/vec';
 import { goodsCount } from '../sim/grid';
 import { spareParts } from '../sim/inventory';
 import { carriedPart, isStoryWreck } from '../sim/salvage';
@@ -532,9 +532,19 @@ function searchedText(stock: string): LogLine {
   return line(site ? t('log.searchDoneAt', { site: siteName(stock) }) : t('log.searchDone'), 'good');
 }
 
-const CONTRACT_CLS = { accepted: '', surveyed: 'dim', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim' } as const;
+const CONTRACT_CLS = { accepted: '', found: 'good', surveyed: 'dim', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim' } as const;
 
-function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
+export function isNotable(e: GameEvent): boolean {
+  if (e.t === 'contract') return e.outcome === 'found' || e.outcome === 'fulfilled';
+  return e.t === 'skillUp' || e.t === 'discover';
+}
+
+function contractEventText(e: Extract<GameEvent, { t: 'contract' }>): LogLine {
+  if (e.outcome !== 'found') return contractText(e.contract, e.outcome);
+  return line(t('log.contract.found', { place: t(`contract.place.${surveyPlaceType(e.site)}`), site: siteName(e.contract.shop) }), CONTRACT_CLS.found);
+}
+
+function contractText(c: Contract, outcome: Exclude<keyof typeof CONTRACT_CLS, 'found'>): LogLine {
   const cls = CONTRACT_CLS[outcome];
   if (outcome === 'surveyed') {
     if (c.kind !== 'survey') throw new Error(`Only a survey is surveyed, not a ${c.kind} contract`);
@@ -570,9 +580,13 @@ export function surveyProgress(c: SurveyContract): Msg {
   return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
 }
 
-export function surveyWhere(from: Vec, c: SurveyContract): Msg | null {
-  const next = surveyBearing(from, c);
-  return next ? t('contract.surveyWhere', { dir: compass(next.rad), distance: distanceText(next.tiles) }) : null;
+export function surveyClueText(clue: SurveyClue): Msg {
+  return t('contract.surveyClue', { dir: compass(clue.rad), site: siteName(clue.landmark), distance: distanceText(clue.tiles), lay: t(`contract.lay.${clue.lay}`) });
+}
+
+export function nextSurveyClue(c: SurveyContract): Msg | null {
+  const open = openSurveyPoint(c);
+  return open ? surveyClueText(surveyClue(c, open)) : null;
 }
 
 export function contractWindow(c: Contract): Msg {
@@ -761,7 +775,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   knockout: () => line(t('log.knockout'), 'bad'),
   wake: () => line(t('log.wake'), 'dim'),
   searched: (_, e) => searchedText(e.stock),
-  contract: (_, e) => contractText(e.contract, e.outcome),
+  contract: (_, e) => contractEventText(e),
   breakdown: breakdownText,
   spawn: quiet,
   despawn: quiet,

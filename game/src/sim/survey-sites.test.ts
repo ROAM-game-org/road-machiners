@@ -7,7 +7,7 @@ import { mapObstacles } from './mapgen';
 import { navLayer } from './nav/layer';
 import { MAX_RADIUS, nearestRoadPoint, oldPlaces, reachable } from './salvage';
 import { siteGap } from './sites';
-import { landmarkOf, makeSurveySites, surveySites } from './survey';
+import { makeSurveySites, surveySites } from './survey';
 import { siteOf } from './market';
 import { dist, type Vec } from './vec';
 
@@ -47,7 +47,7 @@ describe('survey sites', () => {
     for (const s of sites) {
       expect(s.clues.length).toBeGreaterThan(0);
       for (const clue of s.clues) {
-        const far = dist(landmarkOf(clue.landmark).pos, s.pos);
+        const far = dist(siteOf(clue.landmark).pos, s.pos);
         expect(far).toBeLessThanOrEqual(rules.clue.range);
         expect(clue.tiles % rules.clue.roundTiles).toBe(0);
         expect(Math.abs(clue.tiles - far)).toBeLessThanOrEqual(rules.clue.roundTiles / 2);
@@ -61,7 +61,7 @@ describe('survey sites', () => {
     const sector = (from: Vec, to: Vec) => (Math.round(Math.atan2(to.y - from.y, to.x - from.x) / eighth) + 8) % 8;
     for (const s of sites)
       for (const clue of s.clues) {
-        const from = landmarkOf(clue.landmark).pos;
+        const from = siteOf(clue.landmark).pos;
         const lookAlikes = places.filter(
           (q) =>
             q.type === s.type &&

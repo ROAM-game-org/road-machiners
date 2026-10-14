@@ -25,6 +25,7 @@ import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from 
 import { advanceIntro, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
+import { findSurveySites } from './survey';
 import { applyHazards } from './hazard';
 import { consumeSupplies, fitAllStores, leakFuel } from './supplies';
 import { scrapPatch } from './economy';
@@ -352,6 +353,7 @@ export function endTurn(
     advanceJobs(w);
     startAutoRepair(w);
     practiceContacts(w, refreshVision(w));
+    findSurveySites(w);
     raiseCalls(w);
     assignAutoOrders(w);
     assignUtilityOrders(w);

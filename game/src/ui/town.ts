@@ -38,13 +38,13 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, isMet, shopAt, shopState, siteOf, type Contract, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, isMet, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyWhere, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, nextSurveyClue, saleEstimate, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -52,7 +52,6 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import type { Vec } from "../sim/vec";
 import { goodName, localName, localRole, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
@@ -342,11 +341,11 @@ export class TownScreen {
       {},
       el("h3", {}, t("contract.offers")),
       board.length
-        ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), siteOf(shopId).pos, true)))
+        ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), true)))
         : el("div", { class: "dim" }, t("contract.noOffers")),
       el("h3", {}, t("contract.yours", { n: w.player.contracts.length, max: CONTRACTS.maxActive })),
       w.player.contracts.length
-        ? el("div", { class: "jobs" }, ...w.player.contracts.map((c) => contractRow(w, c, this.deliverCell(w, shopId, c), playerVehicle(w).pos)))
+        ? el("div", { class: "jobs" }, ...w.player.contracts.map((c) => contractRow(w, c, this.deliverCell(w, shopId, c))))
         : null,
     );
   }
@@ -457,12 +456,12 @@ function profitCell(e: SaleEstimate): HTMLElement {
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
 }
 
-function surveyLine(c: Contract, from: Vec): HTMLElement | null {
-  const where = c.kind === "survey" ? surveyWhere(from, c) : null;
-  return where ? el("span", { class: "dim" }, SPACE, where) : null;
+function surveyLine(c: Contract): HTMLElement | null {
+  const clue = c.kind === "survey" ? nextSurveyClue(c) : null;
+  return clue ? el("span", { class: "dim contract-clue" }, clue) : null;
 }
 
-function contractRow(w: World, c: Contract, action: HTMLElement, from: Vec, posted = false): HTMLElement {
+function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
   const met = isMet(c);
   const clock = posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
@@ -471,7 +470,7 @@ function contractRow(w: World, c: Contract, action: HTMLElement, from: Vec, post
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
-    el("span", {}, contractSummary(c), surveyLine(c, from)),
+    el("span", {}, contractSummary(c), surveyLine(c)),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
