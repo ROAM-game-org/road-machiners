@@ -15,7 +15,7 @@ import { TEST_MAP } from '../test/map';
 
 function driver(w: World, faction: Faction, goal: NpcActivity['kind'] | null): Vehicle {
   const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
-  v.brain = npcBrain('test', { x: 60, y: 60 }, []);
+  v.brain = npcBrain('test', { x: 60, y: 60 }, faction === 'scrapjaw' || faction === 'kiln' ? ['raider'] : []);
   if (goal) v.brain.goals = [{ kind: goal, targetId: null, destination: { x: 60, y: 60 }, phase: 'travel', reason: 'tripToSite' }];
   return v;
 }
