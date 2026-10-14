@@ -88,7 +88,7 @@ describe('game save', () => {
     expect(before.has(emptied.id)).toBe(false);
     expect(before.has(`wreck-${npc.id}`)).toBe(true);
     writeSave(slots, 'auto', world, RUN, 1000);
-    expect(lootableProps(loadWorld(slots, 'auto', TEST_MAP).salvage)).toEqual(before);
+    expect(lootableProps(loadWorld(slots, 'auto', TEST_MAP)!.salvage)).toEqual(before);
   }, 30_000);
 
   it('clears the save and the seen tips for a new game, and keeps sound settings', () => {
