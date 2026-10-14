@@ -190,6 +190,15 @@ describe('events', () => {
     expect(lines[0]).toMatchObject({ t: 'collision', a: me, dmgA: { a: 3 }, dmgB: { b: 6 } });
   });
 
+  it('keeps the line kind when an event has a kind field of its own', () => {
+    const { world, near } = seeing();
+    const stream = new RunStream(CTX);
+    stream.begin(world, 'new');
+    const lines = stream.step(next(world), [{ t: 'shopMoney', vehicle: near.id, amount: 5, kind: 'sale' as never }]);
+    expect(lines.map((l) => l.kind)).toEqual(['event']);
+    expect(lines[0]).toMatchObject({ t: 'shopMoney', shop: 'sale' });
+  });
+
   it('lists a part a shot disabled inside the shot line', () => {
     const { world, near } = seeing();
     const me = world.player.vehicleId;

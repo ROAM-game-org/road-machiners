@@ -273,7 +273,7 @@ function isDisabled(e: GameEvent): e is Disabled {
 
 function plainLines(world: World, kept: readonly GameEvent[], used: ReadonlySet<Disabled>): StreamLine[] {
   const others = kept.filter((e) => !isShot(e) && !isCollision(e) && !(isDisabled(e) && used.has(e)));
-  return others.map((e) => ({ kind: 'event', turn: world.turn, ...inWorldFrame(world, e) }));
+  return others.map((e) => ({ ...inWorldFrame(world, e), kind: 'event', turn: world.turn, ...(e.t === 'shopMoney' ? { shop: e.kind } : {}) }));
 }
 
 export function eventLines(world: World, events: readonly GameEvent[], scope: ReadonlySet<string>): StreamLine[] {
