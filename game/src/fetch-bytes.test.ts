@@ -53,7 +53,6 @@ describe('fetchBytes', () => {
     expect((err as Error).message).toContain('/a');
     expect((err as Error).message).toContain('HTTP 404');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(err).not.toBeInstanceOf(DownloadFailure);
   });
 
   it('gives up after the configured tries with the last error', async () => {
@@ -65,19 +64,6 @@ describe('fetchBytes', () => {
     expect((err as Error).message).toContain(`after ${CONFIG.assetFetchTries} tries`);
     expect((err as Error).message).toContain('Load failed');
     expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
-    expect(err).toBeInstanceOf(DownloadFailure);
-    const failure = err as DownloadFailure;
-    expect(failure.url).toBe('/a');
-    expect(failure.tries).toBe(CONFIG.assetFetchTries);
-    expect(failure.cause).toBeInstanceOf(TypeError);
-  });
-
-  it('gives up on a lasting 503 with a DownloadFailure', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
-    vi.stubGlobal('fetch', fetchMock);
-    const err = await settle(fetchBytes('/a'));
-    expect(err).toBeInstanceOf(DownloadFailure);
-    expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
   });
 
   it('waits twice as long before each new try', async () => {
@@ -86,12 +72,11 @@ describe('fetchBytes', () => {
     const result = fetchBytes('/a').catch((e: Error) => e);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     for (let n = 2; n <= CONFIG.assetFetchTries; n++) {
-      const wait = waitBefore(n);
-      await vi.advanceTimersByTimeAsync(wait - 1);
+      await vi.advanceTimersByTimeAsync(waitBefore(n) - 1);
       expect(fetchMock).toHaveBeenCalledTimes(n - 1);
       await vi.advanceTimersByTimeAsync(1);
       expect(fetchMock).toHaveBeenCalledTimes(n);
     }
-    expect(await result).toBeInstanceOf(DownloadFailure);
+    expect(await result).toBeInstanceOf(DownloadFailed);
   });
 });

@@ -31,7 +31,7 @@ export async function fetchBytes(url: string): Promise<ArrayBuffer> {
     } catch (e) {
       if (!retryable(e) || (attempt >= tries && e instanceof HttpStatusError)) throw e;
       if (attempt >= tries) throw new DownloadFailed(`${url} failed to load after ${tries} tries: ${e}`, e);
-      await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
+      await new Promise((resolve) => setTimeout(resolve, CONFIG.assetRetryMs * 2 ** (attempt - 1)));
     }
   }
 }
