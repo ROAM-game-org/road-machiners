@@ -21,7 +21,7 @@ describe('stallMinutes', () => {
 describe('createStallWatch', () => {
   it('stays quiet while tests keep finishing', () => {
     const watch = createStallWatch(10 * MINUTE, 0);
-    watch.fileStarted('src/a.test.ts');
+    watch.fileStarted('src/a.test.ts', 0);
     watch.caseStarted('a1', 'src/a.test.ts', 'drives');
     watch.caseEnded('a1', 9 * MINUTE);
     expect(watch.stalled(18 * MINUTE)).toBeNull();
@@ -29,8 +29,8 @@ describe('createStallWatch', () => {
 
   it('names each running file and its running test once nothing finished for the limit', () => {
     const watch = createStallWatch(10 * MINUTE, 0);
-    watch.fileStarted('src/a.test.ts');
-    watch.fileStarted('src/b.test.ts');
+    watch.fileStarted('src/a.test.ts', 0);
+    watch.fileStarted('src/b.test.ts', 0);
     watch.caseStarted('a1', 'src/a.test.ts', 'drives > into the wall');
     watch.caseStarted('b1', 'src/b.test.ts', 'loads');
     watch.caseEnded('b1', 2 * MINUTE);
@@ -39,15 +39,21 @@ describe('createStallWatch', () => {
     expect(watch.stalled(13 * MINUTE)).toBe('[test-cache] StallError: no test finished in 10 minutes. Still running: src/a.test.ts > drives > into the wall');
   });
 
+  it('counts a test file that starts as progress, so a slow start is no stall', () => {
+    const watch = createStallWatch(MINUTE, 0);
+    watch.fileStarted('src/a.test.ts', 3 * MINUTE);
+    expect(watch.stalled(3 * MINUTE + 1)).toBeNull();
+  });
+
   it('names a file that hangs before any of its tests start', () => {
     const watch = createStallWatch(MINUTE, 0);
-    watch.fileStarted('src/import-hangs.test.ts');
+    watch.fileStarted('src/import-hangs.test.ts', 0);
     expect(watch.stalled(MINUTE)).toBe('[test-cache] StallError: no test finished in 1 minutes. Still running: src/import-hangs.test.ts');
   });
 
   it('does not count a run with nothing running as a stall', () => {
     const watch = createStallWatch(MINUTE, 0);
-    watch.fileStarted('src/a.test.ts');
+    watch.fileStarted('src/a.test.ts', 0);
     watch.fileEnded('src/a.test.ts', 0);
     expect(watch.stalled(5 * MINUTE)).toBeNull();
   });

@@ -7,7 +7,7 @@ export function stallMinutes(env: NodeJS.ProcessEnv): number | null {
 }
 
 export type StallWatch = {
-  fileStarted: (file: string) => void;
+  fileStarted: (file: string, now: number) => void;
   fileEnded: (file: string, now: number) => void;
   caseStarted: (id: string, file: string, name: string) => void;
   caseEnded: (id: string, now: number) => void;
@@ -21,7 +21,10 @@ export function createStallWatch(limitMs: number, startedAt: number): StallWatch
   const runningIn = (file: string) => [...cases.values()].filter((running) => running.file === file).map((running) => `${file} > ${running.name}`);
   const running = () => [...files].flatMap((file) => (runningIn(file).length > 0 ? runningIn(file) : [file]));
   return {
-    fileStarted: (file) => void files.add(file),
+    fileStarted: (file, now) => {
+      files.add(file);
+      progressAt = now;
+    },
     fileEnded: (file, now) => {
       files.delete(file);
       progressAt = now;

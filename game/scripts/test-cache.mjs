@@ -61,7 +61,7 @@ function passRecorder(cache, readsDir) {
 function stallReporter(watch) {
   const fileOf = (mod) => relative(root, mod.moduleId);
   return {
-    onTestModuleStart: (mod) => watch.fileStarted(fileOf(mod)),
+    onTestModuleStart: (mod) => watch.fileStarted(fileOf(mod), Date.now()),
     onTestModuleEnd: (mod) => watch.fileEnded(fileOf(mod), Date.now()),
     onTestCaseReady: (test) => watch.caseStarted(test.id, fileOf(test.module), test.fullName),
     onTestCaseResult: (test) => watch.caseEnded(test.id, Date.now()),
