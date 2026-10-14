@@ -112,27 +112,78 @@ describe('SaveSlots', () => {
   });
 });
 
+describe('SaveSlots with a backend that throws', () => {
+  it('sends a synchronous throw to onError once and keeps the envelope', async () => {
+    const throwing: SaveBackend = { ...memoryBackend(), put: () => { throw new Error('closing'); } };
+    const slots = new SaveSlots(throwing, new Map());
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
+
+    expect(() => slots.put('auto', { turn: 5 })).not.toThrow();
+    await slots.flush();
+
+    expect(errors.map((e) => (e as Error).message)).toEqual(['closing']);
+    expect(slots.get('auto')).toEqual({ turn: 5 });
+  });
+});
+
 describe('idbBackend writes', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  function stubIndexedDb(transactionArgs: unknown[][]): void {
-    const store = { put: () => ({}), add: () => ({}), delete: () => ({}), openCursor: () => ({}) };
-    const db = {
-      transaction: (...args: unknown[]) => {
-        transactionArgs.push(args);
-        if (args.length > 2) throw new Error('This browser aborts a transaction with options');
-        const tx: { oncomplete?: () => void; objectStore: () => typeof store } = { objectStore: () => store };
-        setTimeout(() => tx.oncomplete?.());
-        return tx;
+  type StubDb = {
+    index: number;
+    puts: unknown[];
+    closing: boolean;
+    onclose?: () => void;
+    onversionchange?: () => void;
+    transaction: (...args: unknown[]) => unknown;
+    close: () => void;
+  };
+
+  function stubIndexedDb(transactionArgs: unknown[][] = [], closedAtOpen = (_index: number) => false) {
+    const dbs: StubDb[] = [];
+    const store = (db: StubDb) => ({
+      put: (envelope: unknown) => { db.puts.push(envelope); return {}; },
+      add: () => ({}),
+      delete: () => ({}),
+      openCursor: () => ({}),
+      getAll: () => {
+        const req: { result: unknown[]; onsuccess?: () => void } = { result: [] };
+        setTimeout(() => req.onsuccess?.());
+        return req;
       },
-    };
-    vi.stubGlobal('indexedDB', {
-      open: () => {
-        const open: { result: unknown; onsuccess?: () => void } = { result: db };
-        setTimeout(() => open.onsuccess?.());
-        return open;
+      getAllKeys: () => {
+        const req: { result: unknown[]; onsuccess?: () => void } = { result: [] };
+        setTimeout(() => req.onsuccess?.());
+        return req;
       },
     });
+    const makeDb = (index: number): StubDb => {
+      const db: StubDb = {
+        index,
+        puts: [],
+        closing: closedAtOpen(index),
+        close: () => { db.closing = true; },
+        transaction: (...args: unknown[]) => {
+          transactionArgs.push(args);
+          if (args.length > 2) throw new Error('This browser aborts a transaction with options');
+          if (db.closing) throw new DOMException('The database connection is closing.', 'InvalidStateError');
+          const tx: { oncomplete?: () => void; objectStore: () => unknown } = { objectStore: () => store(db) };
+          setTimeout(() => tx.oncomplete?.());
+          return tx;
+        },
+      };
+      return db;
+    };
+    const open = vi.fn(() => {
+      const db = makeDb(dbs.length);
+      dbs.push(db);
+      const request: { result: unknown; onsuccess?: () => void } = { result: db };
+      setTimeout(() => request.onsuccess?.());
+      return request;
+    });
+    vi.stubGlobal('indexedDB', { open });
+    return { dbs, open };
   }
 
   it('opens each write transaction with the default options', async () => {
@@ -144,6 +195,74 @@ describe('idbBackend writes', () => {
     await backend.remove('auto');
 
     expect(transactionArgs).toEqual([['saves', 'readwrite'], ['saves', 'readwrite']]);
+  });
+
+  it('reopens and writes when the connection is closing', async () => {
+    const { dbs, open } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    dbs[0].closing = true;
+
+    await backend.put('auto', { world: { turn: 2 } });
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[1].puts).toEqual([{ world: { turn: 2 } }]);
+  });
+
+  it('reopens after the browser closes the connection', async () => {
+    const { dbs, open } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    dbs[0].onclose?.();
+
+    await backend.put('auto', { world: { turn: 3 } });
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[0].puts).toEqual([]);
+    expect(dbs[1].puts).toEqual([{ world: { turn: 3 } }]);
+  });
+
+  it('a closed connection rejects instead of throwing', async () => {
+    const { open, dbs } = stubIndexedDb([], () => true);
+    const backend = await idbBackend('roam-test');
+
+    let promise: Promise<void> | undefined;
+    expect(() => { promise = backend.put('auto', {}); }).not.toThrow();
+    await expect(promise).rejects.toMatchObject({ name: 'InvalidStateError' });
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs).toHaveLength(2);
+  });
+
+  it('writes during one reopen open once and keep their order', async () => {
+    const { dbs, open } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    dbs[0].closing = true;
+
+    await Promise.all([1, 2, 3].map((turn) => backend.put('auto', { turn })));
+
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[1].puts).toEqual([{ turn: 1 }, { turn: 2 }, { turn: 3 }]);
+  });
+
+  it('a version change closes the connection and the next write reopens', async () => {
+    const { dbs, open } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    dbs[0].onversionchange?.();
+
+    await backend.put('auto', { turn: 4 });
+
+    expect(dbs[0].closing).toBe(true);
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(dbs[1].puts).toEqual([{ turn: 4 }]);
+  });
+
+  it('reads reopen too', async () => {
+    vi.stubGlobal('IDBKeyRange', { bound: () => ({}) });
+    const { dbs, open } = stubIndexedDb();
+    const backend = await idbBackend('roam-test');
+    dbs[0].closing = true;
+    expect(await backend.readAll()).toEqual(new Map());
+    dbs[1].closing = true;
+    expect(await backend.readLog('run')).toEqual([]);
+    expect(open).toHaveBeenCalledTimes(3);
   });
 });
 
