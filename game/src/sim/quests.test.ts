@@ -6,7 +6,7 @@ import * as QUEST_DATA from '../data/quests';
 import { START_KITS } from '../data/start';
 import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
-import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
+import { chooseQuestOption, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
 import { defaultSetup } from './settings';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
@@ -223,20 +223,6 @@ describe('leaveQuest', () => {
 
   it('refuses when no quest is on view', () => {
     expect(() => leaveQuest(world())).toThrow('No quest is on view');
-  });
-});
-
-describe('fittingQuestVars', () => {
-  it('keeps the variables that still fit and lists the rest as lost', () => {
-    const carried = {
-      world: { sample_wagon_heard: true, retired_flag: true },
-      local: { sample_bowl: { trust: 2, paid: 'yes' }, gone_quest: { n: 1 } },
-    };
-    expect(fittingQuestVars(carried, QUESTS)).toEqual({
-      world: { sample_wagon_heard: true },
-      local: { sample_bowl: { trust: 2 } },
-      lost: ['retired_flag', 'sample_bowl.paid', 'gone_quest.n'],
-    });
   });
 });
 

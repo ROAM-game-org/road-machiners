@@ -16,7 +16,7 @@ import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
 import { itemMass, vehicleMass } from '../sim/mass';
-import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
+import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
@@ -30,7 +30,7 @@ import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
 import { lostQuestNames, newGameShape, questNames } from '../test/save-shape';
-import { chooseQuestOption, QUESTS, questView, startQuest } from '../sim/quests';
+import { chooseQuestOption, QUESTS, questProblems, questView, startQuest } from '../sim/quests';
 import { defaultSetup, parseSetup } from '../sim/settings';
 
 const SLOTS = allSlots(3);
@@ -357,20 +357,84 @@ describe('game save', () => {
     expect(loaded?.events).toEqual([]);
   });
 
-  it('rejects a save holding a quest variable or checkpoint this version does not know', () => {
+  it('repairs in place a save holding a quest variable, quest or checkpoint this version does not know', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     const cases = [
-      [{ world: { gone: true }, local: {}, session: null }, /badQuests: World variable gone is not declared/],
-      [{ world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } }, /badQuests: Quest bowl_hattie has no checkpoint nowhere/],
-      [{ world: {}, local: [], session: null }, /badQuests/],
+      [{ world: { gone: true }, local: {}, session: null }, { questsReset: [], lost: ['gone'] }],
+      [{ world: {}, local: { retired_quest: { n: 1 } }, session: null }, { questsReset: [], lost: ['retired_quest'] }],
+      [{ world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } }, { questsReset: ['bowl_hattie'], lost: [] }],
     ] as const;
-    for (const [quests, error] of cases) {
+    for (const [quests, repair] of cases) {
       const saved = saveOf(world).world as { player: Record<string, unknown> };
       slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests } } });
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(error);
+      const loaded = loadSave(slots, 'auto', TEST_MAP);
+      expect(loaded?.repair).toEqual({ ...repair, settingsReset: [] });
+      expect(loaded && questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
+      expect(loaded?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
     }
+  });
+
+  it('still rejects quest state that is no quest state', () => {
+    const slots = makeSlots();
+    const saved = saveOf(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))).world as { player: Record<string, unknown> };
+    slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests: { world: {}, local: [], session: null } } } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/badQuests/);
+  });
+
+  describe('quest revisions', () => {
+    const hattieMid = () => chooseQuestOption(startQuest(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')), QUESTS, 'bowl_hattie', 'start'), QUESTS, 0);
+
+    function savedAt(world: World, revisions: Record<string, unknown> | undefined): SaveSlots {
+      const slots = makeSlots();
+      writeSave(slots, 'auto', world, RUN, 1);
+      const envelope = { ...(slots.get('auto') as Record<string, unknown>) };
+      if (revisions === undefined) delete envelope.quests;
+      else envelope.quests = { ...(envelope.quests as object), ...revisions };
+      slots.put('auto', envelope);
+      return slots;
+    }
+
+    it('writes the revision of every quest on the save', () => {
+      const slots = makeSlots();
+      writeSave(slots, 'auto', hattieMid(), RUN, 1);
+      expect((slots.get('auto') as { quests: unknown }).quests).toEqual(Object.fromEntries(Object.entries(QUESTS.quests).map(([id, q]) => [id, q.revision])));
+    });
+
+    it('loads a save with no revisions as revision 1 everywhere, with nothing to repair', () => {
+      const mid = hattieMid();
+      const loaded = loadSave(savedAt(mid, undefined), 'auto', TEST_MAP);
+      expect(loaded?.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(loaded?.world.player.quests.session).toEqual(mid.player.quests.session);
+    });
+
+    it('resets a quest the game raised past the save, reports it and awards nothing', () => {
+      const mid = hattieMid();
+      const loaded = loadSave(savedAt(mid, { bowl_hattie: 0 }), 'auto', TEST_MAP)!;
+      expect(loaded.repair.questsReset).toEqual(['bowl_hattie']);
+      expect(loaded.world.player.quests.session).toBeNull();
+      expect(loaded.world.player.quests.local.bowl_hattie).toBeUndefined();
+      expect(loaded.world.player.money).toBe(mid.player.money);
+      expect(loaded.world.player.xp).toBe(mid.player.xp);
+      expect(loaded.world.events).toEqual([]);
+      expect(questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
+    });
+
+    it('repeats the same repair on every load until the next save, which then loads clean', () => {
+      const slots = savedAt(hattieMid(), { bowl_hattie: 0 });
+      const first = loadSave(slots, 'auto', TEST_MAP)!;
+      expect(loadSave(slots, 'auto', TEST_MAP)!.repair).toEqual(first.repair);
+      writeSave(slots, 'auto', first.world, RUN, 2);
+      const next = loadSave(slots, 'auto', TEST_MAP)!;
+      expect(next.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(next.world.player.quests).toEqual(first.world.player.quests);
+    });
+
+    it('rejects a save made by a build with a newer revision of a quest', () => {
+      const slots = savedAt(hattieMid(), { bowl_hattie: 99 });
+      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
+      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/newerQuests: bowl_hattie/);
+    });
   });
 
   it('rejects a save missing a field required for future turns', () => {
@@ -637,11 +701,17 @@ describe('saved world settings', () => {
   });
 
   it.each([
-    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
+    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }, ['fuelUse']],
+    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
+  ])('loads a save with %s, resetting that setting and reporting it', (_, setup, reset) => {
+    const loaded = loadSave(storedWith(setup), 'auto', TEST_MAP)!;
+    expect(loaded.repair.settingsReset).toEqual(reset);
+    expect(loaded.world.setup).toEqual(defaultSetup('roaming'));
+  });
+
+  it.each([
     ['an unknown mode', { mode: 'campaign', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['no enemy gear growth', { mode: 'furyRoad', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }],
     ['no setup at the current format', undefined],
   ])('rejects a save with %s as a save error', (_, setup) => {
     expect(() => loadWorld(storedWith(setup), 'auto', TEST_MAP)).toThrow(SaveError);
