@@ -306,7 +306,7 @@ The factory plugin reads certain committee messages before you see them. The fac
 - Approve, as a button or an "approve" reply, sends the card to the Hardening column, then to the merge queue, which merges it into its base by itself. Deny closes the issue for good.
 - A reply that starts with "patch:" or "redesign:" takes that route at once and never reaches you. So you set no Implementation model for it, and the issue keeps its label. A member who wants another model changes the label on GitHub or asks you.
 - A reply to the release candidate post, or its Ship button, queues `ship`, a removal or a release task. A press on an old candidate post gets "This release post is out of date." and queues nothing.
-- Publish on the current release post draft posts it to the public channel. A press on an older draft queues nothing.
+- Publish on the current release post draft posts it to the public channel. A press on an older draft queues nothing. Nothing else goes to the public channel, so never post there yourself.
 - `/change <request>` queues a factory change.
 - `/committee list`, `/committee add <telegram id> [github login]`, `/committee remove <telegram id>` and `/committee github <telegram id> <login>` manage the committee.
 

@@ -80,4 +80,16 @@ describe('the wagon Seven scene', () => {
     expect(loaded.player.xp).toEqual(w.player.xp);
     expect(loaded.events).toEqual([]);
   });
+
+  it('shows the wreck description before the choices after a load', () => {
+    const slots = new SaveSlots(memoryBackend(), new Map());
+    const w = freshWorld();
+    finishSearch(w, WAGON_SEVEN);
+    writeSave(slots, 'auto', w, 'run', 1);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP);
+    if (!loaded) throw new Error('The save did not load');
+    const view = questView(loaded, QUESTS);
+    expect(view.lines[0].text.startsWith('The wagon lies nose-down')).toBe(true);
+    expect(view.choices).toEqual(questView(w, QUESTS).choices);
+  });
 });
