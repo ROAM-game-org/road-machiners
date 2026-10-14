@@ -19,7 +19,8 @@ export function shuffled<T>(items: readonly T[], roll: () => number): T[] {
 }
 
 export function spatial(screenX: number, width: number, distance: number, halfGainMeters: number, panWidth: number): { pan: number; gain: number } {
-  const side = Math.min(1, Math.max(-1, (screenX / width) * 2 - 1));
+  if (!Number.isFinite(screenX) || !Number.isFinite(distance)) throw new Error(`Sound placement needs a finite screen x and distance, got ${screenX}, ${distance}`);
+  const side = width > 0 ? Math.min(1, Math.max(-1, (screenX / width) * 2 - 1)) : 0;
   return { pan: side * panWidth, gain: 1 / (1 + distance / halfGainMeters) };
 }
 
