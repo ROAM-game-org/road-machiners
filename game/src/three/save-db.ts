@@ -74,6 +74,46 @@ function written(db: IDBDatabase, store: string, write: (store: IDBObjectStore) 
   });
 }
 
+const IDB_RETRY_MS = 200;
+
+export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {
+  const idb = await idbBackendWithRetry(name);
+  if (idb) return SaveSlots.open(idb, storage, name, slots);
+  return SaveSlots.open(storageBackend(storage, name, slots), null, name, slots);
+}
+
+async function idbBackendWithRetry(name: string): Promise<SaveBackend | null> {
+  try {
+    return await idbBackend(name);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, IDB_RETRY_MS));
+  }
+  try {
+    return await idbBackend(name);
+  } catch (err) {
+    console.warn(`${err instanceof Error ? err.message : String(err)}. Saves go to local storage for this session.`);
+    return null;
+  }
+}
+
+export function storageBackend(storage: Storage, base: string, slots: readonly SlotId[]): SaveBackend {
+  const { appendLog, readLog } = memoryBackend();
+  return {
+    readAll: async () => {
+      const saves = new Map<SlotId, unknown>();
+      for (const slot of slots) {
+        const raw = storage.getItem(slotKey(base, slot));
+        if (raw !== null) saves.set(slot, parsedOrRaw(raw));
+      }
+      return saves;
+    },
+    put: async (slot, envelope) => { storage.setItem(slotKey(base, slot), JSON.stringify(envelope)); },
+    remove: async (slot) => { storage.removeItem(slotKey(base, slot)); },
+    appendLog,
+    readLog,
+  };
+}
+
 export function memoryBackend(): SaveBackend {
   const saves = new Map<SlotId, unknown>();
   const log: LogRecord[] = [];
@@ -95,7 +135,8 @@ export class SaveSlots {
 
   constructor(readonly backend: SaveBackend, private envelopes: Map<SlotId, unknown>) {}
 
-  static async open(backend: SaveBackend, legacy: Storage, base: string, slots: readonly SlotId[]): Promise<SaveSlots> {
+  static async open(backend: SaveBackend, legacy: Storage | null, base: string, slots: readonly SlotId[]): Promise<SaveSlots> {
+    if (!legacy) return new SaveSlots(backend, await backend.readAll());
     const stored = await backend.readAll();
     for (const slot of slots) {
       const key = slotKey(base, slot);

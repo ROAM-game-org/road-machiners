@@ -31,7 +31,7 @@ import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onRepo
 import { ErrorReporter } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
-import { idbBackend, SaveSlots } from './save-db';
+import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
@@ -160,7 +160,7 @@ const loading = Promise.all([
 ]);
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
-const slots = await SaveSlots.open(await idbBackend(saveKey), window.localStorage, saveKey, allSlots(CONFIG.saveSlots));
+const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
