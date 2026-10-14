@@ -1,6 +1,6 @@
 import { CONFIG } from "./config";
 
-class HttpStatusError extends Error {
+export class HttpStatusError extends Error {
   constructor(url: string, readonly status: number) {
     super(`${url} failed to load: HTTP ${status}`);
   }
@@ -22,8 +22,8 @@ export async function fetchBytes(url: string): Promise<ArrayBuffer> {
     try {
       return await fetchOnce(url);
     } catch (e) {
-      if (!retryable(e)) throw e;
-      if (attempt >= tries) throw new Error(`${url} failed to load after ${tries} tries: ${e}`);
+      if (!retryable(e) || (attempt >= tries && e instanceof HttpStatusError)) throw e;
+      if (attempt >= tries) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
       await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
     }
   }

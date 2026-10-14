@@ -1,4 +1,4 @@
-import { fetchBytes } from "../fetch-bytes";
+import { fetchBytes, HttpStatusError } from "../fetch-bytes";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -63,6 +63,7 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
       return { buffer: await decodeFile(ctx, file) };
     } catch (e) {
       error = e;
+      if (e instanceof SoundUnreachable) break;
     }
   }
   return { error };
@@ -70,7 +71,7 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
   const bytes = await fetchBytes(SFX_DIR + file).catch((e: unknown) => {
-    throw new SoundUnreachable(file, e);
+    throw e instanceof HttpStatusError ? e : new SoundUnreachable(file, e);
   });
   return ctx.decodeAudioData(bytes);
 }

@@ -63,7 +63,7 @@ describe('loadBank', () => {
     const fetch = vi.fn(async () => ok);
     vi.stubGlobal('fetch', fetch);
     await loadBank(rejecting, { a: SOUNDS.a });
-    expect(fetch).toHaveBeenCalledTimes(BANK.tries);
+    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
   });
 
   it('gives a cue with no decoded file a silent buffer', async () => {
@@ -112,7 +112,7 @@ describe('loadBank with the network down', () => {
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['a.mp3']);
     expect(bank.get('a.mp3')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
-    expect(fetch).toHaveBeenCalledTimes(BANK.tries);
+    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
   });
 
   it('recovers when the second try gets through', async () => {
