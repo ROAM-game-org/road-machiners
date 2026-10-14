@@ -43,7 +43,7 @@ function setup(over: Partial<ReportDeps['cfg']> = {}): World {
 
 function report(over: Record<string, unknown> = {}): Buffer {
   return gzipSync(JSON.stringify({
-    build: 'dev', version: '2.24.72+abc1234', userAgent: 'Firefox `rm -rf`', turn: 44, log: ['Day 2 08:00 Sold scrap'],
+    build: 'dev', version: '2.24.72+abc1234', userAgent: 'Firefox `rm -rf`', language: 'en', screen: { width: 1280, height: 720, pixelRatio: 1 }, turn: 44, log: ['Day 2 08:00 Sold scrap'],
     error: { name: 'Error', message: 'No vehicle npc-37', stack: 'Error: No vehicle npc-37\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)\n    at chrome-extension://x/inject.js:4:2' },
     world: { format: { major: 2, minor: 24 }, world: {} }, autosave: null, autosaveIsWorld: true, drive: null, ...over,
   }));
@@ -61,6 +61,17 @@ describe('error reports', () => {
     const fingerprint = /Error fingerprint: ([0-9a-f]{16})$/.exec(calls[1])?.[1] ?? '';
     expect(existsSync(join(reportsDir(home), fingerprint, `${SHA}.json.gz`))).toBe(true);
     expect(readStore(home).known[fingerprint]).toEqual({ issue: 100, count: 1, commits: [SHA] });
+  });
+
+  it('names the language and the screen in the issue, and still files a report from an older game without them', async () => {
+    const first = setup();
+    await new ErrorReports(first.deps).take(report());
+    expect(first.calls[1]).toContain('- Language: en');
+    expect(first.calls[1]).toContain('- Screen: 1280 by 720 at pixel ratio 1');
+    const old = setup();
+    await new ErrorReports(old.deps).take(report({ language: undefined, screen: undefined }));
+    expect(old.calls[1]).toMatch(/^create Error: No vehicle npc-37/);
+    expect(old.calls[1]).not.toContain('- Language:');
   });
 
   it('gives the agents of the issue its report folder read-only, listed in their prompt', async () => {
@@ -154,7 +165,7 @@ describe('error server', () => {
 
   async function start(ipPerHour = 2): Promise<{ url: string; home: string; calls: string[] }> {
     const { home, deps, calls } = setup();
-    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour, reportIpPerHour: 5, reportMaxChars: 3000 };
+    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour, reportIpPerHour: 5, reportMaxChars: 3000, errorDiskMb: 10, errorUnzippedMb: 1 };
     const feedback = new Feedback({ cfg, store: openStore(home), classify: async () => { throw new Error('no filter in this test'); }, github: deps.github, now: deps.now, log: () => undefined, alert: () => undefined });
     const server = new ErrorServer(new ErrorReports(deps), feedback, cfg, deps.now, () => undefined);
     servers.push(server);

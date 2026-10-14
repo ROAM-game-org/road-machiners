@@ -1,24 +1,39 @@
+import { gunzipSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
+import type { ReportContext } from "../three/error-report";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
 import { feedbackBuild, feedbackStatus, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./game-menu";
 
 const render = (msg: Msg) => resolve(msg, "en");
 
-const report: FeedbackReport = { kind: "bug", text: "the door sticks", version: "v1.2.3", build: "dev" };
+const context: ReportContext = {
+  build: "dev",
+  version: "1.2.3+abc1234",
+  userAgent: "test",
+  language: "en",
+  screen: { width: 1280, height: 720, pixelRatio: 1 },
+  turn: 12,
+  log: ["Day 1 08:00 Arrived"],
+  world: { format: "test", world: { turn: 12 } },
+  autosave: null,
+  autosaveIsWorld: true,
+};
+const report: FeedbackReport = { kind: "bug", text: "the door sticks", build: "3fa9c1e", context };
 const URL_OF_SERVER = "https://example.test/feedback";
 
 const answer = (status: number, body: unknown) => new Response(typeof body === "string" ? body : JSON.stringify(body), { status });
 
 describe("sendFeedback", () => {
-  it("posts the report as JSON and returns a sent answer", async () => {
+  it("posts the report with the game context as gzipped JSON and returns a sent answer", async () => {
     const post = vi.fn().mockResolvedValue(answer(200, { status: "sent" }));
     expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent" });
     const [url, init] = post.mock.calls[0];
     expect(url).toBe(URL_OF_SERVER);
     expect(init.method).toBe("POST");
-    expect(init.headers).toEqual({ "content-type": "application/json" });
-    expect(JSON.parse(init.body)).toEqual(report);
+    expect(init.headers).toEqual({ "content-type": "application/gzip" });
+    const bytes = new Uint8Array(await (init.body as Blob).arrayBuffer());
+    expect(JSON.parse(gunzipSync(bytes).toString("utf8"))).toEqual(report);
   });
 
   it("shows each answer in the player's language", () => {

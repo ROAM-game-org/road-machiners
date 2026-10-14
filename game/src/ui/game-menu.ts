@@ -5,6 +5,7 @@ import type { ModeRules, WorldSetup } from "../sim/types";
 import { setupText } from "../text/names";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
+import { gameContext, gzip, type GameContext, type ReportContext } from "../three/error-report";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
@@ -158,7 +159,7 @@ export const FEEDBACK_TEXT_LIMIT = 3000;
 
 export type FeedbackKind = "bug" | "idea";
 
-export type FeedbackReport = { kind: FeedbackKind; text: string; version: string; build: string };
+export type FeedbackReport = { kind: FeedbackKind; text: string; build: string; context: ReportContext };
 
 export type FeedbackResult = { status: "sent" } | { status: "failed" };
 
@@ -179,7 +180,7 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
   if (url === "") throw new Error("Feedback is off in this build: FEEDBACK_URL is empty");
   if (report.text.length > FEEDBACK_TEXT_LIMIT) throw new Error(`Feedback text is over ${FEEDBACK_TEXT_LIMIT} characters`);
   try {
-    const response = await post(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
+    const response = await post(url, { method: "POST", headers: { "content-type": "application/gzip" }, body: await gzip(JSON.stringify(report)) });
     if (!response.ok) return { status: "failed" };
     const body: unknown = await response.json();
     return isSent(body) ? { status: "sent" } : { status: "failed" };
@@ -197,6 +198,7 @@ export class FeedbackForm {
   constructor(
     private readonly post: Fetch = (url, init) => fetch(url, init),
     private readonly url: string = FEEDBACK_URL,
+    private readonly context: GameContext = gameContext,
   ) {}
 
   isOpen(): boolean {
@@ -254,7 +256,7 @@ export class FeedbackForm {
       if (busy || box.value.trim() === "") return;
       busy = true;
       refresh();
-      const report = { kind, text: box.value, version: versionLabel(), build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname) };
+      const report = { kind, text: box.value, build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname), context: this.context.capture() };
       const result = await sendFeedback(this.post, this.url, report);
       busy = false;
       if (result.status === "sent") box.value = "";

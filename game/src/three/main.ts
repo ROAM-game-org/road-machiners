@@ -2,7 +2,7 @@
 import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
+import { CONFIG, ERROR_REPORT_URL } from '../config';
 import { fetchBytes } from '../fetch-bytes';
 import { CHASSIS } from '../data/chassis';
 import { MIX, SOUNDS } from '../data/sounds';
@@ -32,7 +32,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
-import { ErrorReporter } from './error-report';
+import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { idbBackend, SaveSlots } from './save-db';
@@ -151,7 +151,7 @@ language.subscribe(() => {
   relocalizeGame?.();
 });
 const boot = BootScreen.adopt();
-const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, ERROR_REPORT_BUILD, GAME_VERSION) : null;
+const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
@@ -202,7 +202,7 @@ if (failures.length) {
 }
 onEveryError(() => game.holdSaves());
 bootStep('running');
-reporter?.watch({ world: () => game.state, log: () => game.logTexts(), slots });
+gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');
 void boot.finish();
 setTimeout(() => warmAfterBoot(routeRadii(game.state)));

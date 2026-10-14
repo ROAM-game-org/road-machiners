@@ -169,6 +169,8 @@ The error service is its own systemd unit, `roam-factory-errors`, with its log i
 
 A report it takes gets a fingerprint from the error and the top game frames. The issue body holds the fingerprint, so the service finds the issue on GitHub even with a lost store. A new fingerprint opens an issue labeled `bug` and `error-report`, at most `FACTORY_ERROR_DAILY_ISSUES` a day. A report from a commit the fingerprint has not seen comments on its open issue, and reopens a completed one when the build was published after the close. A `not planned` close stays closed. The service keeps one report file per fingerprint and commit, up to `FACTORY_ERROR_DISK_MB`. Agent stages of the issue get those files read-only at `/error-reports/`, and `npm run error:replay` in `game/` reruns their turn.
 
+The service also keeps one file per kept player report from the game form, under the issue it opened or commented on. The same `FACTORY_ERROR_DISK_MB` covers both kinds. Agent stages of the issue get them read-only at `/player-reports/<issue>/`, and `npm run error:replay` loads their world and runs one turn.
+
 A daily cap, the disk cap or an address past its limit writes a line to `$FACTORY_HOME/error-reports/alert`. Hermes's incident watch prints it, and Hermes deletes the file once handled.
 
 ## Deploying the factory
