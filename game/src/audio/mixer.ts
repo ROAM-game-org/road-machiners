@@ -40,9 +40,14 @@ export class Mixer {
   }
 
   unlockOn(target: EventTarget): void {
-    const resume = () => void this.ctx.resume();
-    target.addEventListener("pointerdown", resume, { once: true });
-    target.addEventListener("keydown", resume, { once: true });
+    const gestures = ["pointerup", "click", "keydown"];
+    const unlock = () => {
+      if (this.ctx.state === "running") return;
+      this.ctx.resume().then(() => {
+        if (this.ctx.state === "running") gestures.forEach((g) => target.removeEventListener(g, unlock, true));
+      });
+    };
+    gestures.forEach((g) => target.addEventListener(g, unlock, true));
   }
 
   private bus(bus: Bus, volume: number, out: AudioNode): GainNode {
