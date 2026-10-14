@@ -12,7 +12,7 @@ const root = document.getElementById("board");
 if (!root) throw new Error("#board element missing from sound.html");
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
-const bank = await loadBank(mixer.ctx, sounds);
+const { bank, failures } = await loadBank(mixer.ctx, sounds);
 let playing: AudioBufferSourceNode | null = null;
 const rejected = new Set<string>();
 
@@ -64,6 +64,7 @@ function rejectButton(file: string): HTMLElement {
 
 const copyButton = el("button", { onclick: () => void navigator.clipboard.writeText([...rejected].sort().join(" ")) }, "copy 0 rejects");
 root.append(el("div", { class: "row" }, el("button", { onclick: () => playing?.stop() }, "stop"), copyButton));
+for (const failure of failures) root.append(el("div", { class: "missing" }, `${failure.file} failed to decode: ${failure.error}`));
 for (const bus of BUSES) {
   const ids = Object.keys(sounds).filter((id) => sounds[id].bus === bus);
   root.append(el("h2", {}, `${bus}  bus volume ${MIX.busVolume[bus]}  target ${MIX.level[bus]} dB RMS`));
