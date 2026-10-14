@@ -102,6 +102,8 @@ export const CONTRACTS = {
     areaRadius: 12,
     areaOffset: 8,
     surveyTurns: 10,
+    searchTurns: 20,
+    clue: { range: 180, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
     rewardFactor: 15,
     knowledgeRange: 12,
     xpPerEffort: 0.003,

@@ -37,7 +37,7 @@ function followSurvey(o: Orders, c: SurveyContract, moves: SurveyorMoves): void 
   }
   const open = c.points.filter((p) => !p.done).map((p) => surveySite(o.world, p.site));
   const next = open.sort((a, b) => dist(o.me.pos, a.pos) - dist(o.me.pos, b.pos))[0];
-  if (o.me.speed <= RULES.parkedSpeed || o.me.order === null) moves.driveBeside(o, next.pos, next.reach);
+  if (o.me.speed <= RULES.parkedSpeed || o.me.order === null) moves.driveBeside(o, next.pos, next.props[0].reach);
 }
 
 function takeSurvey(o: Orders, moves: SurveyorMoves): boolean {

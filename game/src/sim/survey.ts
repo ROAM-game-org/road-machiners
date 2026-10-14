@@ -10,17 +10,21 @@ import { playerVehicle } from './damage';
 import { startJob } from './jobs';
 import { mapObstacles, propReach } from './mapgen';
 import { navLayer } from './nav/layer';
-import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable } from './salvage';
+import { hasSalvage, MAX_RADIUS, nearestRoadPoint, offRoad, oldPlaces, propHash, reachable, type OldPlace } from './salvage';
 import { randInt, randRange } from './rng';
 import { playerCommand } from './world';
-import { siteGap } from './sites';
-import type { BakedMap } from './terrain';
+import { siteGap, type Site } from './sites';
+import { heightAt, type BakedMap, type Terrain } from './terrain';
 import type { Job, Vehicle, World } from './types';
 import { bearing, dist, type Vec } from './vec';
 
-export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; reach: number };
+export type SurveyProp = { pos: Vec; reach: number };
+export type SurveyLay = 'rise' | 'hollow' | 'flat';
+export type SurveyClueSource = { landmark: string; tiles: number };
+export type SurveySite = { id: string; type: OldPlaceType; pos: Vec; props: SurveyProp[]; lay: SurveyLay; clues: SurveyClueSource[] };
 
 const SURVEY_SITES = SURVEY_SITES_FILE as { mapHash: string; sites: SurveySite[] };
+const COMPASS_SECTORS = 8;
 
 export function surveySites(map: { hash: string; terrain: { atlas: AtlasKey } }): SurveySite[] {
   if (!atlasOf(map.terrain).oldSpots) return [];
@@ -28,16 +32,82 @@ export function surveySites(map: { hash: string; terrain: { atlas: AtlasKey } })
   return SURVEY_SITES.sites;
 }
 
+export function landmarks(): Site[] {
+  return [...REGION.towns, ...REGION.locations];
+}
+
+export function landmarkOf(id: string): Site {
+  const site = landmarks().find((s) => s.id === id);
+  if (!site) throw new Error(`No landmark ${id}`);
+  return site;
+}
+
+export function compassSector(rad: number): number {
+  const step = (2 * Math.PI) / COMPASS_SECTORS;
+  return (((Math.round(rad / step) % COMPASS_SECTORS) + COMPASS_SECTORS) % COMPASS_SECTORS);
+}
+
+export function sectorBearing(sector: number): number {
+  return (sector * 2 * Math.PI) / COMPASS_SECTORS;
+}
+
+export function statedTiles(tiles: number): number {
+  const round = CONTRACTS.survey.clue.roundTiles;
+  return Math.max(round, Math.round(tiles / round) * round);
+}
+
+function inClueRegion(from: Vec, sector: number, tiles: number, p: Vec): boolean {
+  return compassSector(bearing(from, p)) === sector && Math.abs(dist(from, p) - tiles) <= CONTRACTS.survey.clue.band;
+}
+
+export function isFairClue(site: { type: OldPlaceType; pos: Vec }, landmark: Site, places: readonly OldPlace[]): boolean {
+  const clue = CONTRACTS.survey.clue;
+  const far = dist(landmark.pos, site.pos);
+  if (far > clue.range) return false;
+  const sector = compassSector(bearing(landmark.pos, site.pos));
+  const tiles = statedTiles(far);
+  return places.every((q) => q.type !== site.type || dist(q.centroid, site.pos) <= clue.nearby || !inClueRegion(landmark.pos, sector, tiles, q.centroid));
+}
+
+export function fairClues(site: { type: OldPlaceType; pos: Vec }, places: readonly OldPlace[]): SurveyClueSource[] {
+  return landmarks()
+    .filter((l) => isFairClue(site, l, places))
+    .sort((a, b) => dist(a.pos, site.pos) - dist(b.pos, site.pos))
+    .map((l) => ({ landmark: l.id, tiles: statedTiles(dist(l.pos, site.pos)) }));
+}
+
+export function groundRise(terrain: Terrain, pos: Vec): number {
+  const ring = CONTRACTS.survey.clue.layRing;
+  const samples = 16;
+  let sum = 0;
+  for (let k = 0; k < samples; k++) {
+    const angle = (k / samples) * 2 * Math.PI;
+    sum += heightAt(terrain, pos.x + Math.cos(angle) * ring, pos.y + Math.sin(angle) * ring);
+  }
+  return heightAt(terrain, pos.x, pos.y) - sum / samples;
+}
+
+export function layOf(terrain: Terrain, pos: Vec): SurveyLay {
+  const rise = groundRise(terrain, pos);
+  if (rise >= CONTRACTS.survey.clue.rise) return 'rise';
+  return rise <= CONTRACTS.survey.clue.hollow ? 'hollow' : 'flat';
+}
+
 export function makeSurveySites(map: BakedMap): SurveySite[] {
   const baked = mapObstacles(map);
   const layer = navLayer(map.terrain, baked, MAX_RADIUS);
-  const sites = [...REGION.towns, ...REGION.locations];
-  const remote = (p: Vec) => dist(p, nearestRoadPoint(p)) >= CONTRACTS.survey.roadGap && sites.every((s) => siteGap(s, p) >= CONTRACTS.survey.siteGap);
-  return oldPlaces(baked).flatMap((place) => {
+  const places = oldPlaces(baked);
+  const remote = (p: Vec) => dist(p, nearestRoadPoint(p)) >= CONTRACTS.survey.roadGap && landmarks().every((s) => siteGap(s, p) >= CONTRACTS.survey.siteGap);
+  return places.flatMap((place) => {
     if (!remote(place.centroid)) return [];
     const order = [...place.props].sort((a, b) => propHash(map, a) - propHash(map, b));
     const spot = order.find((o) => remote(o.pos) && offRoad(o) && reachable(layer, o));
-    return spot ? [{ id: `survey-${spot.id}`, type: place.type, pos: { ...spot.pos }, reach: propReach(spot) }] : [];
+    if (!spot) return [];
+    const clues = fairClues({ type: place.type, pos: spot.pos }, places);
+    if (clues.length === 0) return [];
+    const others = order.filter((o) => o !== spot && remote(o.pos) && offRoad(o));
+    const props = [spot, ...others].map((o) => ({ pos: { ...o.pos }, reach: propReach(o) }));
+    return [{ id: `survey-${spot.id}`, type: place.type, pos: { ...spot.pos }, props, lay: layOf(map.terrain, spot.pos), clues }];
   });
 }
 
@@ -117,7 +187,7 @@ export type SurveyAction = { contractId: string; site: string; ready: boolean };
 type SurveyJob = Extract<Job, { kind: 'survey' }>;
 
 function inSurveyReach(v: Vehicle, site: SurveySite): boolean {
-  return dist(v.pos, site.pos) <= (site.reach + ECONOMY.useRange) * ECONOMY.interactionScale;
+  return site.props.some((p) => dist(v.pos, p.pos) <= (p.reach + ECONOMY.useRange) * ECONOMY.interactionScale);
 }
 
 function heldSurveys(world: World): SurveyContract[] {
