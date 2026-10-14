@@ -214,6 +214,7 @@ export class Game {
     watchInputMode(uiRoot(), () => this.refreshUi());
     installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;

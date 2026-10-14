@@ -110,35 +110,47 @@ const faultsIn = (page, scope = '#ui') =>
     async ({ options, glyphs, scope }) => {
       const { findLayoutFaults, findMobileFaults } = await import('/src/ui/dom.ts');
       const root = document.querySelector(scope);
-      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, options)];
+      return [...findLayoutFaults(root, { locale: 'en', allow: ['WOT RADIO', 'FM', 'DAY', 'English'], glyphs }), ...findMobileFaults(root, { ...options, viewportWidth: window.screen.width })];
     },
     { options: FAULT_OPTIONS, glyphs: GLYPHS, scope },
   );
 
-async function selfCheck(page, touch, orientation) {
-  const planted = await page.evaluate(() => {
+async function wideElementCheck(ctx) {
+  const page = await ctx.newPage();
+  try {
+    await page.goto(`${url}/ui.html`);
+    const faults = await page.evaluate(async (options) => {
+      const { findMobileFaults } = await import('/src/ui/dom.ts');
+      const root = document.createElement('div');
+      document.body.append(root);
+      const wide = Object.assign(document.createElement('div'), { textContent: 'planted wide element' });
+      wide.style.cssText = 'position:fixed;left:0;top:200px;width:600px;height:24px;z-index:99998';
+      root.append(wide);
+      return findMobileFaults(root, { ...options, viewportWidth: window.screen.width });
+    }, FAULT_OPTIONS);
+    if (!faults.some((f) => f.kind === 'sideways-overflow')) throw new Error('The mobile check did not report the planted wide element');
+  } finally {
+    await page.close();
+  }
+}
+
+async function selfCheck(session, orientation) {
+  const { page, touch, ctx } = session;
+  await page.evaluate(() => {
     const cover = Object.assign(document.createElement('div'), { id: 'planted-cover' });
     cover.style.cssText = 'position:fixed;inset:0;z-index:99999;background:transparent';
     document.body.append(cover);
-    const wide = Object.assign(document.createElement('div'), { id: 'planted-wide', textContent: 'planted wide element' });
-    wide.style.cssText = 'position:fixed;left:0;top:200px;width:600px;height:24px;z-index:99998';
-    document.getElementById('ui').append(wide);
   });
-  void planted;
   const faults = await faultsIn(page);
   const covered = faults.some((f) => f.kind === 'covered-control' && f.path.includes('end-turn'));
-  const sideways = faults.some((f) => f.kind === 'sideways-overflow' && f.path.includes('div'));
   const before = await page.evaluate(() => JSON.stringify(window.__ROAM__.state.vehicles.find((v) => v.faction === 'player').order));
   await touch.tap(SIZES[orientation].width * 0.7, SIZES[orientation].height * 0.5);
   const after = await page.evaluate(() => JSON.stringify(window.__ROAM__.state.vehicles.find((v) => v.faction === 'player').order));
-  await page.evaluate(() => {
-    document.getElementById('planted-cover')?.remove();
-    document.getElementById('planted-wide')?.remove();
-  });
+  await page.evaluate(() => document.getElementById('planted-cover')?.remove());
   if (!covered) throw new Error('The mobile check did not report the planted cover over End turn');
-  if (!sideways) throw new Error('The mobile check did not report the planted wide element');
   if (before !== after) throw new Error('A tap through the planted cover still gave an order, so the input check is blind');
-  report(orientation, 'self-check catches a planted cover, a planted wide element and a blocked tap', true);
+  await wideElementCheck(ctx);
+  report(orientation, 'self-check catches a planted cover, a blocked tap and a planted wide element', true);
 }
 
 async function context(browser, orientation, storageState) {
@@ -531,7 +543,7 @@ async function portraitJourney(browser) {
   const step = stepper(session, orientation);
   const size = SIZES[orientation];
   await freshStart(session, orientation, step);
-  await selfCheck(page, touch, orientation);
+  await selfCheck(session, orientation);
   const mid = { x: size.width / 2, y: size.height * 0.5 };
 
   const focusBefore = await game(page, () => JSON.stringify(window.__ROAM__.rig.focus()));

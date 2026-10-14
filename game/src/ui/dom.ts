@@ -317,7 +317,7 @@ export function findLayoutFaults(root: Element, opts: LayoutOptions): LayoutFaul
   ];
 }
 
-export type MobileOptions = { primary: readonly string[]; minTarget: number; sidewaysOk: readonly string[]; smallOk: readonly string[] };
+export type MobileOptions = { viewportWidth: number; primary: readonly string[]; minTarget: number; sidewaysOk: readonly string[]; smallOk: readonly string[] };
 
 function hasClippingAncestor(el: Element): boolean {
   for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
@@ -334,8 +334,8 @@ function scrollerFaults(root: Element, okSelectors: readonly string[]): LayoutFa
   });
 }
 
-function offscreenFaults(root: Element, okSelectors: readonly string[]): LayoutFault[] {
-  const viewport = { width: window.innerWidth };
+function offscreenFaults(root: Element, viewportWidth: number, okSelectors: readonly string[]): LayoutFault[] {
+  const viewport = { width: viewportWidth };
   return [...root.querySelectorAll("*")].flatMap((el) => {
     if (!isShown(el) || hasClippingAncestor(el) || okSelectors.some((selector) => el.matches(selector))) return [];
     const box = el.getBoundingClientRect();
@@ -344,10 +344,10 @@ function offscreenFaults(root: Element, okSelectors: readonly string[]): LayoutF
   });
 }
 
-function sidewaysFaults(root: Element, okSelectors: readonly string[]): LayoutFault[] {
+function sidewaysFaults(root: Element, viewportWidth: number, okSelectors: readonly string[]): LayoutFault[] {
   const page = document.documentElement;
-  const faults = sidewaysOverflow({ scrollWidth: page.scrollWidth, clientWidth: window.innerWidth }) ? [{ kind: "sideways-overflow" as const, path: "html", text: "", sizes: `scroll ${page.scrollWidth}, window ${window.innerWidth}` }] : [];
-  return [...faults, ...scrollerFaults(root, okSelectors), ...offscreenFaults(root, okSelectors)];
+  const faults = sidewaysOverflow({ scrollWidth: page.scrollWidth, clientWidth: viewportWidth }) ? [{ kind: "sideways-overflow" as const, path: "html", text: "", sizes: `scroll ${page.scrollWidth}, device ${viewportWidth}` }] : [];
+  return [...faults, ...scrollerFaults(root, okSelectors), ...offscreenFaults(root, viewportWidth, okSelectors)];
 }
 
 function coveredFaults(root: Element, primary: readonly string[]): LayoutFault[] {
@@ -372,5 +372,5 @@ function smallFaults(root: Element, min: number, okSelectors: readonly string[])
 }
 
 export function findMobileFaults(root: Element, opts: MobileOptions): LayoutFault[] {
-  return [...sidewaysFaults(root, opts.sidewaysOk), ...coveredFaults(root, opts.primary), ...smallFaults(root, opts.minTarget, opts.smallOk)];
+  return [...sidewaysFaults(root, opts.viewportWidth, opts.sidewaysOk), ...coveredFaults(root, opts.primary), ...smallFaults(root, opts.minTarget, opts.smallOk)];
 }
