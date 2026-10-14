@@ -68,7 +68,7 @@ describe('approve', () => {
     expect(state.pendingApprovals).toEqual({});
   });
 
-  it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, and closes the issue', async () => {
+  it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
     writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' } });
     await approve(fakeCtx(), 7, 'bob');
@@ -80,7 +80,6 @@ describe('approve', () => {
       'push main dev',
       'run git rev-parse',
       'run butler push',
-      `message public ${changelog}`,
       `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
       'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.',
       'close 7 completed',
