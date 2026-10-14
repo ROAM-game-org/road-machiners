@@ -357,6 +357,25 @@ describe('game save', () => {
     expect(loaded?.events).toEqual([]);
   });
 
+  it('loads Agnes\'s finished outcome and an open road session unchanged, awarding nothing', () => {
+    const slots = makeSlots();
+    const base = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const finished = structuredClone(base);
+    finished.player.quests.world.pipe_fate = 'delivered';
+    finished.player.quests.world.marr_regard = 'enemy';
+    const open = chooseQuestOption(startQuest(structuredClone(base), QUESTS, 'pump_agnes', 'start'), QUESTS, 0);
+    for (const [slot, world] of [['auto', finished], ['day', open]] as const) {
+      writeSave(slots, slot, world, 'run', 1);
+      const loaded = loadWorld(slots, slot, TEST_MAP);
+      expect(loaded?.player.quests.world).toEqual(world.player.quests.world);
+      expect(loaded?.player.quests.local).toEqual(world.player.quests.local);
+      expect(loaded?.player.quests.session).toEqual(world.player.quests.session);
+      expect(loaded?.player.money).toBe(world.player.money);
+      expect(loaded?.player.notes).toEqual(world.player.notes);
+      expect(loaded?.events).toEqual([]);
+    }
+  });
+
   it('rejects a save holding a quest variable or checkpoint this version does not know', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
