@@ -18,7 +18,7 @@ Each job's containers run on a fixed set of CPUs. `FACTORY_CPU_LIGHT`, `FACTORY_
 
 - light: triage, waste review, design and branch jobs other than the merge and the candidate, so a catch-up's agent never takes the merge checks' CPUs.
 - implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its preview checks here.
-- test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks.
+- test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks. A job of another pool runs each full suite here too: a hotfix's post checkpoint, the release playtest's suite and its fix checks. On the 3 implement CPUs beside the agents, a full suite ran past its time limit.
 
 On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. A pool never borrows from another, so the merge checks always get their CPUs. Docker pins containers with `--cpuset-cpus`. A step run by hand is not pinned.
 
