@@ -11,6 +11,6 @@ export async function classifyComments(ctx: Ctx, store: PublicStore, classify: C
 }
 
 async function classifyOne(ctx: Ctx, store: PublicStore, classify: Classify, comment: StoredComment): Promise<void> {
-  const decision = await classify({ source: 'comment', text: comment.text, kind: null });
+  const decision = await classify({ source: 'comment', text: comment.text });
   store.classify(comment.id, decision.verdict === 'reject' ? 'rejected' : decision.kind, decision.route, ctx.now());
 }

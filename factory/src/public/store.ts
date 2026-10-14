@@ -14,7 +14,7 @@ export type Proposal = { issue: number; pitch: string; chat: string | null; mess
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
 export type StoredComment = { id: number; issue: number; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null };
 export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string };
-export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; reason: string; issue: number | null; createdIssue: number | null; at: string };
+export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; spam: number; issue: number | null; createdIssue: number | null; at: string };
 
 const SCHEMA = `
 create table if not exists updates (update_id integer primary key);
@@ -22,7 +22,7 @@ create table if not exists proposals (issue integer primary key, pitch text not 
 create table if not exists reactions (chat text not null, message_id integer not null, user_id text not null, emoji text not null, primary key (chat, message_id, user_id));
 create table if not exists build_posts (chat text not null, message_id integer not null, issue integer not null, build text not null, discussion_chat text, discussion_id integer, posted_at text not null, open integer not null, primary key (chat, message_id));
 create table if not exists comments (id integer primary key autoincrement, issue integer not null, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text);
-create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, reason text not null, issue integer, created_issue integer, at text not null);
+create table if not exists reports (id integer primary key autoincrement, address text not null, build text not null, version text not null, kind text not null, text text not null, verdict text not null, spam real not null, issue integer, created_issue integer, at text not null);
 create table if not exists hits (address text not null, hour text not null, count integer not null, primary key (address, hour));
 create table if not exists digests (issue integer primary key, last_at text not null);
 `;
@@ -156,8 +156,8 @@ export class PublicStore {
   }
 
   addReport(report: ReportRow): number {
-    const { address, build, version, kind, text, verdict, reason, issue, createdIssue, at } = report;
-    return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, reason, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, reason, issue, createdIssue, at).lastInsertRowid);
+    const { address, build, version, kind, text, verdict, spam, issue, createdIssue, at } = report;
+    return Number(this.db.prepare('insert into reports (address, build, version, kind, text, verdict, spam, issue, created_issue, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(address, build, version, kind, text, verdict, spam, issue, createdIssue, at).lastInsertRowid);
   }
 
   private apply(event: PublicEvent): void {

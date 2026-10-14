@@ -44,7 +44,7 @@ export class Feedback {
     const issue = issueOf(this.deps, request.build);
     const decision = await this.classify(request, issue === null ? 'report' : 'comment');
     const at = now().toISOString();
-    const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, reason: decision.reason, at };
+    const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, spam: decision.spam, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
       return { status: 'refused' };
@@ -55,7 +55,7 @@ export class Feedback {
 
   private async classify(request: FeedbackRequest, source: FilterInput['source']): Promise<Decision> {
     try {
-      return await this.deps.classify({ source, text: request.text, kind: request.kind });
+      return await this.deps.classify({ source, text: request.text });
     } catch (error) {
       this.deps.log(`feedback filter failed: ${error instanceof Error ? error.message : String(error)}`);
       throw new Rejected('filter', 503, 'The report could not be checked now. Try again later.');
@@ -75,13 +75,13 @@ export class Feedback {
   private async open(row: ReportFields, request: FeedbackRequest, decision: Decision): Promise<FeedbackReply> {
     const { store, github } = this.deps;
     const labels = [decision.kind === 'bug' ? BUG_LABEL : 'feature-request', PLAYER_REPORT_LABEL];
-    const created = await github.createIssue(issueTitle(decision.title), issueBody(request, decision), labels);
+    const created = await github.createIssue(issueTitle(request.text), issueBody(request, decision), labels);
     store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: created });
     return { status: 'sent', issue: created };
   }
 }
 
-type ReportFields = { address: string; build: string; version: string; kind: string; text: string; reason: string; at: string };
+type ReportFields = { address: string; build: string; version: string; kind: string; text: string; spam: number; at: string };
 
 function parseObject(body: Buffer): Record<string, unknown> {
   let parsed: unknown;

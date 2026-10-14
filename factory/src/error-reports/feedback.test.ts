@@ -6,7 +6,7 @@ import { openStore, type PublicStore } from '../public/store';
 import { alertPath, ErrorReports, ErrorServer, readStore } from './service';
 import { Feedback } from './feedback';
 
-const ACCEPT_BUG: Decision = { verdict: 'accept', kind: 'bug', route: 'none', title: 'Truck sinks `into` the road', reason: 'A concrete bug.' };
+const ACCEPT_BUG: Decision = { verdict: 'accept', spam: 0.01, kind: 'bug', route: 'none' };
 const NOW = new Date('2026-10-07T12:00:00Z');
 
 type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; setDecision: (next: Decision | Error) => void };
@@ -50,8 +50,8 @@ describe('feedback route', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
     expect(await response.json()).toEqual({ status: 'sent', issue: 201 });
-    expect(asked).toEqual([{ source: 'report', text: 'The truck sinks\ninto the road', kind: 'bug' }]);
-    expect(created[0]).toMatch(/^Truck sinks 'into' the road \[bug,player-report\]/);
+    expect(asked).toEqual([{ source: 'report', text: 'The truck sinks\ninto the road' }]);
+    expect(created[0]).toMatch(/^The truck sinks into the road \[bug,player-report\]/);
     expect(created[0]).toContain('> The truck sinks\n> into the road');
     expect(created[0]).toContain('- Version: 2.24.72+abc1234');
     expect(created[0]).toContain('- Build: release');
@@ -73,7 +73,7 @@ describe('feedback route', () => {
 
   it('stores a rejected report with its reason and creates nothing', async () => {
     const { url, created, setDecision } = await start();
-    setDecision({ ...ACCEPT_BUG, verdict: 'reject', reason: 'This is an ad.' });
+    setDecision({ ...ACCEPT_BUG, verdict: 'reject', spam: 0.97 });
     expect(await (await send(url, request())).json()).toEqual({ status: 'refused' });
     expect(created).toEqual([]);
   });
@@ -83,7 +83,7 @@ describe('feedback route', () => {
     setDecision({ ...ACCEPT_BUG, route: 'patch' });
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent', issue: 40 });
     expect(created).toEqual([]);
-    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', kind: 'bug' }]);
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
     expect(store.unclassifiedComments()).toEqual([]);
     expect(store.unsentComments()).toMatchObject([{ issue: 40, source: 'game', author: 'Player', text: 'The truck sinks\ninto the road', kind: 'bug', route: 'patch' }]);
   });

@@ -30,7 +30,7 @@ digraph public {
     form -> feedback;
   }
 
-  filter [label="OpenAI filter\nkind and route"];
+  filter [label="Decisions API filter\nspam, kind, route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="New issue\nlabel player-report"];
   intake [label="Intake\nthen Triage"];
