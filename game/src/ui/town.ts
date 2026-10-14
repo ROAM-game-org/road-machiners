@@ -45,7 +45,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconN
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -459,7 +459,7 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
-    el("span", {}, contractSummary(c)),
+    el("span", {}, contractSummary(c), claimRivalMark(w, c)),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,

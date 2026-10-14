@@ -17,7 +17,7 @@ import { beginSearch, searchTurn } from './search';
 import { partValue } from './wear';
 import { dist } from './vec';
 import { resolveNpcActivities, pushGoal, thinkNpc, topGoal } from './npc-activities';
-import { claimOnly, canTakeAny, claimedPartIn, collectSalvage, hasSalvage, type ClaimContract } from './salvage';
+import { claimOnly, canTakeAny, claimedPartIn, collectSalvage, hasSalvage, liveClaims, type ClaimContract } from './salvage';
 import { defaultSetup } from './settings';
 import { sitePads } from './sites';
 import { addVehicle, emptyWorld, npcBrain, practiceOf } from './testkit';
@@ -258,8 +258,13 @@ describe('reachability', () => {
 });
 
 describe('claim days', () => {
+  function holdRivals(w: World): void {
+    for (const c of liveClaims(w)) if (c.rival === null) c.rivalAt = c.deadline + 1;
+  }
+
   function waitInTown(w: World): void {
     const me = w.player.vehicleId;
+    holdRivals(w);
     for (const v of w.vehicles) if (v.id !== me) advanceFar(w, v);
   }
 
@@ -267,8 +272,8 @@ describe('claim days', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { stock, part } = claimTargets(w)[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [], [{ stock, part }]) as ClaimContract;
-    claim.rivalAt = claim.deadline + 1;
     shopState(w, 'bowl').contracts.push(claim);
+    holdRivals(w);
     const scavenger = w.vehicles.find((v) => v.brain?.templateId === 'scavenger') ?? w.vehicles.find((v) => v.faction === 'scavengers')!;
     w = update(w, (d) => {
       const npc = d.vehicles.find((v) => v.id === scavenger.id)!;
@@ -277,6 +282,7 @@ describe('claim days', () => {
     const visited = new Set<string>();
     for (let turn = 0; turn < TIME.turnsPerDay; turn++) {
       w = endTurn(w, waitInTown);
+      if (w.player.call) w = update(w, (d) => { d.player.call = null; });
       for (const e of w.events) if (e.t === 'activity' && e.reason === 'claimedWreck') visited.add(e.vehicle);
       if (!w.shops.bowl.contracts.some((c) => c.id === claim.id)) break;
       expect(claimedPartIn(w, w.salvage.find((s) => s.id === stock.id)!), `turn ${turn}`).toBe(part.id);
@@ -296,7 +302,7 @@ describe('the clue', () => {
   it('snaps the bearing to eight points and rounds the distance from the shop to the clue step', () => {
     const shop = siteOf('bowl').pos;
     const step = CONTRACTS.claim.clueStepTiles;
-    const clue = claimClue(real, claimAt({ x: shop.x + 3.4 * step * Math.cos(0.7), y: shop.y + 3.4 * step * Math.sin(0.7) }));
+    const clue = claimClue(claimAt({ x: shop.x + 3.4 * step * Math.cos(0.7), y: shop.y + 3.4 * step * Math.sin(0.7) }));
     expect(clue.angle).toBeCloseTo(Math.PI / 4);
     expect(clue.distance).toBe(3 * step);
     expect(clue.from).toEqual(shop);
@@ -305,13 +311,13 @@ describe('the clue', () => {
 
   it('never rounds a near wreck down to no distance', () => {
     const shop = siteOf('bowl').pos;
-    expect(claimClue(real, claimAt({ x: shop.x + 5, y: shop.y })).distance).toBe(CONTRACTS.claim.clueStepTiles);
+    expect(claimClue(claimAt({ x: shop.x + 5, y: shop.y })).distance).toBe(CONTRACTS.claim.clueStepTiles);
   });
 
   it('names the look of the wreck the part lies in', () => {
     const looks = new Set(claimSpots(real).map((s) => claimLook(s)));
     expect([...looks].every((l) => ['armyTruck', 'deadTruck', 'tank', 'shipWreck'].includes(l))).toBe(true);
-    expect(claimClue(real, claimAt(claimSpots(real)[0].pos)).look).toBe(claimLook(claimSpots(real)[0]));
+    expect(claimClue(claimAt(claimSpots(real)[0].pos)).look).toBe(claimLook(claimSpots(real)[0]));
   });
 
   it('lists the true wreck among the candidates for every claim spot and every shop', () => {
@@ -320,7 +326,7 @@ describe('the clue', () => {
         const c = { ...claimAt(stock.pos, stock.id), shop };
         const candidates = claimCandidates(real, c);
         expect(candidates, `${stock.id} from ${shop}`).toContain(stock.id);
-        const clue = claimClue(real, c);
+        const clue = claimClue(c);
         for (const id of candidates) expect(dist(real.salvage.find((s) => s.id === id)!.pos, clue.point)).toBeLessThanOrEqual(clueRadius(clue.distance));
       }
     }
@@ -329,7 +335,7 @@ describe('the clue', () => {
   it('orders the candidates nearest the clue point first, all of one look', () => {
     const stock = claimSpots(real)[0];
     const c = claimAt(stock.pos, stock.id);
-    const clue = claimClue(real, c);
+    const clue = claimClue(c);
     const spots = claimCandidates(real, c).map((id) => real.salvage.find((s) => s.id === id)!);
     expect(spots.every((s) => claimLook(s) === clue.look)).toBe(true);
     const gaps = spots.map((s) => dist(s.pos, clue.point));

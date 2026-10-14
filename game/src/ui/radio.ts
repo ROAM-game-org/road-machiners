@@ -4,6 +4,8 @@ import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
+import { claimClue } from '../sim/claims';
+import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
 import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
@@ -200,7 +202,8 @@ function boardIds(world: World): Set<string> {
 function contractVars(c: Contract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
-  if (c.kind === 'fetch' || c.kind === 'claim') return { shop, part: partName(c.defId) };
+  if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
+  if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
   return { shop, target: templateName(c.template) };
 }
 

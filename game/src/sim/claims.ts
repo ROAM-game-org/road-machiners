@@ -7,7 +7,7 @@ import { pushGoal } from './npc-activities';
 import { canStowPart, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
 import { navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
-import { spotLookOf, territoryOfStock } from './territory';
+import { spotLookOf, territoryAt, territoryOfStock } from './territory';
 import type { PartInstance, SalvageStock, StateKindId, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
@@ -184,18 +184,12 @@ function shopSite(shopId: string): { pos: Vec } {
   return site;
 }
 
-export function claimClue(world: World, c: ClaimContract): ClaimClue {
+export function claimClue(c: ClaimContract): ClaimClue {
   const from = shopSite(c.shop).pos;
   const angle = snapAngle(Math.atan2(c.at.y - from.y, c.at.x - from.x));
   const distance = roundTo(dist(from, c.at), CONTRACTS.claim.clueStepTiles);
   const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance };
-  const stock = world.salvage.find((s) => s.id === c.stockId);
-  const territory = stock ? territoryOfStock(stock)?.id ?? null : null;
-  return { look: claimLookOf(world, c), from: { ...from }, angle, distance, point, territory };
-}
-
-function claimLookOf(world: World, c: ClaimContract): ClaimLook {
-  return claimLook(world.salvage.find((s) => s.id === c.stockId) ?? { id: c.stockId });
+  return { look: claimLook({ id: c.stockId }), from: { ...from }, angle, distance, point, territory: territoryAt(c.at)?.id ?? null };
 }
 
 export function clueRadius(distance: number): number {
@@ -203,7 +197,7 @@ export function clueRadius(distance: number): number {
 }
 
 export function claimCandidates(world: World, c: ClaimContract): string[] {
-  const clue = claimClue(world, c);
+  const clue = claimClue(c);
   const radius = clueRadius(clue.distance);
   const near = claimSpots(world).filter((stock) => claimLook(stock) === clue.look && dist(stock.pos, clue.point) <= radius);
   const sorted = near.sort((a, b) => dist(a.pos, clue.point) - dist(b.pos, clue.point) || a.id.localeCompare(b.id)).map((stock) => stock.id);

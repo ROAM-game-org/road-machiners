@@ -168,7 +168,7 @@ export function liveClaims(world: World): ClaimContract[] {
   return contracts.filter((c): c is ClaimContract => c.kind === 'claim');
 }
 
-function claimOn(world: World, stock: SalvageStock): ClaimContract | null {
+export function claimOn(world: World, stock: SalvageStock): ClaimContract | null {
   const named = liveClaims(world).filter((c) => c.stockId === stock.id);
   if (named.length > 1) throw new Error(`Stock ${stock.id} is named by ${named.length} claims`);
   return named[0] ?? null;
@@ -195,10 +195,6 @@ export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContr
 function reservedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
   const claim = claimOn(world, stock);
   return claim && !mayTakeClaimed(world, vehicle, claim) ? claimedPartIn(world, stock) : null;
-}
-
-function rivalPartIn(world: World, vehicle: Vehicle, stock: SalvageStock): string | null {
-  return claimOn(world, stock)?.rival === vehicle.id ? claimedPartIn(world, stock) : null;
 }
 
 export function claimOnly(world: World, vehicle: Vehicle, stock: SalvageStock): boolean {
@@ -263,7 +259,7 @@ export function collectSalvage(world: World, vehicle: Vehicle, stockId: string, 
   if (!canReachSalvage(vehicle, stock)) throw new Error('Stop within salvage reach');
   pourStores(world, vehicle, stock);
   const reserved = reservedFrom(world, vehicle, stock);
-  const mine = rivalPartIn(world, vehicle, stock);
+  const mine = reserved === null ? claimedPartIn(world, stock) : null;
   let moved = 0;
   stock.parts = [...stock.parts.filter((p) => p.id === mine), ...stock.parts.filter((p) => p.id !== mine)].filter((part) => {
     if (part.id === reserved || moved >= units || !stowPart(world, vehicle, part)) return true;

@@ -6,8 +6,10 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight } from "./dom";
 import { LogPanel } from "./log";
 import {
+  claimRivalMark,
   heldContractDue,
   contractSummary,
+  isNotable,
   eventText,
   formatNpcPass,
   workLabel,
@@ -379,7 +381,7 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c)),
+          el("span", {}, contractSummary(c), claimRivalMark(w, c)),
           el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
@@ -564,7 +566,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover") this.toast(line.text);
+      if (e.t === "skillUp" || e.t === "discover" || isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
