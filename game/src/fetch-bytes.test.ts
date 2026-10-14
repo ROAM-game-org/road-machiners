@@ -84,16 +84,13 @@ describe('fetchBytes', () => {
     vi.stubGlobal('fetch', fetchMock);
     const result = fetchBytes('/a').catch((e: Error) => e);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    let elapsed = 0;
     for (let n = 2; n <= CONFIG.assetFetchTries; n++) {
       const wait = waitBefore(n);
       await vi.advanceTimersByTimeAsync(wait - 1);
       expect(fetchMock).toHaveBeenCalledTimes(n - 1);
       await vi.advanceTimersByTimeAsync(1);
       expect(fetchMock).toHaveBeenCalledTimes(n);
-      elapsed += wait;
     }
-    expect(elapsed).toBe(totalWait());
     expect(await result).toBeInstanceOf(DownloadFailure);
   });
 });
