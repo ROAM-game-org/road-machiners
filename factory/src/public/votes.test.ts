@@ -28,7 +28,7 @@ describe('countVotes', () => {
     expect(f.messages).toEqual([]);
     expect(f.edits).toHaveLength(1);
     expect(f.edits[0]).toMatch(/^100 Winch/);
-    expect(footer(f.edits[0]!)).toBe('3/3\nAccepted with 3 votes. The factory starts work on it now.');
+    expect(footer(f.edits[0]!)).toBe('3/3\n✅ Accepted with 3 votes');
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'voted', to: 'Design' })]);
   });
@@ -61,7 +61,7 @@ describe('countVotes', () => {
     react(f, 2, '42', ['👍']);
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
-    expect(footer(f.edits[0]!)).toBe('1/3\nAccepted by the committee. The factory starts work on it now.');
+    expect(footer(f.edits[0]!)).toBe('1/3\n✅ Accepted by committee member');
   });
 
   it('rejects a proposal on one thumbs-down from a committee member, even with enough votes, and closes the issue as not planned', async () => {
@@ -74,7 +74,7 @@ describe('countVotes', () => {
     expect(f.calls).toContain('close 7 not planned');
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Done']);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.edits.map(footer)).toEqual(['5/3\nRejected by the committee.']);
+    expect(f.edits.map(footer)).toEqual(['5/3\n❌ Rejected by committee member']);
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'denied', to: 'Done' })]);
   });

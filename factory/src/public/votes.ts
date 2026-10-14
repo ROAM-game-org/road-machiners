@@ -27,9 +27,9 @@ export async function countVotes(ctx: Ctx, store: PublicStore): Promise<void> {
 
 function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, votes: number, committee: string[]): Outcome | null {
   const byCommittee = (emoji: string): boolean => store.votersWith(issue, emojiOf(emoji)).some((voter) => committee.includes(voter));
-  if (byCommittee(ctx.cfg.vetoEmoji)) return { kind: 'reject', reason: 'by a committee vote', conclusion: 'Rejected by the committee.' };
-  if (byCommittee(ctx.cfg.voteEmoji)) return { kind: 'accept', reason: 'by a committee vote', conclusion: 'Accepted by the committee. The factory starts work on it now.' };
-  if (votes >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with ${votes} votes`, conclusion: `Accepted with ${votes} votes. The factory starts work on it now.` };
+  if (byCommittee(ctx.cfg.vetoEmoji)) return { kind: 'reject', reason: 'by a committee vote', conclusion: '❌ Rejected by committee member' };
+  if (byCommittee(ctx.cfg.voteEmoji)) return { kind: 'accept', reason: 'by a committee vote', conclusion: '✅ Accepted by committee member' };
+  if (votes >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with ${votes} votes`, conclusion: `✅ Accepted with ${votes} votes` };
   return null;
 }
 
