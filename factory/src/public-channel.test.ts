@@ -13,8 +13,12 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
+function namesChannel(text: string): boolean {
+  return /publicChannel|FACTORY_PUBLIC_CHANNEL/.test(text);
+}
+
 function namesPublicChannel(path: string): boolean {
-  return /publicChannel|FACTORY_PUBLIC_CHANNEL/.test(readFileSync(path, 'utf8'));
+  return namesChannel(readFileSync(path, 'utf8'));
 }
 
 describe('public channel', () => {
@@ -23,10 +27,12 @@ describe('public channel', () => {
     expect(readers.sort()).toEqual(CHANNEL_READERS);
   });
 
-  it('gets one send call, inside publishPost', () => {
+  it('is named in release-post.ts only inside publishPost', () => {
     const source = readFileSync(join(SRC, 'release-post.ts'), 'utf8');
-    const uses = [...source.matchAll(/ctx\.cfg\.publicChannel/g)].map((match) => match.index);
-    expect(uses).toHaveLength(1);
-    expect(uses[0]).toBeGreaterThan(source.indexOf('export async function publishPost'));
+    const start = source.indexOf('export async function publishPost');
+    const next = source.slice(start + 1).search(/\n(export )?(async )?function /);
+    const end = next === -1 ? source.length : start + 1 + next;
+    expect(namesChannel(source.slice(start, end))).toBe(true);
+    expect(namesChannel(source.slice(0, start) + source.slice(end))).toBe(false);
   });
 });
