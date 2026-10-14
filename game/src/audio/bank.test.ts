@@ -66,6 +66,18 @@ describe('loadBank', () => {
     expect(fetch).toHaveBeenCalledTimes(BANK.tries);
   });
 
+  it('does not fetch a sound again after its download failed', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
+    vi.stubGlobal('fetch', fetch);
+    const loading = loadBank(ctx, { a: SOUNDS.a });
+    await vi.advanceTimersByTimeAsync(60_000);
+    const { bank, failures } = await loading;
+    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+    expect(failures).toHaveLength(1);
+    expect(bank.get('a.mp3')).toBeDefined();
+  });
+
   it('gives a cue with no decoded file a silent buffer', async () => {
     vi.stubGlobal('fetch', async () => ok);
     const { bank } = await loadBank(rejecting, { a: SOUNDS.a });

@@ -1,4 +1,4 @@
-import { fetchBytes } from "../fetch-bytes";
+import { DownloadFailed, fetchBytes } from "../fetch-bytes";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -51,6 +51,7 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
       return { buffer: await decodeFile(ctx, file) };
     } catch (e) {
       error = e;
+      if (e instanceof DownloadFailed) break;
     }
   }
   return { error };
