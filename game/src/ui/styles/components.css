@@ -87,6 +87,11 @@
   border: 1px solid var(--line-soft);
 }
 
+/* A told survey clue, on its own line under the contract it belongs to. */
+.contract-clue {
+  display: block;
+}
+
 /* An outlined word that sorts a row, in the color of its text. */
 .tag {
   padding: 0 var(--space-3);

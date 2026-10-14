@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { nextSurveyClue, surveyClueText, surveyProgress } from "./format";
+import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
@@ -754,6 +754,14 @@ describe("survey contract text", () => {
       expect(en(nextSurveyClue(c)!)).toBe(told);
     }
     expect(told).not.toMatch(/^(east|west|north|south)/);
+  });
+
+  it("raises a found place and a met survey to a toast, and keeps a surveyed site to the log", () => {
+    const c = survey([true, false]);
+    expect(isNotable({ t: "contract", contract: c, outcome: "found", site: first.id })).toBe(true);
+    expect(isNotable({ t: "contract", contract: survey([true, true]), outcome: "fulfilled" })).toBe(true);
+    expect(isNotable({ t: "contract", contract: c, outcome: "surveyed" })).toBe(false);
+    expect(isNotable({ t: "contract", contract: c, outcome: "accepted" })).toBe(false);
   });
 
   it("logs a found place by its kind and the shop that asked", () => {
