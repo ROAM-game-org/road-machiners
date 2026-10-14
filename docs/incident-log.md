@@ -83,3 +83,8 @@ ID: R16
 repo: game
 what: Mixer.unlockOn() in game/src/audio/mixer.ts called ctx.resume() once on the first pointerdown or keydown, with each listener set to fire only once. A browser can refuse to start audio on a mouse or touch pointerdown, so the AudioContext stayed suspended and the listener was already spent. A player who only clicked heard nothing until a key press, and the game seemed muted though mute was off. Hotfix #492 retried the unlock on pointerup, click and keydown until the context ran.
 cost: The committee found the shipped game on main silent at the start of a fresh game. Any new player who started with the mouse heard no music, UI or gameplay sound until they pressed a key. It took a hotfix to main and itch.io.
+
+ID: R17
+repo: game
+what: Boot in game/src/three/main.ts awaited idbBackend() with no catch, so a browser that refused indexedDB.open() stopped the whole boot on the crash screen with "The game keeps saves in IndexedDB, and this browser refused it: The operation was aborted." There was no retry and no other place to keep saves, though local storage worked and the save code could already read saves from it. Hotfix #519 added openSaves() in game/src/three/save-db.ts, which retries the open once and then keeps saves in local storage under the old keys with the run log in memory.
+cost: An iPhone Safari player on release 2.61.43 could not start the game at all. Any browser that refuses IndexedDB, like iOS Safari in the itch.io frame, could not play. It took a hotfix to main and itch.io. It repeats the class of R10, R12 and R14: one browser refusal at boot rejected the whole boot.
