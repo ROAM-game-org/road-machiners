@@ -1,7 +1,6 @@
 
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
-import { SPAWN } from '../data/npcs';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
@@ -32,7 +31,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { attacks, isAlly, isOutlaw, preys } from "./relations";
+import { attacks, isAlly, preys, reportIncident } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -770,15 +769,6 @@ function practiceHits(world: World, s: Shot): void {
   if (hits > 0) practice(world, 'hit', hits, 1 - s.odds.chance, s.target.id);
 }
 
-function witnessesAttack(world: World, observer: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
-  if (observer.faction !== target.faction) return false;
-  if (dist(observer.pos, target.pos) > SPAWN.neighborHelp) return false;
-  return (
-    canVehicleSee(world, observer, target.pos) &&
-    canVehicleSee(world, observer, shooter.pos)
-  );
-}
-
 function escortSees(world: World, v: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
   return stateOf(world, "escort", v.id, target.id) !== null && canVehicleSee(world, v, shooter.pos);
 }
@@ -836,20 +826,15 @@ function recordAttack(world: World, shooter: Vehicle, target: Vehicle): void {
   engage(world, shooter, target);
   for (const observer of world.vehicles) {
     if (!observer.brain || observer.id === shooter.id) continue;
-    if (learnsAttack(world, observer, shooter, target)) observer.brain.attackers[shooter.id] = false;
+    if (observer.id === target.id || escortSees(world, observer, shooter, target)) observer.brain.attackers[shooter.id] = false;
   }
-}
-
-function learnsAttack(world: World, observer: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
-  return observer.id === target.id || witnessesAttack(world, observer, shooter, target) || escortSees(world, observer, shooter, target);
 }
 
 export function noteAttack(world: World, attacker: Vehicle, victim: Vehicle, calm: boolean): void {
   recordAttack(world, attacker, victim);
   if (!calm) return;
   if (victim.brain && boundTo(world, attacker.id, victim.id)) addState(world, "revenge", victim.id, attacker.id, { kind: "none" });
-  startFeuds(world, attacker, victim);
-  callLawmen(world, attacker, victim);
+  reportIncident(world, { aggressor: attacker, victim, deed: "attacked", victimFights: true });
 }
 
 function noteStray(world: World, s: Shot, e: { rounds: ShotRound[] }): void {
@@ -877,20 +862,6 @@ function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: numbe
   noteAttack(world, shooter, victim, true);
 }
 
-export function callLawmen(world: World, aggressor: Vehicle, victim: Vehicle): void {
-  if (!victim.brain || isOutlaw(victim.faction)) return;
-  for (const v of world.vehicles) {
-    if (!answersCall(world, v, aggressor, victim) || stateOf(world, "feud", v.id, aggressor.id)) continue;
-    addState(world, "feud", v.id, aggressor.id, { kind: "feud", robbery: false });
-    world.events.push({ t: "hostile", vehicle: v.id, against: aggressor.id });
-  }
-}
-
-function answersCall(world: World, v: Vehicle, aggressor: Vehicle, victim: Vehicle): boolean {
-  if (v.id === aggressor.id || v.brain?.traits.includes("lawman") !== true) return false;
-  return canVehicleSee(world, v, aggressor.pos) && canVehicleSee(world, v, victim.pos);
-}
-
 export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartHit[], hitsB: PartHit[]): void {
   if (towPair(world, a, b)) return;
   const calm = !isHostile(world, a, b);
@@ -904,20 +875,6 @@ export function noteCollision(world: World, a: Vehicle, b: Vehicle, hitsA: PartH
 
 function towPair(world: World, a: Vehicle, b: Vehicle): boolean {
   return stateOf(world, 'tow', a.id, b.id) !== null || stateOf(world, 'tow', b.id, a.id) !== null;
-}
-
-export function startFeuds(world: World, shooter: Vehicle, target: Vehicle): void {
-  for (const v of world.vehicles) {
-    if (v.id === shooter.id || !joinsFeud(world, v, shooter, target) || stateOf(world, "feud", v.id, shooter.id)) continue;
-    addState(world, "feud", v.id, shooter.id, { kind: "feud", robbery: false });
-    world.events.push({ t: "hostile", vehicle: v.id, against: shooter.id });
-  }
-}
-
-function joinsFeud(world: World, v: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
-  if (v.faction === "player") return false;
-  if (v.id === target.id || escortSees(world, v, shooter, target)) return true;
-  return v.faction === target.faction && dist(v.pos, target.pos) <= SPAWN.neighborHelp && canVehicleSee(world, v, shooter.pos);
 }
 
 export function resolveDestroyed(world: World): void {

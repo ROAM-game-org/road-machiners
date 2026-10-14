@@ -1,11 +1,17 @@
 import {
-  ATTITUDE, BANDS, FACTIONS, LAW_CAP, PERSONAL, PERSONAL_RANGE, SCORE_LIMIT, SITE_FACTIONS, STANDING_FACTION_IDS,
+  ATTITUDE, BANDS, FACTIONS, INTERVENE, LAW_CAP, PERSONAL, PERSONAL_RANGE, SCORE_LIMIT, SITE_FACTIONS, STANDING_FACTION_IDS,
   type Band, type FactionDef,
 } from '../data/npc-behavior';
 import { NPCS, type NpcTemplate } from '../data/npcs';
+import { isDefeated } from './defeat';
 import { hasLoot } from './grid';
-import { boundTo, stateOf } from './states';
-import type { Faction, NpcFactionId, StandingFactionId, Vehicle, World } from './types';
+import { chance } from './rng';
+import { addState, boundTo, stateOf } from './states';
+import { isStranded } from './stats';
+import { escortsOf } from './tow';
+import type { Faction, NpcFactionId, StandingFactionId, Vehicle, World, WrongDeed } from './types';
+import { dist } from './vec';
+import { canVehicleSee } from './vision';
 
 export function isOutlaw(faction: Faction): boolean {
   return faction !== 'player' && factionDef(faction).outlaw;
@@ -36,6 +42,8 @@ export function inFeud(world: World, a: Vehicle, b: Vehicle): boolean {
 export function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
   return stateOf(world, 'truce', a.id, b.id) !== null || stateOf(world, 'truce', b.id, a.id) !== null;
 }
+
+export type Incident = { aggressor: Vehicle; victim: Vehicle; deed: Exclude<WrongDeed, 'stole'>; victimFights: boolean };
 
 const clamp = (n: number, min: number, max: number): number => Math.min(max, Math.max(min, n));
 
@@ -134,3 +142,64 @@ function templateFactions(tpl: NpcTemplate): NpcFactionId[] {
   if (rule.kind === 'fixed') return [rule.faction];
   return rule.kind === 'town' ? ['independent'] : [rule.fallback];
 }
+
+export function witnessesOf(world: World, i: Incident): Vehicle[] {
+  return world.vehicles.filter((v) => v.id !== i.aggressor.id && v.id !== i.victim.id && v.brain !== null
+    && canVehicleSee(world, v, i.aggressor.pos) && canVehicleSee(world, v, i.victim.pos));
+}
+
+function escortsWhoSee(world: World, i: Incident): Vehicle[] {
+  return escortsOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && v.brain !== null && canVehicleSee(world, v, i.aggressor.pos));
+}
+
+export function reportIncident(world: World, i: Incident): Vehicle[] {
+  const seen = witnessesOf(world, i);
+  const escorts = escortsWhoSee(world, i);
+  const willing = [
+    ...(i.victim.brain && i.victimFights ? [i.victim] : []),
+    ...escorts,
+    ...seen.filter((w) => !escorts.includes(w) && willsToStepIn(world, w, i)),
+  ];
+  for (const w of willing) joinAgainst(world, w, i);
+  noteDeed(world, i.aggressor, i.victim, i.deed, isAttributed(world, i, seen));
+  return willing;
+}
+
+function willsToStepIn(world: World, w: Vehicle, i: Incident): boolean {
+  if (isRestrained(world, w, i.aggressor) || favors(world, w, i)) return false;
+  if (answersLawCall(w, i.victim)) return true;
+  return dist(w.pos, i.victim.pos) <= INTERVENE.range && defendsByBand(world, bandToward(world, w, i.victim));
+}
+
+function answersLawCall(w: Vehicle, victim: Vehicle): boolean {
+  return isLawman(w) && victim.brain !== null && !isOutlaw(victim.faction);
+}
+
+function defendsByBand(world: World, band: Band): boolean {
+  if (band === 'allied') return true;
+  return band === 'friendly' && chance(world, INTERVENE.friendly);
+}
+
+function isRestrained(world: World, w: Vehicle, aggressor: Vehicle): boolean {
+  return isDefeated(w) || isStranded(world, w) || boundTo(world, w.id, aggressor.id) || inTruce(world, w, aggressor);
+}
+
+function favors(world: World, w: Vehicle, i: Incident): boolean {
+  return !isLawman(w) && attitude(world, w, i.aggressor) >= attitude(world, w, i.victim);
+}
+
+function joinAgainst(world: World, w: Vehicle, i: Incident): void {
+  w.brain!.attackers[i.aggressor.id] = false;
+  if (stateOf(world, 'feud', w.id, i.aggressor.id)) return;
+  addState(world, 'feud', w.id, i.aggressor.id, { kind: 'feud', robbery: false });
+  world.events.push({ t: 'hostile', vehicle: w.id, against: i.aggressor.id });
+  const player = world.player.vehicleId;
+  if (w.id !== i.victim.id && (i.aggressor.id === player || i.victim.id === player)) world.events.push({ t: 'joins', vehicle: w.id, against: i.aggressor.id, victim: i.victim.id });
+}
+
+function isAttributed(world: World, i: Incident, seen: Vehicle[]): boolean {
+  if (canVehicleSee(world, i.victim, i.aggressor.pos)) return true;
+  return seen.some((w) => isLawman(w) || isAlly(world, w, i.victim));
+}
+
+export function noteDeed(_world: World, _actor: Vehicle, _subject: Vehicle, _deed: WrongDeed, _seen: boolean): void {}

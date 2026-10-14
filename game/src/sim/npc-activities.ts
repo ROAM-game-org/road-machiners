@@ -4,7 +4,8 @@ import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/n
 import { SHOPS } from '../data/market';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { callLawmen, inCombat, inCombatWith, isHostile, startFeuds, turnPartHits } from './combat';
+import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
+import { reportIncident } from './relations';
 import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { corePart } from './grid';
 import { addGoods, cargoRoom } from './inventory';
@@ -718,8 +719,7 @@ function onGrievances(world: World, vehicle: Vehicle): void {
     if (!canVehicleSee(world, vehicle, other.pos)) continue;
     endState(world, s, 'fulfilled');
     if (decide(world, vehicle, 'crashed', other.id, null) !== 'retaliate') continue;
-    startFeuds(world, other, vehicle);
-    vehicle.brain!.attackers[other.id] = false;
+    reportIncident(world, { aggressor: other, victim: vehicle, deed: 'attacked', victimFights: true });
   }
 }
 
@@ -738,7 +738,7 @@ function hurtingFoe(world: World, vehicle: Vehicle): Vehicle | null {
 }
 
 export function defyThreat(world: World, vehicle: Vehicle, threatener: Vehicle, answer: Exclude<DecisionOptions['threatened'], 'comply'>, reason: GoalReason = answer === 'fightBack' ? 'refuseThreat' : 'escapeThreat'): void {
-  startFeuds(world, threatener, vehicle);
+  reportIncident(world, { aggressor: threatener, victim: vehicle, deed: 'robbed', victimFights: true });
   if (answer === 'fightBack') interrupt(world, vehicle, fightGoal(world, vehicle, threatener, reason));
   else interrupt(world, vehicle, fleeFrom(world, vehicle, npcProfile(vehicle), threatener.id, threatener.pos, reason));
 }
@@ -751,7 +751,7 @@ function onPreySeen(world: World, vehicle: Vehicle): void {
     if (react(world, vehicle, 'preySeen', target.id) !== 'rob') continue;
     addState(world, 'feud', vehicle.id, target.id, { kind: 'feud', robbery: true });
     world.events.push({ t: 'hostile', vehicle: vehicle.id, against: target.id });
-    callLawmen(world, vehicle, target);
+    reportIncident(world, { aggressor: vehicle, victim: target, deed: 'robbed', victimFights: false });
     interrupt(world, vehicle, fightGoal(world, vehicle, target, 'robCargo'));
     return;
   }

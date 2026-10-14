@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
 import { blastLanes, laneCount, lanePoint } from './armor';
-import { fireWeapons, inFeud, shotDamage, startFeuds } from './combat';
+import { fireWeapons, inFeud, shotDamage } from './combat';
+import { reportIncident } from './relations';
 import { gunFor } from './factory';
 import { mountedParts } from './grid';
 import { addState, stateOf, strayData } from './states';
@@ -89,7 +90,7 @@ describe('stray fire', () => {
     convoy.brain = npcBrain('convoy', convoy.pos, ['trader']);
     const guard = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine'], { x: 34, y: 30 });
     guard.brain = npcBrain('convoyGuard', guard.pos, ['trader']);
-    startFeuds(w, convoy, guard);
+    reportIncident(w, { aggressor: convoy, victim: guard, deed: 'attacked', victimFights: true });
     expect(inFeud(w, guard, convoy)).toBe(true);
     expect(stateOf(w, 'feud', convoy.id, convoy.id)).toBeNull();
     expect(w.events.some((e) => e.t === 'hostile' && e.vehicle === e.against)).toBe(false);
