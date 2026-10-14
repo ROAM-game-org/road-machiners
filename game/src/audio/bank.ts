@@ -16,7 +16,7 @@ export type DecodeEvidence = {
   deviceMemory: number | null;
 };
 export type DecodeFailure = { file: string; kind: FailureKind; evidence: DecodeEvidence; error: unknown };
-export type LoadedBank = { bank: Bank; failures: DecodeFailure[] };
+export type LoadedBank = { bank: Bank; failures: DecodeFailure[]; unreachable: DecodeFailure[] };
 export type BankOptions = {
   expectedBytes: Record<string, number>;
   opusSupport: string;
@@ -79,7 +79,7 @@ export function reportFailures(failures: DecodeFailure[], total: number, recover
 export async function loadBank(ctx: BaseAudioContext, sounds: Record<string, Cue>, options: BankOptions): Promise<LoadedBank> {
   const files = Object.values(sounds).flatMap((c) => c.files);
   const decoded = new Map<string, AudioBuffer>();
-  const failures: DecodeFailure[] = [];
+  const failed: DecodeFailure[] = [];
   const decodedMegabytes = () => megabytesOf(decoded.values());
   let done = 0;
   let next = 0;
@@ -89,13 +89,18 @@ export async function loadBank(ctx: BaseAudioContext, sounds: Record<string, Cue
       const file = files[next++];
       const result = await decodeWithRetry(ctx, file, options, decodedMegabytes);
       if ("buffer" in result) decoded.set(file, result.buffer);
-      else failures.push({ file, kind: result.fault.kind, evidence: result.fault.evidence, error: result.fault.error });
+      else failed.push({ file, kind: result.fault.kind, evidence: result.fault.evidence, error: result.fault.error });
       options.progress?.(++done, files.length);
     }
   }
   await Promise.all(Array.from({ length: Math.min(BANK.decodeAtOnce, files.length) }, worker));
   const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
-  return { bank, failures: files.flatMap((f) => failures.filter((x) => x.file === f)) };
+  const inFileOrder = files.flatMap((f) => failed.filter((x) => x.file === f));
+  return {
+    bank,
+    failures: inFileOrder.filter((x) => !isUnreachable(x)),
+    unreachable: inFileOrder.filter(isUnreachable),
+  };
 }
 
 export async function recoverBank(ctx: BaseAudioContext, loaded: LoadedBank, options: BankOptions): Promise<Set<string>> {
@@ -109,6 +114,10 @@ export async function recoverBank(ctx: BaseAudioContext, loaded: LoadedBank, opt
     }
   }
   return recovered;
+}
+
+function isUnreachable(f: { kind: FailureKind; error: unknown }): boolean {
+  return f.kind === "fetch" && !(f.error instanceof HttpStatusError);
 }
 
 function megabytesOf(buffers: Iterable<AudioBuffer>): number {
@@ -130,6 +139,7 @@ async function decodeWithRetry(
     } catch (e) {
       if (!(e instanceof SoundFileFault)) throw e;
       fault = e;
+      if (isUnreachable(e)) break;
     }
   }
   return { fault: fault! };

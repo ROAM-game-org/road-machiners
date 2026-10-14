@@ -15,7 +15,7 @@ const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const options = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType("audio/ogg; codecs=opus") };
 const loaded = await loadBank(mixer.ctx, sounds, options);
-const { bank, failures } = loaded;
+const { bank, failures, unreachable } = loaded;
 const recovered = await recoverBank(mixer.ctx, loaded, options);
 let playing: AudioBufferSourceNode | null = null;
 const rejected = new Set<string>();
@@ -74,6 +74,7 @@ function failureLine(f: DecodeFailure): string {
 
 const copyButton = el("button", { onclick: () => void navigator.clipboard.writeText([...rejected].sort().join(" ")) }, "copy 0 rejects");
 root.append(el("div", { class: "row" }, el("button", { onclick: () => playing?.stop() }, "stop"), copyButton));
+for (const failure of unreachable) root.append(el("div", { class: "missing" }, `${failure.file} could not be fetched`));
 for (const failure of failures) root.append(el("div", { class: "missing" }, failureLine(failure)));
 for (const bus of BUSES) {
   const ids = Object.keys(sounds).filter((id) => sounds[id].bus === bus);

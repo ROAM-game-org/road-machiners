@@ -28,7 +28,7 @@ export async function fetchBody(url: string, init?: RequestInit): Promise<Body> 
     try {
       return await fetchOnce(url, init);
     } catch (e) {
-      if (!retryable(e)) throw e;
+      if (!retryable(e) || (attempt >= tries && e instanceof HttpStatusError)) throw e;
       if (attempt >= tries) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
       await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
     }
