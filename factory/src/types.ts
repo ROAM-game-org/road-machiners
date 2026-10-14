@@ -4,7 +4,7 @@ export type Column = typeof COLUMNS[number];
 
 export type CardStage = 'triage' | 'design' | 'implement' | 'verify' | 'harden';
 export type ReleaseStage = 'release' | 'playtest' | 'candidate' | 'ship' | 'remove';
-export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control';
+export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
 
 export type FactoryConfig = {
   observationHeartbeatMs: number;
@@ -12,6 +12,7 @@ export type FactoryConfig = {
   repo: string;
   projectOwner: string;
   projectNumber: number;
+  githubAppId: string;
   githubRetries: number;
   githubRetryBaseSeconds: number;
   githubTimeoutSeconds: number;
@@ -57,6 +58,7 @@ export type FactoryConfig = {
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
+  testStallMinutes: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
@@ -85,6 +87,18 @@ export type FactoryConfig = {
   errorUnzippedMb: number;
   errorIpPerHour: number;
   errorOrigins: string;
+  proposalChat: string;
+  publicDiscussion: string;
+  proposalsPerDay: number;
+  voteEmoji: string;
+  vetoEmoji: string;
+  publicDigestMinutes: number;
+  openaiKey: string;
+  filterModel: string;
+  filterTimeoutSeconds: number;
+  filterSincereMin: number;
+  reportIpPerHour: number;
+  reportMaxChars: number;
 };
 
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };
@@ -94,7 +108,7 @@ export type RunResult = { code: number; stdout: string; stderr: string };
 export type Run = (cmd: string, args: string[], opts?: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
-export type IssueComment = { login: string; body: string; createdAt: string };
+export type IssueComment = { login: string; body: string; createdAt: string; byFactory: boolean };
 
 export type Issue = {
   number: number;
@@ -104,7 +118,6 @@ export type Issue = {
   createdAt: string;
   state: 'OPEN' | 'CLOSED';
   author: string;
-  thumbsUp: string[];
 };
 
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
@@ -237,6 +250,8 @@ export interface Telegram {
   sendDocument(chat: string, path: string, replyTo?: number): Promise<number>;
   editCaption(chat: string, messageId: number, caption: string): Promise<void>;
   editText(chat: string, messageId: number, text: string): Promise<void>;
+  sendHtml(chat: string, html: string): Promise<number>;
+  editHtml(chat: string, messageId: number, html: string): Promise<void>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
@@ -340,6 +355,11 @@ export const CANDIDATE_LABELS = ['feature-request', BUG_LABEL];
 export const INCIDENT_LOG = 'docs/incident-log.md';
 export const INCIDENT_BRANCH = (issue: number): string => `factory/incident-${issue}`;
 export const NEEDS_INFO_LABEL = 'needs-info';
+export const VOTING_LABEL = 'voting';
+export const PLAYER_REPORT_LABEL = 'player-report';
+export const PUBLIC_SENDER = 'public';
+export const PLAYER_COMMENTS_HEADING = '## Player comments';
+export const PLAYER_REPORT_HEADING = '## Player report';
 export const FACTORY_MARK = '<!-- roam-factory -->';
 export const QUESTIONS_HEADING = '## Questions from the factory';
 export const FEEDBACK_HEADING = '## Committee feedback';

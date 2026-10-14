@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
+import { openStore } from '../public/store';
 import { runStage } from './triage';
 import type { AgentRun, Card, Ctx } from '../types';
 
@@ -26,14 +27,14 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[] = []): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', repo: 'o/r', committeeChat: 'chat' },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', repo: 'o/r', committeeChat: 'chat', minVotes: 10 },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     telegram: { sendMessage: record('message') },
     log: () => undefined,
     github: {
-      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna', thumbsUp: [] }),
-      comments: async () => earlier.map((body) => ({ login: 'bot', body })),
+      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
+      comments: async () => earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') })),
       cards: async () => cards,
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
     },
@@ -113,8 +114,13 @@ describe('triage stage', () => {
   });
 
   it('does not relabel on a later run after a member removed the label', async () => {
-    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y']), 7);
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y\n\n<!-- roam-factory -->']), 7);
     expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+  });
+
+  it('still routes when only a stranger wrote the routing line', async () => {
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Model routing from triage: hard, default models.']), 7);
+    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual(['addLabel 7 design-sonnet']);
   });
 
   it.each([
@@ -253,11 +259,89 @@ describe('triage release fixes', () => {
   });
 });
 
+const PITCH = { title: 'Night driving', text: 'Drive after dark with your headlights. Enemies see the light from far away.' };
+
+describe('triage vote', () => {
+  const vote = (over: Record<string, unknown> = {}): string => verdict({ verdict: 'vote', reason: 'A new system that players should choose.', pitch: PITCH, ...over });
+
+  it('labels the card, stores the pitch, comments once and leaves the card in Triage', async () => {
+    await runStage(fakeCtx(vote({ complexity: 'trivial', complexityReason: 'One constant.' })), 7);
+    expect(calls).toContain('addLabel 7 design-sonnet');
+    expect(calls).toContain('addLabel 7 voting');
+    const comments = calls.filter((call) => call.startsWith('comment 7'));
+    expect(comments).toHaveLength(1);
+    expect(comments[0]).toContain('player vote');
+    expect(comments[0]).toContain('A new system that players should choose.');
+    expect(calls.filter((call) => call.startsWith('move'))).toEqual([]);
+    const store = openStore(home);
+    expect(store.proposal(7)?.pitch).toBe(`${PITCH.title}\n\n${PITCH.text}`);
+    store.close();
+  });
+
+  it('adds the voting label before it writes the proposal row, and comments after both', async () => {
+    const ctx = fakeCtx(vote());
+    const seen: string[] = [];
+    const add = ctx.github.addLabel;
+    ctx.github.addLabel = async (number: number, label: string) => {
+      const store = openStore(home);
+      seen.push(`${label} row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return add(number, label);
+    };
+    const comment = ctx.github.comment;
+    ctx.github.comment = async (number: number, body: string) => {
+      const store = openStore(home);
+      seen.push(`comment row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return comment(number, body);
+    };
+    await runStage(ctx, 7);
+    expect(seen).toContain('voting row absent');
+    expect(seen.at(-1)).toBe('comment row present');
+    expect(calls.filter((call) => call.startsWith('comment 7'))).toHaveLength(1);
+  });
+
+  it('writes no row and no comment when adding the voting label fails, so a rerun starts clean', async () => {
+    const ctx = fakeCtx(vote());
+    ctx.github.addLabel = async () => { throw new Error('GitHub down'); };
+    await expect(runStage(ctx, 7)).rejects.toThrow('GitHub down');
+    const store = openStore(home);
+    expect(store.proposal(7)).toBeNull();
+    store.close();
+    expect(calls.filter((call) => call.startsWith('comment'))).toEqual([]);
+  });
+
+  it('adds the bundle like ready', async () => {
+    cards = [card(7, 'Triage'), card(9, 'Triage')];
+    await runStage(fakeCtx(vote({ bundle: [9] })), 7);
+    expect(calls).toContain('addLabel 9 bundled');
+    expect(calls).toContain('move 9 Done');
+    expect(readState(`${home}/state.json`).bundles['7']).toEqual([9]);
+  });
+
+  it.each([
+    [{ hotfix: true }, 'hotfix'],
+    [{ releaseFix: true }, 'release fix'],
+    [{ pitch: undefined }, 'pitch'],
+    [{ pitch: { title: ' ', text: 'x' } }, 'pitch'],
+    [{ pitch: { title: 'x', text: '' } }, 'pitch'],
+  ])('refuses a bad vote %#', async (over, message) => {
+    await expect(runStage(fakeCtx(vote(over)), 7)).rejects.toThrow(message);
+  });
+
+  it('refuses a vote on a bug', async () => {
+    await expect(runStage(fakeCtx(vote(), ['bug']), 7)).rejects.toThrow('bug');
+    const store = openStore(home);
+    expect(store.proposal(7)).toBeNull();
+    store.close();
+  });
+});
+
 describe('triage bundles', () => {
-  it('offers only free Triage cards: not itself, not stuck, waiting, hotfix, bundled, a lead or busy', async () => {
+  it('offers only free Triage cards: not itself, not stuck, waiting, voting, hotfix, bundled, a lead or busy', async () => {
     cards = [
       card(7, 'Triage'), card(9, 'Triage'), card(10, 'Triage', ['needs-info']), card(11, 'Design'), card(12, 'Triage', ['factory-stuck']),
-      card(13, 'Triage', ['hotfix']), card(14, 'Triage'), card(15, 'Triage'), card(16, 'Done', ['bundled']),
+      card(13, 'Triage', ['hotfix']), card(14, 'Triage'), card(15, 'Triage'), card(16, 'Done', ['bundled']), card(17, 'Triage', ['voting']),
     ];
     writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), bundles: { '14': [16] }, jobs: [{ id: 'triage-15', stage: 'triage', issue: 15, pid: 1, startedAt: '', log: '' }] });
     await runStage(fakeCtx(verdict({})), 7);
