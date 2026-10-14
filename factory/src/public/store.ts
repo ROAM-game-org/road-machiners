@@ -53,9 +53,10 @@ export class PublicStore {
   }
 
   private migrateComments(): void {
-    const issue = this.db.prepare('pragma table_info(comments)').all().find((column) => column.name === 'issue');
-    if (Number(issue?.notnull) !== 1) return;
+    const issueRequired = () => Number(this.db.prepare('pragma table_info(comments)').all().find((column) => column.name === 'issue')?.notnull) === 1;
+    if (!issueRequired()) return;
     this.transaction(() => {
+      if (!issueRequired()) return;
       this.db.exec('alter table comments rename to comments_old');
       this.db.exec(`create table comments (${COMMENT_COLUMNS})`);
       this.db.exec(`insert into comments (${OLD_COMMENT_COLUMNS}, filed_at, replied_at) select ${OLD_COMMENT_COLUMNS}, at, at from comments_old`);
@@ -175,6 +176,7 @@ export class PublicStore {
   claimFiling(id: number, text: string, now: Date): number | null {
     const key = textKey(text);
     this.db.prepare('update comments set filed_at = ?, text_key = ? where id = ?').run(now.toISOString(), key, id);
+    if (key === '') return null;
     const earlier = this.db.prepare('select filed_issue from comments where text_key = ? and filed_issue is not null and id != ? order by id limit 1').get(key, id);
     return earlier === undefined ? null : Number(earlier.filed_issue);
   }

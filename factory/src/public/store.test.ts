@@ -141,6 +141,16 @@ describe('public store', () => {
     expect(store.toReply().map((c) => [c.text, c.filedIssue])).toEqual([['Add a MINIMAP!', 571], ['@roam_bot add a minimap', null]]);
   });
 
+  it('never matches texts that keep no letters or digits', () => {
+    const store = postedStore();
+    for (const [id, text] of [[1, '🔥🔥'], [2, '🚚!!']] as const) store.applyEvent({ updateId: id, kind: 'comment', chat: GROUP, messageId: id, threadId: null, author: 'Ann', text, at: now.toISOString(), standalone: true });
+    for (const comment of store.unclassifiedComments()) store.classify(comment.id, 'feature', 'none', now, { relevance: 'other', topic: 'none' });
+    const [first, second] = store.toFile();
+    store.claimFiling(first!.id, first!.text, now);
+    store.setFiled(first!.id, 571);
+    expect(store.claimFiling(second!.id, second!.text, now)).toBeNull();
+  });
+
   it('maps a reply to the bot reply of a counted comment to that comment thread', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Ann', text: 'Cheaper please', at: now.toISOString() });
