@@ -10,7 +10,7 @@ import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { changeMapIfMoved, loadWorld, mapFor, SaveError, SaveHold, SAVE_KEY, writeSave, type Run } from './save';
-import type { RunLog } from './run-log';
+import { RunLog } from './run-log';
 import { takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
 
@@ -113,8 +113,10 @@ describe('the map of a saved world', () => {
 
 describe('the window swap in the game', () => {
   function runOn(world: World): Run {
-    const log = { flush: () => Promise.resolve() } as unknown as RunLog;
-    return { slots: new SaveSlots(memoryBackend(), new Map()), runId: 'run-1', log, mapHash: world.mapHash };
+    const backend = memoryBackend();
+    const log = new RunLog(backend, 'run-1', 'test', (err) => { throw err; });
+    log.begin(world, null);
+    return { slots: new SaveSlots(backend, new Map()), runId: 'run-1', log, mapHash: world.mapHash };
   }
 
   it('asks for a boot of the autosave only when the map has moved', async () => {
@@ -133,6 +135,8 @@ describe('the window swap in the game', () => {
     const moved = waitForRoad(paid);
     expect(changeMapIfMoved(run, moved, new SaveHold(), storage, reload)).toBe(true);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    const logged = await run.slots.backend.readLog('run-1');
+    expect(logged.some((r) => r.kind === 'event' && r.t === 'roadOpened' && r.turn === moved.turn)).toBe(true);
     expect(takeBootRequest(storage, SAVE_KEY)).toEqual({ slot: 'auto', reason: 'road' });
     expect(loadWorld(run.slots, 'auto', TEST_MAP)?.furyRoad?.window).toBe(1);
   });

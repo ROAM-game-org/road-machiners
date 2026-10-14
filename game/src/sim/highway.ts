@@ -469,5 +469,6 @@ export function highwayAtlas(seed: number, window: number): Atlas {
     hazards: [],
     oldSpots: false,
     landforms: false,
+    origin: { x: -window * WINDOW_SHIFT.x, y: -window * WINDOW_SHIFT.y },
   };
 }
