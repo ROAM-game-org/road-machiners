@@ -1,12 +1,13 @@
 import { readState } from '../state';
 import type { Ctx } from '../types';
-import { pitchTitle } from './proposals';
+import { pitchTitle, tallyText, voteSides } from './proposals';
 import type { Proposal, PublicStore } from './store';
 
 function proposalRow(ctx: Ctx, store: PublicStore, proposal: Proposal): string {
   if (proposal.postedAt === null) return `#${proposal.issue} proposal not posted yet: ${pitchTitle(proposal.pitch)}`;
-  const votes = store.votes(proposal.issue, ctx.cfg.voteEmoji.split(/\s+/));
-  return `#${proposal.issue} proposal posted ${proposal.postedAt}, ${votes} of ${ctx.cfg.minVotes} votes: ${pitchTitle(proposal.pitch)}`;
+  const { up, down } = voteSides(ctx);
+  const tally = tallyText(ctx, store.tally(proposal.issue, up, down));
+  return `#${proposal.issue} proposal posted ${proposal.postedAt}, ${tally} of ${ctx.cfg.minVotes}: ${pitchTitle(proposal.pitch)}`;
 }
 
 function buildRows(ctx: Ctx, store: PublicStore, proposals: Proposal[]): string[] {

@@ -45,16 +45,16 @@ async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseSta
 }
 
 async function vote(ctx: Ctx, issue: number, result: Vote): Promise<void> {
+  const note = await routeModels(ctx, issue, result.routing);
+  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
+  const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
+  await ctx.github.addLabel(issue, VOTING_LABEL);
   const store = openStore(ctx.cfg.home);
   try {
     store.addProposal(issue, `${result.pitch.title}\n\n${result.pitch.text}`, ctx.now());
   } finally {
     store.close();
   }
-  const note = await routeModels(ctx, issue, result.routing);
-  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
-  const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
-  await ctx.github.addLabel(issue, VOTING_LABEL);
   await ctx.github.comment(issue, `Triage put this to a player vote: ${result.reason}${carries}\n\n${note}`);
 }
 
@@ -99,7 +99,7 @@ async function routeModels(ctx: Ctx, issue: number, { complexity, why }: Routing
   const set = [DESIGN_SONNET_LABEL, IMPLEMENTATION_OPUS_LABEL].filter((label) => labels.includes(label));
   const rated = `Triage rated it ${complexity}: ${why}`;
   if (set.length > 0) return `${ROUTING_MARK} left as set on the issue (${set.join(', ')}). ${rated}`;
-  if (comments.some((comment) => comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
+  if (comments.some((comment) => comment.byFactory && comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
   const label = routingLabel(complexity);
   if (label === null) return `${ROUTING_MARK} ${complexity}, default models (Opus design, Sonnet implementation and testing). ${why}`;
   await ctx.github.addLabel(issue, label);
