@@ -12,6 +12,7 @@ import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
 import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
+import { CONFIG } from '../config';
 import { UNITS } from '../data/units';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
@@ -68,20 +69,28 @@ class QuestArtStage {
   }
 }
 
-function loadArt(key: string): HTMLImageElement {
+export function loadArt(key: string): HTMLImageElement {
   const focus = `${questArt(key).focusX}% 50%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
   img.setAttribute('aria-hidden', 'true');
   img.style.objectPosition = focus;
   img.style.transformOrigin = focus;
+  let retried = false;
   img.onerror = () => {
-    throw new Error(`Quest art ${key} failed to load from ${img.src}`);
+    if (retried) {
+      img.onerror = null;
+      img.classList.add('quest-art-failed');
+      img.style.visibility = 'hidden';
+      return;
+    }
+    retried = true;
+    setTimeout(() => {
+      if (img.hasAttribute('src')) img.src = questArtUrl(key);
+    }, CONFIG.questArtRetryMs);
   };
   img.src = questArtUrl(key);
-  img.decode().catch((e: unknown) => {
-    if (img.hasAttribute('src')) throw e;
-  });
+  img.decode().catch(() => undefined);
   return img;
 }
 
