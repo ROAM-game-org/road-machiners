@@ -376,8 +376,7 @@ function enterLines(turn: number, prev: StreamState, now: Map<string, Fields>): 
 const LEAVE_REASONS: Partial<Record<GameEvent['t'], string>> = { destroyed: 'wrecked', npcKnockout: 'knockedOut', despawn: 'despawned' };
 
 function leaveReason(world: World, prev: StreamState, events: readonly GameEvent[], id: string): string {
-  const mine = new Set([id]);
-  const cause = events.find((e) => LEAVE_REASONS[e.t] !== undefined && namedIds(e, mine).size > 0);
+  const cause = events.find((e) => LEAVE_REASONS[e.t] !== undefined && (e as { vehicle?: string }).vehicle === id);
   if (cause) return LEAVE_REASONS[cause.t] as string;
   return prev.mapHash === world.mapHash ? 'unseen' : 'window';
 }

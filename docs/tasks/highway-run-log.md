@@ -85,6 +85,8 @@ The run stream is built and wired into the game, the recorder and a new `npm run
 - `leave` reasons come from the destroyed, npcKnockout and despawn events, a map hash change (`window`), and otherwise `unseen`.
 - An event with its own `kind` field (`shopMoney`) keeps its value under `shop`, so the line kind stays `event`.
 - A loaded world's own events are not written again at load.
+- A leave reason comes only from an event whose `vehicle` is the leaving truck, so a killer that drives out of sight is `unseen`.
+- The timeline drops every record before the first `session` line and says how many, because a run begun on an older build keeps its old records in the same log store.
 - The exported header line stays as it was. The timeline skips it.
 - The recorder file is `<bot>-<seed>.stream.jsonl`, beside `.run.jsonl` (the escort statistics), `.turns.jsonl` and `.world.jsonl`. Those three are unchanged. The version in its session line is `recorder`.
 - `LogEntry` in save-db.ts lost its required `day` field, since stream lines carry the day only on `session`.
@@ -108,17 +110,38 @@ The run stream is built and wired into the game, the recorder and a new `npm run
 ```
 == Stretch 8 ==
 T568 roadOpened, stretch 8
-T568 holdings changed: money -69590 (now 17086); gained cab, transmissionMid, tank, wheelMid, ...; lost cabPickup, transmission, tank, wheel, ...
+T568 holdings changed: money -69590 (now 17086); gained cab, transmissionMid, tank, wheelMid, wheelMid, wheelMid, wheelMid, scrapSheet, ceramicTile, spacedArmor; lost cabPickup, transmission, tank, wheel, wheel, wheel, wheel; good [cut]
+T568 player/own/scout v1 27 order changes (T568-T594), last: order null
 T568 player/own/semi v35 69 order changes (T568-T636), last: order stopAt@216,-2120
+T587 came into view: convoys/convoyGuard/scout v598 at 218.5,-1917.6
 T587 came into view: raiders/gunwagon/carrier v627 at 219.5,-1914.4
-T588 fight T588-T596, convoys/convoyGuard/scout v598 against raiders/gunwagon/carrier v627: v598 fired 10 rounds, 6 hits, 30 damage; v627 fired 12 rounds, 7 hits, 155 damage; 2 parts disabled
+T588 fight T588-T596, convoys/convoyGuard/scout v598 against raiders/gunwagon/carrier v627: convoys/convoyGuard/scout v598 fired 10 rounds, 6 hits, 30 damage; raiders/gunwagon/carrier v627 fired 12 rounds, 7 hits, 155 damage; 2 pa [cut]
+T591 came back into view: convoys/convoyGuard/scout v598 at 214.3,-1911.1
+T591 came back into view: raiders/gunwagon/carrier v627 at 216.9,-1911.7
+T592 fight T592-T602, player/own/scout v1 against convoys/convoyGuard/scout v598: player/own/scout v1 fired 90 rounds, 29 hits, 129 damage; convoys/convoyGuard/scout v598 fired 12 rounds, 5 hits, 67 damage; 4 parts disabled
+```
+
+Lines marked `[cut]` are shortened at the end for this file. The same log, a later stretch:
+
+```
+== Stretch 11 ==
+[earlier lines of the section left out]
+T869 came back into view: raiders/buggy/scout v976 at 207.3,-3033.7
+T870 outpostReached, milestone 11, pay 62000, wrecks 1
 T870 player/own/semi v35 made no progress: within 2 tiles of 214,-3046.7 for 22 turns (T870-T891), last order through@208,-3058.7, 0 hits taken
+T871 player/own/semi v35 order brake
+T873 player/own/semi v35 order null
+T890 player/own/niva v1 29 order changes (T890-T918), last: order null
 ```
 
-- Excerpt of the Roaming trader run:
+- Excerpt of `npm run run:timeline -- tmp/m-roam/trader-1.stream.jsonl`, from the Roaming trader run, Day 1:
 
 ```
+T136 player/own/scout v1 order null
+T140 came back into view: scavengers/scavenger/jeep v1273 at 317.1,472
+T140 came back into view: raiders/buggy/courier v1616 at 341.5,491.8
 T141 player/own/scout v1 2 order changes (T141-T142), last: guns {"p18":"v1616/body"}
 T142 fight T142-T145, player/own/scout v1 against raiders/buggy/courier v1616: player/own/scout v1 fired 6 rounds, 1 hits, 5 damage; raiders/buggy/courier v1616 fired 24 rounds, 5 hits, 22 damage
+T147 player/own/scout v1 guns {"p18":null}
 ```
 

@@ -6,7 +6,7 @@ import { addVehicle, emptyWorld } from '../testkit';
 import type { GameEvent, World } from '../types';
 import { refreshVision } from '../vision';
 import { cloneWorld } from '../world';
-import { linearize, STALL_TURNS, timeline } from './run-timeline';
+import { linearize, skippedBeforeSession, STALL_TURNS, timeline } from './run-timeline';
 
 const CTX = { runId: 'test', version: 'test' };
 
@@ -53,6 +53,13 @@ describe('linearize', () => {
   it('drops the records a load rewinds past and keeps the ones at the load turn', () => {
     const lines = [line('session', 1), line('moves', 5), line('moves', 9), line('session', 5), line('moves', 6)];
     expect(linearize(lines).map((l) => `${l.kind}${l.turn}`)).toEqual(['session1', 'moves5', 'session5', 'moves6']);
+  });
+
+  it('drops the records of an older build that come before the first session', () => {
+    const old = [line('start', 1), line('change', 2, { money: 5 }), line('event', 3, { event: 'money' })];
+    const lines = [line('header', 0), ...old, line('session', 4), line('player', 4)];
+    expect(linearize(lines).map((l) => l.kind)).toEqual(['session', 'player']);
+    expect(skippedBeforeSession(lines)).toBe(3);
   });
 
   it('skips the export header', () => {

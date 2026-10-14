@@ -20,12 +20,20 @@ const sum = (values: Damage | undefined) => Object.values(values ?? {}).reduce((
 
 export function linearize(records: readonly StreamLine[]): StreamLine[] {
   let out: StreamLine[] = [];
-  for (const record of records) {
-    if (record.kind === 'header') continue;
+  for (const record of records.slice(firstSession(records))) {
     if (record.kind === 'session') out = out.filter((kept) => kept.turn <= record.turn);
-    out.push(record);
+    if (record.kind !== 'header') out.push(record);
   }
   return out;
+}
+
+function firstSession(records: readonly StreamLine[]): number {
+  const at = records.findIndex((record) => record.kind === 'session');
+  return at < 0 ? records.length : at;
+}
+
+export function skippedBeforeSession(records: readonly StreamLine[]): number {
+  return records.slice(0, firstSession(records)).filter((record) => record.kind !== 'header').length;
 }
 
 function add(into: Damage, key: string, amount: number): void {

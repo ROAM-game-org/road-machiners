@@ -104,6 +104,23 @@ describe('scope and keyframe', () => {
     expect(ofKind(lines, 'event')[0]).toMatchObject({ t: 'destroyed', vehicle: near.id });
   });
 
+  it('gives the killer that drives out of sight its own reason, not the victim one', () => {
+    const { world, near } = seeing();
+    const stream = new RunStream(CTX);
+    stream.begin(world, 'new');
+    const killer = addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 36, y: 30 });
+    refreshVision(world);
+    const both = next(world);
+    stream.step(both, []);
+    const after = next(both, (w) => {
+      w.vehicles = w.vehicles.filter((v) => v.id !== near.id && v.id !== killer.id);
+    });
+    const lines = stream.step(after, [{ t: 'destroyed', vehicle: near.id, by: killer.id }]);
+    const reasons = Object.fromEntries(ofKind(lines, 'leave').map((l) => [l.id, l.why]));
+    expect(reasons[near.id]).toBe('wrecked');
+    expect(reasons[killer.id]).toBe('unseen');
+  });
+
   it('writes a new keyframe at each day start', () => {
     const { world } = seeing();
     const stream = new RunStream(CTX);
