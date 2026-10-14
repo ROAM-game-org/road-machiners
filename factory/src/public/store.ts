@@ -23,6 +23,7 @@ export type ReportRow = { address: string; build: string; version: string; kind:
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
 const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer';
 const HOUR_MS = 3_600_000;
+const FAILED_HIT = 'failed:';
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
 
 export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -288,6 +289,11 @@ export class PublicStore {
     if (count >= limit) return { taken: false, resetAt: nextHour(now) };
     this.db.prepare('insert into hits (address, hour, count) values (?, ?, 1) on conflict (address, hour) do update set count = count + 1').run(address, hour);
     return { taken: true };
+  }
+
+  returnHit(address: string, takenAt: Date, limit: number): void {
+    if (!this.takeHit(`${FAILED_HIT}${address}`, takenAt, limit).taken) return;
+    this.db.prepare('update hits set count = count - 1 where address = ? and hour = ? and count > 0').run(address, hourOf(takenAt));
   }
 
   addReport(report: ReportRow): number {
