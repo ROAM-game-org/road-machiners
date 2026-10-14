@@ -36,7 +36,7 @@ Repair costs `ECONOMY.repairShare` of a part's value per share of HP restored. A
 
 ## Contracts
 
-The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type.
+The player holds at most `CONTRACTS.maxActive` contracts. A contract's window counts from the turn the player accepts it. A haul has a window of `CONTRACTS.haul.durationFactor` times its estimated travel, and pays `CONTRACTS.haul.rewardFactor` tier wages. A share `CONTRACTS.haul.rush.chance` of hauls are rush jobs: their window is `CONTRACTS.haul.rush.durationFactor` times the estimated travel, and they pay `CONTRACTS.haul.rush.premium` times the standard reward. A fetch pays the part's price plus a search fee of `CONTRACTS.fetch.searchFeeTurns` turns of wage. A bounty pays `CONTRACTS.bounty.rewardTurns` turns of tier 1 wage for its raider type, whatever the target carries. The player claims it at the shop that posted it, after a knockout or wreck of any truck of its type. A survey pays the estimated turns of the loop from the shop through its places nearest first and back, plus `CONTRACTS.survey.surveyTurns` per place, at `CONTRACTS.survey.rewardFactor` tier 1 wages, with the haul's standard window. A shop offers one when a free survey site lies within `CONTRACTS.survey.range` tiles, and no site is named by two live contracts.
 
 ## Upkeep
 
@@ -72,4 +72,7 @@ The player's truck pays no upkeep. NPC drivers pay under `NPC_UPKEEP`.
 | `CONTRACTS.haul.rush.premium` | 1.75 |
 | `CONTRACTS.fetch.searchFeeTurns` | 240 |
 | `CONTRACTS.bounty.rewardTurns` | {"buggy":900,"gunwagon":1350} |
+| `CONTRACTS.survey.surveyTurns` | 10 |
+| `CONTRACTS.survey.rewardFactor` | 15 |
+| `CONTRACTS.survey.range` | 180 |
 <!-- /wiki:numbers -->
