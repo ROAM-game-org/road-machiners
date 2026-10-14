@@ -44,7 +44,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconN
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -352,7 +352,7 @@ export class TownScreen {
 
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
     const destination = c.kind === "haul" ? c.to : c.shop;
-    const claim = c.kind === "bounty";
+    const claim = c.kind === "bounty" || c.kind === "rescue";
     if (destination !== shopId) return el("span", { class: "dim" }, t(claim ? "contract.claimAt" : "contract.deliverAt", { site: siteName(destination) }));
     return this.button(t(claim ? "contract.claim" : "contract.deliver"), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
   }
@@ -361,6 +361,7 @@ export class TownScreen {
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "rescue") return t("contract.notMet");
   return bountyPays(w);
 }
 
@@ -408,6 +409,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
+  rescue: () => createIcon("truck"),
 };
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -448,7 +450,7 @@ function profitCell(e: SaleEstimate): HTMLElement {
 }
 
 function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
-  const met = c.kind === "bounty" && c.fulfilled;
+  const met = (c.kind === "bounty" || c.kind === "rescue") && c.fulfilled;
   const clock = posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
     : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
@@ -456,11 +458,17 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
-    el("span", {}, contractSummary(c)),
+    contractSummaryCell(c),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
   );
+}
+
+function contractSummaryCell(c: Contract): HTMLElement {
+  if (c.kind !== "rescue") return el("span", {}, contractSummary(c));
+  const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
+  return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }
 
 export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
