@@ -1,53 +1,94 @@
-// The path preview: the next turns of the player's truck, run through the same physics the turn will run.
-
-import { freeDrive, simulateTurn, type Drive } from "../phys/drive";
-import type { VehicleFrame } from "../phys/frames";
-import { applyTurn } from "../phys/turn";
+import { captureDrive, type Drive, type DriveSnapshot } from "../phys/drive";
+import type { PlanFrames } from "../phys/plan";
+import type { PreviewRequest, PreviewResponse } from "../phys/turn";
+import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
-import { routeBlockers } from "../sim/ai";
-import { route } from "../sim/path";
-import { vehicleStats } from "../sim/stats";
 import { throttleFor } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
-import { cloneWorld } from "../sim/world";
-
-const PLAN_TURNS = 3;
-
-export type PlanPreview = { turns: VehicleFrame[][]; first: number; course: Vec[] | null; waypoint: boolean };
-
-export function previewPlan(drive: Drive, world: World, me: Vehicle): PlanPreview {
-  const w = cloneWorld(world);
-  const { turns, v } = simulate(drive, w, me);
-  const first = me.order?.kind === "through" ? throttleColor(me, me.order.dest) : PAL.plan;
-  return { turns, first, course: courseAfter(w, v), waypoint: !v.direct };
-}
-
-function simulate(drive: Drive, w: World, me: Vehicle): { turns: VehicleFrame[][]; v: Vehicle } {
-  const turns: VehicleFrame[][] = [];
-  let d = drive;
-  let v = me;
-  for (let i = 0; i < PLAN_TURNS; i++) {
-    const r = simulateTurn(d, w);
-    turns.push(r.frames[me.id]);
-    w.events = [];
-    applyTurn(w, r);
-    if (d !== drive) freeDrive(d);
-    d = r.next;
-    v = w.vehicles.find((x) => x.id === me.id)!;
-    if (!v.order && v.speed < 0.05) break;
-  }
-  if (d !== drive) freeDrive(d);
-  return { turns, v };
-}
-
-function courseAfter(w: World, v: Vehicle): Vec[] | null {
-  const order = v.order?.kind === "brake" ? null : v.order;
-  if (!order) return null;
-  if (v.direct) return [v.pos, order.dest];
-  return [v.pos, ...route(w, v.pos, order.dest, vehicleStats(w, v).radius, routeBlockers(w, v), v)];
-}
+import { reportError } from "./crash";
+import { workerError } from "./travel";
 
 export function throttleColor(me: Vehicle, p: Vec): number {
   return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed)];
+}
+
+export function firstTurnColor(me: Vehicle): number {
+  return me.order?.kind === "through" ? throttleColor(me, me.order.dest) : PAL.plan;
+}
+
+type Wanted = { world: World; drive: DriveSnapshot; meId: string };
+
+export class PlanPreparation {
+  private worker: Worker | null = null;
+  private terrain: World["terrain"] | null = null;
+  private serial = 0;
+  private running: number | null = null;
+  private queued: Wanted | null = null;
+  private latest: { id: number | null; world: World; ready: PlanFrames | null } | null = null;
+
+  request(world: World, drive: Drive, meId: string): void {
+    this.queued = { world, drive: captureDrive(drive), meId };
+    this.latest = { id: null, world, ready: null };
+    if (this.running === null) this.postQueued();
+  }
+
+  take(world: World): PlanFrames | null {
+    const latest = this.latest;
+    if (latest?.world !== world || !latest.ready) return null;
+    this.latest = null;
+    return latest.ready;
+  }
+
+  private postQueued(): void {
+    const wanted = this.queued;
+    if (!wanted) return;
+    this.queued = null;
+    const { terrain, ...state } = wanted.world;
+    const id = ++this.serial;
+    this.worker ??= this.createWorker();
+    this.worker.postMessage(
+      {
+        kind: "preview",
+        id,
+        world: state,
+        drive: wanted.drive,
+        meId: wanted.meId,
+        terrain: this.terrain === terrain ? null : terrain,
+      } satisfies PreviewRequest,
+      [wanted.drive.snapshot.buffer as ArrayBuffer],
+    );
+    this.terrain = terrain;
+    this.running = id;
+    if (this.latest?.world === wanted.world) this.latest.id = id;
+  }
+
+  private createWorker(): Worker {
+    const worker = new Worker(new URL("../phys/turn.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.onmessage = (event: MessageEvent<PreviewResponse>) => this.receive(event.data);
+    worker.onerror = (event) => this.fail(`Preview worker failed: ${event.message}`);
+    worker.onmessageerror = () => this.fail("Could not read preview worker response");
+    return worker;
+  }
+
+  private receive(response: PreviewResponse): void {
+    if ("error" in response) reportError(workerError(response.error));
+    else {
+      mergePerf(response.perf);
+      if (this.latest?.id === response.id) this.latest.ready = response.preview;
+    }
+    this.finish();
+  }
+
+  private fail(message: string): void {
+    reportError(new Error(message));
+    this.finish();
+  }
+
+  private finish(): void {
+    this.running = null;
+    this.postQueued();
+  }
 }
