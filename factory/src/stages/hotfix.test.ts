@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import { MergeConflictError } from '../types';
 import { fake, reset } from './test-fakes';
@@ -26,8 +27,15 @@ describe('hotfix fan-out', () => {
       'merge factory/issue-7 main', 'merge main dev', 'open dev', 'agent', 'close dev',
       'merge factory/issue-7 main', 'merge main dev', 'push main dev',
     ]);
-    expect(f.calls.some((call) => call.startsWith('message public'))).toBe(true);
     expect(f.calls.some((call) => call.startsWith('addLabel'))).toBe(false);
+  });
+
+  it('ships with a GitHub release and posts nothing to the public channel', async () => {
+    const f = hotfixable();
+    await shipHotfix(f.ctx, 7, 'Big horn', 'Ann');
+    expect(f.calls).toContain('release hotfix-2026-09-29-issue-7 main ROAM hotfix 2026-09-29\nROAM hotfix 2026-09-29\n\nFixed: #7 Big horn');
+    expect(f.calls.filter((call) => /^(message|photo|album|buttons|document) /.test(call))).toEqual([]);
+    expect(readLedger(f.ctx.cfg.home, new Date(0)).filter((entry) => entry.kind === 'post')).toEqual([]);
   });
 
   it('leaves the open release and its candidate post alone', async () => {
