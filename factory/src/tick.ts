@@ -6,6 +6,8 @@ import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
 import { failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
+import { filterWith } from './public/filter';
+import { publicTick } from './public/tick-steps';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
 import { pruneCaptions } from './post-status';
@@ -18,7 +20,7 @@ import { sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, isAnswered } from './questions';
-import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL } from './types';
+import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
 export type JobPick = { stage: JobStage; issue: number | null };
@@ -52,7 +54,7 @@ function changeJobs(state: FactoryState): JobPick[] {
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
-  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !isHeld(state, card.issue));
+  return cards.filter((card) => !card.labels.includes(STUCK_LABEL) && !card.labels.includes(NEEDS_INFO_LABEL) && !card.labels.includes(VOTING_LABEL) && !isHeld(state, card.issue));
 }
 
 function byProgress(state: FactoryState, cards: Card[]): JobPick[] {
@@ -178,7 +180,7 @@ function limits(cfg: Due): Record<Queue, number> {
   };
 }
 
-export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'failed' | 'approval' | 'held';
+export type WaitReason = 'queue-full' | 'issue-running' | 'card-budget' | 'needs-info' | 'voting' | 'failed' | 'approval' | 'held';
 export type ScheduleDecision = JobPick & { reasons: WaitReason[] };
 export type ScheduleReport = { picks: JobPick[]; decisions: ScheduleDecision[]; release: ReleaseGate };
 function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPick[], cfg: Due): WaitReason[] {
@@ -191,10 +193,9 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
   return reasons;
 }
 const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
+const LABEL_WAITS: [string, WaitReason][] = [[STUCK_LABEL, 'failed'], [NEEDS_INFO_LABEL, 'needs-info'], [VOTING_LABEL, 'voting']];
 function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
-  const reasons: WaitReason[] = [];
-  if (card.labels.includes(STUCK_LABEL)) reasons.push('failed');
-  if (card.labels.includes(NEEDS_INFO_LABEL)) reasons.push('needs-info');
+  const reasons: WaitReason[] = LABEL_WAITS.filter(([label]) => card.labels.includes(label)).map(([, reason]) => reason);
   if (card.column === 'Approval') reasons.push('approval');
   if (isHeld(state, card.issue)) reasons.push('held');
   return reasons.length ? [{ stage: readWaitingStage(state, card), issue: card.issue, reasons }] : [];
@@ -243,6 +244,7 @@ export type TickDeps = {
   spawn: (args: string[], cwd: string, log: string, id: string, cpus: string, testWorkers: number | null) => number;
   cores: () => number;
   repair: Repair;
+  publicTick: (ctx: Ctx) => Promise<void>;
 };
 export const REAL_DEPS: TickDeps = {
   isAlive,
@@ -251,6 +253,7 @@ export const REAL_DEPS: TickDeps = {
   spawn: spawnJob,
   cores: availableParallelism,
   repair: repairClone,
+  publicTick: (ctx) => publicTick(ctx, filterWith(ctx.cfg, fetch)),
 };
 
 function dropJob(ctx: Ctx, job: Job): void {
@@ -444,6 +447,7 @@ export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS
   await checkJobs(ctx, deps);
   await settleRouting(ctx);
   await startJobs(ctx, codeDir, deps);
+  await deps.publicTick(ctx);
   await intake(ctx);
 }
 

@@ -141,7 +141,7 @@ export class RunLog {
 
   private write(entries: LogEntry[]): void {
     if (entries.length === 0) return;
-    const done = this.backend.appendLog(this.runId, entries).catch(this.onError).finally(() => this.pending.delete(done));
+    const done = Promise.resolve().then(() => this.backend.appendLog(this.runId, entries)).catch(this.onError).finally(() => this.pending.delete(done));
     this.pending.add(done);
   }
 }

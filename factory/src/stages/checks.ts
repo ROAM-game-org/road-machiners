@@ -5,9 +5,11 @@ import { readApproval, type Approval } from '../clone-checks';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
-import { stripAnsi } from '../fail';
+import { reportFailure, stripAnsi } from '../fail';
+import { postBuild } from '../public/build-post';
+import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type InlineButton, type Stage } from '../types';
+import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
 
@@ -109,7 +111,7 @@ function approvalOrDefault(home: string): Approval {
 export async function publishAndPost(ctx: Ctx, issue: number, approval: Approval, home: string, base: string, build: string, unchecked: boolean): Promise<void> {
   const url = publishBuild(ctx, checkDir(ctx, issue), build);
   recordBuild(ctx.statePath, issue, build);
-  await post(ctx, issue, approval, readShown(home), url, base, unchecked);
+  await post(ctx, issue, approval, readShown(home), url, base, build, unchecked);
   await moveCard(ctx, issue, 'Approval', 'posted', cardFlow((await ctx.github.issue(issue)).labels));
 }
 
@@ -124,6 +126,10 @@ export async function postCheckpoint(ctx: Ctx, issue: number, base: string, buil
   return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify'), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
 }
 
+export function suiteEnv(cfg: FactoryConfig): Record<string, string> {
+  return { TEST_STALL_MINUTES: String(cfg.testStallMinutes) };
+}
+
 export function testCacheMount(ctx: Ctx): Record<string, string> {
   const cache = `${ctx.cfg.home}/test-cache`;
   mkdirSync(cache, { recursive: true });
@@ -136,7 +142,7 @@ async function runScript(ctx: Ctx, issue: number, base: string, build: string, s
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(`${ctx.cfg.home}/work`, { recursive: true });
   await ctx.repo.prepareWorkClone(BRANCH(issue), base, dir);
-  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build });
+  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) });
 }
 
 const PROGRESS_MS = 5 * 60_000;
@@ -146,7 +152,7 @@ export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | nu
   const from = existsSync(log) ? statSync(log).size : 0;
   const progress = setInterval(() => ctx.log(at.stage, at.issue, checksProgress(log, started)), PROGRESS_MS);
   try {
-    await ctx.container.shell(dir, script, log, env, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
+    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
     return null;
   } catch (error) {
     return checkFailure(log, error, from);
@@ -194,7 +200,7 @@ export const POST_MARK = 'Ready for approval:';
 export const CAPTION_LIMIT = 1024;
 const TRIM_MARK = '…';
 
-export async function post(ctx: Ctx, issue: number, approval: Approval, shown: Shown, url: string, base: string, unchecked = false): Promise<void> {
+export async function post(ctx: Ctx, issue: number, approval: Approval, shown: Shown, url: string, base: string, build: string, unchecked = false): Promise<void> {
   const { evidence, problem } = shown;
   const item = await ctx.github.issue(issue);
   const link = `https://github.com/${ctx.cfg.repo}/issues/${issue}`;
@@ -205,11 +211,17 @@ export async function post(ctx: Ctx, issue: number, approval: Approval, shown: S
   const track = {
     add: (id: number) => updateState(ctx.statePath, (state) => ({ ...state, approvalPosts: { ...state.approvalPosts, [id]: issue }, postCaptions: { ...state.postCaptions, [id]: caption }, textPosts: evidence === null ? [...state.textPosts, String(id)] : state.textPosts })),
   };
-  if (evidence !== null) {
-    await postWithEvidence(ctx, evidence, caption, approvalButtons(issue, base), track, { stage: 'checks', issue });
-    return;
+  if (evidence !== null) await postWithEvidence(ctx, evidence, caption, approvalButtons(issue, base), track, { stage: 'checks', issue });
+  else track.add(await ctx.telegram.sendButtons(ctx.cfg.committeeChat, caption, approvalButtons(issue, base)));
+  await postPublicBuild(ctx, issue, build, url, approval.description);
+}
+
+async function postPublicBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void> {
+  try {
+    await postBuild(ctx, issue, build, url, description);
+  } catch (error) {
+    await reportFailure(ctx, 'public', issue, `the public build post failed, the committee post stands: ${error instanceof Error ? error.message : String(error)}`, null, []);
   }
-  track.add(await ctx.telegram.sendButtons(ctx.cfg.committeeChat, caption, approvalButtons(issue, base)));
 }
 
 async function pullRequestUrl(ctx: Ctx, issue: number, title: string, approval: Approval, base: string): Promise<string> {

@@ -93,6 +93,8 @@ export const SCREENS = {
   'sound.unmuteTitle': 'Unmute [M]',
   'sound.muteTitle': 'Mute [M]',
   'crash.title': 'The game crashed',
+  'download.title': 'The game could not download its files',
+  'download.saves': 'Your saves are safe in this browser.',
   'webgl.title': 'Road Machiners needs WebGL',
   'webgl.intro': 'Your browser could not start 3D graphics. Try one of these:',
   'webgl.acceleration': '• Turn on hardware acceleration in the browser settings.',

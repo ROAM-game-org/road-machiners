@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { drawsOwnBumpers } from '../../render/partLooks';
-import { baseGrid, itemCells } from '../../sim/grid';
+import { CHASSIS } from '../../data/chassis';
+import { wheelMounts } from '../../phys/body';
+import { bodyOf, cellRect, highestUnder } from '../../sim/body';
+import { makePart } from '../../sim/factory';
+import { baseGrid, itemCells, placementError } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
 import type { GridItem, Vehicle } from '../../sim/types';
 import { loadModels } from './models';
@@ -58,5 +62,52 @@ describe('the hauler nose and tail', () => {
   it('shows the semi model\'s own chrome bumper and trailer doors, with no game bumper over them', () => {
     expect(drawsOwnBumpers('semi')).toBe(true);
     expect(drawsOwnBumpers('scout')).toBe(false);
+  });
+});
+
+function withCaltropsAt(chassisId: string, x: number, y: number): { v: Vehicle; caltrops: PartItem } {
+  const w = emptyWorld();
+  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const caltrops: PartItem = { id: 'i-caltrops', x, y, rot: 0, kind: 'part', part: makePart(w, 'caltrops', 0) };
+  return { v, caltrops };
+}
+
+function rimCells(chassisId: string): { x: number; y: number }[] {
+  const grid = baseGrid(chassisId);
+  return grid.cells.flatMap((row, y) => row.flatMap((cell, x) => (cell === 'F' || cell === 'B' ? [{ x, y }] : [])));
+}
+
+describe('parts on bare nose and tail cells', () => {
+  it('builds the buggy view with caltrops on its bare nose cell, and keeps an anchor for them', () => {
+    const { v, caltrops } = withCaltropsAt('buggy', 4, 0);
+    expect(baseGrid('buggy').cells[0][4]).toBe('F');
+    expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
+    v.items.push(caltrops);
+    const view = new VehicleView(v, true);
+    expect(view.hasPart(caltrops.part.id)).toBe(true);
+  });
+
+  it('builds the view for caltrops on every legal nose and tail cell of every chassis', () => {
+    for (const chassisId of Object.keys(CHASSIS)) {
+      for (const cell of rimCells(chassisId)) {
+        const { v, caltrops } = withCaltropsAt(chassisId, cell.x, cell.y);
+        if (placementError(baseGrid(chassisId), v.items, caltrops, null)) continue;
+        v.items.push(caltrops);
+        expect(() => new VehicleView(v, true), `${chassisId} ${cell.x},${cell.y}`).not.toThrow();
+      }
+    }
+  });
+
+  it('keeps a hidden cab anchored on the highest model surface under its cells', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'raiders', 'buggy', [], { x: 30, y: 30 });
+    const cab = partOf(v, 'cab');
+    const view = new VehicleView(v, true);
+    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
+    const rect = cellRect('buggy', itemCells(cab));
+    const at = view.partPoint(cab.part.id);
+    expect(at.x).toBeCloseTo((rect.x0 + rect.x1) / 2);
+    expect(at.y).toBeCloseTo(highestUnder('buggy', rect));
+    expect(at.z).toBeCloseTo((rect.z0 + rect.z1) / 2);
   });
 });

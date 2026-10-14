@@ -94,6 +94,8 @@ export const SCREENS: Translation<typeof EN> = {
   'sound.unmuteTitle': 'Включить звук [M]',
   'sound.muteTitle': 'Выключить звук [M]',
   'crash.title': 'Игра упала',
+  'download.title': 'Не удалось скачать файлы игры',
+  'download.saves': 'Ваши сохранения в этом браузере не пострадали.',
   'webgl.title': 'Road Machiners нужен WebGL',
   'webgl.intro': 'Браузер не смог запустить 3D-графику. Попробуйте одно из этого:',
   'webgl.acceleration': '• Включите аппаратное ускорение в настройках браузера.',
