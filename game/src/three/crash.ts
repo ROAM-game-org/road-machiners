@@ -1,10 +1,11 @@
 
 
 import { GAME_VERSION } from '../config';
+import { DownloadFailed } from '../fetch-bytes';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
-import { t } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 
 let shown = false;
 let report: ((text: string) => void) | null = null;
@@ -57,6 +58,10 @@ export function crashText(err: unknown, facts: ErrorFacts | null, context: Crash
   );
   return lines.join('\n');
 }
+export function loadFailedText(err: DownloadFailed): { title: Msg; line: Msg; action: Msg; detail: string } {
+  return { title: t('crash.loadTitle'), line: t('crash.loadHint'), action: t('crash.reload'), detail: err.message };
+}
+
 const sinks: ((err: unknown) => void)[] = [];
 
 export function installCrashScreen(): void {
@@ -97,7 +102,8 @@ function ignoreForeign(facts: ErrorFacts): void {
 }
 
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  if (err instanceof WebGLUnavailable) showNoWebGL(err);
+  if (err instanceof DownloadFailed) showLoadFailed(err);
+  else if (err instanceof WebGLUnavailable) showNoWebGL(err);
   else onFault(err, facts);
 }
 
@@ -151,4 +157,28 @@ function showNoWebGL(err: WebGLUnavailable): void {
     box.append(detail);
   }
   document.body.appendChild(box);
+}
+
+function showLoadFailed(err: DownloadFailed): void {
+  if (shown) return;
+  shown = true;
+  console.warn(err);
+  const text = loadFailedText(err);
+  const box = document.createElement('div');
+  box.className = 'crash-screen';
+  const title = document.createElement('div');
+  title.className = 'crash-title';
+  setText(title, text.title);
+  const line = document.createElement('div');
+  setText(line, text.line);
+  const reload = document.createElement('button');
+  reload.className = 'btn-l crash-reload';
+  setText(reload, text.action);
+  reload.addEventListener('click', () => location.reload());
+  const detail = document.createElement('div');
+  detail.className = 'crash-hint';
+  detail.textContent = text.detail;
+  box.append(title, line, reload, detail);
+  document.body.appendChild(box);
+  reload.focus();
 }
