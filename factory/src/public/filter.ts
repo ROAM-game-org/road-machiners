@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput } from './decision';
+import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput, Relevance } from './decision';
 import type { PublicRoute } from './store';
+import { NO_TOPIC, TOPIC_VALUES, TOPICS } from './topics';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
 const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', import.meta.url)), 'utf8').trim();
@@ -17,7 +18,7 @@ const INTENT = {
   ],
 };
 
-const KIND = {
+const REPORT_KIND = {
   type: 'choice',
   name: 'kind',
   instructions: 'What is it?',
@@ -25,6 +26,39 @@ const KIND = {
     { value: 'bug', description: 'Something is broken.' },
     { value: 'feature', description: 'A wish for something new.' },
     { value: 'feedback', description: 'Praise, a complaint or a question.' },
+  ],
+};
+
+const CHAT_KIND = {
+  type: 'choice',
+  name: 'kind',
+  instructions: 'What is it?',
+  choices: [
+    { value: 'bug', description: 'Something is broken. "The truck falls through the bridge."' },
+    { value: 'feature', description: 'A wish for something new or changed. "Add a minimap and maps to buy."' },
+    { value: 'question', description: 'A question about the game or how to take part. "How do I repair the engine?" "How do I vote?"' },
+    { value: 'feedback', description: 'Praise or a complaint. "Fights feel great now." "The new music is too loud."' },
+    { value: 'chatter', description: 'Asks, reports and wishes nothing: greetings, thanks, talk between players. "Hi all." "Thanks!" "Anyone online?"' },
+  ],
+};
+
+const RELEVANCE = {
+  type: 'choice',
+  name: 'relevance',
+  instructions: 'The player text replies in the chat thread of the proposal or test build named under Thread. Is it about that proposal or build?',
+  choices: [
+    { value: 'parent', description: 'About it: it reacts to it, asks about it, or asks to change or fix it. Under a winch proposal: "Yes, build this." "The winch snaps on hills." "Make the winch cheaper."' },
+    { value: 'other', description: 'A separate bug, wish or question the thread does not cover. Under a winch proposal: "Add a minimap and maps to buy." "My truck falls through the bridge."' },
+  ],
+};
+
+const TOPIC = {
+  type: 'choice',
+  name: 'topic',
+  instructions: 'If it asks a question about the game, which topic answers it?',
+  choices: [
+    ...TOPICS.map((topic) => ({ value: topic.value, description: topic.description })),
+    { value: NO_TOPIC, description: 'It asks no question, or no topic above answers it.' },
   ],
 };
 
@@ -40,7 +74,9 @@ const ROUTE = {
 };
 
 const INTENTS = INTENT.choices.map((choice) => choice.value) as DecisionIntent[];
-const KINDS = KIND.choices.map((choice) => choice.value) as DecisionKind[];
+const KINDS = CHAT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
+const REPORT_KINDS = REPORT_KIND.choices.map((choice) => choice.value) as DecisionKind[];
+const RELEVANCES = RELEVANCE.choices.map((choice) => choice.value) as Relevance[];
 const ROUTES = ROUTE.choices.map((choice) => choice.value) as PublicRoute[];
 
 type Answer = { type?: unknown; name?: unknown; choice?: unknown; probabilities?: unknown };
@@ -51,14 +87,30 @@ export function filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): C
       method: 'POST',
       signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
       headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: cfg.filterModel, input: `Game: ${GAME}\n\nPlayer text: ${input.text}`, questions: questionsFor(input) }),
+      body: JSON.stringify({ model: cfg.filterModel, input: inputText(input), questions: questionsFor(input) }),
     });
     if (response.status !== 200) throw new Error(`The filter call failed with status ${response.status}.`);
     return decide(cfg, input, answersOf(await response.json()));
   };
 }
 
-const questionsFor = (input: FilterInput) => (input.source === 'comment' ? [INTENT, KIND, ROUTE] : [INTENT, KIND]);
+const hasParent = (input: FilterInput): input is FilterInput & { parent: string } => typeof input.parent === 'string' && input.parent.trim() !== '';
+
+function inputText(input: FilterInput): string {
+  const thread = hasParent(input) ? `Thread: ${input.parent.trim()}\n\n` : '';
+  return `Game: ${GAME}\n\n${thread}Player text: ${input.text}`;
+}
+
+function questionsFor(input: FilterInput) {
+  if (input.source === 'report') return [INTENT, REPORT_KIND];
+  const relevance = hasParent(input) ? [RELEVANCE] : [];
+  return input.source === 'comment' ? [INTENT, CHAT_KIND, ROUTE, TOPIC, ...relevance] : [INTENT, CHAT_KIND, TOPIC, ...relevance];
+}
+
+function relevanceOf(input: FilterInput, answers: Answer[]): Relevance {
+  if (hasParent(input)) return choice(answers, 'relevance', RELEVANCES);
+  return input.source === 'comment' ? 'parent' : 'other';
+}
 
 function answersOf(body: unknown): Answer[] {
   const answers = (body as { answers?: unknown } | null)?.answers;
@@ -75,8 +127,10 @@ function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decis
     verdict: sincere ? 'accept' : 'reject',
     sincere: odds.sincere,
     intent: sincere ? 'sincere' : odds.troll >= odds.spam ? 'troll' : 'spam',
-    kind: choice(answers, 'kind', KINDS),
+    kind: choice(answers, 'kind', input.source === 'report' ? REPORT_KINDS : KINDS),
     route: input.source === 'comment' ? choice(answers, 'route', ROUTES) : 'none',
+    relevance: relevanceOf(input, answers),
+    topic: input.source === 'report' ? NO_TOPIC : choice(answers, 'topic', TOPIC_VALUES),
   };
 }
 

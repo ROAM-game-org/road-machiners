@@ -4,7 +4,7 @@ import type { Classify } from './decision';
 import { CHANNEL, publicFake } from './public-fakes';
 import { publicTick } from './tick-steps';
 
-const accept: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none' });
+const accept: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent', topic: 'none' });
 
 describe('publicTick', () => {
   it('records a failure when a step throws and still runs the later steps', async () => {
@@ -51,7 +51,7 @@ describe('publicTick', () => {
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
     f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'a', postChat: CHANNEL, postMessageId: 100, author: 'a', text: 'spam', at: f.clock.now.toISOString() });
-    await publicTick(f.ctx, async () => ({ verdict: 'reject', intent: 'spam', sincere: 0.05, kind: 'bug', route: 'none' }));
+    await publicTick(f.ctx, async () => ({ verdict: 'reject', intent: 'spam', sincere: 0.05, kind: 'bug', route: 'none', relevance: 'parent', topic: 'none' }));
     expect(f.store.unclassifiedComments(100)).toEqual([]);
     expect(f.store.unsentComments()).toEqual([]);
     expect(f.comments).toEqual([]);

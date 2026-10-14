@@ -3,7 +3,7 @@ import { classifyComments } from './classify-comments';
 import type { Classify } from './decision';
 import { CHANNEL, publicFake } from './public-fakes';
 
-const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none' });
+const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent', topic: 'none' });
 
 function withComments(count: number, perTick: number) {
   const f = publicFake({ filterPerTick: perTick });
