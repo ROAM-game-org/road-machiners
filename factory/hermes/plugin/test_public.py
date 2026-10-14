@@ -133,8 +133,15 @@ def test_discussion_comment_event(tmp_path):
     assert stop is True
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
-        "author": "Ann Lee", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
+        "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
     }}
+
+
+def test_comment_sender_is_the_sender_chat_for_an_anonymous_admin(tmp_path):
+    raw = comment_update()
+    raw["message"]["sender_chat"] = {"id": -100777, "type": "supergroup"}
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["sender"] == "-100777"
 
 
 def test_comment_is_attributed_to_the_replied_message_not_the_thread_root(tmp_path):

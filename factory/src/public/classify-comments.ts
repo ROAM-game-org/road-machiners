@@ -4,7 +4,7 @@ import { isolated } from './isolate';
 import type { PublicStore, StoredComment } from './store';
 
 export async function classifyComments(ctx: Ctx, store: PublicStore, classify: Classify): Promise<void> {
-  for (const comment of store.unclassifiedComments().slice(0, ctx.cfg.filterPerTick)) {
+  for (const comment of store.unclassifiedComments(ctx.cfg.filterPerTick)) {
     store.classify(comment.id, 'rejected', 'none', ctx.now());
     await isolated(ctx, comment.issue, `the filter failed on player comment ${comment.id}, so it stays rejected`, () => classifyOne(ctx, store, classify, comment));
   }

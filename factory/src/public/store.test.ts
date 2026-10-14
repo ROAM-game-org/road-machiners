@@ -100,36 +100,36 @@ describe('public store', () => {
   it('maps a discussion comment to its issue through the automatic forward', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'forward', chat: GROUP, messageId: 55, channelChat: CHANNEL, channelMessageId: 100 });
-    store.applyEvent({ updateId: 2, kind: 'comment', chat: GROUP, messageId: 56, threadId: 55, author: 'Ann', text: 'Yes please', at: now.toISOString() });
-    store.applyEvent({ updateId: 3, kind: 'comment', chat: GROUP, messageId: 57, threadId: 999, author: 'Bob', text: 'Off topic', at: now.toISOString() });
-    expect(store.unclassifiedComments().map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
+    store.applyEvent({ updateId: 2, kind: 'comment', chat: GROUP, messageId: 56, threadId: 55, author: 'Ann', sender: '1', text: 'Yes please', at: now.toISOString() });
+    store.applyEvent({ updateId: 3, kind: 'comment', chat: GROUP, messageId: 57, threadId: 999, author: 'Bob', sender: '2', text: 'Off topic', at: now.toISOString() });
+    expect(store.unclassifiedComments(100).map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
   });
 
   it('never offers a dropped comment to the filter', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', text: 'Stalls', at: now.toISOString() });
+    store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text: 'Stalls', at: now.toISOString() });
     store.closeBuildPosts(7);
     expect(store.dropCommentsOnClosedPosts(now)).toBe(1);
-    expect(store.unclassifiedComments()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
   });
 
   it('maps a reply to a player comment to the issue and post of that comment', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', text: 'It crashes', at: now.toISOString() });
-    store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 202, threadId: 201, author: 'Bob', text: 'Same here on the bridge', at: now.toISOString() });
-    store.applyEvent({ updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 203, threadId: 202, author: 'Cid', text: 'Me too', at: now.toISOString() });
-    for (const comment of store.unclassifiedComments()) store.classify(comment.id, 'bug', 'patch', now);
+    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', sender: '1', text: 'It crashes', at: now.toISOString() });
+    store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 202, threadId: 201, author: 'Bob', sender: '2', text: 'Same here on the bridge', at: now.toISOString() });
+    store.applyEvent({ updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 203, threadId: 202, author: 'Cid', sender: '3', text: 'Me too', at: now.toISOString() });
+    for (const comment of store.unclassifiedComments(100)) store.classify(comment.id, 'bug', 'patch', now);
     expect(store.pendingRoutes().map((c) => [c.issue, c.text])).toEqual([[7, 'It crashes'], [7, 'Same here on the bridge'], [7, 'Me too']]);
   });
 
   it('routes only comments on the open build post', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', text: 'It crashes', at: now.toISOString() });
-    store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Bob', text: 'Crash on proposal', at: now.toISOString() });
-    for (const comment of store.unclassifiedComments()) store.classify(comment.id, 'bug', 'patch', now);
+    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', sender: '1', text: 'It crashes', at: now.toISOString() });
+    store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Bob', sender: '2', text: 'Crash on proposal', at: now.toISOString() });
+    for (const comment of store.unclassifiedComments(100)) store.classify(comment.id, 'bug', 'patch', now);
     expect(store.pendingRoutes().map((c) => c.text)).toEqual(['It crashes']);
     store.addBuildPost(7, 'def', CHANNEL, 300, now);
     expect(store.pendingRoutes()).toEqual([]);
@@ -138,8 +138,8 @@ describe('public store', () => {
   it('keeps rejected comments out of digests and routes', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', text: 'spam', at: now.toISOString() });
-    const [comment] = store.unclassifiedComments();
+    store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', sender: '1', text: 'spam', at: now.toISOString() });
+    const [comment] = store.unclassifiedComments(100);
     store.classify(comment.id, 'rejected', 'patch', now);
     expect(store.unsentComments()).toEqual([]);
     expect(store.pendingRoutes()).toEqual([]);

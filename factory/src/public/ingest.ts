@@ -48,7 +48,7 @@ const KINDS: Record<PublicEvent['kind'], (base: Base, fields: Fields) => PublicE
   'reaction-count': (base, fields) => ({ ...base, kind: 'reaction-count', counts: counts(fields) }),
   reaction: (base, fields) => ({ ...base, kind: 'reaction', user: text(fields, 'user'), emoji: emoji(fields) }),
   forward: (base, fields) => ({ ...base, kind: 'forward', channelChat: text(fields, 'channelChat'), channelMessageId: integer(fields, 'channelMessageId') }),
-  comment: (base, fields) => ({ ...base, kind: 'comment', threadId: integer(fields, 'threadId'), author: text(fields, 'author'), text: text(fields, 'text'), at: text(fields, 'at') }),
+  comment: (base, fields) => ({ ...base, kind: 'comment', threadId: integer(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at') }),
 };
 
 function parseJson(raw: string): Fields {

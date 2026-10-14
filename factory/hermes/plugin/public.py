@@ -79,6 +79,10 @@ def author_of(message: dict) -> str:
     return sender["username"]
 
 
+def sender_of(message: dict) -> str:
+    return str(message.get("sender_chat", message["from"])["id"])
+
+
 def comment_event(raw: dict, message: dict) -> Optional[dict]:
     text = message.get("text") or message.get("caption")
     reply = message.get("reply_to_message")
@@ -88,7 +92,7 @@ def comment_event(raw: dict, message: dict) -> Optional[dict]:
     return {
         "updateId": raw["update_id"], "kind": "comment", "chat": str(message["chat"]["id"]),
         "messageId": message["message_id"], "threadId": thread, "author": author_of(message),
-        "text": text, "at": iso_date(message["date"]),
+        "sender": sender_of(message), "text": text, "at": iso_date(message["date"]),
     }
 
 

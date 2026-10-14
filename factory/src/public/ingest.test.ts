@@ -76,12 +76,13 @@ describe('ingest', () => {
 
   it('moves a file with a bad field to bad and never echoes the value', async () => {
     const { f, inbox, put } = setup();
-    put('3.json', { updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 1, threadId: 2, author: 'ann', text: 12345, at: 'x' });
+    put('3.json', { updateId: 3, kind: 'comment', chat: CHANNEL, messageId: 1, threadId: 2, author: 'ann', sender: '1', text: 12345, at: 'x' });
     put('4.json', { updateId: 4, kind: 'mystery' });
     put('5.json', { updateId: 'five', kind: 'forward' });
     put('6.json', count(6, { '👍': 'many' } as never));
+    put('7.json', { updateId: 7, kind: 'comment', chat: CHANNEL, messageId: 1, threadId: 100, author: 'ann', text: 'No sender id', at: 'x' });
     await ingest(f.ctx, f.store);
-    expect(readdirSync(`${inbox}/bad`).sort()).toEqual(['3.json', '4.json', '5.json', '6.json']);
+    expect(readdirSync(`${inbox}/bad`).sort()).toEqual(['3.json', '4.json', '5.json', '6.json', '7.json']);
     const errors = readState(f.ctx.statePath).failures.map((failure) => failure.error).join('\n');
     expect(errors).toContain('text');
     expect(errors).not.toContain('12345');
@@ -108,17 +109,17 @@ describe('ingest', () => {
 
   it('stores a comment event for a tracked thread', async () => {
     const { f, put } = setup();
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments().map((comment) => comment.text)).toEqual(['The truck stalls']);
+    expect(f.store.unclassifiedComments(100).map((comment) => comment.text)).toEqual(['The truck stalls']);
   });
 
   it('attributes a reply to a build post that replies to the proposal to the issue, and routes it', async () => {
     const { f, put } = setup();
     f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
-    const [stored] = f.store.unclassifiedComments();
+    const [stored] = f.store.unclassifiedComments(100);
     expect(stored!.issue).toBe(7);
     f.store.classify(stored!.id, 'bug', 'patch', f.clock.now);
     expect(f.store.pendingRoutes().map((route) => route.issue)).toEqual([7]);
@@ -127,9 +128,9 @@ describe('ingest', () => {
   it('attributes a reply to a stored player comment to that comment issue', async () => {
     const { f, put } = setup();
     f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
-    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
-    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 31, author: 'bo', text: 'Same here', at: '2026-10-14T10:01:00Z' });
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 31, author: 'bo', sender: '2', text: 'Same here', at: '2026-10-14T10:01:00Z' });
     await ingest(f.ctx, f.store);
-    expect(f.store.unclassifiedComments().map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
+    expect(f.store.unclassifiedComments(100).map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
   });
 });
