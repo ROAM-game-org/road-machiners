@@ -12,6 +12,8 @@ services:
       dockerfile: Dockerfile
     command: ["/usr/local/bin/factory-start"]
     restart: unless-stopped
+    # Docker's default 10 s grace kills Hermes with its Telegram long poll open. Telegram then answers the restart with a conflict and Hermes drops the queued updates.
+    stop_grace_period: 60s
     environment:
       HERMES_HOME: /opt/data
       # Hermes runs as the factory user, so the files it edits keep their owner.
