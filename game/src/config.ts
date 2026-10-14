@@ -23,5 +23,6 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
-  download: { tries: 4, waitsMs: [1000, 2000, 4000] },
+  assetFetchTries: 3,
+  assetRetryMs: 500,
 };

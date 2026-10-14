@@ -1,7 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
-import { DownloadFailed } from '../download';
+import { DownloadFailed } from '../fetch-bytes';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';

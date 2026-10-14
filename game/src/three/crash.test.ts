@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DownloadFailed } from '../download';
+import { DownloadFailed } from '../fetch-bytes';
 import { WebGLUnavailable } from './webgl';
 import { crashText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
@@ -72,7 +72,7 @@ describe('crashText', () => {
 
 describe('routeOf', () => {
   it('keeps a dropped download out of the fault path', () => {
-    expect(routeOf(new DownloadFailed('Sound a', '/a', 4, 'x'))).toBe('download');
+    expect(routeOf(new DownloadFailed('/a failed', 'x'))).toBe('download');
   });
 
   it('keeps the WebGL route', () => {
