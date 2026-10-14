@@ -65,8 +65,10 @@ Final batch: `--physics true`, 1600 turns, seeds 1 to 10, code of the commit bef
 
 Escort, last stretch beaten per seed: 19, 16, 19, 20, 19, 13, 12, 14, 10, 19. 10 of 10 seeds beat stretch 10, against the bar of 9 of 10. Seeds 1, 2, 3, 4, 5 and 10 were alive at the turn limit. Seeds 6, 7 and 8 ended abandoned and seed 9 ended wrecked, all after stretch 10.
 
+The same code on seeds 11 to 20 beat stretch 10 on 10 of 10 seeds: 19, 20, 19, 15, 16, 10, 19, 19, 13, 20. Together that is 20 of 20.
+
 Sprinter, last stretch beaten per seed: 8, 11, 6, 15, 7, 16, 11, 8, 10, 10. Seeds 1, 3 and 8 lost before stretch 10 (3 of 10). The sprinter bot is unchanged, and the batch before the escort work gave the same 3 of 10.
 
 `escort:report` on the final batch: Beatable PASS (10 of 10, need 6), Damage PASS, React PASS, Variety PASS, Rise PASS, Fight FAIL (28 of 161), Choice FAIL (55 of 161), Not sprintable FAIL (3 of 10).
 
-Tests: `escort-tactics.test.ts` and `runner.test.ts` pass, and `npm run typecheck` passes.
+Tests: `escort-tactics.test.ts`, `runner.test.ts`, `bot.test.ts`, `escort-report.test.ts` and `recorder-mover.test.ts` pass, and `npm run typecheck` passes.
