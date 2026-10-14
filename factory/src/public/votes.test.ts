@@ -9,6 +9,7 @@ function posted(counts: Record<string, number> | null) {
   const f = publicFake();
   f.store.addProposal(7, 'Winch', f.clock.now);
   f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
+  f.cards = [{ itemId: 'x', issue: 7, column: 'Triage', labels: ['voting'] }];
   if (counts) f.store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts });
   return f;
 }
@@ -98,6 +99,64 @@ describe('countVotes', () => {
     expect(f.calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
   });
 
+  it('keeps the voting label when the card move fails, so triage does not run again on the card', async () => {
+    const f = posted({ '👍': 3 });
+    f.ctx.github.move = async () => { throw new Error('GitHub 502'); };
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => call.startsWith('removeLabel'))).toEqual([]);
+    expect(f.edits).toEqual([]);
+  });
+
+  it('removes the voting label only after the card move', async () => {
+    const f = posted({ '👍': 3 });
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => call.startsWith('move') || call.startsWith('removeLabel'))).toEqual(['move 7 Design', 'removeLabel 7 voting']);
+  });
+
+  it('removes the voting label last when it rejects a proposal', async () => {
+    const f = posted(null);
+    react(f, 2, '42', ['👎']);
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.at(-1)).toBe('removeLabel 7 voting');
+    expect(f.calls.indexOf('move 7 Done')).toBeLessThan(f.calls.indexOf('removeLabel 7 voting'));
+  });
+
+  it.each([
+    ['the issue is closed', (f: ReturnType<typeof posted>) => { f.issueState[7] = 'CLOSED'; }],
+    ['the voting label was removed by hand', (f: ReturnType<typeof posted>) => { f.issueLabels[7] = []; }],
+    ['the card was moved by hand out of Triage', (f: ReturnType<typeof posted>) => { f.cards = [{ itemId: 'x', issue: 7, column: 'Implementation', labels: ['voting'] }]; }],
+    ['the card left the board', (f: ReturnType<typeof posted>) => { f.cards = []; }],
+  ])('closes a passed proposal with no GitHub write when %s', async (_name, change) => {
+    const f = posted({ '👍': 3 });
+    change(f);
+    await countVotes(f.ctx, f.store);
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => !call.startsWith('issue'))).toEqual([]);
+    expect(f.calls.filter((call) => call.startsWith('issue'))).toEqual(['issue 7']);
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 3 👍, 0 👎, net +3/3\nClosed']);
+    expect(f.logs.join('\n')).toContain('7 the issue is closed');
+  });
+
+  it('closes a committee-rejected proposal with no GitHub write when its card left Triage', async () => {
+    const f = posted(null);
+    f.cards = [{ itemId: 'x', issue: 7, column: 'Done', labels: [] }];
+    react(f, 2, '42', ['👎']);
+    await countVotes(f.ctx, f.store);
+    expect(f.calls).toEqual(['issue 7']);
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 1 👎, net -1/3\nClosed']);
+  });
+
+  it('reads the issue and the board only when a proposal concludes, never for a count edit', async () => {
+    const f = posted(null);
+    react(f, 2, '7', ['👍']);
+    let boardReads = 0;
+    f.ctx.github.cards = async () => { boardReads += 1; return f.cards; };
+    await countVotes(f.ctx, f.store);
+    expect(f.calls).toEqual([]);
+    expect(boardReads).toBe(0);
+  });
+
   it('never undoes an accepted proposal when its score falls later', async () => {
     const f = posted(null);
     for (const [updateId, user] of [[2, '7'], [3, '8'], [4, '9']] as const) react(f, updateId, user, ['👍']);
@@ -139,7 +198,7 @@ describe('countVotes', () => {
     for (const [updateId, user] of [[2, '7'], [3, '8'], [4, '9'], [5, '10']] as const) react(f, updateId, user, ['👍']);
     react(f, 6, '11', ['👎']);
     await countVotes(f.ctx, f.store);
-    expect(f.calls).toEqual(['removeLabel 7 voting', 'move 7 Design']);
+    expect(f.calls).toEqual(['issue 7', 'move 7 Design', 'removeLabel 7 voting']);
     expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 4 👍, 1 👎, net +3/3\n✅ Accepted with net +3');
   });
 });

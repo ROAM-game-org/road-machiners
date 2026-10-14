@@ -16,6 +16,7 @@ const KEYS = {
   repo: 'FACTORY_REPO',
   projectOwner: 'FACTORY_PROJECT_OWNER',
   projectNumber: 'FACTORY_PROJECT_NUMBER',
+  githubAppId: 'FACTORY_GITHUB_APP_ID',
   githubRetries: 'FACTORY_GITHUB_RETRIES',
   githubRetryBaseSeconds: 'FACTORY_GITHUB_RETRY_BASE_SECONDS',
   githubTimeoutSeconds: 'FACTORY_GITHUB_TIMEOUT_SECONDS',

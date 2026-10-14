@@ -1,7 +1,8 @@
 import { bundleOf } from '../stages/bundle';
 import { readState } from '../state';
 import { MESSAGE_LIMIT } from '../telegram-limits';
-import type { Ctx } from '../types';
+import { VOTING_LABEL, type Ctx } from '../types';
+import { isolated } from './isolate';
 import type { PublicStore, Tally } from './store';
 
 const DAY_MS = 24 * 3_600_000;
@@ -48,6 +49,10 @@ function escapeWithin(text: string, room: number): string {
   return fitted;
 }
 
+export const ACCEPTED_BY_COMMITTEE = '✅ Accepted by committee member';
+export const REJECTED_BY_COMMITTEE = '❌ Rejected by committee member';
+export const CLOSED_CONCLUSION = 'Closed';
+
 export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: string): string {
   const links = [issue, ...bundleOf(readState(ctx.statePath), issue)].map((number) => issueLink(ctx, number));
   const heading = `<b>Proposal: ${escapeHtml(pitchTitle(pitch))}</b>`;
@@ -58,17 +63,25 @@ export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: str
 
 export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> {
   const now = ctx.now();
-  if (store.proposalsPostedSince(new Date(now.getTime() - DAY_MS)) >= ctx.cfg.proposalsPerDay) return;
+  if (store.proposalPostAttemptsSince(new Date(now.getTime() - DAY_MS)) >= ctx.cfg.proposalsPerDay) return;
+  const footer = voteFooter(ctx, { up: 0, down: 0 });
   for (const proposal of store.unpostedProposals()) {
-    const item = await ctx.github.issue(proposal.issue);
-    if (item.state === 'CLOSED') {
-      ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
-      store.closeProposal(proposal.issue, now);
-      continue;
-    }
-    const footer = voteFooter(ctx, { up: 0, down: 0 });
-    const messageId = await ctx.telegram.sendHtml(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch, footer));
-    store.markProposalPosted(proposal.issue, ctx.cfg.proposalChat, messageId, footer, now);
-    return;
+    store.beginProposalPost(proposal.issue, now);
+    let skipped = false;
+    await isolated(ctx, proposal.issue, 'the proposal could not be posted and is closed without a post, so post it by hand or put the card to a vote again', async () => {
+      const item = await ctx.github.issue(proposal.issue);
+      if (item.state === 'CLOSED') {
+        ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
+        skipped = true;
+      } else if (!item.labels.includes(VOTING_LABEL)) {
+        ctx.log('public', proposal.issue, 'the issue lost its voting label, so its proposal is closed unposted');
+        skipped = true;
+      } else {
+        const messageId = await ctx.telegram.sendHtml(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch, footer));
+        store.markProposalPosted(proposal.issue, ctx.cfg.proposalChat, messageId, footer, now);
+      }
+    });
+    if (!skipped) return;
+    store.closeProposal(proposal.issue, now);
   }
 }

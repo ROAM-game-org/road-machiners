@@ -82,4 +82,17 @@ describe('routeReports', () => {
     await routeReports(f.ctx, f.store);
     expect(f.comments).toEqual([]);
   });
+
+  it('keeps mentions, team mentions and cross-repo references of a routed comment from reaching GitHub live', async () => {
+    const f = publicFake();
+    f.cards = [{ itemId: 'x', issue: 8, column: 'Approval', labels: [] }];
+    updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 400: 8 }, postCaptions: { 400: 'caption' }, textPosts: ['400'] }));
+    const id = f.store.addComment({ issue: 8, source: 'game', sourceId: 'report:2', postChat: null, postMessageId: null, author: '@torvalds', text: 'cc @octocat @github/security see torvalds/linux#1', at: f.clock.now.toISOString() })!;
+    f.store.classify(id, 'bug', 'patch', f.clock.now);
+    await routeReports(f.ctx, f.store);
+    const body = f.comments[0]!.body;
+    expect(body).not.toMatch(/@\w/);
+    expect(body).not.toMatch(/(?<!\u200D)#\d/);
+    expect(body.replaceAll('\u200D', '')).toContain('@torvalds wrote:\n> cc @octocat @github/security see torvalds/linux#1');
+  });
 });
