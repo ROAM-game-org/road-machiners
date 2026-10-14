@@ -102,6 +102,10 @@ export class BootScreen {
     await new Promise<void>((resolve) => setTimeout(resolve));
   }
 
+  showText(): void {
+    this.root.dataset.fonts = 'ready';
+  }
+
   async finish(): Promise<void> {
     this.progress.start('frame');
     this.render();
