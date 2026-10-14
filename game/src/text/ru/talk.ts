@@ -235,6 +235,8 @@ export const TALK: Translation<typeof EN> = {
   'radio.fetch.0': '{shop} {shop, gender, m {ищет} f {ищет} n {ищет} pl {ищут}} {part, gender, m {исправный} f {исправную} n {исправное} pl {исправные}} {part, case, acc}.',
   'radio.fetch.1': 'Разыскивают {part, case, acc} {shop, case, at}, ещё {part, gender, m {живой} f {живую} n {живое} pl {живые}}.',
   'radio.bounty.0': '{shop} {shop, gender, m {назначил} f {назначила} n {назначило} pl {назначили}} цену за {target, case, acc}. Говорят, бизнес, а не убийство.',
+  'radio.survey.0': '{shop, case, at} нужны глаза в дальних краях. Платят честно, а вот дорога — нет.',
+  'radio.survey.1': '{shop, case, at} висит заказ на разведку. Захватите запаску и хорошую карту.',
   'radio.bounty.1': 'На доске {shop, case, at} листовка на {target, case, acc}. Я просто читаю, мужики.',
   'radio.raid.0': 'Рейдеры шалят {place}. Бухгалтерам опять горячий день.',
   'radio.raid.1': 'Рейдеры работают на дороге {place}. Груз там меняет хозяев.',

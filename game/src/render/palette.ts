@@ -51,6 +51,7 @@ export const PAL = {
   utility: tokenColor('--accent-dim'),
   arcSpent: tokenColor('--path-spent'),
   contact: tokenColor('--path-contact'),
+  survey: tokenColor('--path-survey'),
   smoke: 0x100e0d,
   caltrops: { spike: 0x9a9a94 },
   oil: { slick: 0x0c0b0a },

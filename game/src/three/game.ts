@@ -67,6 +67,7 @@ import { HoverArcsView, WeaponRangeView } from "./render/weaponRange";
 import { stormTintStyle, WeatherView } from "./render/weather";
 import { stormShare } from "../sim/weather";
 import { ZonesView } from "./render/zones";
+import { SurveyAreasView } from "./render/survey-areas";
 import { daylightAt, enableSunShadows, lightScene, VehicleLights, sunLight, vehicleLampsOn } from "./render/daylight";
 import { sunAt } from "../sim/sun";
 import { markError, markVehicle } from "../sim/detect";
@@ -132,6 +133,7 @@ export class Game {
   private readonly weather: WeatherView;
   private readonly labels: Labels;
   private readonly zones = new ZonesView();
+  private readonly surveyAreas = new SurveyAreasView();
   private readonly contacts = new ContactsView();
   private readonly clouds = new CloudViews();
   private readonly utilityAim = new UtilityAim({ world: () => this.world, apply: (next) => this.apply(next), note: (text) => this.hud.note(this.world, text, "bad") });
@@ -241,6 +243,7 @@ export class Game {
       this.shade.mesh,
       this.weather.root,
       this.zones.root,
+      this.surveyAreas.root,
       this.path.root,
       this.weaponRange.root,
       this.hoverArcs.root,
@@ -1058,6 +1061,8 @@ export class Game {
       this.travel.isAdvancing(this.anim, this.last) || this.modalOpen();
     const steer = !hide && playerCanAct(this.world);
     this.zones.root.visible = steer;
+    this.surveyAreas.update(this.world);
+    this.surveyAreas.root.visible = !this.modalOpen();
     this.path.show(steer, this.displayWorld(), this.modalOpen());
     this.weaponRange.root.visible = false;
     this.hoverArcs.follow(this.displayWorld(), this.inspected(), this.frames, this.modalOpen());

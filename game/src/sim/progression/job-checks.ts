@@ -16,6 +16,7 @@ const JOBS: Partial<Record<Archetype, Job>> = {
   fastTrader: { what: 'turns with a sale', floor: 0.5, grace: 3, read: (t) => t.saleTurns },
   scavenger: { what: 'turns with a sale', floor: 2, grace: 3, read: (t) => t.saleTurns },
   hauler: { what: 'money from contracts', floor: 75, grace: 5, read: (t) => t.contractMoney },
+  surveyor: { what: 'money from contracts', floor: 75, grace: 5, read: (t) => t.contractMoney },
 };
 
 const PLAYER_SHOT = /^shot [^>]*:player\//;

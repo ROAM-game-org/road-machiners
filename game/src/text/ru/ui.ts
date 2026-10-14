@@ -67,6 +67,8 @@ export const UI: Translation<typeof EN> = {
   'trade.filter.utility': 'Оборудование',
   'trade.theyCantPay': 'Им нечем заплатить',
   'contract.claim': 'Забрать награду',
+  'contract.report': 'Сдать отчет',
+  'contract.reportAt': 'Сдать отчет {site, case, at}',
   'contract.claimAt': 'Награда {site, case, at}',
   'contract.notMet': 'Условие ещё не выполнено',
   'contract.ready': 'Готово',

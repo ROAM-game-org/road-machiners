@@ -38,13 +38,13 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, isMet, shopAt, shopState, siteOf, type Contract, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, CRATE_NOTE, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, saleEstimate, surveyWhere, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -52,6 +52,7 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap } from "../sim/stats";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import type { Vec } from "../sim/vec";
 import { goodName, localName, localRole, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
@@ -341,24 +342,32 @@ export class TownScreen {
       {},
       el("h3", {}, t("contract.offers")),
       board.length
-        ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), true)))
+        ? el("div", { class: "jobs" }, ...board.map((c) => contractRow(w, c, accept(c), siteOf(shopId).pos, true)))
         : el("div", { class: "dim" }, t("contract.noOffers")),
       el("h3", {}, t("contract.yours", { n: w.player.contracts.length, max: CONTRACTS.maxActive })),
       w.player.contracts.length
-        ? el("div", { class: "jobs" }, ...w.player.contracts.map((c) => contractRow(w, c, this.deliverCell(w, shopId, c))))
+        ? el("div", { class: "jobs" }, ...w.player.contracts.map((c) => contractRow(w, c, this.deliverCell(w, shopId, c), playerVehicle(w).pos)))
         : null,
     );
   }
 
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
     const destination = c.kind === "haul" ? c.to : c.shop;
-    const claim = c.kind === "bounty";
-    if (destination !== shopId) return el("span", { class: "dim" }, t(claim ? "contract.claimAt" : "contract.deliverAt", { site: siteName(destination) }));
-    return this.button(t(claim ? "contract.claim" : "contract.deliver"), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
+    const verb = DELIVER_VERBS[c.kind];
+    if (destination !== shopId) return el("span", { class: "dim" }, t(verb.at, { site: siteName(destination) }));
+    return this.button(t(verb.now), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
   }
 }
 
+const DELIVER_VERBS = {
+  haul: { now: "contract.deliver", at: "contract.deliverAt" },
+  fetch: { now: "contract.deliver", at: "contract.deliverAt" },
+  bounty: { now: "contract.claim", at: "contract.claimAt" },
+  survey: { now: "contract.report", at: "contract.reportAt" },
+} as const;
+
 function notReady(w: World, c: Contract): Msg {
+  if (c.kind === "survey") return t("contract.notSurveyed");
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
   return bountyPays(w);
@@ -408,6 +417,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
+  survey: () => createIcon("scanner"),
 };
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
@@ -447,8 +457,13 @@ function profitCell(e: SaleEstimate): HTMLElement {
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
 }
 
-function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
-  const met = c.kind === "bounty" && c.fulfilled;
+function surveyLine(c: Contract, from: Vec): HTMLElement | null {
+  const where = c.kind === "survey" ? surveyWhere(from, c) : null;
+  return where ? el("span", { class: "dim" }, SPACE, where) : null;
+}
+
+function contractRow(w: World, c: Contract, action: HTMLElement, from: Vec, posted = false): HTMLElement {
+  const met = isMet(c);
   const clock = posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
     : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
@@ -456,7 +471,7 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
     "div",
     { class: "job" },
     CONTRACT_ICON[c.kind](),
-    el("span", {}, contractSummary(c)),
+    el("span", {}, contractSummary(c), surveyLine(c, from)),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
@@ -478,7 +493,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
-  return c.fulfilled;
+  return isMet(c);
 }
 
 type TradeTab = "goods" | "parts" | "supplies";

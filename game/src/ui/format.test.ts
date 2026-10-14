@@ -10,6 +10,9 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
+import { surveyProgress, surveyWhere } from "./format";
+import { surveySites } from "../sim/survey";
+import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters, kg } from "./units";
@@ -707,5 +710,38 @@ describe("the discovery line", () => {
     const line = eventText(emptyWorld(), { t: "discover", location: site })!;
 
     expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
+  });
+});
+
+describe("survey contract text", () => {
+  const [first, second] = surveySites(TEST_MAP);
+  const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
+    id: "c3", shop: "bowl", kind: "survey", reward: 3000, deadline: 100, window: 100, tier: 1,
+    points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, area: { x: 100 + i * 100, y: 30 }, done: done[i] })),
+  });
+
+  it("names the kinds of place to survey", () => {
+    expect(en(contractSummary(survey([false, false])))).toMatch(/^Survey /);
+    expect(en(contractSummary(survey([false])))).toContain(en(t(`contract.place.${first.type}`)));
+  });
+
+  it("reads a met survey as ready to report", () => {
+    const met = survey([true, true]);
+    expect(en(contractSummary(met))).toBe("Survey done, report at Bowl");
+    expect(en(heldContractDue(met))).toBe("Ready");
+  });
+
+  it("counts the sites done and points to the nearest one left", () => {
+    const c = survey([true, false]);
+    expect(en(surveyProgress(c))).toBe("1 of 2 surveyed");
+    expect(en(surveyWhere({ x: 30, y: 30 }, c)!)).toMatch(/^east, /);
+    expect(surveyWhere({ x: 30, y: 30 }, survey([true, true]))).toBeNull();
+  });
+
+  it("logs a surveyed site and a met survey", () => {
+    const c = survey([true, false]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: c, outcome: "surveyed" })!.text)).toBe("Site surveyed, 1 of 2");
+    const met = survey([true, true]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: met, outcome: "fulfilled" })!.text)).toContain("report at Bowl");
   });
 });

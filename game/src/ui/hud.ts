@@ -8,6 +8,8 @@ import { LogPanel } from "./log";
 import {
   heldContractDue,
   contractSummary,
+  surveyProgress,
+  surveyWhere,
   eventText,
   formatNpcPass,
   workLabel,
@@ -33,7 +35,8 @@ import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, say, setText } from "../text/language";
-import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { concat, list, num, SPACE, t, type Msg } from "../text/msg";
+import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, setupText, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
@@ -42,6 +45,7 @@ export type ContextTarget =
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
+  | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
   | { kind: 'empty' }
   | { kind: 'outpost' };
@@ -367,6 +371,12 @@ export class Hud {
     );
   }
 
+  private surveyProgress(w: World, c: Contract): HTMLElement | null {
+    if (c.kind !== "survey" || isMet(c)) return null;
+    const where = surveyWhere(playerVehicle(w).pos, c);
+    return el("span", { class: "dim" }, SPACE, surveyProgress(c), where ? concat([SPACE, where]) : null);
+  }
+
   private renderContracts(w: World): void {
     if (w.player.contracts.length === 0) {
       this.contracts.style.display = "none";
@@ -379,7 +389,7 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c)),
+          el("span", {}, contractSummary(c), this.surveyProgress(w, c)),
           el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),

@@ -44,6 +44,12 @@ export function makeSurveySites(map: BakedMap): SurveySite[] {
 export type SurveyPoint = { site: string; area: Vec; done: boolean };
 export type SurveyContract = Extract<Contract, { kind: 'survey' }>;
 
+export function surveyPlaceType(id: string): OldPlaceType {
+  const site = SURVEY_SITES.sites.find((s) => s.id === id);
+  if (!site) throw new Error(`No survey site ${id}`);
+  return site.type;
+}
+
 export function surveySite(world: World, id: string): SurveySite {
   const site = surveySites({ hash: world.mapHash, terrain: world.terrain }).find((s) => s.id === id);
   if (!site) throw new Error(`No survey site ${id}`);

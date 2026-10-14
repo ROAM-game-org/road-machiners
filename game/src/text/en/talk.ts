@@ -234,6 +234,8 @@ export const TALK = {
   'radio.fetch.0': m('{shop} is asking after a working {part}.', { shop: 'text', part: 'text' }),
   'radio.fetch.1': m('Wanted at {shop}: one {part}, still breathing.', { shop: 'text', part: 'text' }),
   'radio.bounty.0': m('{shop} put a price on {target}. Business, not murder, they say.', { shop: 'text', target: 'text' }),
+  'radio.survey.0': m('{shop} wants eyes on the far country. Pay is fair, the road is not.', { shop: 'text' }),
+  'radio.survey.1': m('Survey work posted at {shop}. Bring a spare tire and a good map.', { shop: 'text' }),
   'radio.bounty.1': m('Paper up at {shop} for {target}. I just read the board, boys.', { shop: 'text', target: 'text' }),
   'radio.raid.0': m('Raider business {place}. Another busy day for the accountants.', { place: 'text' }),
   'radio.raid.1': m('Raiders working the road {place}. Cargo changes hands out there.', { place: 'text' }),

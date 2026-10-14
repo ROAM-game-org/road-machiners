@@ -201,7 +201,8 @@ function contractVars(c: Contract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
-  return { shop, target: templateName(c.template) };
+  if (c.kind === 'bounty') return { shop, target: templateName(c.template) };
+  return { shop };
 }
 
 function vehicleIn(world: World, id: string): Vehicle | undefined {

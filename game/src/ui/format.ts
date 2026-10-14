@@ -3,6 +3,8 @@ import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
 import type { Contract } from '../sim/market';
+import { isMet } from '../sim/market';
+import { surveyBearing, surveyPlaceType, type SurveyContract } from '../sim/survey';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
@@ -10,7 +12,7 @@ import { playerVehicle, vehicleById } from '../sim/damage';
 import { gaveUp, isKnockedOut } from '../sim/defeat';
 import { OPENING_WRECK_ID } from '../sim/opening';
 import type { Work, WorkLeft } from '../sim/states';
-import { dist } from '../sim/vec';
+import { dist, type Vec } from '../sim/vec';
 import { goodsCount } from '../sim/grid';
 import { spareParts } from '../sim/inventory';
 import { carriedPart, isStoryWreck } from '../sim/salvage';
@@ -33,15 +35,16 @@ import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRo
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
 import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
-import { aidWords, lineText } from './dialogue';
+import { aidWords, compass, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { damage, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
   if (job.kind === 'business') return businessLabel(job);
   if (job.kind === 'search') return t('job.search');
   if (job.kind === 'weld') return t('job.weld');
+  if (job.kind === 'survey') return t('job.survey');
   return partJobLabel(v, job);
 }
 
@@ -529,12 +532,17 @@ function searchedText(stock: string): LogLine {
   return line(site ? t('log.searchDoneAt', { site: siteName(stock) }) : t('log.searchDone'), 'good');
 }
 
-const CONTRACT_CLS = { accepted: '', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim' } as const;
+const CONTRACT_CLS = { accepted: '', surveyed: 'dim', fulfilled: 'good', expiring: 'bad', done: 'good', failed: 'bad', lapsed: 'dim' } as const;
 
 function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
   const cls = CONTRACT_CLS[outcome];
+  if (outcome === 'surveyed') {
+    if (c.kind !== 'survey') throw new Error(`Only a survey is surveyed, not a ${c.kind} contract`);
+    return line(t('log.contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length }), cls);
+  }
   if (outcome === 'fulfilled') {
-    if (c.kind !== 'bounty') throw new Error(`Only a bounty is fulfilled, not a ${c.kind} contract`);
+    if (c.kind === 'survey') return line(t('log.contract.surveyMet', { reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
+    if (c.kind !== 'bounty') throw new Error(`Only a bounty or survey is fulfilled, not a ${c.kind} contract`);
     return line(t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
   }
   const what = contractSummary(c);
@@ -548,8 +556,23 @@ export function contractSummary(c: Contract): Msg {
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
+  if (c.kind === 'survey') return isMet(c) ? t('contract.surveyMet', { site: siteName(c.shop) }) : t('contract.survey', { places: surveyPlaces(c) });
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
+}
+
+function surveyPlaces(c: SurveyContract): Msg {
+  const types = [...new Set(c.points.map((p) => surveyPlaceType(p.site)))];
+  return list(types.map((type) => t(`contract.place.${type}`)));
+}
+
+export function surveyProgress(c: SurveyContract): Msg {
+  return t('contract.surveyed', { done: c.points.filter((p) => p.done).length, n: c.points.length });
+}
+
+export function surveyWhere(from: Vec, c: SurveyContract): Msg | null {
+  const next = surveyBearing(from, c);
+  return next ? t('contract.surveyWhere', { dir: compass(next.rad), distance: distanceText(next.tiles) }) : null;
 }
 
 export function contractWindow(c: Contract): Msg {
@@ -561,7 +584,7 @@ export function contractDue(c: Contract): Msg {
 }
 
 export function heldContractDue(c: Contract): Msg {
-  return c.kind === 'bounty' && c.fulfilled ? t('contract.ready') : contractDue(c);
+  return isMet(c) ? t('contract.ready') : contractDue(c);
 }
 
 export function clock(turn: number): { dayLabel: Msg; day: Msg; time: Msg; full: Msg } {
