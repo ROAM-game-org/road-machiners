@@ -40,12 +40,12 @@ describe('game mode rules', () => {
 
   it('names each mode difference in its row', () => {
     expect(GAME_MODES.roaming).toEqual({
-      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false },
+      rules: { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true },
       kit: null,
       map: 'icarus',
     });
     expect(GAME_MODES.furyRoad).toEqual({
-      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true },
+      rules: { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false },
       kit: 'furyRoad',
       map: 'highway',
     });
@@ -78,11 +78,11 @@ describe('a new world by mode', () => {
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [37812132, -1753180504, 1468231572, 1936023925],
-      nextId: 1137,
+      streams: [-1018883017, -1377109622, 1468231572, 1936023925],
+      nextId: 1177,
       counts: [22, 3780, 111, 7],
       npcs: [['buggy', 119.94, 84.79], ['buggy', 320.72, 387.67], ['buggy', 322.57, 387.83]],
-      bowlStock: ['harpoon', 'scrapPanels', 'smokeMortar', 'ceramicPlates', 'autocannon', 'smokeMortar', 'tankGun', 'ceramicPlates'],
+      bowlStock: ['smokeMortar', 'plowRam', 'caltrops', 'sniperCannon', 'ceramicPlates', 'caltrops', 'patcherCrane', 'ceramicTile', 'plates', 'flechette', 'amRifle'],
     });
   });
 
