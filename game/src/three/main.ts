@@ -1,5 +1,5 @@
 
-import { loadBank } from '../audio/bank';
+import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
@@ -180,7 +180,7 @@ log.begin(world, loadedFrom);
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));
 bootStep('waiting for physics, models and sounds');
-const [, , bank] = await loading;
+const [, , { bank, failures }] = await loading;
 bootStep('starting the game');
 const radio = new RadioPanel(new RadioStation(Math.random));
 const soundSettings = new SoundSettings(mixer, window.localStorage, radio.faceplate, radio.keys, () => game.loops.nextTrack());
@@ -198,6 +198,10 @@ const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
+if (failures.length) {
+  for (const failure of failures) console.warn(`Sound ${failure.file} failed to decode`, failure.error);
+  reportError(new SoundDecodeFailure(failures, bank.size, new Audio().canPlayType('audio/ogg; codecs=opus')));
+}
 onEveryError(() => game.holdSaves());
 bootStep('running');
 reporter?.watch({ world: () => game.state, log: () => game.logTexts(), slots });

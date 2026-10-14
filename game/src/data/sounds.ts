@@ -186,6 +186,8 @@ export function engineStrainFileFor(chassisId: string): string {
   return file;
 }
 
+export const BANK = { decodeAtOnce: 4, tries: 2, silentSeconds: 0.1 };
+
 export const MIX = {
   busVolume: { ui: 0.8, sfx: 0.75, ambient: 0.6, music: 0.65 } satisfies Record<Bus, number>,
   level: { ui: -18, sfx: -14, ambient: -24, music: -18 } satisfies Record<Bus, number>,
