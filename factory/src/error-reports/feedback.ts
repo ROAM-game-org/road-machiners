@@ -77,7 +77,7 @@ export class Feedback {
     const comment = { issue, source: 'game' as const, sourceId: `report:${id}`, postChat: null, postMessageId: null, author: 'Player', text: request.text, at: row.at };
     const stored = store.addComment(comment);
     if (stored === null) throw new Error(`The comment of report ${id} is already stored.`);
-    store.classify(stored, decision.kind, decision.route, now(), { relevance: decision.relevance, topic: decision.topic });
+    store.classify(stored, decision.kind, decision.route, now(), decision.relevance);
     return SENT;
   }
 

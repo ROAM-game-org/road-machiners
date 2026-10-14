@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput, Relevance } from './decision';
+import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput, PublicFilter, Relevance } from './decision';
 import type { PublicRoute } from './store';
-import { NO_TOPIC, TOPIC_VALUES, TOPICS } from './topics';
+import { groundWith, type PickPassage } from './wiki';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
 const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', import.meta.url)), 'utf8').trim();
@@ -52,16 +52,6 @@ const RELEVANCE = {
   ],
 };
 
-const TOPIC = {
-  type: 'choice',
-  name: 'topic',
-  instructions: 'If it asks a question about the game, which topic answers it?',
-  choices: [
-    ...TOPICS.map((topic) => ({ value: topic.value, description: topic.description })),
-    { value: NO_TOPIC, description: 'It asks no question, or no topic above answers it.' },
-  ],
-};
-
 const ROUTE = {
   type: 'choice',
   name: 'route',
@@ -81,17 +71,47 @@ const ROUTES = ROUTE.choices.map((choice) => choice.value) as PublicRoute[];
 
 type Answer = { type?: unknown; name?: unknown; choice?: unknown; probabilities?: unknown };
 
+type Question = { type: string; name: string; instructions: string; choices: { value: string; description: string }[] };
+
+async function ask(cfg: FilterConfig, fetch: typeof globalThis.fetch, input: string, questions: Question[]): Promise<Answer[]> {
+  const response = await fetch(ENDPOINT, {
+    method: 'POST',
+    signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
+    headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ model: cfg.filterModel, input, questions }),
+  });
+  if (response.status !== 200) throw new Error(`The filter call failed with status ${response.status}.`);
+  return answersOf(await response.json());
+}
+
 export function filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify {
-  return async (input) => {
-    const response = await fetch(ENDPOINT, {
-      method: 'POST',
-      signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
-      headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: cfg.filterModel, input: inputText(input), questions: questionsFor(input) }),
-    });
-    if (response.status !== 200) throw new Error(`The filter call failed with status ${response.status}.`);
-    return decide(cfg, input, answersOf(await response.json()));
+  return async (input) => decide(cfg, input, await ask(cfg, fetch, inputText(input), questionsFor(input)));
+}
+
+const NO_PASSAGE = 'none';
+
+function passageQuestion(count: number): Question {
+  const numbered = Array.from({ length: count }, (_, index) => ({ value: String(index + 1), description: `Passage ${index + 1} states the answer.` }));
+  return {
+    type: 'choice',
+    name: 'passage',
+    instructions: 'Which numbered wiki passage states the answer to the player question? Pick a passage only when its text says the answer. Pick none when no passage says it, even when one is on the same subject.',
+    choices: [...numbered, { value: NO_PASSAGE, description: 'No passage states the answer.' }],
   };
+}
+
+export function pickPassageWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): PickPassage {
+  return async (question, candidates) => {
+    const passages = candidates.map((text, index) => `[${index + 1}] ${text}`).join('\n\n');
+    const input = `Game: ${GAME}\n\nWiki passages:\n${passages}\n\nPlayer question: ${question}`;
+    const asked = passageQuestion(candidates.length);
+    const picked = choice(await ask(cfg, fetch, input, [asked]), 'passage', asked.choices.map((option) => option.value));
+    return picked === NO_PASSAGE ? null : Number(picked) - 1;
+  };
+}
+
+export function publicFilterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): PublicFilter {
+  return { classify: filterWith(cfg, fetch), ground: groundWith(pickPassageWith(cfg, fetch)) };
 }
 
 const hasParent = (input: FilterInput): input is FilterInput & { parent: string } => typeof input.parent === 'string' && input.parent.trim() !== '';
@@ -104,7 +124,7 @@ function inputText(input: FilterInput): string {
 function questionsFor(input: FilterInput) {
   if (input.source === 'report') return [INTENT, REPORT_KIND];
   const relevance = hasParent(input) ? [RELEVANCE] : [];
-  return input.source === 'comment' ? [INTENT, CHAT_KIND, ROUTE, TOPIC, ...relevance] : [INTENT, CHAT_KIND, TOPIC, ...relevance];
+  return input.source === 'comment' ? [INTENT, CHAT_KIND, ROUTE, ...relevance] : [INTENT, CHAT_KIND, ...relevance];
 }
 
 function relevanceOf(input: FilterInput, answers: Answer[]): Relevance {
@@ -130,7 +150,6 @@ function decide(cfg: FilterConfig, input: FilterInput, answers: Answer[]): Decis
     kind: choice(answers, 'kind', input.source === 'report' ? REPORT_KINDS : KINDS),
     route: input.source === 'comment' ? choice(answers, 'route', ROUTES) : 'none',
     relevance: relevanceOf(input, answers),
-    topic: input.source === 'report' ? NO_TOPIC : choice(answers, 'topic', TOPIC_VALUES),
   };
 }
 

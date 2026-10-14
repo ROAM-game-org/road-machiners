@@ -1,16 +1,16 @@
 import type { Ctx } from '../types';
-import type { Classify, FilterInput } from './decision';
+import type { Classify, FilterInput, PublicFilter } from './decision';
 import { isolated } from './isolate';
 import type { PublicStore, StoredComment } from './store';
 
-export async function classifyComments(ctx: Ctx, store: PublicStore, classify: Classify): Promise<void> {
+export async function classifyComments(ctx: Ctx, store: PublicStore, filter: PublicFilter): Promise<void> {
   for (const comment of store.unclassifiedComments(ctx.cfg.filterPerTick)) {
     store.classify(comment.id, 'rejected', 'none', ctx.now());
     if (overLimit(ctx, store, comment)) {
       ctx.log('public', comment.issue, `player comment ${comment.id} is over the hourly limit of its sender, so it stays rejected`);
       continue;
     }
-    await isolated(ctx, comment.issue, `the filter failed on player comment ${comment.id}, so it stays rejected`, () => classifyOne(ctx, store, classify, comment));
+    await isolated(ctx, comment.issue, `the filter failed on player comment ${comment.id}, so it stays rejected`, () => classifyOne(ctx, store, filter.classify, comment));
   }
 }
 
@@ -26,6 +26,5 @@ function filterInput(store: PublicStore, comment: StoredComment): FilterInput {
 
 async function classifyOne(ctx: Ctx, store: PublicStore, classify: Classify, comment: StoredComment): Promise<void> {
   const decision = await classify(filterInput(store, comment));
-  const details = { relevance: decision.relevance, topic: decision.topic };
-  store.classify(comment.id, decision.verdict === 'reject' ? 'rejected' : decision.kind, decision.route, ctx.now(), details);
+  store.classify(comment.id, decision.verdict === 'reject' ? 'rejected' : decision.kind, decision.route, ctx.now(), decision.relevance);
 }

@@ -8,7 +8,7 @@ import { playerReportsDir } from './files';
 import { alertPath, ErrorReports, ErrorServer, issueReports, readStore } from './service';
 import { Feedback } from './feedback';
 
-const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent', topic: 'none' };
+const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent' };
 const NOW = new Date('2026-10-07T12:00:00Z');
 
 type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; setDecision: (next: Decision | Error) => void };

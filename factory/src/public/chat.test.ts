@@ -3,16 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { inboxDir } from '../inbox';
 import { readState, updateState } from '../state';
 import type { Classify, Decision, FilterInput } from './decision';
-import { CHANNEL, COMMITTEE, publicFake, type PublicFake } from './public-fakes';
+import { CHANNEL, COMMITTEE, filterOf, publicFake, type PublicFake } from './public-fakes';
 import { publicTick } from './tick-steps';
+import type { Ground, Passage } from './wiki';
 
-const SINCERE: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'feedback', route: 'none', relevance: 'parent', topic: 'none' };
+const SINCERE: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'feedback', route: 'none', relevance: 'parent' };
 const PROPOSAL = 100;
 const BUILD = 200;
 
 type Said = { text: string; decision: Partial<Decision> };
 
-function chat(said: Said[]) {
+function chat(said: Said[], ground: Ground = async () => null) {
   const f = publicFake();
   f.cards = [{ itemId: 'x', issue: 568, column: 'Approval', labels: [] }];
   f.store.addProposal(568, 'Faction reputation\nTowns remember what you did.', f.clock.now);
@@ -26,7 +27,7 @@ function chat(said: Said[]) {
     if (found === undefined) throw new Error(`no decision for ${input.text}`);
     return { ...SINCERE, ...found.decision };
   };
-  return { f, asked, tick: () => publicTick(f.ctx, classify) };
+  return { f, asked, tick: () => publicTick(f.ctx, filterOf(classify, ground)) };
 }
 
 let update = 0;
@@ -47,7 +48,7 @@ describe('public chat', () => {
     const text = 'Towns should also remember who raided them';
     const { f, asked } = chat([{ text, decision: { kind: 'feature', relevance: 'parent' } }]);
     post(f, { id: 11, text, thread: PROPOSAL });
-    await publicTick(f.ctx, async (input) => { asked.push(input); return { ...SINCERE, kind: 'feature' }; });
+    await publicTick(f.ctx, filterOf(async (input) => { asked.push(input); return { ...SINCERE, kind: 'feature' }; }));
     expect(asked).toEqual([{ source: 'comment', text, parent: 'Faction reputation' }]);
     expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
     expect(f.comments[0]!.body).toContain(`> ${text}`);
@@ -88,25 +89,54 @@ describe('public chat', () => {
     expect(repliesTo(f, 12)[0]!.text).toContain('Nothing is fixed yet.');
   });
 
-  it('answers a sincere question with the fixed wiki answer of its topic, and asks to rephrase when no topic fits', async () => {
-    const known = '@roam_bot how do I repair my engine?';
-    const unknown = '@roam_bot when is the next release?';
-    const { f, asked, tick } = chat([{ text: known, decision: { kind: 'question', relevance: 'other', topic: 'truck' } }, { text: unknown, decision: { kind: 'question', relevance: 'other', topic: 'none' } }]);
-    post(f, { id: 13, text: known, addressed: true });
-    post(f, { id: 14, text: unknown, addressed: true, sender: '43' });
+  it('answers a question with the wiki passage that states it, quoted with its link, and never with a page summary', async () => {
+    const asked = '@roam_bot how do I repair my engine?';
+    const passage: Passage = { page: 'mechanics/truck.md', title: 'Truck', heading: 'Field repair', anchor: 'field-repair', text: 'Field repair fixes one damaged mounted part. It spends parts from the stock.' };
+    const questions: string[] = [];
+    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }], async (question) => { questions.push(question); return passage; });
+    post(f, { id: 13, text: asked, addressed: true });
     await tick();
-    expect(asked[0]).toEqual({ source: 'message', text: known });
-    expect(repliesTo(f, 13)[0]!.text).toContain('https://github.com/o/r/blob/main/game/docs/wiki/mechanics/truck.md');
-    expect(repliesTo(f, 14)[0]!.text).toContain('I answer only from the game wiki');
+    expect(questions).toEqual([asked]);
+    expect(repliesTo(f, 13).map((reply) => reply.text)).toEqual([`From the game wiki, Truck, Field repair:\n${passage.text}\nhttps://github.com/o/r/blob/main/game/docs/wiki/mechanics/truck.md#field-repair`]);
     expect(f.created).toEqual([]);
     expect(f.comments).toEqual([]);
+  });
+
+  it('gives an honest fallback with the wiki link when no passage states the answer, or the wiki lookup fails', async () => {
+    const specific = '@roam_bot how much does a winch cost in the Bowl?';
+    const broken = '@roam_bot what does the horn do?';
+    const { f, tick } = chat([{ text: specific, decision: { kind: 'question', relevance: 'other' } }, { text: broken, decision: { kind: 'question', relevance: 'other' } }], async (question) => {
+      if (question === broken) throw new Error('the filter call failed with status 500');
+      return null;
+    });
+    post(f, { id: 13, text: specific, addressed: true });
+    post(f, { id: 14, text: broken, addressed: true, sender: '43' });
+    await tick();
+    for (const id of [13, 14]) {
+      const [reply] = repliesTo(f, id);
+      expect(reply!.text).toContain('The game wiki has no passage that answers this, so I will not guess. The wiki: https://github.com/o/r/blob/main/game/docs/wiki/README.md');
+      expect(reply!.text).not.toMatch(/winch|horn|Bowl/);
+    }
+    expect(repliesTo(f, 14)).toHaveLength(1);
+    expect(f.logs.some((line) => line.includes('the wiki answer to player comment') && line.includes('status 500'))).toBe(true);
+  });
+
+  it('answers an on-topic question in its thread from the wiki and adds it to the parent comments', async () => {
+    const text = 'Does the reputation reset when I die?';
+    const { f, tick } = chat([{ text, decision: { kind: 'question', relevance: 'parent' } }]);
+    post(f, { id: 23, text, thread: PROPOSAL });
+    await tick();
+    expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
+    const [reply] = repliesTo(f, 23);
+    expect(reply!.text).toMatch(/^The game wiki has no passage that answers this/);
+    expect(reply!.text).toContain('player comments of #568');
   });
 
   it('files a standalone @mention idea, and leaves an unaddressed question and chatter unanswered', async () => {
     const idea = '@roam_bot please add a fuel gauge to the map';
     const { f, tick } = chat([
       { text: idea, decision: { kind: 'feature', relevance: 'other' } },
-      { text: 'how do you guys get money fast?', decision: { kind: 'question', relevance: 'other', topic: 'economy' } },
+      { text: 'how do you guys get money fast?', decision: { kind: 'question', relevance: 'other' } },
       { text: 'thanks bot', decision: { kind: 'chatter', relevance: 'other' } },
     ]);
     post(f, { id: 15, text: idea, addressed: true });

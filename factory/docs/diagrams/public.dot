@@ -37,10 +37,10 @@ digraph public {
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind, topic,\nabout its thread, route\n5 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind,\nabout its thread, route\n5 chat messages an hour per player"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
-  answer [label="Reply in the thread\nissue link and status\nor a wiki answer"];
+  answer [label="Reply in the thread\nissue link and status,\na quoted wiki passage\nor an honest fallback"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
