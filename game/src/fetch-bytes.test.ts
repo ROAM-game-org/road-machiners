@@ -66,6 +66,14 @@ describe('fetchBytes', () => {
     expect(failed.cause).toBe(cause);
   });
 
+  it('does not hide an earlier 5xx behind DownloadFailed', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('x')).mockResolvedValueOnce({ ok: false, status: 503 });
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await settle(fetchBytes('/a'));
+    expect(err).not.toBeInstanceOf(DownloadFailed);
+    expect((err as Error).message).toContain('/a');
+  });
+
   it('doubles the wait between tries up to the cap', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('x'));
     vi.stubGlobal('fetch', fetchMock);

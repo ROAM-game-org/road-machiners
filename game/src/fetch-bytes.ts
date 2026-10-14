@@ -29,13 +29,15 @@ async function fetchOnce(url: string): Promise<ArrayBuffer> {
 
 export async function fetchBytes(url: string): Promise<ArrayBuffer> {
   const tries = CONFIG.assetFetchTries;
+  let sawStatus = false;
   for (let attempt = 1; ; attempt++) {
     try {
       return await fetchOnce(url);
     } catch (e) {
       if (!retryable(e)) throw e;
+      sawStatus ||= e instanceof HttpStatusError;
       if (attempt >= tries) {
-        if (e instanceof HttpStatusError) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
+        if (sawStatus) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
         throw new DownloadFailed(url, tries, e);
       }
       await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
