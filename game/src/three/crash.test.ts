@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DownloadFailed } from '../fetch-bytes';
 import { WebGLUnavailable } from './webgl';
 import { resolve } from '../text/resolve';
-import { crashText, loadFailedText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, loadFailedText, onReport, reportError, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -86,12 +86,23 @@ describe('routeOf', () => {
 });
 
 describe('loadFailedText', () => {
+  const failure = new DownloadFailed('./models/a.glb', 6, new TypeError('Failed to fetch'));
+
   it('shows the load-failed ids and names the file as detail', () => {
-    const failure = new DownloadFailed('./models/a.glb', 6, new TypeError('Failed to fetch'));
     const text = loadFailedText(failure);
     expect(resolve(text.title, 'en')).toBe('The game failed to load');
     expect(resolve(text.line, 'en')).toBe('Check your connection.');
     expect(resolve(text.action, 'en')).toBe('Reload');
     expect(text.detail).toBe(failure.message);
+  });
+
+  it('never reaches the reporter sinks', () => {
+    const sink = vi.fn();
+    onReport(sink);
+    vi.stubGlobal('document', { createElement: () => ({ replaceChildren() {}, append() {}, addEventListener() {}, focus() {} }), createTextNode: () => ({}), body: { appendChild() {} } });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reportError(failure);
+    expect(sink).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });
