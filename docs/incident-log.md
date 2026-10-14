@@ -26,7 +26,7 @@ ID: R4
 repo: game
 rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch, gives a failed asset a stand-in, reports it and goes on. A model or map download that fails all its tries shows the player a connection screen, not a crash. Each error names its real cause.
 check: Boot with one sound, model or map fetch dropped, with one sound that never decodes, and with IndexedDB refused. The game must reach the menu each time. A network failure must not be reported as a decode failure.
-seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #485 fixed an Android Chrome player on 2.61.0 whose sound fetch failed and was reported as a decode failure, so the game did not boot. It also made a model or map download that fails every retry throw DownloadFailed and show a connection screen instead of a crash report.
+seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #485 fixed an Android Chrome player on 2.61.0 whose sound fetch failed and was reported as a decode failure, so the game did not boot. It also kept a download that fails every retry off the crash screen.
 
 ID: R5
 repo: game
@@ -53,6 +53,14 @@ check: Play with the view at zero width, the page hidden and the phone rotated, 
 seen: Hotfix #537 fixed a zero-size view on Android Chrome that made a NaN sound pan, so turn 8 failed. Hotfix #492 fixed an audio unlock that fired only on the first input, so a player who clicked heard nothing.
 
 ID: R9
+repo: game
+what: offer() in game/src/sim/tow.ts gave a stranded player the full route fee whatever the player's money was, and payTow() in game/src/sim/states.ts took it on arrival even into debt. An NPC client already paid only what it could, so a broke NPC was towed free while a broke player was not. Issue #93 fixed it by making an NPC's offer to a player with money 0 or less free, decided at the offer, with its own "No charge" radio line.
+cost: A stranded player with no money got a rescue offer that could not be paid, and accepting it put the player into debt, where nothing can be bought. It shipped until release 2026-10-07. It repeats the class of R6 and R8: a rescue for a stranded player that ends in a dead end.
+
+ID: R10
+repo: game
+what: The boot downloaded about 120 assets at once, the 104 sounds, every model and the map, and none of them retried a network failure. One dropped download rejected the whole boot. decodeFile() in game/src/audio/bank.ts read the body inside the same check as the decode, so a broken download was reported as "Sound music-calm-3.ogg failed to decode: TypeError: Load failed". Hotfix #483 added fetchBytes(), later replaced by fetchAsset() in game/src/fetch-asset.ts, which retries a dropped connection or a 5xx up to 3 times for sounds, models and the map.
+cost: A Safari player on the itch.io release 2.61.0 could not start the game, and the boot screen stayed on the failed step. Issue #485 reported the same file failing on another browser. The wrong "decode" message sent triage toward a corrupt file or a format bug instead of the network.
 repo: factory
 rule: The factory writes to GitHub as an App, and as little as it can. It never reacts or votes, never comments progress, and never repeats a write on each tick.
 check: For each new GitHub write, count how often it runs per card and per tick. A write that can repeat before the board catches up, a comment that only reports progress, and any reaction are repeats.
