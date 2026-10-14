@@ -29,13 +29,17 @@
 
 ## Run log
 
-- `src/three/run-log.ts` records what happened to the player over a run, for analysis after the fact. It does not replay the game and never feeds the sim.
-- A run gets a random run id at New game. The save envelope carries it, and a rescue keeps it. A save from before run ids belongs to the run `legacy-<seed>`.
-- The game hands the log every world it takes: after each command, at the start of each turn's playback and after a talk. The log writes each world once and each events array once, since a world built by spreading another shares its events. The database numbers records inside the write, so two tabs on one run never take the same number.
-- It keeps the player's outcomes: deaths, knockouts, money, contracts, discoveries, skill-ups, kills and knockouts the player was part of, tows, escorts, aid and jobs. Each truck an event names comes with its name, faction and chassis. Shots, spawns, NPC moves, talk, weather and XP practice stay out.
-- A `change` record follows every world where the player's money, parts or goods changed, with the money delta and the parts gained and lost. Buys, sales, loot and refits have no event, so they show here.
-- A `day` snapshot follows the first world of each session and of each game day: money, skill levels, XP by source, perks, chassis, mounted and stored part value, health, fuel, supplies and knockouts.
-- The log is append-only. Each session starts with a `start` record, or a `loaded` record with the slot. A script that wants one timeline drops the records after a `loaded` record's turn that came before it.
+- `src/three/run-log.ts` writes the run log. `src/sim/run-stream.ts` holds the pure writer it uses, and the recorder uses the same writer. The log never replays the game and never feeds the sim.
+- The log is a stream of what the player's view held, like a multiplayer game's network stream. A truck enters the view with its full description. Each turn after that sends only what changed. Then the truck leaves.
+- A truck is in scope while the player owns it (faction `player`), while the player sees it, and in a turn where an event ties it to a player truck, such as a shot from out of sight. Scope never reads the mode or the map id.
+- Lines, each with its turn: `session` (run id, version, seed, mode, settings, map hash, and how the session began: `new`, a slot id or `day`), `player` (money, XP, ranks, perks, storage and switches, only the fields that changed), `enter` (id, template, faction, chassis, driver, every part with health, goods, position, heading, speed, order, gun and utility orders, goals and states, fuel, supplies, money), `moves` (`[id, x, y, heading, speed]` for each truck that moved), `change` (one truck, only the changed fields), `leave` (with the reason: wrecked, knockedOut, despawned, window or unseen) and `event`.
+- A `session` line is followed by a `player` line and an `enter` for every truck in scope, so any session reads on its own. It is written at New game, at each load and at each day start.
+- An `event` line is any event that names a truck in scope, plus the player's own outcomes. A turn's shots from one shooter at one target merge into one line with the weapons, rounds, hits, damage per part and the parts they disabled. A turn's collisions between two trucks merge the same way. Practice, arrivals, spawns, talk, weather and other clutter stay out.
+- Positions are world positions: map position plus the map's origin. Icarus has origin zero. The highway's origin moves with each window, so a truck keeps one position across a window move. Positions are to 0.1 tile, angles to whole degrees and part health to whole percent.
+- Player decisions have no command log. Every decision shows as a change on a player truck or on the player: an order, a gun order, a switch, a purchase.
+- The game hands the log every world it takes: after each command, at the start of each turn's playback and after a talk. The log writes each world once and each events array once. It diffs against the last line it wrote, so a world that shares events with the last one adds no event twice. The database numbers records inside the write, so two tabs on one run never take the same number.
+- The turn that moves the highway window is logged before the page reloads. The next boot starts a new `session` at the same turn.
+- The log is append-only. After a load the turns can run backwards. A reader drops the records after the load's turn that came before it. `npm run run:timeline` does this.
 - The Save panel's Export run log button downloads the run as JSON Lines: a header with the run id, game version, seed and map hash, then one record per line. Export save downloads the current game as a save envelope in JSON.
 
 ## Versions
