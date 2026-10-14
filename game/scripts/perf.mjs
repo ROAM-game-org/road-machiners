@@ -9,6 +9,7 @@ const arg = (name) => {
   return process.argv[i + 1];
 };
 const url = arg('url');
+const seamsOnly = process.argv.includes('--seams-only');
 const budgets = JSON.parse(readFileSync(new URL('./perf-budgets.json', import.meta.url), 'utf8'));
 
 const TURNS = 5;
@@ -18,19 +19,132 @@ const ORDER_OFFSETS = [[12, 4], [40, 25], [-30, 60], [150, 150]];
 const VIEW_ZOOM = 0.35;
 const SETTLE_MS = 800;
 const SAMPLE_MS = 2000;
+const SEAM_SEED = 1337;
+const SEAM_TURNS = 8;
+const SEAM_ORDER_TILES = 30;
+const SEAM_SETTLE_MS = 600;
+const PREVIEW_WAIT_MS = 30000;
 
 const browser = await chromium.launch({ args: gpuArgs() });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
+const errors = [];
+const page = await openPage(browser);
 const renderer = await rendererOf(page);
-console.log(`renderer ${renderer}`);
+console.log(`renderer ${renderer} on ${process.platform}`);
 if (isSoftware(renderer)) {
   await browser.close();
   console.error(`FAIL\nPerf got the software renderer ${renderer}. It needs a GPU.`);
   process.exit(1);
 }
-const errors = [];
-page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+
+async function openPage(owner) {
+  const opened = await owner.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
+  opened.on('pageerror', (e) => errors.push(e.stack ?? e.message));
+  opened.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  return opened;
+}
+
+function seamUrl() {
+  const seeded = new URL(url);
+  seeded.searchParams.set('seed', String(SEAM_SEED));
+  return playUrl(seeded.href);
+}
+
+async function measureSeams() {
+  const context = await browser.newContext();
+  const seamPage = await openPage(context);
+  await seamPage.addInitScript(() => {
+    window.__SEAM__ = { frames: [], longTasks: [] };
+    const frame = (t) => {
+      window.__SEAM__.frames.push(t);
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) window.__SEAM__.longTasks.push({ start: e.startTime, ms: e.duration });
+    }).observe({ type: 'longtask', buffered: true });
+  });
+  await seamPage.goto(seamUrl());
+  await seamPage.waitForFunction(() => window.__ROAM__ && window.__ROAM_PERF__, null, { timeout: 120000 });
+  const ready = await seamPage.evaluate(() => {
+    const mark = performance.getEntriesByName('roam:ready')[0];
+    if (!mark) throw new Error('No roam:ready performance mark');
+    return mark.startTime;
+  });
+  const turns = [];
+  for (let i = 0; i < SEAM_TURNS; i++) turns.push(await seamPage.evaluate(playSeam, { tiles: SEAM_ORDER_TILES, settle: SEAM_SETTLE_MS, previewWait: PREVIEW_WAIT_MS }));
+  const trace = await seamPage.evaluate(() => window.__SEAM__);
+  await context.close();
+  return { ready, turns, trace };
+}
+
+async function playSeam({ tiles, settle, previewWait }) {
+  const g = window.__ROAM__;
+  const perf = window.__ROAM_PERF__;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
+  const previewCalls = () => perf.snapshot().preview?.calls ?? 0;
+  const waitFor = async (done, what) => {
+    const deadline = performance.now() + previewWait;
+    while (!done()) {
+      if (performance.now() > deadline) throw new Error(`${what} did not happen in ${previewWait / 1000} s`);
+      await nextFrame();
+    }
+  };
+  const player = () => g.state.vehicles.find((v) => v.id === g.state.player.vehicleId);
+  if (!player().order) {
+    const w = { ...g.state, vehicles: g.state.vehicles.map((v) => ({ ...v })) };
+    const me = w.vehicles.find((v) => v.id === w.player.vehicleId);
+    if (!me) throw new Error(`Player vehicle ${w.player.vehicleId} missing`);
+    const clamp = (x) => Math.max(1, Math.min(w.size - 1, x));
+    me.order = { kind: 'stopAt', dest: { x: clamp(me.pos.x + tiles * Math.cos(me.heading)), y: clamp(me.pos.y + tiles * Math.sin(me.heading)) } };
+    perf.reset();
+    g.apply(w);
+    await waitFor(() => previewCalls() > 0, 'A preview after a move order');
+  }
+  await sleep(settle);
+  perf.reset();
+  const turn = g.state.turn;
+  const start = performance.now();
+  g.endTurn();
+  await waitFor(() => g.state.turn !== turn, 'The turn');
+  const moved = performance.now();
+  const expectsPreview = () => !g.anim && (player().order || player().speed > 0);
+  await waitFor(() => previewCalls() > 0 || (!g.anim && !expectsPreview()), 'A preview after the turn');
+  await sleep(settle);
+  const s = perf.snapshot();
+  return { start, end: performance.now(), wait: moved - start, turnMs: s.turn?.last ?? null, previewMs: s.preview?.last ?? null, previewCalls: s.preview?.calls ?? 0, routeCalls: s.route?.calls ?? 0 };
+}
+
+function frameGapsIn(frames, from, to) {
+  const gaps = [];
+  for (let i = 1; i < frames.length; i++) if (frames[i] > from && frames[i] <= to) gaps.push(frames[i] - frames[i - 1]);
+  return gaps.sort((a, b) => a - b);
+}
+
+function longTasksIn(longTasks, from, to) {
+  const inside = longTasks.filter((t) => t.start >= from && t.start < to).map((t) => t.ms.toFixed(0));
+  return inside.length ? inside.join(' ') : 'none';
+}
+
+function printSeams({ ready, turns, trace }) {
+  const bootGaps = frameGapsIn(trace.frames, ready, turns[0].start);
+  console.log(`seam seed ${SEAM_SEED}, boot window ${(turns[0].start - ready).toFixed(0)} ms: frame max ${(bootGaps.at(-1) ?? 0).toFixed(1)}, long tasks ms ${longTasksIn(trace.longTasks, ready, turns[0].start)}`);
+  turns.forEach((t, i) => {
+    const gaps = frameGapsIn(trace.frames, t.start, t.end);
+    const fixed = (x) => (x === null ? '-' : x.toFixed(1));
+    console.log(`seam turn ${i + 1}: wait ${t.wait.toFixed(0)}, worker turn ${fixed(t.turnMs)}, preview ${fixed(t.previewMs)} x${t.previewCalls}, routes ${t.routeCalls}, frame p95 ${fixed(gaps[Math.floor(gaps.length * 0.95)] ?? null)} max ${fixed(gaps.at(-1) ?? null)}, long tasks ms ${longTasksIn(trace.longTasks, t.start, t.end)}`);
+  });
+}
+
+printSeams(await measureSeams());
+if (seamsOnly) {
+  await browser.close();
+  if (errors.length) {
+    console.error(`\nFAIL\n${errors.join('\n')}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
 await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__ && window.__ROAM_PERF__, null, { timeout: 60000 });
@@ -64,7 +178,7 @@ results.turnMs = Math.max(...turnMs);
 
 const previewMs = [];
 for (const offset of ORDER_OFFSETS) {
-  previewMs.push(await page.evaluate(async ([dx, dy]) => {
+  previewMs.push(await page.evaluate(async ([dx, dy, wait]) => {
     const g = window.__ROAM__;
     const w = { ...g.state, vehicles: g.state.vehicles.map((v) => ({ ...v })) };
     const me = w.vehicles.find((v) => v.id === w.player.vehicleId);
@@ -73,11 +187,13 @@ for (const offset of ORDER_OFFSETS) {
     me.order = { kind: 'stopAt', dest: { x: clamp(me.pos.x + dx), y: clamp(me.pos.y + dy) } };
     window.__ROAM_PERF__.reset();
     g.apply(w);
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const s = window.__ROAM_PERF__.snapshot().preview;
-    if (!s) throw new Error('No preview timer recorded after a move order');
-    return s.last;
-  }, offset));
+    const deadline = performance.now() + wait;
+    while (!window.__ROAM_PERF__.snapshot().preview) {
+      if (performance.now() > deadline) throw new Error(`No preview after a move order in ${wait / 1000} s`);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    return window.__ROAM_PERF__.snapshot().preview.last;
+  }, [...offset, PREVIEW_WAIT_MS]));
 }
 results.previewMs = Math.max(...previewMs);
 

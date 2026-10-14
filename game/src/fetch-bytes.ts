@@ -1,15 +1,15 @@
 import { CONFIG } from "./config";
 
-class HttpStatusError extends Error {
+export class HttpStatusError extends Error {
   constructor(url: string, readonly status: number) {
     super(`${url} failed to load: HTTP ${status}`);
   }
 }
 
-export class DownloadFailure extends Error {
-  readonly name = 'DownloadFailure';
-  constructor(readonly url: string, readonly tries: number, options: { cause: unknown }) {
-    super(`${url} failed to load after ${tries} tries: ${options.cause}`, options);
+export class DownloadFailed extends Error {
+  constructor(message: string, cause: unknown) {
+    super(message, { cause });
+    this.name = 'DownloadFailed';
   }
 }
 
@@ -29,9 +29,9 @@ export async function fetchBytes(url: string): Promise<ArrayBuffer> {
     try {
       return await fetchOnce(url);
     } catch (e) {
-      if (!retryable(e)) throw e;
-      if (attempt >= tries) throw new DownloadFailure(url, tries, { cause: e });
-      await new Promise((resolve) => setTimeout(resolve, CONFIG.assetRetryMs * 2 ** (attempt - 1)));
+      if (!retryable(e) || (attempt >= tries && e instanceof HttpStatusError)) throw e;
+      if (attempt >= tries) throw new DownloadFailed(`${url} failed to load after ${tries} tries: ${e}`, e);
+      await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
     }
   }
 }

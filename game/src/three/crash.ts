@@ -1,7 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
-import { DownloadFailure } from '../fetch-bytes';
+import { DownloadFailed } from '../fetch-bytes';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
@@ -97,9 +97,16 @@ function ignoreForeign(facts: ErrorFacts): void {
   report(FOREIGN_NOTE);
 }
 
+export function routeOf(err: unknown): 'webgl' | 'download' | 'fault' {
+  if (err instanceof WebGLUnavailable) return 'webgl';
+  if (err instanceof DownloadFailed) return 'download';
+  return 'fault';
+}
+
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  if (err instanceof WebGLUnavailable) showNoWebGL(err);
-  else if (err instanceof DownloadFailure) showNoConnection(err);
+  const route = routeOf(err);
+  if (route === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  else if (route === 'download') showDownloadFailed(err as DownloadFailed);
   else onFault(err, facts);
 }
 
@@ -155,18 +162,23 @@ function showNoWebGL(err: WebGLUnavailable): void {
   document.body.appendChild(box);
 }
 
-function showNoConnection(err: DownloadFailure): void {
+function showDownloadFailed(err: DownloadFailed): void {
   if (shown) return;
   shown = true;
-  console.warn(err);
   const box = document.createElement('div');
   box.className = 'crash-screen';
   const title = document.createElement('div');
   title.className = 'crash-title';
-  setText(title, t('boot.failedToLoad'));
+  setText(title, t('download.title'));
+  box.append(title);
+  for (const key of ['boot.failedToLoad', 'download.saves'] as const) {
+    const row = document.createElement('div');
+    setText(row, t(key));
+    box.append(row);
+  }
   const detail = document.createElement('div');
   detail.className = 'crash-hint';
   detail.textContent = err.message;
-  box.append(title, detail);
+  box.append(detail);
   document.body.appendChild(box);
 }

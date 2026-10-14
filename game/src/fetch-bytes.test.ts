@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIG } from './config';
-import { DownloadFailure, fetchBytes } from './fetch-bytes';
+import { DownloadFailed, fetchBytes } from './fetch-bytes';
 
 const bytes = new ArrayBuffer(4);
 const ok = { ok: true, status: 200, arrayBuffer: async () => bytes };
@@ -61,6 +61,7 @@ describe('fetchBytes', () => {
     vi.stubGlobal('fetch', fetchMock);
     const err = await settle(fetchBytes('/a'));
     expect((err as Error).message).toContain('/a');
+    expect(err).toBeInstanceOf(DownloadFailed);
     expect((err as Error).message).toContain(`after ${CONFIG.assetFetchTries} tries`);
     expect((err as Error).message).toContain('Load failed');
     expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
