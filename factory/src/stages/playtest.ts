@@ -6,7 +6,7 @@ import { must } from '../exec';
 import { roundSession } from '../sessions';
 import { updateState } from '../state';
 import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type PlaytestState, type ReleaseState } from '../types';
-import { CACHED_SUITE, checkScript, checkUntilReal, runChecks, testCacheMount } from './checks';
+import { CACHED_SUITE, checkScript, checkUntilReal, runChecks, suiteEnv, testCacheMount } from './checks';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
@@ -56,7 +56,7 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
 }
 
 async function fullSuite(ctx: Ctx, dir: string): Promise<void> {
-  await ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), {}, testCacheMount(ctx));
+  await ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx));
 }
 
 async function cloneAt(ctx: Ctx, dir: string, sha: string): Promise<boolean> {

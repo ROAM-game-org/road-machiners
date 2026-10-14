@@ -1,5 +1,3 @@
-// Where saves and run logs live. The browser keeps them in IndexedDB, which stores objects as they are, writes each
-// transaction whole or not at all, and has a quota sized to the disk. Tests keep them in memory.
 
 import { reportError } from './crash';
 import { slotKey, type SlotId } from './save-slots';
@@ -20,24 +18,68 @@ const SAVES = 'saves';
 const LOG = 'log';
 
 export async function idbBackend(name: string): Promise<SaveBackend> {
-  const db = await opened(name);
+  const connection = new Connection(name);
+  await connection.current();
   return {
     readAll: async () => {
-      const tx = db.transaction(SAVES, 'readonly');
+      const tx = await connection.transaction(SAVES, 'readonly');
       const [keys, values] = await Promise.all([request(tx.objectStore(SAVES).getAllKeys()), request(tx.objectStore(SAVES).getAll())]);
       return new Map(keys.map((key, i) => [key as SlotId, values[i]]));
     },
-    put: (slot, envelope) => written(db, SAVES, (store) => store.put(envelope, slot)),
-    remove: (slot) => written(db, SAVES, (store) => store.delete(slot)),
-    appendLog: (runId, entries) => written(db, LOG, (store) => {
+    put: (slot, envelope) => written(connection, SAVES, (store) => store.put(envelope, slot)),
+    remove: (slot) => written(connection, SAVES, (store) => store.delete(slot)),
+    appendLog: (runId, entries) => written(connection, LOG, (store) => {
       const last = store.openCursor(runRange(runId), 'prev');
       last.onsuccess = () => {
         const next = last.result ? (last.result.value as LogRecord).seq + 1 : 0;
         entries.forEach((entry, i) => store.add({ ...entry, runId, seq: next + i }));
       };
     }),
-    readLog: (runId) => request(db.transaction(LOG, 'readonly').objectStore(LOG).getAll(runRange(runId))),
+    readLog: async (runId) => {
+      const tx = await connection.transaction(LOG, 'readonly');
+      return request(tx.objectStore(LOG).getAll(runRange(runId)));
+    },
   };
+}
+
+class Connection {
+  private held: Promise<IDBDatabase> | null = null;
+
+  constructor(private readonly name: string) {}
+
+  current(): Promise<IDBDatabase> {
+    if (this.held) return this.held;
+    const opening = opened(this.name).then((db) => {
+      db.onclose = () => this.drop(opening);
+      db.onversionchange = () => {
+        db.close();
+        this.drop(opening);
+      };
+      return db;
+    });
+    this.held = opening;
+    opening.catch(() => this.drop(opening));
+    return opening;
+  }
+
+  async transaction(stores: string, mode: IDBTransactionMode): Promise<IDBTransaction> {
+    const held = this.current();
+    try {
+      return (await held).transaction(stores, mode);
+    } catch (err) {
+      if (!isClosing(err)) throw err;
+      this.drop(held);
+      return (await this.current()).transaction(stores, mode);
+    }
+  }
+
+  private drop(connection: Promise<IDBDatabase>): void {
+    if (this.held === connection) this.held = null;
+  }
+}
+
+function isClosing(err: unknown): boolean {
+  return (err as { name?: unknown } | null)?.name === 'InvalidStateError';
 }
 
 function runRange(runId: string): IDBKeyRange {
@@ -64,14 +106,55 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-function written(db: IDBDatabase, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
-  const tx = db.transaction(store, 'readwrite', { durability: 'strict' });
-  write(tx.objectStore(store));
-  return new Promise((resolve, reject) => {
+async function written(connection: Connection, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
+  const tx = await connection.transaction(store, 'readwrite');
+  const done = new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error ?? new Error(`The ${store} write was aborted`));
   });
+  write(tx.objectStore(store));
+  return done;
+}
+
+const IDB_RETRY_MS = 200;
+
+export async function openSaves(name: string, storage: Storage, slots: readonly SlotId[]): Promise<SaveSlots> {
+  const idb = await idbBackendWithRetry(name);
+  if (idb) return SaveSlots.open(idb, storage, name, slots);
+  return SaveSlots.open(storageBackend(storage, name, slots), null, name, slots);
+}
+
+async function idbBackendWithRetry(name: string): Promise<SaveBackend | null> {
+  try {
+    return await idbBackend(name);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, IDB_RETRY_MS));
+  }
+  try {
+    return await idbBackend(name);
+  } catch (err) {
+    console.warn(`${err instanceof Error ? err.message : String(err)}. Saves go to local storage for this session.`);
+    return null;
+  }
+}
+
+export function storageBackend(storage: Storage, base: string, slots: readonly SlotId[]): SaveBackend {
+  const { appendLog, readLog } = memoryBackend();
+  return {
+    readAll: async () => {
+      const saves = new Map<SlotId, unknown>();
+      for (const slot of slots) {
+        const raw = storage.getItem(slotKey(base, slot));
+        if (raw !== null) saves.set(slot, parsedOrRaw(raw));
+      }
+      return saves;
+    },
+    put: async (slot, envelope) => { storage.setItem(slotKey(base, slot), JSON.stringify(envelope)); },
+    remove: async (slot) => { storage.removeItem(slotKey(base, slot)); },
+    appendLog,
+    readLog,
+  };
 }
 
 export function memoryBackend(): SaveBackend {
@@ -95,7 +178,8 @@ export class SaveSlots {
 
   constructor(readonly backend: SaveBackend, private envelopes: Map<SlotId, unknown>) {}
 
-  static async open(backend: SaveBackend, legacy: Storage, base: string, slots: readonly SlotId[]): Promise<SaveSlots> {
+  static async open(backend: SaveBackend, legacy: Storage | null, base: string, slots: readonly SlotId[]): Promise<SaveSlots> {
+    if (!legacy) return new SaveSlots(backend, await backend.readAll());
     const stored = await backend.readAll();
     for (const slot of slots) {
       const key = slotKey(base, slot);
@@ -120,20 +204,20 @@ export class SaveSlots {
   put(slot: SlotId, envelope: unknown): void {
     const copy = structuredClone(envelope);
     this.envelopes.set(slot, copy);
-    this.track(this.backend.put(slot, copy));
+    this.track(() => this.backend.put(slot, copy));
   }
 
   remove(slot: SlotId): void {
     this.envelopes.delete(slot);
-    this.track(this.backend.remove(slot));
+    this.track(() => this.backend.remove(slot));
   }
 
   async flush(): Promise<void> {
     await Promise.all(this.pending);
   }
 
-  private track(write: Promise<void>): void {
-    const done = write.catch((err) => this.onError(err)).finally(() => this.pending.delete(done));
+  private track(write: () => Promise<void>): void {
+    const done = Promise.resolve().then(write).catch((err) => this.onError(err)).finally(() => this.pending.delete(done));
     this.pending.add(done);
   }
 }

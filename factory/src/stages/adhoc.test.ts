@@ -196,7 +196,7 @@ describe('adhoc', () => {
     it('never writes to the web root, even when the request asks to publish on the web', async () => {
       const f = fake();
       queueReply(f.ctx.statePath);
-      f.ctx.github.issue = async () => ({ number: 7, title: 'T', body: 'Make an HTML report and publish it at a public web URL under /opt/factory/www/reports', labels: ['adhoc'], createdAt: '', state: 'OPEN', thumbsUp: [], author: 'a' });
+      f.ctx.github.issue = async () => ({ number: 7, title: 'T', body: 'Make an HTML report and publish it at a public web URL under /opt/factory/www/reports', labels: ['adhoc'], createdAt: '', state: 'OPEN', author: 'a' });
       f.agentWrites = { 'report.md': 'The report comes as a file.', 'files/analytics.html': '<html></html>' };
       await adhoc(f.ctx, 7);
       expect(documents(f)).toHaveLength(1);

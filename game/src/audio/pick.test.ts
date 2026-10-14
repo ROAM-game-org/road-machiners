@@ -35,6 +35,18 @@ describe("spatial", () => {
     expect(spatial(50, 100, 0, 40, 0.7).gain).toBe(1);
     expect(spatial(50, 100, 40, 40, 0.7).gain).toBeCloseTo(0.5);
   });
+  it("centres the pan when the window has no width", () => {
+    for (const width of [0, -5]) {
+      const placed = spatial(30, width, 10, 40, 0.7);
+      expect(placed.pan).toBe(0);
+      expect(Number.isFinite(placed.gain)).toBe(true);
+    }
+  });
+  it("fails loud on a non-finite screen x or distance", () => {
+    expect(() => spatial(NaN, 100, 0, 40, 0.7)).toThrow(/finite/);
+    expect(() => spatial(Infinity, 100, 0, 40, 0.7)).toThrow(/finite/);
+    expect(() => spatial(50, 100, NaN, 40, 0.7)).toThrow(/finite/);
+  });
 });
 
 describe("VoiceLimiter", () => {

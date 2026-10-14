@@ -5,6 +5,7 @@ import { cardDrift } from './position';
 import { replyMediaDir } from './reply-media';
 import { workDir } from './stages/common';
 import { readLedger } from './ledger';
+import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type ReleaseState } from './types';
 
@@ -28,7 +29,7 @@ let editFails = false;
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
 function fakeCtx(): Ctx {
-  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {} } as FactoryConfig;
+  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, repo: 'o/r', voteEmoji: '👍', vetoEmoji: '👎', minVotes: 3 } as FactoryConfig;
   return {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
@@ -52,6 +53,10 @@ function fakeCtx(): Ctx {
       editText: async (_chat: string, id: number, text: string) => {
         if (editFails) throw new Error('telegram down');
         calls.push(`editText ${id} ${text}`);
+      },
+      editHtml: async (_chat: string, id: number, text: string) => {
+        if (editFails) throw new Error('telegram down');
+        calls.push(`editHtml ${id} ${text}`);
       },
     },
     repo: {
@@ -191,6 +196,60 @@ describe('isGated', () => {
 });
 
 describe('move', () => {
+  it('of a voting card drops the label and closes its proposal, so the tick never moves it again', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    expect(calls).toContain('removeLabel 9 voting');
+    const after = openStore(ROOT);
+    expect(after.openProposals()).toEqual([]);
+    after.close();
+  });
+
+  it('of a voting card edits its proposal post once, to the count and Closed', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
+    store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: '-5', messageId: 300, counts: { '👍': 2 } });
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    const edits = calls.filter((call) => call.startsWith('editHtml 300'));
+    expect(edits).toHaveLength(1);
+    expect(edits[0]!.endsWith('Current: 2 👍, 0 👎, net +2/3\nClosed')).toBe(true);
+  });
+
+  it('of a voting card reports a failed post edit once and still closes the proposal', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch', new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
+    store.close();
+    editFails = true;
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    const after = openStore(ROOT);
+    expect(after.openProposals()).toEqual([]);
+    after.close();
+    expect(calls).toContain('move 9 Design');
+    expect(readState(statePath).failures.filter((failure) => failure.issue === 9 && failure.error.includes('telegram down'))).toHaveLength(1);
+  });
+
+  it('of a voting card whose proposal was never posted edits nothing', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch', new Date(0));
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    expect(calls.filter((call) => call.startsWith('editHtml'))).toEqual([]);
+  });
+
   it('to design stops the job and clears every store of the old position (IV1)', async () => {
     busyCard();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));

@@ -7,6 +7,9 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+declare const __FEEDBACK_URL__: string;
+export const FEEDBACK_URL = __FEEDBACK_URL__;
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
@@ -23,4 +26,6 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
+  assetFetchTries: 3,
+  assetRetryMs: 500,
 };

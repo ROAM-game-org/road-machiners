@@ -1,0 +1,178 @@
+import json
+import logging
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+log = logging.getLogger(__name__)
+
+PUBLIC_GROUP = -1
+PUBLIC_ALERT = "public-alert"
+UPDATE_KINDS = ("message", "message_reaction", "message_reaction_count")
+
+
+def update_kind(raw: dict) -> Optional[str]:
+    for kind in UPDATE_KINDS:
+        if kind in raw:
+            return kind
+    return None
+
+
+def update_chat(raw: dict) -> Optional[str]:
+    kind = update_kind(raw)
+    return None if kind is None else str(raw[kind]["chat"]["id"])
+
+
+def stops_hermes(raw: dict, cfg) -> bool:
+    chat = update_chat(raw)
+    if update_kind(raw) == "message":
+        return chat == cfg.discussion
+    return chat in (cfg.discussion, cfg.proposal_chat)
+
+
+def iso_date(seconds: int) -> str:
+    return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def emoji_of(reaction: dict) -> Optional[str]:
+    return reaction["emoji"] if reaction.get("type") == "emoji" else None
+
+
+def count_event(raw: dict) -> dict:
+    body = raw["message_reaction_count"]
+    counts = {}
+    for entry in body["reactions"]:
+        emoji = emoji_of(entry["type"])
+        if emoji is not None:
+            counts[emoji] = entry["total_count"]
+    return {
+        "updateId": raw["update_id"], "kind": "reaction-count", "chat": str(body["chat"]["id"]),
+        "messageId": body["message_id"], "counts": counts,
+    }
+
+
+def reaction_event(raw: dict) -> Optional[dict]:
+    body = raw["message_reaction"]
+    if "user" not in body:
+        return None
+    emoji = [found for found in map(emoji_of, body["new_reaction"]) if found is not None]
+    return {
+        "updateId": raw["update_id"], "kind": "reaction", "chat": str(body["chat"]["id"]),
+        "messageId": body["message_id"], "user": str(body["user"]["id"]), "emoji": emoji,
+    }
+
+
+def forward_event(raw: dict, message: dict) -> dict:
+    origin = message["forward_origin"]
+    return {
+        "updateId": raw["update_id"], "kind": "forward", "chat": str(message["chat"]["id"]),
+        "messageId": message["message_id"], "channelChat": str(origin["chat"]["id"]),
+        "channelMessageId": origin["message_id"],
+    }
+
+
+def author_of(message: dict) -> str:
+    sender = message["from"]
+    if sender.get("first_name"):
+        return " ".join(part for part in (sender["first_name"], sender.get("last_name")) if part)
+    return sender["username"]
+
+
+def comment_event(raw: dict, message: dict) -> Optional[dict]:
+    text = message.get("text") or message.get("caption")
+    reply = message.get("reply_to_message")
+    thread = reply["message_id"] if reply else message.get("message_thread_id")
+    if not text or thread is None:
+        return None
+    return {
+        "updateId": raw["update_id"], "kind": "comment", "chat": str(message["chat"]["id"]),
+        "messageId": message["message_id"], "threadId": thread, "author": author_of(message),
+        "text": text, "at": iso_date(message["date"]),
+    }
+
+
+def is_channel_forward(message: dict) -> bool:
+    return bool(message.get("is_automatic_forward")) and message.get("forward_origin", {}).get("type") == "channel"
+
+
+def message_event(raw: dict, cfg) -> Optional[dict]:
+    message = raw["message"]
+    chat = str(message["chat"]["id"])
+    if chat == cfg.discussion and is_channel_forward(message):
+        return forward_event(raw, message)
+    if chat in (cfg.discussion, cfg.proposal_chat):
+        return comment_event(raw, message)
+    return None
+
+
+def public_event(raw: dict, cfg) -> Optional[dict]:
+    kind = update_kind(raw)
+    if kind is None or update_chat(raw) not in (cfg.discussion, cfg.proposal_chat):
+        return None
+    if kind == "message":
+        return message_event(raw, cfg)
+    if kind == "message_reaction_count":
+        return count_event(raw)
+    return reaction_event(raw)
+
+
+def write_public_event(public_inbox: str, event: dict) -> Path:
+    directory = Path(public_inbox)
+    directory.mkdir(parents=True, exist_ok=True)
+    final = directory / f"{event['updateId']}.json"
+    temp = final.with_suffix(".json.tmp")
+    temp.write_text(json.dumps(event))
+    os.chmod(temp, 0o640)
+    os.replace(temp, final)
+    return final
+
+
+def alert_path(cfg) -> Path:
+    return Path(cfg.public_inbox).parent / PUBLIC_ALERT
+
+
+def raise_public_alert(cfg, now: datetime) -> None:
+    line = f"public updates: the plugin could not write a player vote or comment to the inbox on {now.date().isoformat()}"
+    path = alert_path(cfg)
+    if path.is_file() and line in path.read_text().split("\n"):
+        return
+    with path.open("a") as alerts:
+        alerts.write(f"{line}\n")
+
+
+def handle_public_update(raw: dict, cfg) -> bool:
+    stop = stops_hermes(raw, cfg)
+    try:
+        event = public_event(raw, cfg)
+        if event is not None:
+            write_public_event(cfg.public_inbox, event)
+    except Exception:
+        log.exception("Factory could not hand public update %s to the inbox.", raw.get("update_id"))
+        try:
+            raise_public_alert(cfg, datetime.now(timezone.utc))
+        except Exception:
+            log.exception("Factory could not record the public inbox failure for the incident watch.")
+    return stop
+
+
+def make_public_handler(cfg):
+    from telegram.ext import ApplicationHandlerStop
+
+    async def on_update(update, context) -> None:
+        if handle_public_update(update.to_dict(), cfg):
+            raise ApplicationHandlerStop
+
+    return on_update
+
+
+def make_public_factory(cfg):
+    def factory(native, adapter) -> None:
+        from telegram.ext import MessageHandler, MessageReactionHandler, filters
+
+        chats = [int(cfg.discussion), int(cfg.proposal_chat)]
+        callback = make_public_handler(cfg)
+        native.add_handler(MessageReactionHandler(callback, chat_id=chats), group=PUBLIC_GROUP)
+        native.add_handler(MessageHandler(filters.UpdateType.MESSAGE & filters.Chat(chat_id=chats), callback), group=PUBLIC_GROUP)
+
+    return factory
