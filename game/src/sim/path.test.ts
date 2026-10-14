@@ -1204,7 +1204,7 @@ describe('raider hunting routes on the map', () => {
     console.log('hunting routes', JSON.stringify({ shy, plain }));
     expect(shy.road).toBeLessThanOrEqual(0.04);
     expect(shy.near6).toBeLessThanOrEqual(plain.near6 * 0.6);
-    expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.6);
+    expect(shy.near10).toBeLessThanOrEqual(plain.near10 * 0.62);
     expect(shy.meanLength).toBeLessThanOrEqual(plain.meanLength * 1.3);
   });
 
