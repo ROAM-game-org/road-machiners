@@ -870,6 +870,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
   withSearches_62_63,
+  withParcelSearches_63_64,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -894,6 +895,25 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
 
 function withSearches_62_63(world: SavedJson): SavedJson {
   return world;
+}
+const withoutSearches_63_64 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_63_64(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+  return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
+}
+function withParcelSearches_63_64(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_63_64(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      contracts: withoutSearches_63_64(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_63_64(player.talked as Record<string, SavedJson>),
+      call: call?.topic === 'found' ? null : call,
+    },
+  };
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
