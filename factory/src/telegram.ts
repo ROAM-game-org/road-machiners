@@ -1,9 +1,9 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { readPhoto } from './photo-file';
+import { MESSAGE_LIMIT } from './telegram-limits';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
 
-export const MESSAGE_LIMIT = 4096;
 const CAPTION_LIMIT = 1024;
 const CALLBACK_DATA_LIMIT = 64;
 const ALBUM_MAX = 10;

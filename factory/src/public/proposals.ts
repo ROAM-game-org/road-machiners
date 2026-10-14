@@ -1,6 +1,6 @@
 import { bundleOf } from '../stages/bundle';
 import { readState } from '../state';
-import { MESSAGE_LIMIT } from '../telegram';
+import { MESSAGE_LIMIT } from '../telegram-limits';
 import type { Ctx } from '../types';
 import type { PublicStore, Tally } from './store';
 
