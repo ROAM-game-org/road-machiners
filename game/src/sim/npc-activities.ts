@@ -24,7 +24,7 @@ import { standingPressures } from './market';
 import { remember } from './memory';
 import { chance, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
-import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
+import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, CLAIMED, claimOnly, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
 import { vehicleById } from './damage';
@@ -323,7 +323,7 @@ export function idleGoal(world: World, vehicle: Vehicle): NpcActivity {
 
 function noteLootEnd(world: World, vehicle: Vehicle, reason: GoalReason, targetId: string | null): void {
   if (reason === CANNOT_HOLD) noteCannotHold(world, vehicle, targetId);
-  if (reason === STRIPPED) noteStripped(world, vehicle, targetId);
+  if (reason === STRIPPED || reason === CLAIMED) noteStripped(world, vehicle, targetId);
 }
 
 export function finishGoal(world: World, vehicle: Vehicle, reason: GoalReason): void {
@@ -1060,6 +1060,7 @@ function resolveTruckLoot(world: World, vehicle: Vehicle, activity: NpcActivity,
 
 function searchStock(world: World, vehicle: Vehicle, stock: SalvageStock): void {
   if (!hasSalvage(stock)) return void finishGoal(world, vehicle, STRIPPED);
+  if (claimOnly(world, vehicle, stock)) return void finishGoal(world, vehicle, CLAIMED);
   if (!canTakeAny(world, vehicle, stock)) return void finishGoal(world, vehicle, CANNOT_HOLD);
   if (vehicle.job) return;
   if (inCombat(world, vehicle)) finishGoal(world, vehicle, 'combatStopsSearch');

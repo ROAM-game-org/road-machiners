@@ -172,7 +172,7 @@ describe('haul pay and rush', () => {
     const before = w.rngState;
     const rolled = new Set<boolean>();
     for (let i = 0; i < 100; i++) {
-      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ id: 'nose', pos: { x: 100, y: 0 } }], ['salt'], [], []);
+      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ id: 'nose', pos: { x: 100, y: 0 } }], ['salt'], [], [], []);
       if (c?.kind === 'haul') {
         rolled.add(c.rush);
         expect(c.window).toBe(haulWindow(estimateTurns({ x: 0, y: 0 }, { x: 100, y: 0 }), c.rush));
@@ -246,20 +246,20 @@ describe('rollContract', () => {
     w2.marketRng.rngState = 42;
     const raider = addRaider(w1, 'buggy');
     addRaider(w2, 'buggy');
-    const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider]);
-    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'raiders')!]);
+    const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider], []);
+    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'raiders')!], []);
     expect(c1).toEqual(c2);
   });
 
   it('returns null when every kind is impossible', () => {
     const w = emptyWorld();
-    expect(rollContract(w, shop, [], [], [], [])).toBeNull();
+    expect(rollContract(w, shop, [], [], [], [], [])).toBeNull();
   });
 
   it('never rolls a bounty when there are no raiders', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, partDefIds, []);
+      const c = rollContract(w, shop, places, goods, partDefIds, [], []);
       expect(c?.kind).not.toBe('bounty');
     }
   });
@@ -267,7 +267,7 @@ describe('rollContract', () => {
   it('never rolls a haul when there are no other places', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], goods, partDefIds, []);
+      const c = rollContract(w, shop, [], goods, partDefIds, [], []);
       expect(c?.kind).not.toBe('haul');
     }
   });
@@ -275,7 +275,7 @@ describe('rollContract', () => {
   it('never rolls a fetch when there are no part defs', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, [], []);
+      const c = rollContract(w, shop, places, goods, [], [], []);
       expect(c?.kind).not.toBe('fetch');
     }
   });
@@ -285,7 +285,7 @@ describe('rollContract', () => {
     w.turn = 10;
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, goods, [], []);
+      const c = rollContract(w, shop, places, goods, [], [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -297,7 +297,7 @@ describe('rollContract', () => {
     const dearGoods = ['tools'];
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, dearGoods, [], []);
+      const c = rollContract(w, shop, places, dearGoods, [], [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -308,7 +308,7 @@ describe('rollContract', () => {
     const w = emptyWorld();
     let fetchContract: Contract | null = null;
     for (let i = 0; i < 50 && !fetchContract; i++) {
-      const c = rollContract(w, shop, [], [], ['workhorseDiesel'], []);
+      const c = rollContract(w, shop, [], [], ['workhorseDiesel'], [], []);
       if (c?.kind === 'fetch') fetchContract = c;
     }
     expect(fetchContract).not.toBeNull();
@@ -322,7 +322,7 @@ describe('rollContract', () => {
     expect(stowed).toBe(true);
     let bounty: Contract | null = null;
     for (let i = 0; i < 50 && !bounty; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider]);
+      const c = rollContract(w, shop, [], [], [], [raider], []);
       if (c?.kind === 'bounty') bounty = c;
     }
     expect(bounty).not.toBeNull();
@@ -335,7 +335,7 @@ describe('rollContract', () => {
     const rewards = new Set<number>();
     const deadlines = new Set<number>();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider]);
+      const c = rollContract(w, shop, [], [], [], [raider], []);
       if (c?.kind === 'bounty') {
         rewards.add(c.reward);
         deadlines.add(c.deadline);

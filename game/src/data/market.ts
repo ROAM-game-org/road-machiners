@@ -87,6 +87,16 @@ export const CONTRACTS = {
     xpPerEffort: 0.0045,
   },
 
+  claim: {
+    minTownGap: 15,
+    minRoadGap: 5,
+    rewardFactor: 24,
+    searchTurns: 60,
+    durationFactor: 2.5,
+    slackTurns: Math.round(TIME.turnsPerDay / 2),
+    xpPerEffort: 0.003,
+  },
+
   bounty: {
     durationTurns: [400, 1000] as [number, number],
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,

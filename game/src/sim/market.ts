@@ -7,8 +7,10 @@ import { CONDITION } from '../data/wear';
 import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Tier } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
+import { claimPartHeld, claimTargets, claimReward, claimWindow, fitsClaim, type ClaimTarget } from './claims';
 import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
+import type { ClaimContract } from './salvage';
 import { freeCells, goodsCount } from './grid';
 import { addGoods, removeGoods, spareParts } from './inventory';
 import { practice } from './progress';
@@ -156,6 +158,7 @@ export function addStockPart(state: ShopState, part: PartInstance): void {
 export type Contract =
   | { id: string; shop: string; kind: 'haul'; good: string; units: number; to: string; reward: number; deadline: number; window: number; rush: boolean; tier: Tier }
   | { id: string; shop: string; kind: 'fetch'; defId: string; reward: number; deadline: number; window: number; tier: Tier }
+  | { id: string; shop: string; kind: 'claim'; stockId: string; at: Vec; partId: string; defId: string; reward: number; deadline: number; window: number; tier: Tier }
   | { id: string; shop: string; kind: 'bounty'; template: string; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean };
 
 export function estimateTurns(from: Vec, to: Vec): number {
@@ -215,6 +218,7 @@ type RollInput = {
   goods: string[];
   partDefIds: string[];
   raiders: Vehicle[];
+  claims: ClaimTarget[];
 };
 
 function pick<T>(world: World, list: T[]): T {
@@ -226,6 +230,7 @@ function possibleKinds(input: RollInput): Contract['kind'][] {
   if (input.places.length > 0 && input.goods.length > 0) kinds.push('haul');
   if (input.partDefIds.length > 0) kinds.push('fetch');
   if (input.raiders.length > 0) kinds.push('bounty');
+  if (input.claims.length > 0) kinds.push('claim');
   return kinds;
 }
 
@@ -258,7 +263,16 @@ function rollBounty(world: World, input: RollInput, id: string): Contract {
   return { id, shop: input.shop.id, kind: 'bounty', template: target.brain.templateId, reward, deadline: world.turn + turns, window: turns, tier, fulfilled: false };
 }
 
-const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty };
+function rollClaim(world: World, input: RollInput, id: string): Contract {
+  if (input.claims.length === 0) throw new Error('A claim needs a part lying in a wreck');
+  const { stock, part } = pick(world, input.claims);
+  const turns = estimateTurns(input.shop.pos, stock.pos);
+  const window = claimWindow(turns);
+  const tier = PARTS[part.defId].tier;
+  return { id, shop: input.shop.id, kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: part.id, defId: part.defId, reward: claimReward(part, turns), deadline: world.turn + window, window, tier };
+}
+
+const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty, claim: rollClaim };
 
 export function rollContract(
   world: World,
@@ -267,8 +281,9 @@ export function rollContract(
   goods: string[],
   partDefIds: string[],
   raiders: Vehicle[],
+  claims: ClaimTarget[],
 ): Contract | null {
-  const input = { shop, places, goods, partDefIds, raiders };
+  const input = { shop, places, goods, partDefIds, raiders, claims };
   const kinds = possibleKinds(input);
   if (kinds.length === 0) return null;
   const kind = pick(world, kinds);
@@ -349,7 +364,7 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
     const raiders = world.vehicles.filter((v) => v.faction === 'raiders' && v.brain && !postedTemplates.has(v.brain.templateId));
-    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders);
+    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders, claimTargets(world));
     if (!contract) return;
     state.contracts.push(contract);
   }
@@ -374,11 +389,15 @@ export function advanceShops(world: World): void {
   for (const [shopId, state] of Object.entries(world.shops)) {
     const restockAt = state.restockAt;
     advanceShop(world, shopId, state);
-    state.contracts = state.contracts.filter((c) => !isExpired(world, c));
+    state.contracts = state.contracts.filter((c) => !isExpired(world, c) && !claimGone(world, c));
     if (state.restockAt === restockAt) continue;
     state.contracts = state.contracts.filter((c) => offerStillValid(world, c));
     fillBoard(world, shopId, state);
   }
+}
+
+function claimGone(world: World, c: Contract): boolean {
+  return c.kind === 'claim' && claimPartHeld(world, c) === 'gone';
 }
 
 function offerStillValid(world: World, c: Contract): boolean {
@@ -449,6 +468,7 @@ export function deliverContract(world: World, contractId: string): World {
     if (!contract) throw new Error(`No active contract ${contractId}`);
     if (contract.kind === 'haul') handInHaul(w, contract);
     else if (contract.kind === 'fetch') handInFetch(w, contract);
+    else if (contract.kind === 'claim') handInClaim(w, contract);
     else handInBounty(w, contract);
     finishContract(w, contract, 'done');
   });
@@ -483,8 +503,21 @@ function handInFetch(world: World, c: Extract<Contract, { kind: 'fetch' }>): voi
   world.player.storage.splice(stored, 1);
 }
 
+function handInClaim(world: World, c: ClaimContract): void {
+  requireParkedAt(world, c.shop);
+  const v = playerVehicle(world);
+  const spare = spareParts(v).find((p) => fitsClaim(c, p));
+  if (spare) {
+    v.items = v.items.filter((it) => it.kind !== 'part' || it.part.id !== spare.id);
+    return addStockPart(shopState(world, c.shop), spare);
+  }
+  const stored = world.player.storage.findIndex((p) => fitsClaim(c, p));
+  if (stored < 0) throw new Error(`Needs the claimed ${c.defId}, off the truck`);
+  addStockPart(shopState(world, c.shop), world.player.storage.splice(stored, 1)[0]);
+}
+
 export function contractXp(c: Contract): number {
-  const effort = c.kind === 'fetch' ? c.reward - partPristineBuyPrice(c.defId) : c.reward;
+  const effort = c.kind === 'fetch' || c.kind === 'claim' ? Math.max(0, c.reward - partPristineBuyPrice(c.defId)) : c.reward;
   return Math.round(effort * CONTRACTS[c.kind].xpPerEffort);
 }
 
@@ -525,5 +558,6 @@ function settleContract(world: World, c: Contract): void {
 
 function contractOutcome(world: World, c: Contract): 'failed' | 'lapsed' | null {
   if (c.kind === 'bounty' && bountyLapsed(world, c)) return 'lapsed';
+  if (claimGone(world, c)) return 'lapsed';
   return isExpired(world, c) ? 'failed' : null;
 }
