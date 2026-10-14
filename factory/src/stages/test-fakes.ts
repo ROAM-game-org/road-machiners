@@ -28,7 +28,7 @@ export function fake(): Fake {
       cards: async () => f.cards,
       pullRequestFor: async () => null,
       reopen: async (n: number) => note(`reopen ${n}`),
-      issue: async () => ({ number: 7, title: 'T', body: 'Simulate battles', labels: ['adhoc'], createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'T', body: 'Simulate battles', labels: ['adhoc'], createdAt: '', state: 'OPEN' }),
       editIssue: async () => note('editIssue'),
       comment: async (_n: number, body: string) => note(`comment ${body}`),
       move: async (_n: number, column: string) => note(`move ${column}`),

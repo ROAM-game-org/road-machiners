@@ -5,20 +5,26 @@ import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
 
 import type { ReportBuild } from '../sourcemaps';
 
-export type ErrorReport = {
-  build: ReportBuild;
+export type ReportContext = {
+  build: ReportBuild | '';
   version: string;
-  error: { name: string; message: string; stack: string };
   userAgent: string;
+  language: string;
+  screen: { width: number; height: number; pixelRatio: number };
   turn: number | null;
   log: string[];
   world: object | null;
   autosave: string | null;
   autosaveIsWorld: boolean;
+};
+
+export type ErrorReport = Omit<ReportContext, 'language' | 'screen'> & Partial<Pick<ReportContext, 'language' | 'screen'>> & {
+  build: ReportBuild;
+  error: { name: string; message: string; stack: string };
   drive: object | null;
 };
 
-export type RejectReason = 'origin' | 'address' | 'rate' | 'size' | 'shape' | 'commit' | 'stack' | 'disk';
+export type RejectReason = 'origin' | 'address' | 'rate' | 'size' | 'shape' | 'commit' | 'stack' | 'disk' | 'feedback-rate' | 'filter';
 
 export class Rejected extends Error {
   constructor(readonly reason: RejectReason, readonly status: number, message: string) {
@@ -33,27 +39,42 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 const isString = (value: unknown): value is string => typeof value === 'string';
 const orNull = (check: (value: unknown) => boolean) => (value: unknown) => value === null || check(value);
 
-const FIELDS: Record<keyof ErrorReport, (value: unknown) => boolean> = {
-  build: (value) => isString(value) && BUILDS.includes(value),
+const orMissing = (check: (value: unknown) => boolean) => (value: unknown) => value === undefined || check(value);
+const isSize =(value: unknown): boolean => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+const CONTEXT_FIELDS: Record<keyof ReportContext, (value: unknown) => boolean> = {
+  build: (value) => isString(value) && (value === '' || BUILDS.includes(value)),
   version: (value) => isString(value) && VERSION.test(value),
-  error: (value) => isObject(value) && isString(value.name) && isString(value.message) && isString(value.stack),
   userAgent: isString,
+  language: isString,
+  screen: (value) => isObject(value) && isSize(value.width) && isSize(value.height) && isSize(value.pixelRatio),
   turn: orNull((value) => Number.isInteger(value)),
   log: (value) => Array.isArray(value) && value.every(isString),
   world: orNull(isObject),
   autosave: orNull(isString),
   autosaveIsWorld: (value) => typeof value === 'boolean',
+};
+
+const ERROR_FIELDS: Record<keyof ErrorReport, (value: unknown) => boolean> = {
+  ...CONTEXT_FIELDS,
+  build: (value) => isString(value) && BUILDS.includes(value),
+  language: orMissing(CONTEXT_FIELDS.language),
+  screen: orMissing(CONTEXT_FIELDS.screen),
+  error: (value) => isObject(value) && isString(value.name) && isString(value.message) && isString(value.stack),
   drive: orNull(isObject),
 };
 
-export function parseReport(value: unknown): ErrorReport {
-  if (!isObject(value)) throw new Rejected('shape', 400, 'The report is not a JSON object.');
-  const bad = Object.entries(FIELDS).filter(([field, check]) => !check(value[field])).map(([field]) => field);
-  if (bad.length > 0) throw new Rejected('shape', 400, `The report has bad fields: ${bad.join(', ')}.`);
-  return value as ErrorReport;
+function checked<T>(value: unknown, fields: Record<string, (value: unknown) => boolean>, what: string): T {
+  if (!isObject(value)) throw new Rejected('shape', 400, `The ${what} is not a JSON object.`);
+  const bad = Object.entries(fields).filter(([field, check]) => !check(value[field])).map(([field]) => field);
+  if (bad.length > 0) throw new Rejected('shape', 400, `The ${what} has bad fields: ${bad.join(', ')}.`);
+  return value as T;
 }
 
-export function commitOf(report: ErrorReport): string {
+export const parseReport = (value: unknown): ErrorReport => checked(value, ERROR_FIELDS, 'report');
+export const parseContext = (value: unknown): ReportContext => checked(value, CONTEXT_FIELDS, 'report context');
+
+export function commitOf(report: Pick<ReportContext, 'version'>): string {
   return (VERSION.exec(report.version) as RegExpExecArray)[1];
 }
 

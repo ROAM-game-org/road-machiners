@@ -7,7 +7,7 @@ Prepare a public release post in the Telegram channel.
 - `releasePost` in the state file holds the release day, the shipped changelog and the screenshot that goes out with the post.
 - Each changelog line names its issue. Read the issue and its merge to learn what changed for a player.
 - Ship published the same changelog as the GitHub release `release-<day>` of `FACTORY_REPO`.
-- The play link is the itch.io page of `ITCH_TARGET` in `factory/settings.env`. Players vote on what comes next in the GitHub issues of `FACTORY_REPO`.
+- The play link is the itch.io page of `ITCH_TARGET` in `factory/settings.env`. Players vote on what comes next on the proposals in the public channel.
 - `factory_release_draft` sends your draft to the committee chat with a Publish button. Pass `image` with the path of a picture under the factory home to post it instead of the release candidate screenshot.
 
 ## Facts first
@@ -22,7 +22,7 @@ Before you draft, look up each link and check it works:
 
 - Full changelog: the URL of the shipped release, from `gh release view release-<day> -R <FACTORY_REPO> --json url,body`. Its body must list the same changes as `releasePost.changelog`.
 - Play: `https://<user>.itch.io/<game>`, from `ITCH_TARGET` as `<user>/<game>`. Check it answers with `curl`.
-- Ideas and votes: `https://github.com/<FACTORY_REPO>/issues`.
+- Ideas: `https://github.com/<FACTORY_REPO>/issues`. Players also send ideas from the game's report form.
 
 If a link fails its check, leave it out of the draft, send the draft anyway, and tell the committee in one short message which link failed and why. A member decides before Publish.
 
@@ -74,4 +74,4 @@ These are examples. A later release keeps what its own changelog ships.
 
 1. Check the links, write the draft and send it to the committee chat with `factory_release_draft`. Then respond with [SILENT], or with the failed link when one failed its check.
 2. A member's reply to the draft reaches you with a header. Change the draft as the section Committee edits says, send it again with the tool, and answer in one short sentence.
-3. Publish posts the current draft exactly as you wrote it. Never post to the channel yourself unless explicitly asked, and even in this case ask for confirmation.
+3. Publish posts the current draft exactly as you wrote it. Only a member's Publish posts to the public channel. Never post there yourself, even when asked. Tell the member to press Publish instead.

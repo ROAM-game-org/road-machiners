@@ -286,7 +286,7 @@ export class VehicleView {
   private anchorUndrawn(v: Vehicle, body: Body): void {
     for (const item of v.items) {
       if (item.kind !== 'part' || this.anchors.has(item.part.id)) continue;
-      const local = onChassis(v, item) ? surfacePoint(v, item) : new THREE.Vector3(-body.half.x, body.half.y, 0);
+      const local = onChassis(v, item) ? anchorPoint(v, item) : new THREE.Vector3(-body.half.x, body.half.y, 0);
       this.anchors.set(item.part.id, { local, parent: this.body });
     }
   }
@@ -645,9 +645,11 @@ function highestAhead(chassisId: string, rect: CellRect): number {
   return highestUnder(chassisId, { ...rect, x0: rect.x1, x1: nose });
 }
 
-function surfacePoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vector3 {
+function anchorPoint(v: Pick<Vehicle, 'chassisId'>, item: GridItem): THREE.Vector3 {
   const rect = rectOf(v, item);
-  return new THREE.Vector3((rect.x0 + rect.x1) / 2, surfaceAt(v.chassisId, rect), (rect.z0 + rect.z1) / 2);
+  const surface = highestUnder(v.chassisId, rect);
+  const y = surface === -Infinity ? standingY(v, item) : surface;
+  return new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
 }
 
 function rectOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): CellRect {

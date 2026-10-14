@@ -34,6 +34,27 @@ describe('checkQuests', () => {
     }, WALK_TIMEOUT_MS);
   });
 
+  describe('a load that shows no text before its choices', () => {
+    const scene = (hubTag: string) =>
+      `=== start ===\n# checkpoint: start\nThe road bends.\n-> hub\n= hub\n${hubTag}+ [Go on.]\n  -> END\n+ [Wait.]\n  -> hub\n`;
+    const problems = (view: string, hubTag: string): string[] => {
+      const sources: QuestSources = withEnglishTwins({ 'world.ink': WORLD, 'q.ink': `${view}INCLUDE world.ink\n${scene(hubTag)}` });
+      return checkQuests(sources, () => [world()], LIMIT).flatMap((report: QuestReport) => report.problems);
+    };
+
+    it('fails a page quest and names the checkpoint', () => {
+      expect(problems('# view: page\n', '# checkpoint: start.hub\n').join('\n')).toContain('a load at checkpoint start.hub shows no text before its choices');
+    });
+
+    it('lets a talk keep a checkpoint on its choices', () => {
+      expect(problems('', '# checkpoint: start.hub\n')).toEqual([]);
+    });
+
+    it('passes a page quest whose choices sit in an untagged stitch', () => {
+      expect(problems('# view: page\n', '')).toEqual([]);
+    });
+  });
+
   it('walks a branch on a game query both ways across the scenes', () => {
     const sources = readQuestSources('src/data/quests');
     const kovac = { 'world.ink': sources['world.ink'], 'nose_kovac.ink': sources['nose_kovac.ink'], 'ru/nose_kovac.ink': sources['ru/nose_kovac.ink'] };

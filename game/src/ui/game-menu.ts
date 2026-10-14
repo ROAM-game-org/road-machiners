@@ -1,10 +1,11 @@
 
-import { ERROR_REPORT_URL } from "../config";
+import { ERROR_REPORT_BUILD, ERROR_REPORT_URL, FEEDBACK_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
 import { setupText } from "../text/names";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, verbatim, type Msg } from "../text/msg";
+import { gameContext, gzip, type GameContext, type ReportContext } from "../three/error-report";
 import { el, isBrowserChord, panel, topRight } from "./dom";
 import { versionLabel } from "./hud-readout";
 import { isNewGameOpen, openNewGame, type NewGameActions } from "./new-game";
@@ -151,6 +152,128 @@ export class HelpPanel {
   toggle(): void {
     if (this.root) this.close();
     else this.open();
+  }
+}
+
+export const FEEDBACK_TEXT_LIMIT = 3000;
+
+export type FeedbackKind = "bug" | "idea";
+
+export type FeedbackReport = { kind: FeedbackKind; text: string; build: string; context: ReportContext };
+
+export type FeedbackResult = { status: "sent" } | { status: "failed" };
+
+type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+
+export function feedbackBuild(releaseFlag: string, pathname: string): string {
+  if (releaseFlag === "release") return "release";
+  return pathname.split("/").find((part) => part !== "") ?? "";
+}
+
+const isSent = (body: unknown): boolean => typeof body === "object" && body !== null && (body as { status?: unknown }).status === "sent";
+
+export function feedbackStatus(result: FeedbackResult): Msg {
+  return result.status === "sent" ? t("feedback.sent") : t("feedback.failed");
+}
+
+export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
+  if (url === "") throw new Error("Feedback is off in this build: FEEDBACK_URL is empty");
+  if (report.text.length > FEEDBACK_TEXT_LIMIT) throw new Error(`Feedback text is over ${FEEDBACK_TEXT_LIMIT} characters`);
+  try {
+    const response = await post(url, { method: "POST", headers: { "content-type": "application/gzip" }, body: await gzip(JSON.stringify(report)) });
+    if (!response.ok) return { status: "failed" };
+    const body: unknown = await response.json();
+    return isSent(body) ? { status: "sent" } : { status: "failed" };
+  } catch {
+    return { status: "failed" };
+  }
+}
+
+export class FeedbackForm {
+  private root: HTMLElement | null = null;
+  private readonly onKey = (e: KeyboardEvent) => {
+    if (e.code === "Escape") this.close();
+  };
+
+  constructor(
+    private readonly post: Fetch = (url, init) => fetch(url, init),
+    private readonly url: string = FEEDBACK_URL,
+    private readonly context: GameContext = gameContext,
+  ) {}
+
+  isOpen(): boolean {
+    return this.root !== null;
+  }
+
+  open(kind: FeedbackKind): void {
+    this.close();
+    const root = panel("feedback-form dialog");
+    bindAttr(root, "aria-label", t("feedback.title"));
+    root.append(...(this.url === "" ? this.offContent() : this.formContent(kind)));
+    this.root = root;
+    window.addEventListener("keydown", this.onKey);
+  }
+
+  close(): void {
+    if (!this.root) return;
+    this.root.remove();
+    this.root = null;
+    window.removeEventListener("keydown", this.onKey);
+  }
+
+  private closeButton(): HTMLElement {
+    return el("button", { class: "btn-s feedback-close", onclick: () => this.close() }, t("menu.closeEsc"));
+  }
+
+  private offContent(): HTMLElement[] {
+    return [el("div", {}, t("feedback.off")), this.closeButton()];
+  }
+
+  private formContent(first: FeedbackKind): HTMLElement[] {
+    let kind = first;
+    let busy = false;
+    const kinds: Record<FeedbackKind, HTMLElement> = {
+      bug: el("button", { onclick: () => choose("bug") }, t("feedback.bug")),
+      idea: el("button", { onclick: () => choose("idea") }, t("feedback.idea")),
+    };
+    const box = el("textarea", { class: "feedback-text", maxlength: FEEDBACK_TEXT_LIMIT, rows: 8, "aria-label": t("feedback.title") }) as HTMLTextAreaElement;
+    const count = el("span", { class: "num dim" });
+    const status = el("div", { class: "feedback-status" });
+    const send = el("button", { class: "feedback-send", onclick: () => submit() }, t("feedback.send"));
+
+    const refresh = () => {
+      for (const [name, button] of Object.entries(kinds)) button.classList.toggle("on", name === kind);
+      setText(count, verbatim(`${box.value.length} / ${FEEDBACK_TEXT_LIMIT}`));
+      const blocked = busy || box.value.trim() === "";
+      if (blocked) send.setAttribute("aria-disabled", "true");
+      else send.removeAttribute("aria-disabled");
+    };
+    const choose = (next: FeedbackKind) => {
+      kind = next;
+      refresh();
+    };
+    const submit = async () => {
+      if (busy || box.value.trim() === "") return;
+      busy = true;
+      refresh();
+      const report = { kind, text: box.value, build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname), context: this.context.capture() };
+      const result = await sendFeedback(this.post, this.url, report);
+      busy = false;
+      if (result.status === "sent") box.value = "";
+      setText(status, feedbackStatus(result));
+      status.classList.toggle("bad", result.status !== "sent");
+      refresh();
+    };
+
+    box.addEventListener("input", refresh);
+    refresh();
+    queueMicrotask(() => box.focus());
+    return [
+      el("div", { class: "feedback-kinds" }, kinds.bug, kinds.idea),
+      box,
+      el("div", { class: "feedback-foot" }, count, status),
+      el("div", { class: "feedback-actions" }, this.closeButton(), send),
+    ];
   }
 }
 
