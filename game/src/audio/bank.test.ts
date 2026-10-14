@@ -233,4 +233,34 @@ describe('sound formats', () => {
     const { failures } = await loadBank(ctxOf(async () => bufferOf(10)), ONE, ['m4a'], undefined, {});
     expect(String(failures[0].error)).toContain('No length for hit-1.ogg');
   });
+
+  it('boots a browser with no Ogg Opus on m4a alone, like Safari 26.6.1 in issue 549', async () => {
+    const sounds = {
+      hit: { files: ['hit-1.ogg', 'hit-2.ogg'] },
+      engine: { files: ['engine-1.ogg', 'engine-2.ogg'] },
+      score: { files: ['score-1.ogg', 'score-2.ogg'], beat: { bpm: 120, bars: 2 } },
+    } as unknown as Record<string, Cue>;
+    const beatFrames = beatLoopSeconds({ bpm: 120, bars: 2 } as never) * 48000;
+    const lengths = Object.fromEntries(
+      Object.values(sounds).flatMap((cue) => cue.files.map((f) => [f, cue.beat ? beatFrames : 24000])),
+    );
+    const urls: string[] = [];
+    let current = '';
+    vi.stubGlobal('fetch', async (url: string) => {
+      current = url.split('/').pop()!;
+      urls.push(current);
+      return ok;
+    });
+    const noOpus = cuttingCtx(async () => {
+      if (current.endsWith('.ogg')) throw Object.assign(new Error('x'), { name: 'EncodingError' });
+      return bufferOf(900);
+    }).context;
+    const oneAtATime = vi.spyOn(BANK, 'decodeAtOnce', 'get').mockReturnValue(1);
+    const { bank, failures } = await loadBank(noOpus, sounds, soundFormats(''), undefined, lengths);
+    oneAtATime.mockRestore();
+    expect(failures).toEqual([]);
+    expect(urls.filter((u) => u.endsWith('.ogg'))).toEqual([]);
+    expect([...bank.keys()]).toEqual(Object.values(sounds).flatMap((cue) => cue.files));
+    expect(bank.get('score-1.ogg')!.length).toBe(Math.round((beatFrames * 100) / 48000));
+  });
 });
