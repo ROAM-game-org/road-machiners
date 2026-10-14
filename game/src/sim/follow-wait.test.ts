@@ -99,3 +99,17 @@ describe('a courier waiting for its partner', () => {
     expect(leader.order?.kind).not.toBe('brake');
   });
 });
+
+describe('a far partner driving to catch up', () => {
+  it('sets no pace while the partner heads toward it', () => {
+    const w = emptyWorld({ x: 400, y: 200 });
+    const leader = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 60, y: 60 });
+    leader.heading = Math.PI;
+    leader.speed = 5;
+    const partner = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 60 + NPC_BEHAVIOR.escortCatchUpGap + 60, y: 60 });
+    startEscort(w, partner, leader, null, 0);
+    planNpcOrders(w);
+    expect(partner.order).toMatchObject({ kind: 'through' });
+    expect(partner.order).not.toHaveProperty('pace');
+  });
+});

@@ -141,6 +141,7 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
 function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
   if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
+  if (dist(v.pos, leader.pos) > NPC_BEHAVIOR.escortCatchUpGap) return { kind: "through", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
 }
 
