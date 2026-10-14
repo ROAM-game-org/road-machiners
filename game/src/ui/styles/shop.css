@@ -614,7 +614,7 @@
   overflow: hidden;
 }
 .skill-table {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
@@ -737,6 +737,15 @@
 .standing-row:hover > .standing-tip,
 .standing-row:focus > .standing-tip {
   display: block;
+}
+.standing-tip .base {
+  color: var(--ink-muted);
+}
+.standing-tip .up > .num {
+  color: var(--good);
+}
+.standing-tip .down > .num {
+  color: var(--danger-ink);
 }
 #ui button.perk {
   padding: var(--space-2) var(--space-4);

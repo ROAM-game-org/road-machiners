@@ -113,17 +113,22 @@ function standingGroup(world: World): HTMLElement {
 function standingRow(world: World, row: StandingRow): HTMLElement {
   const parts = standingParts(world, row);
   const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
-    tipRow(t('character.standingBase'), parts.base),
-    tipRow(t('character.standingDeeds'), parts.deeds),
-    tipRow(t('character.standingEarlier'), parts.earlier));
+    tipRow(t('character.standingBase'), parts.base, 'base'),
+    tipRow(t('character.standingDeeds'), parts.deeds, stepTone(parts.deeds)),
+    tipRow(t('character.standingEarlier'), parts.earlier, stepTone(parts.earlier)));
   return el('div', { class: 'standing-row', tabindex: 0 },
     el('span', {}, factionName(row.faction)),
     el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)),
     tip);
 }
 
-function tipRow(label: Msg, value: number): HTMLElement {
-  return el('div', { class: 'tooltip-row' }, el('span', {}, label), el('span', { class: 'num' }, num(value, 'int')));
+function tipRow(label: Msg, value: number, tone: string): HTMLElement {
+  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, num(value, 'int')));
+}
+
+function stepTone(step: number): string {
+  if (step === 0) return '';
+  return step > 0 ? 'up' : 'down';
 }
 
 const SKILL_ICON: Record<SkillId, IconName> = {
