@@ -104,6 +104,7 @@ The run stream is built and wired into the game, the recorder and a new `npm run
 - `npx vitest run src/sim/run-stream.test.ts src/sim/progression/run-timeline.test.ts src/three/run-log.test.ts src/three/save-modes.test.ts src/three/save-db.test.ts` passes, and `npm run typecheck` and `npm run quality` pass.
 - IV3 is tested by replaying a Roaming fight over real `endTurn` turns, and a highway run across `waitForRoad` with a reload session, and comparing every replayed truck to the world.
 - AS1 holds with a wide margin. Chaos Highway escort, 1000 turns, seed 2: 472 KB. Sprinter seed 2: 392 KB. Escort seed 3: 332 KB. Roaming trader, 2250 turns (5 days), seed 1: 502 KB. No compaction was needed. For comparison, the same Roaming run wrote 5.7 MB of `world.jsonl`.
+- `npm run playtest -- --cpu` did not pass here. Turn 1 did not finish in 60 s, and a probe showed the page main thread starved by software-rendered ReadPixels stalls, with no page error. The browser path of `main.ts` and `save.ts` is checked only by typecheck and the unit tests. Run the playtest on a machine with a GPU.
 - Window reload: `save-modes.test.ts` reads the log back after `changeMapIfMoved` and finds the `roadOpened` event of the window-move turn.
 - Excerpt of `npm run run:timeline -- tmp/m-hw2/escort-2.stream.jsonl --by stretch`:
 
