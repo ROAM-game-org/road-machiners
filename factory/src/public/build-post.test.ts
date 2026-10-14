@@ -28,6 +28,18 @@ describe('postBuild', () => {
     expect(f.store.openBuildPost(7)).toMatchObject({ build: 'bbb2222', messageId: 502 });
   });
 
+  it('cuts a long description so the post is one message, the one whose replies are recorded, and keeps the invitation', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch', f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
+    await postBuild(f.ctx, 7, 'abc1234', 'https://play.test/abc1234/', '🚚'.repeat(3000));
+    expect(f.messages).toHaveLength(1);
+    const { text } = f.messages[0]!;
+    expect(text.length).toBeLessThanOrEqual(4096);
+    expect(text).toContain('…\n\nTell us what you think');
+    expect(text.endsWith('The committee decides if it ships.')).toBe(true);
+  });
+
   it('does nothing for an issue with no posted proposal', async () => {
     const f = publicFake();
     f.store.addProposal(8, 'Unposted', f.clock.now);
