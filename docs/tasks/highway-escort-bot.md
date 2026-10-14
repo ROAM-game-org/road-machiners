@@ -3,7 +3,7 @@
 **Status:** executing
 **Branch:** escort-bot
 **Worktree:** .worktrees/escort-bot
-**Goal:** On today's balance, the escort bot plays competently and reaches stretch 10 on at least 6 of 10 seeds with `--physics true`, so `escort:report` passes Beatable. The sprinter still loses every seed before stretch 10.
+**Goal:** On today's balance, the escort bot plays competently and reaches stretch 10 on at least 9 of 10 seeds with `--physics true`. Today's balance is easy for a competent player, so 9 is the bar. `escort:report` keeps its own `BEATABLE_SEEDS` criterion for later balance tuning, and this task reports the count against 9 without changing it. The sprinter still loses every seed before stretch 10.
 **Mode:** hands-off
 
 ## Context
@@ -42,3 +42,8 @@ TDD: yes for the pure choices. The batch run checks the whole bot.
 
 ### Hands-off decisions
 - The coordinator changed the goal: the bot must play competently, not copy the user's run. The Goal, the last Context bullet and the Design were rewritten. Ram-opening, verge guarding and saving for a truck are no longer required, and each behavior is kept only if batches show it wins more.
+- The user raised the target from 6 to 9 of 10 seeds. The Goal says so, and the final 10-seed batch is judged against 9. `BEATABLE_SEEDS` in `escort:report` stays unchanged.
+
+## Verify
+
+Pending: the final 10-seed escort batch and the sprinter batch, judged against 9 of 10.
