@@ -114,6 +114,15 @@ describe('public store', () => {
     expect(store.unclassifiedComments(100)).toEqual([]);
   });
 
+  it('keeps a standalone chat message and a game report when posts close, so they are still filed and answered', () => {
+    const store = postedStore();
+    store.addComment({ issue: null, source: 'telegram', sourceId: 'c1', postChat: GROUP, postMessageId: null, author: 'Ann', sender: '1', text: '@bot add maps', at: now.toISOString(), messageId: 1 });
+    store.addComment({ issue: 7, source: 'game', sourceId: 'report:1', postChat: null, postMessageId: null, author: 'Player', text: 'Stalls', at: now.toISOString() });
+    store.closeProposal(7, now);
+    expect(store.dropCommentsOnClosedPosts(now)).toBe(0);
+    expect(store.unclassifiedComments(100).map((c) => c.text)).toEqual(['@bot add maps', 'Stalls']);
+  });
+
   it('maps a reply to a player comment to the issue and post of that comment', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
