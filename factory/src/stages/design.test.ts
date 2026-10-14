@@ -36,8 +36,8 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     github: {
-      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : 'Louder horn', body: number === 7 ? 'Add a horn' : 'Make it louder', labels, createdAt: '', state: 'OPEN', author: 'anna', thumbsUp: [] }),
-      comments: async () => [{ login: 'a', body: 'yes please' }, ...earlier.map((body) => ({ login: 'bot', body }))],
+      issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : 'Louder horn', body: number === 7 ? 'Add a horn' : 'Make it louder', labels, createdAt: '', state: 'OPEN', author: 'anna' }),
+      comments: async () => [{ login: 'a', body: 'yes please', byFactory: false }, ...earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') }))],
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), close: record('close'), move: record('move'),
     },
     container: { agent: async (run: AgentRun) => { calls.push(run.prompt.startsWith('This is a merge round') ? 'agent base-merge' : 'agent design'); agent(run); } },
@@ -227,6 +227,12 @@ describe('design stage', () => {
     mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
     writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
   };
+
+  it('sends the agent to the incident log, which the clone holds from its base', async () => {
+    let prompt = '';
+    await runStage(fakeCtx((run) => { prompt = run.prompt; planned(run); }), 7);
+    expect(prompt).toContain('Read ../docs/incident-log.md.');
+  });
 
   it('catches the clone up to GitHub\'s issue branch and the base before the agent, so the agent never fetches', async () => {
     let prompt = '';

@@ -18,8 +18,12 @@ export function errorUrl(publicUrl: string): string {
   return new URL('/errors', publicUrl).href;
 }
 
+export function feedbackEnv(cfg: Pick<FactoryConfig, 'publicUrl'>): Record<string, string> {
+  return { FEEDBACK_URL: new URL('/feedback', cfg.publicUrl).href };
+}
+
 export function reportEnv(cfg: Pick<FactoryConfig, 'publicUrl'>, kind: ReportBuild): Record<string, string> {
-  return { ERROR_REPORT_URL: errorUrl(cfg.publicUrl), ERROR_REPORT_BUILD: kind };
+  return { ERROR_REPORT_URL: errorUrl(cfg.publicUrl), ERROR_REPORT_BUILD: kind, ...feedbackEnv(cfg) };
 }
 
 export async function takeMaps(ctx: Ctx, clone: string, kind: ReportBuild): Promise<void> {

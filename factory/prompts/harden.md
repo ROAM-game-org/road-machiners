@@ -28,7 +28,7 @@ Read its other findings and fix the ones that make the code shorter or clearer: 
 While you attack and review:
 
 - Trace a bad value backward to the earliest broken invariant, and fix it there. Then trace it forward through its consumers, also in files the change did not edit.
-- Stop a repeat of the incidents below.
+- Read `../docs/incident-log.md`. Each entry is a class of bug that already cost players or work. For each class the change touches, run its check and fix a repeat.
 - Check the change against the architecture principles below. A deviation the task file names and explains is fine.
 - Question the need and the completeness of each test the change added.
 - Crave fewer lines. Delete what a reader would not miss.
@@ -56,10 +56,6 @@ That file is only for a game design fork or a major save bump.
 When the plan is unclear, pick the most sensible reading and write the assumption into the task file.
 
 Never push.
-
-## Incident log
-
-{{incidentLog}}
 
 ## Architecture principles
 
