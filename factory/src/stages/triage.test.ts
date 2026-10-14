@@ -36,7 +36,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     log: () => undefined,
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
-      comments: async () => earlier.map((body) => ({ login: 'bot', body })),
+      comments: async () => earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') })),
       cards: async () => cards,
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
     },
@@ -116,8 +116,13 @@ describe('triage stage', () => {
   });
 
   it('does not relabel on a later run after a member removed the label', async () => {
-    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y']), 7);
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y\n\n<!-- roam-factory -->']), 7);
     expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+  });
+
+  it('still routes when only a stranger wrote the routing line', async () => {
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Model routing from triage: hard, default models.']), 7);
+    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual(['addLabel 7 design-sonnet']);
   });
 
   it.each([

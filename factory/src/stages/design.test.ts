@@ -37,7 +37,7 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
     now: () => new Date('2026-09-30T10:00:00Z'),
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : 'Louder horn', body: number === 7 ? 'Add a horn' : 'Make it louder', labels, createdAt: '', state: 'OPEN', author: 'anna' }),
-      comments: async () => [{ login: 'a', body: 'yes please' }, ...earlier.map((body) => ({ login: 'bot', body }))],
+      comments: async () => [{ login: 'a', body: 'yes please', byFactory: false }, ...earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') }))],
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), close: record('close'), move: record('move'),
     },
     container: { agent: async (run: AgentRun) => { calls.push(run.prompt.startsWith('This is a merge round') ? 'agent base-merge' : 'agent design'); agent(run); } },

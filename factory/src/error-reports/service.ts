@@ -3,6 +3,7 @@ import { chmod } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import { withLockSync } from '../lock';
+import { defang } from '../public/defang';
 import { mapsRoot, readPublished, type Published } from '../sourcemaps';
 import { BUG_LABEL, ERROR_REPORT_LABEL, fingerprintLine, type FactoryConfig, type FingerprintIssue, type GitHub } from '../types';
 import type { Feedback } from './feedback';
@@ -166,7 +167,7 @@ const TITLE_CHARS = 100;
 const plain = (text: string, max: number): string => text.replace(/`/g, "'").slice(0, max);
 
 function issueTitle(report: ErrorReport): string {
-  return plain(`${report.error.name}: ${report.error.message}`.replace(/\s+/g, ' '), TITLE_CHARS);
+  return plain(defang(`${report.error.name}: ${report.error.message}`.replace(/\s+/g, ' ')), TITLE_CHARS);
 }
 
 function issueBody(report: ErrorReport, frames: readonly Frame[], fingerprint: string): string {

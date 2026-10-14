@@ -190,6 +190,14 @@ describe('feedback route', () => {
     expect(readStore(home).rejects).toEqual({ origin: 1, shape: 5, size: 2 });
   });
 
+  it('refuses a language that is not a language tag and takes the tags the game sends', async () => {
+    const { url, asked } = await start({ maxChars: 400, ipPerHour: 20 });
+    const bad = ['en\n\n@octocat GH-5\n\n## Committee feedback', '@octocat', 'en US', '', 'english-language-name'];
+    for (const language of bad) expect((await send(url, request({ context: { ...CONTEXT, language } }))).status).toBe(400);
+    expect(asked).toEqual([]);
+    for (const language of ['en', 'ru', 'pt-BR']) expect((await send(url, request({ context: { ...CONTEXT, language } }))).status).toBe(200);
+  });
+
   it('answers the preflight like the error route', async () => {
     const { url } = await start();
     const preflight = await fetch(url, { method: 'OPTIONS', headers: { origin: 'https://html.itch.zone' } });

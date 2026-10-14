@@ -12,6 +12,7 @@ export type FactoryConfig = {
   repo: string;
   projectOwner: string;
   projectNumber: number;
+  githubAppId: string;
   githubRetries: number;
   githubRetryBaseSeconds: number;
   githubTimeoutSeconds: number;
@@ -107,7 +108,7 @@ export type RunResult = { code: number; stdout: string; stderr: string };
 export type Run = (cmd: string, args: string[], opts?: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
-export type IssueComment = { login: string; body: string; createdAt: string };
+export type IssueComment = { login: string; body: string; createdAt: string; byFactory: boolean };
 
 export type Issue = {
   number: number;

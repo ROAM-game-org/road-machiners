@@ -24,6 +24,8 @@ function groupByIssue(comments: StoredComment[]): Map<number, StoredComment[]> {
 
 export async function sendDigests(ctx: Ctx, store: PublicStore): Promise<void> {
   const now = ctx.now();
+  const dropped = store.dropCommentsOnClosedPosts(now);
+  if (dropped > 0) ctx.log('public', null, `${dropped} player comments were on closed posts, so no digest carries them`);
   for (const [issue, comments] of groupByIssue(store.unsentComments())) {
     const last = store.lastDigest(issue);
     if (last !== null && now.getTime() - last.getTime() < ctx.cfg.publicDigestMinutes * MINUTE_MS) continue;

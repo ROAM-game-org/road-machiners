@@ -101,7 +101,7 @@ async function routeModels(ctx: Ctx, issue: number, { complexity, why }: Routing
   const set = [DESIGN_SONNET_LABEL, IMPLEMENTATION_OPUS_LABEL].filter((label) => labels.includes(label));
   const rated = `Triage rated it ${complexity}: ${why}`;
   if (set.length > 0) return `${ROUTING_MARK} left as set on the issue (${set.join(', ')}). ${rated}`;
-  if (comments.some((comment) => comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
+  if (comments.some((comment) => comment.byFactory && comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
   const label = routingLabel(complexity);
   if (label === null) return `${ROUTING_MARK} ${complexity}, default models (Opus design, Sonnet implementation and testing). ${why}`;
   await ctx.github.addLabel(issue, label);

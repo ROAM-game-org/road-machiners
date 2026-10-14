@@ -47,8 +47,10 @@ describe('postProposal', () => {
   it('posts nothing at the cap of the last 24 hours and posts again once the oldest post leaves the window', async () => {
     const f = publicFake({ proposalsPerDay: 2 });
     for (const [issue, hoursAgo] of [[1, 23], [2, 5]] as const) {
-      f.store.addProposal(issue, 'old', f.clock.now);
-      f.store.markProposalPosted(issue, CHANNEL, issue, new Date(f.clock.now.getTime() - hoursAgo * HOUR_MS));
+      const at = new Date(f.clock.now.getTime() - hoursAgo * HOUR_MS);
+      f.store.addProposal(issue, 'old', at);
+      f.store.beginProposalPost(issue, at);
+      f.store.markProposalPosted(issue, CHANNEL, issue, at);
     }
     f.store.addProposal(3, 'waiting', f.clock.now);
     await postProposal(f.ctx, f.store);
@@ -156,6 +158,19 @@ describe('postProposal', () => {
     await postProposal(f.ctx, f.store);
     expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['First pitch', 'Second pitch']);
     expect(f.store.proposal(7)?.messageId).toBe(502);
+  });
+
+  it('counts the earlier post of a card put to a vote again toward the cap', async () => {
+    const f = publicFake({ proposalsPerDay: 1 });
+    f.store.addProposal(7, 'First pitch', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    f.store.closeProposal(7, f.clock.now);
+    f.store.addProposal(7, 'Second pitch', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(1);
+    f.clock.now = new Date(f.clock.now.getTime() + 25 * HOUR_MS);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(2);
   });
 
   it('measures the longest post against the Telegram limit', () => {

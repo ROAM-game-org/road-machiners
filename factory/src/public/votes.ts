@@ -33,6 +33,15 @@ function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, votes: number, c
   return null;
 }
 
+export async function closeByHand(ctx: Ctx, store: PublicStore, issue: number): Promise<void> {
+  const proposal = store.openProposals().find((open) => open.issue === issue);
+  store.closeProposal(issue, ctx.now());
+  if (proposal === undefined) return;
+  const votes = store.votes(issue, emojiOf(ctx.cfg.voteEmoji));
+  store.setShownVotes(issue, votes);
+  await isolated(ctx, issue, 'the card moved by hand but its proposal post still shows the open vote text, so edit it by hand', () => editPost(ctx, proposal, `${voteCount(ctx, votes)}\n${CLOSED_CONCLUSION}`));
+}
+
 async function showCount(ctx: Ctx, store: PublicStore, proposal: Proposal, votes: number): Promise<void> {
   if (store.shownVotes(proposal.issue) === votes) return;
   store.setShownVotes(proposal.issue, votes);

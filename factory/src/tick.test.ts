@@ -595,15 +595,15 @@ describe('tick', () => {
   });
 
   it('removes needs-info from an answered Triage card and starts its triage', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1) };
-    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked, { login: 'anna', body: 'This', createdAt: hoursAgo(1) }]);
+    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1), byFactory: true };
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked, { login: 'anna', body: 'This', createdAt: hoursAgo(1), byFactory: false }]);
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
     expect(args(h)).toEqual([['triage', '8']]);
   });
 
   it('keeps needs-info while nobody answered and starts nothing', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1) };
+    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1), byFactory: true };
     const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([]);
@@ -611,7 +611,7 @@ describe('tick', () => {
   });
 
   it('removes needs-info from a Triage card whose questions passed the time limit and starts its triage', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(25) };
+    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(25), byFactory: true };
     const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
@@ -619,7 +619,7 @@ describe('tick', () => {
   });
 
   it('keeps needs-info on a question inside the time limit', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(23) };
+    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(23), byFactory: true };
     const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([]);

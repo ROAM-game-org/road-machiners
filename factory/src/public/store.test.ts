@@ -1,8 +1,9 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { openStore } from './store';
+import { openStore, storePath } from './store';
 
 const CHANNEL = '-100channel';
 const GROUP = '-100group';
@@ -12,6 +13,7 @@ const now = new Date('2026-10-14T10:00:00Z');
 function postedStore() {
   const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
   store.addProposal(7, 'Add a winch', now);
+  store.beginProposalPost(7, now);
   store.markProposalPosted(7, CHANNEL, 100, now);
   return store;
 }
@@ -108,6 +110,33 @@ describe('public store', () => {
     expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
     expect(store.proposalPostAttemptsSince(new Date(now.getTime() + 1000))).toBe(0);
     expect(store.unpostedProposals()).toEqual([]);
+  });
+
+  it('keeps the earlier post attempt when a closed proposal is put to a vote again', () => {
+    const store = postedStore();
+    store.closeProposal(7, now);
+    store.addProposal(7, 'Add a winch again', now);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
+    store.beginProposalPost(7, now);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(2);
+    store.closeProposal(7, now);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
+  });
+
+  it('seeds post attempts from the proposals of a database made before the attempts table', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    mkdirSync(join(home, 'public'));
+    const db = new DatabaseSync(storePath(home));
+    db.exec('create table proposals (issue integer primary key, pitch text not null, created_at text not null, chat text, message_id integer, discussion_chat text, discussion_id integer, posted_at text, channel_counts text, closed_at text)');
+    db.exec('create table comments (id integer primary key autoincrement, issue integer not null, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text)');
+    db.prepare('insert into proposals (issue, pitch, created_at, chat, message_id, posted_at) values (7, ?, ?, ?, 100, ?)').run('Winch', now.toISOString(), CHANNEL, now.toISOString());
+    db.prepare('insert into proposals (issue, pitch, created_at) values (8, ?, ?)').run('Radio', now.toISOString());
+    db.close();
+    const store = openStore(home);
+    expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
+    expect(store.unsentComments()).toEqual([]);
+    store.close();
+    expect(openStore(home).proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
   });
 
   it('counts hits per address and hour', () => {
