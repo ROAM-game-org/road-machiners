@@ -197,11 +197,22 @@ describe('public store', () => {
     expect(openStore(home).proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);
   });
 
-  it('counts hits per address and hour', () => {
+  it('takes hits per address up to the limit of a fixed UTC hour', () => {
     const store = postedStore();
-    expect(store.countHit('1.2.3.4', now)).toBe(1);
-    expect(store.countHit('1.2.3.4', now)).toBe(2);
-    expect(store.countHit('1.2.3.4', new Date(now.getTime() + 3_600_000))).toBe(1);
+    const late = new Date('2026-10-14T10:59:30Z');
+    expect(store.takeHit('1.2.3.4', now, 2)).toEqual({ taken: true });
+    expect(store.takeHit('1.2.3.4', now, 2)).toEqual({ taken: true });
+    expect(store.takeHit('1.2.3.4', late, 2)).toEqual({ taken: false, resetAt: new Date('2026-10-14T11:00:00Z') });
+    expect(store.takeHit('5.6.7.8', late, 2)).toEqual({ taken: true });
+    expect(store.takeHit('1.2.3.4', new Date('2026-10-14T11:00:00Z'), 2)).toEqual({ taken: true });
+  });
+
+  it('counts no refused hit, so retries never grow the count', () => {
+    const store = postedStore();
+    store.takeHit('1.2.3.4', now, 1);
+    for (let i = 0; i < 9; i++) store.takeHit('1.2.3.4', now, 1);
+    expect(store.takeHit('1.2.3.4', now, 2)).toEqual({ taken: true });
+    expect(store.takeHit('1.2.3.4', now, 2)).toEqual({ taken: false, resetAt: new Date('2026-10-14T11:00:00Z') });
   });
 
   it('survives a reopen', () => {

@@ -45,4 +45,17 @@ describe('classifyComments', () => {
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input.text); return ACCEPT(input); }));
     expect(seen).toEqual(['spam 3', 'bob 2', 'spam 4', 'spam 5']);
   });
+
+  it('drops a sender past the hourly limit with no filter call, and counts no dropped message', async () => {
+    const f = publicFake({ filterPerTick: 10, reportIpPerHour: 2 });
+    for (let n = 1; n <= 4; n++) addFrom(f, '1', `ann ${n}`);
+    const seen: string[] = [];
+    const filter = filterOf(async (input) => { seen.push(input.text); return ACCEPT(input); });
+    await classifyComments(f.ctx, f.store, filter);
+    expect(seen).toEqual(['ann 1', 'ann 2']);
+    f.clock.now = new Date('2026-10-14T11:00:00Z');
+    for (let n = 5; n <= 7; n++) addFrom(f, '1', `ann ${n}`);
+    await classifyComments(f.ctx, f.store, filter);
+    expect(seen).toEqual(['ann 1', 'ann 2', 'ann 5', 'ann 6']);
+  });
 });

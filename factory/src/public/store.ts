@@ -17,10 +17,12 @@ export type BuildPost = { issue: number; build: string; chat: string; messageId:
 export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; addressed: boolean; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; replyId: number | null };
 export type IssueComment = StoredComment & { issue: number };
 export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean };
+export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
 const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer';
+const HOUR_MS = 3_600_000;
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
 
 export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -279,11 +281,13 @@ export class PublicStore {
     this.db.prepare('update comments set routed_at = ? where id = ?').run(now.toISOString(), id);
   }
 
-  countHit(address: string, now: Date): number {
-    const hour = now.toISOString().slice(0, 13);
+  takeHit(address: string, now: Date, limit: number): HitAnswer {
+    const hour = hourOf(now);
+    this.db.prepare('delete from hits where hour < ?').run(hourOf(new Date(now.getTime() - HOUR_MS)));
+    const count = Number(this.db.prepare('select count from hits where address = ? and hour = ?').get(address, hour)?.count ?? 0);
+    if (count >= limit) return { taken: false, resetAt: nextHour(now) };
     this.db.prepare('insert into hits (address, hour, count) values (?, ?, 1) on conflict (address, hour) do update set count = count + 1').run(address, hour);
-    this.db.prepare('delete from hits where hour < ?').run(new Date(now.getTime() - 3_600_000).toISOString().slice(0, 13));
-    return Number(this.db.prepare('select count from hits where address = ? and hour = ?').get(address, hour)?.count);
+    return { taken: true };
   }
 
   addReport(report: ReportRow): number {
@@ -343,6 +347,9 @@ export class PublicStore {
 }
 
 type Row = Record<string, unknown>;
+
+const hourOf = (time: Date): string => time.toISOString().slice(0, 13);
+const nextHour = (time: Date): Date => new Date(Math.floor(time.getTime() / HOUR_MS) * HOUR_MS + HOUR_MS);
 
 function countOf(counts: Record<string, number>, wanted: string[]): number {
   return wanted.reduce((sum, emoji) => sum + (counts[emoji] ?? 0), 0);
