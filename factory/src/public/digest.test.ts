@@ -8,7 +8,7 @@ const MINUTE_MS = 60_000;
 function comment(f: ReturnType<typeof publicFake>, issue: number, id: string, author: string, text: string) {
   if (f.store.openBuildPost(issue) === null) f.store.addBuildPost(issue, 'abc', CHANNEL, issue, f.clock.now);
   f.store.addComment({ issue, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: issue, author, text, at: f.clock.now.toISOString() });
-  const row = f.store.unclassifiedComments().find((item) => item.text === text)!;
+  const row = f.store.unclassifiedComments(100).find((item) => item.text === text)!;
   f.store.classify(row.id, 'bug', 'none', f.clock.now);
 }
 
@@ -105,8 +105,8 @@ describe('sendDigests', () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
-    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Ann', text: 'Please no', at: f.clock.now.toISOString() });
-    f.store.classify(f.store.unclassifiedComments()[0]!.id, 'feedback', 'none', f.clock.now);
+    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Ann', sender: '1', text: 'Please no', at: f.clock.now.toISOString() });
+    f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'feedback', 'none', f.clock.now);
     f.store.closeProposal(7, f.clock.now);
     await sendDigests(f.ctx, f.store);
     expect(f.comments).toEqual([]);
@@ -117,10 +117,10 @@ describe('sendDigests', () => {
   it('sends no digest for replies on a closed build post and keeps those on the open one', async () => {
     const f = publicFake();
     f.store.addBuildPost(7, 'abc', CHANNEL, 200, f.clock.now);
-    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', text: 'Old build', at: f.clock.now.toISOString() });
+    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 201, threadId: 200, author: 'Ann', sender: '1', text: 'Old build', at: f.clock.now.toISOString() });
     f.store.addBuildPost(7, 'def', CHANNEL, 300, f.clock.now);
-    f.store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 301, threadId: 300, author: 'Bo', text: 'New build', at: f.clock.now.toISOString() });
-    for (const row of f.store.unclassifiedComments()) f.store.classify(row.id, 'feedback', 'none', f.clock.now);
+    f.store.applyEvent({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 301, threadId: 300, author: 'Bo', sender: '2', text: 'New build', at: f.clock.now.toISOString() });
+    for (const row of f.store.unclassifiedComments(100)) f.store.classify(row.id, 'feedback', 'none', f.clock.now);
     await sendDigests(f.ctx, f.store);
     expect(f.comments).toHaveLength(1);
     expect(f.comments[0]!.body).toContain('New build');
@@ -129,8 +129,8 @@ describe('sendDigests', () => {
 
   it('keeps comments from the game, which sit on no post', async () => {
     const f = publicFake();
-    f.store.addComment({ issue: 7, source: 'game', sourceId: 'g1', postChat: null, postMessageId: null, author: 'Ann', text: 'In game', at: f.clock.now.toISOString() });
-    f.store.classify(f.store.unclassifiedComments()[0]!.id, 'bug', 'none', f.clock.now);
+    f.store.addComment({ issue: 7, source: 'game', sourceId: 'g1', postChat: null, postMessageId: null, author: 'Ann', sender: '1', text: 'In game', at: f.clock.now.toISOString() });
+    f.store.classify(f.store.unclassifiedComments(100)[0]!.id, 'bug', 'none', f.clock.now);
     await sendDigests(f.ctx, f.store);
     expect(f.comments).toHaveLength(1);
   });

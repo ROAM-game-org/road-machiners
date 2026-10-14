@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
-import { DownloadFailed } from '../fetch-bytes';
+import { describe, expect, it } from 'vitest';
+import { DownloadFailed } from '../download';
 import { WebGLUnavailable } from './webgl';
-import { resolve } from '../text/resolve';
-import { crashText, loadFailedText, onReport, reportError, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, downloadFailedText, isForeignError, screenFor, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -71,38 +70,22 @@ describe('crashText', () => {
   });
 });
 
-describe('routeOf', () => {
-  it('keeps a dropped download out of the fault path', () => {
-    expect(routeOf(new DownloadFailed('/a', 6, 'x'))).toBe('download');
+describe('download failure screen', () => {
+  const cause = new TypeError('Failed to fetch');
+  const err = new DownloadFailed('models/truck.glb', 3, cause);
+
+  it('names the three catalog ids and holds the url and the cause in the detail', () => {
+    const text = downloadFailedText(err);
+    expect([text.title, ...text.lines].map((m) => m.key)).toEqual(['download.title', 'download.reload', 'download.saves']);
+    expect(text.action.key).toBe('download.action');
+    expect(text.detail).toContain('models/truck.glb');
+    expect(text.detail).toContain('Failed to fetch');
   });
 
-  it('keeps the WebGL route', () => {
-    expect(routeOf(new WebGLUnavailable(null))).toBe('webgl');
-  });
-
-  it('sends every other error to the fault path', () => {
-    expect(routeOf(new Error('x'))).toBe('fault');
-  });
-});
-
-describe('loadFailedText', () => {
-  const failure = new DownloadFailed('./models/a.glb', 6, new TypeError('Failed to fetch'));
-
-  it('shows the load-failed ids and names the file as detail', () => {
-    const text = loadFailedText(failure);
-    expect(resolve(text.title, 'en')).toBe('The game failed to load');
-    expect(resolve(text.line, 'en')).toBe('Check your connection.');
-    expect(resolve(text.action, 'en')).toBe('Reload');
-    expect(text.detail).toBe(failure.message);
-  });
-
-  it('never reaches the reporter sinks', () => {
-    const sink = vi.fn();
-    onReport(sink);
-    vi.stubGlobal('document', { createElement: () => ({ replaceChildren() {}, append() {}, addEventListener() {}, focus() {} }), createTextNode: () => ({}), body: { appendChild() {} } });
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    reportError(failure);
-    expect(sink).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+  it('routes each kind of error to its own screen', () => {
+    expect(screenFor(err)).toBe('download');
+    expect(screenFor(new WebGLUnavailable('no context'))).toBe('webgl');
+    expect(screenFor(new Error('File models/a.glb failed to load: HTTP 404'))).toBe('crash');
+    expect(screenFor('text')).toBe('crash');
   });
 });

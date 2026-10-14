@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONFIG } from '../config';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOWNLOAD } from '../config';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
 import { loadBank, SoundDecodeFailure, SoundUnreachable } from './bank';
 
@@ -81,18 +81,6 @@ describe('loadBank', () => {
     expect(fetch).toHaveBeenCalledTimes(BANK.tries);
   });
 
-  it('does not fetch a sound again after its download failed', async () => {
-    vi.useFakeTimers();
-    const fetch = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
-    vi.stubGlobal('fetch', fetch);
-    const loading = loadBank(ctx, { a: SOUNDS.a });
-    await vi.advanceTimersByTimeAsync(60_000);
-    const { bank, unreachable } = await loading;
-    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
-    expect(unreachable).toHaveLength(1);
-    expect(bank.get('a.mp3')).toBeDefined();
-  });
-
   it('gives a cue with no decoded file a silent buffer', async () => {
     vi.stubGlobal('fetch', async () => ok);
     const { bank } = await loadBank(rejecting, { a: SOUNDS.a });
@@ -131,15 +119,18 @@ describe('loadBank', () => {
 
 describe('loadBank with the network down', () => {
   const down = new TypeError('Failed to fetch');
+  beforeEach(() => { vi.useFakeTimers(); });
 
   it('stands in for an unreachable file and does not report it', async () => {
     const fetch = vi.fn(async () => { throw down; });
     vi.stubGlobal('fetch', fetch);
-    const { bank, failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a });
+    const run = loadBank(ctx, { a: SOUNDS.a });
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    const { bank, failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['a.mp3']);
     expect(bank.get('a.mp3')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
-    expect(fetch).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+    expect(fetch).toHaveBeenCalledTimes(DOWNLOAD.tries);
   });
 
   it('recovers when the second try gets through', async () => {
@@ -148,7 +139,9 @@ describe('loadBank with the network down', () => {
       if (++calls === 1) throw down;
       return ok;
     });
-    const { failures, unreachable } = await loadBank(ctx, { a: SOUNDS.a });
+    const run = loadBank(ctx, { a: SOUNDS.a });
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0]);
+    const { failures, unreachable } = await run;
     expect(failures).toEqual([]);
     expect(unreachable).toEqual([]);
   });
@@ -159,7 +152,9 @@ describe('loadBank with the network down', () => {
       if (url.endsWith('hit-2.ogg')) throw down;
       return ok;
     });
-    const { bank, failures, unreachable } = await loadBank(ctxOf(async () => good), PAIR);
+    const run = loadBank(ctxOf(async () => good), PAIR);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs.reduce((a, b) => a + b));
+    const { bank, failures, unreachable } = await run;
     expect(bank.get('hit-2.ogg')).toBe(good);
     expect(failures).toEqual([]);
     expect(unreachable.map((f) => f.file)).toEqual(['hit-2.ogg']);
@@ -194,7 +189,7 @@ describe('SoundDecodeFailure', () => {
     });
     const calls: [number, number][] = [];
     const run = loadBank(ctx, SOUNDS, (done, total) => calls.push([done, total]));
-    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD.waitMs[0] * 10);
     const { failures } = await run;
     expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
     expect(failures).toEqual([]);

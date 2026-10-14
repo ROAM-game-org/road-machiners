@@ -6,9 +6,10 @@ import { withLockSync } from '../lock';
 import { defang } from '../public/defang';
 import { mapsRoot, readPublished, type Published } from '../sourcemaps';
 import { BUG_LABEL, ERROR_REPORT_LABEL, fingerprintLine, type FactoryConfig, type FingerprintIssue, type GitHub } from '../types';
+import { limitKeyOf } from './address';
 import type { Feedback } from './feedback';
 import { checkRoom, dayOf, errorsHome, playerReportsDir, raiseAlert, reportsDir, unzip, writeReport } from './files';
-import { commitOf,fingerprintOf, mapFrames, parseReport, Rejected, type ErrorReport, type Frame, type RejectReason } from './report';
+import { commitOf,fingerprintOf, mapFrames, parseReport, RateLimited, Rejected, type ErrorReport, type Frame, type RejectReason } from './report';
 
 export { alertPath, errorsHome, raiseAlert, reportsDir } from './files';
 
@@ -264,7 +265,9 @@ export class ErrorServer {
     }
     countReject(this.cfg.home, error.reason);
     this.alertRate(error.reason);
-    send(response, error.status, this.origins.has(origin) ? origin : null, error.message);
+    const allowed = this.origins.has(origin) ? origin : null;
+    if (error instanceof RateLimited) return sendLimited(response, allowed, secondsUntil(error.resetAt, this.now()));
+    send(response, error.status, allowed, error.message);
   }
 
   private alertRate(reason: RejectReason): void {
@@ -287,7 +290,7 @@ const isReportPath = (url: string | undefined): boolean => url === '/errors' || 
 function clientOf(request: IncomingMessage): string {
   const client = request.headers['cf-connecting-ip'];
   if (typeof client !== 'string' || client === '') throw new Rejected('address', 400, 'The request names no client address.');
-  return client;
+  return limitKeyOf(client);
 }
 
 async function readBody(request: IncomingMessage, maxBytes: number): Promise<Buffer> {
@@ -310,8 +313,16 @@ function preflight(response: ServerResponse, origin: string): void {
   response.end();
 }
 
+const corsOf = (origin: string | null): Record<string, string> => origin ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {};
+
+const secondsUntil = (time: Date, now: Date): number => Math.max(1, Math.ceil((time.getTime() - now.getTime()) / 1000));
+
+function sendLimited(response: ServerResponse, origin: string | null, retryAfterSeconds: number): void {
+  response.writeHead(429, { 'content-type': 'application/json; charset=utf-8', 'retry-after': String(retryAfterSeconds), ...corsOf(origin) });
+  response.end(JSON.stringify({ status: 'limited', retryAfterSeconds }));
+}
+
 function send(response: ServerResponse, status: number, origin: string | null, text: string): void {
-  const cors = origin ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {};
-  response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', ...cors });
+  response.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', ...corsOf(origin) });
   response.end(text);
 }

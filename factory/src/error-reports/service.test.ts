@@ -223,4 +223,17 @@ describe('error server', () => {
     expect((await post(url, report(), { 'cf-connecting-ip': '5.6.7.8' })).status).toBe(204);
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_ERROR_IP_PER_HOUR=2');
   });
+
+  it('counts every address of one IPv6 /64 together', async () => {
+    const { url } = await start(2);
+    const statuses = [];
+    for (const ip of ['2001:db8::1', '2001:db8:0:0:1::1', '2001:db8::2']) statuses.push((await post(url, report(), { 'cf-connecting-ip': ip })).status);
+    expect(statuses).toEqual([204, 204, 429]);
+    expect((await post(url, report(), { 'cf-connecting-ip': '2001:db8:0:1::1' })).status).toBe(204);
+  });
+
+  it('refuses a client address that is not an IP address', async () => {
+    const { url } = await start(2);
+    expect((await post(url, report(), { 'cf-connecting-ip': 'not-an-ip' })).status).toBe(400);
+  });
 });

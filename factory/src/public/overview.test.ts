@@ -21,4 +21,19 @@ describe('publicRows', () => {
       '#9 open build post abc1234 posted 2026-10-14T10:00:00.000Z',
     ]);
   });
+
+  it('lists the latest classified chat messages with where they went and whether they got a reply', () => {
+    const f = publicFake();
+    f.store.addComment({ issue: 568, source: 'telegram', sourceId: 'c:169', postChat: CHANNEL, postMessageId: 100, author: 'Ann', text: 'minimap', at: 'T1', messageId: 169 });
+    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:170', postChat: CHANNEL, postMessageId: null, author: 'Bob', text: 'hi', at: 'T2', messageId: 170 });
+    const [offTopic, standalone] = f.store.unclassifiedComments(100);
+    f.store.classify(offTopic!.id, 'feature', 'none', f.clock.now, 'other');
+    f.store.classify(standalone!.id, 'chatter', 'none', f.clock.now, 'other');
+    f.store.setFiled(offTopic!.id, 571);
+    f.store.setReplyId(offTopic!.id, 700);
+    expect(publicRows(f.ctx, f.store)).toEqual([
+      'chat message 170 T2: chatter, standalone, no reply',
+      'chat message 169 T1: feature, off-topic under #568, filed as #571, replied 700',
+    ]);
+  });
 });

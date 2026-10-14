@@ -248,7 +248,7 @@ async function lostModel(browser, viewport) {
   const title = await page.textContent('.crash-title');
   const focused = await page.evaluate(() => document.activeElement?.textContent);
   const text = await page.evaluate(() => document.body.innerText);
-  expect(title === 'The game failed to load', `${viewport.name}: the load-failed title shows`);
+  expect(title === 'Road Machiners could not download its files', `${viewport.name}: the load-failed title shows`);
   expect(focused === 'Reload', `${viewport.name}: Reload has focus`);
   expect(!text.includes('The game crashed'), `${viewport.name}: a lost model is not a crash`);
   expect(posts.length === 0, `${viewport.name}: a lost model sends no report ${posts.join(', ')}`);

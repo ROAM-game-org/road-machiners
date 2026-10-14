@@ -7,6 +7,7 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+export const DOWNLOAD = { tries: 6, waitMs: [500, 1000, 2000, 4000, 4000] };
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 
@@ -26,7 +27,4 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
-  assetFetchTries: 6,
-  assetRetryMs: 500,
-  assetRetryMaxMs: 4000,
 };

@@ -3,7 +3,7 @@ import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL } from '../config';
-import { fetchBytes } from '../fetch-bytes';
+import { download } from '../download';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
@@ -47,7 +47,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await fetchBytes(MAPGEN.file)));
+  return decodeMap(new Uint8Array(await download(MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };

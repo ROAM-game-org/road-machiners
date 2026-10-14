@@ -1,4 +1,4 @@
-import { fetchBytes, HttpStatusError } from "../fetch-bytes";
+import { download, DownloadFailed } from "../download";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -70,8 +70,8 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const bytes = await fetchBytes(SFX_DIR + file).catch((e: unknown) => {
-    throw e instanceof HttpStatusError ? e : new SoundUnreachable(file, e);
+  const bytes = await download(SFX_DIR + file).catch((e: unknown) => {
+    throw e instanceof DownloadFailed ? new SoundUnreachable(file, e) : e;
   });
   return ctx.decodeAudioData(bytes);
 }
