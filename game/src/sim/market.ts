@@ -406,11 +406,12 @@ function requireParcels(world: World): void {
   for (const it of v.items) if (it.kind === 'parcel' && !open.has(it.contract)) throw new Error(`Parcel ${it.id} has no open search`);
 }
 
-function searchCandidates(world: World, shopId: string, state: ShopState): RollInput['sought'] {
+export function searchCandidates(world: World, shopId: string, state: ShopState): RollInput['sought'] {
   const taken = new Set([...state.contracts, ...world.player.contracts].flatMap((c) => (c.kind === 'search' ? [c.target] : [])));
+  const shop = shopPos(shopId);
   const out: RollInput['sought'] = [];
   for (const v of world.vehicles) {
-    if (!v.brain || v.faction === 'raiders' || isDefeated(v) || taken.has(v.id)) continue;
+    if (!v.brain || v.faction === 'raiders' || isDefeated(v) || taken.has(v.id) || dist(v.pos, shop) <= CONTRACTS.search.awayTiles) continue;
     const visit = recall(v, 'prices').find((m) => m.fact.shop === shopId && world.turn - m.turn <= CONTRACTS.search.freshTurns);
     if (visit) out.push({ vehicle: v, seenTurn: visit.turn });
   }

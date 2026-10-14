@@ -141,7 +141,7 @@ export function itemName(it: GridItem): Msg {
 }
 
 export function itemState(it: GridItem, mounted: boolean): Msg {
-  if (it.kind === "parcel") return t("item.parcelMass", { mass: kg(PARCEL.mass) });
+  if (it.kind === "parcel") return kg(PARCEL.mass);
   if (it.kind === "good") return t("item.cargo", { mass: kg(CRATE_MASS) });
   if (partDef(it.part.defId).kind === "core") return t("item.builtIn");
   return mounted ? t("item.mounted") : t("item.spare");

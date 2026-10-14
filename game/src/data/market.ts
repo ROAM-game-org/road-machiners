@@ -1,6 +1,7 @@
 
 import { PARTS, type PartDef } from './parts';
 import type { Weighted } from './npcs';
+import { TERRAIN } from './terrain';
 import { TIME } from './time';
 
 
@@ -97,6 +98,7 @@ export const CONTRACTS = {
     durationTurns: [600, 900] as [number, number],
     rewardTurns: 750,
     freshTurns: Math.round(TIME.turnsPerDay / 4),
+    awayTiles: TERRAIN.vision.radius,
     xpPerEffort: 0.0045,
   },
 };

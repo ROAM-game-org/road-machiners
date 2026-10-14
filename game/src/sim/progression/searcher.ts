@@ -28,9 +28,9 @@ export function searcherGoal(o: Orders, otherwise: (o: Orders) => void): void {
   if (!takeSearch(o)) otherwise(o);
 }
 
-function takeSearch(o: Orders): boolean {
+export function takeSearch(o: Orders): boolean {
   const shop = shopAt(o.world);
-  if (!shop) return false;
+  if (!shop || heldSearch(o.world)) return false;
   const offer = shopState(o.world, shop).contracts.find((c) => c.kind === 'search' && c.deadline > o.world.turn && searchRefusal(o.world, c) === null);
   if (offer) o.run((w) => acceptContract(w, offer.id));
   return offer !== undefined;

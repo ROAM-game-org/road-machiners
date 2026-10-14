@@ -39,6 +39,7 @@ import {
   rollContract,
   siteOf,
   vehicleValue,
+  searchCandidates,
   searchRefusal,
   type Contract,
   type SearchContract,
@@ -883,6 +884,15 @@ describe('search contracts', () => {
       for (const c of w.shops.bowl.contracts) if (c.kind === 'search') targets.add(c.target);
     }
     expect([...targets]).toHaveLength(1);
+  });
+
+  it('never posts a search for a driver still in sight of the shop', () => {
+    const { w, target } = worldWithTarget();
+    w.turn = 1000;
+    visit(w, target, 'bowl', 1000 - 5);
+    expect(searchCandidates(w, 'bowl', w.shops.bowl).map((c) => c.vehicle.id)).toEqual([target.id]);
+    target.pos = { x: bowl.pos.x + CONTRACTS.search.awayTiles - 1, y: bowl.pos.y };
+    expect(searchCandidates(w, 'bowl', w.shops.bowl)).toEqual([]);
   });
 
   it('leaves search out when nobody was seen at the shop', () => {

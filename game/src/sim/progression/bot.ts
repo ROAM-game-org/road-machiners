@@ -43,7 +43,7 @@ import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
 import { outpostFort } from '../highway';
 import { runnerOrders } from './runner';
-import { searcherGoal } from './searcher';
+import { searcherGoal, takeSearch } from './searcher';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
 export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'climber' | 'markov' | 'escort' | 'sprinter';
@@ -114,6 +114,7 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 
 function act(o: Orders, goal: Goal, archetype: Policy): void {
   if (holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
+  if (goal === 'searcher') takeSearch(o);
   if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
 }
