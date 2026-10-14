@@ -30,7 +30,7 @@ import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
 import { fightOdds } from '../fight-odds';
 import { warnedOffTarget } from '../loot-warning';
-import { claimPartHeld } from '../claims';
+import { claimCandidates, claimClue, claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
@@ -113,7 +113,6 @@ function policyOrders(world: World, archetype: Exclude<Policy, RoadPolicy>, opti
 
 function act(o: Orders, goal: Goal, archetype: Policy): void {
   if (holds(o) || collectNearbyKnockout(o, goal, archetype)) return;
-  if (goal === 'scavenger') grabClaimed(o);
   if (serviceTrip(o, gearStyle(o, goal, archetype)) || defend(o, goal)) return;
   followGoal(o, goal, archetype);
 }
@@ -526,41 +525,40 @@ const isClaim = (c: Contract): c is Claim => c.kind === 'claim';
 function claimGoal(o: Orders): boolean {
   const held = o.world.player.contracts.find(isClaim);
   if (!held) return takeClaim(o);
-  if (claimPartHeld(o.world, held) === 'player') {
-    if (shopAt(o.world) === held.shop) o.run((w) => deliverContract(w, held.id), 'contracts');
-    else driveToSite(o, siteOf(held.shop));
-    return true;
-  }
-  return recoverClaimed(o, held);
-}
-
-function grabClaimed(o: Orders): void {
-  if (o.world.player.contracts.some(isClaim)) lootHere(o);
-}
-
-function recoverClaimed(o: Orders, claim: Claim): boolean {
-  const stock = o.world.salvage.find((s) => s.id === claim.stockId);
-  const part = stock && claimedPart(stock, claim);
-  if (!stock || !part || !canStowPart(o.me, part)) return false;
-  lootHere(o);
-  if (needsSearch(o.world, stock) || !salvageInRange(o.me, stock)) visitStock(o, stock);
+  if (claimPartHeld(o.world, held) !== 'player') return claimPartHeld(o.world, held) === 'stock' && searchClaim(o, held);
+  if (shopAt(o.world) === held.shop) o.run((w) => deliverContract(w, held.id), 'contracts');
+  else driveToSite(o, siteOf(held.shop));
   return true;
 }
 
-function claimedPart(stock: SalvageStock, claim: Claim): PartInstance | undefined {
-  return [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId);
+function searchClaim(o: Orders, claim: Claim): boolean {
+  const next = nextCandidate(o.world, claim);
+  if (!next) return false;
+  if (!foundIn(o.world, next, claim)) visitStock(o, next);
+  else if (salvageInRange(o.me, next)) lootHere(o);
+  else driveTo(o, besideStop(o.world, next.pos, next.radius));
+  return true;
+}
+
+function foundIn(world: World, stock: SalvageStock, claim: Claim): boolean {
+  return world.player.scavenged.includes(stock.id) && stock.parts.some((p) => p.id === claim.partId);
+}
+
+function nextCandidate(world: World, claim: Claim): SalvageStock | null {
+  const stocks = claimCandidates(world, claim).map((id) => world.salvage.find((s) => s.id === id)!);
+  return stocks.find((s) => foundIn(world, s, claim)) ?? stocks.find((s) => !world.player.scavenged.includes(s.id)) ?? null;
 }
 
 function fitsAboard(o: Orders, claim: Claim): boolean {
   const stock = o.world.salvage.find((s) => s.id === claim.stockId);
-  const part = stock && claimedPart(stock, claim);
+  const part = stock && [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId);
   return part !== undefined && canStowPart(o.me, part);
 }
 
 function takeClaim(o: Orders): boolean {
   const shop = shopAt(o.world);
   if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
-  const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: c.at });
+  const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: claimClue(c).point });
   const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
   if (best) o.run((w) => acceptContract(w, best.id));
   return best !== undefined;
