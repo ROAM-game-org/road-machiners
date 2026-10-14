@@ -9,7 +9,7 @@ import { reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type InlineButton, type Stage } from '../types';
+import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
 
@@ -126,6 +126,10 @@ export async function postCheckpoint(ctx: Ctx, issue: number, base: string, buil
   return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify'), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
 }
 
+export function suiteEnv(cfg: FactoryConfig): Record<string, string> {
+  return { TEST_STALL_MINUTES: String(cfg.testStallMinutes) };
+}
+
 export function testCacheMount(ctx: Ctx): Record<string, string> {
   const cache = `${ctx.cfg.home}/test-cache`;
   mkdirSync(cache, { recursive: true });
@@ -148,7 +152,7 @@ export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | nu
   const from = existsSync(log) ? statSync(log).size : 0;
   const progress = setInterval(() => ctx.log(at.stage, at.issue, checksProgress(log, started)), PROGRESS_MS);
   try {
-    await ctx.container.shell(dir, script, log, env, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
+    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
     return null;
   } catch (error) {
     return checkFailure(log, error, from);
