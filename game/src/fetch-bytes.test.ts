@@ -1,13 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIG } from './config';
-import { fetchBytes } from './fetch-bytes';
+import { DownloadFailure, fetchBytes } from './fetch-bytes';
 
 const bytes = new ArrayBuffer(4);
 const ok = { ok: true, status: 200, arrayBuffer: async () => bytes };
 
+function waitBefore(nextTry: number): number {
+  return CONFIG.assetRetryMs * 2 ** (nextTry - 2);
+}
+
+function totalWait(): number {
+  let sum = 0;
+  for (let n = 2; n <= CONFIG.assetFetchTries; n++) sum += waitBefore(n);
+  return sum;
+}
+
 async function settle<T>(p: Promise<T>): Promise<T | Error> {
   const result = p.catch((e: Error) => e);
-  await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+  await vi.advanceTimersByTimeAsync(totalWait());
   return result;
 }
 
@@ -43,6 +53,7 @@ describe('fetchBytes', () => {
     expect((err as Error).message).toContain('/a');
     expect((err as Error).message).toContain('HTTP 404');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(err).not.toBeInstanceOf(DownloadFailure);
   });
 
   it('gives up after the configured tries with the last error', async () => {
@@ -53,5 +64,36 @@ describe('fetchBytes', () => {
     expect((err as Error).message).toContain(`after ${CONFIG.assetFetchTries} tries`);
     expect((err as Error).message).toContain('Load failed');
     expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+    expect(err).toBeInstanceOf(DownloadFailure);
+    const failure = err as DownloadFailure;
+    expect(failure.url).toBe('/a');
+    expect(failure.tries).toBe(CONFIG.assetFetchTries);
+    expect(failure.cause).toBeInstanceOf(TypeError);
+  });
+
+  it('gives up on a lasting 503 with a DownloadFailure', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await settle(fetchBytes('/a'));
+    expect(err).toBeInstanceOf(DownloadFailure);
+    expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+  });
+
+  it('waits twice as long before each new try', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = fetchBytes('/a').catch((e: Error) => e);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    let elapsed = 0;
+    for (let n = 2; n <= CONFIG.assetFetchTries; n++) {
+      const wait = waitBefore(n);
+      await vi.advanceTimersByTimeAsync(wait - 1);
+      expect(fetchMock).toHaveBeenCalledTimes(n - 1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchMock).toHaveBeenCalledTimes(n);
+      elapsed += wait;
+    }
+    expect(elapsed).toBe(totalWait());
+    expect(await result).toBeInstanceOf(DownloadFailure);
   });
 });

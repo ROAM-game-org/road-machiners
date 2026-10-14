@@ -1,6 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
+import { DownloadFailure } from '../fetch-bytes';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
@@ -98,6 +99,7 @@ function ignoreForeign(facts: ErrorFacts): void {
 
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
   if (err instanceof WebGLUnavailable) showNoWebGL(err);
+  else if (err instanceof DownloadFailure) showNoConnection(err);
   else onFault(err, facts);
 }
 
@@ -150,5 +152,21 @@ function showNoWebGL(err: WebGLUnavailable): void {
     detail.textContent = text.detail;
     box.append(detail);
   }
+  document.body.appendChild(box);
+}
+
+function showNoConnection(err: DownloadFailure): void {
+  if (shown) return;
+  shown = true;
+  console.warn(err);
+  const box = document.createElement('div');
+  box.className = 'crash-screen';
+  const title = document.createElement('div');
+  title.className = 'crash-title';
+  setText(title, t('boot.failedToLoad'));
+  const detail = document.createElement('div');
+  detail.className = 'crash-hint';
+  detail.textContent = err.message;
+  box.append(title, detail);
   document.body.appendChild(box);
 }
