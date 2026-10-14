@@ -138,16 +138,23 @@ export class CombatScore {
   }
 }
 
-export function accentOf(e: GameEvent, playerId: string): AccentCue | null {
-  if (e.t === "collision") return [e.a, e.b].includes(playerId) ? "accent-crash" : null;
+export type AccentPick = { cue: AccentCue; round: number | null };
+
+export function accentOf(e: GameEvent, playerId: string): AccentPick | null {
+  if (e.t === "collision") return [e.a, e.b].includes(playerId) ? { cue: "accent-crash", round: null } : null;
   if (e.t === "shot") return volleyAccent(e.rounds, e.shooter === playerId, e.target === playerId);
   return null;
 }
 
-function volleyAccent(rounds: ShotRound[], mine: boolean, atPlayer: boolean): AccentCue | null {
+const strikes = (r: ShotRound) => r.hit || r.hits.length > 0;
+
+function volleyAccent(rounds: ShotRound[], mine: boolean, atPlayer: boolean): AccentPick | null {
   if (!mine && !atPlayer) return null;
-  if (rounds.some((r) => r.crit)) return "accent-crit";
-  return plainAccent(rounds.some((r) => r.hit || r.hits.length > 0), mine);
+  const crit = rounds.findIndex((r) => r.crit);
+  if (crit >= 0) return { cue: "accent-crit", round: crit };
+  const struck = rounds.findIndex(strikes);
+  const cue = plainAccent(struck >= 0, mine);
+  return cue ? { cue, round: Math.max(0, struck) } : null;
 }
 
 function plainAccent(struck: boolean, mine: boolean): AccentCue | null {
@@ -174,21 +181,43 @@ export class SoundDirector {
   constructor(
     private player: Pick<SoundPlayer, "play">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
-    private score: Pick<CombatScore, "accent">,
+    private score: Pick<CombatScore, "accent" | "take">,
   ) {}
 
-  accent(cue: AccentCue, delayMs: number): void {
-    const r = this.score.accent(cue, delayMs);
+  private due: { cue: AccentCue; atMs: number; take: AccentTake }[] = [];
+
+  accent(cue: AccentCue, delayMs: number, take?: AccentTake): void {
+    const r = this.score.accent(cue, delayMs, take);
     if (!r) return;
     this.record(`${cue} ${r.offer} heat${r.heat.toFixed(1)}`);
   }
 
-  accents(events: GameEvent[], playerId: string, delayOf: (e: GameEvent) => number | null): void {
+  timeAccents(events: GameEvent[], playerId: string, atOf: (e: GameEvent) => number | null): void {
+    this.due = [];
     for (const e of events) {
-      const cue = accentOf(e, playerId);
-      const delay = cue && delayOf(e);
-      if (cue && delay !== null) this.accent(cue, delay);
+      const pick = accentOf(e, playerId);
+      const atMs = pick && atOf(e);
+      if (pick && atMs !== null) this.queueAccent(pick.cue, atMs);
     }
+  }
+
+  queueAccent(cue: AccentCue, atMs: number): void {
+    this.due.push({ cue, atMs, take: this.score.take(cue) });
+  }
+
+  playDueAccents(elapsedMs: number, speed: number): void {
+    if (!Number.isFinite(speed) || speed <= 0) throw new Error(`Playback speed ${speed} is not a positive number`);
+    const aheadMs = MIX.score.offerAheadSeconds * 1000;
+    this.due = this.due.filter((d) => {
+      const delay = Math.max(0, (d.atMs - elapsedMs) / speed);
+      if (delay > d.take.peak * 1000 + aheadMs) return true;
+      this.accent(d.cue, delay, d.take);
+      return false;
+    });
+  }
+
+  clearAccents(): void {
+    this.due = [];
   }
 
   at(cue: CueId, p: V3, delayMs: number): void {

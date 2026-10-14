@@ -86,22 +86,29 @@ describe("accentOf", () => {
     t: "shot", shooter, weapon: "w", target, aim: "body", chance: 0.5, damageChance: 0.5, side: "front", rounds,
   });
   it("answers the player's volleys with hit, miss or crit", () => {
-    expect(accentOf(shot("p", "n", [round(false), round(true)]), "p")).toBe("accent-hit");
-    expect(accentOf(shot("p", "n", [round(false), round(false)]), "p")).toBe("accent-miss");
-    expect(accentOf(shot("p", "n", [round(true), round(true, true)]), "p")).toBe("accent-crit");
+    expect(accentOf(shot("p", "n", [round(false), round(true)]), "p")?.cue).toBe("accent-hit");
+    expect(accentOf(shot("p", "n", [round(false), round(false)]), "p")?.cue).toBe("accent-miss");
+    expect(accentOf(shot("p", "n", [round(true), round(true, true)]), "p")?.cue).toBe("accent-crit");
+  });
+  it("names the round that earns the accent", () => {
+    expect(accentOf(shot("p", "n", [round(false), round(true)]), "p")).toEqual({ cue: "accent-hit", round: 1 });
+    expect(accentOf(shot("p", "n", [round(true), round(true, true)]), "p")).toEqual({ cue: "accent-crit", round: 1 });
+    expect(accentOf(shot("p", "n", [round(false), round(false)]), "p")).toEqual({ cue: "accent-miss", round: 0 });
+    expect(accentOf(shot("n", "p", [round(false), round(true)]), "p")).toEqual({ cue: "accent-struck", round: 1 });
+    expect(accentOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")).toEqual({ cue: "accent-crash", round: null });
   });
   it("answers volleys at the player with struck or crit, and enemy misses with nothing", () => {
-    expect(accentOf(shot("n", "p", [round(true)]), "p")).toBe("accent-struck");
-    expect(accentOf(shot("n", "p", [round(true, true)]), "p")).toBe("accent-crit");
+    expect(accentOf(shot("n", "p", [round(true)]), "p")?.cue).toBe("accent-struck");
+    expect(accentOf(shot("n", "p", [round(true, true)]), "p")?.cue).toBe("accent-crit");
     expect(accentOf(shot("n", "p", [round(false)]), "p")).toBeNull();
   });
   it("counts a round that strikes parts without a clean hit as struck", () => {
     const grazing: ShotRound = { hit: false, crit: false, offset: 0, struck: "n", hits: [{ part: "armor", damage: 3 }], blast: [], burst: null };
-    expect(accentOf(shot("p", "n", [grazing]), "p")).toBe("accent-hit");
+    expect(accentOf(shot("p", "n", [grazing]), "p")?.cue).toBe("accent-hit");
   });
   it("ignores fights between other trucks and answers the player's crashes", () => {
     expect(accentOf(shot("a", "b", [round(true, true)]), "p")).toBeNull();
-    expect(accentOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")).toBe("accent-crash");
+    expect(accentOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")?.cue).toBe("accent-crash");
     expect(accentOf({ t: "collision", a: "n", b: "m", hitsA: [], hitsB: [] }, "p")).toBeNull();
   });
 });
@@ -222,7 +229,7 @@ describe("strainGlides", () => {
 describe("engine strain log", () => {
   it("logs strain only on turns that have some", () => {
     const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
-    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null });
+    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null, take: () => ({ file: "f", peak: 0 }) });
     director.engineStrain({ from: 0, to: 0 });
     director.engineStrain({ from: 1, to: 0.5 });
     director.engineStrain({ from: 0.5, to: 0 });
@@ -319,7 +326,7 @@ describe("horn sound assignment", () => {
     const width = globalThis.window?.innerWidth;
     Object.defineProperty(globalThis, "window", { value: { innerWidth: 100 }, configurable: true });
     try {
-      const director = new SoundDirector(player, rig, { accent: () => { throw new Error("no accent here"); } });
+      const director = new SoundDirector(player, rig, { accent: () => { throw new Error("no accent here"); }, take: () => ({ file: "f", peak: 0 }) });
       director.honk({ x: 0, y: 0, z: 0 }, 500, "scout");
       expect(calls).toEqual([["horn", { pan: 0, gain: 1 }, 500, hornSoundFor("scout")]]);
     } finally {
@@ -374,6 +381,69 @@ describe("CombatWatch", () => {
     expect(watch.observe(1, ["a"]).sighted).toBe(false);
     watch.observe(2, []);
     expect(watch.observe(2, ["a"]).sighted).toBe(false);
+  });
+});
+
+describe("SoundDirector accent timing", () => {
+  const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
+  const setup = () => {
+    const calls: [string, number, unknown][] = [];
+    const take = { file: "f", peak: 0.1 };
+    const score = { accent: (c: string, d: number, t: unknown) => (calls.push([c, d, t]), { cue: c, offer: "played", heat: 0 }), take: () => take } as never;
+    const director = new SoundDirector({ play: () => {} }, rig, score);
+    return { calls, take, director };
+  };
+
+  it("hands an accent over just before its event, once", () => {
+    const { calls, take, director } = setup();
+    director.queueAccent("accent-hit", 600);
+    director.playDueAccents(0, 1);
+    expect(calls).toEqual([]);
+    director.playDueAccents(500, 1);
+    expect(calls).toEqual([["accent-hit", 100, take]]);
+    director.playDueAccents(550, 1);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("hands it over earlier at fast speed, with the delay in real time", () => {
+    const { calls, director } = setup();
+    director.queueAccent("accent-hit", 1000);
+    director.playDueAccents(0, 4);
+    expect(calls).toEqual([]);
+    director.playDueAccents(600, 4);
+    expect(calls[0][1]).toBe(100);
+  });
+
+  it("hands over an accent already past with no delay", () => {
+    const { calls, director } = setup();
+    director.queueAccent("accent-hit", 600);
+    director.playDueAccents(700, 1);
+    expect(calls[0][1]).toBe(0);
+  });
+
+  it("drops the last turn's accents when a turn is timed or playback is cleared", () => {
+    const { calls, director } = setup();
+    director.queueAccent("accent-hit", 600);
+    director.timeAccents([], "p", () => null);
+    director.queueAccent("accent-hit", 600);
+    director.clearAccents();
+    director.playDueAccents(700, 1);
+    expect(calls).toEqual([]);
+  });
+
+  it("times a crash and leaves shots to the volley", () => {
+    const { calls, director } = setup();
+    const crash: GameEvent = { t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] };
+    const shot = { t: "shot", shooter: "p", weapon: "w", target: "n", aim: "body", chance: 1, damageChance: 1, side: "front", rounds: [] } as unknown as GameEvent;
+    director.timeAccents([crash, shot], "p", (e) => (e === crash ? 400 : null));
+    director.playDueAccents(400, 1);
+    expect(calls.map((c) => c[0])).toEqual(["accent-crash"]);
+  });
+
+  it("throws on a speed that is not positive and finite", () => {
+    const { director } = setup();
+    expect(() => director.playDueAccents(0, 0)).toThrow(/speed/);
+    expect(() => director.playDueAccents(0, Number.NaN)).toThrow(/speed/);
   });
 });
 

@@ -712,9 +712,9 @@ export class Game {
     playback.volley = volleySeen(this.world.events, seen);
     const timed = collisionSteps(world.events, playback.result);
     this.crashCues = new CollisionCues(timed);
-    this.sound.accents(world.events, world.player.vehicleId, (e) => {
+    this.sound.timeAccents(world.events, world.player.vehicleId, (e) => {
       const hit = timed.find((t) => t.event === e);
-      return hit ? Math.max(0, stepMs(hit.step ?? TURN_STEPS) - elapsed) : null;
+      return hit ? stepMs(hit.step ?? TURN_STEPS) : null;
     });
     playback.shotAims = shotAimsOf(world.events);
     this.breakCues = new BreakCues(world.events);
@@ -761,6 +761,7 @@ export class Game {
 
   private finishPlayback(): void {
     this.anim = null;
+    this.sound.clearAccents();
     this.crashCues = null;
     this.breakCues = new BreakCues([]);
     this.phase = null;
@@ -980,6 +981,7 @@ export class Game {
     const from = a.elapsed;
     const elapsed = this.travel.advanceClock(a, now, speed, CONFIG.playbackFrameMs);
     this.play.advance(elapsed - from);
+    this.sound.playDueAccents(elapsed, speed);
     if (elapsed < MOVE_MS)
       return (elapsed / 1000) * PHYSICS.stepsPerSecond;
     if (!a.moved) this.finishMovement(a);

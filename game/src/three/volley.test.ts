@@ -400,7 +400,7 @@ describe("playShotFx before a shooter's view exists", () => {
       world,
       views: new Map(),
       fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number }) => launched.push(plan), label: () => {} },
-      sound: { at: () => {}, accents: () => {} },
+      sound: { at: () => {}, queueAccent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -416,6 +416,7 @@ describe("playShotFx before a shooter's view exists", () => {
 describe("playShotFx through the move", () => {
   const parked = (x: number) => Array.from({ length: STEPS }, () => ({ pos: { x, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: ORIGIN, wheels: [] }));
 
+  const queued: [string, number][] = [];
   const fire = (weapon: string, rounds: (target: string) => ShotRound[], more: (target: string) => GameEvent[] = () => []) => {
     const world = emptyWorld();
     const shooter = addVehicle(world, "raiders", "buggy", [weapon, "stockEngine"], { x: 30, y: 30 }, 0);
@@ -430,7 +431,7 @@ describe("playShotFx through the move", () => {
       world,
       views: new Map([[shooter.id, { covers: () => true }]]),
       fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {} },
-      sound: { at: () => {}, accents: () => {} },
+      sound: { at: () => {}, queueAccent: (cue: string, atMs: number) => queued.push([cue, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -438,11 +439,20 @@ describe("playShotFx through the move", () => {
       poses: posesOf(world, frames, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
       startMs: 0,
     } as unknown as CombatHost;
+    world.player.vehicleId = shooter.id;
+    queued.length = 0;
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     playShotFx(host, new BreakCues(world.events));
     vi.restoreAllMocks();
     return { launched, hooked, gunId: gunPart.part.id };
   };
+
+  it("queues the volley's accent at the landing of the round that earns it", () => {
+    const { launched } = fire("mg", () => [round(null), round("t")]);
+    expect(queued).toHaveLength(1);
+    expect(queued[0][0]).toBe("accent-hit");
+    expect(queued[0][1]).toBe(launched[1].delayMs + launched[1].flightMs);
+  });
 
   it("fires every round into a truck that dies during the move but lands the killing one as the move ends", () => {
     const { launched } = fire("mg", (t) => [round(t), round(t), round(t)], (t) => [{ t: "destroyed", vehicle: t } as GameEvent]);

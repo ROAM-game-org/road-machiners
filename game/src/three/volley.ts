@@ -15,7 +15,7 @@ import type { Fx3D } from "./render/fx";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import { viewOf, type VehicleView } from "./render/vehicle";
-import type { SoundDirector } from "./sound";
+import { accentOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
 import { bodyOf } from "../sim/body";
@@ -33,7 +33,7 @@ export type VolleyHost = {
 
 const GUN_SOUNDS: Record<string, { fire: CueId; struck: CueId }> = { harpoon: { fire: "harpoon-fire", struck: "harpoon-hook" } };
 
-export type VolleyLands = { firstMs: number; lastMs: number };
+export type VolleyLands = { landsMs: number[]; lastMs: number };
 
 export function playVolley(
   host: VolleyHost,
@@ -69,7 +69,7 @@ export function playVolley(
     host.fx.shot(roundSpec(spec, k), muzzle, shown, blastRadiusOf(weapon), cues, ground, host.world.turn);
     showDamage(host, rounds[k], shown.delayMs + shown.flightMs, rows);
   });
-  return { firstMs: Math.min(...landsAt) - host.startMs, lastMs: Math.max(...landsAt) };
+  return { landsMs: landsAt, lastMs: Math.max(...landsAt) };
 }
 
 function landSound(host: VolleyHost, plan: RoundPlan, r: ShotRound, struck: CueId): void {
@@ -196,12 +196,17 @@ export function playShotFx(host: CombatHost, breaks: BreakCues): number {
   for (const e of host.world.events) {
     const lands = e.t === "shot" ? playTruckShot(host, e, rows, breaks) : null;
     if (lands === null) continue;
-    host.sound.accents([e], host.world.player.vehicleId, () => lands.firstMs);
+    queueVolleyAccent(host, e, lands);
     lastMs = Math.max(lastMs, lands.lastMs);
     if (e.t === "shot") played.add(gunKey(e.shooter, e.weapon));
   }
   playDryGuns(host, played);
   return lastMs;
+}
+
+function queueVolleyAccent(host: CombatHost, e: GameEvent, lands: VolleyLands): void {
+  const accent = accentOf(e, host.world.player.vehicleId);
+  if (accent) host.sound.queueAccent(accent.cue, lands.landsMs[accent.round ?? 0]);
 }
 
 function vehicleOf(w: World, id: string): Vehicle {

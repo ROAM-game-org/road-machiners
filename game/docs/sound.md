@@ -38,7 +38,7 @@ How it plays:
 
 1. The player entering combat, as the HUD combat readout shows it, starts a battle. A hostile that only sits or drives by in sight does not. One random base loop plays, drums, bass, horns or trombone, from its first beat. It stops when that combat ends.
 2. Heat is a fading sum of event weights. It sets the base's level and muffle once per bar, so a quiet fight sounds low and dull and a hot one sounds full and open.
-3. Each event plays a stab: its accent, started early by the take's measured peak, so the loudest moment lands exactly when the shot lands or the crash happens.
+3. Each event plays a stab: its accent, started early by the take's measured peak, so the loudest moment lands exactly when the shot lands or the crash happens. A stab whose event comes before its take's peak starts inside the take, with a short fade-in.
 4. A short tail of the same accent may follow on the beat grid, from the half-beat nearest the event. Calm tails are the stab alone. Hot tails add one hit.
 5. Heavy events, like a crash, a crit, a sighting or being hit, go to the lead line, centered, and always sound. Light events, your hits and misses, go to the secondary line: quieter, to one side, and only by chance.
 6. A stab too soon after another on its line is dropped, so a burst makes one sound, not a pile.
@@ -47,7 +47,7 @@ How it plays:
 
 Randomness only changes how a sound plays: which take, which rhythm variant, a rare fill, a few milliseconds of timing and a little level. It never changes when the structure moves.
 
-Volley accents are timed from the volley's own plan, when the first round lands. Crash accents are known at turn start, so their peak lands on the physics step of the crash. Crash sparks and sound play when playback reaches that step. A collision with no physics step, like a far truck breaking a fence, plays when movement ends.
+Accents wait on the turn's play clock and go to the score just before their event, at the current playback speed, so hold-to-fast and slow frames keep them on their shots. A volley's accent sits on the round that earns it: the first crit, the first round that strikes, or the first round for a miss. Crash accents sit on the physics step of the crash. Crash sparks and sound play when playback reaches that step. A collision with no physics step, like a far truck breaking a fence, plays when movement ends.
 
 To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and what the score did with each accent, like `accent-hit skipped heat1.2`.
 
