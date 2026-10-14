@@ -113,7 +113,13 @@ export function loadConfig(env: Record<string, string | undefined>): FactoryConf
   const cfg = Object.fromEntries(entries) as FactoryConfig;
   checkCpuShares(cfg);
   checkPrices(cfg);
+  checkChatIds(cfg);
   return cfg;
+}
+
+function checkChatIds(cfg: FactoryConfig): void {
+  const names = (['proposalChat', 'publicDiscussion'] as const).filter((field) => !/^-?\d+$/.test(cfg[field])).map((field) => KEYS[field]);
+  if (names.length) throw new Error(`${names.join(', ')} must be numeric chat ids, since Telegram updates name chats by id.`);
 }
 
 function checkPrices(cfg: FactoryConfig): void {

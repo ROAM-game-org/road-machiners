@@ -32,6 +32,7 @@ REQUIRED_KEYS = (
     "FACTORY_COMMITTEE_DIR", "FACTORY_COMMITTEE_BOOTSTRAP", "FACTORY_COMMITTEE_BOOTSTRAP_GITHUB",
     "FACTORY_PUBLIC_DISCUSSION", "FACTORY_PROPOSAL_CHAT", "FACTORY_PUBLIC_INBOX",
 )
+NUMERIC_CHAT_KEYS = ("FACTORY_PUBLIC_DISCUSSION", "FACTORY_PROPOSAL_CHAT")
 COMMITTEE_PREFIX = "/committee"
 RESTART_DELAY_SECONDS = 2.0
 BUTTON_PATTERN = r"^factory:(approve|deny|ship|publish):\d+$"
@@ -63,6 +64,9 @@ def load_config(environ: dict) -> Config:
     missing = [key for key in REQUIRED_KEYS if not environ.get(key, "").strip()]
     if missing:
         raise RuntimeError(f"Factory plugin env is missing {', '.join(missing)}.")
+    not_ids = [key for key in NUMERIC_CHAT_KEYS if not re.fullmatch(r"-?\d+", environ[key].strip())]
+    if not_ids:
+        raise RuntimeError(f"Factory plugin env needs numeric chat ids in {', '.join(not_ids)}.")
     committee = Committee(
         environ["FACTORY_COMMITTEE_DIR"].strip(),
         environ["FACTORY_COMMITTEE_BOOTSTRAP"].strip(),

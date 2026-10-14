@@ -35,6 +35,24 @@ describe('routeReports', () => {
     expect(f.messages.filter((message) => message.chat === COMMITTEE)).toEqual([]);
   });
 
+  it('routes a game report on a bug card that never had a proposal through its committee post', async () => {
+    const f = publicFake();
+    f.cards = [{ itemId: 'x', issue: 8, column: 'Approval', labels: [] }];
+    updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 400: 8 }, postCaptions: { 400: 'caption' }, textPosts: ['400'] }));
+    const id = f.store.addComment({ issue: 8, source: 'game', sourceId: 'report:1', postChat: null, postMessageId: null, author: 'Player', text: 'The horn never stops', at: f.clock.now.toISOString() })!;
+    f.store.classify(id, 'bug', 'patch', f.clock.now);
+    await routeReports(f.ctx, f.store);
+    expect(f.calls).toContain('move 8 Testing');
+    expect(f.comments[0]!.body.startsWith('## Player report')).toBe(true);
+    expect(f.store.pendingRoutes()).toEqual([]);
+  });
+
+  it('never routes a Telegram comment on a closed build post', async () => {
+    const f = reported('patch', true);
+    f.store.closeBuildPosts(7);
+    expect(f.store.pendingRoutes()).toEqual([]);
+  });
+
   it('routes a redesign to Design', async () => {
     const f = reported('redesign', true);
     await routeReports(f.ctx, f.store);

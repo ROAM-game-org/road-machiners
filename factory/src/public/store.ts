@@ -139,7 +139,8 @@ export class PublicStore {
   }
 
   pendingRoutes(): StoredComment[] {
-    const sql = "select c.* from comments c join build_posts b on b.issue = c.issue and b.open = 1 and ((c.post_chat = b.chat and c.post_message_id = b.message_id) or (c.post_chat = b.discussion_chat and c.post_message_id = b.discussion_id) or c.source = 'game') where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' order by c.id";
+    const onOpenPost = 'exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and ((c.post_chat = b.chat and c.post_message_id = b.message_id) or (c.post_chat = b.discussion_chat and c.post_message_id = b.discussion_id)))';
+    const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' and (c.source = 'game' or ${onOpenPost}) order by c.id`;
     return this.db.prepare(sql).all().map(toComment);
   }
 

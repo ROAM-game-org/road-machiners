@@ -179,6 +179,12 @@ def test_load_config_fails_loud(tmp_path, key):
         plugin.load_config(values)
 
 
+@pytest.mark.parametrize("key", plugin.NUMERIC_CHAT_KEYS)
+def test_load_config_refuses_a_chat_name(tmp_path, key):
+    with pytest.raises(RuntimeError, match=key):
+        plugin.load_config({**env(tmp_path), key: "@roam_game_dispatch"})
+
+
 def test_register_seeds_the_file(tmp_path):
     hooks = []
     ctx = types.SimpleNamespace(register_hook=lambda name, fn: hooks.append(name), register_tool=lambda **kw: None, register_telegram_handler=lambda fn: None)
