@@ -20,24 +20,68 @@ const SAVES = 'saves';
 const LOG = 'log';
 
 export async function idbBackend(name: string): Promise<SaveBackend> {
-  const db = await opened(name);
+  const connection = new Connection(name);
+  await connection.current();
   return {
     readAll: async () => {
-      const tx = db.transaction(SAVES, 'readonly');
+      const tx = await connection.transaction(SAVES, 'readonly');
       const [keys, values] = await Promise.all([request(tx.objectStore(SAVES).getAllKeys()), request(tx.objectStore(SAVES).getAll())]);
       return new Map(keys.map((key, i) => [key as SlotId, values[i]]));
     },
-    put: (slot, envelope) => written(db, SAVES, (store) => store.put(envelope, slot)),
-    remove: (slot) => written(db, SAVES, (store) => store.delete(slot)),
-    appendLog: (runId, entries) => written(db, LOG, (store) => {
+    put: (slot, envelope) => written(connection, SAVES, (store) => store.put(envelope, slot)),
+    remove: (slot) => written(connection, SAVES, (store) => store.delete(slot)),
+    appendLog: (runId, entries) => written(connection, LOG, (store) => {
       const last = store.openCursor(runRange(runId), 'prev');
       last.onsuccess = () => {
         const next = last.result ? (last.result.value as LogRecord).seq + 1 : 0;
         entries.forEach((entry, i) => store.add({ ...entry, runId, seq: next + i }));
       };
     }),
-    readLog: (runId) => request(db.transaction(LOG, 'readonly').objectStore(LOG).getAll(runRange(runId))),
+    readLog: async (runId) => {
+      const tx = await connection.transaction(LOG, 'readonly');
+      return request(tx.objectStore(LOG).getAll(runRange(runId)));
+    },
   };
+}
+
+class Connection {
+  private held: Promise<IDBDatabase> | null = null;
+
+  constructor(private readonly name: string) {}
+
+  current(): Promise<IDBDatabase> {
+    if (this.held) return this.held;
+    const opening = opened(this.name).then((db) => {
+      db.onclose = () => this.drop(opening);
+      db.onversionchange = () => {
+        db.close();
+        this.drop(opening);
+      };
+      return db;
+    });
+    this.held = opening;
+    opening.catch(() => this.drop(opening));
+    return opening;
+  }
+
+  async transaction(stores: string, mode: IDBTransactionMode): Promise<IDBTransaction> {
+    const held = this.current();
+    try {
+      return (await held).transaction(stores, mode);
+    } catch (err) {
+      if (!isClosing(err)) throw err;
+      this.drop(held);
+      return (await this.current()).transaction(stores, mode);
+    }
+  }
+
+  private drop(connection: Promise<IDBDatabase>): void {
+    if (this.held === connection) this.held = null;
+  }
+}
+
+function isClosing(err: unknown): boolean {
+  return (err as { name?: unknown } | null)?.name === 'InvalidStateError';
 }
 
 function runRange(runId: string): IDBKeyRange {
@@ -64,14 +108,15 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-function written(db: IDBDatabase, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
-  const tx = db.transaction(store, 'readwrite');
-  write(tx.objectStore(store));
-  return new Promise((resolve, reject) => {
+async function written(connection: Connection, store: string, write: (store: IDBObjectStore) => void): Promise<void> {
+  const tx = await connection.transaction(store, 'readwrite');
+  const done = new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error ?? new Error(`The ${store} write was aborted`));
   });
+  write(tx.objectStore(store));
+  return done;
 }
 
 const IDB_RETRY_MS = 200;
@@ -161,20 +206,20 @@ export class SaveSlots {
   put(slot: SlotId, envelope: unknown): void {
     const copy = structuredClone(envelope);
     this.envelopes.set(slot, copy);
-    this.track(this.backend.put(slot, copy));
+    this.track(() => this.backend.put(slot, copy));
   }
 
   remove(slot: SlotId): void {
     this.envelopes.delete(slot);
-    this.track(this.backend.remove(slot));
+    this.track(() => this.backend.remove(slot));
   }
 
   async flush(): Promise<void> {
     await Promise.all(this.pending);
   }
 
-  private track(write: Promise<void>): void {
-    const done = write.catch((err) => this.onError(err)).finally(() => this.pending.delete(done));
+  private track(write: () => Promise<void>): void {
+    const done = Promise.resolve().then(write).catch((err) => this.onError(err)).finally(() => this.pending.delete(done));
     this.pending.add(done);
   }
 }
