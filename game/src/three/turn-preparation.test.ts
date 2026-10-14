@@ -140,8 +140,8 @@ it("steps a turn the same from the worker's bytes as from a restored and re-capt
   const first = captureDrive(drive);
   const restored = restoreDrive(first);
   const again = captureDrive(restored);
-  const a = computeTurn({ world: state, drive: first }, terrain);
-  const b = computeTurn({ world: state, drive: again }, terrain);
+  const a = computeTurn({ world: state, drive: first, lang: 'en' }, terrain);
+  const b = computeTurn({ world: state, drive: again, lang: 'en' }, terrain);
   restored.world.free();
   const last = (t: typeof a) => t.world.vehicles.find((v) => v.id === world.player.vehicleId)!;
   expect(last(b).pos).toEqual(last(a).pos);

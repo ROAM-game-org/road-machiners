@@ -7,7 +7,7 @@ import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
 import { isNoteId, learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
 import { shopAt, siteOf } from '../sim/market';
-import { chooseQuestOption, currentQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, setQuestLanguage, startQuest, type QuestView } from '../sim/quests';
+import { chooseQuestOption, inQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, startQuest, type QuestView } from '../sim/quests';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
@@ -121,17 +121,7 @@ function exploreQuest(scenes: World[], bundle: QuestBundle, id: string, sections
 }
 
 function eachLanguage<T>(make: (lang: QuestLanguage) => T): Record<QuestLanguage, T> {
-  return Object.fromEntries(QUEST_LANGUAGES.map((lang) => [lang, inLanguage(lang, () => make(lang))])) as Record<QuestLanguage, T>;
-}
-
-function inLanguage<T>(lang: QuestLanguage, run: () => T): T {
-  const before = currentQuestLanguage();
-  setQuestLanguage(lang);
-  try {
-    return run();
-  } finally {
-    setQuestLanguage(before);
-  }
+  return Object.fromEntries(QUEST_LANGUAGES.map((lang) => [lang, inQuestLanguage(lang, () => make(lang))])) as Record<QuestLanguage, T>;
 }
 
 function inWords(lang: QuestLanguage): string {

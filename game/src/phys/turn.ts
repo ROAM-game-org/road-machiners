@@ -6,6 +6,8 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
+import { inQuestLanguage } from '../sim/quests';
+import type { QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
@@ -23,12 +25,13 @@ import { headingOf, toMap } from './frames';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
-export type TurnTask = { world: TurnState; drive: DriveSnapshot };
+export type WorldTask = { world: TurnState; drive: DriveSnapshot };
+export type TurnTask = WorldTask & { lang: QuestLanguage };
 export type PreparedTurn = {
   world: TurnState;
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
-export type PreviewTask = TurnTask & { meId: string };
+export type PreviewTask = WorldTask & { meId: string };
 export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
@@ -53,6 +56,10 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
 }
 
 export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+  return inQuestLanguage(task.lang, () => computeTurnIn(task, terrain));
+}
+
+function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;

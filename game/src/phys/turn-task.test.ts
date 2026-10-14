@@ -1,6 +1,13 @@
 import { beforeAll, expect, it } from "vitest";
 import type { Obstacle } from "../sim/types";
-import { emptyWorld } from "../sim/testkit";
+import { startKit } from "../data/start";
+import { playerVehicle } from "../sim/damage";
+import { corePart } from "../sim/grid";
+import { currentQuestLanguage, inQuestLanguage, setQuestLanguage } from "../sim/quests";
+import { defaultSetup } from "../sim/settings";
+import { addVehicle, emptyWorld } from "../sim/testkit";
+import { newWorld } from "../sim/world";
+import { TEST_MAP } from "../test/map";
 import { endTurn, setMoveOrder } from "../sim/world";
 import {
   buildDrive,
@@ -21,7 +28,7 @@ it("restores frozen terrain after worker transfer so turn clones retain the rout
   const { terrain, ...state } = structuredClone(world);
   expect(Object.isFrozen(terrain)).toBe(false);
   try {
-    computeTurn({ world: state, drive: captureDrive(drive) }, terrain);
+    computeTurn({ world: state, drive: captureDrive(drive), lang: 'en' }, terrain);
     expect(Object.isFrozen(terrain)).toBe(true);
     expect(Object.isFrozen(terrain.heights)).toBe(true);
     expect(Object.isFrozen(terrain.types)).toBe(true);
@@ -42,7 +49,7 @@ it("computes the same world and physics as a foreground turn without advancing t
   try {
     const { terrain, ...state } = world;
     const prepared = computeTurn(
-      { world: state, drive: captureDrive(drive) },
+      { world: state, drive: captureDrive(drive), lang: 'en' },
       terrain,
     );
     const expected = endTurn(
@@ -55,7 +62,7 @@ it("computes the same world and physics as a foreground turn without advancing t
     expect(world).toEqual(original);
     restored = restoreDrive(prepared.result.next);
     const nextPrepared = computeTurn(
-      { world: prepared.world, drive: captureDrive(restored) },
+      { world: prepared.world, drive: captureDrive(restored), lang: 'en' },
       terrain,
     );
     const nextExpected = endTurn(
@@ -74,7 +81,7 @@ function handoff(rockStays: boolean) {
   const world = setMoveOrder(emptyWorld(), { kind: "stopAt", dest: { x: 38, y: 31 } });
   const drive = buildDrive(world);
   const { terrain, ...state } = world;
-  const first = computeTurn({ world: state, drive: captureDrive(drive) }, terrain);
+  const first = computeTurn({ world: state, drive: captureDrive(drive), lang: 'en' }, terrain);
   freeDrive(drive);
   const next = first.result.next;
   const pristine = structuredClone(next);
@@ -99,8 +106,35 @@ it("a main-thread sync of the restored drive leaves the playback snapshot unchan
 
 it.each([false, true])("a turn from the playback snapshot after a main-thread sync matches one from a copy taken before it (rock stays: %s)", (stays) => {
   const { next, pristine, later, terrain } = handoff(stays);
-  const actual = computeTurn({ world: later, drive: next }, terrain);
-  const expected = computeTurn({ world: structuredClone(later), drive: pristine }, terrain);
+  const actual = computeTurn({ world: later, drive: next, lang: 'en' }, terrain);
+  const expected = computeTurn({ world: structuredClone(later), drive: pristine, lang: 'en' }, terrain);
   expect(actual.world).toEqual(expected.world);
   expect(actual.result.next.obstacles).toEqual(expected.result.next.obstacles);
+});
+
+it("opens a quest in the language the turn request carries", () => {
+  const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
+  const me = playerVehicle(world);
+  const raider = addVehicle(world, "raiders", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
+  me.lastHitBy = raider.id;
+  corePart(me, "cab").hp = 0;
+  const drive = buildDrive(world);
+  const { terrain, ...state } = world;
+  setQuestLanguage("en");
+  try {
+    const prepared = computeTurn({ world: state, drive: captureDrive(drive), lang: "ru" }, terrain);
+    const live = prepared.world.player.quests.live;
+    expect(live?.quest).toBe("first_fall");
+    expect(live?.lang).toBe("ru");
+    expect(JSON.stringify(live)).toMatch(/\p{Script=Cyrillic}/u);
+    expect(currentQuestLanguage()).toBe("en");
+  } finally {
+    freeDrive(drive);
+  }
+}, 90_000);
+
+it("restores the quest language when the run throws", () => {
+  setQuestLanguage("en");
+  expect(() => inQuestLanguage("ru", () => { throw new Error("boom"); })).toThrow("boom");
+  expect(currentQuestLanguage()).toBe("en");
 });
