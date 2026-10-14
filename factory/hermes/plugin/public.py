@@ -132,13 +132,37 @@ def alert_path(cfg) -> Path:
     return Path(cfg.public_inbox).parent / PUBLIC_ALERT
 
 
-def raise_public_alert(cfg, now: datetime) -> None:
-    line = f"public updates: the plugin could not write a player vote or comment to the inbox on {now.date().isoformat()}"
+INBOX_WRITE_REASON = "the plugin could not write a player vote or comment to the inbox"
+CONFLICT_REASON = "Telegram updates queued during a polling restart were dropped, so votes or comments may be missing"
+CONFLICT_MARKER = "Telegram polling restarted after conflict retry"
+
+
+def raise_public_alert(cfg, now: datetime, reason: str = INBOX_WRITE_REASON) -> None:
+    line = f"public updates: {reason} on {now.date().isoformat()}"
     path = alert_path(cfg)
     if path.is_file() and line in path.read_text().split("\n"):
         return
     with path.open("a") as alerts:
         alerts.write(f"{line}\n")
+
+
+class ConflictRestartAlert(logging.Handler):
+    def __init__(self, cfg) -> None:
+        super().__init__(level=logging.INFO)
+        self.cfg = cfg
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            if CONFLICT_MARKER in record.getMessage():
+                raise_public_alert(self.cfg, datetime.now(timezone.utc), CONFLICT_REASON)
+        except Exception:
+            self.handleError(record)
+
+
+def watch_polling_conflicts(cfg) -> None:
+    root = logging.getLogger()
+    if not any(isinstance(handler, ConflictRestartAlert) for handler in root.handlers):
+        root.addHandler(ConflictRestartAlert(cfg))
 
 
 def handle_public_update(raw: dict, cfg) -> bool:

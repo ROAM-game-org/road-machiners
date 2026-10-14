@@ -9,7 +9,8 @@ import { reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Stage } from '../types';
+import { testPoolPin } from '../cpus';
+import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Pin, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
 
@@ -123,7 +124,8 @@ export async function postCheckpoint(ctx: Ctx, issue: number, base: string, buil
   if (kind === 'docs') return runScript(ctx, issue, base, build, buildScript);
   const playtest = playtestCommand(ctx.cfg, false);
   const script = kind === 'full' ? checkScript(playtest) : previewScript(playtest);
-  return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify'), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+  const pin = kind === 'full' ? testPoolPin(ctx.cfg) : undefined;
+  return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify', pin), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
 }
 
 export function suiteEnv(cfg: FactoryConfig): Record<string, string> {
@@ -136,23 +138,23 @@ export function testCacheMount(ctx: Ctx): Record<string, string> {
   return { [cache]: '/test-cache' };
 }
 
-async function runScript(ctx: Ctx, issue: number, base: string, build: string, script: string, stage: Stage = 'checks'): Promise<string | null> {
+async function runScript(ctx: Ctx, issue: number, base: string, build: string, script: string, stage: Stage = 'checks', pin?: Pin): Promise<string | null> {
   checkScope(build);
   const dir = checkDir(ctx, issue);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(`${ctx.cfg.home}/work`, { recursive: true });
   await ctx.repo.prepareWorkClone(BRANCH(issue), base, dir);
-  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) });
+  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) }, pin);
 }
 
 const PROGRESS_MS = 5 * 60_000;
 
-export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | null }, dir: string, script: string, log: string, env: Record<string, string>): Promise<string | null> {
+export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | null }, dir: string, script: string, log: string, env: Record<string, string>, pin?: Pin): Promise<string | null> {
   const started = Date.now();
   const from = existsSync(log) ? statSync(log).size : 0;
   const progress = setInterval(() => ctx.log(at.stage, at.issue, checksProgress(log, started)), PROGRESS_MS);
   try {
-    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
+    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes, pin);
     return null;
   } catch (error) {
     return checkFailure(log, error, from);

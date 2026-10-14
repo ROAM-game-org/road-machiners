@@ -97,6 +97,7 @@ export type FactoryConfig = {
   filterModel: string;
   filterTimeoutSeconds: number;
   filterSincereMin: number;
+  filterPerTick: number;
   reportIpPerHour: number;
   reportMaxChars: number;
 };
@@ -257,9 +258,11 @@ export interface Telegram {
 export type AgentSession = { dir: string; id: string; resume: boolean };
 export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string };
 
+export type Pin = { cpus: string | null; testWorkers: number | null };
+
 export interface Container {
   agent(run: AgentRun): Promise<string>;
-  shell(clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number): Promise<void>;
+  shell(clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number, pin?: Pin): Promise<void>;
 }
 
 export type MergeStep = { branch: string; into: string; message: string };

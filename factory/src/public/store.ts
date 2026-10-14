@@ -27,6 +27,7 @@ create table if not exists reports (id integer primary key autoincrement, addres
 create table if not exists hits (address text not null, hour text not null, count integer not null, primary key (address, hour));
 create table if not exists digests (issue integer primary key, last_at text not null);
 create table if not exists post_attempts (id integer primary key autoincrement, issue integer not null, at text not null);
+create table if not exists route_attempts (issue integer not null, committee_post integer not null, at text not null, primary key (issue, committee_post));
 `;
 
 export const storePath = (home: string): string => join(home, 'public', 'public.db');
@@ -152,7 +153,7 @@ export class PublicStore {
   }
 
   unclassifiedComments(): StoredComment[] {
-    return this.db.prepare('select * from comments where classified_at is null order by id').all().map(toComment);
+    return this.db.prepare('select * from comments where classified_at is null and dropped_at is null order by id').all().map(toComment);
   }
 
   classify(id: number, kind: CommentKind, route: PublicRoute, now: Date): void {
@@ -190,6 +191,10 @@ export class PublicStore {
     const onOpenPost = 'exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and ((c.post_chat = b.chat and c.post_message_id = b.message_id) or (c.post_chat = b.discussion_chat and c.post_message_id = b.discussion_id)))';
     const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' and (c.source = 'game' or ${onOpenPost}) order by c.id`;
     return this.db.prepare(sql).all().map(toComment);
+  }
+
+  beginRoute(issue: number, committeePost: number, now: Date): boolean {
+    return this.db.prepare('insert or ignore into route_attempts (issue, committee_post, at) values (?, ?, ?)').run(issue, committeePost, now.toISOString()).changes === 1;
   }
 
   markRouted(id: number, now: Date): void {

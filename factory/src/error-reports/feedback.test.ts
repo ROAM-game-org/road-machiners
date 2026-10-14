@@ -176,6 +176,14 @@ describe('feedback route', () => {
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_REPORT_IP_PER_HOUR=2');
   });
 
+  it('counts every address of one IPv6 /64 together', async () => {
+    const { url } = await start({ ipPerHour: 2 });
+    const statuses = [];
+    for (const ip of ['2001:db8::1', '2001:db8:0:0:1::1', '2001:db8::2']) statuses.push((await send(url, request(), { 'cf-connecting-ip': ip })).status);
+    expect(statuses).toEqual([200, 200, 429]);
+    expect((await send(url, request(), { 'cf-connecting-ip': '2001:db8:0:1::1' })).status).toBe(200);
+  });
+
   it('refuses a bad origin, a bad body, too long text and an oversized body before the filter', async () => {
     const { url, asked, home } = await start({ maxChars: 100, ipPerHour: 20 });
     expect((await send(url, request(), { origin: 'https://evil.test' })).status).toBe(403);
