@@ -179,11 +179,11 @@ describe('combat', () => {
     expect(searcher.job).toBeNull();
   });
 
-  it('shooting a neutral makes it and its nearby mates hostile', () => {
+  it('shooting a neutral makes it and its nearby allies hostile', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 33, y: 30 });
-    const mate = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 36, y: 33 });
+    const trader = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 33, y: 30 });
+    const mate = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 36, y: 33 });
     order(me, vehicleStats(w, me).weapons[0].part.id, trader.id);
     fireWeapons(w);
     expect(stateOf(w, 'feud', trader.id, me.id)).not.toBeNull();
@@ -584,13 +584,13 @@ describe('player vision', () => {
 });
 
 describe('NPC attack records and defensive fire', () => {
-  it('records every shot at the driver or a nearby faction mate it sees as an attack, even a miss', () => {
+  it('records every shot at the driver or a nearby ally it sees as an attack, even a miss', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
-    const mate = addVehicle(w, 'independent', 'scout', [], { x: 12, y: 12 });
-    const far = addVehicle(w, 'independent', 'scout', [], { x: 10 + SPAWN.neighborHelp + 8, y: 10 });
+    const mate = addVehicle(w, 'bowl', 'scout', [], { x: 12, y: 12 });
+    const far = addVehicle(w, 'bowl', 'scout', [], { x: 10 + SPAWN.neighborHelp + 8, y: 10 });
     const shootAt = (target: Vehicle) => {
       w.events = [];
       raider.weaponOrders = { [mountedParts(raider, 'weapon')[0].id]: { targetId: target.id, aim: 'body' } };

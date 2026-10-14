@@ -39,9 +39,11 @@ describe('raider camps', () => {
   it('spawn raiders just outside a camp gate', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     spawnInitial(w);
-    const raiders = w.vehicles.filter((v) => v.faction === 'scrapjaw');
+    const raiders = w.vehicles.filter((v) => v.brain?.traits.includes('raider'));
     expect(raiders).toHaveLength(SPAWN.initial.filter((id) => NPCS[id].traits.includes('raider')).length);
     for (const r of raiders) {
+      const home = [...camps].sort((a, b) => dist(a.pos, r.pos) - dist(b.pos, r.pos))[0];
+      expect(r.faction).toBe(home.id);
       const near = camps.flatMap((c) => siteGates(c)).some((g) => dist(g, r.pos) <= SPAWN.gateSpread + 2);
       expect(near, `raider at ${r.pos.x},${r.pos.y}`).toBe(true);
     }

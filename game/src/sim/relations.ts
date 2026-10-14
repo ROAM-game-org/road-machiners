@@ -31,7 +31,7 @@ function factionDef(faction: NpcFactionId): FactionDef {
 }
 
 export function isRaider(v: Vehicle): boolean {
-  return v.brain?.traits.includes('raider') === true;
+  return v.brain ? v.brain.traits.includes('raider') : isOutlaw(v.faction);
 }
 
 function isLawman(v: Vehicle): boolean {
@@ -147,19 +147,19 @@ function templateFactions(tpl: NpcTemplate): NpcFactionId[] {
 }
 
 export function witnessesOf(world: World, i: Incident): Vehicle[] {
-  return world.vehicles.filter((v) => v.id !== i.aggressor.id && v.id !== i.victim.id && v.brain !== null
+  return world.vehicles.filter((v) => v.id !== i.aggressor.id && v.id !== i.victim.id && judges(v)
     && canVehicleSee(world, v, i.aggressor.pos) && canVehicleSee(world, v, i.victim.pos));
 }
 
 function escortsWhoSee(world: World, i: Incident): Vehicle[] {
-  return escortsOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && v.brain !== null && canVehicleSee(world, v, i.aggressor.pos));
+  return escortsOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && judges(v) && canVehicleSee(world, v, i.aggressor.pos));
 }
 
 export function reportIncident(world: World, i: Incident): Vehicle[] {
   const seen = witnessesOf(world, i);
   const escorts = escortsWhoSee(world, i);
   const willing = [
-    ...(i.victim.brain && i.victimFights ? [i.victim] : []),
+    ...(judges(i.victim) && i.victimFights ? [i.victim] : []),
     ...escorts,
     ...seen.filter((w) => !escorts.includes(w) && willsToStepIn(world, w, i)),
   ];
@@ -175,7 +175,7 @@ function willsToStepIn(world: World, w: Vehicle, i: Incident): boolean {
 }
 
 function answersLawCall(w: Vehicle, victim: Vehicle): boolean {
-  return isLawman(w) && victim.brain !== null && !isOutlaw(victim.faction);
+  return isLawman(w) && judges(victim) && !isOutlaw(victim.faction);
 }
 
 function defendsByBand(world: World, band: Band): boolean {
@@ -192,7 +192,7 @@ function favors(world: World, w: Vehicle, i: Incident): boolean {
 }
 
 function joinAgainst(world: World, w: Vehicle, i: Incident): void {
-  w.brain!.attackers[i.aggressor.id] = false;
+  if (w.brain) w.brain.attackers[i.aggressor.id] = false;
   if (stateOf(world, 'feud', w.id, i.aggressor.id)) return;
   addState(world, 'feud', w.id, i.aggressor.id, { kind: 'feud', robbery: false });
   world.events.push({ t: 'hostile', vehicle: w.id, against: i.aggressor.id });
