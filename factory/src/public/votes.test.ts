@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readState } from '../state';
 import { CHANNEL, publicFake } from './public-fakes';
 import { countVotes } from './votes';
 
@@ -18,7 +19,7 @@ describe('countVotes', () => {
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
     expect(f.calls).toContain('removeLabel 7 voting');
-    expect(f.store.proposal(7)?.passedAt).not.toBeNull();
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
     expect(f.messages).toHaveLength(1);
     expect(f.messages[0]).toMatchObject({ chat: CHANNEL, replyTo: 100 });
     expect(f.messages[0]!.text).toContain('factory starts work');
@@ -26,10 +27,20 @@ describe('countVotes', () => {
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'voted', to: 'Design' })]);
   });
 
+  it('closes a passed proposal before its GitHub writes, so a failed move is reported once and never repeated', async () => {
+    const f = posted({ '👍': 3 });
+    f.ctx.github.move = async () => { f.calls.push('move failed'); throw new Error('issue was closed'); };
+    await countVotes(f.ctx, f.store);
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => call === 'move failed')).toHaveLength(1);
+    expect(readState(f.ctx.statePath).failures).toEqual([expect.objectContaining({ stage: 'public', issue: 7 })]);
+    expect(f.calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+  });
+
   it('makes no GitHub or Telegram call below the votes needed', async () => {
     const f = posted({ '👍': 2 });
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual([]);
-    expect(f.store.proposal(7)?.passedAt).toBeNull();
+    expect(f.store.proposal(7)?.closedAt).toBeNull();
   });
 });

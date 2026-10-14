@@ -38,6 +38,7 @@ export function filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): C
   return async (input) => {
     const response = await fetch(ENDPOINT, {
       method: 'POST',
+      signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
       headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         model: cfg.filterModel,

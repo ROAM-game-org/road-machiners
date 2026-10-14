@@ -19,10 +19,10 @@ describe('publicTick', () => {
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatchObject({ stage: 'public', issue: null });
     expect(failures[0]!.error).toContain('GitHub is down');
-    expect(f.store.proposal(7)?.passedAt).not.toBeNull();
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
   });
 
-  it('stops classifying at the first classify error and retries the comment next tick', async () => {
+  it('rejects only the comment the filter failed on, reports it once and goes on with the rest', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
     f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
@@ -30,14 +30,18 @@ describe('publicTick', () => {
     let calls = 0;
     const flaky: Classify = async (input) => {
       calls += 1;
-      if (calls === 2) throw new Error('filter down');
+      if (calls === 1) throw new Error('filter down');
       return accept(input);
     };
     await publicTick(f.ctx, flaky);
-    expect(f.store.unclassifiedComments().map((comment) => comment.text)).toEqual(['b']);
-    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
-    await publicTick(f.ctx, accept);
     expect(f.store.unclassifiedComments()).toEqual([]);
+    expect(f.comments.map((comment) => comment.body)).toEqual([expect.stringContaining('From b, bug')]);
+    expect(f.comments[0]!.body).not.toContain('From a');
+    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
+    expect(f.calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+    await publicTick(f.ctx, flaky);
+    expect(calls).toBe(2);
+    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
   });
 
   it('maps a reject verdict to the rejected kind', async () => {

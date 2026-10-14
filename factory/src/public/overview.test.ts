@@ -12,7 +12,7 @@ describe('publicRows', () => {
     f.store.addProposal(8, 'Radio\nTalks.', f.clock.now);
     f.store.addProposal(9, 'Done\nPassed.', f.clock.now);
     f.store.markProposalPosted(9, CHANNEL, 101, f.clock.now);
-    f.store.markPassed(9, f.clock.now);
+    f.store.closeProposal(9, f.clock.now);
     f.store.addBuildPost(9, 'abc1234', CHANNEL, 300, f.clock.now);
     updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 50: 9 } }));
     expect(publicRows(f.ctx, f.store)).toEqual([

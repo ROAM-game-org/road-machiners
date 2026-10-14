@@ -51,7 +51,7 @@ describe('postProposal', () => {
     expect(f.messages).toHaveLength(1);
   });
 
-  it('skips a closed issue without dropping its proposal and posts the next open one', async () => {
+  it('closes the proposal of a closed issue unposted, posts the next open one, and never reads the closed issue again', async () => {
     const f = publicFake();
     f.issueState[7] = 'CLOSED';
     f.store.addProposal(7, 'Closed one', new Date('2026-10-14T08:00:00Z'));
@@ -59,6 +59,9 @@ describe('postProposal', () => {
     await postProposal(f.ctx, f.store);
     expect(f.messages[0]!.text).toContain('Open one');
     expect(f.store.proposal(7)?.postedAt).toBeNull();
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
     expect(f.logs.join('\n')).toContain('7 the issue is closed');
+    await postProposal(f.ctx, f.store);
+    expect(f.calls.filter((call) => call === 'issue 7')).toHaveLength(1);
   });
 });

@@ -203,7 +203,7 @@ async function clearFlags(ctx: Ctx, card: Card): Promise<void> {
 function closeProposal(ctx: Ctx, issue: number): void {
   const store = openStore(ctx.cfg.home);
   try {
-    store.markPassed(issue, ctx.now());
+    store.closeProposal(issue, ctx.now());
   } finally {
     store.close();
   }

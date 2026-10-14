@@ -10,7 +10,7 @@ export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | Co
 
 export type CommentKind = 'bug' | 'feature' | 'feedback' | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
-export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; passedAt: string | null };
+export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
 export type StoredComment = { id: number; issue: number; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null };
 export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string };
@@ -18,7 +18,7 @@ export type ReportRow = { address: string; build: string; version: string; kind:
 
 const SCHEMA = `
 create table if not exists updates (update_id integer primary key);
-create table if not exists proposals (issue integer primary key, pitch text not null, created_at text not null, chat text, message_id integer, discussion_chat text, discussion_id integer, posted_at text, channel_counts text, passed_at text);
+create table if not exists proposals (issue integer primary key, pitch text not null, created_at text not null, chat text, message_id integer, discussion_chat text, discussion_id integer, posted_at text, channel_counts text, closed_at text);
 create table if not exists reactions (chat text not null, message_id integer not null, user_id text not null, emoji text not null, primary key (chat, message_id, user_id));
 create table if not exists build_posts (chat text not null, message_id integer not null, issue integer not null, build text not null, discussion_chat text, discussion_id integer, posted_at text not null, open integer not null, primary key (chat, message_id));
 create table if not exists comments (id integer primary key autoincrement, issue integer not null, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text);
@@ -62,7 +62,7 @@ export class PublicStore {
   }
 
   unpostedProposals(): Proposal[] {
-    return this.db.prepare('select * from proposals where posted_at is null order by created_at, issue').all().map(toProposal);
+    return this.db.prepare('select * from proposals where posted_at is null and closed_at is null order by created_at, issue').all().map(toProposal);
   }
 
   proposalsPostedSince(since: Date): number {
@@ -74,7 +74,7 @@ export class PublicStore {
   }
 
   openProposals(): Proposal[] {
-    return this.db.prepare('select * from proposals where posted_at is not null and passed_at is null order by posted_at').all().map(toProposal);
+    return this.db.prepare('select * from proposals where posted_at is not null and closed_at is null order by posted_at').all().map(toProposal);
   }
 
   votes(issue: number, positive: string[]): number {
@@ -85,8 +85,8 @@ export class PublicStore {
     return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).length;
   }
 
-  markPassed(issue: number, now: Date): void {
-    this.db.prepare('update proposals set passed_at = ? where issue = ?').run(now.toISOString(), issue);
+  closeProposal(issue: number, now: Date): void {
+    this.db.prepare('update proposals set closed_at = ? where issue = ?').run(now.toISOString(), issue);
   }
 
   addBuildPost(issue: number, build: string, chat: string, messageId: number, now: Date): void {
@@ -213,7 +213,7 @@ function countPositive(counts: Record<string, number>, positive: string[]): numb
 }
 
 function toProposal(row: Row): Proposal {
-  return { issue: Number(row.issue), pitch: String(row.pitch), chat: row.chat === null ? null : String(row.chat), messageId: row.message_id === null ? null : Number(row.message_id), postedAt: row.posted_at === null ? null : String(row.posted_at), passedAt: row.passed_at === null ? null : String(row.passed_at) };
+  return { issue: Number(row.issue), pitch: String(row.pitch), chat: row.chat === null ? null : String(row.chat), messageId: row.message_id === null ? null : Number(row.message_id), postedAt: row.posted_at === null ? null : String(row.posted_at), closedAt: row.closed_at === null ? null : String(row.closed_at) };
 }
 
 function toBuildPost(row: Row): BuildPost {

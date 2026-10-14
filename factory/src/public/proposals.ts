@@ -21,7 +21,8 @@ export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> 
   for (const proposal of store.unpostedProposals()) {
     const item = await ctx.github.issue(proposal.issue);
     if (item.state === 'CLOSED') {
-      ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is not posted');
+      ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
+      store.closeProposal(proposal.issue, now);
       continue;
     }
     const messageId = await ctx.telegram.sendMessage(ctx.cfg.proposalChat, proposalText(ctx, proposal.issue, proposal.pitch));
