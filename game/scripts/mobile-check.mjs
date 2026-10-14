@@ -76,12 +76,12 @@ class Touch {
   }
 
   async drag(from, to, steps = 8) {
-    await this.send('touchStart', [from]);
+    const sends = [this.send('touchStart', [from])];
     for (let i = 1; i <= steps; i++) {
-      await this.send('touchMove', [{ x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps }]);
-      await sleep(16);
+      sends.push(this.send('touchMove', [{ x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps }]));
     }
-    await this.send('touchEnd', []);
+    sends.push(this.send('touchEnd', []));
+    await Promise.all(sends);
     await frames(this.page);
   }
 
@@ -95,12 +95,10 @@ class Touch {
 
   async pinch(center, from, to, steps = 8) {
     const at = (r) => [{ x: center.x - r, y: center.y, id: 1 }, { x: center.x + r, y: center.y, id: 2 }];
-    await this.send('touchStart', at(from));
-    for (let i = 1; i <= steps; i++) {
-      await this.send('touchMove', at(from + ((to - from) * i) / steps));
-      await sleep(16);
-    }
-    await this.send('touchEnd', []);
+    const sends = [this.send('touchStart', at(from))];
+    for (let i = 1; i <= steps; i++) sends.push(this.send('touchMove', at(from + ((to - from) * i) / steps)));
+    sends.push(this.send('touchEnd', []));
+    await Promise.all(sends);
     await frames(this.page);
   }
 }
@@ -179,7 +177,12 @@ function stepper(session, orientation) {
     try {
       await action();
       await frames(page);
-      const outcome = check ? await check() : true;
+      let outcome = check ? await check() : true;
+      for (let retry = 0; outcome !== true && retry < 10 && options.settle !== false; retry++) {
+        await sleep(300);
+        await frames(page);
+        outcome = await check();
+      }
       if (outcome !== true) {
         ok = false;
         detail = String(outcome);

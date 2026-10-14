@@ -589,7 +589,7 @@ export class Game {
   }
 
   private touchDown(e: PointerEvent): void {
-    this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, e.timeStamp));
+    this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, performance.now()));
     this.touchGhost();
   }
 
