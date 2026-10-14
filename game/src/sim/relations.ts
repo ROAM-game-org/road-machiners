@@ -54,7 +54,7 @@ export function attitude(world: World, a: Vehicle, b: Vehicle): number {
   const holder = npcHolder(a);
   if (inFeud(world, a, b)) return -SCORE_LIMIT;
   const score = clamp(factionTerm(world, holder, b) + personalTerm(a, b.id), -SCORE_LIMIT, SCORE_LIMIT);
-  if (inTruce(world, a, b)) return Math.min(score, 0);
+  if (inTruce(world, a, b)) return clamp(score, BANDS.unfriendly + 1, 0);
   return isLawman(a) && isOutlaw(b.faction) ? Math.min(score, LAW_CAP) : score;
 }
 

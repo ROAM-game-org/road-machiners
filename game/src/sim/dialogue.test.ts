@@ -227,6 +227,7 @@ describe('NPC calls', () => {
 
   function withRaiderInSight(w: World, attacking = true): void {
     const raider = addVehicle(w, 'scrapjaw', 'scout', [], { x: 26, y: 30 });
+    raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     refreshVision(w);
     expect(isHostile(w, raider, playerVehicle(w))).toBe(true);
     if (attacking) startCombat(w, raider, playerVehicle(w));

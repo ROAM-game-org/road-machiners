@@ -1,5 +1,7 @@
 
-import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
+import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
 import { LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
@@ -200,6 +202,25 @@ const HELP_TOPICS: readonly TopicId[] = ['offerAid', 'offerTow', 'offerPatch', '
 export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   const talked = world.player.talked[npc.id];
   return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
+}
+
+export function opensHelp(world: World, npc: Vehicle): boolean {
+  return helpedByPlayer(world, npc) || bandAtLeast(stanceToward(world, npc), 'friendly');
+}
+
+export function talksTo(world: World, npc: Vehicle): boolean {
+  return bandAtLeast(stanceToward(world, npc), 'neutral');
+}
+
+export function gateOpen(world: World, npc: Vehicle, topic: TopicId): boolean {
+  const gate = TOPIC_GATES[topic];
+  if (gate === 'service') return talksTo(world, npc);
+  return gate !== 'rescue' || stanceToward(world, npc) !== 'hostile';
+}
+
+export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[]): LineId | null {
+  if (talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
+  return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
 }
 
 export const CONDITIONS: Record<ConditionId, Condition> = {

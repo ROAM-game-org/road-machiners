@@ -150,6 +150,19 @@ describe('hostility from attitude', () => {
   });
 });
 
+describe('truce', () => {
+  it('lifts a preying raider into the neutral band, so it leaves a loaded truck alone', () => {
+    const w = emptyWorld();
+    const me = playerVehicle(w);
+    addGoods(w, me, 'scrap', 2);
+    const scrap = raider(w, 'scrapjaw', { x: 46, y: 30 });
+    expect(isHostile(w, scrap, me)).toBe(true);
+    addState(w, 'truce', scrap.id, me.id, { kind: 'none' });
+    expect(attitude(w, scrap, me)).toBe(-14);
+    expect(isHostile(w, scrap, me)).toBe(false);
+  });
+});
+
 describe('stance toward the player', () => {
   it('answers for a knocked-out driver, a driver on a tow rope and an escort', () => {
     const w = emptyWorld();
