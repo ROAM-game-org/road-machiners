@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CONFIG } from '../config';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
 import { loadBank, SoundDecodeFailure } from './bank';
 
@@ -14,7 +15,10 @@ function ctxOf(decode: (data: ArrayBuffer) => Promise<AudioBuffer>) {
 const ctx = ctxOf(async () => ({}) as AudioBuffer);
 const rejecting = ctxOf(async () => { throw new Error('bad'); });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('loadBank', () => {
   it('reports 0 first, then each decoded file', async () => {
@@ -120,5 +124,23 @@ describe('SoundDecodeFailure', () => {
     expect(one.message).toBe('Sounds failed to decode: 1 of 104, Ogg Opus support "maybe": EncodingError');
     expect(one.message).toBe(two.message);
     expect(one.files).toEqual(['a.ogg']);
+  });
+
+  it('counts a file once when its download is retried', async () => {
+    vi.useFakeTimers();
+    let first = true;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('a.mp3') && first) {
+        first = false;
+        throw new TypeError('Load failed');
+      }
+      return ok;
+    });
+    const calls: [number, number][] = [];
+    const run = loadBank(ctx, SOUNDS, (done, total) => calls.push([done, total]));
+    await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+    const { failures } = await run;
+    expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
+    expect(failures).toEqual([]);
   });
 });
