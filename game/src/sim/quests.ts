@@ -149,8 +149,12 @@ export function parseBundle(value: unknown): QuestBundle {
   if (!isRecord(value) || !isRecord(value.world) || !Array.isArray(value.externals) || !isRecord(value.quests)) throw new Error('Quest bundle has no world, externals or quests');
   const quests = Object.fromEntries(Object.entries(value.quests).map(([id, quest]) => [id, parseQuest(id, quest)]));
   const bundle = { world: parseVars('world', value.world), externals: value.externals.map(String), quests };
-  for (const [id, quest] of Object.entries(quests)) checkLinks(id, quest.links, bundle);
+  checkQuestLinks(bundle);
   return bundle;
+}
+
+export function checkQuestLinks(bundle: QuestBundle): void {
+  for (const [id, quest] of Object.entries(bundle.quests)) checkLinks(id, quest.links, bundle);
 }
 
 function parseQuest(id: string, value: unknown): CompiledQuest {
