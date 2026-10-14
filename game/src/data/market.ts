@@ -92,6 +92,20 @@ export const CONTRACTS = {
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
     xpPerEffort: 0.0075,
   },
+
+  survey: {
+    roadGap: 20,
+    siteGap: 40,
+    range: 180,
+    spread: 90,
+    count: [1, 3] as [number, number],
+    areaRadius: 12,
+    areaOffset: 8,
+    surveyTurns: 10,
+    rewardFactor: 15,
+    knowledgeRange: 12,
+    xpPerEffort: 0.003,
+  },
 };
 
 export type ShopKind = 'garage' | 'stall';
