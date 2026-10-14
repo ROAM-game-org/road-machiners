@@ -1,3 +1,5 @@
+import SOUND_LENGTHS from "./sound-lengths.json";
+
 
 export type Bus = "ui" | "sfx" | "ambient" | "music";
 
@@ -90,6 +92,9 @@ const DEFS = {
 } as const satisfies Record<string, CueDef>;
 
 export type CueId = keyof typeof DEFS;
+
+export const SOUND_FRAME_RATE = 48000;
+export const SOUND_FRAMES: Record<string, number> = SOUND_LENGTHS;
 
 const ON_DISK = Object.keys(import.meta.glob("/public/sfx/*.ogg")).map((p) => p.split("/").pop()!);
 
