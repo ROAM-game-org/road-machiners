@@ -13,7 +13,7 @@ export type CommentKind = DecisionKind | 'rejected';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
-export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; user: string | null; addressed: boolean; relevance: Relevance | null; topic: string | null; filedIssue: number | null; filedAt: string | null };
+export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; user: string | null; addressed: boolean; relevance: Relevance | null; topic: string | null; filedIssue: number | null; filedAt: string | null; replyId: number | null };
 export type IssueComment = StoredComment & { issue: number };
 export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string; messageId?: number; user?: string; addressed?: boolean };
 export type CommentDetails = { relevance: Relevance; topic: string };
@@ -320,6 +320,6 @@ function toComment(row: Row): StoredComment {
   return {
     id: Number(row.id), issue: numberOrNull(row.issue), source: row.source as StoredComment['source'], author: String(row.author), text: String(row.text), at: String(row.at),
     kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null, chat: textOrNull(row.post_chat), messageId: numberOrNull(row.message_id), user: textOrNull(row.user_id),
-    addressed: Number(row.addressed) === 1, relevance: row.relevance as Relevance | null, topic: textOrNull(row.topic), filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at),
+    addressed: Number(row.addressed) === 1, relevance: row.relevance as Relevance | null, topic: textOrNull(row.topic), filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at), replyId: numberOrNull(row.reply_id),
   };
 }

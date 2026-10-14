@@ -173,6 +173,15 @@ The service also keeps one file per kept player report from the game form, under
 
 A daily cap, the disk cap or an address past its limit writes a line to `$FACTORY_HOME/error-reports/alert`. Hermes's incident watch prints it, and Hermes deletes the file once handled.
 
+## Player chat delivery
+
+The bot reads the player chat only as far as Telegram delivers to it, so the chat needs this setup. The factory cannot check it, so check it by hand after a change to the chat or the bot.
+
+- The bot is an admin of the channel's discussion group, and of `FACTORY_PROPOSAL_CHAT` when that is another group. An admin bot gets every message and every reaction, whatever its privacy mode.
+- If the bot is not an admin, Telegram's privacy mode decides. With privacy on, the default, the bot gets only commands, @mentions of it and replies to its own messages, so a plain bug report or idea never arrives. Only the bot's owner can turn privacy off, with `/setprivacy` in BotFather, and the bot must then leave and rejoin each group. Making the bot an admin is the simpler fix.
+- The bot needs the right to send messages in the group, since it replies there.
+- To check, post a plain message with no mention in the discussion group and see that `factory public` lists it within two ticks.
+
 ## Deploying the factory
 
 The server runs the factory from GitHub's `main`, and only from there. To change factory code or `settings.env`, merge it into `main`. Every 2 minutes, `factory-update` checks `main`. When `main` moved, it builds the new commit in its own release folder, with no pause, and records the commit in `$FACTORY_HOME/deployed`. It refuses a code dir with local edits. [infra/README.md](../infra/README.md) has the details.
