@@ -7,7 +7,7 @@ const ok = { ok: true, status: 200, arrayBuffer: async () => bytes };
 
 async function settle<T>(p: Promise<T>): Promise<T | Error> {
   const result = p.catch((e: Error) => e);
-  await vi.advanceTimersByTimeAsync(CONFIG.assetRetryMs * 10);
+  await vi.advanceTimersByTimeAsync(60_000);
   return result;
 }
 
@@ -54,5 +54,50 @@ describe('fetchBytes', () => {
     expect((err as Error).message).toContain(`after ${CONFIG.assetFetchTries} tries`);
     expect((err as Error).message).toContain('Load failed');
     expect(fetchMock).toHaveBeenCalledTimes(CONFIG.assetFetchTries);
+  });
+
+  it('fails as DownloadFailed when every try was a network error', async () => {
+    const cause = new TypeError('Failed to fetch');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(cause));
+    const err = await settle(fetchBytes('/a'));
+    expect(err).toBeInstanceOf(DownloadFailed);
+    const failed = err as DownloadFailed;
+    expect(failed.url).toBe('/a');
+    expect(failed.tries).toBe(CONFIG.assetFetchTries);
+    expect(failed.cause).toBe(cause);
+  });
+
+  it('does not hide an earlier 5xx behind DownloadFailed', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('x')).mockResolvedValueOnce({ ok: false, status: 503 });
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await settle(fetchBytes('/a'));
+    expect(err).not.toBeInstanceOf(DownloadFailed);
+    expect((err as Error).message).toContain('/a');
+  });
+
+  it('doubles the wait between tries up to the cap', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('x'));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = fetchBytes('/a').catch((e: Error) => e);
+    const waits = [500, 1000, 2000, 4000, 4000];
+    for (const [i, wait] of waits.entries()) {
+      await vi.advanceTimersByTimeAsync(wait - 1);
+      expect(fetchMock).toHaveBeenCalledTimes(i + 1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchMock).toHaveBeenCalledTimes(i + 2);
+    }
+    expect(await result).toBeInstanceOf(DownloadFailed);
+  });
+
+  it('does not call a 503 on every try a DownloadFailed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+    const err = await settle(fetchBytes('/a'));
+    expect(err).not.toBeInstanceOf(DownloadFailed);
+    expect((err as Error).message).toContain('HTTP 503');
+  });
+
+  it('does not call a 404 a DownloadFailed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    expect(await settle(fetchBytes('/a'))).not.toBeInstanceOf(DownloadFailed);
   });
 });

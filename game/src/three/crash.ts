@@ -5,7 +5,7 @@ import { DownloadFailed } from '../fetch-bytes';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
-import { t } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 
 let shown = false;
 let report: ((text: string) => void) | null = null;
@@ -58,6 +58,10 @@ export function crashText(err: unknown, facts: ErrorFacts | null, context: Crash
   );
   return lines.join('\n');
 }
+export function loadFailedText(err: DownloadFailed): { title: Msg; line: Msg; action: Msg; detail: string } {
+  return { title: t('crash.loadTitle'), line: t('crash.loadHint'), action: t('crash.reload'), detail: err.message };
+}
+
 const sinks: ((err: unknown) => void)[] = [];
 
 export function installCrashScreen(): void {
@@ -106,7 +110,7 @@ export function routeOf(err: unknown): 'webgl' | 'download' | 'fault' {
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
   const route = routeOf(err);
   if (route === 'webgl') showNoWebGL(err as WebGLUnavailable);
-  else if (route === 'download') showDownloadFailed(err as DownloadFailed);
+  else if (route === 'download') showLoadFailed(err as DownloadFailed);
   else onFault(err, facts);
 }
 
@@ -162,23 +166,26 @@ function showNoWebGL(err: WebGLUnavailable): void {
   document.body.appendChild(box);
 }
 
-function showDownloadFailed(err: DownloadFailed): void {
+function showLoadFailed(err: DownloadFailed): void {
   if (shown) return;
   shown = true;
+  console.warn(err);
+  const text = loadFailedText(err);
   const box = document.createElement('div');
   box.className = 'crash-screen';
   const title = document.createElement('div');
   title.className = 'crash-title';
-  setText(title, t('download.title'));
-  box.append(title);
-  for (const key of ['boot.failedToLoad', 'download.saves'] as const) {
-    const row = document.createElement('div');
-    setText(row, t(key));
-    box.append(row);
-  }
+  setText(title, text.title);
+  const line = document.createElement('div');
+  setText(line, text.line);
+  const reload = document.createElement('button');
+  reload.className = 'crash-reload';
+  setText(reload, text.action);
+  reload.addEventListener('click', () => location.reload());
   const detail = document.createElement('div');
   detail.className = 'crash-hint';
-  detail.textContent = err.message;
-  box.append(detail);
+  detail.textContent = text.detail;
+  box.append(title, line, reload, detail);
   document.body.appendChild(box);
+  reload.focus();
 }

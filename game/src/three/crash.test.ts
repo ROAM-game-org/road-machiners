@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DownloadFailed } from '../fetch-bytes';
 import { WebGLUnavailable } from './webgl';
-import { crashText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { resolve } from '../text/resolve';
+import { crashText, loadFailedText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -72,7 +73,7 @@ describe('crashText', () => {
 
 describe('routeOf', () => {
   it('keeps a dropped download out of the fault path', () => {
-    expect(routeOf(new DownloadFailed('/a failed', 'x'))).toBe('download');
+    expect(routeOf(new DownloadFailed('/a', 6, 'x'))).toBe('download');
   });
 
   it('keeps the WebGL route', () => {
@@ -81,5 +82,16 @@ describe('routeOf', () => {
 
   it('sends every other error to the fault path', () => {
     expect(routeOf(new Error('x'))).toBe('fault');
+  });
+});
+
+describe('loadFailedText', () => {
+  it('shows the load-failed ids and names the file as detail', () => {
+    const failure = new DownloadFailed('./models/a.glb', 6, new TypeError('Failed to fetch'));
+    const text = loadFailedText(failure);
+    expect(resolve(text.title, 'en')).toBe('The game failed to load');
+    expect(resolve(text.line, 'en')).toBe('Check your connection.');
+    expect(resolve(text.action, 'en')).toBe('Reload');
+    expect(text.detail).toBe(failure.message);
   });
 });

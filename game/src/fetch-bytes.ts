@@ -7,10 +7,14 @@ export class HttpStatusError extends Error {
 }
 
 export class DownloadFailed extends Error {
-  constructor(message: string, cause: unknown) {
-    super(message, { cause });
+  constructor(readonly url: string, readonly tries: number, cause: unknown) {
+    super(`${url} failed to load after ${tries} tries: ${cause}`, { cause });
     this.name = 'DownloadFailed';
   }
+}
+
+function retryDelay(attempt: number): number {
+  return Math.min(CONFIG.assetRetryMs * 2 ** (attempt - 1), CONFIG.assetRetryMaxMs);
 }
 
 function retryable(e: unknown): boolean {
@@ -25,13 +29,18 @@ async function fetchOnce(url: string): Promise<ArrayBuffer> {
 
 export async function fetchBytes(url: string): Promise<ArrayBuffer> {
   const tries = CONFIG.assetFetchTries;
+  let sawStatus = false;
   for (let attempt = 1; ; attempt++) {
     try {
       return await fetchOnce(url);
     } catch (e) {
-      if (!retryable(e) || (attempt >= tries && e instanceof HttpStatusError)) throw e;
-      if (attempt >= tries) throw new DownloadFailed(`${url} failed to load after ${tries} tries: ${e}`, e);
-      await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
+      if (!retryable(e)) throw e;
+      sawStatus ||= e instanceof HttpStatusError;
+      if (attempt >= tries) {
+        if (sawStatus) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
+        throw new DownloadFailed(url, tries, e);
+      }
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
     }
   }
 }
