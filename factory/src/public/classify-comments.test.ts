@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { classifyComments } from './classify-comments';
 import type { Classify } from './decision';
-import { CHANNEL, publicFake } from './public-fakes';
+import { CHANNEL, filterOf, publicFake } from './public-fakes';
 
-const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none' });
+const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent', topic: 'none' });
 
 function withComments(count: number, perTick: number) {
   const f = publicFake({ filterPerTick: perTick });
@@ -19,16 +19,16 @@ describe('classifyComments', () => {
   it('classifies at most the per tick limit, oldest first, and leaves the rest for the next tick', async () => {
     const f = withComments(5, 2);
     const seen: string[] = [];
-    await classifyComments(f.ctx, f.store, async (input) => { seen.push(input.text); return ACCEPT(input); });
+    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input.text); return ACCEPT(input); }));
     expect(seen).toEqual(['comment 1', 'comment 2']);
     expect(f.store.unclassifiedComments(100).map((comment) => comment.text)).toEqual(['comment 3', 'comment 4', 'comment 5']);
-    await classifyComments(f.ctx, f.store, ACCEPT);
+    await classifyComments(f.ctx, f.store, filterOf(ACCEPT));
     expect(f.store.unclassifiedComments(100).map((comment) => comment.text)).toEqual(['comment 5']);
   });
 
   it('classifies every waiting comment when fewer than the limit wait', async () => {
     const f = withComments(2, 10);
-    await classifyComments(f.ctx, f.store, ACCEPT);
+    await classifyComments(f.ctx, f.store, filterOf(ACCEPT));
     expect(f.store.unclassifiedComments(100)).toEqual([]);
   });
 
@@ -39,10 +39,10 @@ describe('classifyComments', () => {
     addFrom(f, '2', 'bob 2');
     addFrom(f, '3', 'cid 1');
     const seen: string[] = [];
-    await classifyComments(f.ctx, f.store, async (input) => { seen.push(input.text); return ACCEPT(input); });
+    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input.text); return ACCEPT(input); }));
     expect(seen).toEqual(['spam 1', 'bob 1', 'cid 1', 'spam 2']);
     seen.length = 0;
-    await classifyComments(f.ctx, f.store, async (input) => { seen.push(input.text); return ACCEPT(input); });
+    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input.text); return ACCEPT(input); }));
     expect(seen).toEqual(['spam 3', 'bob 2', 'spam 4', 'spam 5']);
   });
 });

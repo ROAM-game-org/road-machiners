@@ -8,7 +8,7 @@ import { playerReportsDir } from './files';
 import { alertPath, ErrorReports, ErrorServer, issueReports, readStore } from './service';
 import { Feedback } from './feedback';
 
-const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none' };
+const ACCEPT_BUG: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.98, kind: 'bug', route: 'none', relevance: 'parent' };
 const NOW = new Date('2026-10-07T12:00:00Z');
 
 type World = { url: string; home: string; store: PublicStore; created: string[]; asked: FilterInput[]; setDecision: (next: Decision | Error) => void };
@@ -141,6 +141,26 @@ describe('feedback route', () => {
     const { url, store } = await start();
     await send(url, request({ build: 'hash12', issue: 99, kind: 'idea' }));
     expect(store.unsentComments().map((comment) => comment.issue)).toEqual([12]);
+  });
+
+  it('asks if a report on a proposal card build is about it, and opens its own issue when it is not', async () => {
+    const { url, store, created, asked, setDecision } = await start();
+    store.addProposal(12, 'Faction reputation\nTowns remember you.', NOW);
+    setDecision({ ...ACCEPT_BUG, kind: 'feature', relevance: 'other' });
+    await send(url, request({ build: 'hash12' }));
+    expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road', parent: 'Faction reputation' }]);
+    expect(store.unsentComments()).toEqual([]);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatch(/\[feature-request,player-report\]/);
+  });
+
+  it('keeps an off-topic question on a card build as a comment of the card, with no issue', async () => {
+    const { url, store, created, setDecision } = await start();
+    store.addProposal(12, 'Faction reputation\nTowns remember you.', NOW);
+    setDecision({ ...ACCEPT_BUG, kind: 'question', relevance: 'other' });
+    await send(url, request({ build: 'hash12' }));
+    expect(created).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
   });
 
   it('opens an issue for a build with no open approval post and for an unknown build', async () => {
