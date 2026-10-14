@@ -1,5 +1,3 @@
-/** Factory words the analytics queries group by, typed against the factory's own unions and loaded into DuckDB as tables.
- * A new card step, column, stage or outcome fails typecheck here until the dashboard knows where it belongs. */
 import type { CardStep } from '../card-events';
 import type { JobOutcome } from '../ledger';
 import type { Column, JobStage } from '../types';
@@ -12,7 +10,7 @@ export type VocabularyTable = { name: string; columns: string[]; rows: Cell[][] 
 
 const DELIVERY_STAGES: DeliveryStage[] = ['triage', 'design', 'implementation', 'preview', 'approval', 'harden', 'merge'];
 const STEP_KINDS: Record<CardStep, StepKind> = {
-  entered: 'path', accepted: 'path', planned: 'path', built: 'path', patched: 'path', posted: 'path', approved: 'path', hardened: 'path', merged: 'path',
+  entered: 'path', accepted: 'path', voted: 'path', planned: 'path', built: 'path', patched: 'path', posted: 'path', approved: 'path', hardened: 'path', merged: 'path',
   questions: 'loop', rebuild: 'loop', 'plan-wrong': 'loop', 'review-failed': 'loop', patch: 'loop', redesign: 'loop', 'patch-replan': 'loop', conflict: 'loop', removed: 'loop', unbundled: 'loop',
   'triage-wont-do': 'end', 'design-wont-do': 'end', bundled: 'end', denied: 'end', dropped: 'end',
   moved: 'other', 'merge-ordered': 'other', shipped: 'other', reported: 'other',

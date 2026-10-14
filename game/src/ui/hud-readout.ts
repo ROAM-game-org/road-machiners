@@ -375,23 +375,6 @@ function runResources(w: World): Readout[] {
   return [{ id: "run", label: t("readout.run"), value: t("readout.runValue", { stretch: run.stretch, left }), warning: false, icon: "range", tip }];
 }
 
-const NEW_ISSUE_URL = "https://github.com/btseytlin/road-machiners/issues/new";
-
-function issueFormUrl(template: string, fields: Record<string, string>): string {
-  const url = new URL(NEW_ISSUE_URL);
-  url.searchParams.set("template", template);
-  for (const [id, value] of Object.entries(fields)) url.searchParams.set(id, value);
-  return url.href;
-}
-
 export function versionLabel(): string {
   return `v${GAME_VERSION}`;
-}
-
-export function bugReportUrl(version: string): string {
-  return issueFormUrl("bug.yml", { version });
-}
-
-export function featureRequestUrl(): string {
-  return issueFormUrl("feature-request.yml", {});
 }
