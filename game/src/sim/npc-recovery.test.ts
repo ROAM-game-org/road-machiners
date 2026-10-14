@@ -150,10 +150,11 @@ describe('NPC gameplay recovery', () => {
     expect(fled).toBeLessThan(0.6);
   });
 
-  it('allows a scavenger to help a nearby faction mate under attack', () => {
+  it('allows a driver to help a nearby ally under attack', () => {
     const { world, npc } = createScenario();
+    npc.faction = 'bowl';
     npc.brain!.goals = [workGoal('scavenger')];
-    const ally = addVehicle(world, 'independent', 'scout', [], { x: 32, y: 32 });
+    const ally = addVehicle(world, 'bowl', 'scout', [], { x: 32, y: 32 });
     const enemy = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 });
     fireAt(world, enemy, ally);
     const reacted = shareOfSeeds(world, npc.id, (x, me) => {
@@ -180,7 +181,7 @@ describe('NPC gameplay recovery', () => {
 
   it('does not treat unrelated visible factions as one army', () => {
     const { world, npc } = createScenario('buggy');
-    const trader = addVehicle(world, 'independent', 'scout', ['mg'], { x: 33, y: 30 });
+    const trader = addVehicle(world, 'bowl', 'scout', ['mg'], { x: 33, y: 30 });
     const judged = () => {
       world.rngState = 7;
       return perceiveDanger(world, npc, trader);
@@ -189,6 +190,8 @@ describe('NPC gameplay recovery', () => {
     addVehicle(world, npc.faction, 'scout', ['mg'], { x: 30, y: 42 });
     expect(judged()).toBe(alone);
     addVehicle(world, 'independent', 'scout', ['mg'], { x: 33, y: 33 });
+    expect(judged()).toBe(alone);
+    addVehicle(world, 'bowl', 'scout', ['mg'], { x: 33, y: 34 });
     expect(judged()).toBeGreaterThan(alone * 1.5);
   });
 
