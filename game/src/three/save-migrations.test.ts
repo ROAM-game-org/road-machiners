@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_63 from './save-fixtures/format-2-63.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1348,5 +1349,27 @@ describe('MIGRATIONS[61]', () => {
 describe('save migration 62 to 63', () => {
   it('keeps every contract and job as it is, since survey contracts and jobs are new variants no old save holds', () => {
     expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
+  });
+});
+
+describe('save migration 63 to 64', () => {
+  const next = () => MIGRATIONS[63](structuredClone(FORMAT_2_63)) as typeof FORMAT_2_63;
+
+  it('drops the search area of every survey point and counts a surveyed point as found', () => {
+    const held = next().player.contracts.find((c) => c.id === 'ct-2');
+    expect(held).toEqual({ ...FORMAT_2_63.player.contracts[1], points: [{ site: 'survey-house-21', found: true, done: true }, { site: 'survey-house-48', found: false, done: false }] });
+    expect(next().shops.bowl.contracts).toEqual([{ ...FORMAT_2_63.shops.bowl.contracts[0], points: [{ site: 'survey-tank-183', found: false, done: false }] }]);
+  });
+
+  it('drops a survey of a site no longer surveyed, on a board or held, with its job and no charge', () => {
+    const w = next();
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-1', 'ct-2']);
+    expect(w.shops.nose.contracts).toEqual([]);
+    expect(w.vehicles).toEqual([{ id: 'v1', job: null }, { id: 'v2', job: null }]);
+    expect(w.turn).toBe(FORMAT_2_63.turn);
+  });
+
+  it('keeps a contract of another kind as it is', () => {
+    expect(next().player.contracts[0]).toEqual(FORMAT_2_63.player.contracts[0]);
   });
 });
