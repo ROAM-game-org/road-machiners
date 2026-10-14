@@ -20,7 +20,7 @@ import { maxHp } from '../sim/wear';
 import { CONDITION } from '../data/wear';
 import { generateNpcLoadout, type NpcLoadout } from '../sim/npc-loadout';
 import { topGoal } from '../sim/npc-activities';
-import { spawnAt } from '../sim/spawn';
+import { allegianceFor, spawnAt } from '../sim/spawn';
 import { addState, endState, stateOf } from '../sim/states';
 import { vehicleStats } from '../sim/stats';
 import type { Obstacle, Vehicle, World } from '../sim/types';
@@ -260,7 +260,7 @@ function park(player: Vehicle, at: Vec): void {
 function placeSide(w: World, trucks: Truck[], ground: Ground, forward: number, turn: number): string[] {
   return trucks.map((t, i) => {
     const pos = along(ground, forward, (i - (trucks.length - 1) / 2) * LINE_SPACING);
-    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos);
+    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos, allegianceFor(w, NPCS[t.driver], null, null));
     if (t.gear.kind === 'outfit') outfit(w, v, t.gear.outfit);
     if (t.wear !== null) rebuildAt(w, v, t.wear);
     v.heading = Math.atan2(ground.axis.y, ground.axis.x) + turn;

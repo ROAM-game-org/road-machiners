@@ -15,13 +15,13 @@ const coreMass = (id: string) => CHASSIS[id].core.reduce((a, c) => a + PARTS[c.d
 describe('vehicle mass', () => {
   it('a bare chassis weighs its frame plus its built-in parts', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', [], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
     expect(vehicleMass(v)).toBe(CHASSIS.hauler.mass + coreMass('hauler'));
   });
 
   it('sums mounted parts, spare parts and goods', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
     expect(vehicleMass(v)).toBe(CHASSIS.hauler.mass + coreMass('hauler') + PARTS.mg.mass + PARTS.stockEngine.mass);
     expect(stowPart(w, v, makePart(w, 'plates', 0))).toBe(true);
     expect(addGoods(w, v, 'scrap', 3)).toBe(3);
@@ -30,7 +30,7 @@ describe('vehicle mass', () => {
 
   it('load factor is sqrt(handling / mass) up to the rated mass, and falls hard over it', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine', 'trailerBox'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'trailerBox'], { x: 40, y: 40 });
     const ch = CHASSIS.hauler;
     expect(vehicleMass(v)).toBeLessThan(ch.handlingMass);
     expect(loadFactor(v)).toBeCloseTo(Math.sqrt(ch.handlingMass / vehicleMass(v)), 10);
@@ -48,7 +48,7 @@ describe('vehicle mass', () => {
     const armorCells = [...layout].filter((c) => 'FBLR'.includes(c)).length;
     const guns = Math.ceil([...layout].filter((c) => c === 'D').length / 4);
     const kit = ['stockEngine', ...Array<string>(armorCells).fill('scrapSheet'), ...Array<string>(guns).fill('mg')];
-    const v = addVehicle(w, 'raiders', id, kit, { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', id, kit, { x: 40, y: 40 });
     expect(mountedParts(v, 'armor')).toHaveLength(armorCells);
     expect(mountedParts(v, 'weapon')).toHaveLength(guns);
     expect(vehicleMass(v)).toBeLessThanOrEqual(CHASSIS[id].ratedMass);
@@ -76,7 +76,7 @@ describe('vehicle mass', () => {
 describe('load in stats', () => {
   it('a heavy load lowers top speed, turning, acceleration and braking', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine', 'trailerBox'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'trailerBox'], { x: 40, y: 40 });
     const light = vehicleStats(w, v);
     addGoods(w, v, 'scrap', 999);
     const heavy = vehicleStats(w, v);
@@ -90,7 +90,7 @@ describe('load in stats', () => {
 
   it('a part on a truck below its rated mass still costs top speed and turning', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine', 'panniers'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'panniers'], { x: 40, y: 40 });
     const before = vehicleStats(w, v);
     expect(stowPart(w, v, makePart(w, 'plates', 0))).toBe(true);
     const after = vehicleStats(w, v);
@@ -107,7 +107,7 @@ describe('load in stats', () => {
 
   it('acceleration scales by rated mass over mass', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     const a = vehicleStats(w, v).accel * vehicleMass(v);
     addGoods(w, v, 'scrap', 10);
     expect(vehicleStats(w, v).accel * vehicleMass(v)).toBeCloseTo(a, 6);

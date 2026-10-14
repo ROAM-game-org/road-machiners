@@ -7,7 +7,7 @@ import { aimFor, isSoftTarget } from './aim';
 
 function duel(foeParts: string[]) {
   const w = emptyWorld({ x: 30, y: 30 });
-  const foe = addVehicle(w, 'raiders', 'buggy', foeParts, { x: 50, y: 30 });
+  const foe = addVehicle(w, 'scrapjaw', 'buggy', foeParts, { x: 50, y: 30 });
   foe.heading = Math.PI;
   return { w, foe, weapon: vehicleStats(w, playerVehicle(w)).weapons[0] };
 }

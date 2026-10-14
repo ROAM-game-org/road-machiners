@@ -15,8 +15,8 @@ const rearOf = (p: Pose, a: number) => ({ x: p.x - Math.cos(p.heading) * a, y: p
 
 function hitchedPair(towedAt: { x: number; y: number }, towedHeading: number, towerChassis = 'hauler', towedChassis = 'hauler'): { w: World; tower: Vehicle; towed: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const tower = addVehicle(w, 'traders', towerChassis, ['stockEngine'], { x: 30, y: 30 }, 0);
-  const towed = addVehicle(w, 'traders', towedChassis, ['stockEngine'], towedAt, towedHeading);
+  const tower = addVehicle(w, 'independent', towerChassis, ['stockEngine'], { x: 30, y: 30 }, 0);
+  const towed = addVehicle(w, 'independent', towedChassis, ['stockEngine'], towedAt, towedHeading);
   addState(w, 'tow', tower.id, towed.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
   return { w, tower, towed };
 }

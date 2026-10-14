@@ -31,7 +31,7 @@ describe('crash contacts', () => {
   it('uses the captured side even after the vehicle turns away', () => {
     const run = (heading: number) => {
       const world = emptyWorld();
-      const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
+      const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
       vehicle.heading = heading;
       applyContactCrash(world, vehicle, null, 'rock', 6, { a: { side: 'front', lanes: [2] }, b: null });
       return mountedParts(vehicle).map((part) => ({ def: part.defId, hp: part.hp }));
@@ -41,7 +41,7 @@ describe('crash contacts', () => {
 
   it('does not damage wheels outside the touched lanes and the lanes beside them', () => {
     const world = emptyWorld();
-    const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
+    const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
     const wheels = mountedParts(vehicle).filter((part) => part.defId === 'wheel');
     const before = wheels.map((part) => part.hp);
     applyContactCrash(world, vehicle, null, 'rock', 6, { a: { side: 'front', lanes: [3] }, b: null });
@@ -51,7 +51,7 @@ describe('crash contacts', () => {
 
   it('a hard front crash hurts the rear wheel in the same lane far less than the front wheel', () => {
     const world = emptyWorld();
-    const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     applyContactCrash(world, vehicle, null, 'rock', RULES.hardCrashSpeed * 1.5, { a: { side: 'front', lanes: [1] }, b: null });
     expect(wheelLoss(vehicle, 1, 1)).toBeGreaterThan(0);
     expect(wheelLoss(vehicle, 1, 5)).toBeGreaterThan(0);
@@ -61,7 +61,7 @@ describe('crash contacts', () => {
   it('spills a smaller hit into the lanes beside the touched lane', () => {
     const run = (lane: number) => {
       const world = emptyWorld();
-      const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+      const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
       applyContactCrash(world, vehicle, null, 'rock', 3, { a: { side: 'front', lanes: [lane] }, b: null });
       return wheelLoss(vehicle, 1, 1);
     };
@@ -72,7 +72,7 @@ describe('crash contacts', () => {
 
   it('keeps armor protection across simultaneous contact lanes', () => {
     const world = emptyWorld();
-    const vehicle = addVehicle(world, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
+    const vehicle = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
     const parts = mountedParts(vehicle);
     const ram = parts.find((part) => part.defId === 'ram');
     const engine = parts.find((part) => part.defId === 'stockEngine');
@@ -96,7 +96,7 @@ describe('ram practice', () => {
   it('pays the player for damage dealt, harder against a heavier truck', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const other = addVehicle(world, 'raiders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const other = addVehicle(world, 'scrapjaw', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     applyContactCrash(world, me, other, other.id, 6, geometry);
     const collision = world.events.find((e) => e.t === 'collision');
     if (collision?.t !== 'collision') throw new Error('No collision');
@@ -110,7 +110,7 @@ describe('ram practice', () => {
   it('pays the player as the second body of a crash', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const other = addVehicle(world, 'raiders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const other = addVehicle(world, 'scrapjaw', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     applyContactCrash(world, other, me, me.id, 6, geometry);
     expect(practiceOf(world, 'ram')).toHaveLength(1);
   });
@@ -123,8 +123,8 @@ describe('ram practice', () => {
 
   it('pays nothing for a crash between two NPCs', () => {
     const world = emptyWorld();
-    const a = addVehicle(world, 'raiders', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
-    const b = addVehicle(world, 'traders', 'hauler', ['stockEngine'], { x: 42, y: 40 });
+    const a = addVehicle(world, 'scrapjaw', 'scout', ['stockEngine', 'ram'], { x: 40, y: 40 });
+    const b = addVehicle(world, 'independent', 'hauler', ['stockEngine'], { x: 42, y: 40 });
     applyContactCrash(world, a, b, b.id, 6, geometry);
     expect(practiceOf(world, 'ram')).toEqual([]);
   });
@@ -164,7 +164,7 @@ describe('the rammer perk', () => {
   function rammerWorld() {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const foe = addVehicle(world, 'raiders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const foe = addVehicle(world, 'scrapjaw', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     foe.brain = npcBrain('buggy', foe.pos, ['raider']);
     addState(world, 'feud', foe.id, me.id, { kind: 'feud', robbery: false });
     expect(isHostile(world, me, foe)).toBe(true);
@@ -196,7 +196,7 @@ describe('the rammer perk', () => {
     const world = emptyWorld();
     world.player.perks.push('rammer');
     const me = world.vehicles[0];
-    const trader = addVehicle(world, 'traders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const trader = addVehicle(world, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     applyContactCrash(world, me, trader, trader.id, 6, geometry);
     expect(trader.stalledUntil).toBeUndefined();
@@ -205,7 +205,7 @@ describe('the rammer perk', () => {
   it('stalls nothing in a crash between two NPCs', () => {
     const { world, foe } = rammerWorld();
     world.player.perks.push('rammer');
-    const other = addVehicle(world, 'traders', 'scout', ['stockEngine', 'ram'], { x: 34, y: 30 });
+    const other = addVehicle(world, 'independent', 'scout', ['stockEngine', 'ram'], { x: 34, y: 30 });
     applyContactCrash(world, other, foe, foe.id, 6, geometry);
     expect(foe.stalledUntil).toBeUndefined();
   });
@@ -223,7 +223,7 @@ describe('crash with a tow client', () => {
   function pair() {
     const world = emptyWorld();
     const client = world.vehicles[0];
-    const tower = addVehicle(world, 'traders', 'hauler', ['stockEngine'], { x: 32, y: 30 });
+    const tower = addVehicle(world, 'independent', 'hauler', ['stockEngine'], { x: 32, y: 30 });
     return { world, client, tower };
   }
 
@@ -253,7 +253,7 @@ describe('the hauler semi ramming a buggy', () => {
   it('wrecks the buggy side and barely scratches its own nose', () => {
     const world = emptyWorld();
     const semi = addVehicle(world, 'player', 'semi', ['workhorseDiesel'], { x: 30, y: 30 });
-    const buggy = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 34, y: 30 });
+    const buggy = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 34, y: 30 });
     applyContactCrash(world, semi, buggy, buggy.id, 6, { a: { side: 'front', lanes: [3, 4] }, b: { side: 'left', lanes: [1, 2] } });
     const collision = world.events.find((e) => e.t === 'collision');
     if (collision?.t !== 'collision') throw new Error('No collision');

@@ -94,7 +94,7 @@ describe('game save', () => {
   it('loads a save that holds an aim at a missing part as a body shot', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const foe = world.vehicles[1] ?? addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+    const foe = world.vehicles[1] ?? addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
     world.vehicles[0].weaponOrders = { w1: { targetId: foe.id, aim: 'gone-part' } };
     writeSave(slots, 'auto', world, RUN, 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP);
@@ -145,7 +145,7 @@ describe('game save', () => {
   it('keeps a held bounty across a reload, and a knockout after it fulfils the bounty once', () => {
     const slots = makeSlots();
     const world = emptyWorld();
-    const raider = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+    const raider = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const bounty: Contract = { id: 'ct-b', shop: 'bowl', kind: 'bounty', template: 'buggy', reward: 100, deadline: 900, window: 900, tier: 1, fulfilled: false };
     world.player.contracts = [bounty];
@@ -450,7 +450,7 @@ describe('game save', () => {
     const slots = makeSlots();
     const world = emptyWorld({ x: 30, y: 30 });
     world.turn = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) => !sunAt(t))!;
-    const buggy = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
+    const buggy = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 45, y: 30 });
     buggy.speed = 6;
     practiceContacts(world, refreshVision(world));
     writeSave(slots, 'auto', world, RUN, 1000);

@@ -9,13 +9,13 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
 
 function robber(w: World, parts = ['mg', 'stockEngine']): Vehicle {
-  const v = addVehicle(w, 'raiders', 'scout', parts, { x: 10, y: 10 });
+  const v = addVehicle(w, 'scrapjaw', 'scout', parts, { x: 10, y: 10 });
   v.brain = npcBrain('buggy', v.pos, ['scumbag']);
   return v;
 }
 
 function victim(w: World, goods: Record<string, number>, spares: string[] = []): Vehicle {
-  const v = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 14, y: 10 });
+  const v = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 14, y: 10 });
   for (const [good, n] of Object.entries(goods)) addGoods(w, v, good, n);
   for (const defId of spares) stowPart(w, v, { id: `${defId}-spare`, defId, hp: 10, wear: 0 } as never);
   return v;
@@ -103,7 +103,7 @@ describe('the haul', () => {
   it('adds at most the surrender parts after the cargo', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const r = robber(w);
-    const v = addVehicle(w, 'traders', 'wagon', ['mg', 'stockEngine', 'heavyMg', 'mg'], { x: 14, y: 10 });
+    const v = addVehicle(w, 'independent', 'wagon', ['mg', 'stockEngine', 'heavyMg', 'mg'], { x: 14, y: 10 });
     const cargo = cargoHaul(r, v);
     const strip = surrenderHaul(r, v);
     const mounted = strip.filter((item) => !cargo.includes(item));

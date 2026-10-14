@@ -16,7 +16,13 @@ import type { QuestLanguage, QuestValue } from "../data/quests";
 
 export type PatchDeal = DecisionOptions["patchDeal"];
 
-export type Faction = "player" | "raiders" | "traders" | "scavengers" | "bowl" | "nose" | "couriers" | "roamers" | "vultures" | "convoys" | "mercs";
+export type NpcFactionId = "bowl" | "nose" | "guidestar" | "administrators" | "scrapjaw" | "kiln" | "independent";
+export type StandingFactionId = Exclude<NpcFactionId, "independent">;
+export type Faction = "player" | NpcFactionId;
+export type WrongDeed = "attacked" | "robbed" | "stole";
+export type HelpDeed = "aided" | "towed" | "patched" | "defended";
+export type DeedId = WrongDeed | HelpDeed | "killed" | "contract";
+export type Deed = { subject: string; faction: StandingFactionId; deed: DeedId; delta: number; turn: number };
 export type SkillId = "driving" | "perception" | "machining" | "toughness" | "social";
 export type XpSource =
   | "roughTiles" | "ram" | "escape"
@@ -292,7 +298,11 @@ export type NpcBrain = {
 export type TrackChoice = 'keep' | 'fight' | 'flee' | 'investigate';
 export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number | null; choice: TrackChoice | null; chosenInSight: boolean };
 
-export type MemoryFact = { kind: 'prices'; shop: string; pressure: Record<string, number> } | { kind: 'stripped'; stock: string };
+export type MemoryFact =
+  | { kind: 'prices'; shop: string; pressure: Record<string, number> }
+  | { kind: 'stripped'; stock: string }
+  | { kind: 'wronged'; by: string; deed: WrongDeed }
+  | { kind: 'helped'; by: string; deed: HelpDeed };
 export type Memory = { turn: number; fact: MemoryFact };
 
 export type Vehicle = {
@@ -388,6 +398,8 @@ export type TopicOutcome = "agreed" | "refused" | "done";
 export type Player = {
   vehicleId: string;
   money: number;
+  standing: Record<StandingFactionId, number>;
+  deeds: Deed[];
   xp: number;
   ranks: Record<SkillId, number>;
   xpToday: Record<SkillId, number>;
@@ -509,7 +521,7 @@ export type GameEvent =
   | { t: 'runLost'; stretch: number; cause: RunLossCause };
 
 export type GameModeId = 'roaming' | 'furyRoad';
-export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean };
+export type ModeRules = { traffic: boolean; looting: boolean; npcKnockouts: boolean; playerKnockouts: boolean; yielding: boolean; radio: boolean; rescue: boolean; roadWrecks: boolean; run: boolean; standing: boolean };
 export type MapKind = 'icarus' | 'highway';
 export type RunLossCause = 'wrecked' | 'abandoned' | 'haulerLost';
 export type HaulerFacts = { id: string; alarmUntil: number | null };

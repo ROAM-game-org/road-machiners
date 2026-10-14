@@ -110,7 +110,7 @@ describe('weatherAt', () => {
     settleStorms(w);
     expect(sightRadius(w, w.vehicles[0])).toBeLessThan(before);
     const me = w.vehicles[0];
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 3, y: me.pos.y }, Math.PI);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 3, y: me.pos.y }, Math.PI);
     const mg = vehicleStats(w, me).weapons[0];
     const odds = hitOdds(w, me, mg, buggy, 'body');
     expect(odds.causes.weather).toBeGreaterThan(0);
@@ -346,7 +346,7 @@ describe('storm exposure', () => {
   it('an NPC truck gets the same shares as the player truck in the same spot', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     const me = w.vehicles[0];
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...me.pos });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...me.pos });
     fullStorm(w, 'w1', me.pos);
     for (let i = 0; i < 4; i++) turn(w);
     expect(npc.stormExposure).toEqual(me.stormExposure);

@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
-import { FACTION_COLORS, ITEM_TONES, PAL } from '../../render/palette';
+import { ITEM_TONES, PAL, PLAYER_PAINT } from '../../render/palette';
 import { itemTone, renderKey, type IconEntry } from '../../render/partLooks';
 import { model, socket, type ModelName } from '../render/models';
 import { wheelMounts } from '../../phys/body';
@@ -205,7 +205,7 @@ function bareTruck(chassisId: string): THREE.Object3D {
 
 function toon(root: THREE.Object3D, style: IconStyle): void {
   const { ramp } = renderer();
-  const paint = FACTION_COLORS.player;
+  const paint = PLAYER_PAINT;
   root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const old = o.material as THREE.MeshLambertMaterial;

@@ -86,7 +86,7 @@ describe("condition tooltip", () => {
 describe("armor on the condition panel", () => {
   function armoredTruck(armor: string[]) {
     const world = emptyWorld();
-    return addVehicle(world, "raiders", "buggy", ["mg", "stockEngine", ...armor], { x: 33, y: 30 });
+    return addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine", ...armor], { x: 33, y: 30 });
   }
 
   it("lists a mounted armor plate with its condition", () => {

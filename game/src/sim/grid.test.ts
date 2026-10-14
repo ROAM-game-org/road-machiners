@@ -12,6 +12,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { addVehicle, emptyWorld } from './testkit';
 import type { GridItem, Vehicle, World } from './types';
 import { sitePads } from './sites';
+import { fallbackFaction } from './spawn';
 
 const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 
@@ -38,7 +39,7 @@ describe('built-in parts', () => {
   it('every chassis builds with all its core parts mounted', () => {
     for (const ch of Object.values(CHASSIS)) {
       const w = emptyWorld();
-      const v = addVehicle(w, 'raiders', ch.id, [], { x: 40, y: 40 });
+      const v = addVehicle(w, 'scrapjaw', ch.id, [], { x: 40, y: 40 });
       const want = ch.core.map((c) => c.defId).sort();
       const roles = want.map(roleOf);
       expect(roles.filter((r) => r === 'cab')).toHaveLength(1);
@@ -53,7 +54,7 @@ describe('built-in parts', () => {
     for (const tpl of Object.values(NPCS)) {
       const w = emptyWorld();
       const loadout = generateNpcLoadout(w, tpl);
-      const v = makeVehicle(w, { faction: tpl.faction, ...loadout, pos: { x: 40, y: 40 }, heading: 0, brain: null });
+      const v = makeVehicle(w, { faction: fallbackFaction(tpl), ...loadout, pos: { x: 40, y: 40 }, heading: 0, brain: null });
       const mounted = mountedParts(v).map((p) => p.defId).filter((id) => PARTS[id].kind !== 'core');
       expect(mounted.sort()).toEqual(loadout.parts.map((p) => p.defId).sort());
     }
@@ -87,7 +88,7 @@ describe('built-in parts', () => {
 describe('cargo rows', () => {
   it('rejects an item across the end of the chassis grid', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', [], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
     v.items.push({ ...spotOn('scout', 'rack', 'D', v.items), id: 'i-rack', part: makePart(w, 'rack', 0) } as GridItem);
     const g = gridOf(v);
     const spare = (y: number, rot: 0 | 1): GridItem => ({ id: 'i-spare', x: 1, y, rot, kind: 'part', part: makePart(w, 'rack', 0) });
@@ -102,7 +103,7 @@ describe('broken cargo rows', () => {
   const rackRows = (PARTS.rack as { extraRows: number }).extraRows;
   function boxTruck(parts: string[]) {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', parts, { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', parts, { x: 40, y: 40 });
     const box = mountedParts(v, 'cargo').find((p) => p.defId === 'trailerBox')!;
     return { v, box };
   }
@@ -155,7 +156,7 @@ describe('cargoCellsGained', () => {
   it.each(['hauler', 'courier', 'scout'])('matches the free cells a working %s gains by mounting each cargo part', (chassisId) => {
     for (const defId of cargoIds) {
       const w = emptyWorld();
-      const v = addVehicle(w, 'raiders', chassisId, [], { x: 40, y: 40 });
+      const v = addVehicle(w, 'scrapjaw', chassisId, [], { x: 40, y: 40 });
       const before = freeCells(v);
       if (!mountPart(w, v, makePart(w, defId, 0))) continue;
       expect(freeCells(v) - before, `${defId} on ${chassisId}`).toBe(cargoCellsGained(chassisId, defId));
@@ -171,7 +172,7 @@ describe('side armor mounts', () => {
   for (const letter of ['F', 'B', 'L', 'R'] as const) {
     it(`armor mounts on ${letter}`, () => {
       const w = emptyWorld();
-      const v = addVehicle(w, 'raiders', 'hauler', [], { x: 40, y: 40 });
+      const v = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
       const plate: GridItem = { ...spotOn('hauler', 'plates', letter, v.items), id: 'i-plate', part: makePart(w, 'plates', 0) } as GridItem;
       v.items.push(plate);
       expect(isMounted('hauler', plate)).toBe(true);
@@ -181,7 +182,7 @@ describe('side armor mounts', () => {
 
   it('a part spanning two letters is not mounted', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', [], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', [], { x: 40, y: 40 });
     const onL = spotOn('hauler', 'plates', 'L', v.items);
     const g = baseGrid('hauler');
     const across: GridItem = { ...onL, rot: 1, id: 'i-plate', part: makePart(w, 'plates', 0) } as GridItem;
@@ -204,13 +205,13 @@ describe('side armor mounts', () => {
 
   it('sideOf is null for parts that are not mounted armor', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['mg'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['mg'], { x: 40, y: 40 });
     expect(sideOf(v, mountedParts(v, 'weapon')[0])).toBeNull();
   });
 
   it('NPC armor takes the front first', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'wagon', ['plates'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'wagon', ['plates'], { x: 40, y: 40 });
     const [plate] = mountedItems(v, 'armor');
     expect(sideOf(v, plate.part)).toBe('F');
   });
@@ -283,7 +284,7 @@ describe('side armor skin', () => {
 
   it('does not count the side columns as cargo cells', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', [], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
     const g = baseGrid('scout');
     const skin = g.cells.flat().filter((c) => c === 'L' || c === 'R').length;
     expect(skin).toBe(2 * (g.h - 2));

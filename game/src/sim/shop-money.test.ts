@@ -30,7 +30,7 @@ function totalsByKind(events: readonly ShopMoneyEvent[]): Partial<Record<ShopMon
 
 function traderInBowl(parts: string[] = ['stockEngine']): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(w, 'traders', 'hauler', parts, { ...sitePads(bowl)[0] });
+  const npc = addVehicle(w, 'independent', 'hauler', parts, { ...sitePads(bowl)[0] });
   npc.brain = npcBrain('trader', npc.pos, NPCS.trader.traits);
   w.events = [];
   return { w, npc };
@@ -63,7 +63,7 @@ describe('shop money', () => {
 
   it('names a raider camp sale', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...siteGates(kiln)[0] });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { ...siteGates(kiln)[0] });
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     addGoods(w, raider, 'salt', 2);
     const before = getResources(w, raider).money;
@@ -77,7 +77,7 @@ describe('shop money', () => {
 
   it('names a payment between two trucks', () => {
     const { w, npc } = traderInBowl();
-    const other = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { ...sitePads(bowl)[1] });
+    const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { ...sitePads(bowl)[1] });
     other.brain = npcBrain('trader', other.pos, NPCS.trader.traits);
 
     transfer(w, npc, other, 1234);

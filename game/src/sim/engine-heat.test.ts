@@ -112,7 +112,7 @@ describe('heat practice', () => {
   it('pays nothing for an NPC driving in the noon sun', () => {
     const w = emptyWorld();
     w.turn = NOON;
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 50, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
     npc.speed = vehicleStats(w, npc).maxSpeed;
     advanceEngineHeat(w);
     expect(practiceOf(w, 'heat')).toEqual([]);
@@ -196,7 +196,7 @@ describe('engine overdrive', () => {
   it('raises top speed and acceleration for the player only', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 50, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 50, y: 30 });
     const normal = vehicleStats(w, me);
     const npcNormal = vehicleStats(w, npc);
     w.player.overdrive = true;

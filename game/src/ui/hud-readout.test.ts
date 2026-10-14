@@ -47,7 +47,7 @@ describe('knocked-out truck interaction', () => {
   it('offers looting a knocked-out truck in reach only while stopped', () => {
     const w = emptyWorld();
     const gap = chassisDef('scout').radius + chassisDef('buggy').radius + 0.2;
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
     buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
     expect(actions(w)).toEqual([]);
     corePart(buggy, 'cab').hp = 0;
@@ -131,7 +131,7 @@ describe('salvage interaction', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.salvage.push({ id: 'wreck901', pos: { x: 30.5, y: 30 }, radius: 1, goods: { scrap: 1 }, parts: [], hidden: { ...emptyHidden(), goods: { scrap: 2 } } });
     w.player.scavenged.push('wreck901');
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 31.5, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 31.5, y: 30 });
     npc.speed = 0;
     beginSearch(w, npc, 'wreck901');
     expect(actions(w)).toEqual([
@@ -213,7 +213,7 @@ describe('loot spot wording', () => {
   it('names the driver blocking a shared spot with a plain Search', () => {
     const { w, id } = parkedAt(spotOf('orchard', 'farmhouse'));
     const me = playerVehicle(w);
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: me.pos.x + 2, y: me.pos.y });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: me.pos.x + 2, y: me.pos.y });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.speed = 0;
     beginSearch(w, npc, id);
@@ -250,7 +250,7 @@ describe('every interaction in reach', () => {
     const w = emptyWorld();
     const gap = chassisDef('scout').radius + chassisDef('buggy').radius + 0.2;
     const buggies = [gap, -gap].map((dx) => {
-      const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30 + dx, y: 30 });
+      const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + dx, y: 30 });
       buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
       corePart(buggy, 'cab').hp = 0;
       knockOutNpc(w, buggy);
@@ -271,7 +271,7 @@ describe('shared wreck', () => {
   it('dims the search while another driver searches the wreck, and names the driver', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.salvage.push({ id: 'wreck901', pos: { x: 30.5, y: 30 }, radius: 1, goods: { scrap: 3 }, parts: [], hidden: emptyHidden() });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 31.5, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 31.5, y: 30 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.speed = 0;
     expect(actions(w)[0]).toMatchObject({ label: 'Search the wreck', ready: true, combat: undefined });
@@ -286,7 +286,7 @@ describe('search in combat', () => {
     const site = { id: spot.id, pos: spot.pos, radius: propReach(spot) };
     w.salvage = [{ id: site.id, pos: { ...site.pos }, radius: site.radius, goods: { scrap: 1 }, parts: [], hidden: emptyHidden() }];
     const me = playerVehicle(w).pos;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: me.x + 6, y: me.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: me.x + 6, y: me.y });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     return { w, raider };
   }
@@ -458,7 +458,7 @@ describe('trade interaction', () => {
     const town = REGION.towns[0];
     const w = emptyWorld({ ...sitePads(town)[0] });
     const me = w.vehicles[0];
-    const npc = addVehicle(w, 'traders', 'scout', [], { x: me.pos.x + 3, y: me.pos.y });
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: me.pos.x + 3, y: me.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     npc.speed = npcSpeed;
     addState(w, 'trade', npc.id, w.player.vehicleId, { kind: 'none' });
@@ -485,7 +485,7 @@ describe('version label', () => {
 describe('aid handover action', () => {
   function aidScene(npcX: number, giver: 'player' | 'npc') {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: npcX, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: npcX, y: 30 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     addState(w, 'aid', npc.id, w.player.vehicleId, { kind: 'aid', giver, fuel: 5, supplies: 0, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
     return { w, npc };
@@ -501,7 +501,7 @@ describe('aid handover action', () => {
 
   it('shows no aid action while the agreed driver is out of reach, even beside another driver', () => {
     const { w, npc } = aidScene(60, 'player');
-    addVehicle(w, 'traders', 'scout', [], { x: 34, y: 30 });
+    addVehicle(w, 'independent', 'scout', [], { x: 34, y: 30 });
     const all = actions(w);
     expect(all.filter((a) => a.target.kind === 'aid')).toEqual([]);
     expect(all.some((a) => a.label.includes(npcName(npc)))).toBe(false);
@@ -509,7 +509,7 @@ describe('aid handover action', () => {
 
   it('shows one aid action naming the agreed driver when another is also in reach', () => {
     const { w, npc } = aidScene(34, 'player');
-    addVehicle(w, 'traders', 'scout', [], { x: 26, y: 30 });
+    addVehicle(w, 'independent', 'scout', [], { x: 26, y: 30 });
     const aids = actions(w).filter((a) => a.target.kind === 'aid');
     expect(aids).toHaveLength(1);
     expect(aids[0]).toMatchObject({ target: { kind: 'aid', id: npc.id }, label: expect.stringContaining(npcName(npc)) });
@@ -532,8 +532,8 @@ describe('aid handover action', () => {
 describe('several trades', () => {
   it('lists only the trade whose driver is in reach, with that driver as target', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const far = addVehicle(w, 'traders', 'scout', [], { x: 90, y: 30 });
-    const near = addVehicle(w, 'traders', 'scout', [], { x: 34, y: 30 });
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 90, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 34, y: 30 });
     addState(w, 'trade', far.id, w.player.vehicleId, { kind: 'none' });
     addState(w, 'trade', near.id, w.player.vehicleId, { kind: 'none' });
     const trades = actions(w).filter((a) => a.target.kind === 'trade');

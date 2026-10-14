@@ -36,7 +36,7 @@ function roadWorld(pick: OldSpotPick): { w: World; npc: Vehicle; stock: SalvageS
   const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
+  const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
   npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
   forceOption('salvageSeen', 'keep');
   const stock = w.salvage.find((s) => s.id === oldStockId(pick))!;
@@ -85,7 +85,7 @@ function runGoal(start: World, npcId: string, stockId: string, turns = DRIVE_TUR
 describe('scavengers pick old-world loot spots', () => {
   function scavengerAt(pos: Vec) {
     const w = emptyWorld({ x: 50, y: 50 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], pos);
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], pos);
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     forceOption('idle', 'scavenge');
     forceOption('salvageSeen', 'keep');

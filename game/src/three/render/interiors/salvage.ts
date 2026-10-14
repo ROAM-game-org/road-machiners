@@ -1,4 +1,4 @@
-import { FACTION_COLORS, PAL } from '../../../render/palette';
+import { TEMPLATE_PAINT, PAL } from '../../../render/palette';
 import { hash2 } from '../../../render/noise';
 import { model, socket } from '../models';
 import { hoist, slew } from '../site-motion';
@@ -17,7 +17,7 @@ const STACKS = [
   { x: 0.6, z: -2.0, yaw: 0, layers: 4 },
 ];
 const SLAB = { length: 1.05, height: 0.12, width: 0.45, shift: 0.04, twist: 0.08 };
-const SLAB_COLORS = [PAL.rust.top, PAL.rust.side, PAL.rust.dark, PAL.metal, FACTION_COLORS.convoys.side];
+const SLAB_COLORS = [PAL.rust.top, PAL.rust.side, PAL.rust.dark, PAL.metal, TEMPLATE_PAINT.convoy.side];
 const JEEP = { x: 1.3, z: -0.3, yaw: 0.5 };
 const WRECKS = [{ x: 1.5, z: 0.9, yaw: 1.9 }];
 const YARD_PROPS = [
@@ -53,11 +53,11 @@ function addCrane(b: SiteBuilder): void {
 
 function addContainer(b: SiteBuilder): void {
   const { x, z, yaw, length, width, height, ribs } = CONTAINER;
-  b.addBox(x, z, length, height, width, FACTION_COLORS.convoys.top, 0, yaw).name = 'salvage-container';
+  b.addBox(x, z, length, height, width, TEMPLATE_PAINT.convoy.top, 0, yaw).name = 'salvage-container';
   const along = { x: Math.cos(yaw), z: -Math.sin(yaw) };
   for (let i = 0; i < ribs; i++) {
     const t = ((i + 0.5) / ribs - 0.5) * length;
-    b.addBox(x + along.x * t, z + along.z * t, 0.03, height - 0.04, width + 0.03, FACTION_COLORS.convoys.side, 0.02, yaw);
+    b.addBox(x + along.x * t, z + along.z * t, 0.03, height - 0.04, width + 0.03, TEMPLATE_PAINT.convoy.side, 0.02, yaw);
   }
 }
 

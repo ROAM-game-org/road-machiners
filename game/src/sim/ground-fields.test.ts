@@ -243,7 +243,7 @@ describe('caltropHits', () => {
   it('damages each of the four wheels of a truck that drives through, and logs it', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 50, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 50, y: 30 });
     const f = field(w, trader, { x: 40, y: 31 });
     const before = wheelHp(me);
     drive(me, { x: 35, y: 30 }, { x: 45, y: 30 });
@@ -258,7 +258,7 @@ describe('caltropHits', () => {
   it('misses a truck whose trail passes farther than the field radius plus its own radius', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 50, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 50, y: 30 });
     const reach = DROP.radius + chassisDef(me.chassisId).radius;
     const f = field(w, trader, { x: 40, y: 30 + reach + 0.05 });
     const before = wheelHp(me);
@@ -273,7 +273,7 @@ describe('caltropHits', () => {
   it('hits a truck once per field, so a truck parked on it takes no second hit', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 50, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 50, y: 30 });
     field(w, trader, { x: 40, y: 30 });
     drive(me, { x: 35, y: 30 }, { x: 40, y: 30 });
     caltropHits(w);
@@ -287,7 +287,7 @@ describe('caltropHits', () => {
 
   it('hits the dropper that drives over its own field, and blames nobody', () => {
     const w = emptyWorld();
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 50, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 50, y: 30 });
     trader.brain = npcBrain('hauler', trader.pos, []);
     const f = field(w, trader, { x: 40, y: 30 });
     const before = wheelHp(trader);
@@ -304,7 +304,7 @@ describe('caltropHits', () => {
   it('counts as an attack on a truck already hostile to the dropper', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 35, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     field(w, me, { x: 40, y: 30 });
     drive(raider, { x: 35, y: 30 }, { x: 45, y: 30 });
@@ -319,7 +319,7 @@ describe('caltropHits', () => {
   it('counts as stray damage to a neutral truck, summed toward a feud', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 35, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 35, y: 30 });
     trader.brain = npcBrain('hauler', trader.pos, []);
     field(w, me, { x: 40, y: 30 });
     drive(trader, { x: 35, y: 30 }, { x: 45, y: 30 });
@@ -334,7 +334,7 @@ describe('caltropHits', () => {
   it('leaves oil patches harmless', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', [], { x: 50, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', [], { x: 50, y: 30 });
     field(w, trader, { x: 40, y: 30 }, 'oil');
     const before = wheelHp(me);
     drive(me, { x: 35, y: 30 }, { x: 45, y: 30 });
@@ -403,7 +403,7 @@ describe('oilPatches', () => {
 describe('routes around fields', () => {
   function trader(): { w: World; v: Vehicle } {
     const w = emptyWorld({ x: 30, y: 60 });
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 20, y: 30 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 20, y: 30 });
     v.brain = npcBrain('hauler', v.pos, []);
     return { w, v };
   }

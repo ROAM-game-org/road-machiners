@@ -19,8 +19,8 @@ const HALF_THROTTLE = ((0.5 / PHYSICS.driver.throttleGain) * PHYSICS.turnSeconds
 
 function tethered(opts: { pace?: number; from?: string; to?: string; speed?: number } = {}): { w: World; hauler: Vehicle; scout: Vehicle } {
   const w = emptyWorld();
-  const hauler = addVehicle(w, 'traders', opts.from ?? 'hauler', ['stockEngine', 'harpoon'], { x: 30, y: 30 });
-  const scout = addVehicle(w, 'traders', opts.to ?? 'scout', ['stockEngine'], { x: 33, y: 30 });
+  const hauler = addVehicle(w, 'independent', opts.from ?? 'hauler', ['stockEngine', 'harpoon'], { x: 30, y: 30 });
+  const scout = addVehicle(w, 'independent', opts.to ?? 'scout', ['stockEngine'], { x: 33, y: 30 });
   w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === hauler || v === scout);
   w.vehicles[0].pos = { x: 30, y: 26 };
   const harpoon = mountedParts(hauler, 'weapon').find((p) => p.defId === 'harpoon');
@@ -132,8 +132,8 @@ describe('harpoon line physics', () => {
 
   function across(from: string, to: string, mover: 'target' | 'shooter', slack: number): { w: World; shooter: Vehicle; target: Vehicle } {
     const w = emptyWorld();
-    const shooter = addVehicle(w, 'traders', from, ['stockEngine', 'harpoon'], { x: 30, y: 30 }, Math.PI / 2);
-    const target = addVehicle(w, 'traders', to, ['stockEngine'], { x: 33, y: 30 });
+    const shooter = addVehicle(w, 'independent', from, ['stockEngine', 'harpoon'], { x: 30, y: 30 }, Math.PI / 2);
+    const target = addVehicle(w, 'independent', to, ['stockEngine'], { x: 33, y: 30 });
     w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v === shooter || v === target);
     w.vehicles[0].pos = { x: 10, y: 10 };
     const harpoon = mountedParts(shooter, 'weapon').find((p) => p.defId === 'harpoon');

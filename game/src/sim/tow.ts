@@ -26,6 +26,7 @@ import { bearing, dist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { playerCommand, update } from './world';
 import { atlasOf } from './atlas';
+import { isRaider } from './relations';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -87,7 +88,7 @@ function isPlayer(world: World, v: Vehicle): boolean {
 }
 
 function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
-  const raider = (v: Vehicle) => v.faction === 'raiders';
+  const raider = (v: Vehicle) => isRaider(v);
   if (raider(tower)) return raider(client);
   return !raider(client) || isPlayer(world, tower);
 }

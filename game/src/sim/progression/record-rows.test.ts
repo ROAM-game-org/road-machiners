@@ -130,7 +130,7 @@ describe('turnLedger', () => {
 describe('DayTally', () => {
   it('counts gear a surrender hands to a robber as lost, and gear the bot sells as kept', () => {
     const start = emptyWorld({ x: 100, y: 100 });
-    const robber = addVehicle(start, 'raiders', 'buggy', ['mg'], { x: 104, y: 100 });
+    const robber = addVehicle(start, 'scrapjaw', 'buggy', ['mg'], { x: 104, y: 100 });
     robber.brain = npcBrain('buggy', robber.pos, ['raider']);
     const gear = () => mountedParts(playerVehicle(start)).filter((p) => partDef(p.defId).kind !== 'core').length;
     expect(gear()).toBeGreaterThan(0);

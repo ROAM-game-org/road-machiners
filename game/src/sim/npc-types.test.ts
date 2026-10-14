@@ -11,7 +11,7 @@ import { addGoods } from './inventory';
 import { huntingGrounds, optionChances, optionWeights, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { siteGates, sitePads } from './sites';
-import { spawnInitial, spawnNpcs } from './spawn';
+import { fallbackFaction, spawnInitial, spawnNpcs } from './spawn';
 import { addVehicle, emptyWorld, finishBusiness, forceOption, npcBrain } from './testkit';
 import { TEST_MAP } from '../test/map';
 import { tileAt } from './terrain';
@@ -28,7 +28,7 @@ function siteById(id: string) {
 }
 
 function createNpc(w: World, templateId: string, traits: TraitId[], chassis: string, parts: string[], pos: Vec): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, fallbackFaction(NPCS[templateId]), chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }
@@ -119,7 +119,7 @@ describe('patrols', () => {
   });
 });
 
-describe('couriers', () => {
+describe('guidestar', () => {
   it('mostly travel to another known site when idle', () => {
     const bowl = siteById('bowl');
     const w = emptyWorld({ x: 300, y: 300 });
@@ -153,7 +153,7 @@ describe('couriers', () => {
   });
 });
 
-describe('mercs', () => {
+describe('independent', () => {
   it('scavenge and trade only at about the minimum chance, even beside salvage', () => {
     const bowl = siteById('bowl');
     const w = emptyWorld({ x: 300, y: 300 });
@@ -167,7 +167,7 @@ describe('mercs', () => {
   });
 });
 
-describe('roamers', () => {
+describe('independent', () => {
   it('explore free map points, some of them off road', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     w.terrain = TEST_MAP.terrain;
@@ -300,7 +300,7 @@ describe('spawns of the new templates', () => {
   });
 });
 
-describe('vultures', () => {
+describe('independent', () => {
   it('always carry a cargo part and nearly always a gun', () => {
     let seen = 0;
     let armed = 0;

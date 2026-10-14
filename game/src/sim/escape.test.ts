@@ -11,7 +11,7 @@ import { endTurn } from './world';
 
 function raiderInSight(fights = true): { w: World; raider: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI);
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
   expect(isHostile(w, raider, w.vehicles[0])).toBe(true);
   if (fights) addState(w, 'combat', raider.id, w.vehicles[0].id, { kind: 'none' });
@@ -75,7 +75,7 @@ describe('escape practice', () => {
 
   it('targets the engaged truck when an idle hostile left sight with it', () => {
     const { w, raider } = raiderInSight();
-    const idle = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 34 }, Math.PI);
+    const idle = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 34 }, Math.PI);
     refreshVision(w);
     noteEscape(w);
     expect(w.player.hostilesSeen).toHaveLength(2);
@@ -113,8 +113,8 @@ describe('escape practice', () => {
 
   it('pays nothing for an NPC getting away from a raider', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 30 });
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 156, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 30 });
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 156, y: 30 });
     expect(isHostile(w, raider, trader)).toBe(true);
     noteEscape(w);
     trader.pos = { x: 250, y: 30 };

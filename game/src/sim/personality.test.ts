@@ -16,7 +16,7 @@ import type { Vehicle, World } from './types';
 
 function driver(traits: TraitId[], personality: PersonalityId): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 36, y: 30 });
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 36, y: 30 });
   npc.brain = npcBrain('trader', npc.pos, traits, personality);
   npc.resources = { fuel: 100, supplies: 10, money: 0, health: 100 };
   refreshVision(w);

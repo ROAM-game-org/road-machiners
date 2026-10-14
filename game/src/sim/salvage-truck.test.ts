@@ -22,7 +22,7 @@ function downed(): { w: World; me: Vehicle; buggy: Vehicle } {
   const w = emptyWorld();
   const me = w.vehicles[0];
   const gap = chassisDef('scout').radius + chassisDef('buggy').radius + 0.2;
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30 + gap, y: 30 });
   buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
   addGoods(w, buggy, 'scrap', 2);
   corePart(buggy, 'cab').hp = 0;
@@ -109,7 +109,7 @@ describe('the player looting a knocked-out truck', () => {
 
 function looterBeside(w: World, buggy: Vehicle): Vehicle {
   const gap = chassisDef('hauler').radius + chassisDef('buggy').radius + 0.2;
-  const looter = addVehicle(w, 'scavengers', 'hauler', ['stockEngine'], { x: buggy.pos.x, y: buggy.pos.y + gap });
+  const looter = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: buggy.pos.x, y: buggy.pos.y + gap });
   looter.brain = npcBrain('scavenger', looter.pos, ['scavenger']);
   return looter;
 }

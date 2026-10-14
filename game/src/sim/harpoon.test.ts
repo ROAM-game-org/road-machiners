@@ -19,7 +19,7 @@ function duel(gap = 5): { w: World; me: Vehicle; part: PartInstance; trader: Veh
   me.heading = Math.PI;
   const part = makePart(w, 'harpoon', 0);
   if (!mountPart(w, me, part)) throw new Error('No deck room for the harpoon');
-  const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: me.pos.x + gap, y: me.pos.y }, Math.PI / 2);
+  const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: me.pos.x + gap, y: me.pos.y }, Math.PI / 2);
   return { w, me, part, trader };
 }
 

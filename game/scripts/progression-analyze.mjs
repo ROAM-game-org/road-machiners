@@ -227,8 +227,10 @@ function printPopulation(lines) {
   }
 }
 
+const GANGS = new Set(['scrapjaw', 'kiln']);
+
 function printOffRoad(lines) {
-  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => v.faction === 'raiders' && v.speed > 0);
+  const moving = lines.flatMap((l) => l.trucks ?? []).filter((v) => GANGS.has(v.faction) && v.speed > 0);
   if (moving.length === 0) return;
   const share = (vs) => `${vs.filter((v) => v.onRoad).length}/${vs.length} on road`;
   const by = Map.groupBy(moving.filter((v) => v.offRoad), offRoadReason);
@@ -249,7 +251,7 @@ function printAmbushes(lines) {
   const passText = [...passes.entries()].map(([reason, es]) => `${reason} ${es.length}`).join(', ') || 'none';
   const trucks = new Map(lines.flatMap((l) => l.trucks ?? []).map((v) => [v.id, v]));
   const hunting = new Set(['raid', 'patrol', 'investigate']);
-  const started = events.filter((e) => e.t === 'activity' && e.activity === 'fight' && trucks.get(e.vehicle)?.faction === 'raiders' && hunting.has(e.previous));
+  const started = events.filter((e) => e.t === 'activity' && e.activity === 'fight' && GANGS.has(trucks.get(e.vehicle)?.faction) && hunting.has(e.previous));
   const byPrevious = Map.groupBy(started, (e) => e.previous);
   const fightText = [...byPrevious.entries()].map(([previous, es]) => `${previous} ${es.length}`).join(', ') || 'none';
   console.log(`raider passes on visible prey: ${passText}; raider fights begun from a hunt: ${fightText}`);

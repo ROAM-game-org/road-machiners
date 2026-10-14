@@ -19,6 +19,7 @@ import { playerCommand } from './world';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
 import { dist, type Vec } from './vec';
+import { isOutlaw } from './relations';
 
 export type ShopState = {
   contracts: Contract[];
@@ -348,7 +349,7 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   const partDefIds = Object.keys(PARTS).filter((id) => PARTS[id].kind !== 'core' && !stocked.has(id));
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
-    const raiders = world.vehicles.filter((v) => v.faction === 'raiders' && v.brain && !postedTemplates.has(v.brain.templateId));
+    const raiders = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain && !postedTemplates.has(v.brain.templateId));
     const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders);
     if (!contract) return;
     state.contracts.push(contract);

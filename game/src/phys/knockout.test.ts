@@ -23,7 +23,7 @@ function turn(w: World, d: Drive): { w: World; d: Drive } {
 }
 
 function raider(w: World): Vehicle {
-  const v = w.vehicles.find((x) => x.faction === 'raiders');
+  const v = w.vehicles.find((x) => x.faction === 'scrapjaw');
   if (!v) throw new Error('The raider left the world');
   return v;
 }
@@ -31,7 +31,7 @@ function raider(w: World): Vehicle {
 describe('NPC knockout in physics', () => {
   it('brakes a driving raider whose cab breaks, and keeps it parked while the player watches', () => {
     let w = emptyWorld({ x: 30, y: 30 });
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, 0);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, 0);
     buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
     buggy.brain.attackers[w.player.vehicleId] = true;
     buggy.lastHitBy = w.player.vehicleId;

@@ -52,7 +52,7 @@ describe("breakRounds", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     const pos = { x: 33, y: 30 };
-    const buggy = addVehicle(w, "raiders", "buggy", ["mg", "stockEngine"], pos, Math.PI);
+    const buggy = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine"], pos, Math.PI);
     buggy.brain = npcBrain("buggy", pos, ["raider"]);
     const gun = buggy.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     const mg = me.items.find((i) => i.kind === "part" && i.part.defId === "mg");

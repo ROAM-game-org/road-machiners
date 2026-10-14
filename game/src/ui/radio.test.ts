@@ -142,8 +142,8 @@ describe('RadioStation', () => {
   it('reports a raider robbing an NPC, never one robbing the player', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     addState(w, 'feud', raider.id, w.player.vehicleId, { kind: 'feud', robbery: true });
     addState(w, 'feud', raider.id, trader.id, { kind: 'feud', robbery: true });
     const s = tuned(w);
@@ -157,8 +157,8 @@ describe('RadioStation', () => {
   it('reports no robbery when a raider fights back, and keeps the place free for a real one', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const shot = later(w, RADIO.minGapTurns);
     startFeuds(shot, shot.vehicles.find((v) => v.id === trader.id)!, shot.vehicles.find((v) => v.id === raider.id)!);
@@ -175,8 +175,8 @@ describe('RadioStation', () => {
   it('reports a raider knockout once per place per cooldown', () => {
     const bowl = site('bowl');
     const w = world(10);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
-    const trader = addVehicle(w, 'traders', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: bowl.pos.x + 3, y: bowl.pos.y });
+    const trader = addVehicle(w, 'independent', 'buggy', [], { x: bowl.pos.x + 4, y: bowl.pos.y });
     const s = tuned(w);
     const ko: GameEvent = { t: 'npcKnockout', vehicle: trader.id, by: raider.id };
     s.hear(later(w, RADIO.minGapTurns, [ko]));

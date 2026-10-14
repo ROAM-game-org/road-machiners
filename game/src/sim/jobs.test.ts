@@ -111,7 +111,7 @@ describe('field repair job', () => {
 
   it('runs the same repair code for an NPC', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     const cage = armorPart(npc);
     cage.hp = 1;
     addGoods(w, npc, 'parts', 20);
@@ -197,7 +197,7 @@ describe('auto patch and promised parts', () => {
     mountedParts(me).find((p) => partDef(p.defId).kind === 'engine')!.hp = 1;
     removeGoods(me, 'parts', goodsCount(me).parts ?? 0);
     addGoods(w, me, 'parts', held);
-    const other = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 5, y: 0 }, 0);
+    const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 5, y: 0 }, 0);
     const [holder, client] = playerIsPatcher ? [me, other] : [other, me];
     const data = { kind: 'patch' as const, deal, parts: 2, partIds: [], price: 333, work: 4, workLeft: 4 };
     return { w, me, add: () => addState(w, 'patch', holder.id, client.id, data) };
@@ -354,7 +354,7 @@ describe('drive order', () => {
 
   it('lets an NPC with a leftover order work', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     npc.speed = 0;
     npc.order = { kind: 'stopAt', dest: { x: 60, y: 50 } };
     armorPart(npc).hp = 1;
@@ -476,7 +476,7 @@ describe('field job practice', () => {
 
   it('pays nothing for an NPC repair', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'cage'], { x: 50, y: 50 });
     armorPart(npc).hp = 1;
     addGoods(w, npc, 'parts', 20);
     const plan = repairPlan(w, npc, armorPart(npc).id);
@@ -495,7 +495,7 @@ describe('jobs in combat', () => {
     const cage = armorPart(me);
     cage.hp = 1;
     addGoods(w, me, 'parts', 20);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 35, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 35, y: 30 });
     addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
     if (attacking) startCombat(w, raider, me);
     return { w, me, cage, raider };

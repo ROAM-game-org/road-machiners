@@ -136,7 +136,7 @@ describe('noon light', () => {
 
 describe('vehicleLampsOn', () => {
   const world = emptyWorld();
-  const npc = addVehicle(world, 'traders', 'scout', ['stockEngine'], { x: 40, y: 30 });
+  const npc = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
   const truck = playerVehicle(world);
   const night = turnAt(23);
   const noon = turnAt(12);

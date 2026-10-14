@@ -61,7 +61,7 @@ describe('cargo spills', () => {
 
   it('an item lying partly on a dead row spills whole', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['rack', 'trailerBox'], { x: 60, y: 60 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['rack', 'trailerBox'], { x: 60, y: 60 });
     const g = gridOf(npc);
     const box = mountedParts(npc, 'cargo').find((p) => p.defId === 'trailerBox')!;
     const rackRows = (partDef('rack') as { extraRows: number }).extraRows;

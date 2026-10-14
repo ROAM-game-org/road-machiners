@@ -283,8 +283,9 @@ function grantedMercy(e: Extract<GameEvent, { t: 'plea' }>, target: string, me: 
 function targetKind(world: World, id: string): TargetKind {
   const v = world.vehicles.find((x) => x.id === id);
   if (!v) throw new Error(`Robbery target ${id} is gone`);
-  if (v.faction === 'traders') return 'trader';
-  if (v.faction === 'convoys') return 'convoy';
-  throw new Error(`Robbery target ${id} is of faction ${v.faction}`);
+  const template = v.brain?.templateId;
+  if (template === 'trader') return 'trader';
+  if (template === 'convoy') return 'convoy';
+  throw new Error(`Robbery target ${id} is a ${template ?? 'brainless truck'}`);
 }
 

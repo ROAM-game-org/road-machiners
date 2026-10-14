@@ -36,6 +36,7 @@ import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { damage, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { isRaider } from '../sim/relations';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -164,7 +165,7 @@ export function formatNpcActivity(world: World, vehicle: Vehicle): Msg | null {
 
 export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
   if (!vehicle.brain || !playerSees(world, vehicle.pos)) return null;
-  if (vehicle.faction !== 'raiders' || !huntsOffRoad(vehicle.brain)) return null;
+  if (!isRaider(vehicle) || !huntsOffRoad(vehicle.brain)) return null;
   const player = playerVehicle(world);
   const track = trackOf(vehicle, player.id);
   const kept = track?.choice === 'keep' && track.chosenInSight;

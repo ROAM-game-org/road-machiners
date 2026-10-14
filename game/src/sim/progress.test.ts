@@ -243,7 +243,7 @@ describe('skillEffect', () => {
   it('is zero for other trucks', () => {
     const w = emptyWorld();
     w.player.ranks.driving = 3;
-    const npc = addVehicle(w, 'traders', 'hauler', [], { x: 40, y: 40 });
+    const npc = addVehicle(w, 'independent', 'hauler', [], { x: 40, y: 40 });
     expect(skillEffect(w, npc, 'driving', 'turnRate')).toBe(0);
   });
 });
@@ -315,7 +315,7 @@ describe('perks on vehicles', () => {
   it('apply to the player truck only', () => {
     const w = emptyWorld();
     w.player.perks.push('rammer');
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     expect(vehicleHasPerk(w, w.vehicles[0], 'rammer')).toBe(true);
     expect(vehicleHasPerk(w, npc, 'rammer')).toBe(false);
   });

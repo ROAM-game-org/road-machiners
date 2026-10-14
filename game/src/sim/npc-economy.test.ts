@@ -13,7 +13,7 @@ import { RULES } from '../data/rules';
 describe('NPC transactions', () => {
   it('pays to repair the built-in cab without selling it', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', [], sitePads(REGION.towns[0])[0]);
+    const npc = addVehicle(w, 'independent', 'scout', [], sitePads(REGION.towns[0])[0]);
     const cab = corePart(npc, 'cab');
     cab.hp -= 2;
     npc.resources!.money = Math.ceil((2 * ECONOMY.repairShare * partValue(cab)) / maxHp(cab));
@@ -27,7 +27,7 @@ describe('NPC transactions', () => {
 
   it('rejects an unaffordable purchase without partial effects', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', [], sitePads(REGION.towns[0])[0]);
+    const npc = addVehicle(w, 'independent', 'hauler', [], sitePads(REGION.towns[0])[0]);
     npc.resources!.money = 1;
     const before = structuredClone(npc);
     expect(() => economy.tradeGoods(w, npc, 'bowl', 'scrap', 2, 'buy')).toThrow('Refused: noMoney');
@@ -36,7 +36,7 @@ describe('NPC transactions', () => {
 
   it('buys and sells real cargo without spending player money', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], sitePads(REGION.towns[0])[0]);
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], sitePads(REGION.towns[0])[0]);
     const money = npc.resources!.money;
     const playerMoney = w.player.money;
     expect(economy.tradeGoods).toBeTypeOf('function');
@@ -53,7 +53,7 @@ describe('NPC transactions', () => {
 
   it('rejects remote transactions without changing inventory or money', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', [], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', [], { x: 30, y: 30 });
     expect(economy.tradeGoods).toBeTypeOf('function');
     const before = structuredClone(npc);
     expect(() => economy.tradeGoods(w, npc, 'bowl', 'scrap', 1, 'buy')).toThrow('gate');
@@ -62,7 +62,7 @@ describe('NPC transactions', () => {
 
   it('buys affordable supplies before fuel', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', [], sitePads(REGION.towns[0])[0]);
+    const npc = addVehicle(w, 'independent', 'scout', [], sitePads(REGION.towns[0])[0]);
     npc.resources!.fuel = 0;
     npc.resources!.supplies = 0;
     npc.resources!.money = ECONOMY.supplyPrice.fuel * 2;
@@ -77,7 +77,7 @@ describe('NPC transactions', () => {
     const w = emptyWorld();
     const granary = REGION.locations.find((l) => l.id === 'granary')!;
     const make = (pad: { x: number; y: number }) => {
-      const npc = addVehicle(w, 'scavengers', 'scout', [], pad);
+      const npc = addVehicle(w, 'independent', 'scout', [], pad);
       corePart(npc, 'cab').hp -= 2;
       npc.resources!.fuel = 0;
       npc.resources!.supplies = 0;
@@ -98,7 +98,7 @@ describe('NPC transactions', () => {
   it('never serves a raider at a stall', () => {
     const w = emptyWorld();
     const yard = REGION.locations.find((l) => l.id === 'salvage-yard')!;
-    const npc = addVehicle(w, 'raiders', 'scout', [], sitePads(yard)[0]);
+    const npc = addVehicle(w, 'scrapjaw', 'scout', [], sitePads(yard)[0]);
     corePart(npc, 'cab').hp -= 2;
     npc.resources!.fuel = 0;
     npc.resources!.money = 333_333;
@@ -109,7 +109,7 @@ describe('NPC transactions', () => {
 
   it('refuses stall service at a town garage', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', [], sitePads(REGION.towns[0])[0]);
+    const npc = addVehicle(w, 'independent', 'scout', [], sitePads(REGION.towns[0])[0]);
     expect(() => economy.serviceAtStall(w, npc, 'bowl', 0)).toThrow('no stall');
   });
 });

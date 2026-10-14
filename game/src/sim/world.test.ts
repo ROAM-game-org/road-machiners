@@ -178,7 +178,7 @@ describe('the headlight switch', () => {
 
   it('keeps the events and removed vehicles of the turn being shown', () => {
     const world = emptyWorld();
-    const gone = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
+    const gone = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
     world.vehicles = world.vehicles.filter((v) => v !== gone);
     world.removed = [gone];
     world.events = [{ t: 'destroyed', vehicle: gone.id, by: world.player.vehicleId }];
@@ -192,9 +192,9 @@ describe('the headlight switch', () => {
   it('changes no turn result at night with NPCs about', () => {
     const night = update(emptyWorld({ x: 100, y: 100 }), (w) => {
       w.turn = duskTurn + 2;
-      const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 100, y: 130 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 100, y: 130 });
       trader.brain = npcBrain('trader', trader.pos, ['trader']);
     });
     expect(sunAt(night.turn)).toBeNull();

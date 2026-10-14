@@ -19,7 +19,7 @@ await loadModels(async (name) => {
 
 function drawn(gun: string, headingDeg: number, aimDeg: number | null, rot: Rot = 0, spot?: { chassis: string; x: number; y: number }): number {
   const w = emptyWorld();
-  const v = addVehicle(w, 'raiders', spot?.chassis ?? 'scout', [gun, 'stockEngine'], { x: 40, y: 40 }, headingDeg * DEG);
+  const v = addVehicle(w, 'scrapjaw', spot?.chassis ?? 'scout', [gun, 'stockEngine'], { x: 40, y: 40 }, headingDeg * DEG);
   const item = mountedItems(v, 'weapon')[0];
   item.rot = rot;
   if (spot) Object.assign(item, { x: spot.x, y: spot.y });
@@ -42,7 +42,7 @@ describe('turret aim', () => {
 
   it.each([0, 90, -135])('a machine gun at heading %i points at any bearing its spans allow', (heading) => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
     const spans = gunSpans(v, mountedItems(v, 'weapon')[0]);
     expect(spans.length).toBeGreaterThan(0);
     for (const deg of [-170, -90, 0, 60, 135, 180]) {
@@ -53,7 +53,7 @@ describe('turret aim', () => {
   it.each([1, 2, 3] as const)('a turret at rot %i rests at the allowed bearing nearest its facing', (rot) => {
     const spot = { chassis: 'longbed', x: 2, y: 8 };
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', spot.chassis, ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', spot.chassis, ['mg', 'stockEngine'], { x: 40, y: 40 });
     const item = mountedItems(v, 'weapon')[0];
     Object.assign(item, { rot, x: spot.x, y: spot.y });
     const spans = gunSpans(v, item);
@@ -63,7 +63,7 @@ describe('turret aim', () => {
 
   it('keeps a rear-facing machine gun aim inside its rotated arc', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
     const item = mountedItems(v, 'weapon')[0];
     item.rot = 2;
     const spans = gunSpans(v, item);
@@ -74,7 +74,7 @@ describe('turret aim', () => {
 
   it('rests inside its spans with no target', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['longRifle', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['longRifle', 'stockEngine'], { x: 40, y: 40 });
     const item = mountedItems(v, 'weapon')[0];
     const spans = gunSpans(v, item);
     expect(drawn('longRifle', 0, null)).toBeCloseTo(aimWithin(spans, 0), 1);

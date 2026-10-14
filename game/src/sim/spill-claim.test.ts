@@ -54,7 +54,7 @@ function breakLoadedCargo(w: World, v: Vehicle): void {
 function robbedPlayer(): { w: World; raider: Vehicle; kept: GridItem[] } {
   const w = quietWorld();
   const me = playerVehicle(w);
-  const raider = npcAt(w, 'raiders', 36);
+  const raider = npcAt(w, 'scrapjaw', 36);
   startCombat(w, raider, me);
   w.player.talked[raider.id] = { demand: 'refused' };
   breakLoadedCargo(w, me);
@@ -74,7 +74,7 @@ describe('a robber claims spilled cargo', () => {
   it('a robber hunting the player, not yet in combat, goes for the pile and keeps its claim', () => {
     const w = quietWorld();
     const me = playerVehicle(w);
-    const raider = npcAt(w, 'raiders', 36);
+    const raider = npcAt(w, 'scrapjaw', 36);
     breakLoadedCargo(w, me);
     spillDeadRows(w);
     clearPiles(w);
@@ -86,7 +86,7 @@ describe('a robber claims spilled cargo', () => {
   it('a robber not yet in combat radios its truce offer, not the plain warning off its claim', () => {
     const w = quietWorld();
     const me = playerVehicle(w);
-    const raider = npcAt(w, 'raiders', 36);
+    const raider = npcAt(w, 'scrapjaw', 36);
     w.player.talked[raider.id] = { demand: 'refused' };
     breakLoadedCargo(w, me);
     spillDeadRows(w);
@@ -124,7 +124,7 @@ describe('a robber claims spilled cargo', () => {
   it('a foe that is not robbing claims nothing and makes no call', () => {
     const w = quietWorld();
     const me = playerVehicle(w);
-    const foe = npcAt(w, 'traders', 36);
+    const foe = npcAt(w, 'independent', 36);
     addState(w, 'feud', foe.id, me.id, { kind: 'feud', robbery: false });
     addState(w, 'feud', me.id, foe.id, { kind: 'feud', robbery: false });
     startCombat(w, foe, me);
@@ -138,7 +138,7 @@ describe('a robber claims spilled cargo', () => {
   it('a robber that cannot see the pile claims nothing', () => {
     const w = quietWorld();
     const me = playerVehicle(w);
-    const raider = npcAt(w, 'raiders', 30, 200);
+    const raider = npcAt(w, 'scrapjaw', 30, 200);
     expect(isHostile(w, raider, me)).toBe(true);
     breakLoadedCargo(w, me);
     spillDeadRows(w);
@@ -149,9 +149,9 @@ describe('a robber claims spilled cargo', () => {
   it('an NPC that complies leaves its spilled cargo to the robber and makes peace', () => {
     forceOption('threatened', 'comply');
     const w = quietWorld();
-    const victim = addVehicle(w, 'traders', 'scout', ['stockEngine', 'mg', 'panniers'], { x: 40, y: 40 });
+    const victim = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg', 'panniers'], { x: 40, y: 40 });
     victim.brain = npcBrain('trader', victim.pos, ['trader']);
-    const raider = npcAt(w, 'raiders', 46, 40);
+    const raider = npcAt(w, 'scrapjaw', 46, 40);
     startCombat(w, raider, victim);
     breakLoadedCargo(w, victim);
     w.rngState = rngStateForForcedRolls(6);
@@ -165,9 +165,9 @@ describe('a robber claims spilled cargo', () => {
   it('an NPC that fights back keeps fighting, and the claim holds', () => {
     forceOption('threatened', 'fightBack');
     const w = quietWorld();
-    const victim = addVehicle(w, 'traders', 'scout', ['stockEngine', 'mg', 'panniers'], { x: 40, y: 40 });
+    const victim = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg', 'panniers'], { x: 40, y: 40 });
     victim.brain = npcBrain('trader', victim.pos, ['raider']);
-    const raider = npcAt(w, 'raiders', 46, 40);
+    const raider = npcAt(w, 'scrapjaw', 46, 40);
     startCombat(w, raider, victim);
     breakLoadedCargo(w, victim);
     w.rngState = rngStateForForcedRolls(6);
@@ -180,7 +180,7 @@ describe('a robber claims spilled cargo', () => {
     forceOption('warnedOff', 'comply');
     const { w } = robbedPlayer();
     const pile = spillPile(w);
-    const other = npcAt(w, 'scavengers', pile.pos.x + 1, pile.pos.y);
+    const other = npcAt(w, 'independent', pile.pos.x + 1, pile.pos.y);
     pushGoal(w, other, { kind: 'loot', targetId: pile.id, destination: { ...pile.pos }, phase: 'travel', reason: 'lootOnTheWay' });
     w.rngState = rngStateForForcedRolls(6);
     expect(warnedOff(w, other, pile)).toBe(true);

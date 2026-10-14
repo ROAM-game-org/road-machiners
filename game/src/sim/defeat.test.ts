@@ -45,7 +45,7 @@ function knockedOutByRaider(parts: string[] = []): { w: World; me: Vehicle; raid
   w.salvage = [];
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const me = w.vehicles[0];
-  const raider = addVehicle(w, 'raiders', 'buggy', parts, { x: 36, y: 30 });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', parts, { x: 36, y: 30 });
   me.lastHitBy = raider.id;
   corePart(me, 'cab').hp = 0;
   checkKnockout(w);
@@ -113,9 +113,9 @@ describe('loot', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
     expect(hasLoot(me)).toBe(true);
-    const bare = addVehicle(w, 'traders', 'scout', [], { x: 40, y: 30 });
+    const bare = addVehicle(w, 'independent', 'scout', [], { x: 40, y: 30 });
     expect(hasLoot(bare)).toBe(false);
-    const gunned = addVehicle(w, 'traders', 'scout', ['mg'], { x: 44, y: 30 });
+    const gunned = addVehicle(w, 'independent', 'scout', ['mg'], { x: 44, y: 30 });
     expect(hasLoot(gunned)).toBe(true);
   });
 });
@@ -125,7 +125,7 @@ describe('knockout', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.salvage = [];
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     expect(isHostile(w, raider, me)).toBe(true);
     corePart(me, 'cab').hp = 0;
     const items = structuredClone(me.items);
@@ -144,7 +144,7 @@ describe('knockout', () => {
   it('brakes the truck, clears its orders and its job, and fulfils feuds against it', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
     me.order = { kind: 'stopAt', dest: { x: 50, y: 30 } };
     me.speed = 0;
@@ -252,7 +252,7 @@ describe('waking', () => {
 
   it('wakes with a truck in sight that did not fight it, and ends the defeat', () => {
     const { w, me } = knockedOut();
-    addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     advanceKnockout(w);
     expect(w.player.state).toBe('active');
     expect(me.defeat).toBeUndefined();
@@ -275,8 +275,8 @@ describe('waking', () => {
 describe('the loot rule', () => {
   it('a raider ignores a truck without loot but fights on a feud', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
-    const bare = addVehicle(w, 'traders', 'scout', [], { x: 40, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    const bare = addVehicle(w, 'independent', 'scout', [], { x: 40, y: 30 });
     expect(isHostile(w, raider, bare)).toBe(false);
     expect(isHostile(w, bare, raider)).toBe(false);
     autoOrders(w, raider);
@@ -291,9 +291,9 @@ describe('the loot rule', () => {
 
   it('a raider is hostile to a truck with loot, and others ignore each other', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: 36, y: 30 });
-    const trader = addVehicle(w, 'traders', 'scout', ['mg'], { x: 40, y: 30 });
-    const bare = addVehicle(w, 'traders', 'scout', [], { x: 44, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 36, y: 30 });
+    const trader = addVehicle(w, 'independent', 'scout', ['mg'], { x: 40, y: 30 });
+    const bare = addVehicle(w, 'independent', 'scout', [], { x: 44, y: 30 });
     expect(isHostile(w, raider, trader)).toBe(true);
     expect(isHostile(w, trader, raider)).toBe(true);
     expect(isHostile(w, trader, bare)).toBe(false);
@@ -302,7 +302,7 @@ describe('the loot rule', () => {
   it('a raider that fought the player without a robbery sets out to loot the truck', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     me.lastHitBy = raider.id;
     corePart(me, 'cab').hp = 0;
@@ -315,7 +315,7 @@ describe('the loot rule', () => {
     w.salvage = [];
     for (const key of Object.keys(NPCS)) w.spawnTimer[key] = Number.MAX_SAFE_INTEGER;
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     addState(w, 'combat', raider.id, me.id, { kind: 'none' });
     me.lastHitBy = raider.id;
@@ -383,7 +383,7 @@ describe('commands while knocked out', () => {
 describe('knockout practice', () => {
   it('pays the player for a knockout with a foe in sight', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     refreshVision(w);
     corePart(w.vehicles[0], 'cab').hp = 0;
     checkKnockout(w);
@@ -394,7 +394,7 @@ describe('knockout practice', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = w.vehicles[0];
     me.items = me.items.filter((it) => !isLoot(me.chassisId, it));
-    addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
+    addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 });
     refreshVision(w);
     corePart(me, 'cab').hp = 0;
     checkKnockout(w);
@@ -411,7 +411,7 @@ describe('knockout practice', () => {
 
   it('pays nothing for an NPC whose cab breaks', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     corePart(npc, 'cab').hp = 0;
     checkKnockout(w);
     advanceKnockout(w);
@@ -463,7 +463,7 @@ describe('cab knock of the player', () => {
 describe('gave up', () => {
   it('is true after standDown and false after a knockout', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     standDown(w, npc, w.player.vehicleId);
     expect(gaveUp(npc)).toBe(true);
@@ -475,7 +475,7 @@ describe('gave up', () => {
 describe('defeat of an NPC', () => {
   function fleeingRearmer(): { w: World; npc: Vehicle } {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     const at = { x: 0, y: 0 };
     npc.brain.goals = [

@@ -17,7 +17,7 @@ import { maxHp, wornDef } from './wear';
 describe('worn parts in vehicle stats', () => {
   it('a worn engine gives a lower top speed and acceleration', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     const fresh = vehicleStats(w, v);
     mountedParts(v, 'engine')[0].wear = 2;
     const worn = vehicleStats(w, v);
@@ -27,7 +27,7 @@ describe('worn parts in vehicle stats', () => {
 
   it('a worn gun scatters more', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
     const fresh = vehicleStats(w, v).weapons[0].def.spread;
     mountedParts(v, 'weapon')[0].wear = 2;
     expect(vehicleStats(w, v).weapons[0].def.spread).toBeGreaterThan(fresh);
@@ -60,7 +60,7 @@ describe('the overdrive engine cutoff', () => {
     const { w, me, engine } = wornEngine();
     engine.hp = 0;
     expect(canOverdrive(me)).toBe(false);
-    const bare = addVehicle(w, 'raiders', 'scout', [], { x: 40, y: 40 });
+    const bare = addVehicle(w, 'scrapjaw', 'scout', [], { x: 40, y: 40 });
     expect(canOverdrive(bare)).toBe(false);
   });
 
@@ -110,7 +110,7 @@ describe('driving on rough ground', () => {
   it('leaves an NPC truck with the full penalty', () => {
     const w = emptyWorld();
     w.player.ranks.driving = 5;
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     expect(groundSpeed(vehicleStats(w, npc), 0.5)).toBeCloseTo(0.5);
   });
 });
@@ -142,7 +142,7 @@ describe('crawling when stranded', () => {
   it('leaves a stranded NPC truck at limp speed', () => {
     const w = emptyWorld();
     w.player.ranks.driving = 5;
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     mountedParts(npc, 'engine')[0].hp = 0;
     expect(vehicleStats(w, npc).maxSpeed).toBeCloseTo(RULES.limpSpeed);
   });
@@ -152,7 +152,7 @@ describe('crawling when stranded', () => {
 describe('a stalled engine', () => {
   it('crawls at limp speed while stalled, but is not stranded', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     v.stalledUntil = w.turn;
     const stats = vehicleStats(w, v);
     expect(stats.maxSpeed).toBeCloseTo(RULES.limpSpeed);
@@ -163,7 +163,7 @@ describe('a stalled engine', () => {
 
   it('drives again after its last stalled turn', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     const fresh = vehicleStats(w, v).maxSpeed;
     v.stalledUntil = w.turn - 1;
     expect(vehicleStats(w, v).maxSpeed).toBe(fresh);
@@ -171,7 +171,7 @@ describe('a stalled engine', () => {
 
   it('stalls the drive of exactly the turn after the ram', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     const fresh = vehicleStats(w, v).maxSpeed;
     v.stalledUntil = w.turn + PERK_NUMBERS.rammer.stallTurns;
     const speeds: number[] = [];
@@ -189,14 +189,14 @@ describe('store capacity', () => {
 
   it('a bare truck holds the chassis tank and the base supplies', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     expect(fuelCap(v)).toBe(CHASSIS.scout.fuelCap);
     expect(suppliesCap(v)).toBe(RULES.baseSupplies);
   });
 
   it('each mounted store adds its room to its own cap', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine', 'jerrycans', 'jerrycans', 'supplyLocker'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'jerrycans', 'jerrycans', 'supplyLocker'], { x: 40, y: 40 });
     expect(mountedParts(v, 'store')).toHaveLength(3);
     expect(fuelCap(v)).toBe(CHASSIS.hauler.fuelCap + 2 * jerrycans.amount);
     expect(suppliesCap(v)).toBe(RULES.baseSupplies + locker.amount);
@@ -204,14 +204,14 @@ describe('store capacity', () => {
 
   it('a broken store keeps its room', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine', 'jerrycans'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'jerrycans'], { x: 40, y: 40 });
     mountedParts(v, 'store')[0].hp = 0;
     expect(fuelCap(v)).toBe(CHASSIS.scout.fuelCap + jerrycans.amount);
   });
 
   it('a store stowed off a deck mount adds nothing', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     expect(stowPart(w, v, makePart(w, 'jerrycans', 0))).toBe(true);
     expect(mountedParts(v, 'store')).toHaveLength(0);
     expect(fuelCap(v)).toBe(CHASSIS.scout.fuelCap);
@@ -223,7 +223,7 @@ describe('store capacity', () => {
 describe('gun power draw', () => {
   const speedWith = (chassis: string, parts: string[]) => {
     const w = emptyWorld();
-    return vehicleStats(w, addVehicle(w, 'raiders', chassis, parts, { x: 40, y: 40 })).maxSpeed;
+    return vehicleStats(w, addVehicle(w, 'scrapjaw', chassis, parts, { x: 40, y: 40 })).maxSpeed;
   };
 
   it('a gun draws 1 plus half per extra cell, times 1 plus a quarter per tier above 1', () => {
@@ -241,27 +241,27 @@ describe('gun power draw', () => {
 
   it('no guns cost no speed', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], { x: 40, y: 40 });
     expect(gunDrag(v, 7)).toBe(1);
   });
 
   it('two light guns on a stock engine cost between 5 and 15 percent', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
     expect(1 - gunDrag(v, 7)).toBeGreaterThan(0.05);
     expect(1 - gunDrag(v, 7)).toBeLessThan(0.15);
   });
 
   it('draw at or past the capacity caps the loss at 60 percent', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     for (let i = 0; i < 6; i++) expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
     expect(gunDrag(v, 7)).toBeCloseTo(1 - RULES.gunDragMax);
   });
 
   it('a broken gun draws nothing', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine', 'mg', 'mg'], { x: 40, y: 40 });
     const both = gunDrag(v, 7);
     mountedParts(v, 'weapon')[0].hp = 0;
     expect(gunDrag(v, 7)).toBeGreaterThan(both);
@@ -269,8 +269,8 @@ describe('gun power draw', () => {
 
   it('guns lower top speed and acceleration, and a bigger engine loses less', () => {
     const w = emptyWorld();
-    const bare = vehicleStats(w, addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 }));
-    const armed = vehicleStats(w, addVehicle(w, 'raiders', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 40 }));
+    const bare = vehicleStats(w, addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 }));
+    const armed = vehicleStats(w, addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine', 'cannon'], { x: 40, y: 40 }));
     expect(armed.maxSpeed).toBeLessThan(bare.maxSpeed);
     expect(armed.accel).toBeLessThan(bare.accel);
     const share = (engine: string) => speedWith('hauler', [engine, 'cannon']) / speedWith('hauler', [engine]);
@@ -282,7 +282,7 @@ describe('max speed steps', () => {
   type Scenario = { build: () => { w: World; v: Vehicle }; kinds: string[] };
   const base = (parts: string[], chassis = 'scout') => {
     const w = emptyWorld();
-    return { w, v: addVehicle(w, 'raiders', chassis, parts, { x: 40, y: 40 }) };
+    return { w, v: addVehicle(w, 'scrapjaw', chassis, parts, { x: 40, y: 40 }) };
   };
   const SCENARIOS: Record<string, Scenario> = {
     bare: { build: () => base([]), kinds: ['limp'] },
@@ -373,7 +373,7 @@ describe('max speed steps', () => {
     towing: {
       build: () => {
         const s = base(['stockEngine']);
-        const other = addVehicle(s.w, 'raiders', 'scout', ['stockEngine'], { x: 44, y: 40 });
+        const other = addVehicle(s.w, 'scrapjaw', 'scout', ['stockEngine'], { x: 44, y: 40 });
         addState(s.w, 'tow', s.v.id, other.id, { kind: 'tow', site: 'bowl', fee: 10, waived: 0, hitched: true });
         return s;
       },
@@ -449,7 +449,7 @@ describe('the acceleration scale', () => {
   const rules = RULES as { accelScale: number };
   const stats = (overdrive: boolean, parts: string[]) => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'scout', parts, { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'scout', parts, { x: 40, y: 40 });
     w.player.vehicleId = v.id;
     w.player.overdrive = overdrive;
     w.player.fuel = 999;

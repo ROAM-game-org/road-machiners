@@ -190,7 +190,7 @@ describe("playVolley sounds", () => {
 
 describe("playVolley breaks", () => {
   const rd = (hits: { part: string; damage: number }[]): ShotRound => ({ hit: hits.length > 0, crit: false, offset: 0, struck: hits.length ? "t" : null, hits, blast: [], burst: null });
-  const GUN = (() => { const w = emptyWorld(); const v = addVehicle(w, "raiders", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0); const it = v.items.find((i) => i.kind === "part" && i.part.defId === "mg"); return it && it.kind === "part" ? it.part.id : ""; })();
+  const GUN = (() => { const w = emptyWorld(); const v = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0); const it = v.items.find((i) => i.kind === "part" && i.part.defId === "mg"); return it && it.kind === "part" ? it.part.id : ""; })();
   const event = { t: "shot", shooter: "s", weapon: "mg", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [rd([]), rd([{ part: GUN, damage: 2 }]), rd([{ part: GUN, damage: 3 }])] } as ShotLike;
   const partOff: GameEvent = { t: "partDisabled", vehicle: "t", part: GUN };
 
@@ -199,7 +199,7 @@ describe("playVolley breaks", () => {
     const sounds: string[] = [];
     const broken: PartBreak[] = [];
     const world = emptyWorld();
-    const target = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0);
     target.id = "t";
     const host = {
       world,
@@ -390,8 +390,8 @@ describe("planShot against the end of the move", () => {
 describe("playShotFx before a shooter's view exists", () => {
   it("fires the shooter's rounds as the move ends instead of failing the turn", () => {
     const world = emptyWorld();
-    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
-    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
     world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
@@ -418,8 +418,8 @@ describe("playShotFx through the move", () => {
 
   const fire = (weapon: string, rounds: (target: string) => ShotRound[], more: (target: string) => GameEvent[] = () => []) => {
     const world = emptyWorld();
-    const shooter = addVehicle(world, "raiders", "buggy", [weapon, "stockEngine"], { x: 30, y: 30 }, 0);
-    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const shooter = addVehicle(world, "scrapjaw", "buggy", [weapon, "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const gunPart = shooter.items.find((i) => i.kind === "part" && i.part.defId === weapon);
     if (!gunPart || gunPart.kind !== "part") throw new Error(`test truck has no ${weapon}`);
     world.events = [{ t: "shot", shooter: shooter.id, weapon: gunPart.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: rounds(target.id) } as GameEvent, ...more(target.id)];

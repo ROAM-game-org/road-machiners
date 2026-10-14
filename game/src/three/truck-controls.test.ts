@@ -9,8 +9,8 @@ import { TruckContext, TruckControls, type ContextHost } from './truck-controls'
 
 function scene(aidX: number) {
   const w = emptyWorld({ x: 30, y: 30 });
-  const a = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: aidX, y: 30 });
-  const b = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 34, y: 30 });
+  const a = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: aidX, y: 30 });
+  const b = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 34, y: 30 });
   for (const v of [a, b]) v.brain = npcBrain('trader', v.pos, ['trader']);
   addState(w, 'aid', a.id, w.player.vehicleId, { kind: 'aid', giver: 'player', fuel: 5, supplies: 0, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
   return { w, a, b };

@@ -295,7 +295,7 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const table = template.loadout;
   const level = GEAR_LEVELS[gear];
   const chassis = chassisId ?? sampleWeighted(rng, table.chassis);
-  const bare = makeVehicle(probe, { faction: template.faction, chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
+  const bare = makeVehicle(probe, { faction: 'independent', chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
   const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
   const powered = chooseEngine(open, rng, table.priorities, bare);

@@ -24,7 +24,7 @@ describe('the hunter against one weak raider', () => {
   it('wins, counts the win, strips the mounted scanner and the goods, and ends richer', () => {
     let w = emptyWorld({ x: 100, y: 100 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['scanner'], { x: 118, y: 100 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['scanner'], { x: 118, y: 100 });
     pinned = raider.id;
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     addGoods(w, raider, 'scrap', 3);
@@ -50,7 +50,7 @@ describe('the hunter against one strong raider', () => {
   it('leaves it alone', () => {
     const start = emptyWorld({ x: 100, y: 100 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const raider = addVehicle(start, 'raiders', 'jeep', ['autocannon', 'ram', 'ram', 'ram'], { x: 118, y: 100 });
+    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['autocannon', 'ram', 'ram', 'ram'], { x: 118, y: 100 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const w = endTurn(start, () => {});
     expect(playerSees(w, raider.pos)).toBe(true);

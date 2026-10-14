@@ -14,6 +14,7 @@ import { emptyWorld } from '../../sim/testkit';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { loadModels, model, socket } from './models';
 import { footprint, VehicleView, wouldFloat } from './vehicle';
+import { fallbackFaction } from '../../sim/spawn';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
 await loadModels(async (name) => {
@@ -157,7 +158,7 @@ describe('gun heads clear what they sweep over', () => {
         let v: Vehicle;
         try {
           const l = generateNpcLoadout(world, t, null, 'loaded');
-          v = makeVehicle(world, { ...l, faction: t.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+          v = makeVehicle(world, { ...l, faction: fallbackFaction(t), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
         } catch {
           continue;
         }

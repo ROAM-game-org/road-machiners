@@ -16,7 +16,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { nextRandom, randInt, type Rng } from './rng';
 import { modeRules } from './settings';
 import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
@@ -250,7 +250,7 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   loadouts.forEach(({ tpl, loadout }, i) => {
-    const v = spawnAt(world, tpl, loadout, spots[i]);
+    const v = spawnAt(world, tpl, loadout, spots[i], allegianceFor(world, tpl, null, null));
     getResources(world, v).fuel = fuelCap(v);
     v.heading = Math.atan2(hauler.pos.y - v.pos.y, hauler.pos.x - v.pos.x);
     group.vehicles.push(v.id);

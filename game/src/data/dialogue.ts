@@ -49,7 +49,7 @@ export const LINE_IDS = [
   'seenAnythingWorthA', 'sitTight', 'siteBearing', 'smartChoice', 'sorryCannotSpareAny', 'spare', 'speakUp',
   'standDownAndLet', 'standingDown', 'stateYourBusiness', 'stopShootingIGive', 'surePullOverAnd', 'surrenderOffer',
   'takeMeToSite', 'takeWhatICarry', 'talk', 'talkFast', 'thanksIWillWait', 'thanksOverAndOut', 'thanksSomethingElse',
-  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'helpMeFirst',
+  'thenComeAndGet', 'thenWeFinishThis', 'thisIsMine', 'thisWreckIsMine', 'tipTold', 'tooLateForTalk', 'tooMuch', 'thatCostsYou', 'helpMeFirst', 'iKnowWhatYouDid', 'notYourKind',
   'townBearing', 'truceCost', 'understood', 'wantToTrade', 'weAlreadyTalkedAbout', 'weBothDriveAway',
   'weCoveredThat', 'weWillSee', 'whatAreYouOffering', 'whatCanYouOffer', 'whatDoYouWant', 'whatWouldItCost',
   'whatWouldItTake', 'whateverYouCanSpare', 'where', 'whereIsTheNearest', 'yeahMakeItQuick', 'youHeardMeCargo',

@@ -32,6 +32,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
+import { isOutlaw } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -57,7 +58,7 @@ export function isFoe(world: World, a: Vehicle, b: Vehicle): boolean {
   if (a.id === b.id || isOutOfFight(world, a, b)) return false;
   if (inFeud(world, a, b)) return true;
   if (inTruce(world, a, b)) return false;
-  return (a.faction === "raiders") !== (b.faction === "raiders");
+  return isOutlaw(a.faction) !== isOutlaw(b.faction);
 }
 
 function isOutOfFight(world: World, a: Vehicle, b: Vehicle): boolean {
@@ -76,15 +77,15 @@ export function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
 export function isHostile(world: World, a: Vehicle, b: Vehicle): boolean {
   if (!isFoe(world, a, b)) return false;
   if (inFeud(world, a, b) || isLawPair(a, b)) return true;
-  return hasLoot(a.faction === "raiders" ? b : a);
+  return hasLoot(isOutlaw(a.faction) ? b : a);
 }
 
 export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): boolean {
-  return raider.faction === "raiders" && target.faction !== "raiders" && !inFeud(world, raider, target) && !isLawPair(raider, target);
+  return isOutlaw(raider.faction) && !isOutlaw(target.faction) && !inFeud(world, raider, target) && !isLawPair(raider, target);
 }
 
 function isLawPair(a: Vehicle, b: Vehicle): boolean {
-  return (isLawman(a) && b.faction === "raiders") || (isLawman(b) && a.faction === "raiders");
+  return (isLawman(a) && isOutlaw(b.faction)) || (isLawman(b) && isOutlaw(a.faction));
 }
 
 function isLawman(v: Vehicle): boolean {
@@ -902,7 +903,7 @@ function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: numbe
 }
 
 export function callLawmen(world: World, aggressor: Vehicle, victim: Vehicle): void {
-  if (!victim.brain || victim.faction === "raiders") return;
+  if (!victim.brain || isOutlaw(victim.faction)) return;
   for (const v of world.vehicles) {
     if (!answersCall(world, v, aggressor, victim) || stateOf(world, "feud", v.id, aggressor.id)) continue;
     addState(world, "feud", v.id, aggressor.id, { kind: "feud", robbery: false });

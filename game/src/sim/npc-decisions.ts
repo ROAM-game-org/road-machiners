@@ -43,6 +43,7 @@ import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
+import { isOutlaw, isRaider } from './relations';
 
 export type NpcProfile = {
   towns: string[];
@@ -153,7 +154,7 @@ export function isWeak(world: World, vehicle: Vehicle): boolean {
 }
 
 export function huntsPrey(vehicle: Vehicle): boolean {
-  return vehicle.faction === 'raiders';
+  return isRaider(vehicle);
 }
 
 export function fitToHunt(world: World, vehicle: Vehicle): boolean {
@@ -780,7 +781,7 @@ function refuseFactor(world: World, vehicle: Vehicle, _decision: DecisionId, sub
 function robs(world: World, vehicle: Vehicle, subject: string | null): boolean {
   if (subject === null) return false;
   const target = vehicleById(world, subject);
-  return robbing(world, vehicle.id, target.id) || (vehicle.faction === 'raiders' && target.faction !== 'raiders' && hasLoot(target));
+  return robbing(world, vehicle.id, target.id) || (isRaider(vehicle) && !isOutlaw(target.faction) && hasLoot(target));
 }
 
 export function wantsLoot(world: World, vehicle: Vehicle, target: Vehicle): boolean {

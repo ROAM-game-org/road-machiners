@@ -17,8 +17,8 @@ const SIDE: Record<string, Side> = { F: 'front', B: 'rear', L: 'left', R: 'right
 
 function setup(): { w: World; user: Vehicle; other: Vehicle; claymore: PartInstance; side: Side } {
   const w = emptyWorld();
-  const user = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
-  const other = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 43, y: 30 });
+  const user = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
+  const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 43, y: 30 });
   const claymore = mountedParts(user).find((p) => p.defId === 'claymoreRam');
   if (!claymore) throw new Error('The claymore ram did not mount');
   const letter = sideOf(user, claymore);

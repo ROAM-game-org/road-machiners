@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PHYSICS } from '../../../data/physics';
-import { FACTION_COLORS, PAL } from '../../../render/palette';
+import { PAL, TEMPLATE_PAINT } from '../../../render/palette';
 import { socket } from '../models';
 import { travel } from '../site-motion';
 import type { SiteBuilder } from '../sites';
@@ -27,7 +27,7 @@ const SHELTER_LANTERNS = [
   { x: 2.4, z: -0.6 },
   { x: -2.6, z: 0.4 },
 ];
-const GRAIN = FACTION_COLORS.bowl.cab;
+const GRAIN = TEMPLATE_PAINT.bowlFarmer.cab;
 const SACK_COLOR = PAL.wall.top;
 const UP = new THREE.Vector3(0, 1, 0);
 

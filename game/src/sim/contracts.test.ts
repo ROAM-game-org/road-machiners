@@ -39,7 +39,7 @@ import {
 } from './market';
 
 function addRaider(w: World, templateId: string, pos = { x: 5, y: 5 }): Vehicle {
-  const v = addVehicle(w, 'raiders', 'buggy', [], pos);
+  const v = addVehicle(w, 'scrapjaw', 'buggy', [], pos);
   v.brain = npcBrain(templateId, pos, ['raider']);
   return v;
 }
@@ -247,7 +247,7 @@ describe('rollContract', () => {
     const raider = addRaider(w1, 'buggy');
     addRaider(w2, 'buggy');
     const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider]);
-    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'raiders')!]);
+    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'scrapjaw')!]);
     expect(c1).toEqual(c2);
   });
 
@@ -763,7 +763,7 @@ describe('bounties in a real fight', () => {
     const w = emptyWorld();
     w.rngState = seed;
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const ally = addVehicle(w, 'bowl', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 33 }, -Math.PI / 2);
     ally.brain = npcBrain('bowlFarmer', ally.pos, ['lawman']);

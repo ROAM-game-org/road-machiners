@@ -79,7 +79,7 @@ describe("backing up", () => {
   });
 
   it("an NPC backs up only while recovering", () => {
-    const npc = { faction: "raiders" as const, brain: npcBrain("buggy", { x: 0, y: 0 }, ["raider"]) };
+    const npc = { faction: "scrapjaw" as const, brain: npcBrain("buggy", { x: 0, y: 0 }, ["raider"]) };
     expect(backsToDestination(npc, 5, 0)).toBe(false);
     npc.brain.recovery = 1;
     expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(true);
@@ -89,8 +89,8 @@ describe("backing up", () => {
 describe("parked blockers", () => {
   it("leaves a truck on a tow rope out of the tower's route", () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 30, y: 30 });
-    const towed = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 32, y: 30 });
+    const tower = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 30, y: 30 });
+    const towed = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 32, y: 30 });
     addState(w, "tow", tower.id, towed.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
 
     expect(parkedVehicles(w, tower.id, getHitchedTowIds(w))).not.toContainEqual({ pos: towed.pos, r: chassisDef(towed.chassisId).radius });
@@ -106,7 +106,7 @@ describe("setting a stranded truck down", () => {
   it("moves the truck just clear of a truck under it", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const under = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...me.pos });
+    const under = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...me.pos });
     const gap = dist(setDownSpot(w, me), under.pos) - chassisDef(me.chassisId).radius - chassisDef("hauler").radius;
     expect(gap).toBeGreaterThan(0);
     expect(gap).toBeLessThan(1);

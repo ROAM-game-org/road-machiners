@@ -9,7 +9,7 @@ import { setUtilityOrder } from './world';
 
 function withUtility(defId: string): { w: World; v: Vehicle; part: PartInstance } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'traders', 'hauler', [defId], { x: 40, y: 30 });
+  const v = addVehicle(w, 'independent', 'hauler', [defId], { x: 40, y: 30 });
   const part = v.items.flatMap((it) => (it.kind === 'part' && it.part.defId === defId ? [it.part] : []))[0];
   return { w, v, part };
 }
@@ -56,7 +56,7 @@ describe('utility orders', () => {
 
   it('refuses a utility that is not mounted', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', [], { x: 40, y: 30 });
+    const v = addVehicle(w, 'independent', 'hauler', [], { x: 40, y: 30 });
     const part = makePart(w, 'sprout', 0);
     mountPart(w, v, part, ['F', 'B', 'L', 'R']);
 
