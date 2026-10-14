@@ -868,6 +868,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCatchUp_58_59,
   withDutyLegs_59_60,
   withoutOldRun_60_61,
+  withSceneHubsAtSceneStart_61_62,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -971,6 +972,15 @@ function withChoiceFreeScenes_52_53(world: SavedJson): SavedJson {
   if (quests.world.intro_step !== 'walk') return started;
   const { intro_step: _walk, ...rest } = quests.world;
   return withQuests(started, { ...quests, world: rest });
+}
+
+const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[] = [
+  ['wagon_seven', 'start.hub', 'start'],
+  ['wagon_bench', 'bench.hub', 'bench.report'],
+];
+
+function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
+  return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

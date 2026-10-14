@@ -11,6 +11,28 @@ function rigAt(): CameraRig {
   return new CameraRig(container);
 }
 
+describe('camera resize', () => {
+  it.each([[1280, 0], [0, 0], [0, 720]])('keeps screen points finite and unchanged at %i x %i', (w, h) => {
+    const size = { w: 1280, h: 720 };
+    const container = {
+      get clientWidth() { return size.w; },
+      get clientHeight() { return size.h; },
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 720 }),
+    } as HTMLElement;
+    const rig = new CameraRig(container);
+    rig.tick(0);
+    const point = { x: 5, y: 0, z: 3 };
+    const before = rig.screenOf(point);
+    size.w = w;
+    size.h = h;
+    rig.resize();
+    rig.tick(0);
+    const after = rig.screenOf(point);
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+  });
+});
+
 describe('camera picking', () => {
   it('hits the vehicle model but not nearby ground inside the old click radius', () => {
     const container = {

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
@@ -202,9 +203,23 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
+  });
+
+  it('public prints the proposals and the open build posts, and none when there are none', async () => {
+    const f = fake();
+    f.ctx.cfg.voteEmoji = '👍';
+    f.ctx.cfg.minVotes = 3;
+    await run(f, 'public');
+    expect(out).toEqual(['none']);
+    const store = openStore(ROOT);
+    store.addProposal(7, 'Winch\nPulls.', f.ctx.now());
+    store.close();
+    out = [];
+    await run(f, 'public');
+    expect(out).toEqual(['#7 proposal not posted yet: Winch']);
   });
 
   it('status asks the dashboard with the curl agent', async () => {
