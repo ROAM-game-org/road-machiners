@@ -115,9 +115,9 @@ describe('rams as attacks', () => {
     const w = emptyWorld({ x: 80, y: 80 });
     const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 }, 0);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
-    const victim = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 41.6, y: 40 }, Math.PI / 2);
+    const victim = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], { x: 41.6, y: 40 }, Math.PI / 2);
     victim.brain = npcBrain('scavenger', victim.pos, ['scavenger']);
-    const mate = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 44, y: 44 }, 0);
+    const mate = addVehicle(w, 'bowl', 'hauler', ['stockEngine'], { x: 44, y: 44 }, 0);
     mate.brain = npcBrain('scavenger', mate.pos, ['scavenger']);
     return { w, trader, victim, mate };
   }
@@ -131,7 +131,7 @@ describe('rams as attacks', () => {
     expect(victim.brain!.attackers).toEqual({});
   });
 
-  it('a victim that retaliates feuds with its mate against the rammer and decides on it as an attacker', () => {
+  it('a victim that retaliates feuds with its ally against the rammer and decides on it as an attacker', () => {
     forceOption('crashed', 'retaliate');
     const { w, trader, victim, mate } = ramSetup();
     applyCrash(w, trader, victim, victim.id, victim.pos, FULL_SPEED);

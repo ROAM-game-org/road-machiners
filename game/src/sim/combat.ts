@@ -31,7 +31,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { attacks, isAlly, noteDefeat, preys, reportIncident } from "./relations";
+import { attacks, huntsAsPrey, isAlly, noteDefeat, preys, reportIncident } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -66,7 +66,7 @@ export function isHostile(world: World, a: Vehicle, b: Vehicle): boolean {
 }
 
 export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): boolean {
-  return preys(world, raider, target) && !attacks(world, raider, target) && !attacks(world, target, raider);
+  return huntsAsPrey(world, raider, target) && !attacks(world, raider, target) && !attacks(world, target, raider);
 }
 
 export type ShotSource = { def: WeaponDef };

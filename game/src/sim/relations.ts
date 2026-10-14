@@ -109,8 +109,12 @@ export function attacks(world: World, a: Vehicle, b: Vehicle): boolean {
   return judges(a) && bandToward(world, a, b) === 'hostile';
 }
 
+export function huntsAsPrey(world: World, a: Vehicle, b: Vehicle): boolean {
+  return judges(a) && isRaider(a) && !bandAtLeast(bandToward(world, a, b), 'neutral');
+}
+
 export function preys(world: World, a: Vehicle, b: Vehicle): boolean {
-  return judges(a) && isRaider(a) && hasLoot(b) && !bandAtLeast(bandToward(world, a, b), 'neutral');
+  return hasLoot(b) && huntsAsPrey(world, a, b);
 }
 
 export function isAlly(world: World, a: Vehicle, b: Vehicle): boolean {
