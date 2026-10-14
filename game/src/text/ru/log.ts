@@ -355,6 +355,7 @@ export const LOG: Translation<typeof EN> = {
   'refusal.twoInTheWay': 'Мешает больше одного предмета',
   'refusal.refitItemMoved': 'Предмет для переоснащения сдвинулся или пропал',
   'refusal.builtInFixed': 'Встроенные детали не двигаются',
+  'refusal.parcelKept': 'Чужое не выкинуть',
   'refusal.salvageOutOfReach': 'Лом уже не достать',
   'refusal.salvagePartGone': 'Этой детали здесь больше нет',
   'refusal.builtInStays': 'Встроенные детали остаются на грузовике',

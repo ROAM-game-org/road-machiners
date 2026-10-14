@@ -57,6 +57,14 @@ export type GridItem =
       rot: Rot;
       kind: "good";
       good: string;
+    }
+  | {
+      id: string;
+      x: number;
+      y: number;
+      rot: Rot;
+      kind: "parcel";
+      contract: string;
     };
 
 export type Aim = "body" | string;
@@ -206,6 +214,7 @@ export type Refusal =
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
+  | { id: 'parcelKept' }
   | { id: 'salvageOutOfReach' }
   | { id: 'salvagePartGone' }
   | { id: 'builtInStays' }

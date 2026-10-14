@@ -20,7 +20,7 @@ import { practice, skillEffect, vehicleHasPerk } from "./progress";
 import { addStockPart, goodPrice, lotPrice, recordTrade, requireShop, shopAt, shopState, siteOf, takeStockPart } from "./market";
 import { canUseSite, requireTown, townAt, townNear } from "./sites";
 import { corePart, coreParts, freeCells, goodsCount, mountedParts } from "./grid";
-import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowPart } from "./inventory";
+import { addGoods, cargoRoom, mountPart, removeGoods, spareParts, stowParcel, stowPart, type ParcelItem } from "./inventory";
 import type { NpcState, PartInstance, Refusal, ShopMoneyKind, Vehicle, World } from "./types";
 import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
@@ -590,15 +590,23 @@ export function swapChassis(world: World, chassisId: string): void {
   const mounted = new Set(mountedParts(me).map((p) => p.id));
   const goods = goodsCount(me);
   const parts = movableParts(me);
+  const parcels = me.items.filter((it): it is ParcelItem => it.kind === "parcel");
   me.chassisId = chassisId;
   me.items = [];
   addCoreParts(world, me);
   for (const part of parts) placeSwappedPart(world, me, part, mounted.has(part.id));
+  restowParcels(me, parcels);
   for (const [good, n] of Object.entries(goods)) {
     if (addGoods(world, me, good, n) < n) throw new Refused({ id: "noCargoRoom" });
   }
   me.weaponOrders = {};
   fitStores(world, me);
+}
+
+function restowParcels(v: Vehicle, parcels: ParcelItem[]): void {
+  for (const parcel of parcels) {
+    if (!stowParcel(v, parcel)) throw new Refused({ id: "noCargoRoom" });
+  }
 }
 
 function movableParts(v: Vehicle): PartInstance[] {

@@ -84,6 +84,7 @@ function partNameIn(vehicles: (Vehicle | undefined)[], loose: PartInstance[], pa
 }
 
 function itemName(it: GridItem): Msg {
+  if (it.kind === 'parcel') return t('item.parcel');
   return it.kind === 'part' ? partNameOf(it.part.defId) : goodName(it.good);
 }
 
@@ -541,6 +542,12 @@ function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine 
   const what = contractSummary(c);
   const text = outcome === 'expiring' ? t('log.contract.expiring', { what, due: contractDue(c) }) : t(`log.contract.${outcome}`, { what, reward: moneyMsg(c.reward) });
   return line(text, cls);
+}
+
+export function parcelTitle(world: World, parcel: Extract<GridItem, { kind: 'parcel' }>): Msg {
+  const c = world.player.contracts.find((x) => x.id === parcel.contract);
+  if (c?.kind !== 'search') throw new Error(`Parcel ${parcel.id} has no search contract ${parcel.contract}`);
+  return t('item.parcelFor', { who: searchTarget(c) });
 }
 
 export function searchTarget(c: Extract<Contract, { kind: 'search' }>): Msg {

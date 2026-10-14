@@ -379,7 +379,7 @@ function sellGearFor(o: Orders, shopId: string, price: number): void {
 function onEngineCells(v: Vehicle): string {
   const g = gridOf(v);
   const onEngine = (it: GridItem) => itemCells(it).some((c) => MOUNT_CELLS.engine.includes(g.cells[c.y]?.[c.x] ?? '.'));
-  const names = v.items.filter(onEngine).map((it) => (it.kind === 'part' ? `${it.part.defId} hp ${it.part.hp}${isMounted(v.chassisId, it) ? ' mounted' : ''}` : `good ${it.good}`));
+  const names = v.items.filter(onEngine).map((it) => (it.kind === 'part' ? `${it.part.defId} hp ${it.part.hp}${isMounted(v.chassisId, it) ? ' mounted' : ''}` : `${it.kind} ${it.kind === 'good' ? it.good : it.contract}`));
   return names.length > 0 ? names.join(', ') : 'nothing';
 }
 
