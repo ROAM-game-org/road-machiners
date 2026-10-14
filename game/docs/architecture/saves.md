@@ -33,12 +33,12 @@
 - The log is a stream of what the player's view held, like a multiplayer game's network stream. A truck enters the view with its full description. Each turn after that sends only what changed. Then the truck leaves.
 - A truck is in scope while the player owns it (faction `player`), while the player sees it, and in a turn where an event ties it to a player truck, such as a shot from out of sight. Scope never reads the mode or the map id.
 - Every line has its turn. These are the line kinds.
-- `session` holds the run id, version, seed, mode, settings and map hash. Its `from` says how the session began: `new`, a slot id, `day` or `record`.
+- `session` holds the run id, version, seed, mode, settings and map hash. Its `from` says how the session began: `new`, a slot id, `day`, `resync` or `record`.
 - `player` holds money, XP, ranks, perks, storage and switches. After the keyframe it holds only the fields that changed.
 - `enter` holds the id, template, faction, chassis and driver. It also holds every part with health, goods, position, heading, speed, order, gun and utility orders, goals, states, fuel, supplies and money.
 - `moves` holds `[id, x, y, heading, speed]` for each truck that moved.
 - `change` names one truck and holds only the fields that changed.
-- `leave` names one truck and the reason: wrecked, knockedOut, despawned, window or unseen.
+- `leave` names one truck and the reason: wrecked, knockedOut, despawned, window, gone or unseen. Gone means the truck no longer exists and no event says why. Unseen means it still exists but is out of view.
 - `event` is one game event, or a merged group of shots or collisions.
 - A `session` line is followed by a `player` line and an `enter` for every truck in scope, so any session reads on its own. It is written at New game, at each load and at each day start.
 - An `event` line is any event that names a truck in scope, plus the player's own outcomes. A turn's shots from one shooter at one target merge into one line with the weapons, rounds, hits, damage per part and the parts they disabled. A turn's collisions between two trucks merge the same way. Practice, arrivals, spawns, talk, weather and other clutter stay out.
@@ -47,6 +47,9 @@
 - The game hands the log every world it takes: after each command, at the start of each turn's playback and after a talk. The log writes each world once and each events array once. It diffs against the last line it wrote, so a world that shares events with the last one adds no event twice. The database numbers records inside the write, so two tabs on one run never take the same number.
 - The turn that moves the highway window is logged before the page reloads. The next boot starts a new `session` at the same turn.
 - The log is append-only. After a load the turns can run backwards. A reader drops the records after the load's turn that came before it. `npm run run:timeline` does this.
+- Every line carries `sid`, a session id that is new at each boot of the log. Two tabs on one run write two streams with two session ids, and their lines interleave in the store. Each stream starts with its own keyframe, so a reader rebuilds state per session id and never mixes deltas from two tabs. `replayBySession` and `npm run run:timeline` do this.
+- A write that fails leaves the log without lines the stream already counted as written. The next world after a failed write starts a new `session` keyframe with `from` set to `resync`, so no delta sits on a base the log never stored.
+- A load or a new boot has a new session id. The reader drops the earlier session's records after the load's turn only when that session wrote nothing after the load began. A session that goes on writing is another tab, and its records stay.
 - A run that began on an older build keeps its old records, such as `start`, `loaded`, `day` and `change` without a truck id, before the first `session` line. `npm run run:timeline` skips them and says how many.
 - The Save panel's Export run log button downloads the run as JSON Lines: a header with the run id, game version, seed and map hash, then one record per line. Export save downloads the current game as a save envelope in JSON.
 

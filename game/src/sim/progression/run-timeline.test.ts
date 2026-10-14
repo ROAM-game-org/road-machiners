@@ -8,7 +8,7 @@ import { refreshVision } from '../vision';
 import { cloneWorld } from '../world';
 import { linearize, skippedBeforeSession, STALL_TURNS, timeline } from './run-timeline';
 
-const CTX = { runId: 'test', version: 'test' };
+const CTX = { runId: 'test', version: 'test', sessionId: 's1' };
 
 function line(kind: string, turn: number, rest: Record<string, unknown> = {}): StreamLine {
   return { kind, turn, ...rest };
@@ -60,6 +60,16 @@ describe('linearize', () => {
     const lines = [line('header', 0), ...old, line('session', 4), line('player', 4)];
     expect(linearize(lines).map((l) => l.kind)).toEqual(['session', 'player']);
     expect(skippedBeforeSession(lines)).toBe(3);
+  });
+
+  it('keeps the records of a tab that goes on after another tab started a session', () => {
+    const lines = [line('session', 1, { sid: 'a' }), line('moves', 9, { sid: 'a' }), line('session', 5, { sid: 'b' }), line('moves', 10, { sid: 'a' }), line('moves', 6, { sid: 'b' })];
+    expect(linearize(lines).map((l) => `${l.sid}${l.kind}${l.turn}`)).toEqual(['asession1', 'amoves9', 'bsession5', 'amoves10', 'bmoves6']);
+  });
+
+  it('drops a finished boot that a later boot rewound past', () => {
+    const lines = [line('session', 1, { sid: 'a' }), line('moves', 9, { sid: 'a' }), line('session', 5, { sid: 'b' }), line('moves', 6, { sid: 'b' })];
+    expect(linearize(lines).map((l) => `${l.sid}${l.kind}${l.turn}`)).toEqual(['asession1', 'bsession5', 'bmoves6']);
   });
 
   it('skips the export header', () => {

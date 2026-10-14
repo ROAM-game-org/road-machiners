@@ -1,3 +1,4 @@
+import { timed } from '../perf';
 import { RunStream, type StreamLine } from '../sim/run-stream';
 import type { GameEvent, World } from '../sim/types';
 import type { SaveBackend } from './save-db';
@@ -8,9 +9,10 @@ export class RunLog {
   private seenWorlds = new WeakSet<World>();
   private seenEvents = new WeakSet<GameEvent[]>();
   private pending = new Set<Promise<void>>();
+  private lost = false;
 
   constructor(private backend: SaveBackend, readonly runId: string, version: string, private onError: (err: unknown) => void) {
-    this.stream = new RunStream({ runId, version });
+    this.stream = new RunStream({ runId, version, sessionId: freshSessionId() });
   }
 
   begin(world: World, loadedFrom: SlotId | null): void {
@@ -24,7 +26,13 @@ export class RunLog {
     const fresh = !this.seenEvents.has(world.events);
     this.seenWorlds.add(world);
     this.seenEvents.add(world.events);
-    this.write(this.stream.step(world, fresh ? world.events : []));
+    const events = fresh ? world.events : [];
+    this.write(this.lost ? this.resync(world, events) : timed('runLog', () => this.stream.step(world, events)));
+  }
+
+  private resync(world: World, events: readonly GameEvent[]): StreamLine[] {
+    this.lost = false;
+    return [...this.stream.begin(world, 'resync'), ...this.stream.step(world, events)];
   }
 
   async flush(): Promise<void> {
@@ -38,7 +46,14 @@ export class RunLog {
 
   private write(entries: StreamLine[]): void {
     if (entries.length === 0) return;
-    const done = Promise.resolve().then(() => this.backend.appendLog(this.runId, entries)).catch(this.onError).finally(() => this.pending.delete(done));
+    const done = Promise.resolve().then(() => this.backend.appendLog(this.runId, entries)).catch((err) => {
+      this.lost = true;
+      this.onError(err);
+    }).finally(() => this.pending.delete(done));
     this.pending.add(done);
   }
+}
+
+function freshSessionId(): string {
+  return [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

@@ -3,7 +3,7 @@ import { atlasOf } from './atlas';
 import { playerVehicle } from './damage';
 import { waitForRoad } from './fury-road';
 import { highwayMap, WINDOW_SHIFT } from './highway';
-import { replay, RunStream, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
+import { playerFields, replay, replayBySession, RunStream, scopeOf, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
 import { addVehicle, emptyWorld, parkedAtOutpost, startCombat } from './testkit';
 import { clockOf } from './sun';
 import type { GameEvent, Vehicle, World } from './types';
@@ -11,7 +11,7 @@ import { refreshVision } from './vision';
 import { cloneWorld, endTurn, setMoveOrder } from './world';
 import { FAR_MOVER } from './progression/record';
 
-const CTX = { runId: 'test', version: 'test' };
+const CTX = { runId: 'test', version: 'test', sessionId: 's1' };
 
 function ofKind(lines: StreamLine[], kind: string): StreamLine[] {
   return lines.filter((l) => l.kind === kind);
@@ -41,6 +41,14 @@ function shot(shooter: string, target: string, weapon: string, damage: number): 
 
 function loggedFields(world: World, v: Vehicle) {
   return truckFields(world, v, statesByHolder(world.states).get(v.id) ?? []);
+}
+
+function expectRebuilt(lines: StreamLine[], world: World): void {
+  const rebuilt = replay(lines);
+  const scope = scopeOf(world, world.events).map((v) => v.id);
+  expect([...rebuilt.trucks.keys()].sort()).toEqual([...scope].sort());
+  for (const [id, fields] of rebuilt.trucks) expect(fields).toEqual(loggedFields(world, world.vehicles.find((x) => x.id === id)!));
+  expect(rebuilt.player).toEqual(playerFields(world));
 }
 
 describe('world positions', () => {
@@ -87,7 +95,7 @@ describe('scope and keyframe', () => {
       w.vehicles.find((v) => v.id === near.id)!.pos = { x: 110, y: 110 };
       w.player.visible = [];
     });
-    expect(ofKind(stream.step(gone, []), 'leave')).toEqual([{ kind: 'leave', turn: gone.turn, id: near.id, why: 'unseen' }]);
+    expect(ofKind(stream.step(gone, []), 'leave')).toEqual([{ kind: 'leave', turn: gone.turn, id: near.id, why: 'unseen', sid: 's1' }]);
     const back = next(gone, (w) => refreshVision(w));
     expect(ofKind(stream.step(back, []), 'enter').map((l) => l.id)).toEqual([]);
   });
@@ -104,7 +112,7 @@ describe('scope and keyframe', () => {
     expect(ofKind(lines, 'event')[0]).toMatchObject({ t: 'destroyed', vehicle: near.id });
   });
 
-  it('gives the killer that drives out of sight its own reason, not the victim one', () => {
+  it('gives a killer that is gone its own reason, not the victim one', () => {
     const { world, near } = seeing();
     const stream = new RunStream(CTX);
     stream.begin(world, 'new');
@@ -118,7 +126,7 @@ describe('scope and keyframe', () => {
     const lines = stream.step(after, [{ t: 'destroyed', vehicle: near.id, by: killer.id }]);
     const reasons = Object.fromEntries(ofKind(lines, 'leave').map((l) => [l.id, l.why]));
     expect(reasons[near.id]).toBe('wrecked');
-    expect(reasons[killer.id]).toBe('unseen');
+    expect(reasons[killer.id]).toBe('gone');
   });
 
   it('writes a new keyframe at each day start', () => {
@@ -161,7 +169,7 @@ describe('moves and changes', () => {
       v.order = { kind: 'brake' };
     });
     const change = ofKind(stream.step(hurt, []), 'change')[0];
-    expect(Object.keys(change).sort()).toEqual(['id', 'kind', 'order', 'parts', 'turn']);
+    expect(Object.keys(change).sort()).toEqual(['id', 'kind', 'order', 'parts', 'sid', 'turn']);
     expect(Object.keys(change.parts as object)).toEqual([part.kind === 'part' ? part.part.id : '']);
   });
 });
@@ -234,21 +242,11 @@ describe('player', () => {
     stream.begin(world, 'new');
     const paid = next(world, (w) => { w.player.money += 40; w.player.autoFire = !w.player.autoFire; });
     const line = ofKind(stream.step(paid, []), 'player')[0];
-    expect(Object.keys(line).sort()).toEqual(['autoFire', 'kind', 'money', 'turn']);
+    expect(Object.keys(line).sort()).toEqual(['autoFire', 'kind', 'money', 'sid', 'turn']);
   });
 });
 
 describe('replaying the stream', () => {
-  function expectRebuilt(lines: StreamLine[], world: World): void {
-    const rebuilt = replay(lines);
-    for (const [id, fields] of rebuilt.trucks) {
-      const v = world.vehicles.find((x) => x.id === id)!;
-      expect(fields).toEqual(loggedFields(world, v));
-    }
-    const owned = world.vehicles.filter((v) => v.faction === 'player').map((v) => v.id);
-    expect([...rebuilt.trucks.keys()]).toEqual(expect.arrayContaining(owned));
-  }
-
   it('rebuilds the logged fields of every truck in scope in a Roaming fight', () => {
     const { world } = seeing();
     const foe = world.vehicles.find((v) => v.faction === 'raiders')!;
@@ -312,5 +310,46 @@ describe('writing the stream', () => {
     for (const world of [seeing().world, parkedAtOutpost()]) {
       expect(new RunStream(CTX).begin(world, 'new').map((l) => l.kind)).toEqual(expect.arrayContaining(['session', 'player', 'enter']));
     }
+  });
+
+  it('rebuilds a truck that leaves and re-enters view, across a day-start keyframe', () => {
+    const { world, near } = seeing();
+    const stream = new RunStream(CTX);
+    const lines = stream.begin(world, 'new');
+    const hidden = next(world, (w) => {
+      w.vehicles.find((v) => v.id === near.id)!.pos = { x: 110, y: 110 };
+      w.player.visible = [];
+    });
+    lines.push(...stream.step(hidden, []));
+    let turn = hidden.turn + 1;
+    while (clockOf(turn).day === clockOf(hidden.turn).day) turn++;
+    const dayStart = next(hidden, (w) => {
+      w.turn = turn;
+      w.vehicles.find((v) => v.id === near.id)!.pos = { x: 39, y: 31 };
+      refreshVision(w);
+    });
+    lines.push(...stream.step(dayStart, []));
+    const later = next(dayStart, (w) => { w.vehicles.find((v) => v.id === near.id)!.pos = { x: 40, y: 31 }; });
+    lines.push(...stream.step(later, []));
+    expect(ofKind(lines, 'leave').map((l) => l.id)).toContain(near.id);
+    expect(ofKind(lines, 'session').map((l) => l.from)).toEqual(['new', 'day']);
+    expectRebuilt(lines, later);
+  });
+
+  it('stamps the session id on every line and rebuilds two interleaved tabs apart', () => {
+    const { world } = seeing();
+    const a = new RunStream({ ...CTX, sessionId: 'a' });
+    const b = new RunStream({ ...CTX, sessionId: 'b' });
+    const lines = [...a.begin(world, 'new'), ...b.begin(world, 'auto')];
+    const moved = next(world, (w) => { playerVehicle(w).pos.x += 3; });
+    lines.push(...a.step(moved, []));
+    const money = next(world, (w) => { w.player.money += 9; });
+    lines.push(...b.step(money, []));
+    expect(lines.every((l) => l.sid === 'a' || l.sid === 'b')).toBe(true);
+    const readers = replayBySession(lines);
+    expect(readers.get('a')!.player).toEqual(playerFields(moved));
+    expect(readers.get('b')!.player).toEqual(playerFields(money));
+    expect(readers.get('a')!.trucks.get(playerVehicle(moved).id)!.pos).toEqual(worldPos(moved, playerVehicle(moved).pos));
+    expect(readers.get('b')!.trucks.get(playerVehicle(money).id)!.pos).toEqual(worldPos(money, playerVehicle(money).pos));
   });
 });

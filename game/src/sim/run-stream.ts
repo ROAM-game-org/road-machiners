@@ -286,7 +286,7 @@ export function eventLines(world: World, events: readonly GameEvent[], scope: Re
 }
 
 
-export type StreamContext = { runId: string; version: string };
+export type StreamContext = { runId: string; version: string; sessionId: string };
 export type StreamState = { turn: number; day: number; mapHash: string; trucks: Map<string, Fields>; player: Fields };
 export type StreamStep = { lines: StreamLine[]; state: StreamState };
 
@@ -311,7 +311,7 @@ function tiedIds(world: World, events: readonly GameEvent[], owned: ReadonlySet<
   return tied;
 }
 
-function scopeOf(world: World, events: readonly GameEvent[]): Vehicle[] {
+export function scopeOf(world: World, events: readonly GameEvent[]): Vehicle[] {
   const owned = ownedIds(world);
   const inScope = new Set([...owned, ...seenIds(world), ...tiedIds(world, events, owned)]);
   return world.vehicles.filter((v) => inScope.has(v.id));
@@ -378,7 +378,8 @@ const LEAVE_REASONS: Partial<Record<GameEvent['t'], string>> = { destroyed: 'wre
 function leaveReason(world: World, prev: StreamState, events: readonly GameEvent[], id: string): string {
   const cause = events.find((e) => LEAVE_REASONS[e.t] !== undefined && (e as { vehicle?: string }).vehicle === id);
   if (cause) return LEAVE_REASONS[cause.t] as string;
-  return prev.mapHash === world.mapHash ? 'unseen' : 'window';
+  if (prev.mapHash !== world.mapHash) return 'window';
+  return world.vehicles.some((v) => v.id === id) ? 'unseen' : 'gone';
 }
 
 function leaveLines(world: World, prev: StreamState, events: readonly GameEvent[], now: Map<string, Fields>): StreamLine[] {
@@ -411,19 +412,23 @@ export class RunStream {
   begin(world: World, from: string): StreamLine[] {
     const step = streamKeyframe(world, this.ctx, from);
     this.state = step.state;
-    return step.lines;
+    return this.stamped(step.lines);
   }
 
   step(world: World, events: readonly GameEvent[]): StreamLine[] {
     if (this.state === null) throw new Error('The run stream has no session, so begin() comes first');
     const step = streamStep(this.state, world, events, this.ctx);
     this.state = step.state;
-    return step.lines;
+    return this.stamped(step.lines);
+  }
+
+  private stamped(lines: StreamLine[]): StreamLine[] {
+    return lines.map((line) => ({ ...line, sid: this.ctx.sessionId }));
   }
 }
 
 
-const NON_FIELDS = new Set(['kind', 'turn', 'id']);
+const NON_FIELDS = new Set(['kind', 'turn', 'id', 'sid']);
 
 function fieldsOf(line: StreamLine): Fields {
   return Object.fromEntries(Object.entries(line).filter(([key]) => !NON_FIELDS.has(key)));
@@ -483,5 +488,16 @@ export function replay(lines: readonly StreamLine[]): StreamReader {
   const reader = new StreamReader();
   for (const line of lines) reader.apply(line);
   return reader;
+}
+
+export function replayBySession(lines: readonly StreamLine[]): Map<string, StreamReader> {
+  const readers = new Map<string, StreamReader>();
+  for (const line of lines) {
+    const sid = String(line.sid);
+    const reader = readers.get(sid) ?? new StreamReader();
+    readers.set(sid, reader);
+    reader.apply(line);
+  }
+  return readers;
 }
 

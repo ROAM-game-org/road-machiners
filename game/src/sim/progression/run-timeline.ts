@@ -18,12 +18,25 @@ const NOTED_EVENTS = new Set(['death', 'knockout', 'wake', 'runLost', 'roadOpene
 const ORDER_KEYS = ['order', 'guns', 'utils'] as const;
 const sum = (values: Damage | undefined) => Object.values(values ?? {}).reduce((a, b) => a + b, 0);
 
+function lastIndexBySession(records: readonly StreamLine[]): Map<string, number> {
+  const last = new Map<string, number>();
+  records.forEach((record, at) => last.set(String(record.sid), at));
+  return last;
+}
+
+function survives(kept: StreamLine, session: StreamLine, at: number, last: ReadonlyMap<string, number>): boolean {
+  if (kept.turn <= session.turn) return true;
+  return kept.sid !== session.sid && (last.get(String(kept.sid)) ?? -1) > at;
+}
+
 export function linearize(records: readonly StreamLine[]): StreamLine[] {
+  const usable = records.slice(firstSession(records));
+  const last = lastIndexBySession(usable);
   let out: StreamLine[] = [];
-  for (const record of records.slice(firstSession(records))) {
-    if (record.kind === 'session') out = out.filter((kept) => kept.turn <= record.turn);
+  usable.forEach((record, at) => {
+    if (record.kind === 'session') out = out.filter((kept) => survives(kept, record, at, last));
     if (record.kind !== 'header') out.push(record);
-  }
+  });
   return out;
 }
 
@@ -295,13 +308,25 @@ function sectionTitle(key: number, by: Grouping): string {
   return key === 0 ? 'Before the first road opening' : `Stretch ${key}`;
 }
 
+function timelinesBySession(records: readonly StreamLine[]): Timeline[] {
+  const bySession = new Map<string, Timeline>();
+  for (const line of linearize(records)) {
+    const sid = String(line.sid);
+    const tl = bySession.get(sid) ?? new Timeline();
+    bySession.set(sid, tl);
+    tl.feed(line);
+  }
+  const all = [...bySession.values()];
+  all.forEach((tl) => tl.finish());
+  return all;
+}
+
 export function timeline(records: readonly StreamLine[], by: Grouping): string[] {
-  const tl = new Timeline();
-  for (const line of linearize(records)) tl.feed(line);
-  tl.finish();
+  const all = timelinesBySession(records);
+  const openings = all.flatMap((tl) => tl.openings).sort((a, b) => a.turn - b.turn);
   const sections = new Map<number, string[]>();
-  for (const entry of [...tl.entries].sort((a, b) => a.turn - b.turn)) {
-    const key = sectionKey(entry, by, tl.openings);
+  for (const entry of all.flatMap((tl) => tl.entries).sort((a, b) => a.turn - b.turn)) {
+    const key = sectionKey(entry, by, openings);
     sections.set(key, [...(sections.get(key) ?? []), `T${entry.turn} ${entry.text}`]);
   }
   return [...sections].flatMap(([key, lines]) => [`== ${sectionTitle(key, by)} ==`, ...lines]);

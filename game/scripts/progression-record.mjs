@@ -193,7 +193,7 @@ function writeStream(streamFd, stream, step) {
 
 function writeSteps({ fd, turnsFd, worldFd, runFd, streamFd }, name, archetype, steps, progress) {
   const job = new JobTally();
-  const stream = { started: false, writer: new RunStream({ runId: name, version: 'recorder' }) };
+  const stream = { started: false, writer: new RunStream({ runId: name, version: 'recorder', sessionId: name }) };
   const runLog = new RunLog();
   let before = null;
   for (const step of steps) {

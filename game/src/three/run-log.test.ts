@@ -89,6 +89,38 @@ describe('RunLog', () => {
     expect(lines.slice(0, 3).map((l) => l.kind)).toEqual(['header', 'session', 'player']);
   });
 
+  it('writes a resync keyframe after a failed write, so no delta sits on a base the log never stored', async () => {
+    const backend = memoryBackend();
+    let fail = true;
+    const flaky = { ...backend, appendLog: (id: string, entries: Parameters<typeof backend.appendLog>[1]) => (fail ? Promise.reject(new Error('Quota exceeded')) : backend.appendLog(id, entries)) };
+    const world = start();
+    const log = new RunLog(flaky, 'run', 'v', () => {});
+    log.begin(world, null);
+    await log.flush();
+    fail = false;
+    log.note(after(world, (w) => { w.turn += 1; w.player.money += 5; }));
+    await log.flush();
+
+    const records = await backend.readLog('run');
+
+    expect(records.map((r) => r.kind).slice(0, 2)).toEqual(['session', 'player']);
+    expect(records[0]).toMatchObject({ from: 'resync' });
+    expect(records.find((r) => r.kind === 'player')).toMatchObject({ money: world.player.money + 5 });
+  });
+
+  it('gives each log its own session id on every line', async () => {
+    const backend = memoryBackend();
+    const world = start();
+    const one = new RunLog(backend, 'run', 'v', () => {});
+    const two = new RunLog(backend, 'run', 'v', () => {});
+    one.begin(world, null);
+    two.begin(world, null);
+    await Promise.all([one.flush(), two.flush()]);
+    const ids = new Set((await backend.readLog('run')).map((r) => r.sid));
+    expect(ids.size).toBe(2);
+    expect(ids.has(undefined)).toBe(false);
+  });
+
   it('sends a refused write to onError', async () => {
     const errors: unknown[] = [];
     const refusing = { ...memoryBackend(), appendLog: () => Promise.reject(new Error('Quota exceeded')) };
