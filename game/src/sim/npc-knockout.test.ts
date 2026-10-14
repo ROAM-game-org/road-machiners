@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cabKnockChance } from './cab-knock';
 import { maxHp } from './wear';
 import { RULES } from '../data/rules';
-import { autoOrders, isFoe, resolveDestroyed } from './combat';
+import { autoOrders, isHostile, resolveDestroyed } from './combat';
 import { advanceNpcKnockouts, checkKnockout, knockOutNpc, refitAtHome } from './defeat';
 import { corePart, coreParts } from './grid';
 import { addVehicle, emptyWorld, npcBrain, rngStateWhere } from './testkit';
@@ -71,7 +71,7 @@ describe('NPC knockout', () => {
     expect(me.weaponOrders).toEqual({});
     autoOrders(w, me);
     expect(me.weaponOrders).toEqual({});
-    expect(isFoe(w, me, buggy)).toBe(false);
+    expect(isHostile(w, me, buggy)).toBe(false);
   });
 
   it('lets the player aim at it by hand', () => {

@@ -44,7 +44,7 @@ import { reachedOutpostAt } from '../fury-road';
 import { outpostFort } from '../highway';
 import { runnerOrders } from './runner';
 import { BIGGEST_PART_CELLS, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
-import { isOutlaw } from '../relations';
+import { isAlly, isOutlaw } from '../relations';
 
 export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'climber' | 'markov' | 'escort' | 'sprinter';
 export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'climber', 'markov', 'escort', 'sprinter'];
@@ -683,7 +683,7 @@ function engageFoe(o: Orders): boolean {
 const HUNT_MARGIN = 4;
 
 function huntable(world: World, foe: Vehicle): boolean {
-  const group = world.vehicles.filter((v) => v.id === foe.id || (v.faction === foe.faction && !isKnockedOut(v) && dist(v.pos, foe.pos) <= SPAWN.neighborHelp));
+  const group = world.vehicles.filter((v) => v.id === foe.id || (!isKnockedOut(v) && dist(v.pos, foe.pos) <= SPAWN.neighborHelp && isAlly(world, v, foe)));
   const danger = strengthRatio(fightOdds(world, [playerVehicle(world)], group)) * (1 + NPC_BEHAVIOR.dangerSpread);
   return danger * HUNT_MARGIN <= 1;
 }

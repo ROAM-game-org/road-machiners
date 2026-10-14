@@ -23,12 +23,13 @@ import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } fr
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
+import { isAlly } from './relations';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
 function sideOf(world: World, v: Vehicle): Vehicle[] {
   if (!v.brain) return [v];
-  return world.vehicles.filter((x) => x.id === v.id || (x.brain && x.faction === v.faction && dist(x.pos, v.pos) <= SPAWN.neighborHelp));
+  return world.vehicles.filter((x) => x.id === v.id || (x.brain && dist(x.pos, v.pos) <= SPAWN.neighborHelp && isAlly(world, x, v)));
 }
 
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {

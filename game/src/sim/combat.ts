@@ -10,7 +10,7 @@ import { blastLanes, heldPart, laneCount, lanePoint, partLane, planLane, sideTow
 import { wholeDamage } from './damage';
 import { bodyOf } from './body';
 import { rollCabKnock } from "./cab-knock";
-import { corePart, hasLoot, itemSize, mountedItems, mountedParts } from './grid';
+import { corePart, itemSize, mountedItems, mountedParts } from './grid';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { canVehicleSee, hasLineOfFire } from './vision';
 import { createWreckSalvage, removeStocks } from './salvage';
@@ -32,7 +32,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { isOutlaw } from "./relations";
+import { attacks, isAlly, isOutlaw, preys } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -50,16 +50,7 @@ export type FireBlock =
   | "shutDown"
   | "lineOut";
 
-export function inFeud(world: World, a: Vehicle, b: Vehicle): boolean {
-  return stateOf(world, "feud", a.id, b.id) !== null || stateOf(world, "feud", b.id, a.id) !== null;
-}
-
-export function isFoe(world: World, a: Vehicle, b: Vehicle): boolean {
-  if (a.id === b.id || isOutOfFight(world, a, b)) return false;
-  if (inFeud(world, a, b)) return true;
-  if (inTruce(world, a, b)) return false;
-  return isOutlaw(a.faction) !== isOutlaw(b.faction);
-}
+export { inFeud, inTruce } from "./relations";
 
 function isOutOfFight(world: World, a: Vehicle, b: Vehicle): boolean {
   return isDefeated(a) || isDefeated(b) || isRopeShielded(world, a, b);
@@ -70,26 +61,13 @@ function isRopeShielded(world: World, a: Vehicle, b: Vehicle): boolean {
   return towHeldBy(world, a.id)?.other !== b.id && towHeldBy(world, b.id)?.other !== a.id;
 }
 
-export function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
-  return stateOf(world, "truce", a.id, b.id) !== null || stateOf(world, "truce", b.id, a.id) !== null;
-}
-
 export function isHostile(world: World, a: Vehicle, b: Vehicle): boolean {
-  if (!isFoe(world, a, b)) return false;
-  if (inFeud(world, a, b) || isLawPair(a, b)) return true;
-  return hasLoot(isOutlaw(a.faction) ? b : a);
+  if (a.id === b.id || isOutOfFight(world, a, b)) return false;
+  return attacks(world, a, b) || attacks(world, b, a) || preys(world, a, b) || preys(world, b, a);
 }
 
 export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): boolean {
-  return isOutlaw(raider.faction) && !isOutlaw(target.faction) && !inFeud(world, raider, target) && !isLawPair(raider, target);
-}
-
-function isLawPair(a: Vehicle, b: Vehicle): boolean {
-  return (isLawman(a) && isOutlaw(b.faction)) || (isLawman(b) && isOutlaw(a.faction));
-}
-
-function isLawman(v: Vehicle): boolean {
-  return v.brain?.traits.includes("lawman") === true;
+  return preys(world, raider, target) && !attacks(world, raider, target) && !attacks(world, target, raider);
 }
 
 export type ShotSource = { def: WeaponDef };
@@ -884,12 +862,9 @@ function noteStray(world: World, s: Shot, e: { rounds: ShotRound[] }): void {
 
 export function judgeStray(world: World, shooter: Vehicle, victim: Vehicle, damage: number): void {
   if (isHostile(world, victim, shooter)) recordAttack(world, shooter, victim);
-  else if (victim.brain && !sidesWith(world, victim, shooter)) sumStray(world, shooter, victim, damage);
+  else if (victim.brain && !isAlly(world, victim, shooter)) sumStray(world, shooter, victim, damage);
 }
 
-function sidesWith(world: World, a: Vehicle, b: Vehicle): boolean {
-  return a.faction === b.faction || boundTo(world, a.id, b.id);
-}
 
 function sumStray(world: World, shooter: Vehicle, victim: Vehicle, damage: number): void {
   const held = stateOf(world, "strayFire", victim.id, shooter.id);
@@ -912,7 +887,7 @@ export function callLawmen(world: World, aggressor: Vehicle, victim: Vehicle): v
 }
 
 function answersCall(world: World, v: Vehicle, aggressor: Vehicle, victim: Vehicle): boolean {
-  if (v.id === aggressor.id || !isLawman(v)) return false;
+  if (v.id === aggressor.id || v.brain?.traits.includes("lawman") !== true) return false;
   return canVehicleSee(world, v, aggressor.pos) && canVehicleSee(world, v, victim.pos);
 }
 

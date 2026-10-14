@@ -43,7 +43,7 @@ import { icarusAtlas } from './atlas';
 import { canVehicleSee } from './vision';
 import { huntsOffRoad } from './hunt-style';
 import { postsOf } from './watch-posts';
-import { isOutlaw, isRaider } from './relations';
+import { bandAtLeast, bandToward, isAlly, isOutlaw, isRaider } from './relations';
 
 export type NpcProfile = {
   towns: string[];
@@ -119,8 +119,8 @@ export function firepower(world: World, vehicle: Vehicle): number {
 }
 
 function localGroup(world: World, observer: Vehicle, member: Vehicle): Vehicle[] {
-  return world.vehicles.filter((v) => !isDefeated(v) && (v.id === member.id || (v.id !== observer.id && v.faction === member.faction
-    && dist(v.pos, member.pos) <= SPAWN.neighborHelp && canVehicleSee(world, observer, v.pos))));
+  return world.vehicles.filter((v) => !isDefeated(v) && (v.id === member.id || (v.id !== observer.id && dist(v.pos, member.pos) <= SPAWN.neighborHelp
+    && isAlly(world, v, member) && canVehicleSee(world, observer, v.pos))));
 }
 
 function ownGroup(world: World, vehicle: Vehicle): Vehicle[] {
@@ -199,7 +199,7 @@ function aimsOf(other: Vehicle): string[] {
 
 function isNearbyMate(world: World, vehicle: Vehicle, id: string): boolean {
   const mate = world.vehicles.find((v) => v.id === id);
-  if (!mate || mate.faction !== vehicle.faction) return false;
+  if (!mate || mate.id === vehicle.id || !isAlly(world, vehicle, mate)) return false;
   return dist(mate.pos, vehicle.pos) <= SPAWN.neighborHelp && canVehicleSee(world, vehicle, mate.pos);
 }
 
@@ -491,7 +491,8 @@ export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
 }
 
 function isFairGame(w: World, robber: Vehicle, target: Vehicle): boolean {
-  return !isHostile(w, robber, target) && !boundTo(w, robber.id, target.id) && !inTruce(w, robber, target);
+  if (isHostile(w, robber, target) || boundTo(w, robber.id, target.id) || inTruce(w, robber, target)) return false;
+  return !(isRaider(robber) && isOutlaw(target.faction)) && !bandAtLeast(bandToward(w, robber, target), 'friendly');
 }
 
 function isRobbable(w: World, target: Vehicle): boolean {
@@ -754,7 +755,7 @@ function ramWeight(world: World, vehicle: Vehicle, decision: DecisionId, subject
 }
 
 function retaliateFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
-  return subjectOf(world, decision, subject).faction === vehicle.faction ? NPC_BEHAVIOR.mateRetaliate : 1;
+  return isAlly(world, vehicle, subjectOf(world, decision, subject)) ? NPC_BEHAVIOR.mateRetaliate : 1;
 }
 
 function truceFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
