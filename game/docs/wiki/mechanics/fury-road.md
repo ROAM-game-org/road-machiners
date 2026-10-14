@@ -118,13 +118,19 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 `npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each with `--physics true`, with the numbers in this page, gave:
 
-- Measured gear share of pay on both trucks: median 0.43 over 160 outposts, against the 0.3 `gearShare` the danger uses. The danger rule defines that share as what the escort bot spends, so it needs a re-measure in the next balance pass.
-- Beatable passes: 10 of 10 escort seeds beat stretch 10, and 8 of them reached stretch 13 or later. The escort rides behind the hauler and fires only when a truck attacks it.
-- Fight fails: 28 of 161 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort rarely shoots, and it still wins. Hostile groups shoot only the hauler, so a gun truck that holds its fire and stays clear is never punished, and an armored hauler drives through. A bot that stood and fought every group it rated winnable reached stretch 10 on 11 of 20 seeds, and one that fought only groups it outgunned by gear value reached it on 8 of 20.
-- Damage passes: 130 of 165 stretches hurt the hauler. Variety and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions in every full run, and the mean hauler damage rose from 14 on stretches 1 to 3 to 81 on stretches 8 to 10.
-- Choice fails: 55 of 161 outposts offered a useful part to afford and more useful parts than the money buys.
-- Not sprintable fails: 3 of 10 sprinter seeds lost the run before stretch 10. The sprinter bot is unchanged from before the escort work, and it gave the same 3 of 10 before the escort work.
+- Measured gear share of pay on both trucks: median 0.41 over 109 outposts, against the 0.3 `gearShare` the danger uses. The danger rule defines that share as what the escort bot spends, so it needs a re-measure in the next balance pass.
+- Beatable passes with no margin: 6 of 10 escort seeds beat stretch 10, and 15 of 20 on seeds 1 to 20. The seeds that fail lose the hauler to a group of two or three trucks within a turn or two, or lose the gun truck.
+- Fight fails: 67 of 110 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort fires only after a truck shot it, and keeps firing while that truck stays in sight.
+- React fails: 2 of 3 stretches begun at 90% or better lost the hauler in under 10 turns. Damage, Variety, Choice and Rise pass: the hauler took damage on 94 of 118 stretches, the enemy mix changed on 8 or 9 of 9 transitions in every full run, 58 of 110 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 11 on stretches 1 to 3 to 90 on stretches 8 to 10.
+- Not sprintable fails: 3 of 10 sprinter seeds lost the run before stretch 10. The sprinter bot is unchanged from before the escort work, which gave the same 3 of 10.
 - The hauler can stall for good in physics. When the gun truck rides beside the hauler, the semi stops against the ground at the start of some road bends on 2 of 10 seeds and the recorder fails the run on a `stall` event. It does not stall with the gun truck 10 tiles behind in the hauler's lane.
+
+Bot constants and the batches behind them:
+
+- `FOLLOW_BEHIND` is 10 tiles in the hauler's lane. With the gun truck beside the hauler, or 3 tiles behind in the next lane, seeds 4 and 9 stalled. At 10 tiles in the lane none stalled, and 15 of 20 seeds beat stretch 10 against 14 of 20 beside the hauler, on the same older flee rule.
+- `HAULER_SHARE` is 15% of gear money for hauler armor. It is the value the bot had before. Raising it to 40% gave 13 of 20 seeds beating stretch 10 against 13 of 20 at 15%, so there is no evidence for a change.
+- `FOCUS_REACH_FROM_HAULER` is `FURY_ROAD.pacing.near`, 30 tiles, the radius that holds an encounter on. It only picks which foe the guns aim at, and no batch isolates it.
+- The bot runs ahead only after a truck shot it. A rule that ran ahead whenever a hostile truck was in sight gave 11 of 20 seeds, against 15 of 20 for the shot rule. Standing to fight every group it rated winnable gave 11 of 20, and a bot that never fired gave 15 of 20.
 
 ## Defeat
 
