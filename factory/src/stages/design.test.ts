@@ -228,6 +228,12 @@ describe('design stage', () => {
     writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
   };
 
+  it('sends the agent to the incident log, which the clone holds from its base', async () => {
+    let prompt = '';
+    await runStage(fakeCtx((run) => { prompt = run.prompt; planned(run); }), 7);
+    expect(prompt).toContain('Read ../docs/incident-log.md.');
+  });
+
   it('catches the clone up to GitHub\'s issue branch and the base before the agent, so the agent never fetches', async () => {
     let prompt = '';
     await runStage(fakeCtx((run) => { prompt = run.prompt; planned(run); }), 7);

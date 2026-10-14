@@ -49,6 +49,10 @@ They come on top of the global principles of the up skills.
 For each project principle the change touches, answer its plan check in the task file's Principles section.
 A design that deviates from a project principle names it and says why.
 
+Read ../docs/incident-log.md.
+Each entry is a class of bug that already cost players or work.
+For each class the change touches, the plan says how it keeps the class's rule.
+
 A change a player sees in the HTML UI or an overlay also follows docs/ui.md, the UI design system.
 Plan it with that document's "How to build a screen" steps.
 Write the answers in a UI section of the task file: the decision the screen serves, each fact with its tier, the zone, the shared pieces and formatters it uses, and the level of each event it raises.
