@@ -147,6 +147,15 @@ describe('feedback route', () => {
     expect(created[0]).toMatch(/\[feature-request,player-report\]/);
   });
 
+  it('keeps an off-topic question on a card build as a comment of the card, with no issue', async () => {
+    const { url, store, created, setDecision } = await start();
+    store.addProposal(12, 'Faction reputation\nTowns remember you.', NOW);
+    setDecision({ ...ACCEPT_BUG, kind: 'question', relevance: 'other' });
+    await send(url, request({ build: 'hash12' }));
+    expect(created).toEqual([]);
+    expect(store.unclassifiedComments()).toEqual([]);
+  });
+
   it('opens an issue for a build with no open approval post and for an unknown build', async () => {
     const { url, created } = await start();
     await send(url, request({ build: 'hash13' }));

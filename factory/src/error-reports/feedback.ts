@@ -56,7 +56,7 @@ export class Feedback {
       return SENT;
     }
     checkRoom(cfg.home, cfg.errorDiskMb, body.length, now());
-    if (issue !== null && decision.relevance === 'parent') return this.comment(row, request, decision, issue, body);
+    if (issue !== null && !needsOwnIssue(decision)) return this.comment(row, request, decision, issue, body);
     return this.open(row, request, decision, body);
   }
 
@@ -88,6 +88,8 @@ export class Feedback {
     return SENT;
   }
 }
+
+const needsOwnIssue = (decision: Decision): boolean => decision.relevance === 'other' && (decision.kind === 'bug' || decision.kind === 'feature');
 
 function filterInput(store: PublicStore, text: string, issue: number | null): FilterInput {
   if (issue === null) return { source: 'report', text };
