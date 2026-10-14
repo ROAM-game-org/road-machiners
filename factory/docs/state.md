@@ -14,9 +14,9 @@ One card position spans several stores. A position is consistent when every stor
 - `state.json`: jobs, queues, card sub-positions, posts, builds, the release and the health records. Written by the tick, every job, and the write commands.
 - Work clone: the task file and stage outputs, like `.factory/approval.json` and the screenshot. Written by the agent stages. Its pre-commit hook runs the diff guard.
 - Clone backups: `$FACTORY_HOME/clone-backups/issue-N-<time>/` holds a work clone that `repair-clone` replaced, with `repair.json` and `status.txt`. Written only by `repair-clone`. No code reads or deletes it. Hermes deletes it by hand once the card is past the trouble.
-- Web root: the published builds. Written by testing, the post-only checks, candidate, a hotfix approve, ship and the dev build.
+- Web root: the published builds. Written by testing, the post-only checks, candidate, the publish job, ship and the dev build.
 - Telegram: the posts with buttons. Written by testing, the post-only checks, candidate, approve and ship.
-- Source maps: `$FACTORY_HOME/sourcemaps/<commit>/` holds the maps of each release, dev and candidate build, and `published.jsonl` lists those builds. Written by ship, hotfix, the dev build and candidate. Read by the error service.
+- Source maps: `$FACTORY_HOME/sourcemaps/<commit>/` holds the maps of each release, dev and candidate build, and `published.jsonl` lists those builds. Written by ship, the publish job, the dev build and candidate. Read by the error service.
 - Test cache: `$FACTORY_HOME/test-cache/` holds the pass entries of the game test tool. The tool writes and reads them in the check containers of the post, merge and ship checkpoints and in the release playtest's full suite, the only ones that mount the folder. A corrupt entry counts as no pass. The tick deletes files older than `FACTORY_TEST_CACHE_DAYS`.
 - Hermes's agy runs: `$FACTORY_HOME/state/hermes-agy-runs.json` holds the UTC `day` and its `runs`. Written only by `factory tool agy`, never by hand, under the lock `locks/hermes-agy-runs`, which refuses a run past `AGY_MAX_RUNS` of the day. A new day starts at 0. [operations.md](operations.md#hermess-agy-and-codex) has the rules.
 - Public inbox: `$FACTORY_HOME/public-inbox/<update_id>.json` holds one reaction, forward or comment update. Written only by the Hermes plugin's public handlers. The tick reads each into the public store and deletes it. A file it cannot read moves to `public-inbox/bad/`.
@@ -85,10 +85,11 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 `factory queues` prints the queues. The tick applies each queue before it picks jobs.
 
-- `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press. Drop with `drop approval <issue>`.
+- `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or merges a hotfix into `main` and queues its upload. Fed by an Approve press. Drop with `drop approval <issue>`.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
+- `pendingPublish`: hotfix issues merged into `main` and not yet on itch.io. Fed by the approve job of a hotfix. The publish job uploads them all at once and removes the ones it shipped. Drop with `drop publish <issue>`.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
 - `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
@@ -120,6 +121,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - A pending ship with no current candidate post.
 - A candidate post of a commit the playtest did not pass.
 - A held card in Done, a held card with a running job, or a held issue off the board. The line names who held it and why.
+- A card in `pendingPublish` outside Done.
 
 `factory audit` skips every card with a running job, because the job owns the card mid-step. A stage changes the column and the post before its job leaves `jobs`, so drift shows for seconds. `card N` still prints all drift lines of the card, and adds a line that a job is running.
 

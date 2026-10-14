@@ -34,7 +34,7 @@ Memory, not CPU, limits how many jobs fit on the host. Each container prints its
 
 The factory has no limit on the jobs it starts per day. The Claude usage-limit pause guards the shared limit.
 
-One card may start at most `FACTORY_MAX_JOBS_PER_CARD` jobs in any 24 hours. The jobs that count are triage, design, implementation, verify, harden, the release cut, the release playtest and the candidate. Checks, approve, merge, remove, ship, change, ad hoc, incident, dev and waste jobs do not count. A card at its limit waits with the reason `card-budget` until its oldest start leaves the window. Hotfix jobs count but run at the limit.
+One card may start at most `FACTORY_MAX_JOBS_PER_CARD` jobs in any 24 hours. The jobs that count are triage, design, implementation, verify, harden, the release cut, the release playtest and the candidate. Checks, approve, merge, remove, ship, publish, change, ad hoc, incident, dev and waste jobs do not count. A card at its limit waits with the reason `card-budget` until its oldest start leaves the window. Hotfix jobs count but run at the limit.
 
 ## Resume
 

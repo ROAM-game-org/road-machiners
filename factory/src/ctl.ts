@@ -205,6 +205,10 @@ function jobs(ctx: Ctx): void {
   printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}${job.caughtUp === undefined ? '' : ` caught up ${job.caughtUp.map((issue) => `#${issue}`).join(',')}`}`));
 }
 
+function issueList(issues: number[]): string {
+  return issues.map((issue) => `#${issue}`).join(', ') || 'none';
+}
+
 function queues(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
@@ -214,7 +218,8 @@ function queues(ctx: Ctx): void {
   console.log(`removal: ${removals.join(', ') || 'none'}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
-  console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`incident: ${issueList(state.pendingIncidents)}`);
+  console.log(`publish: ${issueList(state.pendingPublish)}`);
 }
 
 function release(ctx: Ctx): void {

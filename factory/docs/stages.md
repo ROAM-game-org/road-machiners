@@ -78,7 +78,7 @@ A branch whose every changed file since its base is a Markdown file outside `gam
 ## Approval
 
 - Approve on a previewed card records the approver in `approvedResolving` and moves the card to Hardening.
-- Approve on a hotfix ships it at once. A hotfix that conflicts with `main` goes back to Testing.
+- Approve on a hotfix merges it into `main` at once. The publish job uploads it to itch.io. A hotfix that conflicts with `main` goes back to Testing.
 - Deny labels the issue `wont-do` and closes it and its pull request as not planned.
 
 ## Approval replies
@@ -130,11 +130,11 @@ Ship runs on the current candidate post only, with no release task open and the 
 
 ## Hotfix
 
-A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges and ships it like a release. A GitHub release tagged `hotfix-<day>-issue-<N>` gets a one-line changelog, and the committee chat says the hotfix shipped. The public channel gets nothing. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
+A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges the fix into `main` and `dev`, records the issue in `pendingPublish` and moves the card to Done. The publish job then builds `main` once and pushes it to itch.io for every recorded issue. One GitHub release tagged `hotfix-<day>-<short head>` lists all of them, each issue gets a shipped comment and closes, and the committee chat gets one message. The public channel gets nothing. The open release stays as it is and meets the fix at its Ship.
 
 ## Incident
 
-Ship and the hotfix ship queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. Each entry is a class of bug with a rule, a check and the bugs seen. A bug that repeats a class updates that entry. A bug that starts a class gets a new entry, and a one-off bug gets none. The factory merges the change into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
+Ship and the publish job queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. Each entry is a class of bug with a rule, a check and the bugs seen. A bug that repeats a class updates that entry. A bug that starts a class gets a new entry, and a one-off bug gets none. The factory merges the change into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
 
 ## Factory change
 
