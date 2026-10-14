@@ -3,9 +3,7 @@ import { rmSync, writeFileSync } from 'node:fs';
 import { openStore } from '../public/store';
 import { readState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
-import { longestProposalText } from '../public/proposals';
-import { MESSAGE_LIMIT } from '../telegram';
-import { addToBundle, bundleCandidates, bundleOf } from './bundle';
+import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
 import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
 
@@ -30,7 +28,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await writeRelease(ctx, home, release);
   await runAgent(ctx, issue, 'triage', 'triage', fillPrompt('triage', { issue: String(issue) }), { effort: ctx.cfg.triageEffort });
   const { labels } = await ctx.github.issue(issue);
-  const result = parseVerdict(ctx, issue, readOutput(home, 'triage.json'), candidates, release, labels);
+  const result = parseVerdict(readOutput(home, 'triage.json'), candidates, release, labels);
   if (result.verdict === 'unclear') return askAuthor(ctx, issue, result.questions, 'triage');
   if (result.verdict === 'ready') return ready(ctx, issue, result, release);
   if (result.verdict === 'vote') return vote(ctx, issue, result);
@@ -125,14 +123,14 @@ async function writeRelated(ctx: Ctx, home: string, candidates: number[]): Promi
 
 type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
 
-function parseVerdict(ctx: Ctx, issue: number, text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Verdict {
+function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Verdict {
   const fields = readFields(text);
   const kind = readKind(fields.verdict);
   const why = readReason(fields.reason);
   if (kind === 'wont-do') return { verdict: kind, reason: why };
   if (kind === 'unclear') return { verdict: kind, reason: why, questions: readQuestions(fields.questions) };
   const work = readWork(fields, candidates, release);
-  return kind === 'ready' ? readReady(why, work) : readVote(ctx, issue, why, work, readPitch(fields.pitch), labels);
+  return kind === 'ready' ? readReady(why, work) : readVote(why, work, readPitch(fields.pitch), labels);
 }
 
 function readFields(text: string | null): Record<string, unknown> {
@@ -162,13 +160,10 @@ function readReady(reason: string, work: Work): Ready {
   return { verdict: 'ready', reason, ...work };
 }
 
-function readVote(ctx: Ctx, issue: number, reason: string, work: Work, pitch: Pitch, labels: string[]): Vote {
+function readVote(reason: string, work: Work, pitch: Pitch, labels: string[]): Vote {
   if (work.hotfix) throw new Error('triage.json puts a hotfix to a vote');
   if (work.releaseFix) throw new Error('triage.json puts a release fix to a vote');
   if (labels.includes(BUG_LABEL)) throw new Error('triage.json puts a bug to a vote');
-  const issues = [...new Set([issue, ...bundleOf(readState(ctx.statePath), issue), ...work.bundle])];
-  const length = longestProposalText(ctx, issues, `${pitch.title}\n\n${pitch.text}`).length;
-  if (length > MESSAGE_LIMIT) throw new Error(`triage.json has a pitch that makes the proposal post ${length} chars, the Telegram limit is ${MESSAGE_LIMIT}`);
   return { verdict: 'vote', reason, ...work, pitch };
 }
 

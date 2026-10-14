@@ -250,6 +250,8 @@ export interface Telegram {
   sendDocument(chat: string, path: string, replyTo?: number): Promise<number>;
   editCaption(chat: string, messageId: number, caption: string): Promise<void>;
   editText(chat: string, messageId: number, text: string): Promise<void>;
+  sendHtml(chat: string, html: string): Promise<number>;
+  editHtml(chat: string, messageId: number, html: string): Promise<void>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };

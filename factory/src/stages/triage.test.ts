@@ -2,8 +2,6 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import { openStore } from '../public/store';
-import { longestProposalText } from '../public/proposals';
-import { MESSAGE_LIMIT } from '../telegram';
 import { runStage } from './triage';
 import type { AgentRun, Card, Ctx } from '../types';
 
@@ -329,26 +327,6 @@ describe('triage vote', () => {
     [{ pitch: { title: 'x', text: '' } }, 'pitch'],
   ])('refuses a bad vote %#', async (over, message) => {
     await expect(runStage(fakeCtx(vote(over)), 7)).rejects.toThrow(message);
-  });
-
-  it('refuses a pitch that makes the post longer than the Telegram limit, and stores and writes nothing', async () => {
-    const longest = { title: 'Night driving', text: 'word '.repeat(MESSAGE_LIMIT / 5) };
-    await expect(runStage(fakeCtx(vote({ pitch: longest })), 7)).rejects.toThrow(`Telegram limit is ${MESSAGE_LIMIT}`);
-    expect(calls.filter((call) => /^(comment|addLabel|move|close)/.test(call))).toEqual([]);
-    const store = openStore(home);
-    expect(store.proposal(7)).toBeNull();
-    store.close();
-  });
-
-  it('counts the links of the bundle and the longest bottom line against the limit', async () => {
-    cards = [card(7, 'Triage'), card(9, 'Triage')];
-    const text = (length: number) => ({ title: 'T', text: 'x'.repeat(length) });
-    const ctx = fakeCtx(vote());
-    const roomForOneIssue = MESSAGE_LIMIT - longestProposalText(ctx, [7], 'T\n\nx').length + 1;
-    await runStage(fakeCtx(vote({ pitch: text(roomForOneIssue) })), 7);
-    expect(calls).toContain('addLabel 7 voting');
-    await expect(runStage(fakeCtx(vote({ pitch: text(roomForOneIssue + 1) })), 7)).rejects.toThrow('Telegram limit');
-    await expect(runStage(fakeCtx(vote({ bundle: [9], pitch: text(roomForOneIssue) })), 7)).rejects.toThrow('Telegram limit');
   });
 
   it('refuses a vote on a bug', async () => {
