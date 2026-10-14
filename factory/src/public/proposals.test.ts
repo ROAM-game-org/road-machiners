@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { readState, updateState } from '../state';
 import { CHANNEL, publicFake } from './public-fakes';
-import { postProposal } from './proposals';
+import { MESSAGE_LIMIT } from '../telegram';
+import { longestProposalText, postProposal, proposalText } from './proposals';
 
 const HOUR_MS = 3_600_000;
+
+function unlabeledAndOpen() {
+  const f = publicFake();
+  f.store.addProposal(7, 'Unlabeled one', new Date('2026-10-14T08:00:00Z'));
+  f.store.addProposal(8, 'Open one', new Date('2026-10-14T09:00:00Z'));
+  return f;
+}
 
 describe('postProposal', () => {
   it('posts the oldest proposal with pitch, links, bundle links and the vote line, and marks it posted', async () => {
@@ -63,5 +71,36 @@ describe('postProposal', () => {
     expect(f.logs.join('\n')).toContain('7 the issue is closed');
     await postProposal(f.ctx, f.store);
     expect(f.calls.filter((call) => call === 'issue 7')).toHaveLength(1);
+  });
+
+  it('closes the proposal of an issue without the voting label unposted, posts the next one, and never reads the issue again', async () => {
+    const f = unlabeledAndOpen();
+    f.issueLabels[7] = [];
+    await postProposal(f.ctx, f.store);
+    expect(f.messages).toHaveLength(1);
+    expect(f.messages[0]!.text).toContain('Open one');
+    expect(f.store.proposal(7)?.postedAt).toBeNull();
+    expect(f.store.proposal(7)?.closedAt).not.toBeNull();
+    expect(f.logs.join('\n')).toContain('7 the issue lost its voting label');
+    await postProposal(f.ctx, f.store);
+    expect(f.calls.filter((call) => call === 'issue 7')).toHaveLength(1);
+  });
+
+  it('posts a card put to a vote again after its earlier proposal closed', async () => {
+    const f = publicFake({ proposalsPerDay: 5 });
+    f.store.addProposal(7, 'First pitch', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    f.store.closeProposal(7, f.clock.now);
+    f.store.addProposal(7, 'Second pitch', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    expect(f.messages.map((message) => message.text.split('\n')[0])).toEqual(['First pitch', 'Second pitch']);
+    expect(f.store.proposal(7)?.messageId).toBe(502);
+  });
+
+  it('measures the longest post against the Telegram limit', () => {
+    const f = publicFake();
+    const pitch = 'x'.repeat(MESSAGE_LIMIT);
+    expect(longestProposalText(f.ctx, [7, 8], pitch).length).toBeGreaterThan(MESSAGE_LIMIT);
+    expect(longestProposalText(f.ctx, [7], 'short').length).toBeGreaterThanOrEqual(proposalText(f.ctx, 7, 'short', '3/3\n❌ Rejected by committee member').length);
   });
 });

@@ -16,9 +16,10 @@ describe('publicTick', () => {
     f.ctx.github.issue = async () => { throw new Error('GitHub is down'); };
     await publicTick(f.ctx, accept);
     const failures = readState(f.ctx.statePath).failures;
-    expect(failures).toHaveLength(1);
-    expect(failures[0]).toMatchObject({ stage: 'public', issue: null });
-    expect(failures[0]!.error).toContain('GitHub is down');
+    expect(failures).toHaveLength(2);
+    expect(failures.map((failure) => failure.issue).sort()).toEqual([7, null]);
+    for (const failure of failures) expect(failure).toMatchObject({ stage: 'public' });
+    expect(failures.every((failure) => failure.error.includes('GitHub is down'))).toBe(true);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
   });
 

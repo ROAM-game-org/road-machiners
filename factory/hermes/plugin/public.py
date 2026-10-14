@@ -81,7 +81,7 @@ def author_of(message: dict) -> str:
 def comment_event(raw: dict, message: dict) -> Optional[dict]:
     text = message.get("text") or message.get("caption")
     reply = message.get("reply_to_message")
-    thread = message.get("message_thread_id") or (reply["message_id"] if reply else None)
+    thread = reply["message_id"] if reply else message.get("message_thread_id")
     if not text or thread is None:
         return None
     return {

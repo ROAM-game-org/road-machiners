@@ -135,6 +135,18 @@ def test_discussion_comment_event(tmp_path):
     }}
 
 
+def test_comment_is_attributed_to_the_replied_message_not_the_thread_root(tmp_path):
+    raw = comment_update(message_thread_id=90, reply_to_message={"message_id": 200, "chat": chat(DISCUSSION)})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["threadId"] == 200
+
+
+def test_comment_uses_thread_when_there_is_no_reply(tmp_path):
+    raw = comment_update(message_thread_id=90, reply_to_message=None)
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["threadId"] == 90
+
+
 def test_comment_uses_reply_when_no_thread_and_caption_and_username(tmp_path):
     raw = comment_update(message_thread_id=None, text=None, caption="A photo", reply_to_message={"message_id": 77})
     raw["message"].pop("text")

@@ -41,6 +41,29 @@ describe('public store', () => {
     expect(store.votes(7, THUMBS)).toBe(1);
   });
 
+  it('opens a fresh proposal when a card is put to a vote after its proposal closed, with no votes carried over', () => {
+    const store = postedStore();
+    store.applyEvent({ updateId: 1, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji: ['👍'] });
+    store.applyEvent({ updateId: 2, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 4 } });
+    store.setShownVotes(7, 4);
+    store.closeProposal(7, now);
+    const later = new Date('2026-10-15T10:00:00Z');
+    store.addProposal(7, 'Add a better winch', later);
+    expect(store.proposal(7)).toEqual({ issue: 7, pitch: 'Add a better winch', chat: null, messageId: null, postedAt: null, closedAt: null });
+    expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
+    expect(store.openProposals()).toEqual([]);
+    expect(store.shownVotes(7)).toBeNull();
+    store.markProposalPosted(7, CHANNEL, 200, later);
+    expect(store.votes(7, THUMBS)).toBe(0);
+    expect(store.votersWith(7, THUMBS)).toEqual([]);
+  });
+
+  it('keeps an open posted proposal when its card is put to a vote again', () => {
+    const store = postedStore();
+    store.addProposal(7, 'Another pitch', now);
+    expect(store.proposal(7)).toMatchObject({ pitch: 'Add a winch', messageId: 100, closedAt: null });
+  });
+
   it('maps a discussion comment to its issue through the automatic forward', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'forward', chat: GROUP, messageId: 55, channelChat: CHANNEL, channelMessageId: 100 });

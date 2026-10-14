@@ -55,7 +55,10 @@ export class PublicStore {
   }
 
   addProposal(issue: number, pitch: string, now: Date): void {
-    this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null').run(issue, pitch, now.toISOString());
+    this.transaction(() => {
+      this.db.prepare('delete from proposals where issue = ? and closed_at is not null').run(issue);
+      this.db.prepare('insert into proposals (issue, pitch, created_at) values (?, ?, ?) on conflict (issue) do update set pitch = excluded.pitch where posted_at is null').run(issue, pitch, now.toISOString());
+    });
   }
 
   proposal(issue: number): Proposal | null {

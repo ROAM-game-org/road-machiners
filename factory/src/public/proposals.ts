@@ -1,6 +1,6 @@
 import { bundleOf } from '../stages/bundle';
 import { readState } from '../state';
-import type { Ctx } from '../types';
+import { VOTING_LABEL, type Ctx } from '../types';
 import type { PublicStore } from './store';
 
 const DAY_MS = 24 * 3_600_000;
@@ -11,10 +11,23 @@ const issueLink = (ctx: Ctx, issue: number): string => `https://github.com/${ctx
 
 export const voteCount = (ctx: Ctx, votes: number): string => `${votes}/${ctx.cfg.minVotes}`;
 
-export function proposalText(ctx: Ctx, issue: number, pitch: string, footer: string): string {
-  const links = [issue, ...bundleOf(readState(ctx.statePath), issue)].map((number) => issueLink(ctx, number));
+export const ACCEPTED_BY_COMMITTEE = '✅ Accepted by committee member';
+export const REJECTED_BY_COMMITTEE = '❌ Rejected by committee member';
+export const CLOSED_CONCLUSION = 'Closed';
+
+export function composeProposal(ctx: Ctx, issues: number[], pitch: string, footer: string): string {
+  const links = issues.map((number) => issueLink(ctx, number));
   const vote = `Vote with a thumbs-up reaction on this post. At ${ctx.cfg.minVotes} votes the factory builds it.`;
   return `${pitch.trim()}\n\n${links.join('\n')}\n\n${vote}\n\n${footer}`;
+}
+
+export const proposalText = (ctx: Ctx, issue: number, pitch: string, footer: string): string =>
+  composeProposal(ctx, [issue, ...bundleOf(readState(ctx.statePath), issue)], pitch, footer);
+
+export function longestProposalText(ctx: Ctx, issues: number[], pitch: string): string {
+  const full = voteCount(ctx, ctx.cfg.minVotes);
+  const texts = [ACCEPTED_BY_COMMITTEE, REJECTED_BY_COMMITTEE, CLOSED_CONCLUSION].map((conclusion) => composeProposal(ctx, issues, pitch, `${full}\n${conclusion}`));
+  return texts.reduce((longest, text) => (text.length > longest.length ? text : longest));
 }
 
 export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> {
@@ -24,6 +37,11 @@ export async function postProposal(ctx: Ctx, store: PublicStore): Promise<void> 
     const item = await ctx.github.issue(proposal.issue);
     if (item.state === 'CLOSED') {
       ctx.log('public', proposal.issue, 'the issue is closed, so its proposal is closed unposted');
+      store.closeProposal(proposal.issue, now);
+      continue;
+    }
+    if (!item.labels.includes(VOTING_LABEL)) {
+      ctx.log('public', proposal.issue, 'the issue lost its voting label, so its proposal is closed unposted');
       store.closeProposal(proposal.issue, now);
       continue;
     }

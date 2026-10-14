@@ -1,4 +1,5 @@
 import { PLAYER_COMMENTS_HEADING, type Ctx } from '../types';
+import { COMMENT_TEXT_LIMIT, fitComment } from '../stages/common';
 import { isolated } from './isolate';
 import type { PublicStore, StoredComment } from './store';
 
@@ -28,7 +29,31 @@ export async function sendDigests(ctx: Ctx, store: PublicStore): Promise<void> {
   }
 }
 
+const DIGEST_JOIN = '\n\n';
+const DIGEST_START = `${PLAYER_COMMENTS_HEADING}${DIGEST_JOIN}`;
+
+type DigestPart = { ids: number[]; lines: string[]; length: number };
+
+function splitDigests(comments: StoredComment[]): DigestPart[] {
+  const parts: DigestPart[] = [];
+  let open: DigestPart | null = null;
+  for (const comment of comments) {
+    const line = fitComment(digestLine(comment), 'the factory comment store');
+    if (open !== null && open.length + DIGEST_JOIN.length + line.length <= COMMENT_TEXT_LIMIT) {
+      open.ids.push(comment.id);
+      open.lines.push(line);
+      open.length += DIGEST_JOIN.length + line.length;
+      continue;
+    }
+    open = { ids: [comment.id], lines: [line], length: DIGEST_START.length + line.length };
+    parts.push(open);
+  }
+  return parts;
+}
+
 async function sendDigest(ctx: Ctx, store: PublicStore, issue: number, comments: StoredComment[]): Promise<void> {
-  await ctx.github.comment(issue, `${PLAYER_COMMENTS_HEADING}\n\n${comments.map(digestLine).join('\n\n')}`);
-  store.markSent(comments.map((comment) => comment.id), ctx.now());
+  for (const part of splitDigests(comments)) {
+    await ctx.github.comment(issue, `${DIGEST_START}${part.lines.join(DIGEST_JOIN)}`);
+    store.markSent(part.ids, ctx.now());
+  }
 }

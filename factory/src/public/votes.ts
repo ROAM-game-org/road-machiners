@@ -2,7 +2,7 @@ import { moveCard } from '../card-events';
 import { readCommittee, telegramIds } from '../committee';
 import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
-import { proposalText, voteCount } from './proposals';
+import { ACCEPTED_BY_COMMITTEE, CLOSED_CONCLUSION, REJECTED_BY_COMMITTEE, proposalText, voteCount } from './proposals';
 import type { Proposal, PublicStore } from './store';
 
 type Outcome = { kind: 'accept' | 'reject'; reason: string; conclusion: string };
@@ -27,8 +27,8 @@ export async function countVotes(ctx: Ctx, store: PublicStore): Promise<void> {
 
 function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, votes: number, committee: string[]): Outcome | null {
   const byCommittee = (emoji: string): boolean => store.votersWith(issue, emojiOf(emoji)).some((voter) => committee.includes(voter));
-  if (byCommittee(ctx.cfg.vetoEmoji)) return { kind: 'reject', reason: 'by a committee vote', conclusion: '❌ Rejected by committee member' };
-  if (byCommittee(ctx.cfg.voteEmoji)) return { kind: 'accept', reason: 'by a committee vote', conclusion: '✅ Accepted by committee member' };
+  if (byCommittee(ctx.cfg.vetoEmoji)) return { kind: 'reject', reason: 'by a committee vote', conclusion: REJECTED_BY_COMMITTEE };
+  if (byCommittee(ctx.cfg.voteEmoji)) return { kind: 'accept', reason: 'by a committee vote', conclusion: ACCEPTED_BY_COMMITTEE };
   if (votes >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with ${votes} votes`, conclusion: `✅ Accepted with ${votes} votes` };
   return null;
 }
@@ -40,10 +40,22 @@ async function showCount(ctx: Ctx, store: PublicStore, proposal: Proposal, votes
 }
 
 async function conclude(ctx: Ctx, proposal: Proposal, votes: number, outcome: Outcome): Promise<void> {
-  await ctx.github.removeLabel(proposal.issue, VOTING_LABEL);
+  if (!(await stillVoting(ctx, proposal.issue))) {
+    ctx.log('public', proposal.issue, 'the issue is closed, lost its voting label or left Triage, so its proposal closes without a card change');
+    await editPost(ctx, proposal, `${voteCount(ctx, votes)}\n${CLOSED_CONCLUSION}`);
+    return;
+  }
   if (outcome.kind === 'accept') await moveCard(ctx, proposal.issue, 'Design', 'voted');
   else await reject(ctx, proposal.issue);
+  await ctx.github.removeLabel(proposal.issue, VOTING_LABEL);
   await editPost(ctx, proposal, `${voteCount(ctx, votes)}\n${outcome.conclusion}`);
+}
+
+async function stillVoting(ctx: Ctx, issue: number): Promise<boolean> {
+  const item = await ctx.github.issue(issue);
+  if (item.state !== 'OPEN' || !item.labels.includes(VOTING_LABEL)) return false;
+  const card = (await ctx.github.cards()).find((candidate) => candidate.issue === issue);
+  return card?.column === 'Triage';
 }
 
 async function reject(ctx: Ctx, issue: number): Promise<void> {

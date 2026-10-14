@@ -158,7 +158,7 @@ export async function runAgent(ctx: Ctx, issue: number, stage: CardStage, round:
   return ctx.container.agent({ clone: workDir(ctx, issue), dir: GAME_DIR, model, prompt: full, log: agentLog(ctx, issue, stage), openNetwork, mediaDir: mediaDir(ctx, issue), readOnly: reports.readOnly, session, skill, effort: extras.effort, disallowedTools: extras.disallowedTools, advisor });
 }
 
-const COMMENT_TEXT_LIMIT = 60000;
+export const COMMENT_TEXT_LIMIT = 60000;
 
 export function fitComment(text: string, fullAt: string): string {
   return text.length > COMMENT_TEXT_LIMIT ? `${text.slice(0, COMMENT_TEXT_LIMIT)}\n\n(cut here, the full text is in ${fullAt})` : text;
