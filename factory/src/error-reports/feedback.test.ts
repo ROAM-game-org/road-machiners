@@ -133,7 +133,7 @@ describe('feedback route', () => {
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent' });
     expect(created).toEqual([]);
     expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
-    expect(store.unclassifiedComments()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
     expect(store.unsentComments()).toMatchObject([{ issue: 40, source: 'game', author: 'Player', text: 'The truck sinks\ninto the road', kind: 'bug', route: 'patch' }]);
   });
 
@@ -164,7 +164,7 @@ describe('feedback route', () => {
     expect(response.status).toBe(503);
     expect(await response.text()).toBe('The report could not be checked now. Try again later.');
     expect(created).toEqual([]);
-    expect(store.unclassifiedComments()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
   });
 
   it('limits reports per address per hour with 429 and alerts Hermes', async () => {

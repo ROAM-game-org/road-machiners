@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 export type ReactionCountEvent = { updateId: number; kind: 'reaction-count'; chat: string; messageId: number; counts: Record<string, number> };
 export type ReactionEvent = { updateId: number; kind: 'reaction'; chat: string; messageId: number; user: string; emoji: string[] };
 export type ForwardEvent = { updateId: number; kind: 'forward'; chat: string; messageId: number; channelChat: string; channelMessageId: number };
-export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number; author: string; text: string; at: string };
+export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number; author: string; sender: string; text: string; at: string };
 export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | CommentEvent;
 
 export type CommentKind = 'bug' | 'feature' | 'feedback' | 'rejected';
@@ -14,7 +14,7 @@ export type Proposal = { issue: number; pitch: string; chat: string | null; mess
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
 export type StoredComment = { id: number; issue: number; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null };
-export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; text: string; at: string };
+export type NewComment = { issue: number; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const SCHEMA = `
@@ -37,17 +37,28 @@ export function openStore(home: string): PublicStore {
   return new PublicStore(new DatabaseSync(storePath(home)));
 }
 
+const columnsOf = (db: DatabaseSync, table: string): string[] => db.prepare(`pragma table_info(${table})`).all().map((column) => String(column.name));
+
+function migrateProposals(db: DatabaseSync): void {
+  const columns = columnsOf(db, 'proposals');
+  if (!columns.includes('shown_footer')) db.exec('alter table proposals add column shown_footer text');
+  if (columns.includes('shown_votes')) db.exec('alter table proposals drop column shown_votes');
+  if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
+}
+
+function migrateComments(db: DatabaseSync): void {
+  const columns = columnsOf(db, 'comments');
+  if (!columns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
+  if (!columns.includes('sender')) db.exec('alter table comments add column sender text');
+}
+
 export class PublicStore {
   constructor(private readonly db: DatabaseSync) {
     db.exec('pragma journal_mode = wal; pragma busy_timeout = 5000; pragma synchronous = normal;');
     const hadAttempts = db.prepare("select 1 from sqlite_master where type = 'table' and name = 'post_attempts'").get() !== undefined;
     db.exec(SCHEMA);
-    const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
-    if (!columns.includes('shown_footer')) db.exec('alter table proposals add column shown_footer text');
-    if (columns.includes('shown_votes')) db.exec('alter table proposals drop column shown_votes');
-    if (!columns.includes('attempted_at')) db.exec('alter table proposals add column attempted_at text');
-    const commentColumns = db.prepare('pragma table_info(comments)').all().map((column) => String(column.name));
-    if (!commentColumns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
+    migrateProposals(db);
+    migrateComments(db);
     if (!hadAttempts) db.exec('insert into post_attempts (issue, at) select issue, coalesce(posted_at, attempted_at) from proposals where coalesce(posted_at, attempted_at) is not null');
   }
 
@@ -148,12 +159,14 @@ export class PublicStore {
 
   addComment(comment: NewComment): number | null {
     const { issue, source, sourceId, postChat, postMessageId, author, text, at } = comment;
-    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at) values (?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at);
+    const sender = comment.sender ?? null;
+    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, sender, text, at) values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, sender, text, at);
     return result.changes === 1 ? Number(result.lastInsertRowid) : null;
   }
 
-  unclassifiedComments(): StoredComment[] {
-    return this.db.prepare('select * from comments where classified_at is null and dropped_at is null order by id').all().map(toComment);
+  unclassifiedComments(limit: number): StoredComment[] {
+    const waiting = 'select *, row_number() over (partition by coalesce(sender, source_id) order by id) as turn from comments where classified_at is null and dropped_at is null';
+    return this.db.prepare(`select * from (${waiting}) order by turn, id limit ?`).all(limit).map(toComment);
   }
 
   classify(id: number, kind: CommentKind, route: PublicRoute, now: Date): void {
@@ -234,7 +247,7 @@ export class PublicStore {
   private applyComment(event: CommentEvent): void {
     const thread = this.threadOf(event.chat, event.threadId);
     if (thread === null) return;
-    this.addComment({ issue: thread.issue, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread.post, author: event.author, text: event.text, at: event.at });
+    this.addComment({ issue: thread.issue, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread.post, author: event.author, sender: event.sender, text: event.text, at: event.at });
   }
 
   private threadOf(chat: string, threadId: number): { issue: number; post: number } | null {

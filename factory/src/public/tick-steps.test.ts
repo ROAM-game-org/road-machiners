@@ -36,7 +36,7 @@ describe('publicTick', () => {
       return accept(input);
     };
     await publicTick(f.ctx, flaky);
-    expect(f.store.unclassifiedComments()).toEqual([]);
+    expect(f.store.unclassifiedComments(100)).toEqual([]);
     expect(f.comments.map((comment) => comment.body)).toEqual([expect.stringContaining('From b, bug')]);
     expect(f.comments[0]!.body).not.toContain('From a');
     expect(readState(f.ctx.statePath).failures).toHaveLength(1);
@@ -52,7 +52,7 @@ describe('publicTick', () => {
     f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
     f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'a', postChat: CHANNEL, postMessageId: 100, author: 'a', text: 'spam', at: f.clock.now.toISOString() });
     await publicTick(f.ctx, async () => ({ verdict: 'reject', intent: 'spam', sincere: 0.05, kind: 'bug', route: 'none' }));
-    expect(f.store.unclassifiedComments()).toEqual([]);
+    expect(f.store.unclassifiedComments(100)).toEqual([]);
     expect(f.store.unsentComments()).toEqual([]);
     expect(f.comments).toEqual([]);
   });
