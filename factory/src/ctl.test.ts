@@ -262,6 +262,16 @@ describe('immediate commands', () => {
     expect(readState(f.ctx.statePath).failures.map((row) => row.issue)).toEqual([6]);
   });
 
+  it('retry of a hotfix waiting for its upload also clears the failed upload', async () => {
+    const f = fake();
+    const upload = { stage: 'publish' as const, issue: null, error: 'butler push failed', log: null, at: '2026-09-29T09:00:00Z' };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingPublish: [5], failures: [upload] });
+    await run(f, 'retry', '6');
+    expect(readState(f.ctx.statePath).failures).toEqual([upload]);
+    await run(f, 'retry', '5');
+    expect(readState(f.ctx.statePath).failures).toEqual([]);
+  });
+
   it('retry of the release tracking card lifts a playtest block and keeps the decision and the play count', async () => {
     const f = fake();
     f.ctx.cfg = { ...f.ctx.cfg, playtestRuns: 4 };

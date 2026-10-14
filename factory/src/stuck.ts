@@ -1,5 +1,3 @@
-// The stuck label and the stuck sweep. Every tick the sweep records why each open stuck card waits, repairs only mechanical causes
-// with the sanctioned retry and repair-clone, and releases a timed-out merge batch half at a time. docs/operations.md#stuck-sweep has the rules.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { summarizeError } from './fail';
@@ -23,7 +21,10 @@ const BOARD_LAG_MS = 5 * 60_000;
 
 export async function clearStuck(ctx: Ctx, issue: number): Promise<void> {
   await ctx.github.removeLabel(issue, STUCK_LABEL);
-  updateState(ctx.statePath, (state: FactoryState) => ({ ...state, failures: state.failures.filter((row) => row.issue !== issue) }));
+  updateState(ctx.statePath, (state: FactoryState) => {
+    const publishing = state.pendingPublish.includes(issue);
+    return { ...state, failures: state.failures.filter((row) => row.issue !== issue && !(publishing && row.stage === 'publish')) };
+  });
 }
 
 export function isOpenStuck(card: Card): boolean {

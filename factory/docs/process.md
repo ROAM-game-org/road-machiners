@@ -25,7 +25,7 @@ Each agent stage is one agent session that owns its stage. The agent runs the ch
 
 - Intake takes every aged `bug` and `feature-request` issue into Triage. A `player-report` or `error-report` issue goes in at once, since nobody edits it after it is filed. Nobody votes on GitHub.
 - Triage passes a bug and a justified improvement of an existing thing to Design. A new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote.
-- A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once.
+- A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve merges a hotfix into `main` at once, and the next hotfix upload puts it on itch.io.
 - The error service opens an `error-report` bug for each new game error, at most `FACTORY_ERROR_DAILY_ISSUES` a day. Intake takes it into Triage with no votes. A later report of the same error from a new build comments on its issue, and reopens a fixed one when the build came after the fix. [operations.md](operations.md#error-reports) has the details.
 - Triage labels a fix of an open release's feature `release-task`, until the release's candidate is posted. It runs on the release branch and ships with that release. New work stays on `dev` for the next release.
 - A merged issue stays open with the label `release-candidate`. It closes when its release ships.
@@ -64,7 +64,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 ![Testing column](diagrams/testing.svg)
 
-- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening. Only one hotfix tests at a time, since its full suite is slow and would starve the normal cards.
+- A hotfix merges into `main` on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening. Only one hotfix tests at a time, since its full suite is slow and would starve the normal cards.
 - Hermes can move a card to Approval with no testing. A checks job then builds the branch and posts it with no tests, and the post says so.
 
 ## Hardening and Merging columns
@@ -138,7 +138,7 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 - The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. `lastRelease` changes only when the cut succeeds or finds nothing new, so a failed cut runs again on the next tick.
 - Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
-- A hotfix merges its branch into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
+- A hotfix approval merges its branch into `main`, and `main` into `dev`, in one push. It builds nothing and records the issue in `pendingPublish`. The publish job builds `main` once and pushes it to itch.io for every issue recorded so far, so a burst of approvals costs one build and one upload. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
 
 ## Release
@@ -158,6 +158,7 @@ These jobs run beside the cards.
 - change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it.
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
 - incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md`, and on `dev` it may update the entry of the class the bug repeats or add a new class.
+- publish: the hotfix upload. It starts when `pendingPublish` holds an issue, no approve job runs and no approval waits. It builds `main`, pushes it to itch.io, creates one GitHub release that lists every issue of the batch, then comments on and closes each issue and queues its incident. The committee chat gets one message. It removes the issues it shipped from `pendingPublish`. A failed job keeps `pendingPublish`, and no publish job starts again until Hermes runs `factory retry N` on one of its issues. An itch.io answer that it already has `main`'s version counts as pushed, so a retry after a later step failed finishes the batch.
 - waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
 - dev: rebuilds `/dev/` when `dev` moved past its build.
 
@@ -169,7 +170,7 @@ A timer runs one tick at a time. A tick never waits for a job. Before it picks j
 
 Jobs pick in this order. A job starts when its queue has a free worker and no other job works on its issue.
 
-1. Branch jobs: every queued approve, remove, ship and incident, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
+1. Branch jobs: every queued approve, remove, ship and incident, then the merge queue, the catch-ups of the next waiting Merging cards, the hotfix upload, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
 3. Card jobs: hotfixes, ad hoc tasks, factory changes, release tasks, then other cards. Within each, the card furthest along goes first.
 
@@ -184,4 +185,4 @@ Queues:
 - implement: implementation, ad hoc and change.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
-- branch: approve, merge, catch-up, remove, ship, incident, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each changes the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.
+- branch: approve, merge, catch-up, remove, ship, publish, incident, release cut, candidate and dev, side by side. A job never runs twice at once, Ship and Remove never run together, since both change the release, and Ship and publish never run together, since both build and push `main`. Incident jobs run one at a time, since each changes the same incident log. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.

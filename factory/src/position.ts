@@ -1,4 +1,3 @@
-// The position model of a card. docs/state.md describes each position and the stores it spans.
 import { RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
 
 export type Position = 'triage' | 'design' | 'implement' | 'verify' | 'post' | 'approval' | 'harden' | 'merging' | 'done';
@@ -27,7 +26,7 @@ export function cardPosition(card: Card, state: FactoryState): Position {
 
 export function cardDrift(card: Card, state: FactoryState): string[] {
   if (card.labels.includes(RELEASE_LABEL)) return [];
-  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state)];
+  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...publishDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state)];
 }
 
 export function runningJobs(card: Card, state: FactoryState): Job[] {
@@ -57,6 +56,10 @@ function approvalDrift(card: Card, state: FactoryState): string[] {
   const lines = posts.map((id) => `#${card.issue} open approval post ${id} but column ${card.column}`);
   if (queued) lines.push(`#${card.issue} queued approval but column ${card.column}`);
   return lines;
+}
+
+function publishDrift(card: Card, state: FactoryState): string[] {
+  return state.pendingPublish.includes(card.issue) && card.column !== 'Done' ? [`#${card.issue} waits for the hotfix upload but column ${card.column}`] : [];
 }
 
 function jobDrift(card: Card, state: FactoryState): string[] {

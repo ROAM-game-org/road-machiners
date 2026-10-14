@@ -886,3 +886,24 @@ describe('tick', () => {
     expect(args(h)).toEqual([['playtest', '20']]);
   });
 });
+
+describe('chooseJobs hotfix upload', () => {
+  it('starts one publish job for the queued hotfixes', () => {
+    expect(chooseJobs(state({ pendingPublish: [7, 8] }), [], NOW, CFG)).toEqual([{ stage: 'publish', issue: null }]);
+  });
+
+  it('waits while a hotfix approval is queued or an approve job runs', () => {
+    expect(chooseJobs(state({ pendingPublish: [7], pendingApprovals: { '8': 'u' } }), [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 8 }]);
+    expect(chooseJobs(state({ pendingPublish: [7], jobs: [running('approve', 8)] }), [], NOW, CFG)).toEqual([]);
+  });
+
+  it('waits after a failed upload until the failure is cleared', () => {
+    const failure = { at: NOW.toISOString(), stage: 'publish' as const, issue: null, error: 'butler push failed', log: null };
+    expect(chooseJobs(state({ pendingPublish: [7], failures: [failure] }), [], NOW, CFG)).toEqual([]);
+  });
+
+  it('runs one at a time and never beside a ship', () => {
+    expect(chooseJobs(state({ pendingPublish: [7], jobs: [running('publish', null)] }), [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs(state({ pendingPublish: [7], jobs: [running('ship', 3)] }), [], NOW, CFG)).toEqual([]);
+  });
+});

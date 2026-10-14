@@ -29,7 +29,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'publish', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -151,8 +151,16 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
   return { stage: 'dev', issue: null };
 }
 
+function publishJob(state: FactoryState): JobPick | null {
+  if (state.pendingPublish.length === 0) return null;
+  if (state.failures.some((failure) => failure.stage === 'publish')) return null;
+  if (state.jobs.some((job) => job.stage === 'approve')) return null;
+  if (Object.keys(state.pendingApprovals).some((issue) => !isHeld(state, Number(issue)))) return null;
+  return { stage: 'publish', issue: null };
+}
+
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards), devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards), publishJob(state), devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
@@ -188,15 +196,15 @@ function findCapacityReasons(state: FactoryState, pick: JobPick, running: JobPic
   const reasons: WaitReason[] = isHeld(state, pick.issue) ? ['held'] : [];
   if (running.filter((job) => QUEUE_OF[job.stage] === queue).length >= limits(cfg)[queue]) reasons.push('queue-full');
   if (running.some((job) => job.issue === pick.issue && (pick.issue !== null || job.stage === pick.stage))) reasons.push('issue-running');
-  const group = ONE_AT_A_TIME.find((stages) => stages.includes(pick.stage));
-  if (group !== undefined && running.some((job) => group.includes(job.stage))) reasons.push('issue-running');
+  const exclusive = ONE_AT_A_TIME.filter((stages) => stages.includes(pick.stage));
+  if (exclusive.some((group) => running.some((job) => group.includes(job.stage)))) reasons.push('issue-running');
   return reasons;
 }
 function readHotfixVerifyReasons(pick: JobPick, running: JobPick[], hotfixes: Set<number>): WaitReason[] {
   const inVerify = (job: JobPick): boolean => QUEUE_OF[job.stage] === 'verify' && job.issue !== null && hotfixes.has(job.issue);
   return inVerify(pick) && running.some(inVerify) ? ['hotfix-verify'] : [];
 }
-const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['incident'], ['catch-up']];
+const ONE_AT_A_TIME: JobStage[][] = [['ship', 'remove'], ['ship', 'publish'], ['incident'], ['catch-up']];
 const LABEL_WAITS: [string, WaitReason][] = [[STUCK_LABEL, 'failed'], [NEEDS_INFO_LABEL, 'needs-info'], [VOTING_LABEL, 'voting']];
 function readCardWait(state: FactoryState, card: Card): ScheduleDecision[] {
   const reasons: WaitReason[] = LABEL_WAITS.filter(([label]) => card.labels.includes(label)).map(([, reason]) => reason);

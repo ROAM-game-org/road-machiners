@@ -4,7 +4,7 @@ export type Column = typeof COLUMNS[number];
 
 export type CardStage = 'triage' | 'design' | 'implement' | 'verify' | 'harden';
 export type ReleaseStage = 'release' | 'playtest' | 'candidate' | 'ship' | 'remove';
-export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
+export type Stage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'feedback' | 'change' | 'adhoc' | 'incident' | 'publish' | 'dev' | 'waste' | 'intake' | 'tick' | 'control' | 'public';
 
 export type FactoryConfig = {
   observationHeartbeatMs: number;
@@ -123,7 +123,7 @@ export type Issue = {
 
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
 
-export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste';
+export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'publish' | 'dev' | 'waste';
 export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[]; caughtUp?: number[] };
 
 export type Queue = 'branch' | 'triage' | 'design' | 'implement' | 'verify' | 'test';
@@ -132,14 +132,14 @@ export const QUEUE_OF: Record<JobStage, Queue> = {
   triage: 'triage', waste: 'triage', design: 'design', implement: 'implement', adhoc: 'implement', verify: 'verify', harden: 'verify',
   change: 'implement',
   checks: 'test',
-  approve: 'branch', merge: 'branch', 'catch-up': 'branch', remove: 'branch', ship: 'branch', release: 'branch', candidate: 'branch', dev: 'branch', incident: 'branch',
+  approve: 'branch', merge: 'branch', 'catch-up': 'branch', remove: 'branch', ship: 'branch', release: 'branch', candidate: 'branch', dev: 'branch', incident: 'branch', publish: 'branch',
   playtest: 'verify',
 };
 export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'change-id' | 'none'> = {
   triage: 'github-issue', design: 'github-issue', implement: 'github-issue', verify: 'github-issue', harden: 'github-issue', checks: 'github-issue', adhoc: 'github-issue',
   approve: 'github-issue', 'catch-up': 'github-issue', remove: 'github-issue', ship: 'github-issue', playtest: 'github-issue', candidate: 'github-issue', incident: 'github-issue',
   change: 'change-id',
-  release: 'none', merge: 'none', dev: 'none', waste: 'none',
+  release: 'none', merge: 'none', dev: 'none', waste: 'none', publish: 'none',
 };
 export type Route = 'answer' | 'patch' | 'redesign';
 export type Failure = { stage: Stage; issue: number | null; error: string; log: string | null; at: string; batch?: number[]; decision?: boolean };
@@ -187,6 +187,7 @@ export type FactoryState = {
   approvedResolving: Record<string, string>;
   pendingChanges: ChangeRequest[];
   pendingIncidents: number[];
+  pendingPublish: number[];
   bundles: Record<string, number[]>;
   lastTickError: string | null;
   failures: Failure[];

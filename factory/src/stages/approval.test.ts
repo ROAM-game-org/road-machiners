@@ -68,29 +68,25 @@ describe('approve', () => {
     expect(state.pendingApprovals).toEqual({});
   });
 
-  it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
+  it('merges a hotfix into main and dev, queues the itch.io upload, leaves the open release and its candidate alone and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
     writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' } });
     await approve(fakeCtx(), 7, 'bob');
-    const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
       'fetch ',
       'merge factory/issue-7 main Hotfix #7: Big horn',
       'merge main dev Merge main into dev after hotfix #7',
       'push main dev',
-      'run git rev-parse',
-      'run butler push',
-      `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
-      'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.',
-      'close 7 completed',
+      'comment 7 Approved by bob in the committee chat. It is merged into main and goes to itch.io with the next hotfix upload.',
       'move 7 Done',
-      'message chat Hotfix #7 Big horn is on main and itch.io.',
+      'message chat Hotfix #7 Big horn is merged into main and goes to itch.io with the next hotfix upload.',
     ]);
     const state = readState(`${home}/state.json`);
     expect(state.release?.postId).toBe(300);
     expect(state.pendingShip).toBe('ann');
     expect(state.pendingApprovals).toEqual({});
-    expect(state.pendingIncidents).toEqual([7]);
+    expect(state.pendingPublish).toEqual([7]);
+    expect(state.pendingIncidents).toEqual([]);
   });
 
   it('sends a hotfix that conflicts with main back to Testing, which merges main and posts again', async () => {
