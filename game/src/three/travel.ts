@@ -10,6 +10,8 @@ import {
 } from "../phys/drive";
 import type { VehicleFrame, WheelFrame } from "../phys/frames";
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
+import type { QuestLanguage } from "../data/quests";
+import { currentQuestLanguage } from "../sim/quests";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
 import { playerVehicle } from "../sim/damage";
@@ -325,6 +327,7 @@ export class TurnPreparation {
   private pending: {
     id: number;
     before: World;
+    lang: QuestLanguage;
     drive: DriveSnapshot;
     ready: PreparedTurn | null;
     failure: string | null;
@@ -355,14 +358,18 @@ export class TurnPreparation {
     this.warmId = this.post(world, captureDrive(drive));
   }
 
+  private isFresh(world: World): boolean {
+    return this.pending?.before === world && this.pending.lang === currentQuestLanguage();
+  }
+
   prepare(world: World, drive: Drive): void {
-    if (this.pending?.before !== world) this.prepareFrom(world, captureDrive(drive));
+    if (!this.isFresh(world)) this.prepareFrom(world, captureDrive(drive));
   }
 
   prepareFrom(world: World, saved: DriveSnapshot): void {
-    if (this.pending?.before === world) return;
+    if (this.isFresh(world)) return;
     const copy = { ...saved, snapshot: saved.snapshot.slice() };
-    this.pending = { id: this.post(world, copy), before: world, drive: saved, ready: null, failure: null };
+    this.pending = { id: this.post(world, copy), before: world, lang: currentQuestLanguage(), drive: saved, ready: null, failure: null };
   }
 
   private post(world: World, saved: DriveSnapshot): number {
@@ -375,6 +382,7 @@ export class TurnPreparation {
         id,
         world: state,
         drive: saved,
+        lang: currentQuestLanguage(),
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies TurnRequest,
       [saved.snapshot.buffer as ArrayBuffer],
@@ -385,7 +393,7 @@ export class TurnPreparation {
 
   take(world: World): PreparedTurn | null {
     const pending = this.pending;
-    if (pending?.before !== world) return null;
+    if (!pending || !this.isFresh(world)) return null;
     if (pending.failure) {
       this.pending = null;
       throw new TurnFailure(pending.failure, pending.drive);
