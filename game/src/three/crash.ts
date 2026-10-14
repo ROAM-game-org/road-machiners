@@ -159,8 +159,9 @@ function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; act
     setText(row, line);
     box.append(row);
   }
-  const reload = text.action && document.createElement('button');
-  if (reload && text.action) {
+  let reload: HTMLButtonElement | null = null;
+  if (text.action) {
+    reload = document.createElement('button');
     reload.className = 'crash-reload';
     setText(reload, text.action);
     reload.addEventListener('click', () => location.reload());
