@@ -29,7 +29,7 @@ import { TIME } from '../data/time';
 import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
-import { lostQuestNames, newGameShape, questNames } from '../test/save-shape';
+import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
 import { chooseQuestOption, QUESTS, questProblems, questView, startQuest } from '../sim/quests';
 import { defaultSetup, parseSetup } from '../sim/settings';
 
@@ -333,6 +333,10 @@ describe('game save', () => {
 
   it('records the saved quest names, so a lost name needs a new format', () => {
     expect(questNames(QUESTS), 'Saved quest names changed. A removed, renamed or retyped name needs a migration step. Then run npm run save:shape').toEqual(SAVED_SHAPE.quests);
+  });
+
+  it('records the links and revision of every quest, so a link change asks for a revision or a compatible mark', () => {
+    expect(questLinks(QUESTS), 'Quest links changed. Run npm run save:shape and follow what it asks').toEqual(SAVED_SHAPE.questLinks);
   });
 
   it('finds a removed, retyped or lost checkpoint name against the recorded names', () => {
