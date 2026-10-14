@@ -85,6 +85,13 @@ export class PublicStore {
     return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).length;
   }
 
+  positiveVoters(issue: number, positive: string[]): string[] {
+    const row = this.db.prepare('select chat, message_id from proposals where issue = ?').get(issue);
+    if (row === undefined || row.message_id === null) return [];
+    const users = this.db.prepare('select user_id, emoji from reactions where chat = ? and message_id = ?').all(String(row.chat), Number(row.message_id));
+    return users.filter((user) => (JSON.parse(String(user.emoji)) as string[]).some((emoji) => positive.includes(emoji))).map((user) => String(user.user_id));
+  }
+
   closeProposal(issue: number, now: Date): void {
     this.db.prepare('update proposals set closed_at = ? where issue = ?').run(now.toISOString(), issue);
   }
