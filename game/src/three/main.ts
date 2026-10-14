@@ -3,6 +3,7 @@ import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
+import { fetchBytes } from '../fetch-bytes';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
@@ -46,9 +47,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  const response = await fetch(MAPGEN.file);
-  if (!response.ok) throw new Error(`Map file ${MAPGEN.file} failed to load: ${response.status} ${response.statusText}`);
-  return decodeMap(new Uint8Array(await response.arrayBuffer()));
+  return decodeMap(new Uint8Array(await fetchBytes(MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
