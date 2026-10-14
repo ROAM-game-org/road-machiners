@@ -186,7 +186,18 @@ export function engineStrainFileFor(chassisId: string): string {
   return file;
 }
 
-export const BANK = { decodeAtOnce: 4, tries: 2, silentSeconds: 0.1 };
+export type SoundFormat = { ext: string; dir: string; mime: string };
+
+export const BANK = {
+  decodeAtOnce: 4,
+  tries: 2,
+  silentSeconds: 0.1,
+  beatSlackSeconds: 0.05,
+  formats: [
+    { ext: "ogg", dir: "sfx/", mime: "audio/ogg; codecs=opus" },
+    { ext: "m4a", dir: "sfx-m4a/", mime: 'audio/mp4; codecs="mp4a.40.2"' },
+  ] satisfies SoundFormat[],
+};
 
 export const MIX = {
   busVolume: { ui: 0.8, sfx: 0.75, ambient: 0.6, music: 0.65 } satisfies Record<Bus, number>,
