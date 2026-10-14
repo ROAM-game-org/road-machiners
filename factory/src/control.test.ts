@@ -29,7 +29,7 @@ let editFails = false;
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
 function fakeCtx(): Ctx {
-  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, repo: 'o/r', voteEmoji: '👍', minVotes: 3 } as FactoryConfig;
+  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, repo: 'o/r', voteEmoji: '👍', vetoEmoji: '👎', minVotes: 3 } as FactoryConfig;
   return {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
@@ -53,6 +53,10 @@ function fakeCtx(): Ctx {
       editText: async (_chat: string, id: number, text: string) => {
         if (editFails) throw new Error('telegram down');
         calls.push(`editText ${id} ${text}`);
+      },
+      editHtml: async (_chat: string, id: number, text: string) => {
+        if (editFails) throw new Error('telegram down');
+        calls.push(`editHtml ${id} ${text}`);
       },
     },
     repo: {
@@ -197,7 +201,7 @@ describe('move', () => {
     seed({});
     const store = openStore(ROOT);
     store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
-    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
     store.close();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
     expect(calls).toContain('removeLabel 9 voting');
@@ -211,13 +215,13 @@ describe('move', () => {
     seed({});
     const store = openStore(ROOT);
     store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
-    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
     store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: '-5', messageId: 300, counts: { '👍': 2 } });
     store.close();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
-    const edits = calls.filter((call) => call.startsWith('editText 300'));
+    const edits = calls.filter((call) => call.startsWith('editHtml 300'));
     expect(edits).toHaveLength(1);
-    expect(edits[0]!.endsWith('2/3\nClosed')).toBe(true);
+    expect(edits[0]!.endsWith('Current: 2 👍, 0 👎, net +2/3\nClosed')).toBe(true);
   });
 
   it('of a voting card reports a failed post edit once and still closes the proposal', async () => {
@@ -225,7 +229,7 @@ describe('move', () => {
     seed({});
     const store = openStore(ROOT);
     store.addProposal(9, 'Winch', new Date(0));
-    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.markProposalPosted(9, '-5', 300, 'footer', new Date(0));
     store.close();
     editFails = true;
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
@@ -243,7 +247,7 @@ describe('move', () => {
     store.addProposal(9, 'Winch', new Date(0));
     store.close();
     await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
-    expect(calls.filter((call) => call.startsWith('editText'))).toEqual([]);
+    expect(calls.filter((call) => call.startsWith('editHtml'))).toEqual([]);
   });
 
   it('to design stops the job and clears every store of the old position (IV1)', async () => {

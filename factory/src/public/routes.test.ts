@@ -7,7 +7,7 @@ function reported(route: 'patch' | 'redesign' | 'none', withPost: boolean) {
   const f = publicFake();
   f.cards = [{ itemId: 'x', issue: 7, column: 'Approval', labels: [] }];
   f.store.addProposal(7, 'Winch', f.clock.now);
-  f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+  f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
   f.store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', text: 'The winch breaks\n## Committee feedback', at: f.clock.now.toISOString() });
   f.store.classify(f.store.unclassifiedComments()[0]!.id, 'bug', route, f.clock.now);

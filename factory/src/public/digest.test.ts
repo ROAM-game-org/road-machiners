@@ -104,7 +104,7 @@ describe('sendDigests', () => {
   it('sends no digest for replies on a rejected proposal and marks them dropped', async () => {
     const f = publicFake();
     f.store.addProposal(7, 'Winch', f.clock.now);
-    f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+    f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
     f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 101, threadId: 100, author: 'Ann', text: 'Please no', at: f.clock.now.toISOString() });
     f.store.classify(f.store.unclassifiedComments()[0]!.id, 'feedback', 'none', f.clock.now);
     f.store.closeProposal(7, f.clock.now);

@@ -3,18 +3,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { openStore, storePath } from './store';
+import { openStore, PublicStore, storePath } from './store';
 
 const CHANNEL = '-100channel';
 const GROUP = '-100group';
-const THUMBS = ['👍'];
+const UP = ['👍'];
+const DOWN = ['👎'];
 const now = new Date('2026-10-14T10:00:00Z');
 
 function postedStore() {
   const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
   store.addProposal(7, 'Add a winch', now);
   store.beginProposalPost(7, now);
-  store.markProposalPosted(7, CHANNEL, 100, now);
+  store.markProposalPosted(7, CHANNEL, 100, 'footer', now);
   return store;
 }
 
@@ -24,40 +25,70 @@ describe('public store', () => {
     const event = { updateId: 1, kind: 'reaction-count' as const, chat: CHANNEL, messageId: 100, counts: { '👍': 3 } };
     expect(store.applyEvent(event)).toBe(true);
     expect(store.applyEvent({ ...event, counts: { '👍': 9 } })).toBe(false);
-    expect(store.votes(7, THUMBS)).toBe(3);
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 3, down: 0 });
   });
 
   it('counts channel votes from the latest count', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 3, '👎': 2 } });
     store.applyEvent({ updateId: 2, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 5 } });
-    expect(store.votes(7, THUMBS)).toBe(5);
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 5, down: 0 });
+    store.applyEvent({ updateId: 3, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 1, '👎': 4 } });
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 1, down: 4 });
   });
 
-  it('counts group votes per user with their current reaction', () => {
+  it('counts group votes per user with their current reaction, on each side', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji: ['👍'] });
     store.applyEvent({ updateId: 2, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'b', emoji: ['👍'] });
     store.applyEvent({ updateId: 3, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'b', emoji: [] });
     store.applyEvent({ updateId: 4, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'c', emoji: ['🔥'] });
-    expect(store.votes(7, THUMBS)).toBe(1);
+    store.applyEvent({ updateId: 5, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'd', emoji: ['👎'] });
+    store.applyEvent({ updateId: 6, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'e', emoji: ['👍'] });
+    store.applyEvent({ updateId: 7, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'e', emoji: ['👎'] });
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 1, down: 2 });
+  });
+
+  it('counts a user once per side however often their reaction update repeats', () => {
+    const store = postedStore();
+    const event = { updateId: 1, kind: 'reaction' as const, chat: CHANNEL, messageId: 100, user: 'a', emoji: ['👍'] };
+    store.applyEvent(event);
+    expect(store.applyEvent(event)).toBe(false);
+    store.applyEvent({ ...event, updateId: 2 });
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 1, down: 0 });
+  });
+
+  it('keeps the footer shown on the post, and drops the old shown vote column of an older store', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    openStore(home).close();
+    const db = new DatabaseSync(storePath(home));
+    db.exec('alter table proposals drop column shown_footer; alter table proposals add column shown_votes integer');
+    db.prepare("insert into proposals (issue, pitch, created_at, chat, message_id, posted_at, shown_votes) values (7, 'Winch', ?, ?, 100, ?, 2)").run(now.toISOString(), CHANNEL, now.toISOString());
+    const store = new PublicStore(db);
+    const columns = db.prepare('pragma table_info(proposals)').all().map((column) => String(column.name));
+    expect(columns).toContain('shown_footer');
+    expect(columns).not.toContain('shown_votes');
+    expect(store.shownFooter(7)).toBeNull();
+    store.setShownFooter(7, '1 👍');
+    expect(store.shownFooter(7)).toBe('1 👍');
+    expect(postedStore().shownFooter(7)).toBe('footer');
   });
 
   it('opens a fresh proposal when a card is put to a vote after its proposal closed, with no votes carried over', () => {
     const store = postedStore();
     store.applyEvent({ updateId: 1, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji: ['👍'] });
     store.applyEvent({ updateId: 2, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts: { '👍': 4 } });
-    store.setShownVotes(7, 4);
+    store.setShownFooter(7, '4');
     store.closeProposal(7, now);
     const later = new Date('2026-10-15T10:00:00Z');
     store.addProposal(7, 'Add a better winch', later);
     expect(store.proposal(7)).toEqual({ issue: 7, pitch: 'Add a better winch', chat: null, messageId: null, postedAt: null, closedAt: null });
     expect(store.unpostedProposals().map((proposal) => proposal.issue)).toEqual([7]);
     expect(store.openProposals()).toEqual([]);
-    expect(store.shownVotes(7)).toBeNull();
-    store.markProposalPosted(7, CHANNEL, 200, later);
-    expect(store.votes(7, THUMBS)).toBe(0);
-    expect(store.votersWith(7, THUMBS)).toEqual([]);
+    expect(store.shownFooter(7)).toBeNull();
+    store.markProposalPosted(7, CHANNEL, 200, 'footer', later);
+    expect(store.tally(7, UP, DOWN)).toEqual({ up: 0, down: 0 });
+    expect(store.votersWith(7, UP)).toEqual([]);
   });
 
   it('keeps an open posted proposal when its card is put to a vote again', () => {

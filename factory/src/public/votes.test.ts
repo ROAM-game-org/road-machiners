@@ -2,12 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { readState } from '../state';
 import { CHANNEL, publicFake } from './public-fakes';
+import { postProposal } from './proposals';
 import { countVotes } from './votes';
 
 function posted(counts: Record<string, number> | null) {
   const f = publicFake();
   f.store.addProposal(7, 'Winch', f.clock.now);
-  f.store.markProposalPosted(7, CHANNEL, 100, f.clock.now);
+  f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   f.cards = [{ itemId: 'x', issue: 7, column: 'Triage', labels: ['voting'] }];
   if (counts) f.store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts });
   return f;
@@ -19,8 +20,8 @@ const react = (f: ReturnType<typeof posted>, updateId: number, user: string, emo
 const footer = (edit: string): string => edit.split('\n\n').at(-1)!;
 
 describe('countVotes', () => {
-  it('moves a proposal that reached the votes to Design once, drops the label, writes the ledger line and adds the conclusion to the post', async () => {
-    const f = posted({ '👍': 2, '❤': 1, '👎': 5 });
+  it('moves a proposal whose 👍 lead its 👎 by the votes needed to Design once, drops the label, writes the ledger line and adds the conclusion to the post', async () => {
+    const f = posted({ '👍': 4, '❤': 1, '👎': 2 });
     await countVotes(f.ctx, f.store);
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
@@ -28,23 +29,64 @@ describe('countVotes', () => {
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
     expect(f.messages).toEqual([]);
     expect(f.edits).toHaveLength(1);
-    expect(f.edits[0]).toMatch(/^100 Winch/);
-    expect(footer(f.edits[0]!)).toBe('3/3\n✅ Accepted with 3 votes');
+    expect(f.edits[0]).toMatch(/^100 <b>Proposal: Winch<\/b>/);
+    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 5 👍, 2 👎, net +3/3\n✅ Accepted with net +3');
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'voted', to: 'Design' })]);
   });
 
-  it('updates the running count at the bottom of the post only when it changes', async () => {
+  it('keeps a proposal open while its 👎 hold the net score below the votes needed', async () => {
+    const f = posted({ '👍': 4, '👎': 2 });
+    await countVotes(f.ctx, f.store);
+    expect(f.calls).toEqual([]);
+    expect(f.store.proposal(7)?.closedAt).toBeNull();
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 4 👍, 2 👎, net +2/3']);
+  });
+
+  it('updates the footer when a vote is added, switched or removed, shows a negative net, and ignores a repeated update', async () => {
     const f = posted(null);
+    f.store.setShownFooter(7, 'Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 0 👎, net 0/3');
     await countVotes(f.ctx, f.store);
     expect(f.edits).toEqual([]);
+    react(f, 2, '7', ['👎']);
+    await countVotes(f.ctx, f.store);
     react(f, 2, '7', ['👍']);
     await countVotes(f.ctx, f.store);
+    react(f, 3, '8', ['👍']);
     await countVotes(f.ctx, f.store);
-    react(f, 3, '8', ['❤']);
+    react(f, 4, '7', ['👍']);
     await countVotes(f.ctx, f.store);
-    expect(f.edits.map(footer)).toEqual(['1/3', '2/3']);
+    react(f, 5, '8', []);
+    await countVotes(f.ctx, f.store);
+    react(f, 6, '9', ['🔥']);
+    await countVotes(f.ctx, f.store);
+    expect(f.edits.map(footer)).toEqual([
+      'Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 1 👎, net -1/3',
+      'Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 1 👎, net 0/3',
+      'Needs 3 more 👍 than 👎 to pass. Current: 2 👍, 0 👎, net +2/3',
+      'Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 0 👎, net +1/3',
+    ]);
     expect(f.calls).toEqual([]);
+  });
+
+  it('makes no edit right after posting, since the post already shows the count', async () => {
+    const f = publicFake();
+    f.store.addProposal(7, 'Winch\n\nPull trucks out.', f.clock.now);
+    await postProposal(f.ctx, f.store);
+    await countVotes(f.ctx, f.store);
+    expect(f.messages).toHaveLength(1);
+    expect(f.edits).toEqual([]);
+  });
+
+  it('redraws an open proposal posted under the old rule once, in the new format, from its stored votes', async () => {
+    const f = posted(null);
+    react(f, 2, '7', ['👍']);
+    react(f, 3, '8', ['👎']);
+    await countVotes(f.ctx, f.store);
+    await countVotes(f.ctx, f.store);
+    expect(f.edits).toHaveLength(1);
+    expect(f.edits[0]).toMatch(/^100 <b>Proposal: Winch<\/b>/);
+    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 1 👎, net 0/3');
   });
 
   it('closes a passed proposal before its GitHub writes, so a failed move is reported once and never repeated', async () => {
@@ -92,7 +134,7 @@ describe('countVotes', () => {
     expect(f.calls.filter((call) => !call.startsWith('issue'))).toEqual([]);
     expect(f.calls.filter((call) => call.startsWith('issue'))).toEqual(['issue 7']);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.edits.map(footer)).toEqual(['3/3\nClosed']);
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 3 👍, 0 👎, net +3/3\nClosed']);
     expect(f.logs.join('\n')).toContain('7 the issue is closed');
   });
 
@@ -102,7 +144,7 @@ describe('countVotes', () => {
     react(f, 2, '42', ['👎']);
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7']);
-    expect(f.edits.map(footer)).toEqual(['0/3\nClosed']);
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 0 👍, 1 👎, net -1/3\nClosed']);
   });
 
   it('reads the issue and the board only when a proposal concludes, never for a count edit', async () => {
@@ -115,12 +157,25 @@ describe('countVotes', () => {
     expect(boardReads).toBe(0);
   });
 
-  it('passes a proposal on one thumbs-up from a committee member, like a committee thumbs-up on GitHub did', async () => {
+  it('never undoes an accepted proposal when its score falls later', async () => {
     const f = posted(null);
-    react(f, 2, '42', ['👍']);
+    for (const [updateId, user] of [[2, '7'], [3, '8'], [4, '9']] as const) react(f, updateId, user, ['👍']);
+    await countVotes(f.ctx, f.store);
+    react(f, 5, '7', ['👎']);
+    react(f, 6, '8', []);
     await countVotes(f.ctx, f.store);
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
-    expect(footer(f.edits[0]!)).toBe('1/3\n✅ Accepted by committee member');
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 3 👍, 0 👎, net +3/3\n✅ Accepted with net +3']);
+  });
+
+  it('passes a proposal on one thumbs-up from a committee member, even with a negative net score', async () => {
+    const f = posted(null);
+    react(f, 2, '7', ['👎']);
+    react(f, 3, '8', ['👎']);
+    react(f, 4, '42', ['👍']);
+    await countVotes(f.ctx, f.store);
+    expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Design']);
+    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 1 👍, 2 👎, net -1/3\n✅ Accepted by committee member');
   });
 
   it('rejects a proposal on one thumbs-down from a committee member, even with enough votes, and closes the issue as not planned', async () => {
@@ -133,23 +188,17 @@ describe('countVotes', () => {
     expect(f.calls).toContain('close 7 not planned');
     expect(f.calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Done']);
     expect(f.store.proposal(7)?.closedAt).not.toBeNull();
-    expect(f.edits.map(footer)).toEqual(['5/3\n❌ Rejected by committee member']);
+    expect(f.edits.map(footer)).toEqual(['Needs 3 more 👍 than 👎 to pass. Current: 5 👍, 0 👎, net +5/3\n❌ Rejected by committee member']);
     const lines = readFileSync(`${f.home}/ledger.jsonl`, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines).toEqual([expect.objectContaining({ kind: 'card', issue: 7, step: 'denied', to: 'Done' })]);
   });
 
-  it('counts a player thumbs-down for nothing', async () => {
+  it('counts a player thumbs-down against the proposal and never rejects on it', async () => {
     const f = posted(null);
-    react(f, 2, '7', ['👎']);
+    for (const [updateId, user] of [[2, '7'], [3, '8'], [4, '9'], [5, '10']] as const) react(f, updateId, user, ['👍']);
+    react(f, 6, '11', ['👎']);
     await countVotes(f.ctx, f.store);
-    expect(f.calls).toEqual([]);
-    expect(f.store.proposal(7)?.closedAt).toBeNull();
-  });
-
-  it('makes no GitHub call below the votes needed', async () => {
-    const f = posted({ '👍': 2 });
-    await countVotes(f.ctx, f.store);
-    expect(f.calls).toEqual([]);
-    expect(f.store.proposal(7)?.closedAt).toBeNull();
+    expect(f.calls).toEqual(['issue 7', 'move 7 Design', 'removeLabel 7 voting']);
+    expect(footer(f.edits[0]!)).toBe('Needs 3 more 👍 than 👎 to pass. Current: 4 👍, 1 👎, net +3/3\n✅ Accepted with net +3');
   });
 });
