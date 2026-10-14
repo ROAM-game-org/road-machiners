@@ -8,7 +8,7 @@ import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
@@ -191,5 +191,19 @@ describe("field refit plan", () => {
   it("refuses a move the sim refuses", () => {
     const w = emptyWorld();
     expect(() => planAfterMove(w.vehicles[0], {}, partOf(w, "mg").id, { x: 9, y: 0, rot: 0 })).toThrow();
+  });
+});
+
+describe("field patch gate", () => {
+  it("offers a patch only for parts mounted on the real truck", () => {
+    const w = emptyWorld();
+    const me = w.vehicles[0];
+    const cage = makePart(w, "cage", 0);
+    stowPart(w, me, cage);
+    expect(canFieldPatch(me, true, cage.id)).toBe(false);
+    const mg = partOf(w, "mg");
+    if (mg.kind !== "part") throw new Error("mg is not a part");
+    expect(canFieldPatch(me, true, mg.part.id)).toBe(true);
+    expect(canFieldPatch(me, false, mg.part.id)).toBe(false);
   });
 });
