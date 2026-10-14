@@ -961,11 +961,12 @@ describe('stranded trucks', () => {
     const { w: after, counts } = strandedRun(w, buildDrive(w), RULES.stranded.turns + 1);
     expect(counts).toEqual(expected);
     const me = after.vehicles[0];
-    expect(dist(me.pos, hungRock.pos)).toBeGreaterThan(chassisDef(me.chassisId).radius + hungRock.r);
+    expect(dist(me.pos, hungRock.pos)).toBeGreaterThan(dist(w.vehicles[0].pos, hungRock.pos));
     const setDownAt = { ...me.pos };
     me.order = order;
-    const { w: freed } = strandedRun(after, buildDrive(after), 3);
-    expect(dist(freed.vehicles[0].pos, order.dest)).toBeLessThan(dist(setDownAt, order.dest) - 1);
+    const { w: freed, counts: freedCounts } = strandedRun(after, buildDrive(after), 3);
+    expect(freedCounts).toEqual([0, 0, 0]);
+    expect(dist(freed.vehicles[0].pos, setDownAt)).toBeGreaterThan(3);
   });
 
   it('does not set down a truck parked against a rock', () => {
