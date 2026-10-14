@@ -133,7 +133,7 @@ describe('feedback route', () => {
     expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent' });
     expect(created).toEqual([]);
     expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
-    expect(store.unclassifiedComments()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
     expect(store.unsentComments()).toMatchObject([{ issue: 40, source: 'game', author: 'Player', text: 'The truck sinks\ninto the road', kind: 'bug', route: 'patch' }]);
   });
 
@@ -164,7 +164,7 @@ describe('feedback route', () => {
     expect(response.status).toBe(503);
     expect(await response.text()).toBe('The report could not be checked now. Try again later.');
     expect(created).toEqual([]);
-    expect(store.unclassifiedComments()).toEqual([]);
+    expect(store.unclassifiedComments(100)).toEqual([]);
   });
 
   it('limits reports per address per hour with 429 and alerts Hermes', async () => {
@@ -174,6 +174,14 @@ describe('feedback route', () => {
     expect(statuses).toEqual([200, 200, 429]);
     expect((await send(url, request(), { 'cf-connecting-ip': '5.6.7.8' })).status).toBe(200);
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_REPORT_IP_PER_HOUR=2');
+  });
+
+  it('counts every address of one IPv6 /64 together', async () => {
+    const { url } = await start({ ipPerHour: 2 });
+    const statuses = [];
+    for (const ip of ['2001:db8::1', '2001:db8:0:0:1::1', '2001:db8::2']) statuses.push((await send(url, request(), { 'cf-connecting-ip': ip })).status);
+    expect(statuses).toEqual([200, 200, 429]);
+    expect((await send(url, request(), { 'cf-connecting-ip': '2001:db8:0:1::1' })).status).toBe(200);
   });
 
   it('refuses a bad origin, a bad body, too long text and an oversized body before the filter', async () => {

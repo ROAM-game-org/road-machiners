@@ -1,6 +1,7 @@
 import asyncio
 import importlib.util
 import json
+import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -132,8 +133,15 @@ def test_discussion_comment_event(tmp_path):
     assert stop is True
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
-        "author": "Ann Lee", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
+        "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
     }}
+
+
+def test_comment_sender_is_the_sender_chat_for_an_anonymous_admin(tmp_path):
+    raw = comment_update()
+    raw["message"]["sender_chat"] = {"id": -100777, "type": "supergroup"}
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["sender"] == "-100777"
 
 
 def test_comment_is_attributed_to_the_replied_message_not_the_thread_root(tmp_path):
@@ -281,4 +289,50 @@ def test_register_adds_public_factory_before_buttons(tmp_path, monkeypatch):
     factories = []
     ctx = SimpleNamespace(register_hook=lambda *a: None, register_tool=lambda **kw: None, register_telegram_handler=factories.append)
     plugin.register(ctx)
+    root = logging.getLogger()
+    watchers = [handler for handler in root.handlers if isinstance(handler, public.ConflictRestartAlert)]
+    for handler in watchers:
+        root.removeHandler(handler)
+    assert len(watchers) == 1
     assert [factory.__qualname__.split(".")[0] for factory in factories] == ["make_public_factory", "make_button_factory"]
+
+
+@pytest.fixture
+def conflict_watch(tmp_path):
+    cfg = cfg_for(tmp_path)
+    public.watch_polling_conflicts(cfg)
+    root = logging.getLogger()
+    yield cfg
+    for handler in [h for h in root.handlers if isinstance(h, public.ConflictRestartAlert)]:
+        root.removeHandler(handler)
+
+
+def log_adapter_line(message, *args):
+    adapter = logging.getLogger("hermes_plugins.platforms__telegram.adapter")
+    adapter.setLevel(logging.INFO)
+    adapter.info(message, *args)
+
+
+def test_conflict_restart_raises_one_alert_line_per_day(conflict_watch, tmp_path):
+    message = "[%s] Telegram polling restarted after conflict retry %d/%d; health pending getUpdates progress"
+    log_adapter_line(message, "telegram", 1, 3)
+    log_adapter_line(message, "telegram", 2, 3)
+    lines = (tmp_path / "public-alert").read_text().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("public updates: Telegram updates queued during a polling restart were dropped, so votes or comments may be missing on 20")
+
+
+def test_other_adapter_lines_raise_no_alert(conflict_watch, tmp_path):
+    log_adapter_line("[%s] Telegram polling started", "telegram")
+    assert not (tmp_path / "public-alert").exists()
+
+
+def test_watching_twice_adds_one_handler(conflict_watch):
+    public.watch_polling_conflicts(conflict_watch)
+    assert len([h for h in logging.getLogger().handlers if isinstance(h, public.ConflictRestartAlert)]) == 1
+
+
+def test_a_failed_alert_write_does_not_break_logging(conflict_watch, tmp_path, monkeypatch):
+    (tmp_path / "public-alert").mkdir()
+    monkeypatch.setattr(logging, "raiseExceptions", False)
+    log_adapter_line("Telegram polling restarted after conflict retry 1/3")
