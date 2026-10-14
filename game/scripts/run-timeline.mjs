@@ -7,7 +7,7 @@ const argv = process.argv.slice(2).filter((a) => a !== '--');
 const byAt = argv.indexOf('--by');
 const by = byAt < 0 ? 'day' : argv[byAt + 1];
 if (by !== 'day' && by !== 'stretch') throw new Error(`--by takes day or stretch. ${USAGE}`);
-const files = argv.filter((a, i) => a !== '--by' && i !== byAt + 1);
+const files = byAt < 0 ? argv : argv.filter((_, i) => i !== byAt && i !== byAt + 1);
 if (files.length !== 1) throw new Error(`Give exactly one log file. ${USAGE}`);
 
 const records = readFileSync(files[0], 'utf8').split('\n').filter((line) => line.trim() !== '').map((line) => JSON.parse(line));
