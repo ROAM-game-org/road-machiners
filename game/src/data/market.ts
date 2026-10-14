@@ -92,6 +92,13 @@ export const CONTRACTS = {
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
     xpPerEffort: 0.0075,
   },
+
+  rescue: {
+    range: 132,
+    areaRadius: 13,
+    areaOffset: 11,
+    xpPerEffort: 0.003,
+  },
 };
 
 export type ShopKind = 'garage' | 'stall';
