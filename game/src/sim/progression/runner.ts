@@ -21,7 +21,8 @@ import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
 import { isJunk, maxHp } from '../wear';
-import { bestTruck, breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
+import { FURY_ROAD } from '../../data/modes';
+import { bestTruck, keepsPace, breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
 import { aimGuns } from './aim';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
@@ -166,9 +167,9 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   if (inCombat(o.world, o.me)) return;
   if (style === 'sprinter') {
     refitGear(o, 1);
-    return buyTruck(o, post);
+    return buyTruck(o, post, style);
   }
-  buyTruck(o, post);
+  buyTruck(o, post, style);
   haulerGear(o, gearBudget(o.world, o.me, 'fighter') * HAULER_SHARE);
   refitGear(o, 1 - HAULER_SHARE);
 }
@@ -228,19 +229,19 @@ function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
 }
 
-function buyTruck(o: Orders, post: Outpost): void {
+function buyTruck(o: Orders, post: Outpost, style: RoadStyle): void {
   const budget = gearBudget(o.world, o.me, 'fighter');
   const current = chassisDef(o.me.chassisId).value;
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id, style)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
   const best = bestTruck(offers, current, budget);
   if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
 }
 
-function keepsKit(o: Orders, chassisId: string): boolean {
+function keepsKit(o: Orders, chassisId: string, style: RoadStyle): boolean {
   const after = outpostBuyChassis(o.world, chassisId);
   const me = playerVehicle(after);
   const mountedCount = (v: Vehicle) => mountedParts(v).filter((p) => partDef(p.defId).kind !== 'core').length;
-  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me);
+  return !isStranded(after, me) && mountedCount(me) === mountedCount(o.me) && (style === 'sprinter' || keepsPace(vehicleStats(after, me).maxSpeed, FURY_ROAD.hauler.hurry));
 }
 
 
