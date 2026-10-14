@@ -57,6 +57,7 @@ export type FactoryConfig = {
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
+  testStallMinutes: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
