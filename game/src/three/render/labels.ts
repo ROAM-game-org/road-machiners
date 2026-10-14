@@ -1,7 +1,8 @@
 
 import { atlasOf, atlasSites } from '../../sim/atlas';
 import { groundPoint, type VehicleFrame } from '../../phys/frames';
-import type { World } from '../../sim/types';
+import { claimPartHeld } from '../../sim/claims';
+import type { SalvageStock, World } from '../../sim/types';
 import type { Vec } from '../../sim/vec';
 import { el } from '../../ui/dom';
 import { createBareItemIcon } from '../../ui/cards';
@@ -36,6 +37,7 @@ function place(el: HTMLDivElement, world: World, pos: Vec, rig: CameraRig, limit
 export class Labels {
   private els = new Map<string, HTMLDivElement>();
   private rumors = new Map<string, HTMLDivElement>();
+  private claims = new Map<string, HTMLDivElement>();
 
   constructor(private readonly container: HTMLElement) {}
 
@@ -48,6 +50,7 @@ export class Labels {
     }
     this.dropGoneSites(new Set(sites.map((s) => s.id)));
     this.updateRumors(world, rig, limit);
+    this.updateClaims(world, rig, limit);
   }
 
   private dropGoneSites(ids: Set<string>): void {
@@ -68,18 +71,28 @@ export class Labels {
 
   private updateRumors(world: World, rig: CameraRig, limit: SightLimit): void {
     const stocks = world.salvage.filter((s) => world.player.rumored.includes(s.id));
+    this.syncStockLabels(this.rumors, stocks, 'map.rumor', world, rig, limit);
+  }
+
+  private updateClaims(world: World, rig: CameraRig, limit: SightLimit): void {
+    const claimed = new Set(world.player.contracts.flatMap((c) => (c.kind === 'claim' && claimPartHeld(world, c) === 'stock' ? [c.stockId] : [])));
+    const stocks = world.salvage.filter((s) => claimed.has(s.id));
+    this.syncStockLabels(this.claims, stocks, 'map.claim', world, rig, limit);
+  }
+
+  private syncStockLabels(labels: Map<string, HTMLDivElement>, stocks: SalvageStock[], textId: 'map.rumor' | 'map.claim', world: World, rig: CameraRig, limit: SightLimit): void {
     const ids = new Set(stocks.map((s) => s.id));
-    for (const [id, el] of this.rumors) {
+    for (const [id, el] of labels) {
       if (ids.has(id)) continue;
       el.remove();
-      this.rumors.delete(id);
+      labels.delete(id);
     }
     for (const stock of stocks) {
-      let el = this.rumors.get(stock.id);
+      let el = labels.get(stock.id);
       if (!el) {
         el = labelEl(this.container);
-        setText(el, t('map.rumor'));
-        this.rumors.set(stock.id, el);
+        setText(el, t(textId));
+        labels.set(stock.id, el);
       }
       place(el, world, stock.pos, rig, limit, true);
     }

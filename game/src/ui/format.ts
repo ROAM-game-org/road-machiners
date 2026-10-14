@@ -2,7 +2,7 @@
 import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
-import type { Contract } from '../sim/market';
+import { siteOf, type Contract } from '../sim/market';
 import { PERK_LEVELS } from '../data/skills';
 import { TERRAIN } from '../data/terrain';
 import { TIME } from '../data/time';
@@ -35,7 +35,8 @@ import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as p
 import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { damage, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { territoryAt } from '../sim/territory';
+import { bearingText, damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -548,8 +549,16 @@ export function contractSummary(c: Contract): Msg {
     return c.rush ? t('contract.rushHaul', haul) : t('contract.haul', haul);
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
+  if (c.kind === 'claim') return claimSummary(c);
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
+}
+
+function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
+  const shop = siteOf(c.shop);
+  const clue = { part: partNameOf(c.defId), bearing: bearingText(shop.pos, c.at), shop: siteName(c.shop), distance: distanceText(dist(shop.pos, c.at)) };
+  const territory = territoryAt(c.at);
+  return territory ? t('contract.salvageIn', { ...clue, place: siteName(territory.id) }) : t('contract.salvage', clue);
 }
 
 export function contractWindow(c: Contract): Msg {

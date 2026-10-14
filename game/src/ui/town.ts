@@ -38,6 +38,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
+import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, fitsFetch, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
@@ -361,6 +362,7 @@ export class TownScreen {
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "claim") return playerVehicle(w).items.some((it) => it.kind === "part" && it.part.id === c.partId) ? t("contract.unmountFirst") : t("contract.needsPart");
   return bountyPays(w);
 }
 
@@ -407,6 +409,7 @@ function stockCount(stock: PartInstance[], f: StockFilter): number {
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
+  claim: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
 };
 
@@ -478,6 +481,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
+  if (c.kind === "claim") return spareParts(me).some((p) => fitsClaim(c, p)) || w.player.storage.some((p) => fitsClaim(c, p));
   return c.fulfilled;
 }
 

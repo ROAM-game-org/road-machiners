@@ -14,16 +14,9 @@ import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { renderLine } from './quest-text';
-import { fuelLiters, meters, moneyM } from './units';
+import { compassText, fuelLiters, meters, moneyM } from './units';
 
-const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
 const METERS_PER_KM = 1000;
-
-function compass(rad: number): Msg {
-  const step = (2 * Math.PI) / COMPASS.length;
-  const i = Math.round(rad / step);
-  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
-}
 
 function distanceText(tiles: number): Msg {
   const m = meters(tiles);
@@ -73,7 +66,7 @@ const VAR_TEXT: VarText = {
   site: (v) => siteName(v.id),
   money: (v) => money(v.amount),
   distance: (v) => distanceText(v.tiles),
-  bearing: (v) => compass(v.rad),
+  bearing: (v) => compassText(v.rad),
   count: (v) => unitCount(v.unit, v.n),
   deal: dealText,
   prices: pricesText,

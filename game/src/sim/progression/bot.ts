@@ -30,6 +30,7 @@ import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
 import { fightOdds } from '../fight-odds';
 import { warnedOffTarget } from '../loot-warning';
+import { claimPartHeld } from '../claims';
 import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
@@ -517,9 +518,42 @@ function checkNextBoard(o: Orders): void {
   if (next) driveToSite(o, next);
 }
 
+type Claim = Extract<Contract, { kind: 'claim' }>;
+
+const isClaim = (c: Contract): c is Claim => c.kind === 'claim';
+
+function claimGoal(o: Orders): boolean {
+  const held = o.world.player.contracts.find(isClaim);
+  if (!held) return takeClaim(o);
+  if (claimPartHeld(o.world, held) === 'player') {
+    if (shopAt(o.world) === held.shop) o.run((w) => deliverContract(w, held.id), 'contracts');
+    else driveToSite(o, siteOf(held.shop));
+    return true;
+  }
+  return recoverClaimed(o, held);
+}
+
+function recoverClaimed(o: Orders, claim: Claim): boolean {
+  const stock = o.world.salvage.find((s) => s.id === claim.stockId);
+  if (!stock || freeCells(o.me) === 0) return false;
+  lootHere(o);
+  if (needsSearch(o.world, stock) || !canReachSalvage(o.me, stock)) visitStock(o, stock);
+  return true;
+}
+
+function takeClaim(o: Orders): boolean {
+  const shop = shopAt(o.world);
+  if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
+  const reaches = (c: Claim) => c.deadline > o.world.turn && fuelReaches(o.world, { ...siteOf(c.shop), pos: c.at });
+  const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
+  if (best) o.run((w) => acceptContract(w, best.id));
+  return best !== undefined;
+}
+
 function scavengerGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
+  if (claimGoal(o)) return;
   if (!scavenge(o, false) && !trade(o) && !takeHaul(o)) checkNextBoard(o);
 }
 
