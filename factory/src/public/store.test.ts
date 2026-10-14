@@ -215,6 +215,26 @@ describe('public store', () => {
     expect(store.takeHit('1.2.3.4', now, 2)).toEqual({ taken: false, resetAt: new Date('2026-10-14T11:00:00Z') });
   });
 
+  it('gives back at most the limit of hits an hour for one address', () => {
+    const store = postedStore();
+    const taken = { taken: true };
+    const refused = { taken: false, resetAt: new Date('2026-10-14T11:00:00Z') };
+    for (let i = 0; i < 2; i++) store.takeHit('1.2.3.4', now, 2);
+    for (let i = 0; i < 3; i++) store.returnHit('1.2.3.4', now, 2);
+    expect([1, 2, 3].map(() => store.takeHit('1.2.3.4', now, 2))).toEqual([taken, taken, refused]);
+    store.returnHit('1.2.3.4', now, 2);
+    expect(store.takeHit('1.2.3.4', now, 2)).toEqual(refused);
+  });
+
+  it('gives back no hit below zero and none of another address', () => {
+    const store = postedStore();
+    store.takeHit('1.2.3.4', now, 1);
+    store.returnHit('5.6.7.8', now, 1);
+    expect(store.takeHit('1.2.3.4', now, 1).taken).toBe(false);
+    expect(store.takeHit('5.6.7.8', now, 1).taken).toBe(true);
+    expect(store.takeHit('5.6.7.8', now, 1).taken).toBe(false);
+  });
+
   it('survives a reopen', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     const first = openStore(home);
