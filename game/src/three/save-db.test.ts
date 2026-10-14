@@ -4,8 +4,8 @@ import { startKit } from '../data/start';
 import { newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { loadWorld, saveOf, writeSave } from './save';
-import { idbBackend, memoryBackend, SaveSlots, type SaveBackend } from './save-db';
-import { allSlots } from './save-slots';
+import { idbBackend, memoryBackend, openSaves, SaveSlots, storageBackend, type SaveBackend } from './save-db';
+import { allSlots, slotKey } from './save-slots';
 
 const SLOTS = allSlots(3);
 
@@ -144,5 +144,132 @@ describe('idbBackend writes', () => {
     await backend.remove('auto');
 
     expect(transactionArgs).toEqual([['saves', 'readwrite'], ['saves', 'readwrite']]);
+  });
+});
+
+describe('storageBackend', () => {
+  const KEY = 'roam.save';
+
+  it('round trips a save and removes it', async () => {
+    const storage = makeStorage();
+    await storageBackend(storage, KEY, SLOTS).put('auto', { savedAt: 5, world: { turn: 1 } });
+    expect((await storageBackend(storage, KEY, SLOTS).readAll()).get('auto')).toEqual({ savedAt: 5, world: { turn: 1 } });
+    await storageBackend(storage, KEY, SLOTS).remove('auto');
+    expect(storage.length).toBe(0);
+  });
+
+  it('reads text that does not parse as its text', async () => {
+    const storage = makeStorage();
+    storage.setItem(slotKey(KEY, 'auto'), '{broken');
+    expect((await storageBackend(storage, KEY, SLOTS).readAll()).get('auto')).toBe('{broken');
+  });
+
+  it('reports a refused write and keeps the mirror', async () => {
+    const storage = makeStorage();
+    storage.setItem = () => { throw new Error('Quota exceeded'); };
+    const slots = await SaveSlots.open(storageBackend(storage, KEY, SLOTS), null, KEY, SLOTS);
+    const errors: unknown[] = [];
+    slots.onError = (err) => errors.push(err);
+    slots.put('auto', { savedAt: 1 });
+    await slots.flush();
+    expect(errors.map((e) => (e as Error).message)).toEqual(['Quota exceeded']);
+    expect(slots.get('auto')).toEqual({ savedAt: 1 });
+  });
+
+  it('keeps the run log in memory', async () => {
+    const storage = makeStorage();
+    const backend = storageBackend(storage, KEY, SLOTS);
+    await backend.appendLog('r', [{ kind: 'a', turn: 1, day: 1 }]);
+    await backend.appendLog('r', [{ kind: 'b', turn: 2, day: 1 }]);
+    expect((await backend.readLog('r')).map((r) => r.seq)).toEqual([0, 1]);
+    expect(storage.length).toBe(0);
+  });
+
+  it('is moved into a database on a later boot, keeping the newer save', async () => {
+    const storage = makeStorage();
+    await storageBackend(storage, KEY, SLOTS).put('auto', { savedAt: 9 });
+    const database = memoryBackend();
+    await database.put('auto', { savedAt: 3 });
+    const slots = await SaveSlots.open(database, storage, KEY, SLOTS);
+    expect(slots.get('auto')).toEqual({ savedAt: 9 });
+    expect(storage.length).toBe(0);
+  });
+});
+
+describe('openSaves', () => {
+  const KEY = 'roam.save';
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubOpen(refusals: number): { opens: () => number; saved: Map<string, unknown> } {
+    let opens = 0;
+    const saved = new Map<string, unknown>();
+    const fire = <T>(result: T) => {
+      const req: { result: T; onsuccess?: () => void } = { result };
+      setTimeout(() => req.onsuccess?.());
+      return req;
+    };
+    const store = {
+      getAllKeys: () => fire([...saved.keys()]),
+      getAll: () => fire([...saved.values()]),
+      put: (value: unknown, key: string) => { saved.set(key, value); return {}; },
+      delete: (key: string) => { saved.delete(key); return {}; },
+    };
+    const db = {
+      transaction: () => {
+        const tx: { oncomplete?: () => void; objectStore: () => typeof store } = { objectStore: () => store };
+        setTimeout(() => tx.oncomplete?.());
+        return tx;
+      },
+    };
+    vi.stubGlobal('indexedDB', {
+      open: () => {
+        opens += 1;
+        const refused = opens <= refusals;
+        const open: { result: unknown; error: unknown; onsuccess?: () => void; onerror?: () => void } = {
+          result: db,
+          error: new DOMException('The operation was aborted.', 'AbortError'),
+        };
+        setTimeout(() => (refused ? open.onerror?.() : open.onsuccess?.()));
+        return open;
+      },
+    });
+    return { opens: () => opens, saved };
+  }
+
+  it('falls back to local storage after two refusals and keeps legacy keys', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stub = stubOpen(2);
+    const storage = makeStorage();
+    storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
+    const opening = openSaves(KEY, storage, SLOTS);
+    await vi.runAllTimersAsync();
+    const slots = await opening;
+    vi.useRealTimers();
+    expect(stub.opens()).toBe(2);
+    expect(warn).toHaveBeenCalledOnce();
+    slots.put('slot1', { savedAt: 7 });
+    await slots.flush();
+    expect(JSON.parse(storage.getItem(slotKey(KEY, 'slot1')) ?? 'null')).toEqual({ savedAt: 7 });
+    expect(storage.getItem(slotKey(KEY, 'auto'))).not.toBeNull();
+    warn.mockRestore();
+  });
+
+  it('opens on the database after one refusal and moves legacy saves', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stub = stubOpen(1);
+    const storage = makeStorage();
+    storage.setItem(slotKey(KEY, 'auto'), JSON.stringify({ savedAt: 2 }));
+    const opening = openSaves(KEY, storage, SLOTS);
+    await vi.runAllTimersAsync();
+    const slots = await opening;
+    vi.useRealTimers();
+    expect(stub.opens()).toBe(2);
+    expect(warn).not.toHaveBeenCalled();
+    expect(slots.get('auto')).toEqual({ savedAt: 2 });
+    expect(stub.saved.get('auto')).toEqual({ savedAt: 2 });
+    expect(storage.getItem(slotKey(KEY, 'auto'))).toBeNull();
+    warn.mockRestore();
   });
 });
