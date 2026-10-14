@@ -75,10 +75,12 @@ async function reject(ctx: Ctx, dir: string, name: string, reason: string): Prom
   await reportFailure(ctx, 'public', null, new Error(`Public inbox file ${name} was moved to bad: ${reason}`), null, []);
 }
 
+const byUpdateId = (a: string, b: string): number => a.localeCompare(b, 'en', { numeric: true });
+
 export async function ingest(ctx: Ctx, store: PublicStore): Promise<void> {
   const dir = publicInboxDir(ctx.cfg.home);
   if (!existsSync(dir)) return;
-  for (const name of readdirSync(dir).filter((file) => file.endsWith('.json')).sort()) {
+  for (const name of readdirSync(dir).filter((file) => file.endsWith('.json')).sort(byUpdateId)) {
     const path = join(dir, name);
     let event: PublicEvent;
     try {

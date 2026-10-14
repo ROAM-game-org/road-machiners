@@ -73,6 +73,15 @@ describe('ingest', () => {
     await ingest(empty.ctx, empty.store);
   });
 
+  it('applies updates in update id order, so a switched reaction keeps the newer vote when the id gains a digit', async () => {
+    const { f, put } = setup();
+    const reaction = (updateId: number, emoji: string[]) => ({ updateId, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji });
+    put('999.json', reaction(999, ['👍']));
+    put('1000.json', reaction(1000, ['👎']));
+    await ingest(f.ctx, f.store);
+    expect(f.store.tally(7, ['👍'], ['👎'])).toEqual({ up: 0, down: 1 });
+  });
+
   it('stores a comment event for a tracked thread', async () => {
     const { f, put } = setup();
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
