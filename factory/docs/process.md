@@ -64,7 +64,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 ![Testing column](diagrams/testing.svg)
 
-- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening.
+- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening. Only one hotfix tests at a time, since its full suite is slow and would starve the normal cards.
 - Hermes can move a card to Approval with no testing. A checks job then builds the branch and posts it with no tests, and the post says so.
 
 ## Hardening and Merging columns
@@ -174,6 +174,8 @@ Jobs pick in this order. A job starts when its queue has a free worker and no ot
 3. Card jobs: hotfixes, ad hoc tasks, factory changes, release tasks, then other cards. Within each, the card furthest along goes first.
 
 A held card gets no job of any kind, and its queued approval waits while the next one runs.
+
+At most one hotfix job runs in the verify queue. A second hotfix card waits for it, and the free verify worker goes to the next normal card. Hotfix jobs in other queues are not limited.
 
 Queues:
 
