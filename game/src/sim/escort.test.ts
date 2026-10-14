@@ -13,6 +13,7 @@ import { addState, advanceStates, endState, settleStates, stateOf } from './stat
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
 import { escortFee, escortsOf, isOnRope, startEscort, towOf } from './tow';
+import { safeBesidePartner } from './pairs';
 import type { GameEvent, NpcActivity, NpcState, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { refreshVision } from './vision';
@@ -545,5 +546,14 @@ describe('courier pairs', () => {
     const chances = optionChances(optionWeights(w, me, 'idle', null, null));
     expect(chances.escort).toBeGreaterThan(0.8);
     expect(chances.escort).toBeLessThan(0.95);
+  });
+
+  it('flees toward its leader when the leader is away from the threat', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const leader = courierAt(w, { x: 20, y: 60 });
+    const follower = courierAt(w, { x: 60, y: 60 });
+    startEscort(w, follower, leader, null, 0);
+    expect(safeBesidePartner(w, follower, { x: 120, y: 60 })).toEqual(leader.pos);
+    expect(safeBesidePartner(w, follower, { x: 0, y: 60 })).toBeNull();
   });
 });

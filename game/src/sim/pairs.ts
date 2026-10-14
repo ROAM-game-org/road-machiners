@@ -4,7 +4,7 @@ import { isDefeated } from './defeat';
 import { modeRules } from './settings';
 import { startEscort, unguardedLeader } from './tow';
 import type { NpcActivity, Vehicle, World } from './types';
-import { dist } from './vec';
+import { dist, pointsAway, type Vec } from './vec';
 
 function pairsWith(v: Vehicle): boolean {
   const templateId = v.brain?.templateId;
@@ -35,4 +35,12 @@ export function joinLeader(world: World, v: Vehicle): NpcActivity {
   if (!leader) throw new Error(`${v.id} chose an escort with no leader to join`);
   if (pairsWith(v) && !isLone(world, leader)) throw new Error(`${v.id} chose a partner ${leader.id} that is not lone`);
   return startEscort(world, v, leader, null, 0);
+}
+
+export function safeBesidePartner(world: World, v: Vehicle, threat: Vec): Vec | null {
+  if (!pairsWith(v)) return null;
+  const held = world.states.find((s) => s.kind === 'escort' && s.holder === v.id);
+  const leader = held && world.vehicles.find((o) => o.id === held.other);
+  if (!leader || isDefeated(leader) || !pointsAway(v.pos, leader.pos, threat)) return null;
+  return { ...leader.pos };
 }

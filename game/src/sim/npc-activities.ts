@@ -42,7 +42,7 @@ import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
 import { dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
-import { joinLeader } from './pairs';
+import { joinLeader, safeBesidePartner } from './pairs';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
 import { beginRearm, holdsRearm, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
@@ -143,6 +143,8 @@ function createSiteActivity(kind: NpcActivity['kind'], id: string, reason: GoalR
 }
 
 function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProfile, threatPos: Vec): Vec {
+  const partner = safeBesidePartner(world, vehicle, threatPos);
+  if (partner) return partner;
   const safe = [...profile.towns, ...profile.bases].map(getKnownSite).filter((site) => pointsAway(vehicle.pos, site.pos, threatPos));
   safe.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   const away = { x: vehicle.pos.x + (vehicle.pos.x - threatPos.x), y: vehicle.pos.y + (vehicle.pos.y - threatPos.y) };
