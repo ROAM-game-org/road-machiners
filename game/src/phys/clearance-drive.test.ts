@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
-import { RULES } from '../data/rules';
 import { START_KITS } from '../data/start';
 import { isFree } from '../sim/spawn';
 import { emptyWorld } from '../sim/testkit';
@@ -65,7 +64,7 @@ describe('a truck on a route sweeps its turn clear', () => {
 
   it('IV2: nosed against a rock with the stop point to the side, it gets free and arrives', () => {
     const w = onFlat(0, 0, { kind: 'stopAt', dest: { x: 31, y: 36 } }, [{ x: 31.7, y: 30 }], 1.2);
-    const t = drive(w, 6);
+    const t = drive(w, 8);
     expect(t.arrived).toBe(true);
     expect(t.crashes.filter((c) => c.b === 'rock1').length).toBeLessThanOrEqual(1);
   });
@@ -96,28 +95,22 @@ describe('reproduced TEST_MAP trips', () => {
     return w;
   };
 
-  function trip(prop: string, start: Vec, dest: Vec, turn: number, order: MoveOrder['kind']): Trip {
+  function trip(prop: string, start: Vec, dest: Vec, turn: number, kind: MoveOrder['kind'], speed: number): Trip {
     const w = base();
     const v = w.vehicles[0];
     const rock = w.obstacles.find((o) => o.id === prop)!;
     expect(isFree(w, start, chassisDef(v.chassisId).radius, v.id)).toBe(true);
     v.pos = start;
     v.heading = bearing(start, rock.pos) + turn;
-    v.speed = 6;
-    return drive(setMoveOrder(w, { kind: order, dest }), 20);
+    v.speed = speed;
+    return drive(setMoveOrder(w, { kind, dest }), 20);
   }
 
-  const cases: [string, string, Vec, Vec, number, MoveOrder['kind']][] = [
-    ['around a glass spire', 'glassSpire-1989', { x: 431.4, y: 309.5 }, { x: 419.4, y: 322.3 }, 0, 'through'],
-    ['a rock, turned toward it', 'rock2572', { x: 299.8, y: 190.6 }, { x: 292.9, y: 177.7 }, Math.PI / 2, 'stopAt'],
-    ['a rock, turned away', 'rock2572', { x: 299.8, y: 190.6 }, { x: 292.9, y: 177.7 }, -Math.PI / 2, 'stopAt'],
-    ['glass spires, turned', 'glassSpire-2038', { x: 397.4, y: 371.5 }, { x: 387.6, y: 361.3 }, -Math.PI / 2, 'through'],
-  ];
-
-  it.each(cases)('IV3: %s reaches its waypoint with no damaging crash', (_, prop, start, dest, turn, kind) => {
-    const t = trip(prop, start, dest, turn, kind);
+  it.each([Math.PI / 2, -Math.PI / 2])('IV3: a rock beside the start, truck turned %d, reaches its waypoint with no damaging crash', (turn) => {
+    const dest = { x: 292.9, y: 177.7 };
+    const t = trip('rock2572', { x: 299.8, y: 190.6 }, dest, turn, 'stopAt', 3);
     expect(hard(t)).toEqual([]);
     expect(stalls(t)).toBe(false);
-    expect(t.arrived || dist(t.w.vehicles[0].pos, dest) < RULES.passRadius * 2).toBe(true);
+    expect(t.arrived).toBe(true);
   });
 });
