@@ -34,7 +34,7 @@ describe('filterWith', () => {
     expect(body.model).toBe('test-model');
     expect(body.text.format).toMatchObject({ type: 'json_schema', name: 'decision', strict: true });
     expect(body.text.format.schema.additionalProperties).toBe(false);
-    expect(body.text.format.schema.required).toEqual(['verdict', 'kind', 'route', 'title', 'reason']);
+    expect(body.text.format.schema.required).toEqual(['reason', 'kind', 'route', 'title', 'verdict']);
     expect(body.text.format.schema.properties.verdict.enum).toEqual(['accept', 'reject']);
     expect(body.text.format.schema.properties.route.enum).toEqual(['none', 'patch', 'redesign']);
     expect(sent[0].init.signal).toBeInstanceOf(AbortSignal);

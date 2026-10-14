@@ -248,7 +248,7 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 - udesign: `voting` is a label on a Triage card, not a new column — a new Project option is a manual GitHub change.
 - udesign: `FACTORY_MIN_VOTES` stays 10 and counts Telegram thumbs-up — same value as before.
 - udesign: `FACTORY_PROPOSALS_PER_DAY=4` — the user's number.
-- udesign: `FACTORY_FILTER_MODEL=gpt-5.4-nano` — OpenAI's docs name it for classification. Change it in settings.env.
+- udesign: `FACTORY_FILTER_MODEL=gpt-5.4-mini`, after a live test of ten comments where nano rejected a real bug and mini sorted all ten right. Change it in settings.env.
 - udesign: one public route per build post, since the route closes the post — limits money spent on player reports with no new number.
 - udesign: `voting` cards are not bundled — a posted proposal keeps its text.
 - udesign: `FACTORY_PUBLIC_DIGEST_MINUTES=60`, `FACTORY_REPORT_IP_PER_HOUR=5`, `FACTORY_REPORT_MAX_CHARS=3000` — new numbers with their reasons in settings.env. Change any of them there.
