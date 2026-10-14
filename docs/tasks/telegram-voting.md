@@ -175,7 +175,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
 - IF3 — `filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): Classify` in `factory/src/public/filter.ts`. The types live in `factory/src/public/decision.ts`, committed. The returned function throws on any failed call or bad answer.
 - IF4 — `publicTick(ctx: Ctx, classify: Classify): Promise<void>` in `factory/src/public/tick-steps.ts`. PH7 wires it into `tick.ts` with the real filter, since PH2 and PH4 typecheck apart.
 - IF5 — `postBuild(ctx: Ctx, issue: number, build: string, url: string, description: string): Promise<void>` in `factory/src/public/build-post.ts`. It does nothing for an issue with no posted proposal.
-- IF6 — `POST /feedback` takes JSON `{ kind: 'bug' | 'idea', text, version, build }`, where `build` is the first folder of the page path or `release`. It answers 200 with `{ status: 'sent', issue }` or `{ status: 'refused' }` from the filter, so the game shows the reply in the player's language, or an error status with a plain text message.
+- IF6 — `POST /feedback` takes gzipped JSON `{ kind: 'bug' | 'idea', text, build, context }`, where `build` is the first folder of the page path or `release` and `context` is the game context the error reports also send. It answers 200 with `{ status: 'sent' }` for a kept and a dropped report alike, or an error status with a plain text message.
 
 ### Interface graph
 - PH2 IF4 -> @ factory/src/intake.ts, factory/src/github.ts, factory/src/stages/triage.ts, factory/src/stages/bundle.ts, factory/prompts/triage.md, factory/src/tick.ts, factory/src/dashboard/labels.ts, factory/src/position.ts
@@ -197,6 +197,7 @@ Approach: the contract (PH1) is committed first. PH2 to PH6 then run in parallel
   - The bug reply routed the card to Testing under `## Player report`, edited the committee post, and closed both posts. The public inbox was empty after each tick.
   - Reactions stopped before Hermes. Committee chat replies went on to Hermes.
 - Found and fixed while verifying: a player patch never reached the testing agent, since `taskText` read only `## Committee feedback`. A failed public build post threw after the committee post. One failing route blocked the rest every tick. `factory move` left `voting` on a moved card, which blocks every job.
+- Report context, c272fbe2 and after: a Playwright run on the dev server sent a Russian report from the form. The intercepted body was gzip and held the live world, with a money edit made just before send, the language `ru`, the screen size and the log. The form showed "Спасибо. Отчет отправлен.". `npm run error:replay` loaded that body and ran a turn. It also replays a made-up error report, after a fix for `loadWorld` taking save slots. Factory error report tests pass, 30, and both typechecks are clean.
 - Not checked live: channel `message_reaction_count` updates and discussion group forwards, since the bot is not in the discussion group yet (AS2, AS3). The real OpenAI call, since no key exists.
 
 ## Conclusion
@@ -235,7 +236,6 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 - `factory/src/inbox.ts:91` — deletes the inbox file before it parses or handles it, so a crash loses the member's command.
 - `factory/src/committee.ts:12` — a missing `committee.json` falls back to the bootstrap member with no warning (GPC6).
 - `factory/src/error-reports/service.ts:238` — the per-address limit of `/errors` lives in memory and resets on restart.
-- `factory/src/error-reports/service.ts` `readBody` — its 413 message always names `FACTORY_ERROR_BODY_KB`, also for `/feedback`.
 - `factory/src/stages/triage.ts:113` — `readQuestions` does not enforce the three-question cap of `prompts/triage.md`.
 - `factory/src/deploy.test.ts` — one `it(...)` block appears twice.
 - `factory/src/stages/approval.ts:78` — a player route adopts committee reply media of the same post and labels it as from `public`.
@@ -261,10 +261,10 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 - ureview: a comment whose filter call fails is stored rejected and reported once, not retried. An OpenAI outage drops those comments from the digest.
 - ureview: `FACTORY_FILTER_TIMEOUT_SECONDS=30`, with its reason in settings.env.
 - ureview: a passed proposal closes before its GitHub writes. A failed move is reported once, and Hermes moves the card by hand.
+- context: the report form takes a snapshot of the world in memory when the player presses send. It never writes a save slot, since that would move where the player resumes.
+- context: player reports use the error report caps, `FACTORY_ERROR_BODY_KB`, `FACTORY_ERROR_UNZIPPED_MB` and `FACTORY_ERROR_DISK_MB`, with no new number. A dropped report keeps no file.
+- context: an error report without `language` and `screen` still files, since the live release sends the old shape. Remove that allowance in `factory/src/error-reports/report.ts` after the next release.
 
 ### Deferred (needs user input)
-- Before merging into `main`, add to the server `.env`: `FACTORY_PUBLIC_DISCUSSION=-1004432761257`, `FACTORY_PROPOSAL_CHAT` set to the channel id `-1003923325496`, and `OPENAI_API_KEY` with a spend limit. Every key is required, so the factory, the error service and Hermes stop without them.
-- Add the bot to the channel's discussion group as admin.
-- Have agy check the Russian strings of the game form on `feedback-form`.
 - A report from the candidate build reaches only the release issue's digest. Routing it would open a release task like a committee reply on the candidate post. Decide if players should be able to do that.
-- Merge `telegram-voting` into `main` and `feedback-form` into `dev`. Then watch one real proposal: votes from the channel, a build reply, a comment digest.
+- Merge `telegram-voting` into `main`, then `main` into `dev`, and deploy so the local `factory/infra/server.env` reaches the server. Then watch one real proposal in the player chat @roamer_chat: votes, a build reply, a comment digest and a report from the game.

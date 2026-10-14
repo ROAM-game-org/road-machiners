@@ -250,6 +250,7 @@ export class ErrorServer {
 
   private async serveFeedback(request: IncomingMessage, response: ServerResponse, origin: string): Promise<void> {
     const address = clientOf(request);
+    this.feedback.admit(address);
     const reply = await this.feedback.take(address, await readBody(request, this.cfg.errorBodyKb * 1024));
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': origin, vary: 'Origin' });
     response.end(JSON.stringify(reply));

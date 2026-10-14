@@ -33,6 +33,11 @@ export class Feedback {
 
   constructor(private readonly deps: FeedbackDeps) {}
 
+  admit(address: string): void {
+    const { cfg, store, now } = this.deps;
+    if (store.countHit(address, now()) > cfg.reportIpPerHour) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
+  }
+
   take(address: string, body: Buffer): Promise<FeedbackReply> {
     const result = this.queue.then(() => this.handle(address, body));
     this.queue = result.catch(() => undefined);
@@ -41,7 +46,6 @@ export class Feedback {
 
   private async handle(address: string, body: Buffer): Promise<FeedbackReply> {
     const { cfg, store, now } = this.deps;
-    if (store.countHit(address, now()) > cfg.reportIpPerHour) throw new Rejected('feedback-rate', 429, 'Too many reports from this address.');
     const request = parseRequest(unzip(body, cfg.errorUnzippedMb), cfg.reportMaxChars);
     const issue = issueOf(this.deps, request.build);
     const decision = await this.classify(request, issue === null ? 'report' : 'comment');
