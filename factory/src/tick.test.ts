@@ -220,6 +220,19 @@ describe('chooseJobs', () => {
     expect(chooseJobs(state({ cardStarts: { 9: starts(23, 5), 3: starts(23, 5) } }), cards, NOW, CFG)).toEqual([{ stage: 'design', issue: 9 }, { stage: 'adhoc', issue: 2 }]);
   });
 
+  it('gives a second verify worker to a normal card when two hotfixes wait for verify', () => {
+    const cards = [card(4, 'Testing', ['hotfix']), card(5, 'Testing', ['hotfix']), card(6, 'Testing')];
+    expect(chooseJobs(state(), cards, NOW, { ...CFG, verifyWorkers: 2 })).toEqual([{ stage: 'verify', issue: 4 }, { stage: 'verify', issue: 6 }]);
+  });
+
+  it('holds a second hotfix while one hotfix runs in verify, and lets a normal card start', () => {
+    const s = state({ jobs: [running('verify', 4)] });
+    const cards = [card(4, 'Testing', ['hotfix']), card(5, 'Testing', ['hotfix']), card(6, 'Testing'), card(7, 'Design', ['hotfix'])];
+    const report = evaluateSchedule(s, cards, NOW, { ...CFG, verifyWorkers: 2 });
+    expect(report.picks).toEqual([{ stage: 'design', issue: 7 }, { stage: 'verify', issue: 6 }]);
+    expect(report.decisions.find((item) => item.issue === 5)?.reasons).toEqual(['hotfix-verify']);
+  });
+
   it('skips ad hoc cards in the normal implement pick', () => {
     expect(chooseJobs(state(), [card(2, 'Implementation', ['adhoc', 'factory-stuck']), card(3, 'Implementation')], NOW, CFG)).toEqual([{ stage: 'implement', issue: 3 }]);
   });
