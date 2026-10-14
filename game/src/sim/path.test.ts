@@ -466,7 +466,7 @@ describe('raiders that keep off roads', () => {
 
   function raider(w: World, pos: Vec): Vehicle {
     const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], pos);
-    v.brain = npcBrain('test', pos, []);
+    v.brain = npcBrain('test', pos, ['raider']);
     v.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     return v;
   }
