@@ -33,7 +33,8 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
 await page.waitForTimeout(1000);
-if (await page.$('#boot')) {
+const bootGone = await page.waitForSelector('#boot', { state: 'detached', timeout: timeoutsOff ? 0 : 10000 }).then(() => true, () => false);
+if (!bootGone) {
   await browser.close();
   console.error('FAIL\nThe boot screen is still on the page after the game started.');
   process.exit(1);
