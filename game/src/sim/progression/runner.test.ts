@@ -5,7 +5,7 @@ import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
 import { onOutpostPad, outpostPad } from '../fury-road';
 import { outpostFort } from '../highway';
-import { furyRoadWorld } from '../testkit';
+import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
 import type { World } from '../types';
 import { maxHp } from '../wear';
 import { endTurn } from '../world';
@@ -41,7 +41,7 @@ describe('the Fury Road escort bot', () => {
     expect(turn.world.furyRoad?.window).toBe(1);
     const hop = after.order?.kind === 'stopAt' ? after.order.dest : null;
     expect(hop).not.toBeNull();
-    expect(dist(hop!, haulerOf(turn.world).pos)).toBeLessThan(6);
+    expect(dist(hop!, haulerOf(turn.world).pos)).toBeLessThan(12);
     expect(turn.ledger.repairs).toBeLessThan(0);
   });
 
@@ -116,11 +116,34 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
   });
 
-  it('turns on auto fire for the escort and drives to the foe near the hauler', () => {
+  it('follows the hauler with its guns quiet until a truck attacks it', () => {
     const w = furyRoadWorld();
-    w.furyRoad!.groups = [];
-    const turn = botOrders(w, 'escort');
-    expect(turn.world.player.autoFire).toBe(true);
+    w.player.autoFire = true;
+    const quiet = botOrders(w, 'escort');
+    expect(quiet.world.player.autoFire).toBe(false);
+
+    const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: playerVehicle(w).pos.x + 6, y: playerVehicle(w).pos.y });
+    foe.brain = npcBrain('merc', foe.pos, []);
+    foe.brain.attackers[playerVehicle(w).id] = true;
+    const attacked = botOrders(w, 'escort');
+
+    expect(attacked.world.player.autoFire).toBe(true);
+  });
+
+  it('drives on toward the next pad when a truck attacks it, and follows the hauler again when none does', () => {
+    const w = furyRoadWorld();
+    const me = playerVehicle(w);
+    const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
+    foe.brain = npcBrain('merc', foe.pos, []);
+    foe.brain.attackers[me.id] = true;
+
+    const fleeing = playerVehicle(botOrders(w, 'escort').world).order;
+    foe.brain.attackers = {};
+    const following = playerVehicle(botOrders(w, 'escort').world).order;
+
+    expect(fleeing).toMatchObject({ kind: 'stopAt' });
+    expect(following).toMatchObject({ kind: 'stopAt' });
+    expect(fleeing).not.toEqual(following);
   });
 });
 

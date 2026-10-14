@@ -2,11 +2,11 @@ import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
-import { RULES } from '../../data/rules';
 import { haulerOf, playerTrucks, playerVehicle, truckFor } from '../damage';
 import { TERRAIN } from '../../data/terrain';
 import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
-import { fightOrder, fightPoint, leadOf } from '../ai';
+import { ENGINE_HEAT } from '../../data/wear';
+import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
@@ -17,12 +17,12 @@ import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostPad, out
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
 import { haulerTakes, outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
-import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types';
+import type { PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
-import { isJunk, maxHp } from '../wear';
+import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { bestTruck, keepsPace, breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
+import { bestTruck, keepsPace, KEEP_TARGET_REACH, pickTarget } from './escort-tactics';
 import { aimGuns } from './aim';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
@@ -31,7 +31,7 @@ export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
 const HAULER_SHARE = 0.15;
-const BESIDE = { ahead: 3, across: 2 };
+const FOLLOW_BEHIND = 10;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
@@ -70,10 +70,20 @@ function park(o: Orders): void {
 
 function keepSwitches(o: Orders, style: RoadStyle): void {
   if (!o.world.player.autoRepair) o.run((w) => setAutoRepair(w, true));
-  const fires = style === 'escort';
+  if (style === 'escort') return escortSwitches(o);
+  if (o.world.player.autoFire) o.run((w) => setAutoFire(w, false));
+}
+
+function escortSwitches(o: Orders): void {
+  coolEngine(o);
+  const fires = underAttack(o);
   if (o.world.player.autoFire !== fires) o.run((w) => setAutoFire(w, fires));
   const foe = fires ? chosenFoe(o) : null;
   if (foe) aimGuns(o, foe);
+}
+
+function coolEngine(o: Orders): void {
+  if (o.world.player.engineHeat >= ENGINE_HEAT.warnAt && canDouse(o.world)) o.run(douseEngine);
 }
 
 function drive(o: Orders, style: RoadStyle): void {
@@ -84,11 +94,13 @@ function drive(o: Orders, style: RoadStyle): void {
 }
 
 function escort(o: Orders): void {
-  const hauler = haulerOf(o.world);
-  const foe = chosenFoe(o);
-  if (!foe) return driveTo(o, escortSpot(o.world, hauler));
-  if (shouldBreakOff(conditionOf(o.me))) driveTo(o, breakOffPoint(hauler.pos, foe.pos));
-  else order(o, fighterOrder(o.world, o.me, foe));
+  const next = nextOutpost(o.world);
+  if (underAttack(o) && next) return hopToward(o, next.pad);
+  driveTo(o, escortSpot(o.world, haulerOf(o.world)));
+}
+
+function underAttack(o: Orders): boolean {
+  return o.world.vehicles.some((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && v.brain !== null && o.me.id in v.brain.attackers);
 }
 
 function chosenFoe(o: Orders): Vehicle | null {
@@ -97,11 +109,6 @@ function chosenFoe(o: Orders): Vehicle | null {
   const current = Object.values(o.me.weaponOrders).find((w) => w.targetId && foes.some((f) => f.id === w.targetId))?.targetId ?? null;
   const id = pickTarget(foes.map((f) => ({ id: f.id, pos: f.pos })), hauler.pos, current, KEEP_TARGET_REACH);
   return foes.find((f) => f.id === id) ?? null;
-}
-
-function conditionOf(me: Vehicle): number {
-  const vital = [...mountedParts(me, 'core'), ...mountedParts(me, 'engine')];
-  return Math.min(...vital.map((p) => p.hp / maxHp(p)));
 }
 
 function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
@@ -117,7 +124,7 @@ function escortSpot(world: World, hauler: Vehicle): Vec {
   const pad = outpostPad(world, run.window + 1);
   if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return beside(world, pad, hauler);
   const at = toRoad(run.window, hauler.pos);
-  return roadPoint(world.seed, run.window, alongOf(world.seed, at) + BESIDE.ahead, acrossOf(world.seed, at) + BESIDE.across);
+  return roadPoint(world.seed, run.window, alongOf(world.seed, at) - FOLLOW_BEHIND, acrossOf(world.seed, at));
 }
 
 function hopToward(o: Orders, pad: Vec): void {
@@ -130,22 +137,6 @@ function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
   const window = world.furyRoad?.window ?? 0;
   const along = alongOf(world.seed, toRoad(window, me.pos)) + HOP;
   return along >= alongOf(world.seed, toRoad(window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
-}
-
-function fighterOrder(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
-  const fighter = asFighter(me);
-  if (vehicleStats(world, me).weapons.length === 0) return { kind: 'stopAt', dest: leadOf(foe) };
-  const clearance = Math.max(STANDOFF, vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance);
-  return fightOrder(world, fighter, foe, fightPoint(world, fighter, foe, clearance));
-}
-
-function asFighter(me: Vehicle): Vehicle {
-  const brain: NpcBrain = { templateId: FIGHTER, driver: 'runner', traits: [...NPCS[FIGHTER].traits], personality: 'grim', goals: [], noticed: {}, tracks: {}, hurt: 0, attackers: {}, goal: null, home: me.pos, stepIndex: 0, memories: [] };
-  return { ...me, brain };
-}
-
-function order(o: Orders, next: MoveOrder): void {
-  if (JSON.stringify(o.me.order) !== JSON.stringify(next)) o.run((w) => setMoveOrder(w, next));
 }
 
 function canPatchOn(world: World, me: Vehicle): boolean {
