@@ -125,7 +125,8 @@ function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolea
   return escortsOf(world, v.id).some((e) => {
     const gap = dist(e.pos, v.pos);
     if (isStranded(world, e) || isOnRope(world, e.id)) return false;
-    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= NPC_BEHAVIOR.escortCatchUpGap;
+    const limit = NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
+    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= limit;
   });
 }
 

@@ -76,3 +76,26 @@ describe('a far follower', () => {
     expect(goal.destination).not.toEqual(first);
   });
 });
+
+describe('a courier waiting for its partner', () => {
+  function courierPair(gap: number) {
+    const w = emptyWorld({ x: 400, y: 200 });
+    const leader = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 200, y: 60 });
+    leader.brain!.goals = [{ ...SELL }];
+    const partner = createNpc(w, 'courier', ['courier'], 'scout', ['mg', 'stockEngine'], { x: 200 - gap, y: 60 });
+    startEscort(w, partner, leader, null, 0);
+    return { w, leader };
+  }
+
+  it('brakes for a partner beyond the catch-up gap', () => {
+    const { w, leader } = courierPair(NPC_BEHAVIOR.escortCatchUpGap + 30);
+    planNpcOrders(w);
+    expect(leader.order?.kind).toBe('brake');
+  });
+
+  it('drives on once the partner is beyond the wait limit', () => {
+    const { w, leader } = courierPair(NPC_BEHAVIOR.pairWaitLimit + 10);
+    planNpcOrders(w);
+    expect(leader.order?.kind).not.toBe('brake');
+  });
+});
