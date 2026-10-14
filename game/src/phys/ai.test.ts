@@ -116,7 +116,7 @@ describe('NPC driving', () => {
     const { w, id } = recoveringHauler(0);
     const npc = w.vehicles.find((v) => v.id === id)!;
     npc.brain!.recovery = 0;
-    npc.brain!.recoveryGoal = null;
+    npc.brain!.recoveryGoal = undefined;
     npc.brain!.goals = [{ kind: 'explore', targetId: null, destination, reason: 'explore', phase: 'travel' }];
     let state = w;
     let d = buildDrive(state);
