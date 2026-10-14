@@ -95,7 +95,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 ## Health records
 
-- `failures`: failed jobs of the last day. `factory failures` prints them. `retry N` clears a card's failure and its stuck label. A merge failure holds `batch`, the issues of its batch. `decision` marks a spent budget or a committee question.
+- `failures`: failed jobs of the last day. `factory failures` prints them. `retry N` clears a card's failure and its stuck label. For an issue in `pendingPublish` it also clears the failed publish job, which holds every later upload. A merge failure holds `batch`, the issues of its batch. `decision` marks a spent budget or a committee question.
 - `stuck`: the stuck sweep's record of each open stuck card, by issue: `incident`, `kind`, `column`, the cause in `stage`, `cause`, `log`, `since`, `decision` and `batch` (the size of its failed merge batch), `tries` (the sweep's actions on it in this column), `released` and `refused`. Written only by the tick's sweep. `factory stuck` prints them. [operations.md](operations.md#stuck-sweep) has the rules.
 - `sweepError`: the last crash of the stuck sweep, cleared by the next sweep that passes. The incident watch prints it.
 - `lastTickError`: the last tick crash. `factory status` shows it.

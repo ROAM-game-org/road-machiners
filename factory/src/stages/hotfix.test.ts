@@ -90,4 +90,12 @@ describe('hotfix upload', () => {
     expect(readState(f.ctx.statePath).pendingPublish).toEqual([7, 8]);
     expect(f.calls.some((call) => call.startsWith('close') || call.startsWith('release'))).toBe(false);
   });
+
+  it('counts main as uploaded when itch.io already has its version, so a retry after a later failure finishes the batch', async () => {
+    const f = queued([7]);
+    const run = f.ctx.run;
+    f.ctx.run = async (cmd, args, opts) => (cmd === 'butler' ? { code: 1, stdout: '', stderr: 'itch.io API error (400): /wharf/builds: enforcing unique versions, 1 build(s) already exist with version abc1234' } : run(cmd, args, opts));
+    await publishHotfixes(f.ctx);
+    expect(readState(f.ctx.statePath).pendingPublish).toEqual([]);
+  });
 });

@@ -153,6 +153,7 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 
 function publishJob(state: FactoryState): JobPick | null {
   if (state.pendingPublish.length === 0) return null;
+  if (state.failures.some((failure) => failure.stage === 'publish')) return null;
   if (state.jobs.some((job) => job.stage === 'approve')) return null;
   if (Object.keys(state.pendingApprovals).some((issue) => !isHeld(state, Number(issue)))) return null;
   return { stage: 'publish', issue: null };
