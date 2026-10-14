@@ -1,6 +1,6 @@
 
 import { Drawers } from "./drawers";
-import { phoneMode } from "./input-mode";
+import { phoneMode, touchMode } from "./input-mode";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { modeRules } from "../sim/settings";
@@ -348,7 +348,7 @@ export class Hud {
         ...disabledWith(action.ready ? null : (actionTitle(action) ?? null), onUse),
         class: action.combat !== undefined ? "btn-danger" : "",
       },
-      action.hint ? action.label : t("hud.actionKey", { label: action.label }),
+      action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
       el("button", { class: "cycle", title: t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
