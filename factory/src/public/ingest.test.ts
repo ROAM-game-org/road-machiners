@@ -26,11 +26,35 @@ describe('ingest', () => {
     expect(readdirSync(inbox)).toEqual([]);
   });
 
+  it('applies files by numeric update id, so 999 comes before 1000', async () => {
+    const { f, put } = setup();
+    put('1000.json', count(1000, { '👍': 1 }));
+    put('999.json', count(999, { '👍': 5 }));
+    await ingest(f.ctx, f.store);
+    expect(f.store.votes(7, ['👍'])).toBe(1);
+  });
+
+  it('moves a file whose name is not an update id plus .json to bad, reports it once and still applies the other votes', async () => {
+    const { f, inbox, put } = setup();
+    put('latest.json', count(1, { '👍': 1 }));
+    put('10.json', count(10, { '👍': 3 }));
+    await ingest(f.ctx, f.store);
+    expect(existsSync(`${inbox}/bad/latest.json`)).toBe(true);
+    expect(existsSync(`${inbox}/latest.json`)).toBe(false);
+    expect(f.store.votes(7, ['👍'])).toBe(3);
+    expect(readdirSync(inbox)).toEqual(['bad']);
+    const failures = readState(f.ctx.statePath).failures;
+    expect(failures).toHaveLength(1);
+    expect(failures[0]!.error).toContain('latest.json');
+    await ingest(f.ctx, f.store);
+    expect(readState(f.ctx.statePath).failures).toHaveLength(1);
+  });
+
   it('changes nothing for a seen update id, and still deletes the file', async () => {
     const { f, inbox, put } = setup();
-    put('a.json', count(5, { '👍': 2 }));
+    put('5.json', count(5, { '👍': 2 }));
     await ingest(f.ctx, f.store);
-    put('b.json', count(5, { '👍': 9 }));
+    put('6.json', count(5, { '👍': 9 }));
     await ingest(f.ctx, f.store);
     expect(f.store.votes(7, ['👍'])).toBe(2);
     expect(readdirSync(inbox)).toEqual([]);
@@ -78,5 +102,25 @@ describe('ingest', () => {
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
     await ingest(f.ctx, f.store);
     expect(f.store.unclassifiedComments().map((comment) => comment.text)).toEqual(['The truck stalls']);
+  });
+
+  it('attributes a reply to a build post that replies to the proposal to the issue, and routes it', async () => {
+    const { f, put } = setup();
+    f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
+    await ingest(f.ctx, f.store);
+    const [stored] = f.store.unclassifiedComments();
+    expect(stored!.issue).toBe(7);
+    f.store.classify(stored!.id, 'bug', 'patch', f.clock.now);
+    expect(f.store.pendingRoutes().map((route) => route.issue)).toEqual([7]);
+  });
+
+  it('attributes a reply to a stored player comment to that comment issue', async () => {
+    const { f, put } = setup();
+    f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 200, author: 'ann', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 31, author: 'bo', text: 'Same here', at: '2026-10-14T10:01:00Z' });
+    await ingest(f.ctx, f.store);
+    expect(f.store.unclassifiedComments().map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
   });
 });

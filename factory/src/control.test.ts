@@ -29,7 +29,7 @@ let editFails = false;
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
 function fakeCtx(): Ctx {
-  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {} } as FactoryConfig;
+  const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, repo: 'o/r', voteEmoji: '👍', minVotes: 3 } as FactoryConfig;
   return {
     cfg, statePath, now: () => NOW, log: () => undefined, run: async () => ({ code: 0, stdout: '', stderr: '' }),
     github: {
@@ -204,6 +204,46 @@ describe('move', () => {
     const after = openStore(ROOT);
     expect(after.openProposals()).toEqual([]);
     after.close();
+  });
+
+  it('of a voting card edits its proposal post once, to the count and Closed', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch\n\nPull trucks out of sand.', new Date(0));
+    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: '-5', messageId: 300, counts: { '👍': 2 } });
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    const edits = calls.filter((call) => call.startsWith('editText 300'));
+    expect(edits).toHaveLength(1);
+    expect(edits[0]!.endsWith('2/3\nClosed')).toBe(true);
+  });
+
+  it('of a voting card reports a failed post edit once and still closes the proposal', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch', new Date(0));
+    store.markProposalPosted(9, '-5', 300, new Date(0));
+    store.close();
+    editFails = true;
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    const after = openStore(ROOT);
+    expect(after.openProposals()).toEqual([]);
+    after.close();
+    expect(calls).toContain('move 9 Design');
+    expect(readState(statePath).failures.filter((failure) => failure.issue === 9 && failure.error.includes('telegram down'))).toHaveLength(1);
+  });
+
+  it('of a voting card whose proposal was never posted edits nothing', async () => {
+    cards = [card(9, 'Triage', ['voting'])];
+    seed({});
+    const store = openStore(ROOT);
+    store.addProposal(9, 'Winch', new Date(0));
+    store.close();
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 9, to: 'design' }));
+    expect(calls.filter((call) => call.startsWith('editText'))).toEqual([]);
   });
 
   it('to design stops the job and clears every store of the old position (IV1)', async () => {

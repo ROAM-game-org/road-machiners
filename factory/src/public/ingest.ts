@@ -75,10 +75,22 @@ async function reject(ctx: Ctx, dir: string, name: string, reason: string): Prom
   await reportFailure(ctx, 'public', null, new Error(`Public inbox file ${name} was moved to bad: ${reason}`), null, []);
 }
 
+const INBOX_NAME = /^(\d+)\.json$/;
+
+function inboxNames(dir: string): { named: string[]; stray: string[] } {
+  const names = readdirSync(dir).filter((file) => file.endsWith('.json'));
+  const stray = names.filter((name) => !INBOX_NAME.test(name));
+  const id = (name: string): number => Number(INBOX_NAME.exec(name)![1]);
+  const named = names.filter((name) => INBOX_NAME.test(name)).sort((x, y) => id(x) - id(y));
+  return { named, stray };
+}
+
 export async function ingest(ctx: Ctx, store: PublicStore): Promise<void> {
   const dir = publicInboxDir(ctx.cfg.home);
   if (!existsSync(dir)) return;
-  for (const name of readdirSync(dir).filter((file) => file.endsWith('.json')).sort()) {
+  const { named, stray } = inboxNames(dir);
+  for (const name of stray) await reject(ctx, dir, name, 'its name is not an update id plus .json');
+  for (const name of named) {
     const path = join(dir, name);
     let event: PublicEvent;
     try {

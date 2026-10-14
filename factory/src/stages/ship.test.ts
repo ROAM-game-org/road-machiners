@@ -42,7 +42,7 @@ describe('ship', () => {
     expect(at('push work-head main')).toBeLessThan(at('merge main dev'));
     expect(at('push dev')).toBeLessThan(at('run butler'));
     expect(shells.at(-1)).toEqual({ script: stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), env: { SAVE_SCOPE: '', ERROR_REPORT_URL: 'https://play.test/errors', ERROR_REPORT_BUILD: 'release', FEEDBACK_URL: 'https://play.test/feedback' } });
-    expect(shells[0].env).toMatchObject({ BUILD_SCOPE: 'ship' });
+    expect(shells[0].env).toMatchObject({ BUILD_SCOPE: 'ship', TEST_STALL_MINUTES: '15' });
     expect(runs).toEqual([
       { cmd: 'git', args: ['rev-parse', 'HEAD'], env: undefined },
       { cmd: 'butler', args: ['push', join(ROOT, 'work', 'release-main', 'game', 'dist'), 'u/g:html5', '--userversion', 'abc1234'], env: { BUTLER_API_KEY: 'secret' } },

@@ -196,6 +196,7 @@ export class FeedbackForm {
   };
 
   constructor(
+    private readonly onSent: (text: Msg) => void,
     private readonly post: Fetch = (url, init) => fetch(url, init),
     private readonly url: string = FEEDBACK_URL,
     private readonly context: GameContext = gameContext,
@@ -222,11 +223,11 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "btn-s feedback-close", onclick: () => this.close() }, t("menu.closeEsc"));
+    return el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc"));
   }
 
   private offContent(): HTMLElement[] {
-    return [el("div", {}, t("feedback.off")), this.closeButton()];
+    return [el("div", {}, t("feedback.off")), el("div", { class: "feedback-foot" }, this.closeButton())];
   }
 
   private formContent(first: FeedbackKind): HTMLElement[] {
@@ -237,31 +238,35 @@ export class FeedbackForm {
       idea: el("button", { onclick: () => choose("idea") }, t("feedback.idea")),
     };
     const box = el("textarea", { class: "feedback-text", maxlength: FEEDBACK_TEXT_LIMIT, rows: 8, "aria-label": t("feedback.title") }) as HTMLTextAreaElement;
-    const count = el("span", { class: "num dim" });
-    const status = el("div", { class: "feedback-status" });
+    const count = el("span", { class: "num dim feedback-count" });
+    const status = el("div", { class: "feedback-status bad", role: "status" });
     const send = el("button", { class: "feedback-send", onclick: () => submit() }, t("feedback.send"));
 
     const refresh = () => {
       for (const [name, button] of Object.entries(kinds)) button.classList.toggle("on", name === kind);
       setText(count, verbatim(`${box.value.length} / ${FEEDBACK_TEXT_LIMIT}`));
-      const blocked = busy || box.value.trim() === "";
-      if (blocked) send.setAttribute("aria-disabled", "true");
+      if (busy) send.setAttribute("aria-disabled", "true");
       else send.removeAttribute("aria-disabled");
     };
     const choose = (next: FeedbackKind) => {
       kind = next;
       refresh();
+      box.focus();
     };
     const submit = async () => {
-      if (busy || box.value.trim() === "") return;
+      if (busy) return;
+      if (box.value.trim() === "") return box.focus();
       busy = true;
       refresh();
       const report = { kind, text: box.value, build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname), context: this.context.capture() };
       const result = await sendFeedback(this.post, this.url, report);
       busy = false;
-      if (result.status === "sent") box.value = "";
+      if (result.status === "sent") {
+        this.close();
+        this.onSent(feedbackStatus(result));
+        return;
+      }
       setText(status, feedbackStatus(result));
-      status.classList.toggle("bad", result.status !== "sent");
       refresh();
     };
 
@@ -269,10 +274,10 @@ export class FeedbackForm {
     refresh();
     queueMicrotask(() => box.focus());
     return [
-      el("div", { class: "feedback-kinds" }, kinds.bug, kinds.idea),
+      el("div", { class: "tabs" }, kinds.bug, kinds.idea),
       box,
-      el("div", { class: "feedback-foot" }, count, status),
-      el("div", { class: "feedback-actions" }, this.closeButton(), send),
+      status,
+      el("div", { class: "feedback-foot" }, count, this.closeButton(), send),
     ];
   }
 }

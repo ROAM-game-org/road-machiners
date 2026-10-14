@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ghClient } from './github';
 import { COLUMNS, type FactoryConfig, type Run, type RunResult } from './types';
 
-const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60 } as FactoryConfig;
+const CFG = { repo: 'o/r', projectOwner: 'o', projectNumber: 3, githubAppId: '42', githubRetries: 3, githubRetryBaseSeconds: 15, githubTimeoutSeconds: 60 } as FactoryConfig;
 const ok = (stdout: string): RunResult => ({ code: 0, stdout, stderr: '' });
 const RATE_LIMITED: RunResult = { code: 1, stdout: '', stderr: 'HTTP 403: API rate limit exceeded for user ID 1.' };
 
@@ -27,7 +27,7 @@ function fake(calls: string[][], projectJson: string): Run {
     calls.push(args);
     const text = args.join(' ');
     if (text.includes('search(type: ISSUE')) return ok(text.includes('cursor=') ? searchPage([NODE(3)]) : searchPage([NODE(1), NODE(2)], 'C1'));
-    if (text.includes('repos/o/r/issues/1/comments')) return ok('{"login":"a","body":"hi\\nthere"}\n');
+    if (text.includes('repos/o/r/issues/1/comments')) return ok('{"login":"a","body":"hi\\nthere","createdAt":"t1","appId":null}\n{"login":"bot[bot]","body":"mine","createdAt":"t2","appId":42}\n{"login":"other[bot]","body":"theirs","createdAt":"t3","appId":7}\n');
     if (text.includes('projectV2(number')) return ok(projectJson);
     if (text.includes('items(first')) {
       const items = { pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [
@@ -126,9 +126,13 @@ describe('ghClient', () => {
     expect(calls[0]).toEqual(['issue', 'comment', '1', '-R', 'o/r', '--body', 'Hello\n\n<!-- roam-factory -->']);
   });
 
-  it('reads comments', async () => {
+  it('marks only the comments the factory app wrote', async () => {
     const list = await ghClient(fake([], project(ALL)), CFG).comments(1);
-    expect(list).toEqual([{ login: 'a', body: 'hi\nthere' }]);
+    expect(list).toEqual([
+      { login: 'a', body: 'hi\nthere', createdAt: 't1', byFactory: false },
+      { login: 'bot[bot]', body: 'mine', createdAt: 't2', byFactory: true },
+      { login: 'other[bot]', body: 'theirs', createdAt: 't3', byFactory: false },
+    ]);
   });
 
   it('lists cards of this repo with a status', async () => {

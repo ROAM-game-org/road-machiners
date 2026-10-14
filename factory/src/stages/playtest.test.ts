@@ -128,6 +128,7 @@ describe('playtest', () => {
     expect(script.indexOf('npm ci')).toBeLessThan(script.indexOf('npm run test:cached -- --cache /test-cache'));
     expect(script).toMatch(/if grep -q '"test:cached"' package.json; then\n\s+npm run test:cached -- --cache \/test-cache\nelse\n.*\n\s+npm test\nfi/);
     expect(run.shells[0]!.mounts).toEqual(CACHE_MOUNT);
+    expect(run.shells[0]!.env).toEqual({ TEST_STALL_MINUTES: '15' });
   });
 
   it('fails on a failing full suite before the first play, so it spends no play', async () => {
@@ -159,7 +160,7 @@ describe('playtest', () => {
     expect(run.sessions[0]).toMatchObject({ resume: false });
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(checkRuns(run)).toHaveLength(1);
-    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001' } });
+    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001', TEST_STALL_MINUTES: '15' } });
     expect(checkRuns(run)[0].script).toContain('npm run playtest -- --no-fps-gate');
     expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
     expect(run.f.created).toEqual([]);

@@ -44,6 +44,13 @@ describe('intake', () => {
     expect(calls).toEqual(['addCard 8 Triage']);
   });
 
+  it('puts a fresh report from the game into Triage at once, since a player cannot edit it', async () => {
+    const calls: string[] = [];
+    const found = [issue({ number: 10, labels: ['feature-request', 'player-report'], createdAt: NOW.toISOString() }), issue({ number: 11, labels: ['feature-request'], createdAt: NOW.toISOString() })];
+    expect(await intake(fakeCtx(found, calls))).toEqual([10]);
+    expect(calls).toEqual(['addCard 10 Triage']);
+  });
+
   it('puts a fresh hotfix straight into Design', async () => {
     const calls: string[] = [];
     const asked: string[][] = [];
