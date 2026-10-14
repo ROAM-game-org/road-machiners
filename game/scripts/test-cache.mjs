@@ -71,9 +71,11 @@ function stallReporter(watch) {
 const CLOSE_LIMIT_MS = 10_000;
 
 function stopOnStall(watch, vitest, readsDir) {
+  let stalled = false;
   const timer = setInterval(async () => {
     const stall = watch.stalled(Date.now());
     if (stall === null) return;
+    stalled = true;
     clearInterval(timer);
     console.log(stall);
     await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
@@ -81,6 +83,7 @@ function stopOnStall(watch, vitest, readsDir) {
     process.exit(1);
   }, 1000);
   timer.unref();
+  return () => stalled;
 }
 
 const { cache, filters } = parseArgs(process.argv.slice(2));
@@ -93,7 +96,7 @@ const watch = stallLimit === null ? null : createStallWatch(stallLimit * 60_000,
 const recorder = passRecorder(cache, readsDir);
 const reporters = ['default', recorder.reporter, ...(watch ? [stallReporter(watch)] : [])];
 const vitest = await createVitest('test', { watch: false, reporters });
-if (watch) stopOnStall(watch, vitest, readsDir);
+const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();
@@ -113,4 +116,4 @@ try {
   await vitest.close();
   rmSync(readsDir, { recursive: true, force: true });
 }
-process.exit(failed ? 1 : 0);
+process.exit(failed || stalled() ? 1 : 0);
