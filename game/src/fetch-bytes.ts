@@ -6,6 +6,17 @@ class HttpStatusError extends Error {
   }
 }
 
+export class DownloadFailed extends Error {
+  constructor(readonly url: string, readonly tries: number, cause: unknown) {
+    super(`${url} failed to load after ${tries} tries: ${cause}`, { cause });
+    this.name = 'DownloadFailed';
+  }
+}
+
+function retryDelay(attempt: number): number {
+  return Math.min(CONFIG.assetRetryMs * 2 ** (attempt - 1), CONFIG.assetRetryMaxMs);
+}
+
 function retryable(e: unknown): boolean {
   return !(e instanceof HttpStatusError) || e.status >= 500;
 }
@@ -23,8 +34,11 @@ export async function fetchBytes(url: string): Promise<ArrayBuffer> {
       return await fetchOnce(url);
     } catch (e) {
       if (!retryable(e)) throw e;
-      if (attempt >= tries) throw new Error(`${url} failed to load after ${tries} tries: ${e}`);
-      await new Promise((resolve) => setTimeout(resolve, attempt * CONFIG.assetRetryMs));
+      if (attempt >= tries) {
+        if (e instanceof HttpStatusError) throw new Error(`${url} failed to load after ${tries} tries: ${e}`, { cause: e });
+        throw new DownloadFailed(url, tries, e);
+      }
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
     }
   }
 }
