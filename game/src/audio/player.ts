@@ -1,12 +1,12 @@
 // Plays catalog cues: one-shots with a variant, pitch jitter and voice limit, and loops with live controls.
 
-import type { Bus, Cue } from "../data/sounds";
+import { MIX, type Bus, type Cue } from "../data/sounds";
 import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
 import { loudestAt, pickVariant, VoiceLimiter } from "./pick";
 
 export type Placement = { pan: number; gain: number };
-export type SoundSelection = { file: string; rate: number };
+export type SoundSelection = { file: string; rate: number; from?: number };
 
 export type LoopHandle = {
   setGain(gain: number, rampSeconds: number): void;
@@ -40,13 +40,15 @@ export class SoundPlayer {
     const ctx = this.mixer.ctx;
     const buf = selection ? this.getBuffer(id, cue, selection.file) : this.variant(id, cue);
     const rate = selection ? this.checkedRate(id, selection.rate) : 1 + (Math.random() * 2 - 1) * cue.pitchJitter;
+    const from = this.checkedFrom(id, selection?.from ?? 0, buf.duration);
     const start = ctx.currentTime + delayMs / 1000;
-    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate)) return;
+    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + (buf.duration - from) / rate)) return;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
-    this.chain(src, cue, at);
-    src.start(start);
+    const gain = this.chain(src, cue, at);
+    if (from > 0) this.fadeIn(gain, start);
+    src.start(start, from);
   }
 
   setBusTone(bus: Bus, cutoffHz: number, rampSeconds: number): void {
@@ -132,6 +134,17 @@ export class SoundPlayer {
         src.stop(ctx.currentTime + fadeMs / 1000);
       },
     };
+  }
+
+  private checkedFrom(id: string, from: number, duration: number): number {
+    if (!Number.isFinite(from) || from < 0 || (from > 0 && from >= duration)) throw new Error(`Sound ${id} cannot start at ${from} s of a ${duration} s take`);
+    return from;
+  }
+
+  private fadeIn(gain: GainNode, start: number): void {
+    const level = gain.gain.value;
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level, start + MIX.score.joinFadeSeconds);
   }
 
   private checkedRate(id: string, rate: number): number {

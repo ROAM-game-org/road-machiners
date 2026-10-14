@@ -222,6 +222,8 @@ export const MIX = {
     secondaryPan: 0.3,
     busyFactor: 0.7,
     stabGapSeconds: 1.5,
+    joinFadeSeconds: 0.015,
+    offerAheadSeconds: 0.1,
     duckGain: 0.6,
     duckAttackSeconds: 0.05,
     duckReleaseBeats: 2,

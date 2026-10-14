@@ -380,7 +380,7 @@ describe("CombatWatch", () => {
 describe("CombatScore", () => {
   type BaseId = "score-drums" | "score-bass" | "score-horns" | "score-trombone";
   type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; tones: number[]; ducks: number[] };
-  type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number }?];
+  type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number; from?: number }?];
   const fakePlayer = () => {
     const loops: Call[] = [];
     const plays: Play[] = [];
@@ -456,6 +456,23 @@ describe("CombatScore", () => {
     expect(plays.length).toBeGreaterThan(0);
     expect(plays.every((p) => p[0] === "accent-sighted" && p[1].pan === 0)).toBe(true);
     expect(loops[0].ducks).toHaveLength(plays.length);
+  });
+
+  it("starts a stab inside its take when the event comes before the take's peak", () => {
+    const { player, plays } = fakePlayer();
+    const score = new CombatScore(player, () => 0);
+    score.setCombat(true, 3);
+    score.accent("accent-sighted", 30);
+    expect(plays[0][2]).toBeCloseTo(20);
+    expect(plays[0][3]?.from).toBeCloseTo(0.09);
+  });
+
+  it("starts a stab at the top of its take when the event is far enough", () => {
+    const { player, plays } = fakePlayer();
+    const score = new CombatScore(player, () => 0);
+    score.setCombat(true, 3);
+    score.accent("accent-sighted", 1000);
+    expect(plays[0][3]).toEqual({ file: "accent-sighted-1.ogg", rate: 1 });
   });
 
   it("ducks the base when a late stab sounds, never before now", () => {
