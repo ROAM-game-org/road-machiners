@@ -9,14 +9,50 @@ import { route } from '../path';
 import type { Obstacle } from '../types';
 import { dist, type Vec } from '../vec';
 import { stampOverlay } from './astar';
-import { CELL, CLEARANCE, dynamicBlockers, makeTaste, navLayer, tasteAt, tasteOf } from './layer';
-import { emptyWorld, npcBrain } from '../testkit';
+import { CELL, CLEARANCE, climbTaste, dynamicBlockers, makeTaste, navLayer, tasteAt, tasted, tasteKey, tasteOf, terrainNav, tileIndex } from './layer';
+import { editableTerrain, emptyWorld, npcBrain } from '../testkit';
 import { newWorld } from '../world';
 import { TEST_MAP } from '../../test/map';
 import { budget } from '../../test/budget';
 import { defaultSetup } from '../settings';
 
 const { scale, strength } = REGION.navigation.taste;
+
+describe('climb taste', () => {
+  function sloped() {
+    const w = emptyWorld();
+    const t = editableTerrain(w);
+    const n = t.size + 1;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) t.heights[j * n + i] = Math.max(0, i - 50) * 0.4;
+    return terrainNav(t);
+  }
+
+  it('stores the steepness of each tile', () => {
+    const nav = sloped();
+    expect(nav.steep[tileIndex(nav.size, 10, 10)]).toBe(0);
+    expect(nav.steep[tileIndex(nav.size, 60, 10)]).toBeCloseTo(0.4, 3);
+  });
+
+  it('multiplies cost only on tiles steeper than the limit', () => {
+    const nav = sloped();
+    const taste = climbTaste(null, nav, 0.3)!;
+    expect(tasted(taste, 1, 10, 10)).toBe(1);
+    expect(tasted(taste, 1, 60, 10)).toBe(REGION.navigation.overClimbCost);
+    expect(tasted(climbTaste(null, nav, 0.45), 1, 60, 10)).toBe(1);
+  });
+
+  it('leaves a truck that climbs every walkable slope with its taste untouched', () => {
+    const nav = sloped();
+    const taste = makeTaste(3, nav.size);
+    expect(climbTaste(taste, nav, 0.6)).toBe(taste);
+    expect(climbTaste(null, nav, 0.6)).toBeNull();
+  });
+
+  it('keys the route cache by the limit', () => {
+    const nav = sloped();
+    expect(tasteKey(climbTaste(null, nav, 0.3))).not.toBe(tasteKey(climbTaste(null, nav, 0.35)));
+  });
+});
 
 describe('route taste', () => {
   it('multiplies cost by 1 - strength / 2 to 1 + strength / 2 everywhere on the map', () => {
