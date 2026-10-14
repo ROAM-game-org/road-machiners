@@ -365,3 +365,18 @@ describe('the pass line of a hunting raider', () => {
     expect(lineEn(w, event)?.text).toContain('load not worth the risk');
   });
 });
+
+it('logs a driver joining a fight over the player and a standing band change, red when it goes against the player', () => {
+  const w = emptyWorld();
+  const me = playerVehicle(w);
+  const npc = addVehicle(w, 'bowl', 'scout', [], { x: 32, y: 30 });
+  npc.brain = npcBrain('bowlFarmer', npc.pos, ['lawman']);
+  const victim = addVehicle(w, 'bowl', 'scout', [], { x: 34, y: 30 });
+  const against = eventText(w, { t: 'joins', vehicle: npc.id, against: me.id, victim: victim.id })!;
+  expect(en(against.text)).toMatch(/joins the fight$/);
+  expect(against.cls).toBe('bad');
+  const wary = eventText(w, { t: 'standing', faction: 'bowl', band: 'unfriendly' })!;
+  expect(en(wary.text)).toBe('Bowl now treats you as wary');
+  expect(wary.cls).toBe('bad');
+  expect(eventText(w, { t: 'standing', faction: 'guidestar', band: 'friendly' })!.cls).toBe('good');
+});

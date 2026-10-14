@@ -135,6 +135,12 @@ export function standingBands(world: World): StandingRow[] {
   });
 }
 
+export function standingParts(world: World, row: StandingRow): { base: number; deeds: number; earlier: number } {
+  const base = startStanding()[row.faction];
+  const deeds = world.player.deeds.filter((d) => d.faction === row.faction).reduce((sum, d) => sum + d.delta, 0);
+  return { base, deeds, earlier: row.score - base - deeds };
+}
+
 function joinableFactions(): Set<NpcFactionId> {
   const ids = Object.values(NPCS).flatMap(templateFactions);
   return new Set([...ids, ...Object.values(SITE_FACTIONS).filter((id): id is NpcFactionId => id !== undefined)]);

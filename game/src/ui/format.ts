@@ -31,12 +31,12 @@ import { shotDamage } from '../sim/combat';
 import { shutDownTurnsLeft } from '../sim/utility';
 import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRound, SkillId, StateEnding, StateKindId, Vehicle, World } from '../sim/types';
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
-import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
+import { factionName, goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
 import { aidWords, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { damage, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
-import { isRaider } from '../sim/relations';
+import { bandAtLeast, isRaider } from '../sim/relations';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -727,8 +727,8 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   partDisabled: partDisabledText,
   destroyed: (world, e) => line(t('log.destroyed', { who: vehicleName(world, e.vehicle) }), 'good'),
   hostile: quiet,
-  joins: quiet,
-  standing: quiet,
+  joins: (world, e) => line(t('log.joins', { who: vehicleName(world, e.vehicle) }), e.against === world.player.vehicleId ? 'bad' : 'good'),
+  standing: (_, e) => line(t(`log.standing.${e.band}`, { faction: factionName(e.faction) }), bandAtLeast(e.band, 'neutral') ? 'good' : 'bad'),
   practice: quiet,
   skillUp: (_, e) => line(skillUpText(e.skill, e.level), 'good'),
   money: moneyText,

@@ -115,4 +115,15 @@ describe("inventory header money", () => {
     expect(money.className).toContain("bad");
     expect(money.text()).toBe("−33");
   });
+  it("lists the standing of each faction a driver can join with its band, and hides it on Chaos Highway", () => {
+    const world = emptyWorld();
+    world.player.standing.bowl = -30;
+    const rows = openCharacter(world).all((n) => n.className === "standing-row");
+    expect(rows.map((r) => r.children[0] instanceof FakeNode ? (r.children[0] as FakeNode).text() : "")).toEqual(["Bowl", "Nose", "Guidestar Guild", "Scrapjaw", "Kiln"]);
+    expect(rows[0].text()).toContain("wary");
+    expect(rows[0].text()).toContain("Recent deeds");
+    world.setup = { ...world.setup, mode: "furyRoad" };
+    ui.children = [];
+    expect(openCharacter(world).all((n) => n.className === "standing-row")).toEqual([]);
+  });
 });

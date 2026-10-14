@@ -36,6 +36,7 @@ import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { driverName, factionName, templateName, vehicleTitle } from "../text/names";
+import { stanceToward } from "../sim/relations";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
@@ -566,7 +567,7 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover") this.toast(line.text);
+      if (e.t === "skillUp" || e.t === "discover" || e.t === "standing") this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
@@ -618,8 +619,15 @@ function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
     { class: "info-head" },
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
-    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, t(hostile ? "hud.tagHostile" : "hud.tagNeutral"))]),
+    ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, stanceTag(w, v, hostile))]),
   );
+}
+
+function stanceTag(w: World, v: Vehicle, hostile: boolean): Msg {
+  if (hostile) return t("hud.tagHostile");
+  const band = stanceToward(w, v);
+  if (band === "neutral") return t("hud.tagNeutral");
+  return t(`band.${band === "allied" ? "friendly" : band}`);
 }
 
 function quietLines(w: World, v: Vehicle): Msg[] {
