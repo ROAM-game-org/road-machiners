@@ -11,6 +11,7 @@ Run these from `factory/`. Run `npm ci` first.
 - `npm test` runs the CLI tests.
 - `npm run typecheck` runs tsc.
 - `npm run diagrams` renders the process diagrams.
+- `OPENAI_API_KEY=... npm run filter:eval` scores the player text filter against its targets with live OpenAI calls, about 40 per run.
 - `npm run factory -- tick` runs one tick. The server runs it on a timer.
 - `uv run --with pytest --with pyyaml pytest hermes` runs the Hermes plugin tests.
 - `cd infra && uv run pytest` runs the infra helper tests.

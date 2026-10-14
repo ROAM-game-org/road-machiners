@@ -160,9 +160,7 @@ export type FeedbackKind = "bug" | "idea";
 
 export type FeedbackReport = { kind: FeedbackKind; text: string; version: string; build: string };
 
-type FeedbackAnswer = { status: "sent"; issue: number } | { status: "refused" };
-
-export type FeedbackResult = FeedbackAnswer | { status: "failed" };
+export type FeedbackResult = { status: "sent" } | { status: "failed" };
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -171,17 +169,10 @@ export function feedbackBuild(releaseFlag: string, pathname: string): string {
   return pathname.split("/").find((part) => part !== "") ?? "";
 }
 
-function isAnswer(body: unknown): body is FeedbackAnswer {
-  if (typeof body !== "object" || body === null) return false;
-  const answer = body as { status?: unknown; issue?: unknown };
-  if (answer.status === "sent") return Number.isInteger(answer.issue);
-  return answer.status === "refused";
-}
+const isSent = (body: unknown): boolean => typeof body === "object" && body !== null && (body as { status?: unknown }).status === "sent";
 
 export function feedbackStatus(result: FeedbackResult): Msg {
-  if (result.status === "sent") return t("feedback.sent", { n: result.issue });
-  if (result.status === "refused") return t("feedback.refused");
-  return t("feedback.failed");
+  return result.status === "sent" ? t("feedback.sent") : t("feedback.failed");
 }
 
 export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
@@ -191,7 +182,7 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
     const response = await post(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
     if (!response.ok) return { status: "failed" };
     const body: unknown = await response.json();
-    return isAnswer(body) ? body : { status: "failed" };
+    return isSent(body) ? { status: "sent" } : { status: "failed" };
   } catch {
     return { status: "failed" };
   }

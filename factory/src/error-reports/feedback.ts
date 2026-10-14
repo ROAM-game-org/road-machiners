@@ -5,7 +5,9 @@ import { readState } from '../state';
 import { BUG_LABEL, PLAYER_REPORT_LABEL, type FactoryConfig, type GitHub } from '../types';
 import { Rejected } from './report';
 
-export type FeedbackReply = { status: 'sent'; issue: number } | { status: 'refused' };
+export type FeedbackReply = { status: 'sent' };
+
+const SENT: FeedbackReply = { status: 'sent' };
 type FeedbackRequest = { kind: 'bug' | 'idea'; text: string; version: string; build: string };
 
 export type FeedbackDeps = {
@@ -47,7 +49,7 @@ export class Feedback {
     const row = { address, build: request.build, version: request.version, kind: request.kind, text: request.text, intent: decision.intent, sincere: decision.sincere, at };
     if (decision.verdict === 'reject') {
       store.addReport({ ...row, verdict: 'reject', issue: null, createdIssue: null });
-      return { status: 'refused' };
+      return SENT;
     }
     if (issue !== null) return this.comment(row, request, decision, issue);
     return this.open(row, request, decision);
@@ -69,7 +71,7 @@ export class Feedback {
     const stored = store.addComment(comment);
     if (stored === null) throw new Error(`The comment of report ${id} is already stored.`);
     store.classify(stored, decision.kind, decision.route, now());
-    return { status: 'sent', issue };
+    return SENT;
   }
 
   private async open(row: ReportFields, request: FeedbackRequest, decision: Decision): Promise<FeedbackReply> {
@@ -77,7 +79,7 @@ export class Feedback {
     const labels = [decision.kind === 'bug' ? BUG_LABEL : 'feature-request', PLAYER_REPORT_LABEL];
     const created = await github.createIssue(issueTitle(request.text), issueBody(request, decision), labels);
     store.addReport({ ...row, verdict: 'accept', issue: null, createdIssue: created });
-    return { status: 'sent', issue: created };
+    return SENT;
   }
 }
 

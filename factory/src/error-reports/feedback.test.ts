@@ -49,7 +49,7 @@ describe('feedback route', () => {
     const response = await send(url, request());
     expect(response.status).toBe(200);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
-    expect(await response.json()).toEqual({ status: 'sent', issue: 201 });
+    expect(await response.json()).toEqual({ status: 'sent' });
     expect(asked).toEqual([{ source: 'report', text: 'The truck sinks\ninto the road' }]);
     expect(created[0]).toMatch(/^The truck sinks into the road \[bug,player-report\]/);
     expect(created[0]).toContain('> The truck sinks\n> into the road');
@@ -60,7 +60,7 @@ describe('feedback route', () => {
 
   it('opens an issue for every accepted report, with no daily limit', async () => {
     const { url, created } = await start({ ipPerHour: 50 });
-    for (let i = 0; i < 30; i++) expect(await (await send(url, request())).json()).toEqual({ status: 'sent', issue: 201 + i });
+    for (let i = 0; i < 30; i++) expect(await (await send(url, request())).json()).toEqual({ status: 'sent' });
     expect(created).toHaveLength(30);
   });
 
@@ -71,17 +71,19 @@ describe('feedback route', () => {
     expect(created[0]).toMatch(/\[feature-request,player-report\]/);
   });
 
-  it('stores a rejected report with its reason and creates nothing', async () => {
+  it('stores a rejected report, creates nothing and answers like an accepted one', async () => {
     const { url, created, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, verdict: 'reject', intent: 'spam', sincere: 0.02 });
-    expect(await (await send(url, request())).json()).toEqual({ status: 'refused' });
+    const response = await send(url, request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'sent' });
     expect(created).toEqual([]);
   });
 
   it('turns a report on the open release build into a classified comment on the tracking issue', async () => {
     const { url, store, created, asked, setDecision } = await start();
     setDecision({ ...ACCEPT_BUG, route: 'patch' });
-    expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent', issue: 40 });
+    expect(await (await send(url, request({ build: 'rc' }))).json()).toEqual({ status: 'sent' });
     expect(created).toEqual([]);
     expect(asked).toEqual([{ source: 'comment', text: 'The truck sinks\ninto the road' }]);
     expect(store.unclassifiedComments()).toEqual([]);

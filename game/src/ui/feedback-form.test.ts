@@ -12,8 +12,8 @@ const answer = (status: number, body: unknown) => new Response(typeof body === "
 
 describe("sendFeedback", () => {
   it("posts the report as JSON and returns a sent answer", async () => {
-    const post = vi.fn().mockResolvedValue(answer(200, { status: "sent", issue: 41 }));
-    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent", issue: 41 });
+    const post = vi.fn().mockResolvedValue(answer(200, { status: "sent" }));
+    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent" });
     const [url, init] = post.mock.calls[0];
     expect(url).toBe(URL_OF_SERVER);
     expect(init.method).toBe("POST");
@@ -21,14 +21,8 @@ describe("sendFeedback", () => {
     expect(JSON.parse(init.body)).toEqual(report);
   });
 
-  it("returns the reason of a refused answer", async () => {
-    const post = vi.fn().mockResolvedValue(answer(200, { status: "refused" }));
-    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "refused" });
-  });
-
   it("shows each answer in the player's language", () => {
-    expect(render(feedbackStatus({ status: "sent", issue: 41 }))).toBe("Thank you. Your report is issue #41.");
-    expect(render(feedbackStatus({ status: "refused" }))).toBe("This report was not taken.");
+    expect(render(feedbackStatus({ status: "sent" }))).toBe("Thank you. Your report is sent.");
     expect(render(feedbackStatus({ status: "failed" }))).toBe("Could not send. Try again.");
   });
 
@@ -43,7 +37,7 @@ describe("sendFeedback", () => {
   });
 
   it("fails on an answer that is not the contract", async () => {
-    for (const body of [{ status: "maybe" }, { status: "sent", issue: "41" }, { status: "saved" }]) {
+    for (const body of [{ status: "maybe" }, { status: "refused" }, "sent"]) {
       const post = vi.fn().mockResolvedValue(answer(200, body));
       expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "failed" });
     }
