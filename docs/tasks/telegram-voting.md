@@ -243,7 +243,7 @@ Facts checked for the deploy: the channel allows 👍 reactions. Intake will tak
 
 ### Hands-off decisions
 - make: size Large, full flow — five parts across factory, infra and game.
-- make: branch `telegram-voting` off `origin/main` in `.worktrees/telegram-voting`, since the server runs only `main`. The game form merges into it too, and the user picks where it lands.
+- make: branch `telegram-voting` off `origin/main` in `.worktrees/telegram-voting`, since the server runs only `main`.
 - udesign: public updates come through Hermes's polling and native plugin handlers — the user chose it over a second bot.
 - udesign: `voting` is a label on a Triage card, not a new column — a new Project option is a manual GitHub change.
 - udesign: `FACTORY_MIN_VOTES` stays 10 and counts Telegram thumbs-up — same value as before.
