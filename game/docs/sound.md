@@ -5,8 +5,8 @@ Sound tells the player what happens without making them read the log: where a sh
 ## Where things live
 
 - `src/data/sounds.ts` holds the cue catalog, the prompt styles and every mix number in `MIX`. Tune there.
-- `public/sfx/` holds the files, one `<cue>-<n>.ogg` per variant. A test fails when a file has no cue or a cue claims a missing file.
-- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file at boot, a few at a time. A file that fails twice gets a sibling or silent stand-in and one error report instead of stopping the boot, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` times the combat accents.
+- `public/sfx/` holds the files, one `<cue>-<n>.ogg` per variant, with an AAC `<cue>-<n>.m4a` made from it for browsers that cannot decode Ogg Opus, like Safari on iOS 16. `src/data/sound-lengths.json` holds each Ogg's frame count. A test fails when a file has no cue or a cue claims a missing file.
+- `src/audio/` is the engine: `mixer.ts` builds the buses, `bank.ts` decodes every file at boot, a few at a time. It tries Ogg Opus first where the browser plays it and falls back to AAC, which it cuts to the Ogg length so loops stay exact. A file that fails twice in both formats gets a sibling or silent stand-in and one error report instead of stopping the boot, `player.ts` plays cues, `pick.ts` holds pure choices, and `designer.ts` times the combat accents.
 - `src/three/sound.ts` turns game events into sound: `SoundDirector` for one-shots, `SoundLoops` for engine, wind and music, and `CombatScore` for the combat music.
 - `scripts/sfx-*.mjs` generate and import files. `scripts/sfx-phase.py` measures beat loops.
 
@@ -54,7 +54,7 @@ To hear a fight without looking for one, open the console with the backquote key
 ## Adding a sound
 
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
-2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file.
+2. Import files with `npm run sfx:import -- <cue> <file...>`, or generate them. Import makes every file one format and loudness per bus. It trims one-shots, keeps loops seamless, and matches each variant's tone to the cue's first file. Import also writes the AAC fallback and its length. A hand-edited `.ogg` needs `npm run sfx:fallback`.
 3. Play it from `src/three/sound.ts`. A world sound goes through `SoundDirector.at()` with its position.
 4. Listen with `npm run sfx:board`, which plays every cue through the game's mixer, beside a reference cue for buses that have one in `MIX.anchors`.
 

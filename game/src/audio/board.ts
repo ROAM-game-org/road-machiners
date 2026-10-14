@@ -1,7 +1,7 @@
 
 import { MIX, SOUNDS, type Bus, type Cue } from "../data/sounds";
 import { devEl as el } from "../ui/dom";
-import { loadBank, type Bank } from "./bank";
+import { loadBank, soundFormats, type Bank } from "./bank";
 import { Mixer } from "./mixer";
 
 const BUSES: Bus[] = ["ui", "sfx", "ambient", "music"];
@@ -12,7 +12,7 @@ const root = document.getElementById("board");
 if (!root) throw new Error("#board element missing from sound.html");
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
-const { bank, failures } = await loadBank(mixer.ctx, sounds);
+const { bank, failures } = await loadBank(mixer.ctx, sounds, soundFormats(new Audio().canPlayType("audio/ogg; codecs=opus")));
 let playing: AudioBufferSourceNode | null = null;
 const rejected = new Set<string>();
 

@@ -1,5 +1,5 @@
 
-import { loadBank, SoundDecodeFailure } from '../audio/bank';
+import { loadBank, SoundDecodeFailure, soundFormats } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
@@ -157,10 +157,12 @@ const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 bootStep('loading physics, models and sounds');
+const opusSupport = new Audio().canPlayType('audio/ogg; codecs=opus');
+const soundOrder = soundFormats(opusSupport);
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
   boot.track('models', loadModels(undefined, boot.count('models'))),
-  boot.track('sounds', loadBank(mixer.ctx, SOUNDS, boot.count('sounds'))),
+  boot.track('sounds', loadBank(mixer.ctx, SOUNDS, soundOrder, boot.count('sounds'))),
 ]);
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
@@ -198,7 +200,7 @@ const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), n
 keepRunningOnErrors((text) => debugConsole.error(text));
 if (failures.length) {
   for (const failure of failures) console.warn(`Sound ${failure.file} failed to decode`, failure.error);
-  reportError(new SoundDecodeFailure(failures, bank.size, new Audio().canPlayType('audio/ogg; codecs=opus')));
+  reportError(new SoundDecodeFailure(failures, bank.size, soundOrder, opusSupport));
 }
 onEveryError(() => game.holdSaves());
 bootStep('running');
