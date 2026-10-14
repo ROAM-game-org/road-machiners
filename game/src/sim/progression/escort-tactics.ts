@@ -24,3 +24,10 @@ export function breakOffPoint(hauler: Vec, foe: Vec): Vec {
   const away = Math.atan2(hauler.y - foe.y, hauler.x - foe.x);
   return { x: hauler.x + Math.cos(away) * BREAK_BEHIND, y: hauler.y + Math.sin(away) * BREAK_BEHIND };
 }
+
+export type TruckOffer = { id: string; value: number; price: number };
+
+export function bestTruck(offers: readonly TruckOffer[], currentValue: number, budget: number): string | null {
+  const better = offers.filter((t) => t.value > currentValue && t.price <= budget);
+  return [...better].sort((a, b) => b.value - a.value)[0]?.id ?? null;
+}

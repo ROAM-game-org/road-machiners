@@ -21,7 +21,7 @@ import type { MoveOrder, NpcBrain, PartInstance, Vehicle, World } from '../types
 import { dist, type Vec } from '../vec';
 import { playerSees } from '../vision';
 import { isJunk, maxHp } from '../wear';
-import { breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
+import { bestTruck, breakOffPoint, KEEP_TARGET_REACH, pickTarget, shouldBreakOff, STANDOFF } from './escort-tactics';
 import { aimGuns } from './aim';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
@@ -164,10 +164,13 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   }
   buyPatchGoods(o);
   if (inCombat(o.world, o.me)) return;
-  const share = style === 'escort' ? HAULER_SHARE : 0;
-  if (share > 0) haulerGear(o, gearBudget(o.world, o.me, 'fighter') * share);
-  refitGear(o, 1 - share);
+  if (style === 'sprinter') {
+    refitGear(o, 1);
+    return buyTruck(o, post);
+  }
   buyTruck(o, post);
+  haulerGear(o, gearBudget(o.world, o.me, 'fighter') * HAULER_SHARE);
+  refitGear(o, 1 - HAULER_SHARE);
 }
 
 function haulerGear(o: Orders, budget: number): void {
@@ -228,10 +231,9 @@ function cost(o: Orders, parts: PartInstance[]): number {
 function buyTruck(o: Orders, post: Outpost): void {
   const budget = gearBudget(o.world, o.me, 'fighter');
   const current = chassisDef(o.me.chassisId).value;
-  const offers = outpostTrucks(o.world, post)
-    .filter((id) => chassisDef(id).value > current && chassisPrice(o.world, id) <= budget && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id))
-    .sort((a, b) => chassisDef(b).value - chassisDef(a).value);
-  if (offers.length > 0) o.run((w) => outpostBuyChassis(w, offers[0]), 'gear');
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).value > current && chassisSwapRefusal(o.world, id) === null && keepsKit(o, id)).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  const best = bestTruck(offers, current, budget);
+  if (best) o.run((w) => outpostBuyChassis(w, best), 'gear');
 }
 
 function keepsKit(o: Orders, chassisId: string): boolean {

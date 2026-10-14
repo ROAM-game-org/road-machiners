@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dist } from '../vec';
-import { BREAK_BEHIND, BREAK_OFF_BELOW, breakOffPoint, pickTarget, shouldBreakOff } from './escort-tactics';
+import { BREAK_BEHIND, BREAK_OFF_BELOW, bestTruck, breakOffPoint, pickTarget, shouldBreakOff } from './escort-tactics';
 
 const hauler = { x: 100, y: 100 };
 
@@ -36,5 +36,21 @@ describe('break off', () => {
     const point = breakOffPoint(hauler, { x: 120, y: 100 });
     expect(point.x).toBeLessThan(hauler.x);
     expect(dist(point, hauler)).toBeCloseTo(BREAK_BEHIND);
+  });
+});
+
+describe('bestTruck', () => {
+  const offers = [{ id: 'a', value: 300, price: 90 }, { id: 'b', value: 500, price: 200 }, { id: 'c', value: 900, price: 700 }];
+
+  it('buys the most valuable truck the budget pays', () => {
+    expect(bestTruck(offers, 100, 250)).toBe('b');
+  });
+
+  it('buys nothing worse or equal to the current truck', () => {
+    expect(bestTruck(offers, 500, 250)).toBeNull();
+  });
+
+  it('buys nothing it cannot pay', () => {
+    expect(bestTruck(offers, 100, 50)).toBeNull();
   });
 });
