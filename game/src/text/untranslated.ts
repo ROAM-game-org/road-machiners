@@ -70,6 +70,8 @@ export const UNTRANSLATED: readonly Untranslated[] = [
   { file: 'src/sim/terrain.ts', text: 'Prop   step', reason: 'A label inside a map file write error, which only a bake shows.' },
   { file: 'src/three/travel.ts', text: 'Turn worker failed:  ', reason: 'An internal error the turn throws to the console and the bug report, never shown in words.' },
   { file: 'src/three/travel.ts', text: 'Could not read turn worker response', reason: 'An internal error the turn throws to the console and the bug report, never shown in words.' },
+  { file: 'src/three/plan-preview.ts', text: 'Preview worker failed:  ', reason: 'An internal error the preview reports to the console and the bug report, never shown in words.' },
+  { file: 'src/three/plan-preview.ts', text: 'Could not read preview worker response', reason: 'An internal error the preview reports to the console and the bug report, never shown in words.' },
   { file: 'src/three/crash.ts', text: 'Error:  ', reason: 'The prefix of an error line in the debug console, a dev tool.' },
   { file: 'src/three/crash.ts', text: '.textContent =', reason: 'The crash screen shows the raw error and its stack for a bug report.' },
   { file: 'src/ui/cards.ts', text: '.innerHTML =', reason: SVG },
