@@ -105,13 +105,22 @@ describe('public store', () => {
     expect(store.unclassifiedComments(100).map((c) => [c.issue, c.text])).toEqual([[7, 'Yes please']]);
   });
 
-  it('never offers a dropped comment to the filter', () => {
+  it('drops a comment on a closed post only once the filter finds it about its thread, so an unrelated report is still filed', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);
-    store.addComment({ issue: 7, source: 'telegram', sourceId: 'c1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text: 'Stalls', at: now.toISOString() });
+    const add = (id: string, text: string) => store.addComment({ issue: 7, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text, at: now.toISOString(), messageId: 1 });
+    add('c1', 'Stalls');
+    add('c2', 'Add a minimap');
     store.closeBuildPosts(7);
+    expect(store.dropCommentsOnClosedPosts(now)).toBe(0);
+    const [about, other] = store.unclassifiedComments(100);
+    store.classify(about!.id, 'bug', 'patch', now, 'parent');
+    store.classify(other!.id, 'feature', 'none', now, 'other');
     expect(store.dropCommentsOnClosedPosts(now)).toBe(1);
-    expect(store.unclassifiedComments(100)).toEqual([]);
+    expect(store.unsentComments()).toEqual([]);
+    expect(store.pendingRoutes()).toEqual([]);
+    expect(store.toFile().map((c) => c.text)).toEqual(['Add a minimap']);
+    expect(store.toReply()).toEqual([]);
   });
 
   it('keeps a standalone chat message and a game report when posts close, so they are still filed and answered', () => {

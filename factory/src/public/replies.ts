@@ -1,3 +1,4 @@
+import { reportFailure } from '../fail';
 import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
 import type { PublicFilter } from './decision';
@@ -40,7 +41,7 @@ async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment): Pro
     const passage = await ground(comment.text);
     return passage === null ? noAnswer(ctx) : wikiAnswer(ctx, passage);
   } catch (error) {
-    ctx.log('public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it gets the fallback: ${error instanceof Error ? error.message : String(error)}`);
+    await reportFailure(ctx, 'public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it got the fallback: ${error instanceof Error ? error.message : String(error)}`, null, []);
     return noAnswer(ctx);
   }
 }

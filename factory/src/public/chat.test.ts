@@ -5,7 +5,7 @@ import { readState, updateState } from '../state';
 import type { Classify, Decision, FilterInput } from './decision';
 import { CHANNEL, COMMITTEE, filterOf, publicFake, type PublicFake } from './public-fakes';
 import { publicTick } from './tick-steps';
-import type { Ground, Passage } from './wiki';
+import { groundWith, type Ground, type Passage } from './wiki';
 
 const SINCERE: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'feedback', route: 'none', relevance: 'parent' };
 const PROPOSAL = 100;
@@ -188,6 +188,29 @@ describe('public chat', () => {
     expect(f.created).toHaveLength(1);
     expect(repliesTo(f, 21)).toHaveLength(1);
     expect(repliesTo(f, 22)).toEqual([{ chat: CHANNEL, replyTo: 22, text: 'This is already filed as #601: https://github.com/o/r/issues/601\nIt is open and not built yet.' }]);
+  });
+
+  it('files and answers an unrelated idea under a proposal that closed, and drops one about the closed proposal', async () => {
+    const other = 'Add an exploration minimap';
+    const about = 'Towns should remember raids too';
+    const { f, tick } = chat([{ text: other, decision: { kind: 'feature', relevance: 'other' } }, { text: about, decision: { kind: 'feature', relevance: 'parent' } }]);
+    post(f, { id: 24, text: other, thread: PROPOSAL });
+    post(f, { id: 25, text: about, thread: PROPOSAL, sender: '48' });
+    f.store.closeProposal(568, f.clock.now);
+    await tick();
+    expect(f.created.map((issue) => issue.title)).toEqual([other]);
+    expect(repliesTo(f, 24)[0]!.text).toContain('I filed this idea as #601');
+    expect(repliesTo(f, 25)).toEqual([]);
+    expect(f.comments).toEqual([]);
+  });
+
+  it('reports a missing game wiki as a failure and still gives the player the fallback once', async () => {
+    const asked = '@roam_bot how do flares work?';
+    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }], groundWith(async () => 0, 'tmp/no-such-wiki'));
+    post(f, { id: 26, text: asked, addressed: true });
+    await tick();
+    expect(repliesTo(f, 26).map((reply) => reply.text)).toEqual([expect.stringMatching(/^The game wiki has no passage that answers this/)]);
+    expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('the wiki answer to player comment')]);
   });
 
   it('checks at most the hourly limit of messages from one player and skips the rest without a filter call', async () => {

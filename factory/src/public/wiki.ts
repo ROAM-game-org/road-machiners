@@ -124,7 +124,9 @@ export const passageLabel = (passage: Passage): string => (passage.heading === p
 
 export function groundWith(pick: PickPassage, dir: string = WIKI_DIR): Ground {
   return async (question) => {
-    const candidates = searchWiki(readWiki(dir), question, CANDIDATES);
+    const passages = readWiki(dir);
+    if (passages.length === 0) throw new Error(`The game wiki at ${dir} has no passages.`);
+    const candidates = searchWiki(passages, question, CANDIDATES);
     if (candidates.length === 0) return null;
     const index = await pick(question, candidates.map((passage) => `${passageLabel(passage)}: ${excerpt(passage.text, PICK_CHARS)}`));
     return index === null ? null : (candidates[index] ?? null);

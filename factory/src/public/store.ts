@@ -207,7 +207,8 @@ export class PublicStore {
     const matches = (post: string): string => `(c.post_chat = ${post}.chat and c.post_message_id = ${post}.message_id) or (c.post_chat = ${post}.discussion_chat and c.post_message_id = ${post}.discussion_id)`;
     const onOpenProposal = `exists (select 1 from proposals p where p.issue = c.issue and p.posted_at is not null and p.closed_at is null and (${matches('p')}))`;
     const onOpenBuildPost = `exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and (${matches('b')}))`;
-    const sql = `update comments as c set dropped_at = ? where c.sent_at is null and c.dropped_at is null and c.post_message_id is not null and not ${onOpenProposal} and not ${onOpenBuildPost}`;
+    const aboutThread = "c.classified_at is not null and (c.relevance is null or c.relevance = 'parent')";
+    const sql = `update comments as c set dropped_at = ? where c.sent_at is null and c.dropped_at is null and c.post_message_id is not null and ${aboutThread} and not ${onOpenProposal} and not ${onOpenBuildPost}`;
     return Number(this.db.prepare(sql).run(now.toISOString()).changes);
   }
 

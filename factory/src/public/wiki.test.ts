@@ -102,6 +102,10 @@ describe('groundWith', () => {
     expect(await groundWith(async () => null, dir)('how much does a repair cost in the Bowl?')).toBeNull();
   });
 
+  it('throws when the wiki has no passages, so a broken deploy never reads as no answer', async () => {
+    await expect(groundWith(async () => 0, tempWiki({}))('how do I repair?')).rejects.toThrow('has no passages');
+  });
+
   it('skips the pick when no passage shares a word with the question', async () => {
     let calls = 0;
     expect(await groundWith(async () => { calls += 1; return 0; }, dir)('when is the next release?')).toBeNull();
