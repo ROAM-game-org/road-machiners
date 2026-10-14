@@ -2,7 +2,7 @@
 import { loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, SFX_BYTES } from '../config';
 import { fetchBytes } from '../fetch-bytes';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
@@ -28,7 +28,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
-import { ErrorReporter } from './error-report';
+import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
@@ -156,7 +156,7 @@ async function recoverSounds(loaded: LoadedBank): Promise<void> {
   for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered)) reportError(report);
 }
 const boot = BootScreen.adopt();
-const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, ERROR_REPORT_BUILD, GAME_VERSION) : null;
+const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
@@ -207,7 +207,7 @@ keepRunningOnErrors((text) => debugConsole.error(text));
 onEveryError(() => game.holdSaves());
 bootStep('running');
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
-reporter?.watch({ world: () => game.state, log: () => game.logTexts(), slots });
+gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');
 void boot.finish();
 if (import.meta.env.DEV) {
