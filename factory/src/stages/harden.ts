@@ -1,5 +1,5 @@
 import { cardFlow, moveCard } from '../card-events';
-import { BRANCH, GAME_DIR, INCIDENT_LOG, TASK_FILE, type Ctx } from '../types';
+import { BRANCH, GAME_DIR, TASK_FILE, type Ctx } from '../types';
 import { BASE_BRANCH, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const PRINCIPLES = `${GAME_DIR}/docs/architecture/principles.md`;
@@ -30,6 +30,6 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
 export async function hardenPrompt(ctx: Ctx, issue: number, base: string, baseNote: string): Promise<string> {
   return fillPrompt('harden', {
     issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), base, baseNote,
-    incidentLog: await ctx.repo.readFile(BASE_BRANCH, INCIDENT_LOG), principles: await ctx.repo.readFile(BASE_BRANCH, PRINCIPLES),
+    principles: await ctx.repo.readFile(BASE_BRANCH, PRINCIPLES),
   });
 }
