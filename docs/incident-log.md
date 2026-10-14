@@ -63,3 +63,8 @@ ID: R12
 repo: game
 what: The boot decoded every sound and threw "Sound X failed to decode" when one file failed decodeAudioData, so one sound the browser could not decode stopped the whole boot. The sound files were valid. Firefox on Android failed to decode them. Hotfix #482 retried each decode and gave a file that still failed a sibling's buffer or a silent stand-in, so the game boots and reports the failures. Hotfix #493 only added a test for a two-file cue with one file that never decodes.
 cost: A Firefox on Android player on release 2.61.0 could not start the game when mortar-fire-2.ogg failed to decode, after the same failure with hit-metal-2.ogg in #482. It took two hotfix issues. It repeats the class of R10: one asset failure at boot rejected the whole boot.
+
+ID: R13
+repo: game
+what: The path preview ran on the main thread in the first frame after each turn. It cloned the world and simulated up to three physics turns there, so each turn seam froze a frame. warmAfterBoot() in game/src/three/main.ts also built route grids for every chassis radius on the main thread right after boot. Issue #40 had moved turns to a worker but left the preview and this warm-up on the main thread. Hotfix #494 moved the preview into its own worker and removed the main-thread warm-up.
+cost: A committee player on the main release saw pauses between turns right after starting a new game. Their overlay showed the last preview at 59.9 ms against a 50 ms budget and the last turn at 189.5 ms against 100 ms, while FPS read 60. On the factory host, each seam froze for 115 to 265 ms and boot ran 10 long tasks of 250 to 990 ms. It repeats the turn-seam stutter of issue #40 and took a hotfix with cross-system profiling.
