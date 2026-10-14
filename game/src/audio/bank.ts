@@ -1,3 +1,4 @@
+import { fetchBytes } from "../fetch-bytes";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -56,9 +57,7 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const res = await fetch(SFX_DIR + file);
-  if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
-  return ctx.decodeAudioData(await res.arrayBuffer());
+  return ctx.decodeAudioData(await fetchBytes(SFX_DIR + file));
 }
 
 function standIn(ctx: BaseAudioContext, sounds: Record<string, Cue>, decoded: Map<string, AudioBuffer>, file: string): AudioBuffer {
