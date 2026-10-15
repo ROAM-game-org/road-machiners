@@ -19,7 +19,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { runsDown } from "./hunters";
+import { rollingOrder, runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -130,6 +130,8 @@ function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolea
 
 function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   if (v.brain!.ramTarget) return { kind: "through", dest };
+  const rolling = rollingOrder(world, v);
+  if (rolling) return rolling;
   const foe = foeInSight(world, v, activity);
   if (foe) return fightOrder(world, v, foe, dest);
   if (runsDown(world, v)) return { kind: "through", dest };

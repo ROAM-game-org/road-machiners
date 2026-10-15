@@ -47,17 +47,24 @@ function nearBoth(w: World, truck: Vehicle): void {
 }
 
 describe('winning a stretch', () => {
-  it('needs the hauler on the pad, and the player alone does not win', () => {
+  it('needs both trucks on the pad, and keeps the groups on the road while only one is there', () => {
     const alone = furyRoadWorld();
     park(alone, playerVehicle(alone), 0);
     advanceFuryRoad(alone);
     expect(alone.furyRoad!.outposts[1].paid).toBe(false);
 
     const hauled = furyRoadWorld();
+    const truck = spawnOne(hauled);
     park(hauled, haulerOf(hauled), 0);
+    advanceFuryRoad(hauled);
+    expect(hauled.furyRoad!.outposts[1].paid).toBe(false);
+    expect(hauled.vehicles.some((v) => v.id === truck.id)).toBe(true);
+
+    park(hauled, playerVehicle(hauled), 2);
     advanceFuryRoad(hauled);
     expect(hauled.furyRoad!.outposts[1].paid).toBe(true);
     expect(betweenLevels(hauled)).toBe(true);
+    expect(hauled.vehicles.some((v) => v.id === truck.id)).toBe(false);
   });
 
   it('seats the parked semi and the player truck on the pad together on three seeds', () => {

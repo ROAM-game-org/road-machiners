@@ -129,9 +129,10 @@ describe('the Fury Road escort bot', () => {
     expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThanOrEqual(FURY_ROAD.hauler.hurry);
   });
 
-  it('refits its own truck by the merc loadout, then spends the rest on hauler armor and never a gun', () => {
+  it('refits its own truck by the merc loadout, then armors the hauler when the hauler took the damage, and never gives it a gun', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;
+    for (const part of mountedParts(haulerOf(w), 'core')) part.hp = maxHp(part) / 2;
     const armor = mountedParts(haulerOf(w), 'armor').length;
     const mine = mountedParts(playerVehicle(w)).map((p) => p.id);
 
@@ -141,6 +142,17 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(playerVehicle(turn.world)).some((p) => !mine.includes(p.id))).toBe(true);
     expect(mountedParts(hauler, 'armor').length).toBeGreaterThan(armor);
     expect(mountedParts(hauler, 'weapon')).toEqual([]);
+  });
+
+  it('buys no hauler armor when only its own truck took damage', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+    for (const part of mountedParts(playerVehicle(w), 'core')) part.hp = maxHp(part) / 2;
+    const armor = mountedParts(haulerOf(w), 'armor').length;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(mountedParts(haulerOf(turn.world), 'armor').length).toBe(armor);
   });
 
   it('keeps auto fire on and rides behind the hauler while no hostile is in sight', () => {

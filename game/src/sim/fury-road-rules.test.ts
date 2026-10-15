@@ -7,7 +7,8 @@ import { refreshVision } from './vision';
 import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
-import { alongOf, milestoneAt, toRoad } from './highway';
+import { alongOf, milestoneAt, roadPoint, toRoad } from './highway';
+import { rollingOrder } from './hunters';
 import { generateNpcLoadout, OPEN_GEAR } from './npc-loadout';
 import { mountedParts } from './grid';
 import { vehicleStats } from './stats';
@@ -106,6 +107,31 @@ describe('Chaos Highway fire', () => {
     expect(targets.every((id) => id === me.id)).toBe(true);
   });
 
+});
+
+describe('Chaos Highway rolling start', () => {
+  it('waits far ahead of its moving prey, rolls north faster as the prey closes, and leaves the fight AI in charge once the prey is near', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const prey = groupPrey(w, truck);
+    prey.speed = 4;
+    const window = w.furyRoad!.window;
+    const at = (gap: number) => {
+      truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(window, prey.pos)) + gap, 0);
+      return rollingOrder(w, truck);
+    };
+    const { near, ramp } = FURY_ROAD.rolling;
+    expect(at(near + ramp + 5)).toEqual({ kind: 'brake' });
+    const far = at(near + ramp * 0.75);
+    const close = at(near + ramp * 0.25);
+    if (far?.kind !== 'through' || close?.kind !== 'through') throw new Error('expected rolling orders');
+    expect(far.pace!).toBeLessThan(close.pace!);
+    expect(close.pace!).toBeLessThan(prey.speed);
+    expect(alongOf(w.seed, toRoad(window, close.dest))).toBeGreaterThan(alongOf(w.seed, toRoad(window, truck.pos)));
+    expect(at(near - 1)).toBeNull();
+    prey.speed = 0;
+    expect(at(near + ramp * 0.5)).toBeNull();
+  });
 });
 
 describe('Chaos Highway prey', () => {

@@ -73,7 +73,7 @@ The land is generated as you go, in windows of 410 by 410 tiles, each 310 tiles 
 
 An outpost stands at each milestone from 0 on. It is a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad to the gate. Its label shows `???` until the player sees it, then "Outpost N". Discovering it gives XP as any site does.
 
-The hauler reaching the pad of the next outpost wins the level in that turn, at any speed, in combat or out. The gun truck on the pad alone wins nothing. The outpost pays 250 M's for stretch 1 and 100 M's more for each later stretch. Pay has no cap, and neither the wrecks nor the hauler's condition change it. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch leave the road and their fights end.
+The level is won in the turn both the hauler and the gun truck are on the pad of the next outpost, at any speed, in combat or out. Either truck on the pad alone wins nothing, and the groups keep fighting it. The outpost pays 250 M's for stretch 1 and 100 M's more for each later stretch. Pay has no cap, and neither the wrecks nor the hauler's condition change it. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch leave the road and their fights end.
 
 Between levels nothing spawns. A paid outpost is a garage, as a town garage is. `atGarage()` in `src/sim/garage.ts` says yes for a truck parked on its pad. Every install, removal and swap on the truck grid, and every move to or from garage storage, applies at once with no refit timer. Storage is the player's one garage storage, shared with every garage and carried from window to window. Both trucks pay from the one wallet.
 
@@ -121,7 +121,7 @@ Encounters are paced by place. Each group has a place along the stretch, at the 
 Group trucks spawn with full tanks and no cargo. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
 
 - Each turn a group truck picks its prey. It picks the gun truck while it is in danger from it: one of the gun truck's working guns can hit it now, or the gun truck shot it or crashed into it so that it took damage. Otherwise it picks the nearer of the two trucks, and the hauler counts as nearer only when it is more than 8 tiles nearer, so a tie goes to the gun truck. `groupPrey()` in `src/sim/combat.ts` holds the rule.
-- Its drive hunts its prey.
+- Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north in its own place across the road instead. It waits while the prey is more than 36 tiles back and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. `rollingOrder()` in `src/sim/hunters.ts` holds the rule.
 - Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.
