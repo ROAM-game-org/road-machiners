@@ -32,7 +32,7 @@ describe('publicRows', () => {
     f.store.setFiled(offTopic!.id, 571);
     f.store.setReplyId(offTopic!.id, 700);
     expect(publicRows(f.ctx, f.store)).toEqual([
-      'chat message 170 T2: chatter, standalone, no reply',
+      'chat message 170 T2: chatter, no thread, no reply',
       'chat message 169 T1: feature, off-topic under #568, filed as #571, replied 700',
     ]);
   });
