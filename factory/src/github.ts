@@ -59,7 +59,13 @@ export class GithubError extends Error {}
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
-type RawComment = { login: string; body: string; createdAt: string; appId: number | null };
+export const SUITE_WORKFLOW = 'game-suite.yml';
+export const SUITE_TESTS_STEP = 'tests';
+
+type RawRun = { status: string; conclusion: string | null; html_url: string };
+type RawJob = { status: string; steps: { name: string; conclusion: string | null }[] };
+
+type RawComment ={ login: string; body: string; createdAt: string; appId: number | null };
 
 type ClientConfig = Pick<FactoryConfig, 'githubAppId' | 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
 
@@ -242,11 +248,30 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     async closePullRequest(branch, comment) {
       await gh(['pr', 'close', branch, '-R', repo, '--comment', comment]);
     },
-    async mergePullRequest(branch) {
-      await gh(['pr', 'merge', branch, '-R', repo, '--merge']);
-    },
     async reopen(number) {
       await gh(['issue', 'reopen', String(number), '-R', repo]);
+    },
+    async dispatchSuite(sha) {
+      const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-F', 'return_run_details=true']);
+      const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
+      if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);
+      return id;
+    },
+    async suiteRun(id) {
+      const run = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}`])) as RawRun;
+      const { jobs } = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}/jobs`])) as { jobs: RawJob[] };
+      const done = run.status === 'completed';
+      return {
+        done,
+        started: done || jobs.some((job) => job.status === 'in_progress' || job.status === 'completed'),
+        passed: done && run.conclusion === 'success',
+        testsFailed: jobs.some((job) => job.steps.some((step) => step.name === SUITE_TESTS_STEP && step.conclusion === 'failure')),
+        conclusion: run.conclusion,
+        url: run.html_url,
+      };
+    },
+    async suiteLog(id) {
+      return gh(['run', 'view', String(id), '-R', repo, '--log-failed']);
     },
     async errorIssue(number) {
       const issue = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'number,state,stateReason,closedAt'])) as FingerprintIssue;

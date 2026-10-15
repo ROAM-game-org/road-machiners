@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
 import { readState, updateState } from '../state';
@@ -7,10 +7,11 @@ import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LA
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BudgetError, runCost, untilPasses } from './checkpoint';
-import { checkScript, checkUntilReal, oneSuiteAtATime, runChecks } from './checks';
+import { checkScript, checkUntilReal, runChecks } from './checks';
+import { subsetCommand, testSubset } from './subset';
 import { guardAgainstAll } from '../diff-guard';
-import { BASE_BRANCH, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
-import { releaseLog, requireDevMerges, requireReleaseMerges } from './release-common';
+import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
+import { releaseLog } from './release-common';
 
 export async function merge(ctx: Ctx): Promise<void> {
   const batch = await nextBatch(ctx);
@@ -50,9 +51,9 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
 
 function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   updateState(ctx.statePath, (state) => {
-    if (base === BASE_BRANCH) return { ...state, devMerges: [...requireDevMerges(state), ...merges] };
+    if (base === BASE_BRANCH) return { ...state, devMerges: [...state.devMerges, ...merges] };
     if (state.release?.branch !== base) throw new Error(`Merged into ${base}, but the open release is on ${state.release?.branch ?? 'no branch'}`);
-    return { ...state, release: { ...state.release, merges: [...requireReleaseMerges(state.release), ...merges] } };
+    return { ...state, release: { ...state.release, merges: [...state.release.merges, ...merges] } };
   });
 }
 
@@ -82,10 +83,14 @@ function clockLine(clock: Clock): string {
 export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number, fixPrompt: (failure: string) => string): Promise<void> {
   let conflicts = conflictUsd;
   let fixes = 0;
+  let recheck = true;
   for (;;) {
-    fixes = await fixUntilPasses(ctx, land, fixes, conflicts, fixPrompt);
-    if (await timed(land.clock, 'pushes', () => pushed(ctx, land))) return;
+    if (recheck) fixes = await fixUntilPasses(ctx, land, fixes, conflicts, fixPrompt);
+    const unpushed = await timed(land.clock, 'pushes', () => pushed(ctx, land));
+    if (unpushed === null) return;
     conflicts += await timed(land.clock, 'remerges', () => mergeIn(ctx, land, { branch: land.into, message: undefined, reason: `${land.into} moved on GitHub while the checks ran` }));
+    recheck = (await ctx.repo.changedInWork(land.dir, unpushed)).some(isGameSource);
+    if (!recheck) ctx.log(land.stage, null, `${land.into} moved by docs only, so the checks that passed still hold`);
   }
 }
 
@@ -104,14 +109,19 @@ async function nextBatch(ctx: Ctx): Promise<{ base: string; cards: Card[] } | nu
   const cards = await ctx.github.cards();
   let taken: { base: string; cards: Card[] } | null = null;
   updateState(ctx.statePath, (state) => {
-    const waiting = waitingMerges(state, cards).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
-    const base = waiting.length === 0 ? null : baseBranchFor(ctx, waiting[0]!.labels);
-    const batchCards = waiting.filter((card) => baseBranchFor(ctx, card.labels) === base).slice(0, MERGE_BATCH_CARDS);
-    if (base !== null) taken = { base, cards: batchCards };
+    const batchCards = nextBatchCards(state, cards, (card) => baseBranchFor(ctx, card.labels));
+    if (batchCards.length > 0) taken = { base: baseBranchFor(ctx, batchCards[0]!.labels), cards: batchCards };
     const batch = batchCards.map((card) => card.issue);
     return { ...state, jobs: state.jobs.map((job) => (job.stage === 'merge' ? { ...job, batch } : job)) };
   });
   return taken;
+}
+
+export function nextBatchCards(state: FactoryState, cards: Card[], baseOf: (card: Card) => string): Card[] {
+  const waiting = waitingMerges(state, cards).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
+  if (waiting.length === 0) return [];
+  const base = baseOf(waiting[0]!);
+  return waiting.filter((card) => baseOf(card) === base).slice(0, MERGE_BATCH_CARDS);
 }
 
 export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
@@ -151,22 +161,23 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
 
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
-  const script = checkScript(playtestCommand(ctx.cfg, false));
+  const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`), (file) => existsSync(join(land.dir, GAME_DIR, file)));
+  const script = checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset));
   const at = { stage: land.stage, issue: null };
-  return checkUntilReal(() => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage })), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
+  return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
 }
 
-async function pushed(ctx: Ctx, land: Landing): Promise<boolean> {
+async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
   const head = await ctx.repo.fetchFromWork(land.dir, land.into);
   guardAgainstAll(await Promise.all(land.guardAgainst.map(async (branch) => ({ files: await ctx.repo.changedFiles(branch, head), diff: await ctx.repo.diff(branch, head) }))));
   try {
     await ctx.repo.push(head, land.into);
-    return true;
+    return null;
   } catch (error) {
     await ctx.repo.fetch();
     if (await ctx.repo.isMerged(land.into, head)) throw error;
     ctx.log(land.stage, null, `${land.into} moved during the checks, merging it in again`);
-    return false;
+    return head;
   }
 }
 

@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput, PublicFilter, Relevance } from './decision';
 import type { PublicRoute } from './store';
-import { groundWith, type PickPassage } from './wiki';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
 const GAME = readFileSync(fileURLToPath(new URL('../../prompts/filter-game.md', import.meta.url)), 'utf8').trim();
@@ -112,30 +111,8 @@ export function filterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): C
   return async (input) => decide(cfg, input, await ask(cfg, fetch, inputText(input), questionsFor(input)));
 }
 
-const NO_PASSAGE = 'none';
-
-function passageQuestion(count: number): Question {
-  const numbered = Array.from({ length: count }, (_, index) => ({ value: String(index + 1), description: `Passage ${index + 1} states the answer.` }));
-  return {
-    type: 'choice',
-    name: 'passage',
-    instructions: 'Which numbered wiki passage states the answer to the player question? Pick a passage only when its text says the answer. Pick none when no passage says it, even when one is on the same subject.',
-    choices: [...numbered, { value: NO_PASSAGE, description: 'No passage states the answer.' }],
-  };
-}
-
-export function pickPassageWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): PickPassage {
-  return async (question, candidates) => {
-    const passages = candidates.map((text, index) => `[${index + 1}] ${text}`).join('\n\n');
-    const input = `Game: ${GAME}\n\nWiki passages:\n${passages}\n\nPlayer question: ${question}`;
-    const asked = passageQuestion(candidates.length);
-    const picked = choice(await ask(cfg, fetch, input, [asked]), 'passage', asked.choices.map((option) => option.value));
-    return picked === NO_PASSAGE ? null : Number(picked) - 1;
-  };
-}
-
 export function publicFilterWith(cfg: FilterConfig, fetch: typeof globalThis.fetch): PublicFilter {
-  return { classify: filterWith(cfg, fetch), ground: groundWith(pickPassageWith(cfg, fetch)) };
+  return { classify: filterWith(cfg, fetch) };
 }
 
 const hasParent = (input: FilterInput): input is FilterInput & { parent: string } => typeof input.parent === 'string' && input.parent.trim() !== '';

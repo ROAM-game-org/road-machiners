@@ -1,4 +1,4 @@
-"""Keeps TELEGRAM_ALLOWED_USERS in the Hermes .env equal to the committee, and copies the factory values Hermes's shell needs.
+"""Keeps TELEGRAM_ALLOWED_USERS in the Hermes .env equal to the committee, admits every sender in the committee chat, and copies the factory values Hermes's shell needs.
 
 The supervised gateway reads its env from $HERMES_HOME/.env, not from the start script.
 So the start script runs this file before the gateway starts, and the plugin calls
@@ -14,6 +14,8 @@ from pathlib import Path
 
 KEY = "TELEGRAM_ALLOWED_USERS"
 PASSED = ("FACTORY_REPO", "GH_CONFIG_DIR")
+GROUP_CHAT_KEY = "TELEGRAM_GROUP_ALLOWED_CHATS"
+COMMITTEE_CHAT_KEY = "FACTORY_COMMITTEE_CHAT"
 
 
 def with_allowlist(text: str, ids) -> str:
@@ -52,6 +54,15 @@ def write_passed(env_path: Path, environ) -> None:
     _replace(env_path, with_values(current, {key: environ[key] for key in PASSED}))
 
 
+def write_group_chat(env_path: Path, environ) -> None:
+    """Admits every sender in the committee chat. A missing or non-numeric chat id stops the start."""
+    chat = environ.get(COMMITTEE_CHAT_KEY, "")
+    if not chat.lstrip("-").isdigit():
+        raise KeyError(f"The Hermes container env lacks a numeric {COMMITTEE_CHAT_KEY}.")
+    current = env_path.read_text() if env_path.exists() else ""
+    _replace(env_path, with_values(current, {GROUP_CHAT_KEY: chat}))
+
+
 def main() -> None:
     sys.path.insert(0, str(Path(__file__).parent))
     from committee import Committee
@@ -65,6 +76,7 @@ def main() -> None:
     env_path = Path(os.environ["HERMES_HOME"]) / ".env"
     write_allowlist(env_path, committee.ids())
     write_passed(env_path, os.environ)
+    write_group_chat(env_path, os.environ)
 
 
 if __name__ == "__main__":

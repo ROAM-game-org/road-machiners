@@ -105,13 +105,6 @@ describe('remove', () => {
     expect(f.calls.some((call) => call.startsWith('push') || call.startsWith('delete') || call.startsWith('reopen'))).toBe(false);
   });
 
-  it('throws when the release merges are not migrated yet', async () => {
-    const f = fake();
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, merges: null }, pendingRemovals: [{ issue: 5, by: 'Ann', text: 't' }] });
-    await expect(remove(f.ctx, 5)).rejects.toThrow('not filled yet');
-    expect(f.calls.some((call) => call.startsWith('revert'))).toBe(false);
-  });
-
   it('pushes nothing after a conflicting revert and keeps the branch and issue as they are', async () => {
     const f = fake();
     f.ctx.repo.revertMerge = async () => { throw new Error('revert failed. Conflicting files: a.ts'); };
