@@ -7,7 +7,7 @@ import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, ou
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
 import { goodName, refusalText, siteName } from "../text/names";
-import { chassisPortrait, compareBase, createIcon, createItemIcon } from "./cards";
+import { chassisPortrait, compareBase, createIcon, createItemTipIcon, itemTip } from "./cards";
 import { el, panel } from "./dom";
 import { commandFailure, GOODS_COLUMNS } from "./format";
 import type { UiHost } from "./host";
@@ -207,7 +207,7 @@ export class OutpostScreen {
     return el(
       "div",
       { class: "good-row row" },
-      el("div", { class: "good-name" }, createItemIcon(REPAIR_GOOD), el("b", {}, goodName(REPAIR_GOOD))),
+      el("div", { class: "good-name" }, createItemTipIcon(REPAIR_GOOD), el("b", { title: itemTip(REPAIR_GOOD) }, goodName(REPAIR_GOOD))),
       el(
         "div",
         { class: "trade buy wide" },

@@ -5,14 +5,14 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, partStats, statValue, toneStyle } from "./cards";
 import ICONS from "../data/item-icons.json";
 import { CHASSIS } from "../data/chassis";
 import { GOODS } from "../data/goods";
 import { PARTS } from "../data/parts";
 import { BODY_PARTS } from "../render/partLooks";
 import { TEST_MAP } from "../test/map";
-import type { Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { chassisName, goodName, partName } from "../text/names";
 import { defaultSetup, parseSetup } from "../sim/settings";
@@ -211,5 +211,20 @@ describe("stat values", () => {
   it("keeps degrees and multipliers tight to the number", () => {
     const stats = partStats(world, part("stockEngine"));
     expect(en(statValue(stats.find((s) => s.icon === "heat")!))).toMatch(/^[\d.]+×$/);
+  });
+});
+
+describe("the item tip", () => {
+  it("opens with the name and ends with the lore, for a part, a good and the parcel", () => {
+    for (const id of ["mg", "salt", "parcel"]) {
+      const [name, lore] = en(itemTip(id)).split("\n");
+      expect(name, id).toBe(en(id === "parcel" ? t("item.parcel") : id in GOODS ? goodName(id) : partName(id)));
+      expect(lore, id).toBe(en(itemLore(id)));
+      expect(lore.length, id).toBeGreaterThan(20);
+    }
+  });
+
+  it("has lore for every part and good", () => {
+    for (const id of [...Object.keys(PARTS), ...Object.keys(GOODS)]) expect(en(itemLore(id)).length, id).toBeGreaterThan(20);
   });
 });

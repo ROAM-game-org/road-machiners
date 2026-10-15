@@ -41,7 +41,7 @@ import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
 import { acceptContract, deliverContract, fitsFetch, isMet, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
-import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
+import { compareBase, createBareItemIcon, createIcon, createItemTipIcon, itemTip, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
@@ -232,8 +232,8 @@ export class TownScreen {
       el(
         "div",
         { class: "good-name" },
-        createItemIcon(g),
-        el("b", {}, goodName(g)),
+        createItemTipIcon(g),
+        el("b", { title: itemTip(g) }, goodName(g)),
       ),
       el(
         "div",
@@ -665,8 +665,8 @@ export class TruckTradeScreen {
       el(
         "div",
         { class: "good-name" },
-        createItemIcon(g),
-        el("b", {}, goodName(g)),
+        createItemTipIcon(g),
+        el("b", { title: itemTip(g) }, goodName(g)),
       ),
       countCell("theirs", theirs),
       el(

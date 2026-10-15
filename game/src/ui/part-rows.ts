@@ -2,7 +2,7 @@
 import { partDef } from "../data/parts";
 import { partName } from "../text/names";
 import type { PartInstance, World } from "../sim/types";
-import { conditionTag, footprint, headlineStat, partDetail, partIconEl, statChip, toneStyle } from "./cards";
+import { conditionTag, footprint, headlineStat, itemTip, partDetail, partIconEl, statChip, toneStyle } from "./cards";
 import { el } from "./dom";
 import { conditionStatus, conditionTier } from "./format";
 import { moneyEl } from "./units";
@@ -89,7 +89,7 @@ export class PartRows {
     return el(
       "span",
       { class: "part-name" },
-      el("b", { title: partName(part.defId) }, partName(part.defId)),
+      el("b", { title: itemTip(part.defId) }, partName(part.defId)),
       conditionTag(part),
       showStatus ? el("span", { class: status.tone }, status.text) : null,
     );
