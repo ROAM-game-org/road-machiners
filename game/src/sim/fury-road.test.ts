@@ -9,9 +9,9 @@ import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
 import { groupPrey, inCombat } from './combat';
 import { haulerOf, playerVehicle } from './damage';
-import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
+import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, onOutpostPad, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, type PlannedWave } from './fury-road-director';
-import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
+import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, stretchLength, toRoad, windowShift } from './highway';
 import { topGoal } from './npc-activities';
 import { planNpcOrders } from './ai';
 import { optionWeights, tradeOffers } from './npc-decisions';
@@ -73,7 +73,7 @@ function trucksOf(w: World, g: WaveGroup): Vehicle[] {
 }
 
 function roadSpot(w: World, v: Vehicle): { along: number; across: number } {
-  const at = toRoad(runOf(w).window, v.pos);
+  const at = toRoad(w.seed, runOf(w).window, v.pos);
   return { along: alongOf(w.seed, at), across: acrossOf(w.seed, at) };
 }
 
@@ -144,7 +144,7 @@ describe('the stretch director', () => {
       for (const j of STRETCHES) {
         const ats = wavesOf(seed, j).map((wave) => wave.at);
         expect(ats, `seed ${seed} stretch ${j}`).toEqual([...ats].sort((a, b) => a - b));
-        expect(ats.every((at) => at > milestoneAt(j - 1) && at < milestoneAt(j)), `seed ${seed} stretch ${j}`).toBe(true);
+        expect(ats.every((at) => at > milestoneAt(seed, j - 1) && at < milestoneAt(seed, j)), `seed ${seed} stretch ${j}`).toBe(true);
       }
     }
   });
@@ -207,11 +207,11 @@ describe('the sides a group comes from', () => {
   it('spawns ahead of the player or out in the badlands ahead on its side, inside the window', () => {
     for (const from of ['ahead', 'left', 'right'] as const) {
       const w = furyRoadWorld();
-      moveTo(w, milestoneAt(0) + 120);
+      moveTo(w, milestoneAt(w.seed, 0) + 120);
       const first = group(w);
       first.from = from;
       first.templates = ['buggy', 'trader', 'merc'];
-      const progress = alongOf(w.seed, toRoad(0, playerVehicle(w).pos));
+      const progress = alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos));
 
       spawnGroup(w, runOf(w), first, progress);
 
@@ -283,7 +283,7 @@ describe('the pace of encounters', () => {
     let w = furyRoadWorld(4);
     for (let k = 0; k < 4; k++) w = nextLevel(w);
     const run = runOf(w);
-    const first = milestoneAt(run.window) + 100;
+    const first = milestoneAt(w.seed, run.window) + 100;
     run.groups = planStretch(w.seed, run.window + 1, planned([1, 1], first));
     moveTo(w, first + 1);
     advanceFuryRoad(w);
@@ -298,7 +298,7 @@ describe('the pace of encounters', () => {
     let w = furyRoadWorld();
     for (let k = 0; k < 7; k++) w = nextLevel(w);
     const run = runOf(w);
-    const first = milestoneAt(run.window) + 100;
+    const first = milestoneAt(w.seed, run.window) + 100;
     run.groups = planStretch(w.seed, run.window + 1, planned([3, 3, 2], first));
     for (const g of run.groups) {
       moveTo(w, g.at + 1);
@@ -418,12 +418,13 @@ describe('arriving at an outpost', () => {
 
     const after = waitForRoad(w);
     const me = playerVehicle(after);
-    const shifted = (95 + WINDOW_SHIFT.y) * after.size + 5 + WINDOW_SHIFT.x;
+    const shift = windowShift(w.seed, 0);
+    const shifted = (95 + shift.y) * after.size + 5 + shift.x;
 
     expect(runOf(after).window).toBe(1);
     expect(after.mapHash).toBe(highwayHash(w.seed, 1));
     expect(after.events).toEqual([{ t: 'roadOpened', stretch: 2 }]);
-    expect(me.pos).toEqual({ x: before.x + WINDOW_SHIFT.x, y: before.y + WINDOW_SHIFT.y });
+    expect(me.pos).toEqual({ x: before.x + shift.x, y: before.y + shift.y });
     expect(after.terrain.types[Math.floor(me.pos.y) * after.size + Math.floor(me.pos.x)]).toBe(ground);
     expect(heightAt(after.terrain, me.pos.x, me.pos.y)).toBeCloseTo(heightAt(w.terrain, before.x, before.y), 9);
     expect(after.player.explored[shifted]).toBe(1);
@@ -431,16 +432,35 @@ describe('arriving at an outpost', () => {
     expect(runOf(after).outposts.map((o) => [o.milestone, o.paid])).toEqual([[1, true], [2, false]]);
     expect(runOf(after).groups.every((g) => g.stretch === 2)).toBe(true);
     expect(runOf(after).groups.length).toBeGreaterThan(0);
-    expect(runOf(after).groups.every((g) => !g.spawned && g.at > milestoneAt(1) && g.at < milestoneAt(2))).toBe(true);
+    expect(runOf(after).groups.every((g) => !g.spawned && g.at > milestoneAt(w.seed, 1) && g.at < milestoneAt(w.seed, 2))).toBe(true);
     expect(after.vehicles.every((v) => v.pos.x > 0 && v.pos.y > 0 && v.pos.x < after.size && v.pos.y < after.size)).toBe(true);
     expect(betweenLevels(after)).toBe(false);
     expect(reachedOutpostAt(after)?.id).toBe('outpost-1');
   });
 
+  it('keeps both trucks on the same pad and ground through several window moves on any stretch length', () => {
+    for (const seed of [2, 5, 9]) {
+      let w = furyRoadWorld(seed);
+      for (let move = 0; move < 3; move++) {
+        const arrived = arrive(w);
+        const trucks = [haulerOf(arrived), playerVehicle(arrived)];
+        const before = trucks.map((t) => ({ pos: { ...t.pos }, ground: heightAt(arrived.terrain, t.pos.x, t.pos.y) }));
+        const shift = windowShift(seed, runOf(arrived).window);
+        w = waitForRoad(arrived);
+        [haulerOf(w), playerVehicle(w)].forEach((truck, i) => {
+          const label = `seed ${seed} move ${move} truck ${i}`;
+          expect(truck.pos, label).toEqual({ x: before[i].pos.x + shift.x, y: before[i].pos.y + shift.y });
+          expect(onOutpostPad(w, truck.pos, runOf(w).window), label).toBe(true);
+          expect(heightAt(w.terrain, truck.pos.x, truck.pos.y), label).toBeCloseTo(before[i].ground, 9);
+        });
+      }
+    }
+  });
+
   it('spawns nothing between levels, even off the pad, and pays nothing more', () => {
     const w = arrive(furyRoadWorld());
     const money = w.player.money;
-    moveTo(w, milestoneAt(1) + 20);
+    moveTo(w, milestoneAt(w.seed, 1) + 20);
     for (let t = 0; t < 200; t++) {
       w.turn++;
       advanceFuryRoad(w);
@@ -460,7 +480,7 @@ describe('arriving at an outpost', () => {
     expect(() => waitForRoad(early)).toThrow(/wait/);
 
     const off = arrive(furyRoadWorld());
-    moveTo(off, milestoneAt(1) + 20);
+    moveTo(off, milestoneAt(off.seed, 1) + 20);
     expect(canWaitForRoad(off)).toBe(false);
     expect(() => waitForRoad(off)).toThrow(/wait/);
 
@@ -474,7 +494,7 @@ describe('arriving at an outpost', () => {
     parkOnNext(moving);
     haulerOf(moving).speed = 8;
     const off = furyRoadWorld();
-    moveTo(off, milestoneAt(1) - 20);
+    moveTo(off, milestoneAt(off.seed, 1) - 20);
 
     for (const w of [moving, off]) advanceFuryRoad(w);
 
@@ -510,7 +530,7 @@ describe('arriving at an outpost', () => {
     for (const v of w.vehicles) if (group.vehicles.includes(v.id)) v.pos = { x: v.pos.x + 100, y: v.pos.y };
     w.states = w.states.filter((s) => s.kind !== 'combat');
     const passing = structuredClone(w);
-    moveTo(passing, milestoneAt(1) - 10);
+    moveTo(passing, milestoneAt(passing.seed, 1) - 10);
 
     const after = arrive(w);
     const passed = endTurn(passing, still);
@@ -528,7 +548,7 @@ describe('arriving at an outpost', () => {
     expect(() => moveWindow(early)).toThrow(/waits at outpost 1/);
 
     const off = arrive(furyRoadWorld());
-    moveTo(off, milestoneAt(1) + 20);
+    moveTo(off, milestoneAt(off.seed, 1) + 20);
     expect(() => moveWindow(off)).toThrow(/parked/);
   });
 
@@ -575,7 +595,7 @@ describe('the endless run', () => {
 
   it('reads the stretch and the distance to the next outpost, with no total', () => {
     const w = furyRoadWorld();
-    moveTo(w, milestoneAt(1) - 50);
+    moveTo(w, milestoneAt(w.seed, 1) - 50);
 
     const readout = furyRoadReadout(w)!;
 
@@ -586,7 +606,7 @@ describe('the endless run', () => {
   it('reads the next stretch at its full length between levels', () => {
     const w = arrive(furyRoadWorld());
 
-    expect(furyRoadReadout(w)).toEqual({ stretch: 2, toOutpost: milestoneAt(2) - milestoneAt(1), outpostId: 'outpost-2' });
+    expect(furyRoadReadout(w)).toEqual({ stretch: 2, toOutpost: stretchLength(w.seed, 2), outpostId: 'outpost-2' });
   });
 });
 

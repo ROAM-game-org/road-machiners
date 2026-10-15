@@ -44,7 +44,7 @@ export function furyRoadStart(seed = 3): World {
 
 export function furyRoadWorld(seed = 3): World {
   const w = waitForRoad(furyRoadStart(seed));
-  const n = milestoneAt(0);
+  const n = milestoneAt(seed, 0);
   const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
   for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
     truck.pos = roadPoint(seed, 0, n + ahead, HIGHWAY.road.lanes[lane]);

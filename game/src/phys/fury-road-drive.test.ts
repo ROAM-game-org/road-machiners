@@ -61,7 +61,7 @@ it('keeps auto travel on the road and its verge through the widest bend of ten s
   const seed = seeds.reduce((best, s) => (Math.abs(bendPlan(s, 1)[1]) > Math.abs(bendPlan(best, 1)[1]) ? s : best));
   const { w, stalls, path } = driveToFirstFort(seed);
   const ends = HIGHWAY.road.bend.ends;
-  const onBend = path.map((p) => toRoad(0, p)).filter((at) => alongOf(seed, at) > milestoneAt(0) + ends && alongOf(seed, at) < milestoneAt(1) - ends);
+  const onBend = path.map((p) => toRoad(seed, 0, p)).filter((at) => alongOf(seed, at) > milestoneAt(seed, 0) + ends && alongOf(seed, at) < milestoneAt(seed, 1) - ends);
   const widest = Math.max(...onBend.map((at) => Math.abs(acrossOf(seed, at))));
   console.info(`seed ${seed} swings ${bendPlan(seed, 1)[1].toFixed(1)} tiles; the truck kept within ${widest.toFixed(2)} tiles of the center over ${onBend.length} turns`);
 

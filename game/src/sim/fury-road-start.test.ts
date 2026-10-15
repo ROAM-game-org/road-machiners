@@ -152,7 +152,7 @@ describe('Fury Road first enemy', () => {
     const run = w.furyRoad!;
     const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates: [template], level: waveOf(stretch).level, money: FURY_ROAD.cards[template].floor * (elite ? FURY_ROAD.director.elite.money : 1), elite };
     run.groups = [group];
-    spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
+    spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
   }
 

@@ -98,7 +98,7 @@ describe('outpost services', () => {
     const part = fittingStock(w);
     w = waitForRoad(outpostBuyPart(w, part.id));
     const me = playerVehicle(w);
-    me.pos = roadPoint(w.seed, w.furyRoad!.window, milestoneAt(1) + 30, HIGHWAY.road.lanes[1]);
+    me.pos = roadPoint(w.seed, w.furyRoad!.window, milestoneAt(w.seed, 1) + 30, HIGHWAY.road.lanes[1]);
 
     w = endTurn(w, still);
 

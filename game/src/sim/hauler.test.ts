@@ -31,7 +31,7 @@ function groupTruck(w: World, across: number, along: number, speed: number, head
 }
 
 function across(w: World, v: Vehicle): number {
-  return acrossOf(w.seed, toRoad(0, v.pos));
+  return acrossOf(w.seed, toRoad(w.seed, 0, v.pos));
 }
 
 describe('the hauler driver', () => {
@@ -42,8 +42,8 @@ describe('the hauler driver', () => {
     expect(haulerLane(w, hauler)).toBe(1);
     expect(hauler.order).toMatchObject({ kind: 'through', pace: FURY_ROAD.hauler.cruise });
     const dest = (hauler.order as { dest: { x: number; y: number } }).dest;
-    expect(acrossOf(w.seed, toRoad(0, dest))).toBeCloseTo(LANES[1], 1);
-    expect(alongOf(w.seed, toRoad(0, dest))).toBeCloseTo(N + FURY_ROAD.hauler.lookahead, 0);
+    expect(acrossOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(LANES[1], 1);
+    expect(alongOf(w.seed, toRoad(w.seed, 0, dest))).toBeCloseTo(N + FURY_ROAD.hauler.lookahead, 0);
     expect(hauler.direct).toBe(false);
   });
 
@@ -121,7 +121,7 @@ describe('the hauler driver', () => {
     w.obstacles = [...wall(N + 8), ...wall(N + 20)];
     const aim = () => {
       planHaulerOrder(w);
-      return alongOf(w.seed, toRoad(0, (hauler.order as { dest: { x: number; y: number } }).dest));
+      return alongOf(w.seed, toRoad(w.seed, 0, (hauler.order as { dest: { x: number; y: number } }).dest));
     };
 
     expect(LANES.every((_, lane) => !laneClear(w, hauler, lane))).toBe(true);
@@ -164,7 +164,7 @@ describe('the hauler driver', () => {
   it('stops at the pad within the approach and never aims off the lanes before that', () => {
     const { w, hauler } = openRoad();
     const pad = outpostPad(w, 1);
-    hauler.pos = roadPoint(w.seed, 0, milestoneAt(1) - 10, LANES[1]);
+    hauler.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 1) - 10, LANES[1]);
     expect(dist(hauler.pos, pad)).toBeLessThanOrEqual(FURY_ROAD.hauler.approach);
     planHaulerOrder(w);
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
@@ -179,7 +179,7 @@ describe('the hauler driver', () => {
     expect(hauler.order?.kind).toBe('stopAt');
     const spot = (hauler.order as { dest: { x: number; y: number } }).dest;
     expect(dist(spot, hauler.pos)).toBeCloseTo(RULES.reverse.distance + RULES.minAimDistance, 5);
-    expect(alongOf(w.seed, toRoad(0, spot))).toBeLessThan(alongOf(w.seed, toRoad(0, hauler.pos)));
+    expect(alongOf(w.seed, toRoad(w.seed, 0, spot))).toBeLessThan(alongOf(w.seed, toRoad(w.seed, 0, hauler.pos)));
 
     hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { x: hauler.pos.x, y: hauler.pos.y + 1, heading: hauler.heading }];
     planHaulerOrder(w);

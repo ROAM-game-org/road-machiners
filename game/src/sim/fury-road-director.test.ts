@@ -77,8 +77,8 @@ describe('Chaos Highway director', () => {
     for (const j of [1, 4, 12]) {
       for (const seed of SEEDS) {
         const waves = directStretch(furyRoadWorld(seed), j);
-        const from = milestoneAt(j - 1) + HAZARDS.clearAfterOutpost;
-        const to = milestoneAt(j) - HAZARDS.clearBeforeOutpost;
+        const from = milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost;
+        const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost;
         expect(waves.length).toBeLessThanOrEqual(Math.floor((to - from) / DIRECTOR.spacing));
         waves.forEach((wave, i) => {
           expect(wave.at).toBeGreaterThan(from);

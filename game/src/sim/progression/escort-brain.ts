@@ -69,7 +69,7 @@ export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrde
 }
 
 export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
-  const along = (v: Vehicle) => alongOf(world.seed, toRoad(world.furyRoad!.window, v.pos));
+  const along = (v: Vehicle) => alongOf(world.seed, toRoad(world.seed, world.furyRoad!.window, v.pos));
   return along(hauler) - along(me);
 }
 

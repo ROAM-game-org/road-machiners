@@ -187,7 +187,7 @@ export class RunLog {
       haulerKit: kitOf(haulerOf(world)),
       paid: Math.round(world.furyRoad!.earned / 100),
       budget: stretchBudget(world, stretch).budget,
-      plan: world.furyRoad!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
+      plan: world.furyRoad!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
     };
   }
 

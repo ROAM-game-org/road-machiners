@@ -99,9 +99,9 @@ export type BandRule = { kind: PropKind; count: [number, number]; r: [number, nu
 export type GroundBand = { below: number; type: TerrainTypeId };
 
 export const HIGHWAY = {
-  version: 4,
+  version: 5,
   size: 410,
-  stride: 310,
+  stretch: { min: 230, max: 310 },
   milestoneInset: 50,
   road: {
     lanes: [-3, -1, 1, 3],

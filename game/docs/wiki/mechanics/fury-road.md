@@ -22,7 +22,9 @@ A mode that turns on `traffic` or `rescue` needs a map with towns, so a new worl
 
 Chaos Highway plays on its own generated map, never on Icarus. The world seed builds the land. North is map north, which the fixed camera draws toward the top right of the screen.
 
-Each stretch bends twice. The road runs straight for 60 tiles after each outpost and before the next one. Between them it swings 6 to 10 tiles off its line to one side, then 6 to 10 tiles to the other, and back, starting on a side drawn from the seed. One stretch in ten stays straight. Every bend keeps a radius of at least 40 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
+Each stretch between two outposts has its own length, drawn from the seed: any whole number of tiles from 230 to 310. The next stretch cannot be guessed from the last one. The range lives in `HIGHWAY`.
+
+Each stretch bends twice. The road runs straight for 60 tiles after each outpost and before the next one. Between them it swings off its line to one side, then to the other, and back, starting on a side drawn from the seed. On a 310 tile stretch each swing is 6 to 10 tiles. A shorter stretch has less room to turn, so its swings shrink with the square of the room, down to about a third at 230 tiles. One stretch in ten stays straight. Every bend keeps a radius of at least 40 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
 
 - The road is one carriageway of four northbound lanes, 2 tiles each, with a 1-tile shoulder on each side, 10 tiles of asphalt in all. It carries no lane paint.
 - A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles wide. The verge and badlands cut top speed by 10%, so the asphalt is the fast lane.
@@ -49,7 +51,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 
 ## Scenes
 
-A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes. Stretches 1 and 2 have 3 scenes, and later stretches have 4. The first 24 tiles after an outpost and the last 30 before the next one stay clear. A draw of scenes that leaves less than 36 tiles for any arena is drawn again. A stretch that never fits throws. Each scene always leaves a way through on the road:
+A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes. Stretches 1 and 2 aim for 3 scenes, and later stretches aim for 4. The first 24 tiles after an outpost and the last 30 before the next one stay clear. Scenes are drawn one after another, and a scene that leaves less than 36 tiles for any arena is drawn again. A short stretch that runs out of room holds fewer scenes, down to none, and is never refused. Each scene always leaves a way through on the road:
 
 - Pileup: 3 to 6 car wrecks and burnt truck hulks over 1 or 2 lanes, slewed 20° to 80° off the road, with drums and junk spilled ahead.
 - Jackknife: a bus or hauler hulk across two lanes at 60° to 90°, with 1 or 2 cars rear-ended behind it.
@@ -63,11 +65,11 @@ Early stretches lean to pileups, rockfalls and craters, later ones to checkpoint
 
 ## Windows
 
-The land is generated as you go, in windows of 410 by 410 tiles, each 310 tiles further north than the last.
+The land is generated as you go, in windows of 410 by 410 tiles. Each window is further north than the last by the length of the stretch it opens, so 230 to 310 tiles.
 
-- Milestone 0 is the start, and each next milestone stands 310 tiles further up the road. A window holds two milestones: the one the player last reached, 50 tiles from its south edge, and the next outpost, 50 tiles from its north edge.
+- Milestone 0 is the start, and each next milestone stands one stretch length further up the road. A window holds two milestones: the one the player last reached, 50 tiles from its south edge, and the next outpost, one stretch length further north. The window is 410 tiles tall, so the next outpost always stands at least 50 tiles inside its north edge.
 - Every height, ground type, prop and ramp is a pure function of the seed and its place along and across the road. So two windows agree where they overlap, and a reload rebuilds the same land.
-- Waiting for the road at a paid outpost needs both trucks parked on the pad and no group truck alive. It opens the window beyond it. The world moves 310 tiles south under the trucks, so they stand on the same pad on the same ground. The wrecks, smoke, craters and states left behind are gone. The game autosaves and reloads onto the new window, with the boot step "Opening the road north".
+- Waiting for the road at a paid outpost needs both trucks parked on the pad and no group truck alive. It opens the window beyond it. The world moves south under the trucks by the length of the stretch just won, so they stand on the same pad on the same ground. The wrecks, smoke, craters and states left behind are gone. The game autosaves and reloads onto the new window, with the boot step "Opening the road north".
 - Two closures shut each window's road from ridge to ridge. One is a burnt pileup of hulks and cars 26 tiles behind the last outpost. The other is the next outpost's checkpoint, with sandbags and tank traps, 16 tiles past it. There is no way back past the last outpost.
 
 ## Outposts
@@ -92,7 +94,7 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 A director plans each stretch's groups when the road opens, in `src/sim/fury-road-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
-- Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch. A fraction rolls up or down, so stretches of one level differ.
+- Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
 - Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
 - Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
 - Gear money: each truck's gear money is 16% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
