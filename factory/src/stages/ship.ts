@@ -107,7 +107,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
     delete builds[String(issue)];
     return { ...state, release: null, releasePost: post, lastRelease: ctx.now().toISOString(), builds };
   });
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes. Hermes drafts the public post next.`);
+  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Release ${release.day} shipped with ${features.length} changes.`);
   ctx.log('ship', issue, `shipped ${features.length} changes`);
 }
 

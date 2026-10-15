@@ -122,12 +122,14 @@ describe('deployDev', () => {
     expect(readPublished(home)).toEqual([{ sha: SHA, kind: 'dev', publishedAt: '2026-10-07T12:00:00.000Z' }]);
   });
 
-  it('posts the dev link to the committee after a rebuild', async () => {
+  it('rebuilds dev with no committee message, since nobody acts on it', async () => {
     const { ctx } = devSetup(false);
     const sent: string[] = [];
+    const logs: string[] = [];
     const telegram = { sendMessage: async (chat: string, text: string) => { sent.push(`${chat}: ${text}`); return 1; } };
-    await rebuildDev({ ...ctx, cfg: { ...ctx.cfg, committeeChat: 'c' }, telegram } as Ctx, '/l');
-    expect(sent).toEqual(['c: Dev is rebuilt at abc1234.\nPlay it: http://x/play/dev/']);
+    await rebuildDev({ ...ctx, cfg: { ...ctx.cfg, committeeChat: 'c' }, telegram, log: (_stage: string, _issue: number | null, msg: string) => { logs.push(msg); } } as Ctx, '/l');
+    expect(sent).toEqual([]);
+    expect(logs).toContain('dev is rebuilt at abc1234, http://x/play/dev/');
   });
 
   it('records a failed dev commit and throws', async () => {
