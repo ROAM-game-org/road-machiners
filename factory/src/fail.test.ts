@@ -84,8 +84,8 @@ describe('reportFailure', () => {
   });
 
   it('keeps failures for a day', () => {
-    const state = { ...structuredClone(EMPTY_STATE), failures: [{ stage: 'design' as const, issue: 1, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T11:00:00Z' }, { stage: 'change' as const, issue: null, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T13:00:00Z' }] };
-    expect(pruneFailures(NOW)(state).failures.map((failure) => failure.stage)).toEqual(['change']);
+    const state = { ...structuredClone(EMPTY_STATE), failures: [{ stage: 'design' as const, issue: 1, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T11:00:00Z' }, { stage: 'adhoc' as const, issue: null, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T13:00:00Z' }] };
+    expect(pruneFailures(NOW)(state).failures.map((failure) => failure.stage)).toEqual(['adhoc']);
   });
 });
 
@@ -100,9 +100,5 @@ describe('failureIssue', () => {
   it('names the tracking issue for a cut once one exists, and no issue before', () => {
     expect(failureIssue('release', null, open)).toBe(20);
     expect(failureIssue('release', null, none)).toBeNull();
-  });
-
-  it('names no issue for a change', () => {
-    expect(failureIssue('change', 5, open)).toBeNull();
   });
 });

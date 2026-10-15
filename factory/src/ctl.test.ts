@@ -78,7 +78,6 @@ describe('write commands', () => {
     [['remove', '5'], { action: 'remove', issue: 5 }],
     [['drop', 'approval', '5'], { action: 'drop', queue: 'approval', id: 5 }],
     [['drop', 'ship'], { action: 'drop', queue: 'ship', id: null }],
-    [['merge-change', '9'], { action: 'merge-change', id: 9 }],
     [['pause-card', '5'], { action: 'hold', issue: 5 }],
     [['resume-card', '5'], { action: 'unhold', issue: 5 }],
   ])('%j writes %j', async (args, action) => {
@@ -204,7 +203,7 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
   });
