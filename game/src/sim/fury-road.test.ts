@@ -9,7 +9,7 @@ import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
 import { groupPrey, inCombat } from './combat';
 import { haulerOf, playerVehicle } from './damage';
-import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
+import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, onOutpostPad, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, type PlannedWave } from './fury-road-director';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, stretchLength, toRoad, windowShift } from './highway';
 import { topGoal } from './npc-activities';
@@ -436,6 +436,25 @@ describe('arriving at an outpost', () => {
     expect(after.vehicles.every((v) => v.pos.x > 0 && v.pos.y > 0 && v.pos.x < after.size && v.pos.y < after.size)).toBe(true);
     expect(betweenLevels(after)).toBe(false);
     expect(reachedOutpostAt(after)?.id).toBe('outpost-1');
+  });
+
+  it('keeps both trucks on the same pad and ground through several window moves on any stretch length', () => {
+    for (const seed of [2, 5, 9]) {
+      let w = furyRoadWorld(seed);
+      for (let move = 0; move < 3; move++) {
+        const arrived = arrive(w);
+        const trucks = [haulerOf(arrived), playerVehicle(arrived)];
+        const before = trucks.map((t) => ({ pos: { ...t.pos }, ground: heightAt(arrived.terrain, t.pos.x, t.pos.y) }));
+        const shift = windowShift(seed, runOf(arrived).window);
+        w = waitForRoad(arrived);
+        [haulerOf(w), playerVehicle(w)].forEach((truck, i) => {
+          const label = `seed ${seed} move ${move} truck ${i}`;
+          expect(truck.pos, label).toEqual({ x: before[i].pos.x + shift.x, y: before[i].pos.y + shift.y });
+          expect(onOutpostPad(w, truck.pos, runOf(w).window), label).toBe(true);
+          expect(heightAt(w.terrain, truck.pos.x, truck.pos.y), label).toBeCloseTo(before[i].ground, 9);
+        });
+      }
+    }
   });
 
   it('spawns nothing between levels, even off the pad, and pays nothing more', () => {

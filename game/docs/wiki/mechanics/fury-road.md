@@ -66,7 +66,7 @@ Early stretches lean to pileups, rockfalls and craters, later ones to checkpoint
 
 The land is generated as you go, in windows of 410 by 410 tiles. Each window is further north than the last by the length of the stretch it opens, so 230 to 310 tiles.
 
-- Milestone 0 is the start, and each next milestone stands one stretch length further up the road. A window holds two milestones: the one the player last reached, 50 tiles from its south edge, and the next outpost, 50 tiles from its north edge.
+- Milestone 0 is the start, and each next milestone stands one stretch length further up the road. A window holds two milestones: the one the player last reached, 50 tiles from its south edge, and the next outpost, one stretch length further north. The window is 410 tiles tall, so the next outpost always stands at least 50 tiles inside its north edge.
 - Every height, ground type, prop and ramp is a pure function of the seed and its place along and across the road. So two windows agree where they overlap, and a reload rebuilds the same land.
 - Waiting for the road at a paid outpost needs both trucks parked on the pad and no group truck alive. It opens the window beyond it. The world moves south under the trucks by the length of the stretch just won, so they stand on the same pad on the same ground. The wrecks, smoke, craters and states left behind are gone. The game autosaves and reloads onto the new window, with the boot step "Opening the road north".
 - Two closures shut each window's road from ridge to ridge. One is a burnt pileup of hulks and cars 26 tiles behind the last outpost. The other is the next outpost's checkpoint, with sandbags and tank traps, 16 tiles past it. There is no way back past the last outpost.
