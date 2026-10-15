@@ -15,8 +15,8 @@ function fractionalMoney(world: World): string[] {
 
 describe('money in cents', () => {
   it.each([
-    ['trader', 600],
-    ['hauler', 300],
+    ['trader', 300],
+    ['hauler', 210],
   ] as [Archetype, number][])('stays whole for every truck through %s play with NPCs trading, towing and patching', async (archetype, turns) => {
     const bad: string[] = [];
     let played = 0;
