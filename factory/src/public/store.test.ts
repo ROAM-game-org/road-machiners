@@ -132,6 +132,20 @@ describe('public store', () => {
     expect(store.unclassifiedComments(100).map((c) => c.text)).toEqual(['@bot add maps', 'Stalls']);
   });
 
+  it('records which chat message a reply to the bot answers, with or without a thread, and moves a message with its images', () => {
+    const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
+    const first = store.addComment({ issue: null, source: 'telegram', sourceId: 'c:219', postChat: 'c', postMessageId: null, author: 'a', text: 'map', at: 'x', messageId: 219, media: [{ fileId: 'f', uniqueId: 'u', origin: 'reply' }] })!;
+    store.setReplyId(first, 220);
+    store.applyEvent({ updateId: 1, kind: 'comment', chat: 'c', messageId: 221, threadId: 220, author: 'a', sender: '1', text: 'wrong task', at: 'x', standalone: true });
+    const [, answer] = store.unclassifiedComments(10);
+    expect(answer!.answers).toBe(first);
+    store.classify(first, 'feature', 'none', now);
+    store.settleMedia(store.mediaOf(first)[0]!.id, 652);
+    store.moveComment(first, 571);
+    expect(store.comment(first)).toMatchObject({ issue: 571, linked: true, relevance: 'parent', sentAt: null });
+    expect(store.unsettledMedia().map((item) => [item.commentId, item.placedIssue])).toEqual([[first, 652]]);
+  });
+
   it('maps a reply to a player comment to the issue and post of that comment', () => {
     const store = postedStore();
     store.addBuildPost(7, 'abc', CHANNEL, 200, now);

@@ -163,4 +163,15 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
   });
+
+  it('keeps the images of a chat message and of the message it replies to, and moves a bad image list to bad', async () => {
+    const { f, inbox, put } = setup();
+    const media = [{ fileId: 'own', uniqueId: 'o', origin: 'message' }, { fileId: 'map', uniqueId: 'm', origin: 'reply' }];
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: 'Add this map', at: '2026-10-14T10:00:00Z', standalone: true, media });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'ann', sender: '42', text: 'x', at: 'x', standalone: true, media: [{ fileId: 'a', uniqueId: 'b', origin: 'elsewhere' }] });
+    await ingest(f.ctx, f.store);
+    const [stored] = f.store.unclassifiedComments(100);
+    expect(f.store.mediaOf(stored!.id).map((item) => [item.fileId, item.origin, item.status])).toEqual([['own', 'message', 'waiting'], ['map', 'reply', 'waiting']]);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['2.json']);
+  });
 });

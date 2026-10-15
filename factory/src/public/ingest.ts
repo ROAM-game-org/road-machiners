@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } 
 import { join } from 'node:path';
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
-import type { PublicEvent, PublicStore } from './store';
+import type { MediaOrigin, MediaRef, PublicEvent, PublicStore } from './store';
 
 export const publicInboxDir = (home: string): string => join(home, 'public-inbox');
 
@@ -39,9 +39,26 @@ function flag(fields: Fields, name: string): boolean {
   return value === true;
 }
 
+const ORIGINS: MediaOrigin[] = ['message', 'reply'];
+
+function mediaRef(item: unknown): MediaRef {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) throw new BadEvent('field "media" must be a list of objects');
+  const fields = item as Fields;
+  const origin = fields.origin;
+  if (!ORIGINS.includes(origin as MediaOrigin)) throw new BadEvent('field "media" has an item with an unknown origin');
+  return { fileId: text(fields, 'fileId'), uniqueId: text(fields, 'uniqueId'), origin: origin as MediaOrigin };
+}
+
+function media(fields: Fields): MediaRef[] {
+  const value = fields.media;
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new BadEvent('field "media" must be a list');
+  return value.map(mediaRef);
+}
+
 function comment(base: Base, fields: Fields): PublicEvent {
   const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone') };
-  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), ...reach };
+  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), media: media(fields), ...reach };
 }
 
 const isWholeNumber = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;

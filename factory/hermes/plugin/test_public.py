@@ -156,7 +156,7 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True, "context": None,
+        "addressed": False, "standalone": True, "context": None, "media": [],
     }}
 
 
@@ -177,6 +177,31 @@ def test_comment_quoting_another_chat_keeps_the_quote(tmp_path):
     public.handle_public_update(raw, cfg_for(tmp_path))
     event = written(tmp_path)["504.json"]
     assert (event["threadId"], event["context"]) == (None, "Landmark directions")
+
+
+def photo_sizes(prefix):
+    return [
+        {"file_id": f"{prefix}-small", "file_unique_id": f"{prefix}-s", "width": 90, "height": 60, "file_size": 900},
+        {"file_id": f"{prefix}-big", "file_unique_id": f"{prefix}-b", "width": 1280, "height": 853, "file_size": 90000},
+    ]
+
+
+def test_comment_keeps_the_largest_photo_of_the_message_and_of_the_replied_message(tmp_path):
+    replied = {"message_id": 215, "chat": chat(DISCUSSION), "caption": "My map", "photo": photo_sizes("map")}
+    raw = comment_update(caption="Add this map", photo=photo_sizes("own"), reply_to_message=replied)
+    raw["message"].pop("text")
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["media"] == [
+        {"fileId": "own-big", "uniqueId": "own-b", "origin": "message"},
+        {"fileId": "map-big", "uniqueId": "map-b", "origin": "reply"},
+    ]
+
+
+def test_comment_keeps_an_image_document_and_skips_other_files(tmp_path):
+    replied = {"message_id": 215, "chat": chat(DISCUSSION), "document": {"file_id": "zip", "file_unique_id": "z", "mime_type": "application/zip"}}
+    raw = comment_update(document={"file_id": "png", "file_unique_id": "p", "mime_type": "image/png"}, reply_to_message=replied)
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["media"] == [{"fileId": "png", "uniqueId": "p", "origin": "message"}]
 
 
 def test_comment_sender_is_the_sender_chat_for_an_anonymous_admin(tmp_path):

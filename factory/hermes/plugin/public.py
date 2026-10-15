@@ -124,6 +124,25 @@ def reply_context(message: dict) -> Optional[str]:
     return context[:CONTEXT_CHARS] if context else None
 
 
+IMAGE_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif")
+
+
+def image_of(message: dict) -> Optional[dict]:
+    photos = message.get("photo") or []
+    document = message.get("document") or {}
+    if photos:
+        largest = max(photos, key=lambda size: size.get("width", 0) * size.get("height", 0))
+        return {"fileId": largest["file_id"], "uniqueId": largest["file_unique_id"]}
+    if document.get("mime_type") in IMAGE_TYPES:
+        return {"fileId": document["file_id"], "uniqueId": document["file_unique_id"]}
+    return None
+
+
+def media_of(message: dict) -> list:
+    found = [(origin, image_of(source)) for origin, source in (("message", message), ("reply", message.get("reply_to_message") or {}))]
+    return [{**image, "origin": origin} for origin, image in found if image is not None]
+
+
 def comment_event(raw: dict, message: dict, standalone: bool, bot: Optional[Bot]) -> Optional[dict]:
     text = message.get("text") or message.get("caption")
     if is_skipped(message, text):
@@ -137,6 +156,7 @@ def comment_event(raw: dict, message: dict, standalone: bool, bot: Optional[Bot]
         "messageId": message["message_id"], "threadId": thread, "author": author_of(message),
         "sender": sender_of(message), "text": text, "at": iso_date(message["date"]),
         "addressed": is_addressed(message, bot), "standalone": standalone, "context": reply_context(message),
+        "media": media_of(message),
     }
 
 
