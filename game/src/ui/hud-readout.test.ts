@@ -16,7 +16,7 @@ import { t, verbatim, type Msg } from "../text/msg";
 import { chassisName, driverName, professionName, siteName } from "../text/names";
 import { resolve } from "../text/resolve";
 import type { Vehicle } from "../sim/types";
-import { bugReportUrl, ContextPicker, featureRequestUrl, getContextActions, getHudReadout, getRescueReadout, overdriveSwitch, versionLabel } from "./hud-readout";
+import { ContextPicker, getContextActions, getHudReadout, getRescueReadout, overdriveSwitch, versionLabel } from "./hud-readout";
 import type { ContextAction } from "./hud";
 import { GAME_VERSION } from "../config";
 import { REGION } from '../data/region';
@@ -476,32 +476,7 @@ describe('trade interaction', () => {
   });
 });
 
-describe('issue form links', () => {
-  it('points at the bug form with the version filled', () => {
-    const url = new URL(bugReportUrl('v1.2.3'));
-    expect(url.origin).toBe('https://github.com');
-    expect(url.pathname).toBe('/btseytlin/road-machiners/issues/new');
-    expect(url.searchParams.get('template')).toBe('bug.yml');
-    expect(url.searchParams.get('version')).toBe('v1.2.3');
-  });
-
-  it('encodes a version with special characters', () => {
-    const url = new URL(bugReportUrl('v1 & 2+3'));
-    expect(url.searchParams.get('version')).toBe('v1 & 2+3');
-    expect([...url.searchParams.keys()].sort()).toEqual(['template', 'version']);
-  });
-
-  it('points at the feature form', () => {
-    const url = new URL(featureRequestUrl());
-    expect(url.origin).toBe('https://github.com');
-    expect(url.pathname).toBe('/btseytlin/road-machiners/issues/new');
-    expect(url.searchParams.get('template')).toBe('feature-request.yml');
-  });
-
-  it('gives the feature form no other fields', () => {
-    expect([...new URL(featureRequestUrl()).searchParams.keys()]).toEqual(['template']);
-  });
-
+describe('version label', () => {
   it('labels the version as the ? menu shows it', () => {
     expect(versionLabel()).toBe(`v${GAME_VERSION}`);
   });

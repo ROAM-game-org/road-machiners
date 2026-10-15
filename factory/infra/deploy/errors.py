@@ -1,4 +1,4 @@
-"""Install the error service and its Caddy route after main has deployed."""
+"""Install the error service and its Caddy routes, /errors and /feedback, after main has deployed."""
 
 import shlex
 
@@ -13,6 +13,7 @@ server.shell(
     commands=[
         f"install -d -o {FACTORY_USER} -g {FACTORY_USER} -m 755 {FACTORY_ROOT}/errors",
         f"install -d -o {FACTORY_USER} -g {FACTORY_USER} -m 755 {FACTORY_ROOT}/home/error-reports",
+        f"install -d -o {FACTORY_USER} -g {FACTORY_USER} -m 755 {FACTORY_ROOT}/home/public",
     ],
     _sudo=True,
 )
