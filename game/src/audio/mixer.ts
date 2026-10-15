@@ -1,5 +1,3 @@
-// Web Audio graph: one bus per sound group, each through a low-pass tone filter, into a master gain. The effects bus runs through a compressor
-// and a short reverb, so sounds from different sources sit in one space.
 
 import { MIX, type Bus } from "../data/sounds";
 
@@ -40,9 +38,14 @@ export class Mixer {
   }
 
   unlockOn(target: EventTarget): void {
-    const resume = () => void this.ctx.resume();
-    target.addEventListener("pointerdown", resume, { once: true });
-    target.addEventListener("keydown", resume, { once: true });
+    const gestures = ["pointerup", "click", "keydown"];
+    const unlock = () => {
+      if (this.ctx.state === "running") return;
+      this.ctx.resume().then(() => {
+        if (this.ctx.state === "running") gestures.forEach((g) => target.removeEventListener(g, unlock, true));
+      });
+    };
+    gestures.forEach((g) => target.addEventListener(g, unlock, true));
   }
 
   private bus(bus: Bus, volume: number, out: AudioNode): GainNode {

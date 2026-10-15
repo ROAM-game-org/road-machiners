@@ -1,5 +1,3 @@
-// Orthographic iso camera. Same angle as the physics test in main.ts used to validate the view.
-// Owns pan, zoom, follow, the pan leash, the check for a truck leaving the view, plus the pixel <-> world conversions labels, fx and picking need.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -41,6 +39,7 @@ export class CameraRig {
   resize(): void {
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
+    if (!(w > 0 && h > 0)) return;
     const half = VIEW_METERS / 2 / this.zoom;
     const aspect = w / h;
     Object.assign(

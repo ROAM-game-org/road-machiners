@@ -1,0 +1,145 @@
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { buildDrive, freeDrive, initPhysics, type Drive } from "../phys/drive";
+import type { PlanFrames } from "../phys/plan";
+import type { PreviewRequest, PreviewResponse } from "../phys/turn";
+import { perfSnapshot, resetPerf } from "../perf";
+import { emptyWorld } from "../sim/testkit";
+import type { World } from "../sim/types";
+import { setMoveOrder } from "../sim/world";
+import { reportError } from "./crash";
+import { PlanPreparation } from "./plan-preview";
+
+vi.mock("./crash", () => ({ reportError: vi.fn() }));
+
+class TestWorker {
+  static latest: TestWorker;
+  requests: PreviewRequest[] = [];
+  transfers: Transferable[][] = [];
+  onmessage: ((event: MessageEvent<PreviewResponse>) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  onmessageerror: (() => void) | null = null;
+  constructor() {
+    TestWorker.latest = this;
+  }
+  postMessage(request: PreviewRequest, transfer: Transferable[]): void {
+    this.requests.push(request);
+    this.transfers.push(transfer);
+  }
+  respond(response: PreviewResponse): void {
+    if (!this.onmessage) throw new Error("Missing worker response handler");
+    this.onmessage({ data: response } as MessageEvent<PreviewResponse>);
+  }
+  answer(index: number, preview: PlanFrames): void {
+    this.respond({ id: this.requests[index].id, preview, perf: {} });
+  }
+}
+
+const plan = (waypoint: boolean): PlanFrames => ({ turns: [[]], course: null, waypoint });
+
+let world: World;
+let drive: Drive;
+beforeAll(initPhysics);
+beforeEach(() => {
+  vi.stubGlobal("Worker", TestWorker);
+  vi.mocked(reportError).mockClear();
+  resetPerf();
+  world = emptyWorld();
+  drive = buildDrive(world);
+});
+afterEach(() => {
+  freeDrive(drive);
+  vi.unstubAllGlobals();
+});
+
+function moved(): World {
+  return setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+}
+
+it("asks for a preview of the player's truck and hands the answer over once for the same world", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  expect(worker.requests).toHaveLength(1);
+  expect(worker.requests[0]).toMatchObject({ kind: "preview", meId: world.player.vehicleId });
+  expect(plans.take(world)).toBeNull();
+  const answer = plan(true);
+  worker.answer(0, answer);
+  expect(plans.take(world)).toBe(answer);
+  expect(plans.take(world)).toBeNull();
+});
+
+it("sends the terrain only with the first request", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  worker.answer(0, plan(true));
+  plans.request(moved(), drive, world.player.vehicleId);
+  expect(worker.requests[0].terrain).toBe(world.terrain);
+  expect(worker.requests[1].terrain).toBeNull();
+  expect("terrain" in worker.requests[0].world).toBe(false);
+});
+
+it("drops an answer for a world the game has moved on from", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  TestWorker.latest.answer(0, plan(true));
+  expect(plans.take(moved())).toBeNull();
+  expect(plans.take(world)).not.toBeNull();
+});
+
+it("posts only the newest of the requests made while a preview is running, and drops the superseded answer", () => {
+  const plans = new PlanPreparation();
+  const changed = moved();
+  const last = setMoveOrder(world, { kind: "stopAt", dest: { x: 20, y: 20 } });
+  plans.request(world, drive, world.player.vehicleId);
+  plans.request(changed, drive, world.player.vehicleId);
+  plans.request(last, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  expect(worker.requests).toHaveLength(1);
+  worker.answer(0, plan(true));
+  expect(plans.take(world)).toBeNull();
+  expect(worker.requests).toHaveLength(2);
+  expect(worker.requests[1].world.vehicles).toEqual(last.vehicles);
+  const answer = plan(false);
+  worker.answer(1, answer);
+  expect(plans.take(changed)).toBeNull();
+  expect(plans.take(last)).toBe(answer);
+});
+
+it("merges the worker's perf counters", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, preview: plan(true), perf: { preview: { last: 7, max: 7, total: 7, calls: 1 } } });
+  expect(perfSnapshot().preview).toMatchObject({ last: 7, calls: 1 });
+});
+
+it("reports a failed preview with the worker's stack and hands nothing over", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, error: "Error: Player vehicle p missing from the preview world\n    at planTurns" });
+  expect(plans.take(world)).toBeNull();
+  const reported = vi.mocked(reportError).mock.calls[0][0] as Error;
+  expect(reported.message).toBe("Player vehicle p missing from the preview world");
+  expect(reported.stack).toContain("at planTurns");
+});
+
+it("reports a worker error event and still posts the next request", () => {
+  const plans = new PlanPreparation();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  worker.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
+  expect(reportError).toHaveBeenCalledWith(new Error("Preview worker failed: boom"));
+  plans.request(moved(), drive, world.player.vehicleId);
+  expect(worker.requests).toHaveLength(2);
+});
+
+it("transfers a snapshot of the drive and leaves the main drive in place", () => {
+  const plans = new PlanPreparation();
+  const before = drive.world.takeSnapshot();
+  plans.request(world, drive, world.player.vehicleId);
+  const worker = TestWorker.latest;
+  expect(worker.transfers[0]).toEqual([worker.requests[0].drive.snapshot.buffer]);
+  expect(drive.world.takeSnapshot()).toEqual(before);
+});

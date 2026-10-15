@@ -294,12 +294,31 @@ export class Travel {
   }
 }
 
+function workerErrorHead(workerStack: string): { name: string | null; message: string } {
+  const head = workerStack.split("\n")[0];
+  const named = /^(\w*Error): (.*)$/.exec(head);
+  return named ? { name: named[1], message: named[2] } : { name: null, message: head };
+}
+
+export function workerError(workerStack: string): Error {
+  const { name, message } = workerErrorHead(workerStack);
+  const error = new Error(message);
+  if (name) error.name = name;
+  error.stack = workerStack;
+  return error;
+}
+
+export function workerFailure(label: string, event: ErrorEvent): string {
+  if (typeof event.message === "string" && event.message !== "") return `${label} failed: ${event.message}`;
+  const where = event.filename ? ` (${event.filename}:${event.lineno})` : "";
+  return `${label} failed: script did not load or start${where}`;
+}
+
 export class TurnFailure extends Error {
   constructor(workerStack: string, readonly drive: DriveSnapshot) {
-    const head = workerStack.split("\n")[0];
-    const named = /^(\w*Error): (.*)$/.exec(head);
-    super(named ? named[2] : head);
-    if (named) this.name = named[1];
+    const { name, message } = workerErrorHead(workerStack);
+    super(message);
+    if (name) this.name = name;
     this.stack = workerStack;
   }
 }
@@ -327,7 +346,10 @@ export class TurnPreparation {
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id === response.id) this.pending.ready = response.turn;
     };
-    worker.onerror = (event) => this.fail(null, `Turn worker failed: ${event.message}`);
+    worker.onerror = (event) => {
+      event.preventDefault();
+      this.fail(null, workerFailure("Turn worker", event));
+    };
     worker.onmessageerror = () => this.fail(null, "Could not read turn worker response");
     return worker;
   }
@@ -358,6 +380,7 @@ export class TurnPreparation {
     this.worker ??= this.createWorker();
     this.worker.postMessage(
       {
+        kind: "turn",
         id,
         world: state,
         drive: saved,
