@@ -53,17 +53,11 @@
 .feedback details[open] {
   padding-bottom: var(--space-2);
 }
-.feedback details a {
+.feedback details button {
   display: block;
+  width: calc(100% - 2 * var(--space-4));
   margin: var(--space-2) var(--space-4);
-  color: var(--ink);
-  text-decoration: none;
   white-space: nowrap;
-  font-size: var(--text-dense);
-}
-.feedback details a:hover,
-.feedback details a:focus-visible {
-  text-decoration: underline;
 }
 #ui .help {
   position: fixed;

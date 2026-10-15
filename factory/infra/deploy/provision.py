@@ -220,7 +220,7 @@ for path in [REPO_DIR, HOME_DIR, WWW_DIR, f"{HOME_DIR}/logs", f"{HOME_DIR}/state
     files.directory(name=f"dir {path}", path=path, user=FACTORY_USER, group=FACTORY_USER, mode="755", present=True, _sudo=True)
 
 # Hermes runs as the factory user, so the factory user owns its state and every folder it writes.
-for name in ("inbox", "committee"):
+for name in ("inbox", "committee", "public-inbox"):
     files.directory(name=f"dir {HOME_DIR}/{name}", path=f"{HOME_DIR}/{name}", user=FACTORY_USER, group=FACTORY_USER, mode="750", present=True, _sudo=True)
 files.directory(name=f"dir {HERMES_DIR}", path=HERMES_DIR, user=FACTORY_USER, group=FACTORY_USER, mode="700", present=True, _sudo=True)
 files.directory(name=f"dir {HOME_DIR}/codex", path=f"{HOME_DIR}/codex", user=FACTORY_USER, group=FACTORY_USER, mode="700", present=True, _sudo=True)

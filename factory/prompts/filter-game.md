@@ -1,0 +1,1 @@
+ROAM: a dark, grounded post-apocalyptic RPG. You drive an armed truck across a desert wasteland, trade, salvage, take jobs and fight other trucks. Sound is engines, metal and wind, music is dark and sparse, and the game never jokes at its own expense.
