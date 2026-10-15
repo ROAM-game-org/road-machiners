@@ -58,6 +58,7 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   f.ctx.repo.fetchFromWork = async () => run.cloneHead;
   f.ctx.repo.isMerged = async (base: string) => (base === 'main' ? run.mainMerged : run.passedAncestor);
   f.ctx.repo.changedFiles = async () => run.changed;
+  f.ctx.repo.changedInWork = async () => run.changed;
   f.ctx.repo.push = async (commit: string, branch: string) => {
     f.calls.push(`push ${commit} ${branch}`);
     if (run.pushFails) {
