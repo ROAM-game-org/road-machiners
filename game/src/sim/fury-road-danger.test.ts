@@ -29,15 +29,15 @@ describe('Fury Road danger', () => {
     expect(expectedGear(w, 2)).toBe(START_GEAR + FURY_ROAD.danger.gearShare * payOf(1));
     const share = Math.min(dangerPercent(w, 12) / enemyTrucks(w, 12), FURY_ROAD.danger.truckPercent);
     expect(gearMoneyOf(w, 12)).toBe(Math.max(floorOf(12), Math.round((share / 100) * expectedGear(w, 12))));
-    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([45, 51, 57]);
-    expect(dangerPercent(withGrowth(2), 3)).toBe(69);
+    expect([1, 2, 3].map((j) => dangerPercent(w, j))).toEqual([45, 55, 65]);
+    expect(dangerPercent(withGrowth(2), 3)).toBe(85);
     expect(dangerPercent(withGrowth(0), 50)).toBe(45);
   });
 
   it('adds a truck only once every truck still gets at least the truck floor share of the expected gear', () => {
     const w = withGrowth(1);
 
-    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 1, 1, 2, 3, 4, 4]);
+    expect([1, 2, 4, 5, 10, 11, 17, 18].map((j) => enemyTrucks(w, j))).toEqual([1, 1, 2, 2, 3, 4, 5, 5]);
     expect(STRETCHES.every((j) => enemyTrucks(withGrowth(0), j) === 1)).toBe(true);
     for (const growth of GROWTHS) {
       const g = withGrowth(growth);

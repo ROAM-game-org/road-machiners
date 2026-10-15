@@ -41,7 +41,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - No clear lane: it keeps its lane and aims past the last prop or wreck within 32 tiles, so the router threads the gap on one route. It never aims off the asphalt, and only the router uses the shoulder or verge.
 - Craters: a crater dip of 0.1 or more under the hauler's width in its lane, within 32 tiles ahead, also blocks the lane. A semi that crosses a deep dip can bottom out on the rim and stop.
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
-- Speed: 4.5 tiles a turn, and its top speed for 4 turns after it takes damage. It never brakes for a fight and never stops on the road.
+- Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. It never brakes for a fight and never stops on the road.
 - Outpost: within 25 tiles of the next outpost pad it drives to the pad and parks there. Between levels it stays parked.
 - It draws no random number. A stretch it drives alone replays exactly.
 - A hauler that makes under a tile of road progress for 12 turns, while it is not stranded or parked at an outpost, raises the `stall` event. A `stall` event is always a bug.
@@ -89,11 +89,11 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 ## Hostile groups
 
-Danger rises every stretch with no end. It is measured against the expected player gear: the parts of both start kits, plus 30% of all the pay earned before the stretch. Parts here leave out the chassis, since enemy chassis come from random templates.
+Danger rises every stretch with no end. It is measured against the expected player gear: the parts of both start kits, plus all the pay earned before the stretch. Parts here leave out the chassis, since enemy chassis come from random templates.
 
-- Danger is 45% of the expected player gear on stretch 1 and grows by 6 points every stretch. The Enemy growth world setting scales the 6 points, as [world-settings.md](world-settings.md) describes.
-- One truck is never worth more than 45% of the expected player gear, and a stretch adds a truck only when every truck still gets at least 35% of it. So the stretches have 1 truck up to stretch 5, 2 from stretch 6, 3 from stretch 11 and 4 from stretch 17.
-- The danger is split evenly over the trucks as their gear money, capped at the 45%, with a floor per pool tier. The floor is 200 M's in stretches 1 to 5 and 450 M's from stretch 6.
+- Danger is 45% of the expected player gear on stretch 1 and grows by 10 points every stretch. The Enemy growth world setting scales the 10 points, as [world-settings.md](world-settings.md) describes.
+- One truck is never worth more than 45% of the expected player gear, and a stretch adds a truck only when every truck still gets at least 35% of it. So two weak trucks never stand in for one fair one: 1 truck up to stretch 3, 2 from stretch 4, 3 from stretch 7, 4 from stretch 11 and 5 from stretch 15.
+- The danger is split evenly over the trucks as their gear money, capped at the 45%, with a floor per pool tier: 200 M's each in stretches 1 to 5 and 450 M's from stretch 6. A floor is the least that buys every template of its tier an engine and a gun.
 - The trucks go in the fewest groups of at most 3, as even as they go.
 
 Gear money grows until a truck's rated mass is full. Past that, danger grows as more trucks. The gear level sets only the wear of the parts and the amount of cargo:

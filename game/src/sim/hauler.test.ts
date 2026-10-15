@@ -139,6 +139,10 @@ describe('the hauler driver', () => {
     expect(haulerPace(w)).toBe(FURY_ROAD.hauler.cruise);
   });
 
+  it('never runs faster under fire than it cruises, so a fight cannot be outrun', () => {
+    expect(FURY_ROAD.hauler.hurry).toBeLessThanOrEqual(FURY_ROAD.hauler.cruise);
+  });
+
   it('is not alarmed by a shot that does no damage', () => {
     const { w, hauler } = openRoad();
     const attacker = groupTruck(w, LANES[3], N + 8, 5);
