@@ -92,6 +92,15 @@ export function stowPart(world: World, v: Vehicle, part: PartInstance): boolean 
   return true;
 }
 
+export type ParcelItem = Extract<GridItem, { kind: 'parcel' }>;
+
+export function stowParcel(v: Vehicle, parcel: ParcelItem): boolean {
+  const spot = findSpot(gridOf(v), v.items, parcel, null, null);
+  if (!spot) return false;
+  v.items.push({ ...parcel, ...spot });
+  return true;
+}
+
 export function addGoods(world: World, v: Vehicle, good: string, n: number): number {
   const count = Math.min(n, cargoRoom(v));
   for (let i = 0; i < count; i++) {
@@ -215,6 +224,7 @@ export function dumpItem(world: World, itemId: string, truckId?: string): World 
     const me = refitTruck(w, truckId, true);
     requireIdleRefit(me);
     const item = findItem(me, itemId);
+    if (item.kind === 'parcel') throw new Refused({ id: 'parcelKept' });
     if (isMounted(me.chassisId, item)) throw new Error('Remove an installed part before dumping it');
     if (modeRules(w).looting) dumpOnPile(w, me, item);
     else me.items = me.items.filter((it) => it.id !== item.id);

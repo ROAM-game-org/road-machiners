@@ -1,4 +1,4 @@
-import { STEP_FUNCTION, phaseLine } from '../activity';
+import { STEP_FUNCTION, phaseLine, stepCall } from '../activity';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildAndDeploy, recordBuild } from '../deploy';
@@ -8,7 +8,7 @@ import { readState, updateState } from '../state';
 import { GAME_DIR, OUT_DIR, type Ctx, type ReleaseState } from '../types';
 import { bundleOf } from './bundle';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
-import { candidateDir, changeLines, featureLine, openReleaseTasks, releaseFeatures, releaseLog, requireRelease, trackingLink, type Feature } from './release-common';
+import { candidateDir, changelogText, featureLine, openReleaseTasks, readChanges, releaseFeatures, releaseLog, requireRelease, trackingLink, type Feature } from './release-common';
 
 export const CANDIDATE_SCOPE = 'rc';
 
@@ -18,9 +18,9 @@ const playtestScript = (playtest: string) => `set -u
 ${STEP_FUNCTION}
 ${phaseLine('Playing the candidate')}
 mkdir -p ${OUT_DIR}
-step "npm ci"
+${stepCall('npm ci')}
 npm ci
-step "dev server"
+${stepCall('dev server')}
 npm run dev > ${OUT_DIR}/dev-server.log 2>&1 &
 server=$!
 ready=0
@@ -31,7 +31,7 @@ done
 status=1
 if [ "$ready" = 1 ]; then
   status=0
-  step "playtest"
+  ${stepCall('playtest')}
   ${playtest} || status=$?
 else
   echo "dev server did not start in ${SERVER_TRIES} seconds"
@@ -40,14 +40,14 @@ kill "$server" || true
 [ "$status" = 0 ] || exit "$status"
 shot=$(ls -t .playtest/*.png | head -n 1)
 cp "$shot" ${OUT_DIR}/screenshot.png
-step "done"
+${stepCall('done')}
 `;
 
 export async function candidate(ctx: Ctx, issue: number): Promise<void> {
   const release = requireRelease(ctx);
   if (release.issue !== issue) throw new Error(`Issue #${issue} is not the tracking issue of the open release, #${release.issue} is`);
   const sha = await requirePlaytested(ctx, release);
-  const features = await releaseFeatures(ctx, release);
+  const features = releaseFeatures(release);
   const dir = candidateDir(ctx);
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone(release.branch, release.branch, dir);
@@ -55,11 +55,9 @@ export async function candidate(ctx: Ctx, issue: number): Promise<void> {
   resetOutputs(home);
   writeFileSync(join(home, OUT_DIR, 'changelog.md'), await changelogInput(ctx, features));
   const log = releaseLog(ctx, 'candidate');
-  await ctx.container.shell(dir, playtestScript(playtestCommand(ctx.cfg, true)), log);
+  await ctx.container.shell('checks', dir, playtestScript(playtestCommand(ctx.cfg, true)), log);
   await ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.designModel, prompt: fillPrompt('release', {}), log });
-  const notes = readOutput(home, 'release.md');
-  if (notes === null) throw new Error('release agent wrote no .factory/release.md');
-  const changes = changeLines(notes, features).join('\n') || 'No changes in this candidate.';
+  const changes = changelogText(readChanges(readOutput(home, 'release.json'), features)) || 'No changes in this candidate.';
   const url = await buildAndDeploy(ctx, dir, CANDIDATE_SCOPE, log, 'candidate');
   recordBuild(ctx.statePath, issue, CANDIDATE_SCOPE);
   const pr = (await ctx.github.pullRequestFor(release.branch)) ?? await ctx.github.openPullRequest(release.branch, 'main', `Release ${release.day}`, `The release candidate of ${release.day}. The factory merges it when the committee presses Ship.`);

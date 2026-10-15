@@ -6,8 +6,8 @@ import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
 import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
-import { GOODS } from "../data/goods";
-import { itemTone } from "../render/partLooks";
+import { GOODS, PARCEL } from "../data/goods";
+import { itemLookId, itemTone } from "../render/partLooks";
 import { hashStr } from "../render/noise";
 import { ITEM_TONES } from "../render/palette";
 import ICONS from "../data/item-icons.json";
@@ -145,12 +145,17 @@ export type IconCell = {
 type ManifestCell = { index: number; box: number[] };
 
 export function itemIconCell(id: string): IconCell {
-  const good = id in GOODS;
-  const label = good ? goodName(id) : partName(partDef(id).id);
+  const good = id in GOODS || id === PARCEL.id;
+  const label = itemIconLabel(id);
   const icons: Record<string, ManifestCell> = ICONS.items;
   const icon = icons[id];
   if (!icon) throw new Error(`No items icon for ${id}. Run npm run icons.`);
   return { ...sheetCell("items", icon, label), view: viewOf(good ? ICONS.views.good : ICONS.views.part) };
+}
+
+function itemIconLabel(id: string): Msg {
+  if (id === PARCEL.id) return t("item.parcel");
+  return id in GOODS ? goodName(id) : partName(partDef(id).id);
 }
 
 export function chassisPortraitCell(chassisId: string): IconCell {
@@ -216,11 +221,11 @@ export function partIconEl(part: PartInstance): HTMLElement {
 }
 
 export function itemIconEl(item: GridItem): HTMLElement {
-  return item.kind === "good" ? createItemIcon(item.good) : partIconEl(item.part);
+  return item.kind === "part" ? partIconEl(item.part) : createItemIcon(itemLookId(item));
 }
 
 export function gridItemIcon(item: GridItem): HTMLElement {
-  const cell = itemIconCell(item.kind === "good" ? item.good : item.part.defId);
+  const cell = itemIconCell(itemLookId(item));
   return sheetIcon(cell, "icon item-icon", cell.box);
 }
 
