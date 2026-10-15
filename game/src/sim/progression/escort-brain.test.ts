@@ -6,9 +6,11 @@ import type { Vehicle, World } from '../types';
 import { dist } from '../vec';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
-import { asFighter, escortFoe, escortMove as moveWith, hostilesSeen, lagBehind, leash, nearestToHauler } from './escort-brain';
+import { asFighter, escortFoe, escortMove as moveWith, hostilesSeen, lagBehind, leash, nearestToHauler, type Stall } from './escort-brain';
+import { RULES } from '../../data/rules';
 
-const escortMove = (w: World, me: Vehicle) => moveWith(w, me, escortFoe(w, me));
+const freshStall = (me: Vehicle): Stall => ({ turn: -1, at: { ...me.pos }, stalled: 0, recovery: 0, goal: null });
+const escortMove = (w: World, me: Vehicle) => moveWith(w, me, escortFoe(w, me), freshStall(me));
 
 function started(): World {
   return endTurn(furyRoadWorld(), () => {});
@@ -91,5 +93,37 @@ describe('escortMove', () => {
     foeAt(w, 6, 0, me);
     refreshVision(w);
     expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBeGreaterThan(0);
+  });
+});
+
+describe('the escort stall', () => {
+  function heldTurn(w: World, me: Vehicle, stall: Stall, turn: number) {
+    w.turn = turn;
+    me.order = { kind: 'through', dest: { x: me.pos.x + 30, y: me.pos.y } };
+    return moveWith(w, me, null, stall);
+  }
+
+  it('backs out behind itself after the NPC stuck turns held in place, for the NPC recovery turns, then drives on', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const stall = freshStall(me);
+    const start = w.turn;
+    const orders = [0, 1, 2, 3, 4, 5].map((k) => heldTurn(w, me, stall, start + k));
+    const backs = orders.map((o) => o.kind === 'stopAt' && dist(o.dest, me.pos) === RULES.reverse.distance + RULES.minAimDistance);
+    expect(backs.indexOf(true)).toBe(RULES.npcStuckTurns);
+    expect(backs.filter(Boolean).length).toBeGreaterThanOrEqual(RULES.npcRecoveryTurns);
+    expect(backs[RULES.npcStuckTurns + RULES.npcRecoveryTurns]).toBe(false);
+  });
+
+  it('never backs out while it stands at its order point or after a gap in turns', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const stall = freshStall(me);
+    for (let k = 0; k < 5; k++) {
+      w.turn += 1;
+      me.order = { kind: 'stopAt', dest: { ...me.pos } };
+      expect(moveWith(w, me, null, stall).kind === 'stopAt' && stall.recovery > 0).toBe(false);
+    }
+    for (let k = 0; k < 5; k++) expect(heldTurn(w, me, stall, w.turn + 2).kind === 'stopAt' && stall.recovery > 0).toBe(false);
   });
 });

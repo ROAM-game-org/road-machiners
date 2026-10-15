@@ -23,7 +23,7 @@ import type { PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { escortFoe, escortMove, gunTarget, hostilesSeen } from './escort-brain';
+import { escortFoe, escortMove, gunTarget, hostilesSeen, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck, keepsPace } from './escort-tactics';
@@ -111,9 +111,20 @@ function escort(o: Orders): void {
   const hauler = haulerOf(o.world);
   if (haulerAtPad(o.world, hauler)) return driveTo(o, beside(o.world, outpostPad(o.world, o.world.furyRoad!.window + 1), hauler));
   const foe = escortFoe(o.world, o.me);
-  const order = escortMove(o.world, o.me, foe);
+  const order = escortMove(o.world, o.me, foe, stallOf(o.world, o.me));
   o.run((w) => setMoveOrder(w, order));
   if (foe) focusFire(o, foe);
+}
+
+const STALLS = new Map<string, Stall>();
+
+function stallOf(world: World, me: Vehicle): Stall {
+  const key = `${world.seed}:${me.id}`;
+  const known = STALLS.get(key);
+  if (known) return known;
+  const fresh: Stall = { turn: -1, at: { ...me.pos }, stalled: 0, recovery: 0, goal: null };
+  STALLS.set(key, fresh);
+  return fresh;
 }
 
 function focusFire(o: Orders, focus: Vehicle): void {
@@ -171,6 +182,7 @@ function parkedTrucks(world: World): Vehicle[] {
 }
 
 function restock(o: Orders, post: Outpost, style: RoadStyle): void {
+  const haulerShare = haulerBillShare(o.world);
   for (const truck of parkedTrucks(o.world)) {
     repair(o, truck);
     for (const kind of SUPPLIES) topUp(o, kind, truck);
@@ -181,12 +193,18 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
     refitGear(o, style);
     return buyTruck(o, post, style);
   }
-  restockEscort(o, post, style);
+  restockEscort(o, post, style, haulerShare);
 }
 
-function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
+function haulerBillShare(world: World): number {
+  const hauler = repairCost(world, haulerOf(world));
+  const total = hauler + repairCost(world, playerVehicle(world));
+  return total > 0 ? hauler / total : 0;
+}
+
+function restockEscort(o: Orders, post: Outpost, style: RoadStyle, haulerShare: number): void {
   refitGear(o, style);
-  armorHauler(o);
+  armorHauler(o, haulerShare);
   buyTruck(o, post, style);
 }
 

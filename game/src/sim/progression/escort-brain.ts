@@ -94,8 +94,38 @@ export function killPriority(world: World, me: Vehicle, foe: Vehicle): number {
   return (damage * Math.min(1, reach / Math.max(near, 1))) / Math.max(1, corePart(foe, 'cab').hp);
 }
 
-export function escortMove(world: World, me: Vehicle, foe: Vehicle | null): MoveOrder {
+export type Stall = { turn: number; at: Vec; stalled: number; recovery: number; goal: Vec | null };
+
+export function escortMove(world: World, me: Vehicle, foe: Vehicle | null, stall: Stall): MoveOrder {
+  noteStall(world, me, stall);
+  if (stall.recovery > 0 && stall.goal) return { kind: 'stopAt', dest: stall.goal };
   return foe ? fightMove(world, me, foe) : followMove(world, me, haulerOf(world));
+}
+
+function noteStall(world: World, me: Vehicle, stall: Stall): void {
+  const fresh = stall.turn !== world.turn - 1;
+  stall.recovery = fresh ? 0 : Math.max(0, stall.recovery - 1);
+  stall.stalled = countsStall(fresh, me, stall) ? stall.stalled + 1 : 0;
+  stall.turn = world.turn;
+  stall.at = { ...me.pos };
+  if (stall.recovery === 0 && stall.stalled >= RULES.npcStuckTurns) startBackOut(me, stall);
+}
+
+function countsStall(fresh: boolean, me: Vehicle, stall: Stall): boolean {
+  return !fresh && stall.recovery === 0 && heldAway(me, stall.at);
+}
+
+function heldAway(me: Vehicle, last: Vec): boolean {
+  const order = me.order;
+  if (!order || order.kind === 'brake') return false;
+  return dist(me.pos, last) < RULES.arriveRadius / 2 && dist(me.pos, order.dest) > RULES.arriveRadius * 2;
+}
+
+function startBackOut(me: Vehicle, stall: Stall): void {
+  const back = RULES.reverse.distance + RULES.minAimDistance;
+  stall.goal = { x: me.pos.x - Math.cos(me.heading) * back, y: me.pos.y - Math.sin(me.heading) * back };
+  stall.recovery = RULES.npcRecoveryTurns;
+  stall.stalled = 0;
 }
 
 export function gunTarget(world: World, me: Vehicle, weapon: MountedWeapon, focus: Vehicle, foes: readonly Vehicle[]): Vehicle | null {
