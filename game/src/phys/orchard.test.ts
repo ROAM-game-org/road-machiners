@@ -1,6 +1,3 @@
-// Drives through Old Orchard on the committed map, played through the real physics turn pipeline: a scavenger from the
-// south entry to the north-west pocket's barn, and the player's truck up the old highway to that barn and up the dozer
-// track to the ridge shelf's crate stack. src/sim/territory-reach.test.ts proves the routes exist; this proves trucks
 
 import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -19,6 +16,7 @@ import type { MoveOrder, SalvageStock, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { TEST_MAP } from '../test/map';
+import { reusedWorld } from '../test/world-cache';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 
@@ -38,7 +36,7 @@ const BARN_LEG_TURNS = 26;
 const SHELF_LEG_TURNS = 15;
 
 function orchardWorld(): World {
-  const w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const w = reusedWorld('orchard', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
