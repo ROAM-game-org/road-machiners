@@ -142,6 +142,21 @@ describe('ingest', () => {
     expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.sender, c.addressed, c.messageId])).toEqual([[null, '42', true, 32], [7, '7', false, 33]]);
   });
 
+  it('keeps the replied or quoted text of a chat message as its context, and none when the file has none', async () => {
+    const { f, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 900, author: 'ann', sender: '42', text: 'I meant landmarks', at: '2026-10-14T10:00:00Z', standalone: true, context: 'Landmark directions' });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'bob', sender: '7', text: 'Hi', at: '2026-10-14T10:00:00Z', standalone: true });
+    await ingest(f.ctx, f.store);
+    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.context])).toEqual([[null, 'Landmark directions'], [null, null]]);
+  });
+
+  it('moves a comment with a context that is not text to bad', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', context: 5 });
+    await ingest(f.ctx, f.store);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
+  });
+
   it('moves a comment with a bad sender flag to bad', async () => {
     const { f, inbox, put } = setup();
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', addressed: 'yes' });

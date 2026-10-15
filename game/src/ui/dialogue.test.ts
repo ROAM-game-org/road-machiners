@@ -4,7 +4,8 @@ import type { CallVar, CallVars } from '../sim/types';
 import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
-import { aidWords, haulText, lineText, tipText } from './dialogue';
+import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
+import { aidWords, callError, haulText, lineText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -61,6 +62,11 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
   claimWreckBearing: ['bearing', 'distance'],
+  courierNeed: ['aid', 'price'],
+  taleNews: ['site', 'bearing', 'distance', 'tip'],
+  tipTerms: ['price', 'bearing', 'distance'],
+  courierNews: ['site', 'bearing', 'distance', 'tip'],
+  courierFavorTerms: ['price'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
@@ -137,5 +143,19 @@ describe('a driver\'s own line', () => {
     const warn = TOPICS.lootWarning.nodes.warn.line;
     const vars: CallVars = { warnLine: { kind: 'line', line: HANG_UP_LINE } };
     expect(en(lineText(warn, vars))).toBe(en(lineText(HANG_UP_LINE, {})));
+  });
+});
+
+describe('call error', () => {
+  it('is null for a driver in sight and says why otherwise', () => {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const near = addVehicle(w, 'traders', 'scout', [], { x: 32, y: 30 });
+    near.brain = npcBrain('trader', { x: 32, y: 30 }, []);
+    const far = addVehicle(w, 'traders', 'scout', [], { x: 29, y: 29 });
+    far.brain = npcBrain('trader', { x: 29, y: 29 }, []);
+    far.pos = { x: 500, y: 500 };
+    expect(callError(w, near.id)).toBeNull();
+    expect(callError(w, far.id)).not.toBeNull();
+    expect(callError(w, 'nobody')).not.toBeNull();
   });
 });

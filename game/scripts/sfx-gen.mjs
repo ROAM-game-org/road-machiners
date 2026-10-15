@@ -3,7 +3,7 @@
 // Usage: npm run sfx:gen -- <cue> <count>
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { beatLoopSeconds, MIX, SOUND_STYLE, SOUNDS } from '../src/data/sounds.ts';
-import { cueOf, importFile } from './sfx-lib.mjs';
+import { cueOf, importFile, syncTwins } from './sfx-lib.mjs';
 
 const API = 'https://api.elevenlabs.io/v1';
 const RAW_DIR = 'tmp/sfx-raw';
@@ -41,6 +41,7 @@ for (let i = 0; i < count; i++) {
   writeFileSync(raw, audio);
   importFile(raw, id, cue, MIX.level[cue.bus]);
 }
+await syncTwins();
 
 async function generate(text) {
   const [path, body] = music

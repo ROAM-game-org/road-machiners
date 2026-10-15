@@ -875,8 +875,20 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
   withRescueContracts_63_64,
-  withClaimRivals_64_65,
+  withEncounters_64_65,
+  withProgressAnchor_65_66,
+  (world) => world,
+  withClaimRivals_67_68,
 ];
+
+function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
@@ -902,16 +914,16 @@ function withRescueContracts_63_64(world: SavedJson): SavedJson {
   return world;
 }
 
-const CLAIM_KIND_64_65 = 'claim';
+const CLAIM_KIND_67_68 = 'claim';
 
-function withRival_64_65(contract: SavedJson): SavedJson {
-  return contract.kind === CLAIM_KIND_64_65 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
+function withRival_67_68(contract: SavedJson): SavedJson {
+  return contract.kind === CLAIM_KIND_67_68 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
 }
 
-function withClaimRivals_64_65(world: SavedJson): SavedJson {
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_64_65) }]));
+function withClaimRivals_67_68(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_67_68) }]));
   const player = world.player as SavedJson;
-  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_64_65) } };
+  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_67_68) } };
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -1004,6 +1016,12 @@ const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[]
 
 function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
+}
+
+function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

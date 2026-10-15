@@ -6,6 +6,8 @@ import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
+import { reachedOutpostAt } from "../sim/fury-road";
+import { outpostRepairPart } from "../sim/outposts";
 import {
   freeCells,
   goodsCount,
@@ -70,6 +72,7 @@ import { getSearchAction, powerChip } from "./hud-readout";
 import {
   canFieldPatch,
   doubleClickCommand,
+  dragStartOf,
   planAfterMove,
   plannedVehicle,
   HOLD_TO_DRAG_MS,
@@ -81,7 +84,7 @@ import {
   type LastClick,
 } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
-import { bindAttr, setText } from "../text/language";
+import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { chassisName, goodName, partName, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
@@ -106,6 +109,9 @@ export class InventoryView {
   private press: Press | null = null;
   private lastClick: LastClick = null;
   private lastPointer: PointerEvent | null = null;
+  private holdId: number | null = null;
+  private stopScroll: ((e: TouchEvent) => void) | null = null;
+  holdChanged: () => void = () => {};
   private error: Msg | null = null;
   private gridEl: HTMLElement | null = null;
   private root: HTMLElement = el("div");
@@ -125,6 +131,7 @@ export class InventoryView {
   ) {
     window.addEventListener("pointermove", (e) => this.onMove(e));
     window.addEventListener("pointerup", (e) => this.onDrop(e));
+    window.addEventListener("pointercancel", (e) => this.onCancel(e));
     this.root.addEventListener("pointerdown", (e) => {
       if ((e.target as HTMLElement).closest("button, .inv-inspection, .inv-item, .inv-chip")) return;
       this.select(null);
@@ -220,7 +227,7 @@ export class InventoryView {
           x: Math.floor((e.clientX - r.left) / this.cell) - it.x,
           y: Math.floor((e.clientY - r.top) / this.cell) - it.y,
         };
-        if (needsHold(me.chassisId, it)) this.startPress(e, "grid", it.id, it, grab);
+        if (dragStartOf(e.pointerType, needsHold(me.chassisId, it)) === "hold") this.startPress(e, "grid", it.id, it, grab);
         else this.startDrag(e, "grid", it.id, it, grab);
       });
     return node;
@@ -387,7 +394,7 @@ export class InventoryView {
     if (item.kind !== "part") return this.goodActions(w, item.good);
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
-      shopAt(w) ? this.repairButton(w, item.part) : null,
+      shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
       !mounted && partDef(item.part.defId).kind !== "core"
         ? this.stripButton(w, this.mine(w), item.part)
         : null,
@@ -421,6 +428,10 @@ export class InventoryView {
     );
   }
 
+  private atOutpost(w: World): boolean {
+    return reachedOutpostAt(w, this.mine(w)) !== null;
+  }
+
   private repairButton(w: World, part: PartInstance): HTMLElement | null {
     if (!isJunk(part)) return this.garageButton(w, part, "repair", t("inv.repairTitle", { hp: maxHp(part) }));
     return canRebuild(w, part) ? this.garageButton(w, part, "rebuild", t("inv.rebuildTitle")) : null;
@@ -438,7 +449,7 @@ export class InventoryView {
         onpointerdown: (e: Event) => e.stopPropagation(),
         onclick: (e: Event) => {
           e.stopPropagation();
-          this.run((world) => repairPart(world, part.id));
+          this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id)));
         },
       },
       pricedEl(t(`inv.verb.${action}`), cost),
@@ -496,7 +507,7 @@ export class InventoryView {
       const d = partDef(p.defId);
       const chip = el(
         "div",
-        { class: "inv-chip", style: toneStyle(p.defId) },
+        { class: "inv-chip", "data-hold": "", style: toneStyle(p.defId) },
         partIconEl(p),
         el("span", {}, partName(d.id)),
         conditionTag(p),
@@ -526,7 +537,7 @@ export class InventoryView {
       const d = partDef(p.defId);
       const chip = el(
         "div",
-        { class: "inv-chip", style: toneStyle(p.defId) },
+        { class: "inv-chip", "data-hold": "", style: toneStyle(p.defId) },
         partIconEl(p),
         el("span", {}, partName(d.id)),
         claim && p.id === claimed ? claimMark(claim.shop) : null,
@@ -551,7 +562,7 @@ export class InventoryView {
       const item = lootGoodItem(good);
       const chip = el(
         "div",
-        { class: "inv-chip", style: toneStyle(good) },
+        { class: "inv-chip", "data-hold": "", style: toneStyle(good) },
         itemIconEl(item),
         t("inv.goodCount", { good: goodName(good), n: count }),
       );
@@ -666,6 +677,7 @@ export class InventoryView {
     grab: { x: number; y: number },
   ): void {
     if (e.button !== 0) return;
+    if (dragStartOf(e.pointerType, false) === "hold") return this.startPress(e, source, id, item, grab);
     e.preventDefault();
     e.stopPropagation();
     this.beginDrag(e, source, id, item, grab);
@@ -675,14 +687,34 @@ export class InventoryView {
     e.preventDefault();
     e.stopPropagation();
     this.endPress();
-    (e.currentTarget as HTMLElement).classList.add("holding");
+    const target = e.currentTarget as HTMLElement;
+    target.classList.add("holding");
     const timer = window.setTimeout(() => {
       this.press = null;
       this.beginDrag(this.lastPointer ?? e, source, id, item, grab);
       this.drag?.ghost.classList.add("held");
+      if (e.pointerType === "touch") this.holdTouch(target, e.pointerId);
     }, HOLD_TO_DRAG_MS);
     this.press = { timer, source, id, item, grab };
+    this.holdId = e.pointerId;
     this.lastPointer = e;
+  }
+
+  private holdTouch(target: HTMLElement, pointerId: number): void {
+    if (target.isConnected) target.setPointerCapture(pointerId);
+    this.stopScroll = (ev) => ev.preventDefault();
+    window.addEventListener("touchmove", this.stopScroll, { passive: false });
+  }
+
+  private endHold(): void {
+    if (this.stopScroll) window.removeEventListener("touchmove", this.stopScroll);
+    this.stopScroll = null;
+    this.holdId = null;
+    this.holdChanged();
+  }
+
+  private ownsPointer(e: PointerEvent): boolean {
+    return this.holdId === null || (this.drag === null && this.press === null) || e.pointerId === this.holdId;
   }
 
   private endPress(): Press | null {
@@ -704,12 +736,23 @@ export class InventoryView {
       start: { x: at.clientX, y: at.clientY },
       moved: false,
     };
+    this.holdId = at.pointerId;
+    this.holdChanged();
     this.error = null;
     this.onMove(at);
   }
 
   private markSelected(node: HTMLElement, item: GridItem): void {
     node.classList.toggle("selected", this.selectedItem === item.id);
+  }
+
+  rotateHeld(): void {
+    if (this.drag) this.rotate();
+    else this.rotateSelected();
+  }
+
+  canRotate(): boolean {
+    return this.drag !== null || this.selectedItem !== null;
   }
 
   private rotate(): void {
@@ -750,6 +793,7 @@ export class InventoryView {
   }
 
   private onMove(e: PointerEvent): void {
+    if (!this.ownsPointer(e)) return;
     this.lastPointer = e;
     if (!this.drag) return;
     if (
@@ -822,10 +866,26 @@ export class InventoryView {
     return { x, y, rot: this.drag.item.rot };
   }
 
-  private onDrop(e: PointerEvent): void {
-    const press = this.endPress();
-    if (press) return this.clickItem(this.clicked(press.source, press.id, press.item));
+  private onCancel(e: PointerEvent): void {
+    if (!this.ownsPointer(e)) return;
+    this.endPress();
     const d = this.drag;
+    this.endHold();
+    if (!d) return;
+    this.drag = null;
+    d.ghost.remove();
+    this.onChange();
+  }
+
+  private onDrop(e: PointerEvent): void {
+    if (!this.ownsPointer(e)) return;
+    const press = this.endPress();
+    if (press) {
+      this.endHold();
+      return this.clickItem(this.clicked(press.source, press.id, press.item));
+    }
+    const d = this.drag;
+    this.endHold();
     if (!d) return;
     this.drag = null;
     d.ghost.remove();
@@ -951,12 +1011,35 @@ export class InventoryScreen {
     this.view.commitPlan();
   }
 
+  private markRotate(button: HTMLElement): void {
+    if (this.view.canRotate()) {
+      button.removeAttribute("aria-disabled");
+      unbindAttr(button, "data-reason");
+    } else {
+      button.setAttribute("aria-disabled", "true");
+      bindAttr(button, "data-reason", t("inv.rotateNeedsItem"));
+    }
+  }
+
   render(): void {
     if (!this.isOpen()) return;
     const truck = el("div", { class: "inv-body" }, this.view.render());
+    const rotate = el(
+      "button",
+      {
+        class: "btn-s touch-only",
+        onpointerdown: () => this.view.rotateHeld(),
+        onclick: (e: Event) => {
+          if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
+        },
+      },
+      t("inv.rotate"),
+    );
+    this.view.holdChanged = () => this.markRotate(rotate);
+    this.markRotate(rotate);
     this.root.replaceChildren(
       el("button", { class: "close", onclick: () => this.close() }, t("inv.close")),
-      el("h3", {}, t("inv.title"), truckChips(this.host.world())),
+      el("h3", {}, t("inv.title"), truckChips(this.host.world()), rotate),
       truck,
     );
     this.view.fitTo(truck);

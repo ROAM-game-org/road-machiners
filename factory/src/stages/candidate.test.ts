@@ -3,9 +3,9 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import type { ReleaseState } from '../types';
-import { changeLines } from './release-common';
-import { ROOT, fake, reset } from './test-fakes';
+import type { IssueMerge, ReleaseState } from '../types';
+import { changelogText, readChanges } from './release-common';
+import { ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
 
 const SHOT = pngBytes(0).toString('latin1');
 const deployed: string[] = [];
@@ -15,8 +15,12 @@ vi.mock('../deploy', () => ({
 }));
 const { candidate, candidateCaption } = await import('./candidate');
 
-const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: 'abc1234', blocked: null, notes: [] } };
-const CHANGES = '- [#3] Trucks are faster.\n- [#5] The horn is louder.\n';
+const TRUCKS = issueMerge(3, 'faster trucks');
+const HORN = issueMerge(5, 'louder horn');
+const holds = (f: Fake, merges: IssueMerge[]): void => { writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, merges } }); };
+const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [TRUCKS, HORN], candidateSha: null, playtest: { seed: 1, runs: 0, passed: 'abc1234', blocked: null, notes: [] } };
+const CHANGES = JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }, { issue: 5, text: 'The horn is louder.' }]);
+const ONLY_TRUCKS = JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }]);
 
 beforeEach(() => {
   reset();
@@ -28,8 +32,7 @@ describe('candidate', () => {
   it('runs the release candidate agent on Opus', async () => {
     const f = fake();
     f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', buildModel: 'sonnet' };
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
-    f.agentWrites = { 'release.md': CHANGES, 'screenshot.png': SHOT };
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     const original = f.ctx.container.agent;
     const models: string[] = [];
     f.ctx.container.agent = async (run) => { models.push(run.model); return original(run); };
@@ -40,10 +43,9 @@ describe('candidate', () => {
   it('checks the frame rate in its playtest on a GPU host, unlike issue checks', async () => {
     const f = fake();
     f.ctx.cfg = { ...f.ctx.cfg, gpu: true };
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
-    f.agentWrites = { 'release.md': CHANGES, 'screenshot.png': SHOT };
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     const scripts: string[] = [];
-    f.ctx.container.shell = async (_dir, script) => { scripts.push(script); };
+    f.ctx.container.shell = async (_kind, _dir, script) => { scripts.push(script); };
     await candidate(f.ctx, 11);
     expect(scripts[0]).toContain('  npm run playtest || status=$?');
     expect(scripts[0]).not.toContain('--no-fps-gate');
@@ -51,9 +53,8 @@ describe('candidate', () => {
 
   it('posts one photo with a Ship button, stores the post id and puts the whole changelog in a reply to it', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn', 'Merge issue #6: gone'];
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, removed: [6] } });
-    f.agentWrites = { 'release.md': CHANGES, 'screenshot.png': SHOT };
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, merges: [TRUCKS, HORN, issueMerge(6, 'gone')], removed: [6] } });
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     await candidate(f.ctx, 11);
     expect(f.calls.filter((call) => !call.startsWith('comment'))).toEqual(['fetch', 'prepare release/2026-09-29', 'shell', 'agent', 'pr release/2026-09-29 main Release 2026-09-29', 'fetch', 'photo committee', 'message committee 42 - [#3] Trucks are faster.\n- [#5] The horn is louder.']);
     expect(deployed).toEqual(['rc reports candidate', 'record 11 rc']);
@@ -78,8 +79,8 @@ describe('candidate', () => {
 
   it('does not post when the release moved during the build, so the tick plays the new head first', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
-    f.agentWrites = { 'release.md': '- [#3] Trucks are faster.', 'screenshot.png': SHOT };
+    holds(f, [TRUCKS]);
+    f.agentWrites = { 'release.json': ONLY_TRUCKS, 'screenshot.png': SHOT };
     const heads = ['abc1234', 'def5678'];
     f.ctx.repo.headHash = async () => heads.shift() ?? 'def5678';
     await candidate(f.ctx, 11);
@@ -89,9 +90,8 @@ describe('candidate', () => {
 
   it('lists the issues bundled into a change under it, so the changelog sums up the bundle in one line', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: RELEASE, bundles: { '3': [8, 9] } });
-    f.agentWrites = { 'release.md': CHANGES, 'screenshot.png': SHOT };
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT };
     await candidate(f.ctx, 11);
     const input = readFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'changelog.md'), 'utf8');
     expect(input).toBe('#3 faster trucks\n  bundled: #8 T\n  bundled: #9 T\n#5 louder horn\n');
@@ -99,8 +99,8 @@ describe('candidate', () => {
 
   it('opens the pull request to main when none is open', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
-    f.agentWrites = { 'release.md': '- [#3] Trucks are faster.', 'screenshot.png': SHOT };
+    holds(f, [TRUCKS]);
+    f.agentWrites = { 'release.json': ONLY_TRUCKS, 'screenshot.png': SHOT };
     await candidate(f.ctx, 11);
     expect(f.calls).toContain('pr release/2026-09-29 main Release 2026-09-29');
     expect(f.photos[0].caption).toContain('PR: http://pr');
@@ -121,14 +121,14 @@ describe('candidate', () => {
   it('throws when the agent wrote no notes, before it builds anything', async () => {
     const f = fake();
     f.agentWrites = { 'screenshot.png': SHOT };
-    await expect(candidate(f.ctx, 11)).rejects.toThrow('no .factory/release.md');
+    await expect(candidate(f.ctx, 11)).rejects.toThrow('no .factory/release.json');
     expect(deployed).toEqual([]);
   });
 
   it('does not post a build when a release task opened during it, so the old post stays dead', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
-    f.agentWrites = { 'release.md': '- [#3] Trucks are faster.', 'screenshot.png': SHOT };
+    holds(f, [TRUCKS]);
+    f.agentWrites = { 'release.json': ONLY_TRUCKS, 'screenshot.png': SHOT };
     f.cards = [{ itemId: 'i74', issue: 74, column: 'Design', labels: ['release-task'] }];
     await candidate(f.ctx, 11);
     expect(f.photos).toEqual([]);
@@ -138,9 +138,8 @@ describe('candidate', () => {
 
   it('throws when the changelog misses a change, before it builds or posts anything', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
-    f.agentWrites = { 'release.md': '- [#3] Trucks are faster.', 'screenshot.png': SHOT };
-    await expect(candidate(f.ctx, 11)).rejects.toThrow('release.md names #3, but the release holds #3, #5');
+    f.agentWrites = { 'release.json': ONLY_TRUCKS, 'screenshot.png': SHOT };
+    await expect(candidate(f.ctx, 11)).rejects.toThrow('release.json names #3, but the release holds #3, #5');
     expect(deployed).toEqual([]);
     expect(f.photos).toEqual([]);
   });
@@ -149,8 +148,7 @@ describe('candidate', () => {
 describe('candidate evidence', () => {
   function setup(manifest = JSON.stringify({ images: [{ file: 'screenshot.png', description: 'Faster trucks' }, { file: 'view1.png', description: 'Louder horn' }] })): ReturnType<typeof fake> {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
-    f.agentWrites = { 'release.md': CHANGES, 'screenshot.png': SHOT, 'view1.png': pngBytes(1).toString('latin1'), 'evidence.json': manifest };
+    f.agentWrites = { 'release.json': CHANGES, 'screenshot.png': SHOT, 'view1.png': pngBytes(1).toString('latin1'), 'evidence.json': manifest };
     return f;
   }
 
@@ -198,15 +196,23 @@ describe('candidateCaption', () => {
   });
 });
 
-describe('changeLines', () => {
+describe('readChanges', () => {
   const features = [{ issue: 3, title: 'faster trucks' }, { issue: 5, title: 'louder horn' }];
 
-  it('keeps one line per change in the order written, without blank lines', () => {
-    expect(changeLines('\n- [#5] The horn is louder.\n\n- [#3] Trucks are faster.\n', features)).toEqual(['- [#5] The horn is louder.', '- [#3] Trucks are faster.']);
+  it('keeps one change per entry in the order written and builds the changelog from them', () => {
+    const raw = JSON.stringify([{ issue: 5, text: ' The horn is louder. ' }, { issue: 3, text: 'Trucks are faster.' }]);
+    const changes = readChanges(raw, features);
+    expect(changes).toEqual([{ issue: 5, text: 'The horn is louder.' }, { issue: 3, text: 'Trucks are faster.' }]);
+    expect(changelogText(changes)).toBe('- [#5] The horn is louder.\n- [#3] Trucks are faster.');
   });
 
-  it('refuses prose, a missing change and an extra one', () => {
-    expect(() => changeLines('Trucks are faster.', features)).toThrow('not "- [#N] what changed"');
-    expect(() => changeLines('- [#3] Trucks are faster.\n- [#5] Louder.\n- [#9] Extra.', features)).toThrow('names #3, #5, #9');
+  it('refuses a missing file, bad shapes, a missing change and an extra one', () => {
+    expect(() => readChanges(null, features)).toThrow('wrote no .factory/release.json');
+    expect(() => readChanges('{}', features)).toThrow('not an array');
+    expect(() => readChanges('[{"issue":"3","text":"x"}]', features)).toThrow('needs each entry');
+    expect(() => readChanges('[{"issue":3,"text":" "}]', features)).toThrow('needs each entry');
+    expect(() => readChanges('[3]', features)).toThrow('needs each entry');
+    expect(() => readChanges('not json', features)).toThrow();
+    expect(() => readChanges(JSON.stringify([{ issue: 3, text: 'a' }, { issue: 5, text: 'b' }, { issue: 9, text: 'c' }]), features)).toThrow('names #3, #5, #9');
   });
 });

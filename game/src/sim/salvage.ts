@@ -881,3 +881,11 @@ export function oldSpotOf(stock: { id: string }): { type: OldPlaceType; propId: 
 export function oldSpotsNear(world: World, pos: Vec, range: number): OldSpotPick[] {
   return oldSpotPicks({ hash: world.mapHash, terrain: world.terrain }).filter((p) => dist(p.pos, pos) <= range);
 }
+
+const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
+
+export function meanLootValue(table: LootTable): number {
+  const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
+  const parts = meanOf(table.parts) * GOODS.parts.value;
+  return goods + parts + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
+}

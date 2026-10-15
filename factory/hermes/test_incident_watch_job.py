@@ -34,7 +34,8 @@ def test_a_new_job_sends_failures_nowhere_and_incidents_to_the_committee(tmp_pat
     create = calls[1]
     assert create[:3] == ["cron", "create", "every 1m"]
     prompt = create[3]
-    assert "Fix each new incident yourself, then report what you did. Never ask for permission" in prompt
+    assert "Fix each new incident yourself. Never ask for permission" in prompt
+    assert "Otherwise respond with [SILENT]" in prompt
     assert create[create.index("--name") + 1] == "factory-incidents"
     assert create[create.index("--monitor-script") + 1] == "factory-incidents.sh"
     assert create[create.index("--deliver") + 1] == "telegram:-10042"
