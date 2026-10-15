@@ -10,6 +10,7 @@ const ENDPOINT = 'https://api.openai.com/v1/responses';
 const RULES = readFileSync(fileURLToPath(new URL('../../prompts/chat-answer.md', import.meta.url)), 'utf8').trim();
 const CANDIDATES = 8;
 const SOURCE_CHARS = 800;
+const ECHO_WORDS = 5;
 const SCHEME = /[a-z][\w+.-]*:\/\//i;
 const LINKABLE = /@\w+|[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.\p{L}{2,}\b/gu;
 
@@ -27,7 +28,7 @@ const sourceText = (passage: Passage): string => `${passage.page}, ${passageLabe
 
 function cited(composed: Composed, candidates: Passage[]): Passage[] {
   const picked = [...new Set(composed.sources)].map((number) => candidates[number - 1]).filter((passage) => passage !== undefined);
-  if (picked.length === 0) throw new Error(`The chat answer cites no offered source: ${JSON.stringify(composed.sources)}.`);
+  if (picked.length === 0) throw new Error('The chat answer cites no offered source, so it is not sent.');
   return picked;
 }
 
@@ -36,12 +37,25 @@ function unsourcedLinks(text: string, candidates: Passage[]): string[] {
   return (text.match(LINKABLE) ?? []).filter((token) => !sources.includes(token.toLowerCase()));
 }
 
-function checked(composed: Composed, candidates: Passage[]): Grounded | null {
+const wordsOf = (text: string): string[] => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+
+function runsOf(text: string): Set<string> {
+  const words = wordsOf(text);
+  return new Set(words.slice(0, Math.max(0, words.length - ECHO_WORDS + 1)).map((_word, index) => words.slice(index, index + ECHO_WORDS).join(' ')));
+}
+
+function echoesPlayer(text: string, asked: Asked, candidates: Passage[]): boolean {
+  const sourced = runsOf(candidates.map(sourceText).join('\n'));
+  const player = runsOf(`${asked.text}\n${asked.context ?? ''}`);
+  return [...runsOf(text)].some((run) => player.has(run) && !sourced.has(run));
+}
+
+function checked(composed: Composed, candidates: Passage[], asked: Asked): Grounded | null {
   const text = composed.answer.trim();
   if (text === '') return null;
   if (SCHEME.test(text)) throw new Error('The chat answer holds a link, so it is not sent.');
-  const unsourced = unsourcedLinks(text, candidates);
-  if (unsourced.length > 0) throw new Error(`The chat answer holds a link or handle no offered source has, so it is not sent: ${unsourced.join(', ')}.`);
+  if (unsourcedLinks(text, candidates).length > 0) throw new Error('The chat answer holds a domain or handle that no offered source has, so it is not sent.');
+  if (echoesPlayer(text, asked, candidates)) throw new Error('The chat answer repeats player words that no offered source has, so it is not sent.');
   return { text, passages: cited(composed, candidates) };
 }
 
@@ -51,7 +65,7 @@ export function groundWith(compose: Compose, dir: string): Ground {
     if (passages.length === 0) throw new Error(`The game docs at ${dir} have no passages.`);
     const candidates = searchDocs(passages, `${asked.text} ${asked.context ?? ''}`, CANDIDATES);
     if (candidates.length === 0) return null;
-    return checked(await compose(asked, candidates.map(sourceText)), candidates);
+    return checked(await compose(asked, candidates.map(sourceText)), candidates, asked);
   };
 }
 
@@ -70,7 +84,7 @@ function outputText(body: unknown): string {
   if (!Array.isArray(output)) throw new Error('The chat answer response has no output.');
   const contents = output.flatMap((item: { content?: unknown }) => (Array.isArray(item.content) ? (item.content as Content[]) : []));
   const refusal = contents.find((content) => content.type === 'refusal');
-  if (refusal !== undefined) throw new Error(`The chat answer model refused: ${String(refusal.refusal)}.`);
+  if (refusal !== undefined) throw new Error('The chat answer model refused.');
   const text = contents.find((content) => content.type === 'output_text')?.text;
   if (typeof text !== 'string') throw new Error('The chat answer response has no text.');
   return text;

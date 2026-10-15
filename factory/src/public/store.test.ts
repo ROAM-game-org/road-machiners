@@ -123,6 +123,19 @@ describe('public store', () => {
     expect(store.toReply()).toEqual([]);
   });
 
+  it('never digests, routes or drops a question about its thread, open post or closed, so it waits only for its answer', () => {
+    const store = postedStore();
+    store.addBuildPost(7, 'abc', CHANNEL, 200, now);
+    store.addComment({ issue: 7, source: 'telegram', sourceId: 'q1', postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text: 'Does it stall on hills?', at: now.toISOString(), messageId: 1 });
+    const [question] = store.unclassifiedComments(100);
+    store.classify(question!.id, 'question', 'patch', now, 'parent');
+    expect(store.unsentComments()).toEqual([]);
+    expect(store.pendingRoutes()).toEqual([]);
+    store.closeBuildPosts(7);
+    expect(store.dropCommentsOnClosedPosts(now)).toBe(0);
+    expect(store.toReply().map((c) => c.text)).toEqual(['Does it stall on hills?']);
+  });
+
   it('keeps a standalone chat message and a game report when posts close, so they are still filed and answered', () => {
     const store = postedStore();
     store.addComment({ issue: null, source: 'telegram', sourceId: 'c1', postChat: GROUP, postMessageId: null, author: 'Ann', sender: '1', text: '@bot add maps', at: now.toISOString(), messageId: 1 });
