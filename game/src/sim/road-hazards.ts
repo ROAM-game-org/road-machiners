@@ -55,10 +55,10 @@ function layStretch(seed: number, j: number): StretchLayout {
   const rng = stretchStream(seed, j, 'scenes');
   const from = milestoneAt(j - 1) + H.clearAfterOutpost;
   const to = milestoneAt(j) - H.clearBeforeOutpost;
-  const drafts = Array.from({ length: scenesOf(j) }, (_, i) => draftScene(rng, j, i));
-  const extents = drafts.map(draftSpan);
-  const spare = to - from - extents.reduce((sum, e) => sum + (e.to - e.from), 0) - (drafts.length + 1) * H.arenaMin;
-  if (spare < 0) throw new Error(`Stretch ${j} has no room for ${drafts.length} scenes between arenas of ${H.arenaMin} tiles`);
+  const room = to - from - (scenesOf(j) + 1) * H.arenaMin;
+  const drafted = draftFitting(rng, j, room);
+  if (!drafted) throw new Error(`Stretch ${j} has no room for ${scenesOf(j)} scenes between arenas of ${H.arenaMin} tiles`);
+  const { drafts, extents, spare } = drafted;
   const shares = Array.from({ length: drafts.length + 1 }, () => nextRandom(rng) + 0.25);
   const total = shares.reduce((a, b) => a + b, 0);
   const arenas: Span[] = [];
@@ -73,6 +73,16 @@ function layStretch(seed: number, j: number): StretchLayout {
   });
   arenas.push({ from: n, to });
   return { stretch: j, arenas, scenes };
+}
+
+function draftFitting(rng: Rng, j: number, room: number): { drafts: Draft[]; extents: Span[]; spare: number } | null {
+  for (let tries = 0; tries < H.maxTries; tries++) {
+    const drafts = Array.from({ length: scenesOf(j) }, (_, i) => draftScene(rng, j, i));
+    const extents = drafts.map(draftSpan);
+    const spare = room - extents.reduce((sum, e) => sum + (e.to - e.from), 0);
+    if (spare >= 0) return { drafts, extents, spare };
+  }
+  return null;
 }
 
 function weightsOf(j: number): Record<SceneKind, number> {
