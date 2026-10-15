@@ -1,4 +1,4 @@
-import { fetchBytes, HttpStatusError } from "../fetch-bytes";
+import { download, DownloadFailed } from "../download";
 import { BANK, beatLoopSeconds, type Cue, type SoundFormat } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -102,8 +102,8 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string, format: Soun
 
 async function decodeFile(ctx: BaseAudioContext, file: string, format: SoundFormat, cue: Cue): Promise<AudioBuffer> {
   const url = `${import.meta.env.BASE_URL}${format.dir}${file.replace(/\.[^.]+$/, "")}.${format.ext}`;
-  const bytes = await fetchBytes(url).catch((e: unknown) => {
-    throw e instanceof HttpStatusError ? e : new SoundUnreachable(file, e);
+  const bytes = await download(url).catch((e: unknown) => {
+    throw e instanceof DownloadFailed ? new SoundUnreachable(file, e) : e;
   });
   const buffer = await ctx.decodeAudioData(bytes);
   return cue.beat ? fitLoop(ctx, buffer, beatLoopSeconds(cue.beat), file) : buffer;
