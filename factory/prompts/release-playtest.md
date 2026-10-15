@@ -39,6 +39,7 @@ Give the evidence for the sort in `why`. When you cannot tell, the finding is `r
 An old finding never blocks the release, and you do not fix it. The factory opens a bug issue for each important one. When an open bug issue in `.factory/open-bugs.md` already describes it, put its number in `known`.
 
 Fix every important `release` finding with the smallest change, most important first. Never remove or disable a feature, and never change unrelated behavior to silence a finding. Run the tests near each change and the game typecheck. Commit each fix with a message that names it.
+{{fixDocs}}
 
 Write `.factory/playtest.json`:
 {

@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { fillPrompt, promptFile } from './common';
 
 const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
-const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release', 'release-playtest', 'incident', 'adhoc'];
+const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc'];
 const FACTORY_STAGES = ['change', 'waste'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'design-bug', 'change-pr', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
-const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write)\b/m;
+const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
+const NO_DOCS_STEP = [...FACTORY_STAGES, 'release', 'game-docs', 'fix-docs', 'design-bug', 'change-pr', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
+const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
 function filled(name: string): string {
   const raw = readFileSync(`${PROMPTS}${name}.md`, 'utf8');
@@ -18,11 +19,11 @@ function filled(name: string): string {
 describe('the game docs step', () => {
   const docs = promptFile('game-docs');
 
-  it('names the game docs, the index and the rule to keep docs in step with fixes', () => {
+  it('names the game docs and the index, and asks for no edit, so read-only stages keep their rules', () => {
     expect(docs).toContain('Read CLAUDE.md and docs/DESIGN.md in full.');
     expect(docs).toContain('The Docs list in CLAUDE.md is the index of the game docs.');
     expect(docs).toContain('Skip the docs that do not cover the task.');
-    expect(docs).toContain('update that doc in the same commit');
+    expect(docs).not.toMatch(/commit|update/i);
   });
 
   it('sorts every prompt into game stages or prompts with no docs step', () => {
@@ -49,5 +50,18 @@ describe('the game docs step', () => {
 
   it.each(FACTORY_STAGES)('stays out of the %s prompt, which works on the factory', (name) => {
     expect(filled(name)).not.toContain(docs);
+  });
+});
+
+describe('the docs rule of a fix', () => {
+  const rule = promptFile('fix-docs');
+
+  it.each(FIX_STAGES)('follows the commit of a fix in the %s prompt', (name) => {
+    const text = filled(name);
+    expect(text.indexOf(rule)).toBeGreaterThan(text.search(/[Cc]ommit (each fix|the fix)/));
+  });
+
+  it.each(GAME_STAGES.filter((name) => !FIX_STAGES.includes(name)))('stays out of the %s prompt, which fixes nothing or ends with its own docs pass', (name) => {
+    expect(filled(name)).not.toContain(rule);
   });
 });

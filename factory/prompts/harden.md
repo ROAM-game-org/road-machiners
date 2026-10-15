@@ -39,6 +39,7 @@ Look for a full scan in hot code, work repeated every frame or turn that could r
 Fix each cost the change added.
 
 Commit each fix on the current branch.
+{{fixDocs}}
 
 ## Checks
 

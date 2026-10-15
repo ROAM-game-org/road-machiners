@@ -4,4 +4,3 @@ Once the task's input shows what it touches, read in full each doc of that index
 Skip the docs that do not cover the task.
 If you already read them in this session, do not read them again.
 Follow their rules for the game. Where this stage writes its reasoning, like the task file or a report, name the docs that shaped it.
-When a fix changes behavior that a game doc describes, update that doc in the same commit. Do not run a broad docs pass.

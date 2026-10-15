@@ -23,6 +23,7 @@ You own this stage until the committee can play it.
 Playtest game behavior with the progression recorder, as `CLAUDE.md` says. Use the browser for what the screen shows.
 Fix every problem you find yourself, in this session: a bug, a blocker, or a look that does not match the issue, the task file, the reference images, `game/docs/DESIGN.md` or, for the UI and overlays, `game/docs/ui.md`.
 Commit each fix on the current branch.
+{{fixDocs}}
 
 Read `../docs/incident-log.md`. Each entry is a class of bug that already cost players or work.
 For each class the change touches, play its check, like a boot with a dropped download, a refused IndexedDB or a phone rotation.

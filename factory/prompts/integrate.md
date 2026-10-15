@@ -26,6 +26,7 @@ Then check that the merged result still does what build {{approvedBuild}} did.
 Compare `git diff {{approvedBuild}} HEAD` with what main gained, and play the fix end to end with the progression recorder, as `CLAUDE.md` says.
 Run the tests near the merged files with `npx vitest run <files>`, and `npm run typecheck`.
 Fix what the merge broke, in this session, and commit each fix.
+{{fixDocs}}
 Keep each fix mechanical: it restores the approved behavior on top of main's changes.
 
 The approval stops holding when the merge needs a product choice, or when the fix can no longer play the way the committee approved it.

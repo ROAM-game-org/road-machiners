@@ -78,7 +78,7 @@ export function promptFile(name: string): string {
 }
 
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs'));
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);
