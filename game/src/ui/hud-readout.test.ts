@@ -413,6 +413,14 @@ function rescue(w: World) {
 }
 
 describe("rescue readout", () => {
+  it("offers to end a run when only the hauler is stranded and the gun truck can drive", () => {
+    const w = furyRoadWorld();
+    expect(getRescueReadout(w)).toBeNull();
+    const hauler = w.vehicles.find((v) => v.id === w.furyRoad!.hauler.id)!;
+    hauler.resources!.fuel = 0;
+    expect(getRescueReadout(w)).toMatchObject({ kind: "stranded", canEnd: true });
+  });
+
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
     w.player.money = -120050;

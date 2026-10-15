@@ -4,7 +4,8 @@ import { assignAutoOrders, inCombat, noteCollision } from './combat';
 import { damagePart } from './damage';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { isDefeated } from './defeat';
-import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, moveWindow, outpostPad, spawnGroup, turnedOnPlayer, waitForRoad, waveOf } from './fury-road';
+import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, haulerWedged, moveWindow, outpostPad, spawnGroup, turnedOnPlayer, waitForRoad, waveOf } from './fury-road';
+import { chassisDef } from '../data/chassis';
 import { alongOf, milestoneAt, outpostFort, roadPoint, toRoad } from './highway';
 import { topGoal } from './npc-activities';
 import { corePart, mountedParts } from './grid';
@@ -200,6 +201,22 @@ describe('losing the run', () => {
     expect(canAbandonRun(w)).toBe(false);
     haulerOf(w).resources!.fuel = 0;
     expect(canAbandonRun(w)).toBe(true);
+  });
+
+  it('lets a stopped hauler with a prop inside its radius end the run, and not one with the prop just outside or still moving', () => {
+    const w = furyRoadWorld();
+    const hauler = haulerOf(w);
+    const radius = chassisDef(hauler.chassisId).radius;
+    const trap = { id: 'trap-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius + 0.1, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number];
+    w.obstacles = [...w.obstacles, trap];
+    hauler.speed = 0;
+    expect(haulerWedged(w)).toBe(false);
+    expect(canAbandonRun(w)).toBe(false);
+    trap.pos = { x: hauler.pos.x + radius / 2, y: hauler.pos.y };
+    expect(haulerWedged(w)).toBe(true);
+    expect(canAbandonRun(w)).toBe(true);
+    hauler.speed = 3;
+    expect(canAbandonRun(w)).toBe(false);
   });
 });
 

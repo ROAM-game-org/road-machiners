@@ -10,7 +10,7 @@ import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
 import { canUseSite, sitePads } from './sites';
-import { mapObstacles } from './mapgen';
+import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
 import { generateNpcLoadout, type GearRules } from './npc-loadout';
@@ -498,7 +498,15 @@ export function endRun(world: World, cause: RunLossCause): void {
 }
 
 export function canAbandonRun(world: World): boolean {
-  return world.furyRoad !== null && !modeRules(world).rescue && world.player.state === 'active' && playerTrucks(world).some((truck) => isStranded(world, truck));
+  if (world.furyRoad === null || modeRules(world).rescue || world.player.state !== 'active') return false;
+  return playerTrucks(world).some((truck) => isStranded(world, truck)) || haulerWedged(world);
+}
+
+export function haulerWedged(world: World): boolean {
+  const hauler = haulerOf(world);
+  if (hauler.speed > RULES.parkedSpeed) return false;
+  const radius = chassisDef(hauler.chassisId).radius;
+  return world.obstacles.some((o) => isDriveObstacle(o) && dist(o.pos, hauler.pos) < radius);
 }
 
 export function abandonRun(world: World): World {
