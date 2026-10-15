@@ -108,6 +108,15 @@ describe("argument checks", () => {
   });
 });
 
+describe("seeall", () => {
+  it("asks the console to toggle the see all view and changes no world", () => {
+    const result = runCommand(emptyWorld(), "seeall");
+
+    expect(result.seeAll).toBe(true);
+    expect(result.world).toBeNull();
+  });
+});
+
 describe("queries", () => {
   it("help lists every command usage and help, one line each", () => {
     const result = runCommand(emptyWorld(), "help");
@@ -145,6 +154,7 @@ describe("queries", () => {
         "randomkit",
         "repair",
         "reveal",
+        "seeall",
         "skills",
         "spawn",
         "supplies",

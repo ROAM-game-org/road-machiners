@@ -182,13 +182,17 @@ export function formatNpcPass(world: World, vehicle: Vehicle): Msg | null {
   return t('npc.letsPass', { why: t(`pass.${passReason(world, vehicle, player, judgeDanger(world, vehicle, player))}`) });
 }
 
+function revealedBy(world: World, perk: 'readDriver' | 'cargoEye'): boolean {
+  return hasPerk(world, perk) || seesAll();
+}
+
 export function formatNpcTraits(world: World, vehicle: Vehicle): Msg | null {
   const traits = npcTraits(vehicle);
-  return hasPerk(world, 'readDriver') ? t('npc.traits', { traits: list(traits.map(traitName)) }) : null;
+  return revealedBy(world, 'readDriver') ? t('npc.traits', { traits: list(traits.map(traitName)) }) : null;
 }
 
 export function formatNpcCargo(world: World, vehicle: Vehicle): Msg | null {
-  if (!hasPerk(world, 'cargoEye')) return null;
+  if (!revealedBy(world, 'cargoEye')) return null;
   const goods = Object.entries(goodsCount(vehicle)).map(([good, n]) => t('npc.goodCount', { good: goodName(good), n }));
   const spares = spareParts(vehicle).map((part) => partNameOf(part.defId));
   if (goods.length === 0 && spares.length === 0) return t('npc.cargoEmpty');
