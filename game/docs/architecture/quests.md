@@ -52,6 +52,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the whole quest. The build reads them into the bundle and fails on an unknown one.
 
 - `# view: page` shows the quest as pages. Without it the quest is a talk.
+- `# revision: <n>` is the quest's content revision, 1 without the tag. Raise it when old progress in the quest no longer makes sense. Load then resets the quest and the quests that stand on it. The Russian twin carries the same revision.
 - `# stat: <variable> <Label>` shows a number variable in the page's right column. `# stat: money M's` shows the player's M's with the M icon and no label. `# stat: alarm Talk: quiet, talking, loud` shows a word for the value instead, and a value past the list shows the last word.
 - `# fact: <variable> <text>` shows the text in the right column while the true or false variable is true. Facts are what the player found, written as raw observations, so the player draws the conclusion.
 
@@ -77,9 +78,13 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 ## Saves
 
 - A save holds `player.quests` without `live`, so it holds no ink state.
-- Load raises a `SaveError` on a stored quest, variable, type or checkpoint the current bundle does not declare.
-- The rescue screen then carries every variable the bundle still declares with the same type, lists the rest as lost, and closes the open quest. `fittingQuestVars()` decides.
-- `src/three/save-shape.json` records every saved variable name with its type and every checkpoint. Removing, renaming or retyping one needs a migration step, and `npm run save:shape` refuses it under the recorded format. Additions need no step.
+- The build derives each quest's links from its ink into the bundle: the world variables it reads, the literal values it writes to each, the notes it gives and tests with `has_note()`, and the quests it passes to `begin()`. A `# stat:` or `# fact:` on a world variable is a read. A world variable given a value worked out in play, or a `note()`, `has_note()` or `begin()` call on anything but one plain id, fails the build, since the repair could not tell who wrote it. `parseBundle()` throws on a link to an unknown quest, variable or note.
+- The game writes some world variables and notes itself. `GAME_WORLD_VARS` in `src/data/quests.ts` lists the variables and the scene each gate opens, and `GAME_NOTES` in `src/data/locals.ts` the notes. A test fails on a sim write that names something missing from them.
+- `repairQuests()` in `src/sim/quest-repair.ts` turns saved quest state and notes into state that fits the bundle. Load and the rescue both call it. It drops quests, world variables and types the bundle no longer has, as lost. Its broken roots are quests with progress whose revision rose since the save, or whose variables or open checkpoint no longer fit, and world values no quest writes. A quest has progress when it has variables, an open session, a world value it can write or a note it gives.
+- A saved value belongs to the quests that can write it, and to the game when it is in `GAME_WORLD_VARS` or `GAME_NOTES`. A value resets only when it has a quest owner, no game owner, and every owner resets, so a shared outcome another live quest could have written stays. A scene gate resets with its scene. A quest with progress that reads a reset value or note resets too, until nothing changes. A quest with progress that a root begins resets as well, but a begin from a quest reset only as a dependent does not spread. Reset quests lose their variables and open session. Money, parts, skills and XP are never touched, so a reset quest pays again when replayed.
+- The repair never resets a quest with no progress, and repairing its own output changes nothing.
+- `src/three/save-shape.json` records every saved variable name with its type and every checkpoint. Removing, renaming or retyping one needs a migration step or a raised revision of its quest, and `npm run save:shape` refuses it under the recorded format. A removed world variable always needs a step, since it belongs to no single quest. Additions need no step.
+- It records each quest's revision and links too. Under the same format, `npm run save:shape` refuses a value no longer written, a note no longer given, a new read and a begin added or removed, unless the quest's revision rose or `--compatible <quest>` names it. Its message lists the quests a raised revision would reset at most.
 - `src/three/save-migrations.ts` has pure helpers for those steps: `renameQuestVar()`, `dropQuestVar()`, `moveQuestCheckpoint()`, `endQuestSession()` and `dropQuest()`. A null quest means a world variable.
 
 ## Tools

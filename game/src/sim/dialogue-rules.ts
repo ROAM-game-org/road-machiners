@@ -1,7 +1,7 @@
 
 import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
 import { CONTRACTS } from '../data/market';
-import { LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -403,7 +403,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     agreeAid(world, npc, { giver, fuel, supplies, price, free });
   },
   refuseAidOffer: (world, npc) => refuseAid(world, npc),
-  noteWagonRoad: (world) => learnNote(world, 'wagonRoad'),
+  noteWagonRoad: (world) => learnNote(world, GAME_NOTES.wagonRoad),
   settleDone: (world, npc, call) => settle(world, npc, call, 'done'),
   settleRefused: (world, npc, call) => settle(world, npc, call, 'refused'),
 };

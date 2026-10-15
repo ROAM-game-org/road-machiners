@@ -23,14 +23,14 @@ import type { QuestLanguage } from '../data/quests';
 import { setQuestLanguage } from '../sim/quests';
 import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
-import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport } from '../ui/save-screen';
+import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport, showRepairReport } from '../ui/save-screen';
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
+import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
@@ -74,11 +74,12 @@ async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Boo
 
 async function bootSlot(slot: SlotId): Promise<Booted> {
   try {
-    const world = loadWorld(slots, slot, map);
-    if (!world) return newGameSaved(defaultSetup('roaming'), true);
+    const loaded = loadSave(slots, slot, map);
+    if (!loaded) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    return { world, runId, loadedFrom: slot, fresh: false };
+    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair));
+    return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     if (!(err instanceof SaveError)) throw err;
     return rescuedOrNew(err, slot);

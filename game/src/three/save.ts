@@ -6,9 +6,10 @@ import { reachedOutpostAt } from '../sim/fury-road';
 import { highwayMap } from '../sim/highway';
 export { newMapFor } from '../sim/highway';
 import type { BrokenProp, Obstacle, Player, QuestState, Vehicle, World, WorldSetup } from '../sim/types';
-import { QUESTS, questProblems, restoreQuest } from '../sim/quests';
+import { QUESTS, restoreQuest } from '../sim/quests';
+import { newerQuests, questRevisions, repairQuests, type QuestRepair, type SavedRevisions } from '../sim/quest-repair';
 import { refreshVision } from '../sim/vision';
-import { modeMap, parseSetup } from '../sim/settings';
+import { isMode, modeMap, repairSetup, type SettingId } from '../sim/settings';
 import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
@@ -32,7 +33,7 @@ export const SAVE_KEY = saveKey(__SAVE_SCOPE__);
 
 export type SaveErrorCode =
   | 'unreadable' | 'otherMap' | 'bakedProps' | 'brokenProp' | 'invalidWorld' | 'invalidSave' | 'badSetup'
-  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests';
+  | 'incompatible' | 'newer' | 'notMigrated' | 'noFormat' | 'badExplored' | 'badOldSpots' | 'badQuests' | 'newerQuests';
 
 export class SaveError extends Error {
   constructor(readonly code: SaveErrorCode, readonly format: { major: number; minor: number } | null = null, detail = '') {
@@ -40,7 +41,10 @@ export class SaveError extends Error {
   }
 }
 
-export type SaveEnvelope = { format: typeof SAVE_FORMAT; savedAt: number; runId: string; world: object };
+export type SaveEnvelope = { format: typeof SAVE_FORMAT; quests: SavedRevisions; savedAt: number; runId: string; world: object };
+
+export type LoadRepair = { questsReset: string[]; lost: string[]; settingsReset: SettingId[] };
+export type LoadedSave = { world: World; repair: LoadRepair };
 
 export function clearSlot(slots: SaveSlots, slot: SlotId): void {
   slots.remove(slot);
@@ -91,9 +95,18 @@ export function mapFor(saved: Pick<World, 'mapHash' | 'seed' | 'setup' | 'furyRo
 }
 
 export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): World | null {
+  return loadSave(slots, slot, icarus)?.world ?? null;
+}
+
+export function hasRepair(repair: LoadRepair): boolean {
+  return repair.questsReset.length + repair.lost.length + repair.settingsReset.length > 0;
+}
+
+export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): LoadedSave | null {
   const envelope = slots.get(slot);
   if (envelope === null) return null;
-  const world = savedWorld(envelope);
+  const { world, settingsReset } = savedWorld(envelope);
+  const quests = savedQuests(world.player.quests, world.player.notes, savedRevisionsOf(envelope));
   const map = mapFor(world, icarus);
   if (world.mapHash !== map.hash) throw new SaveError('otherMap', null, `map ${world.mapHash}, not ${map.hash}`);
   const explored = unpackExplored(world.player.explored, world.size * world.size);
@@ -103,7 +116,7 @@ export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Wor
   const gone = new Set(world.broken.map((b) => b.id));
   const loaded: World = {
     ...world,
-    player: { ...world.player, explored, visible: [], contacts: [], clouds: [], quests: savedQuests(world.player.quests) },
+    player: { ...world.player, explored, visible: [], contacts: [], clouds: [], notes: quests.notes, quests: { ...quests.quests, live: null } },
     vehicles: world.vehicles.map((v) => ({ ...v, trail: [] })),
     obstacles: [...baked.filter((o) => !gone.has(o.id)), ...world.obstacles],
     broken,
@@ -115,14 +128,21 @@ export function loadWorld(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Wor
   refreshVision(loaded);
   settleAims(loaded);
   restoreQuest(loaded, QUESTS);
-  return loaded;
+  return { world: loaded, repair: { questsReset: quests.reset, lost: quests.lost, settingsReset } };
 }
 
-function savedQuests(value: unknown): QuestState {
+function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');
-  const problems = questProblems(value, QUESTS);
-  if (problems.length > 0) throw new SaveError('badQuests', null, problems.map((p) => p.message).join('. '));
-  return { ...value, live: null };
+  if (!Array.isArray(notes) || !notes.every((note) => isJsonObject(note) && typeof note.id === 'string')) throw new SaveError('invalidWorld', null, 'player notes are no list of notes');
+  const newer = newerQuests(revisions, QUESTS);
+  if (newer.length > 0) throw new SaveError('newerQuests', null, newer.join(', '));
+  return repairQuests(value, notes, revisions, QUESTS);
+}
+
+export function savedRevisionsOf(envelope: unknown): SavedRevisions {
+  const quests = isJsonObject(envelope) ? envelope.quests : undefined;
+  if (!isJsonObject(quests)) return {};
+  return Object.fromEntries(Object.entries(quests).filter((entry): entry is [string, number] => Number.isInteger(entry[1])));
 }
 
 function isQuestState(value: unknown): value is QuestState {
@@ -151,18 +171,16 @@ function brokenProps(baked: readonly Obstacle[], broken: readonly SavedBroken[])
   });
 }
 
-function savedWorld(save: unknown): SavedWorld {
+function savedWorld(save: unknown): { world: SavedWorld; settingsReset: SettingId[] } {
   const world = migratedWorld(save);
   if (!isWorld(world)) throw new SaveError('invalidWorld');
-  return { ...world, setup: savedSetup(world.setup) };
+  const { setup, reset } = savedSetup(world.setup);
+  return { world: { ...world, setup }, settingsReset: reset };
 }
 
-function savedSetup(setup: unknown): WorldSetup {
-  try {
-    return parseSetup(setup);
-  } catch (err) {
-    throw new SaveError('badSetup', null, err instanceof Error ? err.message : String(err));
-  }
+function savedSetup(setup: unknown): { setup: WorldSetup; reset: SettingId[] } {
+  if (!isJsonObject(setup) || !isMode(setup.mode)) throw new SaveError('badSetup', null, `Unknown game mode in ${JSON.stringify(setup) ?? 'no setup'}`);
+  return repairSetup(setup);
 }
 
 function migratedWorld(stored: unknown): unknown {
@@ -239,13 +257,13 @@ export function writeSave(slots: SaveSlots, slot: SlotId, world: World, runId: s
   slots.put(slot, envelope);
 }
 
-export function saveOf(world: World): { format: typeof SAVE_FORMAT; world: object } {
+export function saveOf(world: World): { format: typeof SAVE_FORMAT; quests: SavedRevisions; world: object } {
   const { terrain: _terrain, events: _events, removed: _removed, ...saved } = world;
   const { visible: _visible, contacts: _contacts, clouds: _clouds, quests: { live: _live, ...quests }, ...player } = saved.player;
   const vehicles = saved.vehicles.map(({ trail: _trail, ...vehicle }) => vehicle);
   const obstacles = saved.obstacles.filter((o) => !isBakedObstacle(o));
   const broken = saved.broken.map(({ obstacle, turn }) => ({ id: obstacle.id, turn }));
-  return { format: SAVE_FORMAT, world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
+  return { format: SAVE_FORMAT, quests: questRevisions(QUESTS), world: { ...saved, player: { ...player, quests, explored: packExplored(player.explored) }, vehicles, obstacles, broken } };
 }
 
 export function packExplored(explored: Uint8Array): string {
