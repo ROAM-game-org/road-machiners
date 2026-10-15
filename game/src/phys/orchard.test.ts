@@ -122,11 +122,11 @@ describe('driving through Old Orchard', () => {
   it('the player drives up the old highway to the north pocket barn and back', async () => {
     const w = orchardWorld();
     const me = player(w);
-    me.pos = at(-30, 0);
+    me.pos = at(-12, 0);
     me.heading = UP_ROAD;
     const yard = at(60, 32);
     const up = [at(0, 0), at(30, 0), at(46, 0), at(52, 6), at(60, 6.6), at(61, 22)];
-    const legs = [...up, yard, ...up.slice().reverse(), at(-30, 0)].map(stopAt);
+    const legs = [...up, yard, ...up.slice().reverse(), at(-12, 0)].map(stopAt);
     await driveLegs(w, legs, BARN_LEG_TURNS, (x, leg) => {
       if (leg === up.length) expect(dist(player(x).pos, yard)).toBeLessThan(RULES.arriveRadius + 1);
     });
