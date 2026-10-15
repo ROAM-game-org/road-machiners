@@ -96,8 +96,8 @@ describe("the combat score session", () => {
     const { player, session } = build(3);
     runScript(session, player, parseScript(["crit@7"]), { stepSeconds: STEP, lengthSeconds: 12 });
     const [stab] = stabInputs(session);
-    expect(stab.landing - 7).toBeCloseTo(session.leadMs / 1000, 1);
-    expect(stab.peak).toBeGreaterThan(0);
+    expect(session.offers[0].at - 7).toBeCloseTo(session.leadMs / 1000, 1);
+    expect(stab.start).toBeLessThan(session.offers[0].at);
   });
 
   it("keeps the lab free of the score engine", () => {
@@ -160,7 +160,7 @@ function bandBase(hz: number): Decoded {
 describe("the mixed render and its check", () => {
   const stabFile = "stab.ogg";
   const sources = (stab: Decoded) => (file: string) => (file === stabFile ? stab : bandBase(700));
-  const inputs = [{ id: 1, label: "Hit", landing: 5.05, peak: 0.05, playIndex: 0, baseGain: 1 }];
+  const inputs = [{ id: 1, label: "Hit", start: 5, playIndex: 0, baseGain: 1 }];
 
   it("flags a stab that only adds low boom to a mid base, and passes a stab that adds mid and high", () => {
     const boom: Decoded = { rate: RATE, channels: [tone(1, 80)] };

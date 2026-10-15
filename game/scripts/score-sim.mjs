@@ -36,7 +36,7 @@ Options:
 Output: the ledger the lab shows, a timeline of the base, stabs, tails and ducks, then the contrast table.
 
 What the table measures, in the mixed render with every duck, pan, gain and the base phase:
-  A stab window is ${C.windowSeconds} s long and starts ${C.windowLeadSeconds} s before the stab lands, so it holds the take's loudest moment.
+  A stab window is ${C.windowSeconds} s long and starts where the player first hears the stab, so it holds the take's attack and body. It does not start at the take's loudest moment, since a flat take has no meaningful one.
   The base window is the ${C.referenceSeconds} s of the base alone just before the stab starts. It is longer than the stab window so it holds two beats of the slowest base, or the drum hits inside it would swing the number. When the fight is too young for it, the base under the stab is used.
   Low is below ${C.lowEdgeHz} Hz, mid is ${C.lowEdgeHz} to ${C.highEdgeHz} Hz, high is above ${C.highEdgeHz} Hz.
   The dB is the power of the whole mix in the stab window over the power of the base before it, per band.

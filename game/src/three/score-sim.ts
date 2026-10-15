@@ -241,7 +241,7 @@ export function renderMix(plan: MixPlan, decodedOf: (file: string) => Decoded, r
 }
 
 export type Band = "low" | "mid" | "high";
-export type StabInput = { id: number; label: string; landing: number; peak: number; playIndex: number; baseGain: number };
+export type StabInput = { id: number; label: string; start: number; playIndex: number; baseGain: number };
 export type StabCheck = {
   id: number;
   label: string;
@@ -257,7 +257,6 @@ export type StabCheck = {
 export const SCORE_CHECK = {
   windowSeconds: 0.5,
   referenceSeconds: 1.5,
-  windowLeadSeconds: 0.05,
   maskedDb: 6,
   shortSeconds: 0.5,
   shortDropDb: 15,
@@ -340,7 +339,7 @@ export function loudSeconds(stem: Stem, rate: number): number {
 }
 
 function referenceWindow(input: StabInput, win: [number, number]): { span: [number, number]; note: string } {
-  const preEnd = Math.min(input.landing - input.peak, win[0]);
+  const preEnd = win[0];
   const preStart = preEnd - SCORE_CHECK.referenceSeconds;
   if (preStart < 0) return { span: win, note: "no base before it, base under it used" };
   return { span: [preStart, preEnd], note: "" };
@@ -357,9 +356,8 @@ function overlapping(rendered: Rendered, own: number, win: [number, number]): nu
 }
 
 function checkStab(rendered: Rendered, mix: Bands, base: Bands, input: StabInput): StabCheck {
-  const { windowSeconds, windowLeadSeconds, maskedDb, shortSeconds } = SCORE_CHECK;
-  const winFrom = input.landing - windowLeadSeconds;
-  const win: [number, number] = [winFrom, winFrom + windowSeconds];
+  const { windowSeconds, maskedDb, shortSeconds } = SCORE_CHECK;
+  const win: [number, number] = [input.start, input.start + windowSeconds];
   const ref = referenceWindow(input, win);
   const rate = rendered.rate;
   const contrast = Object.fromEntries(BANDS.map((b) => [b, decibels(meanPower(mix[b], rate, ...win), meanPower(base[b], rate, ...ref.span))])) as Record<Band, number>;
@@ -501,7 +499,7 @@ export function stabInputs(session: ScoreSession): StabInput[] {
   return session.offers.filter((o) => o.result === "played" || o.result === "forced").map((o) => {
     const stab = plan.plays.find((p) => p.stab && p.owner === o.id);
     if (!stab) throw new Error(`Event ${o.id} played with no stab`);
-    return { id: o.id, label: EVENT_LABELS[o.cue], landing: o.at, peak: o.at - (stab.start - stab.from), playIndex: stab.index, baseGain: gainBefore(base, stab.start - stab.from) };
+    return { id: o.id, label: EVENT_LABELS[o.cue], start: stab.start, playIndex: stab.index, baseGain: gainBefore(base, stab.start) };
   });
 }
 
