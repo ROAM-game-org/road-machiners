@@ -112,15 +112,15 @@ The always-on HUD answers a short list of questions without a click: can I keep 
 
 `#ui.phone` is a small viewport: at most 560px wide or 480px tall. `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
 
-- The top row keeps Feedback at the left and the camera switch and Menu at the right, inside the safe area. The action bar, toast, notices and tips sit under it at full width.
-- The bottom bar holds four drawer tabs (`.drawer-tabs`), the LCD readouts of the instruments and End turn. In portrait the readouts take their own row above the tabs.
-- A drawer holds what the bar does not: Truck (the truck diagram, the hauler gauge, the dial and the switches), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
+- The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
+- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
+- A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
 - The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
 - The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
 - A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open.
 - Drawer state lives in the UI and is not saved.
 
-This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the readouts, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
 
 ## 5. Entity anatomy
 
