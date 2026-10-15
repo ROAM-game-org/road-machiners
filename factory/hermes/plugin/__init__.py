@@ -25,6 +25,7 @@ from .committee import Committee, CommitteeError
 from .observability import register_observation
 from .public import make_public_factory, public_chats, watch_polling_conflicts
 from .readiness import Readiness, refusal
+from . import quotation
 from .status import register_status
 
 REQUIRED_KEYS = (
@@ -315,8 +316,10 @@ QUEUE_SCHEMA = {
             "request": {
                 "type": "string",
                 "description": (
-                    "The full task text. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to run, what to measure and what to report."
+                    "The task for a member: their exact words, then any facts the agent cannot find alone. "
+                    f"{quotation.FORMAT} Mark each note as evidence or as your reading. "
+                    "Never add a method, a design or acceptance criteria the member did not ask for. "
+                    "A task with no member message, like one from the incident watch, needs no quotation: say what to run, what to measure and what to report."
                 ),
             },
         },
@@ -340,8 +343,9 @@ CHANGE_SCHEMA = {
             "request": {
                 "type": "string",
                 "description": (
-                    "The full change request. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to change and why, and name the setting or behavior."
+                    "The member's exact words, then any facts the agent cannot find alone. "
+                    f"{quotation.FORMAT} Mark each note as evidence or as your reading. "
+                    "Never add a design or acceptance criteria the member did not ask for. The change agent designs it."
                 ),
             },
         },
@@ -478,6 +482,9 @@ def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc
             return _tool_error(f"{error} Nothing was queued.")
         if actor == HERMES and kind != "adhoc":
             return _tool_error("Only a committee member's message can queue a factory change. Nothing was queued.")
+        found = quotation.problems(request) if actor != HERMES else []
+        if found:
+            return _tool_error(quotation.refusal(found))
         command = {
             "kind": kind, "issue": None, "text": request,
             "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": None,
