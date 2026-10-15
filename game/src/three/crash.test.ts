@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DownloadFailed } from '../download';
+import { AssetUnreachable } from '../fetch-asset';
 import { WebGLUnavailable } from './webgl';
-import { crashText, downloadFailedText, isForeignError, screenFor, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, faultKind, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -70,22 +70,13 @@ describe('crashText', () => {
   });
 });
 
-describe('download failure screen', () => {
-  const cause = new TypeError('Failed to fetch');
-  const err = new DownloadFailed('models/truck.glb', 3, cause);
-
-  it('names the three catalog ids and holds the url and the cause in the detail', () => {
-    const text = downloadFailedText(err);
-    expect([text.title, ...text.lines].map((m) => m.key)).toEqual(['download.title', 'download.reload', 'download.saves']);
-    expect(text.action.key).toBe('download.action');
-    expect(text.detail).toContain('models/truck.glb');
-    expect(text.detail).toContain('Failed to fetch');
+describe('faultKind', () => {
+  it('keeps a dropped connection and a missing WebGL off the crash path', () => {
+    expect(faultKind(new AssetUnreachable('Map', 'map.bin', 4, new TypeError('Failed to fetch')))).toBe('unreachable');
+    expect(faultKind(new WebGLUnavailable(null))).toBe('webgl');
   });
 
-  it('routes each kind of error to its own screen', () => {
-    expect(screenFor(err)).toBe('download');
-    expect(screenFor(new WebGLUnavailable('no context'))).toBe('webgl');
-    expect(screenFor(new Error('File models/a.glb failed to load: HTTP 404'))).toBe('crash');
-    expect(screenFor('text')).toBe('crash');
+  it('treats any other error as a fault', () => {
+    expect(faultKind(new Error('Map file map.bin failed to load: HTTP 404'))).toBe('fault');
   });
 });
