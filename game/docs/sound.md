@@ -54,6 +54,8 @@ To hear a fight without looking for one, open the console with the backquote key
 
 To try the score without a game, open `/score.html` on the dev server. It runs the game's score code. The music plays on one continuous clock from combat start, with no turns. Each event button means that event happens now: it queues the accent through the director to land one lead later, the longest take peak plus `offerAheadSeconds`, so every stab plays whole. A sighting plays at once, as in the game. Force skips the score's rules and plays each event's stab as it is, with no tail, duck or heat. Other buttons fix the base loop and the take of each accent, or leave them random. The page numbers each press and draws it with its landing, then each event and its result on its line, the stabs and tails, the stab gap after each played stab, the base's level and ducks, and the heat. Hold freezes the view and the zoom sets the window. A ledger lists every event with its result, heat and tails.
 
+To test the score without ears, run `npm run score:sim -- hit@8 hit@12 crit@14`. It drives the lab's own session, `src/three/score-session.ts`, on a simulated clock, and `--help` lists the options and the thresholds. It prints the lab's ledger and a timeline of the base, stabs, tails and ducks, and writes a wav of the mix to `tmp/`. It measures each stab in that mix against the base just before it, and flags a stab MASKED when its mid or high is under 6 dB over the base, and SHORT when its take sounds for under 0.5 s. Start events after about 6 s, or the base is still fading in and the numbers read too high.
+
 ## Adding a sound
 
 1. Add a cue to `DEFS` in `src/data/sounds.ts`: its bus, volume, voices and loop flag, and for generation a `setup` and prompts.
