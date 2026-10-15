@@ -55,3 +55,10 @@ describe('nose_rise sockets', () => {
     expect(pitch).toBeLessThanOrEqual(10);
   });
 });
+
+describe('loadModels failure', () => {
+  it('rejects with the error of a read that rejects', async () => {
+    const failure = new Error('read failed');
+    await expect(loadModels(async () => { throw failure; })).rejects.toBe(failure);
+  });
+});
