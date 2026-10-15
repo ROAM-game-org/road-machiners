@@ -840,11 +840,11 @@ function applyPedals(c: Car, target: number, speed: number): void {
 }
 
 function holdStill(c: Car): void {
-  const ground = groundFrame(c);
+  const ground = c.holding ? groundFrame(c) : null;
   const lin = c.body.linvel();
   const spin = c.body.angvel();
   const yaw = ground ? spin.x * ground.n.x + spin.y * ground.n.y + spin.z * ground.n.z : 0;
-  if (!ground || !c.holding || Math.abs(yaw) > T.holdSpin || Math.hypot(...alongGround(lin, ground.n)) > T.holdSpeed) {
+  if (!ground || Math.abs(yaw) > T.holdSpin || Math.hypot(...alongGround(lin, ground.n)) > T.holdSpeed) {
     c.mem.anchor = null;
     return;
   }
