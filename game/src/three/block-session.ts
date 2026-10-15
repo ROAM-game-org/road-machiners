@@ -1,6 +1,5 @@
-import { BEATS_PER_BAR, MIX, SCORE_BLOCKS } from "../data/sounds";
+import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
 import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Section } from "../audio/designer";
-import type { AccentCue } from "./sound";
 
 export type BlockSong = {
   file: string;
@@ -22,19 +21,20 @@ export type BlockOutput = {
 export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; level: number };
 export type Lane = "guitars" | "cymbals";
 export type Overlay = { lane: Lane; from: number; to: number; bar: number; handle: VoiceHandle };
-export type Fired = { cue: AccentCue; at: number; result: string | null };
+export type BlockEvent = keyof typeof SCORE_BLOCKS.weights;
+export type Fired = { kind: BlockEvent; at: number; surprise: number; lanes: boolean };
 
 export const TURN_SECONDS = 1;
 export const LANES: Lane[] = ["guitars", "cymbals"];
-export const HEAVY = new Set<AccentCue>(["accent-sighted", "accent-struck", "accent-crit", "accent-crash"]);
-const PRIORITY: AccentCue[] = ["accent-crash", "accent-sighted", "accent-struck", "accent-crit", "accent-hit", "accent-miss"];
-export const DENSE_TURN: [AccentCue, number][] = [
-  ["accent-hit", 10],
-  ["accent-miss", 8],
-  ["accent-struck", 3],
-  ["accent-crit", 2],
-  ["accent-crash", 2],
-  ["accent-sighted", 1],
+export const BLOCK_EVENTS = Object.keys(SCORE_BLOCKS.weights) as BlockEvent[];
+const DENSE_TURN: { kind: BlockEvent; most: number; chance: number }[] = [
+  { kind: "hit", most: 10, chance: 1 },
+  { kind: "miss", most: 8, chance: 1 },
+  { kind: "struck", most: 3, chance: 1 },
+  { kind: "crit", most: 2, chance: 0.5 },
+  { kind: "crash", most: 1, chance: 0.05 },
+  { kind: "sighted", most: 1, chance: 0.05 },
+  { kind: "knockout", most: 1, chance: 0.05 },
 ];
 const ODDS_SHOWN = 4;
 
@@ -47,10 +47,13 @@ export class BlockSession {
   readonly heats: { at: number; value: number }[] = [];
   readonly beatSeconds: number;
   cymbalGain: number = SCORE_BLOCKS.cymbalGain;
-  private heat = new Fading(MIX.score.heatHalfLifeSeconds);
+  private heat = new Fading(SCORE_BLOCKS.heatHalfLifeSeconds);
+  private surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
+  private familiar = new Map<BlockEvent, Fading>();
+  private nudge: Partial<Record<Role, number>> = {};
+  private peakHeat = 0;
   private sequencer: BlockSequencer | null = null;
   private blocks: Block[];
-  private beats = new Map<number, Fired[]>();
   private wanted = new Set<Lane>();
   private nextAt = 0;
   private targetPower: number;
@@ -85,12 +88,16 @@ export class BlockSession {
   heatAt(t: number): number {
     const last = this.heats.filter((h) => h.at <= t).at(-1);
     if (!last) return 0;
-    return last.value * 0.5 ** ((t - last.at) / MIX.score.heatHalfLifeSeconds);
+    return last.value * 0.5 ** ((t - last.at) / SCORE_BLOCKS.heatHalfLifeSeconds);
   }
 
   start(now: number): void {
     const start = now + SCORE_BLOCKS.startLeadSeconds;
-    this.heat = new Fading(MIX.score.heatHalfLifeSeconds);
+    this.heat = new Fading(SCORE_BLOCKS.heatHalfLifeSeconds);
+    this.surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
+    this.familiar.clear();
+    this.nudge = {};
+    this.peakHeat = 0;
     this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.roll);
     this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
   }
@@ -99,7 +106,6 @@ export class BlockSession {
     const at = this.lineAfter(now + SCORE_BLOCKS.startLeadSeconds, 1);
     for (const p of this.played.filter((x) => x.end > at)) this.cut(p, at);
     this.sequencer = null;
-    this.beats.clear();
     this.wanted.clear();
     for (const o of this.overlays.filter((x) => x.to > at)) {
       o.handle.cut(at);
@@ -113,33 +119,57 @@ export class BlockSession {
     return at;
   }
 
-  fire(cue: AccentCue, at: number): void {
+  fire(kind: BlockEvent, at: number): void {
     if (!this.inCombat) return;
-    this.heat.add(at, MIX.score.accents[cue].weight);
+    const weight = SCORE_BLOCKS.weights[kind];
+    this.heat.add(at, weight);
     this.heats.push({ at, value: this.heat.read(at) });
-    const event: Fired = { cue, at, result: null };
-    this.fired.push(event);
-    const beat = this.lineAfter(at, 1);
-    const bucket = this.beats.get(beat);
-    if (bucket) bucket.push(event);
-    else this.beats.set(beat, [event]);
+    this.peakHeat = Math.max(this.peakHeat, this.heat.read(at));
+    this.surprise.add(at, weight / (1 + this.familiarity(kind).read(at)));
+    this.familiarity(kind).add(at, 1);
+    const surprise = this.surprise.read(at);
+    const lanes = surprise >= SCORE_BLOCKS.surpriseLine;
+    if (lanes) this.askLanes(at);
+    this.addNudge(kind);
+    this.fired.push({ kind, at, surprise, lanes });
+  }
+
+  private askLanes(at: number): void {
+    for (const lane of LANES) if (!this.open(lane, at)) this.wanted.add(lane);
+  }
+
+  private addNudge(kind: BlockEvent): void {
+    for (const [role, factor] of Object.entries(SCORE_BLOCKS.nudges[kind] ?? {}) as [Role, number][]) this.nudge[role] = (this.nudge[role] ?? 1) * factor;
   }
 
   denseTurn(start: number): void {
-    for (const [cue, most] of DENSE_TURN) {
-      const count = Math.floor(this.roll() * (most + 1));
-      for (let i = 0; i < count; i++) this.fire(cue, start + this.roll() * TURN_SECONDS);
+    for (const { kind, most, chance } of DENSE_TURN) {
+      if (this.roll() >= chance) continue;
+      const count = 1 + Math.floor(this.roll() * most);
+      for (let i = 0; i < count; i++) this.fire(kind, start + this.roll() * TURN_SECONDS);
     }
   }
 
   tick(now: number): void {
     if (!this.sequencer) return;
     if (this.nextAt - now < SCORE_BLOCKS.aheadSeconds) {
-      const h = this.heat.read(this.nextAt);
-      this.nextAt = this.schedule(this.sequencer.next(h), this.nextAt, h);
+      const h = Math.max(this.peakHeat, this.heat.read(this.nextAt));
+      this.nextAt = this.schedule(this.sequencer.next(h, this.nudge), this.nextAt, h);
+      if (this.sequencer.choices.length > 0) {
+        this.nudge = {};
+        this.peakHeat = 0;
+      }
     }
-    this.answerDue(now);
     for (const lane of LANES) this.startOverlay(lane, now);
+  }
+
+  private familiarity(kind: BlockEvent): Fading {
+    let f = this.familiar.get(kind);
+    if (!f) {
+      f = new Fading(SCORE_BLOCKS.familiarHalfLifeSeconds);
+      this.familiar.set(kind, f);
+    }
+    return f;
   }
 
   private power(bar: number, bars: number, push: number): number {
@@ -242,17 +272,6 @@ export class BlockSession {
     if (!p) throw new Error("A grid line was asked for with no block playing");
     const step = this.beatSeconds * beats;
     return p.start + Math.ceil((t - p.start) / step - 1e-6) * step;
-  }
-
-  private answerDue(now: number): void {
-    for (const [beat, events] of this.beats) {
-      if (beat - now > SCORE_BLOCKS.aheadSeconds) continue;
-      this.beats.delete(beat);
-      const winner = events.reduce((best, e) => (PRIORITY.indexOf(e.cue) < PRIORITY.indexOf(best.cue) ? e : best));
-      winner.at = beat;
-      winner.result = HEAVY.has(winner.cue) ? "lanes" : "heat";
-      if (HEAVY.has(winner.cue)) for (const lane of LANES) this.wanted.add(lane);
-    }
   }
 
   private oddsText(): string {

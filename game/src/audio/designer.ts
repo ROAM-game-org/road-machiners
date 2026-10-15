@@ -215,6 +215,7 @@ export function blocksOf(sections: readonly Section[], blockBars: number): Block
 export class BlockSequencer {
   private current: Block | null = null;
   private previous: Block | null = null;
+  private nudge: Partial<Record<Role, number>> = {};
   private total = 0;
   private memory: number[];
   private sections: number[];
@@ -238,7 +239,8 @@ export class BlockSequencer {
     return this.weighed;
   }
 
-  next(heat: number): Block {
+  next(heat: number, nudge: Partial<Record<Role, number>> = {}): Block {
+    this.nudge = nudge;
     const block = this.current ? this.pick(this.current, heat) : this.firstOf(this.blocks.find((b) => b.role === "intro")!.section);
     this.remember(block);
     this.previous = this.current;
@@ -284,7 +286,7 @@ export class BlockSequencer {
     const base = (t.next[current.role][role] ?? 0) / this.sections.filter((s) => this.firstOf(s).role === role).length;
     const stay = section === current.section ? t.stay : 1;
     const fresh = Math.exp(-t.memoryWeight * this.memory[this.sections.indexOf(section)]);
-    return base * this.pairFactor(current, role) * this.mood(role, heat) * stay * fresh;
+    return base * this.pairFactor(current, role) * this.mood(role, heat) * stay * fresh * (this.nudge[role] ?? 1);
   }
 
   private pairFactor(current: Block, role: Role): number {

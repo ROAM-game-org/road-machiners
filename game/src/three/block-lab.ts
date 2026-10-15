@@ -5,11 +5,12 @@ import { Mixer } from "../audio/mixer";
 import type { Role } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
-import { BlockSession, HEAVY, TURN_SECONDS, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
-import type { AccentCue } from "./sound";
+import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 
-const SONG_DIR = "/tmp/score-proto/";
-const PREP_HINT = "Run scripts/score-blocks-prep.py to write public/tmp/score-proto/ first.";
+const SONG_ROOT = "/tmp/score-proto/";
+const SONG_TITLES: Record<string, string> = { dust: "Dust and Iron", dusk: "Convoy At Dusk" };
+const SONGS = Object.keys(SONG_TITLES);
+const PREP_HINT = "Run scripts/score-blocks-prep.py to write each song into public/tmp/score-proto/<song>/ first.";
 const ZOOM_SECONDS = [6, 12, 24];
 const DEFAULT_ZOOM = 12;
 const FUTURE_SHARE = 0.15;
@@ -17,6 +18,7 @@ const GUTTER = 96;
 const COLUMN_STEP = 2;
 const LABEL_GAP = 6;
 const AUTO_PAUSE_SECONDS = [1, 4];
+const AUDIO_TICK_MS = 100;
 const LANES = [
   { id: "events", height: 60 },
   { id: "song", height: 90 },
@@ -28,17 +30,18 @@ type LaneId = (typeof LANES)[number]["id"];
 const HEIGHT = LANES.reduce((sum, lane) => sum + lane.height, 0);
 type Auto = "off" | "busy" | "pauses";
 
-const EVENTS: Record<AccentCue, string> = {
-  "accent-sighted": "Sighted",
-  "accent-struck": "Hit you",
-  "accent-crit": "You crit",
-  "accent-crash": "Crash",
-  "accent-hit": "You hit",
-  "accent-miss": "You miss",
+const EVENTS: Record<BlockEvent, string> = {
+  sighted: "Enemy joins",
+  knockout: "Knockout",
+  crash: "Crash",
+  crit: "You crit",
+  struck: "Hit you",
+  hit: "You hit",
+  miss: "You miss",
 };
-const EVENT_GROUPS: AccentCue[][] = [
-  ["accent-sighted", "accent-struck", "accent-crit", "accent-crash"],
-  ["accent-hit", "accent-miss"],
+const EVENT_GROUPS: BlockEvent[][] = [
+  ["sighted", "knockout", "crash", "crit"],
+  ["struck", "hit", "miss"],
 ];
 
 const ROLE_INK: Record<Role | "end", string> = {
@@ -72,8 +75,9 @@ root.append(el("div", { class: "dim" }, "Loading the song..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const ctx = mixer.ctx;
-const song = await loadSong();
-const [songBuffer, cymbalBuffer, guitarBuffer] = await Promise.all([decode(song.file), decode(song.cymbals.file), decode(song.stems.guitars)]);
+type Kit = { name: string; song: BlockSong; buffers: Record<Part, AudioBuffer> };
+const kits = new Map<string, Promise<Kit>>();
+let kit = await kitOf(pickSong());
 const songLevel = ctx.createGain();
 songLevel.gain.value = SCORE_BLOCKS.songGain;
 songLevel.connect(mixer.input("music"));
@@ -82,29 +86,42 @@ guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
 guitarLevel.connect(songLevel);
 const songDuck = ctx.createGain();
 songDuck.connect(songLevel);
-const PARTS: Record<Part, { buffer: AudioBuffer; out: AudioNode }> = {
-  song: { buffer: songBuffer, out: songDuck },
-  guitars: { buffer: guitarBuffer, out: guitarLevel },
-  cymbals: { buffer: cymbalBuffer, out: songLevel },
-};
+const OUTS: Record<Part, AudioNode> = { song: songDuck, guitars: guitarLevel, cymbals: songLevel };
 
-async function loadSong(): Promise<BlockSong> {
-  const res = await fetch(`${SONG_DIR}song.json`);
-  if (!res.ok) {
-    root.replaceChildren(el("div", { class: "dim" }, PREP_HINT));
-    throw new Error(`No song.json at ${SONG_DIR}: ${res.status}. ${PREP_HINT}`);
-  }
-  return (await res.json()) as BlockSong;
+function pickSong(): string {
+  return SONGS[Math.floor(Math.random() * SONGS.length)];
 }
 
-async function decode(file: string): Promise<AudioBuffer> {
-  const res = await fetch(SONG_DIR + file);
-  if (!res.ok) throw new Error(`Cannot fetch ${SONG_DIR + file}: ${res.status}. ${PREP_HINT}`);
+function kitOf(name: string): Promise<Kit> {
+  let loading = kits.get(name);
+  if (!loading) {
+    loading = loadKit(name);
+    kits.set(name, loading);
+  }
+  return loading;
+}
+
+async function loadKit(name: string): Promise<Kit> {
+  const dir = `${SONG_ROOT}${name}/`;
+  const res = await fetch(`${dir}song.json`);
+  if (!res.ok) {
+    root.replaceChildren(el("div", { class: "dim" }, PREP_HINT));
+    throw new Error(`No song.json at ${dir}: ${res.status}. ${PREP_HINT}`);
+  }
+  const song = (await res.json()) as BlockSong;
+  const [main, guitars, cymbals] = await Promise.all([decode(dir, song.file), decode(dir, song.stems.guitars), decode(dir, song.cymbals.file)]);
+  return { name, song, buffers: { song: main, guitars, cymbals } };
+}
+
+async function decode(dir: string, file: string): Promise<AudioBuffer> {
+  const res = await fetch(dir + file);
+  if (!res.ok) throw new Error(`Cannot fetch ${dir + file}: ${res.status}. ${PREP_HINT}`);
   return ctx.decodeAudioData(await res.arrayBuffer());
 }
 
 function voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
-  const { buffer, out } = PARTS[part];
+  const buffer = kit.buffers[part];
+  const out = OUTS[part];
   const seam = SCORE_BLOCKS.seamSeconds;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
@@ -151,21 +168,33 @@ function lean(offset: number, at: number, length: number, songScale: number, lev
 }
 
 const output: BlockOutput = { voice, lean };
-const session = new BlockSession(song, output, Math.random);
+let cymbalGain = SCORE_BLOCKS.cymbalGain;
+let session = newSession();
 let auto: Auto = "off";
 let nextTurn = 0;
 let span = DEFAULT_ZOOM;
 
-function flipCombat(): void {
-  if (session.inCombat) session.end(ctx.currentTime);
-  else {
-    session.start(ctx.currentTime);
-    nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
-  }
+function newSession(): BlockSession {
+  const s = new BlockSession(kit.song, output, Math.random);
+  s.cymbalGain = cymbalGain;
+  return s;
 }
 
-function fire(cue: AccentCue): void {
-  session.fire(cue, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
+async function startCombat(): Promise<void> {
+  kit = await kitOf(pickSong());
+  songTitle.textContent = SONG_TITLES[kit.name];
+  session = newSession();
+  session.start(ctx.currentTime);
+  nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
+}
+
+function flipCombat(): void {
+  if (session.inCombat) session.end(ctx.currentTime);
+  else void startCombat();
+}
+
+function fire(kind: BlockEvent): void {
+  session.fire(kind, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
 }
 
 function autoTurn(now: number): void {
@@ -175,10 +204,14 @@ function autoTurn(now: number): void {
   nextTurn += TURN_SECONDS + (auto === "pauses" ? lo + Math.random() * (hi - lo) : 0);
 }
 
-function frame(): void {
+function audioTick(): void {
   const now = ctx.currentTime;
   autoTurn(now);
   session.tick(now);
+}
+
+function frame(): void {
+  audioTick();
   draw();
   syncStats();
   syncLedger();
@@ -269,14 +302,11 @@ function drawEvents(): void {
   const height = laneHeight("events");
   for (const f of session.fired) {
     const x = xOf(f.at);
-    g.fillStyle = HEAVY.has(f.cue) ? INK.heavy : INK.light;
-    if (f.result === null) {
-      g.fillRect(x, top + height - 14, 1, 10);
-      continue;
-    }
-    g.fillRect(x, top + 4, 2, height - 8);
-    if (x < labelEnd + LABEL_GAP) continue;
-    const text = `${EVENTS[f.cue]} ${f.result}`;
+    const h = Math.max(2, Math.min(1, f.surprise / SCORE_BLOCKS.surpriseLine) * (height - 8));
+    g.fillStyle = f.lanes ? INK.heavy : INK.light;
+    g.fillRect(x, top + height - 4 - h, f.lanes ? 2 : 1, h);
+    if (!f.lanes || x < labelEnd + LABEL_GAP) continue;
+    const text = EVENTS[f.kind];
     g.fillStyle = INK.text;
     g.fillText(text, x + LABEL_GAP, top + 18);
     labelEnd = x + LABEL_GAP + g.measureText(text).width;
@@ -393,7 +423,10 @@ denseButton.title = "Up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes a
 const gains = SCORE_BLOCKS.cymbalGains;
 const cymbalChoice = choice(
   gains.map((gain) => ({ label: `x${gain}`, value: gain })),
-  (gain) => (session.cymbalGain = gain),
+  (gain) => {
+    cymbalGain = gain;
+    session.cymbalGain = gain;
+  },
   gains.indexOf(SCORE_BLOCKS.cymbalGain),
 );
 const controlsPanel = panel(
@@ -412,7 +445,8 @@ const zoomChoice = choice(
   ZOOM_SECONDS.indexOf(DEFAULT_ZOOM),
 );
 const holder = el("div", { class: "score-lab-canvas" }, canvas);
-const timelinePanel = panel(el("div", { class: "score-lab-bar" }, zoomChoice), holder);
+const songTitle = el("div", { class: "score-lab-song" }, SONG_TITLES[kit.name]);
+const timelinePanel = panel(el("div", { class: "score-lab-bar" }, songTitle, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
 const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "", "Join and odds"].map((word) => el("span", {}, word)));
@@ -462,4 +496,5 @@ function syncLedger(): void {
 root.replaceChildren(el("div", { class: "score-lab-side" }, controlsPanel, statsPanel), timelinePanel, ledgerPanel);
 new ResizeObserver(() => fitCanvas(holder.clientWidth)).observe(holder);
 fitCanvas(holder.clientWidth);
+setInterval(audioTick, AUDIO_TICK_MS);
 requestAnimationFrame(frame);

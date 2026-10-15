@@ -202,6 +202,15 @@ describe("BlockSequencer", () => {
     expect([0, 0, 0, 5, 5].map((h) => seq.next(h).bar)).toEqual([5, 7, 9, 11, 21]);
   });
 
+  it("raises the moves a nudge names at the next decision", () => {
+    const plain = sequencer();
+    const nudged = sequencer();
+    for (const seq of [plain, nudged]) [0, 0].forEach((h) => seq.next(h));
+    plain.next(0);
+    nudged.next(0, { stop: 5 });
+    expect(chanceOf(nudged, "stop")).toBeGreaterThan(chanceOf(plain, "stop") * 3);
+  });
+
   it("makes staying less likely the longer a section loops", () => {
     const seq = sequencer(() => 0);
     seq.next(0);

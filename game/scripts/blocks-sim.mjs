@@ -1,21 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { nextRandom } from '../src/sim/rng.ts';
 import { BlockSession } from '../src/three/block-session.ts';
-import { SCRIPT_NAMES } from '../src/three/score-sim.ts';
+import { BLOCK_EVENTS } from '../src/three/block-session.ts';
 
-const SONG_JSON = 'public/tmp/score-proto/song.json';
+const SONG_ROOT = 'public/tmp/score-proto';
 const STEP_SECONDS = 1 / 60;
 const AFTER_LAST_EVENT_SECONDS = 20;
 
 const HELP = `Usage: npm run blocks:sim -- <event@seconds ...> [--seed n] [--length s] [--end s]
 
 Plays a scripted fight through the block lab's session, the same code /blocks.html runs, on a simulated clock, and prints what it chose.
-Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second.
+Events: ${BLOCK_EVENTS.join(', ')}, and dense, a full turn in one second: up to 10 hits, 8 misses and 3 hits taken, often a crit, sometimes a crash, rarely an enemy joining or a knockout.
 An event at time t lands at t. Combat starts at 0.
 
 Output:
   Blocks: each block with its start, how it joined the one before, the heat when it was chosen, the level trim that keeps it as loud as the median block and the odds behind the choice.
-  Answers: each beat whose winning event was heavy and asked for the lanes. Other events are only counted.
+  Answers: each event whose surprise crossed the line and asked for the lanes, then a count per kind of event.
   Lanes: each run of the guitar and cymbal lanes.
   Summary: bars per role, jumps and how long each lane was open.
 
@@ -23,6 +23,7 @@ Options:
   --seed <n>          Seed of every random choice. Default 1.
   --length <seconds>  How long the fight runs. Default the last event plus ${AFTER_LAST_EVENT_SECONDS} s.
   --end <seconds>     End combat at this time. Default the length.
+  --song <name>       Song folder under ${SONG_ROOT}, one of the songs in scripts/score-songs.json. Required.
 `;
 
 function fail(message) {
@@ -30,13 +31,14 @@ function fail(message) {
   process.exit(1);
 }
 
-const OPTIONS = ['--seed', '--length', '--end'];
+const OPTIONS = { '--seed': Number, '--length': Number, '--end': Number, '--song': String };
 
 function readArg(o, argv, i) {
   const arg = argv[i];
   if (arg === '--help') { console.log(HELP); process.exit(0); }
-  if (OPTIONS.includes(arg)) {
-    o[arg.slice(2)] = Number(argv[i + 1] ?? fail(`${arg} needs a value`));
+  const read = OPTIONS[arg];
+  if (read) {
+    o[arg.slice(2)] = read(argv[i + 1] ?? fail(`${arg} needs a value`));
     return i + 1;
   }
   if (arg.startsWith('--')) fail(`Unknown option ${arg}`);
@@ -45,9 +47,10 @@ function readArg(o, argv, i) {
 }
 
 function parseArgs(argv) {
-  const o = { events: [], seed: 1, length: null, end: null };
+  const o = { events: [], seed: 1, length: null, end: null, song: null };
   for (let i = 0; i < argv.length; i++) i = readArg(o, argv, i);
   if (!Number.isInteger(o.seed)) fail('--seed needs a whole number');
+  if (!o.song) fail('--song is required');
   o.events.sort((a, b) => a.at - b.at);
   return o;
 }
@@ -55,8 +58,8 @@ function parseArgs(argv) {
 function parseEvent(token) {
   const [name, time] = token.split('@');
   const at = Number(time);
-  if (!(name === 'dense' || SCRIPT_NAMES[name]) || !Number.isFinite(at)) fail(`Bad event "${token}": write name@seconds with a name from dense, ${Object.keys(SCRIPT_NAMES).join(', ')}`);
-  return { name, cue: SCRIPT_NAMES[name] ?? null, at };
+  if (!(name === 'dense' || BLOCK_EVENTS.includes(name)) || !Number.isFinite(at)) fail(`Bad event "${token}": write name@seconds with a name from dense, ${BLOCK_EVENTS.join(', ')}`);
+  return { name, at };
 }
 
 const silentVoice = { fadeOut: () => {}, cut: () => {} };
@@ -64,7 +67,7 @@ const output = { voice: () => silentVoice, lean: () => silentVoice };
 
 function play(session, e) {
   if (e.name === 'dense') session.denseTurn(e.at);
-  else session.fire(e.cue, e.at);
+  else session.fire(e.name, e.at);
 }
 
 function step(session, pending, t, end) {
@@ -74,7 +77,7 @@ function step(session, pending, t, end) {
 }
 
 function run(o) {
-  const song = JSON.parse(readFileSync(SONG_JSON, 'utf8'));
+  const song = JSON.parse(readFileSync(`${SONG_ROOT}/${o.song}/song.json`, 'utf8'));
   const rng = { rngState: o.seed };
   const session = new BlockSession(song, output, () => nextRandom(rng));
   const length = o.length ?? (o.events.at(-1)?.at ?? 0) + AFTER_LAST_EVENT_SECONDS;
@@ -98,9 +101,14 @@ function printBlocks(session) {
 
 function printAnswers(session) {
   console.log('\nAnswers');
-  const winners = session.fired.filter((f) => f.result !== null);
-  for (const f of winners.filter((w) => w.result === 'lanes')) console.log(`  ${time(f.at)}  ${f.cue.replace('accent-', '')} asked for the lanes`);
-  console.log(`  ${session.fired.length} events, ${winners.length} won their beat, ${winners.filter((w) => w.result === 'lanes').length} of them heavy`);
+  const opening = session.fired.filter((f) => f.lanes);
+  for (const f of opening) console.log(`  ${time(f.at)}  ${pad(f.kind, 9)} surprise ${f.surprise.toFixed(2)}`);
+  const kinds = [...new Set(session.fired.map((f) => f.kind))];
+  console.log(`  ${session.fired.length} events, ${opening.length} crossed the surprise line`);
+  for (const kind of kinds) {
+    const all = session.fired.filter((f) => f.kind === kind);
+    console.log(`  ${pad(kind, 9)} ${String(all.length).padStart(4)} events, ${all.filter((f) => f.lanes).length} opened the lanes`);
+  }
 }
 
 function printSummary(session) {
@@ -112,6 +120,9 @@ function printSummary(session) {
   console.log(`  bars per role: ${Object.entries(bars).map(([r, b]) => `${r} ${b}`).join(', ')}`);
   console.log(`  ${blocks.filter((p) => p.join === 'jump').length} jumps in ${blocks.length} blocks`);
   for (const lane of ['guitars', 'cymbals']) console.log(`  ${lane}: open ${seconds(lane).toFixed(1)} s in ${session.overlays.filter((o) => o.lane === lane).length} runs`);
+  const heats = blocks.map((p) => p.heat).sort((a, b) => a - b);
+  const at = (q) => heats[Math.min(heats.length - 1, Math.floor(q * heats.length))].toFixed(1);
+  console.log(`  heat when blocks were chosen: low ${at(0.1)}, median ${at(0.5)}, high ${at(0.9)}`);
 }
 
 const session = run(parseArgs(process.argv.slice(2)));

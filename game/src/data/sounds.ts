@@ -255,8 +255,8 @@ export const MIX = {
 export const SCORE_BLOCKS = {
   arc: {
     blockBars: 2,
-    hotHeat: MIX.score.hotHeat,
-    coolHeat: 1,
+    hotHeat: 5,
+    coolHeat: 2,
     memoryHalfLifeBars: 16,
     memoryWeight: 0.08,
     stay: 6,
@@ -286,9 +286,15 @@ export const SCORE_BLOCKS = {
   guitarPush: 0.8,
   cymbalGain: 2,
   cymbalGains: [1, 2, 4],
+  heatHalfLifeSeconds: 2.5,
+  familiarHalfLifeSeconds: 20,
+  surpriseHalfLifeSeconds: 1.5,
+  surpriseLine: 1,
+  weights: { hit: 0.4, miss: 0.2, struck: 0.5, crit: 0.8, crash: 1, sighted: 0.9, knockout: 1.2 },
+  nudges: { crash: { wall: 1.5 }, sighted: { wall: 2 }, knockout: { stop: 3 } } as Partial<Record<string, Partial<Record<"intro" | "verse" | "wall" | "stop" | "solo", number>>>>,
   jumpFadeSeconds: 0.03,
   seamSeconds: 0.01,
-  aheadSeconds: 0.25,
+  aheadSeconds: 1.5,
   startLeadSeconds: 0.1,
   eventLeadSeconds: 0.05,
 };
