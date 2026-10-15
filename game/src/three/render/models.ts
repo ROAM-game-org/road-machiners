@@ -199,6 +199,7 @@ const NAMES = [
   'cargo_heavy_frame',
 
   'good_scrap',
+  'parcel',
   'good_salt',
   'good_meds',
   'good_grain',
