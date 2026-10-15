@@ -31,7 +31,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { attacks, huntsAsPrey, isAlly, noteDefeat, preys, reportIncident } from "./relations";
+import { attacks, hostileFrom, huntsAsPrey, isAlly, noteDefeat, reportIncident } from "./relations";
 
 export type FireBlock =
   | "disabled"
@@ -62,7 +62,7 @@ function isRopeShielded(world: World, a: Vehicle, b: Vehicle): boolean {
 
 export function isHostile(world: World, a: Vehicle, b: Vehicle): boolean {
   if (a.id === b.id || isOutOfFight(world, a, b)) return false;
-  return attacks(world, a, b) || attacks(world, b, a) || preys(world, a, b) || preys(world, b, a);
+  return hostileFrom(world, a, b) || hostileFrom(world, b, a);
 }
 
 export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): boolean {

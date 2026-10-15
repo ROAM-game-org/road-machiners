@@ -6,7 +6,7 @@ import { postEscortOffer } from './escort-job';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
-import { declareFeud, reportIncident } from './relations';
+import { reportIncident } from './relations';
 import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { corePart } from './grid';
 import { addGoods, cargoRoom } from './inventory';
@@ -33,7 +33,7 @@ import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { answersHoldUp, demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
-import { addState, endState, stateOf, statesHeld } from './states';
+import { addState, declareFeud, endState, stateOf, statesHeld } from './states';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
 import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJob, SalvageStock, Track, Vehicle, World } from './types';
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
@@ -745,7 +745,7 @@ function hurtingFoe(world: World, vehicle: Vehicle): Vehicle | null {
 }
 
 export function defyThreat(world: World, vehicle: Vehicle, threatener: Vehicle, answer: Exclude<DecisionOptions['threatened'], 'comply'>, reason: GoalReason = answer === 'fightBack' ? 'refuseThreat' : 'escapeThreat'): void {
-  if (reason === 'calledOut') declareFeud(world, vehicle, threatener);
+  if (reason === 'calledOut') declareFeud(world, vehicle, threatener.id);
   else reportIncident(world, { aggressor: threatener, victim: vehicle, deed: 'robbed', victimFights: true });
   if (answer === 'fightBack') interrupt(world, vehicle, fightGoal(world, vehicle, threatener, reason));
   else interrupt(world, vehicle, fleeFrom(world, vehicle, npcProfile(vehicle), threatener.id, threatener.pos, reason));
