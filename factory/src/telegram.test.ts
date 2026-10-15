@@ -41,6 +41,26 @@ describe('botClient editText', () => {
   });
 });
 
+describe('botClient sendHtml and editHtml', () => {
+  it('posts and edits in HTML parse mode', async () => {
+    const { fetchFn, calls } = fakeFetch([ok(61), ok(61)]);
+    const client = botClient('T', fetchFn);
+    expect(await client.sendHtml('-100', '<b>Proposal: Winch</b>')).toBe(61);
+    await client.editHtml('-100', 61, '<b>Proposal: Winch</b>\n\n1 👍');
+    expect(calls.map((call) => call.url.split('/').at(-1))).toEqual(['sendMessage', 'editMessageText']);
+    expect(body(calls[0]!)).toEqual({ chat_id: '-100', text: '<b>Proposal: Winch</b>', parse_mode: 'HTML' });
+    expect(body(calls[1]!)).toEqual({ chat_id: '-100', message_id: 61, text: '<b>Proposal: Winch</b>\n\n1 👍', parse_mode: 'HTML' });
+  });
+
+  it('refuses a text it would have to split, since a split breaks the markup', async () => {
+    const { fetchFn, calls } = fakeFetch([ok(1)]);
+    const client = botClient('T', fetchFn);
+    await expect(client.sendHtml('c', 'a'.repeat(4097))).rejects.toThrow('limit is 4096');
+    await expect(client.editHtml('c', 1, 'a'.repeat(4097))).rejects.toThrow('limit is 4096');
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('botClient sendMessage', () => {
   it('posts JSON to the bot endpoint and returns the message id', async () => {
     const { fetchFn, calls } = fakeFetch([ok(41)]);

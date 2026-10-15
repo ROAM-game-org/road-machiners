@@ -1,4 +1,5 @@
-import { QUEUE_OF, type FactoryConfig, type JobStage, type Queue } from './types';
+import { availableParallelism } from 'node:os';
+import { QUEUE_OF, type FactoryConfig, type JobStage, type Pin, type Queue } from './types';
 
 export type Pool = 'light' | 'implement' | 'test';
 
@@ -31,4 +32,8 @@ export function cpuSets(cfg: Shares, cores: number): Record<Pool, string> {
     return [pool, set];
   });
   return Object.fromEntries(sets) as Record<Pool, string>;
+}
+
+export function testPoolPin(cfg: Shares & Pick<FactoryConfig, 'vitestWorkersImplement' | 'vitestWorkersTest'>, cores = availableParallelism()): Pin {
+  return { cpus: cpuSets(cfg, cores).test, testWorkers: vitestWorkersOf(cfg, 'test') };
 }

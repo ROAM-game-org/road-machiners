@@ -17,6 +17,14 @@ import { directionsText } from './directions-text';
 import { renderLine } from './quest-text';
 import { fuelLiters, moneyM } from './units';
 
+const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
+
+export function compass(rad: number): Msg {
+  const step = (2 * Math.PI) / COMPASS.length;
+  const i = Math.round(rad / step);
+  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
+}
+
 const money = (amount: number): Msg => t('call.money', { amount: moneyM(amount) });
 
 function dealText(v: Extract<CallVar, { kind: 'deal' }>): Msg {

@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -869,7 +873,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
-  withoutBearingCall_62_63,
+  withEscortJobs_62_63,
+  withRescueContracts_63_64,
+  withoutBearingCall_64_65,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -890,6 +896,10 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -984,13 +994,13 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
-const BEARING_LINES_62_63: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked'];
+const BEARING_LINES_64_65: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked'];
 
-function withoutBearingCall_62_63(world: SavedJson): SavedJson {
+function withoutBearingCall_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   const said = (call?.line as SavedJson | undefined)?.line;
-  return typeof said === 'string' && BEARING_LINES_62_63.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+  return typeof said === 'string' && BEARING_LINES_64_65.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

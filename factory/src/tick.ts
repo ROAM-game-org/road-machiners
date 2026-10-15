@@ -6,7 +6,7 @@ import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
 import { failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
-import { filterWith } from './public/filter';
+import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
@@ -253,7 +253,7 @@ export const REAL_DEPS: TickDeps = {
   spawn: spawnJob,
   cores: availableParallelism,
   repair: repairClone,
-  publicTick: (ctx) => publicTick(ctx, filterWith(ctx.cfg, fetch)),
+  publicTick: (ctx) => publicTick(ctx, publicFilterWith(ctx.cfg, fetch)),
 };
 
 function dropJob(ctx: Ctx, job: Job): void {

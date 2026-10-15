@@ -32,8 +32,15 @@ export class Rejected extends Error {
   }
 }
 
+export class RateLimited extends Rejected {
+  constructor(readonly resetAt: Date) {
+    super('feedback-rate', 429, 'Too many reports from this address this hour.');
+  }
+}
+
 const BUILDS: readonly string[] = ['release', 'dev', 'candidate'];
 const VERSION = /^\d+\.\d+\.\d+\+([0-9a-f]{7,40})$/;
+const LANGUAGE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,3}$/;
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isString = (value: unknown): value is string => typeof value === 'string';
@@ -46,7 +53,7 @@ const CONTEXT_FIELDS: Record<keyof ReportContext, (value: unknown) => boolean> =
   build: (value) => isString(value) && (value === '' || BUILDS.includes(value)),
   version: (value) => isString(value) && VERSION.test(value),
   userAgent: isString,
-  language: isString,
+  language: (value) => isString(value) && LANGUAGE.test(value),
   screen: (value) => isObject(value) && isSize(value.width) && isSize(value.height) && isSize(value.pixelRatio),
   turn: orNull((value) => Number.isInteger(value)),
   log: (value) => Array.isArray(value) && value.every(isString),
