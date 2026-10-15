@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { SECRET_FIELDS } from '../config';
 import { detectType, imageSize, MAX_BYTES, validSize } from '../media';
 import { MESSAGE_LIMIT } from '../telegram-limits';
 import { OUT_DIR, type AlbumPhoto, type FactoryConfig } from '../types';
@@ -32,8 +33,8 @@ const TRAILING = /[.,;:!?)\]}'"»]+$/;
 const TOKEN_SHAPES = [/\b(?:sk-ant-|sk-|sk_|ghp_|gho_|ghs_|ghu_|github_pat_|AIza)[A-Za-z0-9_-]{8,}/, /\bxox[a-z]-[A-Za-z0-9-]{8,}/, /\b\d{8,10}:[A-Za-z0-9_-]{30,}/];
 const LONG_RUN = /[A-Za-z0-9+/=_-]{40,}/g;
 
-export function configSecrets(cfg: Pick<FactoryConfig, 'oauthToken' | 'elevenlabsKey' | 'geminiKey' | 'telegramToken' | 'openaiKey' | 'butlerKey'>): string[] {
-  const values = [cfg.oauthToken, cfg.elevenlabsKey, cfg.geminiKey, cfg.telegramToken, cfg.openaiKey, cfg.butlerKey];
+export function configSecrets(cfg: Pick<FactoryConfig, (typeof SECRET_FIELDS)[number]>): string[] {
+  const values: unknown[] = SECRET_FIELDS.map((field) => cfg[field]);
   return values.filter((value): value is string => typeof value === 'string' && value.trim() !== '').map((value) => value.trim());
 }
 

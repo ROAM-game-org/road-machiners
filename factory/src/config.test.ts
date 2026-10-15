@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadConfig, readEnvFiles } from './config';
+import { loadConfig, readEnvFiles, unlistedSecrets } from './config';
 
 const FULL = {
   FACTORY_OBSERVATION_HEARTBEAT_MS: '10000', FACTORY_OBSERVATION_MAX_EVENT_BYTES: '1048576',
@@ -108,5 +108,11 @@ describe('readEnvFiles', () => {
     expect(tracked.filter((key) => SECRET.test(key))).toEqual([]);
     const filled = Object.fromEntries(Object.keys(settings).map((key) => [key, settings[key] || (key === 'FACTORY_GPU' ? 'on' : '1')]));
     expect(loadConfig(filled).maxJobsPerCard).toBe(30);
+  });
+});
+
+describe('secret fields', () => {
+  it('lists every config key named like a key, token, secret or password, so the chat answer check never misses one', () => {
+    expect(unlistedSecrets()).toEqual([]);
   });
 });

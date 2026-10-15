@@ -108,6 +108,15 @@ const KEYS = {
 
 const RELEASE_ONLY = new Set<keyof FactoryConfig>(['itchTarget', 'butlerKey']);
 
+export const SECRET_FIELDS = ['oauthToken', 'elevenlabsKey', 'geminiKey', 'telegramToken', 'butlerKey', 'openaiKey'] as const satisfies readonly (keyof FactoryConfig)[];
+
+const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD/;
+
+export function unlistedSecrets(): string[] {
+  const listed = new Set<string>(SECRET_FIELDS);
+  return Object.entries(KEYS).filter(([field, key]) => SECRET_NAME.test(key) && !listed.has(field)).map(([, key]) => key);
+}
+
 const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'replyRouteMinutes', 'releaseDays', 'playtestTurns', 'playtestRuns', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testStallMinutes', 'testingBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays', 'testCacheDays', 'cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars']);
 
 export function loadConfig(env: Record<string, string | undefined>): FactoryConfig {
