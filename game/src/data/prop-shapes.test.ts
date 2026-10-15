@@ -104,6 +104,7 @@ const GATE_TILES: Record<string, number> = {
   fort_compound_gate: 3,
   fort_ring_gate: 3,
   fort_yard_gate: 3,
+  fort_outpost_gate: 4,
 };
 
 const FORT_SIZES = [
@@ -118,6 +119,9 @@ const FORT_SIZES = [
   { model: 'fort_yard_wall', along: 8, across: 2.9, limit: 1.5 },
   { model: 'fort_yard_tower', along: 5.9, across: 5.9, limit: 3 },
   { model: 'fort_yard_gate', along: 4, across: 10, limit: 5 },
+  { model: 'fort_outpost_wall', along: 8, across: 2.9, limit: 1.5 },
+  { model: 'fort_outpost_tower', along: 5.9, across: 5.9, limit: 3 },
+  { model: 'fort_outpost_gate', along: 3, across: 24, limit: 12 },
   { model: 'fort_scrap_wall', along: 8.2, across: 2.9, limit: 1.6 },
   { model: 'fort_scrap_tower', along: 5.5, across: 5.5, limit: 3 },
   { model: 'fort_scrap_gate', along: 9.5, across: 20, limit: 10.1 },
@@ -234,7 +238,7 @@ describe('prop shapes', () => {
   it('stands every fortress piece at least 3x the tallest truck (IV4)', () => {
     const tallest = Math.max(...Object.values(TRUCKS).flatMap((t) => t.boxes.map((b) => b.z1)));
     const forts = names.filter((n) => n.startsWith('fort_'));
-    expect(forts).toHaveLength(26);
+    expect(forts).toHaveLength(30);
     for (const name of forts) {
       expect(Math.max(...SHAPES[name].boxes.map((b) => b.z1)), name).toBeGreaterThanOrEqual(tallest * 3);
     }
