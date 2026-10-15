@@ -84,7 +84,10 @@ Do not commit a change to `SAVE_MAJOR`.
 
 ## Last step: the game docs
 
-After every phase is built, the visual self-review is written and the typecheck passed, run the skill up:udocument on the game docs that this change made stale.
+After every phase is built, the visual self-review is written and the typecheck passed, run the ultrapack skill udocument on the game docs that this change made stale.
+Invoke it with the Skill tool as `up:udocument`, since ultrapack installs as the plugin `up`. Invoke it every time, also when you expect no stale doc.
+The factory reads the Skill tool calls of this session, and the stage fails when no `up:udocument` call follows your last `up:uexecute` call.
+Never write that the skill ran unless you invoked it.
 Find them from the Docs list in CLAUDE.md and the files this issue changed.
 Update each doc to match the code you built, under the skill's rules, and change nothing else in it.
 Commit the doc edits in their own commit on the current branch.
