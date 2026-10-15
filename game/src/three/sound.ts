@@ -371,7 +371,7 @@ class Playlist {
   private track = 0;
   private handle: LoopHandle;
 
-  constructor(private player: SoundPlayer, private cue: "music-calm" | "music-quest" | "music-abandoned") {
+  constructor(private player: Pick<SoundPlayer, "loop">, private cue: "music-calm" | "music-quest" | "music-abandoned") {
     this.files = shuffled(SOUNDS[cue].files, Math.random);
     this.handle = player.loop(cue, { pan: 0, gain: 0 }, this.files[0]);
   }
@@ -390,7 +390,7 @@ class Playlist {
 export class SoundLoops {
   private engine: { healthy: LoopHandle; strained: LoopHandle } | null = null;
   private engineChassis: string | null = null;
-  private player: SoundPlayer;
+  private player: Pick<SoundPlayer, "loop" | "setBusTone">;
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
@@ -398,7 +398,7 @@ export class SoundLoops {
   private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: SoundPlayer, private score: Pick<CombatScore, "setCombat" | "setPaused" | "tick">) {
+  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private score: Pick<CombatScore, "setCombat" | "setPaused" | "tick">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);

@@ -19,7 +19,7 @@ export type BeatLoopHandle = LoopHandle & {
   duck(time: number, gain: number, attackSeconds: number, releaseSeconds: number): void;
 };
 
-const PEAK_WINDOW_SECONDS = 0.02;
+export const PEAK_WINDOW_SECONDS = 0.02;
 
 export type EnvelopePoint = { at: number; rate: number; gain: number };
 export type Glide = { rateFrom: number; rateTo: number; gainFrom: number; gainTo: number; seconds: number; fadeSeconds: number };

@@ -300,3 +300,87 @@ export class BlockSequencer {
     return this.blocks.find((b) => b.section === section)!;
   }
 }
+
+export type PartRule<P extends string> = { always: true } | { enterAt: number; leaveAt: number; holdBars: number; needs: P | null };
+type HeatRule<P extends string> = Exclude<PartRule<P>, { always: true }>;
+
+export type BandRules<P extends string, E extends string> = {
+  parts: Record<P, PartRule<P>>;
+  phraseBars: number;
+  heatHalfLifeSeconds: number;
+  weights: Record<E, number>;
+};
+
+export type Change<P extends string> = { part: P; on: boolean; why: string };
+export type BarPlan<P extends string> = { bar: number; start: number; heat: number; sounding: P[]; changes: Change<P>[] };
+
+type Heard<E extends string> = { kind: E; at: number };
+
+export class Conductor<P extends string, E extends string> {
+  private heard: Heard<E>[] = [];
+  private entered = new Map<P, number>();
+  private order: P[];
+
+  constructor(
+    private rules: BandRules<P, E>,
+    private start: number,
+    private barSeconds: number,
+  ) {
+    this.order = Object.keys(rules.parts) as P[];
+    for (const part of this.order) this.checkRule(part);
+  }
+
+  hear(kind: E, at: number): void {
+    this.heard.push({ kind, at });
+  }
+
+  barStart(bar: number): number {
+    return this.start + bar * this.barSeconds;
+  }
+
+  heatAt(t: number): number {
+    let heat = 0;
+    for (const h of this.heard) if (h.at <= t) heat += this.rules.weights[h.kind] * 0.5 ** ((t - h.at) / this.rules.heatHalfLifeSeconds);
+    return heat;
+  }
+
+  plan(bar: number): BarPlan<P> {
+    const t = this.barStart(bar);
+    const heat = this.heatAt(t);
+    const phrase = bar % this.rules.phraseBars === 0;
+    const changes = phrase ? this.order.map((part) => this.move(part, bar, t, heat)).filter((c) => c !== null) : [];
+    return { bar, start: t, heat, sounding: this.order.filter((p) => this.entered.has(p)), changes };
+  }
+
+  private move(part: P, bar: number, t: number, heat: number): Change<P> | null {
+    const change = this.decide(part, bar, t, heat);
+    if (change?.on) this.entered.set(part, bar);
+    else if (change) this.entered.delete(part);
+    return change;
+  }
+
+  private decide(part: P, bar: number, t: number, heat: number): Change<P> | null {
+    const rule = this.rules.parts[part];
+    const on = this.entered.has(part);
+    if ("always" in rule) return on ? null : { part, on: true, why: "always" };
+    return on ? this.leaving(part, rule, bar, heat) : this.entering(part, rule, heat);
+  }
+
+  private entering(part: P, rule: HeatRule<P>, heat: number): Change<P> | null {
+    if (rule.needs && !this.entered.has(rule.needs)) return null;
+    return heat >= rule.enterAt ? { part, on: true, why: `heat ${heat.toFixed(1)}` } : null;
+  }
+
+  private leaving(part: P, rule: HeatRule<P>, bar: number, heat: number): Change<P> | null {
+    if (rule.needs && !this.entered.has(rule.needs)) return { part, on: false, why: `${rule.needs} left` };
+    if (bar - this.entered.get(part)! < rule.holdBars) return null;
+    return heat < rule.leaveAt ? { part, on: false, why: `heat ${heat.toFixed(1)}` } : null;
+  }
+
+  private checkRule(part: P): void {
+    const rule = this.rules.parts[part];
+    if ("always" in rule) return;
+    if (rule.leaveAt >= rule.enterAt) throw new Error(`Part ${part} must leave below the heat it enters at`);
+    if (rule.needs && this.order.indexOf(rule.needs) >= this.order.indexOf(part)) throw new Error(`Part ${part} needs ${rule.needs}, which must come before it`);
+  }
+}

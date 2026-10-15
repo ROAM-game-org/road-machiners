@@ -1,4 +1,6 @@
 
+import type { BandRules } from "../audio/designer";
+
 export type Bus = "ui" | "sfx" | "ambient" | "music";
 
 export type CueDef = {
@@ -81,7 +83,7 @@ const DEFS = {
   "score-bass": { bus: "music", setup: "score", beat: { bpm: 110, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless bass guitar loop, 110 BPM in 4/4: fast driving eighth-note riff on D, gritty overdriven tone, chugging and relentless, even level, bass only, no drums."] },
   "score-horns": { bus: "music", setup: "score", beat: { bpm: 100, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless dark Afro-funk war loop, 100 BPM in 4/4: brutal low baritone sax and trumpet blasts on D minor, pounding heavy drums, fuzz bass hammering every beat. Hard and menacing, not happy, no fills."] },
   "score-trombone": { bus: "music", setup: "score", beat: { bpm: 100, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless dark Afro-funk war loop, 100 BPM in 4/4: growling low trombone riff with heavy slides on D minor, pounding heavy drums, fuzz bass hammering every beat. Hard and menacing, not happy, no fills."] },
-  "accent-sighted": { bus: "music", setup: "stinger", volume: 0.85, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["Three heavy tribal war drum hits, boom boom boom, with a low Mongolian throat singing growl rising under them."], seconds: 1.5 },
+  "accent-sighted": { bus: "music", setup: "stinger", volume: 0.85, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["Three heavy tribal war drum hits spread over one second, boom, boom, boom, with a distorted electric guitar chord ringing out under them and a low throat singing growl."], seconds: 1.5 },
   "accent-struck": { bus: "music", setup: "stinger", volume: 0.85, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["One distorted electric guitar power chord on D slammed with a big tribal drum hit, then a short falling throat singing groan."], seconds: 1.5 },
   "accent-miss": { bus: "music", setup: "stinger", volume: 0.75, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["A quick palm-muted distorted electric guitar chug and a tight snare flam, then silence."], seconds: 1 },
   "accent-hit": { bus: "music", setup: "stinger", volume: 1.3, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["One sharp distorted electric guitar power chord stab on D, a hard bright pick attack that cuts through, with one tribal drum hit under it."], seconds: 1.5 },
@@ -276,4 +278,22 @@ export const SCORE_BLOCKS = {
   aheadSeconds: 0.25,
   startLeadSeconds: 0.1,
   eventLeadSeconds: 0.05,
+};
+
+export const BAND_EVENTS = ["accent-sighted", "accent-struck", "accent-crit", "accent-crash", "accent-hit", "accent-miss"] as const;
+export type BandEvent = (typeof BAND_EVENTS)[number];
+export const BAND_PARTS = ["drums", "bass", "wall", "keys"] as const;
+export type BandPart = (typeof BAND_PARTS)[number];
+
+
+export const BAND: BandRules<BandPart, BandEvent> = {
+  parts: {
+    drums: { always: true },
+    bass: { always: true },
+    wall: { enterAt: 1.5, leaveAt: 0.5, holdBars: 8, needs: null },
+    keys: { enterAt: 5.5, leaveAt: 2.5, holdBars: 8, needs: "wall" },
+  },
+  phraseBars: 4,
+  heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
+  weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
 };
