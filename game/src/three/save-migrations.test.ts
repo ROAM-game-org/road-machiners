@@ -66,6 +66,8 @@ import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_67 from './save-fixtures/format-2-67.json';
+import FORMAT_2_68 from './save-fixtures/format-2-68.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1389,5 +1391,45 @@ describe('MIGRATIONS[65]', () => {
     expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
     expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
     expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});
+
+describe('save migration 67 to 68', () => {
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[67](structuredClone(FORMAT_2_67))).toEqual(FORMAT_2_67);
+  });
+});
+
+describe('save migration 68 to 69', () => {
+  const migrated = () => MIGRATIONS[68](structuredClone(FORMAT_2_68)) as typeof FORMAT_2_68;
+
+  it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
+    const w = migrated();
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct4']);
+    expect(w.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct3']);
+    expect(w.shops.nose.contracts).toEqual([]);
+  });
+
+  it('ends a call on the removed found topic and forgets that topic', () => {
+    const w = migrated();
+    expect(w.player.call).toBeNull();
+    expect(w.player.talked).toEqual({ v7: { directions: 'done' }, v3: { lastSeen: 'done' } });
+  });
+
+  it('keeps a call on another topic', () => {
+    const save = structuredClone(FORMAT_2_68);
+    save.player.call.topic = 'lastSeen';
+    expect((MIGRATIONS[68](save) as typeof FORMAT_2_68).player.call).toEqual(save.player.call);
   });
 });

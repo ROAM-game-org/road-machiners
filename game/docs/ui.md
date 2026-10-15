@@ -108,6 +108,20 @@ Before boot builds a world, the start menu fills the screen alone, with no zones
 
 The always-on HUD answers a short list of questions without a click: can I keep going, is my truck okay, what is around me, what will this turn do, what just happened and what am I waiting on. A new always-on element names the question it answers. If it answers none, it goes in a panel.
 
+### 4.4 Phone layout
+
+`#ui.phone` is a small viewport: at most 560px wide or 480px tall. `src/ui/input-mode.ts` owns the threshold and sets the class, and `phone.css` holds every rule under it. A desktop window above the threshold keeps the layout of 4.2. The phone layout answers the same always-on questions on a screen a quarter of the size.
+
+- The top row holds the health readout and Menu at the right, inside the safe area, with nothing at the left. Camera mode and Report a bug or request a feature are Menu entries on a phone. The action bar, toast, notices and tips sit under it at full width.
+- The bottom bar holds four drawer tabs (`.drawer-tabs`), the small speed dial, the LCD readouts, the action switches and End turn, all always on. In portrait the instruments take their own block above the tabs.
+- A drawer holds what the bar does not: Truck (the truck diagram and the hauler gauge), Guns (the weapons), Radio (the radio and the contracts) and Log. One is open at a time. A tap on its tab opens or closes it, and a tap on the map leaves it open, so the player can aim with Guns open. In portrait a drawer spans the width above the bar. In landscape Truck and Guns open over the left half and Radio and Log over the right half. A drawer scrolls inside and is never taller than the space between the top row and the bar.
+- The Guns tab takes the danger edge while the player is in combat. This is the attention level of 7, a mark that stays while the state is true. Nothing opens by itself.
+- The cursor card is right-aligned under the top row and ends one gap above the bar or the drawer under it. It scrolls inside, and it never grows over the map.
+- A modal fills the viewport inside the safe area and scrolls inside, with its close button in view. The bar and the drawers hide while one is open.
+- Drawer state lives in the UI and is not saved.
+
+This layout bends two rules, and each is a new pattern, not a changed principle. P2, key facts never one step away: the diagram, the weapons, the radio and the log are one tap away, since a 390 by 844 screen cannot hold them without covering the playfield, which breaks P3 and P18. The key facts for the turn stay on screen: the speed dial, the readouts, the health, the action switches, End turn and the action bar. 4.2, an element never moves between zones: in portrait a drawer spans the width. It keeps the content and the job of its zone, but not the edge.
+
 ## 5. Entity anatomy
 
 Parts, trucks, drivers, goods, contracts and places appear on many screens. Each has three densities with fixed slots in a fixed order: identity, then state, then key numbers, then cost, then action.
@@ -142,6 +156,7 @@ One grammar for every control and every selectable thing.
 - A control uses only the states in this table.
 - A disabled control still takes hover and focus, so its reason can show. It uses `aria-disabled` and the shared tooltip, and the reason is one short fact like Need 12 M more.
 - Unaffordable and locked look different, because the player fixes one by earning and the other by progressing.
+- Touch has no hover, so it fills the gap. The first tap shows what hover would show: a tap on a truck only pins its card, and a tap on a point utility only sets its marker. A tap on the thing already shown does what a click does. A long press of 500ms on a control opens what hover opens, its title or its reason, and a tap on a disabled control opens its reason. The ground needs no preview tap, since a plan is free and the drawn path is its preview. A long press on the ground is Shift-click. `#ui.touch` is the primary pointer being coarse, and it only decides what the screen shows: no keycaps, the Call, Mark, Horn, Rotate and close buttons, and touch wording in tips and help. Under it the small button is 32px and a click target is at least `--touch-target`.
 - A click target is at least the small button height, 24px. The aim cells on the truck hover card follow this rule too, so the card grows to give its drawing room. Other drawn hardware is exempt and keeps the size of its drawing.
 
 ## 7. Feedback and alerts
@@ -217,6 +232,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - `--radius-s` and `--radius-m` round corners. A circle stays `50%`.
 - `--icon-xs` 12px to `--icon-hero` 56px size icon boxes. `--meter-s`, `--meter-m` and `--meter-l` set bar heights, and `--pip` sets a rank pip or a footprint cell.
 - Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal.
+- Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32px. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
 - HUD placement: `--hud-inset` from the window edge, `--hud-gap` between HUD panels, `--hud-hover-top` for the hover panel and `--hud-notice-top` for notices.
 - Layers run `--z-hud` to `--z-crash`. A new layer goes between two others in `tokens.css`, never as a raw number.
 
@@ -236,6 +252,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
+- `.drawer-tabs` is the tab row of the phone layout: one icon `.btn-l` per drawer with an `aria-label`, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.
 - `.hauler-gauge` is the hauler's chassis portrait beside a `.meter` of its condition, in the bottom left zone under the truck diagram, shown only in a run. Its tooltip reads "Hauler, 82% in one piece". It answers whether the hauler is okay, and the grid and the world answer the rest.

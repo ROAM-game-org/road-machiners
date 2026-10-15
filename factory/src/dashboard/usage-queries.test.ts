@@ -45,9 +45,15 @@ describe('usage queries', () => {
     ]);
     expect(rows(result, 'counters')).toEqual([{ worker_ms: 3_600_000, cost: 1.5, input: 10, output: 20, cache_read: 30, cache_write: 40, wasted_cost: null, wasted_input: null, wasted_output: null, wasted_cache_read: null, wasted_cache_write: null }]);
     expect(rows(result, 'problems')).toEqual([{ unreadable: 0, untimed: 0, uncosted: 0 }]);
-    expect(rows(result, 'stage_time')).toEqual([{ stage: 'design', worker_ms: 3_600_000 }]);
+    expect(rows(result, 'stage_time')).toEqual([{ stage: 'design', worker_ms: 3_600_000, agent_ms: 0, checks_ms: 0, build_ms: 0, factory_ms: 0, unsplit_ms: 3_600_000 }]);
     expect(rows(result, 'coverage')).toEqual([{ since: '2026-10-10T11:00:00Z', missing_usage: 0 }]);
     expect(JSON.stringify(result)).not.toContain('PRIVATE');
+  });
+
+  it('splits a job with parts into agent, checks, build and factory time', async () => {
+    const parts = [{ kind: 'agent' as const, startedAt: '2026-10-10T10:00:00Z', endedAt: '2026-10-10T10:30:00Z' }, { kind: 'checks' as const, startedAt: '2026-10-10T10:30:00Z', endedAt: '2026-10-10T10:50:00Z' }];
+    const result = await run([{ ...job('job-2', 'verify', 12, '2026-10-10T10:00:00Z', '2026-10-10T11:00:00Z', 'done', []), parts }]);
+    expect(rows(result, 'stage_time')).toEqual([{ stage: 'verify', worker_ms: 3_600_000, agent_ms: 1_800_000, checks_ms: 1_200_000, build_ms: 0, factory_ms: 600_000, unsplit_ms: 0 }]);
   });
 
   it('reports token coverage as missing for older cost-only records', async () => {
