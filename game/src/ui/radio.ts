@@ -137,7 +137,7 @@ export class RadioStation {
     const found = (id: string) => world.player.discovered.includes(id);
     const known = fresh.filter((c): c is BoardContract => c.kind !== 'escort' && found(c.shop) && (c.kind !== 'haul' || found(c.to)));
     const best = known.sort((a, b) => b.reward - a.reward)[0];
-    if (best) this.push(best.kind, contractVars(best), 'news');
+    if (best) this.push(best.kind, contractVars(world, best), 'news');
   }
 
   private timeCall(prevTurn: number, turn: number): void {
@@ -199,8 +199,9 @@ function boardIds(world: World): Set<string> {
 
 type BoardContract = Exclude<Contract, { kind: 'escort' }>;
 
-function contractVars(c: BoardContract): Slots {
+function contractVars(world: World, c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
+  if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
   return { shop, target: templateName(c.template) };
@@ -220,9 +221,13 @@ function placeOf(world: World, pos: Vec): Place {
   if (dist(nearest.pos, pos) <= RADIO.nearTiles && world.player.discovered.includes(nearest.id)) {
     return { key: nearest.id, words: t('radio.near', { site: siteName(nearest.id) }) };
   }
-  const center = world.size / 2;
-  const basin = compass({ x: pos.x - center, y: pos.y - center });
+  const basin = basinOf(world, pos);
   return { key: basin, words: t(`radio.basin.${basin}`) };
+}
+
+function basinOf(world: World, pos: Vec): Direction {
+  const center = world.size / 2;
+  return compass({ x: pos.x - center, y: pos.y - center });
 }
 
 function compass(v: Vec): Direction {

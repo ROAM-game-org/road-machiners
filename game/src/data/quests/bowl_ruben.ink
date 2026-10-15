@@ -24,7 +24,7 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
   -> hub
 + [Where can I get water, or find work?]
   Water is Hattie's trade. She keeps the well house and sells a bucket to anyone with M's. Work is Dag's, because he rides with the <term=farmers>Farmers</term> and knows what hauls are waiting.
-  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from the Pump Station. That's a pumpworks out on the flat, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
+  I only open the gates. The water that goes through them belongs to the families, and the water trucks bring it from <term=dustwell>Dustwell</term>. That's a well outpost up the north road, hours away. They pour it into the canals at the bottom of Bowl, and the families share it out.
   ~ ruben_water = true
   -> hub
 + {ruben_old} [What did your grandmother tell you about the old days?]
@@ -38,9 +38,9 @@ Sit a while, the shade is free. I am Ruben, and I keep the canal gates. That mea
 + {found("fallen-sun")} [What is the Fallen Sun really?]
   So you've stood in that crater, and you know more of it than I do. <term=nose>Nose</term> calls the ship a warship, and Hattie at the well house calls it a seed ship that lost its way. I can only tell you that nothing grows near it, and of any place that is the worst thing I know how to say.
   -> hub
-+ {ruben_water || found("pump-station")} [What do you know about the Pump Station?]
++ {ruben_water || found("dustwell")} [What do you know about Dustwell?]
   In the last dry year the pumps at Green Pit drew mud by noon, and the Senate argued over whose fault that was, as if the pumps had been listening.
-  Wendell Ondra kept the pump book there all his life and died at the Green Pit sluice. His niece Agnes keeps the book now, and she writes down every drop.
+  In the Dustwell shed, Wendell Ondra kept the pump book all his life and died at the Green Pit sluice. His niece Agnes keeps the book now, and she writes down every drop.
   -> hub
 + {ruben_senate} [What are the tenants saying?]
   They say they feed Bowl and have no say in it, and they're right. The families never wanted to tell a tenant what to think, only what to plant.

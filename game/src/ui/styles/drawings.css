@@ -134,6 +134,9 @@
   font: var(--text-caption) / 1 var(--font-mono);
   color: var(--ink-muted);
 }
+#ui.touch .key-corner {
+  display: none;
+}
 /* The lever stands on a hex nut and leans up when the switch is on. */
 .switch-lever {
   position: relative;

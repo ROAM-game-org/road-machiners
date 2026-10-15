@@ -3,7 +3,7 @@ import type { Ctx } from '../types';
 import { pitchTitle } from './proposals';
 import { openStore } from './store';
 
-const INVITE = 'Tell us what you think in the comments. The committee decides if it ships.';
+const INVITE = 'Tell us what you think in the comments.';
 
 function fitWithin(text: string, room: number): string {
   if (text.length <= room) return text;
