@@ -6,6 +6,7 @@ import type { Msg } from "../text/msg";
 import { feedbackBuild, feedbackStatus, FEEDBACK_TEXT_LIMIT, sendFeedback, type FeedbackReport } from "./game-menu";
 
 const render = (msg: Msg) => resolve(msg, "en");
+const renderRu = (msg: Msg) => resolve(msg, "ru");
 
 const context: ReportContext = {
   build: "dev",
@@ -39,6 +40,35 @@ describe("sendFeedback", () => {
   it("shows each answer in the player's language", () => {
     expect(render(feedbackStatus({ status: "sent" }))).toBe("Thank you. Your report is sent.");
     expect(render(feedbackStatus({ status: "failed" }))).toBe("Could not send. Try again.");
+  });
+
+  it("reports a rate limit with the minutes until the server takes reports again", async () => {
+    const post = vi.fn().mockResolvedValue(answer(429, { status: "limited", retryAfterSeconds: 1501 }));
+    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "limited", minutes: 26 });
+  });
+
+  it("reports a rate limit with no time when the 429 does not say when it ends", async () => {
+    for (const body of ["Too many requests", { status: "limited" }, { status: "limited", retryAfterSeconds: -5 }]) {
+      const post = vi.fn().mockResolvedValue(answer(429, body));
+      expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "limited", minutes: null });
+    }
+  });
+
+  it("keeps each blocked retry limited, and sends once the server takes reports again", async () => {
+    const post = vi.fn().mockImplementation(async () => answer(429, { status: "limited", retryAfterSeconds: 60 }));
+    for (let i = 0; i < 3; i++) expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "limited", minutes: 1 });
+    post.mockResolvedValue(answer(200, { status: "sent" }));
+    expect(await sendFeedback(post, URL_OF_SERVER, report)).toEqual({ status: "sent" });
+  });
+
+  it("tells a limited player when to send again, in English and Russian, and never says to try again now", () => {
+    const limited = feedbackStatus({ status: "limited", minutes: 26 });
+    const later = feedbackStatus({ status: "limited", minutes: null });
+    expect(render(limited)).toContain("26 minutes");
+    expect(renderRu(limited)).toContain("26 минут");
+    for (const text of [render(limited), render(later)]) expect(text).not.toBe(render(feedbackStatus({ status: "failed" })));
+    for (const text of [renderRu(limited), renderRu(later)]) expect(text).not.toBe(renderRu(feedbackStatus({ status: "failed" })));
+    expect(render(feedbackStatus({ status: "limited", minutes: 1 }))).toContain("1 minute.");
   });
 
   it("fails on an error status", async () => {
