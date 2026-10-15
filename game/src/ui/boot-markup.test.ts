@@ -15,10 +15,14 @@ describe('index.html boot markup', () => {
     expect(html).toContain(`'${resolve(t('boot.failedToLoad'), 'en')}'`);
   });
 
-  it('loads the same English faces as the font gate', () => {
-    const listed = /var faces = \[([^\]]+)\]/.exec(html)?.[1] ?? '';
-    const faces = [...listed.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
-    expect(faces).toEqual(FONT_FACES.en);
+  it('loads the same faces as the font gate', () => {
+    const faceList = (name: string) => {
+      const listed = new RegExp(`var ${name} = \\[([^\\]]+)\\]`).exec(html)?.[1] ?? '';
+      return [...listed.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+    };
+    const mono = faceList('mono');
+    expect([...faceList('english'), ...mono]).toEqual(FONT_FACES.en);
+    expect([...faceList('russian'), ...mono]).toEqual(FONT_FACES.ru);
   });
 
   it('reveals the boot text when the page fails to load', () => {
