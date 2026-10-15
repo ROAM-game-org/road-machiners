@@ -310,6 +310,41 @@ export const BAND: BandRules<BandPart, BandEvent> = {
   weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
 };
 
+export const JAM_PARTS = ["drums", "bass", "guitar", "vocals"] as const;
+export type JamPart = (typeof JAM_PARTS)[number];
+
+export const JAM: BandRules<JamPart, BandEvent> = {
+  parts: {
+    drums: { always: true },
+    bass: { always: true },
+    guitar: { enterAt: 0.4, leaveAt: 0.2, holdBars: 2, needs: null },
+    vocals: { enterAt: MIX.score.hotHeat, leaveAt: 1, holdBars: 4, needs: "guitar" },
+  },
+  phraseBars: 2,
+  heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
+  weights: BAND.weights,
+};
+
+export const JAM_ANSWERS: Record<BandEvent, { parts: readonly JamPart[]; beats: number }> = {
+  "accent-sighted": { parts: ["bass", "guitar"], beats: 2 },
+  "accent-struck": { parts: ["drums", "bass"], beats: 1 },
+  "accent-crit": { parts: ["bass", "guitar"], beats: 2 },
+  "accent-crash": { parts: ["drums", "bass", "guitar"], beats: 2 },
+  "accent-hit": { parts: ["guitar"], beats: 1 },
+  "accent-miss": { parts: ["bass"], beats: 0.5 },
+};
+
+export const JAM_MIX = {
+  accent: 1.4,
+  answerAttackSeconds: 0.005,
+  answerDecayBeats: 0.25,
+  answerSlotsPerBeat: 2,
+  ringBeats: 0.5,
+  enterBeats: 1,
+  exitBeats: 1,
+  firstEnterSeconds: 0.01,
+};
+
 export const BAND_ANSWERS: Record<BandEvent, { parts: readonly BandPart[]; beats: number }> = {
   "accent-sighted": { parts: ["bass", "wall"], beats: 2 },
   "accent-struck": { parts: ["drums", "bass"], beats: 1 },

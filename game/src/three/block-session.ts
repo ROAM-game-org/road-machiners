@@ -25,7 +25,7 @@ export type Push = { at: number; line: LineId; stab: boolean; fillBar: number };
 export const TURN_SECONDS = 1;
 export const HEAVY = new Set<AccentCue>(["accent-sighted", "accent-struck", "accent-crit", "accent-crash"]);
 const PRIORITY: AccentCue[] = ["accent-crash", "accent-sighted", "accent-struck", "accent-crit", "accent-hit", "accent-miss"];
-const DENSE_TURN: [AccentCue, number][] = [
+export const DENSE_TURN: [AccentCue, number][] = [
   ["accent-hit", 10],
   ["accent-miss", 8],
   ["accent-struck", 3],
