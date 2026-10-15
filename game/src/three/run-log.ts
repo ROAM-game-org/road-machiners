@@ -6,6 +6,7 @@ import type { GameEvent, GridItem, Vehicle, World } from '../sim/types';
 import { partValue } from '../sim/wear';
 import type { LogEntry, SaveBackend } from './save-db';
 import type { SlotId } from './save-slots';
+import { itemLookId } from '../render/partLooks';
 
 type Body = { kind: string } & Record<string, unknown>;
 
@@ -69,7 +70,7 @@ function holdings(world: World): string[] {
 }
 
 function itemId(item: GridItem): string {
-  return item.kind === 'part' ? item.part.defId : item.good;
+  return itemLookId(item);
 }
 
 function difference(a: readonly string[], b: readonly string[]): string[] {

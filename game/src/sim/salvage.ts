@@ -284,6 +284,7 @@ export function createWreckSalvage(world: World, vehicle: Vehicle): void {
   const goods = goodsCount(vehicle);
   const parts: PartInstance[] = [];
   const core: PartInstance[] = [];
+  requireNoParcel(vehicle);
   for (const item of vehicle.items) {
     if (item.kind !== 'part') continue;
     if (partDef(item.part.defId).kind === 'core') core.push(item.part);
@@ -293,6 +294,11 @@ export function createWreckSalvage(world: World, vehicle: Vehicle): void {
   if (coreScrap > 0) goods.parts = (goods.parts ?? 0) + coreScrap;
   addVehicleStock(world, vehicle, wreckStockId(vehicle.id), goods, parts);
   vehicle.items = vehicle.items.filter((item) => item.kind === 'part' && partDef(item.part.defId).kind === 'core');
+}
+
+function requireNoParcel(vehicle: Vehicle): void {
+  const parcel = vehicle.items.find((item) => item.kind === 'parcel');
+  if (parcel) throw new Error(`${vehicle.id} was wrecked holding parcel ${parcel.id}`);
 }
 
 function coreWreckScrap(vehicle: Vehicle, core: PartInstance[]): number {
@@ -325,11 +331,16 @@ export function spillOnPile(world: World, vehicle: Vehicle, items: GridItem[]): 
 }
 
 export function looseCargo(vehicle: Vehicle): GridItem[] {
-  return vehicle.items.filter((item) => item.kind === 'good' || !isMounted(vehicle.chassisId, item));
+  return vehicle.items.filter((item) => isLooseCargo(vehicle, item));
 }
 
 export function hasCargo(vehicle: Vehicle): boolean {
-  return vehicle.items.some((item) => item.kind === 'good' || !isMounted(vehicle.chassisId, item));
+  return vehicle.items.some((item) => isLooseCargo(vehicle, item));
+}
+
+function isLooseCargo(vehicle: Vehicle, item: GridItem): boolean {
+  if (item.kind === 'parcel') return false;
+  return item.kind === 'good' || !isMounted(vehicle.chassisId, item);
 }
 
 function addVehicleStock(world: World, vehicle: Vehicle, id: string, goods: Record<string, number>, parts: PartInstance[]): SalvageStock {
@@ -350,6 +361,7 @@ function dropOnPile(world: World, vehicle: Vehicle, items: GridItem[], id: strin
 function fillPile(world: World, vehicle: Vehicle, pile: SalvageStock, items: GridItem[]): void {
   const held = stampPile(world, vehicle.id === world.player.vehicleId, pile);
   for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} never goes on a pile`);
     if (item.kind === 'good') dropGood(world, held, item.good);
     else pile.parts.push(item.part);
   }
@@ -817,4 +829,12 @@ export function oldSpotOf(stock: { id: string }): { type: OldPlaceType; propId: 
 
 export function oldSpotsNear(world: World, pos: Vec, range: number): OldSpotPick[] {
   return oldSpotPicks({ hash: world.mapHash, terrain: world.terrain }).filter((p) => dist(p.pos, pos) <= range);
+}
+
+const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
+
+export function meanLootValue(table: LootTable): number {
+  const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
+  const parts = meanOf(table.parts) * GOODS.parts.value;
+  return goods + parts + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
 }
