@@ -2,6 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf } from './damage';
+import { backOutSpot } from './back-out';
 import { isDefeated } from './defeat';
 import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
 import { acrossOf, alongOf, roadPoint, toRoad, windowSpan } from './highway';
@@ -179,12 +180,45 @@ function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   return { kind: 'through', dest, pace: haulerPace(world) };
 }
 
+function movedLastTurn(hauler: Vehicle): number {
+  let total = 0;
+  for (let i = 1; i < hauler.trail.length; i++) total += dist(hauler.trail[i - 1], hauler.trail[i]);
+  return total;
+}
+
+function heldInPlace(hauler: Vehicle): boolean {
+  return hauler.trail.length > 1 && movedLastTurn(hauler) < RULES.arriveRadius / 2;
+}
+
+function backingOut(world: World, hauler: Vehicle): boolean {
+  const order = hauler.order;
+  return order?.kind === 'stopAt' && dist(order.dest, outpostPad(world, runOf(world).window + 1)) > 0 && !heldInPlace(hauler);
+}
+
+function nearPadOrParked(world: World, hauler: Vehicle): boolean {
+  return betweenLevels(world) || dist(hauler.pos, outpostPad(world, runOf(world).window + 1)) <= HAULER.approach;
+}
+
+function wedged(hauler: Vehicle): boolean {
+  return hauler.order?.kind === 'through' && heldInPlace(hauler);
+}
+
+function recoveryOrder(world: World, hauler: Vehicle): MoveOrder | null {
+  if (nearPadOrParked(world, hauler)) return null;
+  if (backingOut(world, hauler)) return hauler.order;
+  return wedged(hauler) ? { kind: 'stopAt', dest: backOutSpot(world, hauler) } : null;
+}
+
+function laneOrder(world: World, hauler: Vehicle): MoveOrder | null {
+  const order = haulerOrder(world, hauler);
+  if (order) requireOnLaneOrPad(world, order);
+  return order;
+}
+
 export function planHaulerOrder(world: World): void {
   if (!world.furyRoad || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
-  const order = haulerOrder(world, hauler);
-  if (order) requireOnLaneOrPad(world, order);
-  hauler.order = order;
+  hauler.order = recoveryOrder(world, hauler) ?? laneOrder(world, hauler);
   hauler.direct = false;
 }
 

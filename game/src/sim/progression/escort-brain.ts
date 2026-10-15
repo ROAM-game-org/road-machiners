@@ -8,7 +8,7 @@ import { isKnockedOut } from '../defeat';
 import { corePart } from '../grid';
 import { alongOf, toRoad } from '../highway';
 import { inArc } from '../combat';
-import { isFree } from '../spawn';
+import { backOutSpot } from '../back-out';
 import { vehicleStats, type MountedWeapon } from '../stats';
 import { followPace, followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
@@ -122,13 +122,8 @@ function heldAway(me: Vehicle, last: Vec): boolean {
   return dist(me.pos, last) < RULES.arriveRadius / 2 && dist(me.pos, order.dest) > RULES.arriveRadius * 2;
 }
 
-const WAYS_OUT = [180, 135, -135, 90, -90].map((deg) => (deg * Math.PI) / 180);
-
 function startBackOut(world: World, me: Vehicle, stall: Stall): void {
-  const back = RULES.reverse.distance + RULES.minAimDistance;
-  const spots = WAYS_OUT.map((turn) => ({ x: me.pos.x + Math.cos(me.heading + turn) * back, y: me.pos.y + Math.sin(me.heading + turn) * back }));
-  const radius = vehicleStats(world, me).radius;
-  stall.goal = spots.find((spot) => isFree(world, spot, radius, me.id)) ?? spots[0];
+  stall.goal = backOutSpot(world, me);
   stall.recovery = RULES.npcRecoveryTurns;
   stall.stalled = 0;
 }

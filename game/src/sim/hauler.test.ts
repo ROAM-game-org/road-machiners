@@ -170,6 +170,34 @@ describe('the hauler driver', () => {
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
   });
 
+  it('backs out when a drive order left it in place, keeps backing while it moves, then drives on', () => {
+    const { w, hauler } = openRoad();
+    planHaulerOrder(w);
+    const drive = hauler.order;
+    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];
+    planHaulerOrder(w);
+    expect(hauler.order?.kind).toBe('stopAt');
+    const spot = (hauler.order as { dest: { x: number; y: number } }).dest;
+    expect(dist(spot, hauler.pos)).toBeCloseTo(RULES.reverse.distance + RULES.minAimDistance, 5);
+    expect(alongOf(w.seed, toRoad(0, spot))).toBeLessThan(alongOf(w.seed, toRoad(0, hauler.pos)));
+
+    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { x: hauler.pos.x, y: hauler.pos.y + 1, heading: hauler.heading }];
+    planHaulerOrder(w);
+    expect(hauler.order).toEqual({ kind: 'stopAt', dest: spot });
+
+    hauler.order = null;
+    planHaulerOrder(w);
+    expect(hauler.order).toEqual(drive);
+  });
+
+  it('does not back out after a turn parked or braking, only after a drive order that went nowhere', () => {
+    const { w, hauler } = openRoad();
+    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];
+    hauler.order = { kind: 'brake' };
+    planHaulerOrder(w);
+    expect(hauler.order?.kind).toBe('through');
+  });
+
   it('parks between levels, braking only while it still rolls', () => {
     const { w, hauler } = openRoad();
     w.furyRoad!.waitingAt = 1;

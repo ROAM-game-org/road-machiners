@@ -39,6 +39,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Lane: it aims at the center of one of the four lanes, 12 tiles ahead. Its lane is the lane center nearest to it, so nothing about the lane is saved.
 - Hazards: when its lane is blocked within the 12 tiles ahead, by a prop, a wreck, a hazard or a truck of the run that is parked or slower than it, it takes the nearest clear lane. On a tie it takes the lane toward the road middle.
 - No clear lane: it keeps its lane and aims past the last prop or wreck within 32 tiles, so the router threads the gap on one route. It never aims off the asphalt, and only the router uses the shoulder or verge.
+- Stuck: when a turn on a drive order moves it less than a quarter tile, it backs out to the first free spot behind, behind-left, behind-right, left or right of it, 2.5 tiles away, and then drives on. It keeps backing while it moves and drops the back-out when that also goes nowhere. `backOutSpot()` in `src/sim/back-out.ts` picks the spot, and the escort bot uses the same rule.
 - Craters: a crater dip of 0.1 or more under the hauler's width in its lane, within 32 tiles ahead, also blocks the lane. A semi that crosses a deep dip can bottom out on the rim and stop.
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
 - Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. It never brakes for a fight and never stops on the road.
@@ -111,8 +112,10 @@ A card is a chaser or a blocker. A chaser's truck keeps 5.5 tiles a turn loaded,
 
 A group of chasers comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind.
 
-- ahead: 22 tiles ahead of the hauler, on the hauler's line across the road.
-- left or right: 22 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
+- ahead: 45 tiles ahead of the hauler, on the hauler's line across the road.
+- left or right: 36 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
+
+Both are past the sight radius of 20 tiles from the hauler, so a group shows first as dust on the road ahead before it comes into view.
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
@@ -121,7 +124,7 @@ Encounters are paced by place. Each group has a place along the stretch, at the 
 Group trucks spawn with full tanks and no cargo, already rolling north along the road at the hauler's cruise speed. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
 
 - Each turn a group truck picks its prey. It picks the gun truck while it is in danger from it: one of the gun truck's working guns can hit it now, or the gun truck shot it or crashed into it so that it took damage. Otherwise it picks the nearer of the two trucks, and the hauler counts as nearer only when it is more than 8 tiles nearer, so a tie goes to the gun truck. `groupPrey()` in `src/sim/combat.ts` holds the rule.
-- Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north toward the prey's lane instead. It waits while the prey is more than 36 tiles back and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. While its moving prey is ahead of it beyond its gun reach, it drives at its full speed for a point 12 tiles ahead of the prey. `rollingOrder()` in `src/sim/hunters.ts` holds both rules.
+- Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north toward the prey's lane instead. It rolls at half the prey's speed while the prey is 46 tiles back, and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. While its moving prey is ahead of it beyond its gun reach, it drives at its full speed for a point 12 tiles ahead of the prey. `rollingOrder()` in `src/sim/hunters.ts` holds both rules.
 - Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.
