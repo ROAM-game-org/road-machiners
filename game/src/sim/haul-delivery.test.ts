@@ -1,5 +1,5 @@
 import { defaultSetup } from './settings';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { GOODS } from '../data/goods';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -8,7 +8,9 @@ import { goodsCount } from './grid';
 import { acceptContract, contractReward, estimateTurns, goodValue, haulWindow, shopState, siteOf, type Contract } from './market';
 import { FAR_MOVER, playTurns } from './progression/record';
 import { nearestPad } from './sites';
-import { newWorld, update } from './world';
+import { update } from './world';
+import { reusedWorld } from '../test/world-cache';
+import { newWorld } from './world';
 
 const UNITS = 8;
 
@@ -19,8 +21,12 @@ function offer(rush: boolean): Extract<Contract, { kind: 'haul' }> {
 }
 
 describe('Bowl to Granary tools haul', () => {
+  beforeAll(() => {
+    reusedWorld('midgame 1', () => newWorld(1, startKit('midgame'), TEST_MAP, defaultSetup('roaming')));
+  });
+
   it.each([false, true])('is delivered on time and pays its reward (rush %s)', (rush) => {
-    let world = newWorld(1, startKit('midgame'), TEST_MAP, defaultSetup('roaming'));
+    let world = reusedWorld('midgame 1', () => newWorld(1, startKit('midgame'), TEST_MAP, defaultSetup('roaming')));
     const pad = nearestPad(siteOf('bowl'), playerVehicle(world).pos);
     const haul = offer(rush);
     world = update(world, (d) => {
