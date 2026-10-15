@@ -102,14 +102,14 @@ function jpegSize(data: Buffer): Size | null {
   return null;
 }
 
-async function readCapped(res: Response): Promise<Buffer> {
+export async function readCapped(res: Response, maxBytes: number): Promise<Buffer> {
   const declared = Number(res.headers.get('content-length') ?? 0);
-  if (declared > MAX_BYTES) throw new Error(`it is ${declared} bytes, over the ${MAX_BYTES} limit`);
+  if (declared > maxBytes) throw new Error(`it is ${declared} bytes, over the ${maxBytes} limit`);
   const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of res.body ?? []) {
     total += chunk.length;
-    if (total > MAX_BYTES) throw new Error(`it is over the ${MAX_BYTES} byte limit`);
+    if (total > maxBytes) throw new Error(`it is over the ${maxBytes} byte limit`);
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
@@ -138,7 +138,7 @@ async function download(opts: MediaOptions, start: string): Promise<Buffer> {
     const next = res.headers.get('location');
     if (res.status >= 300 && res.status < 400 && next) { url = new URL(next, target).toString(); continue; }
     if (!res.ok) throw new Error(`${hostOf(url)} answered HTTP ${res.status}`);
-    return readCapped(res);
+    return readCapped(res, MAX_BYTES);
   }
   throw new Error(`it redirects more than ${MAX_HOPS} times`);
 }

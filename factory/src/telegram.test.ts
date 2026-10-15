@@ -269,3 +269,36 @@ describe('botClient sendPhotos', () => {
     await expect(botClient('T', fetchFn).sendPhotos('c', photos(3))).rejects.toThrow('1 messages for 3 photos');
   });
 });
+
+describe('botClient downloadFile', () => {
+  const TOKEN = '123:SECRET';
+  const filed = { ok: true, result: { file_id: 'f', file_path: 'photos/file_7.jpg', file_size: 4 } };
+
+  function fileFetch(file: () => Response): { fetchFn: typeof fetch; urls: string[] } {
+    const urls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      urls.push(url);
+      return url.includes('/getFile') ? new Response(JSON.stringify(filed)) : file();
+    }) as unknown as typeof fetch;
+    return { fetchFn, urls };
+  }
+
+  it('asks for the file path and downloads the bytes', async () => {
+    const { fetchFn, urls } = fileFetch(() => new Response(new Uint8Array([1, 2, 3, 4])));
+    expect([...(await botClient(TOKEN, fetchFn).downloadFile('f', 10))]).toEqual([1, 2, 3, 4]);
+    expect(urls[1]).toBe(`https://api.telegram.org/file/bot${TOKEN}/photos/file_7.jpg`);
+  });
+
+  it('refuses a file over the limit before downloading it', async () => {
+    const { fetchFn, urls } = fileFetch(() => new Response(new Uint8Array(4)));
+    await expect(botClient(TOKEN, fetchFn).downloadFile('f', 3)).rejects.toThrow('over the 3 limit');
+    expect(urls).toHaveLength(1);
+  });
+
+  it('never puts the bot token in its error', async () => {
+    const { fetchFn } = fileFetch(() => { throw new Error(`connect failed for https://api.telegram.org/file/bot${TOKEN}/x`); });
+    const error = await botClient(TOKEN, fetchFn).downloadFile('f', 10).then(() => new Error('it downloaded'), (caught: unknown) => caught as Error);
+    expect(error.message).not.toContain('SECRET');
+    expect(error.message).toContain('<token>');
+  });
+});

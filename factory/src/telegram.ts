@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { TIMEOUT_MS, readCapped } from './media';
 import { readPhoto } from './photo-file';
 import { MESSAGE_LIMIT } from './telegram-limits';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
@@ -18,6 +19,14 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
     const reply = (await response.json()) as ApiReply;
     if (!reply.ok || !reply.result) throw new Error(`Telegram ${method} failed: ${reply.description ?? 'no description'}`);
     return reply.result;
+  };
+  const download = async (fileId: string, maxBytes: number): Promise<Buffer> => {
+    const file = (await call('getFile', JSON.stringify({ file_id: fileId }))) as { file_path?: unknown; file_size?: unknown };
+    if (typeof file.file_size === 'number' && file.file_size > maxBytes) throw new Error(`it is ${file.file_size} bytes, over the ${maxBytes} limit`);
+    if (typeof file.file_path !== 'string') throw new Error('Telegram getFile gave no file path');
+    const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
+    return readCapped(response, maxBytes);
   };
   const callForId = async (method: string, body: string | FormData): Promise<number> => messageId(method, await call(method, body));
 
@@ -74,6 +83,13 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
     async sendHtml(chat, html) {
       refuseLongText(html);
       return callForId('sendMessage', JSON.stringify({ chat_id: chat, text: html, parse_mode: 'HTML' }));
+    },
+    async downloadFile(fileId, maxBytes) {
+      try {
+        return await download(fileId, maxBytes);
+      } catch (error) {
+        throw new Error((error instanceof Error ? error.message : String(error)).replaceAll(token, '<token>'));
+      }
     },
     async editHtml(chat, messageId, html) {
       refuseLongText(html);

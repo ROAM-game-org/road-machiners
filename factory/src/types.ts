@@ -271,6 +271,7 @@ export interface Telegram {
   editText(chat: string, messageId: number, text: string): Promise<void>;
   sendHtml(chat: string, html: string): Promise<number>;
   editHtml(chat: string, messageId: number, html: string): Promise<void>;
+  downloadFile(fileId: string, maxBytes: number): Promise<Buffer>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };

@@ -163,4 +163,21 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
   });
+
+  it('keeps the image file ids of a chat message and which bot reply it answers', async () => {
+    const { f, put } = setup();
+    const id = f.store.addComment({ issue: null, source: 'telegram', sourceId: `${CHANNEL}:31`, postChat: CHANNEL, postMessageId: null, author: 'ann', text: 'Truck sinks', at: 'x', messageId: 31 });
+    f.store.setReplyId(id!, 640);
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: 640, author: 'ann', sender: '42', text: 'Wrong issue', at: 'x', standalone: true, images: ['photo-a', 'photo-b'] });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: null, author: 'bob', sender: '7', text: 'Old file', at: 'x', standalone: true });
+    await ingest(f.ctx, f.store);
+    expect(f.store.unclassifiedComments(100).slice(1).map((c) => [c.answers, c.images])).toEqual([[id, ['photo-a', 'photo-b']], [null, []]]);
+  });
+
+  it('moves a comment whose images are not a list of file ids to bad', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', images: [5] });
+    await ingest(f.ctx, f.store);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
+  });
 });

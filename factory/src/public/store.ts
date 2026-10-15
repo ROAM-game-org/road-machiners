@@ -6,27 +6,29 @@ import type { DecisionKind, Relevance, ReplyLanguage } from './decision';
 export type ReactionCountEvent = { updateId: number; kind: 'reaction-count'; chat: string; messageId: number; counts: Record<string, number> };
 export type ReactionEvent = { updateId: number; kind: 'reaction'; chat: string; messageId: number; user: string; emoji: string[] };
 export type ForwardEvent = { updateId: number; kind: 'forward'; chat: string; messageId: number; channelChat: string; channelMessageId: number };
-export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number | null; author: string; sender: string; text: string; at: string; addressed?: boolean; standalone?: boolean; context?: string | null };
+export type CommentEvent = { updateId: number; kind: 'comment'; chat: string; messageId: number; threadId: number | null; author: string; sender: string; text: string; at: string; addressed?: boolean; standalone?: boolean; context?: string | null; images?: string[] };
 export type PublicEvent = ReactionCountEvent | ReactionEvent | ForwardEvent | CommentEvent;
 
-export type CommentKind = DecisionKind | 'rejected';
+export type CommentKind = DecisionKind | 'rejected' | 'correction';
 export type PublicRoute = 'none' | 'patch' | 'redesign';
 export type Proposal = { issue: number; pitch: string; chat: string | null; messageId: number | null; postedAt: string | null; closedAt: string | null };
 export type Tally = { up: number; down: number };
 export type BuildPost = { issue: number; build: string; chat: string; messageId: number; postedAt: string };
-export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; addressed: boolean; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; replyId: number | null; context: string | null; workIssue: number | null; language: ReplyLanguage | null; linked: boolean };
+export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; addressed: boolean; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; replyId: number | null; context: string | null; workIssue: number | null; language: ReplyLanguage | null; linked: boolean; sentAt: string | null; answers: number | null; images: string[]; imagesIssue: number | null; imagesKept: number | null };
 export type IssueComment = StoredComment & { issue: number };
-export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean; context?: string | null };
+export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean; context?: string | null; answers?: number | null; images?: string[] };
 export type KnownWork = { issue: number; text: string };
 export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
-const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0';
+const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0, answers integer, images text, images_issue integer, images_kept integer';
 const HOUR_MS = 3_600_000;
 const FAILED_HIT = 'failed:';
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
+const UNKEPT = "('rejected', 'chatter', 'correction')";
+const LANDED_ISSUE = `(case when filed_issue is not null and linked = 0 then filed_issue when issue is not null and ${ON_TOPIC} then issue end)`;
 
 export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
@@ -64,7 +66,7 @@ function migrateComments(db: DatabaseSync): void {
   if (!columns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
   if (!columns.includes('sender')) db.exec('alter table comments add column sender text');
   if (!columns.includes('message_id')) return;
-  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0']) {
+  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0', 'answers integer', 'images text', 'images_issue integer', 'images_kept integer']) {
     if (!columns.includes(column.split(' ')[0]!)) db.exec(`alter table comments add column ${column}`);
   }
 }
@@ -189,9 +191,36 @@ export class PublicStore {
 
   addComment(comment: NewComment): number | null {
     const { issue, source, sourceId, postChat, postMessageId, author, text, at } = comment;
-    const extra = [comment.sender ?? null, comment.messageId ?? null, comment.addressed ? 1 : 0, comment.context ?? null] as const;
-    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, sender, message_id, addressed, context) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at, ...extra);
+    const result = this.db.prepare('insert or ignore into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, sender, message_id, addressed, context, answers, images) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(issue, source, sourceId, postChat, postMessageId, author, text, at, ...reachColumns(comment), ...replyColumns(comment));
     return result.changes === 1 ? Number(result.lastInsertRowid) : null;
+  }
+
+  comment(id: number): StoredComment | null {
+    const row = this.db.prepare('select * from comments where id = ?').get(id);
+    return row === undefined ? null : toComment(row);
+  }
+
+  answeredComment(chat: string, replyId: number): number | null {
+    const row = this.db.prepare('select id from comments where post_chat = ? and reply_id = ? order by id limit 1').get(chat, replyId);
+    return row === undefined ? null : Number(row.id);
+  }
+
+  landedIssue(id: number): number | null {
+    const row = this.db.prepare(`select ${LANDED_ISSUE} as landed from comments where id = ?`).get(id);
+    return numberOrNull(row?.landed);
+  }
+
+  imagesToPlace(): StoredComment[] {
+    const waiting = `classified_at is not null and dropped_at is null and kind not in ${UNKEPT} and images_issue is null and images is not null and images != '[]'`;
+    return this.db.prepare(`select * from comments where ${waiting} and ${LANDED_ISSUE} is not null order by id`).all().map(toComment);
+  }
+
+  setImagesPlaced(id: number, issue: number, kept: number): void {
+    this.db.prepare('update comments set images_issue = ?, images_kept = ? where id = ?').run(issue, kept, id);
+  }
+
+  moveComment(id: number, issue: number): void {
+    this.db.prepare("update comments set issue = ?, relevance = 'parent', post_message_id = null, route = 'none', linked = 1, sent_at = null, dropped_at = null where id = ?").run(issue, id);
   }
 
   parentPitch(issue: number): string | null {
@@ -218,7 +247,7 @@ export class PublicStore {
   }
 
   unsentComments(): IssueComment[] {
-    return this.db.prepare(`select * from comments where classified_at is not null and sent_at is null and dropped_at is null and kind not in ('rejected', 'chatter') and issue is not null and ${ON_TOPIC} order by issue, id`).all().map(toIssueComment);
+    return this.db.prepare(`select * from comments where classified_at is not null and sent_at is null and dropped_at is null and kind not in ${UNKEPT} and issue is not null and ${ON_TOPIC} order by issue, id`).all().map(toIssueComment);
   }
 
   dropCommentsOnClosedPosts(now: Date): number {
@@ -231,7 +260,7 @@ export class PublicStore {
   }
 
   toFile(): StoredComment[] {
-    const fileable = "(kind in ('bug', 'feature') or work_issue is not null)";
+    const fileable = "(kind in ('bug', 'feature') or (work_issue is not null and kind != 'correction'))";
     return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and filed_at is null and ${fileable} and not (issue is not null and ${ON_TOPIC}) order by id`).all().map(toComment);
   }
 
@@ -346,7 +375,11 @@ export class PublicStore {
   private applyComment(event: CommentEvent): void {
     const thread = event.threadId === null ? null : this.threadOf(event.chat, event.threadId);
     if (thread === null && !event.standalone) return;
-    this.addComment({ issue: thread?.issue ?? null, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread?.post ?? null, author: event.author, text: event.text, at: event.at, ...reachOf(event) });
+    this.addComment({ issue: thread?.issue ?? null, source: 'telegram', sourceId: `${event.chat}:${event.messageId}`, postChat: event.chat, postMessageId: thread?.post ?? null, author: event.author, text: event.text, at: event.at, answers: this.answersOf(event), ...reachOf(event) });
+  }
+
+  private answersOf(event: CommentEvent): number | null {
+    return event.threadId === null ? null : this.answeredComment(event.chat, event.threadId);
   }
 
   private threadOf(chat: string, threadId: number): { issue: number; post: number | null } | null {
@@ -385,7 +418,11 @@ function workText(pitch: string): string {
   return oneLineCut(rest.length === 0 ? title ?? '' : `${title}: ${rest[0]}`);
 }
 
-const reachOf = (event: CommentEvent) => ({ sender: event.sender, messageId: event.messageId, addressed: event.addressed, context: event.context ?? null });
+const reachOf = (event: CommentEvent) => ({ sender: event.sender, messageId: event.messageId, addressed: event.addressed, context: event.context ?? null, images: event.images ?? [] });
+
+const reachColumns = (comment: NewComment) => [comment.sender ?? null, comment.messageId ?? null, comment.addressed ? 1 : 0, comment.context ?? null] as const;
+
+const replyColumns = (comment: NewComment) => [comment.answers ?? null, JSON.stringify(comment.images ?? [])] as const;
 
 const hourOf = (time: Date): string => time.toISOString().slice(0, 13);
 const nextHour = (time: Date): Date => new Date(Math.floor(time.getTime() / HOUR_MS) * HOUR_MS + HOUR_MS);
@@ -417,5 +454,10 @@ function toComment(row: Row): StoredComment {
     kind: row.kind as CommentKind | null, route: row.route as PublicRoute | null, chat: textOrNull(row.post_chat), messageId: numberOrNull(row.message_id), sender: textOrNull(row.sender),
     addressed: Number(row.addressed) === 1, relevance: row.relevance as Relevance | null, filedIssue: numberOrNull(row.filed_issue), filedAt: textOrNull(row.filed_at), replyId: numberOrNull(row.reply_id),
     context: textOrNull(row.context), workIssue: numberOrNull(row.work_issue), language: row.language === 'ru' || row.language === 'en' ? row.language : null, linked: Number(row.linked) === 1,
+    sentAt: textOrNull(row.sent_at), answers: numberOrNull(row.answers), images: imagesOf(row.images), imagesIssue: numberOrNull(row.images_issue), imagesKept: numberOrNull(row.images_kept),
   };
+}
+
+function imagesOf(value: unknown): string[] {
+  return value === null || value === undefined ? [] : (JSON.parse(String(value)) as string[]);
 }

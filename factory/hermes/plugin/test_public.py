@@ -156,7 +156,7 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True, "context": None,
+        "addressed": False, "standalone": True, "context": None, "images": [],
     }}
 
 
@@ -190,6 +190,23 @@ def test_comment_is_attributed_to_the_replied_message_not_the_thread_root(tmp_pa
     raw = comment_update(message_thread_id=90, reply_to_message={"message_id": 200, "chat": chat(DISCUSSION)})
     public.handle_public_update(raw, cfg_for(tmp_path))
     assert written(tmp_path)["504.json"]["threadId"] == 200
+
+
+def test_comment_keeps_the_largest_photo_and_the_replied_persons_photo(tmp_path):
+    photos = [{"file_id": "small", "width": 90, "height": 60}, {"file_id": "large", "width": 1280, "height": 853}]
+    replied = {"message_id": 200, "from": {"id": 7, "is_bot": False, "first_name": "Bo"}, "document": {"file_id": "doc", "mime_type": "image/png"}}
+    raw = comment_update(caption="See this", photo=photos, reply_to_message=replied)
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["images"] == ["large", "doc"]
+
+
+def test_comment_keeps_no_image_of_a_bot_post_a_channel_post_or_a_non_image_file(tmp_path):
+    bot_post = {"message_id": 200, "from": {"id": 555, "is_bot": True}, "photo": [{"file_id": "bot", "width": 1, "height": 1}]}
+    channel = {"message_id": 201, "from": {"id": 1, "is_bot": False}, "sender_chat": {"id": CHANNEL}, "photo": [{"file_id": "chan", "width": 1, "height": 1}]}
+    for replied in (bot_post, channel):
+        raw = comment_update(reply_to_message=replied, document={"file_id": "zip", "mime_type": "application/zip"})
+        public.handle_public_update(raw, cfg_for(tmp_path))
+        assert written(tmp_path)["504.json"]["images"] == []
 
 
 def test_comment_uses_thread_when_there_is_no_reply(tmp_path):
