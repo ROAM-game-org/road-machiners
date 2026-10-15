@@ -56,7 +56,7 @@ export const FURY_ROAD = {
   ] as WavePlan[],
   director: {
     budget: { first: 4, step: 2.5 } as Line,
-    truckShare: 15,
+    truckShare: 16,
     gearShare: 0.25,
     elite: { from: 3, cost: 2, money: 2, every: 4 },
     waves: { first: 2, step: 0.25 } as Line,

@@ -115,6 +115,22 @@ describe('the escort stall', () => {
     expect(backs[RULES.npcStuckTurns + RULES.npcRecoveryTurns]).toBe(false);
   });
 
+  it('backs out to a free side when a truck blocks the spot behind it', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const back = RULES.reverse.distance + RULES.minAimDistance;
+    const behind = { x: me.pos.x - Math.cos(me.heading) * back, y: me.pos.y - Math.sin(me.heading) * back };
+    for (const v of w.vehicles) if (v.id !== me.id) v.pos = { x: me.pos.x + 200, y: me.pos.y };
+    addVehicle(w, 'raiders', 'buggy', [], behind);
+    const stall = freshStall(me);
+    const start = w.turn;
+    const orders = [0, 1, 2].map((k) => heldTurn(w, me, stall, start + k));
+    const out = orders[RULES.npcStuckTurns];
+    if (out.kind !== 'stopAt') throw new Error(`expected a back-out, got ${out.kind}`);
+    expect(dist(out.dest, me.pos)).toBeCloseTo(back);
+    expect(dist(out.dest, behind)).toBeGreaterThan(1);
+  });
+
   it('never backs out while it stands at its order point or after a gap in turns', () => {
     const w = started();
     const me = playerVehicle(w);
