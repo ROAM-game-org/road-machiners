@@ -48,7 +48,7 @@ async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment): Pro
 
 async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment): Promise<string | null> {
   if (comment.kind === 'feedback' && !comment.addressed) return null;
-  const added = `Thanks. I added this to the player comments of #${comment.issue}: ${issueLink(ctx, comment.issue)}\nThe committee reads them before it decides.`;
+  const added = `Thanks. I added this to the player comments of #${comment.issue}: ${issueLink(ctx, comment.issue)}`;
   return comment.kind === 'question' ? `${await answerText(ctx, ground, comment)}\n\n${added}` : added;
 }
 
