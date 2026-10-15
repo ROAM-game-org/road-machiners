@@ -84,9 +84,13 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
       const file = (await call('getFile', JSON.stringify({ file_id: fileId }))) as { file_path?: unknown; file_size?: unknown };
       if (typeof file.file_size === 'number' && file.file_size > maxBytes) throw new Error(`it is ${file.file_size} bytes, over the ${maxBytes} limit`);
       if (typeof file.file_path !== 'string') throw new Error('Telegram getFile gave no file path');
-      const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-      if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
-      return readCapped(response, maxBytes);
+      try {
+        const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
+        return await readCapped(response, maxBytes);
+      } catch (error) {
+        throw new Error((error instanceof Error ? error.message : String(error)).replaceAll(token, '<token>'));
+      }
     },
     async editCaption(chat, messageId, caption) {
       if (caption.length > CAPTION_LIMIT) throw new Error(`Telegram caption is ${caption.length} chars, the limit is ${CAPTION_LIMIT}.`);

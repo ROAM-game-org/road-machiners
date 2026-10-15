@@ -1,7 +1,7 @@
 import { committeeIds } from '../committee';
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
-import { targetIssue } from './classify-comments';
+import { answeredMessage, targetIssue } from './classify-comments';
 import { oneLine, playerName } from './digest';
 import { isOpen, messageLink } from './file-comments';
 import { isolated } from './isolate';
@@ -27,7 +27,7 @@ async function newWork(ctx: Ctx, correction: StoredComment): Promise<number | nu
 }
 
 async function applyOne(ctx: Ctx, store: PublicStore, correction: StoredComment, members: string[]): Promise<void> {
-  const corrected = store.comment(correction.answers!)!;
+  const corrected = answeredMessage(store, correction.answers)!;
   const from = targetIssue(corrected);
   const to = await newWork(ctx, correction);
   if (to !== null) store.moveComment(corrected.id, to);

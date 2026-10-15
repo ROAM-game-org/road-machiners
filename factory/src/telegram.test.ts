@@ -300,4 +300,13 @@ describe('botClient downloadFile', () => {
     await expect(failure).rejects.toThrow('Telegram getFile failed: Bad Request: wrong file_id');
     await expect(failure).rejects.not.toThrow('SECRET');
   });
+
+  it('never puts the token in the reason of a failed download', async () => {
+    const fetchFn = (async (url: string) => {
+      if (url.includes('/getFile')) return new Response(JSON.stringify({ ok: true, result: { file_path: 'p' } }));
+      throw new Error(`connect failed for ${url}`);
+    }) as unknown as typeof fetch;
+    const failure = botClient('SECRET', fetchFn).downloadFile('id', 10);
+    await expect(failure).rejects.toThrow('connect failed for https://api.telegram.org/file/bot<token>/p');
+  });
 });

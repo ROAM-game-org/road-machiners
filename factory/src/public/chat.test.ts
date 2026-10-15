@@ -482,4 +482,24 @@ describe('public chat corrections and images', () => {
     expect(shelf(f, 601)).toEqual([expect.objectContaining({ status: 'ok', width: 800 })]);
     expect(repliesTo(f, 230)[0]!.text).toContain('Its image is kept for the team.');
   });
+
+  it('moves the first message again when a member corrects the answer to a correction', async () => {
+    const still = 'Still wrong, it belongs to the region map task';
+    const made = mapChat([
+      { text: ASK, decision: { kind: 'feature', relevance: 'other' }, about: DUPLICATE },
+      { text: WRONG_TASK, decision: { kind: 'chatter', relevance: 'other', corrects: true }, about: 568 },
+      { text: still, decision: { kind: 'chatter', relevance: 'other', corrects: true }, about: ACTIVE_MAP },
+    ]);
+    const { f, asked, tick } = made;
+    post(f, { id: 219, text: ASK, sender: MEMBER, addressed: true, media: PHOTO });
+    await tick();
+    post(f, { id: 221, text: WRONG_TASK, thread: f.store.recentChat(1)[0]!.replyId, sender: MEMBER, addressed: true });
+    await tick();
+    post(f, { id: 223, text: still, thread: f.store.recentChat(1)[0]!.replyId, sender: MEMBER, addressed: true });
+    f.clock.now = new Date('2026-10-14T12:00:00Z');
+    await tick();
+    expect(asked[2]).toMatchObject({ text: still, corrected: ASK });
+    expect(repliesTo(f, 223)[0]!.text).toContain('from #568: https://github.com/o/r/issues/568 to the player comments of #571');
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE, 568, ACTIVE_MAP]);
+  });
 });

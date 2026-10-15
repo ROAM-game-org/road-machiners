@@ -91,6 +91,11 @@ function pickedWork(decision: Decision, work: Candidate[], correcting: boolean):
   return work[decision.work]?.issue ?? null;
 }
 
+export function answeredMessage(store: PublicStore, answers: number | null): StoredComment | null {
+  const answered = answers === null ? null : store.comment(answers);
+  return answered?.kind === 'correction' ? answeredMessage(store, answered.answers) : answered;
+}
+
 type Judge = { store: PublicStore; classify: Classify; active: Candidate[]; member: boolean };
 
 function isCorrection(decision: Decision, corrected: StoredComment | null, member: boolean): boolean {
@@ -99,7 +104,7 @@ function isCorrection(decision: Decision, corrected: StoredComment | null, membe
 
 async function classifyOne(ctx: Ctx, judge: Judge, comment: StoredComment): Promise<void> {
   const { store } = judge;
-  const corrected = comment.answers === null ? null : store.comment(comment.answers);
+  const corrected = answeredMessage(store, comment.answers);
   const work = candidateWork(store, judge.active, comment, corrected);
   const decision = await judge.classify(filterInput(store, comment, work, corrected));
   const correcting = isCorrection(decision, corrected, judge.member);
