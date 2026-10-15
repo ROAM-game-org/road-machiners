@@ -135,8 +135,27 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True,
+        "addressed": False, "standalone": True, "context": None,
     }}
+
+
+def test_comment_keeps_the_replied_text_as_context(tmp_path):
+    raw = comment_update(reply_to_message={"message_id": 200, "chat": chat(DISCUSSION), "text": "Landmark directions\n\nPlay: x"})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["context"] == "Landmark directions\n\nPlay: x"
+
+
+def test_comment_context_prefers_the_quote_and_is_cut_short(tmp_path):
+    raw = comment_update(reply_to_message={"message_id": 200, "text": "whole post"}, quote={"text": "q" * 900, "position": 0})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["context"] == "q" * 500
+
+
+def test_comment_quoting_another_chat_keeps_the_quote(tmp_path):
+    raw = comment_update(message_thread_id=None, reply_to_message=None, external_reply={"origin": {"type": "channel"}}, quote={"text": "Landmark directions"})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    event = written(tmp_path)["504.json"]
+    assert (event["threadId"], event["context"]) == (None, "Landmark directions")
 
 
 def test_comment_sender_is_the_sender_chat_for_an_anonymous_admin(tmp_path):

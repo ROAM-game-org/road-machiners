@@ -322,6 +322,18 @@ describe('public store', () => {
     expect(openStore(home).unclassifiedComments(100)).toEqual([]);
   });
 
+  it('adds the context, known work, language and link columns to a store of main and keeps its comments', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    openStore(home).close();
+    const db = new DatabaseSync(storePath(home));
+    for (const column of ['context', 'work_issue', 'language', 'linked']) db.exec(`alter table comments drop column ${column}`);
+    db.prepare("insert into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, message_id) values (null, 'telegram', 'c:1', 'c', null, 'Ann', 'Hi', ?, 1)").run(now.toISOString());
+    db.close();
+    const store = openStore(home);
+    expect(store.unclassifiedComments(100).map((c) => [c.text, c.context, c.workIssue, c.language, c.linked])).toEqual([['Hi', null, null, null, false]]);
+    store.close();
+  });
+
   it('moves old comments into the new table and never replies to or files them', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     openStore(home).close();
