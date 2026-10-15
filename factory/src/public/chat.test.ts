@@ -319,14 +319,15 @@ describe('public chat about known work', () => {
     expect(repliesTo(f, 53)[0]!.text).toContain('I filed this bug as #602');
   });
 
-  it('neither links nor files when the known work cannot be read, tells the player it was not filed, and reports it', async () => {
-    const { f, tick } = known([{ text: EXPLAINED, decision: { kind: 'feature', relevance: 'other' }, about: LANDMARKS }]);
+  it('files an explicit report as before when its known work cannot be read, and reports the failed read', async () => {
+    const bug = 'The landmark arrow points the wrong way';
+    const { f, tick } = known([{ text: bug, decision: { kind: 'bug', relevance: 'other' }, about: LANDMARKS }]);
     f.ctx.github.issue = async () => { throw new Error('GitHub is down'); };
-    post(f, { id: 54, text: EXPLAINED, context: BUILD_TEXT });
+    post(f, { id: 54, text: bug, context: BUILD_TEXT });
     await tick();
-    expect(f.created).toEqual([]);
+    expect(f.created.map((issue) => issue.title)).toEqual([bug]);
     expect(f.comments).toEqual([]);
-    expect(repliesTo(f, 54)[0]!.text).toContain('could not file this just now');
+    expect(repliesTo(f, 54)[0]!.text).toContain('I filed this bug as #601');
     expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('could not read #564')]);
   });
 

@@ -22,22 +22,20 @@ function issueBody(comment: StoredComment): string {
   ].join('\n\n');
 }
 
-type Linking = 'linked' | 'closed' | 'failed';
-
-async function workState(ctx: Ctx, comment: StoredComment, work: number): Promise<Linking> {
+async function isOpen(ctx: Ctx, comment: StoredComment, work: number): Promise<boolean> {
   try {
-    return (await ctx.github.issue(work)).state === 'OPEN' ? 'linked' : 'closed';
+    return (await ctx.github.issue(work)).state === 'OPEN';
   } catch (error) {
-    await reportFailure(ctx, 'public', work, `player comment ${comment.id} could not read #${work}, the work it is about, so it is neither linked nor filed: ${error instanceof Error ? error.message : String(error)}`, null, []);
-    return 'failed';
+    await reportFailure(ctx, 'public', work, `player comment ${comment.id} could not read #${work}, the work it is about, so it goes on as if it matched no work: ${error instanceof Error ? error.message : String(error)}`, null, []);
+    return false;
   }
 }
 
-async function linkToWork(ctx: Ctx, store: PublicStore, comment: StoredComment, work: number): Promise<Linking> {
+async function linkToWork(ctx: Ctx, store: PublicStore, comment: StoredComment, work: number): Promise<boolean> {
   store.markFiling(comment.id, ctx.now());
-  const state = await workState(ctx, comment, work);
-  if (state === 'linked') store.link(comment.id, work);
-  return state;
+  const open = await isOpen(ctx, comment, work);
+  if (open) store.link(comment.id, work);
+  return open;
 }
 
 async function fileOwnIssue(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<void> {
@@ -51,7 +49,7 @@ async function fileOwnIssue(ctx: Ctx, store: PublicStore, comment: StoredComment
 const isReport = (comment: StoredComment): boolean => comment.kind === 'bug' || comment.kind === 'feature';
 
 async function fileOne(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<void> {
-  if (comment.workIssue !== null && (await linkToWork(ctx, store, comment, comment.workIssue)) !== 'closed') return;
+  if (comment.workIssue !== null && (await linkToWork(ctx, store, comment, comment.workIssue))) return;
   if (isReport(comment)) return fileOwnIssue(ctx, store, comment);
   store.markFiling(comment.id, ctx.now());
 }
