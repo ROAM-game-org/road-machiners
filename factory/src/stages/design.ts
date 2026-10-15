@@ -3,6 +3,12 @@ import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, TASK_FILE, WONT_DO_LABEL, ty
 import { releaseBundle } from './bundle';
 import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
 import { existsSync, readFileSync } from 'node:fs';
+import { requireSkill } from './skill-calls';
+
+const BUG_EXPANSION = {
+  stage: 'design', skill: 'up:expand', before: 'up:udesign',
+  ask: 'The factory found no Skill tool call of `up:expand` before your first `up:udesign` call in this session. Invoke the ultrapack skill expand now, with the Skill tool as `up:expand` and the args `handsoff`, on the bug that `.factory/issue.md` reports, through its step 5. Write its report into the `## Bug expansion` section of the task file, as your prompt says, and revise the design and the plan to it. Commit nothing.',
+};
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
@@ -13,23 +19,26 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
   await writeIssueInput(ctx, issue, home);
-  const bugExpansion = await bugExpansionFor(ctx, issue);
-  const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion });
-  await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
+  const expands = await expandsBug(ctx, issue, home);
+  const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion: expands ? promptFile('design-bug') : '' });
+  const stream = await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
   throwIfNeedsCommittee(home);
   const questions = readOutput(home, 'questions.json');
   if (questions !== null) return askBack(ctx, issue, questions);
   const reason = readOutput(home, 'wont-do.md');
   if (reason !== null) return refuse(ctx, issue, reason);
+  if (expands) await requireSkill(stream, BUG_EXPANSION, (ask) => runAgent(ctx, issue, 'design', 'design', ask, { effort: ctx.cfg.designEffort, continue: true }));
+  throwIfNeedsCommittee(home);
   requirePlan(home, TASK_FILE(issue));
   await guardAndPush(ctx, issue, base, 'design');
   await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'));
   await moveCard(ctx, issue, 'Implementation', 'planned');
 }
 
-async function bugExpansionFor(ctx: Ctx, issue: number): Promise<string> {
+async function expandsBug(ctx: Ctx, issue: number, home: string): Promise<boolean> {
   const { labels } = await ctx.github.issue(issue);
-  return labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL) ? promptFile('design-bug') : '';
+  const firstDesign = !existsSync(`${home}/${TASK_FILE(issue)}`);
+  return firstDesign && (labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL));
 }
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
