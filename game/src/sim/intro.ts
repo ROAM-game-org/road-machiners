@@ -11,6 +11,7 @@ import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
 import { mountedParts } from './grid';
+import { openingOver } from './opening';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
@@ -95,6 +96,7 @@ function enginePatched(w: World): boolean {
 }
 
 function launchAmbush(w: World): void {
+  if (!openingOver(w)) return;
   const me = playerVehicle(w);
   if (me.speed <= RULES.parkedSpeed || siteUnder(atlasOf(w.terrain), me.pos)) return;
   const template = NPCS[AMBUSH.template];

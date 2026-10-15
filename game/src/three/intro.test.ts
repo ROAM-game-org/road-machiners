@@ -21,7 +21,7 @@ import { dist, type Vec } from '../sim/vec';
 import { playerSees } from '../sim/vision';
 import { maxHp } from '../sim/wear';
 import { cloneWorld, endTurn, startPose } from '../sim/world';
-import { openingStep } from '../ui/tips';
+import { openingStep } from '../sim/opening';
 import { TEST_MAP } from '../test/map';
 import { readQuestSources } from '../test/quest-compile';
 import { loadWorld, saveOf, writeSave } from './save';

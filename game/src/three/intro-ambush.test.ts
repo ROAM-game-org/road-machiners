@@ -15,6 +15,9 @@ import { corePart, mountedParts } from '../sim/grid';
 import { answersPlea, offersGiveUp } from '../sim/parley';
 import { addGoods } from '../sim/inventory';
 import { introStep, setIntroStep } from '../sim/quests';
+import { OPENING_WRECK_ID } from '../sim/opening';
+import { emptyHidden } from '../sim/salvage';
+import { OPENING } from '../data/start';
 import { generateNpcLoadout } from '../sim/npc-loadout';
 import { fightCornered, topGoal } from '../sim/npc-activities';
 import { NPC_BEHAVIOR } from '../data/npc-behavior';
@@ -227,6 +230,37 @@ describe('the ambush', () => {
     });
     expect(wins.reduce((a, b) => a + b, 0) / wins.length).toBeLessThan(0.4);
     expect(Math.max(...wins)).toBeGreaterThan(0.05);
+  });
+});
+
+function withOpeningWreckAt(w: World, away: number): void {
+  const me = playerVehicle(w);
+  w.salvage.push({ id: OPENING_WRECK_ID, pos: { x: me.pos.x - away, y: me.pos.y }, radius: 1, goods: { scrap: 1 }, parts: [], fuel: 0, supplies: 0, hidden: emptyHidden() });
+}
+
+describe('the ambush gate during the opening', () => {
+  it('waits while the opening wreck is unfinished and the truck is near it', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, 20);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(0);
+    expect(introStep(next)).toBe('patched');
+  });
+
+  it('comes once the truck is past the leave distance from the wreck', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, OPENING.leaveDistance + 10);
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
+    expect(introStep(next)).toBe('ambush');
+  });
+
+  it('comes once the opening wreck is done with', () => {
+    const w = patchedWorld();
+    withOpeningWreckAt(w, 20);
+    w.salvage.find((s) => s.id === OPENING_WRECK_ID)!.goods = {};
+    const next = endTurn(w, testDrive);
+    expect(raidersIn(next)).toHaveLength(1);
   });
 });
 

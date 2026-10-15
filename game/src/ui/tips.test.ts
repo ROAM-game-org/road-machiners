@@ -17,7 +17,8 @@ import { OPENING_WRECK_ID } from "../sim/opening";
 import { startSearch } from "../sim/search";
 import type { World } from "../sim/types";
 import { TEST_MAP } from "../test/map";
-import { clearTips, doneTips, openingStep, setTipsOff, tipsOff, tipToShow, type TipId } from "./tips";
+import { openingStep } from "../sim/opening";
+import { clearTips, doneTips, setTipsOff, tipsOff, tipToShow, type TipId } from "./tips";
 
 describe("driving tips", () => {
   it("walks the player from a waypoint to Space, stopping, stop waypoints and manual mode", () => {

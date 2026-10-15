@@ -2,12 +2,12 @@
 import { touchMode } from "./input-mode";
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
-import { goodsCount, isMounted, mountedParts } from "../sim/grid";
-import { openingStockOf } from "../sim/opening";
+import { cageMounted, openingState, openingStockOf, type OpeningState, type OpeningStep } from "../sim/opening";
+import { OPENING } from "../data/start";
 import { RULES } from "../data/rules";
 import { engineNeedsPatch } from "../sim/repair";
 import { canReachSalvage, hasSalvage } from "../sim/salvage";
-import type { SalvageStock, World } from "../sim/types";
+import type { World } from "../sim/types";
 import { vehicleStats } from "../sim/stats";
 import { playerSees } from "../sim/vision";
 import { dist, type Vec } from "../sim/vec";
@@ -19,7 +19,6 @@ import { el, panel } from "./dom";
 const TIPS_KEY = "roam.tips";
 const TIPS_OFF_KEY = "roam.tipsOff";
 
-export type OpeningStep = "wreck" | "search" | "loot" | "patch" | "install";
 export type TipId = OpeningStep | "waypoint" | "drive" | "autoStop" | "stop" | "stopAt" | "manual" | "zones" | "aim" | "honk" | "farewell";
 
 type Tip = {
@@ -31,7 +30,6 @@ type Tip = {
   done: (w: World, o: OpeningState) => boolean;
 };
 
-const FAREWELL_DISTANCE = 80;
 const TIP_PAUSE_AFTER_QUEST_MS = 3000;
 const spawn = startPose().pos;
 const departureFrom = (w: World): Vec => openingStockOf(w)?.pos ?? spawn;
@@ -49,43 +47,9 @@ const hasWaypoint = (w: World): boolean => {
   return kind === "through" || kind === "stopAt";
 };
 
-type OpeningState = { stock: SalvageStock | null; step: OpeningStep | null };
-
 const searchedOpening = (w: World, { stock }: OpeningState): boolean => stock !== null && w.player.scavenged.includes(stock.id);
 
 const inOpeningReach = (w: World, { stock }: OpeningState): boolean => stock !== null && canReachSalvage(playerVehicle(w), stock);
-
-const cageMounted = (w: World): boolean => mountedParts(playerVehicle(w)).some((p) => p.defId === "cage");
-
-const holdsLooseCage = (w: World): boolean => {
-  const me = playerVehicle(w);
-  return me.items.some((it) => it.kind === "part" && it.part.defId === "cage" && !isMounted(me.chassisId, it));
-};
-
-export function openingStep(w: World): OpeningStep | null {
-  return openingState(w).step;
-}
-
-function openingState(w: World): OpeningState {
-  const stock = openingStockOf(w);
-  if (!stock) return { stock, step: null };
-  return { stock, step: w.player.scavenged.includes(stock.id) ? stepAfterSearch(w, stock) : stepBeforeSearch(w, stock) };
-}
-
-function stepBeforeSearch(w: World, stock: SalvageStock): OpeningStep | null {
-  if (!hasSalvage(stock)) return null;
-  return canReachSalvage(playerVehicle(w), stock) ? "search" : "wreck";
-}
-
-function stepAfterSearch(w: World, stock: SalvageStock): OpeningStep | null {
-  if (hasSalvage(stock) && canReachSalvage(playerVehicle(w), stock)) return "loot";
-  if (patchDue(w)) return "patch";
-  return installDue(w) ? "install" : null;
-}
-
-const patchDue = (w: World): boolean => engineNeedsPatch(w, playerVehicle(w)) && (goodsCount(playerVehicle(w)).parts ?? 0) > 0;
-
-const installDue = (w: World): boolean => holdsLooseCage(w) && !cageMounted(w);
 
 const openingTip = (id: OpeningStep, done: (w: World, o: OpeningState) => boolean): Tip => ({
   id,
@@ -166,7 +130,7 @@ const TIPS: readonly Tip[] = [
   {
     id: "farewell",
     after: "honk",
-    when: (w) => dist(playerVehicle(w).pos, departureFrom(w)) >= FAREWELL_DISTANCE,
+    when: (w) => dist(playerVehicle(w).pos, departureFrom(w)) >= OPENING.leaveDistance,
     done: () => false,
   },
 ];
