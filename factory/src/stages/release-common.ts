@@ -1,36 +1,47 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { readState, updateState } from '../state';
-import { RELEASE_TASK_LABEL, type Card, type Ctx, type ReleaseState } from '../types';
+import { RELEASE_TASK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type ReleaseState } from '../types';
 
 export type Feature = { issue: number; title: string };
 
-const FEATURE_MERGE = /^Merge issue #(\d+): (.*)$/;
+export function requireDevMerges(state: FactoryState): IssueMerge[] {
+  if (state.devMerges === null) throw new Error('The list of merges on dev is not filled yet. The merge migration fills it at the start of a tick.');
+  return state.devMerges;
+}
 
-export function featureMerges(subjects: string[]): Feature[] {
-  return subjects.flatMap((subject) => {
-    const match = FEATURE_MERGE.exec(subject);
-    return match ? [{ issue: Number(match[1]), title: match[2] }] : [];
-  });
+export function requireReleaseMerges(release: ReleaseState): IssueMerge[] {
+  if (release.merges === null) throw new Error(`The list of merges in release ${release.day} is not filled yet. The merge migration fills it at the start of a tick.`);
+  return release.merges;
+}
+
+export function toFeatures(merges: IssueMerge[]): Feature[] {
+  return merges.map(({ issue, title }) => ({ issue, title }));
 }
 
 export function featureLine(feature: Feature): string {
   return `#${feature.issue} ${feature.title}`;
 }
 
-const CHANGE_LINE = /^- \[#(\d+)\] \S/;
+export type Change = { issue: number; text: string };
 
-export function changeLines(notes: string, features: Feature[]): string[] {
-  const lines = notes.split('\n').map((line) => line.trim()).filter((line) => line !== '');
-  const issues = lines.map((line) => {
-    const match = CHANGE_LINE.exec(line);
-    if (!match) throw new Error(`release.md has a line that is not "- [#N] what changed": ${line}`);
-    return Number(match[1]);
+export function readChanges(raw: string | null, features: Feature[]): Change[] {
+  if (raw === null) throw new Error('release agent wrote no .factory/release.json');
+  const data: unknown = JSON.parse(raw);
+  if (!Array.isArray(data)) throw new Error('release.json is not an array');
+  const changes = data.map((item): Change => {
+    const { issue, text } = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>;
+    if (!Number.isInteger(issue) || typeof text !== 'string' || text.trim() === '') throw new Error(`release.json needs each entry as {"issue": number, "text": non-empty string}, got ${JSON.stringify(item)}`);
+    return { issue: issue as number, text: text.trim() };
   });
-  const named = issues.map((n) => `#${n}`).sort().join(', ');
+  const named = changes.map((change) => `#${change.issue}`).sort().join(', ');
   const wanted = features.map((feature) => `#${feature.issue}`).sort().join(', ');
-  if (named !== wanted) throw new Error(`release.md names ${named || 'nothing'}, but the release holds ${wanted || 'nothing'}`);
-  return lines;
+  if (named !== wanted) throw new Error(`release.json names ${named || 'nothing'}, but the release holds ${wanted || 'nothing'}`);
+  return changes;
+}
+
+export function changelogText(changes: Change[]): string {
+  return changes.map((change) => `- [#${change.issue}] ${change.text}`).join('\n');
 }
 
 export async function openReleaseTasks(ctx: Ctx): Promise<number[]> {
@@ -56,9 +67,8 @@ export function requireRelease(ctx: Ctx): ReleaseState {
   return release;
 }
 
-export async function releaseFeatures(ctx: Ctx, release: ReleaseState): Promise<Feature[]> {
-  const merges = featureMerges(await ctx.repo.mergeLog(release.branch, 'main'));
-  return merges.filter((feature) => !release.removed.includes(feature.issue));
+export function releaseFeatures(release: ReleaseState): Feature[] {
+  return toFeatures(requireReleaseMerges(release).filter((merge) => !release.removed.includes(merge.issue)));
 }
 
 export function candidateDir(ctx: Ctx): string {
