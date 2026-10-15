@@ -1,7 +1,7 @@
 import { GAME_DIR } from '../types';
 
 const GAME_PREFIX = `${GAME_DIR}/`;
-const TEST_SETUP = ['package-lock.json', 'package.json', 'vitest.config.ts', 'scripts/test-cache.mjs'];
+const TEST_SETUP = ['package-lock.json', 'vitest.config.ts', 'scripts/test-cache.mjs'];
 const TEST_SETUP_DIR = 'src/test/';
 const TEST_FILE = /\.test\.ts$/;
 const SOURCE_FILE = /\.tsx?$/;

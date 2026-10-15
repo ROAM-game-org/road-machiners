@@ -1,18 +1,18 @@
-import { MILESTONE_PATTERN, parseAgentStatus, reportObservation, type Activity, type ActivityData, type Milestone } from './observability';
+import { parseAgentStatus, parseScriptStatus, reportObservation, scriptStatusRecord, type Activity, type ActivityData, type Milestone } from './observability';
 import type { Run } from './types';
 
 type StreamBlock = { type?: string; name?: string; input?: { command?: string }; content?: unknown };
 type StreamEvent = { type?: string; message?: { content?: StreamBlock[] } };
 type ActivityUpdate = ({ activity: Activity; step?: true } | { milestone: Milestone }) & { source: ActivityData['source'] };
-const STEPS = { 'npm ci': 'install', 'tests and typecheck': 'tests', 'tests done': 'typecheck', tests: 'tests', 'dev server': 'starting', playtest: 'playtest', build: 'build', done: 'finished' } as const satisfies Record<string, Activity>;
+const STEPS = { 'npm ci': 'install', tests: 'tests', 'dev server': 'starting', playtest: 'playtest', build: 'build', done: 'finished' } as const satisfies Record<string, Activity>;
 export type StepName = keyof typeof STEPS;
-function readStep(name: string): Activity | null { return Object.hasOwn(STEPS, name) ? STEPS[name as StepName] : null; }
+function printRecord(status: Parameters<typeof scriptStatusRecord>[0]): string { return `printf '%s\\n' '${scriptStatusRecord(status).replaceAll("'", "'\\''")}'`; }
 export function stepScript(phase: Milestone, steps: [StepName, string][]): string {
-  if (!MILESTONE_PATTERN.test(phase)) throw new Error(`Invalid script phase: ${phase}`);
-  return ['set -e', STEP_FUNCTION, phaseLine(phase), ...steps.flatMap(([name, command]) => [`step "${name}"`, command]), 'step "done"', ''].join('\n');
+  return ['set -e', STEP_FUNCTION, phaseLine(phase), ...steps.flatMap(([name, command]) => [stepCall(name), command]), stepCall('done'), ''].join('\n');
 }
-export const STEP_FUNCTION = 'step() { echo "[step] $(date -u +%T) $1"; }';
-export function phaseLine(phase: Milestone): string { return `echo "[phase] ${phase}"`; }
+export const STEP_FUNCTION = 'step() { echo "[step] $(date -u +%T) $2"; printf \'%s\\n\' "$1"; }';
+export function stepCall(name: StepName): string { return `step '${scriptStatusRecord({ activity: STEPS[name] })}' "${name}"`; }
+export function phaseLine(phase: Milestone): string { return printRecord({ milestone: phase }); }
 const TOOL_ACTIVITIES: Record<string, Activity> = { Read: 'reading', Glob: 'reading', Grep: 'reading', Edit: 'editing', Write: 'editing', Agent: 'model', Task: 'model' };
 function classifyCommand(command: string): Activity {
   if (/\bnpm (?:run )?(?:test|test:)/.test(command)) return 'tests';
@@ -45,25 +45,17 @@ function readStreamActivity(event: StreamEvent): ActivityUpdate | null {
   if (!Array.isArray(blocks)) return null;
   return blocks.map(readToolActivity).find((value) => value !== null) ?? null;
 }
+function readScriptStatus(line: string): ActivityUpdate | null {
+  const status = parseScriptStatus(line);
+  if (status === null) return null;
+  return 'milestone' in status ? { milestone: status.milestone, source: 'runner' } : { activity: status.activity, step: true, source: 'runner' };
+}
 export function readActivityLine(line: string): ActivityUpdate | null {
-  if (/^\[(?:checks|step|phase)\] /.test(line)) return readScriptLine(line);
+  const scripted = readScriptStatus(line);
+  if (scripted) return scripted;
   const reported = parseAgentStatus(line);
   if (reported) return { ...reported, source: 'agent' };
   try { return readStreamActivity(JSON.parse(line) as StreamEvent); } catch { return null; }
-}
-function readScriptLine(line: string): ActivityUpdate | null {
-  const phase = /^\[phase\] (.+)$/.exec(line);
-  return phase ? readPhase(phase[1]) : readStepLine(line);
-}
-function readPhase(phase: string): ActivityUpdate | null { return MILESTONE_PATTERN.test(phase) ? { milestone: phase, source: 'runner' } : null; }
-function readStepLine(line: string): ActivityUpdate | null {
-  const activity = readStep(/^\[\w+\] \S+ (.+)$/.exec(line)?.[1] ?? '');
-  return activity ? { activity, step: true, source: 'runner' } : null;
-}
-function identifyOperation(command: string, args: string[]): Activity {
-  if (args.includes('factory-agent')) return 'model';
-  if (command === 'git' || command === 'gh') return 'git';
-  return classifyCommand([command, ...args].join(' '));
 }
 
 type Operation = { activity: Activity; source: ActivityData['source']; phase: Milestone | null };
@@ -142,8 +134,8 @@ class ActivityStream {
 }
 export function createObservedRun(run: Run, home: string, producer: string, heartbeatMs: number, maxBytes: number): Run {
   const reporter = new ActivityReporter(home, producer, heartbeatMs);
-  return async (command, args, opts = {}) => {
-    const key = reporter.start(identifyOperation(command, args));
+  return async (command, args, opts) => {
+    const key = reporter.start(opts.activity);
     const stream = new ActivityStream((update) => reporter.update(key, update), maxBytes);
     let failed = true;
     try {

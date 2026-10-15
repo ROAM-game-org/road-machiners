@@ -1,11 +1,12 @@
 import { FAILURE_TAIL_LINES, stripAnsi } from '../fail';
+import { GithubError } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { reportObservation } from '../observability';
 import type { Ctx, Stage, SuiteRun } from '../types';
 
 export const SUITE_DOWN_MARK = 'The full suite on GitHub Actions could not run';
 
-export class SuiteMachineError extends Error {
+export class SuiteMachineError extends GithubError {
   constructor(reason: string) {
     super(`${SUITE_DOWN_MARK}: ${reason}`);
   }
@@ -17,11 +18,11 @@ export async function remoteSuite(ctx: Ctx, at: At, sha: string): Promise<string
   const id = await onActions(`the dispatch for ${sha} failed`, () => ctx.github.dispatchSuite(sha));
   const startBy = ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
   for (let read = 0; ; read++) {
-    reportTests(ctx);
     const run = await onActions(`reading run ${id} failed`, () => ctx.github.suiteRun(id));
     if (read === 0) ctx.log(at.stage, at.issue, `the full suite runs on GitHub Actions for ${sha}: ${run.url}`);
     if (run.done) return verdict(ctx, id, sha, run);
     if (!run.started && ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes: ${run.url}`);
+    reportTests(ctx);
     await new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
   }
 }
