@@ -252,6 +252,47 @@ export const MIX = {
   tone: { low: 8, high: -17, spread: 10 },
 } as const;
 
+export const SCORE_BLOCKS = {
+  arc: {
+    blockBars: 2,
+    hotHeat: MIX.score.hotHeat,
+    coolHeat: 1,
+    memoryHalfLifeBars: 16,
+    memoryWeight: 0.08,
+    stay: 6,
+    calmChangeBars: 4,
+    hotChangeBars: 2,
+    next: {
+      intro: { verse: 3, wall: 1 },
+      verse: { verse: 4, wall: 3, stop: 1 },
+      wall: { wall: 4, verse: 2, stop: 1, solo: 1 },
+      stop: { verse: 2, wall: 2 },
+      solo: { wall: 3, verse: 1 },
+    },
+    after: {
+      "intro>verse": { stop: 0 },
+      "intro>wall": { stop: 0 },
+      "verse>wall": { wall: 1.5, verse: 0.5 },
+      "wall>verse": { wall: 2, stop: 0.5 },
+      "wall>stop": { wall: 3 },
+      "verse>stop": { verse: 3 },
+      "stop>verse": { stop: 0 },
+      "stop>wall": { stop: 0 },
+      "solo>wall": { solo: 0 },
+    },
+    hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1.5 },
+    calm: { intro: 1, verse: 2, wall: 0.15, stop: 0.15, solo: 0.15 },
+  },
+  songGain: 0.6,
+  guitarPush: 0.8,
+  fillGain: { lead: 1, secondary: 0.6 },
+  jumpFadeSeconds: 0.03,
+  seamSeconds: 0.01,
+  aheadSeconds: 0.25,
+  startLeadSeconds: 0.1,
+  eventLeadSeconds: 0.05,
+};
+
 export const BAND_EVENTS = ["accent-sighted", "accent-struck", "accent-crit", "accent-crash", "accent-hit", "accent-miss"] as const;
 export type BandEvent = (typeof BAND_EVENTS)[number];
 export const BAND_PARTS = ["drums", "bass", "wall", "keys"] as const;
