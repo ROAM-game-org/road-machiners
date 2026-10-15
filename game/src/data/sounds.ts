@@ -257,15 +257,23 @@ export type BandEvent = (typeof BAND_EVENTS)[number];
 export const BAND_PARTS = ["drums", "bass", "wall", "keys"] as const;
 export type BandPart = (typeof BAND_PARTS)[number];
 
-
 export const BAND: BandRules<BandPart, BandEvent> = {
   parts: {
     drums: { always: true },
-    bass: { always: true },
-    wall: { enterAt: 1.5, leaveAt: 0.5, holdBars: 8, needs: null },
-    keys: { enterAt: 5.5, leaveAt: 2.5, holdBars: 8, needs: "wall" },
+    bass: { enterAt: 1, leaveAt: 0.3, holdBars: 2, needs: null },
+    wall: { enterAt: 2.5, leaveAt: 1, holdBars: 2, needs: "bass" },
+    keys: { enterAt: 4, leaveAt: 2, holdBars: 4, needs: "wall" },
   },
-  phraseBars: 4,
-  heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
+  phraseBars: 2,
+  heatHalfLifeSeconds: 3,
   weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
+};
+
+export const BAND_ANSWERS: Record<BandEvent, { parts: readonly BandPart[]; beats: number }> = {
+  "accent-sighted": { parts: ["bass", "wall"], beats: 2 },
+  "accent-struck": { parts: ["drums", "bass"], beats: 1 },
+  "accent-crit": { parts: ["bass", "wall"], beats: 2 },
+  "accent-crash": { parts: ["drums", "bass", "wall"], beats: 2 },
+  "accent-hit": { parts: ["wall"], beats: 1 },
+  "accent-miss": { parts: ["bass"], beats: 0.5 },
 };

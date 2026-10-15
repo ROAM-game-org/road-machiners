@@ -1,10 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { BAND, BAND_PARTS, MIX, SOUNDS } from '../src/data/sounds.ts';
+import { BAND, BAND_PARTS, MIX } from '../src/data/sounds.ts';
 import { nextRandom } from '../src/sim/rng.ts';
-import { BAND_EVENT_LABELS, BAND_STEMS, BARS_PER_LOOP, BEATS_PER_BAR, bandLead, BandSession, stemFiles } from '../src/three/band-session.ts';
-import { parseScript, RecordingPlayer } from '../src/three/score-sim.ts';
+import { answerLevel, BAND_EVENT_LABELS, BAND_STEMS, BARS_PER_LOOP, BEATS_PER_BAR, BandSession, stemFiles } from '../src/three/band-session.ts';
+import { parseScript } from '../src/three/score-sim.ts';
 
 const RATE = 48000;
 const STEP_SECONDS = 1 / 60;
@@ -22,15 +22,14 @@ const SILENT_DB = -60;
 const HELP = `Usage: npm run band:sim -- <event@seconds ...> [--seed n] [--length s] [--stems-dir dir] [--out file.wav]
 
 Plays a scripted fight through the band lab's session, the same code /band.html runs, and prints what the player would hear.
-Events: hit, miss, struck, crit, crash, sighted. An event at time t is a press at t. Its stab lands one lead later. A sighting lands at once.
+Events: hit, miss, struck, crit, crash, sighted. An event at time t is a press at t. It lands one lead later, as a shot lands after the turn shows it. A sighting lands at once.
 
 Output:
-  Events: each press, where it lands and what the stab did.
+  Events: each press, where it lands, and which parts answered it and when. A crowded part was still answering an event that weighs as much or more. A heavier event takes the part over and cuts the earlier answer short.
   Band: each bar where a part came in or left, with the heat that decided it.
-  Parts per bar: the rendered level of each part in each bar, after its gain, in dBFS. A dash is under ${SILENT_DB} dBFS.
-  Cuts: every moment a part's level falls by more than ${CUT_DB} dB from one ${WINDOW_SECONDS * 1000} ms window to the next while it was above ${HEARD_DB} dBFS. A sound that rings out loses about 9 dB per beat at the exit decay, so it never trips this. A hard stop does.
-    Each cut names its cause: a loop seam, a part's exit, or the stem itself.
-  Stabs: how many played and the most that sounded at once.
+  Parts per bar: the rendered level of each part in each bar, loops, phrases and answers together, in dBFS. A dash is under ${SILENT_DB} dBFS.
+  Summary: the share of bars each part sounds in, how many arrangement changes happened, and how long after its landing each answer starts.
+  Cuts: every moment a part's level falls by more than ${CUT_DB} dB from one ${WINDOW_SECONDS * 1000} ms window to the next while it was above ${HEARD_DB} dBFS. A ring-out never trips this. A hard stop does.
 
 Options:
   --seed <n>          Seed of every random choice. Default 1.
@@ -72,27 +71,18 @@ function decode(file) {
   if (r.status !== 0) fail(`ffmpeg could not decode ${file}: ${r.stderr}`);
   const samples = new Float32Array(r.stdout.buffer, r.stdout.byteOffset, r.stdout.length / BYTES_PER_SAMPLE);
   const length = samples.length / 2;
-  const planes = [0, 1].map((c) => Float32Array.from({ length }, (_, n) => samples[2 * n + c]));
-  return { rate: RATE, channels: planes };
+  return [0, 1].map((c) => Float32Array.from({ length }, (_, n) => samples[2 * n + c]));
 }
 
 function decodeStems(stemsDir) {
   return new Map(stemFiles().map((file) => [file, decode(stemsDir ? path.join(stemsDir, path.basename(file)) : file)]));
 }
 
-function accentPlayer(seed) {
-  const accents = Object.fromEntries(Object.entries(SOUNDS).filter(([cue]) => cue.startsWith('accent-')));
-  const decoded = new Map();
-  for (const cue of Object.values(accents)) for (const file of cue.files) decoded.set(file, decode(path.join('public/sfx', file)));
-  const rng = { rngState: ~seed };
-  return new RecordingPlayer(accents, decoded, () => nextRandom(rng));
-}
-
-function run(session, player, events, lengthSeconds) {
+function run(session, clock, events, seconds) {
   session.tick();
   let next = 0;
-  for (let t = STEP_SECONDS; t <= lengthSeconds; t += STEP_SECONDS) {
-    player.advanceTo(t);
+  for (let t = STEP_SECONDS; t <= seconds; t += STEP_SECONDS) {
+    clock.t = t;
     for (; next < events.length && events[next].at <= t; next++) session.fire(events[next].cue);
     session.tick();
   }
@@ -102,54 +92,40 @@ function silence(length) {
   return [new Float32Array(length), new Float32Array(length)];
 }
 
-function renderPart(session, part, stems, length) {
-  const stem = BAND_STEMS[part];
-  return stem.kind === 'loop' ? renderLoop(session, part, stems.get(stem.file), length) : renderPhrases(session, part, stems, length);
-}
-
-function renderPhrases(session, part, stems, length) {
-  const out = silence(length);
-  const volume = MIX.busVolume.music;
-  for (const p of session.phrases.filter((x) => x.part === part)) {
-    const source = stems.get(p.file);
-    const at = Math.round(p.at * RATE);
-    for (let c = 0; c < 2; c++) for (let i = 0; i < source.channels[c].length && at + i < length; i++) out[c][at + i] += source.channels[c][i] * p.gain * volume;
-  }
-  return out;
-}
-
-function renderLoop(session, part, stem, length) {
-  const out = silence(length);
-  const loop = stem.channels[0].length;
+function renderLoop(session, part, source, out) {
+  const loop = source[0].length;
   const first = Math.round(session.start * RATE);
   const volume = MIX.busVolume.music;
-  for (let block = first; block < length; block += GAIN_BLOCK) {
+  for (let block = first; block < out[0].length; block += GAIN_BLOCK) {
     const gain = session.levelOf(part, block / RATE) * volume;
     if (gain === 0) continue;
-    for (let n = block; n < Math.min(block + GAIN_BLOCK, length); n++) {
+    for (let n = block; n < Math.min(block + GAIN_BLOCK, out[0].length); n++) {
       const i = (n - first) % loop;
-      out[0][n] = stem.channels[0][i] * gain;
-      out[1][n] = stem.channels[1][i] * gain;
+      out[0][n] += source[0][i] * gain;
+      out[1][n] += source[1][i] * gain;
     }
   }
-  return out;
 }
 
-function renderStabs(session, player, length) {
-  const out = silence(length);
-  for (const press of session.presses) if (press.stab) addStab(out, press.stab, player.sourceOf(press.stab.file));
-  return out;
-}
-
-function addStab(out, stab, source) {
-  const gain = stab.gain * SOUNDS[stab.cue].volume * MIX.busVolume.music;
-  const sides = [Math.min(1, 1 - stab.pan), Math.min(1, 1 + stab.pan)];
-  const at = Math.round(stab.at * RATE);
-  for (let c = 0; c < 2; c++) {
-    const from = source.channels[Math.min(c, source.channels.length - 1)];
-    const n = Math.min(from.length, out[c].length - at);
-    for (let i = 0; i < n; i++) out[c][at + i] += from[i] * gain * sides[c];
+function renderPlay(session, play, source, out) {
+  const at = Math.round(play.at * RATE);
+  const from = Math.round(play.from * RATE);
+  const span = play.seconds === null ? source[0].length : Math.min(out[0].length - at, Math.round((play.seconds + 8 * session.beat) * RATE));
+  const volume = MIX.busVolume.music;
+  for (let i = 0; i < span && at + i < out[0].length; i++) {
+    const gain = answerLevel(play, (at + i) / RATE, session.beat) * volume;
+    const k = (from + i) % source[0].length;
+    out[0][at + i] += source[0][k] * gain;
+    out[1][at + i] += source[1][k] * gain;
   }
+}
+
+function renderPart(session, part, stems, length) {
+  const out = silence(length);
+  const stem = BAND_STEMS[part];
+  if (stem.kind === 'loop') renderLoop(session, part, stems.get(stem.file), out);
+  for (const play of session.plays.filter((p) => p.part === part)) renderPlay(session, play, stems.get(play.file), out);
+  return out;
 }
 
 function windowDb(signal, from, to) {
@@ -178,7 +154,9 @@ function causeOf(session, part, t, loopSeconds) {
   const intoLoop = (t - session.start) % loopSeconds;
   if (intoLoop < session.beat + 2 * WINDOW_SECONDS || loopSeconds - intoLoop < 2 * WINDOW_SECONDS) return 'loop seam';
   const exit = session.plans.find((p) => p.changes.some((c) => c.part === part && !c.on) && t >= p.start && t - p.start < 4 * session.beat);
-  return exit ? `exit at bar ${exit.bar + 1}` : 'in the stem';
+  if (exit) return `exit at bar ${exit.bar + 1}`;
+  const answer = session.plays.find((p) => p.part === part && p.seconds !== null && t >= p.at && t - p.at < p.seconds + 4 * session.beat);
+  return answer ? `answer from ${answer.at.toFixed(2)}` : 'in the stem';
 }
 
 function barBeat(session, t) {
@@ -190,9 +168,16 @@ function pad(text, width) {
   return String(text).padEnd(width);
 }
 
+function answersOf(press) {
+  const heard = press.answers.map((a) => `${a.part} at ${a.at.toFixed(2)}`);
+  const crowded = press.crowded.map((p) => `${p} crowded`);
+  const over = press.cut.map((p) => `took ${p.part} over`);
+  return [...heard, ...crowded, ...over].join(', ');
+}
+
 function eventsText(session) {
-  const rows = session.presses.map((p) => `${pad(p.at.toFixed(2), 8)}${pad(BAND_EVENT_LABELS[p.cue], 10)}${pad(p.lands.toFixed(2), 8)}${pad(p.result, 9)}${p.stab ? `stab ${p.stab.file} from ${p.stab.at.toFixed(2)}` : ''}`);
-  return [`${pad('Press', 8)}${pad('Event', 10)}${pad('Lands', 8)}${pad('Result', 9)}Sound`, ...rows].join('\n');
+  const rows = session.presses.map((p) => `${pad(p.at.toFixed(2), 8)}${pad(BAND_EVENT_LABELS[p.cue], 10)}${pad(p.lands.toFixed(2), 8)}${answersOf(p)}`);
+  return [`${pad('Press', 8)}${pad('Event', 10)}${pad('Lands', 8)}Answer`, ...rows].join('\n');
 }
 
 function bandText(session) {
@@ -200,9 +185,13 @@ function bandText(session) {
   return [`${pad('Bar', 9)}${pad('At', 8)}${pad('Heat', 7)}Change`, ...rows].join('\n');
 }
 
+function fullBars(session, seconds) {
+  return session.plans.filter((p) => p.start + session.beat * BEATS_PER_BAR <= seconds);
+}
+
 function partsText(session, rendered, seconds) {
   const head = `${pad('Bar', 6)}${pad('At', 8)}${pad('Heat', 7)}${BAND_PARTS.map((p) => pad(p, 8)).join('')}`;
-  const rows = session.plans.filter((p) => p.start + session.beat * BEATS_PER_BAR <= seconds).map((p) => {
+  const rows = fullBars(session, seconds).map((p) => {
     const end = p.start + session.beat * BEATS_PER_BAR;
     const cells = BAND_PARTS.map((part) => {
       const db = windowDb(rendered[part], p.start, end);
@@ -213,16 +202,29 @@ function partsText(session, rendered, seconds) {
   return [head, ...rows].join('\n');
 }
 
+function summaryText(session, rendered, seconds) {
+  const bars = fullBars(session, seconds);
+  const busy = BAND_PARTS.map((part) => {
+    const heard = bars.filter((p) => windowDb(rendered[part], p.start, p.start + session.beat * BEATS_PER_BAR) >= SILENT_DB).length;
+    return `${part} ${Math.round((100 * heard) / bars.length)}%`;
+  });
+  const changes = session.plans.flatMap((p) => p.changes).filter((c) => c.why !== 'always').length;
+  const delays = session.presses.flatMap((p) => p.answers.map((a) => (a.at - p.lands) * 1000)).sort((a, b) => a - b);
+  const answered = session.presses.filter((p) => p.answers.length > 0).length;
+  const delay = delays.length ? `${delays[Math.floor(delays.length / 2)].toFixed(0)} ms median, ${delays[0].toFixed(0)} to ${delays.at(-1).toFixed(0)} ms` : 'none';
+  return [`Bars each part sounds in: ${busy.join(', ')}`, `Arrangement changes: ${changes} in ${bars.length} bars`, `Events answered: ${answered} of ${session.presses.length}`, `Answer start after landing: ${delay}`].join('\n');
+}
+
 function cutsText(session, rendered, seconds, loopSeconds) {
   const rows = BAND_PARTS.flatMap((part) => cutsOf(rendered[part], seconds).map((c) => `${pad(part, 7)}${pad(c.at.toFixed(2), 8)}${pad(barBeat(session, c.at), 10)}${pad(`-${c.drop.toFixed(0)} dB`, 9)}${causeOf(session, part, c.at, loopSeconds)}`));
   if (rows.length === 0) return 'none';
   return [`${pad('Part', 7)}${pad('At', 8)}${pad('Where', 10)}${pad('Drop', 9)}Cause`, ...rows].join('\n');
 }
 
-function stabsText(session, player) {
-  const spans = session.presses.filter((p) => p.stab).map((p) => [p.stab.at, p.stab.at + player.durationOf(p.stab.file)]);
-  const most = Math.max(0, ...spans.map(([a]) => spans.filter(([b, e]) => b <= a && a < e).length));
-  return `${spans.length} of ${session.presses.length} events played a stab. At most ${most} stabs sounded at once.`;
+function mixOf(signals, length) {
+  const out = silence(length);
+  for (const s of signals) for (let c = 0; c < 2; c++) for (let n = 0; n < length; n++) out[c][n] += s[c][n];
+  return out;
 }
 
 function writeWav(mix, file) {
@@ -236,33 +238,25 @@ function writeWav(mix, file) {
   if (r.status !== 0) fail(`ffmpeg could not write ${file}: ${r.stderr}`);
 }
 
-function mixOf(signals, length) {
-  const out = silence(length);
-  for (const s of signals) for (let c = 0; c < 2; c++) for (let n = 0; n < length; n++) out[c][n] += s[c][n];
-  return out;
-}
-
 function main() {
   const o = parseArgs(process.argv.slice(2));
   const events = parseScript(o.script);
   const seconds = o.length ?? events.at(-1).at + AFTER_LAST_EVENT_SECONDS;
   const length = Math.round(seconds * RATE);
   const stems = decodeStems(o.stemsDir);
-  const loopSeconds = stems.get(BAND_STEMS.drums.file).channels[0].length / RATE;
-  const player = accentPlayer(o.seed);
+  const loopSeconds = stems.get(BAND_STEMS.drums.file)[0].length / RATE;
+  const clock = { t: 0 };
   const rng = { rngState: o.seed };
-  const lead = bandLead((cue, file) => player.takeWithPeak(cue, file).peak);
-  const session = new BandSession({ now: () => player.now(), take: (cue) => player.chooseWithPeak(cue), roll: () => nextRandom(rng), barSeconds: loopSeconds / BARS_PER_LOOP }, lead);
-  run(session, player, events, seconds);
+  const session = new BandSession({ now: () => clock.t, roll: () => nextRandom(rng), barSeconds: loopSeconds / BARS_PER_LOOP });
+  run(session, clock, events, seconds);
   const rendered = Object.fromEntries(BAND_PARTS.map((part) => [part, renderPart(session, part, stems, length)]));
-  const mix = mixOf([...Object.values(rendered), renderStabs(session, player, length)], length);
-  writeWav(mix, o.out);
-  console.log(`band:sim ${o.script.join(' ')} | seed ${o.seed} | length ${seconds.toFixed(1)} s | bar ${(session.beat * BEATS_PER_BAR).toFixed(3)} s | lead ${lead.toFixed(3)} s | changes every ${BAND.phraseBars} bars | stems ${o.stemsDir ?? path.dirname(BAND_STEMS.drums.file)}`);
+  writeWav(mixOf(Object.values(rendered), length), o.out);
+  console.log(`band:sim ${o.script.join(' ')} | seed ${o.seed} | length ${seconds.toFixed(1)} s | bar ${(session.beat * BEATS_PER_BAR).toFixed(3)} s | lead ${session.lead.toFixed(2)} s | changes every ${BAND.phraseBars} bars`);
   console.log(`\nEvents\n${eventsText(session)}`);
   console.log(`\nBand\n${bandText(session)}`);
   console.log(`\nParts per bar, dBFS\n${partsText(session, rendered, seconds)}`);
+  console.log(`\nSummary\n${summaryText(session, rendered, seconds)}`);
   console.log(`\nCuts\n${cutsText(session, rendered, seconds, loopSeconds)}`);
-  console.log(`\nStabs\n${stabsText(session, player)}`);
   console.log(`\nWrote ${o.out}`);
 }
 

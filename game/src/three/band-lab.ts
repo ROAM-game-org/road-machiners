@@ -1,16 +1,28 @@
 import "../ui/style.css";
 import "./score-lab.css";
-import { BAND, BAND_PARTS, MIX, SOUNDS, type BandEvent, type BandPart, type Cue } from "../data/sounds";
-import { SFX_BYTES } from "../config";
-import { formatSupport, loadBank } from "../audio/bank";
+import { BAND, BAND_PARTS, MIX, type BandEvent, type BandPart } from "../data/sounds";
 import { Mixer } from "../audio/mixer";
-import { SoundPlayer } from "../audio/player";
 import type { BarPlan, Change } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
-import { BAND_EVENT_GROUPS, BAND_EVENT_LABELS, BAND_STEMS, BARS_PER_LOOP, BEATS_PER_BAR, bandLead, BandSession, stemFiles, type BandTick, type PartMove, type PhrasePlay } from "./band-session";
+import {
+  ANSWER_ATTACK_SECONDS,
+  ANSWER_DECAY_BEATS,
+  answerLevel,
+  BAND_EVENT_GROUPS,
+  BAND_EVENT_LABELS,
+  BAND_STEMS,
+  BARS_PER_LOOP,
+  BEATS_PER_BAR,
+  BandSession,
+  stemFiles,
+  type BandTick,
+  type PartMove,
+  type PartPlay,
+} from "./band-session";
 
 const STOP_FADE_SECONDS = 1;
+const ANSWER_TAIL_DECAYS = 8;
 const SPAN_SECONDS = 12;
 const FUTURE_SHARE = 0.15;
 const GUTTER = 96;
@@ -40,23 +52,26 @@ const INK = {
 };
 const FONT = `${token("--text-dense")} ${token("--font-mono")}`;
 
-type Live = { session: BandSession; sources: AudioBufferSourceNode[]; gains: Record<BandPart, GainNode> };
+type Live = {
+  session: BandSession;
+  sources: AudioBufferSourceNode[];
+  gains: Record<BandPart, GainNode>;
+  master: GainNode;
+  answers: Map<PartPlay, { level: AudioParam; src: AudioBufferSourceNode }>;
+};
 
-const sounds: Record<string, Cue> = SOUNDS;
 const root = uiRoot();
 root.classList.add("score-lab");
 root.append(el("div", { class: "dim" }, "Loading sounds..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
-const { bank } = await loadBank(mixer.ctx, sounds, { expectedBytes: SFX_BYTES, support: formatSupport() });
-const player = new SoundPlayer(mixer, bank, sounds);
+const clock = { now: () => mixer.ctx.currentTime };
 const buffers = await loadStems();
 const loops = BAND_PARTS.flatMap((part) => {
   const stem = BAND_STEMS[part];
   return stem.kind === "loop" ? [{ part, stem }] : [];
 });
 const barSeconds = bufferOf(loops[0].stem.file).duration / BARS_PER_LOOP;
-const lead = bandLead((cue, file) => player.takeWithPeak(cue, file).peak);
 
 async function loadStems(): Promise<Map<string, AudioBuffer>> {
   const pairs = await Promise.all(stemFiles().map(async (file) => [file, await decode(`/${file}`)] as const));
@@ -83,17 +98,17 @@ async function decode(file: string): Promise<AudioBuffer> {
 }
 
 let live: Live | null = null;
-let stabs = true;
 
 function startBand(): Live {
-  const session = new BandSession({ now: () => player.now(), take: (cue) => player.chooseWithPeak(cue), roll: Math.random, barSeconds }, lead);
+  const session = new BandSession({ now: clock.now, roll: Math.random, barSeconds });
+  const master = mixer.ctx.createGain();
+  master.connect(mixer.input("music"));
   const sources: AudioBufferSourceNode[] = [];
   const gains = {} as Record<BandPart, GainNode>;
   for (const part of BAND_PARTS) {
-    const gain = mixer.ctx.createGain();
-    gain.gain.value = BAND_STEMS[part].kind === "phrase" ? 1 : 0;
-    gain.connect(mixer.input("music"));
-    gains[part] = gain;
+    gains[part] = mixer.ctx.createGain();
+    gains[part].gain.value = 0;
+    gains[part].connect(master);
   }
   for (const { part, stem } of loops) {
     const src = mixer.ctx.createBufferSource();
@@ -103,46 +118,66 @@ function startBand(): Live {
     src.start(session.start);
     sources.push(src);
   }
-  return { session, sources, gains };
+  return { session, sources, gains, master, answers: new Map() };
 }
 
-function playPhrase(l: Live, p: PhrasePlay): void {
+function playPart(l: Live, p: PartPlay): void {
   const src = mixer.ctx.createBufferSource();
   src.buffer = bufferOf(p.file);
+  src.loop = p.seconds !== null;
   const gain = mixer.ctx.createGain();
-  gain.gain.value = p.gain;
-  src.connect(gain).connect(l.gains[p.part]);
-  src.start(Math.max(player.now(), p.at));
+  src.connect(gain).connect(l.master);
+  const at = Math.max(clock.now(), p.at);
+  src.start(at, p.from);
   l.sources.push(src);
+  if (p.seconds === null) gain.gain.value = p.gain;
+  else {
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(p.gain, at + ANSWER_ATTACK_SECONDS);
+    release(gain.gain, src, p);
+  }
+  l.answers.set(p, { level: gain.gain, src });
 }
 
-function phraseLength(file: string): number {
+function release(level: AudioParam, src: AudioBufferSourceNode, p: PartPlay): void {
+  const end = p.at + p.seconds!;
+  const decay = (barSeconds / BEATS_PER_BAR) * ANSWER_DECAY_BEATS;
+  level.cancelScheduledValues(Math.max(end, p.at + ANSWER_ATTACK_SECONDS));
+  level.setValueAtTime(p.gain, end);
+  level.setTargetAtTime(0, end, decay);
+  src.stop(end + decay * ANSWER_TAIL_DECAYS);
+}
+
+function shorten(l: Live, p: PartPlay): void {
+  const sounding = l.answers.get(p);
+  if (!sounding) throw new Error(`An answer on ${p.part} was cut short before it was played`);
+  release(sounding.level, sounding.src, p);
+}
+
+function playLength(file: string): number {
   return bufferOf(file).duration;
 }
 
 function stopBand(l: Live): void {
-  const now = player.now();
-  for (const part of BAND_PARTS) {
-    l.gains[part].gain.cancelScheduledValues(now);
-    l.gains[part].gain.setTargetAtTime(0, now, STOP_FADE_SECONDS / 3);
-  }
+  const now = clock.now();
+  l.master.gain.setTargetAtTime(0, now, STOP_FADE_SECONDS / 3);
   for (const src of l.sources) src.stop(now + STOP_FADE_SECONDS);
 }
 
 function apply(l: Live, m: PartMove): void {
-  l.gains[m.part].gain.setTargetAtTime(m.move.target, Math.max(player.now(), m.move.at), m.move.tc);
+  l.gains[m.part].gain.setTargetAtTime(m.move.target, Math.max(clock.now(), m.move.at), m.move.tc);
 }
 
 function played(l: Live, tick: BandTick): void {
   for (const m of tick.moves) apply(l, m);
-  for (const p of tick.phrases) playPhrase(l, p);
+  for (const p of tick.plays) playPart(l, p);
 }
 
 function fire(cue: BandEvent): void {
   if (!live) return;
-  const stab = live.session.fire(cue).stab;
-  if (!stabs || !stab) return;
-  player.play(cue, { pan: stab.pan, gain: stab.gain }, (stab.at - player.now()) * 1000, { file: stab.file, rate: 1 });
+  const press = live.session.fire(cue);
+  for (const p of press.cut) shorten(live, p);
+  for (const p of press.answers) playPart(live, p);
 }
 
 function flipCombat(): void {
@@ -182,7 +217,7 @@ function partTop(part: BandPart): number {
 }
 
 function draw(): void {
-  viewNow = player.now();
+  viewNow = clock.now();
   g.font = FONT;
   g.fillStyle = INK.well;
   g.fillRect(0, 0, width, HEIGHT);
@@ -227,8 +262,9 @@ function drawLevel(s: BandSession, part: BandPart): void {
 
 function shareOf(s: BandSession, part: BandPart, t: number): number {
   const stem = BAND_STEMS[part];
-  if (stem.kind === "phrase") return s.phraseAt(part, t, phraseLength) ? 1 : 0;
-  return s.levelOf(part, t) / stem.gain;
+  const play = s.playingAt(part, t, playLength);
+  const answered = play ? answerLevel(play, t, s.beat) / stem.gain : 0;
+  return Math.min(1, Math.max(answered, s.levelOf(part, t) / stem.gain));
 }
 
 function drawChanges(plan: BarPlan<BandPart>): void {
@@ -248,14 +284,14 @@ function drawPresses(s: BandSession): void {
   for (const [i, p] of s.presses.entries()) {
     const x = xOf(p.at);
     const landX = xOf(p.lands);
-    const played = p.result === "played";
+    const answered = p.answers.length > 0;
     g.fillStyle = INK.press;
     g.fillRect(x, 4, 1, PRESS_HEIGHT - 8);
     g.fillRect(x, PRESS_HEIGHT - 6, landX - x, 1);
-    g.fillStyle = played ? INK.press : INK.skipped;
+    g.fillStyle = answered ? INK.press : INK.skipped;
     g.fillRect(landX, 4, 2, PRESS_HEIGHT - 8);
-    g.fillStyle = played ? INK.text : INK.skipped;
-    g.fillText(played ? BAND_EVENT_LABELS[p.cue] : `${BAND_EVENT_LABELS[p.cue]} ${p.result}`, landX + 4, 12 + (i % 3) * 12);
+    g.fillStyle = answered ? INK.text : INK.skipped;
+    g.fillText(answered ? BAND_EVENT_LABELS[p.cue] : `${BAND_EVENT_LABELS[p.cue]} crowded`, landX + 4, 12 + (i % 3) * 12);
   }
 }
 
@@ -311,11 +347,8 @@ function ruleText(part: BandPart): string {
 }
 
 const combatButton = toggle("Combat", () => live !== null, flipCombat, "btn-l");
-const stabButton = toggle("Stabs", () => stabs, () => (stabs = !stabs), "btn-l");
-stabButton.classList.add("on");
-stabButton.title = "Play each event's own accent on its landing";
 const eventGroups = BAND_EVENT_GROUPS.map((group) => el("div", { class: "score-lab-buttons" }, ...group.map((cue) => el("button", { onclick: () => fire(cue) }, BAND_EVENT_LABELS[cue]))));
-const controls = el("div", { class: "panel" }, el("div", { class: "score-lab-buttons" }, combatButton, stabButton), ...eventGroups);
+const controls = el("div", { class: "panel" }, el("div", { class: "score-lab-buttons" }, combatButton), ...eventGroups);
 const rules = el("div", { class: "panel" }, ...BAND_PARTS.map((p) => el("div", { class: "dim" }, `${p}: ${ruleText(p)}`)), el("div", { class: "dim" }, `Changes only every ${BAND.phraseBars} bars`));
 const holder = el("div", { class: "score-lab-canvas" }, canvas);
 const timeline = el("div", { class: "panel" }, holder);
