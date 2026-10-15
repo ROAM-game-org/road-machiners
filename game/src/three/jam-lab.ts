@@ -341,8 +341,8 @@ function choice<T>(options: { label: string; value: T }[], pick: (value: T) => v
   return el("div", { class: "score-lab-buttons" }, ...buttons);
 }
 
-function switchRow<K extends keyof JamSwitches>(key: K, title: string, band: [string, JamSwitches[K]], theirs: [string, JamSwitches[K]]): HTMLElement[] {
-  const options = [band, theirs].map(([label, value]) => ({ label, value }));
+function switchRow<K extends keyof JamSwitches>(key: K, title: string, first: [string, JamSwitches[K]], second: [string, JamSwitches[K]]): HTMLElement[] {
+  const options = [first, second].map(([label, value]) => ({ label, value }));
   return [el("span", { class: "dim" }, title), choice(options, (value) => (session.switches[key] = value), options.findIndex((o) => o.value === session.switches[key]))];
 }
 
@@ -372,7 +372,7 @@ const autoChoice = choice<Auto>(
 const switches = [
   ...switchRow("parts", "Parts", ["By heat", "band"], ["All", "all"]),
   ...switchRow("answers", "Answers", ["Band", "band"], ["Drum fills", "fills"]),
-  ...switchRow("jumps", "Jumps", ["Ring out", "ring"], ["Fade", "fade"]),
+  ...switchRow("jumps", "Jumps", ["Fade", "fade"], ["Ring out", "ring"]),
 ];
 const statsBox = el("div", { class: "score-lab-picks" });
 const controlsPanel = panel(el("div", { class: "score-lab-buttons" }, combatButton, denseButton), ...eventButtons, el("span", { class: "dim" }, "Auto fight"), autoChoice, ...switches);

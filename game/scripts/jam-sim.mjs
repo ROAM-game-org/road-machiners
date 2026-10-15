@@ -20,9 +20,9 @@ const CUT_DB = 20;
 const HEARD_DB = -50;
 const MERGE_SECONDS = 0.25;
 const SILENT_DB = -60;
-const SWITCHES = { parts: ['band', 'all'], answers: ['band', 'fills'], jumps: ['ring', 'fade'] };
+const SWITCHES = { parts: ['band', 'all'], answers: ['band', 'fills'], jumps: ['fade', 'ring'] };
 
-const HELP = `Usage: npm run jam:sim -- <event@seconds ...> [--seed n] [--length s] [--end s] [--parts band|all] [--answers band|fills] [--jumps ring|fade] [--out file.wav]
+const HELP = `Usage: npm run jam:sim -- <event@seconds ...> [--seed n] [--length s] [--end s] [--parts band|all] [--answers band|fills] [--jumps fade|ring] [--out file.wav]
 
 Plays a scripted fight through the jam lab's session, the same code /jam.html runs, renders what the player would hear and prints it.
 Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second. An event at time t is a press at t. Combat starts at 0.
@@ -30,7 +30,7 @@ Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to
 Switches, the first value is the default:
   --parts    band: the conductor brings parts in and out by heat. all: every part always plays, as in /blocks.html.
   --answers  band: each event is answered by its parts from the block playing. fills: drum fills, as in /blocks.html.
-  --jumps    ring: on a jump the old block's bass, guitar and vocals ring out. fade: everything fades in ${'30'} ms, as in /blocks.html.
+  --jumps    fade: everything fades in 30 ms, as in /blocks.html. ring: on a jump the old block's bass, guitar and vocals play on into the song's next bar while they decay.
 
 Output:
   Blocks: each block of the song with its start, how it joined the one before and the heat when it was chosen.

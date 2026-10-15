@@ -10,7 +10,7 @@ export type Take = { kind: TakeKind; part: JamPart; cue: BandEvent | null; from:
 export type JamPress = { cue: BandEvent; at: number; slot: number | null; answers: Take[]; crowded: JamPart[]; cut: Take[] };
 export type JamOutput = { play(take: Take): void; end(take: Take): void; move(part: JamPart, move: Move): void };
 
-export const JAM_DEFAULTS: JamSwitches = { parts: "band", answers: "band", jumps: "ring" };
+export const JAM_DEFAULTS: JamSwitches = { parts: "band", answers: "band", jumps: "fade" };
 const RING_TIME_CONSTANTS = 7;
 const SLOT_EPSILON = 1e-6;
 const PUSHED: JamPart = "guitar";
