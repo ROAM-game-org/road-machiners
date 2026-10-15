@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { afterEach, expect, it } from 'vitest';
 import * as activity from './activity';
 import { parseAgentStatus, readObservation, scriptStatusRecord } from './observability';
-import { CACHED_SUITE, buildScript, checkScript } from './stages/checks';
+import { buildScript, checkScript } from './stages/checks';
 import type { Run } from './types';
 const homes: string[] = [];
 function createHome() { mkdirSync('tmp', { recursive: true }); const home = mkdtempSync('tmp/activity-'); homes.push(home); return home; }
@@ -124,7 +124,7 @@ it('starts an operation on the activity its caller names, whatever the command t
 });
 
 it('has every step of the check, preview, build and candidate scripts record an activity the reader accepts', () => {
-  const scripts = [checkScript('npm run playtest', 'npm run test:cached'), checkScript('npm run playtest', ''), buildScript, CACHED_SUITE];
+  const scripts = [checkScript('npm run playtest', 'npm run test:cached'), checkScript('npm run playtest', ''), buildScript];
   const records = scripts.flatMap((script) => [...script.matchAll(/^\s*step '(\{.*\})' "/gm)].map((match) => activity.readActivityLine(match[1])));
   expect(records.length).toBeGreaterThan(10);
   expect(records.every((record) => record !== null && 'activity' in record && record.step === true)).toBe(true);

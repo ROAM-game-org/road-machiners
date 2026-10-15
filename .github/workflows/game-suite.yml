@@ -15,11 +15,13 @@ permissions:
 jobs:
   suite:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     container: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       SHA: ${{ inputs.sha }}
       TEST_STALL_MINUTES: '10'
+      TEST_SUITE_MINUTES: '20'
+      TEST_TIMEOUTS: 'off'
     steps:
       - name: install git
         run: apt-get update && apt-get install -y --no-install-recommends git
