@@ -874,6 +874,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
+  withRescueContracts_63_64,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -894,6 +895,10 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {

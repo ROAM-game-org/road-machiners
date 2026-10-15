@@ -188,6 +188,22 @@ describe('game save', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.contracts).toEqual([{ ...bounty, fulfilled: true }]);
   });
 
+  it('keeps held rescues and a rescue offer through a reload and awards nothing on load', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const rescue = (id: string, fulfilled: boolean): Contract => ({ id, shop: 'bowl', kind: 'rescue', client: 'v77', driver: 'Jed Cobb', need: 'fuel', area: { x: 40.5, y: 52.25 }, reward: 220, deadline: 900, window: 400, tier: 1, fulfilled });
+    world.player.contracts = [rescue('ct-r1', false), rescue('ct-r2', true)];
+    world.shops.bowl.contracts = [rescue('ct-r3', false)];
+    writeSave(slots, 'auto', world, RUN, 1000);
+    const loaded = loadWorld(slots, 'auto', TEST_MAP);
+    if (!loaded) throw new Error('Expected saved rescues');
+    expect(loaded.player.contracts).toEqual(world.player.contracts);
+    expect(loaded.shops.bowl.contracts).toEqual([rescue('ct-r3', false)]);
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.player.xp).toBe(world.player.xp);
+    expect(loaded.events.filter((e) => e.t === 'contract' || e.t === 'money' || e.t === 'practice')).toEqual([]);
+  });
+
   it('loads light and heavy crates, a haul, a cost basis and hidden goods as they were saved', () => {
     const slots = makeSlots();
     const world = emptyWorld();

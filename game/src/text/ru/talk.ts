@@ -240,6 +240,8 @@ export const TALK: Translation<typeof EN> = {
   'radio.fetch.1': 'Разыскивают {part, case, acc} {shop, case, at}, ещё {part, gender, m {живой} f {живую} n {живое} pl {живые}}.',
   'radio.bounty.0': '{shop} {shop, gender, m {назначил} f {назначила} n {назначило} pl {назначили}} цену за {target, case, acc}. Говорят, бизнес, а не убийство.',
   'radio.bounty.1': 'На доске {shop, case, at} листовка на {target, case, acc}. Я просто читаю, мужики.',
+  'radio.rescue.0': 'Тягач застрял {place}. {shop, case, at} платят тем, кто оживит.',
+  'radio.rescue.1': 'Водила встал {place}. {shop, case, at} ждут буксир или топливо.',
   'radio.raid.0': 'Рейдеры шалят {place}. Бухгалтерам опять горячий день.',
   'radio.raid.1': 'Рейдеры работают на дороге {place}. Груз там меняет хозяев.',
   'radio.raid.2': 'Слышно, что {place} был налет. Рейдеры соблюдают график.',

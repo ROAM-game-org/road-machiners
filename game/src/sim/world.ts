@@ -51,6 +51,7 @@ import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
+import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
@@ -376,6 +377,7 @@ export function endTurn(
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
     resolveNpcActivities(w);
