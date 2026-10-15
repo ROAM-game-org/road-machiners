@@ -46,6 +46,14 @@ REMOVE_REPLY = re.compile(r"remove\s+#?(\d+)\b", re.IGNORECASE)
 ROUTE_PREFIX = re.compile(r"(patch|redesign)\s*:", re.IGNORECASE)
 # The `by` of an order Hermes gives on its own reading. The factory accepts it for a task and a route only.
 HERMES = "hermes"
+ACKNOWLEDGMENTS = frozenset({
+    "thanks", "thank you", "thank you very much", "thanks a lot", "thx", "ty", "ok", "okay", "k", "got it", "noted",
+    "cool", "great", "nice", "good", "sure", "fine", "alright", "all right", "understood", "roger", "perfect",
+    "спасибо", "спасибо большое", "благодарю", "ок", "окей", "хорошо", "понял", "поняла", "понятно", "принято",
+    "ясно", "отлично", "супер", "класс", "ладно",
+})
+MENTION = re.compile(r"@\w+")
+NOT_WORD = re.compile(r"[^\w\s]+")
 log = logging.getLogger(__name__)
 
 
@@ -135,6 +143,13 @@ def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None,
     if draft_post_id is not None and reply_to_message_id is not None and str(reply_to_message_id) == str(draft_post_id):
         return ("draft-reply", text or "")
     return _request(text or "", reply_to_message_id, approval_posts, release)
+
+
+def is_bare_acknowledgment(text) -> bool:
+    if "?" in (text or ""):
+        return False
+    words = " ".join(NOT_WORD.sub(" ", MENTION.sub(" ", text or "")).lower().split())
+    return words == "" or words in ACKNOWLEDGMENTS
 
 
 def committee_args(text) -> Optional[str]:
@@ -597,6 +612,8 @@ def make_hook(cfg: Config, readiness: Readiness):
         draft_post_id = release_post.get("postId") if release_post else None
         decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id)
         if decision is None:
+            if is_bare_acknowledgment(event.text) and not getattr(event, "media_urls", None):
+                return {"action": "skip", "reason": "factory-acknowledgment"}
             return None
         if decision[0] == "draft-reply":
             # Hermes revises the draft with its tool. The factory waits for no route, so nothing goes to the inbox.
