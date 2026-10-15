@@ -14,6 +14,7 @@ import { pruneCaptions } from './post-status';
 import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
+import { requeueKept } from './stages/kept-approval';
 import { waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
 import { sweepStuck, type Repair } from './stuck';
@@ -476,6 +477,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   updateState(ctx.statePath, pruneFailures(ctx.now()));
   const free = freeGb(ctx.cfg.home);
   const cards = await sweepStuck(ctx, answered, free >= ctx.cfg.minFreeGb, deps.repair);
+  requeueKept(ctx, cards);
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);

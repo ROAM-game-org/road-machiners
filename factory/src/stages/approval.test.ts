@@ -134,6 +134,18 @@ describe('approve', () => {
     expect(readState(`${home}/state.json`).keptApprovals).toEqual({});
   });
 
+  it('keeps the approval through another move of main during the second checks, and sends the card back to Testing again', async () => {
+    labels = ['bug', 'hotfix'];
+    const kept: KeptApproval = { by: 'bob', at: '2026-09-30T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111', 'ddd4444'], reason: 'main moved' };
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' }, builds: { 7: 'ddd4444' }, keptApprovals: { 7: kept } });
+    const ctx = fakeCtx();
+    ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'ddd4444', 'main moved again.'); };
+    await approve(ctx, 7, 'bob');
+    expect(calls).toContain('move 7 Testing');
+    expect(calls.some((call) => call.startsWith('message') || call.startsWith('release'))).toBe(false);
+    expect(readState(`${home}/state.json`).keptApprovals[7]).toEqual({ ...kept, reason: 'main moved again.' });
+  });
+
   it('takes a new member approval of a newly posted build as a new kept approval', async () => {
     labels = ['bug', 'hotfix'];
     const old: KeptApproval = { by: 'ann', at: '2026-09-29T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111'], reason: null };

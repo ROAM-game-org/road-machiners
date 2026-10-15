@@ -8,7 +8,7 @@ import type { Card, Ctx, FactoryConfig, FactoryState, ReleaseState } from './typ
 const ROOT = resolve('tmp/factory-inbox-test');
 const statePath = join(ROOT, 'state.json');
 const POST = 42;
-const withPost = (state: FactoryState): FactoryState => ({ ...state, postCaptions: { [POST]: 'Post' } });
+const withPost = (state: FactoryState): FactoryState => ({ ...state, approvalPosts: { [POST]: 4, ...state.approvalPosts }, postCaptions: { [POST]: 'Post' } });
 
 function fakeCtx(cards: Card[], sent: string[], calls: string[]): Ctx {
   const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5' } as FactoryConfig;
@@ -50,6 +50,25 @@ describe('drainInbox', () => {
     expect(readState(statePath).pendingApprovals).toEqual({ '4': 'Ann' });
     expect(readdirSync(join(ROOT, 'inbox'))).toEqual([]);
     expect(sent).toEqual([]);
+  });
+
+  it('refuses an approval from a post that a newer post or a kept approval replaced', async () => {
+    const sent: string[] = [];
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { 99: 4 }, postCaptions: { [POST]: 'Post' } });
+    put('1.json', { kind: 'approve', issue: 4 });
+    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    expect(readState(statePath).pendingApprovals).toEqual({});
+    expect(sent).toEqual(['That did not work: That post of #4 is no longer current, so it cannot approve anything. Only the newest post of #4 can.']);
+  });
+
+  it('refuses a deny from an old post, and leaves the card alone', async () => {
+    const sent: string[] = [];
+    const calls: string[] = [];
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), postCaptions: { [POST]: 'Post' } });
+    put('1.json', { kind: 'deny', issue: 4 });
+    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, calls));
+    expect(calls).toEqual([]);
+    expect(sent[0]).toContain('is no longer current');
   });
 
   it('queues an ad hoc task as an issue, a card and a reply entry', async () => {
@@ -203,7 +222,7 @@ describe('drainInbox', () => {
 
   it('replies with the answer only when the post cannot show its status', async () => {
     const sent: string[] = [];
-    writeState(statePath, structuredClone(EMPTY_STATE));
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { [POST]: 4 } });
     put('1.json', { kind: 'approve', issue: 4 });
     await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(readState(statePath).pendingApprovals).toEqual({ '4': 'Ann' });
