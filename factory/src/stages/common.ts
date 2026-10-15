@@ -73,9 +73,12 @@ export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
   return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
 }
 
+export function promptFile(name: string): string {
+  return readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').trim();
+}
+
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  const path = fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url));
-  let text = readFileSync(path, 'utf8');
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);
