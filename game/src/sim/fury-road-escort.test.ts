@@ -7,7 +7,9 @@ import { isDefeated } from './defeat';
 import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, moveWindow, outpostPad, spawnGroup, turnedOnPlayer, waitForRoad, waveOf } from './fury-road';
 import { alongOf, milestoneAt, outpostFort, roadPoint, toRoad } from './highway';
 import { topGoal } from './npc-activities';
-import { corePart } from './grid';
+import { corePart, mountedParts } from './grid';
+import { haulerGauge } from './hauler-gauge';
+import { maxHp } from './wear';
 import { canUseSite } from './sites';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle, World } from './types';
@@ -158,6 +160,26 @@ describe('losing the run', () => {
     expect(after.player.state).toBe('dead');
     expect(after.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'haulerLost' });
     expect(isDefeated(haulerOf(after))).toBe(false);
+  });
+
+  it('ends the run with haulerLost once the hauler gauge empties at the lost share of its part HP, with its cab whole', () => {
+    const healthy = furyRoadWorld();
+    expect(haulerGauge(haulerOf(healthy))).toBe(1);
+    expect(endTurn(healthy, still).player.state).toBe('active');
+
+    const w = furyRoadWorld();
+    const parts = mountedParts(haulerOf(w));
+    const total = parts.reduce((sum, p) => sum + maxHp(p), 0);
+    let cut = total * (1 - FURY_ROAD.hauler.lostAt) + 1;
+    for (const part of parts.filter((p) => p.id !== corePart(haulerOf(w), 'cab').id)) {
+      const take = Math.min(part.hp, cut);
+      part.hp -= take;
+      cut -= take;
+    }
+    expect(corePart(haulerOf(w), 'cab').hp).toBe(maxHp(corePart(haulerOf(w), 'cab')));
+    expect(haulerGauge(haulerOf(w))).toBe(0);
+    const after = endTurn(w, still);
+    expect(after.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'haulerLost' });
   });
 
   it('ends the run with wrecked when the player truck is beaten, as before', () => {

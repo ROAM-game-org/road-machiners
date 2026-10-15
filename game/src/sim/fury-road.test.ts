@@ -254,11 +254,11 @@ describe('the pace of encounters', () => {
     expect(group(w).spawned).toBe(false);
   });
 
-  it('spawns the groups in order, one per turn, with the hauler late for them all', () => {
+  it('spawns the groups in order, one per turn, even with the hauler past them all', () => {
     const w = furyRoadWorld();
     const run = runOf(w);
     expect(run.groups.length).toBeGreaterThan(1);
-    moveTo(w, run.groups[run.groups.length - 1].at + FURY_ROAD.pacing.lateBy + 1);
+    moveTo(w, run.groups[run.groups.length - 1].at + 1);
 
     advanceFuryRoad(w);
     expect(run.groups.map((g) => g.spawned)).toEqual(run.groups.map((_, i) => i === 0));
@@ -279,27 +279,7 @@ describe('the pace of encounters', () => {
     }
   });
 
-  it('holds a due group while an earlier one still fights near the hauler, until the hauler is late for it', () => {
-    let w = furyRoadWorld(4);
-    for (let k = 0; k < 4; k++) w = nextLevel(w);
-    const run = runOf(w);
-    const first = milestoneAt(run.window) + 100;
-    run.groups = planStretch(w.seed, run.window + 1, planned([1, 1], first));
-    moveTo(w, first + 1);
-    advanceFuryRoad(w);
-    const nearHauler = () => { for (const v of trucksOf(w, run.groups[0])) v.pos = { x: haulerOf(w).pos.x + 6, y: haulerOf(w).pos.y }; };
-    moveTo(w, run.groups[1].at + 1);
-    nearHauler();
-    advanceFuryRoad(w);
-    expect(run.groups[1].spawned).toBe(false);
-
-    moveTo(w, run.groups[1].at + FURY_ROAD.pacing.lateBy + 1);
-    nearHauler();
-    advanceFuryRoad(w);
-    expect(run.groups[1].spawned).toBe(true);
-  });
-
-  it('sends a due group once the earlier one is beaten or left behind', () => {
+  it('spawns a due group while an earlier one still fights near the hauler, so not fighting holds nothing back', () => {
     let w = furyRoadWorld(4);
     for (let k = 0; k < 4; k++) w = nextLevel(w);
     const run = runOf(w);
@@ -308,7 +288,7 @@ describe('the pace of encounters', () => {
     moveTo(w, first + 1);
     advanceFuryRoad(w);
     moveTo(w, run.groups[1].at + 1);
-    for (const v of trucksOf(w, run.groups[0])) v.pos = { x: haulerOf(w).pos.x + FURY_ROAD.pacing.near + 20, y: haulerOf(w).pos.y };
+    for (const v of trucksOf(w, run.groups[0])) v.pos = { x: haulerOf(w).pos.x + 6, y: haulerOf(w).pos.y };
     advanceFuryRoad(w);
 
     expect(run.groups[1].spawned).toBe(true);
@@ -321,7 +301,7 @@ describe('the pace of encounters', () => {
     const first = milestoneAt(run.window) + 100;
     run.groups = planStretch(w.seed, run.window + 1, planned([3, 3, 2], first));
     for (const g of run.groups) {
-      moveTo(w, g.at + FURY_ROAD.pacing.lateBy + 1);
+      moveTo(w, g.at + 1);
       advanceFuryRoad(w);
     }
     const late = { ...run.groups[0], id: 'late', spawned: false, vehicles: [], engaged: [], templates: ['buggy'], at: run.groups[2].at };

@@ -126,12 +126,13 @@ describe('Chaos Highway director', () => {
     const w = withGrowth(1);
     const j = DIRECTOR.elite.from;
     const money = Math.max(FURY_ROAD.cards.merc.floor, stretchBudget(w, j).base) * DIRECTOR.elite.money;
-    const plates = (armorFirst: boolean) => SEEDS.reduce((sum, seed) => {
+    const platesOf = (armorFirst: boolean) => SEEDS.map((seed) => {
       const loadout = generateNpcLoadout({ ...w, rngState: seed }, NPCS.merc, null, waveOf(j).level, { ...waveGear('merc', j, money, true), armorFirst });
-      return sum + loadout.parts.filter((p) => PARTS[p.defId].kind === 'armor').length;
-    }, 0);
-    expect(plates(true)).toBeGreaterThan(plates(false));
-    expect(plates(true)).toBeGreaterThanOrEqual(SEEDS.length);
+      return loadout.parts.filter((p) => PARTS[p.defId].kind === 'armor').length;
+    });
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+    expect(sum(platesOf(true))).toBeGreaterThan(sum(platesOf(false)));
+    expect(platesOf(true).filter((n) => n > 0).length).toBeGreaterThan(0.5 * SEEDS.length);
   });
 
   it('pays more every stretch with no cap, and a beaten truck pays nothing', () => {

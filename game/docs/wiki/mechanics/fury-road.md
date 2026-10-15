@@ -1,6 +1,6 @@
 # Chaos Highway
 
-An endless highway combat run north, with outposts as milestones, picked at New game. The principles and the exceptions to Roaming are in [DESIGN.md](../../DESIGN.md#game-modes). The numbers live in `FURY_ROAD`, `HAZARDS` and `HIGHWAY` in `src/data/modes.ts`. The land comes from `src/sim/highway.ts` and `src/sim/road-hazards.ts`, the run rules from `src/sim/fury-road.ts`, `src/sim/fury-road-danger.ts` and `src/sim/outposts.ts`, and the hauler's driving from `src/sim/hauler.ts`.
+An endless highway combat run north, with outposts as milestones, picked at New game. The principles and the exceptions to Roaming are in [DESIGN.md](../../DESIGN.md#game-modes). The numbers live in `FURY_ROAD`, `HAZARDS` and `HIGHWAY` in `src/data/modes.ts`. The land comes from `src/sim/highway.ts` and `src/sim/road-hazards.ts`, the run rules from `src/sim/fury-road.ts`, `src/sim/fury-road-director.ts` and `src/sim/outposts.ts`, and the hauler's driving from `src/sim/hauler.ts`.
 
 ## Mode rules
 
@@ -73,13 +73,13 @@ The land is generated as you go, in windows of 410 by 410 tiles, each 310 tiles 
 
 An outpost stands at each milestone from 0 on. It is a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad to the gate. Its label shows `???` until the player sees it, then "Outpost N". Discovering it gives XP as any site does.
 
-The hauler reaching the pad of the next outpost wins the level in that turn, at any speed, in combat or out. The gun truck on the pad alone wins nothing. The outpost pays 120 M's for stretch 1 and 50 M's more for each later stretch. Pay has no cap, and neither the wrecks nor the hauler's condition change it. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch leave the road and their fights end.
+The hauler reaching the pad of the next outpost wins the level in that turn, at any speed, in combat or out. The gun truck on the pad alone wins nothing. The outpost pays 250 M's for stretch 1 and 100 M's more for each later stretch. Pay has no cap, and neither the wrecks nor the hauler's condition change it. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch leave the road and their fights end.
 
 Between levels nothing spawns. A paid outpost is a garage, as a town garage is. `atGarage()` in `src/sim/garage.ts` says yes for a truck parked on its pad. Every install, removal and swap on the truck grid, and every move to or from garage storage, applies at once with no refit timer. Storage is the player's one garage storage, shared with every garage and carried from window to window. Both trucks pay from the one wallet.
 
 The outpost screen shows the truck and the hauler as a switch above the grid. The grid, the repair bar, the supplies and the Buy parts tab act on the one chosen. The hauler is chosen only while it is parked on the pad. The screen has three tabs:
 
-- Market: repair all or the basics at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
+- Market: repair all or the basics at the garage price, four times that for the hauler, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
 - Buy parts: each outpost stocks five guns, six armor parts, three engines, three cargo parts, three utility parts, both store parts and the scanner. No part appears twice. The stock is rolled from the seed and kept in the save. A part goes onto the truck's cargo cells if it fits, and into storage if not. The hauler refuses a gun.
 - Trucks: three chassis, drawn without repeats from every player chassis but the scout. The offer is a pure function of the seed and the milestone, and a bought truck leaves the offer. The price is the chassis value less the trade-in of the truck the player drives, or a payout when the trade-in is worth more. The swap is the town's, `swapChassis()`: the new chassis brings its own built-in parts, every fitted part is fitted again where it fits, then stowed, then stored, and the goods go back in cargo. Swap is disabled with the reason when the money is short or the goods would not fit the new truck. Fuel and supplies clamp to the new tanks.
 
@@ -89,38 +89,35 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 
 ## Hostile groups
 
-Danger rises every stretch with no end. It is measured against the expected player gear: the parts of both start kits, plus all the pay earned before the stretch. Parts here leave out the chassis, since enemy chassis come from random templates.
+A director plans each stretch's groups when the road opens, in `src/sim/fury-road-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
-- Danger is 45% of the expected player gear on stretch 1 and grows by 10 points every stretch. The Enemy growth world setting scales the 10 points, as [world-settings.md](world-settings.md) describes.
-- One truck is never worth more than 45% of the expected player gear, and a stretch adds a truck only when every truck still gets at least 35% of it. So two weak trucks never stand in for one fair one: 1 truck up to stretch 3, 2 from stretch 4, 3 from stretch 7, 4 from stretch 11 and 5 from stretch 15.
-- The danger is split evenly over the trucks as their gear money, capped at the 45%, with a floor per pool tier: 200 M's each in stretches 1 to 5 and 450 M's from stretch 6. A floor is the least that buys every template of its tier an engine and a gun.
-- The trucks go in the fewest groups of at most 3, as even as they go.
+- Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch. A fraction rolls up or down, so stretches of one level differ.
+- Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
+- Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
+- Gear money: each truck's gear money is 17% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
+- Toughness: a plain truck spawns with its cab, drive and wheels at half their HP on stretch 1, 5 points more each stretch, whole from stretch 11.
 
-Gear money grows until a truck's rated mass is full. Past that, danger grows as more trucks. The gear level sets only the wear of the parts and the amount of cargo:
+Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first, and spawns whole. A blocker is never elite.
 
-- Stretches 1 to 3: light.
-- Stretches 4 to 6: standard.
-- Stretch 7: heavy.
-- Stretch 8 and on: loaded.
+The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck carries a gun, picked before its utility part, and never a cargo part. A plain truck has no armor, mounted or spare. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
 
-Every group truck carries a gun. It picks its gun before its cargo and utility parts, so they cannot take every gun spot. The truck of stretch 1 has no armor, mounted or spare. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 5 up to tier 2, and from stretch 6 any gun, mounted or spare.
+Each group draws one card by weight from the cards open at its stretch, so its trucks share a template. Each truck takes its own template's loadout.
 
-The pool holds NPC templates, so a group mixes kinds of vehicle and driver. Each truck takes its own template's loadout at the group's gear level.
-
-- Stretches 1 and 2: buggies, couriers, scavengers, roamers and traders.
-- Stretches 3 to 5: those plus mercs and Bowl farmers.
+- From stretch 1: buggies, couriers and roamers.
+- From stretch 2: scavengers, traders and mercs join.
+- From stretch 3: Bowl farmers join.
 - From stretch 6: vultures, gunwagons, Nose army trucks, convoys and convoy guards join.
 
-A new template must join the pool in `FURY_ROAD`, and a test fails until it does.
+A card is a chaser or a blocker. A chaser's truck keeps 5.5 tiles a turn loaded, a tile faster than the hauler, on a chassis at least 15% faster than that, so it can always catch the hauler. A blocker is a slow, heavy card that always comes from ahead: Bowl farmers, gunwagons, Nose army trucks and convoys. A new template must get a card in `FURY_ROAD`, and a test fails until it does.
 
-A group comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind, since group trucks have no boost and could not catch a faster player.
+A group of chasers comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind.
 
 - ahead: 22 tiles ahead of the hauler, on the hauler's line across the road.
 - left or right: 22 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
-Encounters are paced in time. An encounter is on while a group truck that is not beaten is within 30 tiles of the hauler. The next group spawns after 20 quiet turns, and a level's first group 20 turns after the level starts. Groups spawn in plan order, where the player is, so a fight may meet a scene.
+Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 30% of that share either way. A group spawns once the hauler reaches its place. While a group truck that is not beaten is within 30 tiles of the hauler, the next group waits, but no longer than until the hauler is 100 tiles past its place. So beating a group buys the next quiet stretch, and outrunning one does not skip the next. Groups spawn in plan order, so a fight may meet a scene.
 
 Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler and hunts it every turn until the level ends. Each also holds a feud on the player, so the player's guns see it as hostile.
 
@@ -128,11 +125,12 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 - Its drive hunts the hauler. It hunts the gun truck only while the gun truck is in its attackers, after the gun truck shot it or crashed into it so that it took damage. It goes back to the hauler when the gun truck leaves its sight.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.
+- Group trucks are never hostile to each other, whatever their factions, so they never fight among themselves.
 - A group truck always drives at its own speed and never overdrives. A truck with no gun rams.
 
 ## Defeat
 
-A beaten group truck is knocked out or wrecked by the normal rules. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
+A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 30% of the HP it spawned with, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
 
 A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
 

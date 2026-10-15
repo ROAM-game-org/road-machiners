@@ -64,7 +64,9 @@ function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
   const spot = followSpot(world, me, leader, 0);
   if (leader.speed <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
-  return { kind: 'through', dest: spot, pace: followPace(me, leader, spot) };
+  const reach = me.speed + 1;
+  const aim = { x: spot.x + Math.cos(leader.heading) * reach, y: spot.y + Math.sin(leader.heading) * reach };
+  return { kind: 'through', dest: aim, pace: followPace(me, leader, spot) };
 }
 
 export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {

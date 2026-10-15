@@ -4,6 +4,7 @@ import { chassisDef } from "../data/chassis";
 import { RULES } from "../data/rules";
 import { isJunk, maxHp, restorePart } from "./wear";
 import { haulerOf, playerVehicle } from "./damage";
+import { haulerWrecked } from "./hauler-gauge";
 import { beatenBy, isHostile } from "./combat";
 import { rollCabKnock } from "./cab-knock";
 import { openFirstFall } from "./quests";
@@ -45,7 +46,12 @@ export function checkKnockout(world: World): void {
     else endRun(world, "wrecked");
     return;
   }
-  if (world.furyRoad && knockedNow(world, haulerOf(world))) endRun(world, "haulerLost");
+  if (world.furyRoad && haulerLostNow(world)) endRun(world, "haulerLost");
+}
+
+function haulerLostNow(world: World): boolean {
+  const hauler = haulerOf(world);
+  return knockedNow(world, hauler) || haulerWrecked(hauler);
 }
 
 function knockOutPlayer(world: World, me: Vehicle): void {

@@ -45,9 +45,11 @@ Both play a Chaos Highway world with the Chaos Highway kit and follow the hauler
 
 The escort plays as an NPC guard would.
 
-- Auto fire is on.
+- Auto fire is on while no hostile is in sight.
 - With no hostile in sight, it holds the escort spot beside the hauler. `followSpot()` in `src/sim/tow.ts` gives the spot.
-- With a hostile in sight, it fights the one nearest the hauler with the NPC merc fight code. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code.
+- With a hostile in sight, it fights the deadliest one with the NPC merc fight code. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code. The deadliest is the one with the most working gun damage per cab HP, weighed down when it is out of its own range of the escort and the hauler. It keeps its target until another is half again as deadly.
+- It focuses fire: every gun that reaches the target shoots it, and the others shoot the nearest hostile they reach.
+- It stands just outside the range of the foe's deadliest gun when its own guns reach further, and at 60% of its own range when they do not. It never drives into the foe.
 - It drives back to the escort spot when it falls behind the hauler along the road by more than its longest gun range.
 - It douses a hot engine at the heat warning.
 - It turns auto repair off while the tank is holed. It parks and patches the tank first, since auto repair ranks the tank last.
@@ -57,10 +59,10 @@ The escort plays as an NPC guard would.
 
 At each outpost the escort does this in order.
 
-- It repairs both trucks, tops up their fuel and supplies, and buys parts until it holds 4 for patching.
-- It buys the most valuable truck on offer that it can afford and that keeps its parts count. The truck must keep the hauler's hurry pace as its top speed.
-- If a better truck is within reach of the next stretch's pay but not yet affordable, it spends nothing more and saves.
-- Otherwise it refits its own truck by the merc loadout, never below the hauler's hurry pace, and spends the rest on hauler armor.
+- It repairs its own truck, and the hauler only below 75% condition, since the hauler's repairs cost four times as much. It tops up fuel and supplies and buys parts until it holds 4 for patching.
+- It refits its own truck by the merc loadout, never below the hauler's hurry pace.
+- It spends up to half the money left on hauler armor.
+- It buys the most valuable truck on offer that it can afford and that keeps its parts count. The truck must keep the hauler's hurry pace as its top speed. Money it cannot spend on gear builds up toward that truck.
 
 The sprinter turns auto fire off, drives ahead to the next pad and never fires. At an outpost it repairs, refits for any speed and buys a truck. It measures whether the run can be sprinted. The hauler must lose it.
 
