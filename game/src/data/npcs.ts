@@ -540,6 +540,7 @@ export type DecisionOptions = {
   escortSeen: 'keep' | 'hire';
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
+  escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
 };
 export type DecisionId = keyof DecisionOptions;
@@ -574,6 +575,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   escortSeen: { keep: 1, hire: 0 },
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
+  escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
 };
 
