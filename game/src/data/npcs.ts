@@ -1,5 +1,6 @@
 
 import type { Faction, StateKindId } from '../sim/types';
+import { CREW, HIRE } from './npc-behavior';
 import { RULES } from './rules';
 import { START_KITS } from './start';
 
@@ -549,7 +550,9 @@ export type DecisionOptions = {
   warnRefused: 'leave' | 'fight';
   mugging: 'demand' | 'attack';
   resume: 'resume' | 'new';
-  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort';
+  idle: 'trade' | 'scavenge' | 'raid' | 'prowl' | 'wait' | 'patrol' | 'travel' | 'explore' | 'haul' | 'escort' | 'muster';
+  crewAsked: 'join' | 'decline';
+  crewCalled: 'fight' | 'flee' | 'keep';
   escortSeen: 'keep' | 'hire';
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
@@ -585,7 +588,9 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   warnRefused: { leave: 3, fight: 1 },
   mugging: { demand: 3, attack: 2 },
   resume: { resume: 9, new: 1 },
-  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0 },
+  idle: { trade: 0, scavenge: 1, raid: 0, prowl: 0, wait: 0.1, patrol: 0, travel: 0, explore: 0, haul: 0, escort: 0, muster: 0 },
+  crewAsked: { join: 2, decline: 1 },
+  crewCalled: { fight: 3, flee: 0.5, keep: 1 },
   escortSeen: { keep: 1, hire: 0 },
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
@@ -609,6 +614,8 @@ export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   towPromise: { strandedSeen: { tow: { add: 20 } } },
   answering: {},
   escort: { strandedSeen: { tow: { add: 99 } } },
+  crew: { strandedSeen: { tow: { add: 99 } } },
+  hire: { strandedSeen: { tow: { add: 99 } } },
   revenge: {
     hostileSeen: { fight: { add: 4 } },
     contactHeard: { investigate: { add: 2 } },
@@ -640,10 +647,12 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   revenge: 2000,
   answering: 20,
   escort: null,
+  crew: CREW.huntTurns,
+  hire: HIRE.turns,
   combat: 10,
   lootWarning: 30,
 };
 
 
-export { FEMALE_NAMES, FIRST_NAMES, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HIRE, HUNT, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';

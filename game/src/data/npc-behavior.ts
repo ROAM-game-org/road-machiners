@@ -108,6 +108,22 @@ export const HUNT = {
   watchTurns: 40,
 };
 
+export const CREW = {
+  size: 3,
+  musterTurns: 40,
+  huntTurns: 300,
+  retryTurns: 150,
+  campReach: 12,
+  askReach: 10,
+  initiative: 0.1,
+  strongerLeader: 2,
+  lowAppetite: 0.5,
+};
+
+export const HIRE = {
+  turns: TIME.turnsPerDay,
+};
+
 export const MEMORY = {
   turns: { prices: TIME.turnsPerDay, stripped: TIME.turnsPerDay, wronged: ENCOUNTERS.wrongedTurns } satisfies Record<MemoryFact['kind'], number>,
 };

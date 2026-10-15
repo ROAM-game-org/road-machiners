@@ -14,6 +14,7 @@ import { clearTips } from '../ui/tips';
 import type { NewGameActions } from '../ui/new-game';
 import { settleAims } from '../sim/combat';
 import { stockOldSpots } from '../sim/salvage';
+import { checkCompanies } from '../sim/companies';
 import { clockOf } from '../sim/sun';
 import { allSlots, listSaves, manualSlots, requestBoot, slotLabel, type BootRequest, type SlotId } from './save-slots';
 import type { SaveSlots } from './save-db';
@@ -125,6 +126,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
     terrain: map.terrain,
   };
   stockedOldSpots(loaded, map);
+  checkCompanies(loaded);
   refreshVision(loaded);
   settleAims(loaded);
   restoreQuest(loaded, QUESTS);

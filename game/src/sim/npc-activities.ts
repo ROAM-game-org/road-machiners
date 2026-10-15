@@ -1,8 +1,8 @@
 
 import { ECONOMY } from '../data/goods';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/npcs';
-import { ESCORT_JOB, SHOPS } from '../data/market';
-import { postEscortOffer } from './escort-job';
+import { SHOPS } from '../data/market';
+import { onEscortWanted } from './escort-job';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { callLawmen, inCombat, inCombatWith, isHostile, startFeuds, turnPartHits } from './combat';
@@ -45,9 +45,10 @@ import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
 import { dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
 import { joinLeader, safeBesidePartner } from './pairs';
+import { musterGoal, onCrewCall, steerMuster } from './crews';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
-import { beginRearm, holdsRearm, lieUpSpot, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
+import { beginRearm, holdsRearm, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
@@ -306,10 +307,11 @@ function haulGoal(world: World, vehicle: Vehicle): NpcActivity {
   return { ...createSiteActivity('haul', site, 'loadCargo'), load: { good: goods[randInt(world, 0, goods.length - 1)] } };
 }
 
-const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
+export const IDLE_GOALS: Record<Exclude<DecisionOptions['idle'], 'wait'>, IdleGoal> = {
   trade: tradeGoal,
   scavenge: scavengeGoal,
   raid: huntingGoal('raid', 'raid', raiderGroundsAway),
+  muster: musterGoal,
   prowl: huntingGoal('prowl', 'prowl', (_world, vehicle) => huntingGroundsAway(vehicle)),
   patrol: patrolGoal,
   travel: travelGoal,
@@ -519,7 +521,7 @@ function perceives(world: World, vehicle: Vehicle, decision: string, id: string,
   return PERCEIVES[decision as NoticedDecision](world, vehicle, id, contacts);
 }
 
-export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen';
+export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen' | 'crewCalled';
 
 type Perception = (world: World, vehicle: Vehicle, id: string, contacts: Contact[]) => boolean;
 
@@ -548,6 +550,7 @@ const PERCEIVES: Record<NoticedDecision, Perception> = {
   needySeen: seesVehicle,
   lootContested: seesVehicle,
   strangerSeen: seesVehicle,
+  crewCalled: seesVehicle,
 };
 
 export function react<D extends NoticedDecision>(world: World, vehicle: Vehicle, decision: D, id: string): DecisionOptions[D] | null {
@@ -610,7 +613,7 @@ function seenFleeReason(world: World, vehicle: Vehicle, enemy: Vehicle): GoalRea
   return isWeak(world, vehicle) ? 'damagedThreatened' : 'avoidCostlyFight';
 }
 
-function interrupt(world: World, vehicle: Vehicle, goal: NpcActivity): void {
+export function interrupt(world: World, vehicle: Vehicle, goal: NpcActivity): void {
   const tow = towHeldBy(world, vehicle.id);
   if (tow) {
     dropTow(world, tow, 'danger');
@@ -625,7 +628,7 @@ function dropChases(world: World, vehicle: Vehicle, targetId: string | null, rea
   for (const goal of goalsOf(vehicle).filter((g) => g.kind === 'investigate' && g.targetId === targetId)) dropGoal(world, vehicle, goal, reason);
 }
 
-function fleeFrom(world: World, vehicle: Vehicle, profile: NpcProfile, threatId: string, threatPos: Vec, reason: GoalReason): NpcActivity {
+export function fleeFrom(world: World, vehicle: Vehicle, profile: NpcProfile, threatId: string, threatPos: Vec, reason: GoalReason): NpcActivity {
   chooseOn(world, vehicle, threatId, threatPos, 'flee', true);
   return fleeGoal(world, vehicle, profile, threatId, threatPos, reason);
 }
@@ -786,17 +789,6 @@ function onEscortSeen(world: World, vehicle: Vehicle): void {
   if (merc) offerEscort(world, vehicle, merc);
 }
 
-function onEscortWanted(world: World, vehicle: Vehicle, trip: NpcActivity, from: string): void {
-  const to = trip.targetId;
-  if (trip.posted || to === null || to === from || !(from in SHOPS) || !vehicle.brain!.traits.includes('trader')) return;
-  if (inDanger(vehicle) || inCombat(world, vehicle) || escortsOf(world, vehicle.id).length > 0 || keepsWord(world, vehicle, 'escortWanted', null)) return;
-  trip.posted = true;
-  if (decide(world, vehicle, 'escortWanted', `${from}>${to}`, null) !== 'post') return;
-  const spot = lieUpSpot(world, vehicle, getKnownSite(from));
-  postEscortOffer(world, vehicle, from, to);
-  pushGoal(world, vehicle, { kind: 'wait', targetId: null, destination: spot, phase: 'travel', reason: 'awaitEscort', until: world.turn + ESCORT_JOB.postTurns });
-}
-
 function onRamChance(world: World, vehicle: Vehicle): void {
   const brain = vehicle.brain!;
   const target = fightTarget(vehicle);
@@ -850,6 +842,7 @@ const STEERS: Partial<Record<NpcActivity['kind'], Steer>> = {
   tow: (world, vehicle, goal) => { if (!towHeldBy(world, vehicle.id)) steerToStranded(world, vehicle, goal); },
   meet: (world, _vehicle, goal) => { if (goal.destination) goal.destination = { ...vehicleById(world, goal.targetId!).pos }; },
   follow: steerFollow,
+  muster: steerMuster,
   investigate: steerInvestigate,
 };
 
@@ -893,6 +886,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   dropInvalidGoals(world, vehicle, contacts);
   onAttacked(world, vehicle, profile);
   onHostilesSeen(world, vehicle, profile);
+  onCrewCall(world, vehicle);
   onContactSpotted(world, vehicle);
   onContactsHeard(world, vehicle, profile, contacts);
   onPreySeen(world, vehicle);
@@ -1014,7 +1008,7 @@ export function noteHurt(world: World): void {
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
   if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
-  if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow'].includes(activity.kind)) return activity.destination;
+  if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow', 'muster'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);
 }
 

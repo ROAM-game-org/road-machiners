@@ -1,4 +1,4 @@
-import { ESCORT_JOB, type Threat } from '../data/market';
+import { ESCORT_JOB, SHOPS, type Threat } from '../data/market';
 import { NPC_BEHAVIOR } from '../data/npcs';
 import { REGION } from '../data/region';
 import { inCombat, isHostile } from './combat';
@@ -7,14 +7,15 @@ import { isDefeated } from './defeat';
 import { newId } from './factory';
 import { fightOdds } from './fight-odds';
 import { contractReward, estimateTurns, finishContract, shopState, siteOf, type Contract } from './market';
-import { firepower, getKnownSite, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
-import { topGoal } from './npc-activities';
+import { decide, firepower, getKnownSite, keepsWord, raiderGrounds, raiderPatrolPosts } from './npc-decisions';
+import { inDanger, pushGoal, topGoal } from './npc-activities';
+import { lieUpSpot } from './npc-service';
 import { reachedSite } from './sites';
 import { endState, stateOf } from './states';
 import { isStranded } from './stats';
 import { escortsOf, hireEscort, isOnRope } from './tow';
 import type { Terrain } from './terrain';
-import type { EscortEnd, Vehicle, World } from './types';
+import type { EscortEnd, NpcActivity, Vehicle, World } from './types';
 import { clamp, dist, segmentDist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 
@@ -72,6 +73,26 @@ export function escortFit(world: World, c: EscortContract): { fit: boolean; win:
 export function escortBlocked(world: World, c: EscortContract): EscortBlock | null {
   if (heldEscort(world)) return 'escorting';
   return escortFit(world, c).fit ? null : 'weak';
+}
+
+function postsTrip(trip: NpcActivity, from: string, vehicle: Vehicle): trip is NpcActivity & { targetId: string } {
+  const to = trip.targetId;
+  return !trip.posted && to !== null && to !== from && from in SHOPS && vehicle.brain!.traits.includes('trader');
+}
+
+function freeToWait(world: World, vehicle: Vehicle): boolean {
+  if (inDanger(vehicle) || inCombat(world, vehicle)) return false;
+  return escortsOf(world, vehicle.id).length === 0 && !keepsWord(world, vehicle, 'escortWanted', null);
+}
+
+export function onEscortWanted(world: World, vehicle: Vehicle, trip: NpcActivity, from: string): void {
+  if (!postsTrip(trip, from, vehicle) || !freeToWait(world, vehicle)) return;
+  const to = trip.targetId;
+  trip.posted = true;
+  if (decide(world, vehicle, 'escortWanted', `${from}>${to}`, null) !== 'post') return;
+  const spot = lieUpSpot(world, vehicle, getKnownSite(from));
+  postEscortOffer(world, vehicle, from, to);
+  pushGoal(world, vehicle, { kind: 'wait', targetId: null, destination: spot, phase: 'travel', reason: 'awaitEscort', until: world.turn + ESCORT_JOB.postTurns });
 }
 
 export function postEscortOffer(world: World, trader: Vehicle, shopId: string, to: string): void {

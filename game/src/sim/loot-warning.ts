@@ -10,6 +10,7 @@ import { decide, firepower, lootTaken, perceiveDanger } from './npc-decisions';
 import { claimantOf, inLootReach, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
 import { addState, boundTo, endState, lootWarningData, stateOf } from './states';
 import { inTowReach } from './tow';
+import { sameCompany } from './companies';
 import type { GameEvent, GoalReason, NpcActivity, NpcState, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 
@@ -19,7 +20,7 @@ export type OnRefuse = 'roll' | Refusal;
 type ArgumentEnd = Extract<GameEvent, { t: 'lootArgument' }>['end'];
 
 export function canArgue(world: World, a: Vehicle, b: Vehicle): boolean {
-  return !isHostile(world, a, b) && !isHostile(world, b, a) && !boundTo(world, a.id, b.id);
+  return !isHostile(world, a, b) && !isHostile(world, b, a) && !boundTo(world, a.id, b.id) && !sameCompany(world, a, b);
 }
 
 function contestKey(id: string): string {

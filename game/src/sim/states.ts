@@ -8,6 +8,8 @@ import { endStoryAid } from './encounters';
 import { checkPatch, isPatching, breakPatch, lapsePatch, patchWork, settlePatch } from './patch';
 import { practice } from './progress';
 import { checkLootWarning, defendWarned, lapseLootWarning } from './loot-warning';
+import { checkCrew, endCrewState } from './crews';
+import { checkHire, endHireState } from './hire';
 import { checkEscort, checkPlayerTow, checkTowPromise, lapseClaim, payEscort } from './tow';
 import { checkTrade, isMeeting } from './economy';
 import { inCombat, isHostile } from './combat';
@@ -83,7 +85,17 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
   aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAndEndAid, expired: endAid, broken: endAid }, work: aidWork, binds: true },
   combat: { refresh: never, check: checkCombat, hooks: {}, work: noWork, binds: false },
   lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false },
+  crew: { refresh: never, check: checkCrew, hooks: endingHooks(endCrewState), work: noWork, binds: true },
+  hire: { refresh: never, check: checkHire, hooks: endingHooks(endHireState), work: noWork, binds: true },
 };
+
+function endingHooks(end: (w: World, s: NpcState, ending: StateEnding) => void): StateKind['hooks'] {
+  return {
+    expired: (w, s) => end(w, s, 'expired'),
+    fulfilled: (w, s) => end(w, s, 'fulfilled'),
+    broken: (w, s) => end(w, s, 'broken'),
+  };
+}
 
 function settleAndEndAid(w: World, s: NpcState): void {
   settleAid(w, s);
@@ -122,14 +134,13 @@ function turnsOf(kind: StateKindId): number | null {
   return STATE_TURNS[kind];
 }
 
-const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning' };
+const DATA_KIND: Record<StateKindId, StateData['kind']> = { feud: 'feud', backedOff: 'none', tow: 'tow', turnedDown: 'none', towPromise: 'towPromise', answering: 'none', patch: 'patch', truce: 'none', grievance: 'none', plea: 'plea', trade: 'none', revenge: 'none', escort: 'escort', strayFire: 'strayFire', aid: 'aid', combat: 'none', lootWarning: 'lootWarning', crew: 'crew', hire: 'hire' };
 
 export function addState(w: World, kind: StateKindId, holder: string, other: string, data: StateData): NpcState {
   kindOf(kind);
   if (data.kind !== DATA_KIND[kind]) throw new Error(`A ${kind} state needs ${DATA_KIND[kind]} data, got ${data.kind}`);
   const s: NpcState = { id: newId(w, 'state'), kind, holder, other, turnsLeft: turnsOf(kind), born: w.turn, data };
-  w.states = w.states.filter((x) => !(x.kind === kind && x.holder === holder && x.other === other));
-  w.states.push(s);
+  w.states = [...w.states.filter((x) => !(x.kind === kind && x.holder === holder && x.other === other)), s];
   return s;
 }
 
@@ -166,9 +177,9 @@ export function givesWord(w: World, holder: string): boolean {
 }
 
 export function endState(w: World, s: NpcState, ending: StateEnding): void {
-  const i = w.states.findIndex((x) => x.id === s.id);
-  if (i < 0) throw new Error(`State ${s.id} has already ended`);
-  const [ended] = w.states.splice(i, 1);
+  const ended = w.states.find((x) => x.id === s.id);
+  if (!ended) throw new Error(`State ${s.id} has already ended`);
+  w.states = w.states.filter((x) => x !== ended);
   w.events.push({ t: 'stateEnded', state: ended, ending });
   if (kindOf(ended.kind).binds && ending !== 'broken' && modeRules(w).yielding) backOffAfterDeal(w, ended);
   kindOf(ended.kind).hooks[ending]?.(w, ended);

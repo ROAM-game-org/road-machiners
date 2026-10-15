@@ -17,6 +17,7 @@ import { createWreckSalvage, removeStocks } from './salvage';
 import { STATE_TURNS } from '../data/npcs';
 import { addState, boundTo, endState, feudData, stateOf, strayData } from './states';
 import { isOnRope, towHeldBy } from './tow';
+import { combatStatesOf, followingOf } from './companies';
 import { getResources } from './resources';
 import { chance, gauss, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
@@ -802,7 +803,7 @@ function witnessesAttack(world: World, observer: Vehicle, shooter: Vehicle, targ
 }
 
 function escortSees(world: World, v: Vehicle, shooter: Vehicle, target: Vehicle): boolean {
-  return stateOf(world, "escort", v.id, target.id) !== null && canVehicleSee(world, v, shooter.pos);
+  return followingOf(world, v)?.other === target.id && canVehicleSee(world, v, shooter.pos);
 }
 
 function engage(world: World, aggressor: Vehicle, target: Vehicle): void {
@@ -816,19 +817,23 @@ export function fightsAgainst(world: World, aggressor: Vehicle, target: Vehicle)
 }
 
 export function inCombat(world: World, v: Vehicle): boolean {
-  return world.states.some((s) => s.kind === "combat" && (s.holder === v.id || s.other === v.id));
+  return combatStatesOf(world, v.id).length > 0;
 }
 
 export function inCombatWith(world: World, a: Vehicle, b: Vehicle): boolean {
-  return world.states.some((s) => s.kind === "combat" && ((s.holder === a.id && s.other === b.id) || (s.holder === b.id && s.other === a.id)));
+  return combatStatesOf(world, a.id).some((s) => s.holder === b.id || s.other === b.id);
 }
 
 export function inCombatWithOther(world: World, v: Vehicle, otherId: string): boolean {
-  return world.states.some((s) => s.kind === "combat" && ((s.holder === v.id && s.other !== otherId) || (s.other === v.id && s.holder !== otherId)));
+  return combatStatesOf(world, v.id).some((s) => (s.holder === v.id ? s.other : s.holder) !== otherId);
+}
+
+export function combatFoesOf(world: World, v: Vehicle): string[] {
+  return combatStatesOf(world, v.id).map((s) => (s.holder === v.id ? s.other : s.holder));
 }
 
 export function combatTurnsLeft(world: World, v: Vehicle): number | null {
-  const left = world.states.filter((s) => s.kind === "combat" && (s.holder === v.id || s.other === v.id)).map((s) => s.turnsLeft ?? 0);
+  const left = combatStatesOf(world, v.id).map((s) => s.turnsLeft ?? 0);
   return left.length > 0 ? Math.max(...left) : null;
 }
 

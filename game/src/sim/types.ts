@@ -180,7 +180,8 @@ export type GoalReason =
   | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey';
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey'
+  | 'musterCrew' | 'crewLeader' | 'hiredGuard';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -245,7 +246,7 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'muster';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
@@ -259,6 +260,7 @@ export type NpcActivity = {
   watchUntil?: number;
   leg?: { from: Vec; turn: number };
   posted?: true;
+  asked?: string[];
 };
 
 export type NpcBrain = {
@@ -288,6 +290,7 @@ export type NpcBrain = {
     targetSeen?: { id: string; turn: number; pos: Vec; heading: number; speed: number };
     whim?: { kind: 'keep' | 'rush' | 'halt' | 'veer'; until: number; angle: number };
     farRoute?: { dest: Vec; points: Vec[]; offRoad: boolean };
+    musteredAt?: number;
     memories: Memory[];
 };
 
@@ -336,7 +339,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -345,6 +348,8 @@ export type StateData =
   | { kind: 'towPromise'; site: string; fee: number }
   | { kind: 'plea'; plea: Plea; answered: boolean }
   | { kind: 'escort'; site: string | null; fee: number }
+  | { kind: 'crew'; camp: string }
+  | { kind: 'hire'; fee: number }
   | { kind: 'patch'; deal: PatchDeal; parts: number; partIds: string[]; price: number; work: number; workLeft: number }
   | { kind: 'strayFire'; damage: number }
   | { kind: 'aid'; giver: 'player' | 'npc'; fuel: number; supplies: number; price: number; free: boolean; agreed: boolean; started: boolean; work: number; workLeft: number }
@@ -457,6 +462,10 @@ export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance
 
 export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
 
+export type CrewAskCause = 'joined' | 'grudge' | 'weak' | 'busy' | 'declined';
+export type CrewLeftCause = 'fled' | 'knockedOut' | 'hostile';
+export type GuardEnd = 'expired' | 'dismissed' | 'knockedOut' | 'hostile';
+
 export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost';
 
 export type GameEvent =
@@ -498,6 +507,14 @@ export type GameEvent =
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
   | { t: 'escortEnded'; contract: string; client: string; end: EscortEnd }
+  | { t: 'crewAsked'; leader: string; member: string; answer: 'join' | 'decline'; cause: CrewAskCause }
+  | { t: 'crewFormed'; leader: string; members: string[] }
+  | { t: 'crewFailed'; leader: string }
+  | { t: 'crewLeft'; leader: string; member: string; cause: CrewLeftCause }
+  | { t: 'crewLed'; leader: string; fallen: string }
+  | { t: 'crewDisbanded'; leader: string }
+  | { t: 'guardHired'; merc: string; fee: number; until: number }
+  | { t: 'guardEnded'; merc: string; end: GuardEnd }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }

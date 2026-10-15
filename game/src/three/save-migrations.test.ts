@@ -1402,3 +1402,25 @@ describe('MIGRATIONS[66]', () => {
     expect(before).toEqual(FORMAT_2_64);
   });
 });
+
+describe('MIGRATIONS[67]', () => {
+  it('keeps a save as it is, since crews, hires and the muster goal only widen unions', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[67](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+
+  it('keeps saved escorts, tow promises and feuds with their kinds and data', () => {
+    const states = [
+      { id: 's1', kind: 'escort', holder: 'v2', other: 'v3', turnsLeft: null, born: 10, data: { kind: 'escort', site: 'nose', fee: 4000 } },
+      { id: 's2', kind: 'towPromise', holder: 'v4', other: 'v1', turnsLeft: null, born: 12, data: { kind: 'towPromise', site: 'bowl', fee: 900 } },
+      { id: 's3', kind: 'feud', holder: 'v5', other: 'v1', turnsLeft: 7, born: 30, data: { kind: 'feud', robbery: true } },
+    ];
+    const world = { ...structuredClone(FORMAT_2_64), states };
+
+    expect(MIGRATIONS[67](structuredClone(world))).toEqual(world);
+  });
+});

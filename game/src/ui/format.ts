@@ -210,6 +210,8 @@ const STATE_LABELS: Record<StateKindId, (s: NpcState) => Msg> = {
   trade: () => t('state.trade'),
   revenge: () => t('state.revenge'),
   escort: () => t('state.escort'),
+  crew: () => t('state.crew'),
+  hire: () => t('state.hire'),
   aid: (s) => (aidData(s).giver === 'npc' ? t('state.aidBringing') : t('state.aidWaiting')),
   combat: () => t('state.combat'),
   lootWarning: (s) => (lootWarningData(s).answer === 'comply' ? t('state.lootAgreed') : t('state.lootWarning')),
@@ -463,6 +465,27 @@ function escortHiredText(world: World, e: Extract<GameEvent, { t: 'escortHired' 
   return line(t('log.escortHired', { client: vehicleName(world, e.client), who: vehicleName(world, e.by), site: siteName(e.site), fee: moneyMsg(e.fee) }), 'dim');
 }
 
+function crewAskedText(world: World, e: Extract<GameEvent, { t: 'crewAsked' }>): LogLine {
+  return line(t(`log.crewAsked.${e.cause}`, { member: vehicleName(world, e.member), leader: vehicleName(world, e.leader) }), 'dim');
+}
+
+function crewFormedText(world: World, e: Extract<GameEvent, { t: 'crewFormed' }>): LogLine {
+  return line(t('log.crewFormed', { leader: vehicleName(world, e.leader), members: list(e.members.map((id) => vehicleName(world, id))) }), 'dim');
+}
+
+function crewLeftText(world: World, e: Extract<GameEvent, { t: 'crewLeft' }>): LogLine {
+  return line(t(`log.crewLeft.${e.cause}`, { member: vehicleName(world, e.member), leader: vehicleName(world, e.leader) }), 'dim');
+}
+
+function guardHiredText(world: World, e: Extract<GameEvent, { t: 'guardHired' }>): LogLine {
+  return line(t('log.guardHired', { merc: vehicleName(world, e.merc), when: clock(e.until).full, fee: moneyMsg(e.fee) }), '');
+}
+
+function guardEndedText(world: World, e: Extract<GameEvent, { t: 'guardEnded' }>): LogLine {
+  const lost = e.end === 'knockedOut' || e.end === 'hostile';
+  return line(t(`log.guardEnded.${e.end}`, { merc: vehicleName(world, e.merc) }), lost ? 'bad' : 'dim');
+}
+
 function escortRefusedText(world: World, e: Extract<GameEvent, { t: 'escortRefused' }>): LogLine {
   return line(t('log.escortRefused', { who: vehicleName(world, e.by), client: vehicleName(world, e.client) }), 'dim');
 }
@@ -515,6 +538,12 @@ const NOTICED: { [K in GameEvent['t']]?: (e: Extract<GameEvent, { t: K }>) => st
   aidStarted: (e) => [e.giver, e.receiver],
   escortHired: (e) => [e.by, e.client],
   escortRefused: (e) => [e.by, e.client],
+  crewAsked: (e) => [e.leader, e.member],
+  crewFormed: (e) => [e.leader, ...e.members],
+  crewFailed: (e) => [e.leader],
+  crewLeft: (e) => [e.leader, e.member],
+  crewLed: (e) => [e.leader, e.fallen],
+  crewDisbanded: (e) => [e.leader],
   lootArgument: (e) => [e.warner, e.looter],
   caltrops: (e) => [e.vehicle],
   lineTorn: (e) => [e.vehicle],
@@ -758,6 +787,14 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   transfer: quiet,
   escortHired: escortHiredText,
   escortRefused: escortRefusedText,
+  crewAsked: crewAskedText,
+  crewFormed: crewFormedText,
+  crewFailed: (world, e) => line(t('log.crewFailed', { leader: vehicleName(world, e.leader) }), 'dim'),
+  crewLeft: crewLeftText,
+  crewLed: (world, e) => line(t('log.crewLed', { leader: vehicleName(world, e.leader), fallen: vehicleName(world, e.fallen) }), 'dim'),
+  crewDisbanded: (world, e) => line(t('log.crewDisbanded', { leader: vehicleName(world, e.leader) }), 'dim'),
+  guardHired: guardHiredText,
+  guardEnded: guardEndedText,
   note: (_, e) => line(t('log.noted', { title: noteTitle(e.id) }), 'good'),
   lootArgument: lootArgumentText,
   collision: quiet,
