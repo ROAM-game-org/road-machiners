@@ -9,6 +9,7 @@
     "playtest": "node scripts/playtest.mjs",
     "boot:check": "node scripts/boot-check.mjs",
     "boot:time": "node scripts/boot-time.mjs",
+    "sounds:decode-check": "node scripts/sound-decode-check.mjs",
     "ui-playtest": "node scripts/ui-playtest.mjs http://localhost:5173",
     "layout": "node scripts/layout-check.mjs http://localhost:5173",
     "perf": "node scripts/perf.mjs",

@@ -1,7 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
-import { DownloadFailed } from '../fetch-bytes';
+import { AssetUnreachable } from '../fetch-asset';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
@@ -97,17 +97,21 @@ function ignoreForeign(facts: ErrorFacts): void {
   report(FOREIGN_NOTE);
 }
 
-export function routeOf(err: unknown): 'webgl' | 'download' | 'fault' {
+function onError(err: unknown, facts: ErrorFacts | null = null): void {
+  const kind = faultKind(err);
+  if (kind === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  else if (kind === 'unreachable') warnUnreachable(err as AssetUnreachable);
+  else onFault(err, facts);
+}
+
+export function faultKind(err: unknown): 'webgl' | 'unreachable' | 'fault' {
   if (err instanceof WebGLUnavailable) return 'webgl';
-  if (err instanceof DownloadFailed) return 'download';
+  if (err instanceof AssetUnreachable) return 'unreachable';
   return 'fault';
 }
 
-function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  const route = routeOf(err);
-  if (route === 'webgl') showNoWebGL(err as WebGLUnavailable);
-  else if (route === 'download') showDownloadFailed(err as DownloadFailed);
-  else onFault(err, facts);
+function warnUnreachable(err: AssetUnreachable): void {
+  console.warn(`${err.label} ${err.url} did not arrive after ${err.attempts} attempts`);
 }
 
 function onFault(err: unknown, facts: ErrorFacts | null): void {
@@ -159,26 +163,5 @@ function showNoWebGL(err: WebGLUnavailable): void {
     detail.textContent = text.detail;
     box.append(detail);
   }
-  document.body.appendChild(box);
-}
-
-function showDownloadFailed(err: DownloadFailed): void {
-  if (shown) return;
-  shown = true;
-  const box = document.createElement('div');
-  box.className = 'crash-screen';
-  const title = document.createElement('div');
-  title.className = 'crash-title';
-  setText(title, t('download.title'));
-  box.append(title);
-  for (const key of ['boot.failedToLoad', 'download.saves'] as const) {
-    const row = document.createElement('div');
-    setText(row, t(key));
-    box.append(row);
-  }
-  const detail = document.createElement('div');
-  detail.className = 'crash-hint';
-  detail.textContent = err.message;
-  box.append(detail);
   document.body.appendChild(box);
 }

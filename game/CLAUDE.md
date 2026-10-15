@@ -38,7 +38,7 @@ Run these from `game/`. The repo-wide quality gate and pre-commit hook run from 
 
 - `npm run dev` starts the game at <http://localhost:5173>.
 - `npm test` runs every Vitest test in `src/`. `npm run typecheck` runs tsc.
-- `npm run test:cached -- --cache <dir> [test files]` skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. The factory checks and the release playtest use it. A corrupt or old-format entry counts as no pass, so its test file runs.
+- `npm run test:cached -- --cache <dir> [test files]` skips every test file whose imports, disk reads and global inputs already passed there, and prints `[test-cache] ran N, skipped M, uncacheable K`. It records each file's pass as the file finishes, so a killed run keeps them. With `TEST_STALL_MINUTES` set, it stops a run in which no test finished for that many minutes and names the tests still running. The factory checks and the release playtest use it. A corrupt or old-format entry counts as no pass, so its test file runs.
 - `npm run playtest` plays turns in headless Chromium and fails on errors or low FPS. It needs the dev server. Use `--cpu` on machines without a GPU. `--no-fps-gate` keeps the GPU run but only prints the FPS. The factory uses it everywhere but the release candidate, since its host runs many jobs at once.
 - `npm run stuck` records a trader bot for 2 seeds of 500 turns and fails on any stall from any truck. Run it after changes to NPC goals, services or tows.
 - `npm run progression:record`, `progression:report`, `progression:analyze` and `progression:watch` are the playtest harness. Bots play the real turn pipeline headless with every NPC alive, and each run writes logs of every turn. It covers economy, progression, NPC behavior and fights at the macro level. `progression:playthrough` writes the full activity log of one markov bot run, which the factory's release playtest reads.
@@ -88,6 +88,7 @@ Players keep their saves across updates. Migrate old saves whenever possible. [S
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
 - A change that old saves can follow adds one step to `MIGRATIONS` in `src/three/save-migrations.ts`.
+- A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/quest-authoring.md#changing-a-shipped-quest) says when.
 - A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `MIGRATIONS`. Ask me before any major bump. A new map file needs no bump.
 - A step is a pure function from the saved world JSON of minor format N to N+1. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
 - Never edit a committed step. Fix a bad step with a new step.

@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -869,7 +873,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
-  withShopGoods_62_63,
+  withEscortJobs_62_63,
+  withRescueContracts_63_64,
+  withShopGoods_64_65,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -890,6 +896,10 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -1028,7 +1038,7 @@ function withoutHaulGoal_62_63(vehicle: SavedJson): SavedJson {
   return { ...vehicle, job: hauling ? null : job, brain: { ...brain, goals } };
 }
 
-function withShopGoods_62_63(world: SavedJson): SavedJson {
+function withShopGoods_64_65(world: SavedJson): SavedJson {
   const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_62_63(id, shop)]));
   const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_62_63);
   return { ...world, shops, vehicles, roadNews: [] };

@@ -354,6 +354,7 @@ describe('NPC activities', () => {
     npc.brain!.templateId = 'trader';
     npc.brain!.traits = ['trader'];
     forceOption('idle', 'trade');
+    forceOption('escortWanted', 'go');
     planNpcOrders(w);
     const source = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)?.targetId)!;
     npc.pos = { ...sitePads(source)[0] };

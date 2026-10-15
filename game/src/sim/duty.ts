@@ -53,7 +53,16 @@ export function payDuty(world: World, v: Vehicle, goal: NpcActivity, escorts: re
   if (!duty) return;
   if (!goal.leg) throw new Error(`${v.id} finished a ${goal.kind} duty leg with no start`);
   if (duty === 'guard') payGuards(world, v, goal.leg, escorts);
-  else shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), duty === 'patrol' ? 'patrolPay' : 'dispatchPay');
+  else {
+    shopMoney(world, v, dutyPay(world, v, goal.leg, v.pos), duty === 'patrol' ? 'patrolPay' : 'dispatchPay');
+    if (duty === 'dispatch') payPartners(world, v, goal.leg, escorts);
+  }
+}
+
+function payPartners(world: World, leader: Vehicle, leg: DutyLeg, escorts: readonly Vehicle[]): void {
+  for (const partner of escorts.filter((e) => e.brain?.traits.includes('courier'))) {
+    shopMoney(world, partner, dutyPay(world, partner, leg, leader.pos), 'dispatchPay');
+  }
 }
 
 function payGuards(world: World, convoy: Vehicle, leg: DutyLeg, escorts: readonly Vehicle[]): void {

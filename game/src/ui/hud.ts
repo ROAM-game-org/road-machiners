@@ -1,4 +1,5 @@
 
+import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { DialoguePanel, type DialogueHost } from "./dialogue";
 import type { Vehicle, World } from "../sim/types";
 import { workOf, type Work } from "../sim/states";
@@ -6,6 +7,7 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight } from "./dom";
 import { LogPanel } from "./log";
 import {
+  escortStatusText,
   heldContractDue,
   contractSummary,
   eventText,
@@ -130,7 +132,7 @@ export class Hud {
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
   private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm();
+  private feedbackForm = new FeedbackForm((text) => this.toast(text));
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -382,7 +384,7 @@ export class Hud {
           "div",
           { class: "contract-line" },
           el("span", {}, contractSummary(c)),
-          el("span", { class: "num" }, heldContractDue(c)),
+          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
     );
@@ -630,4 +632,8 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function escortLine(w: World, c: EscortContract): HTMLElement {
+  return el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, escortStatusText(w, c));
 }

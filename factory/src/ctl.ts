@@ -29,7 +29,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
   stuck: { usage: 'stuck', help: "list the stuck sweep's record of each stuck card: its kind, incident, cause and what the sweep did", run: stuckRecords },
   log: { usage: 'log N [stage]', help: 'print the tail of the newest log of a card', run: log },
   audit: { usage: 'audit', help: 'print each drift between stores, and nothing when all agree', run: audit },
-  public: { usage: 'public', help: 'list the proposals with their votes and posted time, and the open build posts', run: publicState },
+  public: { usage: 'public', help: 'list the proposals with their votes and posted time, the open build posts and the latest player chat messages with their outcome', run: publicState },
   help: { usage: 'help', help: 'list the commands', run: help },
 };
 

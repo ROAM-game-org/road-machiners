@@ -2,10 +2,11 @@
 import { dealAvailable } from './patch';
 import { canSpareFor } from './aid';
 import { ECONOMY } from '../data/goods';
-import { SHOPS, type ShopDef } from '../data/market';
+import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
 import { graphEdges } from '../data/market';
 import { legRisk } from './road-news';
 import { goodStock, goodValue, shopState, stockTarget } from './market';
+import { routeThreat } from './escort-job';
 import {
   DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
@@ -39,7 +40,8 @@ import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } fro
 import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
-import { canHire, canTakeEscort, declineFactor, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { leaderToJoin } from './pairs';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -607,7 +609,16 @@ function canHaul(world: World, vehicle: Vehicle): boolean {
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {
-  return hasTrait(vehicle, 'guard') && unguardedLeader(world, vehicle) !== null;
+  return leaderToJoin(world, vehicle) !== null;
+}
+
+function canPostEscort(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return subject !== null && escortsOf(world, vehicle.id).length === 0 && !isDefeated(vehicle);
+}
+
+function postFactor(world: World, _vehicle: Vehicle, _decision: DecisionId, subject: string | null): number {
+  const [from, to] = (subject ?? '').split('>');
+  return ESCORT_JOB.postWeight[routeThreat(world, from, to)];
 }
 
 type OptionName = DecisionOptions[DecisionId];
@@ -634,6 +645,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   explore: canDrive,
   haul: canHaul,
   escort: canEscort,
+  go: always,
+  post: canPostEscort,
   paid: dealAvailable('paid'),
   ownParts: dealAvailable('ownParts'),
   free: dealAvailable('free'),
@@ -875,6 +888,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   explore: neutral,
   haul: neutral,
   escort: neutral,
+  go: neutral,
+  post: postFactor,
   paid: neutral,
   ownParts: neutral,
   free: neutral,
@@ -983,6 +998,7 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   escortSeen: 'venture',
   hireOffered: 'response',
   aidAsked: 'response',
+  escortWanted: 'venture',
   needySeen: 'venture',
 };
 

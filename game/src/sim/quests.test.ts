@@ -1,13 +1,18 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { GAME_NOTES } from '../data/locals';
+import * as QUEST_DATA from '../data/quests';
 import { START_KITS } from '../data/start';
 import { UNITS } from '../data/units';
 import { TEST_MAP } from '../test/map';
-import { chooseQuestOption, fittingQuestVars, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
+import { chooseQuestOption, QUEST_QUERIES, leaveQuest, questProblems, questView, relanguageQuest, restoreQuest, setQuestLanguage, startQuest } from './quests';
 import { defaultSetup } from './settings';
-import type { QuestBundle } from '../data/quests';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
 import { newWorld } from './world';
+
+type QuestBundle = QUEST_DATA.QuestBundle;
 
 const QUESTS = compileBundle(withEnglishTwins(readQuestSources('src/test/quests')));
 const RUMORS = 'Heard any rumors?';
@@ -221,20 +226,6 @@ describe('leaveQuest', () => {
   });
 });
 
-describe('fittingQuestVars', () => {
-  it('keeps the variables that still fit and lists the rest as lost', () => {
-    const carried = {
-      world: { sample_wagon_heard: true, retired_flag: true },
-      local: { sample_bowl: { trust: 2, paid: 'yes' }, gone_quest: { n: 1 } },
-    };
-    expect(fittingQuestVars(carried, QUESTS)).toEqual({
-      world: { sample_wagon_heard: true },
-      local: { sample_bowl: { trust: 2 } },
-      lost: ['retired_flag', 'sample_bowl.paid', 'gone_quest.n'],
-    });
-  });
-});
-
 describe('questProblems', () => {
   it('lists stored names the bundle does not declare', () => {
     const w = world();
@@ -259,5 +250,39 @@ describe('skill query', () => {
     expect(QUEST_QUERIES.skill(w, ['machining'])).toBe(3);
     expect(QUEST_QUERIES.skill(w, ['social'])).toBe(w.player.ranks.social);
     expect(() => QUEST_QUERIES.skill(w, ['charm'])).toThrow(/no skill charm/);
+  });
+});
+
+const SIM_SOURCE = new URL('.', import.meta.url).pathname;
+const QUEST_EFFECT_NOTE = "noteArg('note'";
+
+function simCalls(call: string): { file: string; target: string }[] {
+  const pattern = new RegExp(`\\b${call}\\(\\w+,\\s*([^,)]+)`, 'g');
+  return readdirSync(SIM_SOURCE, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
+    .flatMap((file) => [...readFileSync(join(SIM_SOURCE, file), 'utf8').matchAll(pattern)].map((m) => ({ file, target: m[1].trim() })))
+    .filter(({ target }) => !target.includes(':'));
+}
+
+function namedValue(target: string): unknown {
+  const literal = target.match(/^'([^']*)'$/)?.[1];
+  if (literal !== undefined) return literal;
+  const note = target.match(/^GAME_NOTES\.(\w+)$/)?.[1];
+  if (note !== undefined) return GAME_NOTES[note as keyof typeof GAME_NOTES];
+  return (QUEST_DATA as Record<string, unknown>)[target];
+}
+
+describe('state the game writes outside quests', () => {
+  it('lists every world variable the sim sets in GAME_WORLD_VARS', () => {
+    const targets = [...simCalls('setWorldVar').map(({ target }) => namedValue(target)), ...(simCalls('setIntroStep').length > 0 ? [QUEST_DATA.INTRO_STEP] : [])];
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.filter((name) => typeof name !== 'string' || !(name in QUEST_DATA.GAME_WORLD_VARS))).toEqual([]);
+  });
+
+  it('lists every note the sim gives outside a quest effect in GAME_NOTES', () => {
+    const gameNotes: readonly unknown[] = Object.values(GAME_NOTES);
+    const notes = simCalls('learnNote').filter(({ target }) => target !== QUEST_EFFECT_NOTE);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.filter(({ target }) => !gameNotes.includes(namedValue(target)))).toEqual([]);
   });
 });

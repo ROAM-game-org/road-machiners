@@ -5,7 +5,7 @@ import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type Ca
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
-import { newMapFor, savedRunId, storedSave, writeSave } from './save';
+import { newMapFor, savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -77,7 +77,7 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} },
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, notes: [], revisions: {},
 };
 
 export function readCarried(raw: unknown): Carried {
@@ -102,7 +102,14 @@ export function readCarried(raw: unknown): Carried {
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
     setup: world.setup,
     quests: questVarsOf(player.quests),
+    notes: listOf(player.notes).flatMap(noteOf),
+    revisions: savedRevisionsOf(raw),
   };
+}
+
+function noteOf(value: unknown): string[] {
+  const id = idOf(objectOf(value)?.id);
+  return id === null ? [] : [id];
 }
 
 function questVarsOf(value: unknown): Carried['quests'] {

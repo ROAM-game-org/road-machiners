@@ -67,6 +67,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1347,9 +1348,28 @@ describe('MIGRATIONS[61]', () => {
   });
 });
 
-describe('MIGRATIONS[62]', () => {
+describe('save migration 62 to 63', () => {
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
+  });
+
+  it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
+
+    expect(next).toEqual(FORMAT_2_62);
+  });
+});
+
+describe('MIGRATIONS[64]', () => {
   type Shop = { goods: Record<string, number>; contracts: { id: string }[]; event: unknown; shortSince: unknown; opened: unknown; pressure?: unknown };
-  const migrated = () => MIGRATIONS[62](structuredClone(FORMAT_2_62)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
+  const migrated = () => MIGRATIONS[64](structuredClone(FORMAT_2_64)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
 
   it('gives every shop a goods stock from its old pressure and drops the pressure', () => {
     const next = migrated();
@@ -1367,7 +1387,7 @@ describe('MIGRATIONS[62]', () => {
 
   it('keeps a buy price on load within a cent where the good is made in the same place as before', () => {
     const next = migrated();
-    const before = priceAtPressure('nose', 'salt', FORMAT_2_62.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
+    const before = priceAtPressure('nose', 'salt', FORMAT_2_64.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
     const after = priceAtPressure('nose', 'salt', pressureOf('nose', 'salt', next.shops.nose.goods.salt), 'buy', ECONOMY.spread);
     expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
   });
@@ -1375,15 +1395,15 @@ describe('MIGRATIONS[62]', () => {
   it('drops board hauls of goods a shop no longer trades, and keeps the held contract and cargo', () => {
     const next = migrated();
     expect(next.shops.granary.contracts.map((c) => c.id)).toEqual(['ct-3']);
-    expect(next.player).toEqual(FORMAT_2_62.player);
-    expect(next.vehicles[0]).toEqual(FORMAT_2_62.vehicles[0]);
+    expect(next.player).toEqual(FORMAT_2_64.player);
+    expect(next.vehicles[0]).toEqual(FORMAT_2_64.vehicles[0]);
   });
 
   it('drops the free haul goals and their business, so the driver picks a new goal', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_62.vehicles[2]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
     expect(next.roadNews).toEqual([]);
   });
 });
