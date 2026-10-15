@@ -35,37 +35,13 @@ describe('NPC spawns', () => {
   }, budget(15_000));
 
   it('places the first drivers by the world seed', () => {
-    const spots = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain).map((v) => v.pos);
+    const spots = (seed: number) => startWorld(seed).vehicles.filter((v) => v.brain).map((v) => v.pos);
     expect(spots(1337)).toEqual(spots(1337));
     expect(spots(1337)).not.toEqual(spots(42));
   }, budget(15_000));
 
-  it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
-    const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
-    const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
-    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners].sort();
-    const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
-    for (let seed = 1; seed <= 8; seed++) {
-      const world = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-      const npcs = world.vehicles.filter((v) => v.brain);
-      const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
-      expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
-      const perSite = new Map<string, number>();
-      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town' && !followers.has(v.id))) {
-        const id = nearestSite(v.pos).id;
-        perSite.set(id, (perSite.get(id) ?? 0) + 1);
-      }
-      const dealt = [...perSite.values()].reduce((sum, n) => sum + n, 0) - SPAWN.startTraffic.templates.length;
-      const share = Math.ceil(dealt / neutralSites);
-      for (const [id, count] of perSite) {
-        const traffic = id === SPAWN.startTraffic.town ? SPAWN.startTraffic.templates.length : 0;
-        expect(count).toBeLessThanOrEqual(share + traffic);
-      }
-    }
-  }, budget(60_000));
-
   it('starts traders at the gate of the town the start road leaves', () => {
-    const w = newWorld(2, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = startWorld(2);
     const town = REGION.towns.find((t) => t.id === SPAWN.startTraffic.town)!;
     const player = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
     const gate = siteGates(town).reduce((a, b) => (dist(player.pos, a) <= dist(player.pos, b) ? a : b));
@@ -93,6 +69,30 @@ describe('NPC spawns', () => {
       expect(states.map((s) => [s.holder, s.other])).toEqual([[couriers[1].id, couriers[0].id]]);
     }
   }, budget(30_000));
+
+  it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
+    const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
+    const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
+    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners].sort();
+    const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
+    for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
+      const world = startWorld(seed);
+      const npcs = world.vehicles.filter((v) => v.brain);
+      const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
+      expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
+      const perSite = new Map<string, number>();
+      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town' && !followers.has(v.id))) {
+        const id = nearestSite(v.pos).id;
+        perSite.set(id, (perSite.get(id) ?? 0) + 1);
+      }
+      const dealt = [...perSite.values()].reduce((sum, n) => sum + n, 0) - SPAWN.startTraffic.templates.length;
+      const share = Math.ceil(dealt / neutralSites);
+      for (const [id, count] of perSite) {
+        const traffic = id === SPAWN.startTraffic.town ? SPAWN.startTraffic.templates.length : 0;
+        expect(count).toBeLessThanOrEqual(share + traffic);
+      }
+    }
+  }, budget(60_000));
 
   describe('courier respawns', () => {
     const couriersOf = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain?.templateId === 'courier');
