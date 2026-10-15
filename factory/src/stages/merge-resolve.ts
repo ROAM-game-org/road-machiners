@@ -1,32 +1,30 @@
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { changesSaveMajor } from '../save-guard';
-import { GAME_DIR, MergeConflictError, RevertConflictError, type Ctx, type MergeStep, type Resolution, type Stage } from '../types';
+import { GAME_DIR, MergeConflictError, RevertConflictError, type CheckedBuild, type Ctx, type IssueMerge, type MergeStep, type Resolution, type Stage } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { factoryPaths } from '../diff-guard';
 import { agentHome, fillPrompt, resetOutputs } from './common';
 import { releaseLog } from './release-common';
 
-const ISSUE_BRANCH = /^factory\/issue-\d+$/;
-
-export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[]): Promise<void> {
+export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[], checked?: CheckedBuild): Promise<void> {
   const resolutions: Resolution[] = [];
   for (;;) {
     try {
-      await ctx.repo.merge(steps, resolutions);
+      await ctx.repo.merge(steps, resolutions, checked);
       return;
     } catch (error) {
-      if (!(error instanceof MergeConflictError) || ISSUE_BRANCH.test(error.branch)) throw error;
+      if (!(error instanceof MergeConflictError) || error.step.issue !== null) throw error;
       resolutions.push(...error.done, await resolve(ctx, stage, error));
     }
   }
 }
 
-export async function revertResolving(ctx: Ctx, stage: Stage, issue: number, branch: string): Promise<boolean> {
+export async function revertResolving(ctx: Ctx, stage: Stage, merge: Pick<IssueMerge, 'issue' | 'sha'>, branch: string): Promise<void> {
   const resolutions: Resolution[] = [];
   for (;;) {
     try {
-      return await ctx.repo.revertIssueMerge(issue, branch, resolutions);
+      return await ctx.repo.revertMerge(merge, branch, resolutions);
     } catch (error) {
       if (!(error instanceof RevertConflictError)) throw error;
       resolutions.push(await resolve(ctx, stage, error));
@@ -49,8 +47,8 @@ async function resolveIn(ctx: Ctx, stage: Stage, conflict: MergeConflictError | 
     ? fillPrompt('merge-branches', { into: conflict.into, branch: conflict.branch, reason: conflict.step.message, files })
     : fillPrompt('revert-merge', { into: conflict.into, issue: String(conflict.issue), files });
   await ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log: releaseLog(ctx, `merge-${slug}`) });
-  const { resolution, diff } = await ctx.repo.closeConflict(dir, conflict);
-  const leaked = factoryPaths(diff);
+  const { resolution, diff, files: changed } = await ctx.repo.closeConflict(dir, conflict);
+  const leaked = factoryPaths(changed);
   if (leaked.length) throw new Error(`The agent's resolution on ${conflict.into} touches paths an agent may not push: ${leaked.join(', ')}`);
   if (conflict instanceof MergeConflictError && changesSaveMajor(diff)) {
     throw new Error(`The agent's resolution on ${conflict.into} bumps SAVE_MAJOR in game/src/three/save-migrations.ts. The committee must decide on a major save bump before this can go on.`);

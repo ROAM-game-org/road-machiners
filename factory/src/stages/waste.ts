@@ -8,8 +8,7 @@ import { FACTORY_LEDGER_MOUNT, FACTORY_LOGS_MOUNT, FACTORY_STATE_MOUNT } from '.
 import { agentHome, fillPrompt, issueText, readOutput, resetOutputs } from './common';
 
 const DAY_MS = 24 * 3_600_000;
-const BOTTLENECK = 'BOTTLENECK: ';
-const CHANGE = 'CHANGE:';
+const NO_WASTE = 'none';
 const PROPOSAL_HEADING = '## Proposed change';
 const PREVIOUS_HEADING = '## Previous period';
 export const reviewPendingPath = (factoryHome: string): string => join(factoryHome, 'review-pending');
@@ -36,7 +35,7 @@ export async function runStage(ctx: Ctx): Promise<void> {
   writeFileSync(`${home}/${OUT_DIR}/numbers.md`, `${numbers}\n`);
   await writeInputs(ctx, home, computed.issues.map((item) => item.issue));
   await runReviewAgent(ctx, dir);
-  const brief = parseBrief(readOutput(home, 'brief.md'));
+  const brief = parseBrief(readOutput(home, 'brief.json'));
   await publish(ctx, from, to, numbers, brief);
   rmSync(dir, { recursive: true, force: true });
 }
@@ -74,18 +73,18 @@ async function runReviewAgent(ctx: Ctx, dir: string): Promise<void> {
 }
 
 export function parseBrief(text: string | null): Brief {
-  if (text === null) throw new Error('The waste review wrote no .factory/brief.md');
-  const [first, ...rest] = text.trim().split('\n');
-  if (!first.startsWith(BOTTLENECK)) throw new Error(`brief.md must start with "${BOTTLENECK}"`);
-  const bottleneck = first.slice(BOTTLENECK.length).trim();
-  return { bottleneck, change: bottleneck === 'none' ? null : parseChange(rest) };
+  if (text === null) throw new Error('The waste review wrote no .factory/brief.json');
+  const data: unknown = JSON.parse(text);
+  if (typeof data !== 'object' || data === null) throw new Error('brief.json is not an object');
+  const { bottleneck, change } = data as Record<string, unknown>;
+  const named = briefText(bottleneck, 'bottleneck');
+  if (named === NO_WASTE) return { bottleneck: named, change: null };
+  return { bottleneck: named, change: briefText(change, 'change') };
 }
 
-function parseChange(lines: string[]): string {
-  if (lines[0]?.trim() !== CHANGE) throw new Error(`brief.md names a bottleneck, so its second line must be "${CHANGE}"`);
-  const change = lines.slice(1).join('\n').trim();
-  if (change === '') throw new Error('brief.md has an empty change');
-  return change;
+function briefText(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`brief.json needs a non-empty ${field} string`);
+  return value.trim();
 }
 
 function readPublishing(factoryHome: string, from: Date): Publishing | null {

@@ -7,7 +7,8 @@ import { must } from '../exec';
 import { roundSession } from '../sessions';
 import { updateState } from '../state';
 import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type PlaytestState, type ReleaseState } from '../types';
-import { CACHED_SUITE, checkScript, checkUntilReal, oneSuiteAtATime, runChecks, suiteEnv, testCacheMount } from './checks';
+import { CACHED_SUITE, type CheckOutcome, checkScript, checkUntilReal, oneSuiteAtATime, runChecks, suiteEnv, testCacheMount } from './checks';
+import { subsetCommand, testSubset } from './subset';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
@@ -57,11 +58,11 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
 }
 
 async function fullSuite(ctx: Ctx, dir: string): Promise<void> {
-  await oneSuiteAtATime(ctx, { stage: 'playtest', issue: null }, () => ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg)));
+  await oneSuiteAtATime(ctx, { stage: 'playtest', issue: null }, () => ctx.container.shell('checks', dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg)));
 }
 
 async function cloneAt(ctx: Ctx, dir: string, sha: string): Promise<boolean> {
-  const head = must(await ctx.run('git', ['-C', dir, 'rev-parse', 'HEAD']), 'git rev-parse in the playtest clone').trim();
+  const head = must(await ctx.run('git', ['-C', dir, 'rev-parse', 'HEAD'], { activity: 'git' }), 'git rev-parse in the playtest clone').trim();
   if (head.startsWith(sha)) return true;
   ctx.log('playtest', null, `the clone is at ${head.slice(0, sha.length)}, not the release head ${sha}, since the release moved. Nothing played.`);
   return false;
@@ -152,7 +153,7 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'release-baseline');
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone(baseline.branch, baseline.branch, dir);
-  must(await ctx.run('git', ['-C', dir, 'checkout', '--quiet', '--detach', baseline.sha]), 'git checkout of the playtest baseline');
+  must(await ctx.run('git', ['-C', dir, 'checkout', '--quiet', '--detach', baseline.sha], { activity: 'git' }), 'git checkout of the playtest baseline');
   await harness(ctx, session, dir, baseline.sha, 'Playing the baseline seed');
   const log = join(agentHome(dir, GAME_DIR), LOG);
   const facts = readFacts(ctx, session.release, log, baseline.sha);
@@ -164,7 +165,7 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
 async function harness(ctx: Ctx, session: Session, dir: string, sha: string, phase: string): Promise<void> {
   const { seed } = session.release.playtest;
   const play = `npm run progression:playthrough -- --seed ${seed} --turns ${ctx.cfg.playtestTurns} --sha ${sha} --out ${LOG}`;
-  await ctx.container.shell(dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+  await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
 }
 
 function readFacts(ctx: Ctx, release: ReleaseState, path: string, sha: string): LogFacts {
@@ -179,14 +180,15 @@ async function cloneHead(ctx: Ctx, session: Session): Promise<string> {
 }
 
 async function checkFixes(ctx: Ctx, session: Session, sha: string): Promise<string | null> {
-  const dirty = must(await ctx.run('git', ['-C', session.dir, 'status', '--porcelain']), 'git status in the playtest clone').trim();
+  const dirty = must(await ctx.run('git', ['-C', session.dir, 'status', '--porcelain'], { activity: 'git' }), 'git status in the playtest clone').trim();
   if (dirty !== '') return `The clone has changes that are not committed, so the checks cannot run on the reviewed commit ${sha}. Commit them or remove them:\n${dirty}`;
-  guardDiff(await ctx.repo.diff(session.start, sha));
+  guardDiff({ files: await ctx.repo.changedFiles(session.start, sha), diff: await ctx.repo.diff(session.start, sha) });
   checkScope(sha);
   const log = releaseLog(ctx, 'playtest-checks');
-  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false))}`;
+  const subset = testSubset(await ctx.repo.changedInWork(session.dir, session.start), (file) => existsSync(join(session.home, file)));
+  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset))}`;
   const at = { stage: 'playtest' as const, issue: session.release.issue };
-  const check = (): Promise<string | null> => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg)));
+  const check = (): Promise<CheckOutcome> => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg));
   return checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
 }
 
@@ -222,7 +224,7 @@ async function land(ctx: Ctx, session: Session): Promise<boolean> {
   } catch (error) {
     await ctx.repo.fetch();
     if ((await ctx.repo.headHash(release.branch)) === session.start) throw error;
-    await mergeResolving(ctx, 'playtest', [{ branch: commit, into: release.branch, message: `Merge the release playtest fixes into ${release.branch}` }]);
+    await mergeResolving(ctx, 'playtest', [{ branch: commit, into: release.branch, message: `Merge the release playtest fixes into ${release.branch}`, issue: null }]);
     return false;
   }
 }

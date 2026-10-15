@@ -15,6 +15,7 @@ const CONTRACT_KINDS: Contract[] = [
   { id: 'c', shop: 's', kind: 'haul', good: 'g', units: 1, to: 't', reward: 1, deadline: 1, window: 1, rush: false, tier: 1 },
   { id: 'c', shop: 's', kind: 'fetch', defId: 'p', reward: 1, deadline: 1, window: 1, tier: 1 },
   { id: 'c', shop: 's', kind: 'bounty', template: 't', reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
+  { id: 'c', shop: 's', kind: 'search', target: 'v', driver: 'd', template: 't', lead: { at: { x: 1, y: 1 }, turn: 1 }, reward: 1, deadline: 1, window: 1, tier: 1, delivered: false },
   { id: 'c', shop: 's', kind: 'rescue', client: 'v', driver: 'd', need: 'fuel', area: { x: 1, y: 1 }, reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
 ];
 
@@ -43,6 +44,7 @@ export function newGameShape(): Shape {
     ];
   }
   world.player.quests.session = { quest: 'q', checkpoint: 'c', seed: 1 };
+  world.vehicles.find((v) => v.id === world.player.vehicleId)!.items.push({ id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'c' });
   return shapeOf(JSON.parse(JSON.stringify(saveOf(world).world)));
 }
 

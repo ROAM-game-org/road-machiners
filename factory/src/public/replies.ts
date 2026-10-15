@@ -1,66 +1,74 @@
 import { reportFailure } from '../fail';
-import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Ctx } from '../types';
+import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '../types';
 import { isolated } from './isolate';
 import type { PublicFilter } from './decision';
+import { textsFor, type ReplyText } from './reply-text';
 import type { IssueComment, PublicStore, StoredComment } from './store';
-import { excerpt, passageLabel, passageLink, wikiHome, type Ground, type Passage } from './wiki';
+import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
 
-const issueLink = (ctx: Ctx, issue: number): string => `https://github.com/${ctx.cfg.repo}/issues/${issue}`;
+const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
-const FEEDBACK_ASK = "Thanks. If something is broken or you have an idea, tell me what happens or what you want, and I'll file it.";
-const FILE_FAILED = 'Thanks. I could not file this just now, and the factory team has been told.';
+const APPROVED: Column[] = ['Hardening', 'Merging'];
+const IN_WORK: Column[] = ['Design', 'Implementation', 'Testing', 'Approval'];
 
-async function issueStatus(ctx: Ctx, issue: number): Promise<string> {
+async function columnStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
+  const column = (await ctx.github.cards()).find((card) => card.issue === issue)?.column;
+  if (column !== undefined && APPROVED.includes(column)) return text.approved;
+  return column !== undefined && IN_WORK.includes(column) ? text.inWork : text.notBuilt;
+}
+
+async function issueStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
   const found = await ctx.github.issue(issue);
-  if (found.state === 'CLOSED') return 'It is closed, and the issue says why.';
-  if (found.labels.includes(RELEASE_CANDIDATE_LABEL)) return 'It is built and waits for the next release.';
-  if (found.labels.includes(VOTING_LABEL)) return 'It waits for player votes as a proposal in this chat.';
-  return 'It is open and not built yet.';
+  if (found.state === 'CLOSED') return text.closed;
+  if (found.labels.includes(RELEASE_CANDIDATE_LABEL)) return text.releaseCandidate;
+  if (found.labels.includes(VOTING_LABEL)) return text.voting;
+  return columnStatus(ctx, issue, text);
 }
 
-function filedText(ctx: Ctx, comment: StoredComment, issue: number): string {
-  const link = `#${issue}: ${issueLink(ctx, issue)}`;
-  if (comment.kind === 'bug') return `Thanks. I filed this bug as ${link}\nTriage reads it next. Nothing is fixed yet.`;
-  return `Thanks. I filed this idea as ${link}\nTriage reads it next. If it needs a vote, it comes back to this chat as a proposal. Nothing is built yet.`;
-}
-
-async function filingReply(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<string> {
-  if (comment.filedIssue === null) return FILE_FAILED;
-  if (!store.filedBefore(comment)) return filedText(ctx, comment, comment.filedIssue);
-  return `This is already filed as #${comment.filedIssue}: ${issueLink(ctx, comment.filedIssue)}\n${await issueStatus(ctx, comment.filedIssue)}`;
+async function filingReply(ctx: Ctx, store: PublicStore, comment: StoredComment, text: ReplyText): Promise<string> {
+  if (comment.filedIssue === null) return text.fileFailed;
+  const link = issueLink(ctx, comment.filedIssue);
+  if (!store.filedBefore(comment)) return comment.kind === 'bug' ? text.filedBug(link) : text.filedIdea(link);
+  return `${text.alreadyFiled(link)}\n${await issueStatus(ctx, comment.filedIssue, text)}`;
 }
 
 const ANSWER_CHARS = 600;
 
-const noAnswer = (ctx: Ctx): string => `The game wiki has no passage that answers this, so I will not guess. The wiki: ${wikiHome(ctx.cfg.repo)}\nIf something is broken or you have an idea, tell me and I'll file it.`;
+const wikiAnswer = (ctx: Ctx, passage: Passage, text: ReplyText): string => `${text.fromWiki(passageLabel(passage))}\n${excerpt(passage.text, ANSWER_CHARS)}\n${passageLink(ctx.cfg.repo, passage)}`;
 
-const wikiAnswer = (ctx: Ctx, passage: Passage): string => `From the game wiki, ${passageLabel(passage)}:\n${excerpt(passage.text, ANSWER_CHARS)}\n${passageLink(ctx.cfg.repo, passage)}`;
-
-async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment): Promise<string> {
+async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment, text: ReplyText): Promise<string | null> {
   try {
     const passage = await ground(comment.text);
-    return passage === null ? noAnswer(ctx) : wikiAnswer(ctx, passage);
+    return passage === null ? null : wikiAnswer(ctx, passage, text);
   } catch (error) {
-    await reportFailure(ctx, 'public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it got the fallback: ${error instanceof Error ? error.message : String(error)}`, null, []);
-    return noAnswer(ctx);
+    await reportFailure(ctx, 'public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it got no answer: ${error instanceof Error ? error.message : String(error)}`, null, []);
+    return null;
   }
 }
 
-async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment): Promise<string | null> {
-  if (comment.kind === 'feedback' && !comment.addressed) return null;
-  const added = `Thanks. I added this to the player comments of #${comment.issue}: ${issueLink(ctx, comment.issue)}\nThe committee reads them before it decides.`;
-  return comment.kind === 'question' ? `${await answerText(ctx, ground, comment)}\n\n${added}` : added;
+async function threadNote(ctx: Ctx, comment: IssueComment, text: ReplyText): Promise<string> {
+  const link = issueLink(ctx, comment.issue);
+  return comment.linked ? text.aboutWork(link, await issueStatus(ctx, comment.issue, text)) : text.added(link);
+}
+
+const waitsForAddress = (comment: IssueComment): boolean => comment.kind === 'feedback' || (comment.linked && comment.kind === 'question');
+
+async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment, text: ReplyText): Promise<string | null> {
+  if (waitsForAddress(comment) && !comment.addressed) return null;
+  const note = await threadNote(ctx, comment, text);
+  const answer = comment.kind === 'question' ? await answerText(ctx, ground, comment, text) : null;
+  return answer === null ? note : `${answer}\n\n${note}`;
 }
 
 const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
 
 export async function replyText(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
   if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter') return null;
-  if (isOnThread(comment)) return onThreadReply(ctx, ground, comment);
-  if (comment.kind === 'bug' || comment.kind === 'feature') return filingReply(ctx, store, comment);
+  const text = textsFor(comment.language);
+  if (isOnThread(comment)) return onThreadReply(ctx, ground, comment, text);
+  if (comment.kind === 'bug' || comment.kind === 'feature') return filingReply(ctx, store, comment, text);
   const asked = comment.addressed || comment.issue !== null;
-  if (comment.kind === 'question') return asked ? answerText(ctx, ground, comment) : null;
-  return comment.addressed ? FEEDBACK_ASK : null;
+  return comment.kind === 'question' && asked ? answerText(ctx, ground, comment, text) : null;
 }
 
 export async function sendReplies(ctx: Ctx, store: PublicStore, filter: PublicFilter): Promise<void> {

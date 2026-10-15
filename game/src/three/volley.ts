@@ -14,7 +14,7 @@ import { computeRoundPoint, groundPoint, headingOf, toMap, type TurnFrames, type
 import type { Fx3D } from "./render/fx";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
-import { viewOf, type VehicleView } from "./render/vehicle";
+import type { VehicleView } from "./render/vehicle";
 import { accentOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
@@ -235,7 +235,23 @@ function playTruckShot(host: CombatHost, e: ShotLike, rows: Map<string, number>,
   const plans = planShot(host.poses, shot, gun, ground, Math.random);
   const dry = w.events.some((x) => x.t === "empty" && x.vehicle === e.shooter && x.weapon === e.weapon);
   const hooked = spec.rope ? () => host.lineHooked(e.shooter, e.weapon) : null;
-  return playVolley(host, plans, () => viewOf(host.views, e.shooter).muzzle(e.weapon), e, breaks, part.defId, rows, dry, hooked);
+  return playVolley(host, plans, shooterMuzzle(host, e.shooter, e.weapon), e, breaks, part.defId, rows, dry, hooked);
+}
+
+function shooterMuzzle(host: CombatHost, shooter: string, weapon: string): () => Muzzle {
+  let last: Muzzle | null = null;
+  return () => {
+    const view = host.views.get(shooter);
+    if (view) last = view.muzzle(weapon);
+    return last ?? restMuzzle(host.poses, shooter);
+  };
+}
+
+function restMuzzle(poses: TurnPoses, shooter: string): Muzzle {
+  const pos = poses.end(shooter);
+  const heading = poses.endHeading(shooter);
+  if (pos === null || heading === null) throw new Error(`Shooter ${shooter} has no end pose`);
+  return { pos, dir: { x: Math.cos(heading), y: 0, z: Math.sin(heading) } };
 }
 
 function killingRounds(w: World, e: ShotLike): (k: number) => boolean {

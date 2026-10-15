@@ -8,7 +8,7 @@ import { sitePads } from "../sim/sites";
 import { emptyWorld } from "../sim/testkit";
 import { update } from "../sim/world";
 import type { GridItem, Rot, World } from "../sim/types";
-import { DOUBLE_CLICK_MS, doubleClickCommand, isDoubleClick, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
+import { DOUBLE_CLICK_MS, dragStartOf, doubleClickCommand, isDoubleClick, needsHold, canFieldPatch, planAfterMove, plannedVehicle, selectionAfterClick, type ClickedItem } from "./inventory-moves";
 import { emptyHidden } from "../sim/salvage";
 
 const bowl = REGION.towns.find((t) => t.id === "bowl")!;
@@ -191,6 +191,18 @@ describe("field refit plan", () => {
   it("refuses a move the sim refuses", () => {
     const w = emptyWorld();
     expect(() => planAfterMove(w.vehicles[0], {}, partOf(w, "mg").id, { x: 9, y: 0, rot: 0 })).toThrow();
+  });
+});
+
+describe("dragStartOf", () => {
+  it("holds a touch on any item", () => {
+    expect(dragStartOf("touch", false)).toBe("hold");
+    expect(dragStartOf("touch", true)).toBe("hold");
+  });
+
+  it("holds a mouse only on a mounted part", () => {
+    expect(dragStartOf("mouse", false)).toBe("now");
+    expect(dragStartOf("mouse", true)).toBe("hold");
   });
 });
 

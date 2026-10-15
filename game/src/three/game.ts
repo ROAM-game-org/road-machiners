@@ -86,6 +86,10 @@ import { MIX } from "../data/sounds";
 import { CombatScore, CombatWatch, computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
+import { touchMode, watchInputMode } from "../ui/input-mode";
+import { installTouchTips } from "../ui/touch-tip";
+import { TouchGestures, type TouchIntent } from "./touch-map";
+import { touchTapAction } from "./touch-tap";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
@@ -164,6 +168,8 @@ export class Game {
   private readonly overlay: HTMLElement;
   private live: LiveVision | null = null;
   private hoverGround: Vec | null = null;
+  private touchPreview: Vec | null = null;
+  private readonly touch = new TouchGestures();
   private readonly picker = new PointerPicker({
     world: () => this.world,
     hit: (x, y, object) => this.rig.hitDistance(x, y, object),
@@ -209,7 +215,10 @@ export class Game {
     this.drive = buildDrive(this.world);
     setTimeout(() => this.travel.warm(this.world, this.drive));
 
+    watchInputMode(uiRoot(), () => this.refreshUi());
+    installTouchTips(uiRoot(), touchMode);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
     enableSunShadows(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -311,12 +320,18 @@ export class Game {
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
+      unpin: () => this.unpin(),
+      markInspected: () => this.markInspected(),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch());
+    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
+      cameraLabel: () => this.hud.cameraModeLabel(),
+      toggleCamera: () => this.hud.toggleCameraMode(),
+      report: () => this.hud.openFeedback(),
+    });
     this.death = new DeathScreen(saves);
 
     this.bindInput();
@@ -430,6 +445,7 @@ export class Game {
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
     this.hud.renderTop(this.displayWorld());
+    this.hud.markCombat(inCombat(this.world, playerVehicle(this.world)));
     this.hud.renderRescue(this.displayWorld());
     if (!this.anim && this.world.player.state === "dead") this.death.show(this.world);
     this.weapons.render();
@@ -485,9 +501,14 @@ export class Game {
     const canvas = this.renderer.domElement;
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     canvas.addEventListener("pointerdown", (e) => {
-      if (e.button === 0 && !this.clickUtility(e)) this.onLeftClick(e);
+      if (e.pointerType === "touch") return this.touchDown(e);
+      if (e.button === 0 && !this.clickUtility(e)) this.onLeftClick(e.clientX, e.clientY, e.shiftKey);
     });
+    canvas.addEventListener("pointermove", (e) => e.pointerType === "touch" && this.touchMove(e));
+    canvas.addEventListener("pointerup", (e) => e.pointerType === "touch" && this.touchUp(e));
+    canvas.addEventListener("pointercancel", (e) => e.pointerType === "touch" && this.touchCancel(e));
     window.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "touch") return;
       this.picker.moveTo(e.target === canvas ? e : null);
       if (e.target === canvas) this.onHover(e);
     });
@@ -547,12 +568,21 @@ export class Game {
     KeyO: { run: () => this.controls.toggleOverdrive(), noModal: true, idle: true },
     KeyG: { run: () => this.controls.douseEngine(), noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
-    KeyN: { run: () => this.inspected() && !markError(this.world, this.inspected()!) && this.apply(markVehicle(this.world, this.inspected()!)), noModal: true, idle: true },
+    KeyN: { run: () => this.markInspected(), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggle(this.screens.character), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
-    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.pin.clear(); this.selectUtility(null); } },
+    Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.unpin(); this.selectUtility(null); } },
   };
+
+  unpin(): void {
+    this.pin.clear();
+  }
+
+  markInspected(): void {
+    const id = this.inspected();
+    if (id && !markError(this.world, id)) this.apply(markVehicle(this.world, id));
+  }
 
   private selectUtility(id: string | null): void {
     if (this.anim || (id !== null && this.modalOpen())) return;
@@ -568,9 +598,88 @@ export class Game {
     return !this.anim && !this.modalOpen() && playerCanAct(this.world);
   }
 
-  private onLeftClick(e: MouseEvent): void {
+  private touchDown(e: PointerEvent): void {
+    this.touchIntent(this.touch.down(e.pointerId, e.clientX, e.clientY, performance.now()));
+    this.touchGhost();
+  }
+
+  private touchMove(e: PointerEvent): void {
+    this.touchIntent(this.touch.move(e.pointerId, e.clientX, e.clientY));
+    this.touchGhost();
+  }
+
+  private touchUp(e: PointerEvent): void {
+    this.touchIntent(this.touch.up(e.pointerId));
+    if (this.touchPreview === null) this.hoverGround = null;
+  }
+
+  private touchCancel(e: PointerEvent): void {
+    this.touch.cancel(e.pointerId);
+    if (this.touchPreview === null) this.hoverGround = null;
+  }
+
+  private touchGhost(): void {
+    const finger = this.touch.holding();
+    if (finger) this.hoverGround = this.groundFor(finger.x, finger.y);
+  }
+
+  private touchIntent(intent: TouchIntent | null): void {
+    if (!intent) return;
+    switch (intent.kind) {
+      case "pan":
+        return this.follow.pan(intent.dx, intent.dy);
+      case "zoom":
+        return this.rig.zoomByFactor(intent.factor);
+      case "tap":
+        return this.touchTap(intent.x, intent.y);
+      case "hold":
+        return this.touchHold(intent.x, intent.y);
+    }
+  }
+
+  private touchHold(x: number, y: number): void {
+    const action = this.picker.action(x, y);
+    const point = this.canClick() && this.utilityAim.pointPending();
+    if (this.modalOpen() || action.kind !== "ground" || point) return this.touchTap(x, y);
+    const p = this.rig.groundUnder(x, y, this.ground);
+    if (this.canClick() && p) this.apply(setMoveOrder(this.world, clickOrder(this.world.terrain, p, true, playerVehicle(this.world))));
+  }
+
+  private touchTap(x: number, y: number): void {
     if (this.modalOpen()) return;
-    const action = this.picker.action(e.clientX, e.clientY);
+    const ground = this.rig.groundUnder(x, y, this.ground);
+    const tap = touchTapAction({
+      pinnedId: this.pin.id,
+      previewScreen: this.touchPreview,
+      previewAt: this.hoverGround,
+      tapScreen: { x, y },
+      hit: this.picker.action(x, y),
+      ground,
+      utilityPoint: this.canClick() && this.utilityAim.pointPending(),
+      pickRadius: PICK_PX,
+    });
+    if (tap.kind !== "preview") this.touchPreview = null;
+    switch (tap.kind) {
+      case "pin":
+        return this.pinVehicle(tap.id);
+      case "aim":
+        return this.aimVehicle(tap.id);
+      case "preview":
+        this.touchPreview = { x, y };
+        this.hoverGround = tap.at;
+        return;
+      case "place":
+        this.hoverGround = null;
+        this.utilityAim.click(tap.at);
+        return;
+      case "click":
+        return this.onLeftClick(x, y, false);
+    }
+  }
+
+  private onLeftClick(x: number, y: number, stop: boolean): void {
+    if (this.modalOpen()) return;
+    const action = this.picker.action(x, y);
     if (action.kind === "vehicle") return this.clickVehicle(action.id);
     if (!this.canClick()) return;
     switch (action.kind) {
@@ -579,8 +688,8 @@ export class Game {
       case "own":
         return;
       case "ground": {
-        const p = this.rig.groundUnder(e.clientX, e.clientY, this.ground);
-        if (p) this.apply(setMoveOrder(this.world, clickOrder(this.world.terrain, p, e.shiftKey, playerVehicle(this.world))));
+        const p = this.rig.groundUnder(x, y, this.ground);
+        if (p) this.apply(setMoveOrder(this.world, clickOrder(this.world.terrain, p, stop, playerVehicle(this.world))));
         return;
       }
       default:
@@ -601,7 +710,15 @@ export class Game {
   }
 
   private clickVehicle(id: string): void {
+    this.pinVehicle(id);
+    this.aimVehicle(id);
+  }
+
+  private pinVehicle(id: string): void {
     this.pin.click(id);
+  }
+
+  private aimVehicle(id: string): void {
     if (this.selected === null || !this.canClick()) return;
     this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), vehicleById(this.world, id)));
   }
@@ -657,12 +774,14 @@ export class Game {
     return best;
   }
 
+  private groundFor(x: number, y: number): Vec | null {
+    const id = this.pickVehicle(x, y)?.id ?? null;
+    return id || this.picker.overOwn(x, y) || this.modalOpen() ? null : this.rig.groundUnder(x, y, this.ground);
+  }
+
   private onHover(e: MouseEvent): void {
     const id = this.pickVehicle(e.clientX, e.clientY)?.id ?? null;
-    this.hoverGround =
-      id || this.picker.overOwn(e.clientX, e.clientY) || this.modalOpen()
-        ? null
-        : this.rig.groundUnder(e.clientX, e.clientY, this.ground);
+    this.hoverGround = this.groundFor(e.clientX, e.clientY);
     this.hoverHold.move(id, this.hovered);
   }
 
@@ -930,6 +1049,7 @@ export class Game {
   private frame(now: number): void {
     const dt = now - this.last;
     this.last = now;
+    this.touchIntent(this.touch.tick(now));
     this.play.beginFrame();
     const { at, speed } = timed("turn-frame", () => {
       const turn = this.advanceTurn(now);

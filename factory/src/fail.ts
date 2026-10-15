@@ -1,14 +1,18 @@
 import { CommitteeDecisionError } from './diff-guard';
+import { GithubError } from './github';
 import { UsageLimitError } from './pause';
 import { BudgetError } from './stages/checkpoint';
 import { updateState } from './state';
-import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type JobStage, type Stage } from './types';
+import { STUCK_LABEL, type Ctx, type FactoryState, type Failure, type FailureCause, type JobStage, type Stage } from './types';
 
 const ANSI = new RegExp(String.raw`\u001b\[[0-9;]*[A-Za-z]`, 'g');
 const FAILURE_LINE = /FAIL|Error|error:|failed|×/;
 const SUMMARY_LINES = 6;
 const SUMMARY_CHARS = 800;
 const FAILURE_KEEP_MS = 24 * 3_600_000;
+
+export class JobTimeoutError extends Error {}
+export class JobDiedError extends Error {}
 
 export function stripAnsi(text: string): string {
   return text.replace(ANSI, '');
@@ -32,14 +36,30 @@ const UNLABELED_STAGES: Stage[] = ['catch-up', 'public'];
 export async function reportFailure(ctx: Ctx, stage: Stage, issue: number | null, error: unknown, log: string | null, batch: number[]): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
   ctx.log(stage, issue, `failed: ${message}`);
-  const failure: Failure = { stage, issue, error: summarizeError(message), log, at: ctx.now().toISOString(), ...causeOf(error, batch) };
+  const failure: Failure = { stage, issue, error: summarizeError(message), cause: causeOf(error), log, at: ctx.now().toISOString(), ...(batch.length > 0 ? { batch } : {}) };
   updateState(ctx.statePath, (state) => ({ ...state, failures: [...state.failures, failure] }));
   if (issue !== null && !UNLABELED_STAGES.includes(stage) && !(error instanceof UsageLimitError)) await ctx.github.addLabel(issue, STUCK_LABEL);
 }
 
-function causeOf(error: unknown, batch: number[]): Pick<Failure, 'batch' | 'decision'> {
-  const decision = error instanceof BudgetError || error instanceof CommitteeDecisionError;
-  return { ...(batch.length > 0 ? { batch } : {}), ...(decision ? { decision } : {}) };
+export function causeOf(error: unknown): FailureCause {
+  for (let link = error; link instanceof Error; link = link.cause) {
+    const cause = causeOfLink(link);
+    if (cause !== null) return cause;
+  }
+  return 'error';
+}
+
+const CAUSE_OF_CLASS: [new (message: string) => Error, FailureCause][] = [
+  [BudgetError, 'decision'],
+  [CommitteeDecisionError, 'decision'],
+  [GithubError, 'github'],
+  [JobTimeoutError, 'timeout'],
+  [JobDiedError, 'died'],
+];
+
+function causeOfLink(error: Error): FailureCause | null {
+  if ((error as NodeJS.ErrnoException).code === 'ENOSPC') return 'disk';
+  return CAUSE_OF_CLASS.find(([type]) => error instanceof type)?.[1] ?? null;
 }
 
 export function pruneFailures(now: Date): (state: FactoryState) => FactoryState {

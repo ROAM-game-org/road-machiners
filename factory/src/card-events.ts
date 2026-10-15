@@ -3,7 +3,7 @@ import { ADHOC_LABEL, HOTFIX_LABEL, RELEASE_LABEL, RELEASE_TASK_LABEL, type Colu
 
 export const CARD_STEPS = [
   'entered', 'accepted', 'triage-wont-do', 'bundled', 'unbundled', 'questions', 'planned', 'design-wont-do', 'built', 'patched', 'patch-replan',
-  'rebuild', 'plan-wrong', 'review-failed', 'posted', 'hardened', 'approved', 'conflict', 'patch', 'redesign', 'merged', 'denied', 'dropped',
+  'rebuild', 'plan-wrong', 'review-failed', 'posted', 'hardened', 'approved', 'conflict', 'base-moved', 'requeued', 'patch', 'redesign', 'merged', 'denied', 'dropped',
   'moved', 'merge-ordered', 'removed', 'shipped', 'reported', 'voted',
 ] as const;
 export type CardStep = typeof CARD_STEPS[number];
@@ -16,16 +16,18 @@ export function cardFlow(labels: string[]): CardFlow | undefined {
   return labels.includes(ADHOC_LABEL) ? 'adhoc' : undefined;
 }
 
-export async function moveCard(ctx: Ctx, issue: number, to: Column, step: CardStep, flow?: CardFlow): Promise<void> {
+export type CardFacts = { opened?: string; into?: string; sha?: string };
+
+export async function moveCard(ctx: Ctx, issue: number, to: Column, step: CardStep, flow?: CardFlow, facts: CardFacts = {}): Promise<void> {
   await ctx.github.move(issue, to);
-  recordCard(ctx, issue, to, step, flow);
+  recordCard(ctx, issue, to, step, flow, facts);
 }
 
-export async function addCard(ctx: Ctx, issue: number, to: Column, flow?: CardFlow): Promise<void> {
+export async function addCard(ctx: Ctx, issue: number, to: Column, opened: string, flow?: CardFlow): Promise<void> {
   await ctx.github.addCard(issue, to);
-  recordCard(ctx, issue, to, 'entered', flow);
+  recordCard(ctx, issue, to, 'entered', flow, { opened });
 }
 
-function recordCard(ctx: Ctx, issue: number, to: Column, step: CardStep, flow: CardFlow | undefined): void {
-  appendLedger(ctx.cfg.home, { kind: 'card', issue, step, to, at: ctx.now().toISOString(), ...(flow === undefined ? {} : { flow }) });
+function recordCard(ctx: Ctx, issue: number, to: Column, step: CardStep, flow: CardFlow | undefined, facts: CardFacts): void {
+  appendLedger(ctx.cfg.home, { kind: 'card', issue, step, to, at: ctx.now().toISOString(), ...(flow === undefined ? {} : { flow }), ...facts });
 }

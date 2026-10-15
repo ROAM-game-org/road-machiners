@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { EMPTY_STATE, writeState } from '../state';
 import { appendLedger } from '../ledger';
-import { buildOperations, selectReleaseFeatures, PublicGitHub, SnapshotCollector } from './snapshot';
+import { buildOperations, PublicGitHub, SnapshotCollector } from './snapshot';
 import { HostSampler, type HostLoad } from './host';
 import { AnalyticsRunner } from './analytics';
 import type { DashboardConfig } from './config';
@@ -25,17 +25,32 @@ it('publishes only explicit operational fields, never private state or raw error
 
 it('stays idle on a catch-up failure, which blocks no card, and turns blocked on any other failure', () => {
   const config = { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' };
-  const failure = { stage: 'catch-up' as const, issue: 8, error: 'e', log: null, at: '2026-01-01T00:00:00Z' };
+  const failure = { stage: 'catch-up' as const, issue: 8, error: 'e', cause: 'error' as const, log: null, at: '2026-01-01T00:00:00Z' };
   expect(buildOperations({ ...structuredClone(EMPTY_STATE), failures: [failure] }, false, config).status).toBe('idle');
   expect(buildOperations({ ...structuredClone(EMPTY_STATE), failures: [failure, { ...failure, stage: 'merge' }] }, false, config).status).toBe('blocked');
 });
 
 it('only publishes a candidate link while the current candidate is valid', () => {
-  const state: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 3, branch: 'release/day', day: '2026-01-01', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, builds: { '3': 'rc' } };
+  const state: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 3, branch: 'release/day', day: '2026-01-01', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, builds: { '3': 'rc' } };
   const config = { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' };
   expect(buildOperations(state, false, config).candidateUrl).toBeNull();
   state.release!.postId = 10;
   expect(buildOperations(state, false, config).candidateUrl).toBe('https://example.org/rc/');
+});
+
+describe('next release features', () => {
+  const config = { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' };
+  const merge = (issue: number, title: string) => ({ issue, title, sha: 'a'.repeat(40), into: 'dev', reverted: [] });
+  const release = (over: Partial<NonNullable<FactoryState['release']>>): FactoryState['release'] => ({ issue: 3, branch: 'release/day', day: '2026-01-01', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] }, ...over });
+
+  it('lists the dev merges while no release is open', () => {
+    const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(7, 'Included'), merge(8, 'Also')] };
+    expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }, { issue: 8, title: 'Also' }]);
+  });
+  it('lists the release merges without the removed ones while a release is open', () => {
+    const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(9, 'Later')], release: release({ merges: [merge(7, 'Included'), merge(8, 'Removed')], removed: [8] }) };
+    expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }]);
+  });
 });
 
 function createConfig(home: string): DashboardConfig {
@@ -45,7 +60,7 @@ class FixtureGithub extends PublicGitHub {
   failed = false;
   override async read(state: FactoryState) {
     if (this.failed) throw new Error('PRIVATE credential failure');
-    return { cards: [], features: [], merges: [], releaseKey: JSON.stringify({ branch: state.release?.branch ?? 'dev', removed: [] }), provisional: state.release === null };
+    return { cards: { value: [], error: null }, mergeQueue: { value: [], error: null } };
   }
 }
 const analyticsRunner = await AnalyticsRunner.open();
@@ -68,7 +83,7 @@ it('retains the last good snapshot with stale markers when its sources fail', as
     await collector.refreshLocal();
     await collector.refreshGithub();
     const good = collector.getSnapshot();
-    expect(good.labels.columns.Merging).toBe('Merging');
+    expect(good.labels.columns.Merging).toBe('Merge');
     vi.useFakeTimers();
     vi.setSystemTime(Date.now() + 120_000);
     expect(collector.getSnapshot().operations.status).toBe('stale');
@@ -93,11 +108,11 @@ it('reports a safe pause reason and clears it when the pause is removed', async 
     const config = createConfig(home);
     const collector = new SnapshotCollector(config, new FixtureGithub(config, async () => { throw new Error('No network'); }), new FixtureHost(home, 100), analyticsRunner);
     const pause = join(home, 'paused');
-    writeFileSync(pause, 'Hermes: Claude weekly usage limit; PRIVATE committee notes');
+    writeFileSync(pause, JSON.stringify({ kind: 'usage-limit', note: 'PRIVATE committee notes', by: 'factory', at: '2026-01-01T00:00:00.000Z' }));
     await collector.refreshLocal();
     expect(collector.getSnapshot().operations.value).toMatchObject({ status: 'paused', pauseReason: 'agent-usage-limit' });
     expect(JSON.stringify(collector.getSnapshot())).not.toContain('PRIVATE');
-    writeFileSync(pause, 'PRIVATE operator investigation');
+    writeFileSync(pause, JSON.stringify({ kind: 'factory', note: 'PRIVATE operator investigation', by: 'cli', at: '2026-01-01T00:00:00.000Z' }));
     await collector.refreshLocal();
     expect(collector.getSnapshot().operations.value).toMatchObject({ status: 'paused', pauseReason: 'operator' });
     expect(JSON.stringify(collector.getSnapshot())).not.toContain('PRIVATE');
@@ -141,25 +156,30 @@ it('publishes delivery numbers from card lines in every range with no committee 
     expect(JSON.stringify(snapshot)).not.toContain('PRIVATE');
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
+it('reruns the analytics only when the ledger grows', async () => {
+  const home = mkdtempSync(resolve('tmp/snapshot-'));
+  try {
+    mkdirSync(join(home, 'state'));
+    writeState(join(home, 'state', 'state.json'), structuredClone(EMPTY_STATE));
+    appendLedger(home, { kind: 'card', issue: 5, step: 'entered', to: 'Triage', at: new Date().toISOString() });
+    const config = createConfig(home);
+    const read = vi.spyOn(analyticsRunner, 'read');
+    const collector = new SnapshotCollector(config, new FixtureGithub(config, async () => { throw new Error('No network'); }), new FixtureHost(home, 100), analyticsRunner);
+    await collector.refreshLocal();
+    await collector.refreshLocal();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(collector.getSnapshot().analytics.status).toBe('ok');
+    appendLedger(home, { kind: 'card', issue: 5, step: 'accepted', to: 'Design', at: new Date().toISOString() });
+    await collector.refreshLocal();
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(collector.getSnapshot().analytics.value?.delivery_coverage.ranges?.[1][0].issues).toBe(1);
+    read.mockRestore();
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
 it('refuses to collect a private repository before reading its issues', async () => {
   const calls: string[][] = [];
   const run: Run = async (_command, args) => { calls.push(args); return { code: 0, stdout: 'private', stderr: '' }; };
   await expect(new PublicGitHub(createConfig('/unused'), run).read(structuredClone(EMPTY_STATE))).rejects.toThrow('public repository');
   expect(calls).toHaveLength(1);
-});
-
-describe('release first-parent history', () => {
-  const commits = [
-    { sha: 'a', parents: [{ sha: 'base' }, { sha: 'side' }], commit: { message: 'Merge issue #7: Included feature' } },
-    { sha: 'nested', parents: [{ sha: 'base' }, { sha: 'x' }], commit: { message: 'Merge issue #99: Nested merge' } },
-    { sha: 'b', parents: [{ sha: 'a' }, { sha: 'nested' }], commit: { message: 'Merge issue #8: Removed feature' } },
-    { sha: 'head', parents: [{ sha: 'b' }], commit: { message: 'Release cleanup' } },
-  ];
-  it('matches factory membership: first-parent merge subjects, excluding removals', () => {
-    expect(selectReleaseFeatures(commits, 'head', [8])).toEqual([{ issue: 7, title: 'Included feature' }]);
-  });
-  it('does not invent a release from unrelated or empty history', () => {
-    expect(selectReleaseFeatures([], 'head', [])).toEqual([]);
-    expect(selectReleaseFeatures([{ sha: 'head', parents: [{ sha: 'base' }], commit: { message: 'Merge issue #8: Not a merge commit' } }], 'head', [])).toEqual([]);
-  });
 });

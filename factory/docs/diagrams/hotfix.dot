@@ -1,0 +1,27 @@
+// Hotfix approval. A member approves once, and the kept approval ships only a build whose full checks passed on the main it sits on.
+// Red: loops back with the approval kept. Grey: the approval drops and the build needs a new one. Yellow: waits for people.
+digraph hotfix {
+  rankdir=LR; nodesep=0.35; ranksep=0.55; bgcolor=white; pad=0.3;
+  node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.3];
+  edge [color="#374151", penwidth=1.8, arrowsize=0.8, fontname="Helvetica", fontsize=11];
+  PO [label="Post with\nhotfix warning", fillcolor="#fde68a", color="#b45309"];
+  AP [label="Member presses\nApprove once", fillcolor="#fde68a", color="#b45309"];
+  KA [label="Kept approval\nmember, approved build,\nchecked builds"];
+  GU [label="Guard: main is an\nancestor of the\nchecked build"];
+  SH [label="main and dev in one push,\nitch.io, release,\nshipped message"];
+  PO -> AP -> KA -> GU -> SH [weight=100];
+  subgraph cluster_testing {
+    label="Testing job, approval kept"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
+    TM [label="Merge main\nsession resolves\nconflicts"]; TI [label="Integration round\nkeep the fix and main"];
+    TC [label="Full checks on the\npushed commit"]; TQ [label="Queue the approval\nagain, no post"];
+    TM -> TI -> TC -> TQ [weight=100];
+  }
+  XN [label="New post for a\nnew approval", fillcolor="#f3f4f6", color="#6b7280"];
+  edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
+  GU -> TM [label="main moved, with\nor without a conflict"];
+  TC -> TI [label="failure: back into\nthe same session"];
+  TQ -> GU [label="approve job\nruns again"];
+  edge [color="#6b7280", fontcolor="#6b7280"];
+  TI -> XN [label="product choice or\nchanged behavior"];
+  KA -> XN [label="patch, redesign, move\nor drop approval"];
+}

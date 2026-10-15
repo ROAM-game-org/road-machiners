@@ -1,7 +1,7 @@
 import { moveCard } from '../card-events';
 import { rmSync, writeFileSync } from 'node:fs';
 import { openStore } from '../public/store';
-import { readState } from '../state';
+import { readState, updateState } from '../state';
 import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
@@ -90,16 +90,22 @@ function fixableRelease(state: FactoryState): ReleaseState | null {
 async function writeRelease(ctx: Ctx, home: string, release: ReleaseState | null): Promise<void> {
   const text = release === null
     ? 'No release takes fixes now. releaseFix is false.'
-    : `Release ${release.day} takes fixes. It holds these features:\n\n${(await releaseFeatures(ctx, release)).map((feature) => `- ${featureLine(feature)}`).join('\n')}`;
+    : `Release ${release.day} takes fixes. It holds these features:\n\n${releaseFeatures(release).map((feature) => `- ${featureLine(feature)}`).join('\n')}`;
   writeFileSync(`${home}/${OUT_DIR}/release.md`, `${text}\n`);
 }
 
-async function routeModels(ctx: Ctx, issue: number, { complexity, why }: Routing): Promise<string> {
-  const [{ labels }, comments] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
+async function routeModels(ctx: Ctx, issue: number, routing: Routing): Promise<string> {
+  const note = await routingNote(ctx, issue, routing);
+  updateState(ctx.statePath, (state) => (state.routed.includes(issue) ? state : { ...state, routed: [...state.routed, issue] }));
+  return note;
+}
+
+async function routingNote(ctx: Ctx, issue: number, { complexity, why }: Routing): Promise<string> {
+  const { labels } = await ctx.github.issue(issue);
   const set = [DESIGN_SONNET_LABEL, IMPLEMENTATION_OPUS_LABEL].filter((label) => labels.includes(label));
   const rated = `Triage rated it ${complexity}: ${why}`;
   if (set.length > 0) return `${ROUTING_MARK} left as set on the issue (${set.join(', ')}). ${rated}`;
-  if (comments.some((comment) => comment.byFactory && comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
+  if (readState(ctx.statePath).routed.includes(issue)) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
   const label = routingLabel(complexity);
   if (label === null) return `${ROUTING_MARK} ${complexity}, default models (Opus design, Sonnet implementation and testing). ${why}`;
   await ctx.github.addLabel(issue, label);

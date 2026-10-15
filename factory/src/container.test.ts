@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHECKS_TIMEOUT_MARK, EVIDENCE_CHECK_COMMAND, dockerContainer, readPeakGb, usageLimitMessage } from './container';
+import { CheckTimeoutError, EVIDENCE_CHECK_COMMAND, dockerContainer, usageLimitMessage } from './container';
 import { recordJob, takeUsage } from './ledger';
 import { UsageLimitError } from './pause';
 import type { FactoryConfig, Run, RunOptions } from './types';
@@ -19,11 +19,15 @@ beforeEach(() => {
 
 const AGENT_RESULT = JSON.stringify({ type: 'result', duration_ms: 60_000, total_cost_usd: 1 });
 
-function fakeRun(code = 0, setup: Record<string, { code: number; stdout?: string }> = {}, stderr = 'boom'): { run: Run; calls: Call[] } {
+function fakeRun(code = 0, setup: Record<string, { code: number; stdout?: string }> = {}, stderr = 'boom', peak?: string): { run: Run; calls: Call[] } {
   const calls: Call[] = [];
   const run: Run = async (cmd, args, opts) => {
     calls.push({ cmd, args, opts });
-    if (args[0] === 'run' && args[1] === '--rm') return { code, stdout: code === 0 ? AGENT_RESULT : '', stderr };
+    if (args[0] === 'run' && args[1] === '--rm') {
+      const mounted = args.find((arg) => arg.endsWith(':/factory-peak'));
+      if (peak !== undefined && mounted !== undefined) writeFileSync(`${mounted.slice(0, -':/factory-peak'.length)}/bytes`, peak);
+      return { code, stdout: code === 0 ? AGENT_RESULT : '', stderr };
+    }
     const stdout = args[0] === 'inspect' ? 'true sha:1' : args[0] === 'image' ? 'sha:1\n' : '';
     const answer = setup[args.slice(0, 2).join(' ')] ?? { code: 0, stdout };
     return { code: answer.code, stdout: answer.stdout ?? '', stderr: 'setup failed' };
@@ -38,11 +42,11 @@ describe('dockerContainer', () => {
   it('pins agent and shell containers to the job CPUs, and leaves a run by hand unpinned', async () => {
     const pinned = fakeRun();
     await dockerContainer(pinned.run, cfg, 'testing-8-x', '2-3').agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
-    await dockerContainer(pinned.run, cfg, 'testing-8-x', '2-3').shell('/c', 'x', '/l');
+    await dockerContainer(pinned.run, cfg, 'testing-8-x', '2-3').shell('checks', '/c','x', '/l');
     const runs = pinned.calls.filter((call) => call.args[0] === 'run' && call.args[1] === '--rm');
     expect(runs.map((call) => call.args.slice(call.args.indexOf('--cpuset-cpus'), call.args.indexOf('--cpuset-cpus') + 2))).toEqual([['--cpuset-cpus', '2-3'], ['--cpuset-cpus', '2-3']]);
     const free = fakeRun();
-    await dockerContainer(free.run, cfg, null).shell('/c', 'x', '/l');
+    await dockerContainer(free.run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(free.calls).args).not.toContain('--cpuset-cpus');
   });
 
@@ -65,7 +69,7 @@ describe('dockerContainer', () => {
     expect(call.opts?.input).toContain('factory-status milestone');
     expect(call.opts?.input).toMatch(/\n\ndo it$/);
     expect(call.opts?.logPath).toBe('/l.log');
-    expect(call.args.filter((a) => a === '-v')).toHaveLength(4);
+    expect(call.args.filter((a) => a === '-v')).toHaveLength(5);
     expect(call.args).toContain('/w/c:/work');
     expect(call.args).toContain(`${HOME}/npm-cache:/home/pwuser/.npm`);
     expect(call.args.slice(call.args.indexOf('-w'), call.args.indexOf('-w') + 2)).toEqual(['-w', '/work/game']);
@@ -77,7 +81,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', readOnly: { '/h/state': '/factory/state' } });
     const args = runCall(calls).args;
-    expect(args.filter((a) => a === '-v')).toHaveLength(5);
+    expect(args.filter((a) => a === '-v')).toHaveLength(6);
     expect(args).toContain('/h/state:/factory/state:ro');
   });
 
@@ -90,7 +94,7 @@ describe('dockerContainer', () => {
 
   it('gives shell containers no Codex login and no Gemini key', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, null).shell('/c', 'x', '/l');
+    await dockerContainer(run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).not.toContain('/home/pwuser/.codex');
     expect(runCall(calls).args.join(' ')).not.toContain('GEMINI_API_KEY');
   });
@@ -110,7 +114,7 @@ describe('dockerContainer', () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', mediaDir: '/h/media/issue-7' });
     expect(runCall(calls).args).toContain('/h/media/issue-7:/work/.factory-media:ro');
-    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(5);
+    expect(runCall(calls).args.filter((a) => a === '-v')).toHaveLength(6);
   });
 
   it('mounts the session folder under the agent projects folder and starts the session by id', async () => {
@@ -118,7 +122,7 @@ describe('dockerContainer', () => {
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', session: { dir: '/h/sessions/issue-7', id: 'abc', resume: false } });
     const { args } = runCall(calls);
     expect(args).toContain('/h/sessions/issue-7:/home/pwuser/.claude/projects');
-    expect(args.filter((a) => a === '-v')).toHaveLength(5);
+    expect(args.filter((a) => a === '-v')).toHaveLength(6);
     expect(args.slice(args.indexOf('--verbose'))).toEqual(['--verbose', '--session-id', 'abc']);
     expect(args).not.toContain('--resume');
   });
@@ -205,22 +209,22 @@ describe('dockerContainer', () => {
 
   it('labels the containers of a job with its id', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, 'testing-8-x').shell('/c', 'x', '/l');
+    await dockerContainer(run, cfg, 'testing-8-x').shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.slice(0, 6)).toEqual(['run', '--rm', '--label', 'factory=1', '--label', 'factory-job=testing-8-x']);
   });
 
   it('passes the pool test worker count, and none for a pool without one', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, 'testing-8-x', '2-3', 2).shell('/c', 'x', '/l');
+    await dockerContainer(run, cfg, 'testing-8-x', '2-3', 2).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).toContain('-e TEST_WORKERS=2');
     const light = fakeRun();
-    await dockerContainer(light.run, cfg, 'testing-8-x', '0').shell('/c', 'x', '/l');
+    await dockerContainer(light.run, cfg, 'testing-8-x', '0').shell('checks', '/c','x', '/l');
     expect(runCall(light.calls).args.join(' ')).not.toContain('TEST_WORKERS');
   });
 
   it('runs a shell pinned to another pool on that pool, with its test workers', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, 'verify-8-x', '1-3', 2).shell('/c', 'x', '/l', {}, {}, undefined, { cpus: '4-7', testWorkers: 4 });
+    await dockerContainer(run, cfg, 'verify-8-x', '1-3', 2).shell('checks', '/c','x', '/l', {}, {}, undefined, { cpus: '4-7', testWorkers: 4 });
     const args = runCall(calls).args.join(' ');
     expect(args).toContain('--cpuset-cpus 4-7');
     expect(args).toContain('-e TEST_WORKERS=4');
@@ -229,20 +233,58 @@ describe('dockerContainer', () => {
 
   it('records the highest container peak of a job on its ledger line, also from a failed run', async () => {
     rmSync(HOME, { recursive: true, force: true });
-    const peak = (gib: number): string => `log line\nFACTORY_MEMORY_PEAK ${gib * 1024 ** 3}\n`;
-    await dockerContainer(fakeRun(0, {}, peak(2.5)).run, cfg, 'checks-8-x').shell('/c', 'x', '/l');
-    await expect(dockerContainer(fakeRun(1, {}, peak(3)).run, cfg, 'checks-8-x').shell('/c', 'x', '/l')).rejects.toThrow('exit 1');
-    await dockerContainer(fakeRun(0, {}, peak(1)).run, cfg, 'checks-8-x').shell('/c', 'x', '/l');
-    await dockerContainer(fakeRun(0, {}, 'killed, no mark').run, cfg, 'checks-8-x').shell('/c', 'x', '/l');
+    const peak = (gib: number): string => String(gib * 1024 ** 3);
+    await dockerContainer(fakeRun(0, {}, 'boom', peak(2.5)).run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l');
+    await expect(dockerContainer(fakeRun(1, {}, 'boom', peak(3)).run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l')).rejects.toThrow('exit 1');
+    await dockerContainer(fakeRun(0, {}, 'boom', peak(1)).run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l');
+    await dockerContainer(fakeRun(0, {}, 'FACTORY_MEMORY_PEAK 99999999999999').run, cfg, 'checks-8-x').shell('checks', '/c','x', '/l');
+    mkdirSync(`${HOME}/codex`, { recursive: true });
+    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    await dockerContainer(fakeRun(0, {}, 'boom', peak(2)).run, cfg, 'checks-8-x').agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
     recordJob(HOME, tokenPrices, new Date('2026-10-06T12:00:00Z'), { id: 'checks-8-x', stage: 'checks', issue: 8, startedAt: '2026-10-06T11:50:00Z' }, 'done');
     const lines = readFileSync(`${HOME}/ledger.jsonl`, 'utf8').trim().split('\n').map((text) => JSON.parse(text) as { kind: string; peakGb?: number });
     expect(lines.find((line) => line.kind === 'job')?.peakGb).toBe(3);
-    expect(readPeakGb('no mark')).toBeUndefined();
+  });
+
+  it('records each container run of a job as a part of its kind on the job line, a failed run included', async () => {
+    rmSync(HOME, { recursive: true, force: true });
+    mkdirSync(`${HOME}/codex`, { recursive: true });
+    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    await dockerContainer(fakeRun(0, {}, 'boom').run, cfg, 'verify-8-x').agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
+    await expect(dockerContainer(fakeRun(1).run, cfg, 'verify-8-x').shell('checks', '/c', 'x', '/l')).rejects.toThrow('exit 1');
+    await dockerContainer(fakeRun().run, cfg, 'verify-8-x').shell('build', '/c', 'x', '/l');
+    await dockerContainer(fakeRun().run, cfg, null).shell('checks', '/c', 'x', '/l');
+    recordJob(HOME, tokenPrices, new Date(), { id: 'verify-8-x', stage: 'verify', issue: 8, startedAt: '2026-10-06T11:50:00Z' }, 'done');
+    const job = readFileSync(`${HOME}/ledger.jsonl`, 'utf8').trim().split('\n').map((text) => JSON.parse(text) as { kind: string; parts?: { kind: string; startedAt: string; endedAt: string }[] }).find((line) => line.kind === 'job');
+    expect(job?.parts?.map((part) => part.kind)).toEqual(['agent', 'checks', 'build']);
+    for (const part of job?.parts ?? []) expect(Date.parse(part.endedAt)).toBeGreaterThanOrEqual(Date.parse(part.startedAt));
+    expect(existsSync(`${HOME}/usage/verify-8-x.parts.jsonl`)).toBe(false);
+  });
+
+  it('gives each container its own peak folder, removes it after the run, and reads no peak from a killed container', async () => {
+    rmSync(HOME, { recursive: true, force: true });
+    const first = fakeRun(0, {}, 'boom', String(1024 ** 3));
+    const second = fakeRun();
+    await dockerContainer(first.run, cfg, 'checks-9-x').shell('checks', '/c','x', '/l');
+    await dockerContainer(second.run, cfg, 'checks-9-x').shell('checks', '/c','x', '/l');
+    const mounts = [first, second].map((fake) => runCall(fake.calls).args.find((arg) => arg.endsWith(':/factory-peak')));
+    expect(mounts[0]).toBeDefined();
+    expect(mounts[0]).not.toBe(mounts[1]);
+    expect(existsSync(mounts[0]!.split(':')[0])).toBe(false);
+    expect(runCall(first.calls).args.at(-1)).toContain("trap 'cat /sys/fs/cgroup/memory.peak > /factory-peak/bytes' EXIT");
+    recordJob(HOME, tokenPrices, new Date('2026-10-06T12:00:00Z'), { id: 'checks-9-x', stage: 'checks', issue: 9, startedAt: '2026-10-06T11:50:00Z' }, 'done');
+    const lines = readFileSync(`${HOME}/ledger.jsonl`, 'utf8').trim().split('\n').map((text) => JSON.parse(text) as { kind: string; peakGb?: number });
+    expect(lines.find((line) => line.kind === 'job')?.peakGb).toBe(1);
+  });
+
+  it('stops on a peak file that holds no byte count', async () => {
+    rmSync(HOME, { recursive: true, force: true });
+    await expect(dockerContainer(fakeRun(0, {}, 'boom', 'not a number').run, cfg, 'checks-10-x').shell('checks', '/c','x', '/l')).rejects.toThrow('not a byte count');
   });
 
   it('takes the time limits off the game tests in every container', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, null).shell('/c', 'x', '/l');
+    await dockerContainer(run, cfg, null).shell('checks', '/c','x', '/l');
     expect(runCall(calls).args.join(' ')).toContain('-e TEST_TIMEOUTS=off');
   });
 
@@ -250,11 +292,11 @@ describe('dockerContainer', () => {
     const on = fakeRun();
     const gpuCfg = { ...cfg, gpu: true };
     await dockerContainer(on.run, gpuCfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' });
-    await dockerContainer(on.run, gpuCfg, null).shell('/c', 'x', '/l');
+    await dockerContainer(on.run, gpuCfg, null).shell('checks', '/c','x', '/l');
     const runs = on.calls.filter((call) => call.args[0] === 'run' && call.args[1] === '--rm');
     expect(runs.map((call) => call.args.join(' '))).toEqual([expect.stringContaining('--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all'), expect.stringContaining('--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all')]);
     const off = fakeRun();
-    await dockerContainer(off.run, { ...cfg, gpu: false }, null).shell('/c', 'x', '/l');
+    await dockerContainer(off.run, { ...cfg, gpu: false }, null).shell('checks', '/c','x', '/l');
     expect(runCall(off.calls).args).not.toContain('--gpus');
   });
 
@@ -286,16 +328,16 @@ describe('dockerContainer', () => {
 
   it('mounts each given host folder read write in a shell, and mounts none by default', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, null).shell('/w/c', 'x', '/l.log', {}, { '/h/test-cache': '/test-cache' });
+    await dockerContainer(run, cfg, null).shell('build', '/w/c','x', '/l.log', {}, { '/h/test-cache': '/test-cache' });
     expect(runCall(calls).args).toContain('/h/test-cache:/test-cache');
     const plain = fakeRun();
-    await dockerContainer(plain.run, cfg, null).shell('/w/c', 'x', '/l.log');
+    await dockerContainer(plain.run, cfg, null).shell('build', '/w/c','x', '/l.log');
     expect(runCall(plain.calls).args.join(' ')).not.toContain(':/test-cache');
   });
 
   it('runs a shell script with the given env and no token', async () => {
     const { run, calls } = fakeRun();
-    await dockerContainer(run, cfg, null).shell('/w/c', 'npm ci', '/l.log', { SAVE_SCOPE: 'dev' });
+    await dockerContainer(run, cfg, null).shell('build', '/w/c','npm ci', '/l.log', { SAVE_SCOPE: 'dev' });
     const call = runCall(calls);
     expect(call.args).toContain('SAVE_SCOPE=dev');
     expect(call.args).toContain('/work/game');
@@ -309,7 +351,7 @@ describe('dockerContainer', () => {
   });
 
   it('throws when the shell exits nonzero', async () => {
-    await expect(dockerContainer(fakeRun(1).run, cfg, null).shell('/c', 'x', '/l')).rejects.toThrow('boom');
+    await expect(dockerContainer(fakeRun(1).run, cfg, null).shell('checks', '/c','x', '/l')).rejects.toThrow('boom');
   });
 });
 
@@ -363,15 +405,16 @@ describe('usage limit', () => {
     rmSync(pause, { force: true });
     const agent = dockerContainer(limitRun(`{"type":"system"}\n${LIMIT_RESULT}\n`), cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l' });
     await expect(agent).rejects.toBeInstanceOf(UsageLimitError);
-    expect(readFileSync(pause, 'utf8')).toBe("Hermes: Claude weekly usage limit; You've hit your weekly limit, resets 11pm (UTC)\n");
+    expect(JSON.parse(readFileSync(pause, 'utf8'))).toMatchObject({ kind: 'usage-limit', note: "You've hit your weekly limit, resets 11pm (UTC)", by: 'factory' });
     rmSync(pause);
   });
 
   it('keeps a pause someone else wrote', async () => {
     mkdirSync(HOME, { recursive: true });
-    writeFileSync(pause, 'Hermes repairs #4\n');
+    const written = JSON.stringify({ kind: 'member', note: 'Hermes repairs #4', by: 'Hermes', at: '2026-01-01T00:00:00.000Z' });
+    writeFileSync(pause, written);
     await expect(dockerContainer(limitRun(LIMIT_RESULT), cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l' })).rejects.toBeInstanceOf(UsageLimitError);
-    expect(readFileSync(pause, 'utf8')).toBe('Hermes repairs #4\n');
+    expect(readFileSync(pause, 'utf8')).toBe(written);
     rmSync(pause);
   });
 
@@ -379,6 +422,30 @@ describe('usage limit', () => {
     expect(usageLimitMessage(`${AGENT_RESULT}\n`)).toBeNull();
     expect(() => usageLimitMessage(JSON.stringify({ type: 'result', api_error_status: 429 }))).toThrow('no message');
   });
+  it('reads a usage limit from the result record, not from text that mentions it', () => {
+    const limited = JSON.stringify({ type: 'result', api_error_status: 429, result: 'You hit your limit' });
+    const quoted = JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: '"api_error_status":429' }] } });
+    expect(usageLimitMessage(`${quoted}\nnot json "api_error_status":429\n${limited}\n`)).toBe('You hit your limit');
+    expect(usageLimitMessage(`${quoted}\n`)).toBeNull();
+  });
+
+  it('closes a failed run from its result record, and from the transcript when only a subagent result came out', async () => {
+    rmSync(HOME, { recursive: true, force: true });
+    mkdirSync(`${HOME}/codex`, { recursive: true });
+    writeFileSync(`${HOME}/codex/auth.json`, '{}');
+    const stdoutOf = (event: object): string => `${JSON.stringify(event)}\n`;
+    const failing = (stdout: string): Run => async (_cmd, args) => (args[0] === 'run' && args[1] === '--rm'
+      ? { code: 1, stdout, stderr: 'boom' }
+      : { code: 0, stdout: args[0] === 'inspect' ? 'true sha:1' : args[0] === 'image' ? 'sha:1\n' : '', stderr: '' });
+    const agent = { clone: '/w/c', dir: 'game', model: 'opus', prompt: 'p', log: '/l' };
+    const fromResult = dockerContainer(failing(stdoutOf({ type: 'result', duration_ms: 60_000, total_cost_usd: 2 })), cfg, 'job-r');
+    await expect(fromResult.agent(agent)).rejects.toThrow('exit 1');
+    expect(takeUsage(HOME, 'job-r')).toMatchObject([{ costUsd: 2 }]);
+    const subagentOnly = dockerContainer(failing(stdoutOf({ type: 'result', parent_tool_use_id: 'toolu_1', duration_ms: 1, total_cost_usd: 9 })), cfg, 'job-s');
+    await expect(subagentOnly.agent(agent)).rejects.toThrow('exit 1');
+    expect(takeUsage(HOME, 'job-s').every((usage) => usage.costUsd !== 9)).toBe(true);
+  });
+
   describe('a checks run with a time limit', () => {
     afterEach(() => vi.useRealTimers());
 
@@ -400,8 +467,8 @@ describe('usage limit', () => {
       const log = `${HOME}/checks.log`;
       writeFileSync(log, '[checks] 10:00:00 tests and typecheck\n');
       const { run, calls } = hangingRun();
-      const shell = dockerContainer(run, cfg, 'merge---x').shell('/c', 'x', log, {}, {}, 45);
-      const failed = expect(shell).rejects.toThrow(`${CHECKS_TIMEOUT_MARK} 45 minute limit`);
+      const shell = dockerContainer(run, cfg, 'merge---x').shell('checks', '/c','x', log, {}, {}, 45);
+      const failed = expect(shell).rejects.toBeInstanceOf(CheckTimeoutError);
       await vi.advanceTimersByTimeAsync(45 * 60_000);
       await failed;
       const started = runCall(calls);
@@ -409,16 +476,16 @@ describe('usage limit', () => {
       expect(name).toMatch(/^factory-checks-/);
       expect(started.opts?.timeoutMs).toBe(47 * 60_000);
       expect(calls.find((call) => call.args.join(' ') === `rm -f ${name}`)?.opts?.timeoutMs).toBe(60_000);
-      expect(readFileSync(log, 'utf8')).toMatch(new RegExp(`tests and typecheck\n\nCheckTimeoutError: .*${CHECKS_TIMEOUT_MARK} 45 minute limit`));
+      expect(readFileSync(log, 'utf8')).toMatch(/tests and typecheck\n\nthe checks ran past their 45 minute limit/);
     });
 
     it('leaves a run that ends in time alone, and a failing run fails as before', async () => {
       vi.useFakeTimers();
       const done = fakeRun();
-      await dockerContainer(done.run, cfg, 'merge---x').shell('/c', 'x', '/l', {}, {}, 45);
+      await dockerContainer(done.run, cfg, 'merge---x').shell('checks', '/c','x', '/l', {}, {}, 45);
       await vi.advanceTimersByTimeAsync(60 * 60_000);
       expect(done.calls.some((call) => call.args[0] === 'rm')).toBe(false);
-      await expect(dockerContainer(fakeRun(1).run, cfg, 'merge---x').shell('/c', 'x', '/l', {}, {}, 45)).rejects.toThrow('exit 1');
+      await expect(dockerContainer(fakeRun(1).run, cfg, 'merge---x').shell('checks', '/c','x', '/l', {}, {}, 45)).rejects.toThrow('exit 1');
     });
 
     it('removes nothing later when the run could not start', async () => {
@@ -429,14 +496,14 @@ describe('usage limit', () => {
         if (args[0] === 'run' && args[1] === '--rm') throw new Error('spawn docker ENOENT');
         return { code: 0, stdout: args[0] === 'inspect' ? 'true sha:1' : args[0] === 'image' ? 'sha:1\n' : '', stderr: '' };
       };
-      await expect(dockerContainer(run, cfg, 'merge---x').shell('/c', 'x', '/l', {}, {}, 45)).rejects.toThrow('ENOENT');
+      await expect(dockerContainer(run, cfg, 'merge---x').shell('checks', '/c','x', '/l', {}, {}, 45)).rejects.toThrow('ENOENT');
       await vi.advanceTimersByTimeAsync(60 * 60_000);
       expect(calls.some((call) => call.startsWith('rm'))).toBe(false);
     });
 
     it('names no container and sets no limit without one', async () => {
       const { run, calls } = fakeRun();
-      await dockerContainer(run, cfg, 'merge---x').shell('/c', 'x', '/l');
+      await dockerContainer(run, cfg, 'merge---x').shell('checks', '/c','x', '/l');
       expect(runCall(calls).args).not.toContain('--name');
       expect(runCall(calls).opts?.timeoutMs).toBeUndefined();
     });

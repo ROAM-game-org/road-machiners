@@ -1,5 +1,4 @@
-// The position model of a card. docs/state.md describes each position and the stores it spans.
-import { RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
+import { NEEDS_INFO_LABEL, RELEASE_LABEL, isCleanupTask, type Card, type FactoryState, type FailureCause, type Hold, type Job, type JobStage, type ReleasePost, type ReleaseState, type StuckRecord } from './types';
 
 export type Position = 'triage' | 'design' | 'implement' | 'verify' | 'post' | 'approval' | 'harden' | 'merging' | 'done';
 export const MOVE_TARGETS = ['triage', 'design', 'implement', 'verify', 'approval', 'harden', 'merging', 'done'] as const;
@@ -27,7 +26,15 @@ export function cardPosition(card: Card, state: FactoryState): Position {
 
 export function cardDrift(card: Card, state: FactoryState): string[] {
   if (card.labels.includes(RELEASE_LABEL)) return [];
-  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state)];
+  return [...phaseDrift(card, state), ...hardeningDrift(card, state), ...approvalDrift(card, state), ...jobDrift(card, state), ...heldCardDrift(card, state), ...questionDrift(card, state), ...feedbackDrift(card, state)];
+}
+
+function questionDrift(card: Card, state: FactoryState): string[] {
+  return String(card.issue) in state.asked && !card.labels.includes(NEEDS_INFO_LABEL) ? [`#${card.issue} has an ask time but no ${NEEDS_INFO_LABEL} label`] : [];
+}
+
+function feedbackDrift(card: Card, state: FactoryState): string[] {
+  return String(card.issue) in state.pendingFeedback && card.column === 'Done' ? [`#${card.issue} has pending feedback but column Done`] : [];
 }
 
 export function runningJobs(card: Card, state: FactoryState): Job[] {
@@ -53,7 +60,7 @@ function approvalDrift(card: Card, state: FactoryState): string[] {
   const key = String(card.issue);
   const posts = Object.entries(state.approvalPosts).filter(([, issue]) => issue === card.issue).map(([id]) => id);
   const queued = key in state.pendingApprovals;
-  if (card.column === 'Approval') return posts.length || queued ? [] : [`#${card.issue} column Approval but no open post and no approval`];
+  if (card.column === 'Approval') return posts.length || queued || key in state.keptApprovals ? [] : [`#${card.issue} column Approval but no open post and no approval`];
   const lines = posts.map((id) => `#${card.issue} open approval post ${id} but column ${card.column}`);
   if (queued) lines.push(`#${card.issue} queued approval but column ${card.column}`);
   return lines;
@@ -116,5 +123,7 @@ export function stuckText(record: StuckRecord | undefined): string {
   if (record === undefined) return 'none';
   const released = record.released === null ? '' : `, released ${record.released}`;
   const refused = record.refused === null ? '' : `, refused: ${record.refused.split('\n')[0]}`;
-  return `${record.kind} in ${record.column}, incident ${record.incident}, tries ${record.tries}${released}${refused}: ${record.cause.split('\n')[0]} (log ${record.log ?? 'none'})`;
+  return `${record.kind} in ${record.column}, incident ${record.incident}, tries ${record.tries}${released}${refused}: ${record.error.split('\n')[0]} (cause ${causeText(record.cause)}, log ${record.log ?? 'none'})`;
 }
+
+export const causeText = (cause: FailureCause | null): string => cause ?? 'recorded before causes';
