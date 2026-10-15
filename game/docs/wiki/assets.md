@@ -85,6 +85,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | good | fuelDrums | good_fuel_drums |
 | good | water | good_water |
 | good | rations | good_rations |
+| good | parcel | parcel |
 <!-- /wiki:models -->
 
 ## Weapon pools

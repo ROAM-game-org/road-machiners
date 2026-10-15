@@ -19,6 +19,7 @@ import type { Ledger } from './orders';
 import { netWorth } from './record';
 import type { NpcLedger } from './npc-ledger';
 import { furyRoadReadout } from '../fury-road';
+import { EFFORT } from '../../data/market';
 
 export type SeenFoe = { id: string; who: string; dist: number; odds: number; speed: number };
 
@@ -170,4 +171,62 @@ export function describe(world: World, e: GameEvent): string {
   if (e.t === 'stateEnded') return `stateEnded ${e.state.kind}:${e.state.holder}>${e.state.other} ${e.ending}`;
   const { t, ...rest } = e;
   return `${t} ${JSON.stringify(rest)}`;
+}
+
+export type SearchEffort = {
+  accepted: number;
+  claimed: number;
+  failed: number;
+  lapsed: number;
+  open: number;
+  efforts: number[];
+  searchTurns: number;
+  runningCost: number;
+  turns: number;
+};
+
+const RUNNING_COSTS = ['fuel', 'supplies', 'repairs'] as const;
+const ENDS = { done: 'claimed', failed: 'failed', lapsed: 'lapsed' } as const;
+
+export function searchEffort(lines: readonly TurnLine[]): SearchEffort {
+  const out: SearchEffort = { accepted: 0, claimed: 0, failed: 0, lapsed: 0, open: 0, efforts: [], searchTurns: 0, runningCost: 0, turns: lines.length };
+  let since: number | null = null;
+  for (const line of lines) {
+    out.runningCost -= runningCostOf(line);
+    for (const ev of line.ev) since = countEvent(out, ev, line.t, since);
+  }
+  countOpen(out, since, lines.at(-1)?.t);
+  out.runningCost = out.turns > 0 ? out.runningCost / out.turns : 0;
+  return out;
+}
+
+function runningCostOf(line: TurnLine): number {
+  return RUNNING_COSTS.reduce((sum, cost) => sum + (line.ledger[cost] ?? 0), 0);
+}
+
+function countOpen(out: SearchEffort, since: number | null, last: number | undefined): void {
+  if (since === null) return;
+  out.open += 1;
+  out.searchTurns += (last ?? since) - since;
+}
+
+function countEvent(out: SearchEffort, ev: string, turn: number, since: number | null): number | null {
+  const [t, outcome, kind] = ev.split(' ');
+  if (t !== 'contract' || kind !== 'search') return since;
+  if (outcome !== 'accepted') return endSearch(out, ENDS[outcome as keyof typeof ENDS], turn, since);
+  out.accepted += 1;
+  return turn;
+}
+
+function endSearch(out: SearchEffort, end: (typeof ENDS)[keyof typeof ENDS] | undefined, turn: number, since: number | null): number | null {
+  if (!end || since === null) return since;
+  out[end] += 1;
+  out.searchTurns += turn - since;
+  if (end === 'claimed') out.efforts.push(turn - since);
+  return null;
+}
+
+export function measuredRewardTurns(effortTurns: number, runningCostPerTurn: number): number {
+  const wage = EFFORT.wage[1];
+  return Math.round((effortTurns * (runningCostPerTurn + wage)) / wage / 10) * 10;
 }

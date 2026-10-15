@@ -4,7 +4,7 @@ import { makePart } from "../sim/factory";
 import { emptyWorld } from "../sim/testkit";
 import type { GridItem, Rot } from "../sim/types";
 import { resolve } from "../text/resolve";
-import { itemState, nextRot } from "./inventory-draw";
+import { itemLabel, itemName, itemState, nextRot } from "./inventory-draw";
 import { kg } from "./units";
 
 const world = emptyWorld();
@@ -15,6 +15,15 @@ describe("goods cells", () => {
   it("say every good is a crate of the one crate mass", () => {
     for (const good of ["electronics", "tools"]) expect(resolve(itemState(crate(good), false), "en")).toBe(`Crate, ${resolve(kg(CRATE_MASS), "en")}`);
     expect(resolve(kg(CRATE_MASS), "en")).toBe("50 kg");
+  });
+});
+
+describe("the parcel cell", () => {
+  it("names a parcel and gives only its mass below the name", () => {
+    const parcel: GridItem = { id: "p", x: 0, y: 0, rot: 0, kind: "parcel", contract: "ct" };
+    expect(resolve(itemName(parcel), "en")).toBe("Parcel");
+    expect(resolve(itemLabel(parcel).short, "en")).toBe("Parcel");
+    expect(resolve(itemState(parcel, false), "en")).toBe("5 kg");
   });
 });
 

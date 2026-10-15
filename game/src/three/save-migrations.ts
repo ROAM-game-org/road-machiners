@@ -878,7 +878,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withShopGoods_67_68,
+  withSearches_67_68,
+  withParcelSearches_68_69,
+  withShopGoods_69_70,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -908,6 +910,29 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withSearches_67_68(world: SavedJson): SavedJson {
+  return world;
+}
+const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+  return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
+}
+function withParcelSearches_68_69(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      call: call?.topic === 'found' ? null : call,
+    },
+  };
 }
 
 function withRescueContracts_63_64(world: SavedJson): SavedJson {
@@ -1012,11 +1037,11 @@ function withEncounters_64_65(world: SavedJson): SavedJson {
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
-const TOWN_GOODS_62_63: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
+const TOWN_GOODS_69_70: readonly string[] = ['grain', 'textiles', 'meds', 'parts', 'electronics', 'water', 'scrap', 'batteries', 'salt', 'tools', 'rations', 'fuelDrums'];
 
-const STOCK_TARGETS_62_63: Record<string, Record<string, number>> = {
-  bowl: Object.fromEntries(TOWN_GOODS_62_63.map((good) => [good, 120])),
-  nose: Object.fromEntries(TOWN_GOODS_62_63.filter((good) => good !== 'grain').map((good) => [good, 120])),
+const STOCK_TARGETS_69_70: Record<string, Record<string, number>> = {
+  bowl: Object.fromEntries(TOWN_GOODS_69_70.map((good) => [good, 120])),
+  nose: Object.fromEntries(TOWN_GOODS_69_70.filter((good) => good !== 'grain').map((good) => [good, 120])),
   'salvage-yard': { scrap: 30, parts: 30, tools: 30, rations: 30, fuelDrums: 30 },
   granary: { rations: 38, grain: 30, salt: 30, water: 30, tools: 30, fuelDrums: 30 },
   'pump-station': { fuelDrums: 229, tools: 30, batteries: 30, rations: 30 },
@@ -1024,30 +1049,30 @@ const STOCK_TARGETS_62_63: Record<string, Record<string, number>> = {
   'green-pit': { water: 30, salt: 30, textiles: 30, rations: 30, fuelDrums: 30 },
 };
 
-const ELASTICITY_62_63 = 0.6;
+const ELASTICITY_69_70 = 0.6;
 
-function stockFromPressure_62_63(target: number, pressure: number | undefined): number {
-  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_62_63)));
+function stockFromPressure_69_70(target: number, pressure: number | undefined): number {
+  return Math.max(0, Math.round(target * (1 - (pressure ?? 0) / ELASTICITY_69_70)));
 }
 
-function tradesAt_62_63(shopId: string, good: string): boolean {
-  return good in (STOCK_TARGETS_62_63[shopId] ?? {});
+function tradesAt_69_70(shopId: string, good: string): boolean {
+  return good in (STOCK_TARGETS_69_70[shopId] ?? {});
 }
 
-function haulStillRuns_62_63(contract: SavedJson): boolean {
-  return contract.kind !== 'haul' || (tradesAt_62_63(contract.shop as string, contract.good as string) && tradesAt_62_63(contract.to as string, contract.good as string));
+function haulStillRuns_69_70(contract: SavedJson): boolean {
+  return contract.kind !== 'haul' || (tradesAt_69_70(contract.shop as string, contract.good as string) && tradesAt_69_70(contract.to as string, contract.good as string));
 }
 
-function shopWithGoods_62_63(shopId: string, shop: SavedJson): SavedJson {
+function shopWithGoods_69_70(shopId: string, shop: SavedJson): SavedJson {
   const { pressure = {}, ...rest } = shop as SavedJson & { pressure?: Record<string, number> };
-  const targets = STOCK_TARGETS_62_63[shopId];
+  const targets = STOCK_TARGETS_69_70[shopId];
   if (!targets) throw new Error(`Save holds an unknown shop ${shopId}`);
-  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_62_63(target, pressure[good])]));
-  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_62_63);
+  const goods = Object.fromEntries(Object.entries(targets).map(([good, target]) => [good, stockFromPressure_69_70(target, pressure[good])]));
+  const contracts = (rest.contracts as SavedJson[]).filter(haulStillRuns_69_70);
   return { ...rest, contracts, goods, event: null, shortSince: {}, opened: {} };
 }
 
-function withoutHaulGoal_62_63(vehicle: SavedJson): SavedJson {
+function withoutHaulGoal_69_70(vehicle: SavedJson): SavedJson {
   const brain = vehicle.brain as SavedJson | null;
   if (!brain) return vehicle;
   const goals = (brain.goals as SavedJson[]).filter((goal) => goal.kind !== 'haul').map(({ load: _load, ...goal }) => goal);
@@ -1056,9 +1081,9 @@ function withoutHaulGoal_62_63(vehicle: SavedJson): SavedJson {
   return { ...vehicle, job: hauling ? null : job, brain: { ...brain, goals } };
 }
 
-function withShopGoods_67_68(world: SavedJson): SavedJson {
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_62_63(id, shop)]));
-  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_62_63);
+function withShopGoods_69_70(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, shopWithGoods_69_70(id, shop)]));
+  const vehicles = (world.vehicles as SavedJson[]).map(withoutHaulGoal_69_70);
   return { ...world, shops, vehicles, roadNews: [] };
 }
 

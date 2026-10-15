@@ -2,6 +2,7 @@
 import { PARTS, type PartDef } from './parts';
 import type { Weighted } from './npcs';
 import { NPC_BEHAVIOR } from './npc-behavior';
+import { TERRAIN } from './terrain';
 import { TIME } from './time';
 
 
@@ -92,6 +93,14 @@ export const CONTRACTS = {
     durationTurns: [400, 1000] as [number, number],
     rewardTurns: { buggy: 900, gunwagon: 1350 } as Record<string, number>,
     xpPerEffort: 0.0075,
+  },
+
+  search: {
+    durationTurns: [600, 900] as [number, number],
+    rewardTurns: 750,
+    freshTurns: Math.round(TIME.turnsPerDay / 4),
+    awayTiles: TERRAIN.vision.radius,
+    xpPerEffort: 0.0045,
   },
 
   escort: {
