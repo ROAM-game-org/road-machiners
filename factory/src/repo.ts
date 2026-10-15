@@ -334,10 +334,6 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
         if (await pushUnlessMoved(heads, started)) return;
       }
     },
-    async legacyMerges(from, to) {
-      const records = (await git(['log', '-z', '--first-parent', '--merges', '--format=%H%x1f%s', `${await ref(to)}..${await ref(from)}`])).split('\0').filter(Boolean);
-      return records.map((record) => { const [sha, subject] = record.split('\x1f'); return { sha, subject }; });
-    },
   });
 }
 
