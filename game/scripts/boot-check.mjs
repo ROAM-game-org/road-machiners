@@ -10,6 +10,7 @@ const url = arg('url', 'http://localhost:5173');
 const only = arg('only', '');
 const cpu = process.argv.includes('--cpu');
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
+const UNREACHABLE_TEXT = 'The game files did not arrive. Check your connection.';
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 60000;
 const SLOW_MS = 1500;
 const VIEWPORTS = [
@@ -213,6 +214,44 @@ async function failedMap(browser, viewport) {
   await page.context().close();
 }
 
+async function unreachable(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  let blocked = true;
+  await page.route('**/maps/**', (route) => (blocked ? route.abort('failed') : route.continue()));
+  await page.goto(playUrl(url));
+  await page.waitForSelector('#boot .boot-retry', { timeout: BOOT_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-unreachable.png`);
+  const state = await page.evaluate(() => ({
+    crash: document.querySelector('.crash-screen') !== null,
+    stage: document.querySelector('#boot .boot-stage').textContent,
+    focused: document.activeElement?.classList.contains('boot-retry'),
+  }));
+  expect(!state.crash, `${viewport.name}: an unreachable map shows no crash screen`);
+  expect(state.stage === UNREACHABLE_TEXT, `${viewport.name}: the stage line says the files did not arrive`);
+  expect(state.focused, `${viewport.name}: Try again has focus`);
+  blocked = false;
+  await page.locator('#boot .boot-retry').click();
+  await page.waitForSelector('#ui .start-menu, #boot[data-adopted] .boot-seg.done', { timeout: BOOT_LIMIT_MS });
+  await page.context().close();
+}
+
+async function flakyMap(browser, viewport) {
+  const errors = [];
+  const page = await open(browser, viewport, errors);
+  let dropped = false;
+  await page.route('**/maps/**', (route) => {
+    if (dropped) return route.continue();
+    dropped = true;
+    return route.abort('failed');
+  });
+  await page.goto(playUrl(url));
+  await page.waitForSelector('#ui .start-menu, #hud', { state: 'visible', timeout: BOOT_LIMIT_MS });
+  expect(dropped, `${viewport.name}: the first map request was dropped`);
+  expect((await page.$('#boot .boot-retry')) === null, `${viewport.name}: a single dropped request offers no retry`);
+  expect(errors.length === 0, `${viewport.name}: a single dropped request has no page errors ${errors.join('; ')}`);
+  await page.context().close();
+}
+
 async function failedCode(browser, viewport) {
   const page = await open(browser, viewport, []);
   await page.route('**/src/three/main.ts*', (route) => route.abort());
@@ -222,6 +261,38 @@ async function failedCode(browser, viewport) {
   const stage = await page.textContent('#boot .boot-stage');
   const valuetext = await page.getAttribute('#boot [role=progressbar]', 'aria-valuetext');
   expect(stage === FAILED_CODE_TEXT && valuetext === FAILED_CODE_TEXT, `${viewport.name}: a failed game module shows the failure text`);
+  await page.context().close();
+}
+
+async function droppedModel(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  let seen = 0;
+  await page.route('**/models/base_carrier.glb', (route) => (++seen <= 2 ? route.abort('internetdisconnected') : route.continue()));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  const crashed = await page.locator('.crash-screen').count();
+  expect(crashed === 0, `${viewport.name}: a short model drop shows no crash or load-failed screen`);
+  expect(seen > 2, `${viewport.name}: the dropped model was asked for again`);
+  await page.context().close();
+}
+
+async function lostModel(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  const posts = [];
+  page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
+  await page.route('**/models/base_carrier.glb', (route) => route.abort('internetdisconnected'));
+  await page.goto(playUrl(url));
+  await page.waitForSelector('#boot .boot-retry', { timeout: BOOT_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-load-failed.png`);
+  const state = await page.evaluate(() => ({
+    crash: document.querySelector('.crash-screen') !== null,
+    stage: document.querySelector('#boot .boot-stage').textContent,
+    focused: document.activeElement?.classList.contains('boot-retry'),
+  }));
+  expect(!state.crash, `${viewport.name}: a lost model is not a crash`);
+  expect(state.stage === UNREACHABLE_TEXT, `${viewport.name}: the stage line says the files did not arrive`);
+  expect(state.focused, `${viewport.name}: Try again has focus`);
+  expect(posts.length === 0, `${viewport.name}: a lost model sends no report ${posts.join(', ')}`);
   await page.context().close();
 }
 
@@ -245,7 +316,11 @@ for (const viewport of VIEWPORTS) {
   }
   if (!only || only === 'startMenu') await inBrowser((browser) => startMenu(browser, viewport));
   if (!only || only === 'failedMap') await inBrowser((browser) => failedMap(browser, viewport));
+  if (!only || only === 'unreachable') await inBrowser((browser) => unreachable(browser, viewport));
+  if (!only || only === 'flakyMap') await inBrowser((browser) => flakyMap(browser, viewport));
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
+  if (!only || only === 'droppedModel') await inBrowser((browser) => droppedModel(browser, viewport));
+  if (!only || only === 'lostModel') await inBrowser((browser) => lostModel(browser, viewport));
 }
 if (problems.length) {
   console.error(`FAIL\n${problems.join('\n')}`);

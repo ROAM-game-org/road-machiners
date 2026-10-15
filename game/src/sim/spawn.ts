@@ -11,6 +11,7 @@ import { getKnownSite, profileOf } from "./npc-decisions";
 import { chance, randInt, randRange, type Rng } from "./rng";
 import { isFortress, siteGates, siteUnder, type Site } from "./sites";
 import { modeRules } from "./settings";
+import { isLone } from "./pairs";
 import { startEscort } from "./tow";
 import type { Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
@@ -26,7 +27,24 @@ function tickSpawn(world: World, tpl: NpcTemplate): void {
   world.spawnTimer[tpl.id] = left;
   if (left > 0) return;
   world.spawnTimer[tpl.id] = tpl.interval;
-  if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+  if (tpl.pairs) tickPairs(world, tpl);
+  else if (aliveOf(world, tpl) < tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+}
+
+function tickPairs(world: World, tpl: NpcTemplate): void {
+  const lone = world.vehicles.find((v) => v.brain?.templateId === tpl.id && isLone(world, v));
+  if (!lone) {
+    if (aliveOf(world, tpl) + 2 <= tpl.cap) spawnWithEscorts(world, tpl, () => siteFor(world, tpl), true);
+    return;
+  }
+  if (aliveOf(world, tpl) >= tpl.cap) return;
+  const site = nearestSite(tpl, lone.pos);
+  const partner = spawnOne(world, tpl, () => site, true, null);
+  if (partner) startEscort(world, partner, lone, null, 0);
+}
+
+function nearestSite(tpl: NpcTemplate, pos: Vec): Site {
+  return sitesFor(tpl).reduce((a, b) => (dist(pos, a.pos) <= dist(pos, b.pos) ? a : b));
 }
 
 export function spawnInitial(world: World): void {
@@ -77,6 +95,11 @@ function spawnRequired(world: World, tpl: NpcTemplate, site: Site, gate: Vec | n
 
 function spawnEscorts(world: World, tpl: NpcTemplate, leader: Vehicle): NpcTemplate[] {
   const missed: NpcTemplate[] = [];
+  if (tpl.pairs && aliveOf(world, tpl) < tpl.cap) {
+    const partner = spawnBeside(world, tpl, leader);
+    if (partner) startEscort(world, partner, leader, null, 0);
+    else missed.push(tpl);
+  }
   for (const escort of escortsOf(tpl).filter((e) => aliveOf(world, e) < e.cap)) {
     const guard = spawnBeside(world, escort, leader);
     if (guard) startEscort(world, guard, leader, null, 0);
