@@ -87,7 +87,7 @@ import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
 import { t, type Msg } from "../text/msg";
 import { chassisName, goodName, partName, siteName, vehicleTitle } from "../text/names";
-import { commandFailure } from "./format";
+import { commandFailure, parcelTitle } from "./format";
 
 const CELL_PX = 42;
 const MIN_CELL_PX = 28;
@@ -378,7 +378,7 @@ export class InventoryView {
 
   private showItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, itemName(item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       el("div", { class: "inv-actions" }, ...this.itemActions(w, item, mounted)),
       ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
     );
@@ -391,7 +391,7 @@ export class InventoryView {
   }
 
   private itemActions(w: World, item: GridItem, mounted: boolean): HTMLElement[] {
-    if (item.kind !== "part") return this.goodActions(w, item.good);
+    if (item.kind !== "part") return this.cargoActions(w, item);
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
@@ -478,9 +478,13 @@ export class InventoryView {
     );
   }
 
-  private goodActions(w: World, good: string): HTMLElement[] {
+  private itemTitle(w: World, item: GridItem): Msg {
+    return item.kind === "parcel" ? parcelTitle(w, item) : itemName(item);
+  }
+
+  private cargoActions(w: World, item: Exclude<GridItem, { kind: "part" }>): HTMLElement[] {
     const me = this.mine(w);
-    return good === "scrap" && vehicleHasPerk(w, me, "welder") ? [this.weldButton(w, me)] : [];
+    return item.kind === "good" && item.good === "scrap" && vehicleHasPerk(w, me, "welder") ? [this.weldButton(w, me)] : [];
   }
 
   private weldButton(w: World, me: Vehicle): HTMLElement {
@@ -661,7 +665,7 @@ export class InventoryView {
 
   private showTruckItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, itemName(item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
     );
   }
