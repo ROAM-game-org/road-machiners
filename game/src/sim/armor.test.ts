@@ -393,7 +393,7 @@ describe('gun layout', () => {
   it('reads the open share of a gun arc: low facing the cab and a box, full once turned away', () => {
     const w = emptyWorld();
     const box = { defId: 'trailerBox', x: 1, y: 3 };
-    const share = (gun: { defId: string; x: number; y: number; rot?: number }, extra: object[] = []) => {
+    const share = (gun: { defId: string; x: number; y: number; rot?: Rot }, extra: { defId: string; x: number; y: number }[] = []) => {
       const v = truckWith(w, 'longbed', [gun, ...extra]);
       return openArcShare(v, mountedItems(v, 'weapon')[0]);
     };
