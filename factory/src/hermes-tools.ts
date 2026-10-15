@@ -125,7 +125,7 @@ export function realToolDeps(run: Run, cfg: FactoryConfig): ToolDeps {
       child.on('error', fail);
       child.on('close', (code) => done(code ?? 1));
     }),
-    remove: async (name) => { must(await run('docker', ['rm', '-f', name], { timeoutMs: 60_000 }), `docker rm ${name}`); },
+    remove: async (name) => { must(await run('docker', ['rm', '-f', name], { activity: 'command', timeoutMs: 60_000 }), `docker rm ${name}`); },
     kill: () => { child?.kill('SIGKILL'); },
     ensureProxy: () => ensureProxy(run, cfg),
     now: () => new Date(),

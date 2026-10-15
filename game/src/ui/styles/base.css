@@ -4,10 +4,15 @@ body {
   height: 100%;
   background: var(--color-void);
   overflow: hidden;
+  overscroll-behavior: none;
+}
+#game canvas {
+  touch-action: none;
 }
 #game {
   position: absolute;
   inset: 0;
+  overflow: hidden;
 }
 #ui {
   --inspection-width: var(--panel-m);
@@ -22,6 +27,18 @@ body {
   pointer-events: none;
   color: var(--ink);
   font: var(--text-body) / 1.4 var(--font-ui);
+  touch-action: manipulation;
+}
+#ui.touch :is(button, [role="button"], [role="switch"], .tab, .key, .key-corner, label, summary) {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+#ui.touch :is(input, textarea, .log, .quest-text) {
+  -webkit-touch-callout: default;
+  user-select: text;
+}
+#ui.touch {
+  --btn-h-s: var(--touch-target);
 }
 #ui .panel {
   position: absolute;
@@ -105,4 +122,24 @@ body {
   stroke-width: 1.7;
   stroke-linejoin: round;
   stroke-linecap: round;
+}
+#ui:not(.touch) .touch-only {
+  display: none;
+}
+#ui .info-touch {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+#ui.touch :is(.btn-s, .tip-close) {
+  min-width: var(--touch-target);
+}
+#ui.touch :is(.weapon-hold, .weapon-reload, .weapon-cut, .radio-next) {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
+#ui.touch .instrument-actions button.instrument-button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  align-items: center;
 }
