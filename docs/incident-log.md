@@ -38,7 +38,7 @@ ID: R6
 repo: game
 rule: A view asks the sim only about state the sim holds. A planned or pending state is answered from the plan. A sim lookup for a placement the rules allow never throws.
 check: For each view call into game/src/sim, list the states the rules allow for its input, such as a planned refit or a part on a bare nose or tail cell. Each must return a value.
-seen: Hotfix #515 fixed the inventory, which asked repairPlan() about a part mounted only in the pending refit and crashed on releases 2.61.0 to 2.61.43. Hotfix #502 fixed a buggy with caltrops on its nose cell, which crashed every frame it was in view. 35 placements on 7 chassis could do the same.
+seen: Hotfix #515 fixed the inventory, which asked repairPlan() about a part mounted only in the pending refit and crashed on releases 2.61.0 to 2.61.43. Hotfix #502 fixed a buggy with caltrops on its nose cell, which crashed every frame it was in view. 35 placements on 7 chassis could do the same. Hotfix #563 came from a player on release 2.61.43 whose game crashed on turn 129 drawing a raider buggy with panniers on its bare tail cell. Main had already fixed it with #502, so the hotfix shipped only regression tests for that loadout and every hidden part kind on the buggy rim, after a hold and a committee review.
 
 ID: R7
 repo: game
