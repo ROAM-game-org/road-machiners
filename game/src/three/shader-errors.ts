@@ -7,8 +7,10 @@ export class ShaderBuildFailed extends Error {
   }
 }
 
-const cacheKeyOf = (renderer: THREE.WebGLRenderer, program: WebGLProgram) =>
-  renderer.info.programs?.find((p) => p.program === program)?.cacheKey ?? 'unknown';
+const patchKeyOf = (cacheKey: string) => cacheKey.slice(cacheKey.lastIndexOf('}') + 1);
+
+const materialOf = (renderer: THREE.WebGLRenderer, program: WebGLProgram) =>
+  patchKeyOf(renderer.info.programs?.find((p) => p.program === program)?.cacheKey ?? '') || 'unknown';
 
 const stageLog = (gl: WebGLRenderingContext, shader: WebGLShader, stage: string) => `${stage}: ${gl.getShaderInfoLog(shader) || 'no log'}`;
 
@@ -16,7 +18,7 @@ export function failLoudOnShaderError(renderer: THREE.WebGLRenderer): void {
   renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
     const limit = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
     const detail = [
-      `program ${cacheKeyOf(renderer, program)}`,
+      `material ${materialOf(renderer, program)}`,
       `sampler limit ${limit}`,
       `link log: ${gl.getProgramInfoLog(program) || 'no log'}`,
       stageLog(gl, vertex, 'vertex'),
