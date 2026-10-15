@@ -49,7 +49,7 @@ it("counts again from zero after an answer", () => {
   load.failed(silent, vi.fn());
   load.loaded();
   load.failed(silent, vi.fn());
-  expect(waits).toEqual([...DOWNLOAD.waitMs, DOWNLOAD.waitMs[0]]);
+  expect(waits).toEqual([500, 1000, 500]);
 });
 
 it("names the script location of a failed load", () => {
