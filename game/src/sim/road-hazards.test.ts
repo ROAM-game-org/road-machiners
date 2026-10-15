@@ -86,8 +86,7 @@ describe('a stretch layout', () => {
 
   it('leaves every scene a way through on the road and keeps its pieces apart', () => {
     for (const { seed, j, scene } of allScenes()) {
-      if (scene.kind === 'roadblock') continue;
-      for (const row of scene.rows.filter((r) => r.length > 0)) {
+      for (const row of scene.rows.filter((r) => r.length > 0 && scene.kind !== 'roadblock')) {
         expect(leavesPassage(row.map((p) => acrossSpan(seed, j - 1, p))), `seed ${seed} stretch ${j} ${scene.kind}`).toBe(true);
       }
       const pieces = scene.rows.flat();

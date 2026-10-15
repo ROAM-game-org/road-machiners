@@ -4,7 +4,7 @@ import { RULES } from '../data/rules';
 import { haulerOf } from './damage';
 import { isDefeated } from './defeat';
 import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
-import { acrossOf, alongOf, roadPoint, toRoad, windowSpan } from './highway';
+import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
 import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
 import { isStranded } from './stats';
@@ -94,8 +94,8 @@ function crateredLane(world: World, hauler: Vehicle, lane: number): boolean {
   const radius = chassisDef(hauler.chassisId).radius;
   const along = alongNow(world, hauler);
   for (let n = along - BEHIND; n <= along + HAULER.laneLook; n += CRATER_STEP) {
-    for (const u of [LANES[lane] - radius, LANES[lane], LANES[lane] + radius]) {
-      if (craterDip(craters, { n, u }) >= HAULER.craterDip) return true;
+    for (const offset of [LANES[lane] - radius, LANES[lane], LANES[lane] + radius]) {
+      if (craterDip(craters, roadAt(world.seed, n, offset)) >= HAULER.craterDip) return true;
     }
   }
   return false;

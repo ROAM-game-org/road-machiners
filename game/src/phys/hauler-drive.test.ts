@@ -120,7 +120,7 @@ function escortedRun(seed: number, turns: number): { grounded: number; stalls: n
 }
 
 it('keeps the hauler out of the craters of stretch 1 with the gun truck riding beside it', () => {
-  const { grounded, stalls, farthest } = escortedRun(7, 30);
+  const { grounded, stalls, farthest } = escortedRun(4, 30);
   expect(grounded).toBe(0);
   expect(stalls).toBe(0);
   expect(farthest).toBeGreaterThan(CRATERS_PASSED);

@@ -1,8 +1,10 @@
 import { beforeAll, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { haulerOf, playerVehicle } from '../sim/damage';
+import { advanceFar } from '../sim/far';
+import { setHeadless } from '../sim/fidelity';
 import { moveWindow } from '../sim/fury-road';
-import { acrossOf, alongOf, roadPoint, toRoad } from '../sim/highway';
+import { acrossOf, alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
 import { furyRoadWorld, parkOnPad } from '../sim/testkit';
 import type { World } from '../sim/types';
@@ -70,5 +72,29 @@ it.each(CASES)('drives the hauler around a stretch $stretch roadblock on its own
   expect(w.broken, `seed ${seed}`).toHaveLength(0);
   expect(stalls, `seed ${seed}`).toBe(0);
   expect(widest, `seed ${seed}`).toBeGreaterThan(HIGHWAY.road.asphalt);
+  expect(alongOf(seed, toRoad(window, haulerOf(w).pos)), `seed ${seed}`).toBeGreaterThan(block.to + PAST);
+}, budget(300_000));
+
+it.each(CASES)('carries the hauler around a stretch $stretch roadblock by far travel, off the asphalt and with no stall', ({ stretch, lane }) => {
+  setHeadless(true);
+  const seed = seedWithRoadblock(stretch);
+  const block = stretchLayout(seed, stretch).scenes.find((s) => s.kind === 'roadblock')!;
+  const window = stretch - 1;
+  let w = worldAtWindow(seed, window);
+  const hauler = haulerOf(w);
+  hauler.pos = roadPoint(seed, window, block.from - LEAD, HIGHWAY.road.lanes[lane]);
+  hauler.heading = roadHeading(seed, block.from - LEAD);
+  playerVehicle(w).pos = roadPoint(seed, window, block.from - LEAD - 20, HIGHWAY.road.lanes[1]);
+  let stalls = 0;
+  let crossing = Infinity;
+  for (let turn = 0; turn < TURNS; turn++) {
+    w = endTurn(w, (next) => { for (const v of next.vehicles) advanceFar(next, v); });
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    const at = toRoad(window, haulerOf(w).pos);
+    if (alongOf(seed, at) >= block.from && alongOf(seed, at) <= block.to) crossing = Math.min(crossing, Math.abs(acrossOf(seed, at)));
+  }
+  setHeadless(false);
+  expect(stalls, `seed ${seed}`).toBe(0);
+  expect(crossing, `seed ${seed}`).toBeGreaterThan(HIGHWAY.road.asphalt);
   expect(alongOf(seed, toRoad(window, haulerOf(w).pos)), `seed ${seed}`).toBeGreaterThan(block.to + PAST);
 }, budget(300_000));
