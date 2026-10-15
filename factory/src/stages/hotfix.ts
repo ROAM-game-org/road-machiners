@@ -9,8 +9,8 @@ export async function shipHotfix(ctx: Ctx, issue: number, title: string, approva
   const keys = itchKeys(ctx);
   await ctx.repo.fetch();
   await mergeResolving(ctx, 'approve', [
-    { branch: BRANCH(issue), into: HOTFIX_BASE, message: `Hotfix #${issue}: ${title}` },
-    { branch: HOTFIX_BASE, into: 'dev', message: `Merge main into dev after hotfix #${issue}` },
+    { branch: BRANCH(issue), into: HOTFIX_BASE, message: `Hotfix #${issue}: ${title}`, issue },
+    { branch: HOTFIX_BASE, into: 'dev', message: `Merge main into dev after hotfix #${issue}`, issue: null },
   ], { branch: BRANCH(issue), build, base: HOTFIX_BASE });
   await publish(ctx, keys, `hotfix-${issue}`);
   const day = ctx.now().toISOString().slice(0, 10);
