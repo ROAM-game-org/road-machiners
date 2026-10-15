@@ -304,10 +304,11 @@ describe('independent', () => {
   it('always carry a cargo part and nearly always a gun', () => {
     let seen = 0;
     let armed = 0;
-    for (let seed = 1; seed <= 15; seed++) {
+    for (let seed = 1; seed <= 20; seed++) {
       const x = emptyWorld({ x: 300, y: 300 });
       x.rngState = seed;
-      spawnInitial(x);
+      for (const id of Object.keys(NPCS)) x.spawnTimer[id] = id === 'vulture' ? 1 : Number.MAX_SAFE_INTEGER;
+      spawnNpcs(x);
       for (const v of x.vehicles.filter((n) => n.brain?.templateId === 'vulture')) {
         seen++;
         const defs = mountedParts(v).map((p) => partDef(p.defId));

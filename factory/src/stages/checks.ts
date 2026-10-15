@@ -25,45 +25,15 @@ else
   npm test
 fi`;
 
-export const checkScript = (playtest: string) => `set -e
-${STEP_FUNCTION}
-mkdir -p tmp
-${stepCall('npm ci')}
-npm ci
-${stepCall('tests and typecheck')}
-npm run typecheck > tmp/typecheck.log 2>&1 &
-typecheck=$!
-${CACHED_SUITE}
-${stepCall('tests done')}
-if ! wait "$typecheck"; then cat tmp/typecheck.log; exit 1; fi
-${stepCall('dev server')}
-npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
-server=$!
-ready=0
-for i in $(seq 1 60); do
-  if curl -sf http://localhost:5173 > /dev/null; then ready=1; break; fi
-  sleep 1
-done
-if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
-${stepCall('playtest')}
-set +e
-${playtest}
-code=$?
-kill "$server"
-if [ "$code" -ne 0 ]; then exit "$code"; fi
-set -e
-${stepCall('build')}
-SAVE_SCOPE="$BUILD_SCOPE" npm run build
-${stepCall('done')}
-`;
+const testStep = (tests: string) => (tests === '' ? '' : `${stepCall('tests')}
+${tests}`);
 
-export const previewScript = (playtest: string) => `set -e
+export const checkScript = (playtest: string, tests: string) => `set -e
 ${STEP_FUNCTION}
 mkdir -p tmp
 ${stepCall('npm ci')}
 npm ci
-${stepCall('typecheck')}
-npm run typecheck
+${testStep(tests)}
 ${stepCall('dev server')}
 npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
 server=$!
@@ -124,15 +94,14 @@ function checkDir(ctx: Ctx, issue: number): string {
   return `${ctx.cfg.home}/work/check-issue-${issue}`;
 }
 
-export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'docs' | 'preview' | 'full'): Promise<string | null> {
-  if (kind === 'docs') return (await runScript(ctx, issue, base, build, buildScript))?.failure ?? null;
+export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix'): Promise<string | null> {
   return checkUntilReal(checkRun(ctx, issue, base, build, kind), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
 }
 
-function checkRun(ctx: Ctx, issue: number, base: string, build: string, kind: 'preview' | 'full'): () => Promise<CheckOutcome> {
-  const playtest = playtestCommand(ctx.cfg, false);
-  if (kind === 'preview') return () => runScript(ctx, issue, base, build, previewScript(playtest), 'verify');
-  return () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, () => runScript(ctx, issue, base, build, checkScript(playtest), 'verify', testPoolPin(ctx.cfg)));
+function checkRun(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix'): () => Promise<CheckOutcome> {
+  if (kind === 'build') return () => runScript(ctx, issue, base, build, buildScript, 'verify');
+  const script = checkScript(playtestCommand(ctx.cfg, false), CACHED_SUITE);
+  return () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, () => runScript(ctx, issue, base, build, script, 'verify', testPoolPin(ctx.cfg)));
 }
 
 export async function oneSuiteAtATime<T>(ctx: Ctx, at: { stage: Stage; issue: number | null }, work: () => Promise<T>): Promise<T> {
@@ -204,7 +173,7 @@ export async function checkUntilReal(check: () => Promise<CheckOutcome>, onTimeo
   }
 }
 
-const FAILURE_TAIL_LINES = 150;
+export const FAILURE_TAIL_LINES = 150;
 
 function checkFailure(log: string, error: unknown, from: number): NonNullable<CheckOutcome> {
   const message = error instanceof Error ? error.message : String(error);
@@ -213,7 +182,7 @@ function checkFailure(log: string, error: unknown, from: number): NonNullable<Ch
   return { failure: stripAnsi(tail), timedOut: error instanceof CheckTimeoutError };
 }
 
-export const POST_MARK = 'Ready for approval:';
+const POST_MARK = 'Ready for approval:';
 
 export const CAPTION_LIMIT = 1024;
 const TRIM_MARK = '…';

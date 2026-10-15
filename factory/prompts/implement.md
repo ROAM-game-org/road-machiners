@@ -2,8 +2,7 @@ This is the implementation stage of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{branch}}.
 The plan for issue {{issue}} is in {{taskFile}}.
 
-Read CLAUDE.md first.
-Follow it.
+{{gameDocs}}
 
 Reference images from the issue are listed at the end of this prompt.
 Read every available image with the Read tool before you build.
@@ -44,7 +43,7 @@ A silhouette overlap number from compose_review is a diagnostic.
 Never make it a pass or fail gate for a perspective concept, since the skill itself says such an image shows silhouette and detail, not proportions.
 Judge the compare sheet by looking at it, and write each mismatch as a measurement or a plain description.
 
-Install the hooks first.
+Install the hooks right after the docs step, before any code, test or check.
 Run `npm ci && npm run hooks:install`.
 The quality hook checks every commit.
 Do not bypass it.
@@ -54,15 +53,14 @@ Do not raise its limits.
 Run up:uexecute on {{taskFile}}.
 Implement every phase inline in this session.
 Subagents are off.
-Then stop.
 Do not run up:uverify.
 The next stage does that.
 
 This machine is slow. Keep checks focused.
 While you work, run only the tests near your change with `npx vitest run <files>`.
 Prove the feature works with a targeted test. Playtest game behavior with the progression recorder, and use a short Playwright check only for what the screen shows.
-Do not run the full test suite or the playtest. The testing stage runs the playtest, and the merge runs the full suite.
-Before you finish, run `npm run typecheck` once.
+Do not run the full test suite or the playtest. The testing stage runs the playtest. The merge runs the tests next to the changed files, and the release runs them all.
+Before the docs step at the end, run `npm run typecheck` once.
 Every test you ran must pass, not only the tests for this issue.
 
 A failure blocks the task even when your change did not cause it.
@@ -83,3 +81,14 @@ Write what the committee must decide to `.factory/needs-committee.md`.
 That file is only for a game design fork or a major save bump.
 When the plan is unclear, pick the most sensible reading and write the assumption into the task file.
 Do not commit a change to `SAVE_MAJOR`.
+
+## Last step: the game docs
+
+After every phase is built, the visual self-review is written and the typecheck passed, run the skill up:udocument on the game docs that this change made stale.
+Find them from the Docs list in CLAUDE.md and the files this issue changed.
+Update each doc to match the code you built, under the skill's rules, and change nothing else in it.
+Commit the doc edits in their own commit on the current branch.
+When you edit a page in `docs/wiki/`, run `npm run wiki` and the tests near that page, and commit what they change.
+When no doc is stale, edit nothing.
+Either way, write under "Docs" in the Conclusion of {{taskFile}} which docs you updated, or why none needed it.
+Then stop.
