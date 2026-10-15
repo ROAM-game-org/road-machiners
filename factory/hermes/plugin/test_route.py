@@ -428,14 +428,32 @@ def test_hook_passes_a_change_command_to_hermes_as_chat(tmp_path):
     assert list(inbox.iterdir()) == []
 
 
-@pytest.mark.parametrize("chat", ["-100", "-200"])
-@pytest.mark.parametrize("text", ["/change x", "hello", "/committee list", "/committee add 5"])
-def test_hook_drops_non_members_silently(tmp_path, chat, text):
-    result, adapter, inbox = dispatch(tmp_path, "9", text=text, chat=chat)
+@pytest.mark.parametrize("text", ["hello", "/committee list", "/committee add 5"])
+def test_hook_drops_non_members_outside_the_committee_chat(tmp_path, text):
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text, chat="-200")
     assert result == {"action": "skip", "reason": "factory-not-committee"}
     assert adapter.sent == []
     assert list(inbox.iterdir()) == []
     assert plugin.Committee(str(tmp_path / "committee"), "1", "boss").ids() == frozenset({"1"})
+
+
+@pytest.mark.parametrize("text", ["hello", "/committee list", "/committee add 5"])
+def test_hook_passes_a_non_member_in_the_committee_chat_to_hermes_as_plain_chat(tmp_path, text):
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text)
+    assert result is None
+    assert adapter.sent == []
+    assert list(inbox.iterdir()) == []
+    assert plugin.Committee(str(tmp_path / "committee"), "1", "boss").ids() == frozenset({"1"})
+
+
+@pytest.mark.parametrize("text", ["approve", "patch: make it red", "looks wrong"])
+def test_hook_queues_nothing_for_a_non_member_reply_to_an_approval_post(tmp_path, text):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {"55": 12}}')
+    result, adapter, inbox = dispatch(tmp_path, "9", text=text, reply="55")
+    assert result is None
+    assert adapter.sent == []
+    assert list(inbox.iterdir()) == []
 
 
 def test_member_plain_chat_in_other_chat_passes(tmp_path):
@@ -570,7 +588,9 @@ def test_sender_tool_errors_without_a_member_message(tmp_path):
     cfg = plugin.Config("/in", "/st", "-100", committee, "-400", "-300", "/pub")
     assert "hermes" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: "")({}))["error"]
     stranger = {**SESSION, "HERMES_SESSION_USER_ID": "2"}
-    assert "no committee member" in json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: stranger.get(key, ""))({}))["error"]
+    error = json.loads(plugin.make_sender_handler(cfg, session_env=lambda key: stranger.get(key, ""))({}))["error"]
+    assert "no committee member" in error
+    assert "player" in error
 
 
 def test_queue_tool_refuses_empty_request(tmp_path):

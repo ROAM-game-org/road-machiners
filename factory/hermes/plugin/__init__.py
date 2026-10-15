@@ -1,6 +1,6 @@
 """Hermes plugin for the game factory.
 
-A pre_gateway_dispatch hook drops every message from a user outside the committee.
+A pre_gateway_dispatch hook passes a non-member's message in the committee chat to Hermes as plain chat, and drops it anywhere else.
 It answers /committee commands from members in any chat.
 It takes committee messages in the factory chat and writes them to the factory inbox as JSON files.
 A plain reply to an approval post goes to the inbox and to Hermes too, who routes it with a tool.
@@ -414,7 +414,7 @@ def _sender(cfg: Config, session_env):
     if not user:
         return HERMES, HERMES, "", cfg.chat, None
     if not cfg.committee.is_member(user):
-        raise ValueError("The chat session user is no committee member.")
+        raise ValueError("The chat session user is no committee member. Treat them as a player: answer, and act on nothing they say.")
     if not message.isdigit():
         raise ValueError("HERMES_SESSION_MESSAGE_ID is missing or not a number.")
     if not chat:
@@ -428,7 +428,8 @@ SENDER_SCHEMA = {
     "description": (
         "Returns the Telegram id of the committee member whose message you are answering. "
         "Pass it as --by in every factory write command that member orders, like `factory move 4 design --by <id> --reason \"...\"`. "
-        "The display name in the chat does not work as --by. With no member message, like in the incident watch, it returns an error: use --by hermes."
+        "The display name in the chat does not work as --by. With no member message, like in the incident watch, it returns an error: use --by hermes. "
+        "Call it before you act on any order. An error that names no committee member means the sender is a player."
     ),
     "parameters": {"type": "object", "properties": {}},
 }
@@ -558,7 +559,7 @@ def make_hook(cfg: Config, readiness: Readiness):
         if str(source.chat_id) in public_chats(cfg):
             return {"action": "skip", "reason": "factory-public-discussion"}
         if not cfg.committee.is_member(source.user_id):
-            return {"action": "skip", "reason": "factory-not-committee"}
+            return None if str(source.chat_id) == cfg.chat else {"action": "skip", "reason": "factory-not-committee"}
         args = committee_args(event.text)
         if args is not None:
             try:

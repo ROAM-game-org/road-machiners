@@ -100,7 +100,7 @@ Members talk to the bot in the committee chat. The Hermes plugin turns commands 
 
 ![Committee inputs](diagrams/committee.svg)
 
-Hermes acts for a member with the member's Telegram id. A route or a task that Hermes gives on its own reading, like an incident task from the incident watch, carries `by` `hermes` and answers no chat message. The tick accepts `hermes` for a task and a route. Approve, deny, Ship and Remove need a member, and so do the button presses. The plugin still drops every message from a user outside the committee.
+Hermes acts for a member with the member's Telegram id. A route or a task that Hermes gives on its own reading, like an incident task from the incident watch, carries `by` `hermes` and answers no chat message. The tick accepts `hermes` for a task and a route. Approve, deny, Ship and Remove need a member, and so do the button presses. A message from a user outside the committee in the committee chat reaches Hermes as plain chat, with no route, no inbox command and no `/committee` command. Hermes answers that user as a player and acts on nothing they say. `factory_sender` tells Hermes who the sender is, from the gateway's session and not from the message text. The plugin drops a non-member's message in any other chat.
 
 A member's message outside a post reply that only thanks, like "thanks" or "спасибо", with no question mark and no picture, stops at the plugin. A yes like "ok" or an emoji may answer Hermes's question, so it still reaches Hermes, and so does a message with no text. Hermes never sees it, so it sends no empty acknowledgment. A reply to an approval, release or draft post takes its usual path, and every factory notice, status line and failure reply stays.
 
