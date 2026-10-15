@@ -23,6 +23,7 @@ function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
   const me = playerVehicle(w);
   me.pos = roadPoint(SEED, 0, START, offset);
   me.heading = roadHeading(SEED, START);
+  me.direct = true;
   let drive: Drive = buildDrive(w);
   let speed = 0;
   for (let turn = 0; turn < TURNS; turn++) {
