@@ -11,9 +11,9 @@ export type VocabularyTable = { name: string; columns: string[]; rows: Cell[][] 
 const DELIVERY_STAGES: DeliveryStage[] = ['triage', 'design', 'implementation', 'preview', 'approval', 'harden', 'merge'];
 const STEP_KINDS: Record<CardStep, StepKind> = {
   entered: 'path', accepted: 'path', voted: 'path', planned: 'path', built: 'path', patched: 'path', posted: 'path', approved: 'path', hardened: 'path', merged: 'path',
-  questions: 'loop', rebuild: 'loop', 'plan-wrong': 'loop', 'review-failed': 'loop', patch: 'loop', redesign: 'loop', 'patch-replan': 'loop', conflict: 'loop', removed: 'loop', unbundled: 'loop',
+  questions: 'loop', rebuild: 'loop', 'plan-wrong': 'loop', 'review-failed': 'loop', patch: 'loop', redesign: 'loop', 'patch-replan': 'loop', conflict: 'loop', 'base-moved': 'loop', removed: 'loop', unbundled: 'loop',
   'triage-wont-do': 'end', 'design-wont-do': 'end', bundled: 'end', denied: 'end', dropped: 'end',
-  moved: 'other', 'merge-ordered': 'other', shipped: 'other', reported: 'other',
+  moved: 'other', 'merge-ordered': 'other', requeued: 'other', shipped: 'other', reported: 'other',
 };
 const GATES: Record<Gate, { pass: CardStep[]; reject: CardStep[] }> = {
   triage: { pass: ['accepted'], reject: ['triage-wont-do'] },
@@ -24,8 +24,8 @@ const COLUMN_STAGES: Record<Column, { stage: DeliveryStage | null; steps: Partia
   Triage: { stage: 'triage', steps: {} },
   Design: { stage: 'design', steps: {} },
   Implementation: { stage: 'implementation', steps: {} },
-  Testing: { stage: 'preview', steps: { approved: 'harden', conflict: 'harden' } },
-  Approval: { stage: 'approval', steps: { hardened: 'merge', 'merge-ordered': 'merge' } },
+  Testing: { stage: 'preview', steps: { approved: 'harden', conflict: 'harden', 'base-moved': 'harden' } },
+  Approval: { stage: 'approval', steps: { hardened: 'merge', 'merge-ordered': 'merge', requeued: 'merge' } },
   Hardening: { stage: 'harden', steps: {} },
   Merging: { stage: 'merge', steps: {} },
   Done: { stage: null, steps: {} },
