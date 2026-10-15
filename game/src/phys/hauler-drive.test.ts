@@ -172,3 +172,32 @@ it('threads a checkpoint that blocks every lane from the outer lane, with no hit
   expect(stalls).toBe(0);
   expect(alongOf(CHECKPOINT_SEED, toRoad(stretch - 1, haulerOf(w).pos))).toBeGreaterThan(checkpoint.to + 40);
 }, budget(300_000));
+
+const WEDGE_SEED = 1;
+const WEDGE_WINDOW = 6;
+const WEDGE_POS = { x: 209.9, y: 201.4 };
+const WEDGE_HEADING = -1.8;
+const WEDGE_TURNS = 12;
+const WEDGE_PAST = 8;
+
+it('drives a semi free when it sits nose first against a checkpoint barrier', () => {
+  let w = worldAtWindow(WEDGE_SEED, WEDGE_WINDOW);
+  const hauler = haulerOf(w);
+  hauler.pos = { ...WEDGE_POS };
+  hauler.heading = WEDGE_HEADING;
+  hauler.speed = 0;
+  w.furyRoad!.waitingAt = null;
+  playerVehicle(w).pos = { x: WEDGE_POS.x - 4, y: WEDGE_POS.y + 20 };
+  let drive: Drive = buildDrive(w);
+  let stalls = 0;
+  for (let turn = 0; turn < WEDGE_TURNS; turn++) {
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    freeDrive(drive);
+    drive = result!.next;
+  }
+  freeDrive(drive);
+  expect(stalls).toBe(0);
+  expect(haulerOf(w).pos.y).toBeLessThan(WEDGE_POS.y - WEDGE_PAST);
+}, budget(300_000));

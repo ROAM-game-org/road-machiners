@@ -776,12 +776,16 @@ function backs(c: Car, at: Vec, ang: number, rearAng: number, far: number, targe
     c.mem.backFrom = null;
     return true;
   }
-  if (c.mem.backFrom && dist(at, c.mem.backFrom) < RULES.reverse.distance) return true;
+  if (c.mem.backFrom && dist(at, c.mem.backFrom) < backOffDistance(c)) return true;
   c.mem.backFrom = null;
   if (!blockedInFront(c, target, speed)) return false;
   c.mem.backFrom = { ...at };
   c.mem.stall = 0;
   return true;
+}
+
+function backOffDistance(c: Car): number {
+  return Math.max(RULES.reverse.distance, (2 * c.b.wheelX) / S);
 }
 
 function backsToPoint(c: Car, rearAng: number, far: number, target: number, speed: number): boolean {
