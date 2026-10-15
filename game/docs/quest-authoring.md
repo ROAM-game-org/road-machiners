@@ -161,6 +161,7 @@ A save keeps only the variables and the last checkpoint. Load replays the quest 
 - Use sticky `+` choices with a variable guard. A once-only `*` choice fails the build, because it would come back after a load.
 - Keep facts in variables. Reading a visit count, such as `{knot}`, `READ_COUNT` or `TURNS_SINCE`, fails the build.
 - A checkpoint's opening, up to its first choice, may change no variable and call no effect. A load plays it again. Put `~ x = ...`, `pay()` and `note()` after a choice.
+- In a page quest, a load must show text before its choices. Put a checkpoint on a scene's opening line, and keep a choice list that loops back in an untagged stitch after it. A talk hub may stay a checkpoint, since a talk shows only the last pick, its reply and the choices.
 - A checkpoint must run from a fresh story. It may not rely on temporary variables or tunnels from before it.
 - `begin()` must come right before `-> END`.
 - Check `money()` before `pay()`, or use `# cost:`. `pay()` throws when the player holds less.
@@ -202,6 +203,7 @@ A quest can only ask the game through functions in `world.ink`.
 - "A view, stat or fact tag sits below other content": move the top tags above `INCLUDE world.ink`.
 - "Effect ran while loading checkpoint": move the effect after the checkpoint's first choice.
 - "Loading checkpoint changed its variables": move the `~` line after the first choice.
+- "a load at checkpoint X shows no text before its choices": a page quest checkpoint sits on a bare choice list. Move the checkpoint to the scene's opening line and put the choices in an untagged stitch.
 - "no choice leads to an end from here": a loop has no exit. Give it one, or cost each lap something, such as a watch.
 - "only paid choices lead to an end": the player cannot leave a quest midway, so a player with no money is stuck there. Add a free choice that leads to an end.
 - "section is never reached": a condition can never hold in either check world, or the section is dead. Fix the condition or delete it.

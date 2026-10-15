@@ -24,6 +24,8 @@ export const SCREENS = {
   'boot.failed': 'failed',
   'boot.counted': m('{label} {done} of {total}', { label: 'text', done: 'int', total: 'int' }),
   'boot.stepFailed': m('{label} failed', { label: 'text' }),
+  'boot.unreachable': 'The game files did not arrive. Check your connection.',
+  'boot.retry': 'Try again',
   'boot.failedToLoad': 'The game failed to load. Check your connection and reload the page.',
   'save.slot.auto': 'Autosave',
   'save.slot.day': 'Day start',

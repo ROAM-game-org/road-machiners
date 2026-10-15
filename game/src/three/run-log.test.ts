@@ -96,6 +96,17 @@ describe('RunLog', () => {
     expect(errors).toEqual([]);
   });
 
+  it('sends a synchronous backend throw to onError once', async () => {
+    const throwing = { ...memoryBackend(), appendLog: () => { throw new Error('closing'); } };
+    const errors: unknown[] = [];
+    const log = new RunLog(throwing, 'run', (e) => errors.push(e));
+
+    expect(() => log.begin(start(), null)).not.toThrow();
+    await log.flush();
+
+    expect(errors.map((e) => (e as Error).message)).toEqual(['closing']);
+  });
+
   it('logs the change of a world that shares the events of the last one, without its events again', async () => {
     const backend = memoryBackend();
     const world = start();
