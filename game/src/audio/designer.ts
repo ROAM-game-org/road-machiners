@@ -1,5 +1,5 @@
-// The combat score's two accent lines over the background base. Each event plays a stab: its accent timed so the
-// sound's loudest moment lands on the event. The rest of the accent's rhythm then follows as a tail on the beat
+// The combat score's two accent lines over the background base. Each event plays a stab: its accent starting on the
+// event, since every take opens at full strength. The rest of the accent's rhythm then follows as a tail on the beat
 // grid, counted from the slot nearest the event. The lead takes heavy events, the secondary light ones, quieter
 
 export type Grid = { start: number; beat: number; beatsPerBar: number };
@@ -55,7 +55,7 @@ export class SoundDesigner {
     this.pan = (roll() < 0.5 ? -1 : 1) * tuning.secondaryPan;
   }
 
-  offer(cue: string, plan: AccentPlan, at: number, peak: number, heat: number): Offer {
+  offer(cue: string, plan: AccentPlan, at: number, heat: number): Offer {
     const line = this.lines[plan.line];
     if (!this.sounds(plan, line)) return { result: "skipped", stab: null };
     if (Math.abs(at - line.lastStab) < this.tuning.stabGapSeconds) return { result: "crowded", stab: null };
@@ -63,7 +63,7 @@ export class SoundDesigner {
     this.startTail(line, { cue, plan }, this.slotNearest(at), dense, true);
     line.replays = 0;
     line.lastStab = at;
-    const stab = { ...this.hit(plan.line, cue, 0, this.tuning.lines[plan.line].gain), time: at - peak };
+    const stab = { ...this.hit(plan.line, cue, 0, this.tuning.lines[plan.line].gain), time: at };
     return { result: "played", stab };
   }
 

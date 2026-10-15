@@ -46,7 +46,6 @@ const ACCENT_LEAD_SECONDS = 0.02;
 const LOOKAHEAD_SECONDS = 0.15;
 
 
-export type AccentTake = { file: string; peak: number };
 export type AccentResult = { cue: AccentCue; offer: Offer["result"]; heat: number };
 
 export class CombatScore {
@@ -58,7 +57,7 @@ export class CombatScore {
   private paused = false;
 
   constructor(
-    private player: Pick<SoundPlayer, "beatLoop" | "now" | "play" | "chooseWithPeak">,
+    private player: Pick<SoundPlayer, "beatLoop" | "now" | "play">,
     private roll: () => number,
   ) {
     const start = player.now() + START_LEAD_SECONDS;
@@ -93,26 +92,20 @@ export class CombatScore {
     this.setIntensity(base, now, base.grid.beat * base.grid.beatsPerBar);
   }
 
-  take(cue: AccentCue): AccentTake {
-    return this.player.chooseWithPeak(cue);
-  }
-
-  accent(cue: AccentCue, delayMs: number, take: AccentTake = this.take(cue)): AccentResult | null {
+  accent(cue: AccentCue, delayMs: number): AccentResult | null {
     const base = this.active;
     if (!base || !this.designer) return null;
     const now = this.player.now();
     const plan = MIX.score.accents[cue];
     this.heat.add(now, plan.weight);
-    const offer = this.designer.offer(cue, plan, now + delayMs / 1000, take.peak, this.heat.read(now));
-    if (offer.stab) this.sound(base, offer.stab, now, take.file);
+    const offer = this.designer.offer(cue, plan, now + delayMs / 1000, this.heat.read(now));
+    if (offer.stab) this.sound(base, offer.stab, now);
     return { cue, offer: offer.result, heat: this.heat.read(now) };
   }
 
-  private sound(base: Base, h: Hit, now: number, file?: string): void {
+  private sound(base: Base, h: Hit, now: number): void {
     const start = now + Math.max(ACCENT_LEAD_SECONDS, h.time - now);
-    const from = Math.max(0, now + ACCENT_LEAD_SECONDS - h.time);
-    const selection = file === undefined ? undefined : { file, rate: 1, ...(from > 0 ? { from } : {}) };
-    this.player.play(h.cue as AccentCue, { pan: h.pan, gain: h.gain }, (start - now) * 1000, selection);
+    this.player.play(h.cue as AccentCue, { pan: h.pan, gain: h.gain }, (start - now) * 1000);
     const s = MIX.score;
     if (h.line === "lead") base.loop.duck(start, s.duckGain, s.duckAttackSeconds, base.grid.beat * s.duckReleaseBeats);
   }
@@ -181,13 +174,13 @@ export class SoundDirector {
   constructor(
     private player: Pick<SoundPlayer, "play">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
-    private score: Pick<CombatScore, "accent" | "take">,
+    private score: Pick<CombatScore, "accent">,
   ) {}
 
-  private due: { cue: AccentCue; atMs: number; take: AccentTake }[] = [];
+  private due: { cue: AccentCue; atMs: number }[] = [];
 
-  accent(cue: AccentCue, delayMs: number, take?: AccentTake): void {
-    const r = this.score.accent(cue, delayMs, take);
+  accent(cue: AccentCue, delayMs: number): void {
+    const r = this.score.accent(cue, delayMs);
     if (!r) return;
     this.record(`${cue} ${r.offer} heat${r.heat.toFixed(1)}`);
   }
@@ -202,7 +195,7 @@ export class SoundDirector {
   }
 
   queueAccent(cue: AccentCue, atMs: number): void {
-    this.due.push({ cue, atMs, take: this.score.take(cue) });
+    this.due.push({ cue, atMs });
   }
 
   playDueAccents(elapsedMs: number, speed: number): void {
@@ -210,8 +203,8 @@ export class SoundDirector {
     const aheadMs = MIX.score.offerAheadSeconds * 1000;
     this.due = this.due.filter((d) => {
       const delay = Math.max(0, (d.atMs - elapsedMs) / speed);
-      if (delay > d.take.peak * 1000 + aheadMs) return true;
-      this.accent(d.cue, delay, d.take);
+      if (delay > aheadMs) return true;
+      this.accent(d.cue, delay);
       return false;
     });
   }

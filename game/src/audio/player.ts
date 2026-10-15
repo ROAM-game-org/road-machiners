@@ -1,12 +1,12 @@
 // Plays catalog cues: one-shots with a variant, pitch jitter and voice limit, and loops with live controls.
 
-import { MIX, type Bus, type Cue } from "../data/sounds";
+import type { Bus, Cue } from "../data/sounds";
 import type { Bank } from "./bank";
 import type { Mixer } from "./mixer";
-import { loudestAt, pickVariant, VoiceLimiter } from "./pick";
+import { pickVariant, VoiceLimiter } from "./pick";
 
 export type Placement = { pan: number; gain: number };
-export type SoundSelection = { file: string; rate: number; from?: number };
+export type SoundSelection = { file: string; rate: number };
 
 export type LoopHandle = {
   setGain(gain: number, rampSeconds: number): void;
@@ -21,15 +21,12 @@ export type BeatLoopHandle = LoopHandle & {
   setTone(cutoffHz: number, rampSeconds: number): void;
 };
 
-const PEAK_WINDOW_SECONDS = 0.02;
-
 export type EnvelopePoint = { at: number; rate: number; gain: number };
 export type Glide = { rateFrom: number; rateTo: number; gainFrom: number; gainTo: number; seconds: number; fadeSeconds: number };
 
 
 export class SoundPlayer {
   private last = new Map<string, number>();
-  private peaks = new Map<string, number>();
   private voices = new VoiceLimiter();
 
   constructor(private mixer: Mixer, private bank: Bank, private sounds: Record<string, Cue>) {}
@@ -40,15 +37,13 @@ export class SoundPlayer {
     const ctx = this.mixer.ctx;
     const buf = selection ? this.getBuffer(id, cue, selection.file) : this.variant(id, cue);
     const rate = selection ? this.checkedRate(id, selection.rate) : 1 + (Math.random() * 2 - 1) * cue.pitchJitter;
-    const from = this.checkedFrom(id, selection?.from ?? 0, buf.duration);
     const start = ctx.currentTime + delayMs / 1000;
-    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + (buf.duration - from) / rate)) return;
+    if (!this.voices.admit(id, cue.maxVoices, ctx.currentTime, start + buf.duration / rate)) return;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
-    const gain = this.chain(src, cue, at);
-    if (from > 0) this.fadeIn(gain, start);
-    src.start(start, from);
+    this.chain(src, cue, at);
+    src.start(start);
   }
 
   setBusTone(bus: Bus, cutoffHz: number, rampSeconds: number): void {
@@ -136,17 +131,6 @@ export class SoundPlayer {
     };
   }
 
-  private checkedFrom(id: string, from: number, duration: number): number {
-    if (!Number.isFinite(from) || from < 0 || (from > 0 && from >= duration)) throw new Error(`Sound ${id} cannot start at ${from} s of a ${duration} s take`);
-    return from;
-  }
-
-  private fadeIn(gain: GainNode, start: number): void {
-    const level = gain.gain.value;
-    gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(level, start + MIX.score.joinFadeSeconds);
-  }
-
   private checkedRate(id: string, rate: number): number {
     if (!Number.isFinite(rate) || rate <= 0) throw new Error(`Invalid playback rate for ${id}`);
     return rate;
@@ -163,16 +147,6 @@ export class SoundPlayer {
     const cue = this.sounds[id];
     if (!cue) throw new Error(`Unknown sound ${id}`);
     return cue;
-  }
-
-  chooseWithPeak(id: string): { file: string; peak: number } {
-    const file = this.cue(id).files[this.nextIndex(id, this.cue(id))];
-    let peak = this.peaks.get(file);
-    if (peak === undefined) {
-      peak = loudestAt(this.getBuffer(id, this.cue(id), file).getChannelData(0), this.mixer.ctx.sampleRate, PEAK_WINDOW_SECONDS);
-      this.peaks.set(file, peak);
-    }
-    return { file, peak };
   }
 
   private nextIndex(id: string, cue: Cue): number {

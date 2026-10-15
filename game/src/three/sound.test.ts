@@ -229,7 +229,7 @@ describe("strainGlides", () => {
 describe("engine strain log", () => {
   it("logs strain only on turns that have some", () => {
     const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
-    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null, take: () => ({ file: "f", peak: 0 }) });
+    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null });
     director.engineStrain({ from: 0, to: 0 });
     director.engineStrain({ from: 1, to: 0.5 });
     director.engineStrain({ from: 0.5, to: 0 });
@@ -326,7 +326,7 @@ describe("horn sound assignment", () => {
     const width = globalThis.window?.innerWidth;
     Object.defineProperty(globalThis, "window", { value: { innerWidth: 100 }, configurable: true });
     try {
-      const director = new SoundDirector(player, rig, { accent: () => { throw new Error("no accent here"); }, take: () => ({ file: "f", peak: 0 }) });
+      const director = new SoundDirector(player, rig, { accent: () => { throw new Error("no accent here"); } });
       director.honk({ x: 0, y: 0, z: 0 }, 500, "scout");
       expect(calls).toEqual([["horn", { pan: 0, gain: 1 }, 500, hornSoundFor("scout")]]);
     } finally {
@@ -387,20 +387,19 @@ describe("CombatWatch", () => {
 describe("SoundDirector accent timing", () => {
   const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
   const setup = () => {
-    const calls: [string, number, unknown][] = [];
-    const take = { file: "f", peak: 0.1 };
-    const score = { accent: (c: string, d: number, t: unknown) => (calls.push([c, d, t]), { cue: c, offer: "played", heat: 0 }), take: () => take } as never;
+    const calls: [string, number][] = [];
+    const score = { accent: (c: string, d: number) => (calls.push([c, d]), { cue: c, offer: "played", heat: 0 }) } as never;
     const director = new SoundDirector({ play: () => {} }, rig, score);
-    return { calls, take, director };
+    return { calls, director };
   };
 
   it("hands an accent over just before its event, once", () => {
-    const { calls, take, director } = setup();
+    const { calls, director } = setup();
     director.queueAccent("accent-hit", 600);
     director.playDueAccents(0, 1);
     expect(calls).toEqual([]);
     director.playDueAccents(500, 1);
-    expect(calls).toEqual([["accent-hit", 100, take]]);
+    expect(calls).toEqual([["accent-hit", 100]]);
     director.playDueAccents(550, 1);
     expect(calls).toHaveLength(1);
   });
@@ -450,7 +449,7 @@ describe("SoundDirector accent timing", () => {
 describe("CombatScore", () => {
   type BaseId = "score-drums" | "score-bass" | "score-horns" | "score-trombone";
   type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; tones: number[]; ducks: number[] };
-  type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number; from?: number }?];
+  type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number }?];
   const fakePlayer = () => {
     const loops: Call[] = [];
     const plays: Play[] = [];
@@ -458,7 +457,6 @@ describe("CombatScore", () => {
     const player = {
       now: () => clock.now,
       play: (...args: Play) => { plays.push(args); },
-      chooseWithPeak: (id: string) => ({ file: `${id}-1.ogg`, peak: 0.1 }),
       beatLoop: (id: BaseId, file: string, when: number, offset: number) => {
         const call: Call = { id, file, when, offset, gains: [], tones: [], ducks: [] };
         loops.push(call);
@@ -515,34 +513,44 @@ describe("CombatScore", () => {
     expect(plays).toEqual([]);
   });
 
-  it("stabs an event with the sound's peak on it, then its tail on the lead, ducking the base under each hit", () => {
+  it("stabs an event on the event, then its tail on the lead, ducking the base under each hit", () => {
     const { player, loops, plays, clock } = fakePlayer();
     const score = new CombatScore(player, () => 0);
     score.setCombat(true, 3);
     expect(score.accent("accent-sighted", 1000)).toMatchObject({ cue: "accent-sighted", offer: "played" });
-    expect(plays[0][2]).toBeCloseTo(900);
-    expect(plays[0][3]).toEqual({ file: "accent-sighted-1.ogg", rate: 1 });
+    expect(plays[0][2]).toBeCloseTo(1000);
     run(score, clock, 6);
     expect(plays.length).toBeGreaterThan(0);
     expect(plays.every((p) => p[0] === "accent-sighted" && p[1].pan === 0)).toBe(true);
     expect(loops[0].ducks).toHaveLength(plays.length);
   });
 
-  it("starts a stab inside its take when the event comes before the take's peak", () => {
+  it("always plays a whole take, never starting inside one", () => {
     const { player, plays } = fakePlayer();
     const score = new CombatScore(player, () => 0);
     score.setCombat(true, 3);
     score.accent("accent-sighted", 30);
-    expect(plays[0][2]).toBeCloseTo(20);
-    expect(plays[0][3]?.from).toBeCloseTo(0.09);
+    expect(plays[0][2]).toBeCloseTo(30);
+    expect(plays[0][3]).toBeUndefined();
   });
 
-  it("starts a stab at the top of its take when the event is far enough", () => {
-    const { player, plays } = fakePlayer();
+  it.each([1, 4])("starts the stab of a shot at the shot's real time at speed %i, from whole takes", (speed) => {
+    const { player, plays, clock } = fakePlayer();
     const score = new CombatScore(player, () => 0);
     score.setCombat(true, 3);
-    score.accent("accent-sighted", 1000);
-    expect(plays[0][3]).toEqual({ file: "accent-sighted-1.ogg", rate: 1 });
+    const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
+    const director = new SoundDirector({ play: () => {} }, rig, score);
+    const turnStart = clock.now;
+    director.queueAccent("accent-crash", 700);
+    let startsAt = Number.NaN;
+    for (let elapsed = 50; elapsed <= 1000; elapsed += 50) {
+      clock.now += 0.05 / speed;
+      director.playDueAccents(elapsed, speed);
+      if (plays.length > 0 && Number.isNaN(startsAt)) startsAt = clock.now + plays[0][2] / 1000;
+    }
+    expect(plays[0][0]).toBe("accent-crash");
+    expect(plays[0][3]).toBeUndefined();
+    expect(Math.abs(startsAt - turnStart - 0.7 / speed)).toBeLessThan(0.06);
   });
 
   it("ducks the base when a late stab sounds, never before now", () => {

@@ -28,80 +28,80 @@ function designer(tuning = TUNING, roll = () => 0): SoundDesigner {
 const times = (hits: { time: number }[]) => hits.map((h) => h.time);
 
 describe("SoundDesigner", () => {
-  it("plays the stab so the sound's peak lands on the event", () => {
-    const o = designer().offer("a", LEAD, 5.2, 0.15, 0);
+  it("plays the stab on the event", () => {
+    const o = designer().offer("a", LEAD, 5.2, 0);
     expect(o.result).toBe("played");
-    expect(o.stab!.time).toBeCloseTo(5.05);
+    expect(o.stab!.time).toBeCloseTo(5.2);
     expect(o.stab!.pan).toBe(0);
   });
 
   it("follows the stab with the rhythm's tail from the slot nearest the event", () => {
     const d = designer();
-    d.offer("a", LEAD, 5.2, 0.1, 0);
+    d.offer("a", LEAD, 5.2, 0);
     expect(times(d.step(0.1, 9.9, false, 0))).toEqual([7]);
   });
 
   it("plays the secondary quieter and to one side", () => {
     const d = designer();
-    const o = d.offer("b", LIGHT, 5, 0, 0);
+    const o = d.offer("b", LIGHT, 5, 0);
     expect([o.stab!.pan, o.stab!.gain]).toEqual([-0.3, 0.5]);
     expect(d.step(0.1, 9.9, false, 0).map((h) => [h.time, h.pan])).toEqual([[6, -0.3]]);
   });
 
   it("replaces a line's tail with the newest event's", () => {
     const d = designer();
-    d.offer("a", LEAD, 5, 0, 0);
-    d.offer("c", LEAD, 6, 0, 0);
+    d.offer("a", LEAD, 5, 0);
+    d.offer("c", LEAD, 6, 0);
     expect(d.step(0.1, 9.9, false, 0).map((h) => `${h.cue}@${h.time}`)).toEqual(["c@8"]);
   });
 
   it("gives a repeat of the playing accent a dense tail", () => {
     const d = designer();
-    d.offer("a", LEAD, 5, 0, 0);
-    d.offer("a", LEAD, 6, 0, 0);
+    d.offer("a", LEAD, 5, 0);
+    d.offer("a", LEAD, 6, 0);
     expect(times(d.step(0.1, 9.9, false, 0))).toEqual([6.5, 7, 7.5, 8, 8.5, 9, 9.5]);
   });
 
   it("takes dense tails once the fight is hot", () => {
     const d = designer();
-    d.offer("a", LEAD, 5, 0, 5);
+    d.offer("a", LEAD, 5, 5);
     expect(d.step(0.1, 9.9, false, 0)).toHaveLength(7);
   });
 
   it("drops a stab too close to the last one on its line", () => {
     const d = designer();
-    d.offer("a", LEAD, 5, 0, 0);
-    expect(d.offer("c", LEAD, 5.2, 0, 0)).toEqual({ result: "crowded", stab: null });
-    expect(d.offer("b", LIGHT, 5.1, 0, 0).result).toBe("played");
+    d.offer("a", LEAD, 5, 0);
+    expect(d.offer("c", LEAD, 5.2, 0)).toEqual({ result: "crowded", stab: null });
+    expect(d.offer("b", LIGHT, 5.1, 0).result).toBe("played");
   });
 
   it("lets a light event sound by chance, lower while its line plays a tail", () => {
     const d = designer({ ...TUNING, busyFactor: 1 }, () => 0.5);
-    expect(d.offer("b", { ...LIGHT, chance: 0.6 }, 5, 0, 0).result).toBe("played");
-    expect(d.offer("c", { ...LIGHT, chance: 0.6 }, 6, 0, 0).result).toBe("skipped");
+    expect(d.offer("b", { ...LIGHT, chance: 0.6 }, 5, 0).result).toBe("played");
+    expect(d.offer("c", { ...LIGHT, chance: 0.6 }, 6, 0).result).toBe("skipped");
   });
 
   it("always plays a lead event", () => {
     const d = designer({ ...TUNING, busyFactor: 10 }, () => 0.99);
-    d.offer("a", LEAD, 5, 0, 0);
-    expect(d.offer("c", LEAD, 6, 0, 0).result).toBe("played");
+    d.offer("a", LEAD, 5, 0);
+    expect(d.offer("c", LEAD, 6, 0).result).toBe("played");
   });
 
   it("repeats the last lead phrase from bar lines pauseRepeats times in a pause, then rests", () => {
     const d = designer();
-    d.offer("a", LEAD, 1, 0, 0);
+    d.offer("a", LEAD, 1, 0);
     expect(times(d.step(0.1, 30, true, 0))).toEqual([3, 8, 10, 12, 14]);
   });
 
   it("rests after a tail when not paused", () => {
     const d = designer();
-    d.offer("a", LEAD, 1, 0, 0);
+    d.offer("a", LEAD, 1, 0);
     expect(times(d.step(0.1, 30, false, 0))).toEqual([3]);
   });
 
   it("adds a fill on the last slot of a lead tail by chance", () => {
     const d = designer({ ...TUNING, fillChance: 1 });
-    d.offer("a", LEAD, 4, 0, 0);
+    d.offer("a", LEAD, 4, 0);
     const hits = d.step(0.1, 7.9, false, 0);
     expect(times(hits)).toEqual([6, 7.5]);
     expect(hits[1].gain).toBe(0.5);
