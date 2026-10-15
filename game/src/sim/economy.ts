@@ -1,7 +1,6 @@
 
 import { chassisDef, PLAYER_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOODS } from "../data/goods";
-import { FURY_ROAD } from "../data/modes";
 import { shopDef } from "../data/market";
 import { UNITS } from "../data/units";
 import { partDef } from "../data/parts";
@@ -537,15 +536,11 @@ function costOf(world: World, parts: PartInstance[]): number {
 }
 
 export function repairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
-  return costOf(world, garageParts(world, truck)) * repairMarkup(world, truck);
+  return costOf(world, garageParts(world, truck));
 }
 
 export function basicsRepairCost(world: World, truck: Vehicle = playerVehicle(world)): number {
-  return costOf(world, basicParts(world, truck)) * repairMarkup(world, truck);
-}
-
-function repairMarkup(world: World, truck: Vehicle): number {
-  return world.furyRoad?.hauler.id === truck.id ? FURY_ROAD.hauler.repairMarkup : 1;
+  return costOf(world, basicParts(world, truck));
 }
 
 function allParts(v: Vehicle): PartInstance[] {

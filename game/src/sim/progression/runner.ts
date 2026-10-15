@@ -3,7 +3,6 @@ import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
-import { haulerGauge } from '../hauler-gauge';
 import { TERRAIN } from '../../data/terrain';
 import { alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
@@ -36,7 +35,6 @@ export type RoadStyle = 'escort' | 'sprinter';
 const PATCH_GOODS = 4;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
-const HAULER_REPAIR_BELOW = 0.7;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
@@ -174,7 +172,7 @@ function parkedTrucks(world: World): Vehicle[] {
 
 function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   for (const truck of parkedTrucks(o.world)) {
-    if (wantsRepair(o.world, truck)) repair(o, truck);
+    repair(o, truck);
     for (const kind of SUPPLIES) topUp(o, kind, truck);
   }
   buyPatchGoods(o);
@@ -184,10 +182,6 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
     return buyTruck(o, post, style);
   }
   restockEscort(o, post, style);
-}
-
-function wantsRepair(world: World, truck: Vehicle): boolean {
-  return truck.id !== haulerOf(world).id || haulerGauge(truck) < HAULER_REPAIR_BELOW;
 }
 
 function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {

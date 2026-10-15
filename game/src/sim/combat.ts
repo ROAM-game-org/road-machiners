@@ -84,10 +84,11 @@ export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): bo
 }
 
 function bothInWaves(world: World, a: Vehicle, b: Vehicle): boolean {
-  const groups = world.furyRoad?.groups;
-  if (!groups) return false;
-  const inWave = (v: Vehicle) => groups.some((g) => g.vehicles.includes(v.id));
-  return inWave(a) && inWave(b);
+  return isGroupTruck(world, a) && isGroupTruck(world, b);
+}
+
+function fireRank(world: World, shooter: Vehicle, target: Vehicle): number {
+  return target.id === world.furyRoad?.hauler.id && isGroupTruck(world, shooter) ? 0 : 1;
 }
 
 function isLawPair(a: Vehicle, b: Vehicle): boolean {
@@ -1061,7 +1062,7 @@ export function autoOrders(world: World, v: Vehicle): void {
   const seen = (x: Vehicle) => canVehicleSee(world, v, x.pos);
   const hostiles = world.vehicles
     .filter((x) => isHostile(world, v, x) && seen(x) && canNpcEngage(world, v, x))
-    .sort((a, b) => dist(v.pos, a.pos) - dist(v.pos, b.pos));
+    .sort((a, b) => fireRank(world, v, a) - fireRank(world, v, b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
   for (const mw of vehicleStats(world, v).weapons) {
     const target =
       hostiles.find(

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
-import { isHostile } from './combat';
+import { autoOrders, isHostile } from './combat';
+import { refreshVision } from './vision';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
 import { alongOf, milestoneAt, toRoad } from './highway';
@@ -10,7 +11,6 @@ import { toughness } from './fury-road-director';
 import { mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { damagePart, maxHp } from './wear';
-import { basicsRepairCost, repairCost } from './economy';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle, World } from './types';
 
@@ -98,6 +98,23 @@ describe('Chaos Highway waves', () => {
   });
 });
 
+describe('Chaos Highway fire', () => {
+  it('has a wave truck shoot the hauler when it reaches it, even with the gun truck nearer', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const hauler = haulerOf(w);
+    const me = playerVehicle(w);
+    truck.pos = { x: hauler.pos.x + 6, y: hauler.pos.y };
+    truck.heading = Math.PI;
+    me.pos = { x: hauler.pos.x + 3, y: hauler.pos.y + 1.5 };
+    refreshVision(w);
+    autoOrders(w, truck);
+    const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(targets.every((id) => id === hauler.id)).toBe(true);
+  });
+});
+
 describe('Chaos Highway nerve', () => {
   function hurt(v: Vehicle, share: number): void {
     for (const part of mountedParts(v)) damagePart(part, part.hp * share, 0);
@@ -125,25 +142,5 @@ describe('Chaos Highway nerve', () => {
     const plain = w.furyRoad!.groups[0];
     expect(hurtShare(truck, plain)).toBeCloseTo(0, 5);
     expect(hurtShare(truck, { ...plain, elite: true })).toBeGreaterThan(0);
-  });
-});
-
-describe('Chaos Highway repairs', () => {
-  function beaten(w: World, truck: Vehicle): void {
-    for (const part of mountedParts(truck, 'core')) damagePart(part, maxHp(part) / 2, 1);
-  }
-
-  it('prices the hauler repair at the hauler markup and the gun truck repair as anywhere else', () => {
-    const w = furyRoadWorld(3);
-    const hauler = haulerOf(w);
-    const me = playerVehicle(w);
-    beaten(w, hauler);
-    beaten(w, me);
-    const plain = { ...w, furyRoad: null };
-
-    expect(repairCost(w, hauler)).toBeCloseTo(repairCost(plain, hauler) * FURY_ROAD.hauler.repairMarkup);
-    expect(basicsRepairCost(w, hauler)).toBeCloseTo(basicsRepairCost(plain, hauler) * FURY_ROAD.hauler.repairMarkup);
-    expect(repairCost(w, me)).toBe(repairCost(plain, me));
-    expect(repairCost(w, hauler)).toBeGreaterThan(0);
   });
 });

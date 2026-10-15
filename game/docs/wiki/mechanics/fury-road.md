@@ -79,7 +79,7 @@ Between levels nothing spawns. A paid outpost is a garage, as a town garage is. 
 
 The outpost screen shows the truck and the hauler as a switch above the grid. The grid, the repair bar, the supplies and the Buy parts tab act on the one chosen. The hauler is chosen only while it is parked on the pad. The screen has three tabs:
 
-- Market: repair all or the basics at the garage price, four times that for the hauler, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
+- Market: repair all or the basics at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
 - Buy parts: each outpost stocks five guns, six armor parts, three engines, three cargo parts, three utility parts, both store parts and the scanner. No part appears twice. The stock is rolled from the seed and kept in the save. A part goes onto the truck's cargo cells if it fits, and into storage if not. The hauler refuses a gun.
 - Trucks: three chassis, drawn without repeats from every player chassis but the scout. The offer is a pure function of the seed and the milestone, and a bought truck leaves the offer. The price is the chassis value less the trade-in of the truck the player drives, or a payout when the trade-in is worth more. The swap is the town's, `swapChassis()`: the new chassis brings its own built-in parts, every fitted part is fitted again where it fits, then stowed, then stored, and the goods go back in cargo. Swap is disabled with the reason when the money is short or the goods would not fit the new truck. Fuel and supplies clamp to the new tanks.
 
@@ -94,7 +94,7 @@ A director plans each stretch's groups when the road opens, in `src/sim/fury-roa
 - Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch. A fraction rolls up or down, so stretches of one level differ.
 - Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
 - Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
-- Gear money: each truck's gear money is 17% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
+- Gear money: each truck's gear money is 15% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
 - Toughness: a plain truck spawns with its cab, drive and wheels at half their HP on stretch 1, 5 points more each stretch, whole from stretch 11.
 
 Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first, and spawns whole. A blocker is never elite.
@@ -117,7 +117,7 @@ A group of chasers comes from ahead, the left or the right, never from the side 
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
-Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 30% of that share either way. A group spawns once the hauler reaches its place. While a group truck that is not beaten is within 30 tiles of the hauler, the next group waits, but no longer than until the hauler is 100 tiles past its place. So beating a group buys the next quiet stretch, and outrunning one does not skip the next. Groups spawn in plan order, so a fight may meet a scene.
+Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 15% of that share either way. A group spawns once the hauler reaches its place, whether or not the last fight is over, so holding back from a fight never holds the next group back. Groups spawn in plan order, so a fight may meet a scene.
 
 Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler and hunts it every turn until the level ends. Each also holds a feud on the player, so the player's guns see it as hostile.
 
@@ -132,7 +132,7 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 30% of the HP it spawned with, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
 
-A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
+A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is also lost when its gauge empties. The gauge in the HUD is the hauler's part HP, armor included, above half of its full HP, so the meter reads empty at half. Every hit counts toward it, wheels and armor too, and armor on the hauler raises its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
 
 The death screen names the mode, the last outpost reached and how far north the truck got. It offers Load save, Restart run with the same settings and a new seed, and New game.
 

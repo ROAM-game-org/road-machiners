@@ -59,7 +59,7 @@ The escort plays as an NPC guard would.
 
 At each outpost the escort does this in order.
 
-- It repairs its own truck, and the hauler only below 75% condition, since the hauler's repairs cost four times as much. It tops up fuel and supplies and buys parts until it holds 4 for patching.
+- It repairs both trucks. It tops up fuel and supplies and buys parts until it holds 4 for patching.
 - It refits its own truck by the merc loadout, never below the hauler's hurry pace.
 - It spends up to half the money left on hauler armor.
 - It buys the most valuable truck on offer that it can afford and that keeps its parts count. The truck must keep the hauler's hurry pace as its top speed. Money it cannot spend on gear builds up toward that truck.
