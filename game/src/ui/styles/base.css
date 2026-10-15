@@ -123,7 +123,8 @@ body {
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-#ui:not(.touch) .touch-only {
+#ui:not(.touch) .touch-only,
+#ui.touch .no-touch {
   display: none;
 }
 #ui .info-touch {

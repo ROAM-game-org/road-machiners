@@ -169,6 +169,11 @@
   white-space: nowrap;
 }
 
+/* A reason opened by a click replaces the hover one, so only one shows. */
+#ui[data-pinned-tip] [data-reason]::after {
+  display: none;
+}
+
 /* A line of a tooltip breakdown: the label on the left in the UI face, the value on the right in mono. */
 .tooltip-row {
   display: flex;

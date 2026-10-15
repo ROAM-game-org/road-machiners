@@ -110,6 +110,7 @@ const REFUSALS: RefusalWords = {
   utilityPassive: (_, r) => t('refusal.utilityPassive', { part: partName(r.part) }),
   utilityOrder: (_, r) => t(`refusal.utilityOrder.${r.order}`, { part: partName(r.part) }),
   utilityBlocked: (_, r) => t('refusal.utilityBlocked', { part: partName(r.part), reason: t(`block.${r.block}`) }),
+  busy: (_, r) => t(`refusal.busy.${r.job}`),
   needsXp: (_, r) => t('refusal.needsXp', { cost: r.cost, have: r.have }),
 };
 

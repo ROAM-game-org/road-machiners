@@ -27,7 +27,7 @@ import {
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial } from "./cards";
+import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch, keyCorner } from "./switch";
@@ -299,8 +299,9 @@ export class Hud {
     return this.infoColumn;
   }
 
-  private toast(text: Msg): void {
+  private toast(text: Msg, refusal = false): void {
     setText(this.toastBox, text);
+    this.toastBox.classList.toggle("bad", refusal);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(
@@ -497,7 +498,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w));
+    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -636,6 +637,10 @@ export class Hud {
 
   logTexts(): string[] {
     return this.log.texts;
+  }
+
+  refuse(text: Msg): void {
+    this.toast(text, true);
   }
 
   note(w: World, text: Msg, cls: string): void {

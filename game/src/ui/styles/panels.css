@@ -329,6 +329,9 @@
   color: var(--accent);
   z-index: var(--z-toast);
 }
+#ui .toast.bad {
+  color: var(--danger-ink);
+}
 #ui .action {
   left: 50%;
   top: var(--hud-inset);
