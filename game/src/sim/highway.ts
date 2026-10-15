@@ -443,7 +443,11 @@ export function highwayMap(seed: number, window: number): BakedMap {
 }
 
 export function newMapFor(setup: WorldSetup, seed: number, icarus: BakedMap): BakedMap {
-  return modeMap(setup.mode) === 'highway' ? highwayMap(seed, 0) : icarus;
+  return mapAt(setup, seed, 0, icarus);
+}
+
+export function mapAt(setup: WorldSetup, seed: number, window: number, icarus: BakedMap): BakedMap {
+  return modeMap(setup.mode) === 'highway' ? highwayMap(seed, window) : icarus;
 }
 
 export function highwayLine(seed: number, window: number): Vec[] {

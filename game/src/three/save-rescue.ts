@@ -1,11 +1,12 @@
 
 import type { StartKit } from '../data/start';
 import type { BakedMap } from '../sim/terrain';
-import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarryReport } from '../sim/world';
+import { carriedWorld, type Carried, type CarriedItem, type CarriedPart, type CarriedRun, type CarryReport } from '../sim/world';
+import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
-import { newMapFor, savedRunId, storedSave, writeSave } from './save';
+import { savedRunId, storedSave, writeSave } from './save';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -67,17 +68,52 @@ function goodItemOf(item: Json, spot: NonNullable<ReturnType<typeof spotOf>>): C
   return item.kind === 'good' && good !== null ? { ...spot, kind: 'good', good } : null;
 }
 
+function vehicleOf(world: Json, id: unknown): Json | null {
+  return listOf(world.vehicles).map(objectOf).find((v) => v !== null && v.id === id) ?? null;
+}
+
+function itemsOf(vehicle: Json): CarriedItem[] {
+  return listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
+}
+
 function truckOf(world: Json, player: Json): Carried['truck'] {
-  const vehicle = listOf(world.vehicles).map(objectOf).find((v) => v !== null && v.id === player.vehicleId);
+  const vehicle = vehicleOf(world, player.vehicleId);
   const chassisId = idOf(vehicle?.chassisId);
   if (!vehicle || chassisId === null) return null;
-  const items = listOf(vehicle.items).map(itemOf).filter((it): it is CarriedItem => it !== null);
-  return { chassisId, items };
+  return { chassisId, items: itemsOf(vehicle) };
+}
+
+function runOf(world: Json, scale: number): CarriedRun | null {
+  const run = objectOf(world.furyRoad);
+  if (!run || !('hauler' in run)) return null;
+  const window = windowOf(run.window);
+  const hauler = vehicleOf(world, objectOf(run.hauler)?.id);
+  if (window === null || !hauler) throw new Error(`The Chaos Highway run in this save has no readable window or hauler, so it cannot be rescued`);
+  return carriedRun(run, window, hauler, scale);
+}
+
+function windowOf(value: unknown): number | null {
+  return isGridInt(value) && value >= 0 ? value : null;
+}
+
+function carriedRun(run: Json, window: number, hauler: Json, scale: number): CarriedRun {
+  const from = run.waitingAt === window + 1 ? window + 1 : window;
+  return { from, earned: centsOf(run.earned, scale) ?? 0, wrecks: countOf(run.wrecks) ?? 0, trucksSold: soldAt(run, from), hauler: haulerTruckOf(hauler) };
+}
+
+function haulerTruckOf(hauler: Json): CarriedRun['hauler'] {
+  const stores = objectOf(hauler.resources);
+  return { items: itemsOf(hauler), fuel: countOf(stores?.fuel), supplies: countOf(stores?.supplies) };
+}
+
+function soldAt(run: Json, milestone: number): string[] {
+  const post = listOf(run.outposts).map(objectOf).find((o) => o !== null && o.milestone === milestone);
+  return listOf(post?.trucksSold).flatMap((id) => idOf(id) ?? []);
 }
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} },
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null,
 };
 
 export function readCarried(raw: unknown): Carried {
@@ -102,6 +138,7 @@ export function readCarried(raw: unknown): Carried {
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
     setup: world.setup,
     quests: questVarsOf(player.quests),
+    run: runOf(world, scale),
   };
 }
 
@@ -130,7 +167,7 @@ function pooledOf(player: Json): Pick<Carried, 'xp' | 'ranks'> {
 export function rescueSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap, kit: StartKit, freshSeed: () => number, freshRunId: () => string, savedAt: number): { world: World; report: CarryReport; runId: string } | null {
   const parsed = storedSave(slots, slot);
   if (objectOf(parsed) === null) return null;
-  const rescued = carriedWorld(readCarried(parsed), kit, (setup, seed) => newMapFor(setup, seed, icarus), freshSeed);
+  const rescued = carriedWorld(readCarried(parsed), kit, (setup, seed, window) => mapAt(setup, seed, window, icarus), freshSeed);
   const runId = savedRunId(parsed) ?? freshRunId();
   writeSave(slots, slot, rescued.world, runId, savedAt);
   return { ...rescued, runId };

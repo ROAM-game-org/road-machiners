@@ -97,23 +97,25 @@ export function outpostTrucks(world: World, post: OutpostFacts): string[] {
 export type Pose = { pos: Vec; heading: number };
 
 export function startRun(world: World): void {
-  if (world.terrain.atlas.kind !== 'highway' || world.terrain.atlas.window !== 0) throw new Error(`A Fury Road run starts on highway window 0, not map ${world.mapHash}`);
-  const hauler = spawnHauler(world);
-  const start = { ...outpostFacts(world, 0), paid: true };
-  world.player.discovered.push(outpostId(0));
-  world.furyRoad = { window: 0, outposts: [start, outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, waitingAt: 0, hauler: { id: hauler.id, alarmUntil: null } };
+  const atlas = world.terrain.atlas;
+  if (atlas.kind !== 'highway') throw new Error(`A Fury Road run starts on a highway, not map ${world.mapHash}`);
+  const from = atlas.window;
+  const hauler = spawnHauler(world, from);
+  const start = { ...outpostFacts(world, from), paid: true };
+  world.player.discovered.push(outpostId(from));
+  world.furyRoad = { window: from, outposts: [start, outpostFacts(world, from + 1)], groups: stretchPlan(world, from + 1), earned: 0, wrecks: 0, waitingAt: from, hauler: { id: hauler.id, alarmUntil: null } };
 }
 
-export function runStart(seed: number, playerChassis: string): { player: Pose; hauler: Pose } {
-  const pad = sitePads(outpostFort(seed, 0, 0))[0];
-  const heading = roadHeading(seed, milestoneAt(0));
+export function runStart(seed: number, playerChassis: string, from: number): { player: Pose; hauler: Pose } {
+  const pad = sitePads(outpostFort(seed, from, from))[0];
+  const heading = roadHeading(seed, milestoneAt(from));
   const half = (chassisDef(HAULER_KIT.chassis).radius + chassisDef(playerChassis).radius + RULES.yieldDistance) / 2;
   const at = (ahead: number): Pose => ({ pos: { x: pad.x + Math.cos(heading) * ahead, y: pad.y + Math.sin(heading) * ahead }, heading });
   return { player: at(-half), hauler: at(half) };
 }
 
-export function spawnHauler(world: World): Vehicle {
-  const start = runStart(world.seed, playerVehicle(world).chassisId).hauler;
+export function spawnHauler(world: World, from: number): Vehicle {
+  const start = runStart(world.seed, playerVehicle(world).chassisId, from).hauler;
   const v = makeVehicle(world, {
     faction: 'player',
     chassisId: HAULER_KIT.chassis,

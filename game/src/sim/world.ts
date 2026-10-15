@@ -7,12 +7,13 @@ import { MAX_RANK, PERKS, SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { CONDITION } from '../data/wear';
 import { RULES } from '../data/rules';
 import type { StartKit } from '../data/start';
-import { findPart, playerVehicle } from './damage';
+import { findPart, haulerOf, playerTrucks, playerVehicle } from './damage';
 import { makePart, makeVehicle, newId } from './factory';
 import { gridOf, placementError } from './grid';
 import { addGoods } from './inventory';
 import { isPerkId, pickedFromPair, skillLevel } from './progress';
-import { fitStores } from './resources';
+import { fitStores, getResources } from './resources';
+import { isOutpostSite } from './highway';
 import { generateObstacles, touchesObstacle } from './mapgen';
 import { atlasOf, icarusAtlas } from './atlas';
 import type { BakedMap } from './terrain';
@@ -44,7 +45,7 @@ import { advanceAid, readyAid } from './aid';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
-import { advanceFuryRoad, runStart, startRun } from './fury-road';
+import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
@@ -203,7 +204,7 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
 }
 
 export function startOf(seed: number, setup: WorldSetup, chassisId: string): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'highway' ? runStart(seed, chassisId).player : startPose();
+  return modeMap(setup.mode) === 'highway' ? runStart(seed, chassisId, 0).player : startPose();
 }
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
@@ -507,6 +508,15 @@ export type Carried = {
   storage: CarriedPart[];
   setup: unknown;
   quests: CarriedQuestVars;
+  run: CarriedRun | null;
+};
+
+export type CarriedRun = {
+  from: number;
+  earned: number;
+  wrecks: number;
+  trucksSold: string[];
+  hauler: { items: CarriedItem[]; fuel: number | null; supplies: number | null };
 };
 
 export type CarryReport = {
@@ -518,24 +528,50 @@ export type CarryReport = {
 
 const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
-export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
+export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
   const { setup, reset } = carriedSetup(carried.setup);
   const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
   const seed = pick(carried.seed, freshSeed());
-  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup, truckKit.chassis));
+  const run = modeRulesOf(setup.mode).run ? carried.run : null;
+  const from = startOutpost(run);
+  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, truckKit.chassis, from));
   carryPlayer(world, carried);
   carryQuests(world, carried.quests, report);
-  carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
-  world.player.costBasis = heldBasis(playerVehicle(world), carried.costBasis);
-  fitStores(world, playerVehicle(world));
+  carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
+  if (run) carryRun(world, run, report);
+  world.player.costBasis = heldBasis(world, carried.costBasis);
+  for (const truck of playerTrucks(world)) fitStores(world, truck);
   refreshVision(world);
   world.events = [];
   return { world, report };
 }
 
-function carriedStart(seed: number, setup: WorldSetup, chassisId: string): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup, chassisId);
+function carriedStart(seed: number, setup: WorldSetup, chassisId: string, from: number): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'icarus' ? townStart() : runStart(seed, chassisId, from).player;
+}
+
+function startOutpost(run: CarriedRun | null): number {
+  return run === null ? 0 : run.from;
+}
+
+function carryPlayerTruck(world: World, carried: Carried, stay: boolean, report: CarryReport): void {
+  const garage = carryTruck(world, playerVehicle(world), carried.truck?.items ?? [], stay, report);
+  storeParts(world, [...carried.storage, ...garage], report);
+}
+
+function carryRun(world: World, carried: CarriedRun, report: CarryReport): void {
+  const run = world.furyRoad;
+  if (!run) throw new Error('A carried Chaos Highway run needs a world with a run');
+  run.earned = carried.earned;
+  run.wrecks = carried.wrecks;
+  outpostFactsAt(world, carried.from).trucksSold = [...carried.trucksSold];
+  const hauler = haulerOf(world);
+  hauler.items = hauler.items.filter((it) => it.kind === 'part' && isCore(it.part.defId));
+  storeParts(world, carryTruck(world, hauler, carried.hauler.items, true, report), report);
+  const stores = getResources(world, hauler);
+  stores.fuel = pick(carried.hauler.fuel, stores.fuel);
+  stores.supplies = pick(carried.hauler.supplies, stores.supplies);
 }
 
 function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {
@@ -565,12 +601,16 @@ function carryPlayer(world: World, c: Carried): void {
     autoRepair: pick(c.autoRepair, p.autoRepair),
     fuel: pick(c.fuel, p.fuel),
     supplies: pick(c.supplies, p.supplies),
-    discovered: c.discovered.filter((id) => KNOWN_SITES.has(id)),
+    discovered: [...new Set([...p.discovered, ...c.discovered.filter((id) => knownSite(world, id))])],
   });
   p.xp = Math.max(0, pick(c.xp, 0));
   for (const skill of SKILL_IDS) p.ranks[skill] = Math.min(MAX_RANK, Math.max(0, Math.floor(pick(c.ranks[skill], 0))));
   for (const source of Object.keys(XP_SOURCES) as XpSource[]) p.xpBySource[source] = pick(c.xpBySource[source], 0);
   carryPerks(world, c.perks);
+}
+
+function knownSite(world: World, id: string): boolean {
+  return KNOWN_SITES.has(id) || (world.furyRoad !== null && isOutpostSite(id));
 }
 
 function carryQuests(world: World, carried: CarriedQuestVars, report: CarryReport): void {
@@ -586,27 +626,30 @@ function carryPerks(world: World, perks: string[]): void {
   }
 }
 
-function heldBasis(truck: Vehicle, basis: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(basis).filter(([good]) => truck.items.some((it) => it.kind === 'good' && it.good === good)));
+function heldBasis(world: World, basis: Record<string, number>): Record<string, number> {
+  const held = (good: string) => playerTrucks(world).some((truck) => truck.items.some((it) => it.kind === 'good' && it.good === good));
+  return Object.fromEntries(Object.entries(basis).filter(([good]) => held(good)));
 }
 
-function carryTruck(world: World, c: Carried, stay: boolean, report: CarryReport): void {
-  const truck = playerVehicle(world);
+type TruckCarry = { truck: Vehicle; stay: boolean; coresDone: Set<string> };
+
+function carryTruck(world: World, truck: Vehicle, items: CarriedItem[], stay: boolean, report: CarryReport): CarriedPart[] {
+  const into: TruckCarry = { truck, stay, coresDone: new Set() };
   const goods: Record<string, number> = {};
-  const garage: CarriedPart[] = [...c.storage];
-  for (const item of c.truck?.items ?? []) {
+  const garage: CarriedPart[] = [];
+  for (const item of items) {
     if (item.kind === 'good') goods[item.good] = pick(goods[item.good], 0) + 1;
-    else if (!carryPartItem(world, truck, item, stay, report)) garage.push(item.part);
+    else if (!carryPartItem(world, into, item, report)) garage.push(item.part);
   }
-  storeParts(world, garage, report);
   carryGoods(world, truck, goods, stay, report);
+  return garage;
 }
 
-function carryPartItem(world: World, truck: Vehicle, item: CarriedItem & { kind: 'part' }, stay: boolean, report: CarryReport): boolean {
+function carryPartItem(world: World, into: TruckCarry, item: CarriedItem & { kind: 'part' }, report: CarryReport): boolean {
   const { defId } = item.part;
   if (!isKnownPart(defId)) report.lost.push(defId);
-  else if (isCore(defId)) carryCore(world, truck, item.part, stay);
-  else if (stay && placePart(world, truck, item)) return true;
+  else if (isCore(defId)) carryCore(world, into, item.part);
+  else if (into.stay && placePart(world, into.truck, item)) return true;
   else report.toGarage.push(defId);
   return !isKnownPart(defId) || isCore(defId);
 }
@@ -639,9 +682,10 @@ function carryPart(world: World, c: CarriedPart): PartInstance {
   return part;
 }
 
-function carryCore(world: World, truck: Vehicle, c: CarriedPart, stay: boolean): void {
-  const core = truck.items.find((it) => it.kind === 'part' && it.part.defId === c.defId);
-  if (!stay || core?.kind !== 'part') return;
+function carryCore(world: World, into: TruckCarry, c: CarriedPart): void {
+  const core = into.truck.items.find((it) => it.kind === 'part' && it.part.defId === c.defId && !into.coresDone.has(it.id));
+  if (!into.stay || core?.kind !== 'part') return;
+  into.coresDone.add(core.id);
   const carried = carryPart(world, c);
   core.part.wear = Math.min(carried.wear, CONDITION.maxWear);
   carryHp(core.part, carried.hp);
