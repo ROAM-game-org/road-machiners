@@ -195,16 +195,16 @@ function backingOut(world: World, hauler: Vehicle): boolean {
   return order?.kind === 'stopAt' && dist(order.dest, outpostPad(world, runOf(world).window + 1)) > 0 && !heldInPlace(hauler);
 }
 
-function nearPadOrParked(world: World, hauler: Vehicle): boolean {
-  return betweenLevels(world) || dist(hauler.pos, outpostPad(world, runOf(world).window + 1)) <= HAULER.approach;
+function parkedOrOnPad(world: World, hauler: Vehicle): boolean {
+  return betweenLevels(world) || onOutpostPad(world, hauler.pos, runOf(world).window + 1);
 }
 
 function wedged(hauler: Vehicle): boolean {
-  return hauler.order?.kind === 'through' && heldInPlace(hauler);
+  return (hauler.order?.kind === 'through' || hauler.order?.kind === 'stopAt') && heldInPlace(hauler);
 }
 
 function recoveryOrder(world: World, hauler: Vehicle): MoveOrder | null {
-  if (nearPadOrParked(world, hauler)) return null;
+  if (parkedOrOnPad(world, hauler)) return null;
   if (backingOut(world, hauler)) return hauler.order;
   return wedged(hauler) ? { kind: 'stopAt', dest: backOutSpot(world, hauler) } : null;
 }

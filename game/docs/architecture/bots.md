@@ -56,7 +56,7 @@ The escort plays as an NPC guard would.
 - It parks out of combat to patch any broken core part.
 - It ends the run when it is stranded and cannot patch.
 - It backs out like an NPC. After `RULES.npcStuckTurns` turns held in place away from its order point, it reverses behind itself for `RULES.npcRecoveryTurns` turns.
-- At a paid outpost it parks on the side of the pad away from the hauler.
+- Once the hauler heads in to the pad, it parks on the side of the pad away from the hauler. It keeps fighting while a foe is on it, and backs out of a stall on the way in as on the road.
 
 At each outpost the escort does this in order.
 

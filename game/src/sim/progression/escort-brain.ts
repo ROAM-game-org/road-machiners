@@ -98,9 +98,13 @@ export function killPriority(world: World, me: Vehicle, foe: Vehicle): number {
 export type Stall = { turn: number; at: Vec; stalled: number; recovery: number; goal: Vec | null };
 
 export function escortMove(world: World, me: Vehicle, foe: Vehicle | null, stall: Stall): MoveOrder {
+  return unlessStuck(world, me, stall, () => (foe ? fightMove(world, me, foe) : followMove(world, me, haulerOf(world))));
+}
+
+export function unlessStuck(world: World, me: Vehicle, stall: Stall, move: () => MoveOrder): MoveOrder {
   noteStall(world, me, stall);
   if (stall.recovery > 0 && stall.goal) return { kind: 'stopAt', dest: stall.goal };
-  return foe ? fightMove(world, me, foe) : followMove(world, me, haulerOf(world));
+  return move();
 }
 
 function noteStall(world: World, me: Vehicle, stall: Stall): void {

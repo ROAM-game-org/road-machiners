@@ -190,6 +190,23 @@ describe('the hauler driver', () => {
     expect(hauler.order).toEqual(drive);
   });
 
+  it('backs out when it is held short of the pad on its way in, and not once it is on the pad', () => {
+    const { w, hauler } = openRoad();
+    const pad = outpostPad(w, 1);
+    hauler.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 1) - 10, LANES[1]);
+    hauler.order = { kind: 'stopAt', dest: pad };
+    hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];
+    planHaulerOrder(w);
+    expect(hauler.order?.kind).toBe('stopAt');
+    expect(dist((hauler.order as { dest: { x: number; y: number } }).dest, pad)).toBeGreaterThan(0);
+
+    hauler.pos = { ...pad };
+    hauler.order = { kind: 'stopAt', dest: pad };
+    hauler.trail = [{ ...pad, heading: hauler.heading }, { ...pad, heading: hauler.heading }];
+    planHaulerOrder(w);
+    expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
+  });
+
   it('does not back out after a turn parked or braking, only after a drive order that went nowhere', () => {
     const { w, hauler } = openRoad();
     hauler.trail = [{ ...hauler.pos, heading: hauler.heading }, { ...hauler.pos, heading: hauler.heading }];

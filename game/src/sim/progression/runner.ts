@@ -20,11 +20,11 @@ import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
-import type { PartInstance, Vehicle, WeaponOrder, World } from '../types';
+import type { MoveOrder, PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { escortFoe, escortMove, gunTarget, hostilesSeen, type Stall } from './escort-brain';
+import { escortFoe, escortMove, gunTarget, hostilesSeen, unlessStuck, type Stall } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck, keepsPace } from './escort-tactics';
@@ -109,11 +109,20 @@ function drive(o: Orders, style: RoadStyle): void {
 
 function escort(o: Orders): void {
   const hauler = haulerOf(o.world);
-  if (haulerAtPad(o.world, hauler)) return driveTo(o, beside(o.world, outpostPad(o.world, o.world.furyRoad!.window + 1), hauler));
   const foe = escortFoe(o.world, o.me);
-  const order = escortMove(o.world, o.me, foe, stallOf(o.world, o.me));
-  o.run((w) => setMoveOrder(w, order));
+  const stall = stallOf(o.world, o.me);
+  const parking = !foe && haulerAtPad(o.world, hauler);
+  const order = parking ? unlessStuck(o.world, o.me, stall, () => parkBeside(o.world, hauler)) : escortMove(o.world, o.me, foe, stall);
+  if (!sameMove(o.me.order, order)) o.run((w) => setMoveOrder(w, order));
   if (foe) focusFire(o, foe);
+}
+
+function parkBeside(world: World, hauler: Vehicle): MoveOrder {
+  return { kind: 'stopAt', dest: beside(world, outpostPad(world, world.furyRoad!.window + 1), hauler) };
+}
+
+function sameMove(a: MoveOrder | null, b: MoveOrder): boolean {
+  return a?.kind === 'stopAt' && b.kind === 'stopAt' && a.dest.x === b.dest.x && a.dest.y === b.dest.y;
 }
 
 const STALLS = new Map<string, Stall>();
@@ -148,7 +157,9 @@ function sameOrder(a: WeaponOrder | null, b: WeaponOrder | null): boolean {
 
 function haulerAtPad(world: World, hauler: Vehicle): boolean {
   const run = world.furyRoad!;
-  if (hauler.order?.kind === 'stopAt' || onOutpostPad(world, hauler.pos, run.window + 1)) return true;
+  const pad = outpostPad(world, run.window + 1);
+  const toPad = hauler.order?.kind === 'stopAt' && dist(hauler.order.dest, pad) === 0;
+  if (toPad || onOutpostPad(world, hauler.pos, run.window + 1)) return true;
   return run.outposts.find((p) => p.milestone === run.window + 1)?.paid === true;
 }
 
