@@ -9,8 +9,10 @@ import { closeMerged } from './approval';
 import { BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, oneSuiteAtATime, runChecks } from './checks';
 import { guardAgainstAll } from '../diff-guard';
-import { BASE_BRANCH, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
+import { BASE_BRANCH, HOTFIX_BASE, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
+import { recordPassed } from './integration';
+import { FULL_STEPS } from '../check-evidence';
 
 export async function merge(ctx: Ctx): Promise<void> {
   const batch = await nextBatch(ctx);
@@ -45,7 +47,7 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
   await settle(ctx, base, cards);
 }
 
-export type Landing = { stage: 'merge' | 'ship'; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
+export type Landing = { stage: 'merge' | 'ship' | 'approve'; dir: string; into: string; guardAgainst: string[]; agent: (prompt: string) => Promise<string>; clock?: Clock };
 
 type Phase = 'merges' | 'checks' | 'fixes' | 'remerges' | 'pushes';
 type Clock = Record<Phase, { ms: number; count: number }>;
@@ -151,13 +153,14 @@ async function pushed(ctx: Ctx, land: Landing): Promise<boolean> {
   guardAgainstAll(await Promise.all(land.guardAgainst.map((branch) => ctx.repo.diff(branch, head))));
   try {
     await ctx.repo.push(head, land.into);
-    return true;
   } catch (error) {
     await ctx.repo.fetch();
     if (await ctx.repo.isMerged(land.into, head)) throw error;
     ctx.log(land.stage, null, `${land.into} moved during the checks, merging it in again`);
     return false;
   }
+  if (land.into === HOTFIX_BASE) await recordPassed(ctx, head, { ran: FULL_STEPS, reused: [], by: land.stage, issue: null });
+  return true;
 }
 
 async function settle(ctx: Ctx, base: string, cards: Card[]): Promise<void> {

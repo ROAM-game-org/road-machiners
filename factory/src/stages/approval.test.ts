@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { solidPng } from '../media-fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeState, readState, EMPTY_STATE } from '../state';
-import { MergeConflictError, type Column, type Ctx, type MergeStep } from '../types';
+import { type Column, type Ctx, type MergeStep } from '../types';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { approve, closeCard, deny, routeFeedback } = await import('./approval');
@@ -14,6 +14,7 @@ let calls: string[] = [];
 let column: Column = 'Approval';
 let openPr: string | null = null;
 let labels: string[] = [];
+let mainMoved = false;
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -22,6 +23,7 @@ beforeEach(() => {
   column = 'Approval';
   openPr = null;
   labels = [];
+  mainMoved = false;
   writeState(`${home}/state.json`, { ...EMPTY_STATE, approvalPosts: { 100: 7, 101: 7, 200: 8 }, pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111', 8: 'bbb2222' } });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
@@ -49,7 +51,12 @@ function fakeCtx(): Ctx {
         mkdirSync(`${String(args[2])}/game/dist`, { recursive: true });
         writeFileSync(`${String(args[2])}/game/dist/index.js.map`, '{}');
       },
-      merge: async (steps: MergeStep[]) => { for (const step of steps) calls.push(`merge ${step.branch} ${step.into} ${step.message}`); calls.push(`push ${steps.map((step) => step.into).join(' ')}`); },
+      merge: async (steps: MergeStep[]) => { for (const step of steps) calls.push(`merge ${step.branch} ${step.into} ${step.message}`); calls.push(`push ${steps.map((step) => step.into).join(' ')}`); return true; },
+      fetchFromWork: async () => (calls.push('fetchFromWork') && calls.filter((call) => call === 'fetchFromWork').length % 2 === 1 ? 'main1' : 'merged1'),
+      mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
+      parentsOf: async () => ['main1', 'hotfix1'],
+      treeOf: async (ref: string) => (ref === 'main1' ? 'tree-main' : mainMoved && ref === 'merged1' ? 'tree-merged' : 'tree-hotfix'),
+      changedFiles: async () => [],
     },
   };
   return fake as unknown as Ctx;
@@ -73,7 +80,7 @@ describe('approve', () => {
     writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' } });
     await approve(fakeCtx(), 7, 'bob');
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
-    expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
+    expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell') && call !== 'fetchFromWork')).toEqual([
       'fetch ',
       'merge factory/issue-7 main Hotfix #7: Big horn',
       'merge main dev Merge main into dev after hotfix #7',
@@ -81,10 +88,10 @@ describe('approve', () => {
       'run git rev-parse',
       'run butler push',
       `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
-      'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.',
+      'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.\n\nNo check ran again, since main brought no change the hotfix lacks, so the merge holds exactly the code the committee played. It reuses no earlier checks.',
       'close 7 completed',
       'move 7 Done',
-      'message chat Hotfix #7 Big horn is on main and itch.io.',
+      'message chat Hotfix #7 Big horn is on main and itch.io. No check ran again, since main brought no change the hotfix lacks, so the merge holds exactly the code the committee played. It reuses no earlier checks.',
     ]);
     const state = readState(`${home}/state.json`);
     expect(state.release?.postId).toBe(300);
@@ -93,16 +100,33 @@ describe('approve', () => {
     expect(state.pendingIncidents).toEqual([7]);
   });
 
-  it('sends a hotfix that conflicts with main back to Testing, which merges main and posts again', async () => {
+  it('sends a hotfix whose merge with a moved main fails its checks back to Testing, ships nothing and drops the approval', async () => {
     labels = ['bug', 'hotfix'];
+    mainMoved = true;
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, approvalPosts: { 100: 7, 200: 8 }, pendingApprovals: { 7: 'bob' }, builds: { 7: 'hotfix1', 8: 'bbb2222' } });
     const ctx = fakeCtx();
-    ctx.repo.merge = async ([step]: MergeStep[]) => { throw new MergeConflictError(step, ['game/src/a.ts'], 'boom', 'b1', 's1'); };
+    ctx.container.shell = async () => { calls.push('shell'); throw new Error('Error: expected 2 to be 3'); };
     await approve(ctx, 7, 'bob');
+    const comments = calls.filter((call) => call.startsWith('comment') || call.startsWith('move'));
+    expect(comments).toHaveLength(2);
+    expect(comments[0]).toContain('Approved by bob, but the typecheck, the suite, the playtest and the build failed on its merge with main main1');
+    expect(comments[0]).toContain('Error: expected 2 to be 3');
+    expect(comments[0]).toContain('Nothing shipped. Testing fixes it and posts the build again, and the committee approves the new build.');
+    expect(comments[1]).toBe('move 7 Testing');
+    expect(calls.some((call) => call.startsWith('merge') || call.startsWith('push') || call.startsWith('run butler'))).toBe(false);
+    const state = readState(`${home}/state.json`);
+    expect(state.approvalPosts).toEqual({ 200: 8 });
+    expect(state.pendingApprovals).toEqual({});
+  });
+
+  it('ships nothing and sends a hotfix back to Testing when its branch moved after the committee played it', async () => {
+    labels = ['bug', 'hotfix'];
+    await approve(fakeCtx(), 7, 'bob');
     expect(calls.filter((call) => call.startsWith('comment') || call.startsWith('move'))).toEqual([
-      'comment 7 Approved by bob, but main moved on and the branch conflicts with it in game/src/a.ts. Testing merges main again and posts the build again.',
+      'comment 7 Approved by bob, but the hotfix branch moved to hotfix1 after the committee played aaa1111.\n\nNothing shipped. Testing fixes it and posts the build again, and the committee approves the new build.',
       'move 7 Testing',
     ]);
-    expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
+    expect(calls.some((call) => call.startsWith('merge') || call === 'shell')).toBe(false);
   });
 
   it('refuses a hotfix without itch.io keys before any git call', async () => {

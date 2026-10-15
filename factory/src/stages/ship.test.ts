@@ -2,6 +2,7 @@ import { stepScript } from '../activity';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { evidenceFor } from '../check-evidence';
 import { readPublished } from '../sourcemaps';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import type { Card, ReleaseState } from '../types';
@@ -9,6 +10,7 @@ import { CLONE_SHA, ROOT, fake, reset, type Fake } from './test-fakes';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { ship } = await import('./ship');
+const { currentToolchain } = await import('./integration');
 
 const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [6], tasks: [], candidateSha: 'abc1234', playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const done = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Done', labels });
@@ -40,6 +42,7 @@ describe('ship', () => {
     await ship(f.ctx, 11, 'Ann');
     const at = (name: string) => f.calls.findIndex((call) => call.startsWith(name));
     expect(at('push work-head main')).toBeLessThan(at('merge main dev'));
+    expect(evidenceFor(ROOT, 'tree-work-head', currentToolchain(f.ctx))).toMatchObject({ commit: 'work-head', ran: ['typecheck', 'suite', 'playtest', 'build'], reused: [], by: 'ship' });
     expect(at('push dev')).toBeLessThan(at('run butler'));
     expect(shells.at(-1)).toEqual({ script: stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), env: { SAVE_SCOPE: '', ERROR_REPORT_URL: 'https://play.test/errors', ERROR_REPORT_BUILD: 'release', FEEDBACK_URL: 'https://play.test/feedback' } });
     expect(shells[0].env).toMatchObject({ BUILD_SCOPE: 'ship', TEST_STALL_MINUTES: '15' });

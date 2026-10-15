@@ -78,7 +78,7 @@ A branch whose every changed file since its base is a Markdown file outside `gam
 ## Approval
 
 - Approve on a previewed card records the approver in `approvedResolving` and moves the card to Hardening.
-- Approve on a hotfix ships it at once. A hotfix that conflicts with `main` goes back to Testing.
+- Approve on a hotfix ships it at once, after the checks its merge with a moved `main` needs. A failed check sends it back to Testing.
 - Deny labels the issue `wont-do` and closes it and its pull request as not planned.
 
 ## Approval replies
@@ -130,7 +130,7 @@ Ship runs on the current candidate post only, with no release task open and the 
 
 ## Hotfix
 
-A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges and ships it like a release. A GitHub release tagged `hotfix-<day>-issue-<N>` gets a one-line changelog, and the committee chat says the hotfix shipped. The public channel gets nothing. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
+A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges it in `work/hotfix-main`, runs only the checks the merge needs by the check reuse rule of [process.md](process.md#check-reuse-at-hotfix-approve), and ships it like a release. Its evidence lives in `$FACTORY_HOME/check-evidence.json`. A GitHub release tagged `hotfix-<day>-issue-<N>` gets a one-line changelog, and the committee chat says the hotfix shipped. The public channel gets nothing. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
 
 ## Incident
 

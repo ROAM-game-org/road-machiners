@@ -86,7 +86,11 @@ export function fake(): Fake {
           if (open) throw new MergeConflictError(step, ['game/src/a.ts'], 'boom', `${step.into}-tip`, `${step.branch}-tip`);
         }
         note(`push ${steps.map((step) => step.into).join(' ')}`);
+        return true;
       },
+      treeOf: async (ref: string) => `tree-${ref}`,
+      parentsOf: async () => ['main-tip', 'hotfix-tip'],
+      changedFiles: async () => [],
       openConflict: async (dir: string, conflict: MergeConflictError | RevertConflictError) => { note(`open ${conflict.into}`); mkdirSync(dir, { recursive: true }); },
       closeConflict: async (_dir: string, conflict: MergeConflictError | RevertConflictError) => {
         note(`close ${conflict.into}`);

@@ -23,46 +23,26 @@ else
   npm test
 fi`;
 
-export const checkScript = (playtest: string) => `set -e
+const SCRIPT_HEAD = `set -e
 step() { echo "[checks] $(date -u +%T) $1"; }
 mkdir -p tmp
 step "npm ci"
 npm ci
-step "tests and typecheck"
+`;
+
+const TESTS_AND_TYPECHECK = `step "tests and typecheck"
 npm run typecheck > tmp/typecheck.log 2>&1 &
 typecheck=$!
 ${CACHED_SUITE}
 step "tests done"
 if ! wait "$typecheck"; then cat tmp/typecheck.log; exit 1; fi
-step "dev server"
-npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
-server=$!
-ready=0
-for i in $(seq 1 60); do
-  if curl -sf http://localhost:5173 > /dev/null; then ready=1; break; fi
-  sleep 1
-done
-if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
-step "playtest"
-set +e
-${playtest}
-code=$?
-kill "$server"
-if [ "$code" -ne 0 ]; then exit "$code"; fi
-set -e
-step "build"
-SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
 `;
 
-export const previewScript = (playtest: string) => `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
-mkdir -p tmp
-step "npm ci"
-npm ci
-step "typecheck"
+const TYPECHECK = `step "typecheck"
 npm run typecheck
-step "dev server"
+`;
+
+const playtestBlock = (playtest: string) => `step "dev server"
 npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
 server=$!
 ready=0
@@ -78,20 +58,22 @@ code=$?
 kill "$server"
 if [ "$code" -ne 0 ]; then exit "$code"; fi
 set -e
-step "build"
-SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
 `;
 
-export const buildScript = `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
-mkdir -p tmp
-step "npm ci"
-npm ci
-step "build"
+const BUILD = `step "build"
 SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
 `;
+
+const SCRIPT_END = `step "done"
+`;
+
+export const checkScript = (playtest: string) => `${SCRIPT_HEAD}${TESTS_AND_TYPECHECK}${playtestBlock(playtest)}${BUILD}${SCRIPT_END}`;
+
+export const previewScript = (playtest: string) => `${SCRIPT_HEAD}${TYPECHECK}${playtestBlock(playtest)}${BUILD}${SCRIPT_END}`;
+
+export const buildScript = `${SCRIPT_HEAD}${BUILD}${SCRIPT_END}`;
+
+export const integrationScript = (playtest: string | null) => `${SCRIPT_HEAD}${TESTS_AND_TYPECHECK}${playtest === null ? '' : playtestBlock(playtest)}${SCRIPT_END}`;
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   if (!readState(ctx.statePath).postOnly.includes(issue)) throw new Error(`Issue #${issue} is not waiting for a post with no checks`);

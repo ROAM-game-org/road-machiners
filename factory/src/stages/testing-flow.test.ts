@@ -6,6 +6,7 @@ import { EMPTY_STATE, readState, writeState } from '../state';
 import type { AgentRun, Ctx, Pin } from '../types';
 import { BudgetError } from './checkpoint';
 import { testPoolPin } from '../cpus';
+import { evidenceFor } from '../check-evidence';
 
 const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
@@ -13,6 +14,7 @@ vi.mock('../deploy', () => ({ checkScope: () => undefined, publishBuild: (_ctx: 
 const { runStage: runPost, approvalCaption, timeoutOnly } = await import('./checks');
 const { runStage: runVerify, taskText } = await import('./verify');
 const { runStage: runHarden } = await import('./harden');
+const { currentToolchain } = await import('./integration');
 
 let home = '';
 let calls: string[] = [];
@@ -122,6 +124,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
       isMerged: async () => merged,
       changedFiles: async () => changed,
+      treeOf: async (ref: string) => `tree-${ref}`,
     },
   };
   return fake as unknown as Ctx;
@@ -247,7 +250,9 @@ describe('testing in one job', () => {
 
   it('hardens a hotfix and then tests it in one session, with the full suite and the ship button', async () => {
     labels = ['hotfix', 'bug'];
-    await runVerify(fakeCtx((run, index) => { if (index === 1) posts(run); }), 7);
+    const ctx = fakeCtx((run, index) => { if (index === 1) posts(run); });
+    await runVerify(ctx, 7);
+    expect(evidenceFor(home, 'tree-abc123', currentToolchain(ctx))).toMatchObject({ commit: 'abc123', ran: ['typecheck', 'suite', 'playtest', 'build'], by: 'testing', issue: 7 });
     expect(runs[0]!.prompt).toContain('This is the hardening stage');
     expect(runs[0]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.prompt).toContain('This is the testing stage');

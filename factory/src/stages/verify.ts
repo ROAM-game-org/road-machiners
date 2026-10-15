@@ -5,6 +5,8 @@ import { BRANCH, FEEDBACK_HEADING, PLAYER_REPORT_HEADING, GAME_DIR, OUT_DIR, TAS
 import { runCost, untilPasses } from './checkpoint';
 import { POST_MARK, postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
+import { recordPassed } from './integration';
+import { FULL_STEPS } from '../check-evidence';
 import { HOTFIX_BASE, agentHome, baseBranchFor, docsOnly, fillPrompt, guardAndPush, mergeBase, playtestCommand, prepareOutputs, readOutput, runAgent, throwIfNeedsCommittee, unfinishedBaseMerge, workDir, writeIssueInput } from './common';
 
 const ROUND = 'test';
@@ -71,7 +73,9 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
-  return postCheckpoint(ctx, issue, base, build, kind);
+  const failure = await postCheckpoint(ctx, issue, base, build, kind);
+  if (failure === null && kind === 'full') await recordPassed(ctx, build, { ran: FULL_STEPS, reused: [], by: 'testing', issue });
+  return failure;
 }
 
 async function fixRound(ctx: Ctx, issue: number, home: string, failure: string): Promise<string> {

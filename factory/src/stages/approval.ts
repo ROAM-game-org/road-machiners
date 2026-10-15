@@ -3,10 +3,10 @@ import { cardFlow, moveCard } from '../card-events';
 import { appendLedger } from '../ledger';
 import { adoptReplyMedia, dropReplyMedia, replyMediaLines } from '../reply-media';
 import { readState, updateState } from '../state';
-import { BRANCH, FEEDBACK_HEADING, QUESTION_HEADING, MergeConflictError, WONT_DO_LABEL, type Ctx, type Route } from '../types';
+import { BRANCH, FEEDBACK_HEADING, QUESTION_HEADING, WONT_DO_LABEL, type Ctx, type Route } from '../types';
 import { HOTFIX_BASE, baseBranchFor, mediaDir, workDir } from './common';
 import { releaseBundle } from './bundle';
-import { shipHotfix } from './hotfix';
+import { IntegrationFailure, shipHotfix } from './hotfix';
 
 async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
   const card = (await ctx.github.cards()).find((item) => item.issue === issue);
@@ -39,10 +39,10 @@ export async function approve(ctx: Ctx, issue: number, by: string): Promise<void
     const message = await shipHotfix(ctx, issue, item.title, by);
     await closeMerged(ctx, issue, item.labels, message);
   } catch (error) {
-    if (!(error instanceof MergeConflictError) || error.branch !== BRANCH(issue)) throw error;
+    if (!(error instanceof IntegrationFailure)) throw error;
     forgetPosts(ctx, issue, true);
-    await ctx.github.comment(issue, `Approved by ${by}, but main moved on and the branch conflicts with it in ${error.files.join(', ')}. Testing merges main again and posts the build again.`);
-    await moveCard(ctx, issue, 'Testing', 'conflict', cardFlow(item.labels));
+    await ctx.github.comment(issue, `Approved by ${by}, but ${error.message}\n\nNothing shipped. Testing fixes it and posts the build again, and the committee approves the new build.`);
+    await moveCard(ctx, issue, 'Testing', 'integration-failed', cardFlow(item.labels));
   }
 }
 

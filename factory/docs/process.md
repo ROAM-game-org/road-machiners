@@ -64,7 +64,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 ![Testing column](diagrams/testing.svg)
 
-- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening.
+- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. A pass is recorded as check evidence. It never enters Hardening.
 - Hermes can move a card to Approval with no testing. A checks job then builds the branch and posts it with no tests, and the post says so.
 
 ## Hardening and Merging columns
@@ -137,14 +137,29 @@ Members, other jobs and releases push all the time, so any branch may move while
 - Design does the same on the host before its agent starts, since the agent cannot fetch. A clean clone takes the base: a fast-forward, or a merge that keeps its own commits and its task files. It needs no issue branch on GitHub. A clone with uncommitted changes stays as it is, and the agent is told it may lack recent base work. A conflict goes to an agent in the same job, never to the author, and a retry gives that unfinished merge to an agent again. Any other unfinished merge fails the stage for `factory repair-clone`.
 - The merge queue moves `dev` or the release only with a result its checks passed. A base that moved meanwhile is merged in and checked again. A catch-up merges the base into the issue branch of a waiting Merging card and pushes only that branch.
 - A merge into `main` or the release that GitHub rejects because a target moved runs again on the new tips.
-- A conflict between whole branches never stops the factory. It covers the release cut, the hotfix fan-out and the reverts of Remove. Ship resolves its own conflict in its session. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix that conflicts with `main` at approve goes back to Testing.
+- A conflict between whole branches never stops the factory. It covers the release cut, the hotfix fan-out and the reverts of Remove. Ship resolves its own conflict in its session. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix that conflicts with `main` at approve is resolved the same way, in its approve job.
 
 ![Branches](diagrams/branches.svg)
 
 - The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. `lastRelease` changes only when the cut succeeds or finds nothing new, so a failed cut runs again on the next tick.
 - Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
-- A hotfix merges its branch into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
+- A hotfix merges its branch into a work clone of `main` and runs only the checks the merge needs, by the check reuse rule below. Then it pushes that checked merge to `main`, and `main` into `dev`, in one push, and ships like a release. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
+
+### Check reuse at hotfix approve
+
+The committee approves the hotfix code it played. When only `main` moved since, the approval holds, and the factory does not run again the checks that already passed on the same inputs.
+
+- Check evidence records each pass by the git tree it ran on, which covers the game code, its tests, `package-lock.json` and every test input, and by a toolchain key, which hashes the agent image's Dockerfile and the check script. A change to any of them misses the evidence. The hotfix post checkpoint and Ship's push to `main` record the full checks. The approve job records what it ran on the merge, and which evidence it leaned on.
+- The approve job merges the approved hotfix tip into a work clone of `main`. A tip that is not the build the committee played ships nothing. A conflict goes to the merge agent with `prompts/merge-branches.md`, and its resolution passes Ship's diff guard.
+- The merge holds the hotfix's exact code, since `main` brought nothing the hotfix lacks: no check runs.
+- The merged code has evidence already: no check runs.
+- The hotfix or `main` has no passing typecheck and suite on record: the full checks run on the merge, since skipping cannot be shown safe.
+- The merge conflicted, or both sides changed a same file: the typecheck, the cached suite and the playtest run on the merge.
+- Otherwise the merge was clean with no shared file: only the typecheck and the cached suite run. The cached suite runs only the test files whose inputs the merge changed from a passing combination, so it often runs none.
+- The build runs at publish as before. A pass records evidence for the merge and pushes it with `dev` in one atomic push, only while `main` and the branch are still at the tips the checks saw. A moved tip starts the rule again on the new tips, and the evidence keeps that cheap.
+- A real failure ships nothing. The card goes back to Testing with the end of the log, and the committee approves the fixed build again. Timeouts alone run again, as elsewhere.
+- The issue comment and the committee message name the checks that ran on the merge, with the suite's ran and skipped file counts, and the commits whose checks were reused. They never call a reused check a run.
 
 ## Release
 

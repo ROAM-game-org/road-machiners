@@ -308,7 +308,7 @@ async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
 
 export function timeoutOf(cfg: FactoryConfig, stage: JobStage): number {
   if (stage === 'playtest') return cfg.playtestTimeoutMinutes;
-  if (stage === 'merge' || stage === 'ship') return cfg.mergeTimeoutMinutes;
+  if (stage === 'merge' || stage === 'ship' || stage === 'approve') return cfg.mergeTimeoutMinutes;
   const queue = QUEUE_OF[stage];
   const minutes: Record<Queue, number> = {
     triage: cfg.triageTimeoutMinutes,

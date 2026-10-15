@@ -313,9 +313,9 @@ const job = (startedAt: string, stage: Job['stage'] = 'design', issue: number | 
 const args = (h: Harness): string[][] => h.spawned.map((call) => call.slice(0, 2));
 
 describe('timeoutOf', () => {
-  it('gives the release playtest its own limit, the merge and ship the merge limit, and every other stage its queue limit', () => {
+  it('gives the release playtest its own limit, the merge, ship and approve the merge limit, and every other stage its queue limit', () => {
     const cfg = { verifyTimeoutMinutes: 240, branchTimeoutMinutes: 60, playtestTimeoutMinutes: 330, mergeTimeoutMinutes: 180 } as FactoryConfig;
-    expect([timeoutOf(cfg, 'playtest'), timeoutOf(cfg, 'verify'), timeoutOf(cfg, 'merge'), timeoutOf(cfg, 'ship'), timeoutOf(cfg, 'approve')]).toEqual([330, 240, 180, 180, 60]);
+    expect([timeoutOf(cfg, 'playtest'), timeoutOf(cfg, 'verify'), timeoutOf(cfg, 'merge'), timeoutOf(cfg, 'ship'), timeoutOf(cfg, 'approve'), timeoutOf(cfg, 'remove')]).toEqual([330, 240, 180, 180, 180, 60]);
   });
 });
 
