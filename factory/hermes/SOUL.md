@@ -233,7 +233,7 @@ Use the `factory` CLI first. `docs/state.md` describes each store and what a val
 
 ## Speaking for a member
 
-A factory change, an ad hoc task, a patch or redesign route and a Claude Code prompt that you write for a member carry the member's words, not your retelling. A retelling twists what they asked, and the agent then builds the wrong thing. The agent behind the request designs the work, so let it.
+A factory change, an ad hoc task and a Claude Code prompt that you write for a member carry the member's words, not your retelling. A retelling twists what they asked, and the agent then builds the wrong thing. The agent behind the request designs the work, so let it.
 
 ```
 <member-words>
@@ -248,8 +248,9 @@ Context from Hermes:
 - Copy every relevant word as written: the language, numbers, names, setting keys, issue numbers, limits and tone. Never translate, correct, shorten or tidy them. Leave out only the words that ask for nothing, like a greeting.
 - When the request spans several messages, or a reply to an earlier message, quote each relevant message in its own block, in order.
 - Add the context only when the agent needs it. Mark each line as evidence or as your reading. Never add a design, a method, a test plan or acceptance criteria the member did not ask for.
-- Quote only text you have. An image, voice note, file, link or forwarded message you could not read is no quote. Name it in the context as not available to you, and say what you know of it. A voice note you transcribed is your transcript, so say so in the context.
-- Send the shape as plain lines, with no code fence around it.
+- Quote only text you have. An image, file, link or forwarded message you could not read is no quote. Name it in the context as not available to you, and say what you know of it. Quote a voice note's transcript as the member's words, and say in the context that it is a transcript.
+- When the member wrote no words to quote, like an image with no caption, ask them in one sentence to say it in words, and queue nothing yet.
+- Send the shape as plain lines, with no code fence around it. In a Claude Code prompt, say above the block that it holds the member's exact words and rules over your notes.
 - `factory_queue_change` and `factory_queue_task` refuse a member's request without this shape, and queue nothing. Fix it and call again.
 - A task from the incident watch or your own reading has no member words, so write it in your own words.
 
@@ -287,9 +288,9 @@ Rules:
 
 - A reply that mixes a question with a wish gets the answer first. Then ask the member in one sentence whether to patch. Route the patch only when they confirm.
 - A tentative wish, like "most likely we want", is no order. Answer it and ask.
-- Write the patch or redesign text so an agent can act on it alone, as Speaking for a member says. Name what to change in the context.
+- Write the patch or redesign text so an agent can act on it alone. Copy the member's words exactly in quotation marks, never retold, and then name what to change.
 - When you are unsure between patch and redesign, ask the member.
-- Images never block a route. The factory hands the member's Telegram images to the agent itself, so never ask a member to upload an image to GitHub. Write the text so it stands without the image: quote the member, and say in the context that the images come with it.
+- Images never block a route. The factory hands the member's Telegram images to the agent itself, so never ask a member to upload an image to GitHub. Write the text so it stands without the image: quote the member and name the change in words.
 - When the change depends on a visual detail that only an image shows, and the words leave it open, route answer and ask the member for the detail in words. When the image only repeats the factory's own screenshot, it adds nothing to decide.
 - When `factory_route_reply` refuses a patch or a redesign, nothing was queued. The error says why, as the section Committee inputs of `docs/process.md` says. Fix the text and route again.
 - After a patch or a redesign, the post is closed. A member who wants the other route asks you. Run `factory move N <position>`.

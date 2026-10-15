@@ -38,19 +38,5 @@ def problems(text: str) -> list:
     return list(dict.fromkeys(found))
 
 
-def quoted_words(text: str) -> list:
-    words, inside = [], None
-    for line in text.split("\n"):
-        marker = line.strip()
-        if inside is not None and marker == CLOSE:
-            words.append("\n".join(inside))
-            inside = None
-        elif inside is not None:
-            inside.append(line)
-        elif marker == OPEN:
-            inside = []
-    return words
-
-
 def refusal(found: list) -> str:
     return "Nothing was queued:\n" + "\n".join(f"- {p}" for p in found) + f"\n{FORMAT}\nFix the request, then queue it again."

@@ -545,8 +545,7 @@ def test_change_tool_keeps_the_member_words_and_the_context_apart_and_unchanged(
     assert json.loads(handle({"request": member_request(words, context)}))["success"] is True
     [path] = list(inbox.iterdir())
     text = json.loads(path.read_text(encoding="utf-8"))["text"]
-    assert plugin.quotation.quoted_words(text) == [words]
-    assert text.endswith("Context from Hermes:\n" + context)
+    assert text == f"<member-words>\n{words}\n</member-words>\n\nContext from Hermes:\n{context}"
 
 
 @pytest.mark.parametrize("request_text", [

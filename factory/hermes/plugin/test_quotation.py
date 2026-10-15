@@ -60,8 +60,3 @@ def test_a_quotation_after_the_context_is_refused():
 def test_markers_must_stand_on_their_own_line():
     text = f"{quotation.OPEN} The tow fee is too high. {quotation.CLOSE}"
     assert quotation.problems(text)
-
-
-def test_quoted_words_comes_back_unchanged():
-    words = "  Keep   the spacing,\n\n\tthe tabs, «quotes» and\n" + RUSSIAN + "  "
-    assert quotation.quoted_words(quoted(words, context="Reading: none.")) == [words]
