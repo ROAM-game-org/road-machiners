@@ -43,6 +43,7 @@ import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
 import { Hud } from "../ui/hud";
+import { Minimap } from "../ui/minimap";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
 import { CameraRig, KeyPan, TruckFollow } from "./render/camera";
@@ -185,6 +186,7 @@ export class Game {
   private pending: ((w: World) => World | null) | null = null;
 
   readonly hud: Hud;
+  private readonly minimap: Minimap;
   private readonly hitCard: HitCard;
   private readonly weapons: WeaponPanel;
   readonly screens: ModalScreens;
@@ -313,6 +315,7 @@ export class Game {
       recenter: () => this.runKey("KeyF"),
       ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
+    this.minimap = new Minimap(() => this.runKey("KeyK"));
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
@@ -426,6 +429,7 @@ export class Game {
       timed("fog", () => this.fog.update(this.world));
       this.shade.update(this.world);
     }
+    timed("minimap", () => this.minimap.update(this.displayWorld()));
     if (!this.anim || this.anim.impacts)
       this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
     this.craters.sync(this.world);
@@ -549,6 +553,7 @@ export class Game {
     KeyL: { run: () => this.controls.toggleHeadlights(), noModal: true },
     KeyN: { run: () => this.inspected() && !markError(this.world, this.inspected()!) && this.apply(markVehicle(this.world, this.inspected()!)), noModal: true, idle: true },
     KeyC: { run: () => !this.anim && this.screens.toggle(this.screens.character), idle: true },
+    KeyK: { run: () => !this.anim && this.screens.toggle(this.screens.worldMap), idle: true },
     KeyJ: { run: () => !this.anim && this.screens.toggle(this.screens.journal), idle: true },
     KeyI: { run: () => !this.anim && this.screens.toggle(this.screens.inventory), idle: true },
     Escape: { run: () => { if (this.modalOpen()) this.screens.closeAll(null); else this.pin.clear(); this.selectUtility(null); } },
@@ -976,6 +981,7 @@ export class Game {
     for (const t of live.visible) live.explored[t] = 1;
     const player = { ...this.world.player, visible: [...live.visible].sort((a, b) => a - b), explored: live.explored };
     timed("fog", () => this.fog.update({ ...this.world, player }));
+    timed("minimap", () => this.minimap.update({ ...this.world, player }, { pos: at, heading: playerVehicle(this.world).heading }));
   }
 
   private lightTurn(): number {

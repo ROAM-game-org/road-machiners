@@ -5,9 +5,10 @@ import { InventoryScreen } from "../ui/inventory";
 import { JournalScreen } from "../ui/journal";
 import { OutpostScreen } from "../ui/outpost";
 import { QuestScreen } from "../ui/quest-screen";
+import { WorldMapScreen } from "../ui/world-map";
 import { TownScreen, TruckTradeScreen } from "../ui/town";
 
-type Toggled = CharacterScreen | JournalScreen | InventoryScreen;
+type Toggled = CharacterScreen | JournalScreen | InventoryScreen | WorldMapScreen;
 
 export class ModalScreens {
   readonly town: TownScreen;
@@ -16,6 +17,7 @@ export class ModalScreens {
   readonly trade: TruckTradeScreen;
   readonly character: CharacterScreen;
   readonly journal: JournalScreen;
+  readonly worldMap: WorldMapScreen;
   readonly inventory: InventoryScreen;
   readonly quest: QuestScreen;
 
@@ -26,12 +28,13 @@ export class ModalScreens {
     this.trade = new TruckTradeScreen(host);
     this.character = new CharacterScreen(host);
     this.journal = new JournalScreen(host);
+    this.worldMap = new WorldMapScreen(host);
     this.inventory = new InventoryScreen(host);
     this.quest = new QuestScreen(host);
   }
 
   private all(): (TownScreen | OutpostScreen | FullShopScreen | TruckTradeScreen | Toggled)[] {
-    return [this.town, this.outpost, this.fullShop, this.trade, this.character, this.journal, this.inventory];
+    return [this.town, this.outpost, this.fullShop, this.trade, this.character, this.journal, this.worldMap, this.inventory];
   }
 
   anyOpen(): boolean {

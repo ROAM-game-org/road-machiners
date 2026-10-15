@@ -4,6 +4,7 @@
   left: var(--hud-inset);
   top: var(--hud-inset);
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   align-items: flex-start;
 }

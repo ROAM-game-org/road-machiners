@@ -136,6 +136,7 @@ export const UI = {
   'help.on.pad': 'pad',
   'help.on.truck': 'truck',
   'help.to': 'to',
+  'help.does.map': 'Map',
   'help.does.driveByRoad': 'Drive by road',
   'help.does.stopThere': 'Stop there',
   'help.does.driveOrPause': 'Drive or pause',

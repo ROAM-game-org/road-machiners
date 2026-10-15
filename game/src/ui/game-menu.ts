@@ -80,6 +80,7 @@ export const CONTROLS: ControlGroup[] = [
       { keys: ["I"], does: t("help.does.inventory") },
       { keys: ["C"], does: t("help.does.character") },
       { keys: ["J"], does: t("help.does.journal") },
+      { keys: ["K"], does: t("help.does.map") },
     ],
   },
 ];
