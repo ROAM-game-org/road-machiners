@@ -1,6 +1,3 @@
-// Rebuilds cues' files from their raw sources, oldest first, after an import change. With no arguments it rebuilds
-// every cue; `field` rebuilds the world one-shots; other arguments name cues.
-// Sources come from each file's comment tag. They are saved to a manifest first, so a crashed run resumes
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { MIX, SOUNDS } from '../src/data/sounds.ts';

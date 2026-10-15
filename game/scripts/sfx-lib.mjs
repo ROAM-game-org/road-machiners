@@ -1,6 +1,3 @@
-// Shared sound import: every file, whatever its source, gets the same treatment before the game uses it.
-// 1. Free music loses its quiet intro and outro and loops through a crossfade. A beat loop is stretched to its exact
-//    bar length, so layers stay locked.
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';

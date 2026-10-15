@@ -1,6 +1,3 @@
-// Generates new variants of one catalog cue with ElevenLabs, keeps the raw files in tmp/sfx-raw/,
-// imports them. Never overwrites a file.
-// Usage: npm run sfx:gen -- <cue> <count>
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { beatLoopSeconds, MIX, SOUND_STYLE, SOUNDS } from '../src/data/sounds.ts';
 import { cueOf, importFile, syncTwins } from './sfx-lib.mjs';
