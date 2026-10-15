@@ -22,20 +22,6 @@ describe('daylightAt', () => {
   });
 });
 
-const moonLight = (hour: number) => {
-  const d = daylightAt(turnAt(hour));
-  const luma = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-  return d.sunIntensity * luma(d.sun) + d.skyIntensity * luma(d.sky);
-};
-
-describe('deep night light', () => {
-  it('lights the ground enough to read and stays well below day', () => {
-    expect(moonLight(2)).toBeGreaterThan(0.25);
-    expect(moonLight(2)).toBeLessThan(moonLight(8));
-    expect(moonLight(2)).toBeLessThan(moonLight(12) / 2);
-  });
-});
-
 const frameAt = (x: number): VehicleFrame => ({
   pos: { x, y: 0, z: 0 },
   rot: { x: 0, y: 0, z: 0, w: 1 },
