@@ -1,6 +1,7 @@
 
 import type { Msg } from '../text/msg';
 import { readyAid, startAid } from "../sim/aid";
+import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
 import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy } from "../sim/jobs";
@@ -102,6 +103,7 @@ export class TruckContext {
     const handlers: { [K in ContextTarget['kind']]: () => void } = {
       aid: () => 'id' in target && this.startAid(target.id),
       trade: () => 'id' in target && h.openTrade(target.id),
+      parcel: () => 'id' in target && this.handParcel(target.id),
       shop: () => shopAt(h.world()) && h.openTown(),
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
@@ -116,6 +118,12 @@ export class TruckContext {
     const aid = readyAid(this.host.world());
     if (aid?.holder !== npcId) return;
     this.host.apply(startAid(this.host.world(), npcId));
+    this.host.pushEvents();
+  }
+
+  private handParcel(npcId: string): void {
+    if (readyHandover(this.host.world())?.holder !== npcId) return;
+    this.host.apply(handOverParcel(this.host.world(), npcId));
     this.host.pushEvents();
   }
 

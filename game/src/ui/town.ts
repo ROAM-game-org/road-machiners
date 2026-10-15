@@ -1,6 +1,6 @@
 
 import { PLAYER_CHASSIS } from "../data/chassis";
-import { ECONOMY, GOOD_IDS } from "../data/goods";
+import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
 import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
@@ -38,7 +38,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, shopAt, shopState, type Contract, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, isMet, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
@@ -53,7 +53,7 @@ import type { UiHost } from "./host";
 import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
 import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { goodName, localName, localRole, siteName, vehicleTitle } from "../text/names";
+import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
 import { vehicleHasPerk } from "../sim/progress";
 
@@ -335,8 +335,11 @@ export class TownScreen {
   private contracts(w: World, shopId: string): HTMLElement {
     const board = shopState(w, shopId).contracts;
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
-    const accept = (c: Contract) =>
-      this.button(t("contract.accept"), (x) => acceptContract(x, c.id), full ? t("contract.full", { n: CONTRACTS.maxActive }) : escortRefusal(w, c));
+    const refusal = (c: Contract): Msg | null => {
+      if (full) return t("contract.full", { n: CONTRACTS.maxActive });
+      return escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
+    };
+    const accept = (c: Contract) => this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
     return el(
       "div",
       {},
@@ -354,10 +357,15 @@ export class TownScreen {
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
     if (c.kind === "escort") return el("span", { class: "dim" }, escortStatusText(w, c));
     const destination = c.kind === "haul" ? c.to : c.shop;
-    const claim = c.kind === "bounty" || c.kind === "rescue";
+    const claim = c.kind === "bounty" || c.kind === "rescue" || c.kind === "search";
     if (destination !== shopId) return el("span", { class: "dim" }, t(claim ? "contract.claimAt" : "contract.deliverAt", { site: siteName(destination) }));
     return this.button(t(claim ? "contract.claim" : "contract.deliver"), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
   }
+}
+
+function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null {
+  if (refusal === null) return null;
+  return refusal === "oneSearch" ? t("contract.oneSearch") : refusalText(w, { id: refusal });
 }
 
 function escortRefusal(w: World, c: Contract): Msg | null {
@@ -382,6 +390,7 @@ function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child
 function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
+  if (c.kind === "search") return t("contract.handOverFirst");
   if (c.kind === "rescue") return t("contract.notMet");
   return bountyPays(w);
 }
@@ -430,6 +439,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
+  search: () => createBareItemIcon(PARCEL.id),
   escort: () => createIcon("truck"),
   rescue: () => createIcon("truck"),
 };
@@ -478,7 +488,7 @@ function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted:
 }
 
 function contractRow(w: World, c: Contract, action: HTMLElement, posted = false): HTMLElement {
-  const met = (c.kind === "bounty" || c.kind === "rescue") && c.fulfilled;
+  const met = isMet(c);
   const clock = c.kind === "escort" ? escortClock(w, c, posted) : posted
     ? el("span", { class: "price", title: t("contract.windowTitle", { n: c.window }) }, createIcon("clock"), contractWindow(c))
     : el("span", { class: "price", title: met ? undefined : t("contract.dueTitle", { n: c.deadline - w.turn }) }, createIcon("clock"), heldContractDue(c));
@@ -516,7 +526,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
-  return c.kind === "bounty" && c.fulfilled;
+  return isMet(c);
 }
 
 type TradeTab = "goods" | "parts" | "supplies";
