@@ -56,6 +56,7 @@ export const PHYSICS = {
     stallSpeed: 0.3,
     pushSpeed: 1,
     stallSeconds: 0.5,
+    backOff: 2,
   },
   rockHeight: 3,
   rockSink: 0.5,

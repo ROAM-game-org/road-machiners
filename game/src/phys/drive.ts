@@ -785,7 +785,7 @@ function backs(c: Car, at: Vec, ang: number, rearAng: number, far: number, targe
 }
 
 function backOffDistance(c: Car): number {
-  return Math.max(RULES.reverse.distance, (2 * c.b.wheelX) / S);
+  return Math.max(D.backOff, (2 * c.b.wheelX) / S);
 }
 
 function backsToPoint(c: Car, rearAng: number, far: number, target: number, speed: number): boolean {
