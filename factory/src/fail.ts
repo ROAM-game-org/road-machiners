@@ -18,6 +18,8 @@ export function stripAnsi(text: string): string {
   return text.replace(ANSI, '');
 }
 
+export const FAILURE_TAIL_LINES = 150;
+
 export function summarizeError(message: string): string {
   const lines = stripAnsi(message).split('\n').map((line) => line.trim()).filter(Boolean);
   const failures = lines.filter((line) => FAILURE_LINE.test(line));
@@ -26,7 +28,6 @@ export function summarizeError(message: string): string {
 }
 
 export function failureIssue(stage: JobStage, issue: number | null, state: FactoryState): number | null {
-  if (stage === 'change') return null;
   if (stage === 'release') return state.release?.issue ?? null;
   return issue;
 }

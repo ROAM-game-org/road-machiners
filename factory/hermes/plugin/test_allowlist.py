@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from allowlist import with_allowlist, with_values, write_allowlist, write_passed  # noqa: E402
+from allowlist import with_allowlist, with_values, write_allowlist, write_group_chat, write_passed  # noqa: E402
 
 
 def test_replaces_the_line_and_keeps_others():
@@ -38,3 +38,16 @@ def test_with_values_replaces_old_lines_and_keeps_others():
 def test_write_passed_needs_every_key(tmp_path):
     with pytest.raises(KeyError, match="FACTORY_REPO"):
         write_passed(tmp_path / ".env", {"OTHER": "x"})
+
+
+def test_write_group_chat_admits_the_committee_chat(tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("TELEGRAM_ALLOWED_USERS=3\n")
+    write_group_chat(env, {"FACTORY_COMMITTEE_CHAT": "-100"})
+    assert env.read_text() == "TELEGRAM_ALLOWED_USERS=3\nTELEGRAM_GROUP_ALLOWED_CHATS=-100\n"
+
+
+@pytest.mark.parametrize("environ", [{}, {"FACTORY_COMMITTEE_CHAT": ""}, {"FACTORY_COMMITTEE_CHAT": "chat"}])
+def test_write_group_chat_needs_a_numeric_committee_chat(tmp_path, environ):
+    with pytest.raises(KeyError, match="FACTORY_COMMITTEE_CHAT"):
+        write_group_chat(tmp_path / ".env", environ)

@@ -1,7 +1,7 @@
 import type { CardStep } from '../card-events';
 import type { Activity } from '../observability';
 import type { WaitReason } from '../tick';
-import type { Column, JobStage, Queue } from '../types';
+import type { Column, LedgerJobStage, Queue } from '../types';
 import type { JobOutcome } from '../ledger';
 import type { MergeState } from './snapshot';
 import type { DeliveryStage } from './vocabulary';
@@ -9,10 +9,10 @@ import type { DeliveryStage } from './vocabulary';
 const columns: Record<Column, string> = {
   Triage: 'Triage', Design: 'Design', Implementation: 'Implement', Testing: 'Test', Approval: 'Approval', Hardening: 'Harden', Merging: 'Merge', Done: 'Done',
 };
-const stages: Record<JobStage, string> = {
+const stages: Record<LedgerJobStage, string> = {
   triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', harden: 'Harden', checks: 'Test', approve: 'Approval', merge: 'Merge', 'catch-up': 'Merge catch-up',
   playtest: 'Playtest', adhoc: 'Private task', change: 'Factory change', candidate: 'Candidate', release: 'Release', ship: 'Ship', remove: 'Removal',
-  incident: 'Incident', dev: 'Dev build', waste: 'Review',
+  incident: 'Incident', answer: 'Player answer', dev: 'Dev build', waste: 'Review',
 };
 const queues: Record<Queue, string> = { triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', test: 'Test', branch: 'Branch' };
 const activities: Record<Activity, string> = {
