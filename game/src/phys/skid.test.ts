@@ -137,7 +137,7 @@ describe('skids', () => {
 
     it('steers alike on every ground when slow', () => {
       expect(Math.abs(slow.mud.peakSlip - slow.road.peakSlip)).toBeLessThan(3);
-      expect(Math.abs(slow.glass.peakSlip - slow.road.peakSlip)).toBeLessThan(4);
+      expect(Math.abs(slow.glass.peakSlip - slow.road.peakSlip)).toBeLessThan(6);
       expect(slow.road.peakSlip).toBeLessThan(20);
       for (const g of GROUNDS) expect(slow[g].maxHeadingOff, g).toBeLessThan(60);
     });

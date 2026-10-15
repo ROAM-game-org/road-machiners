@@ -387,6 +387,13 @@ describe('physics turns', () => {
       expect(Math.abs(angleDiff(me(glass).heading, Math.PI / 2))).toBeGreaterThan(Math.abs(angleDiff(me(sand).heading, Math.PI / 2)));
     });
 
+    it('a truck eases off for a side click sooner on glass than on sand', () => {
+      const click: MoveOrder = { kind: 'through', dest: { x: 24, y: 60 } };
+      const sand = onGround('sand', click, 1);
+      const glass = onGround('glass', click, 1);
+      expect(me(glass).speed).toBeLessThan(me(sand).speed * 0.8);
+    });
+
     it('a truck sent to a point on glass still arrives and stops', () => {
       const dest = { x: 60, y: 40 };
       const after = onGround('glass', { kind: 'stopAt', dest }, 14);

@@ -765,7 +765,7 @@ function commandToward(c: Car, dest: Vec, speed: number): Command {
     const steerTo = c.mem.backFrom && c.mem.swing ? -c.mem.swing * plan.maxSteer : clamp(rearAng * gain, -plan.maxSteer, plan.maxSteer);
     return { target: -Math.min(D.reverseSpeed, plan.target), steerTo };
   }
-  const corner = Math.min(aimSpeed(c, ang, dist(at, aim) * S), routeCornerSpeed(plan.route, at, Math.abs(speed), plan.stopDecel * c.grip));
+  const corner = Math.min(aimSpeed(c, ang, dist(at, aim) * S), routeCornerSpeed(plan.route, at, Math.abs(speed), plan.stopDecel * c.grip, c.grip));
   return { target: Math.min(target, corner), steerTo: clamp(ang * D.steerGain, -plan.maxSteer, plan.maxSteer) };
 }
 
@@ -780,7 +780,7 @@ function kTurnSide(c: Car, at: Vec, heading: number, ang: number): 1 | -1 | 0 {
 
 function aimSpeed(c: Car, ang: number, aimDist: number): number {
   const turnsBack = c.plan.route !== null && Math.abs(ang) > Math.PI / 2;
-  return turnsBack ? turnaroundSpeed(c.b, c.plan.maxSteer, c.grip) : cornerSpeed(aimDist, ang);
+  return turnsBack ? turnaroundSpeed(c.b, c.plan.maxSteer, c.grip) : cornerSpeed(aimDist, ang, c.grip);
 }
 
 function arrivalTarget(c: Car, dest: Vec, at: Vec, heading: number, speed: number): number {
@@ -911,12 +911,12 @@ function samePoint(a: Vec | null, b: Vec): boolean {
   return a !== null && a.x === b.x && a.y === b.y;
 }
 
-function cornerSpeed(aimDist: number, ang: number): number {
+function cornerSpeed(aimDist: number, ang: number, grip: number): number {
   const sin = Math.abs(Math.sin(ang));
-  return sin === 0 ? Infinity : Math.sqrt((D.cornerAccel * aimDist) / (2 * sin));
+  return sin === 0 ? Infinity : Math.sqrt((D.cornerAccel * grip * aimDist) / (2 * sin));
 }
 
-function routeCornerSpeed(route: Vec[] | null, at: Vec, speed: number, decel: number): number {
+function routeCornerSpeed(route: Vec[] | null, at: Vec, speed: number, decel: number, grip: number): number {
   if (!route) return Infinity;
   const reach = (speed * speed) / (2 * decel) + D.cornerCut;
   let limit = Infinity;
@@ -925,7 +925,7 @@ function routeCornerSpeed(route: Vec[] | null, at: Vec, speed: number, decel: nu
   for (let k = 0; k + 1 < route.length && along <= reach; k++) {
     const theta = Math.abs(angleDiff(bearing(prev, route[k]), bearing(route[k], pointAfter(route, k, D.cornerCut / S))));
     if (theta > 0) {
-      const corner = Math.sqrt((D.cornerAccel * D.cornerCut) / Math.tan(theta / 2));
+      const corner = Math.sqrt((D.cornerAccel * grip * D.cornerCut) / Math.tan(theta / 2));
       limit = Math.min(limit, Math.sqrt(corner * corner + 2 * decel * Math.max(0, along - D.cornerCut)));
     }
     along += dist(route[k], route[k + 1]) * S;
