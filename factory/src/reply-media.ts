@@ -23,9 +23,45 @@ export function adoptReplyMedia(home: string, post: number, issueDir: string, by
   }
   if (names.length === 0) return [];
   const entries = names.map((name) => safeAdopt(join(from, name), `post-${post}-${name}`, issueDir, source));
-  writeFileSync(join(issueDir, MANIFEST), JSON.stringify(merged(readCommitteeMedia(issueDir), entries), null, 2));
+  addMediaEntries(issueDir, entries);
   rmSync(from, { recursive: true, force: true });
   return entries;
+}
+
+export function addMediaEntries(issueDir: string, entries: MediaEntry[]): void {
+  writeManifest(issueDir, merged(readCommitteeMedia(issueDir), entries));
+}
+
+export function dropMediaEntries(issueDir: string, urls: string[]): void {
+  const [dropped, kept] = partition(readCommitteeMedia(issueDir), (entry) => urls.includes(entry.url));
+  if (dropped.length === 0) return;
+  writeManifest(issueDir, kept);
+  const used = new Set(kept.map((entry) => entry.file));
+  for (const entry of dropped) if (entry.file !== undefined && !used.has(entry.file)) rmSync(join(issueDir, entry.file), { force: true });
+}
+
+export function adoptChatImage(issueDir: string, name: string, data: Buffer, source: string): MediaEntry {
+  mkdirSync(join(issueDir, FOLDER), { recursive: true });
+  const path = join(issueDir, FOLDER, `${name}.tmp`);
+  writeFileSync(path, data);
+  const entry = safeAdopt(path, name, issueDir, source);
+  rmSync(path, { force: true });
+  return entry;
+}
+
+export function failedChatImage(name: string, source: string, reason: string): MediaEntry {
+  return { url: `telegram:${name}`, source, status: 'failed', reason };
+}
+
+function writeManifest(issueDir: string, entries: MediaEntry[]): void {
+  const path = join(issueDir, MANIFEST);
+  mkdirSync(issueDir, { recursive: true });
+  writeFileSync(`${path}.tmp`, JSON.stringify(entries, null, 2));
+  renameSync(`${path}.tmp`, path);
+}
+
+function partition<T>(items: T[], test: (item: T) => boolean): [T[], T[]] {
+  return [items.filter(test), items.filter((item) => !test(item))];
 }
 
 function merged(earlier: MediaEntry[], added: MediaEntry[]): MediaEntry[] {

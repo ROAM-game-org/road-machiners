@@ -1,5 +1,6 @@
 import { reportFailure } from '../fail';
 import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '../types';
+import { imageOutcome } from './chat-images';
 import { isolated } from './isolate';
 import type { PublicFilter } from './decision';
 import { textsFor, type ReplyText } from './reply-text';
@@ -62,6 +63,12 @@ async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment, te
 
 const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
 
+async function replyWithImages(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
+  const reply = await replyText(ctx, store, ground, comment);
+  const outcome = imageOutcome(comment);
+  return reply === null || outcome === 'none' ? reply : `${reply}\n${textsFor(comment.language).images[outcome]}`;
+}
+
 export async function replyText(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
   if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter') return null;
   const text = textsFor(comment.language);
@@ -75,7 +82,7 @@ export async function sendReplies(ctx: Ctx, store: PublicStore, filter: PublicFi
   for (const comment of store.toReply()) {
     store.markReplied(comment.id, ctx.now());
     await isolated(ctx, comment.issue, `the chat reply to player comment ${comment.id} failed and is not sent again`, async () => {
-      const text = await replyText(ctx, store, filter.ground, comment);
+      const text = await replyWithImages(ctx, store, filter.ground, comment);
       if (text === null || comment.chat === null || comment.messageId === null) return;
       store.setReplyId(comment.id, await ctx.telegram.sendMessage(comment.chat, text, comment.messageId));
     });

@@ -1,3 +1,4 @@
+import type { ImageOutcome } from './chat-images';
 import type { ReplyLanguage } from './decision';
 
 export type ReplyText = {
@@ -14,6 +15,7 @@ export type ReplyText = {
   fromWiki: (label: string) => string;
   added: (link: string) => string;
   aboutWork: (link: string, status: string) => string;
+  images: Record<ImageOutcome, string>;
 };
 
 const ENGLISH: ReplyText = {
@@ -30,6 +32,11 @@ const ENGLISH: ReplyText = {
   fromWiki: (label) => `From the game wiki, ${label}:`,
   added: (link) => `Thanks. I added this to the player comments of ${link}`,
   aboutWork: (link, status) => `Thanks. This is about ${link}, which the factory already has.\n${status}\nI added your message to its player comments. It opens no new issue or vote.`,
+  images: {
+    kept: 'Its image is kept for the team.',
+    lost: 'I could not get its image from Telegram, so the team has the text only.',
+    none: 'I have no image of that message, so the team has the text only.',
+  },
 };
 
 const RUSSIAN: ReplyText = {
@@ -46,6 +53,11 @@ const RUSSIAN: ReplyText = {
   fromWiki: (label) => `Из вики игры, ${label}:`,
   added: (link) => `Спасибо. Это добавлено в комментарии игроков к ${link}`,
   aboutWork: (link, status) => `Спасибо. Это про ${link}, она у фабрики уже есть.\n${status}\nВаше сообщение добавлено в комментарии игроков к ней. Новой задачи и голосования не будет.`,
+  images: {
+    kept: 'Картинка сохранена для команды.',
+    lost: 'Картинку не удалось получить из Telegram, у команды только текст.',
+    none: 'Картинки этого сообщения у меня нет, у команды только текст.',
+  },
 };
 
 export const textsFor = (language: ReplyLanguage | null): ReplyText => (language === 'ru' ? RUSSIAN : ENGLISH);
