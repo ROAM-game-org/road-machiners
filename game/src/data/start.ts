@@ -100,7 +100,7 @@ export const START_KITS: Record<string, StartKit> = {
     parts: ['mg', 'stockEngine'],
     storage: [],
     wear: 0,
-    money: 35000,
+    money: 8000,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { parts: 4 },
