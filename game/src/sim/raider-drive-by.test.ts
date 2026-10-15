@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { HUNT, NPCS } from '../data/npcs';
+import { HUNT } from '../data/npcs';
 import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
-import { reusedWorld } from '../test/world-cache';
 import { goodsCount, isLoot } from './grid';
 import { addGoods } from './inventory';
 import { isTransientWreck } from './nav/layer';
@@ -55,7 +54,7 @@ function roadGround(w: World): { ground: Vec; post: Vec; a: Vec; dir: Vec } {
 type Scene = { w: World; raider: Vehicle; prey: Vehicle; ground: Vec; end: Vec; moves: boolean; parkedAt: Vec };
 
 function scene(seed: number, kind: Prey, night: boolean): Scene {
-  const w = reusedWorld(`seed ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+  const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
   w.obstacles = w.obstacles.filter((o) => !isTransientWreck(o));
   if (night) w.turn = nightTurn();
   const { ground, post, dir } = roadGround(w);
@@ -65,7 +64,6 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   const others = w.vehicles.filter((v) => v.id !== me.id);
   w.vehicles = w.vehicles.filter((v) => v.id === me.id);
   w.removed.push(...others);
-  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...post });
   raider.brain = npcBrain('buggy', sitePads(camp)[0], ['raider']);
   raider.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'act', reason: 'watchedRoad', watchUntil: w.turn + HUNT.watchTurns }];
@@ -180,7 +178,7 @@ describe.each([['by day', false], ['at night', true]])('drive-by %s on the real 
     const results = runs('player', night);
     expect(count(results, (r) => r.engaged || r.passed.length > 0), summary(results)).toBeGreaterThanOrEqual(minPlayer);
     if (night) expect(count(results, (r) => r.engaged), summary(results)).toBeGreaterThanOrEqual(1);
-    const empty = runs('playerEmpty', night, SLOW_PASS_TURNS);
+    const empty = runs('playerEmpty', night);
     expect(count(empty, (r) => r.engaged || r.feud), summary(empty)).toBe(0);
   });
 
