@@ -60,7 +60,24 @@ TDD: yes for the pure choices. The batch run checks the whole bot.
 - The Not sprintable criterion already failed before this work: 3 of 10 sprinter seeds lost before stretch 10. IV3 cannot hold on today's balance. Not touched.
 - The Choice criterion fails (55 of 161 outposts): the escort spends money on repairs and a truck, so fewer outposts show more useful parts than money. It is a balance criterion for later tuning.
 - The wiki defines the danger's gear share as what the escort spends on parts. The old bot measured 0.31 against the 0.3 `gearShare`. The new bot measures 0.43, so balance tuning must re-measure `gearShare`.
+- Stall after the hauler-stall merge: seed 10 raised a `stall` for the hauler at turn 1159 near (199.3, 190.1). The hauler had been moving at 3 to 4 tiles a turn before it, with the gun truck 18 tiles behind. Not worked around.
 - UK1 stays open: `escort:report` still reads `run.jsonl`.
+
+### Diagnosis of the lost runs (seeds 1 to 20, no hidden read, after merging run-log and hauler-stall)
+
+Batch `game/tmp/d1/`: 13 of 20 beat stretch 10. Read with `run:timeline --by stretch` and the turn logs. The seven runs that ended before stretch 10:
+
+| Seed | Stretch | Lost | Enemy kit | Damage | Fight length | What the bot did | What a competent player does |
+|---|---|---|---|---|---|---|---|
+| 2 | 6 | gun truck | scout (mg), carrier (mg, grenade launcher) | scout 157, carrier 113 on the gun truck | 14 turns | Quiet until shot, then traded point blank with 2 MGs against two trucks | Focus the carrier first, keep range, buy plates for the gun truck |
+| 3 | 9 | hauler | longbed (autocannon), scout (mg, harpoon) | longbed 343 on the hauler | 90 turns | Gun truck with 6 guns (gear 1210) stayed quiet 30 tiles behind, fired only at T827 after a shot | Engage at the first hit on the hauler, since one slow longbed loses to 6 guns |
+| 5 | 9 | gun truck | two vans (flechette, mg), vulture | vulture 517 in 4 turns | 4 turns | Fired 14 rounds, 5 hits, then wrecked | Engage with 3 guns at range, or break away before the vulture closes |
+| 7 | 6 | gun truck | van (grenade launcher), bukhanka (amRifle) | 134 and 153 | 8 turns | Scout with mg and slug cannon traded at close range | Same as seed 2 |
+| 8 | 1 | stranded, run abandoned | scavenger van (mg) | 6 of 6 hits on the start truck | 15 turns | Patched wheels and transmission first, tank at 0 hp leaked all fuel | Patch the tank first, since auto repair ranks it last |
+| 13 | 3 | stranded, run abandoned | buggy (slug cannon) | tank holed in the fight | 40 turns | Fled with a leaking tank, fuel 11 to 0 in 11 turns, then abandoned with 4 patch parts | Break away sooner and patch the tank the moment combat ends |
+| 15 | 3 | hauler | lincoln (battle rifle) | 277 on the hauler over 36 turns | 36 turns | Fired 20 rounds with 2 hits, then ran ahead; the lincoln stayed on the hauler | Stay with the hauler and keep firing, or ram the lincoln |
+
+Across all 20 seeds the bot sat about 18 tiles behind the hauler for most of every run, past the 12 tile range of an MG. Seed 10 raised a hauler `stall` at turn 1159 at (199, 190) after the merge, recorded under Deferred.
 
 ## Verify
 
