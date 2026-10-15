@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { HAZARDS, HIGHWAY, type SceneKind } from '../data/modes';
+import { HAULER_KIT } from '../data/start';
 import { acrossOf, alongOf, fromRoad, highwayMap, WINDOW_SHIFT, milestoneAt, outpostFort, roadHeading, roadPoint, toRoad } from './highway';
 import { boxDistance, mapObstacles, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { CELL, componentOf, navLayer } from './nav/layer';
-import { closurePieces, highwayDecks, lanesCoveredOf, leavesPassage, northClosureAt, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
+import { closurePieces, highwayDecks, lanesCoveredOf, leavesPassage, leavesVergeGap, northClosureAt, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
 import { sitePads, siteGap } from './sites';
 import type { BakedMap, BakedProp } from './terrain';
 import type { Vec } from './vec';
@@ -85,6 +86,7 @@ describe('a stretch layout', () => {
 
   it('leaves every scene a way through on the road and keeps its pieces apart', () => {
     for (const { seed, j, scene } of allScenes()) {
+      if (scene.kind === 'roadblock') continue;
       for (const row of scene.rows.filter((r) => r.length > 0)) {
         expect(leavesPassage(row.map((p) => acrossSpan(seed, j - 1, p))), `seed ${seed} stretch ${j} ${scene.kind}`).toBe(true);
       }
@@ -95,7 +97,7 @@ describe('a stretch layout', () => {
 
   it('covers at most two lanes early on and three later, and never makes a ramp or a crater block', () => {
     for (const { seed, j, scene } of allScenes()) {
-      if (scene.kind === 'rockfall' || scene.kind === 'checkpoint') continue;
+      if (scene.kind === 'rockfall' || scene.kind === 'checkpoint' || scene.kind === 'roadblock') continue;
       const onLanes = scene.rows.flat().filter((p) => p.kind !== 'tank' && Math.abs(acrossOf(seed, p.at)) <= ROAD.asphalt);
       const lanes = new Set(onLanes.flatMap((p) => {
         const [lo, hi] = acrossSpan(seed, j - 1, p);
@@ -135,7 +137,37 @@ describe('a stretch layout', () => {
       if (scene.kind === 'craters') expect(scene.craters.length).toBeGreaterThanOrEqual(2);
       if (scene.kind === 'ramp') expect(scene.ramps).toHaveLength(1);
     }
-    expect([...seen].sort()).toEqual(['checkpoint', 'craters', 'jackknife', 'pileup', 'ramp', 'rockfall', 'tankline']);
+    expect([...seen].sort()).toEqual(['checkpoint', 'craters', 'jackknife', 'pileup', 'ramp', 'roadblock', 'rockfall', 'tankline']);
+  });
+
+  it('blocks every lane center with a roadblock and leaves a verge gap wider than the semi', () => {
+    const semi = CHASSIS[HAULER_KIT.chassis].radius;
+    const blocks = allScenes().filter(({ scene }) => scene.kind === 'roadblock');
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const { seed, j, scene } of blocks) {
+      const spans = scene.rows.flat().map((p) => acrossSpan(seed, j - 1, p)).sort((a, b) => a[0] - b[0]);
+      const label = `seed ${seed} stretch ${j}`;
+      const wallLo = spans[0][0];
+      const wallHi = Math.max(...spans.map((s) => s[1]));
+      const gaps = spans.slice(1).map(([lo], i) => lo - Math.max(...spans.slice(0, i + 1).map((s) => s[1])));
+      expect(Math.max(...gaps, 0), label).toBeLessThan(0.2);
+      expect([wallLo <= -ROAD.asphalt, wallHi >= ROAD.asphalt], label).toEqual([true, true]);
+      for (const c of ROAD.lanes) expect(wallLo <= c && c <= wallHi, `${label} lane ${c}`).toBe(true);
+      expect(Math.max(wallLo + ROAD.verge, ROAD.verge - wallHi), label).toBeGreaterThanOrEqual(2 * semi + HAZARDS.roadblock.room);
+      expect(leavesVergeGap(spans), label).toBe(true);
+    }
+  });
+
+  it('draws no roadblock on stretch 1 and some on later stretches of several seeds', () => {
+    const kinds = (j: number) => SEEDS.flatMap((seed) => stretchLayout(seed, j).scenes.map((s) => s.kind));
+    expect(kinds(1)).not.toContain('roadblock');
+    expect(kinds(2)).toContain('roadblock');
+    const later = Array.from({ length: 14 }, (_, i) => i + 2);
+    const perStretch = later.map((j) => kinds(j).filter((k) => k === 'roadblock').length / SEEDS.length);
+    expect(perStretch.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+    expect(perStretch.reduce((a, b) => a + b, 0) / perStretch.length).toBeLessThanOrEqual(1);
+    const weights = HAZARDS.tiers.map((t) => t.weights.roadblock);
+    expect(weights).toEqual([...weights].sort((a, b) => a - b));
   });
 
   it('holds its scene count at the cap however far the run goes', () => {

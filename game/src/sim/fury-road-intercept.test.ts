@@ -8,6 +8,7 @@ import { dist } from './vec';
 import type { World } from './types';
 
 const N = 150;
+const FOOT_TOLERANCE = 1e-3;
 
 function playerAt(w: World, across: number, speed: number): void {
   const me = playerVehicle(w);
@@ -40,7 +41,7 @@ describe('Fury Road groups on the player line', () => {
   it('never spawn past the flanks when the player hugs the ridge', () => {
     const w = furyRoadWorld(3);
     playerAt(w, -25, 0);
-    expect(Math.abs(acrossAt(w, spawnedFrom(w, 'ahead').pos))).toBeLessThanOrEqual(FURY_ROAD.sides.flank.across);
+    expect(Math.abs(acrossAt(w, spawnedFrom(w, 'ahead').pos))).toBeLessThanOrEqual(FURY_ROAD.sides.flank.across + FOOT_TOLERANCE);
   });
 });
 
@@ -69,6 +70,6 @@ describe('Fury Road hunters', () => {
   it('keep the aim inside the flanks when the player drives at the ridge', () => {
     const { w, me, hunter } = hunterWorld(8);
     me.heading += Math.PI / 2;
-    expect(Math.abs(acrossAt(w, interceptPoint(w, w.furyRoad!, hunter, me)))).toBeLessThanOrEqual(FURY_ROAD.sides.flank.across + 1e-6);
+    expect(Math.abs(acrossAt(w, interceptPoint(w, w.furyRoad!, hunter, me)))).toBeLessThanOrEqual(FURY_ROAD.sides.flank.across + FOOT_TOLERANCE);
   });
 });

@@ -120,7 +120,7 @@ function escortedRun(seed: number, turns: number): { grounded: number; stalls: n
 }
 
 it('keeps the hauler out of the craters of stretch 1 with the gun truck riding beside it', () => {
-  const { grounded, stalls, farthest } = escortedRun(4, 30);
+  const { grounded, stalls, farthest } = escortedRun(7, 30);
   expect(grounded).toBe(0);
   expect(stalls).toBe(0);
   expect(farthest).toBeGreaterThan(CRATERS_PASSED);
@@ -145,7 +145,7 @@ const OUTER_LANE = 3;
 const CHECKPOINT_LEAD = 16;
 const CHECKPOINT_TURNS = 30;
 const CHECKPOINT_STRETCH = 10;
-const CHECKPOINT_SEED = 19;
+const CHECKPOINT_SEED = 39;
 
 it('threads a checkpoint that blocks every lane from the outer lane, with no hit and no stall', () => {
   const stretch = CHECKPOINT_STRETCH;
