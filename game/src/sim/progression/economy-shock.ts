@@ -173,6 +173,7 @@ function noteHour(rec: Recording): void {
 }
 
 function playTurn(rec: Recording, onDay: (s: DaySample) => void): void {
+  rec.world.player.call = null;
   rec.world = endTurn(rec.world, (x) => { for (const v of x.vehicles) advanceFar(x, v); });
   if (rec.world.turn % Math.round(TIME.turnsPerDay / 24) === 0) noteHour(rec);
   if (rec.world.turn % SAMPLE_TURNS !== 0) return;
