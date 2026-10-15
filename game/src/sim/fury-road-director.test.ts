@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HAZARDS } from '../data/modes';
-import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget } from './fury-road-director';
+import { cardsOf, directStretch, eliteCap, expectedGear, payOf, planWaves, stretchBudget } from './fury-road-director';
 import { NPCS } from '../data/npcs';
 import { PARTS } from '../data/parts';
 import { HAULER_KIT, startKit } from '../data/start';
@@ -55,6 +55,20 @@ describe('Chaos Highway director', () => {
             expect(wave.money).toBe(wave.elite ? plain * DIRECTOR.elite.money : plain);
           }
         }
+      }
+    }
+  });
+
+  it('makes no more elite waves than the cap of the stretch, and never a blocker elite', () => {
+    expect(eliteCap(DIRECTOR.elite.from - 1)).toBe(0);
+    expect(eliteCap(DIRECTOR.elite.from)).toBe(1);
+    expect(eliteCap(DIRECTOR.elite.from + DIRECTOR.elite.every)).toBe(2);
+    for (const seed of SEEDS) {
+      const world = furyRoadWorld(seed);
+      for (const j of STRETCHES) {
+        const waves = directStretch(world, j);
+        expect(waves.filter((w) => w.elite).length, `stretch ${j} seed ${seed}`).toBeLessThanOrEqual(eliteCap(j));
+        expect(waves.some((w) => w.elite && !FURY_ROAD.cards[w.template].chase)).toBe(false);
       }
     }
   });

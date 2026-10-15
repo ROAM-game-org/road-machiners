@@ -47,9 +47,11 @@ export function planWaves(seed: number, j: number, budget: number, base: number)
   const count = Math.min(Math.floor((to - from) / DIRECTOR.spacing), roll(rng, lineAt(DIRECTOR.waves, j)));
   const waves = fitBudget(Array.from({ length: count }, () => drawWave(rng, j, base)), budget);
   let left = budget - trucksIn(waves);
-  for (const wave of j >= DIRECTOR.elite.from ? shuffled(rng, waves) : []) {
+  let elites = 0;
+  for (const wave of shuffled(rng, waves)) {
     const extra = wave.size * (DIRECTOR.elite.cost - 1);
-    if (extra > left) continue;
+    if (extra > left || elites >= eliteCap(j) || !FURY_ROAD.cards[wave.template].chase) continue;
+    elites++;
     wave.money *= DIRECTOR.elite.money;
     wave.elite = true;
     left -= extra;
@@ -90,6 +92,10 @@ function shuffled<T>(rng: Rng, items: T[]): T[] {
     [order[i], order[k]] = [order[k], order[i]];
   }
   return order;
+}
+
+export function eliteCap(j: number): number {
+  return j < DIRECTOR.elite.from ? 0 : 1 + Math.floor((j - DIRECTOR.elite.from) / DIRECTOR.elite.every);
 }
 
 export function toughness(j: number): number {

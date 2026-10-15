@@ -39,11 +39,21 @@ export function leash(world: World, me: Vehicle): number {
 
 export function fightMove(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
   const fighter = asFighter(me);
-  const clearance = Math.max(vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance, STANDOFF * leash(world, me));
+  const clearance = Math.max(vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance, standoff(world, me, foe));
   return fightOrder(world, fighter, foe, clearOf(foe, fightPoint(world, fighter, foe, clearance), me.pos, clearance));
 }
 
+export function standoff(world: World, me: Vehicle, foe: Vehicle): number {
+  const reach = leash(world, me);
+  const guns = vehicleStats(world, foe).weapons.filter((mw) => mw.part.hp > 0);
+  if (!guns.length) return STANDOFF * reach;
+  const deadliest = guns.reduce((a, c) => (sustainedDamage(c.def) > sustainedDamage(a.def) ? c : a));
+  const outside = deadliest.def.range + OUTSIDE;
+  return outside < reach ? outside : STANDOFF * reach;
+}
+
 const STANDOFF = 0.6;
+const OUTSIDE = 1.5;
 
 function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
   if (dist(spot, foe.pos) >= clearance) return spot;

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
-import { MIN_NPC_SPEED } from '../data/npcs';
+import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { isHostile } from './combat';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
 import { alongOf, milestoneAt, toRoad } from './highway';
-import { OPEN_GEAR } from './npc-loadout';
+import { generateNpcLoadout, OPEN_GEAR } from './npc-loadout';
 import { toughness } from './fury-road-director';
 import { mountedParts } from './grid';
 import { vehicleStats } from './stats';
@@ -40,6 +40,20 @@ describe('Chaos Highway waves', () => {
       }
     }
     for (const template of BLOCKERS) expect(waveGear(template, FURY_ROAD.cards[template].from, FURY_ROAD.cards[template].floor, false).minSpeed).toBe(MIN_NPC_SPEED);
+  });
+
+  it('builds every card, plain and elite, from its floor money to four times it, without running out of room', () => {
+    const w = furyRoadWorld(1);
+    for (const [template, card] of Object.entries(FURY_ROAD.cards)) {
+      for (const elite of [false, true]) {
+        for (const times of [1, 4]) {
+          for (const seed of [1, 4, 9]) {
+            const money = card.floor * times * (elite ? FURY_ROAD.director.elite.money : 1);
+            expect(() => generateNpcLoadout({ ...w, rngState: seed }, NPCS[template], null, 'light', waveGear(template, card.from, money, elite)), `${template} ${money} ${seed}`).not.toThrow();
+          }
+        }
+      }
+    }
   });
 
   it('sends a blocker card only from ahead and a chasing card from any side', () => {

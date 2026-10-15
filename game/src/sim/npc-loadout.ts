@@ -126,9 +126,9 @@ function wearOf(rng: Rng, level: Level): number {
   return sampleWeighted(rng, level.wear);
 }
 
-export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean; minSpeed: number };
+export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean; minSpeed: number; cargoPart: boolean };
 export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
-export const OPEN_GEAR: GearRules = { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed: MIN_NPC_SPEED };
+export const OPEN_GEAR: GearRules = { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed: MIN_NPC_SPEED, cargoPart: true };
 
 type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules };
 
@@ -299,15 +299,21 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
   const powered = chooseEngine(open, rng, table.priorities, bare);
   const b: Build = { ...open, keep: keepsHaul({ ...open, keep: table.haul }, powered) ? table.haul : NO_RESERVE };
-  let v = rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered) : powered;
-  v = chooseOptionalPart(b, rng, v, table.cargoPart);
-  v = chooseOptionalPart(b, rng, v, utilityPoolOf(template));
-  if (rules.armorFirst) v = pickWith(b, rng, armorMoves(b), gearScorer(b.world, table.priorities, powered, b.rules.paysFuel), v);
-  return pickGear(b, rng, table.priorities, v, powered);
+  return pickGear(b, rng, table.priorities, withFirstPicks(b, rng, template, powered), powered);
 }
 
+function withFirstPicks(b: Build, rng: Rng, template: NpcTemplate, powered: Vehicle): Vehicle {
+  const table = template.loadout;
+  let v = b.rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered) : powered;
+  if (b.rules.cargoPart) v = chooseOptionalPart(b, rng, v, table.cargoPart);
+  v = chooseOptionalPart(b, rng, v, utilityPoolOf(template));
+  return b.rules.armorFirst ? pickWith(b, rng, armorMoves(b), gearScorer(b.world, table.priorities, powered, b.rules.paysFuel), v) : v;
+}
+
+const SPEED_HEADROOM = 1.15;
+
 function fastEnough(template: NpcTemplate, minSpeed: number): Weighted<string>[] {
-  const fast = template.loadout.chassis.filter((entry) => chassisDef(entry.value).maxSpeed >= minSpeed);
+  const fast = template.loadout.chassis.filter((entry) => chassisDef(entry.value).maxSpeed >= minSpeed * SPEED_HEADROOM);
   if (!fast.length) throw new Error(`${template.id} has no chassis as fast as ${minSpeed}`);
   return fast;
 }

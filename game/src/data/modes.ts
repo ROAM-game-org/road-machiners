@@ -28,7 +28,7 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
 
 export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
-const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, paysFuel: false };
+const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, paysFuel: false, cargoPart: false };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
@@ -50,17 +50,17 @@ export const FURY_ROAD = {
     { level: 'light', gear: MIDDLE_GEAR },
     { level: 'standard', gear: MIDDLE_GEAR },
     { level: 'standard', gear: MIDDLE_GEAR },
-    { level: 'standard', gear: LATE_GEAR },
-    { level: 'heavy', gear: LATE_GEAR },
+    { level: 'standard', gear: MIDDLE_GEAR },
+    { level: 'heavy', gear: MIDDLE_GEAR },
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
   director: {
     budget: { first: 4, step: 2.5 } as Line,
     truckShare: 19,
     gearShare: 0.25,
-    elite: { from: 3, cost: 2, money: 2 },
-    waves: { first: 2, step: 0.5 } as Line,
-    wave: { min: 1, size: { first: 1.5, step: 0.25 } as Line, cap: 5 },
+    elite: { from: 3, cost: 2, money: 2, every: 4 },
+    waves: { first: 2, step: 0.25 } as Line,
+    wave: { min: 1, size: { first: 1.5, step: 0.15 } as Line, cap: 5 },
     toughness: { first: 0.5, step: 0.05 } as Line,
     spacing: 60,
     jitter: 0.3,
@@ -73,14 +73,14 @@ export const FURY_ROAD = {
     trader: { weight: 1, from: 2, floor: 10000, chase: true },
     merc: { weight: 3, from: 2, floor: 10000, chase: true },
     bowlFarmer: { weight: 1, from: 3, floor: 10000, chase: false },
-    gunwagon: { weight: 3, from: 6, floor: 45000, chase: false },
-    vulture: { weight: 2, from: 6, floor: 45000, chase: true },
-    noseArmy: { weight: 2, from: 6, floor: 45000, chase: false },
-    convoyGuard: { weight: 2, from: 6, floor: 45000, chase: true },
-    convoy: { weight: 1, from: 6, floor: 45000, chase: true },
+    gunwagon: { weight: 3, from: 6, floor: 15000, chase: false },
+    vulture: { weight: 2, from: 6, floor: 25000, chase: true },
+    noseArmy: { weight: 2, from: 6, floor: 15000, chase: false },
+    convoyGuard: { weight: 2, from: 6, floor: 15000, chase: true },
+    convoy: { weight: 1, from: 6, floor: 30000, chase: false },
   } as Record<string, EnemyCard>,
   chaseSpeed: 5.5,
-  nerve: 0.4,
+  nerve: 0.3,
   sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
   pacing: { near: 30, lateBy: 60 },
   spawnStagger: 3,
