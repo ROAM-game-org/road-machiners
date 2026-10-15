@@ -1,8 +1,9 @@
 import { partDef, type PartKind } from "../data/parts";
 import { haulerOf, playerVehicle, truckFor } from "../sim/damage";
 import { chassisPrice, chassisSwapRefusal, type Supply } from "../sim/economy";
-import { canWaitForRoad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from "../sim/fury-road";
+import { canDriveOn, driveOn, outpostTrucks, reachedOutpostAt, type Outpost } from "../sim/fury-road";
 import { goodsCount, MOUNT_CELLS } from "../sim/grid";
+import { gatesShut } from "../sim/outpost-gates";
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, haulerTakes, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from "../sim/outposts";
 import type { PartInstance, World } from "../sim/types";
 import { num, SPACE, t, type Msg } from "../text/msg";
@@ -53,6 +54,11 @@ export class OutpostScreen {
   }
 
   close(): void {
+    if (gatesShut(this.host.world())) return;
+    this.leave();
+  }
+
+  private leave(): void {
     this.inventory.clearSelection();
     this.root.style.display = "none";
     this.root.replaceChildren();
@@ -75,7 +81,7 @@ export class OutpostScreen {
   private draw(): void {
     const w = this.host.world();
     const post = reachedOutpostAt(w);
-    if (!post) return this.close();
+    if (!post) return this.leave();
     if (this.shown === "hauler" && !this.haulerHere(w)) this.shown = "truck";
     const id = this.truckId(w);
     this.inventory.showTruck(id ?? null);
@@ -93,13 +99,10 @@ export class OutpostScreen {
       el("div", { class: "tabs" }, ...this.tabButtons()),
       this.error ? el("div", { class: "bad" }, this.error) : null,
       el("div", { class: "outpost-body" }, this.tabBody(w, post)),
-      this.roadButton(w),
+      this.driveOnButton(w),
     );
-    this.root.replaceChildren(
-      el("button", { class: "close", onclick: () => this.close() }, t("trade.leave")),
-      el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)),
-      el("div", { class: "town-split" }, truck, shop),
-    );
+    const leave = gatesShut(w) ? [] : [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))];
+    this.root.replaceChildren(...leave, el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truck);
   }
 
@@ -174,15 +177,15 @@ export class OutpostScreen {
     return refusal ? refusalText(w, refusal) : null;
   }
 
-  private roadButton(w: World): HTMLElement | null {
-    if (!canWaitForRoad(w)) return null;
-    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.waitForRoad() }, t("outpost.waitForRoad")));
+  private driveOnButton(w: World): HTMLElement | null {
+    if (!canDriveOn(w)) return null;
+    return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.driveOn() }, t("outpost.driveOn")));
   }
 
-  private waitForRoad(): void {
+  private driveOn(): void {
     const w = this.host.world();
-    this.close();
-    this.host.apply(waitForRoad(w));
+    this.leave();
+    this.host.apply(driveOn(w));
   }
 
   private run(cmd: ShopCommand): void {

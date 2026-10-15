@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from './damage';
-import { betweenLevels, outpostPad } from './fury-road';
+import { betweenLevels } from './fury-road';
+import { yardSpots } from './outpost-gates';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, furyRoadWorld } from './testkit';
@@ -116,23 +117,28 @@ describe('the hauler driver', () => {
     expect(w.furyRoad!.hauler.alarmUntil).toBeNull();
   });
 
-  it('stops at the pad within the approach and never aims off the lanes before that', () => {
+  it('stops at its yard spot within the approach and never aims off the lanes before that', () => {
     const { w, hauler } = openRoad();
-    const pad = outpostPad(w, 1);
+    const pad = yardSpots(w, 1).hauler;
     hauler.pos = roadPoint(w.seed, 0, milestoneAt(1) - 10, LANES[1]);
     expect(dist(hauler.pos, pad)).toBeLessThanOrEqual(FURY_ROAD.hauler.approach);
     planHaulerOrder(w);
     expect(hauler.order).toEqual({ kind: 'stopAt', dest: pad });
   });
 
-  it('parks between levels, braking only while it still rolls', () => {
+  it('drives to its yard spot between levels and holds still once parked on it', () => {
     const { w, hauler } = openRoad();
     w.furyRoad!.outposts[0].paid = true;
+    const spot = yardSpots(w, 1).hauler;
     expect(betweenLevels(w)).toBe(true);
+    hauler.pos = { x: spot.x + 2, y: spot.y };
     hauler.speed = 3;
     planHaulerOrder(w);
-    expect(hauler.order).toEqual({ kind: 'brake' });
+    expect(hauler.order).toEqual({ kind: 'stopAt', dest: spot });
     hauler.speed = 0;
+    planHaulerOrder(w);
+    expect(hauler.order).toEqual({ kind: 'stopAt', dest: spot });
+    hauler.pos = { ...spot };
     planHaulerOrder(w);
     expect(hauler.order).toBeNull();
   });
