@@ -8,7 +8,7 @@ import { angleDiff, bearing, dist, type Vec } from './vec';
 import { laneCount, passShare, planCrashLane, planLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
-import { damagePart } from './damage';
+import { damagePart, isOwnedTruck } from './damage';
 import { RULES } from '../data/rules';
 import { practice, skillEffect, vehicleHasPerk } from './progress';
 import { PERK_NUMBERS } from '../data/skills';
@@ -119,8 +119,7 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
 
 function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
   const copy = structuredClone(vehicle);
-  const draft = { ...world, player: structuredClone(world.player), events: [] };
-  // A fixed ground strike carries through the crushed body; vehicle-to-vehicle strikes lose energy with depth.
+  const draft = { ...world, player: scratchPlayer(world, vehicle), events: [] };
   for (const hit of (ground ? planLane : planCrashLane)(copy, side, lane, round)) {
     hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
   }
@@ -165,7 +164,7 @@ export function forecastRam(world: World, attacker: Vehicle, target: Vehicle, im
   const other = structuredClone(target);
   for (const part of mountedParts(other)) if (!isJunk(part)) restorePart(part, maxHp(part));
   const intact = structuredClone(other);
-  const draft = { ...world, player: structuredClone(world.player), events: [] };
+  const draft = { ...world, player: scratchPlayer(world, attacker, target), events: [] };
   own.heading = bearing(attacker.pos, target.pos);
   damageVehicleCrash(draft, own, other, impact, estimateCrashGeometry(own, other, other.pos));
   const minimum = NPC_BEHAVIOR.fleeCondition;
@@ -277,4 +276,8 @@ export function computeClosingSpeed(relative: Vec, normal: Vec): number {
   const length = Math.hypot(normal.x, normal.y);
   if (!(length > 0)) throw new Error('Crash normal has no horizontal direction');
   return Math.max(0, (relative.x * normal.x + relative.y * normal.y) / length);
+}
+
+function scratchPlayer(world: World, ...hurt: Vehicle[]): World['player'] {
+  return hurt.some((v) => isOwnedTruck(world, v)) ? structuredClone(world.player) : world.player;
 }
