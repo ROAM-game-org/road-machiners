@@ -2,9 +2,9 @@ This is a revert round of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{into}}.
 The factory takes issue {{issue}} out of this branch. It reverts the merge of that issue.
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The commit hook needs it.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The commit hook needs it.
 
 The revert stopped on conflicts in these files:
 
