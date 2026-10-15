@@ -10,6 +10,7 @@ export const DIRECTIONS = {
   cueReach: 25,
   keepAngle: 0.5,
   maxSteps: 5,
+  maxCount: 3,
   nodeMerge: 0.3,
   spans: { near: 60, fair: 180 },
   cueLooks: ['waterTower', 'silo', 'gasStation', 'billboard', 'tank', 'barn', 'watchtower', 'glassSpire', 'escapePod'] as LandmarkLook[],

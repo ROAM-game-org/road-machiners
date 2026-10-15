@@ -876,6 +876,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEscortJobs_62_63,
   withRescueContracts_63_64,
   withoutBearingCall_64_65,
+  withCountableDirections_65_66,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -1001,6 +1002,39 @@ function withoutBearingCall_64_65(world: SavedJson): SavedJson {
   const call = player.call as SavedJson | null;
   const said = (call?.line as SavedJson | undefined)?.line;
   return typeof said === 'string' && BEARING_LINES_64_65.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+}
+
+const MAX_COUNT_65_66 = 3;
+
+function countedPast_65_66(step: SavedJson): boolean {
+  const at = step.at as SavedJson | undefined;
+  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_65_66;
+}
+
+function countableSteps_65_66(steps: SavedJson[]): SavedJson[] {
+  const cut = steps.findIndex(countedPast_65_66);
+  const kept = cut < 0 ? steps : [...steps.slice(0, cut), { do: 'askAgain' }];
+  return kept.map((step) => {
+    if (step.do !== 'askAgain') return step;
+    const { at: _at, ...plain } = step;
+    return plain;
+  });
+}
+
+function countableVars_65_66(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_65_66(value.steps as SavedJson[]) } : value];
+  }));
+}
+
+function withCountableDirections_65_66(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: countableVars_65_66(call.vars as SavedJson), line: { ...line, vars: countableVars_65_66(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

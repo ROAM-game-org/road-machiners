@@ -66,6 +66,7 @@ import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_65 from './save-fixtures/format-2-65.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1389,5 +1390,41 @@ describe('MIGRATIONS[64]', () => {
     expect(MIGRATIONS[64](structuredClone(other))).toEqual(other);
     const none = { turn: 3, player: { call: null } };
     expect(MIGRATIONS[64](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('MIGRATIONS[65]', () => {
+  type Saved = { player: { money: number; call: { vars: { way: { steps: { do: string; at?: unknown }[] } }; line: { vars: { way: { steps: { do: string; at?: unknown }[] } } } } } };
+  const next = () => MIGRATIONS[65](structuredClone(FORMAT_2_65)) as unknown as Saved;
+
+  it('cuts the steps at a fork counted past the third and asks again, in both copies of the call', () => {
+    const { call } = next().player;
+    for (const way of [call.vars.way, call.line.vars.way]) {
+      expect(way.steps.map((s) => s.do)).toEqual(['follow', 'turn', 'askAgain']);
+    }
+  });
+
+  it('removes the cue from every askAgain', () => {
+    const only = structuredClone(FORMAT_2_65) as unknown as Saved;
+    only.player.call.vars.way.steps = [{ do: 'askAgain', at: { kind: 'fork', nth: 3 } }];
+    only.player.call.line.vars.way.steps = [{ do: 'askAgain', at: { kind: 'none' } }];
+    const { call } = (MIGRATIONS[65](only as never) as unknown as Saved).player;
+    expect(call.vars.way.steps).toEqual([{ do: 'askAgain' }]);
+    expect(call.line.vars.way.steps).toEqual([{ do: 'askAgain' }]);
+  });
+
+  it('keeps the rest of the world and a save with no call as they are', () => {
+    const { player, ...rest } = next() as unknown as { player: { money: number; call: object }; turn: number };
+    expect(rest).toEqual({ turn: 3 });
+    expect(player.money).toBe(1200);
+    const none = { turn: 3, player: { call: null } };
+    expect(MIGRATIONS[65](structuredClone(none))).toEqual(none);
+  });
+
+  it('keeps the steps of a call whose forks are all countable', () => {
+    const fine = structuredClone(FORMAT_2_65) as unknown as Saved;
+    fine.player.call.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
+    fine.player.call.line.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
+    expect(MIGRATIONS[65](structuredClone(fine) as never)).toEqual(fine);
   });
 });

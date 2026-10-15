@@ -19,9 +19,9 @@ export function spanOf(tiles: number): Span {
   return tiles < DIRECTIONS.spans.fair ? 'fair' : 'far';
 }
 
-export type CueSpot = { pos: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number; junctionHere: boolean };
+export type CueSpot = { pos: Vec; legStart: Vec; leg: readonly (readonly Vec[])[]; earlier: readonly Vec[]; forks: number; junctionHere: boolean };
 
-export function cueAt(world: World, spot: CueSpot): Cue {
+export function cueAt(world: World, spot: CueSpot): Cue | null {
   return siteCue(world, spot) ?? deckCue(world, spot) ?? propCue(world, spot) ?? countCue(spot);
 }
 
@@ -66,9 +66,16 @@ function otherOfLookOnLeg(world: World, spot: CueSpot, look: LandmarkLook, excep
   return segments.some(([a, b]) => landmarksOf(propsAlong(world, 'sight', a, b, DIRECTIONS.cueReach), look).some((o) => o.id !== except));
 }
 
-function countCue(spot: CueSpot): Cue {
-  if (spot.forks === 0 || (spot.junctionHere && spot.forks === 1)) return { kind: 'none' };
-  return { kind: 'fork', nth: spot.forks };
+function countable(spot: CueSpot): boolean {
+  const places = [spot.legStart, ...spot.earlier, spot.pos];
+  return places.every((place, i) => i === 0 || dist(places[i - 1], place) >= DIRECTIONS.cueReach);
+}
+
+function countCue(spot: CueSpot): Cue | null {
+  if (spot.forks === 0 || (!spot.junctionHere && spot.forks === 1)) return { kind: 'none' };
+  if (!countable(spot)) return null;
+  if (spot.forks === 1) return { kind: 'none' };
+  return spot.forks <= DIRECTIONS.maxCount ? { kind: 'fork', nth: spot.forks } : null;
 }
 
 export function roadName(graph: RoadGraph, edge: number, fromNode: number): RoadName {
