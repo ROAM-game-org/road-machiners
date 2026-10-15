@@ -52,6 +52,8 @@ import { Fx3D, TruckFx } from "./render/fx";
 import { aimedTarget, CollisionCues, collisionSteps, gunfireSeen, hookLine, playCookOff, playCrashes, playShotFx, playUtilitySounds, posesOf, shotAimsOf, utilitySeen, volleySeen, type CombatHost } from "./volley";
 import { Labels, VehicleMarkers } from "./render/labels";
 import { ObstacleViews } from "./render/obstacles";
+import { OutpostGateViews } from "./render/outpostGates";
+import { gatesShut } from "../sim/outpost-gates";
 import { CraterViews } from "./render/craters";
 import { playBreak } from "./render/partDebris";
 import { BreakCues, shownItems, type PartBreak } from "./breakCues";
@@ -126,6 +128,7 @@ export class Game {
   private readonly props = new THREE.Group();
   private readonly scopes: RenderScope[];
   private readonly obstacles: ObstacleViews;
+  private readonly gateViews: OutpostGateViews | null;
   private readonly craters: CraterViews;
   private readonly fog: FogView;
   private readonly lastSeen = new Map<string, number>();
@@ -233,6 +236,7 @@ export class Game {
     addShipDecks(this.world.terrain, propScope);
     this.obstacles = new ObstacleViews(propScope, this.world.terrain);
     this.obstacles.sync(this.world.obstacles, this.world.salvage, this.world.broken);
+    this.gateViews = this.world.furyRoad ? new OutpostGateViews(propScope, this.world.terrain, this.world) : null;
     addScatter(this.world.terrain, this.world.obstacles, propScope);
     this.fog = new FogView(this.world, groundChunks, this.sightLimit);
     this.path = new PathView(this.world.terrain);
@@ -391,6 +395,7 @@ export class Game {
     this.world = next;
     this.saves.logWorld(next);
     syncDrive(this.drive, this.world);
+    this.gateViews?.sync(this.world);
     this.refreshUi();
   }
 
@@ -780,6 +785,7 @@ export class Game {
     this.breakCues = new BreakCues([]);
     this.phase = null;
     this.idleSince = performance.now();
+    this.gateViews?.sync(this.world);
     this.saves.afterTurn(this.world);
     const pending = this.pending;
     this.pending = null;
@@ -940,6 +946,8 @@ export class Game {
     const step = at === null ? null : Math.floor(at);
     this.syncVehicles(at, Math.max(0, dt) / 1000, playDt);
     this.obstacles.play(this.anim, step, this.world, this.frames, playDt);
+    this.gateViews?.tick(Math.max(0, dt) / 1000);
+    this.openShutOutpost();
     if (step !== null) playCrashes(this.combatHost(), this.crashCues, step);
     this.drawOverlays();
     const truck = this.frames[playerVehicle(this.world).id].pos;
@@ -963,6 +971,12 @@ export class Game {
     this.renderer.render(this.scene, this.rig.camera);
     this.refreshPlan();
     this.showPlan();
+  }
+
+  private openShutOutpost(): void {
+    const views = this.gateViews;
+    if (!views || this.anim || this.modalOpen() || !views.settled() || !gatesShut(this.world) || this.screens.outpost.isOpen()) return;
+    this.screens.outpost.open();
   }
 
   private updateLiveVision(): void {

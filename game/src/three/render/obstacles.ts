@@ -240,7 +240,7 @@ function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   return g;
 }
 
-const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...FORT_MODELS.values()].map((f) => f.model));
+const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...[...FORT_MODELS.values()].map((f) => f.model), 'fort_outpost_shut']);
 
 function lightFortPiece(obj: THREE.Object3D): void {
   obj.traverse((o) => {
