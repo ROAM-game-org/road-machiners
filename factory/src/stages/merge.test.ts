@@ -23,6 +23,7 @@ let limits: (number | undefined)[] = [];
 let logs: string[] = [];
 let costs: number[] = [];
 let changed: string[] = [];
+let movedBy: string[] = [];
 let scripts: string[] = [];
 const PASS = 'pass';
 const HUNG = 'CheckTimeoutError: the checks ran past their 45 minute limit, and the factory removed their container.';
@@ -46,6 +47,7 @@ beforeEach(() => {
   logs = [];
   costs = [];
   changed = [];
+  movedBy = ['game/src/sim/world.ts'];
   scripts = [];
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
@@ -85,7 +87,7 @@ function fakeCtx(budget = 5): Ctx {
         return merges[branch]?.shift() ?? { commit: null, conflicts: [] };
       },
       fetchFromWork: async () => 'head1',
-      changedInWork: async (_dir: string, from: string) => (from === 'origin/dev' ? changed : []),
+      changedInWork: async (_dir: string, from: string) => (from === 'head1' ? movedBy : changed),
       diff: async () => diff,
       push: async (commit: string, branch: string) => {
         calls.push(`push ${commit} ${branch}`);
@@ -315,6 +317,21 @@ describe('merge queue', () => {
 
   it('merges the moved base again and checks again when GitHub rejects the push', async () => {
     pushFailures = 1;
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(merge dev|checks|push)/.test(call))).toEqual(['checks', 'push head1 dev', 'merge dev', 'checks', 'push head1 dev']);
+  });
+
+  it('pushes again with no checks when the base moved only by docs', async () => {
+    pushFailures = 1;
+    movedBy = ['game/docs/incidents/2026-10-15.md', 'factory/src/tick.ts'];
+    await merge(fakeCtx());
+    expect(calls.filter((call) => /^(merge dev|checks|push)/.test(call))).toEqual(['checks', 'push head1 dev', 'merge dev', 'push head1 dev']);
+    expect(logs).toContain('dev moved by docs only, so the checks that passed still hold');
+  });
+
+  it('checks again when the base moved by a tested wiki page', async () => {
+    pushFailures = 1;
+    movedBy = ['game/docs/wiki/mechanics/fuel.md'];
     await merge(fakeCtx());
     expect(calls.filter((call) => /^(merge dev|checks|push)/.test(call))).toEqual(['checks', 'push head1 dev', 'merge dev', 'checks', 'push head1 dev']);
   });

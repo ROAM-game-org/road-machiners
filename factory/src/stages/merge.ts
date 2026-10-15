@@ -10,7 +10,7 @@ import { BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, runChecks } from './checks';
 import { subsetCommand, testSubset } from './subset';
 import { guardAgainstAll } from '../diff-guard';
-import { BASE_BRANCH, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
+import { BASE_BRANCH, baseBranchFor, fillPrompt, isGameSource, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
 
 export async function merge(ctx: Ctx): Promise<void> {
@@ -72,10 +72,14 @@ function clockLine(clock: Clock): string {
 export async function checkAndPush(ctx: Ctx, land: Landing, conflictUsd: number, fixPrompt: (failure: string) => string): Promise<void> {
   let conflicts = conflictUsd;
   let fixes = 0;
+  let recheck = true;
   for (;;) {
-    fixes = await fixUntilPasses(ctx, land, fixes, conflicts, fixPrompt);
-    if (await timed(land.clock, 'pushes', () => pushed(ctx, land))) return;
+    if (recheck) fixes = await fixUntilPasses(ctx, land, fixes, conflicts, fixPrompt);
+    const unpushed = await timed(land.clock, 'pushes', () => pushed(ctx, land));
+    if (unpushed === null) return;
     conflicts += await timed(land.clock, 'remerges', () => mergeIn(ctx, land, { branch: land.into, message: undefined, reason: `${land.into} moved on GitHub while the checks ran` }));
+    recheck = (await ctx.repo.changedInWork(land.dir, unpushed)).some(isGameSource);
+    if (!recheck) ctx.log(land.stage, null, `${land.into} moved by docs only, so the checks that passed still hold`);
   }
 }
 
@@ -148,17 +152,17 @@ async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
 }
 
-async function pushed(ctx: Ctx, land: Landing): Promise<boolean> {
+async function pushed(ctx: Ctx, land: Landing): Promise<string | null> {
   const head = await ctx.repo.fetchFromWork(land.dir, land.into);
   guardAgainstAll(await Promise.all(land.guardAgainst.map((branch) => ctx.repo.diff(branch, head))));
   try {
     await ctx.repo.push(head, land.into);
-    return true;
+    return null;
   } catch (error) {
     await ctx.repo.fetch();
     if (await ctx.repo.isMerged(land.into, head)) throw error;
     ctx.log(land.stage, null, `${land.into} moved during the checks, merging it in again`);
-    return false;
+    return head;
   }
 }
 

@@ -26,7 +26,15 @@ const TESTED_DOCS = `${GAME_DIR}/docs/wiki/`;
 
 export async function docsOnly(ctx: Ctx, issue: number, base: string): Promise<boolean> {
   const files = await ctx.repo.changedFiles(base, BRANCH(issue));
-  return files.length > 0 && files.every((file) => file.endsWith('.md') && !file.startsWith(TESTED_DOCS));
+  return files.length > 0 && files.every(isUntestedDoc);
+}
+
+function isUntestedDoc(file: string): boolean {
+  return file.endsWith('.md') && !file.startsWith(TESTED_DOCS);
+}
+
+export function isGameSource(file: string): boolean {
+  return file.startsWith(`${GAME_DIR}/`) && !isUntestedDoc(file);
 }
 
 export async function baseBranchOf(ctx: Ctx, issue: number): Promise<string> {
