@@ -37,8 +37,8 @@ export function stingOf(events: GameEvent[], playerId: string): CueId | null {
 }
 
 export type AccentCue = Extract<CueId, `accent-${string}`>;
-const BASE_CUES = ["score-drums", "score-bass", "score-horns", "score-trombone"] as const;
-type BaseCue = (typeof BASE_CUES)[number];
+export const BASE_CUES = ["score-drums", "score-bass", "score-horns", "score-trombone"] as const;
+export type BaseCue = (typeof BASE_CUES)[number];
 type Base = { loop: BeatLoopHandle; grid: Grid };
 
 const START_LEAD_SECONDS = 0.1;
@@ -56,6 +56,7 @@ export class CombatScore {
   private heat = new Fading(MIX.score.heatHalfLifeSeconds);
   private lastBar = -Infinity;
   private paused = false;
+  private preferred: BaseCue | null = null;
 
   constructor(
     private player: Pick<SoundPlayer, "beatLoop" | "now" | "play" | "chooseWithPeak">,
@@ -68,13 +69,22 @@ export class CombatScore {
   setCombat(on: boolean, fadeSeconds: number): void {
     if (on === (this.active !== null)) return;
     this.active?.loop.setGain(0, fadeSeconds);
-    this.active = on ? this.bases[Math.floor(this.roll() * this.bases.length)] : null;
+    this.active = on ? this.pickBase() : null;
     this.designer = null;
     if (!this.active) return;
     const now = this.player.now();
     this.designer = new SoundDesigner(this.active.grid, MIX.score, this.roll, now + ACCENT_LEAD_SECONDS);
     this.lastBar = this.barAt(this.active, now);
     this.setIntensity(this.active, now, fadeSeconds);
+  }
+
+  preferBase(id: BaseCue | null): void {
+    this.preferred = id;
+  }
+
+  private pickBase(): Base {
+    if (this.preferred) return this.bases[BASE_CUES.indexOf(this.preferred)];
+    return this.bases[Math.floor(this.roll() * this.bases.length)];
   }
 
   setPaused(paused: boolean): void {

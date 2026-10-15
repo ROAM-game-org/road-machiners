@@ -1,4 +1,3 @@
-// Plays catalog cues: one-shots with a variant, pitch jitter and voice limit, and loops with live controls.
 
 import { MIX, type Bus, type Cue } from "../data/sounds";
 import type { Bank } from "./bank";
@@ -166,7 +165,10 @@ export class SoundPlayer {
   }
 
   chooseWithPeak(id: string): { file: string; peak: number } {
-    const file = this.cue(id).files[this.nextIndex(id, this.cue(id))];
+    return this.takeWithPeak(id, this.cue(id).files[this.nextIndex(id, this.cue(id))]);
+  }
+
+  takeWithPeak(id: string, file: string): { file: string; peak: number } {
     let peak = this.peaks.get(file);
     if (peak === undefined) {
       peak = loudestAt(this.getBuffer(id, this.cue(id), file).getChannelData(0), this.mixer.ctx.sampleRate, PEAK_WINDOW_SECONDS);

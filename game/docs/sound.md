@@ -52,7 +52,7 @@ Accents wait on the turn's play clock and go to the score just before their even
 
 To hear a fight without looking for one, open the console with the backquote key and type `battle`. It spawns a random hostile raider near the truck. The score starts once the raider closes in or fires. `__ROAM__.sound.log` in dev lists recent cues and what the score did with each accent, like `accent-hit skipped heat1.2`.
 
-To try the score without a game, open `/score.html` on the dev server. It runs the game's score code. Buttons start combat, play a sighting at once, or queue shots and crashes into a 1 s turn at normal or fast speed. The page draws the turns, each event and its result, the stabs and tails on both lines, the base's level and ducks, and the heat.
+To try the score without a game, open `/score.html` on the dev server. It runs the game's score code. Buttons start combat, play a sighting at once, or queue shots and crashes into a 1 s turn at normal or fast speed. Other buttons fix the base loop and the take of each accent, or leave them random. The page draws the turns, each event and its result, the stabs and tails on both lines, the base's level and ducks, and the heat.
 
 ## Adding a sound
 

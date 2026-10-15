@@ -1,18 +1,23 @@
+import "../ui/style.css";
+import "./score-lab.css";
 import { BEATS_PER_BAR, MIX, SOUNDS, type Cue } from "../data/sounds";
 import { SFX_BYTES } from "../config";
 import { formatSupport, loadBank } from "../audio/bank";
 import { Mixer } from "../audio/mixer";
 import { SoundPlayer, type BeatLoopHandle, type Placement, type SoundSelection } from "../audio/player";
-import { devEl as el } from "../ui/dom";
-import { CombatScore, SoundDirector, SoundLoops, type AccentCue, type AccentTake } from "./sound";
+import { devEl as el, uiRoot } from "../ui/dom";
+import { token } from "../ui/tokens";
+import { BASE_CUES, CombatScore, SoundDirector, SoundLoops, type AccentCue, type AccentTake, type BaseCue } from "./sound";
 
 const TURN_MS = 1000;
+const FAST_SPEED = 4;
 const PAST_SECONDS = 10;
 const FUTURE_SECONDS = 3;
 const WIDTH = 1200;
 const LANE_HEIGHT = 64;
 const LABEL_ROWS = 4;
 const LABEL_WIDTH = 90;
+const UNKNOWN_TAIL_SECONDS = 0.25;
 const LANES = ["turns", "events", "lead", "secondary", "base", "heat"] as const;
 type Lane = (typeof LANES)[number];
 
@@ -23,15 +28,39 @@ const TURN_EVENTS: { label: string; cue: AccentCue }[] = [
   { label: "I am hit", cue: "accent-struck" },
   { label: "Crash", cue: "accent-crash" },
 ];
+const ACCENT_CUES = Object.keys(MIX.score.accents) as AccentCue[];
 
 type Sounded = { cue: string; start: number; end: number; from: number; stab: boolean; gain: number };
 type Offered = { cue: AccentCue; at: number; result: string };
 type Step = { at: number; value: number };
 type TurnSpan = { start: number; end: number | null; speed: number };
 
+const INK = {
+  text: token("--ink"),
+  label: token("--ink-label"),
+  faint: token("--ink-faint"),
+  now: token("--ink-bright"),
+  well: token("--surface-sunk"),
+  gutter: token("--surface-well"),
+  beat: token("--line-faint"),
+  bar: token("--line-soft"),
+  turn: token("--good-deep"),
+  pause: token("--line-strong"),
+  stab: token("--accent-deep"),
+  tail: token("--accent-bright"),
+  base: token("--good"),
+  duck: token("--danger"),
+  heat: token("--danger-bright"),
+  hot: token("--danger-deep"),
+  full: token("--accent-dim"),
+};
+const RESULT_INK: Record<string, string> = { played: token("--accent"), skipped: token("--ink-faint"), crowded: token("--danger") };
+const FONT = `${token("--text-dense")} ${token("--font-mono")}`;
+
 const sounds: Record<string, Cue> = SOUNDS;
-const root = document.getElementById("lab");
-if (!root) throw new Error("#lab element missing from score.html");
+const root = uiRoot();
+root.classList.add("score-lab");
+root.append(el("h1", {}, "Combat score lab"), el("div", { class: "dim" }, "Loading sounds..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const { bank } = await loadBank(mixer.ctx, sounds, { expectedBytes: SFX_BYTES, support: formatSupport() });
@@ -45,6 +74,7 @@ const baseGain = new Map<string, Step[]>();
 const baseTone = new Map<string, Step[]>();
 const baseGrid = new Map<string, { start: number; beat: number }>();
 const heats: Step[] = [];
+const pinnedTakes = new Map<string, string>();
 let lastRaised: string | null = null;
 
 function lineOf(cue: string): "lead" | "secondary" {
@@ -52,16 +82,23 @@ function lineOf(cue: string): "lead" | "secondary" {
 }
 
 function recordPlay(id: string, at: Placement, delayMs: number, selection?: SoundSelection): void {
+  const pinned = pinnedTakes.get(id);
+  const chosen = selection ?? (pinned === undefined ? undefined : { file: pinned, rate: 1 });
   const start = player.now() + delayMs / 1000;
-  const from = selection?.from ?? 0;
-  const duration = selection ? bank.get(selection.file)!.duration - from : 0.25;
+  const from = chosen?.from ?? 0;
+  const duration = chosen ? bank.get(chosen.file)!.duration - from : UNKNOWN_TAIL_SECONDS;
   sounded.push({ cue: id, start, end: start + duration, from, stab: selection !== undefined, gain: at.gain });
-  player.play(id, at, delayMs, selection);
+  player.play(id, at, delayMs, chosen);
+}
+
+function chooseTake(id: string): AccentTake {
+  const pinned = pinnedTakes.get(id);
+  return pinned === undefined ? player.chooseWithPeak(id) : player.takeWithPeak(id, pinned);
 }
 
 function recordBase(id: string, file: string, when: number, offset: number): BeatLoopHandle {
   const loop = player.beatLoop(id, file, when, offset);
-  const beat = SOUNDS[id as keyof typeof SOUNDS].beat!;
+  const beat = SOUNDS[id as BaseCue].beat!;
   const gains: Step[] = [{ at: when, value: 0 }];
   const tones: Step[] = [{ at: when, value: MIX.score.openCutoffHz }];
   baseGrid.set(id, { start: when, beat: loop.duration / (beat.bars * BEATS_PER_BAR) });
@@ -86,10 +123,7 @@ function recordBase(id: string, file: string, when: number, offset: number): Bea
   };
 }
 
-const score = new CombatScore(
-  { now: () => player.now(), play: recordPlay, beatLoop: recordBase, chooseWithPeak: (id) => player.chooseWithPeak(id) },
-  Math.random,
-);
+const score = new CombatScore({ now: () => player.now(), play: recordPlay, beatLoop: recordBase, chooseWithPeak: chooseTake }, Math.random);
 const loops = new SoundLoops(player, score);
 const noRig = { focus: () => { throw new Error("The score lab has no camera"); }, screenOf: () => { throw new Error("The score lab has no camera"); } };
 const director = new SoundDirector(player, noRig, {
@@ -118,8 +152,7 @@ function heatAt(t: number): number {
 }
 
 function activeBase(): string | null {
-  if (!inCombat) return null;
-  return lastRaised;
+  return inCombat ? lastRaised : null;
 }
 
 function startTurn(): void {
@@ -152,8 +185,9 @@ function frame(): void {
 
 const canvas = el("canvas", { width: WIDTH, height: LANE_HEIGHT * LANES.length }) as HTMLCanvasElement;
 const g = canvas.getContext("2d")!;
-const statsBox = el("div", { class: "stats" });
-const logBox = el("div", { class: "log" });
+const statsBox = el("div", {});
+const queueBox = el("div", { class: "score-lab-buttons" });
+const logBox = el("div", { class: "score-lab-log" });
 
 function xOf(t: number, now: number): number {
   return LABEL_WIDTH + ((t - (now - PAST_SECONDS)) / (PAST_SECONDS + FUTURE_SECONDS)) * (WIDTH - LABEL_WIDTH);
@@ -165,7 +199,9 @@ function laneTop(lane: Lane): number {
 
 function draw(paused: boolean): void {
   const now = player.now();
-  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.font = FONT;
+  g.fillStyle = INK.well;
+  g.fillRect(0, 0, canvas.width, canvas.height);
   drawGrid(now);
   drawTurns(now);
   drawEvents(now);
@@ -178,16 +214,15 @@ function draw(paused: boolean): void {
 }
 
 function drawLabels(now: number): void {
-  g.font = "12px ui-monospace, Menlo, monospace";
   for (const lane of LANES) {
-    g.fillStyle = "#1a1410";
+    g.fillStyle = INK.gutter;
     g.fillRect(0, laneTop(lane), LABEL_WIDTH, LANE_HEIGHT);
-    g.fillStyle = "#b8a888";
+    g.fillStyle = INK.label;
     g.fillText(lane, 8, laneTop(lane) + 20);
-    g.fillStyle = "#3a2a1e";
+    g.fillStyle = INK.beat;
     g.fillRect(0, laneTop(lane) + LANE_HEIGHT - 1, WIDTH, 1);
   }
-  g.fillStyle = "#f0e0b8";
+  g.fillStyle = INK.now;
   g.fillRect(xOf(now, now), 0, 1, canvas.height);
 }
 
@@ -198,7 +233,7 @@ function drawGrid(now: number): void {
   const first = Math.ceil((now - PAST_SECONDS - grid.start) / grid.beat);
   const last = Math.floor((now + FUTURE_SECONDS - grid.start) / grid.beat);
   for (let b = first; b <= last; b++) {
-    g.fillStyle = b % BEATS_PER_BAR === 0 ? "#4a3626" : "#261c14";
+    g.fillStyle = b % BEATS_PER_BAR === 0 ? INK.bar : INK.beat;
     g.fillRect(xOf(grid.start + b * grid.beat, now), 0, 1, canvas.height);
   }
 }
@@ -208,28 +243,26 @@ function drawTurns(now: number): void {
   for (const t of turns) {
     const x0 = xOf(t.start, now);
     const x1 = xOf(t.end ?? now, now);
-    g.fillStyle = "#4a6a3a";
-    g.fillRect(x0, top + 14, Math.max(1, x1 - x0), LANE_HEIGHT - 28);
-    g.fillStyle = "#f0e0b8";
+    g.fillStyle = INK.turn;
+    g.fillRect(x0, top + 16, Math.max(1, x1 - x0), LANE_HEIGHT - 32);
+    g.fillStyle = INK.text;
     g.fillText(`${t.speed}x`, x0 + 2, top + 12);
     const pauseFrom = (t.end ?? Infinity) + MIX.music.pauseDelayMs / 1000;
     if (pauseFrom < now) {
-      g.fillStyle = "#3a2a4a";
-      g.fillRect(xOf(pauseFrom, now), top + 40, 4, 8);
+      g.fillStyle = INK.pause;
+      g.fillText("pause", xOf(pauseFrom, now) + 2, top + LANE_HEIGHT - 4);
     }
   }
 }
-
-const RESULT_COLORS: Record<string, string> = { played: "#e0b060", skipped: "#706050", crowded: "#a05040" };
 
 function drawEvents(now: number): void {
   const top = laneTop("events");
   const rows = Array<number>(LABEL_ROWS).fill(-Infinity);
   for (const o of offered) {
     const x = xOf(o.at, now);
-    g.fillStyle = RESULT_COLORS[o.result];
+    g.fillStyle = RESULT_INK[o.result];
     g.fillRect(x - 1, top + 4, 3, LANE_HEIGHT - 8);
-    stackedLabel(rows, `${o.cue.replace("accent-", "")} ${o.result}`, x + 4, top);
+    stackedLabel(rows, `${o.cue.replace("accent-", "")} ${o.result}`, x + 4, top, RESULT_INK[o.result]);
   }
 }
 
@@ -240,17 +273,17 @@ function drawLine(lane: "lead" | "secondary", now: number): void {
     const x0 = xOf(s.start, now);
     const x1 = xOf(s.end, now);
     const h = (LANE_HEIGHT - 12) * Math.min(1, s.gain);
-    g.fillStyle = s.stab ? "rgba(224,176,96,0.55)" : "rgba(160,120,200,0.8)";
+    g.fillStyle = s.stab ? INK.stab : INK.tail;
     g.fillRect(x0, top + LANE_HEIGHT - 6 - h, Math.max(3, x1 - x0), h);
-    stackedLabel(rows, `${s.cue.replace("accent-", "")}${s.stab ? "" : " tail"}${s.from > 0 ? ` from ${s.from.toFixed(2)}s` : ""}`, x0 + 2, top);
+    stackedLabel(rows, `${s.cue.replace("accent-", "")}${s.stab ? "" : " tail"}${s.from > 0 ? ` from ${s.from.toFixed(2)}s` : ""}`, x0 + 2, top, INK.text);
   }
 }
 
-function stackedLabel(rows: number[], text: string, x: number, top: number): void {
+function stackedLabel(rows: number[], text: string, x: number, top: number, ink: string): void {
   const free = rows.findIndex((end) => x > end + 6);
   const row = free >= 0 ? free : rows.indexOf(Math.min(...rows));
   rows[row] = x + g.measureText(text).width;
-  g.fillStyle = "#f0e0b8";
+  g.fillStyle = ink;
   g.fillText(text, x, top + 12 + row * 13);
 }
 
@@ -259,31 +292,29 @@ function drawBase(now: number): void {
   const base = activeBase();
   if (!base) return;
   const steps = baseGain.get(base)!;
-  g.strokeStyle = "#60a0c0";
+  g.strokeStyle = INK.base;
   g.beginPath();
   steps.forEach((s, i) => {
     const y = top + LANE_HEIGHT - 6 - s.value * (LANE_HEIGHT - 12);
     const x = xOf(s.at, now);
     if (i === 0) g.moveTo(x, y);
     else g.lineTo(x, y);
-    const nextAt = steps[i + 1]?.at ?? now;
-    g.lineTo(xOf(nextAt, now), y);
+    g.lineTo(xOf(steps[i + 1]?.at ?? now, now), y);
   });
   g.stroke();
-  g.fillStyle = "#c06040";
+  g.fillStyle = INK.duck;
   for (const d of ducks) g.fillRect(xOf(d, now), top + 4, 2, 10);
-  g.fillStyle = "#f0e0b8";
-  g.fillText(base, LABEL_WIDTH + 4, top + 12);
 }
 
 function drawHeat(now: number): void {
   const top = laneTop("heat");
-  const scale = (v: number) => top + LANE_HEIGHT - 4 - (Math.min(v, MIX.score.fullHeat * 1.5) / (MIX.score.fullHeat * 1.5)) * (LANE_HEIGHT - 8);
-  for (const [v, color] of [[MIX.score.hotHeat, "#a05040"], [MIX.score.fullHeat, "#e0b060"]] as const) {
-    g.fillStyle = color;
+  const ceiling = MIX.score.fullHeat * 1.5;
+  const scale = (v: number) => top + LANE_HEIGHT - 4 - (Math.min(v, ceiling) / ceiling) * (LANE_HEIGHT - 8);
+  for (const [v, ink] of [[MIX.score.hotHeat, INK.hot], [MIX.score.fullHeat, INK.full]] as const) {
+    g.fillStyle = ink;
     g.fillRect(LABEL_WIDTH, scale(v), WIDTH - LABEL_WIDTH, 1);
   }
-  g.strokeStyle = "#e07050";
+  g.strokeStyle = INK.heat;
   g.beginPath();
   for (let x = LABEL_WIDTH; x <= xOf(now, now); x += 2) {
     const t = now - PAST_SECONDS + ((x - LABEL_WIDTH) / (WIDTH - LABEL_WIDTH)) * (PAST_SECONDS + FUTURE_SECONDS);
@@ -293,29 +324,33 @@ function drawHeat(now: number): void {
 }
 
 function baseRows(base: string | null): [string, string][] {
-  if (!base) return [["base", "none"], ["base gain", "-"], ["base cutoff", "-"]];
+  if (!base) return [["Base", "none"], ["Base level", "-"], ["Base cutoff", "-"]];
   return [
-    ["base", base],
-    ["base gain", baseGain.get(base)!.at(-1)!.value.toFixed(2)],
-    ["base cutoff", `${Math.round(baseTone.get(base)!.at(-1)!.value)} Hz`],
+    ["Base", base.replace("score-", "")],
+    ["Base level", baseGain.get(base)!.at(-1)!.value.toFixed(2)],
+    ["Base cutoff", `${Math.round(baseTone.get(base)!.at(-1)!.value)} Hz`],
   ];
+}
+
+function statRow(label: string, value: string): HTMLElement {
+  return el("div", { class: "tooltip-row" }, el("span", {}, label), el("span", { class: "num" }, value));
 }
 
 function showStats(now: number, paused: boolean): void {
   const rows: [string, string][] = [
-    ["combat", inCombat ? "on" : "off"],
+    ["Combat", inCombat ? "on" : "off"],
     ...baseRows(activeBase()),
-    ["heat", `${heatAt(now).toFixed(2)} (hot ${MIX.score.hotHeat}, full ${MIX.score.fullHeat})`],
-    ["paused", paused ? "yes" : "no"],
-    ["turn", turn ? `playing at ${turn.speed}x` : "idle"],
-    ["queued", pending.map((c) => c.replace("accent-", "")).join(", ") || "nothing"],
+    ["Heat", `${heatAt(now).toFixed(2)} of ${MIX.score.fullHeat}, hot at ${MIX.score.hotHeat}`],
+    ["Paused", paused ? "yes" : "no"],
+    ["Turn", turn ? `playing at ${turn.speed}x` : "idle"],
   ];
-  statsBox.replaceChildren(...rows.flatMap(([k, v]) => [el("span", {}, k), el("span", {}, v)]));
+  statsBox.replaceChildren(...rows.map(([k, v]) => statRow(k, v)));
+  queueBox.replaceChildren(...(pending.length ? pending.map((c) => el("span", { class: "chip" }, c.replace("accent-", ""))) : [el("span", { class: "dim" }, "Nothing queued")]));
   logBox.textContent = director.log.slice(-12).reverse().join("\n");
 }
 
-function toggle(label: string, on: () => boolean, flip: () => void): HTMLElement {
-  const b = el("button", {}, label);
+function toggle(label: string, on: () => boolean, flip: () => void, size = "btn-s"): HTMLElement {
+  const b = el("button", { class: size }, label);
   b.addEventListener("click", () => {
     flip();
     b.classList.toggle("on", on());
@@ -323,27 +358,72 @@ function toggle(label: string, on: () => boolean, flip: () => void): HTMLElement
   return b;
 }
 
-const combatButton = toggle("Combat", () => inCombat, () => (inCombat = !inCombat));
-const sightedButton = el("button", { onclick: () => director.accent("accent-sighted", 0) }, "Enemy sighted");
-const eventButtons = TURN_EVENTS.map((e) => el("button", { onclick: () => pending.push(e.cue) }, e.label));
-const playButton = el("button", { onclick: () => !turn && startTurn() }, "Play turn");
-const fastButton = toggle("Fast 4x", () => speed > 1, () => (speed = speed > 1 ? 1 : 4));
-const autoButton = toggle("Auto turns", () => auto, () => {
-  auto = !auto;
-  if (auto && !turn) startTurn();
-});
+function choice<T>(options: { label: string; value: T }[], pick: (value: T) => void): HTMLElement {
+  const buttons = options.map((o, i) => el("button", { class: i === 0 ? "btn-s on" : "btn-s" }, o.label));
+  buttons.forEach((b, i) =>
+    b.addEventListener("click", () => {
+      for (const other of buttons) other.classList.toggle("on", other === b);
+      pick(options[i].value);
+    }),
+  );
+  return el("div", { class: "score-lab-buttons" }, ...buttons);
+}
+
+function pickBase(id: BaseCue | null): void {
+  score.preferBase(id);
+  if (!inCombat) return;
+  score.setCombat(false, MIX.music.fadeSeconds);
+  score.setCombat(true, MIX.music.fadeSeconds);
+}
+
+function takeChoice(cue: AccentCue): HTMLElement {
+  const takes = SOUNDS[cue].files.map((file, i) => ({ label: `${i + 1}`, value: file as string | null }));
+  return choice([{ label: "Random", value: null }, ...takes], (file) => (file === null ? pinnedTakes.delete(cue) : pinnedTakes.set(cue, file)));
+}
+
+function panel(title: string, ...children: HTMLElement[]): HTMLElement {
+  return el("div", { class: "panel" }, el("h3", { class: "panel-title" }, title), ...children);
+}
+
+const baseChoice = choice([{ label: "Random", value: null }, ...BASE_CUES.map((id) => ({ label: id.replace("score-", ""), value: id as BaseCue | null }))], pickBase);
+const picks = el(
+  "div",
+  { class: "score-lab-picks" },
+  el("span", {}, "Base"),
+  baseChoice,
+  ...ACCENT_CUES.flatMap((cue) => [el("span", {}, cue.replace("accent-", "")), takeChoice(cue)]),
+);
 
 root.replaceChildren(
-  el("h2", {}, "Fight"),
-  el("div", { class: "row" }, combatButton, sightedButton),
-  el("div", { class: "hint" }, "Enemy sighted plays at once, like in the game. Combat must be on, or the score ignores accents."),
-  el("h2", {}, "Next turn"),
-  el("div", { class: "row" }, ...eventButtons),
-  el("div", { class: "row" }, playButton, fastButton, autoButton, el("button", { onclick: () => (pending = []) }, "Clear queue")),
-  el("div", { class: "hint" }, "Queued events land spread evenly through the 1 s turn, in the order pressed."),
-  statsBox,
-  canvas,
-  el("h2", {}, "Score log"),
-  logBox,
+  el("h1", {}, "Combat score lab"),
+  el(
+    "div",
+    { class: "score-lab-row" },
+    panel(
+      "Fight",
+      el("div", { class: "score-lab-buttons" }, toggle("Combat", () => inCombat, () => (inCombat = !inCombat), "btn-l"), el("button", { onclick: () => director.accent("accent-sighted", 0) }, "Enemy sighted")),
+      el("div", { class: "dim" }, "A sighting plays at once. The score ignores accents while combat is off."),
+    ),
+    panel(
+      "Next turn",
+      el("div", { class: "score-lab-buttons" }, ...TURN_EVENTS.map((e) => el("button", { class: "btn-s", onclick: () => pending.push(e.cue) }, e.label))),
+      queueBox,
+      el(
+        "div",
+        { class: "score-lab-buttons" },
+        el("button", { class: "btn-l", onclick: () => !turn && startTurn() }, "Play turn"),
+        toggle(`Fast ${FAST_SPEED}x`, () => speed > 1, () => (speed = speed > 1 ? 1 : FAST_SPEED)),
+        toggle("Auto turns", () => auto, () => {
+          auto = !auto;
+          if (auto && !turn) startTurn();
+        }),
+        el("button", { class: "btn-s", onclick: () => (pending = []) }, "Clear"),
+      ),
+      el("div", { class: "dim" }, "Queued events land spread evenly through the 1 s turn, in the order pressed."),
+    ),
+    panel("Now", el("div", { class: "score-lab-stats" }, statsBox)),
+  ),
+  el("div", { class: "score-lab-row" }, panel("Tracks", picks), panel("Score log", logBox)),
+  panel("Timeline", canvas),
 );
 requestAnimationFrame(frame);

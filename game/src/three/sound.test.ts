@@ -505,6 +505,17 @@ describe("CombatScore", () => {
     expect(loops[1].tones).toEqual([s.quietCutoffHz]);
   });
 
+  it("plays a preferred base in every battle instead of a random one", () => {
+    const { player, loops } = fakePlayer();
+    const score = new CombatScore(player, () => 0);
+    score.preferBase("score-horns");
+    score.setCombat(true, 3);
+    score.setCombat(false, 3);
+    score.preferBase(null);
+    score.setCombat(true, 3);
+    expect(loops.map((l) => l.gains)).toEqual([[s.quietGain], [], [s.quietGain, 0], []]);
+  });
+
   it("ignores accents outside a battle", () => {
     const { player, plays } = fakePlayer();
     const score = new CombatScore(player, () => 0);
