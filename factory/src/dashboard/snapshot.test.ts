@@ -11,13 +11,13 @@ import type { FactoryState, Run } from '../types';
 
 it('publishes only explicit operational fields, never private state or raw errors', () => {
   const state: FactoryState = { ...structuredClone(EMPTY_STATE),
-    jobs: [{ id: 'private-job-id', stage: 'change', issue: 3, pid: 123, log: '/PRIVATE/log', startedAt: '2026-01-01T00:00:00Z' }],
-    pendingChanges: [{ id: 3, text: 'PRIVATE request', by: 'PRIVATE user' }], lastTickError: 'PRIVATE error',
+    jobs: [{ id: 'private-job-id', stage: 'adhoc', issue: 3, pid: 123, log: '/PRIVATE/log', startedAt: '2026-01-01T00:00:00Z' }],
+    lastTickError: 'PRIVATE error',
     postCaptions: { '1': 'PRIVATE caption' },
   };
   const result = buildOperations(state, false, { triageWorkers: 1, designWorkers: 2, implementWorkers: 2, verifyWorkers: 2, testWorkers: 2, publicUrl: 'https://example.org' });
   expect(result.status).toBe('blocked');
-  expect(result.jobs).toEqual([{ key: expect.stringMatching(/^[a-f0-9]{64}$/), stage: 'change', issue: null, startedAt: '2026-01-01T00:00:00Z', queue: 'implement' }]);
+  expect(result.jobs).toEqual([{ key: expect.stringMatching(/^[a-f0-9]{64}$/), stage: 'adhoc', issue: null, startedAt: '2026-01-01T00:00:00Z', queue: 'implement' }]);
   expect(JSON.stringify(result)).not.toContain('PRIVATE');
   expect(JSON.stringify(result)).not.toContain('private-job-id');
   expect(result.queues.implement).toEqual({ busy: 1, total: 2 });
