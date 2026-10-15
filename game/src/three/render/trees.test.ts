@@ -110,6 +110,13 @@ describe('TreeInstances', () => {
     expect(() => trees.show('deadTree-9')).toThrow(/deadTree-9/);
   });
 
+  it('refuses the same tree twice', () => {
+    const root = new THREE.Group();
+    const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
+
+    expect(() => new TreeInstances(scope, flat(), [TREES[0], TREES[0]])).toThrow(/deadTree-0/);
+  });
+
   it('refuses a landmark that is not a dead tree', () => {
     const root = new THREE.Group();
     const scope = new RenderScope(root, SIZE, new SightLimit(SIZE), true, true);
@@ -139,6 +146,19 @@ describe('ObstacleViews dead trees', () => {
     expect(meshes.length).toBeGreaterThan(0);
     expect(hidden).toEqual(meshes.map(() => 1));
     expect(matricesOf(meshes)).toEqual(standing);
+  });
+
+  it('draws a tree that was broken at the first sync when it grows back', () => {
+    const root = new THREE.Group();
+    const obstacles = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flat());
+    obstacles.sync(TREES.filter((o) => o.id !== 'deadTree-2'), [], [{ obstacle: TREES[2], turn: 1 }]);
+    const meshes = meshesOf(root, 'scope-chunk-0-0');
+    const hidden = meshes.map(zeroInstances);
+
+    obstacles.sync([...TREES], [], []);
+
+    expect(hidden).toEqual(meshes.map(() => 1));
+    expect(matricesOf(meshes)).toEqual(matricesOf(meshesOf(views().root, 'scope-chunk-0-0')));
   });
 
   it('draws no view of its own for a tree', () => {
