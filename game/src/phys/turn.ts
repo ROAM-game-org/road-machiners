@@ -1,12 +1,9 @@
-// Physics as the sim's movement step. The turn pipeline hands the draft world to physicsMove, which
-// runs the turn in the physics engine and writes breaks, poses, speeds, trails, fuel, crashes and orders back.
-// Vehicles far from the player have no body and travel through advanceFar.
 
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
-import { perfSnapshot, resetPerf, type PerfStat } from '../perf';
+import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { applyContactCrash, applyGroundCrash, applyLanding } from '../sim/crash-contact';
@@ -20,6 +17,7 @@ import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { headingOf, toMap } from './frames';
+import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
 export type TurnTask = { world: TurnState; drive: DriveSnapshot };
@@ -27,15 +25,32 @@ export type PreparedTurn = {
   world: TurnState;
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
-export type TurnRequest = TurnTask & { id: number; terrain: World['terrain'] | null };
-export type TurnResponse =
-  | { id: number; turn: PreparedTurn; perf: Record<string, PerfStat> }
-  | { id: number; error: string };
+export type PreviewTask = TurnTask & { meId: string };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
+export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
+export type WorkerRequest = TurnRequest | PreviewRequest;
+export type WorkerFailure = { id: number; error: string };
+export type TurnResponse = { id: number; turn: PreparedTurn; perf: Record<string, PerfStat> } | WorkerFailure;
+export type PreviewResponse = { id: number; preview: PlanFrames; perf: Record<string, PerfStat> } | WorkerFailure;
 
-export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain.heights);
   Object.freeze(terrain.types);
   Object.freeze(terrain);
+}
+
+export function computePreview(task: PreviewTask, terrain: World['terrain']): PlanFrames {
+  freezeTerrain(terrain);
+  const drive = restoreDrive(task.drive);
+  try {
+    return timed('preview', () => planTurns(drive, { ...task.world, terrain }, task.meId));
+  } finally {
+    freeDrive(drive);
+  }
+}
+
+export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+  freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;
   try {
@@ -53,24 +68,38 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
 function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
-  self.onmessage = async (event: MessageEvent<TurnRequest>) => {
+  self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     const request = event.data;
     try {
       await ready;
       if (request.terrain) {
         terrain = request.terrain;
-        warmRoutes({ ...request.world, terrain }, [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))]);
+        if (request.kind === 'turn') warmRoutes({ ...request.world, terrain }, [...new Set(Object.values(CHASSIS).map((chassis) => chassis.radius))]);
       }
       if (!terrain) throw new Error('Turn worker has no terrain');
       resetPerf();
+      answer(request, terrain);
+    } catch (error) {
+      self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies WorkerFailure);
+    }
+  };
+}
+
+function answer(request: WorkerRequest, terrain: World['terrain']): void {
+  switch (request.kind) {
+    case 'turn': {
       const turn = computeTurn(request, terrain);
       self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
-    } catch (error) {
-      self.postMessage({ id: request.id, error: describeWorkerError(error) } satisfies TurnResponse);
+      return;
     }
-  };
+    case 'preview':
+      self.postMessage({ id: request.id, preview: computePreview(request, terrain), perf: perfSnapshot() } satisfies PreviewResponse);
+      return;
+    default:
+      throw new Error(`Unknown worker request kind ${(request as { kind: unknown }).kind}`);
+  }
 }
 
 function describeWorkerError(error: unknown): string {

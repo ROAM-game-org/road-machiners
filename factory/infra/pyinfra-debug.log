@@ -1,0 +1,33 @@
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra_cli/cli.py", line 283, in cli
+    _main(*args, **kwargs)
+    ~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra_cli/cli.py", line 489, in _main
+    run_ops(state, serial=serial, no_wait=no_wait)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operations.py", line 400, in run_ops
+    _run_single_op(state, op_hash)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operations.py", line 368, in _run_single_op
+    if not greenlet.get():
+           ~~~~~~~~~~~~^^
+  File "src/gevent/greenlet.py", line 809, in gevent._gevent_cgreenlet.Greenlet.get
+  File "src/gevent/greenlet.py", line 373, in gevent._gevent_cgreenlet.Greenlet._raise_exception
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/gevent/_compat.py", line 88, in reraise
+    raise value.with_traceback(tb)
+  File "src/gevent/greenlet.py", line 912, in gevent._gevent_cgreenlet.Greenlet.run
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operations.py", line 253, in _run_host_op_with_context
+    return run_host_op(state, host, op_hash)
+    ^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operations.py", line 53, in run_host_op
+    return _run_host_op(state, host, op_hash)
+    ^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operations.py", line 94, in _run_host_op
+    for command in op_data.command_generator():
+    ^^^^^^^^^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/api/operation.py", line 341, in command_generator
+    for command in func(*args, **kwargs):
+    ^^^^^^^
+  File "/Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/.venv/lib/python3.13/site-packages/pyinfra/operations/files.py", line 1110, in put
+    raise OSError(f"No such file: {local_file}")
+    ^^^^^^^^^^^
+OSError: No such file: /Users/boris/Documents/Korovan/.worktrees/telegram-voting/factory/infra/github-app.pem

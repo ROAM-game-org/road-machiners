@@ -9,7 +9,7 @@ import { startRepair } from '../sim/jobs';
 import { takeAllLoot } from '../sim/locations';
 import { newGame } from '../sim/new-game';
 import { openingStockOf, OPENING_WRECK_ID } from '../sim/opening';
-import { chooseQuestOption, QUESTS, questView } from '../sim/quests';
+import { chooseQuestOption, QUESTS, questView, setQuestLanguage } from '../sim/quests';
 import { UNITS } from '../data/units';
 import { engineNeedsPatch, repairPlan } from '../sim/repair';
 import { defaultSetup } from '../sim/settings';
@@ -23,6 +23,7 @@ import { maxHp } from '../sim/wear';
 import { endTurn, startPose } from '../sim/world';
 import { openingStep } from '../ui/tips';
 import { TEST_MAP } from '../test/map';
+import { readQuestSources } from '../test/quest-compile';
 import { loadWorld, saveOf, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 
@@ -129,6 +130,36 @@ describe('the arrival at the farm', () => {
     const inHouse = sameAfterRoundTrip(pick(atFarm, HOUSE));
     expect(questView(inHouse, QUESTS).choices).toEqual([LOOK, LEAVE_HOUSE]);
     expect(pick(inHouse, LOOK).player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
+  });
+
+  it('shows the farm page before its choices after a load', () => {
+    const loaded = sameAfterRoundTrip(pick(arrival(), ROPE));
+    const view = questView(loaded, QUESTS);
+    expect(view.lines[0].text.startsWith('Up close the tank is rusted brown')).toBe(true);
+    expect(view.choices).toEqual([HOUSE, SHED]);
+    expect(loaded.player.quests.session?.checkpoint).toBe('start.farm');
+    expect(loaded.player.money).toBe(startKit('standard').money);
+  });
+
+  it('shows the Russian farm page before its choices after a load', () => {
+    const lines = readQuestSources('src/data/quests')['ru/intro_arrival.ink'].split('\n');
+    const opening = lines[lines.indexOf('# checkpoint: start.farm') + 1].split('#')[0].trim();
+    expect(opening).toBeTruthy();
+    setQuestLanguage('ru');
+    try {
+      const loaded = sameAfterRoundTrip(pick(arrival()));
+      expect(questView(loaded, QUESTS).lines[0].text).toBe(opening);
+    } finally {
+      setQuestLanguage('en');
+    }
+  });
+
+  it('loads the seat after the house loot with only the seat on offer and pays the loot once', () => {
+    const loaded = sameAfterRoundTrip(pick(arrival(), HOUSE, LOOK));
+    const view = questView(loaded, QUESTS);
+    expect(view.choices).toEqual([LINK]);
+    expect(view.lines[0].text.startsWith('Under the fallen roof sheet')).toBe(true);
+    expect(loaded.player.money - startKit('standard').money).toBe(50 * UNITS.centsPerM);
   });
 
   it('runs a turn after a load while the truck still rolls with no order', () => {
