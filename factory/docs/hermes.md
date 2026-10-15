@@ -120,7 +120,7 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
 - A game change goes through an issue, so the factory tracks it to its release. Put an issue you open on the board with `gh project item-add` and its column.
 - When the committee asks to skip the stages for a game change, open the issue, then run `factory merge N` with the member as `--by`.
 - To bring `dev` work or a fix into the open release, merge it into a clone of the release branch, run the factory checks on the result, and push. Open no new issue and ask for no second approval. The tick drops the stale candidate post, and the playtest plays the new head by itself. Name what you merged in a comment on the release tracking issue.
-- You may push a merge to `dev` by hand after the factory checks pass. Prefer `factory merge N`, since a factory step also builds, publishes and records what it did.
+- You may push a merge to `dev` by hand after the factory checks pass. A card goes through `factory merge N` instead, since the release lists and closes only the merges the merge job records in `devMerges`. A factory step also builds and publishes what it did.
 - Nothing reaches `main` without a Ship or a hotfix approval, or a member's order to run `factory ship`. Never push to `main` by hand.
 - Never react to an issue or vote on it. Votes come from players, and a bot vote breaks GitHub's terms.
 - Write to GitHub as little as the work allows. GitHub suspended the factory's first account for bulk automated posting. Say everything in one comment, and never post a comment that only reports progress.
