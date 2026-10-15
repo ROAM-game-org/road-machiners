@@ -26,8 +26,9 @@ import { aidData, stateOf, towData } from './states';
 import { agreeAid, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
-import type { Call, CallVar, CallVars, GridItem, MemoryFact, NpcState, Plea, SalvageStock, TopicOutcome, Vehicle, World } from './types';
-import { bearing, dist, type Vec } from './vec';
+import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, NpcState, Plea, SalvageStock, TopicOutcome, Vehicle, World } from './types';
+import { dist, type Vec } from './vec';
+import { directionsTo } from './directions';
 
 function demandsOnTop(world: World, npc: Vehicle): boolean {
   const top = topGoal(npc);
@@ -444,8 +445,8 @@ export const PREPARES: Record<PrepareId, Prepare> = {
     const rumor = heardRumor(world, npc);
     if (!rumor) throw new Error(`${npc.id} knows no rumor`);
     const me = playerVehicle(world).pos;
-    const where: CallVars = { bearing: { kind: 'bearing', rad: bearing(me, rumor.pos) }, distance: { kind: 'distance', tiles: dist(me, rumor.pos) } };
-    return rumor.site ? { site: { kind: 'site', id: rumor.id }, ...where } : where;
+    if (rumor.site) return { site: { kind: 'site', id: rumor.id }, way: wayVar(world, me, { kind: 'site', id: rumor.id }) };
+    return { way: wayVar(world, me, { kind: 'spot', pos: rumor.pos, clue: 'wreck' }) };
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
@@ -456,15 +457,14 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   aidAnswer,
   aidOffered: (world, npc) => ({ aid: aidVar(aidData(requirePendingAid(world, npc))) }),
   nearestTown: (world, npc) => {
-    const me = playerVehicle(world).pos;
     const town = nearestKnownTown(world, npc);
-    return {
-      town: { kind: 'town', id: town.id },
-      bearing: { kind: 'bearing', rad: bearing(me, town.pos) },
-      distance: { kind: 'distance', tiles: dist(me, town.pos) },
-    };
+    return { town: { kind: 'town', id: town.id }, way: wayVar(world, playerVehicle(world).pos, { kind: 'site', id: town.id }) };
   },
 };
+
+function wayVar(world: World, from: Vec, target: DirectionTarget): CallVar {
+  return { kind: 'directions', steps: directionsTo(world, from, target) };
+}
 
 export function localsAt(town: string): LocalDef[] {
   return Object.values(LOCALS).filter((l) => l.town === town);
