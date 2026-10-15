@@ -53,7 +53,7 @@ describe('public chat', () => {
     expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
     expect(f.comments[0]!.body).toContain(`> ${text}`);
     expect(f.created).toEqual([]);
-    expect(repliesTo(f, 11)).toEqual([{ chat: CHANNEL, replyTo: 11, text: expect.stringContaining('player comments of #568: https://github.com/o/r/issues/568') }]);
+    expect(repliesTo(f, 11)).toEqual([{ chat: CHANNEL, replyTo: 11, text: 'Thanks. I added this to the player comments of #568: https://github.com/o/r/issues/568' }]);
   });
 
   it('files an off-topic feature on a proposal as its own issue, leaves the parent alone and replies with the new link', async () => {
