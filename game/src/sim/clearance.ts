@@ -36,12 +36,17 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
     touches(at, heading) {
       const cos = Math.cos(heading);
       const sin = Math.sin(heading);
-      return offsets.some((o) => {
+      for (const o of offsets) {
         const c = { x: at.x + cos * o, y: at.y + sin * o };
-        return nearCliff(nav, c.x, c.y, r) || solid.alongSegment(c, c, reach).some((b) => hits(b, c, reach)) || moving.some((b) => hits(b, c, reach));
-      });
+        if (nearCliff(nav, c.x, c.y, r) || hitsAny(solid.alongSegment(c, c, reach), c, reach) || hitsAny(moving, c, reach)) return true;
+      }
+      return false;
     },
   };
+}
+
+function hitsAny(blockers: Blocker[], c: Vec, reach: number): boolean {
+  return blockers.some((b) => hits(b, c, reach));
 }
 
 function hits(b: Blocker, c: Vec, reach: number): boolean {

@@ -788,7 +788,7 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
 function freeDistance(c: Car, sign: 1 | -1, from: Vec, facing: number, mps: number, dest: Vec): number {
   const { plan, b, mem } = c;
   const clearance = plan.clearance!;
-  const route = plan.route ? plan.route.map((p) => ({ ...p })) : null;
+  const route = plan.route ? [...plan.route] : null;
   const gain = sign > 0 || mem.backFrom || !mem.reverse ? D.steerGain : -D.steerGain;
   const wheelbase = (2 * b.wheelX) / S;
   const grip = (D.cornerAccel * c.grip * S) / Math.max(mps * mps, 1);
