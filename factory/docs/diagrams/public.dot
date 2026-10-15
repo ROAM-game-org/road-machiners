@@ -44,7 +44,7 @@ digraph public {
   answer [label="Reply in the thread\nin English or Russian\nissue link and status\nnever a canned fallback"];
   answerJob [label="Answer job, one at a time\nSonnet in a clone of main\nreads, runs, builds or plays\nthe game, docs one source\nsays what it could not check\nunder a daily cap"];
   answerReply [label="Checked answer\nsent once as a reply\nwith the thread note"];
-  answerUnknown [label="After 2 failed runs:\none line that it could not\nfind out, Hermes told\nwith no player text", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+  answerUnknown [label="After 2 failed runs:\nthe saved answer, or one line\nthat it could not find out,\nHermes told with no player text", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];

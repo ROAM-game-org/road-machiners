@@ -6,7 +6,7 @@ import { UsageLimitError } from '../pause';
 import { CHANNEL, publicFake, type PublicFake } from '../public/public-fakes';
 import { sendReplies } from '../public/replies';
 import type { ReplyLanguage } from '../public/decision';
-import { readState } from '../state';
+import { readState, updateState } from '../state';
 import type { AgentRun, Ctx } from '../types';
 import { ANSWER_TRIES, answerNext } from './answer';
 
@@ -138,9 +138,10 @@ describe('answer job', () => {
     expect(pending(f)).toEqual([]);
     expect(failures(f)).toEqual([expect.stringContaining(`Player question ${id} got no answer after ${ANSWER_TRIES} answer job runs, and the player was told`)]);
     expect(failures(f).join('\n')).not.toContain('лебёдка');
+    expect(readState(f.ctx.statePath).failures.map((failure) => failure.log)).toEqual([null]);
   });
 
-  it('never sends twice after a crash between the claim and the record, and drops the question from the queue', async () => {
+  it('never sends twice after a crash between the claim and the record, and reports the unsure send by id', async () => {
     const f = answerFake((_run, home) => writeAnswer(home, 'Yes.'));
     const id = await queued(f, { id: 17, text: '@roam_bot can I sell scrap?' });
     f.store.claimAnswerSend(id, f.clock.now);
@@ -148,6 +149,34 @@ describe('answer job', () => {
     expect(f.messages).toEqual([]);
     expect(f.runs).toEqual([]);
     expect(pending(f)).toEqual([]);
+    expect(failures(f)).toEqual([expect.stringContaining(`stopped while it sent the answer to player question ${id}`)]);
+    expect(failures(f).join('\n')).not.toContain('scrap');
+  });
+
+  it('drops an already answered question from the queue with no failure', async () => {
+    const f = answerFake((_run, home) => writeAnswer(home, 'Yes.'));
+    await queued(f, { id: 22, text: '@roam_bot can I sell scrap?' });
+    const [id] = pending(f);
+    await answerNext(f.ctx);
+    updateState(f.ctx.statePath, (state) => ({ ...state, pendingAnswers: [id!] }));
+    await answerNext(f.ctx);
+    expect(f.messages).toHaveLength(1);
+    expect(pending(f)).toEqual([]);
+    expect(failures(f)).toEqual([]);
+  });
+
+  it('sends the saved answer, never the unknown line, on the last run after its sends failed', async () => {
+    const f = answerFake((_run, home) => writeAnswer(home, 'Scrap sells in every town.'));
+    const send = f.ctx.telegram.sendMessage;
+    f.ctx.telegram.sendMessage = async () => { throw new Error('Telegram is down'); };
+    const id = await queued(f, { id: 24, text: '@roam_bot where can I sell scrap?' });
+    for (let run = 0; run < ANSWER_TRIES; run += 1) await expect(answerNext(f.ctx)).rejects.toThrow('could not be sent');
+    f.ctx.telegram.sendMessage = send;
+    await answerNext(f.ctx);
+    expect(repliesTo(f, 24)).toEqual(['Scrap sells in every town.']);
+    expect(f.runs).toHaveLength(1);
+    expect(pending(f)).toEqual([]);
+    expect(failures(f)).toEqual([expect.stringContaining(`Player question ${id} had its answer, which failed to send after ${ANSWER_TRIES} answer job runs, and the answer went out on this last try`)]);
   });
 
   it('sends the saved answer on the next run after a failed send, with no second investigation', async () => {

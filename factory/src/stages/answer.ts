@@ -19,7 +19,7 @@ type Question = StoredComment & { chat: string; messageId: number };
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-export const answerLog = (ctx: Ctx, id: number): string => `${ctx.cfg.home}/logs/answer-${id}.log`;
+const answerLog = (ctx: Ctx, id: number): string => `${ctx.cfg.home}/logs/answer-${id}.log`;
 
 export async function answerNext(ctx: Ctx): Promise<void> {
   const id = readState(ctx.statePath).pendingAnswers[0];
@@ -45,16 +45,19 @@ async function answerQuestion(ctx: Ctx, store: PublicStore, id: number): Promise
     dequeueAnswer(ctx, id);
     return reportFailure(ctx, 'answer', null, `Player question ${id} is not in the public store or has no chat message, so it left the answer queue unanswered.`, null, []);
   }
-  if (record.sentAt !== null) {
-    dequeueAnswer(ctx, id);
-    return ctx.log('answer', null, `player question ${id} was already answered`);
-  }
+  if (record.sentAt !== null) return settleClaimed(ctx, id, question.replyId);
   await answerOnce(ctx, store, question, record.text);
+}
+
+async function settleClaimed(ctx: Ctx, id: number, replyId: number | null): Promise<void> {
+  dequeueAnswer(ctx, id);
+  if (replyId !== null) return ctx.log('answer', null, `player question ${id} was already answered`);
+  await reportFailure(ctx, 'answer', null, `The answer job stopped while it sent the answer to player question ${id}, so the factory cannot tell whether the player got it. It is not sent again, so the player never gets two answers.`, null, []);
 }
 
 async function answerOnce(ctx: Ctx, store: PublicStore, question: Question, saved: string | null): Promise<void> {
   const tries = store.beginAnswerTry(question.id);
-  if (tries > ANSWER_TRIES) return giveUp(ctx, store, question);
+  if (tries > ANSWER_TRIES) return giveUp(ctx, store, question, saved);
   const answer = saved ?? (await investigated(ctx, store, question, tries));
   if (answer !== null) await deliver(ctx, store, question, answer);
 }
@@ -140,13 +143,18 @@ async function deliver(ctx: Ctx, store: PublicStore, question: Question, answer:
   dequeueAnswer(ctx, question.id);
 }
 
-async function giveUp(ctx: Ctx, store: PublicStore, question: Question): Promise<void> {
-  let told = 'the player was told';
+async function lastMessage(ctx: Ctx, question: Question, saved: string | null): Promise<string> {
+  return saved === null ? textsFor(question.language).answerUnknown : withNote(ctx, question, saved);
+}
+
+async function giveUp(ctx: Ctx, store: PublicStore, question: Question, saved: string | null): Promise<void> {
+  const what = saved === null ? 'got no answer' : 'had its answer, which failed to send';
+  let told = saved === null ? 'the player was told' : 'the answer went out on this last try';
   try {
-    await sendOnce(ctx, store, question, textsFor(question.language).answerUnknown);
+    await sendOnce(ctx, store, question, await lastMessage(ctx, question, saved));
   } catch (error) {
-    told = `the note to the player failed too: ${messageOf(error)}`;
+    told = `the last message to the player failed too: ${messageOf(error)}`;
   }
   dequeueAnswer(ctx, question.id);
-  await reportFailure(ctx, 'answer', null, `Player question ${question.id} got no answer after ${ANSWER_TRIES} answer job runs, and ${told}. The agent's log is the log of this failure.`, answerLog(ctx, question.id), []);
+  await reportFailure(ctx, 'answer', null, `Player question ${question.id} ${what} after ${ANSWER_TRIES} answer job runs, and ${told}.`, null, []);
 }
