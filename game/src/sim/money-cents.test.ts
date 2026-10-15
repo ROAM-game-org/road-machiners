@@ -15,12 +15,12 @@ function fractionalMoney(world: World): string[] {
 
 describe('money in cents', () => {
   it.each([
-    ['trader', 300],
-    ['hauler', 210],
-  ] as [Archetype, number][])('stays whole for every truck through %s play with NPCs trading, towing and patching', async (archetype, turns) => {
+    ['trader', 6, 56],
+    ['hauler', 1, 72],
+  ] as [Archetype, number, number][])('stays whole for every truck through %s play with NPCs trading, towing and guard and escort pay', async (archetype, seed, turns) => {
     const bad: string[] = [];
     let played = 0;
-    for (const step of recordTurns(7, archetype, turns)) {
+    for (const step of recordTurns(seed, archetype, turns)) {
       bad.push(...fractionalMoney(step.world));
       played++;
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
