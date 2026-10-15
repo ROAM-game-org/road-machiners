@@ -10,7 +10,6 @@ import numpy as np
 BEATS_PER_BAR = 4
 KICK_HZ = 120
 CYMBAL_HZ = 5000
-STEMS = {"drums": "drums.wav", "guitars": "other.wav"}
 
 
 def beat_grid(path, bpm):
@@ -40,9 +39,9 @@ def downbeat_phase(drums_path, first, beat):
     return int(np.argmax(by_phase))
 
 
-def bar_times(song_path, drums_path, bpm, bars):
+def bar_times(song_path, drums_path, bpm, bars, planned):
     first, beat, length = beat_grid(song_path, bpm)
-    phase = downbeat_phase(drums_path, first, beat)
+    phase = 0 if planned else downbeat_phase(drums_path, first, beat)
     start = first + phase * beat
     if start - beat * BEATS_PER_BAR >= -beat / 2:
         start -= beat * BEATS_PER_BAR
@@ -75,19 +74,20 @@ def cymbals(drums_path, out, bars, sections, song_path):
     return {"file": out.name, "from": loudest["from"]}
 
 
-def main(map_path, song_path, stems_dir, out_dir):
+def main(map_path, song_path, stems_dir, guitar_stem, out_dir):
     plan = json.loads(Path(map_path).read_text())
+    stems = {"drums": "drums.wav", "guitars": guitar_stem}
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"])
+    bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"], plan.get("barOneAtFirstBeat", False))
     shutil.copy(song_path, out / "song.mp3")
-    for name, stem in STEMS.items():
+    for name, stem in stems.items():
         shutil.copy(f"{stems_dir}/{stem}", out / f"{name}.wav")
-    power = bar_power(song_path, f"{stems_dir}/{STEMS['guitars']}", bars)
-    cymbal = cymbals(f"{stems_dir}/{STEMS['drums']}", out / "cymbals.wav", bars, plan["sections"], song_path)
-    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
+    power = bar_power(song_path, f"{stems_dir}/{guitar_stem}", bars)
+    cymbal = cymbals(f"{stems_dir}/drums.wav", out / "cymbals.wav", bars, plan["sections"], song_path)
+    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in stems}, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
-    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and stems {', '.join(STEMS)}")
+    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections, guitar lane from {guitar_stem}")
 
 
 if __name__ == "__main__":
