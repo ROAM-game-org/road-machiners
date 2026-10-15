@@ -457,12 +457,16 @@ export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): 
   const leader = vehicleById(world, goal.targetId!);
   const rank = escortsOf(world, leader.id).findIndex((e) => e.id === vehicle.id);
   if (rank < 0) throw new Error(`${vehicle.id} follows ${leader.id} without escorting it`);
+  goal.destination = followSpot(world, vehicle, leader, rank);
+}
+
+export function followSpot(world: World, vehicle: Vehicle, leader: Vehicle, rank: number): Vec {
   const radii = vehicleStats(world, leader).radius + vehicleStats(world, vehicle).radius;
   const side = (rank % 2 === 0 ? 1 : -1) * (radii + NPC_BEHAVIOR.followGap);
   const back = radii * (1 + 2 * Math.floor(rank / 2)) - leader.speed;
   const fx = Math.cos(leader.heading);
   const fy = Math.sin(leader.heading);
-  goal.destination = { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
+  return { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
 }
 
 export function followPace(follower: Vehicle, leader: Vehicle, spot: Vec): number {

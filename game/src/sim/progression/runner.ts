@@ -4,13 +4,12 @@ import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
+import { alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
-import { leadOf } from '../ai';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
@@ -24,17 +23,16 @@ import type { PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { payOf } from '../fury-road-danger';
-import { fightOrder, fightPoint, hostilesSeen, nearestToHauler } from './escort-brain';
-import { spendGear } from './escort-gear';
+import { escortMove } from './escort-brain';
+import { armorHauler } from './escort-gear';
 import { bestTruck, keepsPace, savesFor } from './escort-tactics';
+import { payOf } from '../fury-road-danger';
 import { gearBudget } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
-const FOLLOW_BEHIND = 10;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
@@ -110,11 +108,15 @@ function drive(o: Orders, style: RoadStyle): void {
 }
 
 function escort(o: Orders): void {
-  const foe = nearestToHauler(o.world, hostilesSeen(o.world));
-  if (!foe) return driveTo(o, escortSpot(o.world, haulerOf(o.world)));
-  const dest = vehicleStats(o.world, o.me).weapons.length === 0 ? leadOf(foe) : fightPoint(o.world, o.me, foe);
-  const order = fightOrder(foe, o.me, dest);
+  const hauler = haulerOf(o.world);
+  if (haulerAtPad(o.world, hauler)) return driveTo(o, beside(o.world, outpostPad(o.world, o.world.furyRoad!.window + 1), hauler));
+  const order = escortMove(o.world, o.me);
   o.run((w) => setMoveOrder(w, order));
+}
+
+function haulerAtPad(world: World, hauler: Vehicle): boolean {
+  const run = world.furyRoad!;
+  return hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid === true;
 }
 
 function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
@@ -123,14 +125,6 @@ function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
   const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
   const sides = [1, -1].map((s) => ({ x: pad.x - s * Math.sin(angle) * PARKED_BESIDE, y: pad.y + s * Math.cos(angle) * PARKED_BESIDE }));
   return dist(sides[0], hauler.pos) >= dist(sides[1], hauler.pos) ? sides[0] : sides[1];
-}
-
-function escortSpot(world: World, hauler: Vehicle): Vec {
-  const run = world.furyRoad!;
-  const pad = outpostPad(world, run.window + 1);
-  if (hauler.order?.kind === 'stopAt' || run.outposts.find((p) => p.milestone === run.window + 1)?.paid) return beside(world, pad, hauler);
-  const at = toRoad(run.window, hauler.pos);
-  return roadPoint(world.seed, run.window, alongOf(world.seed, at) - FOLLOW_BEHIND, acrossOf(world.seed, at));
 }
 
 function hopToward(o: Orders, pad: Vec): void {
@@ -173,7 +167,13 @@ function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
   const before = o.me.chassisId;
   buyTruck(o, post, style);
   if (o.me.chassisId === before && savingForTruck(o, post)) return;
-  spendGear(o);
+  refitGear(o, 1);
+  armorHauler(o);
+}
+
+function savingForTruck(o: Orders, post: Outpost): boolean {
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  return savesFor(offers, chassisDef(o.me.chassisId).value, gearBudget(o.world, o.me, 'fighter'), payOf(post.milestone + 1));
 }
 
 function refitGear(o: Orders, share: number): void {
@@ -210,11 +210,6 @@ function buysFor(items: { part: PartInstance }[], forSale: PartInstance[]): Part
 
 function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
-}
-
-function savingForTruck(o: Orders, post: Outpost): boolean {
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
-  return savesFor(offers, chassisDef(o.me.chassisId).value, gearBudget(o.world, o.me, 'fighter'), payOf(post.milestone + 1));
 }
 
 function buyTruck(o: Orders, post: Outpost, style: RoadStyle): void {

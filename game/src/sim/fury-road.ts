@@ -112,7 +112,8 @@ export function startRun(world: World): void {
 }
 
 export function spawnHauler(world: World): Vehicle {
-  const n = milestoneAt(0);
+  const clear = chassisDef(HAULER_KIT.chassis).radius + chassisDef(playerVehicle(world).chassisId).radius + RULES.yieldDistance;
+  const n = milestoneAt(0) + clear;
   const v = makeVehicle(world, {
     faction: 'player',
     chassisId: HAULER_KIT.chassis,

@@ -6,8 +6,6 @@ import { isJunk } from '../wear';
 import { gearBudget, gearPlans, type GearJob, type Plan } from './gear';
 import { mountBought, type Orders } from './orders';
 
-const HAULER_SHARE = 0.5;
-
 export function bestValue<P extends Plan>(plans: readonly P[], budget: number): P | null {
   const ratio = (p: P) => p.jobGain / Math.max(1, p.cost);
   const open = plans.filter((p) => p.cost <= budget && p.jobGain > 0);
@@ -33,8 +31,6 @@ function buyGear(o: Orders, truckId: string, job: GearJob, budget: number): void
   }
 }
 
-export function spendGear(o: Orders): void {
-  const budget = gearBudget(o.world, o.me, 'fighter');
-  buyGear(o, haulerOf(o.world).id, 'hauler', budget * HAULER_SHARE);
-  buyGear(o, o.me.id, 'fighter', gearBudget(o.world, o.me, 'fighter'));
+export function armorHauler(o: Orders): void {
+  buyGear(o, haulerOf(o.world).id, 'hauler', gearBudget(o.world, o.me, 'fighter'));
 }

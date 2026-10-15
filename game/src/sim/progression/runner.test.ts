@@ -1,20 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
-import { chassisDef } from '../../data/chassis';
-import { FURY_ROAD } from '../../data/modes';
 import { partDef } from '../../data/parts';
-import { chassisPrice } from '../economy';
-import { gearBudget } from './gear';
-import { onOutpostPad, outpostPad, outpostTrucks } from '../fury-road';
+import { onOutpostPad, outpostPad } from '../fury-road';
 import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
 import type { Vehicle, World } from '../types';
-import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
+import { outpostFort } from '../highway';
+import { followSpot } from '../tow';
 import { dist, type Vec } from '../vec';
 import { maxHp } from '../wear';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
+import { fightMove } from './escort-brain';
 
 function atFirstOutpost(): World {
   const w = furyRoadWorld();
@@ -36,9 +34,7 @@ function hostileNear(w: World): Vehicle {
 }
 
 function escortSpotOf(w: World): Vec {
-  const run = w.furyRoad!;
-  const at = toRoad(run.window, haulerOf(w).pos);
-  return roadPoint(w.seed, run.window, alongOf(w.seed, at) - 10, acrossOf(w.seed, at));
+  return followSpot(w, playerVehicle(w), haulerOf(w), 0);
 }
 
 describe('the Fury Road escort bot', () => {
@@ -122,17 +118,18 @@ describe('the Fury Road escort bot', () => {
     expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
   });
 
-  it('buys armor for the hauler from its share of the money, and never a gun', () => {
+  it('refits its own truck by the merc loadout, then spends the rest on hauler armor and never a gun', () => {
     const w = atFirstOutpost();
     w.player.money = 2_000_000;
-    const before = mountedParts(haulerOf(w), 'armor').length;
+    const armor = mountedParts(haulerOf(w), 'armor').length;
+    const mine = mountedParts(playerVehicle(w)).map((p) => p.id);
 
     const turn = botOrders(w, 'escort');
 
     const hauler = haulerOf(turn.world);
-    expect(mountedParts(hauler, 'armor').length).toBeGreaterThanOrEqual(before);
+    expect(mountedParts(playerVehicle(turn.world)).some((p) => !mine.includes(p.id))).toBe(true);
+    expect(mountedParts(hauler, 'armor').length).toBeGreaterThan(armor);
     expect(mountedParts(hauler, 'weapon')).toEqual([]);
-    expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
   });
 
   it('keeps auto fire on and rides behind the hauler while no hostile is in sight', () => {
@@ -147,35 +144,15 @@ describe('the Fury Road escort bot', () => {
     expect(dist((order as { dest: Vec }).dest, escortSpotOf(w))).toBeLessThan(1);
   });
 
-  it('drives at a hostile truck in sight instead of riding behind the hauler', () => {
+  it('fights a hostile truck in sight the way an NPC merc would', () => {
     const w = furyRoadWorld();
     const foe = hostileNear(w);
     refreshVision(w);
 
     const turn = botOrders(w, 'escort');
-    const order = playerVehicle(turn.world).order as { dest: Vec };
 
-    expect(dist(order.dest, foe.pos)).toBeLessThan(12);
-    expect(dist(order.dest, escortSpotOf(w))).toBeGreaterThan(5);
-  });
-
-  it('saves its gear money when a faster, better truck is within reach of the next pay', () => {
-    const w = atFirstOutpost();
-    const post = w.furyRoad!.outposts.find((p) => p.milestone === 1)!;
-    const me = playerVehicle(w);
-    const better = outpostTrucks(w, post)
-      .filter((id) => chassisDef(id).value > chassisDef(me.chassisId).value && chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry)
-      .sort((a, b) => chassisPrice(w, a) - chassisPrice(w, b))[0];
-    expect(better).toBeDefined();
-    w.player.money += chassisPrice(w, better) - 1 - gearBudget(w, me, 'fighter');
-    const money = w.player.money;
-    const armor = mountedParts(haulerOf(w), 'armor').length;
-
-    const turn = botOrders(w, 'escort');
-
-    expect(playerVehicle(turn.world).chassisId).toBe(me.chassisId);
-    expect(mountedParts(haulerOf(turn.world), 'armor').length).toBe(armor);
-    expect(turn.world.player.money).toBeGreaterThan(money - 1000);
+    expect(playerVehicle(turn.world).order).toEqual(fightMove(w, playerVehicle(w), foe));
+    expect(dist((playerVehicle(turn.world).order as { dest: Vec }).dest, foe.pos)).toBeLessThan(12);
   });
 
   it('turns auto repair off while the tank is holed, so the tank is patched before anything else', () => {

@@ -16,6 +16,8 @@ import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadWorld } from './testkit';
+import { RULES } from '../data/rules';
+import { dist } from './vec';
 import type { Vehicle } from './types';
 
 function partsOf(w: ReturnType<typeof furyRoadWorld>) {
@@ -51,6 +53,16 @@ describe('Fury Road hauler', () => {
       const kinds = mountedParts(hauler).map((p) => partDef(p.defId).kind);
       expect(kinds.filter((k) => k === 'weapon')).toEqual([]);
       expect(kinds).toContain('engine');
+    }
+  });
+
+  it('starts the hauler ahead of the player truck with a clear gap between them', () => {
+    for (const seed of [1, 3, 99]) {
+      const w = furyRoadWorld(seed);
+      const hauler = haulerOf(w);
+      const me = playerVehicle(w);
+      const gap = dist(hauler.pos, me.pos) - chassisDef(hauler.chassisId).radius - chassisDef(me.chassisId).radius;
+      expect(gap).toBeGreaterThanOrEqual(RULES.yieldDistance);
     }
   });
 
