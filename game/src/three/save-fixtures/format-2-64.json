@@ -1,0 +1,10 @@
+{
+  "turn": 3,
+  "vehicles": [
+    {
+      "id": "p1",
+      "items": [{ "kind": "part", "part": { "id": "p343", "defId": "claymoreRam", "hp": 40, "charge": { "reload": 0, "armed": true } } }],
+      "utilityOrders": { "p343": { "kind": "self" } }
+    }
+  ]
+}

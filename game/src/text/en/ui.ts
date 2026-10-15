@@ -15,6 +15,8 @@ export const UI = {
   'feedback.send': 'Send',
   'feedback.off': 'Reports are off in this build.',
   'feedback.failed': 'Could not send. Try again.',
+  'feedback.limited': m('Report limit reached for this hour. You can send again in {n, plural, one {# minute} other {# minutes}}.', { n: 'count' }),
+  'feedback.limitedLater': 'Report limit reached for this hour. You can send again later.',
   'feedback.sent': 'Thank you. Your report is sent.',
   'hud.overdriveNoEngine': 'No engine',
   'hud.overdriveWorn': m('Engine too worn for overdrive: repair it above {pct}% [O]', { pct: 'int' }),
