@@ -8,6 +8,7 @@ import { roundSession } from '../sessions';
 import { updateState } from '../state';
 import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type PlaytestState, type ReleaseState } from '../types';
 import { CACHED_SUITE, type CheckOutcome, checkScript, checkUntilReal, oneSuiteAtATime, runChecks, suiteEnv, testCacheMount } from './checks';
+import { subsetCommand, testSubset } from './subset';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
@@ -184,9 +185,10 @@ async function checkFixes(ctx: Ctx, session: Session, sha: string): Promise<stri
   guardDiff({ files: await ctx.repo.changedFiles(session.start, sha), diff: await ctx.repo.diff(session.start, sha) });
   checkScope(sha);
   const log = releaseLog(ctx, 'playtest-checks');
-  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false))}`;
+  const subset = testSubset(await ctx.repo.changedInWork(session.dir, session.start), (file) => existsSync(join(session.home, file)));
+  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset))}`;
   const at = { stage: 'playtest' as const, issue: session.release.issue };
-  const check = (): Promise<CheckOutcome> => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg)));
+  const check = (): Promise<CheckOutcome> => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg));
   return checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
 }
 

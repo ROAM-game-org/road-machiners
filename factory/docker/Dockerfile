@@ -45,7 +45,8 @@ RUN git config --global user.name "ROAM Factory" \
 COPY --chown=pwuser:pwuser skills/ /home/pwuser/.claude/skills/
 
 RUN claude plugin marketplace add https://github.com/btseytlin/ultrapack.git \
- && claude plugin install up@ultrapack
+ && claude plugin install up@ultrapack \
+ && ls /home/pwuser/.claude/plugins/cache/ultrapack/up/*/skills/expand/SKILL.md /home/pwuser/.claude/plugins/cache/ultrapack/up/*/skills/udocument/SKILL.md
 
 # agy uses the Gemini API key only when its settings name the gemini provider. Without that it asks for a Google sign-in.
 RUN mkdir -p /home/pwuser/.gemini/antigravity-cli \

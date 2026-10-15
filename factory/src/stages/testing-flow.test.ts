@@ -137,12 +137,14 @@ function posts(run: AgentRun): void {
 }
 
 describe('testing in one job', () => {
-  it('plays, runs the preview checkpoint with no suite, opens the pull request, posts and moves to Approval', async () => {
+  it('plays, runs the build-only checkpoint, opens the pull request, posts and moves to Approval', async () => {
     await runVerify(fakeCtx(posts), 7);
     expect(calls.filter((call) => call === 'agent')).toHaveLength(1);
     expect(shellScripts).toHaveLength(1);
-    expect(shellScripts[0]).toContain('npm run typecheck');
-    expect(shellScripts[0]).toContain('npm run playtest -- --cpu');
+    expect(shellScripts[0]).toContain('npm ci');
+    expect(shellScripts[0]).toContain('npm run build');
+    expect(shellScripts[0]).not.toContain('npm run typecheck');
+    expect(shellScripts[0]).not.toContain('npm run playtest');
     expect(shellScripts[0]).not.toContain('test:cached');
     expect(shellPins).toEqual([undefined]);
     expect(calls.find((call) => call.startsWith('openPullRequest'))).toContain('openPullRequest factory/issue-7 dev #7 Big horn | Closes #7.');
