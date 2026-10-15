@@ -9,12 +9,16 @@ import { releaseLog } from './release-common';
 
 const ISSUE_BRANCH = /^factory\/issue-\d+$/;
 
-export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[]): Promise<void> {
-  const resolutions: Resolution[] = [];
+export type CheckedMerge = { resolutions: Resolution[]; expected: Record<string, string> };
+
+const UNCHECKED: CheckedMerge = { resolutions: [], expected: {} };
+
+export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[], checked: CheckedMerge = UNCHECKED): Promise<boolean> {
+  const { expected } = checked;
+  const resolutions: Resolution[] = [...checked.resolutions];
   for (;;) {
     try {
-      await ctx.repo.merge(steps, resolutions);
-      return;
+      return await ctx.repo.merge(steps, resolutions, expected);
     } catch (error) {
       if (!(error instanceof MergeConflictError) || ISSUE_BRANCH.test(error.branch)) throw error;
       resolutions.push(...error.done, await resolve(ctx, stage, error));

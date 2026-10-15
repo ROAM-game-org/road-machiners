@@ -129,6 +129,27 @@ describe('merging on GitHub', () => {
     expect(await show('dev', 'f.txt')).toBe('fix\n');
   });
 
+  it('lands a checked merge only while the tips it was checked on are still the tips, even after GitHub moves', async () => {
+    const { repo, commit, head, host, by } = await setup();
+    await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
+    await repo.fetch();
+    const [main, fix] = [await head('main'), await head('factory/issue-6')];
+    const steps = [
+      { branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6: t' },
+      { branch: 'main', into: 'dev', message: 'Merge main into dev after hotfix #6' },
+    ];
+    await commit('main', 'g.txt', 'main moved\n', 'main');
+    await by('checkout', 'main');
+    expect(await repo.merge(steps, [], { main, 'factory/issue-6': fix })).toBe(false);
+    expect(await head('dev')).not.toContain(fix);
+    expect(await repo.treeOf(fix)).toBe((await host('rev-parse', `${fix}^{tree}`)).trim());
+    expect(await repo.parentsOf(fix)).toEqual([main]);
+    await repo.fetch();
+    const moved = await head('main');
+    expect(await repo.merge(steps, [], { main: moved, 'factory/issue-6': fix })).toBe(true);
+    expect(await repo.parentsOf(await head('main'))).toEqual([moved, fix]);
+  });
+
   it('moves no branch when GitHub rejects one of them', async () => {
     const { origin, repo, commit, head } = await setup();
     await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');

@@ -107,6 +107,11 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     return { heads, started };
   }
 
+  async function atTips(expected: Record<string, string>): Promise<boolean> {
+    for (const [branch, commit] of Object.entries(expected)) if ((await commitOf(branch)) !== commit) return false;
+    return true;
+  }
+
   async function pushAll(heads: Map<string, string>): Promise<void> {
     await git(['push', '--atomic', 'origin', ...[...heads].map(([branch, commit]) => `${commit}:refs/heads/${branch}`)]);
   }
@@ -319,11 +324,18 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
-    async merge(steps, resolutions = []) {
+    async merge(steps, resolutions = [], expected = {}) {
       for (;;) {
+        if (!(await atTips(expected))) return false;
         const { heads, started } = await mergeSteps(steps, resolutions);
-        if (await pushUnlessMoved(heads, started)) return;
+        if (await pushUnlessMoved(heads, started)) return true;
       }
+    },
+    async treeOf(name) {
+      return (await git(['rev-parse', `${await ref(name)}^{tree}`])).trim();
+    },
+    async parentsOf(commit) {
+      return (await git(['rev-list', '--parents', '-n', '1', commit])).trim().split(' ').slice(1);
     },
     async mergeLog(from, to) {
       return lines(await git(['log', '--first-parent', '--merges', '--format=%s', `${await ref(to)}..${await ref(from)}`]));
