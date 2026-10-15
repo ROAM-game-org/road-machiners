@@ -98,6 +98,7 @@ export function fake(): Fake {
         return { resolution: { base: conflict.base, source: conflict instanceof MergeConflictError ? conflict.source : conflict.merge, head: 'resolved-head' }, diff: '', files: [] };
       },
       diff: async () => f.diff,
+      changedInWork: async () => [],
       changedFiles: async () => f.files,
       hasNewCommits: async () => true,
       isMerged: async () => true,
@@ -110,7 +111,6 @@ export function fake(): Fake {
       },
       workHead: async () => `head${++heads}`.padEnd(40, '0'),
       containsCommit: async () => true,
-      legacyMerges: async () => [],
       deleteBranch: async (branch: string) => note(`delete ${branch}`),
     },
   } as unknown as Ctx;
