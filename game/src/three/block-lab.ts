@@ -5,8 +5,7 @@ import { Mixer } from "../audio/mixer";
 import type { Role } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
-import { BlockSession, HEAVY, TURN_SECONDS, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
-import type { AccentCue } from "./sound";
+import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 
 const SONG_DIR = "/tmp/score-proto/";
 const PREP_HINT = "Run scripts/score-blocks-prep.py to write public/tmp/score-proto/ first.";
@@ -28,17 +27,18 @@ type LaneId = (typeof LANES)[number]["id"];
 const HEIGHT = LANES.reduce((sum, lane) => sum + lane.height, 0);
 type Auto = "off" | "busy" | "pauses";
 
-const EVENTS: Record<AccentCue, string> = {
-  "accent-sighted": "Sighted",
-  "accent-struck": "Hit you",
-  "accent-crit": "You crit",
-  "accent-crash": "Crash",
-  "accent-hit": "You hit",
-  "accent-miss": "You miss",
+const EVENTS: Record<BlockEvent, string> = {
+  sighted: "Enemy joins",
+  knockout: "Knockout",
+  crash: "Crash",
+  crit: "You crit",
+  struck: "Hit you",
+  hit: "You hit",
+  miss: "You miss",
 };
-const EVENT_GROUPS: AccentCue[][] = [
-  ["accent-sighted", "accent-struck", "accent-crit", "accent-crash"],
-  ["accent-hit", "accent-miss"],
+const EVENT_GROUPS: BlockEvent[][] = [
+  ["sighted", "knockout", "crash", "crit"],
+  ["struck", "hit", "miss"],
 ];
 
 const ROLE_INK: Record<Role | "end", string> = {
@@ -164,8 +164,8 @@ function flipCombat(): void {
   }
 }
 
-function fire(cue: AccentCue): void {
-  session.fire(cue, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
+function fire(kind: BlockEvent): void {
+  session.fire(kind, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
 }
 
 function autoTurn(now: number): void {
@@ -269,14 +269,11 @@ function drawEvents(): void {
   const height = laneHeight("events");
   for (const f of session.fired) {
     const x = xOf(f.at);
-    g.fillStyle = HEAVY.has(f.cue) ? INK.heavy : INK.light;
-    if (f.result === null) {
-      g.fillRect(x, top + height - 14, 1, 10);
-      continue;
-    }
-    g.fillRect(x, top + 4, 2, height - 8);
-    if (x < labelEnd + LABEL_GAP) continue;
-    const text = `${EVENTS[f.cue]} ${f.result}`;
+    const h = Math.max(2, Math.min(1, f.surprise / SCORE_BLOCKS.surpriseLine) * (height - 8));
+    g.fillStyle = f.lanes ? INK.heavy : INK.light;
+    g.fillRect(x, top + height - 4 - h, f.lanes ? 2 : 1, h);
+    if (!f.lanes || x < labelEnd + LABEL_GAP) continue;
+    const text = EVENTS[f.kind];
     g.fillStyle = INK.text;
     g.fillText(text, x + LABEL_GAP, top + 18);
     labelEnd = x + LABEL_GAP + g.measureText(text).width;
