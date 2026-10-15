@@ -1,8 +1,21 @@
 import { GAME_DIR } from '../types';
 
 const GAME_PREFIX = `${GAME_DIR}/`;
-const TEST_SETUP = ['package-lock.json', 'vitest.config.ts', 'scripts/test-cache.mjs'];
-const TEST_SETUP_DIR = 'src/test/';
+const TEST_SETUP = [
+  'package-lock.json',
+  'vitest.config.ts',
+  'scripts/test-cache.mjs',
+  'src/test/settled-runner.ts',
+  'src/test/yield-setup.ts',
+  'src/test/cpu-limits-setup.ts',
+  'src/test/cpu-limits.ts',
+  'src/test/empty-template-setup.ts',
+  'src/test/empty-world.ts',
+  'src/test/map.ts',
+  'src/test/timeouts.ts',
+  'src/test/workers.ts',
+];
+const TEST_SETUP_DIR = 'src/test/cache/';
 const TEST_FILE = /\.test\.ts$/;
 const SOURCE_FILE = /\.tsx?$/;
 
