@@ -1,5 +1,5 @@
 {
- "format": "2.64",
+ "format": "2.65",
  "shape": {
   "broken": [],
   "craters": [],
@@ -50,6 +50,11 @@
     "scrap": "number"
    },
    "discovered": [],
+   "encounters": {
+    "next": "number",
+    "pending": "null",
+    "story": "null"
+   },
    "engineHeat": "number",
    "explored": "string",
    "frozen": "boolean",

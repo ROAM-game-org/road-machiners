@@ -37,6 +37,7 @@ import { noteHurt, resolveNpcActivities } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
 import { advanceStates } from './states';
 import { forgetOld } from './memory';
+import { lapseEncounter } from './encounters';
 import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from './tow';
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
@@ -107,6 +108,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       perks: [],
       marked: [],
       rumored: [],
+      encounters: { next: 0, pending: null, story: null },
       notes: [],
       health: startHealth(kit),
       fuel: kit.fuel,
@@ -382,6 +384,7 @@ export function endTurn(
     advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
+    lapseEncounter(w);
     resolveNpcActivities(w);
     noteEngagements(w);
     discoverSites(w);

@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1361,5 +1362,22 @@ describe('save migration 62 to 63', () => {
     const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
 
     expect(next).toEqual(FORMAT_2_62);
+  });
+});
+
+describe('save migration 64 to 65', () => {
+  it('gives an old save an idle encounter log and changes nothing else', () => {
+    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
+
+    expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
+    expect(next.player.money).toBe(1200);
+    expect({ ...next, player: { ...next.player, encounters: undefined } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, encounters: undefined } });
+  });
+
+  it('keeps an encounter log that is already there', () => {
+    const log = { next: 40, pending: null, story: null };
+    const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
+
+    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
   });
 });
