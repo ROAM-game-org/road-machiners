@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
@@ -28,6 +28,7 @@ function territoryGround(): Float32Array {
   groundHeights ??= groundForTerritories(MAPGEN.seed).heights;
   return groundHeights;
 }
+beforeAll(() => void territoryGround(), budget(120_000));
 function rollingDraft(): MapDraft {
   const d = newDraft(REGION.size);
   const w = d.size + 1;

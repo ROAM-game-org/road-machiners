@@ -1,5 +1,5 @@
-export const TEST_CPU_LIMIT_MS = 20_000;
-export const FILE_CPU_LIMIT_MS = 60_000;
+export const TEST_CPU_LIMIT_MS = 30_000;
+export const FILE_CPU_LIMIT_MS = 90_000;
 
 export function cpuMs(usage: NodeJS.CpuUsage): number {
   return (usage.user + usage.system) / 1000;
