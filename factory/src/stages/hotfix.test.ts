@@ -42,7 +42,7 @@ describe('hotfix fan-out', () => {
 
   it('leaves the open release and its candidate post alone', async () => {
     const f = hotfixable();
-    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
     await shipHotfix(f.ctx, 7, 'Big horn', ANN, 'abc1234');
     expect(f.calls.some((call) => call.includes('release/2026-09-29'))).toBe(false);
     expect(readState(f.ctx.statePath).release?.postId).toBe(42);

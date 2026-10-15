@@ -1,9 +1,10 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { withLockSync } from './lock';
 import { transcriptUsage } from './transcript';
 import { archiveTranscripts } from './transcript-archive';
-import type { CardFlow, CardStep } from './card-events';
+import type { CardFacts, CardFlow, CardStep } from './card-events';
 import type { Column, JobStage, Route, TokenPrice } from './types';
 import { reportAttempt, type Observation } from './observability';
 
@@ -11,15 +12,17 @@ export type ModelUsage = { model: string; input: number; output: number; cacheRe
 export type AgentUsage = { model: string; costUsd: number; minutes: number; modelUsage?: ModelUsage[]; sessionId?: string; resumed?: boolean; fromTranscript?: true };
 export type OpenRun = { model: string; projects: string; sessionId: string; resumed: boolean; startedAt: string };
 export type JobOutcome = 'done' | 'failed' | 'died' | 'timeout' | 'stopped' | 'held';
+export type PartKind = 'agent' | 'checks' | 'build';
+export type JobPart = { kind: PartKind; startedAt: string; endedAt: string };
 export const isFailedOutcome = (outcome: JobOutcome): boolean => outcome !== 'done' && outcome !== 'held';
 
 export type LedgerLine =
   | Observation
-  | { kind: 'job'; id: string; stage: JobStage; issue: number | null; startedAt: string; endedAt: string; outcome: JobOutcome; agents: AgentUsage[]; peakGb?: number; retryOf?: string | null }
+  | { kind: 'job'; id: string; stage: JobStage; issue: number | null; startedAt: string; endedAt: string; outcome: JobOutcome; log?: string; batch?: number[]; agents: AgentUsage[]; parts?: JobPart[]; peakGb?: number; retryOf?: string | null }
   | { kind: 'route'; issue: number; route: Route; by: string; at: string }
   | { kind: 'post'; id: number; channel?: string; text: string; at: string }
   | { kind: 'control'; action: string; issue: number | null; by: string; reason: string; at: string }
-  | { kind: 'card'; issue: number; step: CardStep; to: Column; at: string; flow?: CardFlow };
+  | ({ kind: 'card'; issue: number; step: CardStep; to: Column; at: string; flow?: CardFlow } & CardFacts);
 
 const LEDGER_LOCK_MS = 30_000;
 
@@ -27,10 +30,15 @@ const ledgerPath = (home: string): string => join(home, 'ledger.jsonl');
 const usagePath = (home: string, jobId: string): string => join(home, 'usage', `${jobId}.jsonl`);
 const peakPath = (home: string, jobId: string): string => join(home, 'usage', `${jobId}.peak`);
 const openRunPath =(home: string, jobId: string): string => join(home, 'usage', `${jobId}.run.json`);
+const partsPath = (home: string, jobId: string): string => join(home, 'usage', `${jobId}.parts.jsonl`);
+const openPartsDir = (home: string, jobId: string): string => join(home, 'usage', `${jobId}.open-parts`);
 export const runProjectsDir = (home: string, jobId: string): string => join(home, 'usage', `${jobId}.projects`);
 
+export function findResult(stdout: string): Record<string, unknown> | undefined {
+  return stdout.trimEnd().split('\n').reverse().map(parseLine).find((event) => event?.type === 'result' && !event.parent_tool_use_id);
+}
 function readResult(stdout: string): Record<string, unknown> & { total_cost_usd: number; duration_ms: number } {
-  const result = stdout.trimEnd().split('\n').reverse().map(parseLine).find((event) => event?.type === 'result' && !event.parent_tool_use_id);
+  const result = findResult(stdout);
   if (result === undefined) throw new Error('The agent output has no result event, so its cost is unknown');
   if (typeof result.total_cost_usd !== 'number') throw new Error('The agent result event has no total_cost_usd');
   if (typeof result.duration_ms !== 'number') throw new Error('The agent result event has no duration_ms');
@@ -61,7 +69,7 @@ function readModelUsage(measurements: unknown): ModelUsage[] | null {
   });
 }
 
-function parseLine(line: string): Record<string, unknown> | undefined {
+export function parseLine(line: string): Record<string, unknown> | undefined {
   try {
     const value: unknown = JSON.parse(line);
     return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
@@ -127,17 +135,45 @@ export function takeUsage(home: string, jobId: string): AgentUsage[] {
   return runs;
 }
 
-export function recordJob(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string | null; stage: JobStage; issue: number | null; startedAt: string }, outcome: JobOutcome): void {
+export function recordJob(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string | null; stage: JobStage; issue: number | null; startedAt: string; log?: string; batch?: number[] }, outcome: JobOutcome): void {
   const records = job.id === null ? { agents: [] } : takeJobRecords(home, prices, endedAt, { ...job, id: job.id }, outcome);
-  appendLedger(home, { kind: 'job', id: job.id ?? 'hand-run', stage: job.stage, issue: job.issue, startedAt: job.startedAt, endedAt: endedAt.toISOString(), outcome, ...records });
+  const log = job.log === undefined ? {} : { log: job.log };
+  const batch = job.batch === undefined ? {} : { batch: job.batch };
+  appendLedger(home, { kind: 'job', id: job.id ?? 'hand-run', stage: job.stage, issue: job.issue, startedAt: job.startedAt, endedAt: endedAt.toISOString(), outcome, ...log, ...batch, ...records });
 }
 
-function takeJobRecords(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string; stage: JobStage; issue: number | null; startedAt: string }, outcome: JobOutcome): { agents: AgentUsage[]; peakGb?: number; retryOf?: string | null } {
+function takeJobRecords(home: string, prices: Record<string, TokenPrice>, endedAt: Date, job: { id: string; stage: JobStage; issue: number | null; startedAt: string }, outcome: JobOutcome): { agents: AgentUsage[]; parts: JobPart[]; peakGb?: number; retryOf?: string | null } {
   closeRunFromTranscript(home, job.id, prices, endedAt);
   const agents = takeUsage(home, job.id);
+  const parts = takeParts(home, job.id, endedAt);
   const peakGb = takePeak(home, job.id);
   const retryOf = reportAttempt(home, job, outcome, endedAt);
-  return { agents, ...(peakGb === undefined ? {} : { peakGb }), ...(retryOf === undefined ? {} : { retryOf }) };
+  return { agents, parts, ...(peakGb === undefined ? {} : { peakGb }), ...(retryOf === undefined ? {} : { retryOf }) };
+}
+
+export function openPart(home: string, jobId: string, kind: PartKind, at: Date): string {
+  const id = randomUUID();
+  mkdirSync(openPartsDir(home, jobId), { recursive: true });
+  writeFileSync(join(openPartsDir(home, jobId), `${id}.json`), JSON.stringify({ kind, startedAt: at.toISOString() }));
+  return id;
+}
+
+export function closePart(home: string, jobId: string, id: string, at: Date): void {
+  const path = join(openPartsDir(home, jobId), `${id}.json`);
+  const open = JSON.parse(readFileSync(path, 'utf8')) as Omit<JobPart, 'endedAt'>;
+  appendFileSync(partsPath(home, jobId), `${JSON.stringify({ ...open, endedAt: at.toISOString() })}\n`);
+  rmSync(path);
+}
+
+function takeParts(home: string, jobId: string, endedAt: Date): JobPart[] {
+  const open = existsSync(openPartsDir(home, jobId)) ? readdirSync(openPartsDir(home, jobId)) : [];
+  for (const name of open) closePart(home, jobId, basename(name, '.json'), endedAt);
+  rmSync(openPartsDir(home, jobId), { recursive: true, force: true });
+  const path = partsPath(home, jobId);
+  if (!existsSync(path)) return [];
+  const parts = readLines<JobPart>(path);
+  rmSync(path);
+  return parts;
 }
 
 export function appendLedger(home: string, line: LedgerLine): void {

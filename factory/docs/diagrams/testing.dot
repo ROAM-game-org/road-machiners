@@ -7,7 +7,7 @@ digraph testing {
   subgraph cluster_session {
     label="Testing job"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
     PM [label="Merge new branch\ncommits and the base"]; PT [label="Testing session\nplay, fix, capture,\nwrite the post"];
-    PC [label="Post checkpoint\ntypecheck, playtest, build"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
+    PC [label="Post checkpoint\nbuild, which typechecks\nhotfix: full checks"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
     PM -> PT -> PC -> PP [weight=100];
   }
   subgraph cluster_post {

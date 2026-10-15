@@ -46,7 +46,7 @@ describe('sweepWork', () => {
 
   it('keeps queued changes and incidents and the candidate of an open release', () => {
     const root = work('change-12', 'incident-6', 'release-candidate');
-    const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+    const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
     const swept = sweepWork(root, `${root}-locks`,state({ pendingChanges: [{ id: 12, text: 't', by: 'u' }], pendingIncidents: [6], release }), []);
     expect(swept.removed).toEqual([]);
     expect(swept.stripped.sort()).toEqual(['change-12', 'incident-6', 'release-candidate']);
@@ -109,7 +109,7 @@ describe('sweepLogs', () => {
 
   it('keeps an old log that a failure names', () => {
     const root = logs(['checks-5-old.log', 20]);
-    const failures = [{ stage: 'checks' as const, issue: 5, error: 'e', log: join(root, 'checks-5-old.log'), at: '' }];
+    const failures = [{ stage: 'checks' as const, issue: 5, error: 'e', cause: 'error' as const, log: join(root, 'checks-5-old.log'), at: '' }];
     expect(sweepLogs(root, state({ failures }), NOW, 14)).toEqual([]);
   });
 });

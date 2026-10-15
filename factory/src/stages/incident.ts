@@ -39,7 +39,7 @@ async function land(ctx: Ctx, issue: number, clone: string, id: string): Promise
   if (files.length !== 1 || files[0] !== INCIDENT_LOG) throw new Error(`The incident agent must commit ${INCIDENT_LOG} alone, but ${branch} changes: ${files.join(', ') || 'nothing'}`);
   if (!readFileSync(join(clone, INCIDENT_LOG), 'utf8').split('\n').includes(`ID: ${id}`)) throw new Error(`${INCIDENT_LOG} on ${branch} has no entry with ID: ${id}`);
   await ctx.repo.fetch();
-  await ctx.repo.merge([{ branch: head, into: BASE_BRANCH, message: `Record incident ${id} from issue #${issue}` }]);
+  await ctx.repo.merge([{ branch: head, into: BASE_BRANCH, message: `Record incident ${id} from issue #${issue}`, issue: null }]);
 }
 
 function parseOutcome(text: string | null): Outcome {

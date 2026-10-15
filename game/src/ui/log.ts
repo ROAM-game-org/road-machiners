@@ -50,6 +50,7 @@ export class LogPanel {
   );
 
   constructor() {
+    this.root.setAttribute("data-drawer-frame", "log");
     bindAttr(this.root, "aria-label", t("log.panel"));
     this.root.append(
       el("div", { class: "log-head" }, el("h3", { class: "panel-title" }, t("log.title")), this.toggle),

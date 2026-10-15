@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, writeState } from '../state';
 import type { AgentRun, Ctx } from '../types';
+import { promptFile } from './common';
 import { runStage } from './implement';
 
 let home = '';
@@ -23,7 +24,7 @@ function fakeCtx(labels: string[], models: string[], prompts: string[] = [], run
     container: { agent: async (run: AgentRun) => { runs.push(run); models.push(run.model); prompts.push(run.prompt); mkdirSync(`${run.clone}/${run.dir}/.factory`, { recursive: true }); } },
     repo: {
       prepareWorkClone: async (_b: string, _base: string, dir: string) => { mkdirSync(dir, { recursive: true }); },
-      fetchFromWork: async () => 'w1', isMerged, untrackFactoryFiles: async () => [], diff: async () => '', push: async () => undefined,
+      fetchFromWork: async () => 'w1', isMerged, untrackFactoryFiles: async () => [], diff: async () => '', changedFiles: async () => [], push: async () => undefined,
       fetch: async () => undefined, mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
     },
   };
@@ -76,5 +77,26 @@ describe('implement stage visual self-review', () => {
     await runStage(fakeCtx([], [], prompts), 7);
     expect(prompts[0]).toContain('needs no screenshots');
     expect(prompts[0]).toContain('why nothing visible changed');
+  });
+});
+
+describe('implement stage steps', () => {
+  it('reads the game docs, installs, builds, typechecks, and ends with an up:udocument pass that commits its edits', async () => {
+    const prompts: string[] = [];
+    await runStage(fakeCtx([], [], prompts), 7);
+    const prompt = prompts[0];
+    const order = ['Your first step is to read the game docs', 'Run `npm ci && npm run hooks:install`.', 'Run up:uexecute on', 'run `npm run typecheck` once', 'run the skill up:udocument', 'Commit the doc edits in their own commit on the current branch.'].map((step) => prompt.indexOf(step));
+    expect(order.every((at) => at >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    const docsStep = prompt.slice(prompt.indexOf('## Last step: the game docs'));
+    expect(docsStep).toContain('When no doc is stale, edit nothing.');
+    expect(docsStep.indexOf('Then stop.')).toBeGreaterThan(docsStep.indexOf('When no doc is stale'));
+    expect(prompt.match(/Then stop\./g)).toHaveLength(1);
+  });
+
+  it('keeps the docs step as the last section of the prompt template', () => {
+    const template = promptFile('implement');
+    expect(template.lastIndexOf('\n## ')).toBe(template.indexOf('\n## Last step: the game docs'));
+    expect(template.endsWith('Then stop.')).toBe(true);
   });
 });

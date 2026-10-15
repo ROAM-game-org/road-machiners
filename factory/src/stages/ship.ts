@@ -14,7 +14,7 @@ import { agentLog, fillPrompt, resetOutputs } from './common';
 import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
-import { candidateDir, changeLines, openReleaseTasks, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
+import { candidateDir, changelogText, openReleaseTasks, readChanges, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
 
 export type ItchKeys = { itchTarget: string; butlerKey: string };
 
@@ -62,11 +62,11 @@ async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone('main', 'main', dir);
   const log = releaseLog(ctx, logName);
-  await ctx.container.shell(dir, stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: '', ...reportEnv(ctx.cfg, 'release') });
+  await ctx.container.shell('build', dir, stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: '', ...reportEnv(ctx.cfg, 'release') });
   await takeMaps(ctx, dir, 'release');
   const version = await ctx.repo.headHash('main');
   const args = ['push', join(dir, GAME_DIR, 'dist'), `${keys.itchTarget}:html5`, '--userversion', version];
-  must(await ctx.run('butler', args, { env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log }), 'butler push');
+  must(await ctx.run('butler', args, { activity: 'publish', env: { BUTLER_API_KEY: keys.butlerKey }, logPath: log }), 'butler push');
 }
 
 export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<void> {
@@ -74,14 +74,14 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
   const release = await requireShippable(ctx, issue, by);
   const clone = join(candidateDir(ctx), GAME_DIR, OUT_DIR);
   const screenshot = join(clone, 'screenshot.png');
-  const notesPath = join(clone, 'release.md');
+  const notesPath = join(clone, 'release.json');
   if (!existsSync(screenshot) || !existsSync(notesPath)) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
   await ctx.repo.fetch();
   await requirePlayed(ctx, release);
   const features = await shippingFeatures(ctx, release);
-  const changelog = changeLines(readFileSync(notesPath, 'utf8'), features).join('\n');
+  const changelog = changelogText(readChanges(readFileSync(notesPath, 'utf8'), features));
   await landRelease(ctx, release);
-  await mergeResolving(ctx, 'ship', [{ branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}` }]);
+  await mergeResolving(ctx, 'ship', [{ branch: 'main', into: 'dev', message: `Merge main into dev after release ${release.day}`, issue: null }]);
   await publish(ctx, keys, 'ship');
   const kept = join(releasePostDir(ctx.cfg.home, release.day), 'screenshot.png');
   mkdirSync(dirname(kept), { recursive: true });
@@ -114,7 +114,7 @@ export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<
 async function shippingFeatures(ctx: Ctx, release: ReleaseState): Promise<Feature[]> {
   const sha = await ctx.repo.headHash(release.branch);
   if (release.shipping?.sha === sha) return release.shipping.features;
-  const features = await releaseFeatures(ctx, release);
+  const features = releaseFeatures(release);
   updateState(ctx.statePath, (state) => ({ ...state, release: state.release && { ...state.release, shipping: { sha, features } } }));
   return features;
 }

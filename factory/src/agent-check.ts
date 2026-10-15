@@ -28,7 +28,8 @@ const DIFF_BUFFER_BYTES = 256 * 1024 * 1024;
 
 function runGuard(cwd: string, print: (line: string) => void): number {
   try {
-    guardDiff(execFileSync('git', ['diff', '--cached'], { cwd, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES }));
+    const staged = (args: string[]): string => execFileSync('git', ['diff', '--cached', ...args], { cwd, encoding: 'utf8', maxBuffer: DIFF_BUFFER_BYTES });
+    guardDiff({ files: staged(['--name-only', '--no-renames', '-z']).split('\0').filter(Boolean), diff: staged([]) });
     return 0;
   } catch (error) {
     print(`The factory refuses this commit: ${error instanceof Error ? error.message : String(error)}`);
