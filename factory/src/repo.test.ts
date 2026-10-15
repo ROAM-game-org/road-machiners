@@ -1,11 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { must, realRun } from './exec';
+import { must, realRun as spawn, withActivity } from './exec';
 import { hostRepo } from './repo';
 import { BaseMovedError, MergeConflictError, RevertConflictError, type FactoryConfig, type Run } from './types';
 
 vi.setConfig({ testTimeout: 30_000 });
+
+const realRun = withActivity(spawn, 'git');
 
 const cfg = (home: string): FactoryConfig => ({ home, repo: 'o/r' }) as FactoryConfig;
 
@@ -46,7 +48,7 @@ async function setup() {
   const feature = async (issue: number, file: string, text: string, into = 'dev') => {
     await commit(`factory/issue-${issue}`, file, text, into);
     await repo.fetch();
-    await repo.merge([{ branch: `factory/issue-${issue}`, into, message: `Merge issue #${issue}: title ${issue}` }]);
+    await repo.merge([{ branch: `factory/issue-${issue}`, into, message: `Merge issue #${issue}: title ${issue}`, issue }]);
   };
   const show = async (branch: string, file: string) => hub('show', `${branch}:${file}`);
   const head = async (branch: string) => (await hub('rev-parse', branch)).trim();
@@ -64,10 +66,10 @@ describe('hostRepo', () => {
     await repo.diff('dev', 'b');
     await repo.hasNewCommits('dev', 'b');
     await repo.fetchFromWork('/w', 'b');
-    await repo.mergeLog('dev', 'main');
-    await repo.merge([{ branch: 'b', into: 'dev', message: 'msg' }]);
+    await repo.merge([{ branch: 'b', into: 'dev', message: 'msg', issue: null }]);
     await repo.createBranch('r', 'dev');
-    await repo.revertIssueMerge(3, 'r');
+    await repo.revertMerge({ issue: 3, sha: 'abc' }, 'r');
+    await repo.containsCommit('r', 'abc');
     await repo.deleteBranch('b');
     expect(calls.length).toBeGreaterThan(15);
     for (const args of calls) expect(args.slice(0, 2)).toEqual(['-c', 'core.hooksPath=/dev/null']);
@@ -91,7 +93,7 @@ describe('merging on GitHub', () => {
     await commit('dev', 'f.txt', 'dev moved\n');
     await repo.fetch();
     const before = await head('dev');
-    const error = await repo.merge([{ branch: 'factory/issue-4', into: 'dev', message: 'Merge issue #4: t' }]).catch((e: unknown) => e);
+    const error = await repo.merge([{ branch: 'factory/issue-4', into: 'dev', message: 'Merge issue #4: t', issue: 4 }]).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(MergeConflictError);
     expect((error as MergeConflictError).files).toEqual(['f.txt']);
     expect(await head('dev')).toBe(before);
@@ -102,7 +104,7 @@ describe('merging on GitHub', () => {
     await commit('factory/issue-5', 'f.txt', 'five\n');
     await repo.fetch();
     await commit('dev', 'g.txt', 'moved on GitHub\n');
-    await repo.merge([{ branch: 'factory/issue-5', into: 'dev', message: 'Merge issue #5: t' }]);
+    await repo.merge([{ branch: 'factory/issue-5', into: 'dev', message: 'Merge issue #5: t', issue: 5 }]);
     expect(await show('dev', 'f.txt')).toBe('five\n');
     expect(await show('dev', 'g.txt')).toBe('moved on GitHub\n');
     expect((await host('for-each-ref', 'refs/heads')).trim()).toBe('');
@@ -113,7 +115,7 @@ describe('merging on GitHub', () => {
     await commit('factory/issue-5', 'f.txt', 'five\n');
     await repo.fetch();
     await commit('dev', 'f.txt', 'dev moved\n');
-    await expect(repo.merge([{ branch: 'factory/issue-5', into: 'dev', message: 'Merge issue #5: t' }])).rejects.toBeInstanceOf(MergeConflictError);
+    await expect(repo.merge([{ branch: 'factory/issue-5', into: 'dev', message: 'Merge issue #5: t', issue: 5 }])).rejects.toBeInstanceOf(MergeConflictError);
     expect(await show('dev', 'f.txt')).toBe('dev moved\n');
   });
 
@@ -122,8 +124,8 @@ describe('merging on GitHub', () => {
     await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
     await repo.fetch();
     await repo.merge([
-      { branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6: t' },
-      { branch: 'main', into: 'dev', message: 'Merge main into dev after hotfix #6' },
+      { branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6: t', issue: 6 },
+      { branch: 'main', into: 'dev', message: 'Merge main into dev after hotfix #6', issue: null },
     ]);
     expect(await show('main', 'f.txt')).toBe('fix\n');
     expect(await show('dev', 'f.txt')).toBe('fix\n');
@@ -132,8 +134,8 @@ describe('merging on GitHub', () => {
 
 describe('merging only a checked build', () => {
   const hotfix = (issue: number) => [
-    { branch: `factory/issue-${issue}`, into: 'main', message: `Hotfix #${issue}: t` },
-    { branch: 'main', into: 'dev', message: `Merge main into dev after hotfix #${issue}` },
+    { branch: `factory/issue-${issue}`, into: 'main', message: `Hotfix #${issue}: t`, issue },
+    { branch: 'main', into: 'dev', message: `Merge main into dev after hotfix #${issue}`, issue: null },
   ];
 
   it('ships the checked build when main is still its ancestor, and a rerun after the push changes nothing', async () => {
@@ -192,8 +194,8 @@ describe('merging only a checked build', () => {
     writeFileSync(hook, '#!/bin/sh\n[ "$1" != refs/heads/dev ]\n', { mode: 0o755 });
     const [main, dev] = [await head('main'), await head('dev')];
     await expect(repo.merge([
-      { branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6: t' },
-      { branch: 'main', into: 'dev', message: 'Merge main into dev after hotfix #6' },
+      { branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6: t', issue: 6 },
+      { branch: 'main', into: 'dev', message: 'Merge main into dev after hotfix #6', issue: null },
     ])).rejects.toThrow('push of main, dev failed');
     expect([await head('main'), await head('dev')]).toEqual([main, dev]);
   });
@@ -223,10 +225,9 @@ describe('merging only a checked build', () => {
     await expect(repo.deleteBranch('factory/issue-7')).resolves.toBeUndefined();
   });
 
-  it('reads the merge log and changed files from GitHub', async () => {
+  it('reads changed files from GitHub', async () => {
     const { repo, feature } = await setup();
     await feature(3, 'f.txt', 'three\n');
-    expect(await repo.mergeLog('dev', 'main')).toEqual(['Merge issue #3: title 3']);
     expect(await repo.changedFiles('main', 'dev')).toEqual(['f.txt']);
     expect(await repo.isMerged('main', 'dev')).toBe(true);
     expect(await repo.hasNewCommits('main', 'dev')).toBe(true);
@@ -243,55 +244,68 @@ describe('merging only a checked build', () => {
   });
 });
 
-describe('reverting an issue merge', () => {
+describe('reverting a recorded merge', () => {
   it('reverts the merge on the branch that has it, pushes it, and leaves the other branch alone', async () => {
-    const { repo, feature, show } = await setup();
+    const { repo, feature, show, head } = await setup();
     await feature(3, 'f.txt', 'three\n');
+    const sha = await head('dev');
     await feature(4, 'g.txt', 'four\n');
     await repo.createBranch('release/x', 'dev');
-    expect(await repo.revertIssueMerge(3, 'release/x')).toBe(true);
+    await repo.revertMerge({ issue: 3, sha }, 'release/x');
     expect(await show('release/x', 'f.txt')).toBe('base\n');
     expect(await show('release/x', 'g.txt')).toBe('four\n');
     expect(await show('dev', 'f.txt')).toBe('three\n');
   });
 
-  it('matches the issue number exactly and answers false for a merge the branch lacks', async () => {
-    const { repo, feature, show } = await setup();
-    await feature(12, 'f.txt', 'twelve\n');
-    expect(await repo.revertIssueMerge(1, 'dev')).toBe(false);
-    expect(await repo.revertIssueMerge(99, 'dev')).toBe(false);
-    expect(await show('dev', 'f.txt')).toBe('twelve\n');
+  it('reverts the given sha even when another merge of the same issue exists', async () => {
+    const { repo, feature, show, head } = await setup();
+    await feature(3, 'f.txt', 'three\n');
+    const first = await head('dev');
+    await repo.revertMerge({ issue: 3, sha: first }, 'dev');
+    await repo.deleteBranch('factory/issue-3');
+    await feature(3, 'f.txt', 'three again\n');
+    const second = await head('dev');
+    await repo.revertMerge({ issue: 3, sha: second }, 'dev');
+    expect(await show('dev', 'f.txt')).toBe('base\n');
+  });
+
+  it('throws when the sha is not on the branch and leaves GitHub as it was', async () => {
+    const { repo, feature, head } = await setup();
+    await repo.createBranch('release/x', 'dev');
+    await feature(3, 'f.txt', 'three\n');
+    const sha = await head('dev');
+    const before = await head('release/x');
+    await expect(repo.revertMerge({ issue: 3, sha }, 'release/x')).rejects.toThrow(`The recorded merge ${sha} of issue #3 is not on release/x`);
+    expect(await head('release/x')).toBe(before);
   });
 
   it('throws on a conflicting revert and leaves GitHub as it was', async () => {
     const { repo, feature, head } = await setup();
     await feature(3, 'f.txt', 'three\n');
+    const sha = await head('dev');
     await feature(4, 'f.txt', 'four\n');
     const before = await head('dev');
-    await expect(repo.revertIssueMerge(3, 'dev')).rejects.toThrow('Conflicting files: f.txt');
+    await expect(repo.revertMerge({ issue: 3, sha }, 'dev')).rejects.toThrow('Conflicting files: f.txt');
     expect(await head('dev')).toBe(before);
   });
+});
 
-  it('skips a merge that the branch already reverted, so a retried removal finishes the other branch', async () => {
-    const { repo, feature, show, head } = await setup();
-    await feature(3, 'f.txt', 'three\n');
+describe('reading merges', () => {
+  it('tells whether a branch contains a commit', async () => {
+    const { repo, feature, head } = await setup();
     await repo.createBranch('release/x', 'dev');
-    expect(await repo.revertIssueMerge(3, 'release/x')).toBe(true);
-    const reverted = await head('release/x');
-    expect(await repo.revertIssueMerge(3, 'release/x')).toBe(false);
-    expect(await head('release/x')).toBe(reverted);
-    expect(await repo.revertIssueMerge(3, 'dev')).toBe(true);
-    expect(await show('dev', 'f.txt')).toBe('base\n');
+    await feature(3, 'f.txt', 'three\n');
+    const sha = await head('dev');
+    expect(await repo.containsCommit('dev', sha)).toBe(true);
+    expect(await repo.containsCommit('release/x', sha)).toBe(false);
+    await expect(repo.containsCommit('dev', 'not-a-commit')).rejects.toThrow('failed');
   });
 
-  it('reverts a merge that came back after an earlier revert', async () => {
-    const { repo, feature, show } = await setup();
-    await feature(3, 'f.txt', 'three\n');
-    expect(await repo.revertIssueMerge(3, 'dev')).toBe(true);
-    await repo.deleteBranch('factory/issue-3');
-    await feature(3, 'f.txt', 'three again\n');
-    expect(await repo.revertIssueMerge(3, 'dev')).toBe(true);
-    expect(await show('dev', 'f.txt')).toBe('base\n');
+  it('reads the head of a work clone', async () => {
+    const { home, repo, head } = await setup();
+    const work = join(home, 'work', 'issue-8');
+    await repo.prepareWorkClone('factory/issue-8', 'dev', work);
+    expect(await repo.workHead(work)).toBe(await head('dev'));
   });
 });
 
@@ -548,6 +562,14 @@ describe('work clones', () => {
     expect(await repo.isMerged('dev', 'factory/issue-5')).toBe(true);
   });
 
+  it('lists the files a merge of the base changed in a work clone', async () => {
+    const { repo, work } = await behindDev('g.txt');
+    const before = await repo.fetchFromWork(work, 'factory/issue-5');
+    await repo.catchUpBase(work, 'dev');
+    expect(await repo.changedInWork(work, before)).toEqual(['g.txt']);
+    expect(await repo.changedInWork(work, 'origin/dev')).toEqual(['f.txt']);
+  });
+
   it('still sees the merged commit inside the branch after dev moves on', async () => {
     const { repo, work, commit } = await behindDev('g.txt');
     const merged = (await repo.catchUpBase(work, 'dev')).commit as string;
@@ -627,7 +649,7 @@ describe('resolving a conflict', () => {
     await must(await realRun('git', [...ID, 'add', file], { cwd: dir }), 'git add');
     await must(await realRun('git', [...ID, 'commit', '--no-edit'], { cwd: dir }), 'git commit');
   };
-  const mainIntoDev = { branch: 'main', into: 'dev', message: 'Merge main into dev' };
+  const mainIntoDev = { branch: 'main', into: 'dev', message: 'Merge main into dev', issue: null };
 
   it('pushes a merge that an agent finished, and keeps both sides', async () => {
     const { home, repo, commit, show, hub } = await setup();
@@ -640,8 +662,9 @@ describe('resolving a conflict', () => {
     const dir = join(home, 'work', 'merge-dev');
     await repo.openConflict(dir, error);
     await agent(dir, 'f.txt', 'both\n');
-    const { resolution, diff } = await repo.closeConflict(dir, error);
+    const { resolution, diff, files } = await repo.closeConflict(dir, error);
     expect(diff).toContain('+both');
+    expect(files).toEqual(['f.txt']);
     expect(diff).not.toContain('main g');
     await repo.merge([mainIntoDev], [resolution]);
     expect(await show('dev', 'f.txt')).toBe('both\n');
@@ -674,7 +697,7 @@ describe('resolving a conflict', () => {
     await commit('dev', 'g.txt', 'dev moved\n');
     await repo.fetch();
     const devBefore = await head('dev');
-    const catchUp = { branch: 'dev', into: 'factory/issue-8', message: 'Merge dev into factory/issue-8 while it waits in Merging' };
+    const catchUp = { branch: 'dev', into: 'factory/issue-8', message: 'Merge dev into factory/issue-8 while it waits in Merging', issue: null };
     const error = await repo.merge([catchUp]).catch((e: unknown) => e) as MergeConflictError;
     expect(error).toBeInstanceOf(MergeConflictError);
     const dir = join(home, 'work', 'merge-factory-issue-8');
@@ -687,7 +710,7 @@ describe('resolving a conflict', () => {
     expect(await show('factory/issue-8', 'f.txt')).toBe('card 7 and 8\n');
     expect(await show('factory/issue-8', 'g.txt')).toBe('dev moved\n');
     expect(await repo.isMerged('dev', 'factory/issue-8')).toBe(true);
-    await repo.merge([{ branch: 'factory/issue-8', into: 'dev', message: 'Merge issue #8: title 8' }]);
+    await repo.merge([{ branch: 'factory/issue-8', into: 'dev', message: 'Merge issue #8: title 8', issue: 8 }]);
     expect(await show('dev', 'f.txt')).toBe('card 7 and 8\n');
   });
 
@@ -712,7 +735,7 @@ describe('resolving a conflict', () => {
     await commit('factory/issue-6', 'g.txt', 'fix\n', 'main');
     await commit('dev', 'g.txt', 'dev\n');
     await repo.fetch();
-    const steps = [{ branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6' }, mainIntoDev];
+    const steps = [{ branch: 'factory/issue-6', into: 'main', message: 'Hotfix #6', issue: 6 }, mainIntoDev];
     const error = await repo.merge(steps).catch((e: unknown) => e) as MergeConflictError;
     expect(error.source).not.toBe(await head('main'));
     const dir = join(home, 'work', 'merge-dev');
@@ -725,17 +748,17 @@ describe('resolving a conflict', () => {
   });
 
   it('pushes a revert that an agent finished', async () => {
-    const { home, repo, feature, show } = await setup();
+    const { home, repo, feature, show, head } = await setup();
     await feature(3, 'f.txt', 'three\n');
+    const merge = { issue: 3, sha: await head('dev') };
     await feature(4, 'f.txt', 'four\n');
-    const error = await repo.revertIssueMerge(3, 'dev').catch((e: unknown) => e) as RevertConflictError;
+    const error = await repo.revertMerge(merge, 'dev').catch((e: unknown) => e) as RevertConflictError;
     expect(error).toBeInstanceOf(RevertConflictError);
     const dir = join(home, 'work', 'merge-dev');
     await repo.openConflict(dir, error);
     await agent(dir, 'f.txt', 'resolved\n');
     const { resolution } = await repo.closeConflict(dir, error);
-    expect(await repo.revertIssueMerge(3, 'dev', [resolution])).toBe(true);
+    await repo.revertMerge(merge, 'dev', [resolution]);
     expect(await show('dev', 'f.txt')).toBe('resolved\n');
-    expect(await repo.revertIssueMerge(3, 'dev')).toBe(false);
   });
 });

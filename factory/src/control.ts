@@ -11,7 +11,7 @@ import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
 import { agentHome, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
-import { invalidateApproval, verifiedApproval } from './stages/kept-approval';
+import { invalidateApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
@@ -29,8 +29,7 @@ export type ControlAction =
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'merge-change'; id: number }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number }
-  | { action: 'recover-approval'; issue: number };
+  | { action: 'unhold'; issue: number };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -78,9 +77,7 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   drop: (data) => ({ action: 'drop', queue: requireOneOf(data, 'queue', DROP_QUEUES), id: requireDropId(data) }),
   'merge-change': (data) => ({ action: 'merge-change', id: requireNumber(data, 'id') }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
-  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
-  'recover-approval': (data) => ({ action: 'recover-approval', issue: requireNumber(data, 'issue') }),
-};
+  unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),};
 
 export function parseControl(raw: unknown): ControlCommand {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('A control command must be a JSON object.');
@@ -118,9 +115,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,
-  'recover-approval': recoverApproval,
-  'merge-change': async (ctx, command) => {
+  move, merge, ship, cut, remove, drop,  'merge-change': async (ctx, command) => {
     await ctx.github.mergePullRequest(`factory-change/${command.id}`);
     return { issue: null, text: `Factory change ${command.id} is merged into main. The deploy follows.` };
   },
@@ -192,6 +187,7 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
   return {
     ...state,
     postOnly: state.postOnly.filter((number) => number !== issue),
+    asked: omitKey(state.asked, key),
     interrupted: state.interrupted.filter((number) => number !== issue),
     pendingApprovals: omitKey(state.pendingApprovals, key),
     approvedResolving: dropsApproval ? omitKey(state.approvedResolving, key) : state.approvedResolving,
@@ -297,17 +293,6 @@ async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge
   return { issue, text: 'The card joins the merge queue.' };
 }
 
-async function recoverApproval(ctx: Ctx, command: Extract<ControlCommand, { action: 'recover-approval' }>, by: string): Promise<Outcome> {
-  const { issue } = command;
-  const card = await requireWorkCard(ctx, issue);
-  const approval = await verifiedApproval(ctx, card, `recovered by ${by}: ${command.reason}`);
-  if (card.column === 'Approval') {
-    await relocate(ctx, card, [requireBranch], { column: 'Testing', step: 'moved', status: `↪️ Approval by ${approval.by} recovered by ${by}`, dropsApproval: true, enter: (state) => state });
-  }
-  updateState(ctx.statePath, (state) => ({ ...state, keptApprovals: { ...state.keptApprovals, [String(issue)]: approval } }));
-  return { issue, text: `The approval by ${approval.by} of build ${approval.build} is kept again. Testing merges main and runs the full checks, then it ships with no new post.` };
-}
-
 export function openRelease(ctx: Ctx): ReleaseState {
   const release = readState(ctx.statePath).release;
   if (release === null) throw new Error('No release is open.');
@@ -325,6 +310,7 @@ export function queueShip(ctx: Ctx, issue: number, by: string): string {
 export function queueRemoval(ctx: Ctx, issue: number, by: string, text: string, finishRemoved = false): string {
   const release = openRelease(ctx);
   if (release.removed.includes(issue) && !finishRemoved) throw new Error(`Issue #${issue} is already removed from release ${release.day}.`);
+  if (!release.merges.some((merge) => merge.issue === issue)) throw new Error(`Issue #${issue} is not in release ${release.day}.`);
   if (readState(ctx.statePath).pendingRemovals.some((item) => item.issue === issue)) throw new Error(`A removal of #${issue} is already queued.`);
   updateState(ctx.statePath, (state) => ({ ...state, pendingRemovals: [...state.pendingRemovals, { issue, by, text }] }));
   return `Removal of #${issue} from release ${release.day} is queued. The revert starts on a coming tick.`;

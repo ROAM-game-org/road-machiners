@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { agentHome } from './common';
-import { MergeConflictError, RevertConflictError, type AgentRun, type Card, type Ctx, type FactoryConfig, type InlineButton, type MergeStep, type Resolution } from '../types';
+import { MergeConflictError, RevertConflictError, type AgentRun, type Card, type Ctx, type FactoryConfig, type InlineButton, type IssueMerge, type MergeStep, type Resolution } from '../types';
 
 export const ROOT = resolve(`tmp/factory-periodic-test/${randomUUID()}`);
 export const cfg = { home: ROOT, buildModel: 'sonnet', publicChannel: 'public', committeeChat: 'committee', repo: 'o/r', transcriptDays: 10, publicUrl: 'https://play.test/play', errorMapDays: 14, testStallMinutes: 15 } as FactoryConfig;
@@ -12,10 +12,15 @@ export const CLONE_SHA = 'abc1234'.padEnd(40, '0');
 export type Photo = { chat: string; path: string; caption: string; buttons?: InlineButton[][] };
 export type Album = { chat: string; paths: string[]; captions: string[]; replyTo?: number };
 export type Text = { chat: string; text: string; buttons: InlineButton[][] };
-export type Fake = { ctx: Ctx; texts: Text[]; calls: string[]; agentWrites: Record<string, string>; changelog: string[]; diff: string; cards: Card[]; photos: Photo[]; albums: Album[]; albumFails: boolean; logs: string[]; prBodies: string[]; created: { title: string; body: string; labels: string[] }[]; mergeConflicts: string[]; revertConflicts: string[]; agentRuns: AgentRun[] };
+export type Fake = { ctx: Ctx; texts: Text[]; calls: string[]; agentWrites: Record<string, string>; diff: string; files: string[]; cards: Card[]; photos: Photo[]; albums: Album[]; albumFails: boolean; logs: string[]; prBodies: string[]; created: { title: string; body: string; labels: string[] }[]; mergeConflicts: string[]; revertConflicts: string[]; agentRuns: AgentRun[] };
+
+export function issueMerge(issue: number, title: string, over: Partial<IssueMerge> = {}): IssueMerge {
+  return { issue, title, sha: `merge${issue}`.padEnd(40, '0'), into: 'dev', reverted: [], ...over };
+}
 
 export function fake(): Fake {
-  const f: Fake = { texts: [], ctx: null as unknown as Ctx, calls: [], agentWrites: {}, changelog: [], diff: '', cards: [], photos: [], albums: [], albumFails: false, logs: [], prBodies: [], created: [], mergeConflicts: [], revertConflicts: [], agentRuns: [] };
+  let heads = 0;
+  const f: Fake = { texts: [], ctx: null as unknown as Ctx, calls: [], agentWrites: {}, diff: '', files: [], cards: [], photos: [], albums: [], albumFails: false, logs: [], prBodies: [], created: [], mergeConflicts: [], revertConflicts: [], agentRuns: [] };
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
     cfg,
@@ -90,20 +95,22 @@ export function fake(): Fake {
       openConflict: async (dir: string, conflict: MergeConflictError | RevertConflictError) => { note(`open ${conflict.into}`); mkdirSync(dir, { recursive: true }); },
       closeConflict: async (_dir: string, conflict: MergeConflictError | RevertConflictError) => {
         note(`close ${conflict.into}`);
-        return { resolution: { base: conflict.base, source: conflict instanceof MergeConflictError ? conflict.source : conflict.merge, head: 'resolved-head' }, diff: '' };
+        return { resolution: { base: conflict.base, source: conflict instanceof MergeConflictError ? conflict.source : conflict.merge, head: 'resolved-head' }, diff: '', files: [] };
       },
-      mergeLog: async () => f.changelog,
       diff: async () => f.diff,
+      changedInWork: async () => [],
+      changedFiles: async () => f.files,
       hasNewCommits: async () => true,
       isMerged: async () => true,
       headHash: async () => 'abc1234',
       forkPoint: async () => 'f0a1b2c',
       createBranch: async (name: string, from: string) => note(`branch ${name} ${from}`),
-      revertIssueMerge: async (issue: number, branch: string, resolutions: Resolution[] = []) => {
-        note(`revert ${issue} ${branch}`);
-        if (f.revertConflicts.includes(branch) && !resolutions.some((item) => item.base === `${branch}-tip`)) throw new RevertConflictError(issue, branch, ['game/src/a.ts'], 'boom', `${branch}-tip`, 'merge-hash');
-        return true;
+      revertMerge: async (merge: Pick<IssueMerge, 'issue' | 'sha'>, branch: string, resolutions: Resolution[] = []) => {
+        note(`revert ${merge.issue} ${branch}`);
+        if (f.revertConflicts.includes(branch) && !resolutions.some((item) => item.base === `${branch}-tip`)) throw new RevertConflictError(merge.issue, branch, ['game/src/a.ts'], 'boom', `${branch}-tip`, merge.sha);
       },
+      workHead: async () => `head${++heads}`.padEnd(40, '0'),
+      containsCommit: async () => true,
       deleteBranch: async (branch: string) => note(`delete ${branch}`),
     },
   } as unknown as Ctx;

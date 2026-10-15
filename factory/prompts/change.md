@@ -1,4 +1,5 @@
 A committee member asked to change how the ROAM factory works. Read the request in .factory/request.md.
+The request may hold the member's own words and Hermes's notes. The member's words rule. Check Hermes's facts, take its reading as a guess, and design the change yourself.
 You work alone in a clone of the repo on its own branch. The clone is your isolated checkout, so make no worktree and switch no branch.
 
 Read ../CLAUDE.md and CLAUDE.md first.

@@ -1,5 +1,5 @@
 import { must } from './exec';
-import { COLUMNS, ERROR_REPORT_LABEL, FACTORY_MARK, fingerprintLine } from './types';
+import { COLUMNS, FACTORY_MARK } from './types';
 import type { Card, Column, FactoryConfig, FingerprintIssue, GitHub, Issue, IssueComment, Run, RunResult } from './types';
 
 const ISSUE_FIELDS = 'number,title,body,labels,createdAt,state,author';
@@ -54,10 +54,18 @@ const NOT_THIS_KIND = /Could not resolve to an? (User|Organization)/;
 const RATE_LIMITED = /rate limit|HTTP 429|submitted too quickly/i;
 const TAG_EXISTS = /a release with the same tag name already exists/;
 
+export class GithubError extends Error {}
+
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
-type RawComment = { login: string; body: string; createdAt: string; appId: number | null };
+export const SUITE_WORKFLOW = 'game-suite.yml';
+export const SUITE_TESTS_STEP = 'tests';
+
+type RawRun = { status: string; conclusion: string | null; html_url: string };
+type RawJob = { status: string; steps: { name: string; conclusion: string | null }[] };
+
+type RawComment ={ login: string; body: string; createdAt: string; appId: number | null };
 
 type ClientConfig = Pick<FactoryConfig, 'githubAppId' | 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
 
@@ -68,7 +76,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
 
   async function attempt(args: string[]): Promise<RunResult> {
     for (let retry = 0; ; retry++) {
-      const result = await run('gh', args, { timeoutMs: cfg.githubTimeoutSeconds * 1000 });
+      const result = await run('gh', args, { activity: 'git', timeoutMs: cfg.githubTimeoutSeconds * 1000 });
       if (result.code === 0 || !RATE_LIMITED.test(result.stderr) || retry === cfg.githubRetries) return result;
       await wait(cfg.githubRetryBaseSeconds * 1000 * 2 ** retry);
     }
@@ -81,7 +89,7 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
   }
 
   async function gh(args: string[]): Promise<string> {
-    return must(await call(args), `gh ${args.slice(0, 3).join(' ')}`);
+    return must(await call(args), `gh ${args.slice(0, 3).join(' ')}`, GithubError);
   }
 
   async function graphql(query: string, vars: Vars): Promise<string> {
@@ -200,12 +208,12 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     },
     async createIssue(title, body, labels) {
       for (const label of labels) await ensureLabel(label);
-      const args = ['issue', 'create', '-R', repo, '--title', title, '--body', body];
-      for (const label of labels) args.push('--label', label);
-      const url = (await gh(args)).trim();
-      const match = /\/issues\/(\d+)\s*$/.exec(url);
-      if (!match) throw new Error(`Cannot read the issue number from: ${url}`);
-      return Number(match[1]);
+      const args = ['api', `repos/${repo}/issues`, '-f', `title=${title}`, '-f', `body=${body}`];
+      for (const label of labels) args.push('-f', `labels[]=${label}`);
+      args.push('--jq', '.number');
+      const number = Number((await gh(args)).trim());
+      if (!Number.isInteger(number)) throw new Error('gh api returned no issue number for the new issue');
+      return number;
     },
     async editIssue(number, title, body) {
       await gh(['issue', 'edit', String(number), '-R', repo, '--title', title, '--body', body]);
@@ -246,12 +254,27 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     async reopen(number) {
       await gh(['issue', 'reopen', String(number), '-R', repo]);
     },
-    async findByFingerprint(fingerprint) {
-      const out = await gh(['issue', 'list', '-R', repo, '--state', 'all', '--label', ERROR_REPORT_LABEL, '--search', `"${fingerprint}" in:body`, '--json', 'number,state,stateReason,closedAt,body']);
-      const found = (JSON.parse(out) as (FingerprintIssue & { body: string })[]).filter((issue) => issue.body.includes(fingerprintLine(fingerprint)));
-      if (found.length === 0) return null;
-      const { body: _body, ...issue } = found.sort((a, b) => a.number - b.number)[0];
-      return { ...issue, stateReason: issue.stateReason || null, closedAt: issue.closedAt || null };
+    async dispatchSuite(sha) {
+      const out = await gh(['api', '-X', 'POST', `repos/${repo}/actions/workflows/${SUITE_WORKFLOW}/dispatches`, '-f', 'ref=main', '-f', `inputs[sha]=${sha}`, '-F', 'return_run_details=true']);
+      const id = out.trim() === '' ? undefined : (JSON.parse(out) as { workflow_run_id?: number }).workflow_run_id;
+      if (typeof id !== 'number') throw new Error(`The dispatch of ${SUITE_WORKFLOW} for ${sha} returned no run id: ${out.trim()}`);
+      return id;
+    },
+    async suiteRun(id) {
+      const run = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}`])) as RawRun;
+      const { jobs } = JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${id}/jobs`])) as { jobs: RawJob[] };
+      const done = run.status === 'completed';
+      return {
+        done,
+        started: done || jobs.some((job) => job.status === 'in_progress' || job.status === 'completed'),
+        passed: done && run.conclusion === 'success',
+        testsFailed: jobs.some((job) => job.steps.some((step) => step.name === SUITE_TESTS_STEP && step.conclusion === 'failure')),
+        conclusion: run.conclusion,
+        url: run.html_url,
+      };
+    },
+    async suiteLog(id) {
+      return gh(['run', 'view', String(id), '-R', repo, '--log-failed']);
     },
     async errorIssue(number) {
       const issue = JSON.parse(await gh(['issue', 'view', String(number), '-R', repo, '--json', 'number,state,stateReason,closedAt'])) as FingerprintIssue;

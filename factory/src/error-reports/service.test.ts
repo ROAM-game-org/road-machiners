@@ -34,7 +34,6 @@ function setup(over: Partial<ReportDeps['cfg']> = {}): World {
     },
     comment: async (number, body) => { calls.push(`comment ${number} ${body}`); },
     reopen: async (number) => { calls.push(`reopen ${number}`); },
-    findByFingerprint: async () => { calls.push('search'); return null; },
     errorIssue: async (number) => { calls.push(`view ${number}`); return issues.get(number) as FingerprintIssue; },
   };
   const cfg = { home, errorDailyIssues: 1, errorDiskMb: 10, errorUnzippedMb: 1, ...over };
@@ -54,7 +53,7 @@ describe('error reports', () => {
     const { deps, calls } = setup();
     const stack = 'Error: x\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)';
     await new ErrorReports(deps).take(report({ error: { name: 'Error', message: 'ping @octocat about o/r#5 and GH-7', stack } }));
-    const title = calls[1]!.split('\n')[0]!;
+    const title = calls[0]!.split('\n')[0]!;
     expect(title).not.toMatch(/@\w|#\d|GH-\d/);
     expect(title.replace(/‍/g, '')).toContain('ping @octocat about o/r#5 and GH-7');
   });
@@ -62,12 +61,12 @@ describe('error reports', () => {
   it('opens one bug issue for a new error, with the mapped stack and the fingerprint line, and keeps the report', async () => {
     const { home, deps, calls } = setup();
     await new ErrorReports(deps).take(report());
-    expect(calls[0]).toBe('search');
-    expect(calls[1]).toMatch(/^create Error: No vehicle npc-37 \[bug,error-report\]/);
-    expect(calls[1]).toContain('src/sim/damage.ts:1:10, calls vehicleById');
-    expect(calls[1]).toContain("Firefox 'rm -rf'");
-    expect(calls[1]).not.toContain('inject.js');
-    const fingerprint = /Error fingerprint: ([0-9a-f]{16})$/.exec(calls[1])?.[1] ?? '';
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^create Error: No vehicle npc-37 \[bug,error-report\]/);
+    expect(calls[0]).toContain('src/sim/damage.ts:1:10, calls vehicleById');
+    expect(calls[0]).toContain("Firefox 'rm -rf'");
+    expect(calls[0]).not.toContain('inject.js');
+    const fingerprint = /Error fingerprint: ([0-9a-f]{16})$/.exec(calls[0])?.[1] ?? '';
     expect(existsSync(join(reportsDir(home), fingerprint, `${SHA}.json.gz`))).toBe(true);
     expect(readStore(home).known[fingerprint]).toEqual({ issue: 100, count: 1, commits: [SHA] });
   });
@@ -75,12 +74,12 @@ describe('error reports', () => {
   it('names the language and the screen in the issue, and still files a report from an older game without them', async () => {
     const first = setup();
     await new ErrorReports(first.deps).take(report());
-    expect(first.calls[1]).toContain('- Language: en');
-    expect(first.calls[1]).toContain('- Screen: 1280 by 720 at pixel ratio 1');
+    expect(first.calls[0]).toContain('- Language: en');
+    expect(first.calls[0]).toContain('- Screen: 1280 by 720 at pixel ratio 1');
     const old = setup();
     await new ErrorReports(old.deps).take(report({ language: undefined, screen: undefined }));
-    expect(old.calls[1]).toMatch(/^create Error: No vehicle npc-37/);
-    expect(old.calls[1]).not.toContain('- Language:');
+    expect(old.calls[0]).toMatch(/^create Error: No vehicle npc-37/);
+    expect(old.calls[0]).not.toContain('- Language:');
   });
 
   it('gives the agents of the issue its report folder read-only, listed in their prompt', async () => {
@@ -99,7 +98,7 @@ describe('error reports', () => {
     const reports = new ErrorReports(deps);
     await reports.take(report());
     await reports.take(report({ error: { name: 'Error', message: 'No vehicle npc-52', stack: 'Error\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)' } }));
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(1);
     expect(Object.values(readStore(home).known).map((known) => known.count)).toEqual([2]);
   });
 
@@ -108,7 +107,7 @@ describe('error reports', () => {
     const reports = new ErrorReports(deps);
     await reports.take(report());
     await reports.take(report({ build: 'release', version: '2.24.80+def5678' }));
-    expect(calls.slice(2)).toEqual(['view 100', 'comment 100 This error came again in the release build 2.24.80+def5678.']);
+    expect(calls.slice(1)).toEqual(['view 100', 'comment 100 This error came again in the release build 2.24.80+def5678.']);
   });
 
   it('reopens a fixed issue only for a build published after it closed', async () => {
@@ -117,7 +116,7 @@ describe('error reports', () => {
     await reports.take(report());
     issues.set(100, { number: 100, state: 'CLOSED', stateReason: 'COMPLETED', closedAt: '2026-10-03T00:00:00Z' });
     await reports.take(report({ build: 'release', version: '2.24.80+def5678' }));
-    expect(calls.slice(2)).toEqual(['view 100', 'reopen 100', 'comment 100 This error came back in the release build 2.24.80+def5678, published after this issue closed.']);
+    expect(calls.slice(1)).toEqual(['view 100', 'reopen 100', 'comment 100 This error came back in the release build 2.24.80+def5678, published after this issue closed.']);
   });
 
   it('leaves a not planned issue closed, and a fixed one closed for a build from before the fix', async () => {
