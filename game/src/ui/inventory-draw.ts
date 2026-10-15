@@ -1,5 +1,6 @@
 
-import { CRATE_MASS } from "../data/goods";
+import { CRATE_MASS, PARCEL } from "../data/goods";
+import { itemLookId } from "../render/partLooks";
 import { partDef, type WeaponDef } from "../data/parts";
 import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
 import { facingOf, itemCells, itemSize, type Cell, type Grid } from "../sim/grid";
@@ -71,7 +72,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
   const x = Math.min(...cells.map((c) => c.x));
   const y = Math.min(...cells.map((c) => c.y));
   const size = itemSize(it);
-  const id = it.kind === "part" ? it.part.defId : it.good;
+  const id = itemLookId(it);
   const icon = turnedIcon(it, cell);
   const node = el(
     "div",
@@ -84,7 +85,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
 }
 
 function itemClass(it: GridItem, mounted: boolean): string {
-  if (it.kind === "good") return "inv-item";
+  if (it.kind !== "part") return "inv-item";
   if (partDef(it.part.defId).kind === "core") return "inv-item fixed";
   return mounted ? "inv-item mounted" : "inv-item spare";
 }
@@ -129,15 +130,18 @@ export function footprint(it: GridItem): { w: number; h: number } {
 }
 
 export function itemLabel(it: GridItem): { short: Msg } {
+  if (it.kind === "parcel") return { short: t("item.parcel") };
   if (it.kind === "good") return { short: byId(`good.${it.good}.short`) };
   return { short: partName(it.part.defId) };
 }
 
 export function itemName(it: GridItem): Msg {
+  if (it.kind === "parcel") return t("item.parcel");
   return it.kind === "good" ? goodName(it.good) : partName(it.part.defId);
 }
 
 export function itemState(it: GridItem, mounted: boolean): Msg {
+  if (it.kind === "parcel") return kg(PARCEL.mass);
   if (it.kind === "good") return t("item.cargo", { mass: kg(CRATE_MASS) });
   if (partDef(it.part.defId).kind === "core") return t("item.builtIn");
   return mounted ? t("item.mounted") : t("item.spare");

@@ -1,5 +1,6 @@
 import { GAME_VERSION } from "../config";
 import { playerAid, readyAid } from "../sim/aid";
+import { playerHandover, readyHandover } from "../sim/parcel";
 import { aidData } from "../sim/states";
 import { aidGoods } from "./format";
 import { inMeetingReach, isMeeting, playerTrades } from "../sim/economy";
@@ -73,7 +74,7 @@ export class ContextPicker {
 
 export function getContextActions(world: World, playing: boolean): ContextAction[] {
   if (playing || !playerCanAct(world)) return [];
-  const deals = [getAidAction(world), ...getTradeActions(world)].filter((d) => d !== null);
+  const deals = [getAidAction(world), getHandoverAction(world), ...getTradeActions(world)].filter((d) => d !== null);
   return [...deals.filter((d) => d.ready), ...getPlaceActions(world), ...deals.filter((d) => !d.ready)];
 }
 
@@ -87,6 +88,13 @@ function getAidAction(world: World): ContextAction | null {
   const words = { goods: aidGoods(s), truck: vehicleTitle(world, vehicleById(world, s.holder)) };
   const label = aidData(s).giver === "player" ? t("action.giveAid", words) : t("action.takeAid", words);
   return { label, ready: readyAid(world)?.id === s.id, target: { kind: 'aid', id: s.holder } };
+}
+
+function getHandoverAction(world: World): ContextAction | null {
+  const s = playerHandover(world);
+  if (!s || !inMeetingReach(world, s)) return null;
+  const label = t("action.handParcel", { truck: vehicleTitle(world, vehicleById(world, s.holder)) });
+  return { label, ready: readyHandover(world)?.id === s.id, target: { kind: 'parcel', id: s.holder } };
 }
 
 function getTradeActions(world: World): ContextAction[] {
