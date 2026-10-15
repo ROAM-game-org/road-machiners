@@ -1,5 +1,5 @@
 import { isFailedOutcome, lineTime, type AgentUsage, type LedgerLine } from './ledger';
-import { JOB_ISSUE, QUEUE_OF, type JobStage, type Queue, type Route } from './types';
+import { JOB_ISSUE, QUEUE_OF, isLiveJobStage, type JobStage, type LedgerJobStage, type Queue, type Route } from './types';
 
 export type WasteNumbers = {
   from: string;
@@ -13,7 +13,7 @@ export type WasteNumbers = {
   routes: Record<Route, number>;
   issues: { issue: number; costUsd: number; jobs: number; wallMinutes: number }[];
 };
-export type StageNumbers = { stage: JobStage; runs: number; failed: number; wallMinutes: number; agentMinutes: number; costUsd: number };
+export type StageNumbers = { stage: LedgerJobStage; runs: number; failed: number; wallMinutes: number; agentMinutes: number; costUsd: number };
 export type QueueWait = { queue: Queue; handoffs: number; medianMinutes: number; maxMinutes: number; totalMinutes: number; worstIssue: number };
 
 type JobLine = Extract<LedgerLine, { kind: 'job' }>;
@@ -55,8 +55,10 @@ function modelNumbers(jobs: JobLine[]): WasteNumbers['models'] {
   return [...group(jobs.flatMap((line) => line.agents), (agent) => agent.model)].map(([model, runs]) => ({ model, runs: runs.length, costUsd: cost(runs) })).sort(byCost);
 }
 
-const cardJobs = (jobs: JobLine[]): (JobLine & { issue: number })[] =>
-  jobs.filter((line): line is JobLine & { issue: number } => line.issue !== null && QUEUE_OF[line.stage] !== 'branch' && JOB_ISSUE[line.stage] === 'github-issue');
+type CardJobLine = JobLine & { issue: number; stage: JobStage };
+
+const cardJobs = (jobs: JobLine[]): CardJobLine[] =>
+  jobs.filter((line): line is CardJobLine => line.issue !== null && isLiveJobStage(line.stage) && QUEUE_OF[line.stage] !== 'branch' && JOB_ISSUE[line.stage] === 'github-issue');
 
 const POSTS: JobStage[] = ['verify', 'checks'];
 

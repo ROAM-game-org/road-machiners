@@ -1,6 +1,6 @@
 import type { CardStep } from '../card-events';
 import type { JobOutcome } from '../ledger';
-import type { Column, JobStage } from '../types';
+import type { Column, JobStage, LedgerJobStage } from '../types';
 
 export type DeliveryStage = 'triage' | 'design' | 'implementation' | 'preview' | 'approval' | 'harden' | 'merge';
 export type Gate = 'triage' | 'design' | 'committee';
@@ -40,8 +40,8 @@ const STAGE_WORK: Record<DeliveryStage, { jobs: JobStage[]; waitsOn: 'workers' |
   merge: { jobs: ['merge', 'catch-up'], waitsOn: 'workers' },
 };
 const RETRY_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'harden', 'checks'];
-const AGENT_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'waste'];
-const PRIVATE_STAGES: JobStage[] = ['change', 'adhoc'];
+const AGENT_STAGES: LedgerJobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'waste'];
+const PRIVATE_STAGES: LedgerJobStage[] = ['change', 'adhoc'];
 const OUTCOMES: Record<JobOutcome, { wasted: boolean; retried: boolean }> = {
   done: { wasted: false, retried: false }, held: { wasted: false, retried: false }, stopped: { wasted: true, retried: false },
   failed: { wasted: true, retried: true }, died: { wasted: true, retried: true }, timeout: { wasted: true, retried: true },

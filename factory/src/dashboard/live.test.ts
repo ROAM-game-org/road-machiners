@@ -11,8 +11,8 @@ it('projects worker activity with freshness and no internal identity or private 
   expect(live).toHaveProperty('readLiveOperations');
   const home = createHome();
   const state = structuredClone(EMPTY_STATE);
-  state.jobs.push({ id: 'PRIVATE-change-job', stage: 'change', issue: 987, pid: 4, log: 'PRIVATE/path', startedAt: '2026-10-04T12:00:00Z' });
-  recordObservation(home, 'PRIVATE-change-job', { type: 'activity', activity: 'editing', phase: 'running', source: 'runner' }, new Date('2026-10-04T12:00:00Z'));
+  state.jobs.push({ id: 'PRIVATE-adhoc-job', stage: 'adhoc', issue: 987, pid: 4, log: 'PRIVATE/path', startedAt: '2026-10-04T12:00:00Z' });
+  recordObservation(home, 'PRIVATE-adhoc-job', { type: 'activity', activity: 'editing', phase: 'running', source: 'runner' }, new Date('2026-10-04T12:00:00Z'));
   const result = live.readLiveOperations(home, state, new Date('2026-10-04T12:01:00Z'), 10000, 60000);
   expect(result.workers[0]).toMatchObject({ activity: 'editing', status: 'stale' });
   expect(JSON.stringify(result)).not.toContain('PRIVATE');
@@ -30,8 +30,8 @@ it('projects a card worker milestone without copying private job fields', () => 
 it('hides the milestone of a private task', () => {
   const home = createHome();
   const state = structuredClone(EMPTY_STATE);
-  state.jobs.push({ id: 'change-job', stage: 'change', issue: null, pid: 4, log: 'log', startedAt: '2026-10-04T12:00:00Z' });
-  recordObservation(home, 'change-job', { type: 'activity', activity: 'tests', milestone: 'PRIVATE plan', phase: 'running', source: 'runner' }, new Date('2026-10-04T12:00:00Z'));
+  state.jobs.push({ id: 'adhoc-job', stage: 'adhoc', issue: 5, pid: 4, log: 'log', startedAt: '2026-10-04T12:00:00Z' });
+  recordObservation(home, 'adhoc-job', { type: 'activity', activity: 'tests', milestone: 'PRIVATE plan', phase: 'running', source: 'runner' }, new Date('2026-10-04T12:00:00Z'));
   const result = live.readLiveOperations(home, state, new Date('2026-10-04T12:00:01Z'), 10000, 60000);
   expect(result.workers[0]).toMatchObject({ activity: 'tests', milestone: null });
   expect(JSON.stringify(result)).not.toContain('PRIVATE');

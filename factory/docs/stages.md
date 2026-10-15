@@ -155,10 +155,6 @@ The approval also drops with a reason on a patch or redesign route, Deny, `facto
 
 Ship and the hotfix ship queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. Each entry is a class of bug with a rule, a check and the bugs seen. A bug that repeats a class updates that entry. A bug that starts a class gets a new entry, and a one-off bug gets none. The factory merges the change into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
 
-## Factory change
-
-A committee message starting with `/change` or Hermes's `factory_queue_change` tool queues a factory change. The job runs the design model in a clone of `main` with the cwd in `factory/`. The agent runs up:make in hands-off mode on the task file `.factory-tasks/change-<id>.md`, through design, plan, execute, verify and review. It writes the pull request title and body from `prompts/change-pr.md`. The change may touch any file in the repo, like the quality gate at the root or game text. The factory pushes `factory-change/<id>` and opens a pull request against `main`. It never merges it. Once a member merges it, the server deploys it.
-
 ## Ad hoc
 
 A member can ask Hermes for one-off work, like "simulate 10 battles and tell me if the MG is too weak". Hermes opens an `adhoc` issue in Implementation. The job runs Sonnet in a fresh clone of `dev` with the state, the job logs, the ledger and the archived agent transcripts mounted read only. A member can ask it what agents did on an issue, where they got stuck or what cost the most. It may run any repo harness and pushes nothing. It answers the member's message with `.factory/report.md` and any files, as [evidence.md](evidence.md#ad-hoc-files) says.
@@ -173,7 +169,7 @@ The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus ad
 
 - `design-sonnet` runs design on Sonnet.
 - `implementation-opus` runs implementation on Opus. Testing and hardening stay on Sonnet.
-- The release playtest, candidate, incident and factory change agents always run Opus. Triage always runs Haiku. Merge, ad hoc, player answer and waste review agents always run Sonnet.
+- The release playtest, candidate and incident agents always run Opus. Triage always runs Haiku. Merge, ad hoc, player answer and waste review agents always run Sonnet.
 - The triage prompt aims for about 20% Opus and 80% Sonnet in measured agent tokens. It is a rule of thumb, never a cap.
 
 Triage rates each `ready` issue once and comments the rating under `Model routing from triage:`.

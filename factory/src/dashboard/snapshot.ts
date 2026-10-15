@@ -44,7 +44,7 @@ function expireSource<T>(source: Source<T>, budgetMs: number): Source<T> {
   return Date.now() - Date.parse(source.at) > budgetMs ? { ...source, status: 'stale' } : source;
 }
 function getPublicIssue(stage: string, issue: number | null): number | null {
-  return ['change', 'adhoc'].includes(stage) ? null : issue;
+  return stage === 'adhoc' ? null : issue;
 }
 function readNextFeatures(state: FactoryState): Feature[] {
   if (state.release === null) return toFeatures(state.devMerges);

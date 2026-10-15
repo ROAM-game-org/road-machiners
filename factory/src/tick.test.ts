@@ -58,7 +58,6 @@ describe('chooseJobs with no daily cap', () => {
 
   it('still runs committee-driven jobs', () => {
     expect(chooseJobs({ ...busy, pendingApprovals: { '4': 'u' } }, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'release', issue: null }]);
-    expect(chooseJobs({ ...busy, pendingChanges: [{ id: 2, text: 't', by: 'u' }] }, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'change', issue: 2 }]);
     expect(chooseJobs(busy, [card(6, 'Implementation', ['adhoc'])], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'adhoc', issue: 6 }]);
   });
 
@@ -73,12 +72,6 @@ describe('chooseJobs with no daily cap', () => {
     const shipping = { ...busy, lastRelease: FRESH.lastRelease, jobs: [{ id: 'ship-3-x', stage: 'ship' as const, issue: 3, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task'])], NOW, CFG)).toEqual([]);
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task']), card(8, 'Merging')], NOW, CFG)).toEqual([{ stage: 'merge', issue: null }]);
-  });
-
-  it('runs factory changes in the implement queue after ad hoc tasks and before cards', () => {
-    const s = state({ pendingChanges: [{ id: 2, text: 't', by: 'u' }, { id: 3, text: 't', by: 'u' }] });
-    const cards = [card(4, 'Implementation'), card(6, 'Implementation', ['adhoc'])];
-    expect(chooseJobs(s, cards, NOW, CFG)).toEqual([{ stage: 'adhoc', issue: 6 }, { stage: 'change', issue: 2 }, { stage: 'change', issue: 3 }]);
   });
 });
 
@@ -232,14 +225,9 @@ describe('chooseJobs', () => {
     expect(chooseJobs(idle, cards, NOW, { ...CFG, testWorkers: 2, designWorkers: 1 })).toEqual([{ stage: 'verify', issue: 8 }, { stage: 'triage', issue: 4 }, { stage: 'triage', issue: 5 }]);
   });
 
-  it('runs every pending approval, lowest first, and a change beside them', () => {
-    const s = state({ pendingApprovals: { '9': 'u', '4': 'u' }, pendingChanges: [{ id: 3, text: 't', by: 'u' }] });
-    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'approve', issue: 9 }, { stage: 'change', issue: 3 }]);
-  });
-
-  it('runs a pending change beside a due release cut', () => {
-    const s = state({ pendingChanges: [{ id: 3, text: 't', by: 'u' }], lastRelease: null });
-    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'release', issue: null }, { stage: 'change', issue: 3 }]);
+  it('runs every pending approval, lowest first', () => {
+    const s = state({ pendingApprovals: { '9': 'u', '4': 'u' } });
+    expect(chooseJobs(s, [], NOW, CFG)).toEqual([{ stage: 'approve', issue: 4 }, { stage: 'approve', issue: 9 }]);
   });
 
   it('runs release when never released or older than the interval', () => {
@@ -445,15 +433,6 @@ describe('tick', () => {
     expect(['issue-5', 'check-issue-5', 'issue-9'].map((name) => existsSync(join(h.ctx.cfg.home, 'work', name)))).toEqual([true, true, false]);
   });
 
-  it('reports a change job that died a second time, without an issue', async () => {
-    const h = harness(job('2026-01-10T11:50:00Z', 'change', 3), false);
-    writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'change', 3)], interrupted: [3] }));
-    await tick(h.ctx, '/code', h.deps);
-    expect(h.labels).toEqual([]);
-    expect(readState(h.ctx.statePath).failures).toMatchObject([{ stage: 'change', issue: null, error: 'job process died without finishing' }]);
-    expect(readState(h.ctx.statePath).jobs).toEqual([]);
-    expect(readLedger(h.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ id: 'change-job', outcome: 'died' }]);
-  });
 
   it('starts the chosen jobs and records each with its id', async () => {
     const h = harness(null, false, [card(8, 'Implementation'), card(9, 'Testing')]);

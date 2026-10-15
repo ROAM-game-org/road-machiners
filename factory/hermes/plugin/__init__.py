@@ -131,9 +131,6 @@ def read_release_post(state_dir: str) -> Optional[dict]:
     return post
 
 
-CHANGE_PREFIX = "/change "
-
-
 def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None) -> Optional[tuple]:
     """Decides what a committee member's message means. Returns None for normal Hermes chat."""
     if str(chat_id) != cfg.chat:
@@ -180,8 +177,6 @@ def _request(text, reply_to_message_id, approval_posts, release=None) -> Optiona
     issue = approval_posts.get(str(reply_to_message_id)) if reply_to_message_id is not None else None
     if issue is not None:
         return _approval_request(text, issue)
-    if text.startswith(CHANGE_PREFIX):
-        return ("change", text[len(CHANGE_PREFIX):].strip())
     return None
 
 
@@ -213,17 +208,17 @@ def draft_reply_header(post_id) -> str:
 
 
 def inbox_command(decision: tuple, user_id, user_name, chat_id, message_id, reply_to_message_id) -> dict:
-    """`postId` is the post a reply answers, so the factory can add a status line to it. /change answers no post."""
+    """`postId` is the post a reply answers, so the factory can add a status line to it."""
     kind = decision[0]
     return {
         "kind": kind,
         "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove") else None,
-        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove") else decision[1] if kind in ("change", "release-task") else None,
+        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove") else decision[1] if kind == "release-task" else None,
         "by": str(user_id),
         "byName": user_name or None,
         "chat": str(chat_id),
         "messageId": int(message_id),
-        "postId": None if kind == "change" else int(reply_to_message_id),
+        "postId": int(reply_to_message_id),
     }
 
 
@@ -338,33 +333,6 @@ QUEUE_SCHEMA = {
 }
 QUEUE_DONE = "Queued. Tell the member the task is queued and the answer will come as a reply to their message."
 
-CHANGE_TOOL = "factory_queue_change"
-CHANGE_SCHEMA = {
-    "name": CHANGE_TOOL,
-    "description": (
-        "Queue a change to the factory itself, its code or factory/settings.env, or to anything else in the repo, "
-        "like the quality gate or game text, when a committee member asks for one. "
-        "A coding agent makes the change in a clone of main and opens a pull request to main. A member merges it, "
-        "and the server deploys main by itself. Call it once per change."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "request": {
-                "type": "string",
-                "description": (
-                    "The full change request. It must stand on its own: the agent sees nothing of this chat. "
-                    "Keep the member's own words and add what the agent cannot find alone."
-                ),
-            },
-        },
-        "required": ["request"],
-    },
-}
-CHANGE_DONE = (
-    "Queued. Reply to the member with one short sentence, like 'Queued for a PR.' Never reply with [SILENT] to a member's message. "
-    "The factory confirms it in a reply later, and posts the pull request link. Add nothing more about it."
-)
 ROUTE_TOOL = "factory_route_reply"
 ROUTES = ("answer", "patch", "redesign")
 ROUTE_SCHEMA = {
@@ -479,24 +447,21 @@ def make_sender_handler(cfg: Config, session_env=_session_env):
     return handle
 
 
-# `kind` is the inbox command, "adhoc" or "change". Both carry the member's message, so the factory answers it.
-def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc", done: str = QUEUE_DONE):
+def make_queue_handler(cfg: Config, session_env=_session_env):
     def handle(args: dict, **kwargs) -> str:
         request = str(args.get("request") or "").strip()
         if not request:
             return _tool_error("The request is empty.")
         try:
-            actor, user, name, chat, message = _sender(cfg, session_env)
+            _, user, name, chat, message = _sender(cfg, session_env)
         except ValueError as error:
             return _tool_error(f"{error} Nothing was queued.")
-        if actor == HERMES and kind != "adhoc":
-            return _tool_error("Only a committee member's message can queue a factory change. Nothing was queued.")
         command = {
-            "kind": kind, "issue": None, "text": request,
+            "kind": "adhoc", "issue": None, "text": request,
             "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": None,
         }
         write_inbox(cfg.inbox, command)
-        return json.dumps({"success": True, "message": done})
+        return json.dumps({"success": True, "message": QUEUE_DONE})
 
     return handle
 
@@ -650,7 +615,6 @@ def register(ctx) -> None:
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
-    ctx.register_tool(name=CHANGE_TOOL, toolset="factory", schema=CHANGE_SCHEMA, handler=make_queue_handler(cfg, kind="change", done=CHANGE_DONE))
     ctx.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
     ctx.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
     ctx.register_tool(name=DRAFT_TOOL, toolset="factory", schema=DRAFT_SCHEMA, handler=make_draft_handler(cfg))

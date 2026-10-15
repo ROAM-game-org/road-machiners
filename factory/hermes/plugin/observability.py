@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ACTIVITIES = {'reading', 'editing', 'command', 'model', 'review', 'investigate', 'waiting', 'git', 'finished'}
-TOOL_ACTIVITIES = {'terminal': 'command', 'read_file': 'reading', 'search_files': 'reading', 'write_file': 'editing', 'patch': 'editing', 'delegate_task': 'waiting', 'factory_route_reply': 'git', 'factory_queue_change': 'git', 'factory_queue_task': 'git'}
+TOOL_ACTIVITIES = {'terminal': 'command', 'read_file': 'reading', 'search_files': 'reading', 'write_file': 'editing', 'patch': 'editing', 'delegate_task': 'waiting', 'factory_route_reply': 'git', 'factory_queue_task': 'git'}
 
 
 def read_session_key(fields):

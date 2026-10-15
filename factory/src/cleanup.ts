@@ -12,7 +12,7 @@ const KEEP_NUMBERED: Record<string, Keep> = {
   issue: openCard,
   adhoc: openCard,
   'check-issue': () => false,
-  change: (id, state) => state.pendingChanges.some((change) => change.id === id),
+  change: () => false,
   incident: (id, state) => state.pendingIncidents.includes(id),
 };
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {

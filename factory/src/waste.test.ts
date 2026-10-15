@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentUsage, JobOutcome, LedgerLine } from './ledger';
-import type { JobStage } from './types';
+import type { LedgerJobStage } from './types';
 import { formatNumbers, wasteNumbers } from './waste';
 
 const FROM = new Date('2026-10-01T00:00:00Z');
 const TO = new Date('2026-10-08T00:00:00Z');
 
 let next = 0;
-function job(stage: JobStage, issue: number | null, startedAt: string, endedAt: string, agents: AgentUsage[] = [], outcome: JobOutcome = 'done'): LedgerLine {
+function job(stage: LedgerJobStage,issue: number | null, startedAt: string, endedAt: string, agents: AgentUsage[] = [], outcome: JobOutcome = 'done'): LedgerLine {
   next += 1;
   return { kind: 'job', id: `j${next}`, stage, issue, startedAt, endedAt, outcome, agents };
 }
@@ -60,7 +60,7 @@ describe('wasteNumbers', () => {
     expect(n.issues[1].issue).toBe(7);
   });
 
-  it('counts a factory change in the totals but never as an issue, since its id is no GitHub issue', () => {
+  it('counts an old factory change job in the totals but never as an issue, since its id is no GitHub issue', () => {
     const change = 1791571868706;
     const cheap = [1, 2, 3, 4, 5].map((issue) => job('triage', issue, '2026-10-04T00:00:00Z', '2026-10-04T00:01:00Z', [sonnet(0.01, 1)]));
     const lines = [...cheap, job('change', change, '2026-10-04T01:00:00Z', '2026-10-04T02:00:00Z', [opus(50, 60)]), job('change', change, '2026-10-04T03:00:00Z', '2026-10-04T04:00:00Z', [opus(50, 60)])];
