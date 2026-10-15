@@ -26,6 +26,7 @@ from .observability import register_observation
 from .public import make_public_factory, public_chats, watch_polling_conflicts
 from .readiness import Readiness, refusal
 from .status import register_status
+from .words import MemberWords, words_field
 
 REQUIRED_KEYS = (
     "FACTORY_INBOX", "FACTORY_STATE_DIR", "FACTORY_COMMITTEE_CHAT",
@@ -329,6 +330,7 @@ QUEUE_SCHEMA = {
                 "description": (
                     "The full task text. It must stand on its own: the agent sees nothing of this chat. "
                     "For a member, keep their own words and add what the agent cannot find alone. "
+                    "The factory also puts the member's recent messages in this chat above your text, as they wrote them, so the agent can check your text against them. "
                     "For a task of your own, say what to run, what to measure and what to report."
                 ),
             },
@@ -354,7 +356,8 @@ CHANGE_SCHEMA = {
                 "type": "string",
                 "description": (
                     "The full change request. It must stand on its own: the agent sees nothing of this chat. "
-                    "Keep the member's own words and add what the agent cannot find alone."
+                    "Keep the member's own words and add what the agent cannot find alone. "
+                    "The factory also puts the member's recent messages in this chat above your text, as they wrote them, so the agent can check your text against them."
                 ),
             },
         },
@@ -480,7 +483,7 @@ def make_sender_handler(cfg: Config, session_env=_session_env):
 
 
 # `kind` is the inbox command, "adhoc" or "change". Both carry the member's message, so the factory answers it.
-def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc", done: str = QUEUE_DONE):
+def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc", done: str = QUEUE_DONE, words: Optional[MemberWords] = None):
     def handle(args: dict, **kwargs) -> str:
         request = str(args.get("request") or "").strip()
         if not request:
@@ -491,9 +494,10 @@ def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc
             return _tool_error(f"{error} Nothing was queued.")
         if actor == HERMES and kind != "adhoc":
             return _tool_error("Only a committee member's message can queue a factory change. Nothing was queued.")
+        own = words.recent(chat, user, message) if words is not None and actor != HERMES else []
         command = {
             "kind": kind, "issue": None, "text": request,
-            "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": None,
+            "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": None, **words_field(own),
         }
         write_inbox(cfg.inbox, command)
         return json.dumps({"success": True, "message": done})
@@ -587,7 +591,11 @@ async def _reply(gateway, event, text: str) -> None:
         raise RuntimeError(f"Factory reply was not sent: {result.error}")
 
 
-def make_hook(cfg: Config, readiness: Readiness):
+def make_hook(cfg: Config, readiness: Readiness, words: Optional[MemberWords] = None):
+    def keep(event) -> None:
+        if words is not None:
+            words.record(event.source.chat_id, event.source.user_id, event.message_id, event.text)
+
     async def on_dispatch(event, gateway, session_store, **kwargs):
         source = event.source
         if str(source.chat_id) in public_chats(cfg):
@@ -612,7 +620,10 @@ def make_hook(cfg: Config, readiness: Readiness):
         if decision is None:
             if is_bare_thanks(event.text) and not getattr(event, "media_urls", None):
                 return {"action": "skip", "reason": "factory-thanks"}
+            keep(event)
             return None
+        if decision[0] in ("draft-reply", "reply"):
+            keep(event)
         if decision[0] == "draft-reply":
             # Hermes revises the draft with its tool. The factory waits for no route, so nothing goes to the inbox.
             return {"action": "rewrite", "text": draft_reply_header(draft_post_id) + (event.text or "")}
@@ -645,12 +656,13 @@ def register(ctx) -> None:
     cfg = load_config(dict(os.environ))
     cfg.committee.seed()
     readiness = Readiness(min_words=int(os.environ["FACTORY_ROUTE_MIN_WORDS"]), inbox=cfg.inbox)
-    ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness))
+    words = MemberWords()
+    ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness, words))
     watch_polling_conflicts(cfg)
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
-    ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
-    ctx.register_tool(name=CHANGE_TOOL, toolset="factory", schema=CHANGE_SCHEMA, handler=make_queue_handler(cfg, kind="change", done=CHANGE_DONE))
+    ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg, words=words))
+    ctx.register_tool(name=CHANGE_TOOL, toolset="factory", schema=CHANGE_SCHEMA, handler=make_queue_handler(cfg, kind="change", done=CHANGE_DONE, words=words))
     ctx.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
     ctx.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
     ctx.register_tool(name=DRAFT_TOOL, toolset="factory", schema=DRAFT_SCHEMA, handler=make_draft_handler(cfg))
