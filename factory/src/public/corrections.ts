@@ -1,6 +1,7 @@
 import { committeeIds } from '../committee';
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
+import { keepMovedMedia } from './chat-media';
 import { answeredMessage, targetIssue } from './classify-comments';
 import { oneLine, playerName } from './digest';
 import { isOpen, messageLink } from './file-comments';
@@ -30,10 +31,17 @@ async function applyOne(ctx: Ctx, store: PublicStore, correction: StoredComment,
   const corrected = answeredMessage(store, correction.answers)!;
   const from = targetIssue(corrected);
   const to = await newWork(ctx, correction);
-  if (to !== null) store.moveComment(corrected.id, to);
+  if (to !== null) {
+    store.moveComment(corrected.id, to);
+    await keepMovedMedia(ctx, store, corrected.id);
+  }
   ctx.log('public', to, `player comment ${correction.id} corrected the bot about comment ${corrected.id}: from ${from === null ? 'no issue' : `#${from}`} to ${to === null ? 'nothing new' : `#${to}`}`);
   const outcome = { corrected, from, to, member: correction.sender !== null && members.includes(correction.sender) };
+  await isolated(ctx, correction.issue, `the reply to the correction in player comment ${correction.id} failed and is not sent again`, () => reply(ctx, store, correction, outcome));
   if (outcome.member) await reportFailure(ctx, 'public', from, memberRequest(correction, outcome), null, []);
+}
+
+async function reply(ctx: Ctx, store: PublicStore, correction: StoredComment, outcome: Outcome): Promise<void> {
   if (correction.chat === null || correction.messageId === null) return;
   store.setReplyId(correction.id, await ctx.telegram.sendMessage(correction.chat, await replyOf(ctx, store, outcome, textsFor(correction.language)), correction.messageId));
 }

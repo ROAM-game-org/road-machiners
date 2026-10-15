@@ -1,10 +1,10 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { readShelf, PLAYER_SHELF } from '../reply-media';
 import { mediaDir } from '../stages/common';
-import { fetchChatMedia, holdDir, placeChatMedia } from './chat-media';
+import { fetchChatMedia, holdDir, keepMovedMedia, placeChatMedia } from './chat-media';
 import { imageLines } from './digest';
 import { CHANNEL, publicFake, type PublicFake } from './public-fakes';
 import type { CommentKind } from './store';
@@ -99,5 +99,43 @@ describe('chat media', () => {
     const [entry] = shelfFiles(f, 571);
     expect(entry).toMatchObject({ status: 'ok' });
     expect(readFileSync(join(mediaDir(f.ctx, 571), entry!.file!))).toEqual(MAP);
+  });
+
+  it('takes a moved image off the shelf of the issue it left', async () => {
+    const f = publicFake();
+    f.files.map = MAP;
+    const id = comment(f, 'feature');
+    await fetchChatMedia(f.ctx, f.store);
+    f.store.link(id, 652);
+    f.store.markSent([id], f.clock.now);
+    await placeChatMedia(f.ctx, f.store);
+    const [old] = shelfFiles(f, 652);
+    f.store.moveComment(id, 571);
+    f.store.markSent([id], f.clock.now);
+    await placeChatMedia(f.ctx, f.store);
+    expect(shelfFiles(f, 652)).toEqual([]);
+    expect(existsSync(join(mediaDir(f.ctx, 652), old!.file!))).toBe(false);
+    expect(shelfFiles(f, 571)).toHaveLength(1);
+  });
+
+  it('fetches a moved image again when its held file was dropped, and says when Telegram no longer has it', async () => {
+    const f = publicFake();
+    f.files.map = MAP;
+    const id = comment(f, 'question');
+    await fetchChatMedia(f.ctx, f.store);
+    f.store.markReplied(id, f.clock.now);
+    await placeChatMedia(f.ctx, f.store);
+    expect(readdirSync(holdDir(f.home))).toEqual([]);
+    f.store.moveComment(id, 571);
+    await keepMovedMedia(f.ctx, f.store, id);
+    expect(f.store.mediaOf(id)[0]).toMatchObject({ status: 'ok' });
+    expect(readdirSync(holdDir(f.home))).toHaveLength(1);
+    delete f.files.map;
+    f.store.markSent([id], f.clock.now);
+    await placeChatMedia(f.ctx, f.store);
+    f.store.moveComment(id, 572);
+    rmSync(mediaDir(f.ctx, 571), { recursive: true });
+    await keepMovedMedia(f.ctx, f.store, id);
+    expect(f.store.mediaOf(id)[0]).toMatchObject({ status: 'failed', image: null });
   });
 });

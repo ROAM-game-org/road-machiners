@@ -31,7 +31,8 @@ const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_messa
 const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0, answers integer';
 const HOUR_MS = 3_600_000;
 const FAILED_HIT = 'failed:';
-const UNKEPT = "'rejected', 'chatter', 'correction'";
+export const UNKEPT_KINDS: CommentKind[] = ['rejected', 'chatter', 'correction'];
+const UNKEPT = UNKEPT_KINDS.map((kind) => `'${kind}'`).join(', ');
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
 
 export const textKey = (text: string): string => text.toLowerCase().replace(/@\w+/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -215,6 +216,10 @@ export class PublicStore {
 
   setMediaFetched(id: number, image: HeldImage): void {
     this.db.prepare("update comment_media set status = 'ok', file = ?, type = ?, width = ?, height = ?, bytes = ?, sha256 = ? where id = ?").run(image.file, image.type, image.width, image.height, image.bytes, image.sha256, id);
+  }
+
+  refetchMedia(id: number): void {
+    this.db.prepare("update comment_media set status = 'waiting', file = null, type = null, width = null, height = null, bytes = null, sha256 = null, reason = null where id = ?").run(id);
   }
 
   setMediaFailed(id: number, reason: string): void {

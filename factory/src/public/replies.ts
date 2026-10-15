@@ -3,7 +3,7 @@ import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '..
 import { isolated } from './isolate';
 import type { PublicFilter } from './decision';
 import { textsFor, type ReplyText } from './reply-text';
-import type { ChatMedia, IssueComment, PublicStore, StoredComment } from './store';
+import { UNKEPT_KINDS, type ChatMedia, type IssueComment, type PublicStore, type StoredComment } from './store';
 import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
 
 export const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
@@ -76,7 +76,7 @@ export async function replyText(ctx: Ctx, store: PublicStore, ground: Ground, co
 }
 
 async function plainReply(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
-  if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter' || comment.kind === 'correction') return null;
+  if (comment.kind === null || UNKEPT_KINDS.includes(comment.kind)) return null;
   const text = textsFor(comment.language);
   if (isOnThread(comment)) return onThreadReply(ctx, ground, comment, text);
   if (comment.kind === 'bug' || comment.kind === 'feature') return filingReply(ctx, store, comment, text);

@@ -104,4 +104,13 @@ describe('classifyComments', () => {
     expect(seen[1]!.work).toEqual(['#652 (proposal) Region map: A map of the region.']);
     expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('the board could not be read')]);
   });
+
+  it('reads an open issue the text names that is not known work, and skips a closed one', async () => {
+    const f = publicFake();
+    f.issueState[431] = 'CLOSED';
+    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:1', postChat: CHANNEL, postMessageId: null, author: 'Ann', sender: '1', text: 'Like #430 and #431 said', at: f.clock.now.toISOString() });
+    const seen: FilterInput[] = [];
+    await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return ACCEPT(input); }));
+    expect(seen[0]!.work).toEqual(['#430 (open issue) T430']);
+  });
 });

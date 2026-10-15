@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MAX_BYTES, detectType, imageSize, validSize, type MediaEntry } from '../media';
-import { PLAYER_SHELF, addToShelf } from '../reply-media';
+import { PLAYER_SHELF, addToShelf, takeFromShelf } from '../reply-media';
 import { mediaDir } from '../stages/common';
 import type { Ctx } from '../types';
 import { messageLink } from './file-comments';
-import type { ChatMedia, HeldImage, PublicStore, StoredComment } from './store';
+import { UNKEPT_KINDS, type ChatMedia, type HeldImage, type PublicStore, type StoredComment } from './store';
 
 export const holdDir = (home: string): string => join(home, 'public', 'media');
 
@@ -38,23 +38,31 @@ function hold(home: string, data: Buffer): HeldImage {
   return { ...image, file };
 }
 
+async function fetchOne(ctx: Ctx, store: PublicStore, media: ChatMedia): Promise<void> {
+  try {
+    store.setMediaFetched(media.id, hold(ctx.cfg.home, await downloadTwice(ctx, media.fileId)));
+  } catch (error) {
+    store.setMediaFailed(media.id, messageOf(error));
+    ctx.log('public', null, `image ${media.id} of player comment ${media.commentId} could not be kept: ${messageOf(error)}`);
+  }
+}
+
 export async function fetchChatMedia(ctx: Ctx, store: PublicStore): Promise<void> {
-  for (const media of store.mediaToFetch()) {
-    try {
-      store.setMediaFetched(media.id, hold(ctx.cfg.home, await downloadTwice(ctx, media.fileId)));
-    } catch (error) {
-      store.setMediaFailed(media.id, messageOf(error));
-      ctx.log('public', null, `image ${media.id} of player comment ${media.commentId} could not be kept: ${messageOf(error)}`);
-    }
+  for (const media of store.mediaToFetch()) await fetchOne(ctx, store, media);
+}
+
+export async function keepMovedMedia(ctx: Ctx, store: PublicStore, commentId: number): Promise<void> {
+  for (const media of store.mediaOf(commentId)) {
+    if (media.image === null || sourceFile(ctx, media, media.image.file) !== null) continue;
+    store.refetchMedia(media.id);
+    await fetchOne(ctx, store, media);
   }
 }
 
 type Target = number | null | 'wait';
 
-const UNKEPT = new Set(['rejected', 'chatter', 'correction']);
-
 function targetOf(comment: StoredComment): Target {
-  if (comment.kind === null || UNKEPT.has(comment.kind) || comment.droppedAt !== null) return null;
+  if (comment.kind === null || UNKEPT_KINDS.includes(comment.kind) || comment.droppedAt !== null) return null;
   if (comment.filedIssue !== null && !comment.linked) return comment.filedIssue;
   if (comment.issue !== null && comment.relevance !== 'other') return comment.sentAt === null ? 'wait' : comment.issue;
   return comment.repliedAt === null ? 'wait' : null;
@@ -81,6 +89,7 @@ function place(ctx: Ctx, media: ChatMedia, image: HeldImage, comment: StoredComm
   const to = join(issueDir, PLAYER_SHELF.folder, image.file);
   if (from !== null && from !== to) copyFileSync(from, to);
   addToShelf(issueDir, PLAYER_SHELF, [entryOf(comment, image, from !== null)]);
+  if (media.placedIssue !== null && media.placedIssue !== issue) takeFromShelf(mediaDir(ctx, media.placedIssue), PLAYER_SHELF, `${PLAYER_SHELF.folder}/${image.file}`);
   ctx.log('public', issue, `image ${media.id} of player comment ${comment.id} is in the media folder of #${issue}`);
 }
 

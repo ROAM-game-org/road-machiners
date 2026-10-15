@@ -68,14 +68,35 @@ function knownCandidates(store: PublicStore, active: Candidate[]): Candidate[] {
   return [...withChatText, ...chat.filter((work) => !activeIssues.has(work.issue))];
 }
 
-function candidateWork(store: PublicStore, active: Candidate[], comment: StoredComment, corrected: StoredComment | null): Candidate[] {
+async function openIssue(ctx: Ctx, issue: number): Promise<Candidate[]> {
+  try {
+    const found = await ctx.github.issue(issue);
+    return found.state === 'OPEN' ? [{ issue, text: found.title, status: 'open issue' }] : [];
+  } catch (error) {
+    ctx.log('public', issue, `the issue a player comment names could not be read, so it is no candidate: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
+}
+
+async function namedWork(ctx: Ctx, text: string, known: Candidate[], left: Set<number | null>): Promise<Candidate[]> {
+  const named = [...new Set(namedIssues(text))].filter((issue) => !left.has(issue)).slice(0, WORK_CANDIDATES);
+  const found: Candidate[] = [];
+  for (const issue of named) {
+    const listed = known.filter((work) => work.issue === issue);
+    found.push(...(listed.length > 0 ? listed : await openIssue(ctx, issue)));
+  }
+  return found;
+}
+
+async function candidateWork(ctx: Ctx, judge: Judge, comment: StoredComment, corrected: StoredComment | null): Promise<Candidate[]> {
   const left = new Set([comment.issue, corrected === null ? null : targetIssue(corrected)]);
-  const known = knownCandidates(store, active).filter((work) => !left.has(work.issue));
+  const known = knownCandidates(judge.store, judge.active).filter((work) => !left.has(work.issue));
   const query = [comment.text, comment.context ?? '', corrected?.text ?? ''].join(' ');
-  const named = namedIssues(comment.text).flatMap((issue) => known.filter((work) => work.issue === issue));
+  const named = await namedWork(ctx, comment.text, known, left);
   const ranked = rankByWords(known.map((work) => work.text), query, WORK_CANDIDATES).map((index) => known[index]!);
   const newest = [...known].sort((a, b) => b.issue - a.issue);
-  return [...new Set([...named, ...ranked, ...newest])].slice(0, WORK_CANDIDATES);
+  const seen = new Set<number>();
+  return [...named, ...ranked, ...newest].filter((work) => !seen.has(work.issue) && seen.add(work.issue)).slice(0, WORK_CANDIDATES);
 }
 
 function filterInput(store: PublicStore, comment: StoredComment, work: Candidate[], corrected: StoredComment | null): FilterInput {
@@ -105,7 +126,7 @@ function isCorrection(decision: Decision, corrected: StoredComment | null, membe
 async function classifyOne(ctx: Ctx, judge: Judge, comment: StoredComment): Promise<void> {
   const { store } = judge;
   const corrected = answeredMessage(store, comment.answers);
-  const work = candidateWork(store, judge.active, comment, corrected);
+  const work = await candidateWork(ctx, judge, comment, corrected);
   const decision = await judge.classify(filterInput(store, comment, work, corrected));
   const correcting = isCorrection(decision, corrected, judge.member);
   const kind = correcting ? 'correction' : decision.verdict === 'reject' ? 'rejected' : decision.kind;

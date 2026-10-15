@@ -31,8 +31,18 @@ export function adoptReplyMedia(home: string, post: number, issueDir: string, by
 }
 
 export function addToShelf(issueDir: string, shelf: Shelf, entries: MediaEntry[]): void {
+  writeShelf(issueDir, shelf, merged(readShelf(issueDir, shelf), entries));
+}
+
+export function takeFromShelf(issueDir: string, shelf: Shelf, file: string): void {
+  if (!existsSync(join(issueDir, shelf.manifest))) return;
+  writeShelf(issueDir, shelf, readShelf(issueDir, shelf).filter((entry) => entry.file !== file));
+  rmSync(join(issueDir, file), { force: true });
+}
+
+function writeShelf(issueDir: string, shelf: Shelf, entries: MediaEntry[]): void {
   const path = join(issueDir, shelf.manifest);
-  writeFileSync(`${path}.tmp`, JSON.stringify(merged(readShelf(issueDir, shelf), entries), null, 2));
+  writeFileSync(`${path}.tmp`, JSON.stringify(entries, null, 2));
   renameSync(`${path}.tmp`, path);
 }
 
