@@ -1,3 +1,4 @@
+import { partDef } from "../data/parts";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
 import { bindAttr } from "../text/language";
@@ -11,6 +12,16 @@ import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
+export const CONDITION_SIDE_INSET = 0.5;
+
+export type PartLook = "tire" | "cab" | "icon";
+
+export function partLook(defId: string): PartLook {
+  const def = partDef(defId);
+  if (def.kind !== "core") return "icon";
+  if (def.role === "wheel") return "tire";
+  return def.role === "cab" ? "cab" : "icon";
+}
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
@@ -57,7 +68,7 @@ export class TruckConditionView {
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
-      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
+      this.outline = [truckOutline(vehicle.chassisId, CELL, CONDITION_SIDE_INSET), truckOutline(vehicle.chassisId, CELL, CONDITION_SIDE_INSET)];
       this.outline[0].classList.add("outline-fill");
       this.outline[1].classList.add("outline-line");
       this.body.prepend(...this.outline);
@@ -86,9 +97,14 @@ export class TruckConditionView {
   private renderPart(part: ConditionPart, aim?: ConditionAim): void {
     let node = this.nodes.get(part.id);
     if (!node) {
-      node = el("div", { class: "condition-part", "data-part-id": part.id }, tintedIcon(part.defId));
+      node = el("div", { class: "condition-part", "data-part-id": part.id });
       this.nodes.set(part.id, node);
       this.body.append(node);
+    }
+    const look = partLook(part.defId);
+    if (node.dataset.look !== look) {
+      node.dataset.look = look;
+      node.replaceChildren(look === "tire" ? el("span", { class: "condition-tire" }) : tintedIcon(part.defId));
     }
     node.dataset.condition = part.state;
     node.classList.toggle("broken", part.broken);
@@ -109,8 +125,9 @@ export class TruckConditionView {
   }
 
   private flashDamage(node: HTMLElement): void {
-    for (const animation of node.getAnimations()) animation.cancel();
-    node.animate(
+    const target = node.querySelector<HTMLElement>(".condition-tire") ?? node;
+    for (const animation of target.getAnimations()) animation.cancel();
+    target.animate(
       [
         { background: token("--alarm"), offset: 0 },
         { background: token("--alarm"), offset: 0.65 },

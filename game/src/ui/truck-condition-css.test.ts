@@ -18,4 +18,9 @@ describe("truck condition css", () => {
   it("keeps aimable parts clickable", () => {
     expect(rule(".condition-part.aimable")).toContain("cursor: crosshair");
   });
+
+  it("draws a wheel as a tire in its condition tone, with no tile behind it", () => {
+    expect(rule('.condition-part[data-look="tire"]')).toContain("background: none");
+    expect(rule(".condition-tire")).toContain("var(--tone)");
+  });
 });

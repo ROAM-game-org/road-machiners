@@ -3,9 +3,6 @@
   left: 0;
   bottom: calc(100% + var(--space-4));
 }
-/* The bare truck's outline sits behind the parts. A part's tile takes its condition color, set inline as --tone and
-   --tint-line. The icon's own fill is clear, so only its lines and shading show, in the same hue. Line widths stay in
-   screen pixels at any tile size. */
 .condition-chassis {
   position: relative;
 }
@@ -28,6 +25,34 @@
   --tint-outer: 1px;
   --tint-inner: 0px;
 }
+.condition-part[data-look="tire"] {
+  border: 0;
+  background: none;
+}
+.condition-tire {
+  position: absolute;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  left: 25%;
+  width: 50%;
+  box-sizing: border-box;
+  border: 1px solid var(--shade);
+  border-radius: var(--radius-s);
+  background:
+    repeating-linear-gradient(to bottom, var(--tint-line) 0 1px, transparent 1px 25%),
+    var(--tone);
+}
+.condition-part[data-look="cab"]::after {
+  content: "";
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  right: var(--space-2);
+  height: var(--space-2);
+  border: 1px solid var(--shade);
+  border-radius: var(--radius-s);
+  background: var(--tint-glass);
+}
 .condition-part svg {
   position: absolute;
   inset: var(--space-1);
@@ -43,6 +68,9 @@
   cursor: crosshair;
 }
 .condition-part.aimable:hover {
+  border-color: var(--ink-bright);
+}
+.condition-part.aimable:hover .condition-tire {
   border-color: var(--ink-bright);
 }
 .condition-aim {

@@ -200,7 +200,7 @@ Every event gets a level before it gets a channel. A level fires on its channels
 | Dashed line | Provisional: a plan, or knowledge that is not exact |
 | Flood fill | The thing under the cursor or selected, never a whole diagram |
 
-The own truck's diagram colors every part by condition, so a healthy part is green. The truck drawing on the hover card stays neutral and colors only damage, because there the drawing is for aiming.
+The own truck's diagram colors every part by condition, so a healthy part is green. The truck drawing on the hover card stays neutral and colors only damage, because there the drawing is for aiming. On a top-view truck drawing a wheel is a tire seen from above, sticking out past the body, and the cab carries a windshield on its front edge. In lists and the inventory a part keeps its icon.
 
 World colors keep their meaning in the 3D view. The UI does not reuse the cold cyan of dead ship tech or the green glow of the reactor.
 
