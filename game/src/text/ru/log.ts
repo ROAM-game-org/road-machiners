@@ -346,6 +346,7 @@ export const LOG: Translation<typeof EN> = {
   'goal.watchedRoad': 'Осмотрел дорогу',
   'goal.ranFromIt': 'Сбежал от него',
   'goal.avoidRanFrom': 'Избегать грузовика, от которого бежал',
+  'goal.calledOut': 'Драться с грузовиком, которого вызвал на бой',
   'goal.breakOffFight': 'Выйти из проигрышного боя',
   'note.engineHot': 'Двигатель перегревается.',
   'note.engineOverheat': 'Двигатель перегрелся, прочность −{hp}.',

@@ -9,7 +9,9 @@ import { furyRoadWorld, parkOnPad } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
-import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from './outposts';
+import { partDef } from '../data/parts';
+import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics, outpostRepairPart } from './outposts';
+import { partRepairCost } from './economy';
 import { canStowPart } from './inventory';
 import type { PartInstance, World } from './types';
 import { maxHp } from './wear';
@@ -55,6 +57,48 @@ describe('outpost services', () => {
 
     expect(corePart(me, 'cab').hp).toBe(maxHp(corePart(me, 'cab')));
     expect(mountedParts(me, 'weapon').some((p) => p.hp < maxHp(p))).toBe(true);
+  });
+
+  it('repairs one part for the part price and leaves the rest', () => {
+    const w = atOutpost();
+    batter(w);
+    w.player.money = 10_000_000;
+    const [target, other] = mountedParts(playerVehicle(w));
+    const price = partRepairCost(w, target);
+    const otherHp = other.hp;
+
+    const after = outpostRepairPart(w, target.id);
+    const me = playerVehicle(after);
+
+    expect(mountedParts(me).find((p) => p.id === target.id)!.hp).toBe(maxHp(target));
+    expect(mountedParts(me).find((p) => p.id === other.id)!.hp).toBe(otherHp);
+    expect(after.player.money).toBe(w.player.money - price);
+  });
+
+  it('refuses a missing part, a junk part and a poor player', () => {
+    const w = atOutpost();
+    batter(w);
+    const part = mountedParts(playerVehicle(w), 'weapon')[0];
+    expect(() => outpostRepairPart(w, 'nope')).toThrow(/No truck part/);
+    w.player.money = 0;
+    expect(() => outpostRepairPart(w, part.id)).toThrow();
+    part.hp = 0;
+    part.wear = 100;
+    w.player.money = 10_000_000;
+    expect(() => outpostRepairPart(w, part.id)).toThrow(/junk|No truck part/);
+  });
+
+  it('repairs a broken engine with the basics for the shown price', () => {
+    const w = atOutpost();
+    const engine = mountedParts(playerVehicle(w)).find((p) => partDef(p.defId).kind === 'engine')!;
+    engine.hp = 1;
+    const money = w.player.money;
+
+    const after = outpostRepairBasics(w);
+
+    const fixed = mountedParts(playerVehicle(after)).find((p) => p.id === engine.id)!;
+    expect(fixed.hp).toBe(maxHp(fixed));
+    expect(after.player.money).toBeLessThan(money);
   });
 
   it('sells fuel at the town price', () => {
@@ -126,6 +170,7 @@ describe('outpost commands off the pad', () => {
   const commands: [string, (w: World) => World][] = [
     ['repair all', outpostRepairAll],
     ['repair basics', outpostRepairBasics],
+    ['repair a part', (w) => outpostRepairPart(w, mountedParts(playerVehicle(w))[0].id)],
     ['buy fuel', (w) => outpostBuySupply(w, 'fuel', 1)],
     ['buy a part', (w) => outpostBuyPart(w, w.furyRoad!.outposts[0].stock[0].id)],
     ['buy parts', (w) => outpostBuyGood(w, 1)],

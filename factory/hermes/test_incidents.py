@@ -26,7 +26,7 @@ def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = Non
         (home / "health").write_text(json.dumps(health))
     if pause_age_minutes is not None:
         paused = home / "paused"
-        paused.write_text("Hermes fixing #5")
+        paused.write_text(json.dumps({"kind": "member", "note": "Hermes fixing #5", "by": "Hermes", "at": "2026-01-01T00:00:00.000Z"}))
         old = time.time() - pause_age_minutes * 60
         os.utime(paused, (old, old))
     bin_dir = tmp_path / "bin"

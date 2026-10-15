@@ -144,3 +144,60 @@ describe('compileQuest', () => {
     expect(errors.join('\n')).toContain('INCLUDE names missing.ink, which is no quest source');
   });
 });
+
+describe('quest links', () => {
+  const LINK_WORLD = 'VAR thief = "none"\nVAR seen = false\nVAR count = 0\nEXTERNAL note(id)\nEXTERNAL has_note(id)\nEXTERNAL begin(quest)\n';
+  const linked = (body: string, header = '') => compile({ 'world.ink': LINK_WORLD, 'q.ink': `${header}INCLUDE world.ink\nVAR mine = 0\n=== start ===\n${body}\n-> END\n` });
+
+  it('lists the world variables a quest reads, the plain values it writes, the notes it gives and tests and the quests it begins', () => {
+    const { quest, errors } = linked('{thief == "pell": Pell.}\n~ thief = "vance"\n~ thief = "pell"\n~ seen = true\n~ mine = 2\n~ note("wagonBowl")\n{has_note("greenPit"): Pit.}\n~ begin("other")');
+    expect(errors).toEqual([]);
+    expect(quest?.links).toEqual({ reads: ['thief'], readsNotes: ['greenPit'], writes: { seen: [true], thief: ['pell', 'vance'] }, notes: ['wagonBowl'], begins: ['other'] });
+  });
+
+  it('counts a stat or fact on a world variable as a read', () => {
+    const { quest } = linked('Hi.', '# stat: count Count\n# fact: seen Seen it.\n');
+    expect(quest?.links.reads).toEqual(['count', 'seen']);
+  });
+
+  it('fails a world variable given a worked out value, since a repair could not tell who wrote it', () => {
+    expect(linked('~ thief = "x{mine}"').errors).toEqual([expect.stringContaining('world variable thief gets a value worked out in play')]);
+    expect(linked('~ count = mine').errors).toEqual([expect.stringContaining('world variable count gets a value worked out in play')]);
+  });
+
+  it('fails a note, has_note or begin call on anything but one plain id', () => {
+    expect(linked('~ note(thief)').errors).toEqual([expect.stringContaining('note() needs one plain text id')]);
+    expect(linked('{has_note(thief): x}').errors).toEqual([expect.stringContaining('has_note() needs one plain text id')]);
+    expect(linked('~ begin("a{mine}")').errors).toEqual([expect.stringContaining('begin() needs one plain text id')]);
+  });
+
+  it('reads the revision tag, which starts at 1', () => {
+    expect(linked('Hi.').quest?.revision).toBe(1);
+    expect(linked('Hi.', '# revision: 3\n').quest?.revision).toBe(3);
+    expect(linked('Hi.', '# revision: 0\n').errors).toEqual([expect.stringContaining('# revision: 0 needs a whole number from 1 up')]);
+    expect(linked('Hi.', '# revision: two\n').errors).toEqual([expect.stringContaining('# revision: two needs a whole number')]);
+  });
+
+  it('fails a Russian twin with another revision or other links', () => {
+    const en = `INCLUDE world.ink\n=== start ===\n~ thief = "pell"\n-> END\n`;
+    const errorsOf = (ru: string) => compileQuest('q', { 'world.ink': LINK_WORLD, 'q.ink': en, 'ru/q.ink': ru }, false).errors.join('\n');
+    expect(errorsOf(`# revision: 2\n${en}`)).toMatch(/ru\/q\.ink: its revision part does not match/);
+    expect(errorsOf(en.replace('"pell"', '"vance"'))).toMatch(/ru\/q\.ink: its links part does not match/);
+  });
+
+  it('links the shipped quests the way their ink does', () => {
+    const quests = parseBundle(BUNDLE).quests;
+    expect(quests.wagon_bench.links.writes.wagon_fate).toEqual(['admitted', 'buried', 'logged']);
+    expect(quests.nose_kovac.links.begins).toEqual(['nose_depot_leak']);
+    expect(quests.pump_agnes.links.begins).toEqual(['pump_pipe']);
+    expect(Object.values(quests).every((q) => q.revision >= 1)).toBe(true);
+  });
+
+  it('rejects a bundle whose links name an undeclared variable, an unknown note or an unknown quest', () => {
+    const withLinks = (links: object) => ({ ...BUNDLE, quests: { ...BUNDLE.quests, bowl_ruben: { ...BUNDLE.quests.bowl_ruben, links: { ...BUNDLE.quests.bowl_ruben.links, ...links } } } });
+    expect(() => parseBundle(withLinks({ reads: ['nowhere'] }))).toThrow('links to world variable nowhere');
+    expect(() => parseBundle(withLinks({ notes: ['noSuchNote'] }))).toThrow('links to note noSuchNote');
+    expect(() => parseBundle(withLinks({ begins: ['no_quest'] }))).toThrow('begins no_quest, which is no quest');
+    expect(() => parseBundle(withLinks({ writes: { wagon_seen: ['yes'] } }))).toThrow('writes a value of the wrong type to wagon_seen');
+  });
+});

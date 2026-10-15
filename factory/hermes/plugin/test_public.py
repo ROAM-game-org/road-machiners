@@ -109,6 +109,27 @@ def test_removed_reaction_has_empty_list(tmp_path):
     assert written(tmp_path)["502.json"]["emoji"] == []
 
 
+def test_removal_without_new_reaction_is_recorded(tmp_path):
+    raw = reaction_update()
+    raw["message_reaction"]["old_reaction"] = [{"type": "emoji", "emoji": "\U0001F44D"}]
+    del raw["message_reaction"]["new_reaction"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path) == {"502.json": {
+        "updateId": 502, "kind": "reaction", "chat": DISCUSSION, "messageId": 17, "user": "42", "emoji": [],
+    }}
+    assert not public.alert_path(cfg).exists()
+
+
+def test_count_without_reactions_is_recorded_as_no_counts(tmp_path):
+    raw = count_update()
+    del raw["message_reaction_count"]["reactions"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path)["501.json"]["counts"] == {}
+    assert not public.alert_path(cfg).exists()
+
+
 def test_anonymous_reaction_writes_nothing_and_stops(tmp_path):
     assert public.handle_public_update(reaction_update(user=False), cfg_for(tmp_path)) is True
     assert written(tmp_path) == {}
@@ -135,8 +156,27 @@ def test_discussion_comment_event(tmp_path):
     assert written(tmp_path) == {"504.json": {
         "updateId": 504, "kind": "comment", "chat": DISCUSSION, "messageId": 91, "threadId": 90,
         "author": "Ann Lee", "sender": "42", "text": "Add a trailer please", "at": "2023-11-14T22:13:23Z",
-        "addressed": False, "standalone": True,
+        "addressed": False, "standalone": True, "context": None,
     }}
+
+
+def test_comment_keeps_the_replied_text_as_context(tmp_path):
+    raw = comment_update(reply_to_message={"message_id": 200, "chat": chat(DISCUSSION), "text": "Landmark directions\n\nPlay: x"})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["context"] == "Landmark directions\n\nPlay: x"
+
+
+def test_comment_context_prefers_the_quote_and_is_cut_short(tmp_path):
+    raw = comment_update(reply_to_message={"message_id": 200, "text": "whole post"}, quote={"text": "q" * 900, "position": 0})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    assert written(tmp_path)["504.json"]["context"] == "q" * 500
+
+
+def test_comment_quoting_another_chat_keeps_the_quote(tmp_path):
+    raw = comment_update(message_thread_id=None, reply_to_message=None, external_reply={"origin": {"type": "channel"}}, quote={"text": "Landmark directions"})
+    public.handle_public_update(raw, cfg_for(tmp_path))
+    event = written(tmp_path)["504.json"]
+    assert (event["threadId"], event["context"]) == (None, "Landmark directions")
 
 
 def test_comment_sender_is_the_sender_chat_for_an_anonymous_admin(tmp_path):

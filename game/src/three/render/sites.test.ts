@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Box3, InstancedMesh, Matrix4, Mesh, Vector3, type MeshLambertMaterial, type Object3D } from 'three';
 import { loadModels, MODEL_GLOW } from './models';
-import { buildSites } from './sites';
+import { buildSites, lampMount } from './sites';
 import { FORTRESS } from '../../data/fortress';
 import { PAL } from '../../render/palette';
 import { PHYSICS } from '../../data/physics';
@@ -672,10 +672,10 @@ describe('site work lights (#402)', () => {
 
 describe('fortress lamps (#402)', () => {
   const FORTS = ALL.filter(isFortress);
-  const TOWER_HANG = FORTRESS.towerSize / 2 + 0.7;
+  const towerHang = (site: (typeof FORTS)[number]) => lampMount(site, 'tower').face + 0.7;
   const lampsOf = (id: string) => built.lamps.filter((l) => l.site.id === id);
   const near = (p: { x: number; y: number }, l: { x: number; z: number }, r: number) => Math.hypot(l.x - p.x, l.z - p.y) <= r;
-  const onTower = (t: { pos: { x: number; y: number } }, l: { x: number; z: number }) => Math.abs(Math.hypot(l.x - t.pos.x, l.z - t.pos.y) - TOWER_HANG) < 0.01;
+  const onTower = (site: (typeof FORTS)[number], t: { pos: { x: number; y: number } }, l: { x: number; z: number }) => Math.abs(Math.hypot(l.x - t.pos.x, l.z - t.pos.y) - towerHang(site)) < 0.01;
 
   const APART = (40 * Math.PI) / 180;
   const GAP = 6;
@@ -687,7 +687,7 @@ describe('fortress lamps (#402)', () => {
   const towerLamps = (site: (typeof FORTS)[number], tower: { pos: { x: number; y: number } }, inside: boolean) => {
     const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
     const nearest = (l: { x: number; z: number }) => towers.reduce((a, b) => (Math.hypot(a.pos.x - l.x, a.pos.y - l.z) <= Math.hypot(b.pos.x - l.x, b.pos.y - l.z) ? a : b));
-    return lampsOf(site.id).filter((l) => l.inside === inside && onTower(tower, l) && nearest(l).pos.x === tower.pos.x && nearest(l).pos.y === tower.pos.y);
+    return lampsOf(site.id).filter((l) => l.inside === inside && onTower(site, tower, l) && nearest(l).pos.x === tower.pos.x && nearest(l).pos.y === tower.pos.y);
   };
 
   it('marks the outline with spread outside tower lamps and covers every tower (IV1)', () => {
@@ -713,7 +713,7 @@ describe('fortress lamps (#402)', () => {
   it('keeps inner shell lamps far apart (IV3)', () => {
     for (const site of FORTS) {
       const pieces = fortressPieces(site);
-      const shell = lampsOf(site.id).filter((l) => l.inside && pieces.some((p) => (p.kind === 'tower' ? onTower(p, l) : Math.abs(Math.hypot(l.x - p.pos.x, l.z - p.pos.y) - (FORTRESS.wallDepth / 2 + 0.7)) < 0.01)));
+      const shell = lampsOf(site.id).filter((l) => l.inside && pieces.some((p) => (p.kind === 'tower' ? onTower(site, p, l) : Math.abs(Math.hypot(l.x - p.pos.x, l.z - p.pos.y) - (lampMount(site, 'wall').face + 0.7)) < 0.01)));
       for (const a of shell) for (const b of shell) if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z), site.id).toBeGreaterThanOrEqual(GAP - 0.01);
     }
   });
@@ -723,7 +723,7 @@ describe('fortress lamps (#402)', () => {
       const towers = fortressPieces(site).filter((p) => p.kind === 'tower');
       const gates = fortressGates(site);
       for (const lamp of lampsOf(site.id).filter((l) => !l.inside)) {
-        const placed = towers.some((t) => onTower(t, lamp)) || gates.some((g) => near(g.face, lamp, g.width));
+        const placed = towers.some((t) => onTower(site, t, lamp)) || gates.some((g) => near(g.face, lamp, g.width));
         expect(placed, `${site.id} lamp at ${lamp.x.toFixed(1)},${lamp.z.toFixed(1)}`).toBe(true);
       }
     }
