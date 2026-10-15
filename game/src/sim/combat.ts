@@ -6,8 +6,8 @@ import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
-import { blastLanes, heldPart, laneCount, lanePoint, partLane, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
-import { wholeDamage } from './damage';
+import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
+import { damagePart, wholeDamage } from './damage';
 import { bodyOf } from './body';
 import { rollCabKnock } from "./cab-knock";
 import { corePart, hasLoot, itemSize, mountedItems, mountedParts } from './grid';
@@ -439,8 +439,8 @@ function laneReach(c: Reach, lane: number): number {
 
 function splashReaches(c: Reach, point: Vec, skip: number | null): boolean {
   if (c.round.splashRadius <= 0) return false;
-  const { side, lanes } = blastLanes(c.target, point, c.round.splashRadius);
-  return lanes.some((lane) => lane !== skip && reachesAim(c, planLane(c.target, side, lane, splashRound(c.world, c.round))));
+  const struck = skip === null ? null : (heldPart(c.target, c.a.side, skip)?.id ?? null);
+  return reachesAim(c, planBlast(c.target, point, c.round.splashRadius, splashRound(c.world, c.round), struck));
 }
 
 const OFF_TRUCK_STEPS = 64;
@@ -773,16 +773,19 @@ function explode(world: World, r: WeaponDef["round"], landing: Landing): Vehicle
   if (r.splashRadius <= 0) return [];
   const out: VehicleHits[] = [];
   for (const v of world.vehicles) {
-    const skip = v.id === landing.struck?.id ? landing.lane : null;
-    const hits = blastTruck(world, v, landing.point, r.splashRadius, splashRound(world, r), skip);
+    const hits = blastTruck(world, v, landing.point, r.splashRadius, splashRound(world, r), struckPart(landing, v));
     if (hits.length > 0) out.push({ vehicle: v.id, hits });
   }
   return out;
 }
 
-export function blastTruck(world: World, v: Vehicle, p: Vec, radius: number, round: Round, skip: number | null): PartHit[] {
-  const { side, lanes } = blastLanes(v, p, radius);
-  return lanes.filter((lane) => lane !== skip).flatMap((lane) => walkLane(world, v, side, lane, round));
+function struckPart(landing: Landing, v: Vehicle): string | null {
+  if (v.id !== landing.struck?.id || landing.hits.length === 0) return null;
+  return landing.hits[0].part;
+}
+
+export function blastTruck(world: World, v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): PartHit[] {
+  return planBlast(v, p, radius, round, skip).map((h) => ({ part: h.part.id, damage: damagePart(world, v, h.part, h.amount) }));
 }
 
 function practiceHits(world: World, s: Shot): void {

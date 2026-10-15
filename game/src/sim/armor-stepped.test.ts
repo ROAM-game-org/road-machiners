@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { PARTS } from '../data/parts';
 import TRUCK_SHAPES from '../data/truck-shapes.json';
-import { blastLanes, cabShield, cabShieldWith, gunSpans, lanePoint, spansHold, walkLane } from './armor';
+import { cabShield, cabShieldWith, gunSpans, lanePoint, planBlast, spansHold, walkLane } from './armor';
 import { makePart } from './factory';
 import { gridOf, MOUNT_CELLS, mountedItems, mountSpots, sideOf } from './grid';
 import { addVehicle, emptyWorld } from './testkit';
@@ -121,10 +121,10 @@ describe('a stepped outline', () => {
     });
   });
 
-  it('aims a blast at a missing corner at the lanes whose faces lie near it', () => {
+  it('a small blast at a missing corner reaches no part, since no cell lies there', () => {
     const w = emptyWorld();
     const v = steppedWith(w, []);
     const corner = lanePoint(v, 'front', 0);
-    expect(blastLanes(v, corner, 0.1)).toEqual({ side: 'front', lanes: [0] });
+    expect(planBlast(v, corner, 0.1, { damage: 10, pen: 20, blast: true, armorShare: 1 }, null)).toEqual([]);
   });
 });

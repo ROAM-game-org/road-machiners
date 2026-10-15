@@ -1,8 +1,9 @@
 import { partDef, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { aimWithin, everyGunFires, gunBlockers, gunLayoutScore, gunSpans, laneCount, partLane, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { aimWithin, everyGunFires, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
+import { cellCenter } from './body';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
 import { corePart, coreParts, facingOf, gridOf, itemCells, itemSize, mountedItems, mountedParts } from './grid';
@@ -154,6 +155,63 @@ describe('walkLane', () => {
     const dealt = hits.find((h) => h.part === cab.id)!.damage;
     expect(dealt).toBeGreaterThan(0);
     expect(w.player.health).toBe(RULES.maxHealth - Math.round(dealt * RULES.cabHealthShare));
+  });
+});
+
+describe('planBlast', () => {
+  const round = { damage: 20, pen: 20, blast: true, armorShare: 1 };
+
+  function firstCell(v: Vehicle, partId: string): [number, number] {
+    const cell = itemCells(mountedItems(v).find((it) => it.part.id === partId)!)[0];
+    return [cell.x, cell.y];
+  }
+
+  function scout() {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'raiders', 'scout', ['stockEngine', 'mg'], { x: 40, y: 40 });
+    v.heading = 0;
+    return { w, v };
+  }
+
+  it('hurts the wheels on the side of the blast more than the wheels on the far side', () => {
+    const { v } = scout();
+    const hits = planBlast(v, lanePoint(v, 'left', Math.floor(laneCount(v, 'left') / 2)), 3, round, null);
+    const wheelSide = (id: string) => Math.sign(cellCenter(v.chassisId, ...firstCell(v, id)).z);
+    const dealt = (sign: number) => hits.filter((h) => h.part.defId === 'wheel' && wheelSide(h.part.id) === sign).reduce((sum, h) => sum + h.amount, 0);
+    expect(dealt(-1)).toBeGreaterThan(dealt(1));
+  });
+
+  it('deals less the farther a part is from the blast, and nothing past the radius', () => {
+    const { v } = scout();
+    const lane = Math.floor(laneCount(v, 'left') / 2);
+    const face = lanePoint(v, 'left', lane);
+    const close = planBlast(v, face, 2, round, null);
+    const far = planBlast(v, { x: face.x, y: face.y - 0.5 }, 2, round, null);
+    const top = [...close].sort((a, b) => b.amount - a.amount)[0];
+    expect(far.find((h) => h.part.id === top.part.id)?.amount ?? 0).toBeLessThan(top.amount);
+    expect(planBlast(v, { x: face.x, y: face.y - 20 }, 2, round, null)).toEqual([]);
+  });
+
+  it('shields a part behind another, so it takes more once the part in front is broken', () => {
+    const { v } = scout();
+    const lane = Math.floor(laneCount(v, 'left') / 2);
+    const face = lanePoint(v, 'left', lane);
+    const hits = planBlast(v, face, 3, round, null);
+    const byGap = [...hits].sort((a, b) => b.amount - a.amount);
+    const front = byGap[0].part;
+    const behindBefore = Object.fromEntries(hits.map((h) => [h.part.id, h.amount]));
+    front.hp = 0;
+    const after = planBlast(v, face, 3, round, null);
+    expect(after.some((h) => h.amount > (behindBefore[h.part.id] ?? 0))).toBe(true);
+    expect(after.find((h) => h.part.id === front.id)).toBeUndefined();
+  });
+
+  it('skips the part a direct round already struck', () => {
+    const { v } = scout();
+    const face = lanePoint(v, 'left', Math.floor(laneCount(v, 'left') / 2));
+    const hits = planBlast(v, face, 2, round, null);
+    const struck = hits[0].part.id;
+    expect(planBlast(v, face, 2, round, struck).some((h) => h.part.id === struck)).toBe(false);
   });
 });
 
