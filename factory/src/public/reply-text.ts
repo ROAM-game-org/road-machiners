@@ -11,9 +11,10 @@ export type ReplyText = {
   approved: string;
   inWork: string;
   notBuilt: string;
-  fromWiki: (label: string) => string;
+  sources: string;
   added: (link: string) => string;
   aboutWork: (link: string, status: string) => string;
+  related: (link: string, status: string) => string;
 };
 
 const ENGLISH: ReplyText = {
@@ -27,9 +28,10 @@ const ENGLISH: ReplyText = {
   approved: 'It is approved and being finished.',
   inWork: 'It is being worked on.',
   notBuilt: 'It is open and not built yet.',
-  fromWiki: (label) => `From the game wiki, ${label}:`,
+  sources: 'From the game docs:',
   added: (link) => `Thanks. I added this to the player comments of ${link}`,
   aboutWork: (link, status) => `Thanks. This is about ${link}, which the factory already has.\n${status}\nI added your message to its player comments. It opens no new issue or vote.`,
+  related: (link, status) => `This is about ${link}\n${status}`,
 };
 
 const RUSSIAN: ReplyText = {
@@ -43,9 +45,10 @@ const RUSSIAN: ReplyText = {
   approved: 'Её уже одобрили, и она доделывается.',
   inWork: 'Над ней уже работают.',
   notBuilt: 'Она открыта и ещё не сделана.',
-  fromWiki: (label) => `Из вики игры, ${label}:`,
+  sources: 'По документации игры:',
   added: (link) => `Спасибо. Это добавлено в комментарии игроков к ${link}`,
   aboutWork: (link, status) => `Спасибо. Это про ${link}, она у фабрики уже есть.\n${status}\nВаше сообщение добавлено в комментарии игроков к ней. Новой задачи и голосования не будет.`,
+  related: (link, status) => `Это про ${link}\n${status}`,
 };
 
 export const textsFor = (language: ReplyLanguage | null): ReplyText => (language === 'ru' ? RUSSIAN : ENGLISH);

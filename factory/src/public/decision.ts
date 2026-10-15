@@ -1,6 +1,6 @@
 import type { FactoryConfig } from '../types';
 import type { PublicRoute } from './store';
-import type { Ground } from './wiki';
+import type { Passage } from './wiki';
 
 export type DecisionKind = 'bug' | 'feature' | 'question' | 'feedback' | 'chatter';
 export type DecisionIntent = 'sincere' | 'troll' | 'spam';
@@ -10,4 +10,7 @@ export type Decision = { verdict: 'accept' | 'reject'; intent: DecisionIntent; s
 export type FilterInput = { source: 'comment' | 'message' | 'report'; text: string; parent?: string | null; context?: string | null; work?: string[] };
 export type FilterConfig = Pick<FactoryConfig, 'openaiKey' | 'filterModel' | 'filterTimeoutSeconds' | 'filterSincereMin'>;
 export type Classify = (input: FilterInput) => Promise<Decision>;
+export type Asked = { text: string; context: string | null; language: ReplyLanguage | null };
+export type Grounded = { text: string; passages: Passage[] };
+export type Ground = (asked: Asked) => Promise<Grounded | null>;
 export type PublicFilter = { classify: Classify; ground: Ground };

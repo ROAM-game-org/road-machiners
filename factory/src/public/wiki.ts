@@ -3,20 +3,16 @@ import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export type Passage = { page: string; title: string; heading: string; anchor: string; text: string };
-export type PickPassage = (question: string, candidates: string[]) => Promise<number | null>;
-export type Ground = (question: string) => Promise<Passage | null>;
 
-const WIKI_ROOT = 'game/docs/wiki';
-export const WIKI_DIR = fileURLToPath(new URL(`../../../${WIKI_ROOT}`, import.meta.url));
+const DOCS_ROOT = 'game/docs';
+export const DOCS_DIR = fileURLToPath(new URL(`../../../${DOCS_ROOT}`, import.meta.url));
 
-const CANDIDATES = 8;
 const BM25_K = 1.2;
 const BM25_B = 0.75;
-const PICK_CHARS = 600;
 const MIN_WORD = 3;
 const STOP_WORDS = new Set('the and for are but not you your can how what when where why who whom which does did has have had was were will would should could with this that these those there here from into about any all get got its our out than then them they their also just like some such very much many more most only own same too off yes'.split(' '));
 
-const GENERATED = /<!-- wiki:([\w-]+) -->[\s\S]*?<!-- \/wiki:\1 -->/g;
+const NUMBERS = /<!-- wiki:numbers -->([\s\S]*?)<!-- \/wiki:numbers -->/;
 const FENCE = /^```[\s\S]*?^```/gm;
 const NUMBER_ROW = /^\| `([^`]+)` \| (.+?) \|$/gm;
 const LIST_ITEM = /^\s*(?:[-*]|\d+\.)\s/;
@@ -27,7 +23,7 @@ function pagesOf(dir: string): string[] {
 }
 
 function numbersOf(markdown: string): Map<string, string> {
-  const block = /<!-- wiki:numbers -->([\s\S]*?)<!-- \/wiki:numbers -->/.exec(markdown)?.[1] ?? '';
+  const block = NUMBERS.exec(markdown)?.[1] ?? '';
   return new Map([...block.matchAll(NUMBER_ROW)].map((row) => [row[1]!, row[2]!.trim()]));
 }
 
@@ -64,7 +60,20 @@ function blocksOf(lines: string[]): Block[] {
   return blocks;
 }
 
-const isProse = (block: Block): boolean => block.lines.length > 0 && !block.lines.some((line) => line.trimStart().startsWith('|'));
+const isTableLine = (line: string): boolean => line.trimStart().startsWith('|');
+const isTable = (block: Block): boolean => block.lines.length > 0 && block.lines.every(isTableLine);
+const isProse = (block: Block): boolean => block.lines.length > 0 && !block.lines.some(isTableLine);
+
+const cellsOf = (row: string): string[] => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
+const isRule = (row: string): boolean => cellsOf(row).every((cell) => /^:?-+:?$/.test(cell));
+
+function rowsOf(lines: string[]): string[][] {
+  const [header, ...rows] = lines.filter((line) => !isRule(line)).map(cellsOf);
+  return rows.map((cells) => [header!.map((name, index) => `${name}: ${cells[index] ?? ''}`).join('; ')]);
+}
+
+const entriesOf = (block: Block): string[][] => (isTable(block) ? rowsOf(block.lines) : itemsOf(block.lines));
+const isSource = (block: Block): boolean => isProse(block) || isTable(block);
 
 function sectionOf(block: Block, title: string): { heading: string; anchor: string } {
   if (block.heading === null || block.level === '#') return { heading: block.heading ?? title, anchor: '' };
@@ -73,14 +82,14 @@ function sectionOf(block: Block, title: string): { heading: string; anchor: stri
 
 function pagePassages(page: string, markdown: string): Passage[] {
   const numbers = numbersOf(markdown);
-  const lines = markdown.replace(GENERATED, '').replace(FENCE, '').split('\n').filter((line) => !line.trimStart().startsWith('<!--'));
+  const lines = markdown.replace(NUMBERS, '').replace(FENCE, '').split('\n').filter((line) => !line.trimStart().startsWith('<!--'));
   const blocks = blocksOf(lines);
   const title = blocks.find((block) => block.level === '#')?.heading ?? page.replace(/\.md$/, '');
-  const passages = blocks.filter(isProse).flatMap((block) => itemsOf(block.lines).map((item) => ({ page, title, ...sectionOf(block, title), text: plain(item, numbers) })));
+  const passages = blocks.filter(isSource).flatMap((block) => entriesOf(block).map((item) => ({ page, title, ...sectionOf(block, title), text: plain(item, numbers) })));
   return passages.filter((passage) => passage.text !== '');
 }
 
-export function readWiki(dir: string): Passage[] {
+export function readDocs(dir: string): Passage[] {
   return pagesOf(dir).flatMap((page) => pagePassages(page, readFileSync(join(dir, page), 'utf8')));
 }
 
@@ -113,7 +122,7 @@ export function rankByWords(texts: string[], query: string, limit: number): numb
   return scored.filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map((entry) => entry.index);
 }
 
-export function searchWiki(passages: Passage[], question: string, limit: number): Passage[] {
+export function searchDocs(passages: Passage[], question: string, limit: number): Passage[] {
   return rankByWords(passages.map((passage) => `${passage.title} ${passage.heading} ${passage.text}`), question, limit).map((index) => passages[index]!);
 }
 
@@ -126,18 +135,7 @@ export function excerpt(text: string, max: number): string {
 
 export const passageLabel = (passage: Passage): string => (passage.heading === passage.title ? passage.title : `${passage.title}, ${passage.heading}`);
 
-export function groundWith(pick: PickPassage, dir: string = WIKI_DIR): Ground {
-  return async (question) => {
-    const passages = readWiki(dir);
-    if (passages.length === 0) throw new Error(`The game wiki at ${dir} has no passages.`);
-    const candidates = searchWiki(passages, question, CANDIDATES);
-    if (candidates.length === 0) return null;
-    const index = await pick(question, candidates.map((passage) => `${passageLabel(passage)}: ${excerpt(passage.text, PICK_CHARS)}`));
-    return index === null ? null : (candidates[index] ?? null);
-  };
-}
-
-const pageLink = (repo: string, page: string): string => `https://github.com/${repo}/blob/main/${WIKI_ROOT}/${page}`;
+const pageLink = (repo: string, page: string): string => `https://github.com/${repo}/blob/main/${DOCS_ROOT}/${page}`;
 
 export const passageLink = (repo: string, passage: Passage): string => `${pageLink(repo, passage.page)}${passage.anchor === '' ? '' : `#${passage.anchor}`}`;
 

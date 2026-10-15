@@ -1,10 +1,10 @@
 import { reportFailure } from '../fail';
 import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '../types';
 import { isolated } from './isolate';
-import type { PublicFilter } from './decision';
+import type { Ground, Grounded, PublicFilter } from './decision';
 import { textsFor, type ReplyText } from './reply-text';
 import type { IssueComment, PublicStore, StoredComment } from './store';
-import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
+import { excerpt, passageLabel, passageLink } from './wiki';
 
 const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
@@ -32,22 +32,28 @@ async function filingReply(ctx: Ctx, store: PublicStore, comment: StoredComment,
   return `${text.alreadyFiled(link)}\n${await issueStatus(ctx, comment.filedIssue, text)}`;
 }
 
-const ANSWER_CHARS = 600;
+const ANSWER_CHARS = 1500;
 
-const wikiAnswer = (ctx: Ctx, passage: Passage, text: ReplyText): string => `${text.fromWiki(passageLabel(passage))}\n${excerpt(passage.text, ANSWER_CHARS)}\n${passageLink(ctx.cfg.repo, passage)}`;
+function sourceLinks(ctx: Ctx, grounded: Grounded): string[] {
+  const links = grounded.passages.map((passage) => `${passageLabel(passage)}: ${passageLink(ctx.cfg.repo, passage)}`);
+  return [...new Set(links)];
+}
+
+const groundedAnswer = (ctx: Ctx, grounded: Grounded, text: ReplyText): string => `${excerpt(grounded.text, ANSWER_CHARS)}\n\n${text.sources}\n${sourceLinks(ctx, grounded).join('\n')}`;
 
 async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment, text: ReplyText): Promise<string | null> {
   try {
-    const passage = await ground(comment.text);
-    return passage === null ? null : wikiAnswer(ctx, passage, text);
+    const grounded = await ground({ text: comment.text, context: comment.context, language: comment.language });
+    return grounded === null ? null : groundedAnswer(ctx, grounded, text);
   } catch (error) {
-    await reportFailure(ctx, 'public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it got no answer: ${error instanceof Error ? error.message : String(error)}`, null, []);
+    await reportFailure(ctx, 'public', comment.issue, `the docs answer to player comment ${comment.id} failed, so it got no answer: ${error instanceof Error ? error.message : String(error)}`, null, []);
     return null;
   }
 }
 
 async function threadNote(ctx: Ctx, comment: IssueComment, text: ReplyText): Promise<string> {
   const link = issueLink(ctx, comment.issue);
+  if (comment.kind === 'question') return text.related(link, await issueStatus(ctx, comment.issue, text));
   return comment.linked ? text.aboutWork(link, await issueStatus(ctx, comment.issue, text)) : text.added(link);
 }
 

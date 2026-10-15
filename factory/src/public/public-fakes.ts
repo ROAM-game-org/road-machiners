@@ -1,9 +1,8 @@
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { EMPTY_STATE, writeState } from '../state';
 import { VOTING_LABEL, type Card, type Ctx, type Column, type FactoryConfig } from '../types';
-import type { Classify, PublicFilter } from './decision';
+import type { Classify, Ground, PublicFilter } from './decision';
 import { openStore, type PublicStore } from './store';
-import type { Ground } from './wiki';
 
 export type SentMessage = { chat: string; text: string; replyTo: number | null | undefined };
 
