@@ -17,6 +17,7 @@ import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { playerSees } from "../sim/vision";
+import { currentQuestLanguage } from "../sim/quests";
 import { autoRuns, hostileToPlayer, playerCanAct } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
@@ -394,6 +395,7 @@ export class TurnPreparation {
       {
         kind: "turn",
         id,
+        questLanguage: currentQuestLanguage(),
         world: state,
         drive: saved,
         terrain: this.terrain === terrain ? null : terrain,
