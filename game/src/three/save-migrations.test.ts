@@ -67,6 +67,8 @@ import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import FORMAT_2_67 from './save-fixtures/format-2-67.json';
+import FORMAT_2_68 from './save-fixtures/format-2-68.json';
+import FORMAT_2_69 from './save-fixtures/format-2-69.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1428,5 +1430,34 @@ describe('MIGRATIONS[67]', () => {
     expect(MIGRATIONS[67](structuredClone(other))).toEqual(other);
     const none = { turn: 3, player: { call: null } };
     expect(MIGRATIONS[67](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('save migration 68 to 69', () => {
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[68](structuredClone(FORMAT_2_68))).toEqual(FORMAT_2_68);
+  });
+});
+
+describe('save migration 69 to 70', () => {
+  const migrated = () => MIGRATIONS[69](structuredClone(FORMAT_2_69)) as typeof FORMAT_2_69;
+
+  it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
+    const w = migrated();
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct4']);
+    expect(w.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct3']);
+    expect(w.shops.nose.contracts).toEqual([]);
+  });
+
+  it('ends a call on the removed found topic and forgets that topic', () => {
+    const w = migrated();
+    expect(w.player.call).toBeNull();
+    expect(w.player.talked).toEqual({ v7: { directions: 'done' }, v3: { lastSeen: 'done' } });
+  });
+
+  it('keeps a call on another topic', () => {
+    const save = structuredClone(FORMAT_2_69);
+    save.player.call.topic = 'lastSeen';
+    expect((MIGRATIONS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
   });
 });

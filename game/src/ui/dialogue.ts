@@ -9,13 +9,13 @@ import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
 import { byId, list, t, type Msg } from '../text/msg';
-import { goodLower, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
+import { fullName, goodLower, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { directionsText } from './directions-text';
 import { renderLine } from './quest-text';
-import { fuelLiters, moneyM } from './units';
+import { agoText, distanceText, fuelLiters, moneyM } from './units';
 
 const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
 
@@ -52,6 +52,13 @@ export function tipText(v: Extract<CallVar, { kind: 'tip' }>): Msg {
   return v.tip.dear ? t('tip.dear', words) : t('tip.cheap', words);
 }
 
+export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
+  const driver = fullName(v.driver);
+  if (!v.seen) return t('sighting.none', { driver });
+  const { bearing, tiles, turns, heading } = v.seen;
+  return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compass(bearing), heading: compass(heading) });
+}
+
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
   const names = [
     ...Object.entries(v.goods).map(([good, n]) => t('call.haulGood', { n, good: goodLower(good) })),
@@ -73,6 +80,7 @@ const VAR_TEXT: VarText = {
   aid: (v) => aidWords(v.fuel, v.supplies),
   haul: haulText,
   tip: tipText,
+  sighting: sightingText,
   line: (v) => lineText(v.line, {}),
   directions: (v) => directionsText(v.steps),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
