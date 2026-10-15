@@ -294,7 +294,7 @@ export const SCORE_BLOCKS = {
   nudges: { crash: { wall: 1.5 }, sighted: { wall: 2 }, knockout: { stop: 3 } } as Partial<Record<string, Partial<Record<"intro" | "verse" | "wall" | "stop" | "solo", number>>>>,
   jumpFadeSeconds: 0.03,
   seamSeconds: 0.01,
-  aheadSeconds: 0.25,
+  aheadSeconds: 1.5,
   startLeadSeconds: 0.1,
   eventLeadSeconds: 0.05,
 };

@@ -42,9 +42,14 @@
   align-items: center;
   gap: var(--space-3) var(--space-5);
 }
+.score-lab-song {
+  font-size: var(--text-heading);
+  color: var(--ink-bright);
+}
 .score-lab-bar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: var(--space-7);
   margin-bottom: var(--space-4);
 }

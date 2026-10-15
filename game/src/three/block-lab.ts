@@ -8,7 +8,8 @@ import { token } from "../ui/tokens";
 import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 
 const SONG_ROOT = "/tmp/score-proto/";
-const SONGS = ["dust", "convoy", "dusk"];
+const SONG_TITLES: Record<string, string> = { dust: "Dust and Iron", convoy: "Scorched Convoy", dusk: "Convoy At Dusk" };
+const SONGS = Object.keys(SONG_TITLES);
 const PREP_HINT = "Run scripts/score-blocks-prep.py to write each song into public/tmp/score-proto/<song>/ first.";
 const ZOOM_SECONDS = [6, 12, 24];
 const DEFAULT_ZOOM = 12;
@@ -17,6 +18,7 @@ const GUTTER = 96;
 const COLUMN_STEP = 2;
 const LABEL_GAP = 6;
 const AUTO_PAUSE_SECONDS = [1, 4];
+const AUDIO_TICK_MS = 100;
 const LANES = [
   { id: "events", height: 60 },
   { id: "song", height: 90 },
@@ -180,6 +182,7 @@ function newSession(): BlockSession {
 
 async function startCombat(): Promise<void> {
   kit = await kitOf(pickSong());
+  songTitle.textContent = SONG_TITLES[kit.name];
   session = newSession();
   session.start(ctx.currentTime);
   nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
@@ -201,10 +204,14 @@ function autoTurn(now: number): void {
   nextTurn += TURN_SECONDS + (auto === "pauses" ? lo + Math.random() * (hi - lo) : 0);
 }
 
-function frame(): void {
+function audioTick(): void {
   const now = ctx.currentTime;
   autoTurn(now);
   session.tick(now);
+}
+
+function frame(): void {
+  audioTick();
   draw();
   syncStats();
   syncLedger();
@@ -438,7 +445,8 @@ const zoomChoice = choice(
   ZOOM_SECONDS.indexOf(DEFAULT_ZOOM),
 );
 const holder = el("div", { class: "score-lab-canvas" }, canvas);
-const timelinePanel = panel(el("div", { class: "score-lab-bar" }, zoomChoice), holder);
+const songTitle = el("div", { class: "score-lab-song" }, SONG_TITLES[kit.name]);
+const timelinePanel = panel(el("div", { class: "score-lab-bar" }, songTitle, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
 const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "", "Join and odds"].map((word) => el("span", {}, word)));
@@ -447,7 +455,6 @@ const ledgerPanel = panel(ledgerHead, ledgerRows);
 function statRows(): [string, string][] {
   return [
     ["Combat", session.inCombat ? "on" : "off"],
-    ["Song", kit.name],
     ["Playing", session.playingAt(ctx.currentTime)?.label ?? "-"],
     ["Bars played", String(session.barsPlayed)],
     ["Heat", session.heatAt(ctx.currentTime).toFixed(2)],
@@ -489,4 +496,5 @@ function syncLedger(): void {
 root.replaceChildren(el("div", { class: "score-lab-side" }, controlsPanel, statsPanel), timelinePanel, ledgerPanel);
 new ResizeObserver(() => fitCanvas(holder.clientWidth)).observe(holder);
 fitCanvas(holder.clientWidth);
+setInterval(audioTick, AUDIO_TICK_MS);
 requestAnimationFrame(frame);

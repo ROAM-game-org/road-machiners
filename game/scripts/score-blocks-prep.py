@@ -11,7 +11,7 @@ BEATS_PER_BAR = 4
 KICK_HZ = 120
 CYMBAL_HZ = 5000
 DEMUCS_MODEL = "htdemucs_6s"
-INTRO_HIT_DB = 6
+HIT_DB = 6
 
 
 def beat_grid(path, bpm):
@@ -79,15 +79,15 @@ def cymbals(drums_path, out, bars, sections, song_path):
     return {"file": out.name, "from": loudest["from"]}
 
 
-def check_intro_hits(song_path, bars, sections):
+def check_hits(song_path, bars, plan):
     y, sr = librosa.load(song_path, sr=22050, mono=True)
     beat = (bars[1] - bars[0]) / BEATS_PER_BAR
     loud = lambda t: 20 * np.log10(np.sqrt(np.mean(y[int(max(0, t) * sr) : int((t + beat) * sr)] ** 2)) + 1e-9)
-    intro = next(s for s in sections if s["role"] == "intro")
+    intro = next(s for s in plan["sections"] if s["role"] == "intro")
     level = np.median([loud(t) for t in bars[:-1]])
-    for bar in range(intro["from"], intro["from"] + intro["bars"]):
-        if loud(bars[bar - 1]) < level - INTRO_HIT_DB:
-            raise ValueError(f"intro bar {bar} starts {level - loud(bars[bar - 1]):.0f} dB under the song; the intro must hit on beat 1 of every bar")
+    for bar in [*range(intro["from"], intro["from"] + intro["bars"]), plan["end"]]:
+        if loud(bars[bar - 1]) < level - HIT_DB:
+            raise ValueError(f"bar {bar} starts {level - loud(bars[bar - 1]):.0f} dB under the song; intro bars and the end bar must hit on beat 1")
 
 
 def map_song(plan, song_path, stems_dir, guitar_stem, out_dir):
@@ -95,7 +95,7 @@ def map_song(plan, song_path, stems_dir, guitar_stem, out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"], plan.get("barOneAtFirstBeat", False))
-    check_intro_hits(song_path, bars, plan["sections"])
+    check_hits(song_path, bars, plan)
     song_file = f"song{Path(song_path).suffix}"
     shutil.copy(song_path, out / song_file)
     for name, stem in stems.items():
