@@ -168,6 +168,12 @@ describe("BlockSequencer", () => {
     expect(blocks.slice(stop, stop + 2).map((b) => b.bar)).toEqual([37, 39]);
   });
 
+  it("loops a role inside the section it chose instead of jumping to another copy", () => {
+    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), { ...ARC, stopEveryBars: 100 }, () => 0);
+    const bars = [0, 3, 3, 3, 3, 3, 3].map((h) => seq.next(h).bar);
+    expect(bars).toEqual([5, 21, 25, 29, 33, 21, 25]);
+  });
+
   it("refuses a section that does not split into blocks", () => {
     expect(() => blocksOf([{ role: "verse", from: 1, bars: 6 }], 4)).toThrow(/multiple of 4/);
   });

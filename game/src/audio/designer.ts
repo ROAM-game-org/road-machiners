@@ -211,7 +211,7 @@ export class BlockSequencer {
   private sinceStop = 0;
   private total = 0;
   private soloed = false;
-  private lastSection = new Map<Role, number>();
+  private chosen = new Map<Role, number>();
 
   constructor(
     private blocks: readonly Block[],
@@ -296,10 +296,16 @@ export class BlockSequencer {
   private blockFor(role: Role): Block {
     const following = this.current && this.blocks.find((b) => b.bar === this.current!.bar + this.current!.bars);
     if (following && following.role === role) return following;
-    const sections = [...new Set(this.blocks.filter((b) => b.role === role).map((b) => b.section))];
-    const fresh = sections.length > 1 ? sections.filter((s) => s !== this.lastSection.get(role)) : sections;
-    const section = fresh[Math.floor(this.roll() * fresh.length)];
-    this.lastSection.set(role, section);
+    const section = this.sectionFor(role);
     return this.blocks.find((b) => b.section === section)!;
+  }
+
+  private sectionFor(role: Role): number {
+    const kept = this.chosen.get(role);
+    if (kept !== undefined) return kept;
+    const sections = [...new Set(this.blocks.filter((b) => b.role === role).map((b) => b.section))];
+    const section = sections[Math.floor(this.roll() * sections.length)];
+    this.chosen.set(role, section);
+    return section;
   }
 }

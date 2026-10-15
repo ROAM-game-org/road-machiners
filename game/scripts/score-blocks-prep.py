@@ -5,13 +5,10 @@ from pathlib import Path
 
 import librosa
 import numpy as np
-import soundfile as sf
 
 BEATS_PER_BAR = 4
 KICK_HZ = 120
-STFT_SIZE = 4096
-CENTER_SHARPNESS = 4
-LEAD_MARGIN_SECONDS = 0.05
+STEMS = {"drums": "drums.wav", "guitars": "other.wav"}
 
 
 def beat_grid(path, bpm):
@@ -51,40 +48,17 @@ def bar_times(song_path, drums_path, bpm, bars):
     return (start + BEATS_PER_BAR * beat * np.arange(bars + 1)).tolist(), length
 
 
-def center(stereo, sr):
-    left, right = (librosa.stft(np.ascontiguousarray(stereo[:, c]).astype(np.float32), n_fft=STFT_SIZE) for c in (0, 1))
-    alike = 2 * np.real(left * np.conj(right)) / (np.abs(left) ** 2 + np.abs(right) ** 2 + 1e-12)
-    mask = np.clip(alike, 0, 1) ** CENTER_SHARPNESS
-    return librosa.istft(mask * (left + right) / 2, n_fft=STFT_SIZE, length=len(stereo))
-
-
-def rms_db(y):
-    return 20 * np.log10(np.sqrt(np.mean(y**2)) + 1e-9)
-
-
-def cut_lead(other_path, bars, lead, out):
-    stereo, sr = sf.read(other_path, always_2d=True)
-    lead_only = center(stereo, sr)
-    span = lambda first, count: lead_only[int(bars[first - 1] * sr) : int(bars[first - 1 + count] * sr)]
-    wall = rms_db(span(lead["quietFrom"], lead["bars"]))
-    solo = rms_db(span(lead["from"], lead["bars"]))
-    print(f"center of the guitar stem: solo bars {solo:.1f} dB, wall bars without lead {wall:.1f} dB")
-    start = bars[lead["from"] - 1] - LEAD_MARGIN_SECONDS
-    y = lead_only[int(start * sr) : int((bars[lead["from"] - 1 + lead["bars"]] + LEAD_MARGIN_SECONDS) * sr)]
-    sf.write(out, y, sr)
-    return {"file": out.name, "start": start, "from": lead["from"], "bars": lead["bars"]}
-
-
 def main(map_path, song_path, stems_dir, out_dir):
     plan = json.loads(Path(map_path).read_text())
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"])
     shutil.copy(song_path, out / "song.mp3")
-    lead = cut_lead(f"{stems_dir}/other.wav", bars, plan["lead"], out / "lead.wav")
-    song = {"file": "song.mp3", "bpm": plan["bpm"], "length": length, "barTimes": bars, "sections": plan["sections"], "end": plan["end"], "lead": lead}
+    for name, stem in STEMS.items():
+        shutil.copy(f"{stems_dir}/{stem}", out / f"{name}.wav")
+    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "bpm": plan["bpm"], "length": length, "barTimes": bars, "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
-    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and a {lead['bars']} bar lead")
+    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and stems {', '.join(STEMS)}")
 
 
 if __name__ == "__main__":
