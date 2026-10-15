@@ -7,7 +7,7 @@ import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
 import { acceptContract, type Contract } from './market';
-import { chooseQuestOption, QUESTS, restoreQuest, questView, startQuest } from './quests';
+import { chooseQuestOption, QUEST_QUERIES, QUESTS, restoreQuest, questView, startQuest } from './quests';
 import { sitePads } from './sites';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import { emptyWorld } from './testkit';
@@ -648,5 +648,31 @@ describe('the Pump Station fuel role', () => {
   it('keeps no one living at the Pump Station and no water made there', () => {
     expect(Object.values(LOCALS).filter((l) => l.town === 'pump-station')).toEqual([]);
     expect(localsAt('dustwell').map((l) => l.id)).toEqual(['agnes']);
+  });
+});
+
+describe('site state queries', () => {
+  it('tells whether the parked shop runs short of a good', () => {
+    const w = parkedAt('granary');
+    expect(QUEST_QUERIES.short_of(w, ['grain'])).toBe(false);
+    w.shops.granary.goods.grain = 0;
+    expect(QUEST_QUERIES.short_of(w, ['grain'])).toBe(true);
+  });
+
+  it('tells whether the parked site has its works broken down', () => {
+    const w = parkedAt('pump-station');
+    expect(QUEST_QUERIES.works_down(w, [])).toBe(false);
+    w.shops['pump-station'].event = { kind: 'breakdown', recipe: 'pump', until: w.turn + 100 };
+    expect(QUEST_QUERIES.works_down(w, [])).toBe(true);
+    w.shops['pump-station'].event = { kind: 'surge', recipe: 'pump', until: w.turn + 100 };
+    expect(QUEST_QUERIES.works_down(w, [])).toBe(false);
+  });
+
+  it('throws away from a shop, for a good the shop does not trade and at a site whose works never break down', () => {
+    expect(() => QUEST_QUERIES.short_of(emptyWorld(), ['grain'])).toThrow(/parked at a shop/);
+    expect(() => QUEST_QUERIES.works_down(emptyWorld(), [])).toThrow(/parked at a shop/);
+    expect(() => QUEST_QUERIES.short_of(parkedAt('granary'), ['electronics'])).toThrow(/no stock of electronics/);
+    expect(() => QUEST_QUERIES.short_of(parkedAt('granary'), ['sand'])).toThrow(/names no good sand/);
+    expect(() => QUEST_QUERIES.works_down(parkedAt('granary'), [])).toThrow(/never break down/);
   });
 });

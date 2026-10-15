@@ -1,7 +1,7 @@
 
 import { PLAYER_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
-import { CONTRACTS, SHOPS, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
+import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
 import { RULES } from "../data/rules";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
@@ -41,7 +41,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
 import { onRelief, recipeRunning } from "../sim/production";
@@ -71,7 +71,6 @@ export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor",
 
 const GARAGE_ONLY: Tab[] = ["trucks"];
 
-const PRESSURE_HINT_AT = 0.2;
 
 export class TownScreen {
   private root = panel("modal dialog");
@@ -606,9 +605,8 @@ function contractSummaryCell(c: Contract): HTMLElement {
 }
 
 export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
-  const pressure = pressureOf(def.id, good, goodStock(state, good));
-  if (pressure >= PRESSURE_HINT_AT) return { tone: "bad", title: t("trade.hint.short") };
-  if (pressure <= -PRESSURE_HINT_AT) return { tone: "good", title: t("trade.hint.flooded") };
+  if (stockShort(def.id, state, good)) return { tone: "bad", title: t("trade.hint.short") };
+  if (pressureOf(def.id, good, goodStock(state, good)) <= -SHORT_PRESSURE) return { tone: "good", title: t("trade.hint.flooded") };
   if (def.makes.includes(good)) return { tone: "good", title: t("trade.hint.cheap") };
   if (def.needs.includes(good)) return { tone: "bad", title: t("trade.hint.dear") };
   return null;

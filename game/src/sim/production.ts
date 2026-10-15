@@ -167,6 +167,11 @@ export function essentialShort(world: World, shopId: string, good: string): bool
   return shopState(world, shopId).shortSince[good] !== undefined;
 }
 
+export function worksDown(world: World, shopId: string): boolean {
+  if (!SITE_EVENTS.some((e) => e.site === shopId && e.kind === 'breakdown')) throw new Error(`The works at ${shopId} never break down`);
+  return shopState(world, shopId).event?.kind === 'breakdown';
+}
+
 export function onRelief(world: World, shopId: string, good: string): boolean {
   const since = shopState(world, shopId).shortSince[good];
   return since !== undefined && world.turn - since >= RELIEF.delayTurns;

@@ -177,6 +177,8 @@ export type ShopDef = {
 
 export const PRESSURE_MAX = 0.6;
 
+export const SHORT_PRESSURE = 0.2;
+
 type ShopData = Omit<ShopDef, 'makes' | 'needs' | 'goods'>;
 
 const SHOP_DATA: Record<string, ShopData> = {

@@ -5,6 +5,7 @@ import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { emptyWorld } from "../sim/testkit";
 import { RELIEF } from "../data/market";
+import { shortHere } from "../sim/market";
 import { shortBy } from "./shop-rows";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
@@ -66,5 +67,20 @@ describe("production on the market tab", () => {
     expect(en(goodRoutesTitle("grain"))).toMatch(/^Made at .*Bowl.*\. Used at .*Granary/);
     expect(showsRelief(relieved(), "granary", "grain")).toBe(true);
     resetSeeAll();
+  });
+});
+
+describe("the short tone and the short rule", () => {
+  it("agree for every shop and traded good at every stock level", () => {
+    const w = emptyWorld();
+    for (const def of Object.values(SHOPS)) {
+      for (const good of def.goods) {
+        const target = stockTarget(def.id, good);
+        for (const stock of [0, Math.floor(target / 2), Math.floor(target * 0.7), target, target * 2]) {
+          w.shops[def.id].goods[good] = stock;
+          expect(hint(def, w.shops[def.id], good)?.title === "Short here").toBe(shortHere(w, def.id, good));
+        }
+      }
+    }
   });
 });

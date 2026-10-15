@@ -70,8 +70,10 @@
   "passed",
   "pay",
   "searched",
+  "short_of",
   "skill",
-  "take_work"
+  "take_work",
+  "works_down"
  ],
  "quests": {
   "bowl_dag": {

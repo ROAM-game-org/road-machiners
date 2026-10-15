@@ -4,7 +4,7 @@ import { PARTS, type PartKind } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
-import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
+import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, SHORT_PRESSURE, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
 import { dailyFlow, graphEdges, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
@@ -130,6 +130,14 @@ export function pressureOf(shopId: string, good: string, stock: number): number 
   const target = stockTarget(shopId, good);
   const pressure = (PRODUCTION.elasticity * (target - stock)) / target;
   return Math.max(-PRESSURE_MAX, Math.min(PRESSURE_MAX, pressure));
+}
+
+export function stockShort(shopId: string, state: ShopState, good: string): boolean {
+  return pressureOf(shopId, good, goodStock(state, good)) >= SHORT_PRESSURE;
+}
+
+export function shortHere(world: World, shopId: string, good: string): boolean {
+  return stockShort(shopId, shopState(world, shopId), good);
 }
 
 export function advanceShop(world: World, shopId: string, state: ShopState): void {

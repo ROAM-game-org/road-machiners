@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY, GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
-import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS } from '../data/market';
+import { DISTANCE_PREMIUM, EFFORT, PRICE_FACTOR, PRESSURE_MAX, SHOPS, SHORT_PRESSURE } from '../data/market';
 import { dist } from './vec';
 import { emptyWorld, addVehicle, npcBrain } from './testkit';
 import type { Vehicle, World } from './types';
@@ -21,6 +21,7 @@ import {
   stockTarget,
   lotPrice,
   recordTrade,
+  shortHere,
   siteOf,
   takeStockPart,
   type Contract,
@@ -271,5 +272,23 @@ describe('creditBounty', () => {
     creditBounty(w, npc);
     expect(w.player.contracts.map((c) => c.id)).toEqual(['c']);
     expect(w.player.money).toBe(0);
+  });
+});
+
+describe('a short good', () => {
+  it('is short once its pressure reaches the short level, not at its target', () => {
+    const w = emptyWorld();
+    const target = stockTarget('granary', 'grain');
+    w.shops.granary.goods.grain = target;
+    expect(shortHere(w, 'granary', 'grain')).toBe(false);
+    w.shops.granary.goods.grain = 0;
+    expect(shortHere(w, 'granary', 'grain')).toBe(true);
+    w.shops.granary.goods.grain = Math.floor(target * (1 - SHORT_PRESSURE / 0.6));
+    expect(pressureOf('granary', 'grain', w.shops.granary.goods.grain)).toBeGreaterThanOrEqual(SHORT_PRESSURE);
+    expect(shortHere(w, 'granary', 'grain')).toBe(true);
+  });
+
+  it('throws for a good the shop does not trade', () => {
+    expect(() => shortHere(emptyWorld(), 'granary', 'electronics')).toThrow();
   });
 });

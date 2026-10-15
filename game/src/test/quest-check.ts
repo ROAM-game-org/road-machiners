@@ -2,6 +2,8 @@
 import { NOTE_IDS } from '../data/locals';
 import { QUEST_LANGUAGES, WAGON_SEEN, type QuestBundle, type QuestLanguage, type QuestValue } from '../data/quests';
 import { REGION } from '../data/region';
+import { SITE_EVENTS } from '../data/market';
+import { TIME } from '../data/time';
 import { STORY_WRECKS } from '../data/salvage';
 import { MAX_RANK, SKILL_IDS } from '../data/skills';
 import { playerVehicle } from '../sim/damage';
@@ -95,8 +97,18 @@ function veteran(fresh: World): World {
   w.player.quests.world = { ...w.player.quests.world, [WAGON_SEEN]: true };
   for (const skill of SKILL_IDS) w.player.ranks[skill] = MAX_RANK;
   while (shopAt(w) && townWork(w)) takeTownWork(w);
+  starveParkedShop(w);
   w.events = [];
   return w;
+}
+
+function starveParkedShop(w: World): void {
+  const shopId = shopAt(w);
+  if (!shopId) return;
+  const state = w.shops[shopId];
+  for (const good of Object.keys(state.goods)) state.goods[good] = 0;
+  const breakdown = SITE_EVENTS.find((e) => e.site === shopId && e.kind === 'breakdown');
+  if (breakdown) state.event = { kind: 'breakdown', recipe: breakdown.recipe, until: w.turn + TIME.turnsPerDay };
 }
 
 function hookProblems(bundle: QuestBundle): string[] {
