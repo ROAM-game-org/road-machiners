@@ -249,6 +249,7 @@ Context from Hermes:
 - When the request spans several messages, or a reply to an earlier message, quote each relevant message in its own block, in order.
 - Add the context only when the agent needs it. Mark each line as evidence or as your reading. Never add a design, a method, a test plan or acceptance criteria the member did not ask for.
 - Quote only text you have. An image, voice note, file, link or forwarded message you could not read is no quote. Name it in the context as not available to you, and say what you know of it. A voice note you transcribed is your transcript, so say so in the context.
+- Send the shape as plain lines, with no code fence around it.
 - `factory_queue_change` and `factory_queue_task` refuse a member's request without this shape, and queue nothing. Fix it and call again.
 - A task from the incident watch or your own reading has no member words, so write it in your own words.
 
