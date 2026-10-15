@@ -1,4 +1,5 @@
 A committee member asked to change how the ROAM factory works. Read the request in .factory/request.md.
+Text between a `<member-words>` line and a `</member-words>` line is the member's exact words, and it rules the change. Text under `Context from Hermes:` is Hermes's notes: check its evidence, and take its reading as a guess. Where they differ, follow the member's words. A request with no such block is the member's own text. Design the change yourself from the member's words.
 You work alone in a clone of the repo on its own branch. The clone is your isolated checkout, so make no worktree and switch no branch.
 
 Read ../CLAUDE.md and CLAUDE.md first.

@@ -11,6 +11,7 @@ digraph committee {
   hermes [label="Hermes routes"]; hermes2 [label="Hermes queues"];
   node [fillcolor="#eef2ff", color="#6366f1"];
   ready [label="Plugin checks the text;\nimages never block"];
+  quoted [label="Plugin checks the\nmember's words are quoted"];
   node [fillcolor="#eef2ff", color="#6366f1"];
   approveJob [label="approve job"]; closed [label="Issue closed\nas wont-do"]; answer [label="Answer in chat\ncard stays"];
   patchJob [label="Card to Testing\nthe reply is the task"]; design [label="Card to Design"]; shipJob [label="ship job"]; removeJob [label="remove job"];
@@ -19,5 +20,7 @@ digraph committee {
   reply -> hermes; hermes -> answer [label="answer"]; hermes -> ready [label="patch or\nredesign"];
   forced -> ready; ready -> patchJob [label="patch"]; ready -> design [label="redesign"]; ready -> member [label="text too short\nnothing queued"];
   ship -> shipJob; remove -> removeJob; rtask -> newTask;
-  change -> changeJob; ask -> hermes2; hermes2 -> adhocJob [label="task"]; hermes2 -> changeJob [label="factory change"];
+  change -> changeJob; ask -> hermes2; hermes2 -> quoted [label="task or\nfactory change"];
+  quoted -> adhocJob [label="task"]; quoted -> changeJob [label="factory change"];
+  quoted -> hermes2 [label="not quoted\nnothing queued", color="#dc2626", fontcolor="#dc2626", style=dashed, constraint=false];
 }
