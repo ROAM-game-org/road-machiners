@@ -51,6 +51,10 @@ const noRig = {
   },
 };
 
+function heardVolume(cue: string): number {
+  return sounds[cue].volume * MIX.busVolume[sounds[cue].bus];
+}
+
 export function lineOf(cue: string): Line {
   return MIX.score.accents[cue as AccentCue].line;
 }
@@ -200,7 +204,7 @@ export class ScoreSession {
       file: s.file,
       start: s.start,
       from: s.from,
-      volume: sounds[s.cue].volume * s.gain,
+      volume: heardVolume(s.cue) * s.gain,
       pan: s.pan,
       stab: s.stab,
       owner: s.owner,
@@ -209,7 +213,7 @@ export class ScoreSession {
   }
 
   private plannedBase(t: BaseTrace): PlannedBase {
-    return { id: t.id, file: t.file, volume: sounds[t.id].volume, when: t.when, offset: t.offset, duration: t.duration, gain: t.gain, duck: t.duck };
+    return { id: t.id, file: t.file, volume: heardVolume(t.id), when: t.when, offset: t.offset, duration: t.duration, gain: t.gain, duck: t.duck };
   }
 
   private clockMs(): number {
