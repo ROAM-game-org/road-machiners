@@ -228,6 +228,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.dialog` frames a modal, the save panel and the New game screen, with the scrim over the game and padding of `--space-9` on every side.
 - `.dock-panel` is a panel of the right dock: the log, the contracts and the radio.
 - `.notice` is a box at the top middle of the HUD that waits for a choice: rescue, stranded and dialogue.
+- `.crash-screen` is the critical full-screen surface for a crash, missing WebGL and files that did not arrive. It holds `.crash-title`, the lines, an optional `.crash-reload` button that takes focus and a `.crash-hint` detail.
 - `.panel-title` is the heading of a small HUD panel. A dialog uses a plain `h3`.
 - A text button has one of three heights: `--btn-h-s` 24px, `--btn-h-m` 32px and `--btn-h-l` 44px. A plain `button` is medium. `.btn-s` makes a small one for rows, cards, table cells and small panels. `.btn-l` makes a large one for a screen's main choice. `.btn-danger` marks a hostile action. `.on` marks a pressed toggle.
 - Only `components.css` sets a button's height, padding or type size. A screen file places a button and sets its width. The small group of buttons that size themselves are tiles and drawn hardware, and the list is in `components.css`. A new button joins a size, and the guard test fails when a screen file sizes one.
