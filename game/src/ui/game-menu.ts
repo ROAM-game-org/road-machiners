@@ -265,7 +265,7 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc"));
+    return el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel());
   }
 
   private offContent(): HTMLElement[] {
