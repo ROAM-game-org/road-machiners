@@ -183,6 +183,7 @@ export class Fading {
 }
 
 export type Role = "intro" | "verse" | "wall" | "stop" | "solo";
+export type RolePair = `${Role}>${Role}`;
 export type Section = { role: Role; from: number; bars: number };
 export type Block = { role: Role; bar: number; bars: number; section: number };
 
@@ -194,6 +195,7 @@ export type ArcTuning = {
   memoryWeight: number;
   stay: number;
   next: Record<Role, Partial<Record<Role, number>>>;
+  after: Partial<Record<RolePair, Partial<Record<Role, number>>>>;
   hot: Record<Role, number>;
   calm: Record<Role, number>;
 };
@@ -211,6 +213,7 @@ export function blocksOf(sections: readonly Section[], blockBars: number): Block
 
 export class BlockSequencer {
   private current: Block | null = null;
+  private previous: Block | null = null;
   private total = 0;
   private memory: number[];
   private sections: number[];
@@ -237,6 +240,7 @@ export class BlockSequencer {
   next(heat: number): Block {
     const block = this.current ? this.pick(this.current, heat) : this.firstOf(this.blocks.find((b) => b.role === "intro")!.section);
     this.remember(block);
+    this.previous = this.current;
     this.current = block;
     return block;
   }
@@ -275,7 +279,12 @@ export class BlockSequencer {
     const base = (t.next[current.role][role] ?? 0) / this.sections.filter((s) => this.firstOf(s).role === role).length;
     const stay = section === current.section ? t.stay : 1;
     const fresh = Math.exp(-t.memoryWeight * this.memory[this.sections.indexOf(section)]);
-    return base * this.mood(role, heat) * stay * fresh;
+    return base * this.pairFactor(current, role) * this.mood(role, heat) * stay * fresh;
+  }
+
+  private pairFactor(current: Block, role: Role): number {
+    if (!this.previous) return 1;
+    return this.tuning.after[`${this.previous.role}>${current.role}`]?.[role] ?? 1;
   }
 
   private mood(role: Role, heat: number): number {

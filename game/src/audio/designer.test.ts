@@ -139,6 +139,7 @@ const ARC: ArcTuning = {
   memoryWeight: 0.08,
   stay: 3,
   next: { intro: { verse: 3, wall: 1 }, verse: { verse: 4, wall: 3, stop: 1 }, wall: { wall: 4, verse: 2, stop: 1 }, stop: { verse: 2, wall: 2 }, solo: { wall: 1 } },
+  after: {},
   hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1 },
   calm: { intro: 1, verse: 2, wall: 0.3, stop: 0.3, solo: 1 },
 };
@@ -181,6 +182,17 @@ describe("BlockSequencer", () => {
     expect(new Set(seq.choices.map((c) => c.role))).toEqual(new Set(["verse", "wall"]));
     seq.next(0);
     expect(new Set(seq.choices.map((c) => c.role))).toEqual(new Set(["verse", "wall", "stop"]));
+  });
+
+  it("scales the moves by the two sections before, not only the current one", () => {
+    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), { ...ARC, after: { "intro>verse": { stop: 0, wall: 2 } } }, () => 0);
+    seq.next(0);
+    seq.next(0);
+    seq.next(0);
+    expect(seq.choices.some((c) => c.role === "stop")).toBe(false);
+    const plain = sequencer();
+    [0, 0, 0].forEach((h) => plain.next(h));
+    expect(chanceOf(seq, "wall")).toBeGreaterThan(chanceOf(plain, "wall"));
   });
 
   it("makes staying less likely the longer a section loops", () => {
