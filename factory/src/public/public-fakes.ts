@@ -3,7 +3,6 @@ import { EMPTY_STATE, writeState } from '../state';
 import { VOTING_LABEL, type Card, type Ctx, type Column, type FactoryConfig } from '../types';
 import type { Classify, PublicFilter } from './decision';
 import { openStore, type PublicStore } from './store';
-import type { Ground } from './wiki';
 
 export type SentMessage = { chat: string; text: string; replyTo: number | null | undefined };
 
@@ -60,4 +59,4 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   return f;
 }
 
-export const filterOf = (classify: Classify, ground: Ground = async () => null): PublicFilter => ({ classify, ground });
+export const filterOf = (classify: Classify): PublicFilter => ({ classify });

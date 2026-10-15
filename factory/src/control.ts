@@ -18,7 +18,7 @@ import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
 import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
-export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident'] as const;
+export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident', 'answer'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
 
 export type ControlAction =
@@ -360,6 +360,7 @@ const DROPS: Record<DropQueue, Drop> = {
   ship: { has: (state) => state.pendingShip !== null, without: (state) => ({ ...state, pendingShip: null }) },
   change: { has: (state, id) => state.pendingChanges.some((item) => item.id === id), without: (state, id) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }) },
   incident: { has: (state, id) => state.pendingIncidents.includes(id), without: (state, id) => ({ ...state, pendingIncidents: state.pendingIncidents.filter((item) => item !== id) }) },
+  answer: { has: (state, id) => state.pendingAnswers.includes(id), without: (state, id) => ({ ...state, pendingAnswers: state.pendingAnswers.filter((item) => item !== id) }) },
 };
 const ISSUE_QUEUES: DropQueue[] = ['approval', 'removal', 'incident'];
 

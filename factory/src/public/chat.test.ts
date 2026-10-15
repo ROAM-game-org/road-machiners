@@ -2,10 +2,10 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { inboxDir } from '../inbox';
 import { readState, updateState } from '../state';
+import type { FactoryConfig } from '../types';
 import type { Classify, Decision, FilterInput } from './decision';
 import { CHANNEL, COMMITTEE, filterOf, publicFake, type PublicFake } from './public-fakes';
 import { publicTick } from './tick-steps';
-import { groundWith, type Ground, type Passage } from './wiki';
 
 const SINCERE: Decision = { verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'feedback', route: 'none', relevance: 'parent' };
 const PROPOSAL = 100;
@@ -13,8 +13,8 @@ const BUILD = 200;
 
 type Said = { text: string; decision: Partial<Decision>; about?: number };
 
-function chat(said: Said[], ground: Ground = async () => null) {
-  const f = publicFake();
+function chat(said: Said[], overrides: Partial<FactoryConfig> = {}) {
+  const f = publicFake({ answersPerDay: 40, ...overrides });
   f.cards = [{ itemId: 'x', issue: 568, column: 'Approval', labels: [] }];
   f.store.addProposal(568, 'Faction reputation\nTowns remember what you did.', f.clock.now);
   f.store.markProposalPosted(568, CHANNEL, PROPOSAL, 'footer', f.clock.now);
@@ -28,7 +28,7 @@ function chat(said: Said[], ground: Ground = async () => null) {
     const work = found.about === undefined ? {} : { work: (input.work ?? []).findIndex((known) => known.startsWith(`#${found.about} `)) };
     return { ...SINCERE, ...found.decision, ...work };
   };
-  return { f, asked, tick: () => publicTick(f.ctx, filterOf(classify, ground)) };
+  return { f, asked, tick: () => publicTick(f.ctx, filterOf(classify)) };
 }
 
 let update = 0;
@@ -42,6 +42,7 @@ function post(f: PublicFake, message: { id: number; text: string; thread?: numbe
 }
 
 const repliesTo = (f: PublicFake, id: number) => f.messages.filter((message) => message.replyTo === id);
+const queuedMessages = (f: PublicFake) => readState(f.ctx.statePath).pendingAnswers.map((id) => f.store.comment(id)!.messageId);
 const cardMoves = (f: PublicFake) => f.calls.filter((call) => /^(move|close|addLabel|removeLabel)/.test(call));
 
 describe('public chat', () => {
@@ -90,41 +91,43 @@ describe('public chat', () => {
     expect(repliesTo(f, 12)[0]!.text).toContain('Nothing is fixed yet.');
   });
 
-  it('answers a question with the wiki passage that states it, quoted with its link, and never with a page summary', async () => {
+  it('queues an addressed question for the answer job with no reply yet, and files, digests and routes nothing', async () => {
     const asked = '@roam_bot how do I repair my engine?';
-    const passage: Passage = { page: 'mechanics/truck.md', title: 'Truck', heading: 'Field repair', anchor: 'field-repair', text: 'Field repair fixes one damaged mounted part. It spends parts from the stock.' };
-    const questions: string[] = [];
-    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }], async (question) => { questions.push(question); return passage; });
+    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }]);
     post(f, { id: 13, text: asked, addressed: true });
     await tick();
-    expect(questions).toEqual([asked]);
-    expect(repliesTo(f, 13).map((reply) => reply.text)).toEqual([`From the game wiki, Truck, Field repair:\n${passage.text}\nhttps://github.com/o/r/blob/main/game/docs/wiki/mechanics/truck.md#field-repair`]);
-    expect(f.created).toEqual([]);
-    expect(f.comments).toEqual([]);
-  });
-
-  it('sends no canned fallback when no passage states the answer or the wiki lookup fails, and reports the failure', async () => {
-    const specific = '@roam_bot how much does a winch cost in the Bowl?';
-    const broken = '@roam_bot what does the horn do?';
-    const { f, tick } = chat([{ text: specific, decision: { kind: 'question', relevance: 'other' } }, { text: broken, decision: { kind: 'question', relevance: 'other' } }], async (question) => {
-      if (question === broken) throw new Error('the filter call failed with status 500');
-      return null;
-    });
-    post(f, { id: 13, text: specific, addressed: true });
-    post(f, { id: 14, text: broken, addressed: true, sender: '43' });
-    await tick();
+    expect(queuedMessages(f)).toEqual([13]);
+    expect(f.store.answerRecord(f.store.recentChat(1)[0]!.id)).toMatchObject({ queuedAt: f.clock.now.toISOString(), tries: 0, text: null, sentAt: null });
     expect(f.messages).toEqual([]);
     expect(f.created).toEqual([]);
-    expect(f.logs.some((line) => line.includes('the wiki answer to player comment') && line.includes('status 500'))).toBe(true);
+    expect(f.comments).toEqual([]);
+    expect(f.store.pendingRoutes()).toEqual([]);
+    await tick();
+    expect(queuedMessages(f)).toEqual([13]);
   });
 
-  it('gives an on-topic question in its thread only the issue note when the wiki has no answer, and adds it to the parent comments', async () => {
+  it('keeps questions past the daily cap waiting in the store, and queues them once the 24 hours roll', async () => {
+    const first = '@roam_bot how much does a winch cost in the Bowl?';
+    const second = '@roam_bot what does the horn do?';
+    const { f, tick } = chat([{ text: first, decision: { kind: 'question', relevance: 'other' } }, { text: second, decision: { kind: 'question', relevance: 'other' } }], { answersPerDay: 1 });
+    post(f, { id: 13, text: first, addressed: true });
+    post(f, { id: 14, text: second, addressed: true, sender: '43' });
+    await tick();
+    expect(queuedMessages(f)).toEqual([13]);
+    expect(f.messages).toEqual([]);
+    f.clock.now = new Date(f.clock.now.getTime() + 25 * 3_600_000);
+    await tick();
+    expect(queuedMessages(f)).toEqual([13, 14]);
+  });
+
+  it('adds an on-topic question in its thread to the parent comments and queues it for the answer job, which sends the issue note with the answer', async () => {
     const text = 'Does the reputation reset when I die?';
     const { f, tick } = chat([{ text, decision: { kind: 'question', relevance: 'parent' } }]);
     post(f, { id: 23, text, thread: PROPOSAL });
     await tick();
     expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
-    expect(repliesTo(f, 23).map((reply) => reply.text)).toEqual(['Thanks. I added this to the player comments of #568: https://github.com/o/r/issues/568']);
+    expect(queuedMessages(f)).toEqual([23]);
+    expect(repliesTo(f, 23)).toEqual([]);
   });
 
   it('never answers addressed feedback outside a thread with the canned invitation to file', async () => {
@@ -149,6 +152,7 @@ describe('public chat', () => {
     await tick();
     expect(f.created).toHaveLength(1);
     expect(f.messages.map((message) => message.replyTo)).toEqual([15]);
+    expect(queuedMessages(f)).toEqual([]);
   });
 
   it('drops spam and adversarial text with no issue, no digest, no reply and no card or committee action', async () => {
@@ -208,15 +212,6 @@ describe('public chat', () => {
     expect(f.comments).toEqual([]);
   });
 
-  it('reports a missing game wiki as a failure and sends the player no canned fallback', async () => {
-    const asked = '@roam_bot how do flares work?';
-    const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }], groundWith(async () => 0, 'tmp/no-such-wiki'));
-    post(f, { id: 26, text: asked, addressed: true });
-    await tick();
-    expect(repliesTo(f, 26)).toEqual([]);
-    expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('the wiki answer to player comment')]);
-  });
-
   it('checks at most the hourly limit of messages from one player and skips the rest without a filter call', async () => {
     const texts = Array.from({ length: 7 }, (_, index) => `Bug number ${index}`);
     const { f, asked, tick } = chat(texts.map((text) => ({ text, decision: { kind: 'bug', relevance: 'other' } })));
@@ -243,8 +238,8 @@ describe('public chat about known work', () => {
   const EXPLAINED = 'Я имел в виду, что направления должны называть ориентиры: «поверни у водонапорной башни», а не стороны света.';
   const BUILD_TEXT = 'Landmark directions\n\nPlay: https://example.com/564\n\nTowns give directions by landmarks.';
 
-  function known(said: Said[], ground?: Ground) {
-    const made = chat(said, ground);
+  function known(said: Said[]) {
+    const made = chat(said);
     made.f.store.addProposal(LANDMARKS, 'Landmark directions\nTowns give directions by landmarks you can see.', made.f.clock.now);
     made.f.store.markProposalPosted(LANDMARKS, CHANNEL, 400, 'footer', made.f.clock.now);
     made.f.store.closeProposal(LANDMARKS, made.f.clock.now);
@@ -282,7 +277,7 @@ describe('public chat about known work', () => {
     expect(repliesTo(f, 197)[0]!.text).toContain('This is about #568');
   });
 
-  it('gives an addressed question about known work its status with no canned wiki fallback, adds it to that work, and keeps unaddressed ones silent', async () => {
+  it('queues an addressed question about known work for the answer job, adds it to that work, and keeps unaddressed ones silent', async () => {
     const question = '@roam_bot when do the landmark directions come out?';
     const remark = 'landmark directions sound great';
     const between = 'do the landmark directions work at night?';
@@ -299,9 +294,8 @@ describe('public chat about known work', () => {
     expect(f.comments[0]!.body).toContain(remark);
     expect(f.comments[0]!.body).toContain(between);
     expect(repliesTo(f, 57)).toEqual([]);
-    const [reply] = repliesTo(f, 50);
-    expect(reply!.text).toMatch(/^Thanks\. This is about/);
-    expect(reply!.text).toContain('This is about #564: https://github.com/o/r/issues/564, which the factory already has.\nIt is approved and being finished.\nI added your message to its player comments. It opens no new issue or vote.');
+    expect(repliesTo(f, 50)).toEqual([]);
+    expect(queuedMessages(f)).toEqual([50]);
     expect(repliesTo(f, 51)).toEqual([]);
   });
 

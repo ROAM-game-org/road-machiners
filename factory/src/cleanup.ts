@@ -7,13 +7,14 @@ type Keep = (id: number, state: FactoryState, cards: Card[]) => boolean;
 
 const openCard: Keep = (id, _state, cards) => cards.length === 0 || cards.some((card) => card.issue === id && card.column !== 'Done');
 
-const NUMBERED = /^(issue|check-issue|adhoc|change|incident)-(\d+)$/;
+const NUMBERED = /^(issue|check-issue|adhoc|change|incident|answer)-(\d+)$/;
 const KEEP_NUMBERED: Record<string, Keep> = {
   issue: openCard,
   adhoc: openCard,
   'check-issue': () => false,
   change: (id, state) => state.pendingChanges.some((change) => change.id === id),
   incident: (id, state) => state.pendingIncidents.includes(id),
+  answer: (id, state) => state.pendingAnswers.includes(id),
 };
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {
   'dev-build': { stages: ['dev'], keep: () => false },

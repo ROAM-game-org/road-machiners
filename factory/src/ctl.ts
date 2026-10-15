@@ -218,12 +218,15 @@ function queues(ctx: Ctx): void {
   const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
   const removals = state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`);
   const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}`);
-  console.log(`approval: ${approvals.join(', ') || 'none'}`);
-  console.log(`removal: ${removals.join(', ') || 'none'}`);
+  console.log(`approval: ${listOrNone(approvals)}`);
+  console.log(`removal: ${listOrNone(removals)}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
-  console.log(`change: ${changes.join(', ') || 'none'}`);
-  console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`change: ${listOrNone(changes)}`);
+  console.log(`incident: ${listOrNone(state.pendingIncidents.map((issue) => `#${issue}`))}`);
+  console.log(`answer: ${listOrNone(state.pendingAnswers.map((id) => `player question ${id}`))}`);
 }
+
+const listOrNone = (items: string[]): string => items.join(', ') || 'none';
 
 function formatMerges(merges: IssueMerge[] | null): string {
   if (merges === null) return 'not filled yet';

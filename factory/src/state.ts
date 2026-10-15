@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path';
 import { withLockSync } from './lock';
 import type { FactoryState, Failure, FilledRecord, Job, JobStage, PlaytestState, ReleaseState, StuckRecord } from './types';
 
-export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, keptApprovals: {}, pendingChanges: [], pendingIncidents: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, pendingFeedback: {}, routed: [], recordsToFill: [] };
+export const EMPTY_STATE: FactoryState = { jobs: [], approvalPosts: {}, lastRelease: null, devMerges: [], release: null, releasePost: null, pendingShip: null, pendingRemovals: [], pendingApprovals: {}, approvedResolving: {}, keptApprovals: {}, pendingChanges: [], pendingIncidents: [], pendingAnswers: [], bundles: {}, adhocReplies: {}, lastTickError: null, failures: [], builds: {}, cardStarts: {}, postCaptions: {}, devBuild: null, devFailed: null, devError: null, interrupted: [], retried: [], postOnly: [], unroutedReplies: {}, textPosts: [], lastWasteReview: null, held: {}, stuck: {}, sweepError: null, asked: {}, pendingFeedback: {}, routed: [], recordsToFill: [] };
 
 const STATE_LOCK_MS = 30_000;
 
@@ -97,12 +97,16 @@ export function clearQueued(state: FactoryState, stage: JobStage, issue: number 
   };
 }
 
+const QUEUED: Partial<Record<JobStage, (state: FactoryState, issue: number | null) => boolean>> = {
+  approve: (state, issue) => Object.hasOwn(state.pendingApprovals, String(issue)),
+  remove: (state, issue) => state.pendingRemovals.some((item) => item.issue === issue),
+  ship: (state) => state.pendingShip !== null,
+  incident: (state, issue) => issue !== null && state.pendingIncidents.includes(issue),
+  answer: (state) => state.pendingAnswers.length > 0,
+};
+
 export function isQueued(state: FactoryState, stage: JobStage, issue: number | null): boolean {
-  if (stage === 'approve') return Object.hasOwn(state.pendingApprovals, String(issue));
-  if (stage === 'remove') return state.pendingRemovals.some((item) => item.issue === issue);
-  if (stage === 'ship') return state.pendingShip !== null;
-  if (stage === 'incident') return issue !== null && state.pendingIncidents.includes(issue);
-  return false;
+  return QUEUED[stage]?.(state, issue) ?? false;
 }
 
 export const orderKey =(stage: JobStage, issue: number | null): string => `${stage}:${issue ?? '-'}`;

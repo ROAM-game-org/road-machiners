@@ -32,9 +32,9 @@ describe('sweepWork', () => {
   });
 
   it('removes the clones of Done cards, issues off the board, merged changes and finished builds', () => {
-    const root = work('issue-1', 'issue-2', 'adhoc-4', 'check-issue-3', 'change-1790000000000', 'incident-6', 'dev-build', 'release-main', 'release-candidate', 'waste');
+    const root = work('issue-1', 'issue-2', 'adhoc-4', 'check-issue-3', 'change-1790000000000', 'incident-6', 'answer-8', 'dev-build', 'release-main', 'release-candidate', 'waste');
     const swept = sweepWork(root, `${root}-locks`,state(), [card(1, 'Done'), card(3, 'Testing'), card(4, 'Done')]);
-    expect(swept.removed.sort()).toEqual(['adhoc-4', 'change-1790000000000', 'check-issue-3', 'dev-build', 'incident-6', 'issue-1', 'issue-2', 'release-candidate', 'release-main', 'waste']);
+    expect(swept.removed.sort()).toEqual(['adhoc-4', 'answer-8', 'change-1790000000000', 'check-issue-3', 'dev-build', 'incident-6', 'issue-1', 'issue-2', 'release-candidate', 'release-main', 'waste']);
   });
 
   it('keeps every clone a running or interrupted job works in, packages included', () => {
@@ -45,11 +45,11 @@ describe('sweepWork', () => {
   });
 
   it('keeps queued changes and incidents and the candidate of an open release', () => {
-    const root = work('change-12', 'incident-6', 'release-candidate');
+    const root = work('change-12', 'incident-6', 'answer-9', 'release-candidate');
     const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
-    const swept = sweepWork(root, `${root}-locks`,state({ pendingChanges: [{ id: 12, text: 't', by: 'u' }], pendingIncidents: [6], release }), []);
+    const swept = sweepWork(root, `${root}-locks`,state({ pendingChanges: [{ id: 12, text: 't', by: 'u' }], pendingIncidents: [6], pendingAnswers: [9], release }), []);
     expect(swept.removed).toEqual([]);
-    expect(swept.stripped.sort()).toEqual(['change-12', 'incident-6', 'release-candidate']);
+    expect(swept.stripped.sort()).toEqual(['answer-9', 'change-12', 'incident-6', 'release-candidate']);
   });
 
   it('keeps every issue clone when the board has no card at all', () => {

@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadConfig, readEnvFiles } from './config';
+import { configSecrets, loadConfig, readEnvFiles, unlistedSecrets } from './config';
 
 const FULL = {
   FACTORY_OBSERVATION_HEARTBEAT_MS: '10000', FACTORY_OBSERVATION_MAX_EVENT_BYTES: '1048576',
@@ -15,8 +15,18 @@ const FULL = {
   FACTORY_TRIAGE_WORKERS: '1', FACTORY_DESIGN_WORKERS: '1', FACTORY_IMPLEMENT_WORKERS: '2', FACTORY_VERIFY_WORKERS: '1', FACTORY_TEST_WORKERS: '1', FACTORY_TRIAGE_EFFORT: 'low', FACTORY_DESIGN_EFFORT: 'medium',
   FACTORY_MIN_FREE_GB: '5', FACTORY_MIN_AVAILABLE_GB: '1', FACTORY_LOG_DAYS: '14', FACTORY_TRANSCRIPT_DAYS: '10', FACTORY_TEST_CACHE_DAYS: '10', FACTORY_CPU_LIGHT: '0.25', FACTORY_CPU_IMPLEMENT: '0.25', FACTORY_CPU_TEST: '0.5', FACTORY_VITEST_WORKERS_IMPLEMENT: '2', FACTORY_VITEST_WORKERS_TEST: '4',
   FACTORY_ERROR_DAILY_ISSUES: '5', FACTORY_ERROR_DISK_MB: '2000', FACTORY_ERROR_MAP_DAYS: '14', FACTORY_ERROR_BODY_KB: '8192', FACTORY_ERROR_UNZIPPED_MB: '64', FACTORY_ERROR_IP_PER_HOUR: '20', FACTORY_ERROR_ORIGINS: 'https://html.itch.zone',
-  FACTORY_PROPOSAL_CHAT: '-3', FACTORY_PUBLIC_DISCUSSION: '-2', FACTORY_PROPOSALS_PER_DAY: '4', FACTORY_VOTE_EMOJI: '👍', FACTORY_VETO_EMOJI: '👎',FACTORY_PUBLIC_DIGEST_MINUTES: '60', OPENAI_API_KEY: 'ok', FACTORY_FILTER_MODEL: 'nano', FACTORY_FILTER_TIMEOUT_SECONDS: '30', FACTORY_FILTER_SINCERE_MIN: '0.8', FACTORY_FILTER_PER_TICK: '10', FACTORY_REPORT_IP_PER_HOUR: '5', FACTORY_REPORT_MAX_CHARS: '3000',
+  FACTORY_PROPOSAL_CHAT: '-3', FACTORY_PUBLIC_DISCUSSION: '-2', FACTORY_PROPOSALS_PER_DAY: '4', FACTORY_VOTE_EMOJI: '👍', FACTORY_VETO_EMOJI: '👎',FACTORY_PUBLIC_DIGEST_MINUTES: '60', OPENAI_API_KEY: 'ok', FACTORY_FILTER_MODEL: 'nano', FACTORY_FILTER_TIMEOUT_SECONDS: '30', FACTORY_FILTER_SINCERE_MIN: '0.8', FACTORY_FILTER_PER_TICK: '10', FACTORY_REPORT_IP_PER_HOUR: '5', FACTORY_REPORT_MAX_CHARS: '3000', FACTORY_ANSWER_MODEL: 'sonnet', FACTORY_ANSWER_TIMEOUT_MINUTES: '30', FACTORY_ANSWERS_PER_DAY: '40',
 };
+
+describe('secret fields', () => {
+  it('lists every key, token, secret or password setting, so the answer check knows each secret', () => {
+    expect(unlistedSecrets()).toEqual([]);
+  });
+
+  it('gives the set secret values for the answer check and skips empty ones', () => {
+    expect(configSecrets({ oauthToken: ' tok ', elevenlabsKey: '', geminiKey: 'gem', telegramToken: 'tg', butlerKey: null, openaiKey: 'oa' })).toEqual(['tok', 'gem', 'tg', 'oa']);
+  });
+});
 
 describe('loadConfig', () => {
   it('parses numbers and bootstrap member', () => {
@@ -28,6 +38,7 @@ describe('loadConfig', () => {
     expect(cfg.committeeBootstrapGithub).toBe('boss');
     expect(cfg.committeeBootstrapTelegram).toBe('1');
     expect(cfg.committeeChat).toBe('-1');
+    expect([cfg.answerModel, cfg.answerTimeoutMinutes, cfg.answersPerDay]).toEqual(['sonnet', 30, 40]);
     expect(cfg.maxJobsPerCard).toBe(4);
     expect(cfg.itchTarget).toBe('u/g');
     expect(cfg.sfxMaxGenerations).toBe(6);

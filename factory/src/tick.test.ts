@@ -69,6 +69,16 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { issue: 3, branch: 'release/x', day: 'x', postId: 1, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
   });
 
+  it('runs one answer job at a time in its own queue, beside full card queues', () => {
+    const capped = { ...busy, lastRelease: FRESH.lastRelease, pendingAnswers: [5, 6] };
+    expect(chooseJobs(capped, [], NOW, CFG)).toEqual([{ stage: 'answer', issue: null }]);
+    const answering = { ...capped, jobs: [{ id: 'answer---x', stage: 'answer' as const, issue: null, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
+    expect(chooseJobs(answering, [], NOW, CFG)).toEqual([]);
+    const triageFull = { ...capped, jobs: [{ id: 'triage-9-x', stage: 'triage' as const, issue: 9, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
+    expect(chooseJobs(triageFull, [card(4, 'Triage')], NOW, ONE)).toEqual([{ stage: 'answer', issue: null }]);
+    expect(chooseJobs(answering, [card(4, 'Triage')], NOW, ONE)).toEqual([{ stage: 'triage', issue: 4 }]);
+  });
+
   it('starts no merge for release task cards while a ship runs, and one for a dev card', () => {
     const shipping = { ...busy, lastRelease: FRESH.lastRelease, jobs: [{ id: 'ship-3-x', stage: 'ship' as const, issue: 3, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task'])], NOW, CFG)).toEqual([]);

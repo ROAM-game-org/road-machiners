@@ -3,7 +3,7 @@ import { QUEUE_OF, type FactoryConfig, type JobStage, type Pin, type Queue } fro
 
 export type Pool = 'light' | 'implement' | 'test';
 
-const POOL_OF: Record<Queue, Pool> = { triage: 'light', design: 'light', branch: 'light', implement: 'implement', verify: 'implement', test: 'test' };
+const POOL_OF: Record<Queue, Pool> = { triage: 'light', design: 'light', branch: 'light', answer: 'light', implement: 'implement', verify: 'implement', test: 'test' };
 
 export function poolOf(stage: JobStage): Pool {
   return stage === 'merge' || stage === 'candidate' || stage === 'ship' ? 'test' : POOL_OF[QUEUE_OF[stage]];

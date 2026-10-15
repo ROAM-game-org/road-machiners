@@ -41,7 +41,10 @@ digraph public {
   linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
-  answer [label="Reply in the thread\nin English or Russian\nissue link and status,\nor a quoted wiki passage\nnever a canned fallback"];
+  answer [label="Reply in the thread\nin English or Russian\nissue link and status\nnever a canned fallback"];
+  answerJob [label="Answer job, one at a time\nSonnet in a clone of main\nreads, runs, builds or plays\nthe game, docs one source\nsays what it could not check\nunder a daily cap"];
+  answerReply [label="Checked answer\nsent once as a reply\nwith the thread note"];
+  answerUnknown [label="After 2 failed runs:\none line that it could not\nfind out, Hermes told\nwith no player text", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
@@ -56,16 +59,19 @@ digraph public {
   filter -> linked [label="off its thread or with none,\nabout known work"];
   linked -> digest;
   filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
-  filter -> answer [label="question"];
+  filter -> answerJob [label="question in its thread\nor addressed to the bot"];
+  answerJob -> answerReply;
   newIssue -> intake;
   digest -> answer;
   newIssue -> answer;
 
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
+  answerJob -> answerJob [label="failed run\nstays queued"];
   filter -> patch [label="patch"];
   filter -> redesign [label="redesign"];
 
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];
+  answerJob -> answerUnknown;
   plugin -> ignored;
 }

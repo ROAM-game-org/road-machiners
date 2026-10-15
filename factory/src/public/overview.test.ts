@@ -26,12 +26,17 @@ describe('publicRows', () => {
     const f = publicFake();
     f.store.addComment({ issue: 568, source: 'telegram', sourceId: 'c:169', postChat: CHANNEL, postMessageId: 100, author: 'Ann', text: 'minimap', at: 'T1', messageId: 169 });
     f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:170', postChat: CHANNEL, postMessageId: null, author: 'Bob', text: 'hi', at: 'T2', messageId: 170 });
-    const [offTopic, standalone] = f.store.unclassifiedComments(100);
+    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:171', postChat: CHANNEL, postMessageId: null, author: 'Cy', text: 'how?', at: 'T3', messageId: 171, addressed: true });
+    const [offTopic, standalone, question] = f.store.unclassifiedComments(100);
     f.store.classify(offTopic!.id, 'feature', 'none', f.clock.now, 'other');
     f.store.classify(standalone!.id, 'chatter', 'none', f.clock.now, 'other');
+    f.store.classify(question!.id, 'question', 'none', f.clock.now, 'other');
+    f.store.queueAnswer(question!.id, f.clock.now);
+    f.store.beginAnswerTry(question!.id);
     f.store.setFiled(offTopic!.id, 571);
     f.store.setReplyId(offTopic!.id, 700);
     expect(publicRows(f.ctx, f.store)).toEqual([
+      'chat message 171 T3: question, no thread, answer queued 2026-10-14T10:00:00.000Z, 1 tries, no reply',
       'chat message 170 T2: chatter, no thread, no reply',
       'chat message 169 T1: feature, off-topic under #568, filed as #571, replied 700',
     ]);

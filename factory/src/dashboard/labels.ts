@@ -12,9 +12,9 @@ const columns: Record<Column, string> = {
 const stages: Record<JobStage, string> = {
   triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', harden: 'Harden', checks: 'Test', approve: 'Approval', merge: 'Merge', 'catch-up': 'Merge catch-up',
   playtest: 'Playtest', adhoc: 'Private task', change: 'Factory change', candidate: 'Candidate', release: 'Release', ship: 'Ship', remove: 'Removal',
-  incident: 'Incident', dev: 'Dev build', waste: 'Review',
+  incident: 'Incident', answer: 'Player answer', dev: 'Dev build', waste: 'Review',
 };
-const queues: Record<Queue, string> = { triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', test: 'Test', branch: 'Branch' };
+const queues: Record<Queue, string> = { triage: 'Triage', design: 'Design', implement: 'Implement', verify: 'Verify', test: 'Test', branch: 'Branch', answer: 'Player answer' };
 const activities: Record<Activity, string> = {
   starting: 'Starting', model: 'Waiting for model', reading: 'Reading code', editing: 'Editing code', command: 'Running command', tests: 'Running tests',
   typecheck: 'Typechecking', playtest: 'Running playtest', build: 'Building', publish: 'Publishing', install: 'Installing dependencies', git: 'Git operation',

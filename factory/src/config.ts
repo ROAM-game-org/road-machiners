@@ -104,11 +104,28 @@ const KEYS = {
   filterPerTick: 'FACTORY_FILTER_PER_TICK',
   reportIpPerHour: 'FACTORY_REPORT_IP_PER_HOUR',
   reportMaxChars: 'FACTORY_REPORT_MAX_CHARS',
+  answerModel: 'FACTORY_ANSWER_MODEL',
+  answerTimeoutMinutes: 'FACTORY_ANSWER_TIMEOUT_MINUTES',
+  answersPerDay: 'FACTORY_ANSWERS_PER_DAY',
 } as const satisfies Record<keyof FactoryConfig, string>;
 
 const RELEASE_ONLY = new Set<keyof FactoryConfig>(['itchTarget', 'butlerKey']);
 
-const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'replyRouteMinutes', 'releaseDays', 'playtestTurns', 'playtestRuns', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testStallMinutes', 'testingBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays', 'testCacheDays', 'cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars']);
+export const SECRET_FIELDS = ['oauthToken', 'elevenlabsKey', 'geminiKey', 'telegramToken', 'butlerKey', 'openaiKey'] as const satisfies readonly (keyof FactoryConfig)[];
+
+const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD/;
+
+export function unlistedSecrets(): string[] {
+  const listed = new Set<string>(SECRET_FIELDS);
+  return Object.entries(KEYS).filter(([field, key]) => SECRET_NAME.test(key) && !listed.has(field)).map(([, key]) => key);
+}
+
+export function configSecrets(cfg: Pick<FactoryConfig, (typeof SECRET_FIELDS)[number]>): string[] {
+  const values: unknown[] = SECRET_FIELDS.map((field) => cfg[field]);
+  return values.filter((value): value is string => typeof value === 'string' && value.trim() !== '').map((value) => value.trim());
+}
+
+const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'replyRouteMinutes', 'releaseDays', 'playtestTurns', 'playtestRuns', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testStallMinutes', 'testingBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays', 'testCacheDays', 'cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars', 'answerTimeoutMinutes', 'answersPerDay']);
 
 export function loadConfig(env: Record<string, string | undefined>): FactoryConfig {
   const missing = Object.entries(KEYS).filter(([field, key]) => !RELEASE_ONLY.has(field as keyof FactoryConfig) && !env[key]?.trim()).map(([, key]) => key);
@@ -127,7 +144,7 @@ function checkChatIds(cfg: FactoryConfig): void {
 }
 
 function checkPrices(cfg: FactoryConfig): void {
-  const unpriced = [cfg.designModel, cfg.buildModel, cfg.triageModel, cfg.advisorModel].filter((model) => !(model in cfg.tokenPrices));
+  const unpriced = [cfg.designModel, cfg.buildModel, cfg.triageModel, cfg.advisorModel, cfg.answerModel].filter((model) => !(model in cfg.tokenPrices));
   if (unpriced.length) throw new Error(`FACTORY_MODEL_PRICES has no price for ${unpriced.join(', ')}.`);
 }
 
