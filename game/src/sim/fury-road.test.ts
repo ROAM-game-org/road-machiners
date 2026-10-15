@@ -223,6 +223,20 @@ describe('spawning out of the gun truck sight', () => {
     }).toThrow(/no free lane spot/);
   });
 
+  it('clears a running failure clock once the only blocker is sight', () => {
+    const w = furyRoadWorld();
+    moveTo(w, milestoneAt(0) + 120);
+    const first = group(w);
+    first.from = 'ahead';
+    placeGunTruck(w, milestoneAt(0) + 120 + FURY_ROAD.sides.ahead, HIGHWAY.road.lanes[1]);
+    first.retryUntil = w.turn + FURY_ROAD.spawnRetryTurns;
+    quietUntilDue(w);
+    advanceFuryRoad(w);
+
+    expect(first.spawned).toBe(false);
+    expect(first.retryUntil).toBeNull();
+  });
+
   it('starts the quiet clock when a group spawns, so the next group waits', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);

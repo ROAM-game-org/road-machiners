@@ -246,7 +246,10 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
   const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
-  if (spots === 'seen') return;
+  if (spots === 'seen') {
+    group.retryUntil = null;
+    return;
+  }
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
