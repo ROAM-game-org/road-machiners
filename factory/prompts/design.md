@@ -59,6 +59,9 @@ A design that breaks a ui.md principle names the principle and says why.
 
 Create or revise the task file {{taskFile}}.
 Set `Mode: hands-off` in it.
+
+{{bugExpansion}}
+
 Run up:udesign and then up:uplan in hands-off mode.
 Stop after the plan.
 Do not execute the plan.
