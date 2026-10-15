@@ -64,6 +64,7 @@ import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
+import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1341,5 +1342,16 @@ describe('MIGRATIONS[61]', () => {
     const none = at('x', 'y');
     none.player.quests.session = null;
     expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('MIGRATIONS[62]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_62);
+
+    const next = MIGRATIONS[62](before);
+
+    expect(next).toEqual(FORMAT_2_62);
+    expect(before).toEqual(FORMAT_2_62);
   });
 });

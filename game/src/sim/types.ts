@@ -63,7 +63,8 @@ export type Aim = "body" | string;
 export type WeaponOrder = { targetId: string; aim: Aim };
 export type UtilityOrder =
   | { kind: 'self' }
-  | { kind: 'point'; pos: Vec };
+  | { kind: 'point'; pos: Vec }
+  | { kind: 'disarm' };
 
 export type Pose = { x: number; y: number; heading: number };
 
@@ -230,7 +231,7 @@ export type Refusal =
   | { id: 'utilityOrder'; part: string; order: 'point' | 'self' }
   | { id: 'utilityBlocked'; part: string; block: UtilityBlock };
 
-export type UtilityBlock = FireBlock | 'armed' | 'fuel';
+export type UtilityBlock = FireBlock | 'armed' | 'unarmed' | 'fuel';
 
 export type UnitId = 'part';
 
