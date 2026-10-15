@@ -17,7 +17,7 @@ type Command = Parameters<typeof applyControl>[1];
 const ROOT = resolve('tmp/factory-control-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-09-29T10:00:00Z');
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const JOB: Job = { id: 'verify-4-x', stage: 'verify', issue: 4, pid: 77, startedAt: '2026-09-29T09:00:00Z', log: 'l' };
 
 let calls: string[] = [];
@@ -85,7 +85,7 @@ function busyCard(): void {
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, approvedResolving: { 4: 'Bob' },
     approvalPosts: { 42: 4, 43: 5 }, postCaptions: { 42: 'Post four', 43: 'Post five' },
     unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' }, 10: { issue: 5, postId: 43, text: 't', at: 'a' } },
-    failures: [{ stage: 'checks', issue: 4, error: 'e', log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', log: null, at: 'a' }],
+    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }],
   });
 }
 
@@ -598,6 +598,14 @@ describe('ship, cut and remove', () => {
     await applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }));
     expect(readState(statePath).pendingRemovals).toHaveLength(1);
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('already queued');
+  });
+
+  it('refuses a removal of an issue with no recorded merge in the release', async () => {
+    seed({ release: { ...RELEASE, merges: [] } });
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('Issue #5 is not in release');
+    seed({ release: { ...RELEASE, merges: null } });
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('not filled yet');
+    expect(readState(statePath).pendingRemovals).toEqual([]);
   });
 
   it('refuses a removal from Hermes', async () => {
