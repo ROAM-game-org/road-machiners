@@ -34,6 +34,7 @@ export const PIECES: Piece[] = [
   { name: ".tooltip", note: "A note that opens over its anchor. It also gives a disabled reason.", build: () => sample("tooltip", "Need 12 M's more") },
   { name: ".tooltip-row", note: "Label on the left, value on the right, for breakdowns.", build: () => breakdown() },
   { name: ".key", note: "A keyboard key or a mouse button, drawn as a keycap.", build: () => text("kbd", "key", "Space") },
+  { name: ".drawer-tabs", note: "The tab row of the phone layout: one icon button per drawer, .selected on the open one and .marked for attention.", build: () => drawerTabs() },
   { name: ".num", note: "A number in the mono face.", build: () => text("span", "num", "1 240") },
 ];
 
@@ -41,6 +42,11 @@ function disabled(): HTMLElement {
   const button = text("button", "", "Buy");
   button.setAttribute("aria-disabled", "true");
   return button;
+}
+
+function drawerTabs(): HTMLElement {
+  const tab = (cls: string, label: string): HTMLElement => el("button", { class: `btn-l ${cls}`, "aria-label": label }, label.slice(0, 1));
+  return el("div", { class: "drawer-tabs" }, tab("selected", "Truck"), tab("marked", "Guns"), tab("", "Radio"), tab("", "Log"));
 }
 
 function breakdown(): HTMLElement {
