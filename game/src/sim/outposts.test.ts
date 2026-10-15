@@ -9,6 +9,7 @@ import { furyRoadWorld, parkOnPad } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
+import { partDef } from '../data/parts';
 import { outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from './outposts';
 import { canStowPart } from './inventory';
 import type { PartInstance, World } from './types';
@@ -55,6 +56,19 @@ describe('outpost services', () => {
 
     expect(corePart(me, 'cab').hp).toBe(maxHp(corePart(me, 'cab')));
     expect(mountedParts(me, 'weapon').some((p) => p.hp < maxHp(p))).toBe(true);
+  });
+
+  it('repairs a broken engine with the basics for the shown price', () => {
+    const w = atOutpost();
+    const engine = mountedParts(playerVehicle(w)).find((p) => partDef(p.defId).kind === 'engine')!;
+    engine.hp = 1;
+    const money = w.player.money;
+
+    const after = outpostRepairBasics(w);
+
+    const fixed = mountedParts(playerVehicle(after)).find((p) => p.id === engine.id)!;
+    expect(fixed.hp).toBe(maxHp(fixed));
+    expect(after.player.money).toBeLessThan(money);
   });
 
   it('sells fuel at the town price', () => {
