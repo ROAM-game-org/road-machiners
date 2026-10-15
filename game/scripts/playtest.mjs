@@ -180,6 +180,87 @@ const blank = await page.evaluate(() => {
   return !c || c.width === 0;
 });
 
+const SAMPLER_FLOOR = 16;
+const nightProblems = [];
+const skipTo = (hour) => page.evaluate(async (h) => {
+  const cheats = await import('/src/sim/cheats.ts');
+  const g = window.__ROAM__;
+  g.apply(cheats.skipToHour(g.state, h));
+}, hour);
+const setLamps = (on) => page.evaluate((flag) => {
+  const g = window.__ROAM__;
+  g.apply({ ...g.state, player: { ...g.state.player, headlights: flag } });
+}, on);
+const groundLuma = async (path) => {
+  const shot = await page.screenshot({ path });
+  return page.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    const lin = (v) => (v / 255) ** 2.2;
+    const { width, height } = bitmap;
+    const lumas = [];
+    for (let i = 0; i < 12; i++) {
+      for (let j = 0; j < 6; j++) {
+        const [r, g, b] = ctx.getImageData(Math.floor((0.2 + i * 0.05) * width), Math.floor((0.3 + j * 0.04) * height), 1, 1).data;
+        lumas.push(0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b));
+      }
+    }
+    return lumas.sort((x, y) => x - y)[Math.floor(lumas.length * 0.75)];
+  }, shot.toString('base64'));
+};
+const groundPrograms = () => page.evaluate((floor) => {
+  const g = window.__ROAM__;
+  const gl = g.renderer.getContext();
+  const samplerTypes = new Set([gl.SAMPLER_2D, gl.SAMPLER_2D_SHADOW, gl.SAMPLER_CUBE, gl.SAMPLER_CUBE_SHADOW, gl.SAMPLER_3D, gl.SAMPLER_2D_ARRAY]);
+  const samplersOf = (program) => {
+    let n = 0;
+    for (let i = 0; i < gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS); i++) {
+      const u = gl.getActiveUniform(program, i);
+      if (samplerTypes.has(u.type)) n += u.size;
+    }
+    return n;
+  };
+  const programs = g.renderer.info.programs;
+  const problems = programs.filter((p) => !gl.getProgramParameter(p.program, gl.LINK_STATUS)).map((p) => `program ${p.name} did not link`);
+  const ground = programs.filter((p) => p.cacheKey.includes('facets'));
+  if (ground.length === 0) problems.push('no ground program found');
+  for (const p of ground) if (samplersOf(p.program) > floor) problems.push(`ground program uses ${samplersOf(p.program)} samplers, over ${floor}`);
+  return problems;
+}, SAMPLER_FLOOR);
+const NOON_SHARE = 0.45;
+const BG_LUMA = (() => {
+  const lin = (v) => (v / 255) ** 2.2;
+  return 0.2126 * lin(0x1a) + 0.7152 * lin(0x14) + 0.0722 * lin(0x10);
+})();
+const MIN_BG_RATIO = 2.5;
+await skipTo(3);
+await page.waitForTimeout(1500);
+const nightLuma = await groundLuma('.playtest/night-off.png');
+await skipTo(12);
+await page.waitForTimeout(1500);
+const noonLuma = await groundLuma('.playtest/noon.png');
+console.log(`ground luma night ${nightLuma.toFixed(4)}, noon ${noonLuma.toFixed(4)}, background ${BG_LUMA.toFixed(4)}`);
+if (fpsGate) {
+  if (nightLuma < BG_LUMA * MIN_BG_RATIO) nightProblems.push(`night ground luminance ${nightLuma.toFixed(4)} is under ${MIN_BG_RATIO} times the background ${BG_LUMA.toFixed(4)}`);
+  if (nightLuma > noonLuma * NOON_SHARE) nightProblems.push(`night ground luminance ${nightLuma.toFixed(4)} is over ${NOON_SHARE} of the noon's ${noonLuma.toFixed(4)}`);
+}
+await skipTo(3);
+await page.evaluate(async () => {
+  const cheats = await import('/src/sim/cheats.ts');
+  const { NPCS } = await import('/src/data/npcs.ts');
+  const g = window.__ROAM__;
+  const kinds = Object.keys(NPCS);
+  let w = g.state;
+  for (let i = 0; i < 6; i++) w = cheats.spawnNear(w, kinds[i % kinds.length], false);
+  g.apply({ ...w, player: { ...w.player, headlights: true } });
+});
+await page.waitForTimeout(1500);
+nightProblems.push(...(await groundPrograms()));
+await groundLuma('.playtest/night-on.png');
+
 const reload = async () => {
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
@@ -190,9 +271,10 @@ await pickLanguageByMouse('en');
 const english = await reload();
 if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await pressedLanguage()) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
 await checkNoStrayControl('after the reload');
+nightProblems.push(...(await groundPrograms()).map((p) => `after the reload: ${p}`));
 await browser.close();
 
-const problems = [...errors, ...hitProblems, ...languageProblems];
+const problems = [...errors, ...hitProblems, ...languageProblems, ...nightProblems];
 if (state.crashed) problems.push('crash screen shown');
 if (state.turn !== turns + 1) problems.push(`expected turn ${turns + 1}, got ${state.turn}`);
 if (blank) problems.push('no WebGL canvas');

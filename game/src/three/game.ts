@@ -1,4 +1,5 @@
 
+import { failLoudOnShaderError } from "./shader-errors";
 import * as THREE from "three";
 import { CONFIG } from "../config";
 import { QUESTS, relanguageQuest } from "../sim/quests";
@@ -208,6 +209,7 @@ export class Game {
 
     this.renderer.setPixelRatio(window.devicePixelRatio);
     enableSunShadows(this.renderer);
+    failLoudOnShaderError(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);

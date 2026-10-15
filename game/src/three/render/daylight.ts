@@ -88,11 +88,11 @@ const KEYS: Key[] = [
   },
   {
     h: -TWILIGHT,
-    sun: 0x8090c0,
-    sunI: 0.7,
-    sky: 0x5a6c9c,
-    ground: 0x1c1e2a,
-    skyI: 0.88,
+    sun: 0x90a4d8,
+    sunI: 1.4,
+    sky: 0x7088bc,
+    ground: 0x2a3048,
+    skyI: 1.5,
     glassI: 0.2,
     glassWhite: 0.8,
     beamI: 1,
@@ -238,7 +238,7 @@ const BEAM_RANGE = 70;
 const BEAM_ANGLE = 42 * DEG;
 const BEAM_PENUMBRA = 0.6;
 const BEAM_HEIGHT = 4;
-const SHADOW_BEAMS = 4;
+const SHADOW_BEAMS = 3;
 const BEAM_SHADOW_MAP = 1024;
 const BEAM_SHADOW_BIAS = 0.3;
 const BEAM_AIM = { ahead: 30, down: 6 };
