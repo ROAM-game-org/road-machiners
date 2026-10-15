@@ -36,6 +36,10 @@ export function halfLength(chassisId: string): number {
   return bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
 }
 
+export function footprint(chassisId: string): number {
+  return Math.max(chassisDef(chassisId).radius, halfLength(chassisId));
+}
+
 function buildBody(chassisId: string): Body {
   const look = PHYSICS.bodies[chassisDef(chassisId).look];
   const boxes = collisionBoxes(chassisId, look.halfHeight, restTop(look));

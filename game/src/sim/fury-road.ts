@@ -4,7 +4,7 @@ import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
-import { halfLength } from './body';
+import { footprint, halfLength } from './body';
 import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
 import { isDefeated, knockOutNpc } from './defeat';
@@ -256,7 +256,7 @@ export function waveGear(template: string, stretch: number, money: number, elite
 
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
   const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money, group.elite)), cargo: {} } }));
-  const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
+  const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => footprint(l.loadout.chassisId)));
   if (spots === 'seen') {
     group.retryUntil = null;
     return;
