@@ -19,6 +19,8 @@ import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadStart, furyRoadWorld } from './testkit';
 import { RULES } from '../data/rules';
+import { PHYSICS } from '../data/physics';
+import { bodyOf } from './body';
 import { dist } from './vec';
 import type { Vehicle } from './types';
 
@@ -85,12 +87,13 @@ describe('Fury Road hauler', () => {
     }
   });
 
-  it('starts the hauler ahead of the player truck with a clear gap between them', () => {
+  it('starts the hauler ahead of the player truck with a clear gap between their bumpers', () => {
+    const halfLength = (chassisId: string): number => bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
     for (const seed of [1, 3, 99]) {
       const w = furyRoadStart(seed);
       const hauler = haulerOf(w);
       const me = playerVehicle(w);
-      const gap = dist(hauler.pos, me.pos) - chassisDef(hauler.chassisId).radius - chassisDef(me.chassisId).radius;
+      const gap = dist(hauler.pos, me.pos) - halfLength(hauler.chassisId) - halfLength(me.chassisId);
       expect(gap).toBeCloseTo(RULES.yieldDistance, 9);
     }
   });
