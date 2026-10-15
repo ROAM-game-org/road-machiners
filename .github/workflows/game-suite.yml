@@ -1,0 +1,41 @@
+name: game suite
+run-name: game suite ${{ inputs.sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit to test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    env:
+      SHA: ${{ inputs.sha }}
+      TEST_STALL_MINUTES: '10'
+    steps:
+      - name: install git
+        run: apt-get update && apt-get install -y --no-install-recommends git
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: checkout the commit
+        run: |
+          echo "$SHA" | grep -Eq '^[0-9a-f]{7,40}$'
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git checkout --quiet --detach "$SHA"
+          git log -1 --format='%H %s'
+      - name: npm ci
+        working-directory: game
+        run: npm ci
+      - name: tests
+        working-directory: game
+        run: npm run test:cached
