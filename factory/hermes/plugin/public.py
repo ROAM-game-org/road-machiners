@@ -138,8 +138,15 @@ def image_of(message: dict) -> Optional[dict]:
     return None
 
 
+def is_player_message(message: dict) -> bool:
+    sender = message.get("from") or {}
+    return bool(sender) and not sender.get("is_bot") and not message.get("is_automatic_forward") and "sender_chat" not in message
+
+
 def media_of(message: dict) -> list:
-    found = [(origin, image_of(source)) for origin, source in (("message", message), ("reply", message.get("reply_to_message") or {}))]
+    replied = message.get("reply_to_message") or {}
+    sources = (("message", message), ("reply", replied if is_player_message(replied) else {}))
+    found = [(origin, image_of(source)) for origin, source in sources]
     return [{**image, "origin": origin} for origin, image in found if image is not None]
 
 

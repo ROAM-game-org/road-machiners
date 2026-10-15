@@ -187,7 +187,7 @@ def photo_sizes(prefix):
 
 
 def test_comment_keeps_the_largest_photo_of_the_message_and_of_the_replied_message(tmp_path):
-    replied = {"message_id": 215, "chat": chat(DISCUSSION), "caption": "My map", "photo": photo_sizes("map")}
+    replied = {"message_id": 215, "chat": chat(DISCUSSION), "from": {"id": 7, "is_bot": False, "first_name": "Bo"}, "caption": "My map", "photo": photo_sizes("map")}
     raw = comment_update(caption="Add this map", photo=photo_sizes("own"), reply_to_message=replied)
     raw["message"].pop("text")
     public.handle_public_update(raw, cfg_for(tmp_path))
@@ -197,8 +197,16 @@ def test_comment_keeps_the_largest_photo_of_the_message_and_of_the_replied_messa
     ]
 
 
+def test_comment_skips_the_image_of_a_bot_post_or_a_channel_forward_it_replies_to(tmp_path):
+    bot_post = {"message_id": 300, "chat": chat(DISCUSSION), "from": {"id": 555, "is_bot": True, "first_name": "Bot"}, "photo": photo_sizes("shot")}
+    forward = {"message_id": 90, "chat": chat(DISCUSSION), "from": {"id": 777000, "is_bot": False, "first_name": "Telegram"}, "sender_chat": chat(CHANNEL, "channel"), "is_automatic_forward": True, "photo": photo_sizes("build")}
+    for replied in (bot_post, forward):
+        public.handle_public_update(comment_update(reply_to_message=replied), cfg_for(tmp_path))
+        assert written(tmp_path)["504.json"]["media"] == []
+
+
 def test_comment_keeps_an_image_document_and_skips_other_files(tmp_path):
-    replied = {"message_id": 215, "chat": chat(DISCUSSION), "document": {"file_id": "zip", "file_unique_id": "z", "mime_type": "application/zip"}}
+    replied = {"message_id": 215, "chat": chat(DISCUSSION), "from": {"id": 7, "is_bot": False, "first_name": "Bo"}, "document": {"file_id": "zip", "file_unique_id": "z", "mime_type": "application/zip"}}
     raw = comment_update(document={"file_id": "png", "file_unique_id": "p", "mime_type": "image/png"}, reply_to_message=replied)
     public.handle_public_update(raw, cfg_for(tmp_path))
     assert written(tmp_path)["504.json"]["media"] == [{"fileId": "png", "uniqueId": "p", "origin": "message"}]
