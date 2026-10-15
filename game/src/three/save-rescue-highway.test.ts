@@ -92,11 +92,12 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
   });
 
   it('puts a run paid at the next outpost on that outpost, ready for the next stretch, with nothing paid twice', () => {
-    const { world } = rescued(PAID);
+    const { world, slots } = rescued(PAID);
 
     expectWaitingAt(world, PAID.world.furyRoad.waitingAt);
     expectKept(world, PAID);
     expect(world.furyRoad!.outposts.map((o) => [o.milestone, o.paid])).toEqual([[2, true], [3, false]]);
+    expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });
 
   it('plays the stretch after the wait and awards nothing the save did not hold', () => {
