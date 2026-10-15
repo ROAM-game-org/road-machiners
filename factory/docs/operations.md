@@ -149,10 +149,10 @@ Every routed approval reply adds a line too.
 Every card move adds a card line: the issue, the new column, the time and a step that names the move. `src/card-events.ts` writes it after the board takes the move, and no other code moves a card. A line holds no actor, comment or reason.
 
 - Normal path: `entered`, `accepted` or `voted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.
-- Loops back: `questions`, `plan-wrong`, `patch` into Testing, `redesign`, `conflict` of a hotfix into Testing, `removed` and `unbundled`.
+- Loops back: `questions`, `plan-wrong`, `patch` into Testing, `redesign`, `base-moved` of an approved hotfix into Testing, `removed` and `unbundled`. Older lines also hold `conflict` of a hotfix into Testing.
 - Lines from before one session ran each stage also hold `patched`, `rebuild`, `review-failed` and `patch-replan`. No stage writes them now.
 - Early ends: `triage-wont-do`, `design-wont-do`, `bundled`, `denied`, and `dropped` by `factory move N done`.
-- Other moves: `moved` by `factory move`, `merge-ordered` by `factory merge`, `shipped` for the release card and `reported` for an ad hoc task.
+- Other moves: `moved` by `factory move`, `merge-ordered` by `factory merge`, `requeued` of a hotfix whose kept approval goes back to Approval, `shipped` for the release card and `reported` for an ad hoc task.
 - A line carries `flow` when the card is a hotfix, a release task, the release card or an ad hoc task.
 
 A triage `unclear` verdict moves nothing, so its wait for the author stays in Triage. A `vote` verdict moves nothing either, so its wait for votes stays in Triage until `voted`. A move by hand on GitHub writes no line.

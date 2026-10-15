@@ -162,18 +162,16 @@ async function pushed(ctx: Ctx, land: Landing): Promise<boolean> {
 
 async function settle(ctx: Ctx, base: string, cards: Card[]): Promise<void> {
   const where = base === BASE_BRANCH ? 'dev' : `the release branch ${base}`;
-  const play = base === BASE_BRANCH ? `\nPlay it: ${ctx.cfg.publicUrl}/dev` : '';
-  for (const card of cards) await settleCard(ctx, card, cards, where, play);
+  for (const card of cards) await settleCard(ctx, card, cards, where);
   if (base === BASE_BRANCH) await deployDev(ctx, releaseLog(ctx, 'merge-dev-build'));
   else updateState(ctx.statePath, (next) => (next.release ? { ...next, pendingShip: null, release: { ...next.release, postId: null, removed: next.release.removed.filter((n) => !cards.some((card) => card.issue === n)) } } : next));
 }
 
-async function settleCard(ctx: Ctx, card: Card, cards: Card[], where: string, play: string): Promise<void> {
+async function settleCard(ctx: Ctx, card: Card, cards: Card[], where: string): Promise<void> {
   const by = readState(ctx.statePath).approvedResolving[String(card.issue)] ?? 'the factory';
   const others = cards.filter((other) => other.issue !== card.issue).map((other) => `#${other.issue}`);
   const batch = others.length > 0 ? ` It merged together with ${others.join(', ')}, and the checks passed on the result.` : '';
   await ctx.github.comment(card.issue, `Approved by ${by} and merged into ${where}.${batch} It closes when its release ships.`);
   await ctx.github.addLabel(card.issue, RELEASE_CANDIDATE_LABEL);
-  const title = (await ctx.github.issue(card.issue)).title;
-  await closeMerged(ctx, card.issue, card.labels, `Issue #${card.issue} ${title} is merged into ${where}.${play}`);
+  await closeMerged(ctx, card.issue, card.labels, null);
 }

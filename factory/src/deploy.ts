@@ -53,8 +53,7 @@ async function buildDev(ctx: Ctx, log: string): Promise<string> {
 
 export async function rebuildDev(ctx: Ctx, log: string): Promise<void> {
   const url = await deployDev(ctx, log);
-  const head = readState(ctx.statePath).devBuild;
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Dev is rebuilt at ${head}.\nPlay it: ${url}`);
+  ctx.log('dev', null, `dev is rebuilt at ${readState(ctx.statePath).devBuild}, ${url}`);
 }
 
 export function recordBuild(statePath: string, issue: number, name: string): void {

@@ -11,8 +11,16 @@ export class DownloadFailed extends Error {
   }
 }
 
+export class HttpStatusError extends Error {
+  constructor(url: string, readonly status: number) {
+    super(`File ${url} failed to load: HTTP ${status}`);
+  }
+}
+
+export type Body = { response: Response; bytes: ArrayBuffer };
+
 export type DownloadDeps = {
-  fetch?: (url: string) => Promise<Response>;
+  fetch?: (url: string, init?: RequestInit) => Promise<Response>;
   wait?: (ms: number) => Promise<void>;
 };
 
@@ -24,23 +32,27 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type Outcome = { body: ArrayBuffer } | { status: number };
+type Outcome = { body: Body } | { status: number };
 
-async function attempt(url: string, get: (url: string) => Promise<Response>): Promise<Outcome> {
-  const res = await get(url);
-  if (res.ok) return { body: await res.arrayBuffer() };
-  return { status: res.status };
+async function attempt(url: string, init: RequestInit | undefined, get: NonNullable<DownloadDeps['fetch']>): Promise<Outcome> {
+  const response = await get(url, init);
+  if (response.ok) return { body: { response, bytes: await response.arrayBuffer() } };
+  return { status: response.status };
 }
 
 export async function download(url: string, deps: DownloadDeps = {}): Promise<ArrayBuffer> {
-  const get = deps.fetch ?? ((u: string) => globalThis.fetch(u));
+  return (await downloadBody(url, undefined, deps)).bytes;
+}
+
+export async function downloadBody(url: string, init?: RequestInit, deps: DownloadDeps = {}): Promise<Body> {
+  const get = deps.fetch ?? ((u: string, i?: RequestInit) => (i ? globalThis.fetch(u, i) : globalThis.fetch(u)));
   const wait = deps.wait ?? pause;
   let dropped: unknown;
   let status: number | null = null;
   for (let i = 0; i < DOWNLOAD.tries; i++) {
     if (i > 0) await wait(DOWNLOAD.waitMs[i - 1]);
     try {
-      const outcome = await attempt(url, get);
+      const outcome = await attempt(url, init, get);
       if ('body' in outcome) return outcome.body;
       status = outcome.status;
     } catch (e) {
@@ -51,5 +63,5 @@ export async function download(url: string, deps: DownloadDeps = {}): Promise<Ar
     if (!retryable(status)) break;
   }
   if (status === null) throw new DownloadFailed(url, DOWNLOAD.tries, dropped);
-  throw new Error(`File ${url} failed to load: HTTP ${status}`);
+  throw new HttpStatusError(url, status);
 }
