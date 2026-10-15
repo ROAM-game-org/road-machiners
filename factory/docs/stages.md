@@ -2,6 +2,12 @@
 
 The rules of each step in [process.md](process.md). A card stage comments on its issue only when it fails for good, with the time it took. The board shows every other move, and each comment counts toward GitHub's spam checks. Agents write `.factory/needs-committee.md` only for a game design fork or a major save bump. A stage that ends with that file fails, so Hermes puts the question to the committee.
 
+## Game docs first
+
+Every agent prompt that works in a game clone opens with `prompts/game-docs.md`, which `fillPrompt` fills in for `{{gameDocs}}`. Before any other step, `npm ci` included, the agent reads `game/CLAUDE.md` and `game/docs/DESIGN.md`. It then reads each doc in the Docs list of CLAUDE.md that covers its task, follows them and names them in its reasoning. A fix that changes behavior a doc describes updates that doc in the same commit. A test fails when a new prompt is neither a game stage nor listed as one without the step. The change and waste prompts work on the factory and skip it, and so do the follow-up prompts of a session that already read the docs.
+
+The agent image build fails unless ultrapack ships `up:expand` and `up:udocument`, which design and implementation invoke.
+
 ## Intake
 
 Intake puts every `feature-request` or `bug` issue older than `FACTORY_MIN_AGE_HOURS` into Triage. Nobody votes on GitHub. An issue labeled `hotfix` by a collaborator goes straight to Design.
@@ -30,10 +36,11 @@ Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It
 - `.factory/questions.json`, a JSON array of questions, sends the card back to Triage with the questions, as unclear triage does.
 - `.factory/wont-do.md` closes the issue as wont-do.
 - A revision reads the issue comments under "## Committee feedback". Comments under "## Committee question" are context only.
+- A card labeled `bug` or `hotfix` gets `prompts/design-bug.md`. Before up:udesign, the agent runs `up:expand handsoff` on the bug once, through its plan step only, and writes a `## Bug expansion` section with the reproduction, expected against actual, the constraints and the verification hypotheses. A revision or a retry keeps the section. Design is the first stage of every bug path, since a hotfix skips triage, and triage never touches code.
 
 ## Implementation
 
-Implementation runs Sonnet with up:uexecute on the task file, and Opus advises it through `claude --advisor` with `FACTORY_ADVISOR_MODEL`. A card with `implementation-opus` runs on Opus and gets no advisor. Subagents are off, so the agent implements every phase itself at the model triage picked. For a change a player can see, the agent captures real in-game screenshots, compares them with the issue, the plan, `game/docs/DESIGN.md` and, for the UI, the principle tests of `game/docs/ui.md`, and fixes until nothing obvious differs. The screenshots stay out of the commits. The stage fails when the agent made no new commit.
+Implementation runs Sonnet with up:uexecute on the task file, and Opus advises it through `claude --advisor` with `FACTORY_ADVISOR_MODEL`. A card with `implementation-opus` runs on Opus and gets no advisor. Subagents are off, so the agent implements every phase itself at the model triage picked. For a change a player can see, the agent captures real in-game screenshots, compares them with the issue, the plan, `game/docs/DESIGN.md` and, for the UI, the principle tests of `game/docs/ui.md`, and fixes until nothing obvious differs. The screenshots stay out of the commits. Its last step runs `up:udocument` on the game docs the change made stale and commits the edits, or edits nothing and says why in the task file. The stage fails when the agent made no new commit.
 
 ## Testing
 
