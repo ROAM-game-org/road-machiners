@@ -213,7 +213,7 @@ function checkFailure(log: string, error: unknown, from: number): NonNullable<Ch
   return { failure: stripAnsi(tail), timedOut: error instanceof CheckTimeoutError };
 }
 
-export const POST_MARK = 'Ready for approval:';
+const POST_MARK = 'Ready for approval:';
 
 export const CAPTION_LIMIT = 1024;
 const TRIM_MARK = '…';

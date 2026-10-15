@@ -21,8 +21,6 @@ import { sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
-import { migrateMerges } from './migrate-merges';
-import { migrateRecords } from './migrate-records';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -454,8 +452,6 @@ export async function checkJobs(ctx: Ctx, deps: TickDeps = REAL_DEPS): Promise<v
 }
 
 export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS): Promise<void> {
-  await migrateMerges(ctx);
-  await migrateRecords(ctx);
   await checkJobs(ctx, deps);
   await settleRouting(ctx);
   await startJobs(ctx, codeDir, deps);

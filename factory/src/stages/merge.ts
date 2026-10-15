@@ -10,7 +10,7 @@ import { BudgetError, runCost, untilPasses } from './checkpoint';
 import { checkScript, checkUntilReal, oneSuiteAtATime, runChecks } from './checks';
 import { guardAgainstAll } from '../diff-guard';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
-import { releaseLog, requireDevMerges, requireReleaseMerges } from './release-common';
+import { releaseLog } from './release-common';
 
 export async function merge(ctx: Ctx): Promise<void> {
   const batch = await nextBatch(ctx);
@@ -50,9 +50,9 @@ async function mergeBatch(ctx: Ctx, base: string, cards: Card[]): Promise<void> 
 
 function recordMerges(ctx: Ctx, base: string, merges: IssueMerge[]): void {
   updateState(ctx.statePath, (state) => {
-    if (base === BASE_BRANCH) return { ...state, devMerges: [...requireDevMerges(state), ...merges] };
+    if (base === BASE_BRANCH) return { ...state, devMerges: [...state.devMerges, ...merges] };
     if (state.release?.branch !== base) throw new Error(`Merged into ${base}, but the open release is on ${state.release?.branch ?? 'no branch'}`);
-    return { ...state, release: { ...state.release, merges: [...requireReleaseMerges(state.release), ...merges] } };
+    return { ...state, release: { ...state.release, merges: [...state.release.merges, ...merges] } };
   });
 }
 

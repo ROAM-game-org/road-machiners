@@ -77,7 +77,7 @@ The factory's job is to need people as little as it can. A member approves a hot
 
 - `main` takes only the build whose full suite, typecheck, playtest and build passed, and only while `main` is an ancestor of it. A `main` that moved before the push, with or without a conflict, sends the card back to Testing with the approval kept. Testing merges `main`, resolves any conflict in its session, runs the full checks on the exact pushed commit and queues the approval again.
 - The approval drops with its reason, and the changed build gets a normal post, when the merge needs a product choice or changes what the committee played, when a member patches, redesigns or denies it, when a move sends the card elsewhere, and when `factory drop approval N` revokes it.
-- Only a member's press, or `factory recover-approval N` after it verified a member's earlier approval on the issue, creates a kept approval. So an unapproved hotfix never ships.
+- Only a member's press creates a kept approval. So an unapproved hotfix never ships.
 - Approve and Deny work only from the card's current post. An older post gets an error reply.
 - The hotfix still pushes `main` and `dev` in one atomic push.
 

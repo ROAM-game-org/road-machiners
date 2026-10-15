@@ -167,7 +167,7 @@ export type ReleaseState = {
   candidateSha: string | null;
   removed: number[];
   tasks: number[];
-  merges: IssueMerge[] | null;
+  merges: IssueMerge[];
   playtest: PlaytestState;
   shipping?: { sha: string; features: { issue: number; title: string }[] };
 };
@@ -185,7 +185,7 @@ export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
   lastRelease: string | null;
-  devMerges: IssueMerge[] | null;
+  devMerges: IssueMerge[];
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
   pendingShip: string | null;
@@ -217,10 +217,7 @@ export type FactoryState = {
   asked: Record<string, string>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
-  recordsToFill: FilledRecord[];
 };
-
-export type FilledRecord = 'asked' | 'pendingFeedback' | 'routed';
 
 export type FeedbackSource = 'committee' | 'player';
 export type PendingFeedback = { source: FeedbackSource; body: string };
@@ -311,9 +308,7 @@ export interface HostRepo {
   changedFiles(base: string, branch: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
-  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;
-  legacyMerges(from: string, to: string): Promise<{ sha: string; subject: string }[]>;
-}
+  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;}
 
 export type Resolution = { base: string; source: string; head: string };
 
