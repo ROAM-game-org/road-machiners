@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { must, realRun } from './exec';
 import { hostRepo } from './repo';
-import { MergeConflictError, RevertConflictError, type FactoryConfig, type Run } from './types';
+import { BaseMovedError, MergeConflictError, RevertConflictError, type FactoryConfig, type Run } from './types';
 
 vi.setConfig({ testTimeout: 30_000 });
 
@@ -127,6 +127,61 @@ describe('merging on GitHub', () => {
     ]);
     expect(await show('main', 'f.txt')).toBe('fix\n');
     expect(await show('dev', 'f.txt')).toBe('fix\n');
+  });
+});
+
+describe('merging only a checked build', () => {
+  const hotfix = (issue: number) => [
+    { branch: `factory/issue-${issue}`, into: 'main', message: `Hotfix #${issue}: t` },
+    { branch: 'main', into: 'dev', message: `Merge main into dev after hotfix #${issue}` },
+  ];
+
+  it('ships the checked build when main is still its ancestor, and a rerun after the push changes nothing', async () => {
+    const { repo, commit, show, head } = await setup();
+    await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
+    await repo.fetch();
+    const checked = { branch: 'factory/issue-6', build: await repo.headHash('factory/issue-6'), base: 'main' };
+    await repo.merge(hotfix(6), [], checked);
+    const shipped = await head('main');
+    expect(await show('main', 'f.txt')).toBe('fix\n');
+    await repo.fetch();
+    await repo.merge(hotfix(6), [], checked);
+    expect(await head('main')).toBe(shipped);
+  });
+
+  it('refuses a main that moved after the checks, with no conflict, and leaves GitHub as it was', async () => {
+    const { repo, commit, head } = await setup();
+    await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
+    await repo.fetch();
+    const checked = { branch: 'factory/issue-6', build: await repo.headHash('factory/issue-6'), base: 'main' };
+    await commit('main', 'g.txt', 'other hotfix\n');
+    await repo.fetch();
+    const before = await head('main');
+    await expect(repo.merge(hotfix(6), [], checked)).rejects.toBeInstanceOf(BaseMovedError);
+    expect(await head('main')).toBe(before);
+  });
+
+  it('refuses when main moves between the fetch and the push, instead of merging the unchecked new tip', async () => {
+    const { repo, commit, head } = await setup();
+    await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
+    await repo.fetch();
+    const checked = { branch: 'factory/issue-6', build: await repo.headHash('factory/issue-6'), base: 'main' };
+    await commit('main', 'g.txt', 'moved during the checks\n');
+    const moved = await head('main');
+    await expect(repo.merge(hotfix(6), [], checked)).rejects.toBeInstanceOf(BaseMovedError);
+    expect(await head('main')).toBe(moved);
+  });
+
+  it('refuses a branch that moved past the checked build', async () => {
+    const { repo, commit, head } = await setup();
+    await commit('factory/issue-6', 'f.txt', 'fix\n', 'main');
+    await repo.fetch();
+    const checked = { branch: 'factory/issue-6', build: await repo.headHash('factory/issue-6'), base: 'main' };
+    await commit('factory/issue-6', 'g.txt', 'unchecked\n');
+    await repo.fetch();
+    const before = await head('main');
+    await expect(repo.merge(hotfix(6), [], checked)).rejects.toThrow(/not at the checked build/);
+    expect(await head('main')).toBe(before);
   });
 
   it('moves no branch when GitHub rejects one of them', async () => {
