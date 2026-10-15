@@ -76,6 +76,8 @@ describe('NPC driving', () => {
     const nose = REGION.towns[1];
     const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    addGoods(w, npc, 'scrap', 1);
+    npc.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
     let arrived = false;
     let d = buildDrive(w);
     for (let i = 0; i < w.size && !arrived; i++) {
