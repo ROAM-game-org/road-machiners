@@ -67,6 +67,20 @@ describe('VehicleLights', () => {
     expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
   });
 
+  it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    const crowd = Array.from({ length: 40 }, (_, i) => litAt(i * 3));
+    lights.update(true, 1, origin, crowd);
+    expect(spots(scene).filter((b) => b.castShadow)).toHaveLength(3);
+    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(9);
+    const nose = bodyOf('scout').half.x;
+    const lit = spots(scene).map((b) => Math.round(b.position.x - nose)).sort((a, b) => a - b);
+    expect(lit).toEqual(Array.from({ length: 12 }, (_, i) => i * 3));
+    lights.update(false, 1, origin, crowd);
+    expect(spots(scene)).toHaveLength(12);
+  });
+
   it('zeroes idle beams and stops their shadow passes', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
