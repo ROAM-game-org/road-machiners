@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
 import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx } from '../types';
@@ -21,6 +22,8 @@ let messages: string[] = [];
 let limits: (number | undefined)[] = [];
 let logs: string[] = [];
 let costs: number[] = [];
+let changed: string[] = [];
+let scripts: string[] = [];
 const PASS = 'pass';
 const HUNG = 'CheckTimeoutError: the checks ran past their 45 minute limit, and the factory removed their container.';
 
@@ -42,6 +45,8 @@ beforeEach(() => {
   limits = [];
   logs = [];
   costs = [];
+  changed = [];
+  scripts = [];
   deployed.length = 0;
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
@@ -63,8 +68,9 @@ function fakeCtx(budget = 5): Ctx {
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
       agent: async (run: AgentRun) => { runs.push(run); calls.push('agent'); return result(costs.shift()); },
-      shell: async (_dir: string, _script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number) => {
+      shell: async (_dir: string, script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number) => {
         calls.push('checks');
+        scripts.push(script);
         limits.push(limit);
         const failure = shellFailures.shift();
         if (failure !== undefined && failure !== PASS) throw new Error(failure);
@@ -79,6 +85,7 @@ function fakeCtx(budget = 5): Ctx {
         return merges[branch]?.shift() ?? { commit: null, conflicts: [] };
       },
       fetchFromWork: async () => 'head1',
+      changedInWork: async (_dir: string, from: string) => (from === 'origin/dev' ? changed : []),
       diff: async () => diff,
       push: async (commit: string, branch: string) => {
         calls.push(`push ${commit} ${branch}`);
@@ -108,6 +115,29 @@ describe('merge queue', () => {
     expect(deployed).toEqual(['dev']);
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
+  });
+
+  it('runs only the tests that match what the batch changes against its base, and no lock', async () => {
+    changed = ['game/src/sim/fuel.ts', 'game/src/sim/raid.ts', 'game/docs/notes.md'];
+    const ctx = fakeCtx();
+    const clone = ctx.repo.prepareWorkClone;
+    ctx.repo.prepareWorkClone = async (branch, base, dir) => {
+      await clone(branch, base, dir);
+      mkdirSync(join(dir, 'game', 'src', 'sim'), { recursive: true });
+      writeFileSync(join(dir, 'game', 'src', 'sim', 'fuel.test.ts'), '');
+    };
+    await merge(ctx);
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]).toContain('npm run test:cached -- src/sim/fuel.test.ts\n');
+    expect(scripts[0]).not.toContain('npm run typecheck');
+    expect(existsSync(join(home, 'locks', 'full-suite'))).toBe(false);
+  });
+
+  it('runs no tests when the batch changes no file with a test', async () => {
+    changed = ['game/docs/notes.md'];
+    await merge(fakeCtx());
+    expect(scripts[0]).not.toContain('test:cached');
+    expect(scripts[0]).toContain('npm run build');
   });
 
   it('takes only the cards of the first card base, and a release batch drops the candidate post', async () => {

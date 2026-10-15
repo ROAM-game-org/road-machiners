@@ -290,6 +290,7 @@ export interface HostRepo {
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
+  changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
   merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;

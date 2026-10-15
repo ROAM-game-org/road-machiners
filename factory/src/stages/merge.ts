@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { deployDev } from '../deploy';
 import { readState, updateState } from '../state';
@@ -7,7 +7,8 @@ import { BRANCH, GAME_DIR, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LA
 import { withWorkFolder } from '../work-lock';
 import { closeMerged } from './approval';
 import { BudgetError, runCost, untilPasses } from './checkpoint';
-import { checkScript, checkUntilReal, oneSuiteAtATime, runChecks } from './checks';
+import { checkScript, checkUntilReal, runChecks } from './checks';
+import { subsetCommand, testSubset } from './subset';
 import { guardAgainstAll } from '../diff-guard';
 import { BASE_BRANCH, baseBranchFor, fillPrompt, playtestCommand, resetOutputs } from './common';
 import { releaseLog } from './release-common';
@@ -141,9 +142,10 @@ export async function mergeIn(ctx: Ctx, land: Landing, { branch, message, reason
 
 async function mergedChecks(ctx: Ctx, land: Landing): Promise<string | null> {
   const log = releaseLog(ctx, `${land.stage}-checks-${land.into.replaceAll('/', '-')}`);
-  const script = checkScript(playtestCommand(ctx.cfg, false));
+  const subset = testSubset(await ctx.repo.changedInWork(land.dir, `origin/${land.into}`), (file) => existsSync(join(land.dir, GAME_DIR, file)));
+  const script = checkScript(playtestCommand(ctx.cfg, false), subsetCommand(subset));
   const at = { stage: land.stage, issue: null };
-  return checkUntilReal(() => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage })), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
+  return checkUntilReal(() => runChecks(ctx, at, land.dir, script, log, { BUILD_SCOPE: land.stage }), (run) => ctx.log(land.stage, null, `the checks only timed out, run ${run}, running them again`));
 }
 
 async function pushed(ctx: Ctx, land: Landing): Promise<boolean> {

@@ -44,7 +44,7 @@ Commit each fix on the current branch.
 
 This machine is shared and slow. Keep checks focused.
 Run the tests near your changes with `npx vitest run <files>`, and `npm run typecheck`.
-Do not run the full suite or the playtest. The full suite runs on the merged result before the merge, and its failures go to a merge agent.
+Do not run the full suite or the playtest. The merge runs the tests next to the changed files on the merged result, and its failures go to a merge agent. The release runs them all.
 
 A failing saved-shape test means the saved world changed without a migration step.
 Follow Save migrations in CLAUDE.md.

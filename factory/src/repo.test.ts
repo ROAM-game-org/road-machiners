@@ -548,6 +548,14 @@ describe('work clones', () => {
     expect(await repo.isMerged('dev', 'factory/issue-5')).toBe(true);
   });
 
+  it('lists the files a merge of the base changed in a work clone', async () => {
+    const { repo, work } = await behindDev('g.txt');
+    const before = await repo.fetchFromWork(work, 'factory/issue-5');
+    await repo.catchUpBase(work, 'dev');
+    expect(await repo.changedInWork(work, before)).toEqual(['g.txt']);
+    expect(await repo.changedInWork(work, 'origin/dev')).toEqual(['f.txt']);
+  });
+
   it('still sees the merged commit inside the branch after dev moves on', async () => {
     const { repo, work, commit } = await behindDev('g.txt');
     const merged = (await repo.catchUpBase(work, 'dev')).commit as string;

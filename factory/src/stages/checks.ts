@@ -23,45 +23,15 @@ else
   npm test
 fi`;
 
-export const checkScript = (playtest: string) => `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
-mkdir -p tmp
-step "npm ci"
-npm ci
-step "tests and typecheck"
-npm run typecheck > tmp/typecheck.log 2>&1 &
-typecheck=$!
-${CACHED_SUITE}
-step "tests done"
-if ! wait "$typecheck"; then cat tmp/typecheck.log; exit 1; fi
-step "dev server"
-npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
-server=$!
-ready=0
-for i in $(seq 1 60); do
-  if curl -sf http://localhost:5173 > /dev/null; then ready=1; break; fi
-  sleep 1
-done
-if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
-step "playtest"
-set +e
-${playtest}
-code=$?
-kill "$server"
-if [ "$code" -ne 0 ]; then exit "$code"; fi
-set -e
-step "build"
-SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
-`;
+const testStep = (tests: string) => (tests === '' ? 'step "no tests match the change"' : `step "tests"
+${tests}`);
 
-export const previewScript = (playtest: string) => `set -e
+export const checkScript = (playtest: string, tests: string) => `set -e
 step() { echo "[checks] $(date -u +%T) $1"; }
 mkdir -p tmp
 step "npm ci"
 npm ci
-step "typecheck"
-npm run typecheck
+${testStep(tests)}
 step "dev server"
 npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
 server=$!
@@ -122,13 +92,11 @@ function checkDir(ctx: Ctx, issue: number): string {
   return `${ctx.cfg.home}/work/check-issue-${issue}`;
 }
 
-export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'docs' | 'preview' | 'full'): Promise<string | null> {
-  if (kind === 'docs') return runScript(ctx, issue, base, build, buildScript);
-  const playtest = playtestCommand(ctx.cfg, false);
-  const script = kind === 'full' ? checkScript(playtest) : previewScript(playtest);
-  const pin = kind === 'full' ? testPoolPin(ctx.cfg) : undefined;
-  const check = () => runScript(ctx, issue, base, build, script, 'verify', pin);
-  return checkUntilReal(kind === 'full' ? () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, check) : check, (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix'): Promise<string | null> {
+  const script = checkScript(playtestCommand(ctx.cfg, false), CACHED_SUITE);
+  const hotfixCheck = () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, () => runScript(ctx, issue, base, build, script, 'verify', testPoolPin(ctx.cfg)));
+  const check = kind === 'build' ? () => runScript(ctx, issue, base, build, buildScript, 'verify') : hotfixCheck;
+  return checkUntilReal(check, (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
 }
 
 export async function oneSuiteAtATime<T>(ctx: Ctx, at: { stage: Stage; issue: number | null }, work: () => Promise<T>): Promise<T> {

@@ -94,6 +94,7 @@ export function fake(): Fake {
       },
       mergeLog: async () => f.changelog,
       diff: async () => f.diff,
+      changedInWork: async () => [],
       hasNewCommits: async () => true,
       isMerged: async () => true,
       headHash: async () => 'abc1234',
