@@ -32,7 +32,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       crashed: { retaliate: { mul: 0.2 } }, parley: { truce: { add: 2 } }, truceOffered: { accept: { add: 4 } },
       mercyBegged: { spare: { add: 3 } }, threatened: { comply: { add: 1 }, fightBack: { mul: 0.1 } }, warnedOff: { comply: { add: 1 }, fightBack: { mul: 0.1 } },
       lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
-      escortSeen: { hire: { add: 1 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, strangerSeen: { tale: { add: 0.1 } },
+      escortSeen: { hire: { add: 1 } }, aidAsked: { give: { mul: 2 } }, needySeen: { aid: { add: 0.02 } }, escortWanted: { post: { add: 1 } }, strangerSeen: { tale: { add: 0.1 } },
     },
   },
   raider: {
@@ -51,7 +51,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { flee: { mul: 3 }, fight: { mul: 0.5 } }, attacked: { flee: { mul: 3 }, fightBack: { mul: 0.3 } },
       parley: { truce: { mul: 2 }, beg: { mul: 3 } }, threatened: { flee: { mul: 3 }, comply: { add: 1 } }, warnedOff: { comply: { add: 1 } },
       lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
-      escortSeen: { hire: { mul: 3 } }, fightWhim: { veer: { mul: 3 } },
+      escortSeen: { hire: { mul: 3 } }, escortWanted: { post: { mul: 3 } }, fightWhim: { veer: { mul: 3 } },
     },
   },
   lawman: {
@@ -66,7 +66,7 @@ export const TRAITS: Record<TraitId, Trait> = {
     towns: ['bowl', 'nose'], bases: [], markets: TOWN_MARKETS, salvageSites: [], travelSites: ['bowl', 'nose', 'orchard', 'dustwell', 'granary', 'glass-flats', 'green-pit', 'pump-station', 'fallen-sun', 'salvage-yard'],
     haulSites: [], contactReactRadius: 12, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
-      idle: { travel: { add: 20 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 2 } },
+      idle: { travel: { add: 20 }, escort: { add: 180 }, scavenge: { mul: 0.001 } }, strandedSeen: { tow: { add: 2 } },
       hostileSeen: { fight: { mul: 0.1 } }, threatened: { comply: { add: 1 } }, warnedOff: { comply: { add: 1 } }, escortSeen: { hire: { add: 0.5 } },
       lootContested: { leave: { mul: 3 } }, strangerSeen: { tale: { add: 0.1 }, courier: { add: 1 } },
     },

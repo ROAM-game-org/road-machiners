@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import type * as Os from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
 import { testPoolPin } from '../cpus';
@@ -10,6 +11,8 @@ import { auditDir, playtest } from './playtest';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
 import { ROOT, fake, reset, type Fake } from './test-fakes';
+
+vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
 
 const DAY = '2026-10-07';
 const SEED = 20261007;

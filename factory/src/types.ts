@@ -185,6 +185,7 @@ export type FactoryState = {
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;
+  keptApprovals: Record<string, KeptApproval>;
   pendingChanges: ChangeRequest[];
   pendingIncidents: number[];
   bundles: Record<string, number[]>;
@@ -213,6 +214,8 @@ export type StuckCause = { incident: string; stage: Stage | null; cause: string;
 export type StuckRecord = StuckCause & { column: Column; kind: StuckKind; tries: number; released: string | null; refused: string | null };
 
 export type Hold = { by: string; reason: string; at: string; stage: JobStage | null };
+
+export type KeptApproval = { by: string; at: string; build: string; checked: string[]; reason: string | null };
 
 export type UnroutedReply = { issue: number; postId: number; text: string; at: string };
 
@@ -289,11 +292,19 @@ export interface HostRepo {
   changedFiles(base: string, branch: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
-  merge(steps: MergeStep[], resolutions?: Resolution[]): Promise<void>;
+  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;
   mergeLog(from: string, to: string): Promise<string[]>;
 }
 
 export type Resolution = { base: string; source: string; head: string };
+
+export type CheckedBuild = { branch: string; build: string; base: string };
+
+export class BaseMovedError extends Error {
+  constructor(readonly branch: string, readonly build: string, reason: string) {
+    super(reason);
+  }
+}
 
 export class MergeConflictError extends Error {
   constructor(readonly step: MergeStep, readonly files: string[], reason: string, readonly base: string, readonly source: string, readonly done: Resolution[] = []) {
