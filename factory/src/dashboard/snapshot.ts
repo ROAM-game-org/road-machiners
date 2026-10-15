@@ -63,7 +63,7 @@ export function buildOperations(state: FactoryState, paused: boolean, config: Pi
   const count = (queue: Queue, total: number) => ({ busy: jobs.filter((job) => job.queue === queue).length, total });
   const candidateUrl = state.release?.postId != null ? `${config.publicUrl}/rc/` : null;
   const release = state.release === null ? null : { issue: state.release.issue, day: state.release.day };
-  return { status: getFactoryStatus(state, paused), jobs, queues: { branch: count('branch', 1), triage: count('triage', config.triageWorkers), design: count('design', config.designWorkers), implement: count('implement', config.implementWorkers), verify: count('verify', config.verifyWorkers), test: count('test', config.testWorkers) }, release, features: readNextFeatures(state), candidateUrl };
+  return { status: getFactoryStatus(state, paused), jobs, queues: { branch: count('branch', 1), triage: count('triage', config.triageWorkers), design: count('design', config.designWorkers), implement: count('implement', config.implementWorkers), verify: count('verify', config.verifyWorkers), test: count('test', config.testWorkers), answer: count('answer', 1) }, release, features: readNextFeatures(state), candidateUrl };
 }
 
 export class PublicGitHub {

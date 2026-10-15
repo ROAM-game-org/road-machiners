@@ -142,6 +142,13 @@ describe('read commands', () => {
     expect(inbox()).toEqual([]);
   });
 
+  it('queues lists every queue, the player questions of the answer job included', async () => {
+    const f = board();
+    writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), pendingIncidents: [7], pendingAnswers: [12, 13] });
+    await run(f, 'queues');
+    expect(out).toEqual(['approval: none', 'removal: none', 'ship: none', 'change: none', 'incident: #7', 'answer: player question 12, player question 13']);
+  });
+
   it('cards lists each card with its position', async () => {
     await run(board(), 'cards');
     expect(out).toEqual(['#5 design Design [hotfix]', '#6 approval Approval []']);

@@ -21,6 +21,7 @@ it('publishes only explicit operational fields, never private state or raw error
   expect(JSON.stringify(result)).not.toContain('PRIVATE');
   expect(JSON.stringify(result)).not.toContain('private-job-id');
   expect(result.queues.implement).toEqual({ busy: 1, total: 2 });
+  expect(result.queues.answer).toEqual({ busy: 0, total: 1 });
 });
 
 it('stays idle on a catch-up failure, which blocks no card, and turns blocked on any other failure', () => {
