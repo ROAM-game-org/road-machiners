@@ -82,7 +82,7 @@ describe('settlement locals', () => {
 
   it('names the hull behind Ibo\'s tone and answers what he hears', () => {
     const shack = talk(parkedAt('nose'), 'nose_ibo', ['What do you do in this shack?']);
-    expect(questView(shack, QUESTS).lines.map((line) => line.text).join(' ')).toContain('the Fallen Sun, the big crashed hull in the crater');
+    expect(questView(shack, QUESTS).lines.map((line) => line.text).join(' ')).toContain('<term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater');
     expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
 
     const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
