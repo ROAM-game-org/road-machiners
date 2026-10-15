@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
-import { autoOrders, isHostile } from './combat';
+import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
+import { dist } from './vec';
 import { refreshVision } from './vision';
+import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
 import { alongOf, milestoneAt, toRoad } from './highway';
 import { generateNpcLoadout, OPEN_GEAR } from './npc-loadout';
-import { toughness } from './fury-road-director';
 import { mountedParts } from './grid';
 import { vehicleStats } from './stats';
 import { damagePart, maxHp } from './wear';
@@ -67,20 +68,11 @@ describe('Chaos Highway waves', () => {
     expect(sides.size).toBeGreaterThan(1);
   });
 
-  it('spawns plain wave trucks battered by the toughness of their stretch, and elite ones whole', () => {
+  it('spawns wave trucks with every part at full HP', () => {
     for (const stretch of [1, 4, 30]) {
-      const w = furyRoadWorld(2);
-      const [plain] = spawned(w, ['buggy'], stretch);
-      for (const part of mountedParts(plain, 'core')) expect(part.hp, `stretch ${stretch} ${part.defId}`).toBe(Math.round(maxHp(part) * toughness(stretch)));
-      const run = w.furyRoad!;
-      const elite = { ...run.groups[0], id: 'g-elite', templates: ['buggy'], vehicles: [], spawned: false, elite: true, money: 40000 };
-      run.groups.push(elite);
-      spawnGroup(w, run, elite, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
-      const tough = w.vehicles.find((v) => v.id === elite.vehicles[0])!;
-      for (const part of mountedParts(tough, 'core')) expect(part.hp).toBe(maxHp(part));
+      const [truck] = spawned(furyRoadWorld(2), ['buggy'], stretch);
+      for (const part of mountedParts(truck)) expect(part.hp, `stretch ${stretch} ${part.defId}`).toBe(maxHp(part));
     }
-    expect(toughness(1)).toBeLessThan(1);
-    expect(toughness(40)).toBe(1);
   });
 
   it('never makes two wave trucks hostile to each other, even from rival factions, and keeps them hostile to the player', () => {
@@ -99,19 +91,86 @@ describe('Chaos Highway waves', () => {
 });
 
 describe('Chaos Highway fire', () => {
-  it('has a wave truck shoot the hauler when it reaches it, even with the gun truck nearer', () => {
+  it('has a wave truck shoot the gun truck in reach, even with the hauler nearer', () => {
     const w = furyRoadWorld(2);
     const [truck] = spawned(w, ['buggy'], 1);
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
-    truck.pos = { x: hauler.pos.x + 6, y: hauler.pos.y };
+    truck.pos = { x: hauler.pos.x + 4, y: hauler.pos.y };
     truck.heading = Math.PI;
-    me.pos = { x: hauler.pos.x + 3, y: hauler.pos.y + 1.5 };
+    me.pos = { x: hauler.pos.x + 1, y: hauler.pos.y + 4 };
     refreshVision(w);
     autoOrders(w, truck);
     const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
     expect(targets.length).toBeGreaterThan(0);
-    expect(targets.every((id) => id === hauler.id)).toBe(true);
+    expect(targets.every((id) => id === me.id)).toBe(true);
+  });
+
+});
+
+describe('Chaos Highway prey', () => {
+  function apart(w: World, truck: Vehicle, haulerGap: number, playerGap: number): void {
+    const hauler = haulerOf(w);
+    truck.pos = { x: hauler.pos.x + haulerGap, y: hauler.pos.y };
+    playerVehicle(w).pos = { x: truck.pos.x, y: truck.pos.y + playerGap };
+  }
+
+  function unarmed(me: Vehicle): void {
+    for (const part of mountedParts(me, 'weapon')) part.hp = 0;
+  }
+
+  it('goes for the gun truck in a tie and while the hauler is nearer by less than the margin', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    unarmed(playerVehicle(w));
+    apart(w, truck, 10, 10);
+    expect(groupPrey(w, truck).id).toBe(w.player.vehicleId);
+    apart(w, truck, 10, 10 + FURY_ROAD.playerMargin - 1);
+    expect(groupPrey(w, truck).id).toBe(w.player.vehicleId);
+  });
+
+  it('goes for the hauler once it is nearer by more than the margin, and hunts and shoots it', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    unarmed(playerVehicle(w));
+    apart(w, truck, 4, 4 + FURY_ROAD.playerMargin + 2);
+    truck.heading = Math.PI;
+    expect(groupPrey(w, truck).id).toBe(haulerOf(w).id);
+    refreshVision(w);
+    advanceFuryRoad(w);
+    expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: haulerOf(w).id });
+  });
+
+  it('goes for the gun truck that hit it, however near the hauler is', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    unarmed(playerVehicle(w));
+    apart(w, truck, 3, 30);
+    truck.brain!.attackers[w.player.vehicleId] = true;
+    expect(groupPrey(w, truck).id).toBe(w.player.vehicleId);
+  });
+
+  it('goes for the gun truck whose gun can hit it, however near the hauler is', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const me = playerVehicle(w);
+    const [mw] = vehicleStats(w, me).weapons;
+    const aim = me.heading + (mw.facing * Math.PI) / 180;
+    const reach = Math.min(mw.def.range * 0.6, 12);
+    truck.pos = { x: me.pos.x + Math.cos(aim) * reach, y: me.pos.y + Math.sin(aim) * reach };
+    haulerOf(w).pos = { x: truck.pos.x + Math.cos(aim) * 3, y: truck.pos.y + Math.sin(aim) * 3 };
+    refreshVision(w);
+    expect(targetBlock(w, me, mw, truck)).toBeNull();
+    const margin = FURY_ROAD.playerMargin;
+    FURY_ROAD.playerMargin = 0;
+    try {
+      expect(dist(truck.pos, haulerOf(w).pos)).toBeLessThan(dist(truck.pos, me.pos));
+      expect(groupPrey(w, truck).id).toBe(me.id);
+      unarmed(me);
+      expect(groupPrey(w, truck).id).toBe(haulerOf(w).id);
+    } finally {
+      FURY_ROAD.playerMargin = margin;
+    }
   });
 });
 
@@ -120,27 +179,19 @@ describe('Chaos Highway nerve', () => {
     for (const part of mountedParts(v)) damagePart(part, part.hp * share, 0);
   }
 
-  it('knocks out a wave truck once it has lost the nerve share of the HP it spawned with, and counts it beaten', () => {
+  it('knocks out a wave truck once it has lost the nerve share of its HP, and counts it beaten', () => {
     const w = furyRoadWorld(5);
     const [truck] = spawned(w, ['buggy'], 2);
     const group = w.furyRoad!.groups[0];
     hurt(truck, FURY_ROAD.nerve - 0.1);
-    expect(hurtShare(truck, group)).toBeLessThan(FURY_ROAD.nerve);
+    expect(hurtShare(truck)).toBeLessThan(FURY_ROAD.nerve);
     advanceFuryRoad(w);
     expect(truck.defeat ?? null).toBeNull();
     hurt(truck, 0.2);
-    expect(hurtShare(truck, group)).toBeGreaterThanOrEqual(FURY_ROAD.nerve);
+    expect(hurtShare(truck)).toBeGreaterThanOrEqual(FURY_ROAD.nerve);
     advanceFuryRoad(w);
     expect(truck.defeat?.phase).toBe('out');
     expect(group.counted).toEqual([truck.id]);
     expect(w.events).toContainEqual(expect.objectContaining({ t: 'npcKnockout', vehicle: truck.id }));
-  });
-
-  it('measures an elite truck against its whole HP, so the same hits leave it in the fight longer', () => {
-    const w = furyRoadWorld(5);
-    const [truck] = spawned(w, ['buggy'], 4);
-    const plain = w.furyRoad!.groups[0];
-    expect(hurtShare(truck, plain)).toBeCloseTo(0, 5);
-    expect(hurtShare(truck, { ...plain, elite: true })).toBeGreaterThan(0);
   });
 });

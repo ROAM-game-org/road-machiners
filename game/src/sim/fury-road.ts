@@ -3,9 +3,9 @@ import { GARAGE_STOCK } from '../data/market';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
-import { partDef } from '../data/parts';
 import { HAULER_KIT } from '../data/start';
 import { makeVehicle } from './factory';
+import { groupPrey } from './combat';
 import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
@@ -16,9 +16,9 @@ import { fightCornered, topGoal } from './npc-activities';
 import { generateNpcLoadout, type GearRules } from './npc-loadout';
 import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
-import { directStretch, payOf, toughness, type PlannedWave } from './fury-road-director';
+import { directStretch, payOf, type PlannedWave } from './fury-road-director';
 import { mountedParts } from './grid';
-import { maxHp, setStartHp } from './wear';
+import { maxHp } from './wear';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
@@ -184,15 +184,14 @@ function countBeaten(world: World, run: FuryRoadRun): void {
 
 function breakHurt(world: World, run: FuryRoadRun): void {
   for (const group of run.groups) {
-    for (const v of fighting(world, group)) if (hurtShare(v, group) >= FURY_ROAD.nerve) knockOutNpc(world, v);
+    for (const v of fighting(world, group)) if (hurtShare(v) >= FURY_ROAD.nerve) knockOutNpc(world, v);
   }
 }
 
-export function hurtShare(v: Vehicle, group: WaveGroup): number {
+export function hurtShare(v: Vehicle): number {
   const parts = mountedParts(v);
-  const start = (part: PartInstance) => maxHp(part) * (!group.elite && partDef(part.defId).kind === 'core' ? toughness(group.stretch) : 1);
-  const full = parts.reduce((sum, part) => sum + start(part), 0);
-  const now = parts.reduce((sum, part) => sum + Math.min(part.hp, start(part)), 0);
+  const full = parts.reduce((sum, part) => sum + maxHp(part), 0);
+  const now = parts.reduce((sum, part) => sum + part.hp, 0);
   return full > 0 ? 1 - now / full : 0;
 }
 
@@ -221,7 +220,7 @@ function huntConvoy(world: World, run: FuryRoadRun): void {
     for (const v of fighting(world, group)) {
       declareFeud(world, v, hauler.id);
       markHostile(world, v, me.id);
-      const target = turnedOnPlayer(world, v) ? me : hauler;
+      const target = groupPrey(world, v);
       if (huntsTarget(v, target)) refreshTrack(world, v, target.id, interceptPoint(world, run, v, target));
       else fightCornered(world, v, target);
     }
@@ -260,13 +259,12 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const hauler = haulerOf(world);
   loadouts.forEach(({ tpl, loadout }, i) => {
     const v = spawnAt(world, tpl, loadout, spots[i]);
-    if (!group.elite) for (const part of mountedParts(v, 'core')) setStartHp(part, toughness(group.stretch));
     getResources(world, v).fuel = fuelCap(v);
     v.heading = Math.atan2(hauler.pos.y - v.pos.y, hauler.pos.x - v.pos.x);
     group.vehicles.push(v.id);
     declareFeud(world, v, hauler.id);
     markHostile(world, v, me.id);
-    fightCornered(world, v, hauler);
+    fightCornered(world, v, groupPrey(world, v));
   });
   group.spawned = true;
   group.retryUntil = null;

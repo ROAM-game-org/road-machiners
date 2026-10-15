@@ -1,5 +1,5 @@
 import { haulerOf } from "../sim/damage";
-import { haulerGauge } from "../sim/hauler-gauge";
+import { haulerShare } from "../sim/hauler-gauge";
 import type { World } from "../sim/types";
 import { t } from "../text/msg";
 import { chassisPortrait } from "./cards";
@@ -14,7 +14,7 @@ export class HaulerGauge {
       return;
     }
     const hauler = haulerOf(w);
-    const share = haulerGauge(hauler);
+    const share = haulerShare(hauler);
     this.root.style.display = "";
     this.root.replaceChildren(
       chassisPortrait(hauler.chassisId),

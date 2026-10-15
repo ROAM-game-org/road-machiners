@@ -95,9 +95,8 @@ A director plans each stretch's groups when the road opens, in `src/sim/fury-roa
 - Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
 - Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
 - Gear money: each truck's gear money is 15% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
-- Toughness: a plain truck spawns with its cab, drive and wheels at half their HP on stretch 1, 5 points more each stretch, whole from stretch 11.
 
-Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first, and spawns whole. A blocker is never elite.
+Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first. A blocker is never elite.
 
 The gear level sets only the wear of the parts and the amount of cargo: light on stretches 1 to 3, standard on 4 to 6, heavy on 7 and loaded from 8. Every group truck carries a gun, picked before its utility part, and never a cargo part. A plain truck has no armor, mounted or spare. Guns follow the stretch: stretches 1 and 2 carry only tier 1 guns, stretches 3 to 7 up to tier 2, and from stretch 8 any gun.
 
@@ -119,10 +118,11 @@ Spawn spots and the encounter test measure from the hauler and never from behind
 
 Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 15% of that share either way. A group spawns once the hauler reaches its place, whether or not the last fight is over, so holding back from a fight never holds the next group back. Groups spawn in plan order, so a fight may meet a scene.
 
-Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler and hunts it every turn until the level ends. Each also holds a feud on the player, so the player's guns see it as hostile.
+Group trucks spawn with full tanks and no cargo. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
 
-- A group truck fires on any player truck it sees. Each gun picks the nearest one it can hit now, in range, in arc and with a line of fire. `canNpcEngage()` in `src/sim/combat.ts` holds the rule.
-- Its drive hunts the hauler. It hunts the gun truck only while the gun truck is in its attackers, after the gun truck shot it or crashed into it so that it took damage. It goes back to the hauler when the gun truck leaves its sight.
+- Each turn a group truck picks its prey. It picks the gun truck while it is in danger from it: one of the gun truck's working guns can hit it now, or the gun truck shot it or crashed into it so that it took damage. Otherwise it picks the nearer of the two trucks, and the hauler counts as nearer only when it is more than 8 tiles nearer, so a tie goes to the gun truck. `groupPrey()` in `src/sim/combat.ts` holds the rule.
+- Its drive hunts its prey.
+- Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.
 - Group trucks are never hostile to each other, whatever their factions, so they never fight among themselves.
@@ -132,7 +132,7 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 30% of the HP it spawned with, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
 
-A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The hauler is also lost when its gauge empties. The gauge in the HUD is the hauler's part HP, armor included, above half of its full HP, so the meter reads empty at half. Every hit counts toward it, wheels and armor too, and armor on the hauler raises its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
+A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The gauge in the HUD is the hauler's part HP, armor included, as a share of its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
 
 The death screen names the mode, the last outpost reached and how far north the truck got. It offers Load save, Restart run with the same settings and a new seed, and New game.
 

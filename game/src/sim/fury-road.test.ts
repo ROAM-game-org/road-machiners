@@ -7,7 +7,7 @@ import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
 import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
-import { inCombat } from './combat';
+import { groupPrey, inCombat } from './combat';
 import { haulerOf, playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, type PlannedWave } from './fury-road-director';
@@ -267,7 +267,7 @@ describe('the pace of encounters', () => {
     expect(run.groups.map((g) => g.spawned)).toEqual(run.groups.map((_, i) => i < 2));
   });
 
-  it('spawns hostile groups that hunt the hauler and hold the player a foe they do not shoot at', () => {
+  it('spawns hostile groups that hunt their prey and hold both player trucks foes', () => {
     const w = furyRoadWorld();
     const first = spawnFirst(w);
 
@@ -275,7 +275,7 @@ describe('the pace of encounters', () => {
       expect(stateOf(w, 'feud', v.id, haulerOf(w).id)).not.toBeNull();
       expect(stateOf(w, 'feud', v.id, w.player.vehicleId)).not.toBeNull();
       expect(v.brain!.attackers).toEqual({ [haulerOf(w).id]: false });
-      expect(topGoal(v)).toMatchObject({ kind: 'fight', targetId: haulerOf(w).id });
+      expect(topGoal(v)).toMatchObject({ kind: 'fight', targetId: groupPrey(w, v).id });
     }
   });
 

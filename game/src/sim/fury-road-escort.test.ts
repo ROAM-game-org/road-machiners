@@ -8,7 +8,6 @@ import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, moveWind
 import { alongOf, milestoneAt, outpostFort, roadPoint, toRoad } from './highway';
 import { topGoal } from './npc-activities';
 import { corePart, mountedParts } from './grid';
-import { haulerGauge } from './hauler-gauge';
 import { maxHp } from './wear';
 import { canUseSite } from './sites';
 import { furyRoadWorld } from './testkit';
@@ -71,7 +70,7 @@ describe('winning a stretch', () => {
 });
 
 describe('who a group truck shoots', () => {
-  it('fires at the nearer player truck in its sights, and keeps driving at the hauler', () => {
+  it('fires at the gun truck in its sights and hunts it before the hauler', () => {
     const w = furyRoadWorld();
     const truck = spawnOne(w);
     nearBoth(w, truck);
@@ -83,9 +82,8 @@ describe('who a group truck shoots', () => {
     expect(targets.length).toBeGreaterThan(0);
     expect(new Set(targets)).toEqual(new Set([me.id]));
     expect(hostileToPlayer(w, truck)).toBe(true);
-    expect(turnedOnPlayer(w, truck)).toBe(false);
     advanceFuryRoad(w);
-    expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: hauler.id });
+    expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: me.id });
   });
 
   it('fires at the hauler when it is the nearer player truck', () => {
@@ -162,24 +160,14 @@ describe('losing the run', () => {
     expect(isDefeated(haulerOf(after))).toBe(false);
   });
 
-  it('ends the run with haulerLost once the hauler gauge empties at the lost share of its part HP, with its cab whole', () => {
-    const healthy = furyRoadWorld();
-    expect(haulerGauge(haulerOf(healthy))).toBe(1);
-    expect(endTurn(healthy, still).player.state).toBe('active');
-
+  it('keeps the run going while the hauler cab holds, however hurt its other parts are', () => {
     const w = furyRoadWorld();
-    const parts = mountedParts(haulerOf(w));
-    const total = parts.reduce((sum, p) => sum + maxHp(p), 0);
-    let cut = total * (1 - FURY_ROAD.hauler.lostAt) + 1;
-    for (const part of parts.filter((p) => p.id !== corePart(haulerOf(w), 'cab').id)) {
-      const take = Math.min(part.hp, cut);
-      part.hp -= take;
-      cut -= take;
-    }
-    expect(corePart(haulerOf(w), 'cab').hp).toBe(maxHp(corePart(haulerOf(w), 'cab')));
-    expect(haulerGauge(haulerOf(w))).toBe(0);
+    const cab = corePart(haulerOf(w), 'cab');
+    for (const part of mountedParts(haulerOf(w)).filter((p) => p.id !== cab.id)) part.hp = Math.min(part.hp, 1);
+    expect(cab.hp).toBe(maxHp(cab));
     const after = endTurn(w, still);
-    expect(after.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'haulerLost' });
+    expect(after.player.state).toBe('active');
+    expect(after.events.some((e) => e.t === 'runLost')).toBe(false);
   });
 
   it('ends the run with wrecked when the player truck is beaten, as before', () => {

@@ -2,6 +2,7 @@
 import { onCall } from "./dialogue";
 import { aimAt } from "./parley";
 import { SPAWN } from '../data/npcs';
+import { FURY_ROAD } from '../data/modes';
 import { isDefeated, isKnockedOut, knockOutNpc } from './defeat';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
@@ -32,6 +33,7 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
+import { haulerOf, playerVehicle } from './damage';
 
 export type FireBlock =
   | "disabled"
@@ -87,8 +89,8 @@ function bothInWaves(world: World, a: Vehicle, b: Vehicle): boolean {
   return isGroupTruck(world, a) && isGroupTruck(world, b);
 }
 
-function fireRank(world: World, shooter: Vehicle, target: Vehicle): number {
-  return target.id === world.furyRoad?.hauler.id && isGroupTruck(world, shooter) ? 0 : 1;
+function preyOf(world: World, shooter: Vehicle): string | null {
+  return isGroupTruck(world, shooter) ? groupPrey(world, shooter).id : null;
 }
 
 function isLawPair(a: Vehicle, b: Vehicle): boolean {
@@ -1047,6 +1049,18 @@ function isGroupTruck(world: World, v: Vehicle): boolean {
   return world.furyRoad !== null && world.furyRoad.groups.some((g) => g.vehicles.includes(v.id));
 }
 
+export function groupPrey(world: World, v: Vehicle): Vehicle {
+  const me = playerVehicle(world);
+  const hauler = haulerOf(world);
+  if (inDangerFrom(world, v, me)) return me;
+  return dist(v.pos, hauler.pos) + FURY_ROAD.playerMargin < dist(v.pos, me.pos) ? hauler : me;
+}
+
+function inDangerFrom(world: World, v: Vehicle, me: Vehicle): boolean {
+  if (v.brain !== null && me.id in v.brain.attackers) return true;
+  return vehicleStats(world, me).weapons.some((mw) => mw.part.hp > 0 && targetBlock(world, me, mw, v) === null);
+}
+
 function robs(world: World, v: Vehicle, target: Vehicle): boolean {
   const feud = stateOf(world, "feud", v.id, target.id);
   return feud !== null && feudData(feud).robbery;
@@ -1060,9 +1074,11 @@ function opensFireOn(goals: NpcActivity[], target: Vehicle): boolean {
 export function autoOrders(world: World, v: Vehicle): void {
   v.weaponOrders = {};
   const seen = (x: Vehicle) => canVehicleSee(world, v, x.pos);
+  const prey = preyOf(world, v);
+  const rank = (x: Vehicle) => (x.id === prey ? 0 : 1);
   const hostiles = world.vehicles
     .filter((x) => isHostile(world, v, x) && seen(x) && canNpcEngage(world, v, x))
-    .sort((a, b) => fireRank(world, v, a) - fireRank(world, v, b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
+    .sort((a, b) => rank(a) - rank(b) || dist(v.pos, a.pos) - dist(v.pos, b.pos));
   for (const mw of vehicleStats(world, v).weapons) {
     const target =
       hostiles.find(

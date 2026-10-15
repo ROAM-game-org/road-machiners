@@ -98,11 +98,6 @@ export function eliteCap(j: number): number {
   return j < DIRECTOR.elite.from ? 0 : 1 + Math.floor((j - DIRECTOR.elite.from) / DIRECTOR.elite.every);
 }
 
-export function toughness(j: number): number {
-  requireStretch(j);
-  return Math.min(1, lineAt(DIRECTOR.toughness, j));
-}
-
 export function cardsOf(j: number): [string, EnemyCard][] {
   const cards = Object.entries(FURY_ROAD.cards).filter(([, card]) => card.from <= j && card.weight > 0);
   if (cards.length === 0) throw new Error(`Stretch ${j} has no enemy cards`);
