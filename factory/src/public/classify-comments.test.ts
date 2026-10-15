@@ -59,7 +59,7 @@ describe('classifyComments', () => {
     expect(seen).toEqual(['ann 1', 'ann 2', 'ann 5', 'ann 6']);
   });
 
-  it('lists the known work that shares words with the message and its context, and keeps the issue the filter picks', async () => {
+  it('lists the known work that shares words with the message and its context first, then the newest, and keeps the issue the filter picks', async () => {
     const f = publicFake();
     f.store.addProposal(564, 'Landmark directions\nTowns give directions by landmarks you can see.', f.clock.now);
     f.store.addProposal(568, 'Faction reputation\nTowns remember what you did.', f.clock.now);
@@ -69,7 +69,7 @@ describe('classifyComments', () => {
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), kind: 'feedback', work: 0, language: 'ru' }; }));
     expect(seen[0]).toMatchObject({ source: 'message', context: 'Landmark directions' });
     expect(seen[0]!.work![0]).toBe('#564 Landmark directions: Towns give directions by landmarks you can see.');
-    expect(seen[0]!.work!.some((work) => work.startsWith('#570'))).toBe(false);
+    expect(seen[0]!.work!.map((work) => work.split(' ')[0])).toEqual(['#564', '#570', '#568']);
     const [stored] = f.store.recentChat(1);
     expect([stored!.kind, stored!.workIssue, stored!.language]).toEqual(['feedback', 564, 'ru']);
   });

@@ -24,7 +24,9 @@ function overLimit(ctx: Ctx, store: PublicStore, comment: StoredComment): boolea
 
 function candidateWork(store: PublicStore, comment: StoredComment): KnownWork[] {
   const known = store.knownWork().filter((work) => work.issue !== comment.issue);
-  return rankByWords(known.map((work) => work.text), `${comment.text} ${comment.context ?? ''}`, WORK_CANDIDATES).map((index) => known[index]!);
+  const ranked = rankByWords(known.map((work) => work.text), `${comment.text} ${comment.context ?? ''}`, WORK_CANDIDATES).map((index) => known[index]!);
+  const newest = known.filter((work) => !ranked.includes(work)).sort((a, b) => b.issue - a.issue);
+  return [...ranked, ...newest].slice(0, WORK_CANDIDATES);
 }
 
 function filterInput(store: PublicStore, comment: StoredComment, work: KnownWork[]): FilterInput {

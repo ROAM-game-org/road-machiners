@@ -231,7 +231,16 @@ export class PublicStore {
   }
 
   toFile(): StoredComment[] {
-    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and filed_at is null and kind in ('bug', 'feature') and not (issue is not null and ${ON_TOPIC}) order by id`).all().map(toComment);
+    const fileable = "(kind in ('bug', 'feature') or work_issue is not null)";
+    return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and filed_at is null and ${fileable} and not (issue is not null and ${ON_TOPIC}) order by id`).all().map(toComment);
+  }
+
+  markFiling(id: number, now: Date): void {
+    this.db.prepare('update comments set filed_at = ? where id = ?').run(now.toISOString(), id);
+  }
+
+  link(id: number, issue: number): void {
+    this.db.prepare("update comments set issue = ?, relevance = 'parent', post_message_id = null, route = 'none', linked = 1 where id = ?").run(issue, id);
   }
 
   claimFiling(id: number, text: string, now: Date): number | null {
@@ -252,7 +261,7 @@ export class PublicStore {
   }
 
   toReply(): StoredComment[] {
-    const filed = `(filed_at is not null or kind not in ('bug', 'feature') or (issue is not null and ${ON_TOPIC}))`;
+    const filed = `(filed_at is not null or (kind not in ('bug', 'feature') and work_issue is null) or (issue is not null and ${ON_TOPIC}))`;
     return this.db.prepare(`select * from comments where source = 'telegram' and classified_at is not null and dropped_at is null and replied_at is null and message_id is not null and ${filed} order by id`).all().map(toComment);
   }
 
