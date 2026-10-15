@@ -43,6 +43,20 @@ Chosen answers live in the hidden truths of [Timeline](lore/timeline.md). The fu
 
 Create a square, straight-down concept painting of Icarus for a post-apocalyptic truck RPG. This image is a reference for designing the playable 3D world, not a minimap or interface. Show the former farming basin with orchards, field boundaries, canals, irrigation gates, farm roads, and market towns. A huge spaceship broke apart during descent: the Fallen Sun, its largest hull section, lies in a central crater, while engines, cargo sections, and escape pods left a visible debris trail across the region. Show the living economy through surviving farms, salvagers at work, and truck routes between settlements. Include hills, valleys, a dramatic canyon, and a dried riverbed. Keep the old farm grid, violent impact trail, and newer winding roads visually distinct. Make the region large enough for long journeys between destinations. Use a hand-painted low-poly wasteland style, warm dust against traces of orchard green and cold ship metal. No text, labels, icons, borders, grid overlay, legend, interface, or perspective view.
 
+## Item lore
+
+Every part, good and the parcel has a lore entry in `src/text/en/lore.ts` and `src/text/ru/lore.ts`. It shows under the name in the item's hover tip and as the last paragraph of the inspection card and the shop row's open detail. It is in-world common knowledge, like a term tip: one or two plain, dry sentences on what the thing is in the basin, who makes or uses it, why drivers pick it and what is odd about it.
+
+Writing rules:
+
+- No game rule, stat, tier or number, and no digits. Never restate what the card shows: mass, range, arc, damage, footprint or condition. A claim about how an item behaves is road wisdom that matches a real rule in the [mechanics pages](wiki/mechanics/).
+- Every fact matches this lore. It is evidence, never a conclusion: no hidden truth from [Timeline](lore/timeline.md), no ship name, no use for the M's, no crash date and no old name of the basin. No faction is right.
+- Name only Bowl, Nose and groups any driver hears of on day one: the Old Army, the Nose Army, the Bowl Farmers, raiders and Pierce. Name no other site and no person.
+- Each entry has its own image of New World use of Old World leftovers where it fits. No two entries share a template sentence.
+- At most 200 characters in English and 270 in Russian. `src/text/catalog.test.ts` checks digits, length, the out-of-character words and repeats.
+
+Bad: "A machine gun turret with a wide arc that fires six rounds." It states stats. Good: "The workshop line at Nose turns these out by the crate. Nobody calls it a good gun, but it fires when it is dirty, and every welder in the basin can fix it."
+
 ## M's
 
 The currency of the basin is the M, and many are M's. An M is a smooth, indestructible metal disc inscribed with an M. M's were used for something aboard the colony ship before it crashed. The inscribed M is the ship's logo, because the ship's real name began with M. Drivers do not know this. To them an M is simply what things cost.
