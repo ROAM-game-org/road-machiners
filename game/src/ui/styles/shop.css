@@ -765,6 +765,7 @@
 
 /* Market: one row per good, buy and sell each beside their price. The line under each row comes from .row. */
 .goods {
+  --col-profit: 108px;
   display: flex;
   flex-direction: column;
 }
