@@ -303,9 +303,17 @@ export function spanDegrees(spans: readonly FireSpan[]): number {
   return spans.reduce((sum, s) => sum + s.to - s.from, 0);
 }
 
-export function everyGunFires(v: Vehicle): boolean {
+export function openArcShare(v: Vehicle, item: GridItem): number {
+  return shareOpen(tallItems(v), item);
+}
+
+export function openArcShares(v: Vehicle): number[] {
   const tall = tallItems(v);
-  return mountedItems(v, 'weapon').every((item) => spansIn(tall, item).length > 0);
+  return mountedItems(v, 'weapon').map((item) => shareOpen(tall, item));
+}
+
+function shareOpen(tall: readonly GridItem[], item: GridItem): number {
+  return spanDegrees(spansIn(tall, item)) / spanDegrees(arcPieces(item));
 }
 
 export function gunLayoutScore(v: Vehicle): number {

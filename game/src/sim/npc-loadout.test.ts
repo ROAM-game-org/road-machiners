@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { CHASSIS } from '../data/chassis';
-import { GEAR_LEVEL_IDS, GEAR_LEVELS, MIN_NPC_SPEED, NPCS, PRIORITY_TOP, type GearLevel, type LoadoutPriorities, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_LEVEL_IDS, GEAR_LEVELS, GEAR_SCORE, MIN_NPC_SPEED, NPCS, PRIORITY_TOP, type GearLevel, type LoadoutPriorities, type NpcTemplate, type Weighted } from '../data/npcs';
 import { PARTS, partDef, type EngineDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { START_KITS } from '../data/start';
 import { newWorld } from './world';
 import { CONDITION } from '../data/wear';
-import { everyGunFires, gunSpans } from './armor';
+import { openArcShares, gunSpans } from './armor';
 import { makeVehicle } from './factory';
 import { baseGrid, coreParts, facingOf, freeCells, goodsCount, gridOf, isMounted, itemCells, mountedItems, mountedParts, placementError } from './grid';
 import { itemMass, loadFactor, vehicleMass } from './mass';
@@ -214,12 +214,12 @@ describe('NPC equipment generation', () => {
     expect(addGoods(world, player, 'tools', 1000)).toBe(playerFree);
   });
 
-  it.each(Object.values(NPCS))('gives $id only guns that can fire', (template) => {
+  it.each(Object.values(NPCS))('gives $id only guns that keep half their arc', (template) => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = generateNpcLoadout(world, template);
       const v = makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
-      expect(everyGunFires(v), describeLoadout(v)).toBe(true);
+      for (const share of openArcShares(v)) expect(share, describeLoadout(v)).toBeGreaterThanOrEqual(GEAR_SCORE.minOpenArcShare);
     }
   });
 
