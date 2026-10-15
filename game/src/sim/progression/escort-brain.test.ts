@@ -6,7 +6,7 @@ import type { Vehicle, World } from '../types';
 import { dist } from '../vec';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
-import { asFighter, escortMove, hostilesSeen, leash, nearestToHauler } from './escort-brain';
+import { asFighter, escortMove, hostilesSeen, lagBehind, leash, nearestToHauler } from './escort-brain';
 
 function started(): World {
   return endTurn(furyRoadWorld(), () => {});
@@ -70,13 +70,24 @@ describe('escortMove', () => {
     expect(playerVehicle(w).brain).toBeNull();
   });
 
-  it('drives back to the hauler past the leash, even with a foe in sight', () => {
+  it('drives back to the hauler once it falls behind it by more than its gun reach, even with a foe in sight', () => {
+    const w = started();
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    me.pos = { x: hauler.pos.x, y: hauler.pos.y + leash(w, me) + 5 };
+    foeAt(w, 6, 0, me);
+    refreshVision(w);
+    expect(lagBehind(w, me, hauler)).toBeGreaterThan(leash(w, me));
+    expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBe(0);
+  });
+
+  it('keeps fighting a foe off to the side of the hauler, since only falling behind pulls it back', () => {
     const w = started();
     const me = playerVehicle(w);
     const hauler = haulerOf(w);
     me.pos = { x: hauler.pos.x + leash(w, me) + 5, y: hauler.pos.y };
     foeAt(w, 6, 0, me);
     refreshVision(w);
-    expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBe(0);
+    expect(dist(destOf(escortMove(w, me)), followSpot(w, me, hauler, 0))).toBeGreaterThan(0);
   });
 });

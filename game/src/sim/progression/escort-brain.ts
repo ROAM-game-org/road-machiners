@@ -4,6 +4,7 @@ import { RULES } from '../../data/rules';
 import { fightOrder, fightPoint } from '../ai';
 import { haulerOf, playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
+import { alongOf, toRoad } from '../highway';
 import { vehicleStats } from '../stats';
 import { followPace, followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
@@ -45,9 +46,14 @@ export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrde
   return { kind: 'through', dest: spot, pace: followPace(me, leader, spot) };
 }
 
+export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
+  const along = (v: Vehicle) => alongOf(world.seed, toRoad(world.furyRoad!.window, v.pos));
+  return along(hauler) - along(me);
+}
+
 export function escortMove(world: World, me: Vehicle): MoveOrder {
   const hauler = haulerOf(world);
   const foe = nearestToHauler(world, hostilesSeen(world));
-  if (foe && dist(me.pos, hauler.pos) <= leash(world, me)) return fightMove(world, me, foe);
+  if (foe && lagBehind(world, me, hauler) <= leash(world, me)) return fightMove(world, me, foe);
   return followMove(world, me, hauler);
 }
