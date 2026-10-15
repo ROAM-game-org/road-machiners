@@ -27,6 +27,10 @@ function goodsHead(): HTMLElement {
   return el("div", { class: "goods-head row dim" }, el("span", {}, c.good), priceHead(c.buy), el("span", {}), el("span", { class: "end" }, c.held), el("span", {}));
 }
 
+export function outpostControls(w: World): { leave: boolean; driveOn: boolean } {
+  return { leave: !gatesShut(w), driveOn: canDriveOn(w) };
+}
+
 export class OutpostScreen {
   private root = panel("modal dialog");
   private error: Msg | null = null;
@@ -54,7 +58,7 @@ export class OutpostScreen {
   }
 
   close(): void {
-    if (gatesShut(this.host.world())) return;
+    if (!outpostControls(this.host.world()).leave) return;
     this.leave();
   }
 
@@ -101,7 +105,7 @@ export class OutpostScreen {
       el("div", { class: "outpost-body" }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
-    const leave = gatesShut(w) ? [] : [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))];
+    const leave = !outpostControls(w).leave ? [] : [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))];
     this.root.replaceChildren(...leave, el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truck);
   }
@@ -178,7 +182,7 @@ export class OutpostScreen {
   }
 
   private driveOnButton(w: World): HTMLElement | null {
-    if (!canDriveOn(w)) return null;
+    if (!outpostControls(w).driveOn) return null;
     return el("div", { class: "outpost-road" }, el("button", { class: "btn-l", onclick: () => this.driveOn() }, t("outpost.driveOn")));
   }
 
