@@ -599,6 +599,18 @@ describe('work clones', () => {
     return { ...env, work };
   }
 
+  it('replaces a branch with an unrelated commit, which a plain push refuses', async () => {
+    const { repo, commit, head } = await setup();
+    await commit('factory/issue-3', 'f.txt', 'three\n');
+    await commit('factory/issue-4', 'f.txt', 'four\n');
+    await repo.fetch();
+    await repo.replaceBranch(await head('factory/issue-3'), 'factory/suite-playtest');
+    expect(await head('factory/suite-playtest')).toBe(await head('factory/issue-3'));
+    await expect(repo.push(await head('factory/issue-4'), 'factory/suite-playtest')).rejects.toThrow();
+    await repo.replaceBranch(await head('factory/issue-4'), 'factory/suite-playtest');
+    expect(await head('factory/suite-playtest')).toBe(await head('factory/issue-4'));
+  });
+
   it('finds nothing to merge on a new branch or a branch the clone already holds', async () => {
     const { home, repo } = await setup();
     const work = join(home, 'work', 'issue-13');
