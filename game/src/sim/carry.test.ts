@@ -24,8 +24,8 @@ function part(defId: string, over: Partial<Extract<CarriedItem, { kind: 'part' }
 function kitItems(): CarriedItem[] {
   const w = newWorld(1, KIT, TEST_MAP, defaultSetup('roaming'), false);
   return playerVehicle(w).items.map((it): CarriedItem =>
-    it.kind === 'good'
-      ? { kind: 'good', good: it.good, x: it.x, y: it.y, rot: it.rot }
+    it.kind !== 'part'
+      ? { kind: 'good', good: it.kind === 'good' ? it.good : '', x: it.x, y: it.y, rot: it.rot }
       : { kind: 'part', part: { defId: it.part.defId, wear: it.part.wear, hp: it.part.hp, rebuilt: false }, x: it.x, y: it.y, rot: it.rot });
 }
 

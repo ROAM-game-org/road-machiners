@@ -3,8 +3,9 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { haulerOf, playerVehicle, truckFor } from './damage';
 import { partDef } from '../data/parts';
 import { getResources } from './resources';
-import { basicParts, basicsRepairCost, garageParts, garageRepair, partTradePrice, pay, receiveBoughtPart, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
+import { basicParts, basicsRepairCost, allParts, garageParts, garageRepair, partRepairCost, partTradePrice, pay, receiveBoughtPart, swapChassis, repairCost, supplyRoom, type Supply } from './economy';
 import { outpostFactsAt, outpostTrucks, reachedOutpostAt, type Outpost } from './fury-road';
+import { isJunk } from './wear';
 import { addGoods, cargoRoom } from './inventory';
 import type { PartInstance, Vehicle, World } from './types';
 import { playerCommand, Refused } from './world';
@@ -30,6 +31,17 @@ export function outpostRepairBasics(world: World, truckId?: string): World {
     requireOutpost(w, truckId);
     const truck = truckFor(w, truckId);
     repairFor(w, basicsRepairCost(w, truck), basicParts(w, truck));
+  });
+}
+
+export function outpostRepairPart(world: World, partId: string, truckId?: string): World {
+  return playerCommand(world, (w) => {
+    requireOutpost(w, truckId);
+    const part = allParts(truckFor(w, truckId)).find((p) => p.id === partId);
+    if (!part) throw new Error(`No truck part ${partId}`);
+    if (isJunk(part)) throw new Error(`${part.defId} is junk and cannot be repaired at an outpost`);
+    pay(w, partRepairCost(w, part));
+    garageRepair(part);
   });
 }
 

@@ -2,12 +2,13 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { failureIssue, pruneFailures, reportFailure, summarizeError } from './fail';
+import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure, summarizeError } from './fail';
+import { GithubError } from './github';
 import { CommitteeDecisionError } from './diff-guard';
 import { UsageLimitError } from './pause';
 import { BudgetError } from './stages/checkpoint';
 import { EMPTY_STATE, readState, writeState } from './state';
-import type { Ctx, FactoryState } from './types';
+import type { Ctx, FactoryState, FailureCause } from './types';
 
 describe('summarizeError', () => {
   it('keeps the failure lines of colored test output', () => {
@@ -34,7 +35,7 @@ describe('reportFailure', () => {
     const labels: string[] = [];
     const { ctx, statePath } = setup(async () => { labels.push('stuck'); });
     await reportFailure(ctx, 'implement', 4, new Error('agent failed'), 'l', []);
-    expect(readState(statePath).failures).toEqual([{ stage: 'implement', issue: 4, error: 'agent failed', log: 'l', at: NOW.toISOString() }]);
+    expect(readState(statePath).failures).toEqual([{ stage: 'implement', issue: 4, error: 'agent failed', cause: 'error', log: 'l', at: NOW.toISOString() }]);
     expect(labels).toEqual(['stuck']);
   });
 
@@ -46,12 +47,34 @@ describe('reportFailure', () => {
     expect(labels).toEqual([]);
   });
 
-  it('records the batch of a merge failure and marks a spent budget or a committee question as a decision', async () => {
+  it('records the batch of a merge failure', async () => {
     const { ctx, statePath } = setup(async () => undefined);
-    await reportFailure(ctx, 'merge', null, new Error('timed out'), 'm', [6, 7]);
-    await reportFailure(ctx, 'verify', 4, new BudgetError('The stage spent $9 of its $8 budget'), 'v', []);
-    await reportFailure(ctx, 'design', 5, new CommitteeDecisionError('The agent needs a committee decision: x'), 'd', []);
-    expect(readState(statePath).failures.map(({ batch, decision }) => ({ batch, decision }))).toEqual([{ batch: [6, 7], decision: undefined }, { batch: undefined, decision: true }, { batch: undefined, decision: true }]);
+    await reportFailure(ctx, 'merge', null, new Error('x'), 'm', [6, 7]);
+    await reportFailure(ctx, 'verify', 4, new Error('x'), 'v', []);
+    expect(readState(statePath).failures.map(({ batch }) => batch)).toEqual([[6, 7], undefined]);
+  });
+
+  describe('the cause of a failure comes from the error, never from its text', () => {
+    const errno = (code: string) => Object.assign(new Error('write failed'), { code });
+    const wrapped = new Error('merge failed', { cause: new GithubError('boom') });
+    const cases: [string, unknown, FailureCause][] = [
+      ['a spent budget', new BudgetError('x'), 'decision'],
+      ['a committee question', new CommitteeDecisionError('x'), 'decision'],
+      ['a job past its time limit', new JobTimeoutError('x'), 'timeout'],
+      ['a job that died', new JobDiedError('x'), 'died'],
+      ['a failed GitHub call', new GithubError('x'), 'github'],
+      ['a full disk', errno('ENOSPC'), 'disk'],
+      ['an error wrapping a GitHub error', wrapped, 'github'],
+      ['another errno', errno('EACCES'), 'error'],
+      ['a plain error that says it timed out', new Error('timed out after 5 minutes'), 'error'],
+      ['a plain error that mentions gh and ENOSPC', new Error('gh api failed: ENOSPC no space left on device'), 'error'],
+      ['a text that says the budget is spent', 'The stage spent $9 of its $8 budget', 'error'],
+    ];
+    it.each(cases)('%s', async (_name, error, cause) => {
+      const { ctx, statePath } = setup(async () => undefined);
+      await reportFailure(ctx, 'verify', 4, error, 'v', []);
+      expect(readState(statePath).failures[0]!.cause).toBe(cause);
+    });
   });
 
   it('records the failure before a label that fails, so Hermes still sees it', async () => {
@@ -61,13 +84,13 @@ describe('reportFailure', () => {
   });
 
   it('keeps failures for a day', () => {
-    const state = { ...structuredClone(EMPTY_STATE), failures: [{ stage: 'design' as const, issue: 1, error: 'e', log: null, at: '2026-09-29T11:00:00Z' }, { stage: 'change' as const, issue: null, error: 'e', log: null, at: '2026-09-29T13:00:00Z' }] };
-    expect(pruneFailures(NOW)(state).failures.map((failure) => failure.stage)).toEqual(['change']);
+    const state = { ...structuredClone(EMPTY_STATE), failures: [{ stage: 'design' as const, issue: 1, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T11:00:00Z' }, { stage: 'adhoc' as const, issue: null, error: 'e', cause: 'error' as const, log: null, at: '2026-09-29T13:00:00Z' }] };
+    expect(pruneFailures(NOW)(state).failures.map((failure) => failure.stage)).toEqual(['adhoc']);
   });
 });
 
 describe('failureIssue', () => {
-  const open: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/x', day: 'd', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } };
+  const open: FactoryState = { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/x', day: 'd', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } };
   const none = structuredClone(EMPTY_STATE);
 
   it('names the issue of a card stage, approve, candidate, ship and remove', () => {
@@ -77,9 +100,5 @@ describe('failureIssue', () => {
   it('names the tracking issue for a cut once one exists, and no issue before', () => {
     expect(failureIssue('release', null, open)).toBe(20);
     expect(failureIssue('release', null, none)).toBeNull();
-  });
-
-  it('names no issue for a change', () => {
-    expect(failureIssue('change', 5, open)).toBeNull();
   });
 });

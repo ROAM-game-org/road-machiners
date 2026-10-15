@@ -1,3 +1,4 @@
+import { touchMode } from "./input-mode";
 import { partDef } from "../data/parts";
 import { fireBlock, gunOf, hitOdds, roundDamage, type FireBlock } from "../sim/combat";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
@@ -262,7 +263,7 @@ export function utilityStatus(w: World, part: PartInstance, selected: boolean): 
   const kind = orderKindOf(part);
   if (kind === null) throw new Error(`${part.defId} is passive and has no slot`);
   const order = playerVehicle(w).utilityOrders[part.id];
-  if (order) return { state: "set", text: t("utility.fires") };
+  if (order) return { state: "set", text: t(order.kind === "disarm" ? "utility.disarms" : "utility.fires") };
   if (chargeOf(part).armed) return { state: "armed", text: t("utility.armed") };
   return aimingStatus(w, part, kind, selected) ?? idleStatus(w, part);
 }
@@ -344,7 +345,7 @@ export class UtilityRow {
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
-    if (orderKindOf(part) === "self") return this.useSelf(w, part);
+    if (orderKindOf(part) === "self") return chargeOf(part).armed ? this.disarm(w, part) : this.useSelf(w, part);
     this.togglePick(w, part);
   }
 
@@ -356,6 +357,11 @@ export class UtilityRow {
   private clearOrder(w: World, part: PartInstance): void {
     if (this.host.selectedUtility() === part.id) this.host.selectUtility(null);
     this.host.apply(setUtilityOrder(w, part.id, null));
+  }
+
+  private disarm(w: World, part: PartInstance): void {
+    if (utilityOrderError(w, playerVehicle(w), part.id, { kind: "disarm" }) === null)
+      this.host.apply(setUtilityOrder(w, part.id, { kind: "disarm" }));
   }
 
   private useSelf(w: World, part: PartInstance): void {
@@ -381,6 +387,7 @@ export class WeaponPanel {
 
   constructor(private host: UiHost) {
     this.utilities = new UtilityRow(host);
+    this.root.setAttribute('data-drawer-frame', 'guns');
   }
 
   render(): void {
@@ -401,13 +408,13 @@ export class WeaponPanel {
   private renderTurnButton(phase: ReturnType<UiHost["getTurnPhase"]>): HTMLElement {
     if (this.host.autoTravel())
       return el('button', {
-        class: 'end-turn auto', title: t('turn.autoTitle'),
+        class: 'end-turn auto', 'data-hold': '', title: t('turn.autoTitle'),
         'aria-label': t('turn.stopAuto'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
       }, createIcon('turn'), el('span', {}, t('turn.auto')));
     return el('button', {
-      class: 'end-turn', disabled: phase !== null, title: t('turn.endTitle'),
+      class: 'end-turn', 'data-hold': '', disabled: phase !== null, title: t('turn.endTitle'),
       'aria-label': phase ? t('turn.inProgress', { phase: t(`phase.${phase}`) }) : t('turn.end'), onpointerdown: (e: Event) => this.pressTurn(e as PointerEvent),
-    }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : t('turn.space')));
+    }, createIcon('turn'), el('span', {}, phase ? t('turn.running', { phase: t(`phase.${phase}`) }) : touchMode() ? t('turn.end') : t('turn.space')));
   }
 
   private pressTurn(e: PointerEvent): void {

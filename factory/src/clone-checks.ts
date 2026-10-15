@@ -1,12 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readAgentOutput } from './agent-output';
 import { readShown } from './evidence';
-import { OUT_DIR } from './types';
 
 export type Approval = { description: string; howToTry: string };
 
 export function readApproval(home: string): Approval {
-  const raw = readOutput(home, 'approval.json');
+  const raw = readAgentOutput(home, 'approval.json');
   if (raw === null) throw new Error('The testing stage wrote no .factory/approval.json');
   return parseApproval(JSON.parse(raw));
 }
@@ -17,18 +15,13 @@ function parseApproval(data: unknown): Approval {
   return { description, howToTry };
 }
 
-function readOutput(home: string, name: string): string | null {
-  const path = join(home, OUT_DIR, name);
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
-}
-
 export type CloneRound = 'test';
 export const CLONE_ROUNDS: readonly CloneRound[] = ['test'];
 
 export const HOST_ONLY_CHECKS = [
   'the guard on the pushed diff: factory paths and a SAVE_MAJOR bump',
   'the merge of the base branch into the work branch',
-  'the typecheck, playtest and build in a fresh clone',
+  'the build in a fresh clone',
 ] as const;
 
 export type CloneReport = { failures: string[] };

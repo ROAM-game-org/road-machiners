@@ -1,10 +1,10 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { sweepLogs, sweepTestCache, sweepWork } from './cleanup';
+import { sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
-import { failureIssue, pruneFailures, reportFailure } from './fail';
+import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
 import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
@@ -15,12 +15,12 @@ import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
 import { requeueKept } from './stages/kept-approval';
-import { waitingMerges } from './stages/merge';
+import { nextBatchCards, waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
 import { sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
-import { askedAt, isAnswered } from './questions';
+import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -30,7 +30,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'adhoc', 'incident', 'answer', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -47,11 +47,8 @@ function queued(state: FactoryState): JobPick[] {
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
     ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
-}
-
-function changeJobs(state: FactoryState): JobPick[] {
-  return state.pendingChanges.map((change) => ({ stage: 'change' as const, issue: change.id }));
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
@@ -83,14 +80,27 @@ function mergeJob(state: FactoryState, cards: Card[]): JobPick | null {
   return ready.length > 0 ? { stage: 'merge', issue: null } : null;
 }
 
-const CATCH_UP_CARDS = 6;
-
-function catchUpJobs(state: FactoryState, cards: Card[]): JobPick[] {
-  const merge = state.jobs.find((job) => job.stage === 'merge');
-  if (merge?.batch === undefined) return [];
-  const next = waitingMerges(state, cards).slice(0, CATCH_UP_CARDS);
+function catchUpJobs(state: FactoryState, cards: Card[], heads: Heads): JobPick[] {
   const failed = (card: Card): boolean => state.failures.some((failure) => failure.stage === 'catch-up' && failure.issue === card.issue);
-  return openCards(state, next).filter((card) => !(merge.caughtUp ?? []).includes(card.issue) && !failed(card)).map((card) => ({ stage: 'catch-up' as const, issue: card.issue }));
+  const behind = (card: Card): boolean => {
+    const head = heads[baseOf(card)];
+    return head !== null && state.caughtUpTo[String(card.issue)] !== head;
+  };
+  const merging = state.jobs.some((job) => job.stage === 'merge' && job.batch !== undefined);
+  const taken = merging ? [] : nextBatchCards(state, cards, baseOf).map((card) => card.issue);
+  return openCards(state, waitingMerges(state, cards)).filter((card) => behind(card) && !failed(card) && !taken.includes(card.issue)).map((card) => ({ stage: 'catch-up' as const, issue: card.issue }));
+}
+
+function forgetCaughtUp(ctx: Ctx, cards: Card[]): void {
+  const merging = new Set(cards.filter((card) => card.column === 'Merging').map((card) => String(card.issue)));
+  if (Object.keys(readState(ctx.statePath).caughtUpTo).every((issue) => merging.has(issue))) return;
+  updateState(ctx.statePath, (state) => ({ ...state, caughtUpTo: Object.fromEntries(Object.entries(state.caughtUpTo).filter(([issue]) => merging.has(issue))) }));
+}
+
+function baseOf(card: Card): keyof Heads {
+  if (card.labels.includes(HOTFIX_LABEL)) return 'main';
+  if (card.labels.includes(RELEASE_TASK_LABEL)) return 'release';
+  return 'dev';
 }
 
 const has =
@@ -111,7 +121,7 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...changeJobs(state), ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 
@@ -153,7 +163,7 @@ function devJob(state: FactoryState, devHead: string | null): JobPick | null {
 }
 
 function branchCandidates(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads): Candidate[] {
-  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards), devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
+  const picks = [...queued(state), mergeJob(state, cards), ...catchUpJobs(state, cards, heads),devJob(state, heads.dev), releaseCut(state, now, cfg), releaseJob(state, cards, heads.release)];
   return picks.filter((pick) => pick !== null).map((pick) => ({ ...pick, pastCardLimit: false }));
 }
 
@@ -215,8 +225,8 @@ function countCardPick(picked: Map<number, number>, limited: boolean, issue: num
   if (limited && issue !== null) picked.set(issue, (picked.get(issue) ?? 0) + 1);
 }
 
-export type Heads = { dev: string | null; release: string | null };
-const NO_HEADS: Heads = { dev: null, release: null };
+export type Heads = { dev: string | null; release: string | null; main: string | null };
+const NO_HEADS: Heads = { dev: null, release: null, main: null };
 
 export function evaluateSchedule(state: FactoryState, cards: Card[], now: Date, cfg: Due, heads: Heads = NO_HEADS): ScheduleReport {
   const picks: JobPick[] = [];
@@ -303,7 +313,7 @@ async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
   dropJob(ctx, job);
   for (const issue of job.batch ?? []) await ctx.github.addLabel(issue, STUCK_LABEL);
   forgetResume(ctx, job);
-  const reason = alive ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'job process died without finishing';
+  const reason = alive ? new JobTimeoutError(`timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes`) : new JobDiedError('job process died without finishing');
   await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log, job.batch ?? []);
 }
 
@@ -376,10 +386,16 @@ function startJob(ctx: Ctx, codeDir: string, pick: JobPick, deps: TickDeps): voi
 
 async function releaseReason(ctx: Ctx, card: Card): Promise<'answered' | 'no answer in time' | null> {
   if (card.column !== 'Triage' || !card.labels.includes(NEEDS_INFO_LABEL)) return null;
-  const comments = await ctx.github.comments(card.issue);
-  if (isAnswered(comments)) return 'answered';
-  const asked = askedAt(comments);
-  return asked !== null && minutesSince(ctx, asked) > ctx.cfg.needsInfoHours * 60 ? 'no answer in time' : null;
+  const asked = askedAt(ctx.statePath, card.issue);
+  if (asked === null) return startAskClock(ctx, card.issue);
+  if (isAnswered(await ctx.github.comments(card.issue), asked)) return 'answered';
+  return minutesSince(ctx, asked) > ctx.cfg.needsInfoHours * 60 ? 'no answer in time' : null;
+}
+
+function startAskClock(ctx: Ctx, issue: number): null {
+  recordAsked(ctx.statePath, issue, ctx.now().toISOString());
+  ctx.log('tick', issue, `${NEEDS_INFO_LABEL} has no record of when the questions came, so the wait for answers starts now`);
+  return null;
 }
 
 export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> {
@@ -391,6 +407,7 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
       continue;
     }
     await ctx.github.removeLabel(card.issue, NEEDS_INFO_LABEL);
+    clearAsked(ctx.statePath, card.issue);
     ctx.log('tick', card.issue, `${reason}, removed ${NEEDS_INFO_LABEL}`);
     released.push({ ...card, labels: card.labels.filter((label) => label !== NEEDS_INFO_LABEL) });
   }
@@ -418,8 +435,6 @@ function cleanWork(ctx: Ctx, cards: Card[]): void {
 function cleanArchives(ctx: Ctx): void {
   const transcripts = sweepTranscripts(ctx.cfg.home, ctx.now(), ctx.cfg.transcriptDays);
   if (transcripts.length > 0) ctx.log('tick', null, `removed ${transcripts.length} agent transcripts older than ${ctx.cfg.transcriptDays} days`);
-  const cached = sweepTestCache(join(ctx.cfg.home, 'test-cache'), ctx.now(), ctx.cfg.testCacheDays);
-  if (cached > 0) ctx.log('tick', null, `removed ${cached} test cache files older than ${ctx.cfg.testCacheDays} days`);
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {
@@ -484,7 +499,8 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   }
   requireCodexLogin(ctx.cfg.home);
   await ctx.repo.fetch();
-  const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx) };
+  const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx), main: await ctx.repo.headHash('main') };
+  forgetCaughtUp(ctx, cards);
   dropStaleCandidate(ctx, heads.release);
   const report = evaluateSchedule(readState(ctx.statePath), cards, ctx.now(), ctx.cfg, heads);
   reportScheduler(ctx.cfg.home, 'ready', ctx.now(), report, cards);

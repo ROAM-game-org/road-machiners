@@ -40,8 +40,8 @@ function toCell(ch: string): Cell | null {
   throw new Error(`Bad layout character "${ch}"`);
 }
 
-export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' })): { w: number; h: number } {
-  if (item.kind === 'good') return { w: 1, h: 1 };
+export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
+  if (item.kind !== 'part') return { w: 1, h: 1 };
   const d = partDef(item.part.defId);
   return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
@@ -81,7 +81,10 @@ function letterAt(g: Grid, x: number, y: number): Cell | null {
 }
 
 function coversOnly(g: Grid, item: GridItem & { kind: 'part' }, letter: Cell): boolean {
-  const { w, h } = itemSize(item);
+  const d = partDef(item.part.defId);
+  const turned = item.rot % 2 === 1;
+  const w = turned ? d.h : d.w;
+  const h = turned ? d.w : d.h;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (letterAt(g, item.x + dx, item.y + dy) !== letter) return false;
   return true;
 }
@@ -153,6 +156,7 @@ export function corePart(v: Vehicle, role: CoreDef['role']): PartInstance {
 }
 
 export function isLoot(chassisId: string, item: GridItem): boolean {
+  if (item.kind === 'parcel') return false;
   return item.kind === 'good' || partDef(item.part.defId).kind !== 'core' || !isMounted(chassisId, item);
 }
 
