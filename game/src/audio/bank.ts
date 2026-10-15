@@ -1,4 +1,4 @@
-import { download, DownloadFailed } from "../download";
+import { AssetUnreachable, fetchAsset } from "../fetch-asset";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -70,10 +70,14 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string): Promise<{ b
 }
 
 async function decodeFile(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
-  const bytes = await download(SFX_DIR + file).catch((e: unknown) => {
-    throw e instanceof DownloadFailed ? new SoundUnreachable(file, e) : e;
+  const bytes = await fetchAsset('Sound', SFX_DIR + file).catch((e: unknown) => {
+    throw e instanceof AssetUnreachable ? new SoundUnreachable(file, e) : e;
   });
-  return ctx.decodeAudioData(bytes);
+  try {
+    return await ctx.decodeAudioData(bytes);
+  } catch (e) {
+    throw new Error(`Sound ${file} failed to decode: ${e}`);
+  }
 }
 
 function standIn(ctx: BaseAudioContext, sounds: Record<string, Cue>, decoded: Map<string, AudioBuffer>, file: string): AudioBuffer {

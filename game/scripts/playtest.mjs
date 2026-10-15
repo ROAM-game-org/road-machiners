@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
@@ -14,6 +15,8 @@ const turns = Number(arg('turns', cpu ? '4' : '12'));
 const MIN_FPS = 50;
 const timeoutsOff = process.env.TEST_TIMEOUTS === 'off';
 const TURN_LIMIT_MS = timeoutsOff ? 0 : cpu ? 60000 : 10000;
+const CRASH_ATTEMPTS = 3;
+const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
 
 mkdirSync('.playtest', { recursive: true });
@@ -27,6 +30,18 @@ if (!cpu && isSoftware(renderer)) {
   console.error(`FAIL\nThe GPU playtest got the software renderer ${renderer}. Run with --cpu on a machine without a GPU.`);
   process.exit(1);
 }
+const retryAfterBrowserCrash = async () => {
+  await browser.close().catch(() => {});
+  if (attempt >= CRASH_ATTEMPTS) {
+    console.error(`FAIL\nThe browser process crashed in all ${CRASH_ATTEMPTS} attempts.`);
+    process.exit(1);
+  }
+  console.log(`The browser process crashed on attempt ${attempt}. Starting attempt ${attempt + 1}.`);
+  const rerun = spawnSync(process.execPath, process.argv.slice(1), { stdio: 'inherit', env: { ...process.env, PLAYTEST_ATTEMPT: String(attempt + 1) } });
+  process.exit(rerun.status ?? 1);
+};
+let crashed = false;
+page.on('crash', () => { crashed = true; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -156,7 +171,7 @@ for (let i = 0; i < turns; i++) {
   await page.waitForFunction((turn) => {
     const g = window.__ROAM__;
     return g.state.turn === turn && !g.travel.isPlaying(g.anim);
-  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(() => { throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`); });
+  }, i + 2, { timeout: TURN_LIMIT_MS, polling: 50 }).catch(async () => { if (crashed) await retryAfterBrowserCrash(); throw new Error(`Turn ${i + 1} did not finish playing within ${TURN_LIMIT_MS} ms`); });
 }
 await page.screenshot({ path: '.playtest/end.png' });
 
