@@ -16,7 +16,7 @@ function setup(): { ctx: Ctx; clone: string; webRoot: string; shells: string[][]
   writeFileSync(join(clone, 'game', 'dist', 'index.html'), 'new');
   writeFileSync(join(clone, 'game', 'dist', 'index.js.map'), '{}');
   const shells: string[][] = [];
-  const container = { agent: async () => {}, shell: async (c: string, s: string, l: string, e?: Record<string, string>) => { shells.push([c, s, l, JSON.stringify(e)]); } };
+  const container = { agent: async () => {}, shell: async (k: string, c: string, s: string, l: string, e?: Record<string, string>) => { shells.push([k, c, s, l, JSON.stringify(e)]); } };
   const ctx = { cfg: { webRoot, publicUrl: 'http://x/play' }, container } as unknown as Ctx;
   return { ctx, clone, webRoot, shells };
 }
@@ -34,7 +34,7 @@ describe('buildAndDeploy', () => {
     writeFileSync(join(webRoot, 'dev', 'old.html'), 'old');
     const url = await buildAndDeploy(ctx, clone, 'dev', '/l');
     expect(url).toBe('http://x/play/dev/');
-    expect(shells[0]).toEqual([clone, stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), '/l', '{"SAVE_SCOPE":"dev"}']);
+    expect(shells[0]).toEqual(['build', clone,stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), '/l', '{"SAVE_SCOPE":"dev"}']);
     expect(readFileSync(join(webRoot, 'dev', 'index.html'), 'utf8')).toBe('new');
     expect(existsSync(join(webRoot, 'dev', 'old.html'))).toBe(false);
     expect(existsSync(join(webRoot, '.dev.new'))).toBe(false);
@@ -92,7 +92,7 @@ describe('deployDev', () => {
       headHash: async () => 'abc1234',
     };
     const envs: Record<string, string>[] = [];
-    const container = { agent: async () => {}, shell: async (_c: string, _s: string, _l: string, env: Record<string, string>) => { envs.push(env); if (buildFails) throw new Error('build broke'); } };
+    const container = { agent: async () => {}, shell: async (_k: string, _c: string, _s: string, _l: string, env: Record<string, string>) => { envs.push(env); if (buildFails) throw new Error('build broke'); } };
     const run = async () => ({ code: 0, stdout: `${SHA}\n`, stderr: '' });
     const now = () => new Date('2026-10-07T12:00:00Z');
     return { ctx: { ...ctx, cfg: { ...ctx.cfg, home, errorMapDays: 14 }, repo, container, run, now, statePath } as unknown as Ctx, statePath, home, envs };
