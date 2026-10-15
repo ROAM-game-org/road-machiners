@@ -122,7 +122,7 @@ Both are past the sight radius of 20 tiles from the hauler, so a group shows fir
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 
-Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 15% of that share either way. A group spawns once the hauler reaches its place, whether or not the last fight is over, so holding back from a fight never holds the next group back. Groups spawn in plan order, so a fight may meet a scene.
+Encounters are paced by place. The places share the road from 24 tiles after the last outpost to 75 tiles before the next one, so even the last group spawns 30 tiles short of the next outpost and never at its fort. Each group has a place at the middle of its share, moved up to 15% of that share either way. A group spawns once the hauler reaches its place, whether or not the last fight is over, so holding back from a fight never holds the next group back. Groups spawn in plan order, so a fight may meet a scene.
 
 Group trucks spawn out of sight with full tanks and no cargo, parked and heading north along the road, and pick up speed from their first turn. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
 
@@ -138,7 +138,7 @@ Group trucks spawn out of sight with full tanks and no cargo, parked and heading
 
 A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 20% of its full HP, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
 
-A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The gauge in the HUD is the hauler's part HP, armor included, as a share of its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
+A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The gauge in the HUD is the hauler's part HP, armor included, as a share of its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch. The panel also shows while the hauler stands still with a prop inside its radius, off the next pad and outside a wait between levels.
 
 The death screen names the mode, the last outpost reached and how far north the truck got. It offers Load save, Restart run with the same settings and a new seed, and New game.
 

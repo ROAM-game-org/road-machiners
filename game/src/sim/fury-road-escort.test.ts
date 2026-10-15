@@ -225,6 +225,22 @@ describe('losing the run', () => {
     hauler.speed = 3;
     expect(canAbandonRun(w)).toBe(false);
   });
+
+  it('never counts a hauler parked on the next pad or between levels as wedged, walls or not', () => {
+    const w = furyRoadWorld();
+    const hauler = haulerOf(w);
+    const radius = chassisDef(hauler.chassisId).radius;
+    hauler.speed = 0;
+    w.obstacles = [...w.obstacles, { id: 'trap-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius / 2, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number]];
+    w.furyRoad!.waitingAt = 0;
+    expect(betweenLevels(w)).toBe(true);
+    expect(haulerWedged(w)).toBe(false);
+    w.furyRoad!.waitingAt = null;
+    expect(haulerWedged(w)).toBe(true);
+    hauler.pos = { ...outpostPad(w, 1) };
+    w.obstacles = [...w.obstacles, { id: 'wall-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius / 2, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number]];
+    expect(haulerWedged(w)).toBe(false);
+  });
 });
 
 describe('where the trouble spawns', () => {

@@ -55,8 +55,22 @@ function run(o: Orders, style: RoadStyle): void {
   if (!handleStranded(o)) drive(o, style);
 }
 
+const WEDGED = new Map<string, number>();
+
+function givesUpOnRun(o: Orders): boolean {
+  const key = `${o.world.seed}:${o.me.id}`;
+  if (!canAbandonRun(o.world) || canPatchOn(o.world, o.me)) {
+    WEDGED.delete(key);
+    return false;
+  }
+  if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck))) return true;
+  const since = WEDGED.get(key) ?? o.world.turn;
+  WEDGED.set(key, since);
+  return o.world.turn - since >= FURY_ROAD.hauler.stallTurns;
+}
+
 function handleStranded(o: Orders): boolean {
-  if (canAbandonRun(o.world) && !canPatchOn(o.world, o.me)) {
+  if (givesUpOnRun(o)) {
     o.run(abandonRun);
     return true;
   }

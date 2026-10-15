@@ -507,9 +507,13 @@ export function canAbandonRun(world: World): boolean {
 
 export function haulerWedged(world: World): boolean {
   const hauler = haulerOf(world);
-  if (hauler.speed > RULES.parkedSpeed) return false;
+  if (hauler.speed > RULES.parkedSpeed || parkedForTheRoad(world, hauler)) return false;
   const radius = chassisDef(hauler.chassisId).radius;
   return world.obstacles.some((o) => isDriveObstacle(o) && dist(o.pos, hauler.pos) < radius);
+}
+
+function parkedForTheRoad(world: World, hauler: Vehicle): boolean {
+  return betweenLevels(world) || onOutpostPad(world, hauler.pos, runOf(world).window + 1);
 }
 
 export function abandonRun(world: World): World {

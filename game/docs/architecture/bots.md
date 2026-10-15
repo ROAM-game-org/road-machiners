@@ -54,7 +54,7 @@ The escort plays as an NPC guard would.
 - It douses a hot engine at the heat warning.
 - It turns auto repair off while the tank is holed. It parks and patches the tank first, since auto repair ranks the tank last.
 - It parks out of combat to patch any broken core part.
-- It ends the run when it is stranded and cannot patch.
+- It ends the run when a truck is stranded and it cannot patch. A wedged hauler gets 12 turns, the hauler stall window, to back itself out first.
 - It backs out like an NPC. After `RULES.npcStuckTurns` turns held in place away from its order point, it reverses behind itself for `RULES.npcRecoveryTurns` turns.
 - Once the hauler heads in to the pad, it parks on the side of the pad away from the hauler. It keeps fighting while a foe is on it, and backs out of a stall on the way in as on the road.
 
