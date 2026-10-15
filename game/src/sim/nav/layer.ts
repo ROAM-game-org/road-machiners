@@ -289,7 +289,14 @@ function stampWithin(n: number, center: Vec, ex: number, ey: number, inside: (p:
   const y0 = Math.max(0, Math.floor((center.y - ey) / CELL));
   const x1 = Math.min(n - 1, Math.floor((center.x + ex) / CELL));
   const y1 = Math.min(n - 1, Math.floor((center.y + ey) / CELL));
-  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) if (inside({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL })) mark(y * n + x);
+  const p = { x: 0, y: 0 };
+  for (let x = x0; x <= x1; x++) {
+    p.x = (x + 0.5) * CELL;
+    for (let y = y0; y <= y1; y++) {
+      p.y = (y + 0.5) * CELL;
+      if (inside(p)) mark(y * n + x);
+    }
+  }
 }
 
 export function componentOf(layer: NavLayer, cell: number): number {

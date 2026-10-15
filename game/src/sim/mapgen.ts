@@ -397,8 +397,11 @@ function boxLocal(box: PosedBox, p: Vec): Vec {
 }
 
 export function boxDistance(box: PosedBox, p: Vec): number {
-  const q = boxLocal(box, p);
-  return Math.hypot(Math.max(0, Math.abs(q.x) - box.half.x), Math.max(0, Math.abs(q.y) - box.half.y));
+  const dx = p.x - box.center.x;
+  const dy = p.y - box.center.y;
+  const qx = dx * box.axis.x + dy * box.axis.y;
+  const qy = dy * box.axis.x - dx * box.axis.y;
+  return Math.hypot(Math.max(0, Math.abs(qx) - box.half.x), Math.max(0, Math.abs(qy) - box.half.y));
 }
 
 export function segmentCrossesBox(box: PosedBox, a: Vec, b: Vec): boolean {

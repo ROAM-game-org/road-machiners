@@ -41,7 +41,7 @@ function hurtDriver(world: World, v: Vehicle, dealt: number): void {
   if (driver.health < health && v.id === world.player.vehicleId) practice(world, "damage", health - driver.health, null, "driver");
 }
 
-function isOwnedTruck(world: World, v: Vehicle): boolean {
+export function isOwnedTruck(world: World, v: Vehicle): boolean {
   return v.id === world.player.vehicleId || v.id === world.furyRoad?.hauler.id;
 }
 
