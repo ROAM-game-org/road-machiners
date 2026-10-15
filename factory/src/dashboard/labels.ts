@@ -27,7 +27,7 @@ const dwell: Record<DeliveryStage, string> = {
 };
 const loops: Partial<Record<CardStep, string>> = {
   questions: 'Design asks the author', rebuild: 'Visual review: rebuild', 'plan-wrong': 'Testing finds the plan wrong', 'review-failed': 'Code review fails twice',
-  patch: 'Committee patch', redesign: 'Committee redesign', 'patch-replan': 'Patch needs a new plan', conflict: 'Merge conflict', removed: 'Removed from release',
+  patch: 'Committee patch', redesign: 'Committee redesign', 'patch-replan': 'Patch needs a new plan', conflict: 'Merge conflict', 'base-moved': 'Hotfix base moved', removed: 'Removed from release',
   unbundled: 'Bundle lead dropped',
 };
 const gates: Record<Gate, string> = { triage: 'Triage wont-do', design: 'Design wont-do', committee: 'Committee Deny' };

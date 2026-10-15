@@ -11,6 +11,7 @@ import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
 import { agentHome, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
+import { invalidateApproval, verifiedApproval } from './stages/kept-approval';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
@@ -28,7 +29,8 @@ export type ControlAction =
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'merge-change'; id: number }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number };
+  | { action: 'unhold'; issue: number }
+  | { action: 'recover-approval'; issue: number };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -77,6 +79,7 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   'merge-change': (data) => ({ action: 'merge-change', id: requireNumber(data, 'id') }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
   unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
+  'recover-approval': (data) => ({ action: 'recover-approval', issue: requireNumber(data, 'issue') }),
 };
 
 export function parseControl(raw: unknown): ControlCommand {
@@ -116,6 +119,7 @@ type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<Co
 
 const HANDLERS: Handlers = {
   move, merge, ship, cut, remove, drop,
+  'recover-approval': recoverApproval,
   'merge-change': async (ctx, command) => {
     await ctx.github.mergePullRequest(`factory-change/${command.id}`);
     return { issue: null, text: `Factory change ${command.id} is merged into main. The deploy follows.` };
@@ -269,6 +273,7 @@ async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' 
     },
   });
   if (to === 'done') await closeCard(ctx, issue, `Dropped by ${by}: ${command.reason}`, 'dropped');
+  else if (to !== 'verify') await invalidateApproval(ctx, issue, `${by} moved the card to ${to}: ${command.reason}`);
   return { issue, text: `Moved to ${to}.` };
 }
 
@@ -288,7 +293,19 @@ async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge
     dropsApproval: false,
     enter: (state) => ({ ...state, approvedResolving: { ...state.approvedResolving, [key]: by } }),
   });
+  await invalidateApproval(ctx, issue, `${by} sent the card to the merge queue: ${command.reason}`);
   return { issue, text: 'The card joins the merge queue.' };
+}
+
+async function recoverApproval(ctx: Ctx, command: Extract<ControlCommand, { action: 'recover-approval' }>, by: string): Promise<Outcome> {
+  const { issue } = command;
+  const card = await requireWorkCard(ctx, issue);
+  const approval = await verifiedApproval(ctx, card, `recovered by ${by}: ${command.reason}`);
+  if (card.column === 'Approval') {
+    await relocate(ctx, card, [requireBranch], { column: 'Testing', step: 'moved', status: `↪️ Approval by ${approval.by} recovered by ${by}`, dropsApproval: true, enter: (state) => state });
+  }
+  updateState(ctx.statePath, (state) => ({ ...state, keptApprovals: { ...state.keptApprovals, [String(issue)]: approval } }));
+  return { issue, text: `The approval by ${approval.by} of build ${approval.build} is kept again. Testing merges main and runs the full checks, then it ships with no new post.` };
 }
 
 export function openRelease(ctx: Ctx): ReleaseState {
@@ -332,7 +349,10 @@ async function cut(ctx: Ctx): Promise<Outcome> {
 type Drop = { has: (state: FactoryState, id: number) => boolean; without: (state: FactoryState, id: number) => FactoryState };
 
 const DROPS: Record<DropQueue, Drop> = {
-  approval: { has: (state, id) => String(id) in state.pendingApprovals, without: (state, id) => ({ ...state, pendingApprovals: omitKey(state.pendingApprovals, String(id)) }) },
+  approval: {
+    has: (state, id) => String(id) in state.pendingApprovals || String(id) in state.keptApprovals,
+    without: (state, id) => ({ ...state, pendingApprovals: omitKey(state.pendingApprovals, String(id)), keptApprovals: omitKey(state.keptApprovals, String(id)) }),
+  },
   removal: { has: (state, id) => state.pendingRemovals.some((item) => item.issue === id), without: (state, id) => ({ ...state, pendingRemovals: state.pendingRemovals.filter((item) => item.issue !== id) }) },
   ship: { has: (state) => state.pendingShip !== null, without: (state) => ({ ...state, pendingShip: null }) },
   change: { has: (state, id) => state.pendingChanges.some((item) => item.id === id), without: (state, id) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }) },

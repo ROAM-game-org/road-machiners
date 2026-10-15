@@ -4,7 +4,7 @@ import { GUARD_HOOK } from './container';
 import { must } from './exec';
 import { withLock } from './lock';
 import { createLockWaitReporter } from './observability';
-import { CLONE_LOCK_MS, MEDIA_DIR, MergeConflictError, OUT_DIR, RevertConflictError, TASK_DIR, WORK_LOCK, type FactoryConfig, type HostRepo, type MergeStep, type Resolution, type Run } from './types';
+import { BaseMovedError, CLONE_LOCK_MS, MEDIA_DIR, MergeConflictError, OUT_DIR, RevertConflictError, TASK_DIR, WORK_LOCK, type CheckedBuild, type FactoryConfig, type HostRepo, type MergeStep, type Resolution, type Run } from './types';
 
 const NO_HOOKS = ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=ROAM Factory', '-c', 'user.email=factory@roam.invalid'];
 
@@ -49,6 +49,21 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       rmSync(landDir, { recursive: true, force: true });
       await git(['worktree', 'prune']);
     }
+  }
+
+  async function isAncestor(older: string, newer: string): Promise<boolean> {
+    const result = await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', older, newer], { cwd: path });
+    if (result.code === 0 || result.code === 1) return result.code === 0;
+    throw new Error(`git merge-base --is-ancestor ${older} ${newer} failed: ${result.stderr.trim()}`);
+  }
+
+  async function requireChecked({ branch, build, base }: CheckedBuild): Promise<void> {
+    const built = await commitOf(build);
+    const tip = await commitOf(branch);
+    if (tip !== built) throw new BaseMovedError(branch, build, `${branch} is at ${tip.slice(0, 7)}, not at the checked build ${build}.`);
+    const target = await commitOf(base);
+    if ((await isAncestor(target, built)) || (await isAncestor(built, target))) return;
+    throw new BaseMovedError(branch, build, `${base} moved to ${target.slice(0, 7)} after the checks ran on ${build}, so they no longer count.`);
   }
 
   async function conflictedFiles(dir: string): Promise<string[]> {
@@ -319,8 +334,9 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
-    async merge(steps, resolutions = []) {
+    async merge(steps, resolutions = [], checked) {
       for (;;) {
+        if (checked) await requireChecked(checked);
         const { heads, started } = await mergeSteps(steps, resolutions);
         if (await pushUnlessMoved(heads, started)) return;
       }

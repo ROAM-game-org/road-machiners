@@ -9,7 +9,7 @@ import { clearStuck } from './stuck';
 import { MOVE_TARGETS, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
 import { readState, updateState } from './state';
 import { editState } from './state-edit';
-import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
+import { STUCK_LABEL, type Card, type Ctx, type FactoryState, type Hold, type KeptApproval, type PlaytestState, type ReleasePost, type ReleaseState } from './types';
 
 const SNAPSHOT_AGENT = 'curl/8.0';
 const LOG_TAIL_LINES = 50;
@@ -50,6 +50,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
+  'recover-approval': { usage: 'recover-approval N', help: "keep a hotfix's lost approval again, after the factory checks its record on the issue: the approver, the approved build, no feedback, deny or drop since that post, and the branch still holds the build. The card then runs Testing with the full checks and ships with no new post", build: ([n]) => ({ action: 'recover-approval', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
 
@@ -174,6 +175,7 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `post only: ${state.postOnly.includes(found.issue) ? 'yes' : 'no'}`,
     `approvedResolving: ${shown(state.approvedResolving[key])}`,
     `queued approval: ${shown(state.pendingApprovals[key])}`,
+    `kept approval: ${keptText(state.keptApprovals[key])}`,
     `open posts: ${shown(posts.join(', '))}`,
     `build: ${shown(state.builds[key])}`,
     `running job: ${shown(running.join(', '))}`,
@@ -181,6 +183,11 @@ function cardFacts(found: Card, state: FactoryState): string[] {
     `held: ${holdText(state.held[key])}`,
     `stuck sweep: ${stuckText(state.stuck[key])}`,
   ];
+}
+
+function keptText(kept: KeptApproval | undefined): string {
+  if (kept === undefined) return 'none';
+  return `by ${kept.by} at ${kept.at} of build ${kept.build}, checked ${kept.checked.join(', ') || 'none yet'}${kept.reason === null ? '' : `, last: ${kept.reason}`}`;
 }
 
 function holdText(hold: Hold | undefined): string {
