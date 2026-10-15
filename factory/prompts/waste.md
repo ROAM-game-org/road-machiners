@@ -21,14 +21,12 @@ How to work:
 2. Read the issue histories and logs of the worst cases to find why it happened. Name the cause in the factory's code or settings, with file and line.
 3. Propose one change that removes the cause. Prefer a setting, a prompt line or a small code change over a new system.
 
-Write `.factory/brief.md` in this shape:
+Write `.factory/brief.json` as a JSON object with two strings:
 
 ```
-BOTTLENECK: <one sentence: what wasted the most, with its number from numbers.md>
-CHANGE:
-<the change request for a coding agent. It must stand on its own: the agent sees nothing else.
-Say what to change, where, why, and which number should improve.>
+{"bottleneck": "<one sentence: what wasted the most, with its number from numbers.md>",
+ "change": "<the change request for a coding agent. It must stand on its own: the agent sees nothing else. Say what to change, where, why, and which number should improve.>"}
 ```
 
-When no waste stands out, write the single line `BOTTLENECK: none` and nothing else.
+When no waste stands out, write `{"bottleneck": "none", "change": ""}` and nothing else.
 Plain words. Short sentences. No hedge words.

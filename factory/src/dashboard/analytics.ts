@@ -1,5 +1,3 @@
-/** Runs one SQL file per dashboard panel over the ledger, in an in-memory DuckDB.
- * A panel's failure stays its own: it carries its error text and every other panel keeps its rows. */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
@@ -15,7 +13,7 @@ export type PanelRows = {
   coverage: { since: string | null; missing_usage: number };
   counters: { worker_ms: number; cost: number | null; input: number | null; output: number | null; cache_read: number | null; cache_write: number | null; wasted_cost: number | null; wasted_input: number | null; wasted_output: number | null; wasted_cache_read: number | null; wasted_cache_write: number | null };
   usage_buckets: { start: string; grouping: 'stage' | 'model'; key: string; cost: number; tokens: number | null };
-  stage_time: { stage: string; worker_ms: number };
+  stage_time: { stage: string; worker_ms: number; agent_ms: number; checks_ms: number; build_ms: number; factory_ms: number; unsplit_ms: number };
   waiting: { waiting_ms: number | null; span_ms: number; gaps: number };
   waiting_stages: { stage: string; waiting_ms: number };
   retries: { outcome: string; runs: number; worker_ms: number; cost: number | null };
@@ -23,10 +21,13 @@ export type PanelRows = {
   activity: { stage: string; issue: number | null; outcome: string; at: string };
   delivery_coverage: { since: string | null; issues: number; excluded: number; legacy: number; looped: number };
   lead: { open: number; open_mean_ms: number | null; missing_start: number };
+  issue_to_dev: { issues: number; mean_ms: number | null; median_ms: number | null; fastest_ms: number | null; slowest_ms: number | null; missing_open: number };
   dwell: { stage: DeliveryStage; count: number; mean_ms: number | null; median_ms: number | null; open: number; open_mean_ms: number | null };
   loops: { step: string; events: number; issues: number };
   rejections: { gate: Gate; decided: number; rejected: number };
   delivery_retries: { stage: string; runs: number; issues: number };
+  flow_stages: { stage: DeliveryStage; waits_on: 'workers' | 'committee'; visits: number; unknown_visits: number; wait_ms: number; agent_ms: number; checks_ms: number; build_ms: number; factory_ms: number };
+  flow_moves: { from_stage: DeliveryStage; to_stage: DeliveryStage | 'done'; moves: number };
 };
 export type PanelName = keyof PanelRows;
 const PANEL_COLUMNS: { [K in PanelName]: (keyof PanelRows[K])[] } = {
@@ -34,7 +35,7 @@ const PANEL_COLUMNS: { [K in PanelName]: (keyof PanelRows[K])[] } = {
   coverage: ['since', 'missing_usage'],
   counters: ['worker_ms', 'cost', 'input', 'output', 'cache_read', 'cache_write', 'wasted_cost', 'wasted_input', 'wasted_output', 'wasted_cache_read', 'wasted_cache_write'],
   usage_buckets: ['start', 'grouping', 'key', 'cost', 'tokens'],
-  stage_time: ['stage', 'worker_ms'],
+  stage_time: ['stage', 'worker_ms', 'agent_ms', 'checks_ms', 'build_ms', 'factory_ms', 'unsplit_ms'],
   waiting: ['waiting_ms', 'span_ms', 'gaps'],
   waiting_stages: ['stage', 'waiting_ms'],
   retries: ['outcome', 'runs', 'worker_ms', 'cost'],
@@ -42,10 +43,13 @@ const PANEL_COLUMNS: { [K in PanelName]: (keyof PanelRows[K])[] } = {
   activity: ['stage', 'issue', 'outcome', 'at'],
   delivery_coverage: ['since', 'issues', 'excluded', 'legacy', 'looped'],
   lead: ['open', 'open_mean_ms', 'missing_start'],
+  issue_to_dev: ['issues', 'mean_ms', 'median_ms', 'fastest_ms', 'slowest_ms', 'missing_open'],
   dwell: ['stage', 'count', 'mean_ms', 'median_ms', 'open', 'open_mean_ms'],
   loops: ['step', 'events', 'issues'],
   rejections: ['gate', 'decided', 'rejected'],
   delivery_retries: ['stage', 'runs', 'issues'],
+  flow_stages: ['stage', 'waits_on', 'visits', 'unknown_visits', 'wait_ms', 'agent_ms', 'checks_ms', 'build_ms', 'factory_ms'],
+  flow_moves: ['from_stage', 'to_stage', 'moves'],
 };
 export type PanelResult<R> = { error: null; ranges: Record<Range, R[]> } | { error: string; ranges: null };
 export type Analytics = { [K in PanelName]: PanelResult<PanelRows[K]> };
