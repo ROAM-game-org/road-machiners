@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { NPC_BEHAVIOR } from '../data/npcs';
 import { addGoods } from '../sim/inventory';
 import { climbGrade } from '../sim/stats';
-import { addVehicle, editableTerrain, emptyWorld, lockTerrain, npcBrain } from '../sim/testkit';
+import { addVehicle, editableTerrain, emptyWorld, npcBrain } from '../sim/testkit';
 import type { Vec } from '../sim/vec';
 import { dist } from '../sim/vec';
 import type { Vehicle, World } from '../sim/types';
@@ -27,7 +27,6 @@ function raise(w: World, height: (i: number, j: number) => number): void {
   const t = editableTerrain(w);
   const n = t.size;
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) t.heights[j * (n + 1) + i] = height(i, j);
-  lockTerrain(w);
 }
 
 function ravineWithMouth(wall: number): (i: number, j: number) => number {
