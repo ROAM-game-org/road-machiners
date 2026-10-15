@@ -96,6 +96,7 @@ Read commands run at once and change nothing.
 - `factory jobs`, `factory queues`, `factory release` and `factory failures` print the running jobs, the pending queues, the open release and the recent failures.
 - `factory log N [stage]` prints the tail of the card's newest job log.
 - `factory audit` lists each drift between stores. The incident watch reports each line as `drift: <line>`.
+- `factory overlaps` is the dry run of the overlap check. It lists each open card that may share work with a commit on `main` or `dev` since the last check, and writes nothing.
 
 Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <member>` names the member whose message ordered the action. Pass the Telegram id that `factory_sender` returns, never the display name. Never name a member who did not order it. They apply on the next tick, before it picks jobs. A write that cannot apply becomes a failure that the incident watch reports.
 
@@ -106,6 +107,7 @@ Write commands take `--by <member or hermes>` and `--reason "<text>"`. `--by <me
 - `factory remove N` takes a feature out of the release.
 - `factory drop <approval|removal|ship|change|incident> <id>` drops a queued action.
 - `factory merge-change <id>` merges a factory change PR into `main`.
+- `factory supersede N <commit>` closes a card whose work that commit on `main` or `dev` already does. It refuses unmerged commits and approved work. Redundant work says when to use it.
 - `factory pause-card N` holds one card without a failure: its job stops, its work stays, and no job starts on it. `factory resume-card N` lifts the hold, and its stage continues.
 
 These five act at once, not on the next tick.
@@ -134,7 +136,7 @@ When your purpose changes, call `factory_report_activity` with an allowed activi
 
 ## Incidents
 
-An incident is an open issue with the label `factory-stuck`, a failed job in `failures`, a tick crash in `lastTickError` in the state file, a failed `/dev/` build in `devFailed`, a failed factory update in `/factory/home/update-failed`, a `drift: <line>` from `factory audit`, a server health line from the section Server health, a finished review from the section Daily factory review, or a release post from the section Release post. A watch job wakes you when the list of incidents changes. Each failed job shows its stage, issue, first error line and log. A failed `/dev/` build shows its commit and what broke: fix `dev`, or revert the merge that broke it, then run `run dev -`. A failed job labels its issue `factory-stuck`, and nothing retries until the label goes. You clear it after you fix the cause. The factory posts nothing about failures, so your message is the only one the committee sees.
+An incident is an open issue with the label `factory-stuck`, a failed job in `failures`, a tick crash in `lastTickError` in the state file, a failed `/dev/` build in `devFailed`, a failed factory update in `/factory/home/update-failed`, a `drift: <line>` from `factory audit`, a server health line from the section Server health, a finished review from the section Daily factory review, an overlap from the section Redundant work, or a release post from the section Release post. A watch job wakes you when the list of incidents changes. Each failed job shows its stage, issue, first error line and log. A failed `/dev/` build shows its commit and what broke: fix `dev`, or revert the merge that broke it, then run `run dev -`. A failed job labels its issue `factory-stuck`, and nothing retries until the label goes. You clear it after you fix the cause. The factory posts nothing about failures, so your message is the only one the committee sees.
 
 Fix every incident yourself, then report. Never ask the committee for permission to fix one. Post to the committee for a question on game design or taste, or to report what you did when it matters to them. Name the stage and the issue with its link, say in one line what broke, then what you did. No more than that.
 
@@ -206,6 +208,20 @@ Name the line, what you found and what you did in your issue comment or chat pos
 4. When it matters, post to the committee in a few lines: what changed with its numbers, the cause you found, and the change you propose with the issue link. Ask whether to queue it. When a member says yes, queue it with `factory_queue_change`.
 5. When nothing matters, respond with [SILENT].
 6. Delete `/factory/home/review-pending` either way, so the line closes.
+
+## Redundant work
+
+`overlap #N <title> with <commit> on <branch> (<subject>): <why>` means the daily overlap check found open card #N sharing files or a title with a new commit. It reads git alone, so it only nominates. You judge each line. [operations.md](../docs/operations.md#overlap-check) has the check and the order.
+
+1. Read what the commit did with `gh` and `git show <commit>`, and what the card asks and has done: the issue, its comments, player and error reports, `factory card N`, its branch diff, its pull request and any approval post.
+2. Call it redundant only when the merged commit already does everything the issue asks: the same behavior, the same cause and scope, and the issue's acceptance criteria met on that branch. A title, an error fingerprint or a shared file alone is not enough.
+3. Leave the card as it is when any of these holds: the report names another browser, device or build than the fix covered; a defect or a part of the request stays unfixed; the covering work is a pull request or branch that has not merged; the card is approved, approving or a release task; a member spoke about it; or you are unsure. Write on the issue which commit overlaps and why the card stays.
+4. When it is redundant, run `factory supersede N <commit> --by hermes --reason "<what the commit already does>"`. It stops the card's job, closes its post and pull request unmerged, labels it `superseded`, closes the issue with one comment that links the commit, and sends any bundled issue back to Triage. Never close the issue, its pull request or its card by hand, and never approve, merge, ship or remove anything for it.
+5. After the next tick, check that `factory card N` shows the card in Done and `factory audit` names no drift for it. A failed order comes back as a `failed` line with its reason.
+6. Delete `/factory/home/overlap-pending` once you judged every line in it, so the lines close. Each pair comes once, so a deleted line never returns.
+7. Report to the committee in one short list only the cards you closed and the overlaps you left for a member to judge. Otherwise respond with [SILENT].
+
+`overlap check failed: <error>` means the check crashed and keeps its last heads, so the next tick checks the same commits. Read the overlap lines in `logs/tick.log` and fix the cause, like a head that no longer exists, with `factory set-state overlap.main null`, which starts a new baseline.
 
 ## Release post
 

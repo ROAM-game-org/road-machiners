@@ -109,7 +109,7 @@ A card stage that fails resumes once on the next tick in its own sessions, and i
 
 An agent run that ends on the Claude weekly usage limit is the exception. The factory writes `Hermes: Claude weekly usage limit; <message>` to `$FACTORY_HOME/paused`, unless a pause is already there. The job still records its failure, but the card takes no label. Hermes resumes the factory after the reset, and the card runs its stage again.
 
-Hermes manages the factory. Its incident watch wakes it on a stuck issue, a failed job, a tick crash in `lastTickError`, a failed `/dev/` build, a failed factory update, low disk, low memory, no tick for 20 minutes or a pause older than an hour. It also wakes on each `drift: <line>`, which is one line of `factory audit`, so Hermes fixes stale state before it blocks a card. Each call to GitHub and to `factory audit` has a time limit. A source that fails or times out repeats its last answer, so no known incident closes, and after 10 minutes it adds a `<source> failed since <time>` line. A failed or killed watch run stays in Hermes's cron log and never reaches the chat. Only Hermes's own messages do. Hermes reads the logs, the state and the chat, then fixes the incident. No failure waits for a person. When a fix fails, Hermes tries another approach, and a card that keeps failing goes back to Design with the findings. Hermes reports what it did and asks the committee only about product decisions and game design or taste. Hermes may push a merge to `dev` after the factory checks pass. [hermes/SOUL.md](../hermes/SOUL.md) holds its rules.
+Hermes manages the factory. Its incident watch wakes it on a stuck issue, a failed job, a tick crash in `lastTickError`, a failed `/dev/` build, a failed factory update, low disk, low memory, no tick for 20 minutes or a pause older than an hour. It also wakes on each `drift: <line>`, which is one line of `factory audit`, so Hermes fixes stale state before it blocks a card, and on each line of the overlap check. Each call to GitHub and to `factory audit` has a time limit. A source that fails or times out repeats its last answer, so no known incident closes, and after 10 minutes it adds a `<source> failed since <time>` line. A failed or killed watch run stays in Hermes's cron log and never reaches the chat. Only Hermes's own messages do. Hermes reads the logs, the state and the chat, then fixes the incident. No failure waits for a person. When a fix fails, Hermes tries another approach, and a card that keeps failing goes back to Design with the findings. Hermes reports what it did and asks the committee only about product decisions and game design or taste. Hermes may push a merge to `dev` after the factory checks pass. [hermes/SOUL.md](../hermes/SOUL.md) holds its rules.
 
 Hermes uses the `factory` CLI for every look at the factory and every change. Read commands print the state and change nothing. Write commands become inbox commands, and the next tick applies each one before it picks jobs. A write that cannot apply changes nothing and becomes a failure that names the reason. Each write names who ordered it and why, on the issue and in the ledger. Only a member's order runs `merge` or `move N harden` of a card the committee has not approved, `ship` and `merge-change`. `factory help` lists every command. [state.md](state.md) lists the commands.
 
@@ -151,7 +151,7 @@ Every card move adds a card line: the issue, the new column, the time and a step
 - Normal path: `entered`, `accepted` or `voted`, `planned`, `built`, `posted`, `approved`, `hardened` into Merging, and `merged`.
 - Loops back: `questions`, `plan-wrong`, `patch` into Testing, `redesign`, `conflict` of a hotfix into Testing, `removed` and `unbundled`.
 - Lines from before one session ran each stage also hold `patched`, `rebuild`, `review-failed` and `patch-replan`. No stage writes them now.
-- Early ends: `triage-wont-do`, `design-wont-do`, `bundled`, `denied`, and `dropped` by `factory move N done`.
+- Early ends: `triage-wont-do`, `design-wont-do`, `bundled`, `denied`, `dropped` by `factory move N done`, and `superseded` by `factory supersede N <commit>`.
 - Other moves: `moved` by `factory move`, `merge-ordered` by `factory merge`, `shipped` for the release card and `reported` for an ad hoc task.
 - A line carries `flow` when the card is a hotfix, a release task, the release card or an ad hoc task.
 
@@ -161,7 +161,25 @@ Every `FACTORY_WASTE_REVIEW_DAYS`, the tick starts a waste review in the triage 
 
 The review's period starts at `lastWasteReview` in the state file. The job moves it to the review's end only after the issue is closed, the review is in `$FACTORY_HOME/waste-reviews.md` and `review-pending` is written. So a failed review keeps its period, and the next one covers it. While a `waste` failure stands in `failures`, the tick starts no review, so a broken review does not rerun on every tick. It runs again when the failure ages out after a day, or at once by `run waste -`. Once the issue exists, the job writes `$FACTORY_HOME/waste-review-publish.json`. A retry of the same period finds it and finishes that issue, with no agent and no second issue.
 
-## Error reports
+## Overlap check
+
+Cards whose work a hotfix on `main` or a merge on `dev` already did keep taking workers until someone sees it. The overlap check finds them cheaply, and Hermes judges and closes them. `src/overlap.ts` holds the check.
+
+- The tick runs it after its fetch, at most once every `FACTORY_OVERLAP_CHECK_HOURS`. Between checks it reads nothing. A due check whose `main` and `dev` heads match the recorded ones only moves `overlap.at`. The first check records the heads and names nothing, so work merged before the deploy is never named.
+- It reads the first-parent commits of `main` and `dev` since the recorded heads, at most 50 each, and the files each brought. It reads the changed files of each open card's branch against `main` for a hotfix and `dev` otherwise. It skips cards in Done, the release card, and approved or approving cards, which only a member drops.
+- A card and a commit pair up when they change the same file, or when the card's title equals the title in the commit subject, like `Hotfix #539: <title>`, compared on letters alone. Task files under `.factory*` and `docs/tasks/` and `package-lock.json` never count. A commit never pairs with an issue its subject names.
+- Each new pair appends `overlap #N <title> with <commit> on <branch> (<subject>): <why>` to `$FACTORY_HOME/overlap-pending`. Its key `N:<commit>` goes into `overlap.reported`, so a pair is named once. Keys of closed cards drop out.
+- A crash records `overlap.error` and keeps the old heads, so the next tick checks the same commits. The incident watch prints it as `overlap check failed: <error>`.
+- `factory overlaps` is the dry run: it lists the pairs from the recorded heads to the current ones, marks the ones already named, and writes nothing.
+
+A pair is only a lead. Hermes reads the commit, the issue, its reports and the card's branch, and closes the card only when the merged commit already meets everything the issue asks. A report from another browser or build, a defect left open, and a fix still in an open pull request keep the card. `hermes/SOUL.md` holds its rules. Hermes deletes the file once it judged every line.
+
+`factory supersede N <commit>` is the close. It applies on the next tick like any write order, and `hermes` may send it.
+
+- It refuses a card off the board, the release card, a closed issue, an approved card or a queued approval, a release task, a running branch job of the card, a card in the running merge batch, a committee reply waiting for its route, and a commit on neither `main` nor `dev`. A refusal changes nothing.
+- Then it stops the card's job, with the ledger outcome `stopped`, clears the card's state, sessions, hold and build, closes its open post with a status line and moves it to Done with the card step `superseded`. It closes the card's pull request unmerged, adds the label `superseded` and closes the issue as completed, so a later build that reports the same error reopens it. Each bundled issue goes back to Triage. The issue gets one comment, which links the commit.
+- A card already in Done whose issue is still open takes the order again, so a supersede that failed halfway finishes.
+
 
 The release, dev and candidate builds post each new game error to `/errors` on the public site. Card previews post nothing, since an error there belongs to the card's own review. The build that publishes a reporting build moves its source maps to `$FACTORY_HOME/sourcemaps/<commit>/` first, so no map goes public. Dev and candidate maps go after `FACTORY_ERROR_MAP_DAYS`, and release maps stay.
 

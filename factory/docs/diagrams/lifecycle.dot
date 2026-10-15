@@ -27,4 +27,5 @@ digraph lifecycle {
   T -> X [label="wont-do or bundled"];
   D -> X [label="wont-do"];
   A -> X [label="Deny"];
+  I -> X [label="superseded by\na merged commit"];
 }

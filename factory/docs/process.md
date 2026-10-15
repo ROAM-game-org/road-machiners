@@ -45,6 +45,7 @@ The early ends:
 - wont-do: triage or design refuses the request, and the issue closes.
 - bundled: triage folds the issue into a lead, and it closes when the lead ships.
 - Deny: the committee rejects the build, and the issue closes.
+- superseded: a commit on `main` or `dev` already does the card's work. The daily overlap check names the card to Hermes, Hermes judges it, and `factory supersede N <commit>` closes the issue as completed with the label `superseded`. [operations.md](operations.md#overlap-check) has the rules.
 
 A branch that changes only Markdown docs cannot change the game, so it runs no testing or hardening session, and its post checkpoint only builds it. The merge checkpoint still checks it. A wiki page in `game/docs/wiki/` does not count as docs, since the game tests check its tables. [stages.md](stages.md#docs-changes) has the rules.
 
@@ -168,7 +169,7 @@ These jobs run beside the cards.
 
 ## Tick and queues
 
-A timer runs one tick at a time. A tick never waits for a job. Before it picks jobs, it sweeps the stuck cards of the board it read, and a sweep that crashes only records its error. Each job runs as its own process. Check jobs resumes a dead card job once, and kills a card job past its time limit and resumes it once. A second death or timeout, and any branch job past its limit, fails.
+A timer runs one tick at a time. A tick never waits for a job. Before it picks jobs, it sweeps the stuck cards of the board it read, and a sweep that crashes only records its error. Then, once every `FACTORY_OVERLAP_CHECK_HOURS` and only when `main` or `dev` moved, it runs the overlap check, which reads git alone and calls no agent. Each job runs as its own process. Check jobs resumes a dead card job once, and kills a card job past its time limit and resumes it once. A second death or timeout, and any branch job past its limit, fails.
 
 ![One tick](diagrams/tick.svg)
 

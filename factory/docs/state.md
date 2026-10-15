@@ -52,6 +52,7 @@ Flags hold on any position:
 - Approved: the card merges after hardening. It shows as `approvedResolving` or a queued approval.
 - Routing labels `design-sonnet` and `implementation-opus`, `open-network`, `hotfix`, `adhoc`, `release-task` and `bundled` change how the card runs, never where it stands.
 - `release-candidate` marks a merged card that waits for Ship.
+- `superseded` marks a closed card whose work a commit on `main` or `dev` already did. Only `supersede` adds it.
 - `error-report` marks a bug the error service opened from a game error. Intake takes it with no votes, into Triage.
 
 ## Release positions
@@ -100,6 +101,8 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `lastTickError`: the last tick crash. `factory status` shows it.
 - `lastWasteReview`: the start of the next waste review's period, the end of the last published review. Only a published review moves it forward. A review run by hand with none sets it one period back first, so its retry covers the same period. `set-state lastWasteReview` restores it.
 - `devFailed`: the short hash of a `dev` whose build failed. The tick skips it until `dev` moves or Hermes clears it. `devError` holds what broke, and the incident watch prints its first line, so Hermes fixes `dev` or reverts the merge that broke it.
+- `overlap`: the overlap check's record: `at`, the time of the last check; `main` and `dev`, the heads it read; `reported`, the `issue:commit` pairs it named; and `error`, its last crash. Written only by the tick. `set-state overlap.main null` starts a new baseline. [operations.md](operations.md#overlap-check) has the rules.
+- Overlap pending: `$FACTORY_HOME/overlap-pending` holds one line per card and commit the overlap check named. Hermes's incident watch prints it, and Hermes deletes it once it judged every line.
 - Review pending: `$FACTORY_HOME/review-pending` names the issue of a finished waste review. Hermes's incident watch prints it, and Hermes deletes it once handled.
 - Review publishing: `$FACTORY_HOME/waste-review-publish.json` holds a created review issue with its period, bottleneck and proposal until the job has closed it, recorded it and written `review-pending`. Only the waste job writes it. A retry of the same period finishes it, and a later period deletes it.
 - Error service alert: `$FACTORY_HOME/error-reports/alert` holds one line per cap the error service hit that day: the daily issue cap, the disk cap or the per-address limit. Hermes's incident watch prints it, and Hermes deletes it once handled.
@@ -125,7 +128,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 ## Commands
 
-Read: `factory status`, `cards`, `card N`, `jobs`, `queues`, `release`, `failures`, `stuck`, `log N [stage]`, `audit` and `help`.
+Read: `factory status`, `cards`, `card N`, `jobs`, `queues`, `release`, `failures`, `stuck`, `log N [stage]`, `audit`, `overlaps` and `help`. `overlaps` fetches the host clone and lists the overlap check's pairs since its recorded heads, with no write.
 
 Write, each with `--by` and `--reason`:
 
@@ -137,6 +140,7 @@ Write, each with `--by` and `--reason`:
 - `cut` cuts a release.
 - `remove N` takes a feature out of the release.
 - `drop <approval|removal|ship|change|incident> <id>` drops one queued entry.
+- `supersede N <commit>` closes a card whose work the commit on `main` or `dev` already does. It drops the card like `move N done`, but closes the issue as completed with the label `superseded` and one comment that links the commit. It refuses an approved or approving card, a release task, a running branch job, an unrouted committee reply and a commit on neither branch. [operations.md](operations.md#overlap-check) has the rules.
 - `merge-change <id>` merges a factory change PR into `main`.
 - `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards. Each catch-up job adds its issue to `caughtUp` on that entry, so a card is caught up at most once per merge job, and the list goes with the entry. A Merging card outside the batch can be held and moved while the merge runs.
 - `resume-card N` lifts the hold. The next tick runs the card's stage, and a job of the stopped stage continues its agents' sessions with `--resume`. It needs no board, so it also lifts a hold whose card is gone.
@@ -154,7 +158,7 @@ Write orders wait while the factory is paused. The CLI still writes the order, s
 
 `--by` is a committee member, by Telegram id, GitHub login or name, or `hermes`. Hermes passes the Telegram id of the member whose message ordered the action. Its `factory_sender` tool returns that id, since a Telegram display name matches no member.
 
-`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
+`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card`, `resume-card` and `supersede`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
 
 Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume`, `repair-clone N --by <who> --reason <why> [--backup-merge]` and `set-state <path> <json>|--delete --by <who> --reason <why>`. `set-state` changes one value at a dotted path, like `release.postId`, under the state lock, so no job has to stop. It refuses a path whose first key is not a store, a value of another kind than the one it replaces, like an object for a list, and a delete of anything but an entry of a map store like `pendingApprovals.5`. A null value takes any kind. It writes the old and the new value to the tick log. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
 

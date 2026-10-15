@@ -11,12 +11,14 @@ from pathlib import Path
 SCRIPT = Path(__file__).parent / "factory-incidents.sh"
 
 
-def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None) -> list[str]:
+def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, overlap: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None) -> list[str]:
     home = tmp_path / "home"
     (home / "state").mkdir(parents=True)
     (home / "state" / "state.json").write_text(json.dumps({"failures": [], "lastTickError": None, "devFailed": None, **(dev or {}), **(state or {})}))
     if review is not None:
         (home / "review-pending").write_text(review)
+    if overlap is not None:
+        (home / "overlap-pending").write_text(overlap)
     if error_alert is not None:
         (home / "error-reports").mkdir()
         (home / "error-reports" / "alert").write_text(error_alert)
@@ -178,6 +180,16 @@ def test_one_failed_audit_is_retried_and_opens_no_incident(tmp_path):
 def test_a_pending_review_wakes_hermes_until_the_file_goes(tmp_path):
     assert run(tmp_path / "ready", health(), review="#301 https://github.com/o/r/issues/301\n") == ["factory review ready: #301 https://github.com/o/r/issues/301"]
     assert run(tmp_path / "handled", health()) == []
+
+
+def test_each_overlap_wakes_hermes_until_the_file_goes(tmp_path):
+    overlap = "overlap #516 Sounds stop in Safari with aaaaaaa on main (Hotfix #539: Error: sound decode failed): shares game/src/audio/decode.ts\n"
+    assert run(tmp_path / "found", health(), overlap=overlap) == [overlap.strip()]
+    assert run(tmp_path / "handled", health()) == []
+
+
+def test_a_failed_overlap_check_wakes_hermes(tmp_path):
+    assert run(tmp_path, health(), state={"overlap": {"error": "fatal: bad revision dev0"}}) == ["overlap check failed: fatal: bad revision dev0"]
 
 
 def test_an_error_service_cap_wakes_hermes_until_the_file_goes(tmp_path):

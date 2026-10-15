@@ -74,6 +74,9 @@ from_source audit drift
 jq -r '.releasePost // empty | select(.postId == null) | "release post due: release \(.day)"' /factory/home/state/state.json
 # A finished waste review waits for Hermes until Hermes deletes the file.
 if [ -f /factory/home/review-pending ]; then echo "factory review ready: $(cat /factory/home/review-pending)"; fi
+# The daily overlap check appends one line per open card that a new merge on main or dev may cover, and Hermes deletes the file once it judged each.
+if [ -f /factory/home/overlap-pending ]; then cat /factory/home/overlap-pending; fi
+jq -r '.overlap.error // empty | "overlap check failed: " + .' /factory/home/state/state.json
 # The error service writes one line per cap it hits, with the day, and Hermes deletes the file once handled.
 if [ -f /factory/home/error-reports/alert ]; then cat /factory/home/error-reports/alert; fi
 # The Hermes plugin writes one line per day when it cannot hand a player vote or comment to the public inbox, and Hermes deletes the file once handled.
