@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ROAM combat score lab</title>
+    <style>
+      body { background: #1a1410; color: #f0e0b8; font: 13px/1.5 ui-monospace, Menlo, monospace; margin: 16px; }
+      h2 { color: #d8b878; font-weight: normal; margin: 16px 0 4px; font-size: 13px; }
+      canvas { display: block; background: #120e0b; border: 1px solid #3a2a1e; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+      .stats { display: grid; grid-template-columns: repeat(4, max-content); gap: 2px 24px; margin: 8px 0; }
+      .stats span:nth-child(odd) { color: #b8a888; }
+      .log { color: #b8a888; font-size: 11px; white-space: pre; max-height: 160px; overflow: auto; }
+      .hint { color: #b8a888; font-size: 11px; }
+      button { font: inherit; background: #3a2a1e; color: #f0e0b8; border: 1px solid #6a4a30; padding: 2px 10px; cursor: pointer; }
+      button.on { background: #7a4a28; }
+    </style>
+  </head>
+  <body>
+    <div id="lab">Loading sounds...</div>
+    <script type="module" src="/src/three/score-lab.ts"></script>
+  </body>
+</html>
