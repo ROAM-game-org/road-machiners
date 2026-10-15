@@ -8,7 +8,7 @@ export type ConditionId =
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
-  | 'npcLow' | 'playerLow' | 'noAid' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
+  | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk';
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
@@ -730,7 +730,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   offerAid: {
     id: 'offerAid',
     once: false,
-    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'npcCalm', 'npcLow', 'npcOffRope'], duringFeud: false },
+    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'aidHolds', 'npcLow', 'npcOffRope'], duringFeud: false },
     raise: null,
     prepare: 'aidWanted',
     hangUp: [],
@@ -749,7 +749,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   askAid: {
     id: 'askAid',
     once: true,
-    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'npcCalm', 'playerLow'], duringFeud: false },
+    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'aidHolds', 'playerLow'], duringFeud: false },
     raise: null,
     prepare: 'aidAnswer',
     hangUp: ['settleRefused'],

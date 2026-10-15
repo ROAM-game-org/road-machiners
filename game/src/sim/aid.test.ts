@@ -3,7 +3,7 @@ import { ECONOMY } from '../data/goods';
 import { AID } from '../data/npc-behavior';
 import { NPC_UPKEEP, NPCS, STATE_TURNS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { agreeAid, aidPrice, aidWork, onNeedySeen, playerAid, readyAid, spareAid, startAid, wantedAid } from './aid';
+import { agreeAid, aidHolds, aidPrice, aidWork, onNeedySeen, playerAid, readyAid, spareAid, startAid, wantedAid } from './aid';
 import { playerVehicle } from './damage';
 import { truckSupplyForSale } from './economy';
 import { makePart } from './factory';
@@ -369,6 +369,18 @@ describe('unprompted aid offer', () => {
     startCombat(w, raider, w.vehicles[0]);
     onNeedySeen(w, npc);
     expect(playerAid(w)).toBeNull();
+  });
+
+  it('aid holds only while neither truck is in combat or a feud', () => {
+    const { w, npc } = needyScene();
+    const me = playerVehicle(w);
+    expect(aidHolds(w, npc, me)).toBe(true);
+    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 24, y: 30 });
+    const fight = addState(w, 'combat', raider.id, me.id, { kind: 'none' });
+    expect(aidHolds(w, npc, me)).toBe(false);
+    w.states = w.states.filter((s) => s.id !== fight.id);
+    addState(w, 'combat', npc.id, raider.id, { kind: 'none' });
+    expect(aidHolds(w, npc, me)).toBe(false);
   });
 
   it('does not roll while another aid deal with the player is open', () => {

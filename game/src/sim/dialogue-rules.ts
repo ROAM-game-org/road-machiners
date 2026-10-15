@@ -23,7 +23,7 @@ import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } fr
 import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
 import { aidData, stateOf, towData } from './states';
-import { agreeAid, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
+import { agreeAid, aidHolds, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
 import type { Call, CallVar, CallVars, GridItem, MemoryFact, NpcState, Plea, SalvageStock, TopicOutcome, Vehicle, World } from './types';
@@ -267,6 +267,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcLow: (world, npc) => hasAid(wantedAid(world, npc)),
   playerLow: (world) => isLow(world, playerVehicle(world)),
   noAid: (world) => playerAid(world) === null,
+  aidHolds: (world, npc) => aidHolds(world, npc, playerVehicle(world)),
   aidGiven: (_world, _npc, vars) => answerOf(vars) === 'give',
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
