@@ -2,6 +2,8 @@ This is the design stage of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{branch}}.
 Issue {{issue}} is the request.
 
+{{gameDocs}}
+
 {{baseNote}}
 You cannot fetch, pull or reach any remote, and the factory does it for you.
 Never ask the author about branches, clones, fetching or the network.
@@ -40,9 +42,6 @@ Never make it a pass or fail gate for a perspective concept, since the skill its
 Judge the compare sheet by looking at it, and write each mismatch as a measurement or a plain description.
 
 
-Read CLAUDE.md and docs/DESIGN.md first.
-Follow them.
-
 Read docs/architecture/principles.md.
 It holds this project's architecture principles.
 They come on top of the global principles of the up skills.
@@ -60,6 +59,9 @@ A design that breaks a ui.md principle names the principle and says why.
 
 Create or revise the task file {{taskFile}}.
 Set `Mode: hands-off` in it.
+
+{{bugExpansion}}
+
 Run up:udesign and then up:uplan in hands-off mode.
 Stop after the plan.
 Do not execute the plan.
