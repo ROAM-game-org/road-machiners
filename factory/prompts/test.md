@@ -35,7 +35,7 @@ Then write why in a few sentences to `.factory/needs-redesign.md`, commit nothin
 
 This machine is shared and slow. Keep checks focused.
 Run the tests near your changes with `npx vitest run <files>`, and `npm run typecheck`.
-Do not run the full suite. It runs once, before the merge.
+Do not run the full suite. The merge runs the tests next to the changed files, and the release runs them all.
 
 Reference images from the issue are listed at the end of this prompt.
 Read every available image with the Read tool.
@@ -76,5 +76,5 @@ Never push.
 Before you end, run `node /opt/factory-check/check.mjs test` from your folder, after your last commit.
 It prints what the post would lose. Fix each failure and run it again.
 
-When you end, the factory runs `npm run typecheck`, `{{playtest}}` against the dev server and the build in a fresh clone of your branch.
+When you end, the factory builds a fresh clone of your branch with `npm run build`, which also typechecks it. A hotfix also gets the full suite and `{{playtest}}` against the dev server.
 If they fail, the failure comes back to you in this conversation. Fix it, commit, and end again.
