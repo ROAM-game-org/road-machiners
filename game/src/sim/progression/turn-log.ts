@@ -66,7 +66,7 @@ export function turnLine(world: World, events: readonly GameEvent[], ledger: Led
     state: p.state,
     goods: goodsCount(me),
     parts: mountedParts(me).map((part) => `${part.defId}:${Math.round((100 * part.hp) / maxHp(part))}`),
-    contracts: p.contracts.map((c) => `${c.kind}:${'good' in c ? c.good : ''}${'units' in c ? c.units : ''}>${'to' in c ? c.to : c.shop}`),
+    contracts: p.contracts.map((c) => `${c.kind}:${'good' in c ? c.good : ''}${'units' in c ? c.units : ''}${'client' in c ? c.client : ''}>${'to' in c ? c.to : c.shop}`),
     order: me.order ? `${me.order.kind}${'dest' in me.order ? `@${Math.round(me.order.dest.x)},${Math.round(me.order.dest.y)}` : ''}` : null,
     job: me.job ? me.job.kind : null,
     flags: flagsOf(world, me),

@@ -4,6 +4,7 @@ import { aidWork, checkAid, refreshAid, settleAid } from './aid';
 import { vehicleById } from './damage';
 import { newId } from './factory';
 import { lootRobbed } from './defeat';
+import { endStoryAid } from './encounters';
 import { checkPatch, isPatching, breakPatch, lapsePatch, patchWork, settlePatch } from './patch';
 import { practice } from './progress';
 import { checkLootWarning, defendWarned, lapseLootWarning } from './loot-warning';
@@ -81,10 +82,19 @@ export const STATE_KINDS: Record<StateKindId, StateKind> = {
   revenge: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
   escort: { refresh: never, check: checkEscort, hooks: { fulfilled: payEscort }, work: noWork, binds: true },
   strayFire: { refresh: never, check: noCheck, hooks: {}, work: noWork, binds: false },
-  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAid }, work: aidWork, binds: true },
+  aid: { refresh: refreshAid, check: checkAid, hooks: { fulfilled: settleAndEndAid, expired: endAid, broken: endAid }, work: aidWork, binds: true },
   combat: { refresh: never, check: checkCombat, hooks: {}, work: noWork, binds: false },
   lootWarning: { refresh: never, check: checkLootWarning, hooks: { expired: lapseLootWarning, broken: defendWarned }, work: noWork, binds: false },
 };
+
+function settleAndEndAid(w: World, s: NpcState): void {
+  settleAid(w, s);
+  endStoryAid(w, s, 'fulfilled');
+}
+
+function endAid(w: World, s: NpcState): void {
+  endStoryAid(w, s, 'broken');
+}
 
 function checkCombat(w: World, s: NpcState): StateEnding | null {
   const holder = w.vehicles.find((v) => v.id === s.holder);

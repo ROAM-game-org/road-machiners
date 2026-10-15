@@ -6,7 +6,9 @@ import type { Vec } from '../../sim/vec';
 import { el } from '../../ui/dom';
 import { createBareItemIcon } from '../../ui/cards';
 import type { JobMark, VehicleMark, WeaponMark } from '../../ui/weapons';
-import { playerExplored } from '../../sim/vision';
+import { playerExplored, playerSees } from '../../sim/vision';
+import { heldEscort } from '../../sim/escort-job';
+import { vehicleName } from '../../ui/format';
 import type { CameraRig } from './camera';
 import type { SightLimit } from './scope';
 import { setText } from '../../text/language';
@@ -40,6 +42,7 @@ export class Labels {
   private els = new Map<string, HTMLDivElement>();
   private rumors = new Map<string, HTMLDivElement>();
   private lead: HTMLDivElement | null = null;
+  private escort: HTMLDivElement | null = null;
 
   constructor(private readonly container: HTMLElement) {}
 
@@ -52,6 +55,7 @@ export class Labels {
     }
     this.dropGoneSites(new Set(sites.map((s) => s.id)));
     this.updateRumors(world, rig, limit);
+    this.updateEscort(world, rig, limit);
     this.updateLead(world, rig, limit);
   }
 
@@ -65,6 +69,20 @@ export class Labels {
     this.lead ??= labelEl(this.container);
     setText(this.lead, t('map.lead', { driver: fullName(search.driver), ago: agoText(world.turn - search.lead.turn) }));
     place(this.lead, world, search.lead.at, rig, limit, true, LEAD_EXTRA_LIFT_PX);
+  }
+
+  private updateEscort(world: World, rig: CameraRig, limit: SightLimit): void {
+    const job = heldEscort(world);
+    const trader = job && world.vehicles.find((v) => v.id === job.client);
+    const lastSeen = job && trader && !playerSees(world, trader.pos) ? job.seen : null;
+    if (!job || !lastSeen) {
+      this.escort?.remove();
+      this.escort = null;
+      return;
+    }
+    if (!this.escort) this.escort = labelEl(this.container);
+    setText(this.escort, vehicleName(world, job.client));
+    place(this.escort, world, lastSeen, rig, limit, true);
   }
 
   private dropGoneSites(ids: Set<string>): void {

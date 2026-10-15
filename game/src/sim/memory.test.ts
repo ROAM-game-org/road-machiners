@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MEMORY } from '../data/npcs';
 import { forgetOld, recall, remember, rememberSightings, sightingOf, subjectOf } from './memory';
+import { noteAttack } from './combat';
+import { yieldTo } from './parley';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { MemoryFact, Vehicle, World } from './types';
 import { endTurn } from './world';
@@ -140,6 +142,36 @@ describe('driver memory', () => {
   it('answers null for a truck never seen', () => {
     const w = emptyWorld();
     expect(sightingOf(driver(w), 'ghost')).toBeNull();
+  });
+
+  it('remembers the truck that attacked it', () => {
+    const w = emptyWorld();
+    const victim = driver(w);
+    const shooter = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
+    noteAttack(w, shooter, victim, true);
+    expect(recall(victim, 'wronged').map((m) => m.fact.by)).toEqual([shooter.id]);
+  });
+
+  it('remembers the truck that took its cargo', () => {
+    const w = emptyWorld();
+    const loser = driver(w);
+    const robber = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
+    robber.brain = npcBrain('raider', robber.pos, ['raider']);
+    yieldTo(w, loser, robber, []);
+    expect(recall(loser, 'wronged').map((m) => m.fact.by)).toEqual([robber.id]);
+  });
+
+  it('forgets a wrong after its lifetime', () => {
+    const w = emptyWorld();
+    const victim = driver(w);
+    const shooter = addVehicle(w, 'raiders', 'buggy', [], { x: 64, y: 60 });
+    noteAttack(w, shooter, victim, false);
+    w.turn += MEMORY.turns.wronged - 1;
+    forgetOld(w);
+    expect(recall(victim, 'wronged')).toHaveLength(1);
+    w.turn += 1;
+    forgetOld(w);
+    expect(recall(victim, 'wronged')).toEqual([]);
   });
 
   it('lets no file but memory.ts write driver memories', () => {

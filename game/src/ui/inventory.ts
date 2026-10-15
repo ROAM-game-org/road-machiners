@@ -6,6 +6,8 @@ import { isJunk, maxHp } from "../sim/wear";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
 import { canRebuild, partRepairCost, repairPart } from "../sim/economy";
+import { reachedOutpostAt } from "../sim/fury-road";
+import { outpostRepairPart } from "../sim/outposts";
 import {
   freeCells,
   goodsCount,
@@ -387,7 +389,7 @@ export class InventoryView {
     if (item.kind !== "part") return this.cargoActions(w, item);
     const buttons: (HTMLElement | null)[] = [
       canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
-      shopAt(w) ? this.repairButton(w, item.part) : null,
+      shopAt(w) || this.atOutpost(w) ? this.repairButton(w, item.part) : null,
       !mounted && partDef(item.part.defId).kind !== "core"
         ? this.stripButton(w, this.mine(w), item.part)
         : null,
@@ -421,6 +423,10 @@ export class InventoryView {
     );
   }
 
+  private atOutpost(w: World): boolean {
+    return reachedOutpostAt(w, this.mine(w)) !== null;
+  }
+
   private repairButton(w: World, part: PartInstance): HTMLElement | null {
     if (!isJunk(part)) return this.garageButton(w, part, "repair", t("inv.repairTitle", { hp: maxHp(part) }));
     return canRebuild(w, part) ? this.garageButton(w, part, "rebuild", t("inv.rebuildTitle")) : null;
@@ -438,7 +444,7 @@ export class InventoryView {
         onpointerdown: (e: Event) => e.stopPropagation(),
         onclick: (e: Event) => {
           e.stopPropagation();
-          this.run((world) => repairPart(world, part.id));
+          this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id)));
         },
       },
       pricedEl(t(`inv.verb.${action}`), cost),

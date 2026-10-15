@@ -10,6 +10,7 @@ export function subjectOf(fact: MemoryFact): string {
     case 'prices': return `prices:${fact.shop}`;
     case 'stripped': return `stripped:${fact.stock}`;
     case 'sighting': return `sighting:${fact.vehicle}`;
+    case 'wronged': return `wronged:${fact.by}`;
   }
 }
 

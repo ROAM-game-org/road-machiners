@@ -61,6 +61,11 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
+  courierNeed: ['aid', 'price'],
+  taleNews: ['site', 'bearing', 'distance', 'tip'],
+  tipTerms: ['price', 'bearing', 'distance'],
+  courierNews: ['site', 'bearing', 'distance', 'tip'],
+  courierFavorTerms: ['price'],
 };
 
 const SAMPLE: Record<string, CallVar> = {

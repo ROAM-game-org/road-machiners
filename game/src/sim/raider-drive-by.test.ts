@@ -67,7 +67,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...post });
   raider.brain = npcBrain('buggy', sitePads(camp)[0], ['raider']);
   raider.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'act', reason: 'watchedRoad', watchUntil: w.turn + HUNT.watchTurns }];
-  const end = at(60);
+  const end = kind === 'playerEmpty' ? { x: post.x, y: post.y - 6 } : at(60);
   let prey: Vehicle;
   if (kind === 'player' || kind === 'playerEmpty') {
     prey = me;

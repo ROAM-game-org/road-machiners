@@ -32,7 +32,7 @@ The board column is the position. Only a Testing card has a second one, `post`. 
 - `implement`: column Implementation. Needs the plan on the issue. Next job: implement.
 - `verify`: column Testing. Needs the branch with the build. Next job: verify, which tests, runs the post checkpoint and posts in one job.
 - `post`: column Testing, with the issue in `postOnly`. Next job: checks, which builds, publishes and posts with no tests or playtest. `move N approval` puts a card here and drops its approval.
-- `approval`: column Approval. Needs a published build in `builds` and an open post in `approvalPosts`, or an approval queued in `pendingApprovals`. Next job: approve, which runs when the committee presses Approve.
+- `approval`: column Approval. Needs a published build in `builds` and an open post in `approvalPosts`, or an approval queued in `pendingApprovals`, or a hotfix's kept approval whose checked build waits to ship. Next job: approve, which runs when the committee presses Approve, or when the tick queues a kept approval again.
 - `harden`: column Hardening, with an `approvedResolving` entry, or a cleanup task. Next job: harden, which runs the hardening session and moves the card to Merging. `move N harden` records the mover as approver when none is recorded.
 - `merging`: column Merging, with an `approvedResolving` entry, or a cleanup task. Next job: merge, one for up to three Merging cards of a base. `move N merging` and `merge N` record the mover as approver when none is recorded.
 - `done`: column Done. Runs nothing.
@@ -42,6 +42,7 @@ Fields that belong to one position:
 - `postOnly` belongs to Testing only.
 - `approvalPosts`, `postCaptions` and `pendingApprovals` belong to Approval only.
 - `approvedResolving` marks an approved card in Hardening or Merging. The merge comment names the approver.
+- `keptApprovals` holds a hotfix's approval from the approve job until the hotfix ships, in Approval or in Testing: `by`, the member, `at`, `build`, the approved build, `checked`, each build whose full checks passed under it, and `reason`, why it last went back to Testing. Only the approve job of a member's approval and `recover-approval` write a new one. A patch or redesign route, Deny, `move` to any position but `verify`, `merge` and `drop approval` drop it, and each drop but Deny comments the reason. `factory card N` prints it. Testing records a passing build in `checked` before it moves the card to Approval and queues the approval, so a crash between the two leaves a card the tick queues again.
 
 Flags hold on any position:
 
@@ -49,7 +50,7 @@ Flags hold on any position:
 - Held: `held` in `state.json` holds who held the card, why, when, and the stage of the job the hold stopped. The tick starts no job on the issue, a queued approval included, until `resume-card N` lifts it. A hold is no failure, so the card takes no label and Hermes gets no incident. `move` keeps it but forgets the stopped stage, since the move clears the sessions. `move N done` drops it.
 - `voting`: a Triage card whose proposal waits for player votes. Triage skips it. The tick removes it and moves the card to Design when the net score of 👍 over 👎 reaches `FACTORY_MIN_VOTES`.
 - `needs-info`: the author owes answers. The tick removes it when someone answers, or when `FACTORY_NEEDS_INFO_HOURS` pass since the questions.
-- Approved: the card merges after hardening. It shows as `approvedResolving` or a queued approval.
+- Approved: the card merges after hardening. It shows as `approvedResolving` or a queued approval. A hotfix shows it as a kept approval.
 - Routing labels `design-sonnet` and `implementation-opus`, `open-network`, `hotfix`, `adhoc`, `release-task` and `bundled` change how the card runs, never where it stands.
 - `release-candidate` marks a merged card that waits for Ship.
 - `error-report` marks a bug the error service opened from a game error. Intake takes it with no votes, into Triage.
@@ -85,7 +86,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 
 `factory queues` prints the queues. The tick applies each queue before it picks jobs.
 
-- `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press. Drop with `drop approval <issue>`.
+- `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press on the card's current post, by a hotfix's Testing job whose checks passed under its kept approval, and by the tick for an Approval card whose kept approval waits with no job, failure, hold or stuck label. Drop with `drop approval <issue>`, which also drops the kept approval.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
@@ -114,7 +115,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - An approved card in Testing, which would get a preview and lose its approval.
 - A Hardening or Merging card with no approval that is not a cleanup task.
 - An approval post or a queued approval outside Approval.
-- An Approval card with no open post that is not approved.
+- An Approval card with no open post that is not approved and keeps no approval.
 - A running job whose stage differs from the stage the position runs. The stage of `post` is checks, of `approval` is approve, and `done` runs none.
 - An open release whose tracking card is missing.
 - A pending ship with no current candidate post.
@@ -129,14 +130,15 @@ Read: `factory status`, `cards`, `card N`, `jobs`, `queues`, `release`, `failure
 
 Write, each with `--by` and `--reason`:
 
-- `move N <triage|design|implement|verify|approval|harden|merging|done>` changes the card's position. It stops the running job, closes the open post, clears the old position's state and sets the new one. `move N verify` and `move N approval` drop the approval, so the card gets a new post.
+- `move N <triage|design|implement|verify|approval|harden|merging|done>` changes the card's position. It stops the running job, closes the open post, clears the old position's state and sets the new one. `move N verify` and `move N approval` drop the approval, so the card gets a new post. `move N verify` keeps a hotfix's kept approval, so the rerun ships with no post.
 - `move N done` drops the card the way Deny does. It comments, closes the PR, adds the `wont-do` label, closes the issue as not planned, moves the card to Done and releases the bundled issues.
 - `move` and `merge` refuse the release tracking card.
 - `merge N` puts a card in Merging. It skips the post and hardening, and the merge checkpoint still runs.
 - `ship` ships the open release.
 - `cut` cuts a release.
 - `remove N` takes a feature out of the release.
-- `drop <approval|removal|ship|change|incident> <id>` drops one queued entry.
+- `drop <approval|removal|ship|change|incident> <id>` drops one queued entry. `drop approval N` also revokes a hotfix's kept approval. A card it leaves in Approval with no post shows drift, and `move N verify` gives it a new post.
+- `recover-approval N` keeps a hotfix approval again that the factory dropped before approvals were kept. It needs a hotfix card in Testing or Approval with no kept approval. It reads only the factory's own comments: the last `Approved by X, but main moved on` or `The approval by X of build B still holds`, the `Ready for approval:` post whose build X approved, and no committee feedback, player report, deny, drop or dropped approval since that post. GitHub's branch must still contain the build. It writes the kept approval with no checked build, so the card runs Testing and the full checks before it ships, and moves an Approval card to Testing and closes its posts. A check that fails changes nothing and names why.
 - `merge-change <id>` merges a factory change PR into `main`.
 - `pause-card N` holds a card. It stops the card's job, by its process group and the containers with its job id, and leaves every other job running. The job's work clone and agent sessions stay, the issue goes in `interrupted` with its stage marked to resume, and its card job limit slot frees. Its ledger line has the outcome `held`. A job that ended before the kill keeps its own line. It refuses a card off the board, in Done, already held, the release tracking card, and a card whose approve or remove job runs. It also refuses a Merging card in the `batch` of the running merge job. The merge job writes `batch`, the issue numbers it merges, on its own entry in `jobs` when it takes its cards. Each catch-up job adds its issue to `caughtUp` on that entry, so a card is caught up at most once per merge job, and the list goes with the entry. A Merging card outside the batch can be held and moved while the merge runs.
 - `resume-card N` lifts the hold. The next tick runs the card's stage, and a job of the stopped stage continues its agents' sessions with `--resume`. It needs no board, so it also lifts a hold whose card is gone.
@@ -154,7 +156,7 @@ Write orders wait while the factory is paused. The CLI still writes the order, s
 
 `--by` is a committee member, by Telegram id, GitHub login or name, or `hermes`. Hermes passes the Telegram id of the member whose message ordered the action. Its `factory_sender` tool returns that id, since a Telegram display name matches no member.
 
-`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card` and `resume-card`. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
+`hermes` may send mechanical orders: `move` to any position except `harden` and `merging`, `merge` and `move` to `harden` or `merging` of a card the committee approved, `cut`, `drop`, `retry`, `pause-card`, `resume-card` and `recover-approval`, which only restores an approval a member gave. A member must send the product decisions: `ship`, `remove`, `merge-change`, and `merge` or `move` to `harden` or `merging` of a card the committee has not approved. The CLI and the tick both refuse a gated order from `hermes`.
 
 Immediate, with no tick wait: `retry N [decision]`, `pause <reason>`, `resume`, `repair-clone N --by <who> --reason <why> [--backup-merge]` and `set-state <path> <json>|--delete --by <who> --reason <why>`. `set-state` changes one value at a dotted path, like `release.postId`, under the state lock, so no job has to stop. It refuses a path whose first key is not a store, a value of another kind than the one it replaces, like an object for a list, and a delete of anything but an entry of a map store like `pendingApprovals.5`. A null value takes any kind. It writes the old and the new value to the tick log. `retry` of the release tracking card also lifts a playtest block and keeps the decision in `release.playtest.notes`, so a new playtest job runs and reads it. `pause <reason>` writes `Paused with factory pause: <reason>`. `resume` lifts only a pause that starts with that text. It refuses a pause written by hand or by a member. Hermes deletes that file itself once its reason is gone.
 
