@@ -7,7 +7,7 @@ import { BlockVoices, type KitBuffers } from "./block-voices";
 export const COMBAT_SONGS = SONGS as Record<string, BlockSong>;
 
 export type Kit = { name: string; song: BlockSong; buffers: KitBuffers };
-export type KitLoader = (name: string) => Promise<Kit>;
+export type KitLoader = (name: string) => Promise<Kit | null>;
 
 const TICK_MS = 100;
 
@@ -17,8 +17,11 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions): KitL
     if (!song) throw new Error(`Unknown combat song ${name}`);
     const files = [song.file, song.guitars, song.cymbals.file];
     const loaded = await loadBank(ctx, soundsWith(files), options);
-    const failed = [...loaded.failures, ...loaded.unreachable];
-    if (failed.length > 0) throw new Error(`Combat song ${name} did not load: ${failed.map((f) => `${f.file} ${f.kind}`).join(", ")}`);
+    if (loaded.failures.length > 0) throw new Error(`Combat song ${name} did not decode: ${loaded.failures.map((f) => `${f.file} ${f.kind}`).join(", ")}`);
+    if (loaded.unreachable.length > 0) {
+      console.warn(`Combat song ${name} could not be fetched, so this fight keeps the last song`, loaded.unreachable);
+      return null;
+    }
     const [main, guitars, cymbals] = files.map((f) => loaded.bank.get(f)!);
     return { name, song, buffers: { song: main, guitars, cymbals } };
   };
@@ -39,7 +42,7 @@ export class CombatMusic {
     private onError: (e: unknown) => void,
   ) {
     this.voices = new BlockVoices(ctx, out);
-    this.loading = this.loadNext();
+    this.loading = this.loadNext().catch(onError);
   }
 
   ready(): Promise<void> {
@@ -74,7 +77,7 @@ export class CombatMusic {
 
   private start(): void {
     const kit = this.kit;
-    if (!kit) throw new Error("Combat started before any combat song loaded");
+    if (!kit) return;
     this.voices.use(kit.buffers);
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(this.ctx.currentTime);
@@ -92,7 +95,6 @@ export class CombatMusic {
     const names = Object.keys(COMBAT_SONGS);
     const name = names[Math.floor(this.roll() * names.length)];
     if (this.kit?.name === name) return;
-    const kit = await this.load(name);
-    this.kit = kit;
+    this.kit = (await this.load(name)) ?? this.kit;
   }
 }

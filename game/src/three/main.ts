@@ -173,7 +173,9 @@ const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 bootStep('loading physics, models and sounds');
 const soundOptions: BankOptions = { expectedBytes: SFX_BYTES, support: formatSupport(), progress: boot.count('sounds') };
-const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, reportError);
+const musicFaults: unknown[] = [];
+let reportMusicFault: (err: unknown) => void = (err) => musicFaults.push(err);
+const music = new CombatMusic(mixer.ctx, mixer.input('music'), bankKitLoader(mixer.ctx, { expectedBytes: SFX_BYTES, support: soundOptions.support }), Math.random, (err) => reportMusicFault(err));
 const loading = Promise.all([
   boot.track('physics', initPhysics()),
   boot.track('models', loadModels(undefined, boot.count('models'))),
@@ -217,6 +219,8 @@ const opening = startKit(modeKit(world.setup.mode, CONFIG.startKit)).opening;
 if (fresh && opening) game.hud.note(world, t(`opening.${opening.log}`), "");
 const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), new Noclip(game, view, PHYSICS.metersPerTile));
 keepRunningOnErrors((text) => debugConsole.error(text));
+reportMusicFault = reportError;
+musicFaults.forEach(reportError);
 onEveryError(() => game.holdSaves());
 bootStep('running');
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
