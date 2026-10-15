@@ -2,7 +2,8 @@ This is the release playtest of the ROAM factory.
 You work alone in a clone of the release branch at commit {{sha}}. Every feature of the release and its cleanup tasks is merged.
 You review the run, fix what this release broke, and the factory replays the seed on your fixes. The job plays at most {{runs}} times, this play included. The last play can only pass or block.
 
-Read CLAUDE.md first.
+{{gameDocs}}
+
 Change only game code, its tests and its docs, and commit each fix. Do not push, change git branches or rewrite history. Write the factory files only in `.factory/`.
 
 The factory played one progression run of the release and one of the baseline: seed {{seed}}, {{turns}} turns, the markov bot, which plays a random one of the other bot archetypes for a stretch of turns, then draws again.

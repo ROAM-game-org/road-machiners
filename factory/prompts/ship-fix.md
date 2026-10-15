@@ -6,9 +6,9 @@ It then ran the full checks on the merged result, and they failed. The end of th
 
 {{failure}}
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The commit hook needs it.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The commit hook needs it.
 
 Fix the cause, so the merged result passes. The failure may come from the release and a change on main that pass alone and break together, or from something already broken on main.
 Keep the behavior the committee approved in the release, and keep the changes main holds. Change only what the fix needs.

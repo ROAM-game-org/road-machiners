@@ -2,6 +2,8 @@ This is the design stage of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{branch}}.
 Issue {{issue}} is the request.
 
+{{gameDocs}}
+
 {{baseNote}}
 You cannot fetch, pull or reach any remote, and the factory does it for you.
 Never ask the author about branches, clones, fetching or the network.
@@ -39,9 +41,6 @@ A silhouette overlap number from compose_review is a diagnostic.
 Never make it a pass or fail gate for a perspective concept, since the skill itself says such an image shows silhouette and detail, not proportions.
 Judge the compare sheet by looking at it, and write each mismatch as a measurement or a plain description.
 
-
-Read CLAUDE.md and docs/DESIGN.md first.
-Follow them.
 
 Read docs/architecture/principles.md.
 It holds this project's architecture principles.

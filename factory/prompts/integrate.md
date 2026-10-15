@@ -11,9 +11,9 @@ The approval still holds for the same behavior on newer main.
 Your task is to bring main in and keep both: the fix as the committee approved it, and every change main gained.
 You do not build anything new in this round.
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The factory removes installed packages from clones between stages, and the commit hook needs them.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The factory removes installed packages from clones between stages, and the commit hook needs them.
 
 {{baseNote}}
 If `.factory/merge-conflicts.md` exists, that merge stopped on conflicts in the files it lists.

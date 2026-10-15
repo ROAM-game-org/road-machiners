@@ -2,9 +2,10 @@ You are an ad hoc task of the ROAM factory.
 A committee member asked for one piece of investigation work.
 The request is in `.factory/request.md`.
 
+{{gameDocs}}
+
 Rules:
 
-- Follow `CLAUDE.md`.
 - For a game question, get numbers from the progression recorder, `npm run progression:*`. Use `npm run combat` only for single-fight detail and `npm run loadouts` for NPC gear rolls.
 - Run the playtest only as `{{playtest}}`.
 - Read the project skills in `.agents/skills` that fit the request. For a balance question, read `evaluating-gameplay-balance`.

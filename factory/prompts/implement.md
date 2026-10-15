@@ -2,8 +2,7 @@ This is the implementation stage of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{branch}}.
 The plan for issue {{issue}} is in {{taskFile}}.
 
-Read CLAUDE.md first.
-Follow it.
+{{gameDocs}}
 
 Reference images from the issue are listed at the end of this prompt.
 Read every available image with the Read tool before you build.
@@ -44,7 +43,7 @@ A silhouette overlap number from compose_review is a diagnostic.
 Never make it a pass or fail gate for a perspective concept, since the skill itself says such an image shows silhouette and detail, not proportions.
 Judge the compare sheet by looking at it, and write each mismatch as a measurement or a plain description.
 
-Install the hooks first.
+Install the hooks right after the docs step, before any code, test or check.
 Run `npm ci && npm run hooks:install`.
 The quality hook checks every commit.
 Do not bypass it.
