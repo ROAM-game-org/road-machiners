@@ -30,7 +30,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
     const unfinished = await unfinishedBaseMerge(ctx, issue, base, merged);
     if (unfinished !== null) return unfinished;
     build = await ctx.repo.headHash(BRANCH(issue));
-    return checkpoint(ctx, issue, base, build, hotfix ? 'full' : 'preview', home);
+    return checkpoint(ctx, issue, base, build, hotfix ? 'hotfix' : 'build', home);
   }, (failure) => fixRound(ctx, issue, home, failure, approval !== null));
   await finish(ctx, issue, home, base, build);
 }
@@ -88,7 +88,7 @@ async function redesigned(ctx: Ctx, issue: number, home: string): Promise<boolea
   return true;
 }
 
-async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'preview' | 'full', home: string): Promise<string | null> {
+async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix', home: string): Promise<string | null> {
   try {
     readApproval(home);
   } catch (error) {
@@ -115,7 +115,7 @@ async function docsRound(ctx: Ctx, issue: number, base: string, home: string, me
   writeFileSync(`${home}/${OUT_DIR}/approval.json`, JSON.stringify(approval));
   ctx.log('verify', issue, 'the branch changes docs only, so no test round');
   const build = await ctx.repo.headHash(BRANCH(issue));
-  const failure = await postCheckpoint(ctx, issue, base, build, 'docs');
+  const failure = await postCheckpoint(ctx, issue, base, build, 'build');
   if (failure !== null) throw new Error(`The build of a docs change failed.\n${failure}`);
   await finish(ctx, issue, home, base, build);
 }

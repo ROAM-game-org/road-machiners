@@ -51,10 +51,6 @@ describe('next release features', () => {
     const state: FactoryState = { ...structuredClone(EMPTY_STATE), devMerges: [merge(9, 'Later')], release: release({ merges: [merge(7, 'Included'), merge(8, 'Removed')], removed: [8] }) };
     expect(buildOperations(state, false, config).features).toEqual([{ issue: 7, title: 'Included' }]);
   });
-  it('is null while the merges are not migrated', () => {
-    expect(buildOperations({ ...structuredClone(EMPTY_STATE), devMerges: null }, false, config).features).toBeNull();
-    expect(buildOperations({ ...structuredClone(EMPTY_STATE), release: release({ merges: null }) }, false, config).features).toBeNull();
-  });
 });
 
 function createConfig(home: string): DashboardConfig {

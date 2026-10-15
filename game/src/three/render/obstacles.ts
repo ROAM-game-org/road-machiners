@@ -52,7 +52,7 @@ export class ObstacleViews {
     this.obstacles = obstacles;
     this.syncDebris(broken);
     this.syncPiles(salvage);
-    const fixed = this.fixed ?? this.addFixed(obstacles);
+    const fixed = this.fixed ?? this.addFixed(obstacles, broken);
     syncRocks(fixed.rocks, obstacles);
     syncTrees(fixed, obstacles);
     const views = obstacles.filter((o) => o.kind !== 'rock' && !isTree(o));
@@ -67,8 +67,8 @@ export class ObstacleViews {
     }
   }
 
-  private addFixed(obstacles: Obstacle[]): Fixed {
-    const trees = obstacles.filter(isTree);
+  private addFixed(obstacles: Obstacle[], broken: readonly BrokenProp[]): Fixed {
+    const trees = [...obstacles.filter(isTree), ...broken.map((b) => b.obstacle).filter(isTree)];
     this.fixed = {
       rocks: this.addRocks(obstacles.filter((o) => o.kind === 'rock')),
       trees: new TreeInstances(this.scope, this.terrain, trees),

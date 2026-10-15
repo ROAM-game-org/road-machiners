@@ -6,15 +6,15 @@ import { readState, updateState } from '../state';
 import { BRANCH, FEEDBACK_HEADING, RELEASE_CANDIDATE_LABEL, type Ctx, type IssueMerge, type ReleaseState } from '../types';
 import { BASE_BRANCH, agentLog, workDir } from './common';
 import { revertResolving } from './merge-resolve';
-import { requireRelease, requireReleaseMerges } from './release-common';
+import { requireRelease } from './release-common';
 
 async function revertReleaseMerge(ctx: Ctx, release: ReleaseState, issue: number): Promise<void> {
-  const merge = requireReleaseMerges(release).find((item) => item.issue === issue);
+  const merge = release.merges.find((item) => item.issue === issue);
   if (merge === undefined) throw new Error(`Release ${release.day} has no recorded merge of issue #${issue}`);
   const branches = merge.into === BASE_BRANCH ? [release.branch, BASE_BRANCH] : [release.branch];
   for (const branch of branches.filter((name) => !merge.reverted.includes(name))) {
     await revertResolving(ctx, 'remove', merge, branch);
-    updateState(ctx.statePath, (state) => (state.release ? { ...state, pendingShip: null, release: { ...state.release, postId: null, merges: markReverted(requireReleaseMerges(state.release), issue, branch) } } : state));
+    updateState(ctx.statePath, (state) => (state.release ? { ...state, pendingShip: null, release: { ...state.release, postId: null, merges: markReverted(state.release.merges, issue, branch) } } : state));
   }
 }
 

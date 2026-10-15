@@ -1,9 +1,9 @@
 This is a merge round of the ROAM factory.
 You work alone in a clone of the game repo. You are on branch {{branch}} of issue {{issue}}.
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The commit hook needs it.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The commit hook needs it.
 
 {{source}}
 The merge stopped on conflicts in these files:

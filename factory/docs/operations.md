@@ -17,12 +17,24 @@ A work clone with no commit checked out, like one a full disk cut short, holds n
 Each job's containers run on a fixed set of CPUs. `FACTORY_CPU_LIGHT`, `FACTORY_CPU_IMPLEMENT` and `FACTORY_CPU_TEST` set each pool's share, and each pool gets round(share × cores) whole CPUs, at least 1. The pools must fit the host, or every job start throws.
 
 - light: triage, waste review, design and branch jobs other than the merge and the candidate, so a catch-up's agent never takes the merge checks' CPUs.
-- implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its preview checks here.
+- implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its build-only checkpoint here.
 - test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks. A job of another pool runs each full suite here too: a hotfix's post checkpoint, the release playtest's suite and its fix checks. On the 3 implement CPUs beside the agents, a full suite ran past its time limit.
 
 On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the test pool's CPUs. The merge checks share them only with the post-only builds, since one full suite runs at a time. Each full suite run takes the lock `$FACTORY_HOME/locks/full-suite`, and its `FACTORY_CHECKS_TIMEOUT_MINUTES` clock starts once it has the lock. Three suites at once on these 4 CPUs each ran past that limit, and one alone takes about 25 minutes. Docker pins containers with `--cpuset-cpus`. A step run by hand is not pinned.
 
 `FACTORY_VITEST_WORKERS_IMPLEMENT` and `FACTORY_VITEST_WORKERS_TEST` set how many workers the game's test runner starts in a container of each pool. The factory passes the count as `TEST_WORKERS`. Light containers get none and keep the game's rule of one worker per CPU.
+
+## Full suite on GitHub Actions
+
+`.github/workflows/game-suite.yml` runs the whole game suite for one commit on a standard GitHub runner, in the Playwright image the agent image is built on. `remoteSuite` in `src/stages/remote-suite.ts` dispatches it from `main` with the commit, takes the run id the dispatch returns, and reads the run every `FACTORY_SUITE_POLL_SECONDS` until it ends. A failed `tests` step goes to the fix agent with the end of its log. Any other failure, and a run still queued after `FACTORY_SUITE_START_MINUTES`, is a machine failure for the stuck sweep. The job stops at 20 minutes, twice the suite's 10 minute target, so a slow runner still finishes. The workflow sets `TEST_STALL_MINUTES` to 10, so a hung test fails the `tests` step with its name before the job limit cancels the run as a machine failure.
+
+Standard runners are free on a public repository. Larger runners always cost money. Set this once so a mistake can never bill:
+
+1. Open the org's Settings, then Billing and licensing, then Budgets and alerts.
+2. If the org has a payment method, add a budget for Actions of $0 and turn on "Stop usage when budget limit is reached".
+3. Without a payment method, paid usage is blocked already.
+
+Run the workflow by hand with `gh workflow run game-suite.yml -R <repo> --ref main -f sha=<commit>`, and watch it with `gh run list -R <repo> --workflow game-suite.yml`.
 
 ## Memory
 
@@ -89,7 +101,7 @@ Each record has a kind. The first that fits wins:
 - `blocked`: an empty budget, a committee question, the release tracking card, an action the sweep already took in this column, a refused action, and every other failure, like a failed check. It stays for Hermes.
 - `merge-batch`: a Merging card of a merge batch of two or more cards that timed out or died. The failure's cause is `timeout` or `died`.
 - `clone-merge`: a Design, Implementation, Testing or Hardening card whose work clone has an open merge, revert, cherry-pick or rebase.
-- `machine`: a failed `gh` call of the GitHub client, since the tick just read the board, or a full disk once `FACTORY_MIN_FREE_GB` is free again. A full disk is an `ENOSPC` error. The retry runs once per card per column, so a call that fails for good turns `blocked` after it.
+- `machine`: a failed `gh` call of the GitHub client, since the tick just read the board, a full suite on GitHub Actions that could not run, or a full disk once `FACTORY_MIN_FREE_GB` is free again. A full disk is an `ENOSPC` error. The retry runs once per card per column, so a call that fails for good turns `blocked` after it.
 
 The sweep acts with the commands Hermes uses, and writes `tries` and `released` on the record before it acts:
 
