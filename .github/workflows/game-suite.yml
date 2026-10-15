@@ -20,6 +20,7 @@ jobs:
     env:
       SHA: ${{ inputs.sha }}
       TEST_STALL_MINUTES: '10'
+      TEST_SUITE_MINUTES: '15'
     steps:
       - name: install git
         run: apt-get update && apt-get install -y --no-install-recommends git
