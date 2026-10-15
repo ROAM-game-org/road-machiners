@@ -5,7 +5,7 @@ import type { ScheduleReport, WaitReason } from '../tick';
 
 const WAIT_REASONS: WaitReason[] = ['queue-full', 'issue-running','card-budget', 'needs-info', 'voting', 'failed', 'approval', 'held'];
 export function createWorkerKey(id: string): string { return createHash('sha256').update(id).digest('hex'); }
-function isPrivateStage(stage: JobStage): boolean { return ['change', 'adhoc'].includes(stage); }
+function isPrivateStage(stage: JobStage): boolean { return stage === 'adhoc'; }
 function readPublicIssue(stage: JobStage, issue: number | null): number | null { return isPrivateStage(stage) ? null : issue; }
 function readFreshness(record: Observation, now: Date, heartbeatMs: number): 'ok' | 'stale' {
   return now.getTime() - Date.parse(record.at) > heartbeatMs * 3 ? 'stale' : 'ok';
