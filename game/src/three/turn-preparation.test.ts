@@ -153,7 +153,7 @@ it("gives up after the download tries with one download failure and posts nothin
     vi.advanceTimersByTime(4000);
   }
   expect(reportError).toHaveBeenCalledOnce();
-  const error = vi.mocked(reportError).mock.calls[0][0];
+  const error = vi.mocked(reportError).mock.calls[0][0] as Error;
   expect(error.name).toBe("DownloadFailed");
   expect(error.message).toContain("turn worker");
   expect(TestWorker.created).toBe(6);

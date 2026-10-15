@@ -176,8 +176,8 @@ it("gives up on a preview worker that never loads with one download failure", ()
     vi.advanceTimersByTime(4000);
   }
   expect(reportError).toHaveBeenCalledOnce();
-  expect(vi.mocked(reportError).mock.calls[0][0].name).toBe("DownloadFailed");
-  expect(vi.mocked(reportError).mock.calls[0][0].message).toContain("preview worker");
+  expect((vi.mocked(reportError).mock.calls[0][0] as Error).name).toBe("DownloadFailed");
+  expect((vi.mocked(reportError).mock.calls[0][0] as Error).message).toContain("preview worker");
   expect(TestWorker.created).toBe(6);
   plans.request(world, drive, "me");
   expect(TestWorker.created).toBe(6);
