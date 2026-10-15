@@ -133,7 +133,7 @@ const BAND_RULES: BandRules<Part, Kind> = {
     keys: { enter: { heat: 2 }, needs: "riff", stayBars: 2, quietBars: 8, quietOn: ["shot"] },
     horns: { enter: { events: ["crash"], count: 1, withinBars: 1 }, needs: null, stayBars: 2, quietBars: 2, quietOn: ["crash"] },
   },
-  cut: { on: ["sighted"], keep: ["drums"], bars: 1 },
+  phraseBars: 1,
   heatHalfLifeSeconds: 8,
   weights: { shot: 0.5, crash: 1, sighted: 0.5 },
 };
@@ -175,11 +175,15 @@ describe("Conductor", () => {
     expect(plans[riffOut].changes).toContainEqual({ part: "keys", on: false, why: "riff left" });
   });
 
-  it("cuts to the kept parts for one bar after a sighting without forgetting who plays", () => {
-    const plans = conduct([["shot", 0.5], ["shot", 1.0], ["sighted", 2.5]], 3);
-    expect(plans[1].sounding).toEqual(["drums", "riff"]);
-    expect(plans[2].sounding).toEqual(["drums"]);
-    expect(plans[2].cutBy).toBe("sighted");
+  it("changes parts only where a phrase starts", () => {
+    const c = new Conductor({ ...BAND_RULES, phraseBars: 4 }, 0, BAR_SECONDS);
+    c.hear("shot", 6.5);
+    c.hear("shot", 7.0);
+    c.hear("shot", 9.0);
+    const plans = Array.from({ length: 13 }, (_, bar) => c.plan(bar));
+    expect(plans.findIndex((p) => p.sounding.includes("riff"))).toBe(4);
+    expect(plans[11].sounding).toContain("riff");
+    expect(plans[12].changes).toContainEqual({ part: "riff", on: false, why: "quiet 7 bars" });
   });
 
   it("refuses a part that needs a later part", () => {

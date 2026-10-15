@@ -190,13 +190,13 @@ export type PartRule<P extends string, E extends string> =
 
 export type BandRules<P extends string, E extends string> = {
   parts: Record<P, PartRule<P, E>>;
-  cut: { on: readonly E[]; keep: readonly P[]; bars: number };
+  phraseBars: number;
   heatHalfLifeSeconds: number;
   weights: Record<E, number>;
 };
 
 export type Change<P extends string> = { part: P; on: boolean; why: string };
-export type BarPlan<P extends string> = { bar: number; start: number; heat: number; sounding: P[]; changes: Change<P>[]; cutBy: string | null };
+export type BarPlan<P extends string> = { bar: number; start: number; heat: number; sounding: P[]; changes: Change<P>[] };
 
 type Heard<E extends string> = { kind: E; at: number };
 
@@ -231,11 +231,9 @@ export class Conductor<P extends string, E extends string> {
   plan(bar: number): BarPlan<P> {
     const t = this.barStart(bar);
     const heat = this.heatAt(t);
-    const changes = this.order.map((part) => this.move(part, bar, t, heat)).filter((c) => c !== null);
-    const on = this.order.filter((p) => this.entered.has(p));
-    const cut = this.cutAt(t);
-    const sounding = cut ? on.filter((p) => this.rules.cut.keep.includes(p)) : on;
-    return { bar, start: t, heat, sounding, changes, cutBy: cut?.kind ?? null };
+    const phrase = bar % this.rules.phraseBars === 0;
+    const changes = phrase ? this.order.map((part) => this.move(part, bar, t, heat)).filter((c) => c !== null) : [];
+    return { bar, start: t, heat, sounding: this.order.filter((p) => this.entered.has(p)), changes };
   }
 
   private move(part: P, bar: number, t: number, heat: number): Change<P> | null {
@@ -275,11 +273,6 @@ export class Conductor<P extends string, E extends string> {
   private quietBars(kinds: readonly E[], t: number): number {
     const last = Math.max(...this.heard.filter((h) => h.at < t && kinds.includes(h.kind)).map((h) => h.at));
     return last === -Infinity ? Infinity : Math.floor((t - last) / this.barSeconds);
-  }
-
-  private cutAt(t: number): Heard<E> | undefined {
-    const since = t - this.rules.cut.bars * this.barSeconds;
-    return this.heard.find((h) => h.at >= since && h.at < t && this.rules.cut.on.includes(h.kind));
   }
 
   private checkNeeds(part: P): void {

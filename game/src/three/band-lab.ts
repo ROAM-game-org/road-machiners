@@ -5,22 +5,21 @@ import { SFX_BYTES } from "../config";
 import { formatSupport, loadBank } from "../audio/bank";
 import { Mixer } from "../audio/mixer";
 import { SoundPlayer } from "../audio/player";
-import { Conductor, type BarPlan, type Change } from "../audio/designer";
+import { Conductor, SoundDesigner, type BarPlan, type Change, type Offer } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
 
 const STEMS: Record<BandPart, { file: string; phase: number; gain: number }> = {
   drums: { file: "/tmp/band/jaw/drums.wav", phase: 0, gain: 1 },
   bass: { file: "/tmp/band/jaw/bass.wav", phase: 0, gain: 1 },
-  riff: { file: "/tmp/band/jaw/riff.wav", phase: 0, gain: 1 },
   wall: { file: "/tmp/band/jaw/wall.wav", phase: 0, gain: 1 },
   keys: { file: "/tmp/band/jaw/keys.wav", phase: 0, gain: 2 },
-  solo: { file: "/tmp/band/jaw/solo.wav", phase: 0, gain: 0.7 },};
+};
 const BARS_PER_LOOP = 8;
+const BEATS_PER_BAR = 4;
 const START_LEAD_SECONDS = 0.1;
-const PLAN_AHEAD_SECONDS = 0.2;
-const ENTER_SECONDS = 0.01;
-const LEAVE_SECONDS = 0.08;
+const ENTER_BEATS = 0.5;
+const LEAVE_BEATS = 1;
 const STOP_FADE_SECONDS = 1;
 
 const EVENTS: Record<BandEvent, string> = {
@@ -58,14 +57,15 @@ const INK = {
   press: token("--accent"),
   on: token("--good-deep"),
   enter: token("--good-bright"),
-  cut: token("--danger-deep"),
+  leave: token("--danger-deep"),
+  skipped: token("--ink-muted"),
   heat: token("--danger-bright"),
   hot: token("--danger-deep"),
 };
 const FONT = `${token("--text-dense")} ${token("--font-mono")}`;
 
-type Band = { conductor: Conductor<BandPart, BandEvent>; sources: AudioBufferSourceNode[]; gains: Record<BandPart, GainNode>; next: number };
-type Press = { cue: BandEvent; at: number; lands: number };
+type Band = { conductor: Conductor<BandPart, BandEvent>; designer: SoundDesigner; sources: AudioBufferSourceNode[]; gains: Record<BandPart, GainNode>; next: number };
+type Press = { cue: BandEvent; at: number; lands: number; result: Offer["result"] };
 
 const sounds: Record<string, Cue> = SOUNDS;
 const root = uiRoot();
@@ -77,6 +77,7 @@ const { bank } = await loadBank(mixer.ctx, sounds, { expectedBytes: SFX_BYTES, s
 const player = new SoundPlayer(mixer, bank, sounds);
 const buffers = await loadStems();
 const barSeconds = buffers.drums.duration / BARS_PER_LOOP;
+const beat = barSeconds / BEATS_PER_BAR;
 const lead = landingLead();
 
 async function loadStems(): Promise<Record<BandPart, AudioBuffer>> {
@@ -119,7 +120,8 @@ function startBand(): Band {
   }
   plans.length = 0;
   presses.length = 0;
-  return { conductor: new Conductor(BAND, start, barSeconds), sources, gains, next: 0 };
+  const designer = new SoundDesigner({ start, beat, beatsPerBar: BEATS_PER_BAR }, MIX.score, Math.random, start);
+  return { conductor: new Conductor(BAND, start, barSeconds), designer, sources, gains, next: 0 };
 }
 
 function stopBand(b: Band): void {
@@ -129,26 +131,31 @@ function stopBand(b: Band): void {
 }
 
 function schedule(b: Band): void {
-  while (b.conductor.barStart(b.next) < player.now() + PLAN_AHEAD_SECONDS) {
+  while (b.conductor.barStart(b.next) < player.now() + beat) {
     const plan = b.conductor.plan(b.next++);
     plans.push(plan);
-    for (const part of BAND_PARTS) {
-      const on = plan.sounding.includes(part);
-      const tc = on ? ENTER_SECONDS : LEAVE_SECONDS;
-      b.gains[part].gain.setTargetAtTime(on ? STEMS[part].gain : 0, plan.start - tc, tc / 3);
-    }
+    for (const change of plan.changes) fade(b.gains[change.part].gain, STEMS[change.part].gain, change.on, plan.start);
   }
+}
+
+function fade(level: AudioParam, full: number, on: boolean, at: number): void {
+  const from = on ? at - beat * ENTER_BEATS : at;
+  const to = on ? at : at + beat * LEAVE_BEATS;
+  level.setValueAtTime(on ? 0 : full, Math.max(player.now(), from));
+  level.linearRampToValueAtTime(on ? full : 0, to);
 }
 
 function fire(cue: BandEvent): void {
   if (!band) return;
   const now = player.now();
   const lands = cue === "accent-sighted" ? now : now + lead;
-  presses.push({ cue, at: now, lands });
   band.conductor.hear(cue, lands);
-  if (!stabs) return;
   const take = player.chooseWithPeak(cue);
-  player.play(cue, { pan: 0, gain: 1 }, Math.max(0, lands - take.peak - now) * 1000, { file: take.file, rate: 1 });
+  const offer = band.designer.offer(cue, MIX.score.accents[cue], lands, take.peak, band.conductor.heatAt(now));
+  presses.push({ cue, at: now, lands, result: offer.result });
+  const stab = offer.stab;
+  if (!stabs || !stab) return;
+  player.play(cue, { pan: stab.pan, gain: stab.gain }, Math.max(0, stab.time - now) * 1000, { file: take.file, rate: 1 });
 }
 
 function flipCombat(): void {
@@ -207,11 +214,11 @@ function draw(): void {
 }
 
 function drawGrid(b: Band): void {
-  const beat = barSeconds / 4;
   const first = Math.ceil((spanStart() - b.conductor.barStart(0)) / beat);
   const last = Math.floor((timeOf(width) - b.conductor.barStart(0)) / beat);
+  const phraseBeats = BEATS_PER_BAR * BAND.phraseBars;
   for (let s = Math.max(0, first); s <= last; s++) {
-    g.fillStyle = s % 4 === 0 ? INK.bar : INK.beat;
+    g.fillStyle = s % phraseBeats === 0 ? INK.now : s % BEATS_PER_BAR === 0 ? INK.bar : INK.beat;
     g.fillRect(xOf(b.conductor.barStart(0) + s * beat), 0, 1, HEIGHT);
   }
 }
@@ -225,21 +232,16 @@ function drawBar(plan: BarPlan<BandPart>): void {
 
 function drawPartBar(plan: BarPlan<BandPart>, part: BandPart, x0: number, x1: number): void {
   const top = partTop(part);
-  const sounds = plan.sounding.includes(part);
-  if (sounds) {
+  if (plan.sounding.includes(part)) {
     g.fillStyle = INK.on;
     g.fillRect(x0 + 1, top + 6, x1 - x0 - 1, PART_HEIGHT - 12);
-  }
-  if (plan.cutBy && !sounds) {
-    g.fillStyle = INK.cut;
-    g.fillRect(x0 + 1, top + PART_HEIGHT - 6, x1 - x0 - 1, 2);
   }
   const change = plan.changes.find((c) => c.part === part);
   if (change) drawChange(change, x0, top);
 }
 
 function drawChange(change: Change<BandPart>, x0: number, top: number): void {
-  g.fillStyle = change.on ? INK.enter : INK.cut;
+  g.fillStyle = change.on ? INK.enter : INK.leave;
   g.fillRect(x0, top + 2, 3, PART_HEIGHT - 4);
   g.fillStyle = INK.text;
   g.fillText(`${change.on ? "in" : "out"}: ${change.why}`, x0 + 6, top + PART_HEIGHT / 2 + 4);
@@ -249,12 +251,14 @@ function drawPresses(): void {
   for (const [i, p] of presses.entries()) {
     const x = xOf(p.at);
     const landX = xOf(p.lands);
+    const played = p.result === "played";
     g.fillStyle = INK.press;
     g.fillRect(x, 4, 1, PRESS_HEIGHT - 8);
     g.fillRect(x, PRESS_HEIGHT - 6, landX - x, 1);
+    g.fillStyle = played ? INK.press : INK.skipped;
     g.fillRect(landX, 4, 2, PRESS_HEIGHT - 8);
-    g.fillStyle = INK.text;
-    g.fillText(EVENTS[p.cue], landX + 4, 16 + (i % 2) * 14);
+    g.fillStyle = played ? INK.text : INK.skipped;
+    g.fillText(played ? EVENTS[p.cue] : `${EVENTS[p.cue]} ${p.result}`, landX + 4, 12 + (i % 3) * 12);
   }
 }
 
@@ -320,8 +324,8 @@ function syncLedger(): void {
   const key = String(plans.length);
   if (ledgerRows.dataset.key === key) return;
   ledgerRows.dataset.key = key;
-  const rows = plans.filter((p) => p.changes.length > 0 || p.cutBy).reverse();
-  ledgerRows.replaceChildren(...rows.map((p) => el("div", { class: "row" }, `bar ${p.bar + 1}  heat ${p.heat.toFixed(1)}  ${[...p.changes.map((c) => `${c.part} ${c.on ? "in" : "out"}: ${c.why}`), ...(p.cutBy ? [`cut by ${EVENTS[p.cutBy as BandEvent]}`] : [])].join("  ")}`)));
+  const rows = plans.filter((p) => p.changes.length > 0).reverse();
+  ledgerRows.replaceChildren(...rows.map((p) => el("div", { class: "row" }, `bar ${p.bar + 1}  heat ${p.heat.toFixed(1)}  ${p.changes.map((c) => `${c.part} ${c.on ? "in" : "out"}: ${c.why}`).join("  ")}`)));
 }
 
 function frame(): void {
