@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
+import { readState } from '../state';
 import type { MediaEntry } from '../media';
 import type { Decision, FilterInput } from './decision';
 import { CHANNEL, filterOf, publicFake, type PublicFake } from './public-fakes';
@@ -62,5 +63,19 @@ describe('chat images', () => {
     await kept.tick();
     await kept.tick();
     expect(kept.f.downloads).toEqual(['photo']);
+  });
+
+  it('reports an issue whose media folder cannot be written and still places the next message', async () => {
+    const { f, tick } = setup({});
+    f.files.photo = pngBytes(1);
+    mkdirSync(`${f.home}/media`, { recursive: true });
+    writeFileSync(`${f.home}/media/issue-601`, 'not a folder');
+    post(f, ['photo']);
+    await tick();
+    expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('could not be placed')]);
+    const dir = `${f.home}/public-inbox`;
+    writeFileSync(`${dir}/0000000002.json`, JSON.stringify({ updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'Bo', sender: '9', text: 'Another photo of a stuck truck', at: 'x', standalone: true, images: ['photo'] }));
+    await tick();
+    expect(manifest(f, 602)).toEqual([expect.objectContaining({ status: 'ok' })]);
   });
 });

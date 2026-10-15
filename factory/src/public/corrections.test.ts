@@ -91,6 +91,17 @@ describe('committee corrections', () => {
     expect(f.store.landedIssue(2)).toBe(571);
   });
 
+  it('keeps the issue of a member message in the candidates of a follow-up that corrects nothing', async () => {
+    const report = 'Ferry docks ignore the tide';
+    const { f, asked, tick } = setup({ [report]: { decision: {} }, 'Also make the tide visible': { decision: { kind: 'feedback', corrects: false } } });
+    post(f, { id: 41, text: report, sender: MEMBER });
+    await tick();
+    post(f, { id: 42, text: 'Also make the tide visible', sender: MEMBER, thread: 501 });
+    await tick();
+    expect(asked[1]!.work).toContainEqual(expect.stringMatching(/^#601 \[filed from the chat\] Ferry docks/));
+    expect(f.store.comment(3)!.kind).toBe('feedback');
+  });
+
   it('never treats a player reply to the bot as a correction, so nothing moves and nobody is asked', async () => {
     const { f, asked, tick } = await misfiled({ [CORRECTION]: { decision: { kind: 'feedback', corrects: true }, about: 571 } });
     post(f, { id: 32, text: CORRECTION, sender: PLAYER, thread: 501 });

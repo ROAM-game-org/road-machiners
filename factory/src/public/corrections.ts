@@ -36,10 +36,12 @@ async function moveCorrected(ctx: Ctx, store: PublicStore, correction: StoredCom
   if (to !== null) store.moveComment(corrected.id, to);
   const landed = to ?? from;
   if (landed !== null) {
-    for (const comment of [corrected, correction]) if (comment.images.length > 0) await placeImages(ctx, store, store.comment(comment.id)!, landed);
+    for (const comment of [store.comment(corrected.id)!, correction]) if (needsPlacing(comment, landed)) await placeImages(ctx, store, comment, landed);
   }
   return { from, to, images: imagesOf([store.comment(corrected.id)!, store.comment(correction.id)!]) };
 }
+
+const needsPlacing = (comment: StoredComment, issue: number): boolean => comment.images.length > 0 && comment.imagesIssue !== issue;
 
 function imagesOf(comments: StoredComment[]): ImageOutcome {
   const total = comments.reduce((sum, comment) => sum + comment.images.length, 0);

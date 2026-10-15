@@ -66,8 +66,7 @@ function knownCandidates(judge: Judge): Candidate[] {
 const namedIssues = (text: string): Set<number> => new Set([...text.matchAll(/#(\d+)\b/g)].map((match) => Number(match[1])));
 
 function candidateWork(judge: Judge, comment: StoredComment, corrected: StoredComment | null): Candidate[] {
-  const left = new Set([comment.issue, corrected === null ? null : judge.store.landedIssue(corrected.id)]);
-  const known = knownCandidates(judge).filter((work) => !left.has(work.issue));
+  const known = knownCandidates(judge).filter((work) => work.issue !== comment.issue);
   const named = namedIssues(comment.text);
   const query = [comment.text, comment.context ?? '', corrected?.text ?? ''].join(' ');
   const ranked = rankByWords(known.map((work) => work.text), query, WORK_CANDIDATES).map((index) => known[index]!);

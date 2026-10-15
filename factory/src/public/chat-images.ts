@@ -4,6 +4,7 @@ import { addMediaEntries, adoptChatImage, dropMediaEntries, failedChatImage } fr
 import type { Ctx } from '../types';
 import { playerName } from './digest';
 import { messageLink } from './file-comments';
+import { isolated } from './isolate';
 import type { PublicStore, StoredComment } from './store';
 
 export type ImageOutcome = 'kept' | 'lost' | 'none';
@@ -36,7 +37,7 @@ async function placeOne(ctx: Ctx, issueDir: string, comment: StoredComment, inde
   }
 }
 
-export async function placeImages(ctx: Ctx, store: PublicStore, comment: StoredComment, issue: number): Promise<number> {
+export async function placeImages(ctx: Ctx, store: PublicStore, comment: StoredComment, issue: number): Promise<void> {
   if (comment.imagesIssue !== null && comment.imagesIssue !== issue) dropMediaEntries(mediaDir(ctx, comment.imagesIssue), imageUrls(comment));
   const issueDir = mediaDir(ctx, issue);
   const entries: MediaEntry[] = [];
@@ -45,11 +46,14 @@ export async function placeImages(ctx: Ctx, store: PublicStore, comment: StoredC
   const kept = entries.filter((entry) => entry.status === 'ok').length;
   store.setImagesPlaced(comment.id, issue, kept);
   ctx.log('public', issue, `player comment ${comment.id} has ${kept} of ${entries.length} images in the media folder of #${issue}`);
-  return kept;
 }
 
 export async function placeChatImages(ctx: Ctx, store: PublicStore): Promise<void> {
-  for (const comment of store.imagesToPlace()) await placeImages(ctx, store, comment, store.landedIssue(comment.id)!);
+  for (const comment of store.imagesToPlace()) {
+    const issue = store.landedIssue(comment.id)!;
+    store.setImagesPlaced(comment.id, issue, 0);
+    await isolated(ctx, issue, `the images of player comment ${comment.id} could not be placed and are not tried again`, () => placeImages(ctx, store, comment, issue));
+  }
 }
 
 export function imageOutcome(comment: StoredComment): ImageOutcome {
