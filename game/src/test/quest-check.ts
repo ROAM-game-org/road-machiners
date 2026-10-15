@@ -72,7 +72,7 @@ function withWorldVars(scenes: World[], assigned: readonly [string, QuestValue][
 }
 
 export function gameScenes(base: World): QuestScenes {
-  const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [], salvage: base.salvage.filter(isStoryWreck), player: { ...base.player, explored: new Uint8Array(0) } };
+  const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [], vehicles: base.vehicles.filter((v) => v.id === base.player.vehicleId), salvage: base.salvage.filter(isStoryWreck), player: { ...base.player, explored: new Uint8Array(0), visible: [] } };
   return (questId) => {
     const local = localOfQuest(questId);
     const fresh = cloneWorld(shared);
