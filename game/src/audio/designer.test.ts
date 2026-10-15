@@ -138,6 +138,8 @@ const ARC: ArcTuning = {
   memoryHalfLifeBars: 16,
   memoryWeight: 0.08,
   stay: 3,
+  calmChangeBars: 4,
+  hotChangeBars: 4,
   next: { intro: { verse: 3, wall: 1 }, verse: { verse: 4, wall: 3, stop: 1 }, wall: { wall: 4, verse: 2, stop: 1 }, stop: { verse: 2, wall: 2 }, solo: { wall: 1 } },
   after: {},
   hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1 },
@@ -193,6 +195,14 @@ describe("BlockSequencer", () => {
     const plain = sequencer();
     [0, 0, 0].forEach((h) => plain.next(h));
     expect(chanceOf(seq, "wall")).toBeGreaterThan(chanceOf(plain, "wall"));
+  });
+
+  it("changes only on 4 bar lines when calm and on 2 bar lines when hot", () => {
+    const tuning = { ...ARC, blockBars: 2, hotChangeBars: 2, next: { ...ARC.next, verse: { wall: 1 } } };
+    const calm = new BlockSequencer(blocksOf(SECTIONS, 2), tuning, () => 0);
+    expect([0, 0, 0, 0, 0].map((h) => calm.next(h).bar)).toEqual([5, 7, 9, 11, 21]);
+    const hot = new BlockSequencer(blocksOf(SECTIONS, 2), tuning, () => 0);
+    expect([0, 0, 0, 5].map((h) => hot.next(h).bar)).toEqual([5, 7, 9, 21]);
   });
 
   it("makes staying less likely the longer a section loops", () => {

@@ -102,28 +102,28 @@ async function decode(file: string): Promise<AudioBuffer> {
   return ctx.decodeAudioData(await res.arrayBuffer());
 }
 
-function voice(part: Part, offset: number, when: number, length: number, fade: number): VoiceHandle {
+function voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
   const { buffer, out } = PARTS[part];
   const seam = SCORE_BLOCKS.seamSeconds;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, when - fade);
-  gain.gain.linearRampToValueAtTime(1, when + fade);
-  gain.gain.setValueAtTime(1, when + length - seam);
+  gain.gain.linearRampToValueAtTime(level, when + fade);
+  gain.gain.setValueAtTime(level, when + length - seam);
   gain.gain.linearRampToValueAtTime(0, when + length + seam);
   src.connect(gain).connect(out);
   src.start(when - fade, offset - fade, Math.min(buffer.duration - offset + fade, length + fade + SCORE_BLOCKS.jumpFadeSeconds + seam));
   return {
     fadeOut: (at, f) => {
       gain.gain.cancelScheduledValues(at - f);
-      gain.gain.setValueAtTime(1, at - f);
+      gain.gain.setValueAtTime(level, at - f);
       gain.gain.linearRampToValueAtTime(0, at + f);
     },
     cut: (at) => {
       if (when >= at) return src.stop(when);
       gain.gain.cancelScheduledValues(at - seam);
-      gain.gain.setValueAtTime(1, at - seam);
+      gain.gain.setValueAtTime(level, at - seam);
       gain.gain.linearRampToValueAtTime(0, at + seam);
       src.stop(at + seam);
     },

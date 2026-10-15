@@ -254,12 +254,14 @@ export const MIX = {
 
 export const SCORE_BLOCKS = {
   arc: {
-    blockBars: 4,
+    blockBars: 2,
     hotHeat: MIX.score.hotHeat,
     coolHeat: 1,
     memoryHalfLifeBars: 16,
     memoryWeight: 0.08,
     stay: 6,
+    calmChangeBars: 4,
+    hotChangeBars: 2,
     next: {
       intro: { verse: 3, wall: 1 },
       verse: { verse: 4, wall: 3, stop: 1 },

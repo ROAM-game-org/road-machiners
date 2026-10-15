@@ -8,16 +8,17 @@ export type BlockSong = {
   bpm: number;
   length: number;
   barTimes: number[];
+  barPower: { ss: number; gg: number; sg: number }[];
   sections: Section[];
   end: number;
 };
 export type Part = "song" | "guitars";
 export type VoiceHandle = { fadeOut(at: number, fade: number): void; cut(at: number): void };
 export type BlockOutput = {
-  voice(part: Part, offset: number, when: number, length: number, fade: number): VoiceHandle;
+  voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
   fill(offset: number, at: number, length: number, level: number): void;
 };
-export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; guitars: boolean };
+export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; guitars: boolean; level: number };
 export type Fired = { cue: AccentCue; at: number; result: string | null };
 export type Push = { at: number; line: LineId; stab: boolean; fillBar: number };
 
@@ -53,6 +54,7 @@ export class BlockSession {
   private nextAt = 0;
   private gridStart = 0;
   private guitarsWanted = false;
+  private targetPower: number;
 
   constructor(
     private song: BlockSong,
@@ -65,6 +67,23 @@ export class BlockSession {
       .filter((s) => FILL_ROLES.has(s.role))
       .flatMap((s) => Array.from({ length: s.bars / 2 }, (_, i) => s.from + 2 * i + 1))
       .map((bar) => ({ bar, offset: this.barTime(bar) + (BEATS_PER_BAR - 1) * this.beatSeconds }));
+    const powers = this.blocks.map((b) => this.power(b.bar, b.bars, 0)).sort((a, b) => a - b);
+    this.targetPower = powers[Math.floor(powers.length / 2)];
+  }
+
+  private power(bar: number, bars: number, push: number): number {
+    let sum = 0;
+    for (let i = bar - 1; i < bar - 1 + bars; i++) {
+      const p = this.song.barPower[i];
+      sum += p.ss + 2 * push * p.sg + push * push * p.gg;
+    }
+    return sum / bars;
+  }
+
+  private levelOf(bar: number, bars: number, pushed: boolean): number {
+    const plain = this.power(bar, bars, 0);
+    const heard = this.power(bar, bars, pushed ? SCORE_BLOCKS.guitarPush : 0);
+    return Math.sqrt(Math.min(plain, this.targetPower) / heard);
   }
 
   get inCombat(): boolean {
@@ -103,8 +122,9 @@ export class BlockSession {
     this.guitarsWanted = false;
     const offset = this.barTime(this.song.end);
     const length = this.song.length - offset;
-    const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds)];
-    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", guitars: false });
+    const level = this.levelOf(this.song.end, 1, false);
+    const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds, level)];
+    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", guitars: false, level });
     return at;
   }
 
@@ -153,10 +173,11 @@ export class BlockSession {
     const join = this.joinOf(block);
     const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
     if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when, fade);
-    const voices = [this.out.voice("song", offset, when, length, fade)];
-    if (this.guitarsWanted) voices.push(this.out.voice("guitars", offset, when, length, fade));
+    const level = this.levelOf(block.bar, block.bars, this.guitarsWanted);
+    const voices = [this.out.voice("song", offset, when, length, fade, level)];
+    if (this.guitarsWanted) voices.push(this.out.voice("guitars", offset, when, length, fade, level));
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, guitars: this.guitarsWanted });
+    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, guitars: this.guitarsWanted, level });
     this.guitarsWanted = false;
     return when + length;
   }

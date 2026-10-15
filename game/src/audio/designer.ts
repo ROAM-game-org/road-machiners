@@ -194,6 +194,8 @@ export type ArcTuning = {
   memoryHalfLifeBars: number;
   memoryWeight: number;
   stay: number;
+  calmChangeBars: number;
+  hotChangeBars: number;
   next: Record<Role, Partial<Record<Role, number>>>;
   after: Partial<Record<RolePair, Partial<Record<Role, number>>>>;
   hot: Record<Role, number>;
@@ -254,13 +256,18 @@ export class BlockSequencer {
 
   private pick(current: Block, heat: number): Block {
     const goesOn = this.nextInSection(current);
-    if (WHOLE_SECTIONS.has(current.role) && goesOn) {
+    if (goesOn && (WHOLE_SECTIONS.has(current.role) || !this.onChangeLine(current, heat))) {
       this.weighed = [];
       return goesOn;
     }
     this.weighed = this.weigh(current, heat);
     const section = this.draw(this.weighed);
     return section === current.section ? (goesOn ?? this.firstOf(section)) : this.firstOf(section);
+  }
+
+  private onChangeLine(current: Block, heat: number): boolean {
+    const every = heat >= this.tuning.hotHeat ? this.tuning.hotChangeBars : this.tuning.calmChangeBars;
+    return (current.bar + current.bars - this.firstOf(current.section).bar) % every === 0;
   }
 
   private weigh(current: Block, heat: number): Choice[] {

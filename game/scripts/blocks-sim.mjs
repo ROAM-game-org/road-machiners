@@ -14,7 +14,7 @@ Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to
 An event at time t lands at t. Combat starts at 0.
 
 Output:
-  Blocks: each block with its start, how it joined the one before, the heat when it was chosen and the odds behind the choice.
+  Blocks: each block with its start, how it joined the one before, the heat when it was chosen, the level trim that keeps it as loud as the median block and the odds behind the choice.
   Answers: each beat's winning event and what the drum lane did with it. Events that lost their beat are only counted.
   Summary: bars per role, jumps, guitar pushes and drum fills.
 
@@ -85,11 +85,12 @@ function run(o) {
 
 const pad = (s, n) => String(s).padEnd(n);
 const time = (t) => `${t.toFixed(2)}s`.padStart(8);
+const trimText = (level) => `${(20 * Math.log10(level)).toFixed(1)} dB`;
 
 function printBlocks(session) {
   console.log('Blocks');
-  console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} odds`);
-  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${p.odds}${p.guitars ? '  [guitars pushed]' : ''}`);
+  console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} ${pad('trim', 8)} odds`);
+  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.odds}${p.guitars ? '  [guitars pushed]' : ''}`);
 }
 
 function printAnswers(session) {

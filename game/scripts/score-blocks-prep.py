@@ -48,6 +48,16 @@ def bar_times(song_path, drums_path, bpm, bars):
     return (start + BEATS_PER_BAR * beat * np.arange(bars + 1)).tolist(), length
 
 
+def bar_power(song_path, guitars_path, bars):
+    song, sr = librosa.load(song_path, sr=None, mono=True)
+    guitars, _ = librosa.load(guitars_path, sr=sr, mono=True)
+    out = []
+    for a, b in zip(bars, bars[1:]):
+        s, g = song[int(a * sr) : int(b * sr)], guitars[int(a * sr) : int(b * sr)]
+        out.append({"ss": float(np.mean(s * s)), "gg": float(np.mean(g * g)), "sg": float(np.mean(s * g))})
+    return out
+
+
 def main(map_path, song_path, stems_dir, out_dir):
     plan = json.loads(Path(map_path).read_text())
     out = Path(out_dir)
@@ -56,7 +66,8 @@ def main(map_path, song_path, stems_dir, out_dir):
     shutil.copy(song_path, out / "song.mp3")
     for name, stem in STEMS.items():
         shutil.copy(f"{stems_dir}/{stem}", out / f"{name}.wav")
-    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "bpm": plan["bpm"], "length": length, "barTimes": bars, "sections": plan["sections"], "end": plan["end"]}
+    power = bar_power(song_path, f"{stems_dir}/{STEMS['guitars']}", bars)
+    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
     print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and stems {', '.join(STEMS)}")
 
