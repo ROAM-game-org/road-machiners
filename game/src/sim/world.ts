@@ -420,7 +420,7 @@ export function setWeaponOrder(
     if (!target || target.id === me.id)
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
-      throw new Error("You cannot see that target");
+      throw new Refused({ id: "unseen" });
     if (order.aim !== "body" && !findPart(target, order.aim))
       throw new Error(`Target has no part ${order.aim}`);
     me.weaponOrders[weaponId] = order;
