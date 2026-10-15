@@ -4,8 +4,10 @@ import { join } from 'node:path';
 import { MAX_BYTES, MAX_FILES, detectType, imageSize, validSize, type MediaEntry } from './media';
 
 const SKIPPED = '.skipped';
-const FOLDER = 'committee';
-const MANIFEST = 'committee.json';
+
+export type Shelf = { folder: string; manifest: string };
+export const COMMITTEE_SHELF: Shelf = { folder: 'committee', manifest: 'committee.json' };
+export const PLAYER_SHELF: Shelf = { folder: 'player', manifest: 'player.json' };
 
 export function replyMediaDir(home: string, post: number): string {
   return join(home, 'inbox', 'media', `post-${post}`);
@@ -17,15 +19,21 @@ export function adoptReplyMedia(home: string, post: number, issueDir: string, by
   let names: string[];
   try {
     names = existsSync(from) ? readdirSync(from).filter((name) => !name.endsWith('.tmp')).sort(byMessage) : [];
-    if (names.length > 0) mkdirSync(join(issueDir, FOLDER), { recursive: true });
+    if (names.length > 0) mkdirSync(join(issueDir, COMMITTEE_SHELF.folder), { recursive: true });
   } catch (error) {
     return [{ url: `telegram:post-${post}`, source, status: 'failed', reason: `the factory could not read the files: ${messageOf(error)}` }];
   }
   if (names.length === 0) return [];
   const entries = names.map((name) => safeAdopt(join(from, name), `post-${post}-${name}`, issueDir, source));
-  writeFileSync(join(issueDir, MANIFEST), JSON.stringify(merged(readCommitteeMedia(issueDir), entries), null, 2));
+  addToShelf(issueDir, COMMITTEE_SHELF, entries);
   rmSync(from, { recursive: true, force: true });
   return entries;
+}
+
+export function addToShelf(issueDir: string, shelf: Shelf, entries: MediaEntry[]): void {
+  const path = join(issueDir, shelf.manifest);
+  writeFileSync(`${path}.tmp`, JSON.stringify(merged(readShelf(issueDir, shelf), entries), null, 2));
+  renameSync(`${path}.tmp`, path);
 }
 
 function merged(earlier: MediaEntry[], added: MediaEntry[]): MediaEntry[] {
@@ -65,13 +73,17 @@ function adopt(path: string, name: string, issueDir: string, source: string): Me
   const size = imageSize(data, type);
   if (!validSize(size)) return { url, source, status: 'failed', bytes: data.length, reason: `it does not decode as a ${type} image` };
   const sha256 = createHash('sha256').update(data).digest('hex');
-  const file = `${FOLDER}/${sha256.slice(0, 16)}.${type === 'jpeg' ? 'jpg' : type}`;
+  const file = `${COMMITTEE_SHELF.folder}/${sha256.slice(0, 16)}.${type === 'jpeg' ? 'jpg' : type}`;
   renameSync(path, join(issueDir, file));
   return { url, source, status: 'ok', file, type, ...size, bytes: data.length, sha256 };
 }
 
 export function readCommitteeMedia(issueDir: string): MediaEntry[] {
-  const path = join(issueDir, MANIFEST);
+  return readShelf(issueDir, COMMITTEE_SHELF);
+}
+
+export function readShelf(issueDir: string, shelf: Shelf): MediaEntry[] {
+  const path = join(issueDir, shelf.manifest);
   let entries: MediaEntry[];
   try {
     entries = existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as MediaEntry[]) : [];

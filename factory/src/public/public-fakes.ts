@@ -21,6 +21,8 @@ export type PublicFake = {
   issueState: Record<number, 'OPEN' | 'CLOSED'>;
   issueLabels: Record<number, string[]>;
   cards: Card[];
+  files: Record<string, Buffer | Error>;
+  downloads: string[];
 };
 
 export const COMMITTEE = 'committee';
@@ -31,7 +33,7 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   const home = mkdtempSync('tmp/factory-public-');
   const statePath = `${home}/state.json`;
   writeState(statePath, structuredClone(EMPTY_STATE));
-  const f = { home, calls: [], comments: [], created: [], messages: [], edits: [], logs: [], clock: { now: new Date('2026-10-14T10:00:00Z') }, issueState: {}, issueLabels: {}, cards: [] } as unknown as PublicFake;
+  const f = { home, calls: [], comments: [], created: [], messages: [], edits: [], logs: [], clock: { now: new Date('2026-10-14T10:00:00Z') }, issueState: {}, issueLabels: {}, cards: [], files: {}, downloads: [] } as unknown as PublicFake;
   f.store = openStore(home);
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
@@ -55,6 +57,13 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
       sendHtml: async (chat: string, text: string) => { note('sendHtml'); f.messages.push({ chat, text, replyTo: undefined }); return 500 + f.messages.length; },
       editHtml: async (_chat: string, id: number, text: string) => { f.edits.push(`${id} ${text}`); },
       editCaption: async (_chat: string, id: number, text: string) => { f.edits.push(`${id} ${text}`); },
+      downloadFile: async (fileId: string) => {
+        f.downloads.push(fileId);
+        const file = f.files[fileId];
+        if (file === undefined) throw new Error('Telegram getFile failed: Bad Request: wrong file_id or the file is temporarily unavailable');
+        if (file instanceof Error) throw file;
+        return file;
+      },
     },
   } as unknown as Ctx;
   return f;

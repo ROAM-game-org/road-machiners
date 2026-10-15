@@ -5,7 +5,7 @@ import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, recordAsked } from '../questions';
 import { resumeError, resumedStage, roundSession } from '../sessions';
-import { readCommitteeMedia } from '../reply-media';
+import { PLAYER_SHELF, readCommitteeMedia, readShelf } from '../reply-media';
 import { issueReports } from '../error-reports/service';
 import { readState } from '../state';
 import { bundleOf } from './bundle';
@@ -118,7 +118,7 @@ export async function acquireMedia(ctx: Ctx, issue: number, stage: CardStage): P
     entries = await fetchMedia(options);
   }
   for (const entry of entries) ctx.log(stage, issue, `reference image ${entry.url}: ${entry.status}${entry.reason ? `, ${entry.reason}` : ''}`);
-  return mediaSection([...entries, ...readCommitteeMedia(mediaDir(ctx, issue))]);
+  return mediaSection([...entries, ...readCommitteeMedia(mediaDir(ctx, issue)), ...readShelf(mediaDir(ctx, issue), PLAYER_SHELF)]);
 }
 
 export const RESUME_NOTE = 'A stop cut this job off. The work clone keeps your commits and changed files. Read them with git log and git status, then continue from there. If your task is already done, say so and stop.';

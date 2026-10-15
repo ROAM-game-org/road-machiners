@@ -1,6 +1,7 @@
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
 import { postProposal } from './proposals';
+import { fetchChatMedia, placeChatMedia } from './chat-media';
 import { classifyComments } from './classify-comments';
 import type { PublicFilter } from './decision';
 import { sendDigests } from './digest';
@@ -16,10 +17,12 @@ type Step = (ctx: Ctx, store: PublicStore, filter: PublicFilter) => Promise<void
 const STEPS: Step[] = [
   ingest,
   classifyComments,
+  fetchChatMedia,
   postProposal,
   countVotes,
   fileComments,
   sendDigests,
+  placeChatMedia,
   routeReports,
   sendReplies,
 ];

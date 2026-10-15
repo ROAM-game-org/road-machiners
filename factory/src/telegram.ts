@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { TIMEOUT_MS, readCapped } from './media';
 import { readPhoto } from './photo-file';
 import { MESSAGE_LIMIT } from './telegram-limits';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
@@ -78,6 +79,14 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
     async editHtml(chat, messageId, html) {
       refuseLongText(html);
       await call('editMessageText', JSON.stringify({ chat_id: chat, message_id: messageId, text: html, parse_mode: 'HTML' }));
+    },
+    async downloadFile(fileId, maxBytes) {
+      const file = (await call('getFile', JSON.stringify({ file_id: fileId }))) as { file_path?: unknown; file_size?: unknown };
+      if (typeof file.file_size === 'number' && file.file_size > maxBytes) throw new Error(`it is ${file.file_size} bytes, over the ${maxBytes} limit`);
+      if (typeof file.file_path !== 'string') throw new Error('Telegram getFile gave no file path');
+      const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
+      return readCapped(response, maxBytes);
     },
     async editCaption(chat, messageId, caption) {
       if (caption.length > CAPTION_LIMIT) throw new Error(`Telegram caption is ${caption.length} chars, the limit is ${CAPTION_LIMIT}.`);

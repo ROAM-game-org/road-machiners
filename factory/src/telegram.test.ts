@@ -269,3 +269,35 @@ describe('botClient sendPhotos', () => {
     await expect(botClient('T', fetchFn).sendPhotos('c', photos(3))).rejects.toThrow('1 messages for 3 photos');
   });
 });
+
+describe('botClient downloadFile', () => {
+  function fileFetch(file: unknown, bytes: Buffer, status = 200): { fetchFn: typeof fetch; urls: string[] } {
+    const urls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      urls.push(url);
+      return url.includes('/getFile') ? new Response(JSON.stringify(file)) : new Response(bytes, { status });
+    }) as unknown as typeof fetch;
+    return { fetchFn, urls };
+  }
+
+  it('reads the file path with getFile and downloads the bytes', async () => {
+    const { fetchFn, urls } = fileFetch({ ok: true, result: { file_path: 'photos/a.jpg', file_size: 3 } }, Buffer.from('abc'));
+    expect((await botClient('T', fetchFn).downloadFile('id', 10)).toString()).toBe('abc');
+    expect(urls).toEqual(['https://api.telegram.org/botT/getFile', 'https://api.telegram.org/file/botT/photos/a.jpg']);
+  });
+
+  it('refuses a file over the cap before it downloads, and one that turns out larger', async () => {
+    const big = fileFetch({ ok: true, result: { file_path: 'p', file_size: 11 } }, Buffer.alloc(11));
+    await expect(botClient('T', big.fetchFn).downloadFile('id', 10)).rejects.toThrow('over the 10 limit');
+    expect(big.urls).toHaveLength(1);
+    const unsized = fileFetch({ ok: true, result: { file_path: 'p' } }, Buffer.alloc(11));
+    await expect(botClient('T', unsized.fetchFn).downloadFile('id', 10)).rejects.toThrow('over the 10 byte limit');
+  });
+
+  it('fails with the Telegram reason when the file is gone, without the token', async () => {
+    const { fetchFn } = fileFetch({ ok: false, description: 'Bad Request: wrong file_id or the file is temporarily unavailable' }, Buffer.alloc(0));
+    const failure = botClient('SECRET', fetchFn).downloadFile('id', 10);
+    await expect(failure).rejects.toThrow('Telegram getFile failed: Bad Request: wrong file_id');
+    await expect(failure).rejects.not.toThrow('SECRET');
+  });
+});
