@@ -3,8 +3,8 @@ import { parseEnv } from 'node:util';
 import type { Decision, FilterInput } from './decision';
 import { filterWith } from './filter';
 
-type Outcome = 'file' | 'stay';
-type Case = { label: 'keep' | 'drop'; from: string; text: string; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; expect?: Outcome };
+type Outcome = 'file' | 'stay' | 'correct';
+type Case = { label: 'keep' | 'drop'; from: string; text: string; source?: FilterInput['source']; parent?: string; context?: string; work?: string[]; corrected?: string; expect?: Outcome };
 
 const TARGET_RECALL = 0.99;
 const TARGET_F1 = 0.9;
@@ -16,9 +16,10 @@ if (!key) throw new Error('Set OPENAI_API_KEY to run the filter eval.');
 const classify = filterWith({ openaiKey: key, filterModel: String(settings.FACTORY_FILTER_MODEL), filterTimeoutSeconds: Number(settings.FACTORY_FILTER_TIMEOUT_SECONDS), filterSincereMin: Number(settings.FACTORY_FILTER_SINCERE_MIN) }, fetch);
 const cases = JSON.parse(readFileSync(new URL('./filter-eval.json', import.meta.url), 'utf8')) as Case[];
 
-const inputOf = (item: Case): FilterInput => ({ source: item.source ?? 'report', text: item.text, parent: item.parent, context: item.context, work: item.work });
+const inputOf = (item: Case): FilterInput => ({ source: item.source ?? 'report', text: item.text, parent: item.parent, context: item.context, work: item.work, ...(item.corrected === undefined ? {} : { corrected: item.corrected }) });
 
 function outcomeOf(decision: Decision): Outcome {
+  if (decision.corrects === true) return 'correct';
   const report = decision.kind === 'bug' || decision.kind === 'feature';
   return decision.verdict === 'accept' && report && decision.work === undefined && decision.relevance === 'other' ? 'file' : 'stay';
 }

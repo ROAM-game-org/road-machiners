@@ -311,5 +311,46 @@
       "#568 Faction reputation: Towns remember what you did.",
       "#601 Add an exploration minimap and maps you can buy"
     ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, member asks to add a replied map photo to active work by number",
+    "text": "@road_machiners_bot add this map as an example with its image to the active map implementation #571, and apply the ROAM UI design rules and art postprocessing for a hand-drawn look",
+    "expect": "stay",
+    "source": "message",
+    "context": "My map of the wasteland",
+    "work": [
+      "#571 (being built) Hand-drawn region map",
+      "#652 (proposal) Region map: A map of the region you can open on the road.",
+      "#568 (proposal) Faction reputation: Towns remember what you did."
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, reply to the bot that says it picked the wrong issue",
+    "text": "Dude, not this task. Close this one. Post the reference WITH THE IMAGE to the actual task working on the map",
+    "expect": "correct",
+    "source": "comment",
+    "parent": "Region map",
+    "context": "Thanks. This is about #652: https://github.com/ROAM-game-org/roam/issues/652, which the factory already has.\nIt waits for player votes as a proposal in this chat.\nI added your message to its player comments. It opens no new issue or vote.",
+    "corrected": "@road_machiners_bot add this map as an example with its image to the active map implementation #571, and apply the ROAM UI design rules and art postprocessing for a hand-drawn look",
+    "work": [
+      "#571 (being built) Hand-drawn region map",
+      "#568 (proposal) Faction reputation: Towns remember what you did."
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, reply to the bot that thanks it",
+    "text": "Thanks, that was quick!",
+    "expect": "stay",
+    "source": "comment",
+    "parent": "Region map",
+    "context": "Thanks. This is about #652: https://github.com/ROAM-game-org/roam/issues/652, which the factory already has.\nIt waits for player votes as a proposal in this chat.\nI added your message to its player comments. It opens no new issue or vote.",
+    "corrected": "@road_machiners_bot add this map as an example with its image to the active map implementation #571, and apply the ROAM UI design rules and art postprocessing for a hand-drawn look",
+    "work": [
+      "#571 (being built) Hand-drawn region map",
+      "#568 (proposal) Faction reputation: Towns remember what you did."
+    ]
   }
 ]

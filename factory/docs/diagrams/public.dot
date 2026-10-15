@@ -32,14 +32,17 @@ digraph public {
 
   subgraph cluster_chat {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
-    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
+    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text\nand image file ids", fillcolor="#fde68a", color="#b45309"];
     plugin [label="Plugin\nstops it before Hermes"];
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n20 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work or active cards,\ncorrects the bot\n20 chat messages an hour per player"];
   linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
+  images [label="Images fetched once,\nchecked and held,\nthen put in the issue\nmedia folder for agents"];
+  correction [label="Correction\nmoves the earlier message\nto the open work picked\nanswered every time"];
+  hermes [label="Hermes acts for\na committee member,\nlike closing the wrong issue"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
   answer [label="Reply in the thread\nin English or Russian\nissue link and status,\nor a quoted wiki passage\nnever a canned fallback"];
   intake [label="Intake\nthen Triage"];
@@ -57,6 +60,13 @@ digraph public {
   linked -> digest;
   filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
   filter -> answer [label="question"];
+  filter -> images [label="kept message\nwith images"];
+  images -> digest;
+  images -> newIssue;
+  filter -> correction [label="reply to the bot\nthat says it was wrong"];
+  correction -> digest;
+  correction -> answer;
+  correction -> hermes [label="from a\ncommittee member"];
   newIssue -> intake;
   digest -> answer;
   newIssue -> answer;

@@ -182,3 +182,4 @@ Before every agent stage, the host fetches the images of the issue body and ever
 - Each file is at most 10 MB, and an issue has at most 12.
 - An image that fails to fetch or decode is fetched once more. If it still fails, the prompt lists it as not available, and the agent works from the text and notes what it could not see. No stage fails for it. An image on another host is listed as not seen.
 - The images a member sent in Telegram with a patch or redesign reply are listed too, from `$FACTORY_HOME/media/issue-N/committee/`. They stay private: the issue gets only their type, size and sha256. [process.md](process.md) says how they arrive.
+- The images of player chat messages that landed on the issue are listed too, from `$FACTORY_HOME/media/issue-N/player/`. They are private in the same way, and [process.md](process.md#public-inputs) says how they arrive.
