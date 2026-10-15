@@ -105,6 +105,24 @@ describe('the hauler driver', () => {
     expect(chosenLane(w, hauler)).toBe(1);
   });
 
+  it('aims just past a blockage that covers every lane and holds that aim as it closes in', () => {
+    const { w, hauler } = openRoad();
+    const wall = (along: number) => [-5, -3, -1, 1, 3, 5].map((across, i) => ({ id: `wall-${along}-${i}`, pos: roadPoint(w.seed, 0, along, across), r: 1, kind: 'rock' as const }));
+    w.obstacles = [...wall(N + 8), ...wall(N + 20)];
+    const aim = () => {
+      planHaulerOrder(w);
+      return alongOf(w.seed, toRoad(0, (hauler.order as { dest: { x: number; y: number } }).dest));
+    };
+
+    expect(LANES.every((_, lane) => !laneClear(w, hauler, lane))).toBe(true);
+    const first = aim();
+    expect(first).toBeGreaterThan(N + 20);
+    expect(first).toBeLessThan(N + FURY_ROAD.hauler.laneLook);
+
+    hauler.pos = roadPoint(w.seed, 0, N + 2.4, LANES[1]);
+    expect(aim()).toBe(first);
+  });
+
   it('runs at hurry pace for the alarm turns after a hit, then back at cruise', () => {
     const { w, hauler } = openRoad();
     const attacker = groupTruck(w, LANES[3], N + 8, 5);

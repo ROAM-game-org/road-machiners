@@ -74,6 +74,15 @@ function inReachOfLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   return [...solid, ...wrecks].some((o) => segmentDist(o.pos, a, b) < o.r + reach);
 }
 
+function solidEnd(world: World, hauler: Vehicle, lane: number): number | null {
+  const along = alongNow(world, hauler);
+  let end: number | null = null;
+  for (let n = Math.floor(along); n <= along + HAULER.laneLook; n += CRATER_STEP) {
+    if (inReachOfLane(world, hauler, lanePoint(world, n, lane), lanePoint(world, n + CRATER_STEP, lane))) end = n + CRATER_STEP;
+  }
+  return end === null ? null : Math.max(end, along + HAULER.lookahead);
+}
+
 function truckInLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   const radius = chassisDef(hauler.chassisId).radius;
   const pace = haulerPace(world);
@@ -84,7 +93,7 @@ function crateredLane(world: World, hauler: Vehicle, lane: number): boolean {
   const craters = windowCraters(world.seed, runOf(world).window);
   const radius = chassisDef(hauler.chassisId).radius;
   const along = alongNow(world, hauler);
-  for (let n = along - BEHIND; n <= along + HAULER.craterLookahead; n += CRATER_STEP) {
+  for (let n = along - BEHIND; n <= along + HAULER.laneLook; n += CRATER_STEP) {
     for (const u of [LANES[lane] - radius, LANES[lane], LANES[lane] + radius]) {
       if (craterDip(craters, { n, u }) >= HAULER.craterDip) return true;
     }
@@ -154,13 +163,19 @@ function requireOnLaneOrPad(world: World, order: MoveOrder): void {
   if (!LANES.some((center) => Math.abs(center - across) < 0.05)) throw new Error(`The hauler aims off the lane centers, at across ${across.toFixed(2)}`);
 }
 
+function aimAlong(world: World, hauler: Vehicle, lane: number): number {
+  const along = alongNow(world, hauler);
+  if (laneClear(world, hauler, lane)) return along + HAULER.lookahead;
+  return solidEnd(world, hauler, lane) ?? along + HAULER.lookahead;
+}
+
 function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const run = runOf(world);
   if (betweenLevels(world)) return isParked(hauler) ? null : { kind: 'brake' };
   const pad = outpostPad(world, run.window + 1);
   if (dist(hauler.pos, pad) <= HAULER.approach) return { kind: 'stopAt', dest: pad };
   const lane = chosenLane(world, hauler);
-  const dest = lanePoint(world, alongNow(world, hauler) + HAULER.lookahead, lane);
+  const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
   return { kind: 'through', dest, pace: haulerPace(world) };
 }
 

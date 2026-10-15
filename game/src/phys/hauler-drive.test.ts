@@ -1,12 +1,13 @@
 import { beforeAll, expect, it } from 'vitest';
-import { HIGHWAY } from '../data/modes';
+import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
+import { moveWindow } from '../sim/fury-road';
 import { setHeadless } from '../sim/fidelity';
 import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
 import { canUseSite } from '../sim/sites';
-import { furyRoadWorld } from '../sim/testkit';
+import { furyRoadWorld, parkOnPad } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
@@ -18,6 +19,7 @@ beforeAll(async () => {
 });
 
 const TURNS = 200;
+const HAULER_CRUISE = FURY_ROAD.hauler.cruise;
 const CRATERS_PASSED = 140;
 
 function onPad(w: World): boolean {
@@ -122,4 +124,50 @@ it('keeps the hauler out of the craters of stretch 1 with the gun truck riding b
   expect(grounded).toBe(0);
   expect(stalls).toBe(0);
   expect(farthest).toBeGreaterThan(CRATERS_PASSED);
+}, budget(300_000));
+
+function worldAtWindow(seed: number, window: number): World {
+  const w = furyRoadWorld(seed);
+  for (let milestone = 1; milestone <= window; milestone++) {
+    parkOnPad(w, milestone);
+    w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
+    w.furyRoad!.groups = [];
+    moveWindow(w);
+  }
+  w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+  return w;
+}
+
+const OUTER_LANE = 3;
+const CHECKPOINT_LEAD = 16;
+const CHECKPOINT_TURNS = 30;
+const CHECKPOINT_STRETCH = 10;
+const CHECKPOINT_SEED = 19;
+
+it('threads a checkpoint that blocks every lane from the outer lane, with no hit and no stall', () => {
+  const stretch = CHECKPOINT_STRETCH;
+  const checkpoint = stretchLayout(CHECKPOINT_SEED, stretch).scenes.find((s) => s.kind === 'checkpoint')!;
+  let w = worldAtWindow(CHECKPOINT_SEED, stretch - 1);
+  const start = checkpoint.from - CHECKPOINT_LEAD;
+  const hauler = haulerOf(w);
+  hauler.pos = roadPoint(CHECKPOINT_SEED, stretch - 1, start, HIGHWAY.road.lanes[OUTER_LANE]);
+  const ahead = roadPoint(CHECKPOINT_SEED, stretch - 1, start + 4, HIGHWAY.road.lanes[OUTER_LANE]);
+  hauler.heading = Math.atan2(ahead.y - hauler.pos.y, ahead.x - hauler.pos.x);
+  hauler.speed = HAULER_CRUISE;
+  playerVehicle(w).pos = roadPoint(CHECKPOINT_SEED, stretch - 1, start - 20, HIGHWAY.road.lanes[1]);
+  let drive: Drive = buildDrive(w);
+  let hits = 0;
+  let stalls = 0;
+  for (let turn = 0; turn < CHECKPOINT_TURNS; turn++) {
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    hits += w.events.filter((e) => e.t === 'collision' && e.a === hauler.id && e.b !== GROUND).length;
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    freeDrive(drive);
+    drive = result!.next;
+  }
+  freeDrive(drive);
+  expect(hits).toBe(0);
+  expect(stalls).toBe(0);
+  expect(alongOf(CHECKPOINT_SEED, toRoad(stretch - 1, haulerOf(w).pos))).toBeGreaterThan(checkpoint.to + 40);
 }, budget(300_000));
