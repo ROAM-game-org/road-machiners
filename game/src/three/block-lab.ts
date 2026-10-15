@@ -19,6 +19,7 @@ const TURN_SECONDS = 1;
 const LANES = [
   { id: "events", height: 60 },
   { id: "song", height: 90 },
+  { id: "lead", height: 40 },
   { id: "heat", height: 80 },
 ] as const;
 type LaneId = (typeof LANES)[number]["id"];
@@ -31,11 +32,12 @@ type Song = {
   barTimes: number[];
   sections: Section[];
   end: number;
-  hits: Record<string, { file: string; peak: number }>;
-  events: Record<AccentCue, string[]>;
+  lead: { file: string; start: number; from: number; bars: number };
 };
-type Played = { label: string; role: Role | "end"; bars: number; start: number; end: number; src: AudioBufferSourceNode; gain: GainNode; heat: number; sinceStop: number };
-type Fired = { cue: AccentCue; at: number; hit: string };
+type Voice = { src: AudioBufferSourceNode; gain: GainNode };
+type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: Voice[]; heat: number; sinceStop: number; join: string };
+type Fired = { cue: AccentCue; at: number };
+type Span = { from: number; to: number };
 type Auto = "off" | "busy" | "pauses";
 
 const EVENTS: Record<AccentCue, string> = {
@@ -51,6 +53,7 @@ const EVENT_GROUPS: AccentCue[][] = [
   ["accent-hit", "accent-miss"],
 ];
 const HEAVY = new Set<AccentCue>(["accent-sighted", "accent-struck", "accent-crit", "accent-crash"]);
+const LEAD_UNDER = new Set<Role>(["intro", "verse", "wall"]);
 const AUTO_ODDS: [AccentCue, number][] = [
   ["accent-hit", 0.35],
   ["accent-miss", 0.25],
@@ -93,12 +96,14 @@ mixer.unlockOn(window);
 const ctx = mixer.ctx;
 const song = await loadSong();
 const songBuffer = await decode(song.file);
-const hitBuffers = new Map(await Promise.all(Object.entries(song.hits).map(async ([name, h]) => [name, await decode(h.file)] as const)));
+const leadBuffer = await decode(song.lead.file);
 const blocks = blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars);
-const duck = ctx.createGain();
 const songLevel = ctx.createGain();
 songLevel.gain.value = SCORE_BLOCKS.songGain;
-duck.connect(songLevel).connect(mixer.input("music"));
+songLevel.connect(mixer.input("music"));
+const leadLevel = ctx.createGain();
+leadLevel.gain.value = 0;
+leadLevel.connect(songLevel);
 
 async function loadSong(): Promise<Song> {
   const res = await fetch(`${SONG_DIR}song.json`);
@@ -125,32 +130,58 @@ let inCombat = false;
 let auto: Auto = "off";
 let nextTurn = 0;
 let span = DEFAULT_ZOOM;
-const lastHit = new Map<AccentCue, string>();
+const leadOpen: Span[] = [];
+const beatSeconds = 60 / song.bpm;
 
 function barTime(bar: number): number {
   return song.barTimes[bar - 1];
 }
 
-function playSpan(offset: number, when: number, length: number): { src: AudioBufferSourceNode; gain: GainNode } {
+function voice(buffer: AudioBuffer, out: AudioNode, offset: number, when: number, length: number, leadIn: number): Voice {
   const seam = SCORE_BLOCKS.seamSeconds;
   const src = ctx.createBufferSource();
-  src.buffer = songBuffer;
+  src.buffer = buffer;
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, when - seam);
-  gain.gain.linearRampToValueAtTime(1, when + seam);
+  const from = Math.min(leadIn + seam, offset);
+  gain.gain.setValueAtTime(0, when - from);
+  gain.gain.linearRampToValueAtTime(1, when + (leadIn > 0 ? 0 : seam));
   gain.gain.setValueAtTime(1, when + length - seam);
   gain.gain.linearRampToValueAtTime(0, when + length + seam);
-  src.connect(gain).connect(duck);
-  src.start(when - seam, offset - seam, length + 2 * seam);
+  src.connect(gain).connect(out);
+  src.start(when - from, offset - from, Math.min(buffer.duration - offset + from, from + length + SCORE_BLOCKS.jumpTailBeats * beatSeconds + seam));
   return { src, gain };
+}
+
+function ringOn(p: Played): void {
+  const seam = SCORE_BLOCKS.seamSeconds;
+  for (const v of p.voices) {
+    v.gain.gain.cancelScheduledValues(p.end - seam);
+    v.gain.gain.setValueAtTime(1, p.end);
+    v.gain.gain.linearRampToValueAtTime(0, p.end + SCORE_BLOCKS.jumpTailBeats * beatSeconds);
+  }
+}
+
+function leadVoice(block: Block, when: number, length: number, leadIn: number): Voice[] {
+  if (!LEAD_UNDER.has(block.role)) return [];
+  const into = (block.bar - song.sections[block.section].from) % song.lead.bars;
+  return [voice(leadBuffer, leadLevel, barTime(song.lead.from + into) - song.lead.start, when, length, leadIn)];
+}
+
+function joinOf(block: Block): string {
+  const before = played.at(-1);
+  if (!before) return "start";
+  return before.bar + before.bars === block.bar ? "follows" : "jump";
 }
 
 function schedule(block: Block, when: number, heatNow: number): number {
   const offset = barTime(block.bar);
   const length = barTime(block.bar + block.bars) - offset;
-  const { src, gain } = playSpan(offset, when, length);
+  const join = joinOf(block);
+  const leadIn = join === "jump" ? SCORE_BLOCKS.jumpLeadBeats * beatSeconds : 0;
+  if (join === "jump") ringOn(played.at(-1)!);
+  const voices = [voice(songBuffer, songLevel, offset, when, length, leadIn), ...leadVoice(block, when, length, leadIn)];
   const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-  played.push({ label, role: block.role, bars: block.bars, start: when, end: when + length, src, gain, heat: heatNow, sinceStop: sequencer!.barsSinceStop });
+  played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, sinceStop: sequencer!.barsSinceStop, join });
   return when + length;
 }
 
@@ -174,23 +205,32 @@ function endCombat(): void {
   sequencer = null;
   const at = nextBeatAfter(ctx.currentTime + SCORE_BLOCKS.startLeadSeconds);
   for (const p of played.filter((x) => x.end > at)) cut(p, at);
+  closeLead(at);
   const offset = barTime(song.end);
-  const { src, gain } = playSpan(offset, at, song.length - offset);
-  played.push({ label: "end", role: "end", bars: 1, start: at, end: at + song.length - offset, src, gain, heat: heat.read(at), sinceStop: 0 });
+  const voices = [voice(songBuffer, songLevel, offset, at, song.length - offset, 0)];
+  played.push({ label: "end", role: "end", bar: song.end, bars: 1, start: at, end: at + song.length - offset, voices, heat: heat.read(at), sinceStop: 0, join: "end" });
+}
+
+function closeLead(at: number): void {
+  leadLevel.gain.cancelScheduledValues(at);
+  leadLevel.gain.setTargetAtTime(0, at, SCORE_BLOCKS.seamSeconds);
+  const last = leadOpen.at(-1);
+  if (last && last.to > at) last.to = Math.max(last.from, at);
 }
 
 function cut(p: Played, at: number): void {
   const seam = SCORE_BLOCKS.seamSeconds;
-  if (p.start >= at) {
-    p.src.stop(p.start);
-    p.end = p.start;
-    return;
+  for (const v of p.voices) {
+    if (p.start >= at) {
+      v.src.stop(p.start);
+      continue;
+    }
+    v.gain.gain.cancelScheduledValues(at - seam);
+    v.gain.gain.setValueAtTime(1, at - seam);
+    v.gain.gain.linearRampToValueAtTime(0, at + seam);
+    v.src.stop(at + seam);
   }
-  p.gain.gain.cancelScheduledValues(at - seam);
-  p.gain.gain.setValueAtTime(1, at - seam);
-  p.gain.gain.linearRampToValueAtTime(0, at + seam);
-  p.src.stop(at + seam);
-  p.end = at;
+  p.end = Math.max(p.start, Math.min(p.end, at));
 }
 
 function flipCombat(): void {
@@ -198,36 +238,31 @@ function flipCombat(): void {
   else startCombat();
 }
 
-function fire(cue: AccentCue, at = ctx.currentTime + SCORE_BLOCKS.hitLeadSeconds): void {
+function fire(cue: AccentCue, at = ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds): void {
   if (!inCombat) return;
-  const name = pickHit(cue);
-  const hit = song.hits[name];
-  const src = ctx.createBufferSource();
-  src.buffer = hitBuffers.get(name)!;
-  const gain = ctx.createGain();
-  gain.gain.value = SCORE_BLOCKS.hitGain;
-  src.connect(gain).connect(mixer.input("music"));
-  src.start(Math.max(ctx.currentTime, at - hit.peak));
-  if (HEAVY.has(cue)) duckSong(at);
+  if (HEAVY.has(cue)) openLead(at);
   heat.add(at, MIX.score.accents[cue].weight);
   heats.push({ at, value: heat.read(at) });
-  fired.push({ cue, at, hit: name });
+  fired.push({ cue, at });
 }
 
-function pickHit(cue: AccentCue): string {
-  const names = song.events[cue];
-  if (!names || names.length === 0) throw new Error(`song.json has no hit for ${cue}`);
-  const fresh = names.length > 1 ? names.filter((n) => n !== lastHit.get(cue)) : names;
-  const name = fresh[Math.floor(Math.random() * fresh.length)];
-  if (!song.hits[name]) throw new Error(`song.json maps ${cue} to missing hit ${name}`);
-  lastHit.set(cue, name);
-  return name;
+function closeAfter(at: number): number {
+  const p = played.find((x) => x.start <= at && at < x.end) ?? played.at(-1);
+  if (!p) throw new Error("The lead opened with no block playing");
+  const bar = (p.end - p.start) / p.bars;
+  return p.start + Math.ceil((at - p.start) / bar) * bar + bar * (SCORE_BLOCKS.leadHoldBars - 1);
 }
 
-function duckSong(at: number): void {
-  const release = (SCORE_BLOCKS.hitDuckBeats * 60) / song.bpm;
-  duck.gain.setTargetAtTime(SCORE_BLOCKS.hitDuck, at, 0.01);
-  duck.gain.setTargetAtTime(1, at + 0.03, release / 3);
+function openLead(at: number): void {
+  const close = Math.max(closeAfter(at), at + beatSeconds);
+  const fade = SCORE_BLOCKS.leadFadeOutBeats * beatSeconds;
+  const level = leadLevel.gain;
+  level.cancelScheduledValues(at);
+  level.setTargetAtTime(SCORE_BLOCKS.leadGain, at, SCORE_BLOCKS.leadFadeInSeconds / 3);
+  level.setTargetAtTime(0, close, fade / 3);
+  const last = leadOpen.at(-1);
+  if (last && last.to >= at) last.to = close + fade;
+  else leadOpen.push({ from: at, to: close + fade });
 }
 
 function autoTurn(now: number): void {
@@ -303,6 +338,7 @@ function draw(): void {
   drawGrid();
   drawEvents();
   drawSong();
+  drawLead();
   drawHeat();
   g.fillStyle = INK.now;
   g.fillRect(xOf(viewNow), 0, 1, HEIGHT);
@@ -335,7 +371,7 @@ function drawEvents(): void {
     g.fillStyle = HEAVY.has(f.cue) ? INK.heavy : INK.light;
     g.fillRect(x, top + 4, 2, laneHeight("events") - 8);
     if (x < labelEnd + LABEL_GAP) continue;
-    const text = `${EVENTS[f.cue]} ${f.hit}`;
+    const text = EVENTS[f.cue];
     g.fillStyle = INK.text;
     g.fillText(text, x + LABEL_GAP, top + 18);
     labelEnd = x + LABEL_GAP + g.measureText(text).width;
@@ -353,9 +389,23 @@ function drawSong(): void {
     g.fillRect(x0, top + 24, xOf(p.end) - x0 - 1, height - 30);
     g.globalAlpha = 1;
     g.fillRect(x0, top + 24, 3, height - 30);
+    if (p.join === "jump") drawJump(p, top, height);
     g.fillStyle = INK.text;
     g.fillText(p.label, x0 + LABEL_GAP, top + 18);
   }
+}
+
+function drawJump(p: Played, top: number, height: number): void {
+  const x0 = xOf(p.start - SCORE_BLOCKS.jumpLeadBeats * beatSeconds);
+  const x1 = xOf(p.start + SCORE_BLOCKS.jumpTailBeats * beatSeconds);
+  g.fillStyle = INK.now;
+  g.fillRect(x0, top + height - 5, x1 - x0, 2);
+}
+
+function drawLead(): void {
+  const top = laneTop("lead");
+  g.fillStyle = ROLE_INK.solo;
+  for (const s of leadOpen) g.fillRect(xOf(s.from), top + 8, xOf(s.to) - xOf(s.from), laneHeight("lead") - 16);
 }
 
 function drawHeat(): void {
@@ -386,7 +436,8 @@ function playingNow(): Played | undefined {
 }
 
 function drawGutter(): void {
-  const readouts: Record<LaneId, string> = { events: String(fired.length), song: playingNow()?.label ?? "", heat: heatAt(viewNow).toFixed(2) };
+  const leadOn = leadOpen.some((s) => s.from <= viewNow && viewNow < s.to);
+  const readouts: Record<LaneId, string> = { events: String(fired.length), song: playingNow()?.label ?? "", lead: leadOn ? "open" : "", heat: heatAt(viewNow).toFixed(2) };
   for (const lane of LANES) {
     const top = laneTop(lane.id);
     g.fillStyle = INK.gutter;
@@ -450,7 +501,7 @@ const holder = el("div", { class: "score-lab-canvas" }, canvas);
 const timelinePanel = panel(el("div", { class: "score-lab-bar" }, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
-const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "Since stop", ""].map((word) => el("span", {}, word)));
+const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "Since stop", "Join"].map((word) => el("span", {}, word)));
 const ledgerPanel = panel(ledgerHead, ledgerRows);
 
 function statRows(): [string, string][] {
@@ -490,7 +541,7 @@ function syncLedger(): void {
           el("span", { class: "num" }, `${(p.start - first).toFixed(1)} s`),
           el("span", { class: "num" }, p.heat.toFixed(1)),
           el("span", { class: "num" }, String(p.sinceStop)),
-          el("span", {}, ""),
+          el("span", { class: "dim" }, p.join),
         ),
       )
       .reverse(),

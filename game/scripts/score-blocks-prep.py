@@ -8,10 +8,10 @@ import numpy as np
 import soundfile as sf
 
 BEATS_PER_BAR = 4
-HIT_PRE_SECONDS = 0.01
 KICK_HZ = 120
-HIT_SEARCH_SECONDS = 0.06
-HIT_HOP = 64
+STFT_SIZE = 4096
+CENTER_SHARPNESS = 4
+LEAD_MARGIN_SECONDS = 0.05
 
 
 def beat_grid(path, bpm):
@@ -51,36 +51,40 @@ def bar_times(song_path, drums_path, bpm, bars):
     return (start + BEATS_PER_BAR * beat * np.arange(bars + 1)).tolist(), length
 
 
-def onset_near(drums, sr, at):
-    mono = drums.mean(axis=1)
-    lo, hi = int((at - HIT_SEARCH_SECONDS) * sr), int((at + HIT_SEARCH_SECONDS) * sr)
-    env = librosa.onset.onset_strength(y=mono[lo:hi].astype(np.float32), sr=sr, hop_length=HIT_HOP)
-    return at - HIT_SEARCH_SECONDS + float(np.argmax(env)) * HIT_HOP / sr
+def center(stereo, sr):
+    left, right = (librosa.stft(np.ascontiguousarray(stereo[:, c]).astype(np.float32), n_fft=STFT_SIZE) for c in (0, 1))
+    alike = 2 * np.real(left * np.conj(right)) / (np.abs(left) ** 2 + np.abs(right) ** 2 + 1e-12)
+    mask = np.clip(alike, 0, 1) ** CENTER_SHARPNESS
+    return librosa.istft(mask * (left + right) / 2, n_fft=STFT_SIZE, length=len(stereo))
 
 
-def cut_hit(drums, sr, at, seconds, out):
-    y = drums[max(0, int((at - HIT_PRE_SECONDS) * sr)) : int((at + seconds) * sr)]
-    fade = np.linspace(1, 0, int(0.05 * sr))
-    y[-len(fade) :] *= fade[:, None] if y.ndim == 2 else fade
+def rms_db(y):
+    return 20 * np.log10(np.sqrt(np.mean(y**2)) + 1e-9)
+
+
+def cut_lead(other_path, bars, lead, out):
+    stereo, sr = sf.read(other_path, always_2d=True)
+    lead_only = center(stereo, sr)
+    span = lambda first, count: lead_only[int(bars[first - 1] * sr) : int(bars[first - 1 + count] * sr)]
+    wall = rms_db(span(lead["quietFrom"], lead["bars"]))
+    solo = rms_db(span(lead["from"], lead["bars"]))
+    print(f"center of the guitar stem: solo bars {solo:.1f} dB, wall bars without lead {wall:.1f} dB")
+    start = bars[lead["from"] - 1] - LEAD_MARGIN_SECONDS
+    y = lead_only[int(start * sr) : int((bars[lead["from"] - 1 + lead["bars"]] + LEAD_MARGIN_SECONDS) * sr)]
     sf.write(out, y, sr)
+    return {"file": out.name, "start": start, "from": lead["from"], "bars": lead["bars"]}
 
 
-def main(map_path, song_path, drums_path, out_dir):
+def main(map_path, song_path, stems_dir, out_dir):
     plan = json.loads(Path(map_path).read_text())
     out = Path(out_dir)
-    (out / "hits").mkdir(parents=True, exist_ok=True)
-    bars, length = bar_times(song_path, drums_path, plan["bpm"], plan["bars"])
+    out.mkdir(parents=True, exist_ok=True)
+    bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"])
     shutil.copy(song_path, out / "song.mp3")
-    drums, sr = sf.read(drums_path, always_2d=True)
-    beat = 60 / plan["bpm"]
-    hits = {}
-    for name, h in plan["hits"].items():
-        at = onset_near(drums, sr, bars[h["bar"] - 1] + h["beat"] * beat)
-        cut_hit(drums, sr, at, h["seconds"], out / "hits" / f"{name}.wav")
-        hits[name] = {"file": f"hits/{name}.wav", "peak": HIT_PRE_SECONDS}
-    song = {"file": "song.mp3", "bpm": plan["bpm"], "length": length, "barTimes": bars, "sections": plan["sections"], "end": plan["end"], "hits": hits, "events": plan["events"]}
+    lead = cut_lead(f"{stems_dir}/other.wav", bars, plan["lead"], out / "lead.wav")
+    song = {"file": "song.mp3", "bpm": plan["bpm"], "length": length, "barTimes": bars, "sections": plan["sections"], "end": plan["end"], "lead": lead}
     (out / "song.json").write_text(json.dumps(song, indent=1))
-    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and {len(hits)} hits")
+    print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and a {lead['bars']} bar lead")
 
 
 if __name__ == "__main__":

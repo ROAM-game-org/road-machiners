@@ -132,10 +132,10 @@ const SECTIONS: Section[] = [
   { role: "wall", from: 49, bars: 20 },
   { role: "solo", from: 69, bars: 8 },
 ];
-const ARC: ArcTuning = { blockBars: 4, verseBars: 8, wallBars: 8, soloBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: 2, coolHeat: 1 };
+const ARC: ArcTuning = { blockBars: 4, verseBars: 8, wallBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: 2, coolHeat: 1 };
 
-function play(heats: number[]) {
-  const seq = new BlockSequencer(blocksOf(SECTIONS, 4), ARC, () => 0);
+function play(heats: number[], blockBars = 4) {
+  const seq = new BlockSequencer(blocksOf(SECTIONS, blockBars), { ...ARC, blockBars }, () => 0);
   return heats.map((h) => seq.next(h));
 }
 
@@ -159,6 +159,13 @@ describe("BlockSequencer", () => {
     const roles = play(Array(20).fill(0)).map((b) => b.role);
     expect(roles.filter((r) => r === "solo")).toHaveLength(2);
     expect(roles[roles.lastIndexOf("solo") + 1]).toBe("wall");
+  });
+
+  it("plays the intro and a stop to the end of their section, even when the fight is hot", () => {
+    const blocks = play([0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], 2);
+    expect(blocks.slice(0, 2).map((b) => b.bar)).toEqual([5, 7]);
+    const stop = blocks.findIndex((b) => b.role === "stop");
+    expect(blocks.slice(stop, stop + 2).map((b) => b.bar)).toEqual([37, 39]);
   });
 
   it("refuses a section that does not split into blocks", () => {

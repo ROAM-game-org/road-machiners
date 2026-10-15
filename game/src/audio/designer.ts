@@ -190,12 +190,13 @@ export type ArcTuning = {
   blockBars: number;
   verseBars: number;
   wallBars: number;
-  soloBars: number;
   stopEveryBars: number;
   soloAfterBars: number;
   hotHeat: number;
   coolHeat: number;
 };
+
+const WHOLE_SECTIONS = new Set<Role>(["intro", "stop", "solo"]);
 
 export function blocksOf(sections: readonly Section[], blockBars: number): Block[] {
   return sections.flatMap((s, section) => {
@@ -245,14 +246,19 @@ export class BlockSequencer {
   }
 
   private nextRole(current: Block, heat: number): Role {
+    if (WHOLE_SECTIONS.has(current.role) && this.sectionGoesOn(current)) return current.role;
     const rules: Record<Role, () => Role> = {
       intro: () => this.afterBreak(heat),
       stop: () => this.afterBreak(heat),
-      solo: () => (this.inRole < this.tuning.soloBars ? "solo" : "wall"),
+      solo: () => "wall",
       verse: () => this.afterVerse(heat),
       wall: () => this.afterWall(heat),
     };
     return rules[current.role]();
+  }
+
+  private sectionGoesOn(current: Block): boolean {
+    return this.blocks.some((b) => b.section === current.section && b.bar === current.bar + current.bars);
   }
 
   private afterBreak(heat: number): Role {
