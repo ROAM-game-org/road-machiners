@@ -1,9 +1,11 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import type { TerrainTypeId } from '../data/terrain';
 import { makeVehicle } from '../sim/factory';
 import { addGoods } from '../sim/inventory';
+import { climbGrade } from '../sim/stats';
 import { editableTerrain, emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, setMoveOrder } from '../sim/world';
@@ -15,7 +17,6 @@ beforeAll(async () => {
 });
 
 const RAMP_FOOT = 28;
-const HAULER_LIMIT = 0.5;
 
 type Build = 'scout' | 'loadedHauler';
 
@@ -56,14 +57,15 @@ describe('climbing', () => {
     expect(climbTiles('loadedHauler', 0.35)).toBeGreaterThan(3);
   }, 90_000);
 
-  it('a loaded hauler still climbs a grade a tenth gentler in sine than its limit', () => {
-    const sine = 0.9 * Math.sin(Math.atan(HAULER_LIMIT));
-    expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeGreaterThan(1);
+  it.each(['scout', 'loadedHauler'] as const)('a %s climbs a ramp at its planned climb grade', (build) => {
+    expect(climbTiles(build, climbGrade(ramp(build, 0, 'road'), ramp(build, 0, 'road').vehicles[0]))).toBeGreaterThan(1);
   }, 90_000);
 
-  it('a climb a tenth steeper in sine than its limit still stops the loaded hauler', () => {
-    const sine = 1.1 * Math.sin(Math.atan(HAULER_LIMIT));
-    expect(climbTiles('loadedHauler', Math.tan(Math.asin(sine)))).toBeLessThan(1);
+  it.each(['scout', 'loadedHauler'] as const)('a %s stops on a ramp a third steeper in sine than the grade it plans for', (build) => {
+    const w = ramp(build, 0, 'road');
+    const grade = climbGrade(w, w.vehicles[0]);
+    const sine = Math.sin(Math.atan(grade)) / PHYSICS.truck.climbPlanShare;
+    expect(climbTiles(build, Math.tan(Math.asin(Math.min(0.99, 1.35 * sine))))).toBeLessThan(1);
   }, 90_000);
 
   it('flat ground launch from rest is pinned', () => {

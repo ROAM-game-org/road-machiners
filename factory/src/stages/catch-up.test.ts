@@ -11,11 +11,12 @@ let runs: AgentRun[] = [];
 let merged = false;
 let conflicts = 0;
 let resolutionDiff = '';
+let resolutionFiles: string[] = [];
 let logs: string[] = [];
 
 const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
 const mergeJob = (batch: number[] | undefined, caughtUp?: number[]): Job => ({ id: 'merge-x', stage: 'merge', issue: null, pid: 1, startedAt: '', log: '', batch, ...(caughtUp ? { caughtUp } : {}) });
-const RELEASE = { issue: 20, branch: 'release/2026-10-09', day: '2026-10-09', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE = { issue: 20, branch: 'release/2026-10-09', day: '2026-10-09', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 
 beforeEach(() => {
   mkdirSync('tmp', { recursive: true });
@@ -26,6 +27,7 @@ beforeEach(() => {
   merged = false;
   conflicts = 0;
   resolutionDiff = '';
+  resolutionFiles = [];
   logs = [];
   writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), jobs: [mergeJob([5, 6])], release: RELEASE });
 });
@@ -47,7 +49,7 @@ function fakeCtx(): Ctx {
         if (conflicts-- > 0) throw new MergeConflictError(step, ['game/src/a.ts'], 'both changed it', 'b1', 's1');
       },
       openConflict: async (dir: string) => { calls.push(`open ${dir.slice(home.length)}`); mkdirSync(dir, { recursive: true }); },
-      closeConflict: async () => ({ resolution: { base: 'b1', source: 's1', head: 'h1' }, diff: resolutionDiff }),
+      closeConflict: async () => ({ resolution: { base: 'b1', source: 's1', head: 'h1' }, diff: resolutionDiff, files: resolutionFiles }),
     },
   };
   return fake as unknown as Ctx;
@@ -101,7 +103,7 @@ describe('catchUp', () => {
 
   it('fails with the issue named when the agent resolution touches .github, and pushes nothing', async () => {
     conflicts = 1;
-    resolutionDiff = 'diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n+++ b/.github/workflows/ci.yml\n+x\n';
+    resolutionFiles = ['.github/workflows/ci.yml'];
     await expect(catchUp(fakeCtx(), 8)).rejects.toThrow(/catch-up of #8 with dev failed, and its merge job merges it as before: .*may not push: .github\/workflows\/ci.yml/);
     expect(calls.filter((call) => call.startsWith('merge'))).toHaveLength(1);
   });
