@@ -88,6 +88,7 @@ Players keep their saves across updates. Migrate old saves whenever possible. [S
 
 - A change to the saved shape needs a new format. That covers any type in `src/sim/types.ts` reachable from `World`, and any renamed or removed content id in `src/data/`.
 - A change that old saves can follow adds one step to `MIGRATIONS` in `src/three/save-migrations.ts`.
+- A quest change that old progress in the quest cannot follow raises the quest's `# revision:` tag instead of a step. Load then resets that quest and what stands on it. [Changing a shipped quest](docs/quest-authoring.md#changing-a-shipped-quest) says when.
 - A change that old saves cannot follow bumps `SAVE_MAJOR` and empties `MIGRATIONS`. Ask me before any major bump. A new map file needs no bump.
 - A step is a pure function from the saved world JSON of minor format N to N+1. It never imports sim or data code. It holds its own copies of any old ids or values it needs.
 - Never edit a committed step. Fix a bad step with a new step.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DownloadFailed } from '../fetch-bytes';
+import { AssetUnreachable } from '../fetch-asset';
 import { WebGLUnavailable } from './webgl';
-import { crashText, routeOf, isForeignError, type CrashContext, type ErrorFacts } from './crash';
+import { crashText, faultKind, isForeignError, type CrashContext, type ErrorFacts } from './crash';
 
 const PAGE = 'https://roam-game.online';
 const muted: ErrorFacts = { error: null, message: 'Script error.', filename: '', lineno: 0, colno: 0 };
@@ -70,16 +70,13 @@ describe('crashText', () => {
   });
 });
 
-describe('routeOf', () => {
-  it('keeps a dropped download out of the fault path', () => {
-    expect(routeOf(new DownloadFailed('/a failed', 'x'))).toBe('download');
+describe('faultKind', () => {
+  it('keeps a dropped connection and a missing WebGL off the crash path', () => {
+    expect(faultKind(new AssetUnreachable('Map', 'map.bin', 4, new TypeError('Failed to fetch')))).toBe('unreachable');
+    expect(faultKind(new WebGLUnavailable(null))).toBe('webgl');
   });
 
-  it('keeps the WebGL route', () => {
-    expect(routeOf(new WebGLUnavailable(null))).toBe('webgl');
-  });
-
-  it('sends every other error to the fault path', () => {
-    expect(routeOf(new Error('x'))).toBe('fault');
+  it('treats any other error as a fault', () => {
+    expect(faultKind(new Error('Map file map.bin failed to load: HTTP 404'))).toBe('fault');
   });
 });
