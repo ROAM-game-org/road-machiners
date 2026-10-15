@@ -9,6 +9,7 @@ export default defineConfig({
     __SAVE_SCOPE__: JSON.stringify(process.env.SAVE_SCOPE ?? ''),
     __ERROR_REPORT_URL__: JSON.stringify(process.env.ERROR_REPORT_URL ?? ''),
     __ERROR_REPORT_BUILD__: JSON.stringify(process.env.ERROR_REPORT_BUILD ?? ''),
+    __FEEDBACK_URL__: JSON.stringify(process.env.FEEDBACK_URL ?? ''),
   },
   build: { sourcemap: 'hidden' },
 })

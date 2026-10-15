@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { join } from 'node:path';
 import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
 import { pauseFile, pausedReason } from './pause';
+import { publicRows } from './public/overview';
+import { openStore } from './public/store';
 import { repairClone } from './repair-clone';
 import { clearStuck } from './stuck';
 import { MOVE_TARGETS, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs, stuckText, type MoveTarget } from './position';
@@ -27,6 +29,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
   stuck: { usage: 'stuck', help: "list the stuck sweep's record of each stuck card: its kind, incident, cause and what the sweep did", run: stuckRecords },
   log: { usage: 'log N [stage]', help: 'print the tail of the newest log of a card', run: log },
   audit: { usage: 'audit', help: 'print each drift between stores, and nothing when all agree', run: audit },
+  public: { usage: 'public', help: 'list the proposals with their votes and posted time, the open build posts and the latest player chat messages with their outcome', run: publicState },
   help: { usage: 'help', help: 'list the commands', run: help },
 };
 
@@ -187,6 +190,15 @@ function holdText(hold: Hold | undefined): string {
 
 function printRows(rows: string[]): void {
   console.log(rows.length === 0 ? 'none' : rows.join('\n'));
+}
+
+function publicState(ctx: Ctx): void {
+  const store = openStore(ctx.cfg.home);
+  try {
+    printRows(publicRows(ctx, store));
+  } finally {
+    store.close();
+  }
 }
 
 function jobs(ctx: Ctx): void {

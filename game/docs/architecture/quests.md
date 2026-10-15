@@ -23,6 +23,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - Load restarts ink's own counts. So a once-only `*` choice, a `{knot}` visit count, `READ_COUNT` and `TURNS_SINCE` fail the build. A fact that must last past a load or into another quest lives in a variable, and a choice offered once is a sticky `+` choice with a variable guard.
 - Every checkpoint must run on its own from a fresh story, so it may not rely on temporary variables or tunnels from before it.
 - A load plays a checkpoint's opening again, up to its first choices. So that opening may call no effect and change no variable, or each load would pay or count again. Put them after a choice. `restoreQuest()` throws on either, and `npm run quests:check` tries a load at every state it walks.
+- In a page quest, a load must show text before its choices. Put a checkpoint on a scene's opening line, and keep a choice list that loops back in an untagged stitch after it. A talk hub may stay a checkpoint, since a talk shows only the last pick, its reply and the choices. `npm run quests:check` fails a page load that shows choices and no line.
 
 ## State
 

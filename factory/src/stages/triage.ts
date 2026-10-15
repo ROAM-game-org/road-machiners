@@ -1,7 +1,8 @@
 import { moveCard } from '../card-events';
 import { rmSync, writeFileSync } from 'node:fs';
+import { openStore } from '../public/store';
 import { readState } from '../state';
-import { BRANCH, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
+import { BRANCH, BUG_LABEL, DESIGN_SONNET_LABEL, GAME_DIR, HOTFIX_LABEL, IMPLEMENTATION_OPUS_LABEL, OUT_DIR, RELEASE_TASK_LABEL, ROUTING_MARK, VOTING_LABEL, WONT_DO_LABEL, type Ctx, type FactoryState, type ReleaseState } from '../types';
 import { addToBundle, bundleCandidates } from './bundle';
 import { BASE_BRANCH, agentHome, askAuthor, fillPrompt, prepareOutputs, readOutput, runAgent, workDir, writeIssueInput } from './common';
 import { featureLine, recordReleaseTask, releaseFeatures } from './release-common';
@@ -9,7 +10,9 @@ import { featureLine, recordReleaseTask, releaseFeatures } from './release-commo
 type Complexity = 'trivial' | 'intermediate' | 'hard';
 type Routing = { complexity: Complexity; why: string };
 type Ready = { verdict: 'ready'; reason: string; hotfix: boolean; releaseFix: boolean; routing: Routing; bundle: number[] };
-type Verdict = Ready | { verdict: 'wont-do'; reason: string } | { verdict: 'unclear'; reason: string; questions: string[] };
+type Pitch = { title: string; text: string };
+type Vote = Omit<Ready, 'verdict'> & { verdict: 'vote'; pitch: Pitch };
+type Verdict = Ready | Vote | { verdict: 'wont-do'; reason: string } | { verdict: 'unclear'; reason: string; questions: string[] };
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const clone = workDir(ctx, issue);
@@ -24,9 +27,11 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const release = fixableRelease(state);
   await writeRelease(ctx, home, release);
   await runAgent(ctx, issue, 'triage', 'triage', fillPrompt('triage', { issue: String(issue) }), { effort: ctx.cfg.triageEffort });
-  const result = parseVerdict(readOutput(home, 'triage.json'), candidates, release);
+  const { labels } = await ctx.github.issue(issue);
+  const result = parseVerdict(readOutput(home, 'triage.json'), candidates, release, labels);
   if (result.verdict === 'unclear') return askAuthor(ctx, issue, result.questions, 'triage');
   if (result.verdict === 'ready') return ready(ctx, issue, result, release);
+  if (result.verdict === 'vote') return vote(ctx, issue, result);
   await ctx.github.comment(issue, result.reason);
   await ctx.github.addLabel(issue, WONT_DO_LABEL);
   await ctx.github.close(issue, 'not planned');
@@ -37,6 +42,20 @@ async function ready(ctx: Ctx, issue: number, result: Ready, release: ReleaseSta
   if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
   const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
   return pass(ctx, issue, `${result.reason}${carries}`, result, release);
+}
+
+async function vote(ctx: Ctx, issue: number, result: Vote): Promise<void> {
+  const note = await routeModels(ctx, issue, result.routing);
+  if (result.bundle.length > 0) await addToBundle(ctx, issue, result.bundle, result.reason);
+  const carries = result.bundle.length > 0 ? `\n\nThis card also carries ${result.bundle.map((n) => `#${n}`).join(', ')}.` : '';
+  await ctx.github.addLabel(issue, VOTING_LABEL);
+  const store = openStore(ctx.cfg.home);
+  try {
+    store.addProposal(issue, `${result.pitch.title}\n\n${result.pitch.text}`, ctx.now());
+  } finally {
+    store.close();
+  }
+  await ctx.github.comment(issue, `Triage put this to a player vote: ${result.reason}${carries}\n\n${note}`);
 }
 
 async function pass(ctx: Ctx, issue: number, reason: string, result: Ready, release: ReleaseState | null): Promise<void> {
@@ -80,7 +99,7 @@ async function routeModels(ctx: Ctx, issue: number, { complexity, why }: Routing
   const set = [DESIGN_SONNET_LABEL, IMPLEMENTATION_OPUS_LABEL].filter((label) => labels.includes(label));
   const rated = `Triage rated it ${complexity}: ${why}`;
   if (set.length > 0) return `${ROUTING_MARK} left as set on the issue (${set.join(', ')}). ${rated}`;
-  if (comments.some((comment) => comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
+  if (comments.some((comment) => comment.byFactory && comment.body.includes(ROUTING_MARK))) return `${ROUTING_MARK} kept as the committee left the labels. ${rated}`;
   const label = routingLabel(complexity);
   if (label === null) return `${ROUTING_MARK} ${complexity}, default models (Opus design, Sonnet implementation and testing). ${why}`;
   await ctx.github.addLabel(issue, label);
@@ -102,19 +121,31 @@ async function writeRelated(ctx: Ctx, home: string, candidates: number[]): Promi
   writeFileSync(`${home}/${OUT_DIR}/related.md`, `${parts.join('\n\n')}\n`);
 }
 
-function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null): Verdict {
+type Work = Pick<Ready, 'hotfix' | 'releaseFix' | 'routing' | 'bundle'>;
+
+function parseVerdict(text: string | null, candidates: number[], release: ReleaseState | null, labels: string[]): Verdict {
+  const fields = readFields(text);
+  const kind = readKind(fields.verdict);
+  const why = readReason(fields.reason);
+  if (kind === 'wont-do') return { verdict: kind, reason: why };
+  if (kind === 'unclear') return { verdict: kind, reason: why, questions: readQuestions(fields.questions) };
+  const work = readWork(fields, candidates, release);
+  return kind === 'ready' ? readReady(why, work) : readVote(why, work, readPitch(fields.pitch), labels);
+}
+
+function readFields(text: string | null): Record<string, unknown> {
   if (text === null) throw new Error('The triage stage wrote no .factory/triage.json');
   const data: unknown = JSON.parse(text);
   if (typeof data !== 'object' || data === null) throw new Error('triage.json is not an object');
-  const { verdict, reason, questions, hotfix, releaseFix, complexity, complexityReason, bundle } = data as Record<string, unknown>;
-  const kind = readKind(verdict);
-  const why = readReason(reason);
-  if (kind === 'ready') return readReady(why, readHotfix(hotfix), readReleaseFix(releaseFix, release), readRouting(complexity, complexityReason), readBundle(bundle, candidates));
-  return kind === 'unclear' ? { verdict: kind, reason: why, questions: readQuestions(questions) } : { verdict: kind, reason: why };
+  return data as Record<string, unknown>;
 }
 
-function readKind(value: unknown): 'ready' | 'wont-do' | 'unclear' {
-  if (value === 'ready' || value === 'wont-do' || value === 'unclear') return value;
+function readWork(fields: Record<string, unknown>, candidates: number[], release: ReleaseState | null): Work {
+  return { hotfix: readHotfix(fields.hotfix), releaseFix: readReleaseFix(fields.releaseFix, release), routing: readRouting(fields.complexity, fields.complexityReason), bundle: readBundle(fields.bundle, candidates) };
+}
+
+function readKind(value: unknown): 'ready' | 'vote' | 'wont-do' | 'unclear' {
+  if (value === 'ready' || value === 'vote' || value === 'wont-do' || value === 'unclear') return value;
   throw new Error(`triage.json has an unknown verdict: ${String(value)}`);
 }
 
@@ -123,10 +154,27 @@ function readReason(value: unknown): string {
   return value.trim();
 }
 
-function readReady(reason: string, hotfix: boolean, releaseFix: boolean, routing: Routing, bundle: number[]): Ready {
-  if (hotfix && bundle.length > 0) throw new Error('triage.json bundles issues into a hotfix');
-  if (hotfix && releaseFix) throw new Error('triage.json marks a hotfix as a release fix');
-  return { verdict: 'ready', reason, hotfix, releaseFix, routing, bundle };
+function readReady(reason: string, work: Work): Ready {
+  if (work.hotfix && work.bundle.length > 0) throw new Error('triage.json bundles issues into a hotfix');
+  if (work.hotfix && work.releaseFix) throw new Error('triage.json marks a hotfix as a release fix');
+  return { verdict: 'ready', reason, ...work };
+}
+
+function readVote(reason: string, work: Work, pitch: Pitch, labels: string[]): Vote {
+  if (work.hotfix) throw new Error('triage.json puts a hotfix to a vote');
+  if (work.releaseFix) throw new Error('triage.json puts a release fix to a vote');
+  if (labels.includes(BUG_LABEL)) throw new Error('triage.json puts a bug to a vote');
+  return { verdict: 'vote', reason, ...work, pitch };
+}
+
+function readPitch(value: unknown): Pitch {
+  const { title, text } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  return { title: readPitchPart(title, 'title'), text: readPitchPart(text, 'text') };
+}
+
+function readPitchPart(value: unknown, name: string): string {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`triage.json needs pitch.${name} as a non-empty string for a vote verdict`);
+  return value.trim();
 }
 
 function readReleaseFix(value: unknown, release: ReleaseState | null): boolean {
