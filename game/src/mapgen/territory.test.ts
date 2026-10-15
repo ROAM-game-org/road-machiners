@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
 import { ORCHARD_HEADING, REGION, type TerritoryDef } from '../data/region';
-import { START_KITS } from '../data/start';
 import { MAPGEN, TERRAIN } from '../data/terrain';
 import { EMPLACEMENT, FALLEN_SUN_DECKS, onOrchardRoad, PERIMETER, TERRITORIES, type Run, type TerritoryRules } from '../data/territory';
 import { deckAt, deckById } from '../sim/bridge';
@@ -13,7 +12,6 @@ import { route } from '../sim/path';
 import { ROAD_INDEX } from '../sim/road-index';
 import { hazardZones, isLootSpot, landingStrips, reactorPos, territoryAt, territoryCaches, territoryEntries, territoryOfStock, territoryPieces, territoryRoads, type BakedPiece, type LandingStrip } from '../sim/territory';
 import { groundAt, isCliff, type BakedProp, type Terrain } from '../sim/terrain';
-import { newWorld } from '../sim/world';
 import { angleDiff, dist, lerp, segmentDist, type Vec } from '../sim/vec';
 import { TEST_MAP } from '../test/map';
 import { footprintRelief, groundForTerritories, newDraft, tileSteepness, type MapDraft } from './bake';
@@ -22,7 +20,7 @@ import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_TRACK } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, ruleRng, tileCenter, tileOf, tilesWithin } from './oldworld';
 import { TERRITORY_SEED_OFFSET, territoryLayer } from './territory';
 import { budget } from '../test/budget';
-import { defaultSetup } from '../sim/settings';
+import { standardWorld } from '../test/world-cache';
 import { ICARUS_DECKS } from '../sim/bridge';
 import { icarusAtlas } from '../sim/atlas';
 import { ICARUS_KEY } from '../sim/atlas';
@@ -155,7 +153,7 @@ describe('the territory layer', () => {
   });
 
   it('gives each cache and field spot one stock after world creation', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const spots = w.obstacles.filter((o) => isLootSpot(o) && territoryAt(o.pos)?.id === 'fallen-sun');
     expect(spots).toHaveLength(24);
     for (const o of spots) expect(w.salvage.filter((s) => s.id === o.id), o.id).toHaveLength(1);
@@ -204,7 +202,7 @@ describe('the territory layer', () => {
   });
 
   it('lets a truck drive from each road to the side of every cache and field spot', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const spots = w.obstacles.filter((o) => isLootSpot(o) && siteGap(fallenSun, o.pos) < 0);
     const reach = (o: (typeof spots)[number]) => (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
     for (const entry of territoryEntries(t)) {
@@ -216,7 +214,7 @@ describe('the territory layer', () => {
   });
 
   it('lets a truck drive through the cage from end to end', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const cage = pieces.find((p) => p.look === 'shipCage')!;
     const along = { x: Math.cos(cage.yaw), y: Math.sin(cage.yaw) };
     const end = (side: number): Vec => ({ x: cage.pos.x + along.x * (cage.r + 2) * side, y: cage.pos.y + along.y * (cage.r + 2) * side });
@@ -316,7 +314,7 @@ describe("the Fallen Sun's dirt roads, decks and lanes on the baked map", () => 
   });
 
   it('lets a truck drive from each road to both ends of the wing and to the run-up of every flap', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const decks = FALLEN_SUN_DECKS.map((d) => deckById(d.id));
     const wing = decks.filter((d) => d.lips.length === 0);
     const flaps = decks.filter((d) => d.lips.length > 0);
@@ -330,7 +328,7 @@ describe("the Fallen Sun's dirt roads, decks and lanes on the baked map", () => 
   }, 120_000);
 
   it('routes from each entry to a 5-tile grid of free points without long detours (IV4)', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const layer = navLayer(w.terrain, w.obstacles, 0.6);
     const hulls = pieces.flatMap((p, k) => propBoxes({ id: `piece-${k}`, pos: p.pos, r: p.r, kind: 'landmark', look: p.look, yaw: p.yaw }));
     const free = (p: Vec) => layer.blocked[Math.floor(p.y / CELL) * layer.n + Math.floor(p.x / CELL)] === 0 && hulls.every((b) => boxDistance(b, p) > 0);
@@ -570,7 +568,7 @@ describe('the orchard farm', () => {
   });
 
   it('lets a truck drive from the spur road to the side of every orchard spot and to the outer end of each road', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const found = w.obstacles.filter((o) => isLootSpot(o) && siteGap(orchard, o.pos) < 0);
     expect(found.length).toBe(farm.buildings.reduce((n, b) => n + b.poses.length, 0));
     const reach = (o: (typeof found)[number]) => (propReach(o) + ECONOMY.useRange) * ECONOMY.interactionScale;
@@ -855,7 +853,7 @@ describe('Glass Flats on the baked map', () => {
   });
 
   it('gives each of its 21 loot spots one stock after world creation (IV5)', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const spots = w.obstacles.filter((o) => isLootSpot(o) && territoryAt(o.pos)?.id === 'glass-flats');
     expect(spots).toHaveLength(21);
     for (const o of spots) expect(w.salvage.filter((s) => s.id === o.id), o.id).toHaveLength(1);
@@ -901,7 +899,7 @@ describe('Glass Flats on the baked map', () => {
   });
 
   it('lets a truck drive from each road to the side of every loot spot, the cache in the nozzle mouth included (IV3)', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const spots = w.obstacles.filter((o) => isLootSpot(o) && siteGap(flats, o.pos) < 0);
     const nozzle = flatsPieces.find((p) => p.look === 'engineNozzle')!;
     const mouth = spots.find((o) => o.kind === 'landmark' && o.look === wreck.cacheLook && dist(o.pos, nozzle.pos) < nozzle.r);
