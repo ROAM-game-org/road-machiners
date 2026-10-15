@@ -59,7 +59,7 @@ function parseEvent(token) {
 }
 
 const silentVoice = { fadeOut: () => {}, cut: () => {} };
-const output = { voice: () => silentVoice, fill: () => {} };
+const output = { voice: () => silentVoice, fill: () => {}, lean: () => silentVoice };
 
 function play(session, e) {
   if (e.name === 'dense') session.denseTurn(e.at);
@@ -90,7 +90,9 @@ const trimText = (level) => `${(20 * Math.log10(level)).toFixed(1)} dB`;
 function printBlocks(session) {
   console.log('Blocks');
   console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} ${pad('trim', 8)} odds`);
-  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.odds}${p.guitars ? '  [guitars pushed]' : ''}`);
+  for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.odds}`);
+  console.log('\nGuitar pushes');
+  for (const l of session.leans) console.log(`  ${time(l.from)} to ${time(l.to)}  from bar ${l.bar}`);
 }
 
 function printAnswers(session) {
@@ -112,7 +114,7 @@ function printSummary(session) {
   console.log('\nSummary');
   console.log(`  bars per role: ${Object.entries(bars).map(([r, b]) => `${r} ${b}`).join(', ')}`);
   console.log(`  ${blocks.filter((p) => p.join === 'jump').length} jumps in ${blocks.length} blocks`);
-  console.log(`  guitar pushes: ${blocks.filter((p) => p.guitars).length}`);
+  console.log(`  guitar pushes: ${session.leans.length}`);
   console.log(`  drum fills: ${stabs} stabs and ${session.pushes.length - stabs} tail hits`);
 }
 

@@ -82,8 +82,10 @@ fillLevel.connect(songLevel);
 const guitarLevel = ctx.createGain();
 guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
 guitarLevel.connect(songLevel);
+const songDuck = ctx.createGain();
+songDuck.connect(songLevel);
 const PARTS: Record<Part, { buffer: AudioBuffer; out: AudioNode }> = {
-  song: { buffer: songBuffer, out: songLevel },
+  song: { buffer: songBuffer, out: songDuck },
   guitars: { buffer: guitarBuffer, out: guitarLevel },
 };
 
@@ -143,7 +145,26 @@ function fill(offset: number, at: number, length: number, level: number): void {
   src.start(at - seam, offset - seam, length + 2 * seam);
 }
 
-const output: BlockOutput = { voice, fill };
+function lean(offset: number, at: number, length: number, songScale: number, level: number): VoiceHandle {
+  const seam = SCORE_BLOCKS.seamSeconds;
+  const guitars = voice("guitars", offset, at, length, seam, level);
+  const duck = songDuck.gain;
+  duck.setValueAtTime(1, at - seam);
+  duck.linearRampToValueAtTime(songScale, at + seam);
+  duck.setValueAtTime(songScale, at + length - seam);
+  duck.linearRampToValueAtTime(1, at + length + seam);
+  return {
+    fadeOut: guitars.fadeOut,
+    cut: (t) => {
+      guitars.cut(t);
+      duck.cancelScheduledValues(t - seam);
+      duck.setValueAtTime(t > at ? songScale : 1, t - seam);
+      duck.linearRampToValueAtTime(1, t + seam);
+    },
+  };
+}
+
+const output: BlockOutput = { voice, fill, lean };
 const session = new BlockSession(song, output, Math.random);
 let auto: Auto = "off";
 let nextTurn = 0;
@@ -301,7 +322,7 @@ function drawJump(p: Played, top: number, height: number): void {
 function drawGuitars(): void {
   const top = laneTop("guitars");
   g.fillStyle = ROLE_INK.solo;
-  for (const p of session.played) if (p.guitars && p.end > p.start) g.fillRect(xOf(p.start), top + 8, xOf(p.end) - xOf(p.start) - 1, laneHeight("guitars") - 16);
+  for (const l of session.leans) if (l.to > l.from) g.fillRect(xOf(l.from), top + 8, xOf(l.to) - xOf(l.from) - 1, laneHeight("guitars") - 16);
 }
 
 function drawDrums(): void {
@@ -336,7 +357,7 @@ function drawGutter(): void {
   const readouts: Record<LaneId, string> = {
     events: String(session.fired.length),
     song: playing?.label ?? "",
-    guitars: playing?.guitars ? "pushed" : "",
+    guitars: session.leans.some((l) => l.from <= viewNow && viewNow < l.to) ? "pushed" : "",
     drums: String(session.pushes.length),
     heat: session.heatAt(viewNow).toFixed(2),
   };

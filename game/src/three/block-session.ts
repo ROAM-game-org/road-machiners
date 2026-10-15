@@ -1,5 +1,5 @@
 import { BEATS_PER_BAR, MIX, SCORE_BLOCKS } from "../data/sounds";
-import { BlockSequencer, blocksOf, Fading, SoundDesigner, type Block, type Hit, type LineId, type Role, type Section } from "../audio/designer";
+import { BlockSequencer, blocksOf, Fading, SoundDesigner, WHOLE_SECTIONS, type Block, type Hit, type LineId, type Role, type Section } from "../audio/designer";
 import type { AccentCue } from "./sound";
 
 export type BlockSong = {
@@ -17,8 +17,10 @@ export type VoiceHandle = { fadeOut(at: number, fade: number): void; cut(at: num
 export type BlockOutput = {
   voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle;
   fill(offset: number, at: number, length: number, level: number): void;
+  lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number): VoiceHandle;
 };
-export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; guitars: boolean; level: number };
+export type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: VoiceHandle[]; heat: number; odds: string; join: string; level: number };
+export type Lean = { from: number; to: number; bar: number; handle: VoiceHandle };
 export type Fired = { cue: AccentCue; at: number; result: string | null };
 export type Push = { at: number; line: LineId; stab: boolean; fillBar: number };
 
@@ -53,7 +55,8 @@ export class BlockSession {
   private beats = new Map<number, Fired[]>();
   private nextAt = 0;
   private gridStart = 0;
-  private guitarsWanted = false;
+  readonly leans: Lean[] = [];
+  private leanWanted = false;
   private targetPower: number;
 
   constructor(
@@ -119,12 +122,16 @@ export class BlockSession {
     this.sequencer = null;
     this.designer = null;
     this.beats.clear();
-    this.guitarsWanted = false;
+    this.leanWanted = false;
+    for (const l of this.leans.filter((x) => x.to > at)) {
+      l.handle.cut(at);
+      l.to = Math.max(l.from, at);
+    }
     const offset = this.barTime(this.song.end);
     const length = this.song.length - offset;
     const level = this.levelOf(this.song.end, 1, false);
     const voices = [this.out.voice("song", offset, at, length, SCORE_BLOCKS.seamSeconds, level)];
-    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", guitars: false, level });
+    this.played.push({ label: "end", role: "end", bar: this.song.end, bars: 1, start: at, end: at + length, voices, heat: this.heat.read(at), odds: "", join: "end", level });
     return at;
   }
 
@@ -154,6 +161,7 @@ export class BlockSession {
       this.nextAt = this.schedule(this.sequencer.next(h), this.nextAt, h);
     }
     this.answerDue(now);
+    this.startLean(now);
     for (const h of this.designer.step(now, now + SCORE_BLOCKS.aheadSeconds, false, this.heat.read(now))) this.push(h, false, now);
   }
 
@@ -173,13 +181,46 @@ export class BlockSession {
     const join = this.joinOf(block);
     const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
     if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when, fade);
-    const level = this.levelOf(block.bar, block.bars, this.guitarsWanted);
+    const level = this.levelOf(block.bar, block.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
-    if (this.guitarsWanted) voices.push(this.out.voice("guitars", offset, when, length, fade, level));
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, guitars: this.guitarsWanted, level });
-    this.guitarsWanted = false;
+    this.played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: this.oddsText(), join, level });
     return when + length;
+  }
+
+  private leanOpen(at: number): boolean {
+    return this.leans.some((l) => l.from <= at && at < l.to);
+  }
+
+  private startLean(now: number): void {
+    if (!this.leanWanted) return;
+    const at = this.barLineAfter(now + SCORE_BLOCKS.eventLeadSeconds);
+    const block = this.played.find((p) => p.role !== "end" && p.start <= at + 1e-6 && at < p.end - 1e-6);
+    if (!block) return;
+    this.leanWanted = false;
+    const barSeconds = (block.end - block.start) / block.bars;
+    const bar = block.bar + Math.round((at - block.start) / barSeconds);
+    const bars = this.phraseEndBar(bar) - bar;
+    const plain = this.levelOf(bar, bars, false);
+    const leaned = this.levelOf(bar, bars, true);
+    const handle = this.out.lean(this.barTime(bar), at, bars * barSeconds, leaned / plain, leaned);
+    this.leans.push({ from: at, to: at + bars * barSeconds, bar, handle });
+  }
+
+  private phraseEndBar(bar: number): number {
+    const s = this.song.sections.find((x) => x.from <= bar && bar < x.from + x.bars);
+    if (!s) throw new Error(`Bar ${bar} is in no section`);
+    const end = s.from + s.bars;
+    if (WHOLE_SECTIONS.has(s.role)) return end;
+    const phrase = SCORE_BLOCKS.arc.phraseBars;
+    return Math.min(end, s.from + Math.ceil((bar - s.from + 1) / phrase) * phrase);
+  }
+
+  private barLineAfter(t: number): number {
+    const p = this.gridBlock(t);
+    if (!p) throw new Error("A bar line was asked for with no block playing");
+    const bar = (p.end - p.start) / p.bars;
+    return p.start + Math.ceil((t - p.start) / bar - 1e-6) * bar;
   }
 
   private cut(p: Played, at: number): void {
@@ -210,7 +251,7 @@ export class BlockSession {
   }
 
   private answer(winner: Fired, beat: number, now: number): void {
-    if (HEAVY.has(winner.cue)) this.guitarsWanted = true;
+    if (HEAVY.has(winner.cue) && !this.leanOpen(beat)) this.leanWanted = true;
     const offer = this.designer!.offer(winner.cue, MIX.score.accents[winner.cue], beat, 0, this.heat.read(beat));
     winner.result = offer.result;
     if (offer.stab) this.push(offer.stab, true, now);
