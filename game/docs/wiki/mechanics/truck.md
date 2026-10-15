@@ -38,7 +38,7 @@ Utilities are yellow deck parts with one job each. Six are active: the Sprout, C
 
 The patcher crane speeds up refits and the roadside patches its truck does for others by half, so they take two thirds as long. A roadside patch takes twice as long as field repair of the same parts, or 4/3 as long with a crane. Field repair of the truck's own parts does not use the crane. A patch's price does not depend on it. The scraper's knife makes searches find hidden loot faster, see [Economy](economy.md), and stripping a part pays 65% of its value instead of half.
 
-The claymore ram is a ram with an explosive charge. It mounts and protects like any ram, and it also takes a slot in the utility row to be armed. Its blast is in [Turns, driving and combat](turns.md). After a blast it needs 20 turns before it can be armed again.
+The claymore ram is a ram with an explosive charge. It mounts and protects like any ram, and it also takes a slot in the utility row to be armed, or disarmed by order. Its blast is in [Turns, driving and combat](turns.md). After a blast it needs 20 turns before it can be armed again.
 
 No part is better than another of its kind at everything but price. Each has one job and one weakness, and a content test enforces it.
 

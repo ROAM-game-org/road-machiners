@@ -303,11 +303,17 @@ function coreWreckScrap(vehicle: Vehicle, core: PartInstance[]): number {
 }
 
 export function dropHaul(world: World, vehicle: Vehicle, items: GridItem[]): SalvageStock {
-  const id = `cargo-${vehicle.id}-${world.turn}`;
+  const id = freeStockId(world, `cargo-${vehicle.id}-${world.turn}`);
   for (const item of items) if (!vehicle.items.includes(item)) throw new Error(`${vehicle.id} does not hold haul item ${item.id}`);
   const pile = addVehicleStock(world, vehicle, id, {}, []);
   fillPile(world, vehicle, pile, items);
   return pile;
+}
+
+function freeStockId(world: World, base: string): string {
+  let id = base;
+  for (let n = 2; world.salvage.some((stock) => stock.id === id); n++) id = `${base}-${n}`;
+  return id;
 }
 
 export function dumpOnPile(world: World, vehicle: Vehicle, item: GridItem): SalvageStock {
@@ -811,4 +817,12 @@ export function oldSpotOf(stock: { id: string }): { type: OldPlaceType; propId: 
 
 export function oldSpotsNear(world: World, pos: Vec, range: number): OldSpotPick[] {
   return oldSpotPicks({ hash: world.mapHash, terrain: world.terrain }).filter((p) => dist(p.pos, pos) <= range);
+}
+
+const meanOf = ([lo, hi]: LootRange): number => (lo + hi) / 2;
+
+export function meanLootValue(table: LootTable): number {
+  const goods = Object.entries(table.goods).reduce((sum, [good, range]) => sum + meanOf(range) * GOODS[good].value, 0);
+  const parts = meanOf(table.parts) * GOODS.parts.value;
+  return goods + parts + meanOf(table.fuel) * ECONOMY.supplyPrice.fuel + meanOf(table.supplies) * ECONOMY.supplyPrice.supplies;
 }

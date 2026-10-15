@@ -54,7 +54,7 @@ describe('ship', () => {
     const post = readState(f.ctx.statePath).releasePost;
     expect(post).toEqual({ issue: 11, day: '2026-09-29', changelog: '- [#3] Trucks are faster.', screenshot: join(ROOT, 'release-posts', '2026-09-29', 'screenshot.png'), postId: null, draft: null });
     expect(readFileSync(post!.screenshot, 'utf8')).toBe('png');
-    expect(f.calls.some((call) => call.startsWith('message committee') && call.includes('Hermes drafts the public post'))).toBe(true);
+    expect(f.calls.filter((call) => call.startsWith('message committee'))).toEqual(['message committee - Release 2026-09-29 shipped with 1 changes.']);
   });
 
   it('fails on a dev merge conflict before the build, the butler push and any public post', async () => {
@@ -72,7 +72,7 @@ describe('ship', () => {
     await ship(f.ctx, 11, 'Ann');
     expect(f.calls).toContain('close completed');
     expect(f.calls).toContain('move Done');
-    expect(f.calls.at(-1)).toBe('message committee - Release 2026-09-29 shipped with 1 changes. Hermes drafts the public post next.');
+    expect(f.calls.at(-1)).toBe('message committee - Release 2026-09-29 shipped with 1 changes.');
     const state = readState(f.ctx.statePath);
     expect(state.release).toBeNull();
     expect(state.lastRelease).toBe('2026-09-29T10:00:00.000Z');

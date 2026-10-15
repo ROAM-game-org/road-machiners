@@ -12,6 +12,8 @@ export const TOUCH = {
   longPressMs: 500,
 };
 
+declare const __SFX_BYTES__: Record<string, number>;
+export const SFX_BYTES = __SFX_BYTES__;
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 

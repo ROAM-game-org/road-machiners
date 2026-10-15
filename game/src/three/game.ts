@@ -91,6 +91,7 @@ import { installTouchTips } from "../ui/touch-tip";
 import { TouchGestures, type TouchIntent } from "./touch-map";
 import { touchTapAction } from "./touch-tap";
 import { PickRing } from "./render/pick-ring";
+import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
@@ -143,6 +144,7 @@ export class Game {
   private readonly soundRing = new SoundRingView();
   private readonly beaconPulse = new BeaconPulseView();
   private readonly path: PathView;
+  private readonly rescueAreas: RescueAreaView;
   private readonly fx: Fx3D;
   private readonly truckFx: TruckFx;
   private readonly controls: TruckControls;
@@ -243,6 +245,7 @@ export class Game {
     addScatter(this.world.terrain, this.world.obstacles, propScope);
     this.fog = new FogView(this.world, groundChunks, this.sightLimit);
     this.path = new PathView(this.world.terrain);
+    this.rescueAreas = new RescueAreaView(this.world.terrain);
     this.shade = new ShadeView(this.world, groundChunks, this.play);
     this.weather = new WeatherView(this.world);
     this.hoverArcs = new HoverArcsView(overlay, this.rig);
@@ -253,6 +256,7 @@ export class Game {
       this.weather.root,
       this.zones.root,
       this.path.root,
+      this.rescueAreas.root,
       this.weaponRange.root,
       this.hoverArcs.root,
       this.contacts.root,
@@ -1192,6 +1196,7 @@ export class Game {
     const steer = !hide && playerCanAct(this.world);
     this.zones.root.visible = steer;
     this.path.show(steer, this.displayWorld(), this.modalOpen());
+    this.rescueAreas.show(this.world, { width: window.innerWidth, height: window.innerHeight });
     this.weaponRange.root.visible = false;
     this.hoverArcs.follow(this.displayWorld(), this.inspected(), this.frames, this.modalOpen());
     this.markers.place(this.frames, hide, this.modalOpen());

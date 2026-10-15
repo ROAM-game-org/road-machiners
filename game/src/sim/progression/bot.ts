@@ -23,6 +23,7 @@ import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells
 import { cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
+import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
 import { CONTRACTS, shopDef, SHOPS } from '../../data/market';
 import { heatAt } from '../sun';
 import { canLoot, downedHere, downedNear, needsSearch, salvageHere, takeAllLoot } from '../locations';
@@ -151,7 +152,10 @@ function goalOf(world: World, archetype: Exclude<Policy, RoadPolicy>, options: B
 }
 
 
-const DEFENDER_REPLIES: Partial<Record<TopicId, LineId>> = { demand: 'comeAndGetIt', surrender: 'comeAndGetIt' };
+const ENCOUNTER_REPLIES: Partial<Record<TopicId, LineId>> = {
+  tale: 'goOnThen', salvageTip: 'noThanks', challenge: 'notLookingForTrouble', courierShort: 'noCharge', courierGrudge: 'letsCallItEven',
+};
+const DEFENDER_REPLIES: Partial<Record<TopicId, LineId>> = { ...ENCOUNTER_REPLIES, demand: 'comeAndGetIt', surrender: 'comeAndGetIt' };
 const HUNTER_REPLIES: Partial<Record<TopicId, LineId>> = { ...DEFENDER_REPLIES, truceOffer: 'noWeFinishThis', mercyPlea: 'standDownAndLet' };
 const REFUSE_TOW: Partial<Record<TopicId, LineId>> = { tow: 'noThanks', towFree: 'noThanks' };
 const YIELD_CARGO: LineId = 'fineTakeIt';
@@ -483,7 +487,9 @@ function traderGoal(o: Orders): void {
 function haulerGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
-  if (!takeHaul(o) && !trade(o) && !scavenge(o, false)) checkNextBoard(o);
+  const escort = heldEscort(o.world);
+  if (escort) return followClient(o, escort);
+  if (!takeHaul(o) && !takeEscort(o) && !trade(o) && !scavenge(o, false)) checkNextBoard(o);
 }
 
 type Haul = Extract<Contract, { kind: 'haul' }>;
@@ -505,6 +511,23 @@ function takeHaul(o: Orders): boolean {
   const pay = (c: Haul) => c.reward / estimateTurns(here, siteOf(c.to).pos);
   const offers = shopState(o.world, shop).contracts.filter((c): c is Haul => c.kind === 'haul' && c.deadline > o.world.turn && c.units <= freeCells(o.me) && fuelReaches(o.world, siteOf(c.to)));
   const best = offers.reduce<Haul | null>((top, c) => (!top || pay(c) > pay(top) ? c : top), null);
+  if (best) o.run((w) => acceptContract(w, best.id));
+  return best !== null;
+}
+
+function followClient(o: Orders, job: EscortContract): void {
+  const client = o.world.vehicles.find((v) => v.id === job.client);
+  if (!client || dist(o.me.pos, client.pos) <= ESCORT_KEEP_GAP) return;
+  driveTo(o, besideStop(o.world, client.pos, vehicleStats(o.world, client).radius));
+}
+
+const ESCORT_KEEP_GAP = 8;
+
+function takeEscort(o: Orders): boolean {
+  const shop = shopAt(o.world);
+  if (!shop || o.world.player.money < 0) return false;
+  const offers = shopState(o.world, shop).contracts.filter((c): c is EscortContract => c.kind === 'escort' && escortBlocked(o.world, c) === null && fuelReaches(o.world, siteOf(c.to)));
+  const best = offers.reduce<EscortContract | null>((top, c) => (!top || c.reward > top.reward ? c : top), null);
   if (best) o.run((w) => acceptContract(w, best.id));
   return best !== null;
 }

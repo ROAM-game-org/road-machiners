@@ -1,6 +1,7 @@
 
 import { Drawers } from "./drawers";
 import { phoneMode, touchMode } from "./input-mode";
+import { escortStatus, type EscortContract } from "../sim/escort-job";
 import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
 import { markError } from "../sim/detect";
 import { modeRules } from "../sim/settings";
@@ -11,6 +12,7 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
+  escortStatusText,
   heldContractDue,
   contractSummary,
   eventText,
@@ -420,7 +422,7 @@ export class Hud {
           "div",
           { class: "contract-line" },
           el("span", {}, contractSummary(c)),
-          el("span", { class: "num" }, heldContractDue(c)),
+          c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
     );
@@ -690,4 +692,8 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function escortLine(w: World, c: EscortContract): HTMLElement {
+  return el("span", { class: escortStatus(w, c) === "apart" ? "num bad" : "num dim" }, escortStatusText(w, c));
 }
