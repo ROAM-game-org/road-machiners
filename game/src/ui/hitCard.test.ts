@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { partDef, type WeaponDef } from '../data/parts';
-import { fireBlock, hitOdds } from '../sim/combat';
+import { fireBlock, fireWeapons, hitOdds } from '../sim/combat';
 import { makePart } from '../sim/factory';
 import { mountPart } from '../sim/inventory';
 import { corePart } from '../sim/grid';
@@ -151,6 +151,24 @@ describe('hover card rows', () => {
     mine.part.hp = 0;
     const row = hitCardRows(world, them.id)!.mine[0];
     expect([row.odds, en(row.text), row.tip]).toEqual([null, 'disabled', null]);
+  });
+
+  it('shows a chance for a gun that fires and a block for a gun that fires no shot', () => {
+    const { world, me, them, theirs } = createDuel();
+    them.weaponOrders[theirs.part.id] = { targetId: me.id, aim: 'body' };
+    const shotsFrom = () => {
+      world.events = [];
+      fireWeapons(world);
+      return world.events.filter((e) => e.t === 'shot' && e.shooter === them.id).length;
+    };
+    expect(hitCardRows(world, them.id)!.theirs[0].odds).not.toBeNull();
+    expect(shotsFrom()).toBeGreaterThan(0);
+    const gun = () => vehicleStats(world, them).weapons[0];
+    for (let quarter = 1; quarter < 4 && fireBlock(world, them, gun(), me) === null; quarter++) them.heading += Math.PI / 2;
+    expect(fireBlock(world, them, gun(), me)).not.toBeNull();
+    them.weaponOrders[theirs.part.id] = { targetId: me.id, aim: 'body' };
+    expect(hitCardRows(world, them.id)!.theirs[0].odds).toBeNull();
+    expect(shotsFrom()).toBe(0);
   });
 
   it('shows no card for my own truck', () => {
