@@ -5,7 +5,7 @@ import { integrationChecks, type Revision } from './integration';
 const FULL: Step[] = ['typecheck', 'suite', 'playtest', 'build'];
 
 function evidence(commit: string, ran: Step[] = FULL): Evidence {
-  return { tree: `tree-${commit}`, commit, toolchain: 'k', ran, reused: [], by: 'testing', issue: 7, at: '' };
+  return { tree: `tree-${commit}`, commit, toolchain: 'k', ran, reused: [], by: 'verify', issue: 7, at: '' };
 }
 
 function revision(commit: string, passed: Evidence | null = evidence(commit)): Revision {
@@ -26,8 +26,14 @@ describe('integrationChecks', () => {
     expect(plan).toMatchObject({ steps: [], reused: ['merged0'] });
   });
 
-  it('runs only the typecheck and the cached suite on a clean merge of two checked revisions with no shared file', () => {
+  it('runs only the typecheck and the cached suite on a clean merge of two checked and played revisions with no shared file', () => {
     expect(integrationChecks(base)).toMatchObject({ steps: ['typecheck', 'suite'], reused: ['hotfix0', 'main000'] });
+  });
+
+  it('adds the playtest when a side passed no playtest itself, so skipped playtests never chain across merges', () => {
+    const plan = integrationChecks({ ...base, main: revision('main000', evidence('main000', ['typecheck', 'suite'])) });
+    expect(plan.steps).toEqual(['typecheck', 'suite', 'playtest']);
+    expect(plan.reason).toBe('the merge was clean, but no playtest passed on main000');
   });
 
   it('adds the playtest when both sides changed a same file', () => {

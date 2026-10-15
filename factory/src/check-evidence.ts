@@ -7,7 +7,7 @@ import { withLockSync } from './lock';
 export type Step = 'typecheck' | 'suite' | 'playtest' | 'build';
 export const FULL_STEPS: Step[] = ['typecheck', 'suite', 'playtest', 'build'];
 
-export type Evidence = { tree: string; commit: string; toolchain: string; ran: Step[]; reused: string[]; by: string; issue: number | null; at: string };
+export type Evidence = { tree: string; commit: string; toolchain: string; ran: Step[]; reused: string[]; by: 'verify' | 'ship' | 'approve'; issue: number | null; at: string };
 
 const KEEP_DAYS = 30;
 const LOCK_MS = 60_000;
@@ -30,8 +30,8 @@ function readStore(home: string): Record<string, Evidence> {
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, 'utf8')) as Record<string, Evidence>;
-  } catch (error) {
-    throw new Error(`${path} is not valid JSON, so no check evidence can be reused: ${error instanceof Error ? error.message : String(error)}`);
+  } catch {
+    return {};
   }
 }
 

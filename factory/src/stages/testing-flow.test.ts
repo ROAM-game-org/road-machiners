@@ -252,7 +252,7 @@ describe('testing in one job', () => {
     labels = ['hotfix', 'bug'];
     const ctx = fakeCtx((run, index) => { if (index === 1) posts(run); });
     await runVerify(ctx, 7);
-    expect(evidenceFor(home, 'tree-abc123', currentToolchain(ctx))).toMatchObject({ commit: 'abc123', ran: ['typecheck', 'suite', 'playtest', 'build'], by: 'testing', issue: 7 });
+    expect(evidenceFor(home, 'tree-abc123', currentToolchain(ctx))).toMatchObject({ commit: 'abc123', ran: ['typecheck', 'suite', 'playtest', 'build'], by: 'verify', issue: 7 });
     expect(runs[0]!.prompt).toContain('This is the hardening stage');
     expect(runs[0]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.prompt).toContain('This is the testing stage');

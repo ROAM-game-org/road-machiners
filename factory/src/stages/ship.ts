@@ -14,6 +14,8 @@ import { agentLog, fillPrompt, resetOutputs } from './common';
 import { checkAndPush, landingAgent, mergeIn, type Landing } from './merge';
 import { queueIncidents } from './incident';
 import { mergeResolving } from './merge-resolve';
+import { recordPassed } from './integration';
+import { FULL_STEPS } from '../check-evidence';
 import { candidateDir, changeLines, openReleaseTasks, releaseFeatures, releaseLog, requireRelease, type Feature } from './release-common';
 
 export type ItchKeys = { itchTarget: string; butlerKey: string };
@@ -51,6 +53,7 @@ async function mergeRelease(ctx: Ctx, release: ReleaseState): Promise<void> {
   const land: Landing = { stage: 'ship', dir, into: 'main', guardAgainst: ['main', release.branch], agent: landingAgent(ctx, 'ship', dir, 'main') };
   const conflicts = await mergeIn(ctx, land, { branch: release.branch, message: `Release ${release.day}`, reason: `release ${release.day} ships` });
   await checkAndPush(ctx, land, conflicts, (failure) => fillPrompt('ship-fix', { release: release.branch, failure }));
+  await recordPassed(ctx, await ctx.repo.fetchFromWork(dir, 'main'), { ran: FULL_STEPS, reused: [], by: 'ship', issue: null });
 }
 
 export function publish(ctx: Ctx, keys: ItchKeys, logName: string): Promise<void> {

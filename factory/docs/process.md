@@ -155,8 +155,8 @@ The committee approves the hotfix code it played. When only `main` moved since, 
 - The merge holds the hotfix's exact game code, since `main` brought nothing to `game/` that the hotfix lacks, like a factory change: no check runs.
 - The merged code has evidence already: no check runs.
 - The hotfix or `main` has no passing typecheck and suite on record: the full checks run on the merge, since skipping cannot be shown safe.
-- The merge conflicted, or both sides changed a same file: the typecheck, the cached suite and the playtest run on the merge.
-- Otherwise the merge was clean with no shared file: only the typecheck and the cached suite run. The cached suite runs only the test files whose inputs the merge changed from a passing combination, so it often runs none.
+- The merge conflicted, both sides changed a same file, or a side's evidence holds no playtest of its own: the typecheck, the cached suite and the playtest run on the merge. So a skipped playtest never carries over to the next merge.
+- Otherwise the merge was clean with no shared file, and each side passed its own playtest: only the typecheck and the cached suite run. The cached suite runs only the test files whose inputs the merge changed from a passing combination, so it often runs none.
 - The build runs at publish as before. A pass records evidence for the merge and pushes it with `dev` in one atomic push, only while `main` and the branch are still at the tips the checks saw. A moved tip starts the rule again on the new tips, and the evidence keeps that cheap.
 - A real failure ships nothing. The card goes back to Testing with the end of the log, and the committee approves the fixed build again. Timeouts alone run again, as elsewhere.
 - The issue comment and the committee message name the checks that ran on the merge, with the suite's ran and skipped file counts, and the commits whose checks were reused. They never call a reused check a run.

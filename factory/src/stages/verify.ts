@@ -74,7 +74,7 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
     return error instanceof Error ? error.message : String(error);
   }
   const failure = await postCheckpoint(ctx, issue, base, build, kind);
-  if (failure === null && kind === 'full') await recordPassed(ctx, build, { ran: FULL_STEPS, reused: [], by: 'testing', issue });
+  if (failure === null && kind === 'full') await recordPassed(ctx, build, { ran: FULL_STEPS, reused: [], by: 'verify', issue });
   return failure;
 }
 

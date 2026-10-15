@@ -23,13 +23,15 @@ export function integrationChecks({ merged, hotfix, main, conflicted, shared }: 
   if (merged.evidence !== null) return { steps: [], reused: [merged.evidence.commit], reason: `the same merged code passed its checks at ${short(merged.evidence.commit)}` };
   const unchecked = [hotfix, main].filter((revision) => !checked(revision)).map((revision) => short(revision.commit));
   if (unchecked.length > 0) return { steps: FULL_STEPS, reused: [], reason: `no passing checks are on record for ${unchecked.join(' and ')}, so skipping any check cannot be shown safe` };
-  return { ...targetedChecks(conflicted, shared), reused: [hotfix.commit, main.commit] };
+  const unplayed = [hotfix, main].filter((revision) => !revision.evidence?.ran.includes('playtest')).map((revision) => short(revision.commit));
+  return { ...targetedChecks(conflicted, shared, unplayed), reused: [hotfix.commit, main.commit] };
 }
 
-function targetedChecks(conflicted: boolean, shared: string[]): Pick<IntegrationPlan, 'steps' | 'reason'> {
+function targetedChecks(conflicted: boolean, shared: string[], unplayed: string[]): Pick<IntegrationPlan, 'steps' | 'reason'> {
   if (conflicted) return { steps: ['typecheck', 'suite', 'playtest'], reason: 'the merge conflicted and an agent resolved it' };
   if (shared.length > 0) return { steps: ['typecheck', 'suite', 'playtest'], reason: `the hotfix and main both changed ${shared.join(', ')}` };
-  return { steps: ['typecheck', 'suite'], reason: 'the merge was clean and the hotfix and main changed no file in common' };
+  if (unplayed.length > 0) return { steps: ['typecheck', 'suite', 'playtest'], reason: `the merge was clean, but no playtest passed on ${unplayed.join(' and ')}` };
+  return { steps: ['typecheck', 'suite'], reason: 'the merge was clean, the hotfix and main changed no file in common, and each passed its own playtest' };
 }
 
 export function currentToolchain(ctx: Ctx): string {
@@ -42,8 +44,12 @@ export async function revisionOf(ctx: Ctx, commit: string, toolchain: string): P
 }
 
 export async function recordPassed(ctx: Ctx, commit: string, record: Pick<Evidence, 'ran' | 'reused' | 'by' | 'issue'>): Promise<void> {
-  const tree = await ctx.repo.treeOf(commit, GAME_DIR);
-  recordEvidence(ctx.cfg.home, { tree, commit, toolchain: currentToolchain(ctx), ...record, at: ctx.now().toISOString() }, ctx.now());
+  try {
+    const tree = await ctx.repo.treeOf(commit, GAME_DIR);
+    recordEvidence(ctx.cfg.home, { tree, commit, toolchain: currentToolchain(ctx), ...record, at: ctx.now().toISOString() }, ctx.now());
+  } catch (error) {
+    ctx.log(record.by, record.issue, `the check evidence of ${commit.slice(0, 7)} was not recorded, so a later hotfix may run these checks again: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 const STEP_NAMES: Record<Step, string> = { typecheck: 'the typecheck', suite: 'the suite', playtest: 'the playtest', build: 'the build' };

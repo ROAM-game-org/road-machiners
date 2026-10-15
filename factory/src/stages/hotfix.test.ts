@@ -56,7 +56,7 @@ function integrating(f: Fake, rounds: Round[], failing = false) {
 }
 
 function passed(f: Fake, commit: string, toolchain = currentToolchain(f.ctx), ran: Step[] = FULL) {
-  recordEvidence(f.ctx.cfg.home, { tree: `tree-${commit}`, commit, toolchain, ran, reused: [], by: 'testing', issue: 7, at: f.ctx.now().toISOString() }, f.ctx.now());
+  recordEvidence(f.ctx.cfg.home, { tree: `tree-${commit}`, commit, toolchain, ran, reused: [], by: 'verify', issue: 7, at: f.ctx.now().toISOString() }, f.ctx.now());
 }
 
 const comment = (f: Fake) => f.calls.find((call) => call.startsWith('comment Approved by'))!;
@@ -100,7 +100,7 @@ describe('hotfix integration with main', () => {
       expected: { main: 'm2', 'factory/issue-7': 'h1' },
     }]);
     expect(evidenceFor(f.ctx.cfg.home, 'tree-r1', currentToolchain(f.ctx))).toMatchObject({ commit: 'r1', ran: ['typecheck', 'suite'], reused: ['h1', 'm2'], by: 'approve', issue: 7 });
-    expect(comment(f)).toContain('On the merge with main, r1, the factory ran the typecheck and the suite (it ran 2 test files and skipped 224 that already passed on the same inputs), since the merge was clean and the hotfix and main changed no file in common. It reuses the passing checks of h1 and m2.');
+    expect(comment(f)).toContain('On the merge with main, r1, the factory ran the typecheck and the suite (it ran 2 test files and skipped 224 that already passed on the same inputs), since the merge was clean, the hotfix and main changed no file in common, and each passed its own playtest. It reuses the passing checks of h1 and m2.');
     expect(message).toContain('It reuses the passing checks of h1 and m2.');
   });
 

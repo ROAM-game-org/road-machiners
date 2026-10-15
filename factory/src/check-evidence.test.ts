@@ -7,7 +7,7 @@ const HOME = resolve('tmp/factory-check-evidence-test');
 const NOW = new Date('2026-10-15T10:00:00Z');
 
 function entry(tree: string, toolchain: string, at = NOW.toISOString()): Evidence {
-  return { tree, commit: `c-${tree}`, toolchain, ran: ['typecheck', 'suite', 'playtest', 'build'], reused: [], by: 'testing', issue: 7, at };
+  return { tree, commit: `c-${tree}`, toolchain, ran: ['typecheck', 'suite', 'playtest', 'build'], reused: [], by: 'verify', issue: 7, at };
 }
 
 beforeEach(() => {
@@ -40,9 +40,11 @@ describe('check evidence', () => {
     expect(evidenceFor(HOME, 'new', 'k')).not.toBeNull();
   });
 
-  it('refuses a corrupt store rather than reusing nothing silently', () => {
+  it('treats a corrupt store as no evidence, so checks run, and replaces it on the next write', () => {
     writeFileSync(join(HOME, 'check-evidence.json'), '{');
-    expect(() => evidenceFor(HOME, 't', 'k')).toThrow(/not valid JSON/);
+    expect(evidenceFor(HOME, 't', 'k')).toBeNull();
+    recordEvidence(HOME, entry('t', 'k'), NOW);
+    expect(evidenceFor(HOME, 't', 'k')?.commit).toBe('c-t');
   });
 
   it('reads the last cached suite count from a checks log', () => {
