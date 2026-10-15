@@ -1,5 +1,3 @@
-// The stuck label and the stuck sweep. Every tick the sweep records why each open stuck card waits, repairs only mechanical causes
-// with the sanctioned retry and repair-clone, and releases a timed-out merge batch half at a time. docs/operations.md#stuck-sweep has the rules.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { summarizeError } from './fail';
@@ -14,10 +12,6 @@ export type SweepInput = { state: FactoryState; cards: Card[]; now: Date; diskOk
 type Records = Record<string, StuckRecord>;
 
 const CLONE_COLUMNS: Column[] = ['Design', 'Implementation', 'Testing', 'Hardening'];
-const BATCH_DOWN = /^(timed out after \d+ minutes|job process died without finishing)/;
-const GITHUB_DOWN = /\bgh\b.*(timed out after|rate limit|HTTP 5\d\d|connection (reset|refused)|could not resolve host|unexpected EOF)/i;
-const DISK_FULL = /no space left on device|ENOSPC/i;
-const DECISION = /budget|committee decision/i;
 const UNRECORDED = 'no failure names this card';
 const BOARD_LAG_MS = 5 * 60_000;
 
@@ -51,9 +45,9 @@ function releasedKind(input: SweepInput, prev: StuckRecord, released: string): S
 function causeOf(input: SweepInput, issue: number, prev: StuckRecord | undefined): StuckCause {
   const failure = newestFailure(input.state, issue);
   if (failure !== null) return fromFailure(issue, failure);
-  if (prev !== undefined) return { incident: prev.incident, stage: prev.stage, cause: prev.cause, log: prev.log, batch: prev.batch, since: prev.since, decision: prev.decision };
+  if (prev !== undefined) return { incident: prev.incident, stage: prev.stage, error: prev.error, cause: prev.cause, log: prev.log, batch: prev.batch, since: prev.since };
   const now = input.now.toISOString();
-  return { incident: `${issue}:unrecorded:${now}`, stage: null, cause: UNRECORDED, log: null, batch: 0, since: now, decision: false };
+  return { incident: `${issue}:unrecorded:${now}`, stage: null, error: UNRECORDED, cause: null, log: null, batch: 0, since: now };
 }
 
 function newestFailure(state: FactoryState, issue: number): Failure | null {
@@ -62,8 +56,7 @@ function newestFailure(state: FactoryState, issue: number): Failure | null {
 }
 
 function fromFailure(issue: number, failure: Failure): StuckCause {
-  const decision = failure.decision ?? DECISION.test(failure.error);
-  return { incident: `${issue}:${failure.stage}:${failure.at}`, stage: failure.stage, cause: failure.error, log: failure.log, batch: failure.batch?.length ?? 0, since: failure.at, decision };
+  return { incident: `${issue}:${failure.stage}:${failure.at}`, stage: failure.stage, error: failure.error, cause: failure.cause, log: failure.log, batch: failure.batch?.length ?? 0, since: failure.at };
 }
 
 type Unkinded = Omit<StuckRecord, 'kind'>;
@@ -76,7 +69,7 @@ function kindOf(input: SweepInput, card: Card, record: Unkinded): StuckKind {
 }
 
 function needsPerson(card: Card, record: Unkinded): boolean {
-  return record.refused !== null || record.decision || card.labels.includes(RELEASE_LABEL);
+  return record.refused !== null || record.cause === 'decision' || card.labels.includes(RELEASE_LABEL);
 }
 
 function mechanicalKind(input: SweepInput, card: Card, record: Unkinded): StuckKind {
@@ -87,7 +80,7 @@ function mechanicalKind(input: SweepInput, card: Card, record: Unkinded): StuckK
 }
 
 function isBatchDown(card: Card, record: Unkinded): boolean {
-  return card.column === 'Merging' && record.stage === 'merge' && record.batch > 1 && BATCH_DOWN.test(record.cause);
+  return card.column === 'Merging' && record.stage === 'merge' && record.batch > 1 && (record.cause === 'timeout' || record.cause === 'died');
 }
 
 function hasOpenMerge(input: SweepInput, card: Card): boolean {
@@ -95,7 +88,7 @@ function hasOpenMerge(input: SweepInput, card: Card): boolean {
 }
 
 function machineGone(input: SweepInput, record: Unkinded): boolean {
-  return GITHUB_DOWN.test(record.cause) || (input.diskOk && DISK_FULL.test(record.cause));
+  return record.cause === 'github' || (input.diskOk && record.cause === 'disk');
 }
 
 export function openMarks(home: string, issue: number): string[] {
@@ -136,7 +129,7 @@ function writeRecords(ctx: Ctx, prev: Records, next: Records): void {
   for (const [issue, record] of Object.entries(next)) {
     const old = prev[issue];
     if (old?.incident === record.incident && old.kind === record.kind) continue;
-    ctx.log('tick', Number(issue), `stuck sweep: ${record.kind}, incident ${record.incident}: ${record.cause.split('\n')[0]}`);
+    ctx.log('tick', Number(issue), `stuck sweep: ${record.kind}, incident ${record.incident}: ${record.error.split('\n')[0]}`);
   }
   for (const issue of Object.keys(prev).filter((key) => !(key in next))) ctx.log('tick', Number(issue), 'stuck sweep: no longer stuck, record dropped');
 }

@@ -122,7 +122,7 @@ function setAside(dir: string, to: string, fs: RepairFs): string {
 type Git = (dir: string, args: string[]) => Promise<{ code: number; stdout: string; stderr: string }>;
 
 function gitIn(ctx: Ctx): Git {
-  return (dir, args) => ctx.run('git', [...NO_HOOKS, ...args], { cwd: dir });
+  return (dir, args) => ctx.run('git', [...NO_HOOKS, ...args], { activity: 'git', cwd: dir });
 }
 
 async function must(git: Git, dir: string, args: string[]): Promise<string> {
