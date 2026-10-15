@@ -130,7 +130,7 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on both playe
 
 ## Defeat
 
-A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 30% of the HP it spawned with, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
+A beaten group truck is knocked out or wrecked by the normal rules. A group truck also gives up and is knocked out once it has lost 20% of its full HP, counting every mounted part. A beaten truck is one that is knocked out or wrecked, and each is counted once for the death screen and the logs. A knocked-out one stops, holds no encounter on, frees its place under the cap of 8 and is never hunted back into the fight. Nobody can loot it. When it wakes, it leaves the road that turn, since the highway has no home to retreat to.
 
 A player truck knockout ends the run as Wrecked, and a hauler knockout ends it as Hauler lost. The gauge in the HUD is the hauler's part HP, armor included, as a share of its full HP. The hauler is never knocked out and woken. The knockout test reads its own driver's health and cab, with the same roll as the player's. A stranded truck of the two can end the run from the stranded panel. That is the only way out of an empty tank or a broken drive with no parts to patch.
 
