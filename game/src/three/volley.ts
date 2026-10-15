@@ -15,7 +15,7 @@ import type { Fx3D } from "./render/fx";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { blastRadiusOf, projectileOf, roundSpec, type Impact, type Muzzle, type ProjectileSpec, type RoundPlan } from "./render/projectiles";
 import type { VehicleView } from "./render/vehicle";
-import { accentOf, type SoundDirector } from "./sound";
+import { scoreEventOf, type SoundDirector } from "./sound";
 import { PARTS } from "../data/parts";
 import { PHYSICS } from "../data/physics";
 import { bodyOf } from "../sim/body";
@@ -196,7 +196,7 @@ export function playShotFx(host: CombatHost, breaks: BreakCues): number {
   for (const e of host.world.events) {
     const lands = e.t === "shot" ? playTruckShot(host, e, rows, breaks) : null;
     if (lands === null) continue;
-    queueVolleyAccent(host, e, lands);
+    queueVolleyScore(host, e, lands);
     lastMs = Math.max(lastMs, lands.lastMs);
     if (e.t === "shot") played.add(gunKey(e.shooter, e.weapon));
   }
@@ -204,9 +204,9 @@ export function playShotFx(host: CombatHost, breaks: BreakCues): number {
   return lastMs;
 }
 
-function queueVolleyAccent(host: CombatHost, e: GameEvent, lands: VolleyLands): void {
-  const accent = accentOf(e, host.world.player.vehicleId);
-  if (accent) host.sound.queueAccent(accent.cue, lands.landsMs[accent.round ?? 0]);
+function queueVolleyScore(host: CombatHost, e: GameEvent, lands: VolleyLands): void {
+  const pick = scoreEventOf(e, host.world.player.vehicleId);
+  if (pick) host.sound.queueScoreEvent(pick.kind, lands.landsMs[pick.round ?? 0]);
 }
 
 function vehicleOf(w: World, id: string): Vehicle {
@@ -318,6 +318,12 @@ export function collisionSteps(events: GameEvent[], result: Steps): TimedCollisi
 export function crashMs(timed: TimedCollision[], e: GameEvent, endStep: number): number | null {
   const hit = timed.find((t) => t.event === e);
   return hit ? ((hit.step ?? endStep) / PHYSICS.stepsPerSecond) * 1000 : null;
+}
+
+export function scoreEventMs(e: GameEvent, timed: TimedCollision[], endStep: number, impactMs: number): number | null {
+  if (e.t === "shot") return null;
+  if (e.t === "collision") return crashMs(timed, e, endStep);
+  return impactMs;
 }
 
 function blastStep(timed: TimedCollision[], e: ClaymoreEvent): number | null {

@@ -1,6 +1,3 @@
-
-import type { BandRules } from "../audio/designer";
-
 export type Bus = "ui" | "sfx" | "ambient" | "music";
 
 export type CueDef = {
@@ -13,11 +10,12 @@ export type CueDef = {
   beat?: Beat;
   prompts?: readonly string[];
   seconds?: number;
+  perFight?: true;
 };
 
 export type Cue = CueDef & { files: string[] };
 
-export type Setup = "field" | "cab" | "score" | "stinger";
+export type Setup = "field" | "cab";
 
 export type Beat = { bpm: number; bars: number };
 export const BEATS_PER_BAR = 4;
@@ -29,9 +27,9 @@ export function beatLoopSeconds(b: Beat): number {
 export const SOUND_STYLE: Record<Setup, string> = {
   field: "Realistic sound effect, one field microphone about 10 meters away, outdoors in a dry desert, natural and unprocessed, full frequency range, no cinematic whoosh, no sub-bass boom, no music, no voices.",
   cab: "Realistic foley, one close microphone inside an old truck cab, natural and unprocessed, dry, no reverb, no electronic sounds, no music, no voices.",
-  stinger: "Tribal power metal stinger for a wasteland battle, 90 BPM, D minor. Big tribal war drums, heavy distorted electric guitar, deep Mongolian throat singing. Punchy, fierce and energetic, short, no screams, no synths.",
-  score: "Wasteland war soundtrack in the style of Mad Max, D minor. Raw dry recording in one room: tribal war drums and a gritty overdriven electric bass. Driving, fierce and steady, no vocals, no synths.",
 };
+
+const SONG_PART = { bus: "music", volume: 1, pitchJitter: 0, maxVoices: 1, loop: false, perFight: true } as const;
 
 const DEFS = {
   "ui-click": { bus: "ui", setup: "cab", pitchJitter: 0.04, maxVoices: 2, volume: 0.6, loop: false, prompts: ["Single click of an old metal toggle switch on a truck dashboard."], seconds: 0.5 },
@@ -79,16 +77,12 @@ const DEFS = {
   "music-outpost": { bus: "music", volume: 1, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Dark, menacing wasteland outpost groove with a steady pulse, 92 bpm, instrumental. Brooding minor key, like a spaghetti western standoff: baritone sax and trumpet play a grim Ethiopian jazz melody up front, over a tight dry drum kit and quiet junk percussion of clanking scrap metal and steel pipes. A deep driving bass riff, and a gritty overdriven guitar kept low in the mix, playing short muted stabs, never blasting. Hard and watchful, still moving, never happy or bright. Raw 1970s band playing live in a dry room, tape, no synths, no organ, seamless loop."], seconds: 90 },
   "music-abandoned": { bus: "music", volume: 0.7, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Quiet, vast background music for exploring the ruins of a dead city, 50 bpm, D minor, instrumental. A cello and a bowed double bass play long, slow, low minor notes that overlap and change slowly. Far away, a felt-muffled piano plays one low note now and then. A bowed sheet of rusted steel gives a faint, cold shimmer. Dry desert wind runs under everything. Eerie and ancient, a feeling of awe at something huge and long dead. Not sad and not cheerful. No melody, no riff, no beat, even level from start to end. Acoustic live recording, natural. No synths, no organ, no choir, seamless loop.", "Quiet, haunted background music for walking through dead ruins, 54 bpm, A minor, instrumental. A clean baritone guitar plays single low notes that ring out long, with wide gaps of space. A bowed double bass holds a low note under it and slowly moves. Soft knocks of hand-struck metal pipes echo far away. A deep Mongolian throat-singing hum rises and falls very quietly in the distance. Watchful and ancient, not sad and not cheerful. No melody, no repeating riff, no beat, even level from start to end. Raw live recording outdoors at night, tape. No synths, no organ, no trumpet, no static, seamless loop.", "Very still, quiet background music for exploring a fallen spaceship wreck in the desert, 46 bpm, D minor, instrumental. A bowed cymbal and a bowed steel rod hold long, soft, glassy tones that fade in and out very slowly. Under them, a bowed double bass holds one low note for a long time, then moves one step. Nothing else happens. Calm, cold and mysterious, something strange sleeps here. Not sad and not cheerful. Very few events, slow changes only, no swells, no rolls, no hits, no drums, no melody, flat even level from start to end. Acoustic live recording in a huge empty metal hall, natural. No synths, no electronic sounds, no choir, seamless loop."], seconds: 90 },
   "music-quest": { bus: "music", volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Quiet, slow wasteland background for reading, 70 bpm, instrumental. Soft junk-metal percussion played with felt mallets and brushes: muted knocks on steel pipes, a soft oil drum pulse, a brushed sheet of rusted tin, a faint chain rattle. A deep upright bass plays a slow, steady minor-key line. A muffled baritone guitar plucks a low note now and then. Calm, steady, even level, never loud. Raw live recording in a dry room, tape. No melody lead, no cymbals, no synths, no organ, seamless loop.", "Quiet, slow desert background for reading, 72 bpm, instrumental. Soft tribal hand drums: frame drum, tende and a low felt-mallet floor tom in a steady, hypnotic pattern, played gently. A bowed double bass holds long low minor notes. Far behind, a soft Mongolian throat-singing hum rises and falls. Dark and patient, not sad and not cheerful, even level. Raw live recording outdoors at night, dry, tape. No congas, no claps, no synths, no lead melody, seamless loop.", "Quiet, slow wasteland background for reading, 60 bpm, instrumental. A clean baritone guitar with slow tremolo plays sparse low minor chords that ring out, like a dark spaghetti western standoff heard from far away. A bowed double bass holds long low notes under it. A harmon-muted trumpet plays a short grim phrase rarely, distant, then long rests. Calm and watchful, not sad, even level. Raw 1970s live recording in a dry room, tape. No drums, no synths, no organ, no reverb wash, seamless loop."], seconds: 90 },
-  "score-drums": { bus: "music", setup: "score", beat: { bpm: 90, bars: 8 }, volume: 0.9, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless tribal war drum loop, 90 BPM in 4/4: huge pounding taiko and floor toms, heavy kick on every beat, rattling snare accents, relentless and even, no fills, no cymbals, drums only."] },
-  "score-bass": { bus: "music", setup: "score", beat: { bpm: 110, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless bass guitar loop, 110 BPM in 4/4: fast driving eighth-note riff on D, gritty overdriven tone, chugging and relentless, even level, bass only, no drums."] },
-  "score-horns": { bus: "music", setup: "score", beat: { bpm: 100, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless dark Afro-funk war loop, 100 BPM in 4/4: brutal low baritone sax and trumpet blasts on D minor, pounding heavy drums, fuzz bass hammering every beat. Hard and menacing, not happy, no fills."] },
-  "score-trombone": { bus: "music", setup: "score", beat: { bpm: 100, bars: 8 }, volume: 0.8, pitchJitter: 0, maxVoices: 1, loop: true, prompts: ["Seamless dark Afro-funk war loop, 100 BPM in 4/4: growling low trombone riff with heavy slides on D minor, pounding heavy drums, fuzz bass hammering every beat. Hard and menacing, not happy, no fills."] },
-  "accent-sighted": { bus: "music", setup: "stinger", volume: 0.85, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["Three heavy tribal war drum hits spread over one second, boom, boom, boom, with a distorted electric guitar chord ringing out under them and a low throat singing growl."], seconds: 1.5 },
-  "accent-struck": { bus: "music", setup: "stinger", volume: 0.85, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["One distorted electric guitar power chord on D slammed with a big tribal drum hit, then a short falling throat singing groan."], seconds: 1.5 },
-  "accent-miss": { bus: "music", setup: "stinger", volume: 0.75, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["A quick palm-muted distorted electric guitar chug and a tight snare flam, then silence."], seconds: 1 },
-  "accent-hit": { bus: "music", setup: "stinger", volume: 1.3, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["One sharp distorted electric guitar power chord stab on D, a hard bright pick attack that cuts through, with one tribal drum hit under it."], seconds: 1.5 },
-  "accent-crit": { bus: "music", setup: "stinger", volume: 0.95, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["Two massive tribal war drum hits, a soaring distorted electric guitar power chord on D and a deep Mongolian throat singing shout."], seconds: 1.5 },
-  "accent-crash": { bus: "music", setup: "stinger", volume: 1, pitchJitter: 0, maxVoices: 3, loop: false, prompts: ["A thundering tribal drum fill into a huge distorted electric guitar power chord on D ringing out, with a deep Mongolian throat singing drone swelling under it."], seconds: 1.5 },
+  "song-dust": SONG_PART,
+  "song-dust-guitars": SONG_PART,
+  "song-dust-cymbals": SONG_PART,
+  "song-dusk": SONG_PART,
+  "song-dusk-guitars": SONG_PART,
+  "song-dusk-cymbals": SONG_PART,
 } as const satisfies Record<string, CueDef>;
 
 export type CueId = keyof typeof DEFS;
@@ -110,6 +104,15 @@ function withFiles(): Record<CueId, Cue> {
 }
 
 export const SOUNDS = withFiles();
+
+export const BOOT_SOUNDS: Record<string, Cue> = Object.fromEntries(Object.entries(SOUNDS).filter(([, cue]) => !cue.perFight));
+
+export function soundsWith(files: string[]): Record<string, Cue> {
+  const picked = Object.entries(SOUNDS).filter(([, cue]) => cue.files.some((f) => files.includes(f)));
+  const found = picked.flatMap(([, cue]) => cue.files).filter((f) => files.includes(f));
+  if (found.length !== files.length) throw new Error(`No sound cue holds ${files.filter((f) => !found.includes(f)).join(", ")}`);
+  return Object.fromEntries(picked.map(([id, cue]) => [id, { ...cue, files: cue.files.filter((f) => files.includes(f)) }]));
+}
 
 const ENGINE_FILES: Record<string, string> = {
   scout: "engine-2.ogg",
@@ -155,19 +158,6 @@ export function hornSoundFor(chassisId: string): { file: string; rate: number } 
   const sound = HORN_SOUNDS[chassisId];
   if (!sound) throw new Error(`Unknown chassis ${chassisId}`);
   return sound;
-}
-
-const SCORE_PHASES: Record<string, number> = {
-  "score-drums-1.ogg": 0.006,
-  "score-bass-1.ogg": 0.22,
-  "score-horns-1.ogg": 0.176,
-  "score-trombone-1.ogg": 0.172,
-};
-
-export function scorePhaseOf(file: string): number {
-  const phase = SCORE_PHASES[file];
-  if (phase === undefined) throw new Error(`Beat loop ${file} has no phase; run scripts/sfx-phase.py`);
-  return phase;
 }
 
 export function engineFileFor(chassisId: string): string {
@@ -219,35 +209,6 @@ export const MIX = {
   ],
   wind: { baseGain: 0.4, stormGain: 1, fadeSeconds: 1 },
   music: { fadeSeconds: 3, pauseDelayMs: 300, pauseCutoffHz: 4000, openCutoffHz: 20000, toneSeconds: 0.6, musicReachTiles: 12 },
-  score: {
-    subdivision: 2,
-    humanizeMs: 10,
-    gainJitter: 0.1,
-    heatHalfLifeSeconds: 8,
-    hotHeat: 2,
-    pauseRepeats: 1,
-    fillChance: 0.2,
-    fillGain: 0.5,
-    secondaryPan: 0.3,
-    busyFactor: 0.7,
-    stabGapSeconds: 1.5,
-    joinFadeSeconds: 0.015,
-    offerAheadSeconds: 0.1,
-    duckAttackSeconds: 0.05,
-    duckReleaseBeats: 2,
-    lines: {
-      lead: { gain: 1, duck: 0.6, calm: ["x......."], hot: ["x...x...", "x.....x."] },
-      secondary: { gain: 1, duck: 0.75, calm: ["x......."], hot: ["x...x...", "x.....x."] },
-    },
-    accents: {
-      "accent-crash": { line: "lead", weight: 1, bars: 2, chance: 1 },
-      "accent-crit": { line: "lead", weight: 0.8, bars: 1, chance: 1 },
-      "accent-sighted": { line: "lead", weight: 0.6, bars: 1, chance: 1 },
-      "accent-struck": { line: "lead", weight: 0.5, bars: 1, chance: 1 },
-      "accent-hit": { line: "secondary", weight: 0.4, bars: 1, chance: 0.5 },
-      "accent-miss": { line: "secondary", weight: 0.2, bars: 1, chance: 0.3 },
-    },
-  },
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, spread: 10 },
 } as const;
@@ -255,8 +216,8 @@ export const MIX = {
 export const SCORE_BLOCKS = {
   arc: {
     blockBars: 2,
-    hotHeat: 5,
-    coolHeat: 2,
+    hotHeat: 2.5,
+    coolHeat: 1,
     memoryHalfLifeBars: 16,
     memoryWeight: 0.08,
     stay: 6,
@@ -284,8 +245,8 @@ export const SCORE_BLOCKS = {
   },
   songGain: 0.6,
   guitarPush: 0.8,
-  cymbalGain: 2,
-  cymbalGains: [1, 2, 4],
+  cymbalGain: 1,
+  cymbalGains: [0.5, 1, 2],
   heatHalfLifeSeconds: 2.5,
   familiarHalfLifeSeconds: 20,
   surpriseHalfLifeSeconds: 1.5,
@@ -297,64 +258,4 @@ export const SCORE_BLOCKS = {
   aheadSeconds: 1.5,
   startLeadSeconds: 0.1,
   eventLeadSeconds: 0.05,
-};
-
-export const BAND_EVENTS = ["accent-sighted", "accent-struck", "accent-crit", "accent-crash", "accent-hit", "accent-miss"] as const;
-export type BandEvent = (typeof BAND_EVENTS)[number];
-export const BAND_PARTS = ["drums", "bass", "wall", "keys"] as const;
-export type BandPart = (typeof BAND_PARTS)[number];
-
-export const BAND: BandRules<BandPart, BandEvent> = {
-  parts: {
-    drums: { always: true },
-    bass: { enterAt: 1, leaveAt: 0.3, holdBars: 2, needs: null },
-    wall: { enterAt: 2.5, leaveAt: 1, holdBars: 2, needs: "bass" },
-    keys: { enterAt: 4, leaveAt: 2, holdBars: 4, needs: "wall" },
-  },
-  phraseBars: 2,
-  heatHalfLifeSeconds: 3,
-  weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
-};
-
-export const JAM_PARTS = ["drums", "bass", "guitar"] as const;
-export type JamPart = (typeof JAM_PARTS)[number];
-
-export const JAM: BandRules<JamPart, BandEvent> = {
-  parts: {
-    drums: { always: true },
-    bass: { always: true },
-    guitar: { enterAt: 0.4, leaveAt: 0.2, holdBars: 2, needs: null },
-  },
-  phraseBars: 2,
-  heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
-  weights: BAND.weights,
-};
-
-export const JAM_ANSWERS: Record<BandEvent, { parts: readonly JamPart[]; beats: number }> = {
-  "accent-sighted": { parts: ["bass", "guitar"], beats: 2 },
-  "accent-struck": { parts: ["drums", "bass"], beats: 1 },
-  "accent-crit": { parts: ["bass", "guitar"], beats: 2 },
-  "accent-crash": { parts: ["drums", "bass", "guitar"], beats: 2 },
-  "accent-hit": { parts: ["guitar"], beats: 1 },
-  "accent-miss": { parts: ["bass"], beats: 0.5 },
-};
-
-export const JAM_MIX = {
-  accent: 1.4,
-  answerAttackSeconds: 0.005,
-  answerDecayBeats: 0.25,
-  answerSlotsPerBeat: 2,
-  ringBeats: 0.5,
-  enterBeats: 1,
-  exitBeats: 1,
-  firstEnterSeconds: 0.01,
-};
-
-export const BAND_ANSWERS: Record<BandEvent, { parts: readonly BandPart[]; beats: number }> = {
-  "accent-sighted": { parts: ["bass", "wall"], beats: 2 },
-  "accent-struck": { parts: ["drums", "bass"], beats: 1 },
-  "accent-crit": { parts: ["bass", "wall"], beats: 2 },
-  "accent-crash": { parts: ["drums", "bass", "wall"], beats: 2 },
-  "accent-hit": { parts: ["wall"], beats: 1 },
-  "accent-miss": { parts: ["bass"], beats: 0.5 },
 };

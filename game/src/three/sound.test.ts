@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { GameEvent, ShotRound } from "../sim/types";
 import { CHASSIS } from "../data/chassis";
-import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, scorePhaseOf, SOUNDS } from "../data/sounds";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS } from "../data/sounds";
 import type { Glide, SoundPlayer } from "../audio/player";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { accentOf, CombatScore, CombatWatch, engineGlide, EngineStrain, loopLevels, musicPlaceAt, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import { CombatWatch, engineGlide, EngineStrain, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
 
@@ -80,36 +81,41 @@ describe("loopLevels", () => {
   });
 });
 
-describe("accentOf", () => {
+describe("scoreEventOf", () => {
   const round = (hit: boolean, crit = false): ShotRound => ({ hit, crit, offset: 0, struck: hit ? "n" : null, hits: [], blast: [], burst: null });
   const shot = (shooter: string, target: string, rounds: ShotRound[]): GameEvent => ({
     t: "shot", shooter, weapon: "w", target, aim: "body", chance: 0.5, damageChance: 0.5, side: "front", rounds,
   });
   it("answers the player's volleys with hit, miss or crit", () => {
-    expect(accentOf(shot("p", "n", [round(false), round(true)]), "p")?.cue).toBe("accent-hit");
-    expect(accentOf(shot("p", "n", [round(false), round(false)]), "p")?.cue).toBe("accent-miss");
-    expect(accentOf(shot("p", "n", [round(true), round(true, true)]), "p")?.cue).toBe("accent-crit");
+    expect(scoreEventOf(shot("p", "n", [round(false), round(true)]), "p")?.kind).toBe("hit");
+    expect(scoreEventOf(shot("p", "n", [round(false), round(false)]), "p")?.kind).toBe("miss");
+    expect(scoreEventOf(shot("p", "n", [round(true), round(true, true)]), "p")?.kind).toBe("crit");
   });
-  it("names the round that earns the accent", () => {
-    expect(accentOf(shot("p", "n", [round(false), round(true)]), "p")).toEqual({ cue: "accent-hit", round: 1 });
-    expect(accentOf(shot("p", "n", [round(true), round(true, true)]), "p")).toEqual({ cue: "accent-crit", round: 1 });
-    expect(accentOf(shot("p", "n", [round(false), round(false)]), "p")).toEqual({ cue: "accent-miss", round: 0 });
-    expect(accentOf(shot("n", "p", [round(false), round(true)]), "p")).toEqual({ cue: "accent-struck", round: 1 });
-    expect(accentOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")).toEqual({ cue: "accent-crash", round: null });
+  it("names the round that earns the event", () => {
+    expect(scoreEventOf(shot("p", "n", [round(false), round(true)]), "p")).toEqual({ kind: "hit", round: 1 });
+    expect(scoreEventOf(shot("p", "n", [round(true), round(true, true)]), "p")).toEqual({ kind: "crit", round: 1 });
+    expect(scoreEventOf(shot("p", "n", [round(false), round(false)]), "p")).toEqual({ kind: "miss", round: 0 });
+    expect(scoreEventOf(shot("n", "p", [round(false), round(true)]), "p")).toEqual({ kind: "struck", round: 1 });
+    expect(scoreEventOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")).toEqual({ kind: "crash", round: null });
   });
   it("answers volleys at the player with struck or crit, and enemy misses with nothing", () => {
-    expect(accentOf(shot("n", "p", [round(true)]), "p")?.cue).toBe("accent-struck");
-    expect(accentOf(shot("n", "p", [round(true, true)]), "p")?.cue).toBe("accent-crit");
-    expect(accentOf(shot("n", "p", [round(false)]), "p")).toBeNull();
+    expect(scoreEventOf(shot("n", "p", [round(true)]), "p")?.kind).toBe("struck");
+    expect(scoreEventOf(shot("n", "p", [round(true, true)]), "p")?.kind).toBe("crit");
+    expect(scoreEventOf(shot("n", "p", [round(false)]), "p")).toBeNull();
   });
   it("counts a round that strikes parts without a clean hit as struck", () => {
     const grazing: ShotRound = { hit: false, crit: false, offset: 0, struck: "n", hits: [{ part: "armor", damage: 3 }], blast: [], burst: null };
-    expect(accentOf(shot("p", "n", [grazing]), "p")?.cue).toBe("accent-hit");
+    expect(scoreEventOf(shot("p", "n", [grazing]), "p")?.kind).toBe("hit");
   });
   it("ignores fights between other trucks and answers the player's crashes", () => {
-    expect(accentOf(shot("a", "b", [round(true, true)]), "p")).toBeNull();
-    expect(accentOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")?.cue).toBe("accent-crash");
-    expect(accentOf({ t: "collision", a: "n", b: "m", hitsA: [], hitsB: [] }, "p")).toBeNull();
+    expect(scoreEventOf(shot("a", "b", [round(true, true)]), "p")).toBeNull();
+    expect(scoreEventOf({ t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] }, "p")?.kind).toBe("crash");
+    expect(scoreEventOf({ t: "collision", a: "n", b: "m", hitsA: [], hitsB: [] }, "p")).toBeNull();
+  });
+  it("answers the player's knockouts and wrecks, and nobody else's", () => {
+    expect(scoreEventOf({ t: "npcKnockout", vehicle: "n", by: "p" }, "p")?.kind).toBe("knockout");
+    expect(scoreEventOf({ t: "destroyed", vehicle: "n", by: "p" }, "p")?.kind).toBe("knockout");
+    expect(scoreEventOf({ t: "npcKnockout", vehicle: "n", by: "m" }, "p")).toBeNull();
   });
 });
 
@@ -144,7 +150,7 @@ describe("engine sound assignment", () => {
         };
       },
     } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} });
+    const loops = new SoundLoops(player, { setCombat: () => {} });
     const glide = engineGlide(0, 10, 1, MIX, false)!;
 
     loops.drive(glide, "scout", { from: 0, to: 0 });
@@ -229,7 +235,7 @@ describe("strainGlides", () => {
 describe("engine strain log", () => {
   it("logs strain only on turns that have some", () => {
     const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
-    const director = new SoundDirector({ play: () => {} }, rig, { accent: () => null, take: () => ({ file: "f", peak: 0 }) });
+    const director = new SoundDirector({ play: () => {} }, rig, { fire: () => null }, () => 0);
     director.engineStrain({ from: 0, to: 0 });
     director.engineStrain({ from: 1, to: 0.5 });
     director.engineStrain({ from: 0.5, to: 0 });
@@ -252,7 +258,7 @@ describe("next track", () => {
         return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
-    return { calm, quest, abandoned, loops: new SoundLoops(player, { setCombat: () => {}, setPaused: () => {}, tick: () => {} }) };
+    return { calm, quest, abandoned, loops: new SoundLoops(player, { setCombat: () => {} }) };
   };
   const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
 
@@ -326,7 +332,7 @@ describe("horn sound assignment", () => {
     const width = globalThis.window?.innerWidth;
     Object.defineProperty(globalThis, "window", { value: { innerWidth: 100 }, configurable: true });
     try {
-      const director = new SoundDirector(player, rig, { accent: () => { throw new Error("no accent here"); }, take: () => ({ file: "f", peak: 0 }) });
+      const director = new SoundDirector(player, rig, { fire: () => { throw new Error("no score event here"); } }, () => 0);
       director.honk({ x: 0, y: 0, z: 0 }, 500, "scout");
       expect(calls).toEqual([["horn", { pan: 0, gain: 1 }, 500, hornSoundFor("scout")]]);
     } finally {
@@ -384,50 +390,50 @@ describe("CombatWatch", () => {
   });
 });
 
-describe("SoundDirector accent timing", () => {
+describe("SoundDirector score timing", () => {
   const rig: Pick<CameraRig, "focus" | "screenOf"> = { focus: () => ({ x: 0, y: 0, z: 0 }), screenOf: () => ({ x: 0, y: 0 }) };
+  const NOW = 10;
   const setup = () => {
-    const calls: [string, number, unknown][] = [];
-    const take = { file: "f", peak: 0.1 };
-    const score = { accent: (c: string, d: number, t: unknown) => (calls.push([c, d, t]), { cue: c, offer: "played", heat: 0 }), take: () => take } as never;
-    const director = new SoundDirector({ play: () => {} }, rig, score);
-    return { calls, take, director };
+    const calls: [string, number][] = [];
+    const music = { fire: (kind: BlockEvent, at: number) => (calls.push([kind, Math.round((at - NOW) * 1000)]), { kind, at, heat: 1, surprise: 1, lanes: true }) };
+    const director = new SoundDirector({ play: () => {} }, rig, music, () => NOW);
+    return { calls, director };
   };
+  const lead = SCORE_BLOCKS.eventLeadSeconds * 1000;
 
-  it("hands an accent over just before its event, once", () => {
-    const { calls, take, director } = setup();
-    director.queueAccent("accent-hit", 600);
-    director.playDueAccents(0, 1);
+  it("hands an event to the music just before it lands, once", () => {
+    const { calls, director } = setup();
+    director.queueScoreEvent("hit", 600);
+    director.playDueScoreEvents(0, 1);
     expect(calls).toEqual([]);
-    director.playDueAccents(500, 1);
-    expect(calls).toEqual([["accent-hit", 100, take]]);
-    director.playDueAccents(550, 1);
+    director.playDueScoreEvents(600 - lead, 1);
+    expect(calls).toEqual([["hit", lead]]);
+    director.playDueScoreEvents(590, 1);
     expect(calls).toHaveLength(1);
+    expect(director.log.at(-1)).toBe("score hit heat1.0 surprise1.0 lanes");
   });
 
   it("hands it over earlier at fast speed, with the delay in real time", () => {
     const { calls, director } = setup();
-    director.queueAccent("accent-hit", 1000);
-    director.playDueAccents(0, 4);
+    director.queueScoreEvent("hit", 1000);
+    director.playDueScoreEvents(0, 4);
     expect(calls).toEqual([]);
-    director.playDueAccents(600, 4);
-    expect(calls[0][1]).toBe(100);
+    director.playDueScoreEvents(1000 - lead * 4, 4);
+    expect(calls[0][1]).toBe(lead);
   });
 
-  it("hands over an accent already past with no delay", () => {
+  it("hands over an event already past with no delay", () => {
     const { calls, director } = setup();
-    director.queueAccent("accent-hit", 600);
-    director.playDueAccents(700, 1);
+    director.queueScoreEvent("hit", 600);
+    director.playDueScoreEvents(700, 1);
     expect(calls[0][1]).toBe(0);
   });
 
-  it("drops the last turn's accents when a turn is timed or playback is cleared", () => {
+  it("drops the last turn's events when playback is cleared", () => {
     const { calls, director } = setup();
-    director.queueAccent("accent-hit", 600);
-    director.timeAccents([], "p", () => null);
-    director.queueAccent("accent-hit", 600);
-    director.clearAccents();
-    director.playDueAccents(700, 1);
+    director.queueScoreEvent("hit", 600);
+    director.clearScoreEvents();
+    director.playDueScoreEvents(700, 1);
     expect(calls).toEqual([]);
   });
 
@@ -435,155 +441,15 @@ describe("SoundDirector accent timing", () => {
     const { calls, director } = setup();
     const crash: GameEvent = { t: "collision", a: "n", b: "p", hitsA: [], hitsB: [] };
     const shot = { t: "shot", shooter: "p", weapon: "w", target: "n", aim: "body", chance: 1, damageChance: 1, side: "front", rounds: [] } as unknown as GameEvent;
-    director.timeAccents([crash, shot], "p", (e) => (e === crash ? 400 : null));
-    director.playDueAccents(400, 1);
-    expect(calls.map((c) => c[0])).toEqual(["accent-crash"]);
+    director.timeScoreEvents([crash, shot], "p", (e) => (e === crash ? 400 : null));
+    director.playDueScoreEvents(400, 1);
+    expect(calls.map((c) => c[0])).toEqual(["crash"]);
   });
 
   it("throws on a speed that is not positive and finite", () => {
     const { director } = setup();
-    expect(() => director.playDueAccents(0, 0)).toThrow(/speed/);
-    expect(() => director.playDueAccents(0, Number.NaN)).toThrow(/speed/);
+    expect(() => director.playDueScoreEvents(0, 0)).toThrow(/speed/);
+    expect(() => director.playDueScoreEvents(0, Number.NaN)).toThrow(/speed/);
   });
 });
 
-describe("CombatScore", () => {
-  type BaseId = "score-drums" | "score-bass" | "score-horns" | "score-trombone";
-  type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; ducks: number[]; duckLevels: number[] };
-  type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number; from?: number }?];
-  const fakePlayer = () => {
-    const loops: Call[] = [];
-    const plays: Play[] = [];
-    const clock = { now: 2 };
-    const player = {
-      now: () => clock.now,
-      play: (...args: Play) => { plays.push(args); },
-      chooseWithPeak: (id: string) => ({ file: `${id}-1.ogg`, peak: 0.1 }),
-      beatLoop: (id: BaseId, file: string, when: number, offset: number) => {
-        const call: Call = { id, file, when, offset, gains: [], ducks: [], duckLevels: [] };
-        loops.push(call);
-        const duration = SOUNDS[id].beat!.bars * 4;
-        return {
-          duration,
-          setGain: (g: number) => call.gains.push(g),
-          glide: () => {},
-          once: () => {},
-          stop: () => {},
-          duck: (t: number, level: number) => {
-            call.ducks.push(t);
-            call.duckLevels.push(level);
-          },
-        };
-      },
-    } as unknown as SoundPlayer;
-    return { player, loops, plays, clock };
-  };
-  const run = (score: CombatScore, clock: { now: number }, seconds: number) => {
-    for (let t = 0; t < seconds * 20; t++) {
-      clock.now += 0.05;
-      score.tick();
-    }
-  };
-  const s = MIX.score;
-
-  it("starts every base silent at one time, each at its first beat", () => {
-    const { player, loops } = fakePlayer();
-    new CombatScore(player, () => 0);
-    expect(loops.map((l) => l.id)).toEqual(["score-drums", "score-bass", "score-horns", "score-trombone"]);
-    expect(new Set(loops.map((l) => l.when)).size).toBe(1);
-    expect(loops.map((l) => l.offset)).toEqual(loops.map((l) => scorePhaseOf(l.file)));
-    expect(loops.every((l) => l.gains.length === 0)).toBe(true);
-  });
-
-  it("plays one random base per battle at full level, and fades it out after", () => {
-    const { player, loops } = fakePlayer();
-    const rolls = [0.3, 0, 0, 0.1];
-    const score = new CombatScore(player, () => rolls.shift() ?? 0);
-    score.setCombat(true, 3);
-    score.setCombat(true, 3);
-    score.setCombat(false, 3);
-    score.setCombat(true, 3);
-    expect(loops.map((l) => l.gains)).toEqual([[1], [1, 0], [], []]);
-  });
-
-  it("plays a preferred base in every battle instead of a random one", () => {
-    const { player, loops } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.preferBase("score-horns");
-    score.setCombat(true, 3);
-    score.setCombat(false, 3);
-    score.preferBase(null);
-    score.setCombat(true, 3);
-    expect(loops.map((l) => l.gains)).toEqual([[1], [], [1, 0], []]);
-  });
-
-  it("ignores accents outside a battle", () => {
-    const { player, plays } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    expect(score.accent("accent-crash", 0)).toBeNull();
-    score.setCombat(true, 3);
-    score.setCombat(false, 3);
-    expect(score.accent("accent-crash", 0)).toBeNull();
-    expect(plays).toEqual([]);
-  });
-
-  it("stabs an event with the sound's peak on it, then its tail on the lead, ducking the base under each hit", () => {
-    const { player, loops, plays, clock } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    expect(score.accent("accent-sighted", 1000)).toMatchObject({ cue: "accent-sighted", offer: "played" });
-    expect(plays[0][2]).toBeCloseTo(900);
-    expect(plays[0][3]).toEqual({ file: "accent-sighted-1.ogg", rate: 1 });
-    run(score, clock, 6);
-    expect(plays.length).toBeGreaterThan(0);
-    expect(plays.every((p) => p[0] === "accent-sighted" && p[1].pan === 0)).toBe(true);
-    expect(loops[0].ducks).toHaveLength(plays.length);
-  });
-
-  it("starts a stab inside its take when the event comes before the take's peak", () => {
-    const { player, plays } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    score.accent("accent-sighted", 30);
-    expect(plays[0][2]).toBeCloseTo(20);
-    expect(plays[0][3]?.from).toBeCloseTo(0.09);
-  });
-
-  it("starts a stab at the top of its take when the event is far enough", () => {
-    const { player, plays } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    score.accent("accent-sighted", 1000);
-    expect(plays[0][3]).toEqual({ file: "accent-sighted-1.ogg", rate: 1 });
-  });
-
-  it("ducks the base when a late stab sounds, never before now", () => {
-    const { player, loops, plays, clock } = fakePlayer();
-    clock.now = 0.05;
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    score.accent("accent-sighted", 0);
-    expect(loops[0].ducks[0]).toBeCloseTo(clock.now + plays[0][2] / 1000);
-  });
-
-  it("plays light events on the secondary, to one side, ducking the base less than the lead", () => {
-    const { player, loops, plays, clock } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    score.accent("accent-hit", 0);
-    run(score, clock, 6);
-    expect(plays.length).toBeGreaterThan(0);
-    expect(plays.every((p) => p[0] === "accent-hit" && p[1].pan === -s.secondaryPan)).toBe(true);
-    expect(loops[0].duckLevels).toHaveLength(plays.length);
-    expect(loops[0].duckLevels.every((l) => l === s.lines.secondary.duck && l > s.lines.lead.duck)).toBe(true);
-  });
-
-  it("keeps the base at full level however hot the fight gets", () => {
-    const { player, loops, clock } = fakePlayer();
-    const score = new CombatScore(player, () => 0);
-    score.setCombat(true, 3);
-    for (let i = 0; i < 3; i++) score.accent("accent-crash", 0);
-    run(score, clock, 4);
-    expect(loops[0].gains).toEqual([1]);
-  });
-});

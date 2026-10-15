@@ -1,16 +1,14 @@
 import "../ui/style.css";
 import "./score-lab.css";
 import { BEATS_PER_BAR, MIX, SCORE_BLOCKS } from "../data/sounds";
+import { SFX_BYTES } from "../config";
+import { formatSupport } from "../audio/bank";
 import { Mixer } from "../audio/mixer";
 import type { Role } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
-import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
-
-const SONG_ROOT = "/tmp/score-proto/";
-const SONG_TITLES: Record<string, string> = { dust: "Dust and Iron", dusk: "Convoy At Dusk" };
-const SONGS = Object.keys(SONG_TITLES);
-const PREP_HINT = "Run scripts/score-blocks-prep.py to write each song into public/tmp/score-proto/<song>/ first.";
+import { BlockSession, TURN_SECONDS, type BlockEvent, type Lane, type Played, type VoiceHandle } from "./block-session";
+import { bankKitLoader, COMBAT_SONGS, CombatMusic } from "./combat-music";
 const ZOOM_SECONDS = [6, 12, 24];
 const DEFAULT_ZOOM = 12;
 const FUTURE_SHARE = 0.15;
@@ -75,139 +73,46 @@ root.append(el("div", { class: "dim" }, "Loading the song..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const ctx = mixer.ctx;
-type Kit = { name: string; song: BlockSong; buffers: Record<Part, AudioBuffer> };
-const kits = new Map<string, Promise<Kit>>();
-let kit = await kitOf(pickSong());
-const songLevel = ctx.createGain();
-songLevel.gain.value = SCORE_BLOCKS.songGain;
-songLevel.connect(mixer.input("music"));
-const guitarLevel = ctx.createGain();
-guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
-guitarLevel.connect(songLevel);
-const songDuck = ctx.createGain();
-songDuck.connect(songLevel);
-const OUTS: Record<Part, AudioNode> = { song: songDuck, guitars: guitarLevel, cymbals: songLevel };
+const music = new CombatMusic(ctx, mixer.input("music"), bankKitLoader(ctx, { expectedBytes: SFX_BYTES, support: formatSupport() }), Math.random, (e) => {
+  throw e;
+});
+await music.ready();
+const idle = new BlockSession(Object.values(COMBAT_SONGS)[0], { voice: silent, lean: silent }, Math.random);
 
-function pickSong(): string {
-  return SONGS[Math.floor(Math.random() * SONGS.length)];
+function silent(): VoiceHandle {
+  return { fadeOut: () => {}, cut: () => {} };
 }
 
-function kitOf(name: string): Promise<Kit> {
-  let loading = kits.get(name);
-  if (!loading) {
-    loading = loadKit(name);
-    kits.set(name, loading);
-  }
-  return loading;
-}
-
-async function loadKit(name: string): Promise<Kit> {
-  const dir = `${SONG_ROOT}${name}/`;
-  const res = await fetch(`${dir}song.json`);
-  if (!res.ok) {
-    root.replaceChildren(el("div", { class: "dim" }, PREP_HINT));
-    throw new Error(`No song.json at ${dir}: ${res.status}. ${PREP_HINT}`);
-  }
-  const song = (await res.json()) as BlockSong;
-  const [main, guitars, cymbals] = await Promise.all([decode(dir, song.file), decode(dir, song.stems.guitars), decode(dir, song.cymbals.file)]);
-  return { name, song, buffers: { song: main, guitars, cymbals } };
-}
-
-async function decode(dir: string, file: string): Promise<AudioBuffer> {
-  const res = await fetch(dir + file);
-  if (!res.ok) throw new Error(`Cannot fetch ${dir + file}: ${res.status}. ${PREP_HINT}`);
-  return ctx.decodeAudioData(await res.arrayBuffer());
-}
-
-function voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
-  const buffer = kit.buffers[part];
-  const out = OUTS[part];
-  const seam = SCORE_BLOCKS.seamSeconds;
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, when - fade);
-  gain.gain.linearRampToValueAtTime(level, when + fade);
-  gain.gain.setValueAtTime(level, when + length - seam);
-  gain.gain.linearRampToValueAtTime(0, when + length + seam);
-  src.connect(gain).connect(out);
-  src.start(when - fade, offset - fade, Math.min(buffer.duration - offset + fade, length + fade + SCORE_BLOCKS.jumpFadeSeconds + seam));
-  return {
-    fadeOut: (at, f) => {
-      gain.gain.cancelScheduledValues(at - f);
-      gain.gain.setValueAtTime(level, at - f);
-      gain.gain.linearRampToValueAtTime(0, at + f);
-    },
-    cut: (at) => {
-      if (when >= at) return src.stop(when);
-      gain.gain.cancelScheduledValues(at - seam);
-      gain.gain.setValueAtTime(level, at - seam);
-      gain.gain.linearRampToValueAtTime(0, at + seam);
-      src.stop(at + seam);
-    },
-  };
-}
-
-function lean(offset: number, at: number, length: number, songScale: number, level: number): VoiceHandle {
-  const seam = SCORE_BLOCKS.seamSeconds;
-  const guitars = voice("guitars", offset, at, length, seam, level);
-  const duck = songDuck.gain;
-  duck.setValueAtTime(1, at - seam);
-  duck.linearRampToValueAtTime(songScale, at + seam);
-  duck.setValueAtTime(songScale, at + length - seam);
-  duck.linearRampToValueAtTime(1, at + length + seam);
-  return {
-    fadeOut: guitars.fadeOut,
-    cut: (t) => {
-      guitars.cut(t);
-      duck.cancelScheduledValues(t - seam);
-      duck.setValueAtTime(t > at ? songScale : 1, t - seam);
-      duck.linearRampToValueAtTime(1, t + seam);
-    },
-  };
-}
-
-const output: BlockOutput = { voice, lean };
 let cymbalGain = SCORE_BLOCKS.cymbalGain;
-let session = newSession();
 let auto: Auto = "off";
 let nextTurn = 0;
 let span = DEFAULT_ZOOM;
 
-function newSession(): BlockSession {
-  const s = new BlockSession(kit.song, output, Math.random);
-  s.cymbalGain = cymbalGain;
-  return s;
-}
-
-async function startCombat(): Promise<void> {
-  kit = await kitOf(pickSong());
-  songTitle.textContent = SONG_TITLES[kit.name];
-  session = newSession();
-  session.start(ctx.currentTime);
-  nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
+function session(): BlockSession {
+  return music.session ?? idle;
 }
 
 function flipCombat(): void {
-  if (session.inCombat) session.end(ctx.currentTime);
-  else void startCombat();
+  music.setCombat(!music.inCombat);
+  if (!music.inCombat) return;
+  session().cymbalGain = cymbalGain;
+  songTitle.textContent = music.title ?? "";
+  nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
 }
 
 function fire(kind: BlockEvent): void {
-  session.fire(kind, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
+  music.fire(kind, ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds);
 }
 
 function autoTurn(now: number): void {
-  if (auto === "off" || !session.inCombat || now < nextTurn) return;
-  session.denseTurn(nextTurn);
+  if (auto === "off" || !session().inCombat || now < nextTurn) return;
+  session().denseTurn(nextTurn);
   const [lo, hi] = AUTO_PAUSE_SECONDS;
   nextTurn += TURN_SECONDS + (auto === "pauses" ? lo + Math.random() * (hi - lo) : 0);
 }
 
 function audioTick(): void {
-  const now = ctx.currentTime;
-  autoTurn(now);
-  session.tick(now);
+  autoTurn(ctx.currentTime);
 }
 
 function frame(): void {
@@ -280,7 +185,7 @@ function draw(): void {
 }
 
 function drawGrid(): void {
-  for (const p of session.played) if (inView(p) && p.role !== "end") drawBeats(p);
+  for (const p of session().played) if (inView(p) && p.role !== "end") drawBeats(p);
 }
 
 function inView(p: Played): boolean {
@@ -300,7 +205,7 @@ function drawEvents(): void {
   const top = laneTop("events");
   let labelEnd = -Infinity;
   const height = laneHeight("events");
-  for (const f of session.fired) {
+  for (const f of session().fired) {
     const x = xOf(f.at);
     const h = Math.max(2, Math.min(1, f.surprise / SCORE_BLOCKS.surpriseLine) * (height - 8));
     g.fillStyle = f.lanes ? INK.heavy : INK.light;
@@ -316,7 +221,7 @@ function drawEvents(): void {
 function drawSong(): void {
   const top = laneTop("song");
   const height = laneHeight("song");
-  for (const p of session.played) {
+  for (const p of session().played) {
     if (p.end <= p.start) continue;
     const x0 = xOf(p.start);
     g.fillStyle = ROLE_INK[p.role];
@@ -338,7 +243,7 @@ function drawJump(p: Played, top: number, height: number): void {
 function drawOverlays(lane: Lane): void {
   const top = laneTop(lane);
   g.fillStyle = lane === "guitars" ? ROLE_INK.solo : INK.heavy;
-  for (const o of session.overlays) if (o.lane === lane && o.to > o.from) g.fillRect(xOf(o.from), top + 8, xOf(o.to) - xOf(o.from) - 1, laneHeight(lane) - 16);
+  for (const o of session().overlays) if (o.lane === lane && o.to > o.from) g.fillRect(xOf(o.from), top + 8, xOf(o.to) - xOf(o.from) - 1, laneHeight(lane) - 16);
 }
 
 function drawHeat(): void {
@@ -354,18 +259,18 @@ function drawHeat(): void {
   }
   g.strokeStyle = INK.heat;
   g.beginPath();
-  for (let x = GUTTER; x <= xOf(viewNow); x += COLUMN_STEP) g.lineTo(x, scale(session.heatAt(timeOf(x))));
+  for (let x = GUTTER; x <= xOf(viewNow); x += COLUMN_STEP) g.lineTo(x, scale(session().heatAt(timeOf(x))));
   g.stroke();
 }
 
 function drawGutter(): void {
-  const playing = session.playingAt(viewNow);
+  const playing = session().playingAt(viewNow);
   const readouts: Record<LaneId, string> = {
-    events: String(session.fired.length),
+    events: String(session().fired.length),
     song: playing?.label ?? "",
-    guitars: session.open("guitars", viewNow) ? "pushed" : "",
-    cymbals: session.open("cymbals", viewNow) ? "open" : "",
-    heat: session.heatAt(viewNow).toFixed(2),
+    guitars: session().open("guitars", viewNow) ? "pushed" : "",
+    cymbals: session().open("cymbals", viewNow) ? "open" : "",
+    heat: session().heatAt(viewNow).toFixed(2),
   };
   for (const lane of LANES) {
     const top = laneTop(lane.id);
@@ -404,7 +309,7 @@ function panel(...children: HTMLElement[]): HTMLElement {
   return el("div", { class: "panel" }, ...children);
 }
 
-const combatButton = toggle("Combat", () => session.inCombat, flipCombat, "btn-l");
+const combatButton = toggle("Combat", () => session().inCombat, flipCombat, "btn-l");
 const eventButtons = EVENT_GROUPS.map((group) => el("div", { class: "score-lab-buttons" }, ...group.map((cue) => el("button", { onclick: () => fire(cue) }, EVENTS[cue]))));
 const autoChoice = choice<Auto>(
   [
@@ -418,14 +323,14 @@ const autoChoice = choice<Auto>(
   },
 );
 const statsBox = el("div", { class: "score-lab-picks" });
-const denseButton = el("button", { onclick: () => session.denseTurn(ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds) }, "Dense turn");
+const denseButton = el("button", { onclick: () => session().denseTurn(ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds) }, "Dense turn");
 denseButton.title = "Up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second";
 const gains = SCORE_BLOCKS.cymbalGains;
 const cymbalChoice = choice(
   gains.map((gain) => ({ label: `x${gain}`, value: gain })),
   (gain) => {
     cymbalGain = gain;
-    session.cymbalGain = gain;
+    session().cymbalGain = gain;
   },
   gains.indexOf(SCORE_BLOCKS.cymbalGain),
 );
@@ -445,7 +350,7 @@ const zoomChoice = choice(
   ZOOM_SECONDS.indexOf(DEFAULT_ZOOM),
 );
 const holder = el("div", { class: "score-lab-canvas" }, canvas);
-const songTitle = el("div", { class: "score-lab-song" }, SONG_TITLES[kit.name]);
+const songTitle = el("div", { class: "score-lab-song" }, music.title ?? "");
 const timelinePanel = panel(el("div", { class: "score-lab-bar" }, songTitle, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
@@ -454,10 +359,10 @@ const ledgerPanel = panel(ledgerHead, ledgerRows);
 
 function statRows(): [string, string][] {
   return [
-    ["Combat", session.inCombat ? "on" : "off"],
-    ["Playing", session.playingAt(ctx.currentTime)?.label ?? "-"],
-    ["Bars played", String(session.barsPlayed)],
-    ["Heat", session.heatAt(ctx.currentTime).toFixed(2)],
+    ["Combat", session().inCombat ? "on" : "off"],
+    ["Playing", session().playingAt(ctx.currentTime)?.label ?? "-"],
+    ["Bars played", String(session().barsPlayed)],
+    ["Heat", session().heatAt(ctx.currentTime).toFixed(2)],
   ];
 }
 
@@ -467,7 +372,7 @@ function syncStats(): void {
   if (statsBox.dataset.key === key) return;
   statsBox.dataset.key = key;
   statsBox.replaceChildren(...rows.flatMap(([k, v]) => [el("span", { class: "dim" }, k), el("span", {}, v)]));
-  combatButton.classList.toggle("on", session.inCombat);
+  combatButton.classList.toggle("on", session().inCombat);
 }
 
 function ledgerRow(p: Played, i: number, first: number): HTMLElement {
@@ -485,7 +390,7 @@ function ledgerRow(p: Played, i: number, first: number): HTMLElement {
 }
 
 function syncLedger(): void {
-  const played = session.played;
+  const played = session().played;
   const key = String(played.length);
   if (ledgerRows.dataset.key === key) return;
   ledgerRows.dataset.key = key;

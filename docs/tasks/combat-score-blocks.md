@@ -1,6 +1,6 @@
 # Combat score plays one song in blocks
 
-Status: proposal
+Status: shipped. The game plays two generated ROAM songs this way. Per-event sounds were dropped from the music: events open a guitar lane and a cymbal lane instead, and guns keep their world sounds. [Sound](../../game/docs/sound.md#combat-score) describes what shipped.
 Branch: issue-589
 Worktree: .worktrees/issue-589
 Goal: A fight sounds like one driving song with the shape of the Jawbreaker map, and the fight moves the song between its sections. A listener in the score lab and in a `battle` fight hears one tempo and one key, with verses, walls, stops and a dead stop at the end. Each shot and crash still has a sound on its event.

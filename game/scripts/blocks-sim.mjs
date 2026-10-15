@@ -3,7 +3,7 @@ import { nextRandom } from '../src/sim/rng.ts';
 import { BlockSession } from '../src/three/block-session.ts';
 import { BLOCK_EVENTS } from '../src/three/block-session.ts';
 
-const SONG_ROOT = 'public/tmp/score-proto';
+const SONGS_PATH = 'src/data/combat-songs.json';
 const STEP_SECONDS = 1 / 60;
 const AFTER_LAST_EVENT_SECONDS = 20;
 
@@ -23,7 +23,7 @@ Options:
   --seed <n>          Seed of every random choice. Default 1.
   --length <seconds>  How long the fight runs. Default the last event plus ${AFTER_LAST_EVENT_SECONDS} s.
   --end <seconds>     End combat at this time. Default the length.
-  --song <name>       Song folder under ${SONG_ROOT}, one of the songs in scripts/score-songs.json. Required.
+  --song <name>       One of the songs in ${SONGS_PATH}. Required.
 `;
 
 function fail(message) {
@@ -76,8 +76,12 @@ function step(session, pending, t, end) {
   session.tick(t);
 }
 
+function songOf(name) {
+  return JSON.parse(readFileSync(SONGS_PATH, 'utf8'))[name] ?? fail(`No song ${name} in ${SONGS_PATH}`);
+}
+
 function run(o) {
-  const song = JSON.parse(readFileSync(`${SONG_ROOT}/${o.song}/song.json`, 'utf8'));
+  const song = songOf(o.song);
   const rng = { rngState: o.seed };
   const session = new BlockSession(song, output, () => nextRandom(rng));
   const length = o.length ?? (o.events.at(-1)?.at ?? 0) + AFTER_LAST_EVENT_SECONDS;

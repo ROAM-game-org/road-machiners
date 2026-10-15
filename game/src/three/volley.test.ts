@@ -400,7 +400,7 @@ describe("playShotFx before a shooter's view exists", () => {
       world,
       views: new Map(),
       fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number }) => launched.push(plan), label: () => {} },
-      sound: { at: () => {}, queueAccent: () => {} },
+      sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -496,7 +496,7 @@ describe("playShotFx through the move", () => {
       world,
       views: new Map([[shooter.id, { covers: () => true }]]),
       fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {} },
-      sound: { at: () => {}, queueAccent: (cue: string, atMs: number) => queued.push([cue, atMs]) },
+      sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -512,10 +512,10 @@ describe("playShotFx through the move", () => {
     return { launched, hooked, gunId: gunPart.part.id };
   };
 
-  it("queues the volley's accent at the landing of the round that earns it", () => {
+  it("queues the volley's score event at the landing of the round that earns it", () => {
     const { launched } = fire("mg", () => [round(null), round("t")]);
     expect(queued).toHaveLength(1);
-    expect(queued[0][0]).toBe("accent-hit");
+    expect(queued[0][0]).toBe("hit");
     expect(queued[0][1]).toBe(launched[1].delayMs + launched[1].flightMs);
   });
 

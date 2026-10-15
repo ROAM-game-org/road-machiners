@@ -2,13 +2,15 @@ import { BEATS_PER_BAR, SCORE_BLOCKS } from "../data/sounds";
 import { BlockSequencer, blocksOf, Fading, WHOLE_SECTIONS, type Block, type Role, type Section } from "../audio/designer";
 
 export type BlockSong = {
+  title: string;
   file: string;
-  stems: { drums: string; guitars: string };
-  cymbals: { file: string; from: number };
+  guitars: string;
+  cymbals: { file: string; from: number; start: number; gain: number };
   bpm: number;
   length: number;
   barTimes: number[];
   barPower: { ss: number; gg: number; sg: number }[];
+  barEntry: number[];
   sections: Section[];
   end: number;
 };
@@ -22,7 +24,7 @@ export type Played = { label: string; role: Role | "end"; bar: number; bars: num
 export type Lane = "guitars" | "cymbals";
 export type Overlay = { lane: Lane; from: number; to: number; bar: number; handle: VoiceHandle };
 export type BlockEvent = keyof typeof SCORE_BLOCKS.weights;
-export type Fired = { kind: BlockEvent; at: number; surprise: number; lanes: boolean };
+export type Fired = { kind: BlockEvent; at: number; heat: number; surprise: number; lanes: boolean };
 
 export const TURN_SECONDS = 1;
 export const LANES: Lane[] = ["guitars", "cymbals"];
@@ -119,8 +121,8 @@ export class BlockSession {
     return at;
   }
 
-  fire(kind: BlockEvent, at: number): void {
-    if (!this.inCombat) return;
+  fire(kind: BlockEvent, at: number): Fired | null {
+    if (!this.inCombat) return null;
     const weight = SCORE_BLOCKS.weights[kind];
     this.heat.add(at, weight);
     this.heats.push({ at, value: this.heat.read(at) });
@@ -131,7 +133,9 @@ export class BlockSession {
     const lanes = surprise >= SCORE_BLOCKS.surpriseLine;
     if (lanes) this.askLanes(at);
     this.addNudge(kind);
-    this.fired.push({ kind, at, surprise, lanes });
+    const fired = { kind, at, heat: this.heat.read(at), surprise, lanes };
+    this.fired.push(fired);
+    return fired;
   }
 
   private askLanes(at: number): void {
@@ -202,7 +206,8 @@ export class BlockSession {
     const length = this.barTime(block.bar + block.bars) - offset;
     const join = this.joinOf(block);
     const fade = join === "jump" ? SCORE_BLOCKS.jumpFadeSeconds : SCORE_BLOCKS.seamSeconds;
-    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when, fade);
+    const entry = this.song.barEntry[block.bar - 1];
+    if (join === "jump") for (const v of this.played.at(-1)!.voices) v.fadeOut(when + entry, fade);
     const level = this.levelOf(block.bar, block.bars, false);
     const voices = [this.out.voice("song", offset, when, length, fade, level)];
     const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
@@ -239,8 +244,8 @@ export class BlockSession {
   private cymbals(spot: Spot, length: number): VoiceHandle {
     const section = this.sectionOf(spot.bar);
     const source = this.song.cymbals.from + ((spot.bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
-    const offset = this.barTime(source) + spot.beat * this.beatSeconds;
-    return this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.cymbalGain);
+    const offset = this.barTime(source) + spot.beat * this.beatSeconds - this.song.cymbals.start;
+    return this.out.voice("cymbals", offset, spot.at, length, SCORE_BLOCKS.seamSeconds, this.song.cymbals.gain * this.cymbalGain);
   }
 
   private sectionOf(bar: number): Section {

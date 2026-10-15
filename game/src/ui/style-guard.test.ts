@@ -145,7 +145,7 @@ const scripts = [
   "src/three/render/labels.ts",
   "src/three/render/weaponRange.ts",
   "src/three/render/fx.ts",
-  "src/three/score-lab.ts",
+  "src/three/block-lab.ts",
 ];
 
 describe("the game's styles", () => {
