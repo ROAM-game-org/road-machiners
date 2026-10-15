@@ -2241,6 +2241,10 @@
     "ruben_water": "boolean"
    },
    "first_fall": {},
+   "granary_odile": {
+    "asked_gate": "boolean",
+    "asked_need": "boolean"
+   },
    "intro_arrival": {
     "arrival_rope": "boolean"
    },
@@ -2310,6 +2314,10 @@
     "heard_sun": "boolean",
     "heard_swivel": "boolean"
    },
+   "pit_hadiza": {
+    "asked_hooks": "boolean",
+    "asked_want": "boolean"
+   },
    "pump_agnes": {
     "asked_leak": "boolean",
     "asked_man": "boolean",
@@ -2348,6 +2356,9 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
+   "station_still": {
+    "asked_buyers": "boolean"
+   },
    "wagon_bench": {
     "fee": "number",
     "halves_fit": "boolean",
@@ -2399,6 +2410,10 @@
    "first_fall": [
     "start"
    ],
+   "granary_odile": [
+    "start",
+    "start.hub"
+   ],
    "intro_arrival": [
     "start",
     "start.farm",
@@ -2430,6 +2445,10 @@
     "start",
     "start.hub"
    ],
+   "pit_hadiza": [
+    "start",
+    "start.hub"
+   ],
    "pump_agnes": [
     "start",
     "start.hub",
@@ -2444,6 +2463,10 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "station_still": [
+    "start",
+    "start.hub"
    ],
    "wagon_bench": [
     "start",
@@ -2533,6 +2556,16 @@
     "reads": [
      "intro_step"
     ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "granary_odile": {
+   "revision": 1,
+   "links": {
+    "reads": [],
     "readsNotes": [],
     "writes": {},
     "notes": [],
@@ -2647,6 +2680,16 @@
     ]
    }
   },
+  "pit_hadiza": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
   "pump_agnes": {
    "revision": 1,
    "links": {
@@ -2704,6 +2747,16 @@
     "readsNotes": [
      "wagonNose"
     ],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "station_still": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
     "writes": {},
     "notes": [],
     "begins": []

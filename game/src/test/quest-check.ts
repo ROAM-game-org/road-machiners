@@ -75,11 +75,15 @@ function withWorldVars(scenes: World[], assigned: readonly [string, QuestValue][
 export function gameScenes(base: World): QuestScenes {
   const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [] };
   return (questId) => {
-    const local = localOfQuest(questId);
     const fresh = cloneWorld(shared);
-    if (local) parkAt(fresh, local.town);
+    parkAtLocal(fresh, questId);
     return [fresh, veteran(fresh)];
   };
+}
+
+export function parkAtLocal(world: World, questId: string): void {
+  const local = localOfQuest(questId);
+  if (local) parkAt(world, local.town);
 }
 
 function parkAt(world: World, town: string): void {

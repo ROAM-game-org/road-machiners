@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EN } from '../text/en';
 import { LOCALS, type NoteId } from '../data/locals';
-import { CONTRACTS, SHOPS } from '../data/market';
+import { CONTRACTS, SHOPS, SITE_ECONOMY, SITE_EVENTS, siteRecipes } from '../data/market';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { holdsNote, learnNote, localsAt, townWork } from './dialogue-rules';
@@ -72,7 +72,7 @@ describe('settlement locals', () => {
     w.player.quests.world.wagon_seen = true;
 
     expect(choices(w, 'nose_ibo')).toContain('What happened at Burnt Convoy?');
-    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
+    expect(choices(w, 'nose_kovac')).toEqual(['What is this place?', 'Who runs Nose?', 'What is the road like?', 'What does Nose turn out?', WORK, 'Anything off the books?', WAGON, WAGON_FOUND, 'Goodbye.']);
   });
 
   it('opens the Fallen Sun question once the crater is found', () => {
@@ -94,7 +94,7 @@ describe('settlement locals', () => {
 
   it('offers a stranger only questions that name nothing unheard', () => {
     const w = parkedAt('bowl');
-    expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'Goodbye.']);
+    expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'What does Bowl make?', 'Goodbye.']);
     expect(choices(w, 'bowl_dag')).toEqual(['What is the road like?', 'Any work?', 'Who pays the Farmers?', 'Goodbye.']);
   });
 
@@ -474,7 +474,7 @@ describe('locals at stalls', () => {
 
   it('lists Agnes at Dustwell', () => {
     expect(localsAt('dustwell').map((l) => l.id)).toContain('agnes');
-    expect(localsAt('pump-station')).toEqual([]);
+    expect(localsAt('pump-station').map((l) => l.id)).toEqual(['hollis']);
   });
 
   it('keeps the copy from a driver who tells the watchman, and pays only the driver who takes his purse', () => {
@@ -645,8 +645,8 @@ describe('the Pump Station fuel role', () => {
     expect(claims).toEqual([]);
   });
 
-  it('keeps no one living at the Pump Station and no water made there', () => {
-    expect(Object.values(LOCALS).filter((l) => l.town === 'pump-station')).toEqual([]);
+  it('keeps only the still boss living at the Pump Station and no water made there', () => {
+    expect(Object.values(LOCALS).filter((l) => l.town === 'pump-station').map((l) => l.id)).toEqual(['hollis']);
     expect(localsAt('dustwell').map((l) => l.id)).toEqual(['agnes']);
   });
 });
@@ -674,5 +674,29 @@ describe('site state queries', () => {
     expect(() => QUEST_QUERIES.short_of(parkedAt('granary'), ['electronics'])).toThrow(/no stock of electronics/);
     expect(() => QUEST_QUERIES.short_of(parkedAt('granary'), ['sand'])).toThrow(/names no good sand/);
     expect(() => QUEST_QUERIES.works_down(parkedAt('granary'), [])).toThrow(/never break down/);
+  });
+});
+
+describe('site talk', () => {
+  const source = (quest: string) => readFileSync(`src/data/quests/${quest}.ink`, 'utf8');
+  const questsAt = (shopId: string) => Object.values(LOCALS).filter((l) => l.town === shopId).map((l) => source(l.quest));
+
+  it('gives every site of the production graph a local who asks after each good its works need', () => {
+    for (const shopId of Object.keys(SITE_ECONOMY)) {
+      const needed = [...new Set(siteRecipes(shopId).flatMap((r) => [...Object.keys(r.inputs), ...r.upkeep]))];
+      const canBreak = SITE_EVENTS.some((e) => e.site === shopId && e.kind === 'breakdown');
+      const sources = questsAt(shopId);
+      expect(sources.length, shopId).toBeGreaterThan(0);
+      const asks = sources.some((ink) => needed.every((good) => ink.includes(`short_of("${good}")`)) && (!canBreak || ink.includes('works_down()')));
+      expect(asks, `${shopId} needs ${needed.join(', ')}${canBreak ? ' and a breakdown line' : ''}`).toBe(true);
+    }
+  });
+
+  it('has Odile tell a driver at an empty Granary that the sorgut is low, and say nothing of it at a full one', () => {
+    const empty = parkedAt('granary');
+    empty.shops.granary.goods.grain = 0;
+    const said = (w: World) => questView(talk(w, 'granary_odile', ['What does the Granary make?']), QUESTS).lines.map((l) => l.text).join(' ');
+    expect(said(empty)).toContain('Sorgut\'s low');
+    expect(said(parkedAt('granary'))).not.toContain('low');
   });
 });

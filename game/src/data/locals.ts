@@ -19,7 +19,7 @@ export type NoteId = (typeof NOTE_IDS)[number];
 
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
-export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes';
+export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes' | 'odile' | 'hadiza' | 'hollis';
 
 export type LocalDef = { id: LocalId; town: string; quest: string };
 
@@ -34,6 +34,9 @@ export const LOCALS: Record<LocalId, LocalDef> = {
   jory: { id: 'jory', town: 'bowl', quest: 'bowl_jory' },
   sefa: { id: 'sefa', town: 'salvage-yard', quest: 'yard_sefa' },
   agnes: { id: 'agnes', town: 'dustwell', quest: 'pump_agnes' },
+  odile: { id: 'odile', town: 'granary', quest: 'granary_odile' },
+  hadiza: { id: 'hadiza', town: 'green-pit', quest: 'pit_hadiza' },
+  hollis: { id: 'hollis', town: 'pump-station', quest: 'station_still' },
 };
 
 export const TERM_IDS = [
