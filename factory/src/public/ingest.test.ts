@@ -107,6 +107,18 @@ describe('ingest', () => {
     expect(f.store.tally(7, ['👍'], ['👎'])).toEqual({ up: 0, down: 1 });
   });
 
+  it('removes a player vote on a later tick when their last reaction is removed', async () => {
+    const { f, inbox, put } = setup();
+    const reaction = (updateId: number, emoji: string[]) => ({ updateId, kind: 'reaction', chat: CHANNEL, messageId: 100, user: 'a', emoji });
+    put('1.json', reaction(1, ['👍']));
+    await ingest(f.ctx, f.store);
+    expect(f.store.tally(7, ['👍'], ['👎'])).toEqual({ up: 1, down: 0 });
+    put('2.json', reaction(2, []));
+    await ingest(f.ctx, f.store);
+    expect(f.store.tally(7, ['👍'], ['👎'])).toEqual({ up: 0, down: 0 });
+    expect(existsSync(`${inbox}/bad`)).toBe(false);
+  });
+
   it('stores a comment event for a tracked thread', async () => {
     const { f, put } = setup();
     put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 31, threadId: 100, author: 'ann', sender: '1', text: 'The truck stalls', at: '2026-10-14T10:00:00Z' });

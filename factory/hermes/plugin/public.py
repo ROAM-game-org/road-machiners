@@ -65,7 +65,7 @@ def reaction_event(raw: dict) -> Optional[dict]:
     body = raw["message_reaction"]
     if "user" not in body:
         return None
-    emoji = [found for found in map(emoji_of, body["new_reaction"]) if found is not None]
+    emoji = [found for found in map(emoji_of, body.get("new_reaction") or []) if found is not None]
     return {
         "updateId": raw["update_id"], "kind": "reaction", "chat": str(body["chat"]["id"]),
         "messageId": body["message_id"], "user": str(body["user"]["id"]), "emoji": emoji,

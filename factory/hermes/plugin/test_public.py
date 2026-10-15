@@ -102,11 +102,34 @@ def test_user_reaction_event(tmp_path):
     }}
 
 
-def test_removed_reaction_has_empty_list(tmp_path):
+ABSENT = object()
+
+
+def removal_update(new_reaction):
     raw = reaction_update()
-    raw["message_reaction"]["new_reaction"] = []
+    raw["message_reaction"]["old_reaction"] = [{"type": "emoji", "emoji": "\U0001F44D"}]
+    if new_reaction is ABSENT:
+        del raw["message_reaction"]["new_reaction"]
+    else:
+        raw["message_reaction"]["new_reaction"] = new_reaction
+    return raw
+
+
+@pytest.mark.parametrize("new_reaction", [[], ABSENT, None], ids=["empty", "absent", "null"])
+def test_removed_reaction_has_empty_list_and_raises_no_alert(tmp_path, new_reaction):
+    stop = public.handle_public_update(removal_update(new_reaction), cfg_for(tmp_path))
+    assert stop is True
+    assert written(tmp_path) == {"502.json": {
+        "updateId": 502, "kind": "reaction", "chat": DISCUSSION, "messageId": 17, "user": "42", "emoji": [],
+    }}
+    assert not (tmp_path / "public-alert").exists()
+
+
+def test_switched_reaction_writes_only_the_new_emoji(tmp_path):
+    raw = removal_update([{"type": "emoji", "emoji": "\U0001F44E"}])
     public.handle_public_update(raw, cfg_for(tmp_path))
-    assert written(tmp_path)["502.json"]["emoji"] == []
+    assert written(tmp_path)["502.json"]["emoji"] == ["\U0001F44E"]
+    assert not (tmp_path / "public-alert").exists()
 
 
 def test_anonymous_reaction_writes_nothing_and_stops(tmp_path):
