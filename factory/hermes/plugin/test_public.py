@@ -109,6 +109,27 @@ def test_removed_reaction_has_empty_list(tmp_path):
     assert written(tmp_path)["502.json"]["emoji"] == []
 
 
+def test_removal_without_new_reaction_is_recorded(tmp_path):
+    raw = reaction_update()
+    raw["message_reaction"]["old_reaction"] = [{"type": "emoji", "emoji": "\U0001F44D"}]
+    del raw["message_reaction"]["new_reaction"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path) == {"502.json": {
+        "updateId": 502, "kind": "reaction", "chat": DISCUSSION, "messageId": 17, "user": "42", "emoji": [],
+    }}
+    assert not public.alert_path(cfg).exists()
+
+
+def test_count_without_reactions_is_recorded_as_no_counts(tmp_path):
+    raw = count_update()
+    del raw["message_reaction_count"]["reactions"]
+    cfg = cfg_for(tmp_path)
+    assert public.handle_public_update(raw, cfg) is True
+    assert written(tmp_path)["501.json"]["counts"] == {}
+    assert not public.alert_path(cfg).exists()
+
+
 def test_anonymous_reaction_writes_nothing_and_stops(tmp_path):
     assert public.handle_public_update(reaction_update(user=False), cfg_for(tmp_path)) is True
     assert written(tmp_path) == {}

@@ -51,7 +51,7 @@ def emoji_of(reaction: dict) -> Optional[str]:
 def count_event(raw: dict) -> dict:
     body = raw["message_reaction_count"]
     counts = {}
-    for entry in body["reactions"]:
+    for entry in body.get("reactions", []):
         emoji = emoji_of(entry["type"])
         if emoji is not None:
             counts[emoji] = entry["total_count"]
@@ -65,7 +65,7 @@ def reaction_event(raw: dict) -> Optional[dict]:
     body = raw["message_reaction"]
     if "user" not in body:
         return None
-    emoji = [found for found in map(emoji_of, body["new_reaction"]) if found is not None]
+    emoji = [found for found in map(emoji_of, body.get("new_reaction", [])) if found is not None]
     return {
         "updateId": raw["update_id"], "kind": "reaction", "chat": str(body["chat"]["id"]),
         "messageId": body["message_id"], "user": str(body["user"]["id"]), "emoji": emoji,
