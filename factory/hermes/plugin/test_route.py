@@ -236,7 +236,7 @@ class Adapter:
         return types.SimpleNamespace(success=True, error=None)
 
 
-def dispatch(tmp_path, user, text="/change x", chat="-100", monkeypatch=None):
+def dispatch(tmp_path, user, text="/change x", chat="-100", monkeypatch=None, reply=None, media=None):
     (tmp_path / "state").mkdir(exist_ok=True)
     (tmp_path / "inbox").mkdir(exist_ok=True)
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
@@ -245,7 +245,7 @@ def dispatch(tmp_path, user, text="/change x", chat="-100", monkeypatch=None):
     adapter = Adapter()
     gateway = types.SimpleNamespace(adapters={"telegram": adapter})
     source = types.SimpleNamespace(user_id=user, user_name="Ann", chat_id=chat, platform="telegram")
-    event = types.SimpleNamespace(text=text, reply_to_message_id=None, source=source, message_id="5")
+    event = types.SimpleNamespace(text=text, reply_to_message_id=reply, source=source, message_id="5", media_urls=media or [])
     result = asyncio.run(plugin.make_hook(cfg, make_readiness(tmp_path))(event, gateway, None))
     return result, adapter, tmp_path / "inbox"
 
@@ -449,6 +449,36 @@ def test_member_plain_chat_in_other_chat_passes(tmp_path):
     result, adapter, _ = dispatch(tmp_path, "1", text="hello", chat="-200")
     assert result is None
     assert adapter.sent == []
+
+
+@pytest.mark.parametrize("text", ["Thanks.", "@roam_bot thanks!", "Thank you 🙏", "Спасибо!", "thank you very much"])
+def test_hook_keeps_a_bare_thanks_from_hermes_so_it_gets_no_empty_reply(tmp_path, text):
+    result, adapter, inbox = dispatch(tmp_path, "1", text=text)
+    assert result == {"action": "skip", "reason": "factory-thanks"}
+    assert adapter.sent == []
+    assert list(inbox.iterdir()) == []
+
+
+@pytest.mark.parametrize("text", ["thanks, why is #12 stuck?", "thanks?", "ok", "sure", "👍", "да", "", "thanks, now patch the fuel gauge", "спасибо, а когда релиз?"])
+def test_hook_hands_hermes_a_confirmation_a_blank_message_or_a_thanks_that_asks_or_orders(tmp_path, text):
+    result, adapter, _ = dispatch(tmp_path, "1", text=text)
+    assert result is None
+    assert adapter.sent == []
+
+
+def test_hook_hands_hermes_a_bare_thanks_with_a_picture(tmp_path):
+    result, _, _ = dispatch(tmp_path, "1", text="thanks", media=["/cache/a.png"])
+    assert result is None
+
+
+@pytest.mark.parametrize("text, kind", [("approve", "approve"), ("thanks", "reply")])
+def test_hook_still_handles_approve_and_thanks_on_an_approval_post(tmp_path, text, kind):
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {"55": 12}}')
+    result, _, inbox = dispatch(tmp_path, "1", text=text, reply="55")
+    assert result["reason" if kind == "approve" else "action"] == ("factory-approve" if kind == "approve" else "rewrite")
+    (file,) = inbox.iterdir()
+    assert json.loads(file.read_text())["kind"] == kind
 
 
 def test_committee_list_in_any_chat(tmp_path):
