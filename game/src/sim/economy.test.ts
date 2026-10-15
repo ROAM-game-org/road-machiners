@@ -351,6 +351,28 @@ describe("garage", () => {
     expect(r.player.money).toBe(w.player.money - price);
   });
 
+  it("includes the engine in repair basics, for the shown price", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 1;
+    const price = basicsRepairCost(w);
+
+    const r = repairBasics(w);
+
+    const fixed = mountedParts(r.vehicles[0]).find((p) => p.id === engine.id)!;
+    expect(price).toBeGreaterThan(0);
+    expect(fixed.hp).toBe(maxHp(fixed));
+    expect(r.player.money).toBe(w.player.money - price);
+  });
+
+  it("skips a junk engine in repair basics without the Rebuild perk", () => {
+    const w = startAtBowl();
+    const engine = mountedParts(w.vehicles[0]).find((p) => partDef(p.defId).kind === "engine")!;
+    engine.hp = 0;
+    engine.wear = CONDITION.maxWear + 1;
+    expect(basicsRepairCost(w)).toBe(0);
+  });
+
   it("prices repair all as repair basics plus the other parts", () => {
     const w = startAtBowl();
     const gun = mountedParts(w.vehicles[0])[0];

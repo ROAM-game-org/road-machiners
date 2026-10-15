@@ -15,7 +15,7 @@ export function checkScope(scope: string): void {
 
 export async function buildAndDeploy(ctx: Ctx, clone: string, scope: string, log: string, reports: ReportBuild | null = null): Promise<string> {
   checkScope(scope);
-  await ctx.container.shell(clone, stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: scope, ...(reports ? reportEnv(ctx.cfg, reports) : {}) });
+  await ctx.container.shell('build', clone, stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: scope, ...(reports ? reportEnv(ctx.cfg, reports) : {}) });
   if (reports) await takeMaps(ctx, clone, reports);
   return publishBuild(ctx, clone, scope);
 }
@@ -53,8 +53,7 @@ async function buildDev(ctx: Ctx, log: string): Promise<string> {
 
 export async function rebuildDev(ctx: Ctx, log: string): Promise<void> {
   const url = await deployDev(ctx, log);
-  const head = readState(ctx.statePath).devBuild;
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Dev is rebuilt at ${head}.\nPlay it: ${url}`);
+  ctx.log('dev', null, `dev is rebuilt at ${readState(ctx.statePath).devBuild}, ${url}`);
 }
 
 export function recordBuild(statePath: string, issue: number, name: string): void {

@@ -8,7 +8,7 @@ import { markPost } from './post-status';
 import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
 import { recordReleaseTask } from './stages/release-common';
-import { updateState } from './state';
+import { readState, updateState } from './state';
 import { ADHOC_LABEL, RELEASE_TASK_LABEL, type Ctx, type Route } from './types';
 
 const TITLE_LIMIT = 80;
@@ -149,7 +149,8 @@ const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
   remove: (ctx, command, issue, by) => queueRemoval(ctx, issue, by, requireText(command)),
   reply: (ctx, command, issue) => awaitRoute(ctx, command, issue),
   answer: routed, patch: routed, redesign: routed,
-  deny: async (ctx, _command, issue, by) => {
+  deny: async (ctx, command, issue, by) => {
+    requireCurrentPost(ctx, command, issue);
     await deny(ctx, issue, by);
     return `Issue #${issue} is denied and closed.`;
   },
@@ -157,7 +158,12 @@ const ISSUE_HANDLERS: Partial<Record<InboxCommand['kind'], IssueHandler>> = {
 
 async function handleIssueCommand(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
   const handler = ISSUE_HANDLERS[command.kind];
-  return handler ? handler(ctx, command, issue, by) : queueApproval(ctx, issue, by);
+  return handler ? handler(ctx, command, issue, by) : queueApproval(ctx, command, issue, by);
+}
+
+function requireCurrentPost(ctx: Ctx, command: InboxCommand, issue: number): void {
+  if (command.postId === null || readState(ctx.statePath).approvalPosts[String(command.postId)] === issue) return;
+  throw new Error(`That post of #${issue} is no longer current, so it cannot ${command.kind} anything. Only the newest post of #${issue} can.`);
 }
 
 const ROUTE_ANSWERS: Record<Route, (issue: number) => string> = {
@@ -186,9 +192,10 @@ function requirePost(command: InboxCommand): number {
   return command.postId;
 }
 
-async function queueApproval(ctx: Ctx, issue: number, by: string): Promise<string> {
+async function queueApproval(ctx: Ctx, command: InboxCommand, issue: number, by: string): Promise<string> {
   const card = (await ctx.github.cards()).find((item) => item.issue === issue);
   if (card?.column !== 'Approval') throw new Error(`Issue #${issue} is not waiting for approval.`);
+  requireCurrentPost(ctx, command, issue);
   updateState(ctx.statePath, (state) => ({ ...state, pendingApprovals: { ...state.pendingApprovals, [String(issue)]: by } }));
   return `Approval of #${issue} is queued. Hardening starts on a coming tick.`;
 }
@@ -197,7 +204,7 @@ async function queueAdhoc(ctx: Ctx, command: InboxCommand, by: string): Promise<
   const text = requireText(command).trim();
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat.`, [ADHOC_LABEL]);
-  await addCard(ctx, n, 'Implementation', 'adhoc');
+  await addCard(ctx, n, 'Implementation', ctx.now().toISOString(), 'adhoc');
   const reply = { chat: command.chat, messageId: command.messageId };
   updateState(ctx.statePath, (state) => ({ ...state, adhocReplies: { ...state.adhocReplies, [String(n)]: reply } }));
   return `Queued as #${n}. The report comes as a reply here.`;
@@ -209,7 +216,7 @@ async function openReleaseTask(ctx: Ctx, command: InboxCommand, by: string): Pro
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat as a task of release ${release.day}.`, [RELEASE_TASK_LABEL]);
   recordReleaseTask(ctx, n);
-  await addCard(ctx, n, 'Design', 'release-task');
+  await addCard(ctx, n, 'Design', ctx.now().toISOString(), 'release-task');
   updateState(ctx.statePath, (state) => ({ ...state, pendingShip: null, release: state.release && { ...state.release, postId: null } }));
   return `Opened #${n} as a task of release ${release.day}. A new candidate follows when it is done.`;
 }

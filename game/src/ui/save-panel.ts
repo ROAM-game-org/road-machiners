@@ -1,4 +1,5 @@
 
+import { closeLabel } from "./input-mode";
 import type { SlotId, SlotInfo } from "../three/save-slots";
 import { slotLabel } from "../three/save-slots";
 import { bindAttr, say } from "../text/language";
@@ -80,7 +81,7 @@ export class SaveList {
     this.root = panel("save-panel dialog");
     this.root.setAttribute("role", "dialog");
     bindAttr(this.root, "aria-label", title);
-    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, t("menu.closeEsc")));
+    this.root.append(el("h3", {}, title), ...rows, el("button", { class: "close", onclick: () => this.close() }, closeLabel()));
     window.addEventListener("keydown", this.onKey, true);
   }
 

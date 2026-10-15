@@ -7,7 +7,8 @@ import { throttleFor } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { reportError } from "./crash";
-import { workerError, workerFailure } from "./travel";
+import { workerError } from "./travel";
+import { WorkerLoad, workerFailure } from "./worker-load";
 
 export function throttleColor(me: Vehicle, p: Vec): number {
   return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed)];
@@ -20,6 +21,9 @@ export function firstTurnColor(me: Vehicle): number {
 type Wanted = { world: World; drive: DriveSnapshot; meId: string };
 
 export class PlanPreparation {
+  private readonly load = new WorkerLoad("preview worker");
+  private sent: Wanted | null = null;
+  private answered = false;
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
   private serial = 0;
@@ -42,8 +46,9 @@ export class PlanPreparation {
 
   private postQueued(): void {
     const wanted = this.queued;
-    if (!wanted) return;
+    if (!wanted || this.load.gaveUp || this.load.waiting) return;
     this.queued = null;
+    this.sent = this.answered ? null : { ...wanted, drive: { ...wanted.drive, snapshot: wanted.drive.snapshot.slice() } };
     const { terrain, ...state } = wanted.world;
     const id = ++this.serial;
     this.worker ??= this.createWorker();
@@ -70,13 +75,27 @@ export class PlanPreparation {
     worker.onmessage = (event: MessageEvent<PreviewResponse>) => this.receive(event.data);
     worker.onerror = (event) => {
       event.preventDefault();
+      if (worker !== this.worker) return;
+      if (this.load.failed(event, () => this.postQueued())) return this.dropWorker();
       this.fail(workerFailure("Preview worker", event));
     };
     worker.onmessageerror = () => this.fail("Could not read preview worker response");
     return worker;
   }
 
+  private dropWorker(): void {
+    this.worker?.terminate();
+    this.worker = null;
+    this.terrain = null;
+    this.running = null;
+    this.answered = false;
+    this.queued ??= this.sent;
+    this.sent = null;
+  }
+
   private receive(response: PreviewResponse): void {
+    this.load.loaded();
+    this.answered = true;
     if ("error" in response) reportError(workerError(response.error));
     else {
       mergePerf(response.perf);
@@ -92,6 +111,7 @@ export class PlanPreparation {
 
   private finish(): void {
     this.running = null;
+    this.sent = null;
     this.postQueued();
   }
 }

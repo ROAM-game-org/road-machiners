@@ -731,6 +731,35 @@ describe("the utility row", () => {
     expect(utilityEn(world.w, claymore, false)).toEqual({ state: "armed", text: "armed" });
   });
 
+  describe("an armed claymore ram", () => {
+    function armed() {
+      const built = build();
+      const claymore = makePart(built.world.w, "claymoreRam", 0);
+      if (!mountPart(built.world.w, built.world.w.vehicles[0], claymore)) throw new Error("No room for the claymore ram");
+      claymore.charge = { reload: 0, armed: true };
+      const slot = utilitySlots(built.world.w).indexOf(claymore);
+      return { ...built, claymore, slot };
+    }
+
+    it("takes a disarm order on a press, shows it as set, and drops it on a second press", () => {
+      const { world, host, row, claymore, slot } = armed();
+      row.selectUtility(slot);
+      expect(world.w.vehicles[0].utilityOrders[claymore.id]).toEqual({ kind: "disarm" });
+      expect(utilityEn(world.w, claymore, false)).toEqual({ state: "set", text: "disarms this turn" });
+      row.selectUtility(slot);
+      expect(world.w.vehicles[0].utilityOrders[claymore.id]).toBeUndefined();
+      expect(utilityEn(world.w, claymore, false)).toEqual({ state: "armed", text: "armed" });
+      expect(host.apply).toHaveBeenCalledTimes(2);
+    });
+
+    it("takes no order on a shut down truck", () => {
+      const { world, host, row, slot } = armed();
+      world.w.vehicles[0].shutDown = { from: world.w.turn, until: world.w.turn + 2 };
+      row.selectUtility(slot);
+      expect(host.apply).not.toHaveBeenCalled();
+    });
+  });
+
   it("blocks an oil spiller with too little fuel to spill", () => {
     const w = emptyWorld();
     const spiller = makePart(w, "oilSpiller", 0);

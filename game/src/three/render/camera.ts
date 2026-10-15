@@ -109,8 +109,12 @@ export class CameraRig {
   }
 
   zoomBy(wheelDeltaY: number): void {
+    this.zoomByFactor(Math.exp(-wheelDeltaY * 0.001));
+  }
+
+  zoomByFactor(factor: number): void {
     this.viewMoved = true;
-    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * Math.exp(-wheelDeltaY * 0.001)));
+    this.zoom = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoom * factor));
     this.resize();
   }
 
@@ -179,11 +183,15 @@ export class TruckFollow {
     });
     window.addEventListener("pointermove", (e) => {
       if (!from) return;
-      this.rig.panBy(e.clientX - from.x, e.clientY - from.y);
+      this.pan(e.clientX - from.x, e.clientY - from.y);
       from = { x: e.clientX, y: e.clientY };
-      this.following = false;
     });
     window.addEventListener("pointerup", () => (from = null));
+  }
+
+  pan(dxPx: number, dyPx: number): void {
+    this.rig.panBy(dxPx, dyPx);
+    this.following = false;
   }
 
   isFollowing(): boolean {

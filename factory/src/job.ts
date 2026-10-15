@@ -79,7 +79,7 @@ export async function runJob(ctx: Ctx, stage: JobStage, issue: number | null): P
   } catch (error) {
     retry = await failed(ctx, stage, issue, job, error);
   } finally {
-    recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), entry, outcome);
+    recordJob(ctx.cfg.home, ctx.cfg.tokenPrices, ctx.now(), withBatch(ctx, entry, job), outcome);
     clearJob(ctx, stage, issue, retry);
     if (!retry) clearSessionsOf(ctx, stage, issue);
   }
@@ -101,6 +101,11 @@ function batchOf(ctx: Ctx, job: Job | null): number[] {
   return readState(ctx.statePath).jobs.find((other) => other.id === job.id)?.batch ?? [];
 }
 
+function withBatch<T extends object>(ctx: Ctx, entry: T, job: Job | null): T & { batch?: number[] } {
+  const batch = job === null ? undefined : readState(ctx.statePath).jobs.find((other) => other.id === job.id)?.batch;
+  return batch === undefined ? entry : { ...entry, batch };
+}
+
 function ledgerEntry(
   ctx: Ctx,
   job: Job | null,
@@ -111,9 +116,10 @@ function ledgerEntry(
   stage: JobStage;
   issue: number | null;
   startedAt: string;
+  log?: string;
 } {
   if (job === null) return { id: null, stage, issue, startedAt: ctx.now().toISOString() };
-  return { id: job.id, stage, issue, startedAt: job.startedAt };
+  return { id: job.id, stage, issue, startedAt: job.startedAt, log: job.log };
 }
 
 function resuming(ctx: Ctx, stage: JobStage, issue: number | null): boolean {

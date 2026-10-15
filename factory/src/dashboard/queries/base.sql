@@ -8,8 +8,16 @@ select line, json_extract_string(j, '$.id') as id, json_extract_string(j, '$.sta
   try_cast(json_extract_string(j, '$.issue') as bigint) as issue, json_extract_string(j, '$.outcome') as outcome,
   json_extract_string(j, '$.retryOf') as retry_of, json_extract_string(j, '$.endedAt') as ended_at,
   epoch_ms(try_cast(json_extract_string(j, '$.startedAt') as timestamptz)) as start_ms, time_ms as end_ms,
-  coalesce(json_array_length(json_extract(j, '$.agents')), 0) as agent_count
+  coalesce(json_array_length(json_extract(j, '$.agents')), 0) as agent_count,
+  from_json(json_extract(j, '$.batch'), '["BIGINT"]') as batch,
+  coalesce(json_type(json_extract(j, '$.parts')) = 'ARRAY', false) as has_parts
 from ledger where kind = 'job';
+
+create or replace table job_parts as
+select line, json_extract_string(p, '$.kind') as kind,
+  epoch_ms(try_cast(json_extract_string(p, '$.startedAt') as timestamptz)) as start_ms,
+  epoch_ms(try_cast(json_extract_string(p, '$.endedAt') as timestamptz)) as end_ms
+from (select line, unnest(from_json(json_extract(j, '$.parts'), '["JSON"]')) as p from ledger where kind = 'job' and json_type(json_extract(j, '$.parts')) = 'ARRAY');
 
 create or replace table agents as
 select line, idx, a, try_cast(json_extract_string(a, '$.costUsd') as double) as cost,
@@ -28,7 +36,8 @@ from (select line, idx, unnest(from_json(json_extract(a, '$.modelUsage'), '["JSO
 
 create or replace table cards as
 select line, try_cast(json_extract_string(j, '$.issue') as bigint) as issue, json_extract_string(j, '$.step') as step,
-  json_extract_string(j, '$.to') as col, json_extract_string(j, '$.at') as at, time_ms as at_ms, json_extract_string(j, '$.flow') as flow
+  json_extract_string(j, '$.to') as col, json_extract_string(j, '$.at') as at, time_ms as at_ms, json_extract_string(j, '$.flow') as flow,
+  epoch_ms(try_cast(json_extract_string(j, '$.opened') as timestamptz)) as opened_ms
 from ledger where kind = 'card';
 
 create or replace table scheduler as

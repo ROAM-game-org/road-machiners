@@ -4,7 +4,7 @@ NPC activities, traits, decisions, states and escorts. The principles behind the
 
 ## NPC activities
 
-NPC behavior has three layers. Traits are permanent and set the chances of choices. A goal stack keeps long-term work under interruptions like fights, flight, service and repairs. The driver usually resumes that work once an interruption ends. Decision points pick reactions by weighted chance when a new hostile, contact, attack, prey, stranded truck or passed wreck appears. Traits give fixed knowledge of towns, salvage sites and hunting grounds. Each NPC remembers the subjects it already decided on and the attackers still in sight. There is no live shared intelligence. Drivers also keep hidden memories of what they saw, each with when they saw it. A newer memory of the same thing replaces the old one, and a memory fades after a day. The first kind is shop prices: a driver remembers a shop's prices when it does business there, and tells of them on the radio. The second kind is salvage it found stripped. The hover panel shows what a seen driver is doing and why, under its name. It also shows every state the driver holds toward the player, like feuds, grudges, revenge and deals, with the turns left. The full log debug flag logs each goal change and its reason. Messages name an NPC by its profession and driver name, like Roamer Silas Kane.
+NPC behavior has three layers. Traits are permanent and set the chances of choices. A goal stack keeps long-term work under interruptions like fights, flight, service and repairs. The driver usually resumes that work once an interruption ends. Decision points pick reactions by weighted chance when a new hostile, contact, attack, prey, stranded truck or passed wreck appears. Traits give fixed knowledge of towns, salvage sites and hunting grounds. Each NPC remembers the subjects it already decided on and the attackers still in sight. There is no live shared intelligence. Drivers also keep hidden memories of what they saw, each with when they saw it. A newer memory of the same thing replaces the old one, and a memory fades after a day. The first kind is shop prices: a driver remembers a shop's prices when it does business there, and tells of them on the radio. The second kind is salvage it found stripped. The third kind is a truck that attacked or robbed it, kept for six days, and only the courier story reads it. The hover panel shows what a seen driver is doing and why, under its name. It also shows every state the driver holds toward the player, like feuds, grudges, revenge and deals, with the turns left. The full log debug flag logs each goal change and its reason. Messages name an NPC by its profession and driver name, like Roamer Silas Kane.
 
 A driver never stands still for good. Of two drivers closing on each other, one waits while the other goes around. It waits for a parked truck ahead only while that truck is about to drive. A point it cannot reach, like one another truck covers, counts as reached once it gets as close as it can. A driver that still stays put for a while with its goal out of reach drives to a random free spot nearby and tries again.
 
@@ -26,6 +26,8 @@ A driver with no room for any good, by cells or by mass, takes no detour to salv
 
 A started refit on a knocked-out truck finishes before a repair or service trip takes the driver off the loot goal. Only urgent supplies interrupt it.
 
+A driver that makes no headway in one spot, even by driving back and forth against a wall, gives up its goal and takes a new one after a hundred turns.
+
 An NPC stays parked on the pad of a town, stall, camp or oasis for a few turns for each resupply, sale, purchase or load, with a progress bar over its truck, and the deal happens when the bar fills. Driving off or combat cancels it, and it starts over.
 
 NPCs carry and use utilities by the player's rules. At spawn each truck may roll one utility for its type. Scavengers, roamers and convoys favor the patcher crane, and scavengers and vultures the scraper's knife. Lawmen carry flare cannons and harpoons, and convoy guards flare cannons and smoke mortars. Only a heavy or loaded merc rolls an emitter. Each turn a driver picks its utility orders:
@@ -35,7 +37,7 @@ NPCs carry and use utilities by the player's rules. At spawn each truck may roll
 - Smoke mortar: a fleeing driver shells the midpoint between itself and its nearest attacker in sight.
 - Flare cannon: at night, a driver investigating a contact lights the contact.
 - Emitter: in combat, every truck it sees in range is hostile, and there is at least one.
-- Claymore ram: the driver has chosen to ram.
+- Claymore ram: the driver has chosen to ram. It disarms an armed ram once it is out of a fight and has chosen no ram.
 
 The harpoon rolls with the utilities, but it is a gun, so a driver fires it at its fight target like its other guns.
 

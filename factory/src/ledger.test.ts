@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { appendLedger, appendUsage, closeRun, closeRunFromTranscript, openRun, readLedger, recordJob, runProjectsDir, takeUsage, usageFromOutput, type LedgerLine } from './ledger';
+import { appendLedger, appendUsage, closePart, closeRun, closeRunFromTranscript, openPart, openRun, readLedger, recordJob, runProjectsDir, takeUsage, usageFromOutput, type LedgerLine } from './ledger';
 
 const HOME = resolve('tmp/factory-ledger-test');
 
@@ -83,6 +83,19 @@ describe('runs cut off before their result', () => {
     closeRunFromTranscript(HOME, 'job-5', prices, new Date('2026-10-05T10:01:00.000Z'));
     expect(takeUsage(HOME, 'job-5')).toHaveLength(1);
     expect(existsSync(runProjectsDir(HOME, 'job-5'))).toBe(false);
+  });
+
+  it('ends a part still open when its job is killed at the job end', () => {
+    const first = openPart(HOME, 'job-5', 'agent', new Date('2026-10-05T10:00:00.000Z'));
+    closePart(HOME, 'job-5', first, new Date('2026-10-05T10:20:00.000Z'));
+    openPart(HOME, 'job-5', 'checks', new Date('2026-10-05T10:21:00.000Z'));
+    recordJob(HOME, prices, new Date('2026-10-05T11:00:00.000Z'), job, 'timeout');
+    const line = readLedger(HOME, new Date(0)).find((entry) => entry.kind === 'job');
+    expect(line).toMatchObject({ parts: [
+      { kind: 'agent', startedAt: '2026-10-05T10:00:00.000Z', endedAt: '2026-10-05T10:20:00.000Z' },
+      { kind: 'checks', startedAt: '2026-10-05T10:21:00.000Z', endedAt: '2026-10-05T11:00:00.000Z' },
+    ] });
+    expect(existsSync(`${HOME}/usage/job-5.open-parts`)).toBe(false);
   });
 
   it('records nothing for a run that saved no transcript', () => {

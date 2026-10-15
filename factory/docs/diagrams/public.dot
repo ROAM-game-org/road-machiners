@@ -32,15 +32,16 @@ digraph public {
 
   subgraph cluster_chat {
     label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
-    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message", fillcolor="#fde68a", color="#b45309"];
+    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
     plugin [label="Plugin\nstops it before Hermes"];
     message -> plugin;
   }
 
-  filter [label="Decisions API filter\nspam, kind,\nabout its thread, route\n20 chat messages an hour per player"];
+  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n20 chat messages an hour per player"];
+  linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
-  answer [label="Reply in the thread\nissue link and status,\na quoted wiki passage\nor an honest fallback"];
+  answer [label="Reply in the thread\nin English or Russian\nissue link and status,\nor a quoted wiki passage\nnever a canned fallback"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
@@ -52,7 +53,9 @@ digraph public {
   feedback -> filter;
   plugin -> filter;
   filter -> digest [label="about its thread, or report\nfrom a card's build\nor the candidate"];
-  filter -> newIssue [label="bug or feature off its thread\nor with none, any other report"];
+  filter -> linked [label="off its thread or with none,\nabout known work"];
+  linked -> digest;
+  filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
   filter -> answer [label="question"];
   newIssue -> intake;
   digest -> answer;

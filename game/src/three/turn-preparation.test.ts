@@ -13,22 +13,26 @@ import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
 import type { World } from "../sim/types";
 import { reportError } from "./crash";
-import { TurnPreparation, workerFailure } from "./travel";
+import { TurnPreparation } from "./travel";
+import { workerFailure } from "./worker-load";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
 class TestWorker {
   static latest: TestWorker;
+  static created = 0;
   requests: TurnRequest[] = [];
   onmessage: ((event: MessageEvent<TurnResponse>) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   onmessageerror: (() => void) | null = null;
   constructor() {
     TestWorker.latest = this;
+    TestWorker.created++;
   }
   postMessage(request: TurnRequest): void {
     this.requests.push(request);
   }
+  terminate(): void {}
   respond(response: TurnResponse): void {
     if (!this.onmessage) throw new Error("Missing worker response handler");
     this.onmessage({ data: response } as MessageEvent<TurnResponse>);
@@ -40,6 +44,8 @@ let drive: Drive;
 let reply: PreparedTurn;
 beforeAll(initPhysics);
 beforeEach(() => {
+  TestWorker.created = 0;
+  vi.mocked(reportError).mockClear();
   vi.stubGlobal("Worker", TestWorker);
   world = emptyWorld();
   drive = buildDrive(world);
@@ -50,6 +56,7 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
+  vi.useRealTimers();
   freeDrive(drive);
   vi.unstubAllGlobals();
 });
@@ -103,11 +110,79 @@ it("fails the pending turn on a worker error event", () => {
   expect(() => turns.take(world)).toThrow("Turn worker failed: boom");
 });
 
-it("names a worker that did not load instead of printing undefined", () => {
+const changedWorld = (): World => setMoveOrder(world, { kind: "stopAt", dest: { x: 38, y: 31 } });
+const noScript = { preventDefault() {} } as ErrorEvent;
+
+it("restarts a worker whose script did not load and sends the pending turn again", () => {
+  vi.useFakeTimers();
   const turns = new TurnPreparation();
   turns.prepare(world, drive);
-  TestWorker.latest.onerror?.({ preventDefault() {} } as ErrorEvent);
-  expect(() => turns.take(world)).toThrow("did not load or start");
+  const first = TestWorker.latest;
+  first.onerror?.(noScript);
+  expect(reportError).not.toHaveBeenCalled();
+  expect(turns.take(world)).toBeNull();
+  vi.advanceTimersByTime(500);
+  const second = TestWorker.latest;
+  expect(second).not.toBe(first);
+  expect(second.requests).toHaveLength(1);
+  expect(second.requests[0].terrain).toBe(world.terrain);
+  expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
+  second.respond({ id: second.requests[0].id, turn: reply, perf: {} });
+  expect(turns.take(world)).toBe(reply);
+});
+
+it("does not report a warm-up that did not load and reaches a new worker on the next turn", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation();
+  turns.warm(world, drive);
+  TestWorker.latest.onerror?.(noScript);
+  turns.prepare(world, drive);
+  expect(TestWorker.created).toBe(1);
+  vi.advanceTimersByTime(500);
+  expect(TestWorker.created).toBe(2);
+  expect(TestWorker.latest.requests).toHaveLength(1);
+  expect(reportError).not.toHaveBeenCalled();
+});
+
+it("gives up after the download tries with one download failure and posts nothing more", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  for (let i = 0; i < 6; i++) {
+    TestWorker.latest.onerror?.(noScript);
+    vi.advanceTimersByTime(4000);
+  }
+  expect(reportError).toHaveBeenCalledOnce();
+  const error = vi.mocked(reportError).mock.calls[0][0] as Error;
+  expect(error.name).toBe("DownloadFailed");
+  expect(error.message).toContain("turn worker");
+  expect(TestWorker.created).toBe(6);
+  turns.prepare(changedWorld(), drive);
+  expect(TestWorker.created).toBe(6);
+  expect(TestWorker.latest.requests).toHaveLength(1);
+});
+
+it("waits the download back-off between restarts and resets the count on an answer", () => {
+  vi.useFakeTimers();
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  TestWorker.latest.onerror?.(noScript);
+  vi.advanceTimersByTime(499);
+  expect(TestWorker.created).toBe(1);
+  vi.advanceTimersByTime(1);
+  expect(TestWorker.created).toBe(2);
+  TestWorker.latest.onerror?.(noScript);
+  vi.advanceTimersByTime(999);
+  expect(TestWorker.created).toBe(2);
+  vi.advanceTimersByTime(1);
+  expect(TestWorker.created).toBe(3);
+  const worker = TestWorker.latest;
+  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  turns.take(world);
+  turns.prepare(changedWorld(), drive);
+  worker.onerror?.(noScript);
+  vi.advanceTimersByTime(500);
+  expect(TestWorker.created).toBe(4);
 });
 
 it("adds the script location to a worker load failure", () => {

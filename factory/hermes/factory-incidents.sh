@@ -79,4 +79,4 @@ if [ -f /factory/home/error-reports/alert ]; then cat /factory/home/error-report
 # The Hermes plugin writes one line per day when it cannot hand a player vote or comment to the public inbox, and Hermes deletes the file once handled.
 if [ -f /factory/home/public-alert ]; then cat /factory/home/public-alert; fi
 # Hermes repairs take minutes, so a pause older than an hour was forgotten or is stuck.
-if [ -n "$(find /factory/home/paused -mmin +60 2>/dev/null)" ]; then echo "paused over an hour: $(cat /factory/home/paused)"; fi
+if [ -n "$(find /factory/home/paused -mmin +60 2>/dev/null)" ]; then jq -r '"paused over an hour: " + .note' /factory/home/paused; fi

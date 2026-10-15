@@ -301,6 +301,38 @@ async function lostModel(browser, viewport) {
   await page.context().close();
 }
 
+async function droppedWorker(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  let seen = 0;
+  await page.route('**/phys/turn*', (route) => (++seen <= 2 ? route.abort('internetdisconnected') : route.continue()));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  await page.evaluate(() => window.__ROAM__.endTurn());
+  const played = await page.waitForFunction(() => window.__ROAM__.state.turn > 1, null, { timeout: BOOT_LIMIT_MS }).then(() => true, () => false);
+  expect(played, `${viewport.name}: a turn runs after the worker script dropped`);
+  expect((await page.locator('.crash-screen').count()) === 0, `${viewport.name}: a short worker drop shows no crash screen`);
+  expect(seen > 2, `${viewport.name}: the dropped worker script was asked for again`);
+  await page.context().close();
+}
+
+async function lostWorker(browser, viewport) {
+  const page = await open(browser, viewport, []);
+  const posts = [];
+  page.on('request', (request) => request.method() === 'POST' && posts.push(request.url()));
+  await page.route('**/phys/turn*', (route) => route.abort('internetdisconnected'));
+  await page.goto(playUrl(url));
+  await cleared(page);
+  await page.evaluate(() => window.__ROAM__.endTurn());
+  await page.waitForSelector('.crash-screen', { timeout: BOOT_LIMIT_MS });
+  await shot(page, `.playtest/boot-${viewport.name}-worker-lost.png`);
+  const title = await page.textContent('.crash-title');
+  const focused = await page.evaluate(() => document.activeElement?.textContent);
+  expect(title === 'Road Machiners could not download its files', `${viewport.name}: a lost worker shows the load-failed title`);
+  expect(focused === 'Reload', `${viewport.name}: Reload has focus`);
+  expect(posts.length === 0, `${viewport.name}: a lost worker sends no report ${posts.join(', ')}`);
+  await page.context().close();
+}
+
 mkdirSync('.playtest', { recursive: true });
 async function inBrowser(run) {
   const browser = await chromium.launch({ args: launchArgs() });
@@ -326,6 +358,8 @@ for (const viewport of VIEWPORTS) {
   if (!only || only === 'failedCode') await inBrowser((browser) => failedCode(browser, viewport));
   if (!only || only === 'droppedModel') await inBrowser((browser) => droppedModel(browser, viewport));
   if (!only || only === 'lostModel') await inBrowser((browser) => lostModel(browser, viewport));
+  if (!only || only === 'droppedWorker') await inBrowser((browser) => droppedWorker(browser, viewport));
+  if (!only || only === 'lostWorker') await inBrowser((browser) => lostWorker(browser, viewport));
 }
 if (problems.length) {
   console.error(`FAIL\n${problems.join('\n')}`);
