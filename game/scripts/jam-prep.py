@@ -7,7 +7,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-PARTS = {"drums": ["drums"], "bass": ["bass"], "guitar": ["guitar", "piano", "other"], "vocals": ["vocals"]}
+PARTS = {"drums": ["drums"], "bass": ["bass"], "guitar": ["guitar", "piano", "other"]}
 PUSHED = "guitar"
 
 

@@ -310,7 +310,7 @@ export const BAND: BandRules<BandPart, BandEvent> = {
   weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
 };
 
-export const JAM_PARTS = ["drums", "bass", "guitar", "vocals"] as const;
+export const JAM_PARTS = ["drums", "bass", "guitar"] as const;
 export type JamPart = (typeof JAM_PARTS)[number];
 
 export const JAM: BandRules<JamPart, BandEvent> = {
@@ -318,7 +318,6 @@ export const JAM: BandRules<JamPart, BandEvent> = {
     drums: { always: true },
     bass: { always: true },
     guitar: { enterAt: 0.4, leaveAt: 0.2, holdBars: 2, needs: null },
-    vocals: { enterAt: MIX.score.hotHeat, leaveAt: 1, holdBars: 4, needs: "guitar" },
   },
   phraseBars: 2,
   heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,

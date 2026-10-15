@@ -30,7 +30,7 @@ Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to
 Switches, the first value is the default:
   --parts    band: the conductor brings parts in and out by heat. all: every part always plays, as in /blocks.html.
   --answers  band: each event is also answered by its parts from the block playing. off: only the cymbal lane and guitar lean that heavy events open, as in /blocks.html.
-  --jumps    fade: everything fades in 30 ms, as in /blocks.html. ring: on a jump the old block's bass, guitar and vocals play on into the song's next bar while they decay.
+  --jumps    fade: everything fades in 30 ms, as in /blocks.html. ring: on a jump the old block's bass and guitar play on into the song's next bar while they decay.
 
 Output:
   Blocks: each block of the song with its start, how it joined the one before and the heat when it was chosen.

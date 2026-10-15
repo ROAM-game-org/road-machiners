@@ -7,7 +7,7 @@ const BARS = 120;
 const STEP = 1 / 60;
 
 const SONG: JamSong = {
-  parts: { drums: "drums.wav", bass: "bass.wav", guitar: "guitar.wav", vocals: "vocals.wav" },
+  parts: { drums: "drums.wav", bass: "bass.wav", guitar: "guitar.wav" },
   cymbals: { file: "cymbals.wav", from: 21 },
   bpm: 150,
   length: BARS * BAR_SECONDS,
@@ -94,12 +94,12 @@ describe("JamSession", () => {
     expect(answer.gain).toBeCloseTo((JAM_MIX.accent - 1) * SCORE_BLOCKS.songGain * block.level);
   });
 
-  it("rings out bass, guitar and vocals on a jump but fades the drums, and fades all of them when jumps fade", () => {
+  it("rings out bass and guitar on a jump but fades the drums, and fades all of them when jumps fade", () => {
     const hot = [0, 4, 8, 12, 16, 20].flatMap(turn);
     const ring = fight(hot, 30, { parts: "all" });
     const jump = ring.session.blocks.played.find((p) => p.join === "jump")!;
     const ended = ring.heard.ends.filter((t) => t.kind === "block" && Math.abs(t.until - jump.start) < 1e-6);
-    expect(ended.filter((t) => t.ring !== null).map((t) => t.part).sort()).toEqual(["bass", "guitar", "vocals"]);
+    expect(ended.filter((t) => t.ring !== null).map((t) => t.part).sort()).toEqual(["bass", "guitar"]);
     expect(ended.find((t) => t.part === "drums")!.ring).toBeNull();
     const fade = fight(hot, 30, { parts: "all", jumps: "fade" });
     expect(fade.heard.ends.filter((t) => t.kind === "block").every((t) => t.ring === null)).toBe(true);
