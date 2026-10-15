@@ -192,7 +192,7 @@ function checkLinks(id: string, links: QuestLinks, bundle: QuestBundle): void {
   if (unknownQuest) throw new Error(`Quest ${id} begins ${unknownQuest}, which is no quest`);
 }
 
-function isQuestValue(value: unknown): value is QuestValue {
+export function isQuestValue(value: unknown): value is QuestValue {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 

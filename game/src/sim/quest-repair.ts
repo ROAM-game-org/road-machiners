@@ -1,6 +1,6 @@
 import { GAME_NOTES, type NoteId } from '../data/locals';
 import { GAME_WORLD_VARS, type CompiledQuest, type QuestBundle, type QuestValue, type QuestVarDecl } from '../data/quests';
-import { checkQuestLinks } from './quests';
+import { checkQuestLinks, isQuestValue } from './quests';
 import type { Player, QuestSession, QuestState, QuestVars } from './types';
 
 export type SavedRevisions = Record<string, number>;
@@ -52,13 +52,13 @@ function without<T>(record: Record<string, T>, names: readonly string[]): Record
   return Object.fromEntries(Object.entries(record).filter(([name]) => !names.includes(name)));
 }
 
-function isQuestValue(value: unknown): value is QuestValue {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+function holdsState(id: string, saved: Saved): boolean {
+  return Object.keys(saved.quests.local[id] ?? {}).length > 0 || saved.quests.session?.quest === id;
 }
 
 function hasProgress(id: string, saved: Saved, bundle: QuestBundle): boolean {
   const quest = bundle.quests[id];
-  if (Object.keys(saved.quests.local[id] ?? {}).length > 0 || saved.quests.session?.quest === id) return true;
+  if (holdsState(id, saved)) return true;
   return writesHeldValue(quest, saved.quests.world) || saved.notes.some((note) => quest.links.notes.includes(note.id));
 }
 
@@ -124,7 +124,7 @@ function readsDoomed(quest: CompiledQuest, doomed: Doomed): boolean {
 
 function losesState(id: string, saved: Saved, doomed: Doomed, bundle: QuestBundle): boolean {
   const quest = bundle.quests[id];
-  if (Object.keys(saved.quests.local[id] ?? {}).length > 0 || saved.quests.session?.quest === id) return true;
+  if (holdsState(id, saved)) return true;
   const lostValue = Object.entries(quest.links.writes).some(([name, values]) => doomed.vars.has(name) && holds(saved.quests.world, name, values));
   return lostValue || quest.links.notes.some((note) => doomed.notes.has(note as NoteId));
 }

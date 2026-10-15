@@ -133,7 +133,7 @@ export function loadSave(slots: SaveSlots, slot: SlotId, icarus: BakedMap): Load
 
 function savedQuests(value: unknown, notes: unknown, revisions: SavedRevisions): QuestRepair {
   if (!isQuestState(value)) throw new SaveError('badQuests');
-  if (!Array.isArray(notes)) throw new SaveError('invalidWorld', null, 'player notes are no list');
+  if (!Array.isArray(notes) || !notes.every((note) => isJsonObject(note) && typeof note.id === 'string')) throw new SaveError('invalidWorld', null, 'player notes are no list of notes');
   const newer = newerQuests(revisions, QUESTS);
   if (newer.length > 0) throw new SaveError('newerQuests', null, newer.join(', '));
   return repairQuests(value, notes, revisions, QUESTS);

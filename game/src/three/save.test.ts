@@ -386,6 +386,13 @@ describe('game save', () => {
     expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/badQuests/);
   });
 
+  it('rejects notes that are no notes as an invalid world', () => {
+    const slots = makeSlots();
+    const saved = saveOf(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))).world as { player: Record<string, unknown> };
+    slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, notes: [null] } } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld/);
+  });
+
   describe('quest revisions', () => {
     const hattieMid = () => chooseQuestOption(startQuest(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')), QUESTS, 'bowl_hattie', 'start'), QUESTS, 0);
 
