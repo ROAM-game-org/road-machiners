@@ -135,7 +135,7 @@ function senderName(command: InboxCommand): string {
 async function handle(ctx: Ctx, command: InboxCommand): Promise<string> {
   const by = resolveSender(ctx, command);
   if (command.kind === 'adhoc') return queueAdhoc(ctx, command, by);
-  if (command.kind === 'change') return queueChange(ctx, requireText(command), by);
+  if (command.kind === 'change') return queueChange(ctx, command, by);
   if (command.kind === 'release-task') return openReleaseTask(ctx, command, by);
   if (command.kind === 'release-draft') return postDraft(ctx, requireText(command), command.image);
   if (command.kind === 'publish') return publishPost(ctx, requirePost(command));
@@ -221,9 +221,10 @@ async function openReleaseTask(ctx: Ctx, command: InboxCommand, by: string): Pro
   return `Opened #${n} as a task of release ${release.day}. A new candidate follows when it is done.`;
 }
 
-function queueChange(ctx: Ctx, text: string, by: string): string {
+function queueChange(ctx: Ctx, command: InboxCommand, by: string): string {
   const id = ctx.now().getTime();
-  updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: [...state.pendingChanges, { id, text, by }] }));
+  const reply = { chat: command.chat, messageId: command.messageId };
+  updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: [...state.pendingChanges, { id, text: requireText(command), by, reply }] }));
   return `Change request ${id} is queued. The factory answers with a pull request.`;
 }
 

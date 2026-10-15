@@ -47,6 +47,17 @@ describe('change', () => {
     expect(readFileSync(join(ROOT, 'work/change-4/factory/.factory/request.md'), 'utf8')).toContain('ann');
   });
 
+  it('answers the member message with the pull request, and the committee chat when the request has no message', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...EMPTY_STATE, pendingChanges: [{ id: 4, text: 'a', by: 'ann', reply: { chat: '-7', messageId: 31 } }, { id: 5, text: 'b', by: 'ann' }] });
+    f.files = ['factory/src/a.ts'];
+    await change(f.ctx, 4);
+    await change(f.ctx, 5);
+    const messages = f.calls.filter((call) => call.startsWith('message '));
+    expect(messages[0]).toMatch(/^message -7 31 Factory change 4 is ready for review: /);
+    expect(messages[1]).toMatch(new RegExp(`^message ${f.ctx.cfg.committeeChat} - Factory change 5 is ready`));
+  });
+
   it('throws for an unknown id', async () => {
     const f = fake();
     await expect(change(f.ctx, 9)).rejects.toThrow('no pending');

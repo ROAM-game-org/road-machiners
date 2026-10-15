@@ -244,6 +244,12 @@ describe('drainInbox', () => {
     await drainInbox(fakeCtx([], [], []));
     expect(readState(statePath).pendingChanges.map((item) => item.text)).toEqual(['a', 'b']);
   });
+
+  it('keeps the member message a change request answers', async () => {
+    put('1.json', { kind: 'change', text: 'a' });
+    await drainInbox(fakeCtx([], [], []));
+    expect(readState(statePath).pendingChanges[0].reply).toEqual({ chat: '-5', messageId: 3 });
+  });
 });
 
 const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };

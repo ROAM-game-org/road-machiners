@@ -31,7 +31,8 @@ export async function change(ctx: Ctx, id: number): Promise<void> {
   const body = prBody(readOutput(home, 'pr-body.md'), request.by, request.text, paths);
   const url = await ctx.github.openPullRequest(branch, CHANGE_BASE, title, body);
   updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }));
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Factory change ${id} is ready for review: ${url}`);
+  const reply = request.reply ?? { chat: ctx.cfg.committeeChat, messageId: null };
+  await ctx.telegram.sendMessage(reply.chat, `Factory change ${id} is ready for review: ${url}`, reply.messageId);
   ctx.log('change', id, `opened ${url}`);
 }
 
