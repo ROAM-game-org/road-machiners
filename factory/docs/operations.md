@@ -26,7 +26,7 @@ On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the t
 
 ## Full suite on GitHub Actions
 
-`.github/workflows/game-suite.yml` runs the whole game suite for one commit on a standard GitHub runner, in the Playwright image the agent image is built on. `remoteSuite` in `src/stages/remote-suite.ts` dispatches it from `main` with the commit, takes the run id the dispatch returns, and reads the run every `FACTORY_SUITE_POLL_SECONDS` until it ends. A failed `tests` step goes to the fix agent with the end of its log. Any other failure, and a run still queued after `FACTORY_SUITE_START_MINUTES`, is a machine failure for the stuck sweep.
+`.github/workflows/game-suite.yml` runs the whole game suite for one commit on a standard GitHub runner, in the Playwright image the agent image is built on. `remoteSuite` in `src/stages/remote-suite.ts` dispatches it from `main` with the commit, takes the run id the dispatch returns, and reads the run every `FACTORY_SUITE_POLL_SECONDS` until it ends. A failed `tests` step goes to the fix agent with the end of its log. Any other failure, and a run still queued after `FACTORY_SUITE_START_MINUTES`, is a machine failure for the stuck sweep. The job stops at 20 minutes, twice the suite's 10 minute target, so a slow runner still finishes. The workflow sets `TEST_STALL_MINUTES` to 10, so a hung test fails the `tests` step with its name before the job limit cancels the run as a machine failure.
 
 Standard runners are free on a public repository. Larger runners always cost money. Set this once so a mistake can never bill:
 

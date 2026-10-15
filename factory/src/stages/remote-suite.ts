@@ -18,11 +18,11 @@ export async function remoteSuite(ctx: Ctx, at: At, sha: string): Promise<string
   const id = await onActions(`the dispatch for ${sha} failed`, () => ctx.github.dispatchSuite(sha));
   const startBy = ctx.now().getTime() + ctx.cfg.suiteStartMinutes * 60_000;
   for (let read = 0; ; read++) {
-    reportTests(ctx);
     const run = await onActions(`reading run ${id} failed`, () => ctx.github.suiteRun(id));
     if (read === 0) ctx.log(at.stage, at.issue, `the full suite runs on GitHub Actions for ${sha}: ${run.url}`);
     if (run.done) return verdict(ctx, id, sha, run);
     if (!run.started && ctx.now().getTime() > startBy) throw new SuiteMachineError(`run ${id} did not start within ${ctx.cfg.suiteStartMinutes} minutes: ${run.url}`);
+    reportTests(ctx);
     await new Promise((done) => setTimeout(done, ctx.cfg.suitePollSeconds * 1000));
   }
 }

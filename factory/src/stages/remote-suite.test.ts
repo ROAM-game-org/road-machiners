@@ -1,5 +1,9 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ghClient } from '../github';
+import { JOB_ID_ENV } from '../jobs';
+import { readObservation } from '../observability';
 import type { Ctx, FactoryConfig, Run, RunResult, SuiteRun } from '../types';
 import { SuiteMachineError, remoteSuite } from './remote-suite';
 
@@ -67,6 +71,31 @@ describe('remoteSuite', () => {
   it('waits past the start limit for a run that started', async () => {
     const { ctx } = fakeCtx({ reads: [...Array(10).fill({ ...RUN, started: true }), { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }], minutesPerRead: 4 });
     expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
+  });
+
+  it('shows the job as running tests while it waits, after its own GitHub reads', async () => {
+    mkdirSync('tmp', { recursive: true });
+    const home = mkdtempSync(join('tmp', 'remote-suite-'));
+    process.env[JOB_ID_ENV] = 'verify-5-x';
+    const activity = (): string | null => {
+      const data = readObservation(home, 'verify-5-x')?.data;
+      return data?.type === 'activity' ? data.activity : null;
+    };
+    try {
+      const { ctx } = fakeCtx({ reads: [{ ...RUN, started: true }, { ...RUN, started: true, done: true, passed: true, conclusion: 'success' }] });
+      ctx.cfg.home = home;
+      const suiteRun = ctx.github.suiteRun;
+      const seen: (string | null)[] = [];
+      ctx.github.suiteRun = async (id) => {
+        seen.push(activity());
+        return suiteRun(id);
+      };
+      expect(await remoteSuite(ctx, AT, 'abc1234')).toBeNull();
+      expect(seen).toEqual([null, 'tests']);
+    } finally {
+      delete process.env[JOB_ID_ENV];
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 
   it('is a machine failure when the dispatch fails', async () => {

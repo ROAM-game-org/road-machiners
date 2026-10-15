@@ -21,6 +21,8 @@ jobs:
       SHA: ${{ inputs.sha }}
       TEST_STALL_MINUTES: '10'
     steps:
+      - name: install git
+        run: apt-get update && apt-get install -y --no-install-recommends git
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -28,6 +30,7 @@ jobs:
       - name: checkout the commit
         run: |
           echo "$SHA" | grep -Eq '^[0-9a-f]{7,40}$'
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git checkout --quiet --detach "$SHA"
           git log -1 --format='%H %s'
       - name: npm ci
