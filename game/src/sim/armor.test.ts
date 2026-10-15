@@ -1,7 +1,7 @@
 import { partDef, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { aimWithin, openArcShare, gunBlockers, gunLayoutScore, gunSpans, laneCount, partLane, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, partLane, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { makePart } from './factory';
 import { advanceKnockout, checkKnockout } from './defeat';
@@ -395,7 +395,7 @@ describe('gun layout', () => {
     const box = { defId: 'trailerBox', x: 1, y: 3 };
     const share = (gun: { defId: string; x: number; y: number; rot?: Rot }, extra: { defId: string; x: number; y: number }[] = []) => {
       const v = truckWith(w, 'longbed', [gun, ...extra]);
-      return openArcShare(v, mountedItems(v, 'weapon')[0]);
+      return openArcShares(v)[0];
     };
     expect(share({ defId: 'shotgun', x: 2, y: 5 }, [box])).toBeLessThan(0.5);
     expect(share({ defId: 'shotgun', x: 2, y: 5, rot: 2 }, [box])).toBe(1);

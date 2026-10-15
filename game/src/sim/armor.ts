@@ -303,10 +303,6 @@ export function spanDegrees(spans: readonly FireSpan[]): number {
   return spans.reduce((sum, s) => sum + s.to - s.from, 0);
 }
 
-export function openArcShare(v: Vehicle, item: GridItem): number {
-  return shareOpen(tallItems(v), item);
-}
-
 export function openArcShares(v: Vehicle): number[] {
   const tall = tallItems(v);
   return mountedItems(v, 'weapon').map((item) => shareOpen(tall, item));
