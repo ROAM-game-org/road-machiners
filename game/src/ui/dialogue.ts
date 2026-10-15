@@ -19,7 +19,7 @@ import { fuelLiters, meters, moneyM } from './units';
 const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
 const METERS_PER_KM = 1000;
 
-function compass(rad: number): Msg {
+export function compass(rad: number): Msg {
   const step = (2 * Math.PI) / COMPASS.length;
   const i = Math.round(rad / step);
   return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);

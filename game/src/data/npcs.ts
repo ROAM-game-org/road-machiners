@@ -84,6 +84,7 @@ export type NpcTemplate = {
   fightStyle: 'hold' | 'circle';
   money: number;
   cap: number;
+  pairs: boolean;
   interval: number;
   spawn: SpawnPlace;
 };
@@ -370,6 +371,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'circle',
     money: NPC_RESOURCES.money,
     cap: 6,
+    pairs: false,
     interval: 50,
     spawn: { kind: "camp" },
   },
@@ -380,6 +382,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 2,
+    pairs: false,
     interval: 150,
     spawn: { kind: "camp" },
   },
@@ -391,6 +394,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: 133300,
     cap: 8,
+    pairs: false,
     interval: 12,
     spawn: { kind: "town" },
   },
@@ -402,6 +406,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 4,
+    pairs: false,
     interval: 12,
     spawn: { kind: "town" },
   },
@@ -412,6 +417,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["bowl"] },
   },
@@ -422,6 +428,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["nose"] },
   },
@@ -432,7 +439,8 @@ export const NPCS: Record<string, NpcTemplate> = {
     aggroRange: 0,
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
-    cap: 3,
+    cap: 4,
+    pairs: true,
     interval: 30,
     spawn: { kind: "town" },
   },
@@ -444,6 +452,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 30,
     spawn: { kind: "town" },
   },
@@ -455,6 +464,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 30,
     spawn: { kind: "town" },
   },
@@ -465,6 +475,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: 133300,
     cap: 2,
+    pairs: false,
     interval: 100,
     spawn: { kind: "sites", ids: ["bowl", "nose"] },
   },
@@ -475,6 +486,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 2,
+    pairs: false,
     interval: 100,
     spawn: { kind: "escort", of: "convoy" },
   },
@@ -485,6 +497,7 @@ export const NPCS: Record<string, NpcTemplate> = {
     fightStyle: 'hold',
     money: NPC_RESOURCES.money,
     cap: 3,
+    pairs: false,
     interval: 70,
     spawn: { kind: "sites", ids: ["bowl", "nose"] },
   },
@@ -546,6 +559,7 @@ export type DecisionOptions = {
   escortSeen: 'keep' | 'hire';
   hireOffered: 'take' | 'decline';
   aidAsked: 'give' | 'refuse';
+  escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
 };
 export type DecisionId = keyof DecisionOptions;
@@ -580,6 +594,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   escortSeen: { keep: 1, hire: 0 },
   hireOffered: { take: 3, decline: 1 },
   aidAsked: { give: 1, refuse: 9 },
+  escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
 };
 

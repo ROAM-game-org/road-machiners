@@ -3,7 +3,7 @@ import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, 
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -13,6 +13,7 @@ import { discoverSite } from './locations';
 import { inCombat, isHostile } from './combat';
 import { patchGoal, startTow, topGoal } from './npc-activities';
 import { haulBlocked, isExpired, shopAt, shopState, takeContract, type Contract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
 import { recall } from './memory';
 import { hasPerk, practice } from './progress';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
@@ -239,6 +240,14 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcNeedsPatch: (world, npc) => needsPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id),
   npcWorn: (world, npc) => canTakeWornPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id) && !isTowing(world, npc.id) && !isStranded(world, playerVehicle(world)),
   npcOffRope: (world, npc) => !isOnRope(world, npc.id),
+  escortFollowed: (world, npc) => {
+    const job = heldEscort(world);
+    return job !== null && job.client === npc.id && job.holdUntil === null;
+  },
+  escortHeld: (world, npc) => {
+    const job = heldEscort(world);
+    return job !== null && job.client === npc.id && job.holdUntil !== null;
+  },
   noTrade: (world, npc) => tradeWith(world, npc) === null,
   npcCalm: (world, npc) => !inCombat(world, npc),
   hasDeal: (_world, _npc, vars) => vars.deal !== undefined,
@@ -297,6 +306,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
   refuseTow: (world) => refuseOffer(world),
   askTow: (world, npc) => startTow(world, npc, playerVehicle(world), strandedPlayerAt(world, npc)!),
   startTrade: (world, npc) => startTrade(world, npc),
+  holdEscort: (world) => holdEscort(world, requireEscort(world)),
+  releaseHold: (world) => releaseHold(requireEscort(world)),
   agreePatch: (world, npc, call) => {
     const terms = call.vars.deal;
     if (terms?.kind !== 'deal') throw new Error('agreePatch needs deal terms');
@@ -413,7 +424,7 @@ export const EFFECTS: Record<EffectId, Effect> = {
     agreeAid(world, npc, { giver, fuel, supplies, price, free });
   },
   refuseAidOffer: (world, npc) => refuseAid(world, npc),
-  noteWagonRoad: (world) => learnNote(world, 'wagonRoad'),
+  noteWagonRoad: (world) => learnNote(world, GAME_NOTES.wagonRoad),
   settleDone: (world, npc, call) => settle(world, npc, call, 'done'),
   settleRefused: (world, npc, call) => settle(world, npc, call, 'refused'),
 };
@@ -495,7 +506,7 @@ export function townOffers(world: World): Contract[] {
 }
 
 export function townWork(world: World): Contract | null {
-  const open = townOffers(world).filter((c) => !haulBlocked(world, c));
+  const open = townOffers(world).filter((c) => !haulBlocked(world, c) && !(c.kind === 'escort' && escortBlocked(world, c)));
   if (boardFull(world)) return null;
   return open.reduce<Contract | null>((best, c) => (best === null || c.reward > best.reward ? c : best), null);
 }
@@ -519,4 +530,10 @@ export function learnNote(world: World, id: NoteId): void {
 
 export function holdsNote(world: World, id: NoteId): boolean {
   return world.player.notes.some((n) => n.id === id);
+}
+
+function requireEscort(world: World): EscortContract {
+  const job = heldEscort(world);
+  if (!job) throw new Error('The player holds no escort job');
+  return job;
 }

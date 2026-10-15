@@ -12,7 +12,11 @@ services:
       dockerfile: Dockerfile
     command: ["/usr/local/bin/factory-start"]
     restart: unless-stopped
+    # A kill during shutdown leaves Hermes's Telegram long poll open. Telegram then answers the restart with a conflict and Hermes drops the queued updates.
+    stop_grace_period: 60s
     environment:
+      # The image's s6 supervisor kills the main command 3 s after the stop signal by default. This stays under Docker's 60 s grace.
+      S6_KILL_GRACETIME: "50000"
       HERMES_HOME: /opt/data
       # Hermes runs as the factory user, so the files it edits keep their owner.
       HERMES_UID: ${FACTORY_UID:?set FACTORY_UID}

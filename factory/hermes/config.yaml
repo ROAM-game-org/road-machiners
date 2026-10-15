@@ -10,6 +10,12 @@ telegram:
   # Deploys restart Hermes often. Its "shutting down" and "back online" posts are noise in the committee chat.
   gateway_restart_notification: false
 
+platforms:
+  telegram:
+    extra:
+      # Telegram keeps updates for 24 hours while Hermes is down. Votes and player comments sent during a restart arrive only through that queue.
+      drop_pending_on_cold_boot: false
+
 # Keep Hermes's own notices out of the committee chat.
 compression:
   codex_gpt55_autoraise_notice: false

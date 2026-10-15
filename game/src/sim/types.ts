@@ -186,7 +186,7 @@ export type GoalReason =
   | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey';
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -264,6 +264,7 @@ export type NpcActivity = {
   until?: number;
   watchUntil?: number;
   leg?: { from: Vec; turn: number };
+  posted?: true;
 };
 
 export type NpcBrain = {
@@ -457,6 +458,8 @@ export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance
 
 export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
 
+export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost';
+
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
   | { t: 'stall'; vehicle: string; goal: NpcActivity['kind'] | null; reason: GoalReason }
@@ -478,7 +481,7 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart' }
   | { t: 'discover'; location: string }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
@@ -496,6 +499,7 @@ export type GameEvent =
   | { t: 'transfer'; from: string; to: string; amount: number }
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
+  | { t: 'escortEnded'; contract: string; client: string; end: EscortEnd }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }

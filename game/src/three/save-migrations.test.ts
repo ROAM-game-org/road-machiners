@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1345,8 +1346,27 @@ describe('MIGRATIONS[61]', () => {
   });
 });
 
-describe('MIGRATIONS[62]', () => {
-  const next = MIGRATIONS[62](structuredClone(FORMAT_2_62)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
+describe('save migration 62 to 63', () => {
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
+  });
+
+  it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
+
+    expect(next).toEqual(FORMAT_2_62);
+  });
+});
+
+describe('MIGRATIONS[64]', () => {
+  const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
   const factionOf = (id: string) => next.vehicles.find((v) => v.id === id)?.faction;
 
   it('puts each raider in the camp nearest its home, whatever its position', () => {
@@ -1368,8 +1388,8 @@ describe('MIGRATIONS[62]', () => {
   it('keeps the player and town patrols, drops no truck and keeps every state', () => {
     expect(factionOf('v1')).toBe('player');
     expect(factionOf('v10')).toBe('bowl');
-    expect(next.vehicles).toHaveLength(FORMAT_2_62.vehicles.length);
-    expect(next.states).toEqual(FORMAT_2_62.states);
+    expect(next.vehicles).toHaveLength(FORMAT_2_64.vehicles.length);
+    expect(next.states).toEqual(FORMAT_2_64.states);
   });
 
   it('starts the player at the outside driver standing with no deeds', () => {
