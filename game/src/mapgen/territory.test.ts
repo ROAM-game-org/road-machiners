@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { budget } from '../test/budget';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
@@ -31,6 +32,7 @@ function territoryGround(): Float32Array {
   groundHeights ??= groundForTerritories(MAPGEN.seed).heights;
   return groundHeights;
 }
+beforeAll(() => void territoryGround(), budget(120_000));
 const rules = TERRITORIES['fallen-sun'].wreck!;
 const reactor = TERRITORIES['fallen-sun'].reactor!;
 const zone = hazardZones().find((z) => z.id === 'fallen-sun')!;
