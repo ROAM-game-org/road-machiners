@@ -576,7 +576,7 @@ export function basicsRepairCost(world: World, truck: Vehicle = playerVehicle(wo
   return costOf(world, basicParts(world, truck));
 }
 
-function allParts(v: Vehicle): PartInstance[] {
+export function allParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === "part" ? [it.part] : []));
 }
 
@@ -589,7 +589,7 @@ export function garageParts(world: World, v: Vehicle): PartInstance[] {
 }
 
 export function basicParts(world: World, v: Vehicle): PartInstance[] {
-  return garageParts(world, v).filter((p) => partDef(p.defId).kind === "core");
+  return garageParts(world, v).filter((p) => ["core", "engine"].includes(partDef(p.defId).kind));
 }
 
 function brokenDriveParts(world: World, v: Vehicle): PartInstance[] {

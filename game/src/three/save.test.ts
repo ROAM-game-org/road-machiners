@@ -102,6 +102,24 @@ describe('game save', () => {
     expect(loaded?.vehicles[0].weaponOrders.w1).toEqual({ targetId: foe.id, aim: 'body' });
   });
 
+  it('keeps a pending disarm order on an armed ram through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const truck = addVehicle(world, 'traders', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
+    const ram = mountedParts(truck).find((p) => p.defId === 'claymoreRam')!;
+    ram.charge = { reload: 0, armed: true };
+    truck.utilityOrders[ram.id] = { kind: 'disarm' };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const back = loaded.vehicles.find((v) => v.id === truck.id)!;
+    expect(back.utilityOrders[ram.id]).toEqual({ kind: 'disarm' });
+    expect(mountedParts(back).find((p) => p.id === ram.id)!.charge).toEqual({ reload: 0, armed: true });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
+  });
+
   it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
     const slots = makeSlots();
     const world = emptyWorld();
@@ -621,6 +639,21 @@ describe('game save', () => {
     expect([loaded.player.xp, loaded.player.repeats]).toEqual([world.player.xp, world.player.repeats]);
     practiceContacts(loaded, refreshVision(loaded));
     expect(loaded.player.xp).toEqual(world.player.xp);
+  });
+
+  it('keeps the spot a driver last made progress at through a reload, and load pays nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const trader = addVehicle(world, 'traders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    trader.brain.progress = { key: 'idle -', since: 880, at: { x: 38.5, y: 41 } };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.vehicles.find((v) => v.id === trader.id)!.brain!.progress).toEqual(trader.brain.progress);
+    expect([loaded.player.money, loaded.player.xp, loaded.events]).toEqual([world.player.money, world.player.xp, []]);
   });
 
   it('keeps every driver personality through a save and a load, and awards nothing on load', () => {

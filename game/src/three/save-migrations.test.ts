@@ -68,6 +68,7 @@ import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1367,9 +1368,47 @@ describe('save migration 62 to 63', () => {
   });
 });
 
-describe('MIGRATIONS[64]', () => {
+describe('save migration 64 to 65', () => {
+  it('gives an old save an idle encounter log and changes nothing else', () => {
+    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
+
+    expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
+    expect(next.player.money).toBe(1200);
+    expect({ ...next, player: { ...next.player, encounters: undefined } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, encounters: undefined } });
+  });
+
+  it('keeps an encounter log that is already there', () => {
+    const log = { next: 40, pending: null, story: null };
+    const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
+
+    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
+  });
+});
+
+describe('MIGRATIONS[65]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});
+
+describe('MIGRATIONS[67]', () => {
   type Shop = { goods: Record<string, number>; contracts: { id: string }[]; event: unknown; shortSince: unknown; opened: unknown; pressure?: unknown };
-  const migrated = () => MIGRATIONS[64](structuredClone(FORMAT_2_64)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
+  const migrated = () => MIGRATIONS[67](structuredClone(FORMAT_2_67)) as unknown as { shops: Record<string, Shop>; vehicles: { id: string; job: unknown; brain: { goals: { kind: string; load?: unknown }[] } | null }[]; roadNews: unknown[]; player: unknown };
 
   it('gives every shop a goods stock from its old pressure and drops the pressure', () => {
     const next = migrated();
@@ -1387,7 +1426,7 @@ describe('MIGRATIONS[64]', () => {
 
   it('keeps a buy price on load within a cent where the good is made in the same place as before', () => {
     const next = migrated();
-    const before = priceAtPressure('nose', 'salt', FORMAT_2_64.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
+    const before = priceAtPressure('nose', 'salt', FORMAT_2_67.shops.nose.pressure.salt, 'buy', ECONOMY.spread);
     const after = priceAtPressure('nose', 'salt', pressureOf('nose', 'salt', next.shops.nose.goods.salt), 'buy', ECONOMY.spread);
     expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
   });
@@ -1395,15 +1434,15 @@ describe('MIGRATIONS[64]', () => {
   it('drops board hauls of goods a shop no longer trades, and keeps the held contract and cargo', () => {
     const next = migrated();
     expect(next.shops.granary.contracts.map((c) => c.id)).toEqual(['ct-3']);
-    expect(next.player).toEqual(FORMAT_2_64.player);
-    expect(next.vehicles[0]).toEqual(FORMAT_2_64.vehicles[0]);
+    expect(next.player).toEqual(FORMAT_2_67.player);
+    expect(next.vehicles[0]).toEqual(FORMAT_2_67.vehicles[0]);
   });
 
   it('drops the free haul goals and their business, so the driver picks a new goal', () => {
     const next = migrated();
     expect(next.vehicles[1].brain!.goals).toEqual([]);
     expect(next.vehicles[1].job).toBeNull();
-    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_67.vehicles[2]);
     expect(next.roadNews).toEqual([]);
   });
 });

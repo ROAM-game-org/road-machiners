@@ -20,7 +20,7 @@ digraph lifecycle {
   V -> D [label="voted"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3, dir=back, weight=0];
   D -> P [label="plan wrong"];
-  P -> A [label="patch, from the\ncommittee or players"];
+  P -> A [label="patch, from the\ncommittee or players;\nmain moved under an\napproved hotfix"];
   D -> A [label="redesign, from the committee or players"];
   D -> M [label="removed from release"];
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3, dir=forward, weight=0];

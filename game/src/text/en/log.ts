@@ -348,6 +348,7 @@ export const LOG = {
   'goal.watchedRoad': 'Watched the road',
   'goal.ranFromIt': 'Ran from it',
   'goal.avoidRanFrom': 'Avoid a truck it ran from',
+  'goal.calledOut': 'Fight a truck it called out',
   'goal.breakOffFight': 'Break off a losing fight',
   'note.engineHot': 'Engine running hot.',
   'note.engineOverheat': m('Engine overheated: engine -{hp} HP', { hp: 'int' }),

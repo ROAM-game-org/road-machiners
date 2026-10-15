@@ -30,7 +30,7 @@ export async function takeMaps(ctx: Ctx, clone: string, kind: ReportBuild): Prom
   const dist = join(clone, GAME_DIR, 'dist');
   const maps = readdirSync(dist, { recursive: true, encoding: 'utf8' }).filter((file) => file.endsWith('.map'));
   if (maps.length === 0) return ctx.log(STAGE_OF[kind], null, `the ${kind} build has no source maps, so its game code predates error reports and it sends none`);
-  const sha = must(await ctx.run('git', ['rev-parse', 'HEAD'], { cwd: clone }), 'git rev-parse HEAD').trim();
+  const sha = must(await ctx.run('git', ['rev-parse', 'HEAD'], { activity: 'git', cwd: clone }), 'git rev-parse HEAD').trim();
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error(`git rev-parse HEAD in ${clone} gave "${sha}", not a commit hash`);
   const home = ctx.cfg.home;
   withLockSync(join(mapsRoot(home), 'published.lock'), LOCK_MS, () => {

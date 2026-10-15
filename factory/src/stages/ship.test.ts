@@ -5,12 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPublished } from '../sourcemaps';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import type { Card, ReleaseState } from '../types';
-import { CLONE_SHA, ROOT, fake, reset, type Fake } from './test-fakes';
+import { CLONE_SHA, ROOT, fake, issueMerge, reset, type Fake } from './test-fakes';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { ship } = await import('./ship');
 
-const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [6], tasks: [], candidateSha: 'abc1234', playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [6], tasks: [], merges: [issueMerge(3, 'faster trucks'), issueMerge(6, 'gone')], candidateSha: 'abc1234', playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const done = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Done', labels });
 
 beforeEach(() => {
@@ -19,13 +19,12 @@ beforeEach(() => {
   const out = join(ROOT, 'work', 'release-candidate', 'game', '.factory');
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'screenshot.png'), 'png');
-  writeFileSync(join(out, 'release.md'), '- [#3] Trucks are faster.\n');
+  writeFileSync(join(out, 'release.json'), JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }]));
 });
 
 function shippable(): Fake {
   const f = fake();
   Object.assign(f.ctx.cfg, { itchTarget: 'u/g', butlerKey: 'secret' });
-  f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #6: gone'];
   f.cards = [{ itemId: 'i11', issue: 11, column: 'Approval', labels: ['release'] }, done(12, ['release-task', 'maintenance'])];
   return f;
 }
@@ -36,7 +35,7 @@ describe('ship', () => {
     const runs: { cmd: string; args: string[]; env?: Record<string, string> }[] = [];
     f.ctx.run = async (cmd, args, opts) => { runs.push({ cmd, args, env: opts?.env }); f.calls.push(`run ${cmd}`); return { code: 0, stdout: cmd === 'git' ? CLONE_SHA : '', stderr: '' }; };
     const shells: { script: string; env?: Record<string, string> }[] = [];
-    f.ctx.container.shell = async (clone, script, _log, env) => { shells.push({ script, env }); f.calls.push(`shell ${clone}`); };
+    f.ctx.container.shell = async (kind, clone, script, _log, env) => { shells.push({ script, env }); f.calls.push(`shell ${kind} ${clone}`); };
     await ship(f.ctx, 11, 'Ann');
     const at = (name: string) => f.calls.findIndex((call) => call.startsWith(name));
     expect(at('push work-head main')).toBeLessThan(at('merge main dev'));
@@ -54,7 +53,7 @@ describe('ship', () => {
     const post = readState(f.ctx.statePath).releasePost;
     expect(post).toEqual({ issue: 11, day: '2026-09-29', changelog: '- [#3] Trucks are faster.', screenshot: join(ROOT, 'release-posts', '2026-09-29', 'screenshot.png'), postId: null, draft: null });
     expect(readFileSync(post!.screenshot, 'utf8')).toBe('png');
-    expect(f.calls.some((call) => call.startsWith('message committee') && call.includes('Hermes drafts the public post'))).toBe(true);
+    expect(f.calls.filter((call) => call.startsWith('message committee'))).toEqual(['message committee - Release 2026-09-29 shipped with 1 changes.']);
   });
 
   it('fails on a dev merge conflict before the build, the butler push and any public post', async () => {
@@ -72,7 +71,7 @@ describe('ship', () => {
     await ship(f.ctx, 11, 'Ann');
     expect(f.calls).toContain('close completed');
     expect(f.calls).toContain('move Done');
-    expect(f.calls.at(-1)).toBe('message committee - Release 2026-09-29 shipped with 1 changes. Hermes drafts the public post next.');
+    expect(f.calls.at(-1)).toBe('message committee - Release 2026-09-29 shipped with 1 changes.');
     const state = readState(f.ctx.statePath);
     expect(state.release).toBeNull();
     expect(state.lastRelease).toBe('2026-09-29T10:00:00.000Z');
@@ -95,7 +94,6 @@ describe('ship', () => {
     await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('killed');
     expect(readState(f.ctx.statePath).release?.shipping?.features).toEqual([{ issue: 3, title: 'faster trucks' }]);
     const again = shippable();
-    again.changelog = [];
     await ship(again.ctx, 11, 'Ann');
     expect(again.calls).toContain('removeLabel 3 release-candidate');
     expect(readState(again.ctx.statePath).release).toBeNull();
@@ -103,8 +101,8 @@ describe('ship', () => {
 
   it('queues an incident job for each shipped issue labeled bug, and for no other', async () => {
     const f = shippable();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #4: new horn'];
-    writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.md'), '- [#3] Trucks are faster.\n- [#4] A horn.\n');
+    writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), release: { ...RELEASE, merges: [issueMerge(3, 'faster trucks'), issueMerge(4, 'new horn')], removed: [] } });
+    writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.json'), JSON.stringify([{ issue: 3, text: 'Trucks are faster.' }, { issue: 4, text: 'A horn.' }]));
     f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 3 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a' });
     await ship(f.ctx, 11, 'Ann');
     expect(readState(f.ctx.statePath).pendingIncidents).toEqual([3]);
@@ -155,7 +153,7 @@ describe('ship', () => {
   it('gives failed checks of the merged main to the ship agent and checks its fix again', async () => {
     const f = shippable();
     let fails = 1;
-    f.ctx.container.shell = async (clone) => {
+    f.ctx.container.shell = async (_kind, clone) => {
       f.calls.push(`shell ${clone}`);
       if (clone.endsWith('ship-main') && fails-- > 0) throw new Error('tests failed');
     };
@@ -176,7 +174,7 @@ describe('ship', () => {
       return result;
     };
     let fails = 1;
-    f.ctx.container.shell = async (clone) => {
+    f.ctx.container.shell = async (_kind, clone) => {
       f.calls.push(`shell ${clone}`);
       if (clone.endsWith('ship-main') && fails-- > 0) throw new Error('tests failed');
     };
@@ -188,7 +186,7 @@ describe('ship', () => {
   it('fails and ships nothing when the ship agent spent its budget and the checks still fail', async () => {
     const f = shippable();
     f.ctx.cfg.mergingBudgetUsd = 1;
-    f.ctx.container.shell = async (clone) => {
+    f.ctx.container.shell = async (_kind, clone) => {
       f.calls.push(`shell ${clone}`);
       if (clone.endsWith('ship-main')) throw new Error('tests failed');
     };
@@ -200,8 +198,8 @@ describe('ship', () => {
 
   it('stops before it merges anything when the changelog does not match the release', async () => {
     const f = shippable();
-    writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.md'), 'Trucks are faster.\n');
-    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('not "- [#N] what changed"');
+    writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.json'), '"Trucks are faster."');
+    await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('release.json is not an array');
     expect(f.calls.some((call) => call.startsWith('merge') || call.startsWith('push'))).toBe(false);
   });
 

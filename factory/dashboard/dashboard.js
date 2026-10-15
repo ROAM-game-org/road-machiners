@@ -1,18 +1,21 @@
-// Labels arrive with each snapshot from src/dashboard/labels.ts. A key with no label, like a stage from an old ledger line, shows as itself.
 /** @param {Record<string, string>} labels @returns {Record<string, string>} */
 function showRawKeys(labels) { return new Proxy(labels, { get: (target, key) => (typeof key === 'string' && Object.hasOwn(target, key) ? target[key] : String(key)) }); }
 /** @typedef {import('../src/dashboard/analytics').PanelRows} PanelRows */
 /** @typedef {NonNullable<ReturnType<typeof readOperations>>} Operations */
 /** @typedef {ReturnType<typeof getRelease>} Release */
+/** @typedef {import('../src/dashboard/snapshot').GithubSnapshot} GithubSnapshot */
 let stages = showRawKeys({});
 let actions = showRawKeys({});
 let reasons = showRawKeys({});
 let queueNames = showRawKeys({});
 let dwellNames = showRawKeys({});
 let loopNames = showRawKeys({});
-let gateNames = showRawKeys({});
+let mergeStateNames = showRawKeys({});
+let outcomeNames = showRawKeys({});
 /** @type {Record<string, string>} */
 let columnNames = {};
+/** @type {(keyof Operations['queues'])[]} */
+let queueOrder = [];
 /** @param {import('../src/dashboard/labels').Labels} labels */
 function readLabels(labels) {
   stages = showRawKeys(labels.stages);
@@ -21,8 +24,10 @@ function readLabels(labels) {
   queueNames = showRawKeys(labels.queues);
   dwellNames = showRawKeys(labels.dwell);
   loopNames = showRawKeys(labels.loops);
-  gateNames = showRawKeys(labels.gates);
+  mergeStateNames = showRawKeys(labels.mergeStates);
+  outcomeNames = showRawKeys(labels.outcomes);
   columnNames = labels.columns;
+  queueOrder = /** @type {(keyof Operations['queues'])[]} */ (Object.keys(labels.queues));
 }
 const pages = new Map();
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
@@ -57,7 +62,6 @@ function formatAge(at) {
   return seconds < 60 ? '<1m' : formatDuration(seconds * 1000);
 }
 function countInputTokens(tokens) { return tokens == null ? null : tokens.input + tokens.cacheRead + tokens.cacheWrite; }
-function formatTokenCount(value) { return value == null ? '—' : `${formatNumber(value)} tokens`; }
 function countTokens(tokens) { return tokens == null ? null : countInputTokens(tokens) + tokens.output; }
 function createLink(text, href) {
   const url = new URL(href);
@@ -86,11 +90,12 @@ function requestRender() {
   });
 }
 function createPageButton(label, key, disabled, change) {
-  const button = createNode('button', label === 'Previous' ? '←' : '→');
+  const button = createNode('button', label);
   button.setAttribute('aria-label', `${label} ${key.replaceAll('-', ' ')}`);
   button.dataset.key = `${key}-${label}`;
-  button.disabled = disabled;
-  button.addEventListener('click', () => { pages.set(key, (pages.get(key) ?? 0) + change); requestRender(); });
+  button.setAttribute('aria-disabled', String(disabled));
+  if (disabled) setExplain(button, [], label === 'Previous' ? 'First page' : 'Last page');
+  button.addEventListener('click', () => { if (disabled) return; pages.set(key, (pages.get(key) ?? 0) + change); requestRender(); });
   return button;
 }
 function selectPage(key, rows, capacity) {
@@ -115,7 +120,7 @@ function renderTable(key, rows, renderRow, empty, columnCount) {
 }
 function readOperations() { return snapshot.operations.value; }
 function readLive() { return snapshot.live?.value ?? null; }
-function readCards() { return snapshot.github.value?.cards ?? []; }
+function readCards() { return snapshot.github.value?.cards.value ?? []; }
 function readWorkerTitle(job) {
   if (job.issue === null) return stages[job.stage];
   const card = readCards().find((item) => item.issue === job.issue);
@@ -141,7 +146,6 @@ function createWorkerRow(job) {
   const activity = readLive()?.workers.find((item) => item.key === job.key);
   const progress = activity?.progressAt ? formatAge(activity.progressAt) : '—';
   row.append(title, createNode('td', stages[job.stage]), createNode('td', readDoing(activity)), createNode('td', `${progress} / ${formatDuration(Date.now() - Date.parse(job.startedAt))}`, 'numeric'));
-  row.lastChild.title = 'Time since last completed operation / total job time';
   return row;
 }
 function renderWorkers() {
@@ -166,54 +170,90 @@ function readSchedulerAvailability(scheduler) {
   return null;
 }
 /** @param {Operations | null} operations */
-function renderFreeSlots(operations) {
-  if (!operations) {
-    setText('free-count', '');
-    return replaceContents('free-slots', [createNode('span', 'Capacity unavailable')]);
-  }
-  const queues = Object.entries(operations.queues);
-  const total = queues.reduce((sum, [, queue]) => sum + queue.total, 0);
-  const free = queues.reduce((sum, [, queue]) => sum + queue.total - queue.busy, 0);
-  setText('free-count', `${snapshot.operations.status === 'ok' ? '' : 'Last known: '}${free} / ${total}`);
-  const available = queues.filter(([, queue]) => queue.busy < queue.total).map(([name, queue]) => createNode('span', `${queueNames[name]}: ${queue.total - queue.busy} free`));
-  replaceContents('free-slots', available.length ? available : [createNode('span', 'All slots occupied')]);
+function renderBusyCount(operations) {
+  if (!operations) return setText('free-count', '');
+  const queues = Object.values(operations.queues);
+  const total = queues.reduce((sum, queue) => sum + queue.total, 0);
+  const busy = queues.reduce((sum, queue) => sum + queue.busy, 0);
+  setText('free-count', `${snapshot.operations.status === 'ok' ? '' : 'Last known: '}${busy} / ${total} busy`);
 }
-function createWaitingRow(item) {
-  const row = createNode('div', '', 'capacity-row');
-  row.append(createNode('span', item.issue === null ? stages[item.stage] : `#${item.issue} ${stages[item.stage]}`), createNode('span', item.reasons.map((reason) => reasons[reason]).join(', ')));
+function mergeWaits(items) {
+  const merged = new Map();
+  items.forEach((item, index) => {
+    const key = item.issue === null ? `row:${index}` : `${item.issue}:${item.stage}`;
+    const known = merged.get(key);
+    merged.set(key, known ? { ...known, reasons: [...new Set([...known.reasons, ...item.reasons])] } : item);
+  });
+  return [...merged.values()];
+}
+function groupWaitsByReason(waits) {
+  const groups = new Map();
+  for (const item of waits) for (const reason of item.reasons) groups.set(reason, [...(groups.get(reason) ?? []), item]);
+  return [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+function formatWaitingCard(item) { return item.issue === null ? stages[item.stage] : `#${item.issue} ${stages[item.stage]}`; }
+function createWhyCell(waits) {
+  const groups = groupWaitsByReason(waits);
+  const cell = createNode('td', groups.map(([reason, items]) => groups.length === 1 ? reasons[reason] : `${reasons[reason]} ${items.length}`).join(', '));
+  setExplain(cell, groups.map(([reason, items]) => [reasons[reason], items.map(formatWaitingCard).join(', ')]));
+  return cell;
+}
+function createBusyCell(queue, waiting) {
+  if (queue === undefined) return createNode('td', '—', 'numeric');
+  const crowded = queue.busy >= queue.total && waiting > 0;
+  return createNode('td', `${queue.busy} / ${queue.total}`, crowded ? 'numeric high' : readCountClass(queue.busy));
+}
+function readCountClass(count) { return count === 0 ? 'numeric zero' : 'numeric'; }
+function createQueueRow(name, queue, waits) {
+  const row = createNode('tr');
+  if (waits === null) row.append(createNode('td', queueNames[name]), createBusyCell(queue, 0), createNode('td', '—', 'numeric'), createNode('td'));
+  else row.append(createNode('td', queueNames[name]), createBusyCell(queue, waits.length), createNode('td', String(waits.length), readCountClass(waits.length)), createWhyCell(waits));
   return row;
 }
 /** @param {Operations | null} operations */
 function renderCapacity(operations) {
-  renderFreeSlots(operations);
+  renderBusyCount(operations);
   const status = readWaitingStatus(operations);
   setText('capacity-status', status ?? '');
-  const waiting = status === null ? readQueueWaits() : [];
-  const capacity = Math.max(1, Math.floor(getElement('capacity-rows').clientHeight / 24));
-  const visible = selectPage('capacity', waiting, capacity);
-  const empty = status === null ? 'No recorded waiting cards' : status === 'Starts paused' ? status : 'Reasons unavailable';
-  replaceContents('capacity-rows', visible.length ? visible.map(createWaitingRow) : [createNode('p', empty, 'empty')]);
+  const waits = status === null ? mergeWaits(readQueueWaits()) : null;
+  replaceContents('queue-rows', queueOrder.map((name) => createQueueRow(name, operations?.queues[name], waits === null ? null : waits.filter((item) => item.queue === name))));
 }
 function renderFunnel() {
-  const cards = snapshot.github.status === 'ok' ? snapshot.github.value?.cards : null;
+  const part = snapshot.github.status === 'ok' ? snapshot.github.value?.cards : null;
+  const cards = part?.value ?? null;
   replaceContents('funnel', Object.keys(columnNames).map((column) => {
     const item = createNode('div');
     const value = cards ? cards.filter((card) => card.column === column).length : null;
-    item.append(createNode('span', columnNames[column]), createNode('strong', formatNumber(value)));
-    item.lastChild.title = value === null ? 'Unavailable' : value.toLocaleString();
+    item.append(createNode('span', columnNames[column]), createNode('strong', formatNumber(value), value === 0 ? 'zero' : ''));
+    if (value === null) setExplain(item.lastChild, [], part?.error ?? 'Unavailable');
     return item;
   }));
 }
+function createMergeItem(item) {
+  const node = createNode('li');
+  node.append(createLink(`#${item.issue} ${item.title}`, getIssueUrl(item.issue)), createNode('span', mergeStateNames[item.state], item.state === 'stuck' ? 'bad' : 'muted'));
+  return node;
+}
+/** @template {'cards' | 'mergeQueue'} K @param {K} name @returns {{ value: GithubSnapshot[K]['value'], problem: string }} */
+function readGithubPart(name) {
+  const part = snapshot.github.value?.[name];
+  if (!part) return { value: null, problem: 'Unavailable' };
+  return { value: part.value, problem: part.error ?? '' };
+}
+function renderMergeQueue() {
+  const { value: items, problem } = readGithubPart('mergeQueue');
+  setText('merge-count', items ? String(items.length) : '');
+  const rows = items ?? [];
+  replaceContents('merge-items', rows.length ? rows.map(createMergeItem) : [createNode('li', problem || 'Empty', 'muted')]);
+}
 function getRelease() {
-  const github = snapshot.github.value;
-  const operations = readOperations();
-  if (!github || !operations) return null;
-  return github.releaseKey === operations.releaseKey ? github : null;
+  const features = readOperations()?.features;
+  return features ? { features } : null;
 }
 function formatReleaseGate(gate) {
   if (readOperations()?.release === null) return 'Release not cut';
   if (!gate) return 'Readiness not checked';
-  if (gate.reason === 'release-tasks') return `${gate.issues.length} release tasks remain: ${gate.issues.map((issue) => `#${issue}`).join(', ')}`;
+  if (gate.reason === 'release-tasks') return `Open release tasks: ${gate.issues.map((issue) => `#${issue}`).join(', ')}`;
   const labels = { uncut: 'Release not cut', 'tracking-missing': 'Tracking issue unavailable', failed: 'Release job failed', playtest: 'Release playtest pending', 'playtest-blocked': 'Release playtest blocked', candidate: 'Candidate build pending', 'ship-approval': 'Needs committee ship approval' };
   return labels[gate.reason];
 }
@@ -260,7 +300,7 @@ function renderReleaseLinks(release) {
   const operations = readOperations();
   const tracking = operations?.release;
   getElement('release-link').hidden = release === null;
-  setText('release-link', tracking ? 'Tracking issue ↗' : 'Compare ↗');
+  setText('release-link', tracking ? 'Tracking issue' : 'Compare');
   getElement('release-link').href = tracking ? getIssueUrl(tracking.issue) : `${snapshot.repoUrl}/compare/main...dev`;
   const candidateUrl = operations?.candidateUrl;
   getElement('candidate-link').hidden = !candidateUrl;
@@ -316,7 +356,8 @@ function readStorageNote(host) { return host?.ssd.value ? `Disk free ${formatByt
 const panelTitles = {
   problems: 'Ledger check', coverage: 'Coverage', counters: 'Totals', usage_buckets: 'Usage chart', stage_time: 'Running time', waiting: 'Waiting time',
   waiting_stages: 'Waiting by stage', retries: 'Repeat attempts', stage_models: 'Tokens by stage and model', activity: 'Event log',
-  delivery_coverage: 'Card coverage', lead: 'Lead time', dwell: 'Stage time', loops: 'Loops', rejections: 'Rejections', delivery_retries: 'Card retries',
+  delivery_coverage: 'Card coverage', lead: 'In flight', issue_to_dev: 'Issue to dev', dwell: 'Stage time', loops: 'Loops', rejections: 'Rejections', delivery_retries: 'Card retries',
+  flow_stages: 'Stage flow', flow_moves: 'Card moves',
 };
 /** @template {keyof PanelRows} K @param {K} name @param {1 | 7 | 30} days @returns {{ rows: PanelRows[K][] | null, problem: string }} */
 function readPanel(name, days) {
@@ -329,19 +370,21 @@ function readPanel(name, days) {
 function readSelected(name) { return readPanel(name, /** @type {1 | 7 | 30} */ (selectedDays)); }
 /** @template {keyof PanelRows} K @param {K} name @returns {{ row: PanelRows[K] | null, problem: string }} */
 function readRow(name) { const { rows, problem } = readSelected(name); return { row: rows?.[0] ?? null, problem }; }
+function formatEventText(event) { return `${stages[event.stage]} ${outcomeNames[event.outcome].toLowerCase()}`; }
 function createEvent(event) {
   const node = createNode('div', '', 'event');
-  node.append(createNode('time', event.at.slice(11, 16)), createNode('span', `${stages[event.stage]} ${event.outcome}`));
+  const time = createNode('time', event.at.slice(11, 16));
+  setExplain(time, [['At', formatStamp(event.at)]]);
+  node.append(time, createNode('span', formatEventText(event)));
   if (event.issue !== null) node.append(' ', createLink(`#${event.issue}`, getIssueUrl(event.issue)));
-  node.title = event.at;
   return node;
 }
 function readEvents() { const events = readPanel('activity', 30); return snapshot.analytics.value ? events : { rows: null, problem: 'Events unavailable' }; }
 function createDialogEvent(event) {
   const row = createNode('div', '', 'event-row');
-  const time = createNode('time', `${event.at.slice(0, 16).replace('T', ' ')} UTC`);
+  const time = createNode('time', formatStamp(event.at));
   time.dateTime = event.at;
-  row.append(time, createNode('span', `${stages[event.stage]} ${event.outcome}`));
+  row.append(time, createNode('span', formatEventText(event)));
   if (event.issue !== null) {
     const link = createLink(`#${event.issue}`, getIssueUrl(event.issue));
     link.dataset.key = `${event.at}-${event.stage}-${event.issue}`;
@@ -370,19 +413,18 @@ function renderCounters() {
   const { row, problem } = readRow('counters');
   if (row) {
     renderTokenCounters(readTokens(row));
-    setCounter('usage-time', formatDuration(row.worker_ms), `${row.worker_ms} ms`);
-    setCounter('usage-cost', formatCost(row.cost), row.cost);
-    setCounter('usage-wasted-cost', formatCost(row.wasted_cost), row.wasted_cost);
+    setCounter('usage-time', formatDuration(row.worker_ms), []);
+    setCounter('usage-cost', formatCost(row.cost), []);
     const wasted = countTokens(readWastedTokens(row));
-    setCounter('usage-wasted-tokens', formatTokenCount(wasted), wasted);
-  } else for (const id of ['usage-tokens', 'usage-input', 'usage-output', 'usage-time', 'usage-cost', 'usage-wasted-cost', 'usage-wasted-tokens']) setCounter(id, '—', null);
+    setCounter('usage-wasted-cost', formatCost(row.wasted_cost), wasted == null ? [] : [['Tokens', formatNumber(wasted)]]);
+  } else for (const id of ['usage-tokens', 'usage-input', 'usage-output', 'usage-time', 'usage-cost', 'usage-wasted-cost']) setCounter(id, '—', [], problem || 'Unavailable');
   renderWaitCounter();
   setText('coverage', readCoverage(problem));
 }
 function renderWaitCounter() {
   const { row } = readRow('waiting');
-  if (!row || row.waiting_ms === null || !row.span_ms) return setCounter('usage-wait', '—', null);
-  setCounter('usage-wait', `${(row.waiting_ms / row.span_ms).toFixed(1)} cards`, `${formatDuration(row.waiting_ms)} summed card-time`);
+  if (!row || row.waiting_ms === null || !row.span_ms) return setCounter('usage-wait', '—', [], 'Unavailable');
+  setCounter('usage-wait', (row.waiting_ms / row.span_ms).toFixed(1), [['Card time', formatDuration(row.waiting_ms)], ['Clock time', formatDuration(row.span_ms)]]);
 }
 function readHistoryParts() {
   const { row, problem } = readRow('coverage');
@@ -401,11 +443,20 @@ function readCoverage(countersProblem) {
   return [...new Set(parts.filter(Boolean))].join(', ');
 }
 function renderTokenCounters(tokens) {
-  setCounter('usage-tokens', formatNumber(countTokens(tokens)), countTokens(tokens));
-  setCounter('usage-input', formatNumber(countInputTokens(tokens)), countInputTokens(tokens));
-  setCounter('usage-output', formatNumber(tokens?.output), tokens?.output);
+  setCounter('usage-tokens', formatNumber(countTokens(tokens)), []);
+  setCounter('usage-input', formatNumber(countInputTokens(tokens)), tokens ? [['New input', formatNumber(tokens.input)], ['Cache read', formatNumber(tokens.cacheRead)], ['Cache write', formatNumber(tokens.cacheWrite)]] : []);
+  setCounter('usage-output', formatNumber(tokens?.output), []);
 }
-function setCounter(id, display, exact) { setText(id, display); getElement(id).dataset.exact = exact == null ? 'Unavailable' : String(exact); }
+/** @typedef {[string, string][]} DetailRows */
+/** @param {HTMLElement} node @param {DetailRows} rows @param {string} [note] */
+function setExplain(node, rows, note = '') {
+  if (!rows.length && !note) return void delete node.dataset.explain;
+  node.dataset.explain = JSON.stringify({ rows, note });
+}
+/** @param {string} id @param {string} display @param {DetailRows} rows @param {string} [note] */
+function setCounter(id, display, rows, note = '') { setText(id, display); setExplain(getElement(id), rows, note); }
+function formatCount(value) { return value == null ? '—' : value.toLocaleString(); }
+function formatStamp(at) { return `${at.slice(0, 16).replace('T', ' ')} UTC`; }
 /** @param {PanelRows['usage_buckets'][]} rows */
 function readUsageSlots(rows) {
   const hourly = selectedDays === 1;
@@ -434,27 +485,43 @@ function readSegmentLabel(key) {
   return key === 'unattributed' ? 'No model data' : key.replace(/^claude-/, '');
 }
 function formatUsageValue(value) { return metric === 'tokens' ? formatNumber(value) : formatCost(value); }
-const segmentColors = ['#dac7a2', '#9db482', '#edbf78', '#e99a85', '#8fb3c4', '#b49ac4', '#c4b06a', '#7d9164', '#a5aaa7', '#c48f6a'];
-const usageTooltip = {
-  backgroundColor: '#171c1f', borderColor: '#dac7a2', borderWidth: 1, cornerRadius: 0, padding: 12, boxPadding: 6,
-  titleColor: '#dac7a2', titleFont: { family: 'Plex', size: 12 }, bodyColor: '#e0d8ca', bodyFont: { family: 'Barlow', size: 15 }, footerColor: '#e0d8ca', footerFont: { family: 'Barlow', size: 15, weight: 'bold' },
-  filter: (item) => item.raw !== null && item.raw > 0,
-  itemSort: (a, b) => b.raw - a.raw,
-  callbacks: {
-    label: (item) => `${item.dataset.label}: ${formatUsageValue(item.raw)}`,
-    footer: (items) => `Total: ${formatUsageValue(items.reduce((sum, item) => sum + item.raw, 0))}`,
-  },
-};
+function readToken(name) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!value) throw new Error(`Missing style token ${name}`);
+  return value;
+}
+function readSize(name) { return parseFloat(readToken(name)); }
+const segmentTokens = Array.from({ length: 10 }, (_, index) => `--series-${index + 1}`);
+/** @type {string[]} */
+let segmentColors = [];
+function createUsageTooltip() {
+  return {
+    enabled: false,
+    filter: (item) => item.raw !== null && item.raw > 0,
+    itemSort: (a, b) => b.raw - a.raw,
+    external: ({ chart, tooltip }) => renderChartDetail(chart, tooltip),
+  };
+}
+function renderChartDetail(chart, tooltip) {
+  const points = tooltip.dataPoints ?? [];
+  if (tooltip.opacity === 0 || !points.length) return hideDetail();
+  /** @type {DetailRows} */
+  const rows = points.map((item) => [item.dataset.label, formatUsageValue(item.raw)]);
+  rows.push(['Total', formatUsageValue(points.reduce((sum, item) => sum + item.raw, 0))]);
+  const canvas = chart.canvas.getBoundingClientRect();
+  placeDetail([createNode('p', tooltip.title.join(' '), 'muted'), ...createDetailNodes({ rows, note: '' })], { left: canvas.left + tooltip.caretX, bottom: canvas.top + tooltip.caretY });
+}
 /** @type {any} */
 let usageChart = null;
 function createUsageChart() {
-  Chart.defaults.color = '#a5aaa7';
-  Chart.defaults.font.family = 'Plex';
-  Chart.defaults.font.size = 10;
+  segmentColors = segmentTokens.map(readToken);
+  Chart.defaults.color = readToken('--ink-muted');
+  Chart.defaults.font.family = readToken('--font-mono');
+  Chart.defaults.font.size = readSize('--text-caption');
   return new Chart(getElement('usage-chart'), { type: 'bar', data: { labels: [], datasets: [] }, options: {
     animation: false, maintainAspectRatio: false,
-    scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0 } }, y: { stacked: true, grid: { color: '#424d52' }, ticks: { callback: (value) => formatUsageValue(value) } } },
-    plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { family: 'Barlow', size: 12 } } }, tooltip: usageTooltip },
+    scales: { x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0 } }, y: { stacked: true, grid: { color: readToken('--line-faint') }, ticks: { callback: (value) => formatUsageValue(value) } } },
+    plugins: { legend: { position: 'right', labels: { boxWidth: readSize('--space-5'), font: { family: readToken('--font-ui'), size: readSize('--text-dense') } } }, tooltip: createUsageTooltip() },
     interaction: { mode: 'index', intersect: false },
   } });
 }
@@ -475,22 +542,32 @@ function renderUsageChart() {
   getElement('usage-empty').hidden = keys.length > 0;
 }
 /** @param {PanelRows['stage_time'][]} running @param {PanelRows['waiting_stages'][]} waiting */
+const stageParts = /** @type {const} */ ([['agent_ms', 'Agent', 'agent'], ['checks_ms', 'Checks', 'checks'], ['build_ms', 'Build', 'build'], ['factory_ms', 'Git and GitHub', 'factory'], ['unsplit_ms', 'Not split', 'unsplit']]);
+/** @typedef {{ stage: string, run: number, wait: number, parts: [string, number, string][] }} StageRow */
+/** @param {PanelRows['stage_time'][]} running @param {PanelRows['waiting_stages'][]} waiting @returns {StageRow[]} */
 function readStageRows(running, waiting) {
   const names = new Set([...running.map((row) => row.stage), ...waiting.map((row) => row.stage)]);
-  return [...names].map((stage) => ({ stage, run: running.find((row) => row.stage === stage)?.worker_ms ?? 0, wait: waiting.find((row) => row.stage === stage)?.waiting_ms ?? 0 }));
+  return [...names].map((stage) => {
+    const row = running.find((item) => item.stage === stage);
+    const parts = row ? stageParts.filter(([key]) => row[key] > 0).map(([key, label, className]) => /** @type {[string, number, string]} */ ([label, row[key], className])) : [];
+    return { stage, run: row?.worker_ms ?? 0, wait: waiting.find((item) => item.stage === stage)?.waiting_ms ?? 0, parts };
+  });
 }
+/** @param {StageRow} row @param {number} maximum @param {boolean} waitingKnown */
 function createStageBar(row, maximum, waitingKnown) {
   const node = createNode('div', '', 'stage-row');
   const bar = createNode('div', '', 'stage-bar');
-  for (const [name, value] of [['running', row.run], ['waiting', row.wait]]) {
+  /** @type {[string, number, string][]} */
+  const segments = [...row.parts, ['Waiting', row.wait, 'waiting']];
+  for (const [, value, name] of segments) {
     const segment = createNode('span', '', name);
     segment.style.width = `${100 * value / maximum}%`;
     bar.append(segment);
   }
   const wait = waitingKnown ? formatDuration(row.wait) : '—';
-  node.append(createNode('span', stages[row.stage]), bar, createNode('span', `${formatDuration(row.run)} / ${wait}`, 'stage-amount'));
-  node.tabIndex = 0;
-  node.dataset.detail = `${stages[row.stage]}: ${formatDuration(row.run)} running, ${wait} waiting`;
+  const label = createNode('span', stages[row.stage]);
+  setExplain(label, [...row.parts.map(([name, value]) => /** @type {[string, string]} */ ([name, formatDuration(value)])), ['Waiting', wait]]);
+  node.append(label, bar, createNode('span', `${formatDuration(row.run)} / ${wait}`, 'stage-amount'));
   return node;
 }
 function isWaitingKnown() { return readSelected('waiting_stages').rows !== null && readRow('waiting').row?.waiting_ms != null; }
@@ -504,16 +581,20 @@ function renderStageChart() {
   const empty = running.rows ? 'No measured time' : running.problem;
   replaceContents('stage-chart', visible.length ? visible.map((row) => createStageBar(row, maximum, waitingKnown)) : [createNode('p', empty, 'empty')]);
 }
+function createCountCell(count) { return createNode('td', String(count), readCountClass(count)); }
 /** @param {PanelRows['retries']} item */
-function createRetryRow(item) { const row = createNode('tr'); row.append(createNode('td', item.outcome), createNode('td', String(item.runs), 'numeric'), createNode('td', formatDuration(item.worker_ms), 'numeric'), createNode('td', formatCost(item.cost), 'numeric')); return row; }
+function createRetryRow(item) { const row = createNode('tr'); row.append(createNode('td', outcomeNames[item.outcome]), createCountCell(item.runs), createNode('td', formatDuration(item.worker_ms), 'numeric'), createNode('td', formatCost(item.cost), 'numeric')); return row; }
 function readStageModelLabel(stage) { return stage === null ? 'Total' : stages[stage]; }
-function createStageModelCell(stage, model, usage, measure) {
+function createStageModelCell(usage, measure) {
   const value = usage ? measure === 'input' ? countInputTokens(usage) : usage.output : null;
-  const cell = createNode('td', formatNumber(value), 'numeric');
-  if (usage) cell.dataset.exact = measure === 'input'
-    ? `${readStageModelLabel(stage)}, ${model}: ${value} input including ${usage.cacheRead} cache read and ${usage.cacheWrite} cache write, ${formatCost(usage.cost)} estimated cost`
-    : `${readStageModelLabel(stage)}, ${model}: ${value} output`;
+  const cell = createNode('td', formatNumber(value), readCountClass(value));
+  if (usage) setExplain(cell, readStageModelRows(usage, measure));
   return cell;
+}
+/** @returns {DetailRows} */
+function readStageModelRows(usage, measure) {
+  if (measure !== 'input') return [];
+  return [['New input', formatNumber(usage.input)], ['Cache read', formatNumber(usage.cacheRead)], ['Cache write', formatNumber(usage.cacheWrite)], ['Estimated cost', formatCost(usage.cost)]];
 }
 /** @param {PanelRows['stage_models']} row */
 function readModelUsage(row) { return { stage: row.stage, model: row.model, input: row.input, output: row.output, cacheRead: row.cache_read, cacheWrite: row.cache_write, cost: row.cost }; }
@@ -532,7 +613,7 @@ function createStageModelRow(stage, models, totals, stageModels) {
   row.append(createNode('td', readStageModelLabel(stage)));
   for (const model of models) {
     const usage = stage === null ? totals.find((item) => item.model === model) : stageModels.find((item) => item.stage === stage && item.model === model);
-    row.append(createStageModelCell(stage, model, usage, 'input'), createStageModelCell(stage, model, usage, 'output'));
+    row.append(createStageModelCell(usage, 'input'), createStageModelCell(usage, 'output'));
   }
   return row;
 }
@@ -552,7 +633,7 @@ function renderStageModels() {
   stageHeader.scope = 'col';
   const modelHeaders = visible.map((model) => { const header = createNode('th', model); header.colSpan = 2; header.scope = 'colgroup'; return header; });
   replaceContents('stage-model-header', [stageHeader, ...modelHeaders]);
-  const measureHeaders = visible.flatMap(() => ['Input + cache', 'Output'].map((name) => { const header = createNode('th', name); header.scope = 'col'; return header; }));
+  const measureHeaders = visible.flatMap(() => ['Input with cache', 'Output'].map((name) => { const header = createNode('th', name); header.scope = 'col'; return header; }));
   replaceContents('stage-model-measures', measureHeaders);
   const stageRows = models.length ? [null, ...readStageModelNames(stageModels)] : [];
   renderTable('stage-model', stageRows, (stage) => createStageModelRow(stage, visible, totals, stageModels), rows ? 'No measured model tokens' : problem, visible.length * 2 + 1);
@@ -574,13 +655,12 @@ function createDwellRow(row, maximum) {
   fill.style.width = `${row.mean_ms === null ? 0 : 100 * row.mean_ms / maximum}%`;
   bar.append(fill);
   bar.setAttribute('aria-hidden', 'true');
-  const open = row.open ? `${row.open}, ${formatDuration(row.open_mean_ms)}` : '0';
-  node.append(createNode('td', dwellNames[row.stage]), bar, createNode('td', formatDuration(row.mean_ms), 'numeric'), createNode('td', formatDuration(row.median_ms), 'numeric'), createNode('td', String(row.count), 'numeric'), createNode('td', open, 'numeric'));
-  node.lastChild.dataset.exact = `${dwellNames[row.stage]}: ${row.open} open, mean age ${formatDuration(row.open_mean_ms)}. Open stages are not in the means.`;
+  const open = createNode('td', row.open ? `${row.open}, ${formatDuration(row.open_mean_ms)}` : '0', readCountClass(row.open));
+  node.append(createNode('td', dwellNames[row.stage]), bar, createNode('td', formatDuration(row.mean_ms), 'numeric'), createNode('td', formatDuration(row.median_ms), 'numeric'), createCountCell(row.count), open);
   return node;
 }
-function createLoopRow(row) { const node = createNode('tr'); node.append(createNode('td', loopNames[row.step]), createNode('td', String(row.events), 'numeric'), createNode('td', String(row.issues), 'numeric')); return node; }
-function createStageRetryRow(row) { const node = createNode('tr'); node.append(createNode('td', stages[row.stage]), createNode('td', String(row.runs), 'numeric'), createNode('td', String(row.issues), 'numeric')); return node; }
+function createLoopRow(row) { const node = createNode('tr'); node.append(createNode('td', loopNames[row.step]), createCountCell(row.events), createCountCell(row.issues)); return node; }
+function createStageRetryRow(row) { const node = createNode('tr'); node.append(createNode('td', stages[row.stage]), createCountCell(row.runs), createCountCell(row.issues)); return node; }
 /** @param {{ row: PanelRows['delivery_coverage'] | null, problem: string }} coverage */
 function readDeliveryCoverage(coverage) {
   if (snapshot.analytics.status === 'unavailable') return 'Card records unavailable';
@@ -591,40 +671,43 @@ function readDeliveryCoverage(coverage) {
 }
 /** @param {PanelRows['delivery_coverage'] | null} coverage @param {{ row: PanelRows['lead'] | null, problem: string }} lead */
 function readDeliveryNotes(coverage, lead) {
-  if (!coverage || coverage.since === null) return '';
-  const starts = lead.row ? `${lead.row.missing_start} merges lack a start.` : lead.problem;
-  return `${coverage.legacy} cards joined before records. ${coverage.excluded} hotfix, release or private cards left out. ${starts}`;
+  if (!coverage || coverage.since === null) return { rows: [], note: '' };
+  /** @type {DetailRows} */
+  const rows = [['Joined before records', formatCount(coverage.legacy)], ['Hotfix, release or private', formatCount(coverage.excluded)]];
+  if (lead.row) rows.push(['Merges without a start', formatCount(lead.row.missing_start)]);
+  return { rows, note: lead.row ? '' : lead.problem };
+}
+/** @param {PanelRows['issue_to_dev']} row @returns {DetailRows} */
+function readIssueRows(row) {
+  /** @type {DetailRows} */
+  const rows = row.issues ? [['Issues', formatCount(row.issues)], ['Fastest', formatDuration(row.fastest_ms)], ['Slowest', formatDuration(row.slowest_ms)]] : [];
+  return row.missing_open ? [...rows, ['No open date', formatCount(row.missing_open)]] : rows;
 }
 function renderIssueToDev() {
-  const merges = snapshot.github.value?.merges;
-  const end = Date.parse(snapshot.generatedAt);
-  const ages = (merges ?? []).filter((merge) => Date.parse(merge.mergedAt) > end - selectedDays * 86400000 && Date.parse(merge.mergedAt) <= end).map((merge) => Date.parse(merge.mergedAt) - Date.parse(merge.createdAt)).sort((a, b) => a - b);
-  if (!ages.length) {
-    const reason = merges ? 'No issue merged into dev in the period' : null;
-    setCounter('issue-mean', '—', reason);
-    return setCounter('issue-median', '—', reason);
+  const { row, problem } = readRow('issue_to_dev');
+  if (!row) {
+    setCounter('issue-mean', '—', [], problem);
+    return setCounter('issue-median', '—', [], problem);
   }
-  const mean = ages.reduce((sum, age) => sum + age, 0) / ages.length;
-  const middle = Math.floor(ages.length / 2);
-  const median = ages.length % 2 ? ages[middle] : (ages[middle - 1] + ages[middle]) / 2;
-  setCounter('issue-mean', formatDuration(mean), `${mean} ms mean of ${ages.length} issues`);
-  setCounter('issue-median', formatDuration(median), `${median} ms median of ${ages.length} issues`);
+  const note = row.issues ? '' : 'No issue merged into dev in the period';
+  setCounter('issue-mean', formatDuration(row.mean_ms), readIssueRows(row), note);
+  setCounter('issue-median', formatDuration(row.median_ms), readIssueRows(row), note);
 }
 function renderLeadCounter() {
   const lead = readRow('lead').row;
-  if (lead) setCounter('lead-open', String(lead.open), lead.open ? `${lead.open} cards, mean age ${formatDuration(lead.open_mean_ms)}` : 0);
+  if (lead) setCounter('lead-open', String(lead.open), lead.open ? [['Mean age', formatDuration(lead.open_mean_ms)]] : []);
 }
 function renderRejectionCounters() {
   for (const row of readSelected('rejections').rows ?? []) {
-    setCounter(`${row.gate}-rate`, formatRate(row.rejected, row.decided), `${gateNames[row.gate]}: ${row.rejected} of ${row.decided} decided cards`);
+    setCounter(`${row.gate}-rate`, formatRate(row.rejected, row.decided), [[row.gate === 'committee' ? 'Denied' : 'Refused', formatCount(row.rejected)], ['Decided', formatCount(row.decided)]]);
   }
 }
 /** @param {PanelRows['delivery_coverage'] | null} coverage */
 function renderDeliveryCounters(coverage) {
-  for (const id of ['lead-open', 'loop-rate', 'triage-rate', 'design-rate', 'committee-rate']) setCounter(id, '—', null);
+  for (const id of ['lead-open', 'loop-rate', 'triage-rate', 'design-rate', 'committee-rate']) setCounter(id, '—', [], 'Unavailable');
   if (coverage?.since === null) return;
   renderLeadCounter();
-  if (coverage) setCounter('loop-rate', formatRate(coverage.looped, coverage.issues), `${coverage.looped} of ${coverage.issues} cards`);
+  if (coverage) setCounter('loop-rate', formatRate(coverage.looped, coverage.issues), [['Sent back', formatCount(coverage.looped)], ['Cards', formatCount(coverage.issues)]]);
   renderRejectionCounters();
 }
 /** @param {boolean} noCards @param {{ rows: unknown[] | null, problem: string }} panel @param {string} empty */
@@ -645,10 +728,138 @@ function renderDeliveryTables(noCards) {
 function renderDelivery() {
   const coverage = readRow('delivery_coverage');
   setText('delivery-coverage', readDeliveryCoverage(coverage));
-  getElement('delivery-coverage').dataset.exact = readDeliveryNotes(coverage.row, readRow('lead'));
+  const notes = readDeliveryNotes(coverage.row, readRow('lead'));
+  setExplain(getElement('delivery-coverage'), notes.rows, notes.note);
   renderIssueToDev();
   renderDeliveryCounters(coverage.row);
   renderDeliveryTables(coverage.row?.since === null);
+}
+/** @param {string} tag @param {Record<string, string | number>} attributes @param {string} [className] */
+function createSvg(tag, attributes, className = '') {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
+  if (className) node.setAttribute('class', className);
+  return node;
+}
+/** @param {string} label @param {number} ms @param {number} maximum @param {string} className */
+function createFlowBar(label, ms, maximum, className) {
+  const node = createNode('div', '', `flow-bar ${className}`);
+  const head = createNode('div', '', 'flow-bar-head');
+  head.append(createNode('span', label), createNode('span', formatFlowTime(ms), ms ? 'flow-amount' : 'flow-amount zero'));
+  const track = createNode('span', '', 'flow-track');
+  const fill = createNode('span', '', className);
+  fill.style.width = `${100 * ms / maximum}%`;
+  track.append(fill);
+  node.append(head, track);
+  return node;
+}
+/** @param {number} ms */
+function formatFlowTime(ms) { return ms >= 36000000 ? `${Math.round(ms / 3600000)}h` : formatDuration(ms); }
+const flowParts = /** @type {const} */ ([['agent_ms', 'Agent', 'agent'], ['checks_ms', 'Checks', 'checks'], ['build_ms', 'Build', 'build'], ['factory_ms', 'Git and GitHub', 'factory']]);
+/** @param {PanelRows['flow_stages']} row @returns {[string, number, string][]} */
+function readFlowBlocks(row) {
+  const wait = row.waits_on === 'committee' ? ['Committee', row.wait_ms, 'committee'] : ['Waiting', row.wait_ms, 'wait'];
+  return [/** @type {[string, number, string]} */ (wait), ...flowParts.filter(([key]) => row[key] > 0).map(([key, label, className]) => /** @type {[string, number, string]} */ ([label, row[key], className]))];
+}
+/** @param {PanelRows['flow_stages']} row */
+function createFlowVisits(row) {
+  const unknown = row.unknown_visits ? `, ${formatCount(row.unknown_visits)} unmeasured` : '';
+  const node = createNode('span', `${formatCount(row.visits)} visits${unknown}`, row.visits ? 'flow-visits clipped' : 'flow-visits clipped zero');
+  const rows = row.visits ? readFlowBlocks(row).map(([label, ms]) => [`${label}, per visit`, formatDuration(ms / row.visits)]) : [];
+  setExplain(node, /** @type {DetailRows} */ (rows), unknown ? 'Unmeasured visits overlap a job recorded before jobs listed their parts, so their time is left out' : '');
+  return node;
+}
+/** @param {PanelRows['flow_stages']} row @param {number} maximum @param {string | null} worst */
+function createFlowStage(row, maximum, worst) {
+  const node = createNode('div', '', row.stage === worst ? 'flow-stage worst' : 'flow-stage');
+  node.append(createNode('h3', dwellNames[row.stage]), ...readFlowBlocks(row).map(([label, ms, className]) => createFlowBar(label, ms, maximum, className)), createFlowVisits(row));
+  return node;
+}
+/** @param {PanelRows['flow_stages'][]} rows */
+function readWorstStage(rows) {
+  const waiting = rows.filter((row) => row.waits_on === 'workers' && row.wait_ms > 0).sort((a, b) => b.wait_ms - a.wait_ms);
+  return waiting[0]?.stage ?? null;
+}
+/** @param {HTMLElement} map @param {Element} node */
+function readFlowBox(map, node) {
+  const outer = map.getBoundingClientRect();
+  const rect = node.getBoundingClientRect();
+  return { left: rect.left - outer.left, right: rect.right - outer.left, top: rect.top - outer.top, bottom: rect.bottom - outer.top, width: rect.width };
+}
+function createFlowHeads() {
+  const defs = createSvg('defs', {});
+  for (const kind of ['next', 'back', 'skip']) {
+    const marker = createSvg('marker', { id: `flow-head-${kind}`, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, markerUnits: 'userSpaceOnUse', orient: 'auto' });
+    marker.append(createSvg('path', { d: 'M0 0L10 5L0 10z' }, `flow-head ${kind}`));
+    defs.append(marker);
+  }
+  return defs;
+}
+/** @param {SVGElement} group @param {number} x @param {number} y @param {PanelRows['flow_moves']} move */
+function addFlowCount(group, x, y, move) {
+  const label = createSvg('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+  label.textContent = String(move.moves);
+  const to = move.to_stage === 'done' ? columnNames.Done : dwellNames[move.to_stage];
+  label.dataset.explain = JSON.stringify({ rows: [['Moves', formatCount(move.moves)]], note: `${dwellNames[move.from_stage]} to ${to}` });
+  group.append(label);
+}
+/** @typedef {{ left: number, right: number, top: number, bottom: number, width: number }} FlowBox */
+/** @param {FlowBox} from @param {FlowBox} to @param {boolean} back @param {number} reach */
+function readArc(from, to, back, reach) {
+  const x1 = from.left + 0.65 * from.width;
+  const x2 = to.left + 0.35 * to.width;
+  const y1 = back ? from.bottom : from.top;
+  const y2 = back ? to.bottom : to.top;
+  const bend = back ? reach : -reach;
+  return { d: `M${x1} ${y1}C${x1} ${y1 + bend} ${x2} ${y1 + bend} ${x2} ${y2}`, x: (x1 + x2) / 2, y: y1 + 0.75 * bend };
+}
+/** @param {PanelRows['flow_moves']} move @param {FlowBox[]} boxes @param {string[]} keys @param {{ heaviest: number, above: number, below: number }} room */
+function drawFlowMove(move, boxes, keys, room) {
+  const start = keys.indexOf(move.from_stage);
+  const end = keys.indexOf(move.to_stage);
+  const kind = end === start + 1 ? 'next' : end < start ? 'back' : 'skip';
+  const group = createSvg('g', {}, `flow-move ${kind}`);
+  const width = 1 + 3 * move.moves / room.heaviest;
+  const [from, to] = [boxes[start], boxes[end]];
+  if (kind === 'next') {
+    const y = (from.top + from.bottom) / 2;
+    group.append(createSvg('path', { d: `M${from.right} ${y}L${to.left} ${y}`, 'stroke-width': width, 'marker-end': 'url(#flow-head-next)' }));
+    addFlowCount(group, (from.right + to.left) / 2, y - readSize('--space-6'), move);
+    return group;
+  }
+  const reach = (kind === 'back' ? room.below : room.above) * (0.2 + 0.7 * (Math.abs(end - start) - 1) / (keys.length - 2));
+  const arc = readArc(from, to, kind === 'back', reach);
+  group.append(createSvg('path', { d: arc.d, 'stroke-width': width, 'marker-end': `url(#flow-head-${kind})` }));
+  addFlowCount(group, arc.x, arc.y, move);
+  return group;
+}
+/** @param {HTMLElement} map @param {string[]} keys @param {PanelRows['flow_moves'][]} moves */
+function drawFlowMoves(map, keys, moves) {
+  const boxes = [...map.children].map((node) => readFlowBox(map, node));
+  const room = { heaviest: Math.max(1, ...moves.map((move) => move.moves)), above: boxes[0].top, below: map.clientHeight - boxes[0].bottom };
+  const svg = createSvg('svg', { width: map.clientWidth, height: map.clientHeight, role: 'group', 'aria-label': 'Card moves' }, 'flow-lines');
+  svg.append(createFlowHeads(), ...moves.map((move) => drawFlowMove(move, boxes, keys, room)));
+  map.append(svg);
+}
+/** @param {{ rows: PanelRows['flow_stages'][] | null, problem: string }} stagePanel @param {{ rows: PanelRows['flow_moves'][] | null, problem: string }} movePanel @param {boolean} noCards */
+function readFlowProblem(stagePanel, movePanel, noCards) {
+  if (noCards) return 'No card moves recorded yet';
+  return stagePanel.rows && movePanel.rows ? '' : stagePanel.problem || movePanel.problem;
+}
+function renderFlow() {
+  const coverage = readRow('delivery_coverage');
+  setText('flow-coverage', readDeliveryCoverage(coverage));
+  const stagePanel = readSelected('flow_stages');
+  const movePanel = readSelected('flow_moves');
+  const map = getElement('flow-map');
+  const problem = readFlowProblem(stagePanel, movePanel, coverage.row?.since === null);
+  if (problem) return map.replaceChildren(createNode('p', problem, 'empty'));
+  const rows = stagePanel.rows ?? [];
+  const maximum = Math.max(1, ...rows.flatMap((row) => readFlowBlocks(row).map(([, ms]) => ms)));
+  const worst = readWorstStage(rows);
+  map.style.setProperty('--flow-stages', String(rows.length));
+  map.replaceChildren(...rows.map((row) => createFlowStage(row, maximum, worst)), createNode('div', columnNames.Done ?? 'Done', 'flow-stage flow-done'));
+  drawFlowMoves(map, [...rows.map((row) => row.stage), 'done'], movePanel.rows ?? []);
 }
 function readPauseNotice() {
   const operations = readOperations();
@@ -669,7 +880,7 @@ function renderFreshness() {
   getElement('source-status').classList.toggle('paused', Boolean(pause));
   getElement('connection').classList.toggle('bad', !connected);
 }
-function renderOverview() { renderWorkers(); renderFunnel(); renderRelease(); renderManager(); renderServer(); renderEvents(); }
+function renderOverview() { renderWorkers(); renderFunnel(); renderMergeQueue(); renderRelease(); renderManager(); renderServer(); renderEvents(); }
 function renderSnapshot() {
   getElement('github-link').href = snapshot.repoUrl;
   getElement('play-link').href = snapshot.playUrl;
@@ -677,28 +888,43 @@ function renderSnapshot() {
   if (!getElement('overview').hidden) renderOverview();
   if (!getElement('analytics').hidden) renderAnalytics();
   if (!getElement('delivery').hidden) renderDelivery();
+  if (!getElement('flow').hidden) renderFlow();
   updateOverflow();
 }
 function updateOverflow() {
-  for (const node of queryAll('td,th,.event,.capacity-row span,.clamp,.clipped,.counter strong,.funnel strong,.server-totals strong,.source-status,.release-items li')) {
+  for (const node of queryAll('[data-explain],td,th,.event,.merge-items a,.clamp,.clipped,.counter strong,.funnel strong,.server-totals strong,.source-status,.release-items li')) {
     if (!node.getClientRects().length) continue;
-    if (node.dataset.exact) { node.dataset.detail = node.dataset.exact; node.tabIndex = 0; continue; }
+    if (node.dataset.explain) { node.dataset.detail = node.dataset.explain; node.tabIndex = 0; continue; }
     const truncated = node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight;
     node.classList.toggle('inspect', truncated);
-    if (truncated) { node.dataset.detail = node.textContent.trim(); node.tabIndex = 0; }
+    if (truncated) { node.dataset.detail = JSON.stringify({ rows: [], note: node.textContent.trim() }); node.tabIndex = 0; }
     else { delete node.dataset.detail; node.removeAttribute('tabindex'); }
   }
 }
+/** @param {{ rows: DetailRows, note: string }} detail */
+function createDetailNodes(detail) {
+  const rows = detail.rows.map(([label, value]) => {
+    const row = createNode('div', '', 'tooltip-row');
+    row.append(createNode('span', label), createNode('span', value, 'num'));
+    return row;
+  });
+  return detail.note ? [...rows, createNode('p', detail.note, rows.length ? 'muted' : '')] : rows;
+}
+/** @param {Node[]} nodes @param {{ left: number, bottom: number }} anchor */
+function placeDetail(nodes, anchor) {
+  const tooltip = getElement('full-text');
+  tooltip.replaceChildren(...nodes);
+  tooltip.hidden = false;
+  const edge = readSize('--space-4');
+  tooltip.style.left = `${Math.max(edge, Math.min(anchor.left, innerWidth - tooltip.offsetWidth - edge))}px`;
+  tooltip.style.top = `${Math.max(edge, Math.min(anchor.bottom + readSize('--space-3'), innerHeight - tooltip.offsetHeight - edge))}px`;
+  return tooltip;
+}
 function showDetail(node) {
   if (!node?.dataset.detail) return;
-  const tooltip = getElement('full-text');
-  tooltip.textContent = node.dataset.detail;
+  const tooltip = placeDetail(createDetailNodes(JSON.parse(node.dataset.detail)), node.getBoundingClientRect());
   detailOwner = node;
   tooltip.tabIndex = 0;
-  tooltip.hidden = false;
-  const bounds = node.getBoundingClientRect();
-  tooltip.style.left = `${Math.max(8, Math.min(bounds.left, innerWidth - tooltip.offsetWidth - 8))}px`;
-  tooltip.style.top = `${Math.max(8, Math.min(bounds.bottom + 6, innerHeight - tooltip.offsetHeight - 8))}px`;
   node.setAttribute('aria-describedby', tooltip.id);
 }
 function hideDetail() { getElement('full-text').hidden = true; }
