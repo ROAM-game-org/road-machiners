@@ -9,7 +9,9 @@ import { reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
+import { join } from 'node:path';
 import { testPoolPin } from '../cpus';
+import { isLocked, withLock } from '../lock';
 import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Pin, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
@@ -125,7 +127,15 @@ export async function postCheckpoint(ctx: Ctx, issue: number, base: string, buil
   const playtest = playtestCommand(ctx.cfg, false);
   const script = kind === 'full' ? checkScript(playtest) : previewScript(playtest);
   const pin = kind === 'full' ? testPoolPin(ctx.cfg) : undefined;
-  return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify', pin), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+  const check = () => runScript(ctx, issue, base, build, script, 'verify', pin);
+  return checkUntilReal(kind === 'full' ? () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, check) : check, (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+}
+
+export async function oneSuiteAtATime<T>(ctx: Ctx, at: { stage: Stage; issue: number | null }, work: () => Promise<T>): Promise<T> {
+  const lock = join(ctx.cfg.home, 'locks', 'full-suite');
+  if (isLocked(lock)) ctx.log(at.stage, at.issue, 'waits for the full suite of another job, since one runs at a time');
+  const longestJobMinutes = Math.max(ctx.cfg.verifyTimeoutMinutes, ctx.cfg.mergeTimeoutMinutes, ctx.cfg.playtestTimeoutMinutes);
+  return withLock(lock, longestJobMinutes * 60_000, work);
 }
 
 export function suiteEnv(cfg: FactoryConfig): Record<string, string> {

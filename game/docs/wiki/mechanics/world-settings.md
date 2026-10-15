@@ -21,7 +21,7 @@ Damage, Fuel use and Supply use apply to every truck alike: the player, NPCs nea
 
 The world saves its mode and settings. Every load uses them, so two saves with different settings stay apart. A world keeps the multipliers it was started with, so a later build that changes a setting's default does not retune it. A later build that rebalances `RULES` itself changes every world.
 
-A save from before world settings loads as Roaming at 100% for every setting, which is how it played. A save with a bad setting, like a value out of bounds, does not load. The save screen offers to migrate it, and the migration resets each bad setting to 100% and says so.
+A save from before world settings loads as Roaming at 100% for every setting, which is how it played. A save with a bad setting, like a value out of bounds, loads with each bad setting reset to 100%, and the Save updated screen says so. A save with an unknown game mode does not load. The save screen offers to migrate it, and the migration resets each bad setting to 100% and says so.
 
 The `?` menu shows the world's mode and settings under the version, and a bug report carries them.
 
