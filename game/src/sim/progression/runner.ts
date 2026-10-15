@@ -2,7 +2,7 @@ import { chassisDef } from '../../data/chassis';
 import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
-import { haulerOf, playerTrucks, playerVehicle, truckFor } from '../damage';
+import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
 import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
@@ -10,6 +10,7 @@ import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
+import { leadOf } from '../ai';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
@@ -18,20 +19,21 @@ import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
-import { haulerTakes, outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
+import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
 import { payOf } from '../fury-road-danger';
+import { fightOrder, fightPoint, hostilesSeen, nearestToHauler } from './escort-brain';
+import { spendGear } from './escort-gear';
 import { bestTruck, keepsPace, savesFor } from './escort-tactics';
-import { bestPlan, gearBudget, gearPlans } from './gear';
+import { gearBudget } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
-const HAULER_SHARE = 1;
 const FOLLOW_BEHIND = 10;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
@@ -92,7 +94,8 @@ function keepSwitches(o: Orders, style: RoadStyle): void {
   const auto = style === 'sprinter' || !tankHoled(o);
   if (o.world.player.autoRepair !== auto) o.run((w) => setAutoRepair(w, auto));
   if (style === 'escort') coolEngine(o);
-  if (o.world.player.autoFire) o.run((w) => setAutoFire(w, false));
+  const fires = style === 'escort';
+  if (o.world.player.autoFire !== fires) o.run((w) => setAutoFire(w, fires));
 }
 
 function coolEngine(o: Orders): void {
@@ -107,7 +110,11 @@ function drive(o: Orders, style: RoadStyle): void {
 }
 
 function escort(o: Orders): void {
-  driveTo(o, escortSpot(o.world, haulerOf(o.world)));
+  const foe = nearestToHauler(o.world, hostilesSeen(o.world));
+  if (!foe) return driveTo(o, escortSpot(o.world, haulerOf(o.world)));
+  const dest = vehicleStats(o.world, o.me).weapons.length === 0 ? leadOf(foe) : fightPoint(o.world, o.me, foe);
+  const order = fightOrder(foe, o.me, dest);
+  o.run((w) => setMoveOrder(w, order));
 }
 
 function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
@@ -166,27 +173,7 @@ function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
   const before = o.me.chassisId;
   buyTruck(o, post, style);
   if (o.me.chassisId === before && savingForTruck(o, post)) return;
-  haulerGear(o, gearBudget(o.world, o.me, 'fighter') * HAULER_SHARE);
-  refitGear(o, 1 - HAULER_SHARE);
-}
-
-function haulerGear(o: Orders, budget: number): void {
-  const hauler = haulerOf(o.world);
-  let left = budget;
-  for (let plan = nextHaulerBuy(o, hauler, left); plan; plan = nextHaulerBuy(o, hauler, left)) {
-    if (plan.replaces) o.run((w) => storePart(w, plan.replaces!.id, hauler.id), 'gear');
-    o.run((w) => outpostBuyPart(w, plan.offer.part.id, hauler.id), 'gear');
-    mountBought(o, plan.offer.part.id, plan.spot, hauler.id);
-    left -= plan.offer.price;
-  }
-}
-
-function nextHaulerBuy(o: Orders, hauler: Vehicle, budget: number) {
-  const post = reachedOutpostAt(o.world, hauler);
-  if (!post) return null;
-  const offers = post.stock.filter((part) => !isJunk(part) && haulerTakes(part)).map((part) => ({ part, price: outpostPartPrice(o.world, part, hauler.id) }));
-  const buyer = { job: 'hauler' as const, skip: [], resale: () => 0 };
-  return bestPlan(gearPlans(o.world, truckFor(o.world, hauler.id), offers, buyer), Math.min(budget, o.world.player.money));
+  spendGear(o);
 }
 
 function refitGear(o: Orders, share: number): void {

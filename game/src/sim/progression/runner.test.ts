@@ -8,10 +8,11 @@ import { chassisPrice } from '../economy';
 import { gearBudget } from './gear';
 import { onOutpostPad, outpostPad, outpostTrucks } from '../fury-road';
 import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
-import type { GameEvent, Vehicle, World } from '../types';
+import type { Vehicle, World } from '../types';
 import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { dist, type Vec } from '../vec';
 import { maxHp } from '../wear';
+import { refreshVision } from '../vision';
 import { endTurn } from '../world';
 import { botOrders } from './bot';
 
@@ -32,10 +33,6 @@ function hostileNear(w: World): Vehicle {
   const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: me.pos.x + 6, y: me.pos.y });
   foe.brain = npcBrain('merc', foe.pos, []);
   return foe;
-}
-
-function shotAt(shooter: Vehicle, target: Vehicle): GameEvent {
-  return { t: 'shot', shooter: shooter.id, weapon: 'none', target: target.id, aim: 'body', chance: 1, damageChance: 1, side: 'front', rounds: [] };
 }
 
 function escortSpotOf(w: World): Vec {
@@ -138,18 +135,28 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
   });
 
-  it('keeps its guns quiet and rides behind the hauler even while a truck shoots it', () => {
+  it('keeps auto fire on and rides behind the hauler while no hostile is in sight', () => {
     const w = furyRoadWorld();
-    w.player.autoFire = true;
-    const foe = hostileNear(w);
-    w.events = [shotAt(foe, playerVehicle(w))];
+    w.player.autoFire = false;
 
     const turn = botOrders(w, 'escort');
     const order = playerVehicle(turn.world).order;
 
-    expect(turn.world.player.autoFire).toBe(false);
+    expect(turn.world.player.autoFire).toBe(true);
     expect(order).toMatchObject({ kind: 'stopAt' });
     expect(dist((order as { dest: Vec }).dest, escortSpotOf(w))).toBeLessThan(1);
+  });
+
+  it('drives at a hostile truck in sight instead of riding behind the hauler', () => {
+    const w = furyRoadWorld();
+    const foe = hostileNear(w);
+    refreshVision(w);
+
+    const turn = botOrders(w, 'escort');
+    const order = playerVehicle(turn.world).order as { dest: Vec };
+
+    expect(dist(order.dest, foe.pos)).toBeLessThan(12);
+    expect(dist(order.dest, escortSpotOf(w))).toBeGreaterThan(5);
   });
 
   it('saves its gear money when a faster, better truck is within reach of the next pay', () => {
