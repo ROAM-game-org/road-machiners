@@ -6,7 +6,6 @@ import { BudgetError } from './stages/checkpoint';
 import { CommitteeDecisionError } from './diff-guard';
 import { adhoc } from './stages/adhoc';
 import { approve } from './stages/approval';
-import { change } from './stages/change';
 import { runStage as design } from './stages/design';
 import { runStage as implement } from './stages/implement';
 import { candidate } from './stages/candidate';
@@ -31,7 +30,7 @@ import { QUEUE_OF, type Ctx, type Job, type JobStage } from './types';
 type Handler = (ctx: Ctx, issue: number) => Promise<void>;
 
 const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge' | 'answer'>, Handler> = {
-  triage, design, implement, verify, harden, checks, change, adhoc, playtest, candidate, remove, incident,
+  triage, design, implement, verify, harden, checks, adhoc, playtest, candidate, remove, incident,
   'catch-up': catchUp,
   ship: (ctx, issue) => ship(ctx, issue, readState(ctx.statePath).pendingShip),
   approve: (ctx, issue) => approve(ctx, issue, readState(ctx.statePath).pendingApprovals[String(issue)] ?? 'the committee'),

@@ -100,11 +100,11 @@ Members talk to the bot in the committee chat. The Hermes plugin turns commands 
 
 ![Committee inputs](diagrams/committee.svg)
 
-Hermes acts for a member with the member's Telegram id. A route or a task that Hermes gives on its own reading, like an incident task from the incident watch, carries `by` `hermes` and answers no chat message. The tick accepts `hermes` for a task and a route. Approve, deny, Ship, Remove and a change request need a member, and so do the button presses. The plugin still drops every message from a user outside the committee.
+Hermes acts for a member with the member's Telegram id. A route or a task that Hermes gives on its own reading, like an incident task from the incident watch, carries `by` `hermes` and answers no chat message. The tick accepts `hermes` for a task and a route. Approve, deny, Ship and Remove need a member, and so do the button presses. A message from a user outside the committee in the committee chat reaches Hermes as plain chat, with no route, no inbox command and no `/committee` command. Hermes answers that user as a player and acts on nothing they say. `factory_sender` tells Hermes who the sender is, from the gateway's session and not from the message text. The plugin drops a non-member's message in any other chat.
 
 A member's message outside a post reply that only thanks, like "thanks" or "спасибо", with no question mark and no picture, stops at the plugin. A yes like "ok" or an emoji may answer Hermes's question, so it still reaches Hermes, and so does a message with no text. Hermes never sees it, so it sends no empty acknowledgment. A reply to an approval, release or draft post takes its usual path, and every factory notice, status line and failure reply stays.
 
-Hermes writes a change, an ad hoc task or a route for a member in the member's own words, with the facts it checked apart from its reading, as `hermes/SOUL.md` says. This is guidance to Hermes only. No code checks the text, and the change and ad hoc agents follow the member's words over Hermes's notes.
+Hermes writes an ad hoc task or a route for a member in the member's own words, with the facts it checked apart from its reading, as `hermes/SOUL.md` says. This is guidance to Hermes only. No code checks the text, and the ad hoc agent follows the member's words over Hermes's notes.
 
 A reply that gets no route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a failure with no issue, so Hermes sees it. Its text names the issue and tells Hermes to route the reply on its best reading. The card gets no stuck label.
 
@@ -184,7 +184,6 @@ The release stays put after its cut. Only its release tasks, the playtest fixes 
 
 These jobs run beside the cards.
 
-- change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it.
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
 - incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md`, and on `dev` it may update the entry of the class the bug repeats or add a new class.
 - waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.
@@ -201,7 +200,7 @@ Jobs pick in this order. A job starts when its queue has a free worker and no ot
 
 1. Branch jobs: every queued approve, remove, ship and incident, the next player answer, then the merge queue, the catch-ups of the next waiting Merging cards, a stale `/dev/`, the release cut, and the release playtest or the candidate. The playtest runs in the verify queue.
 2. The waste review, when due.
-3. Card jobs: hotfixes, ad hoc tasks, factory changes, release tasks, then other cards. Within each, the card furthest along goes first.
+3. Card jobs: hotfixes, ad hoc tasks, release tasks, then other cards. Within each, the card furthest along goes first.
 
 A held card gets no job of any kind, and its queued approval waits while the next one runs.
 
@@ -209,7 +208,7 @@ Queues:
 
 - triage: triage and the waste review.
 - design: design.
-- implement: implementation, ad hoc and change.
+- implement: implementation and ad hoc.
 - verify: testing, hardening and the release playtest.
 - test: the post with no checks.
 - branch: approve, merge, catch-up, remove, ship, incident, player answer, release cut, candidate and dev, side by side. A job never runs twice at once, and Ship and Remove never run together, since both change the release. Incident jobs run one at a time, since each changes the same incident log. Answer jobs run one at a time too, so the model spend stays bounded. Catch-up jobs run one at a time, only while a merge job runs. While a Ship runs, the merge leaves release task cards for the next batch.
