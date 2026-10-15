@@ -28,7 +28,7 @@ function fight(events: [BandEvent, number][], seconds: number, switches: Partial
   let seed = 7;
   const roll = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const heard: Played = { plays: [], ends: [] };
-  const out = { play: (t: Take) => heard.plays.push(t), end: (t: Take) => heard.ends.push(t), move: () => {} };
+  const out = { play: (t: Take) => heard.plays.push(t), end: (t: Take) => heard.ends.push(t), move: () => {}, duck: () => {} };
   const session = new JamSession(SONG, out, roll, { parts: "band", answers: "band", jumps: "ring", ...switches });
   session.start(0);
   let next = 0;

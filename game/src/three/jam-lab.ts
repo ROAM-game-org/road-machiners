@@ -7,7 +7,7 @@ import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
 import { BAND_EVENT_GROUPS, BAND_EVENT_LABELS } from "./band-session";
 import { HEAVY, TURN_SECONDS, type Played } from "./block-session";
-import { endStart, JamSession, onPartBus, takeEnd, type JamOutput, type JamSong, type JamSwitches, type Take } from "./jam-session";
+import { ducked, endStart, JamSession, onPartBus, takeEnd, type JamOutput, type JamSong, type JamSwitches, type Take } from "./jam-session";
 import type { Move } from "./score-session";
 
 const SONG_DIR = "/tmp/jam/";
@@ -73,6 +73,13 @@ const partBus = Object.fromEntries(
     return [part, bus];
   }),
 ) as Record<JamPart, GainNode>;
+const duckBus = Object.fromEntries(
+  JAM_PARTS.map((part) => {
+    const bus = ctx.createGain();
+    bus.connect(partBus[part]);
+    return [part, bus];
+  }),
+) as Record<JamPart, GainNode>;
 const voices = new Map<Take, { src: AudioBufferSourceNode; gain: GainNode; endFrom: number }>();
 
 async function loadSong(): Promise<JamSong> {
@@ -100,6 +107,19 @@ function scheduleEnd(gain: GainNode, take: Take): void {
   gain.gain.linearRampToValueAtTime(0, take.until + take.endFade);
 }
 
+function busOf(take: Take): AudioNode {
+  if (ducked(take)) return duckBus[take.part];
+  return onPartBus(take) ? partBus[take.part] : master;
+}
+
+function duck(moves: readonly Move[], from: number): void {
+  const now = ctx.currentTime;
+  for (const bus of Object.values(duckBus)) {
+    bus.gain.cancelScheduledValues(Math.max(now, from));
+    for (const m of moves) bus.gain.setTargetAtTime(m.target, Math.max(now, m.at), m.tc);
+  }
+}
+
 function play(take: Take): void {
   const now = ctx.currentTime;
   const begin = Math.max(now, take.at - take.fadeIn);
@@ -109,7 +129,7 @@ function play(take: Take): void {
   gain.gain.setValueAtTime(0, begin);
   gain.gain.linearRampToValueAtTime(take.gain, Math.max(begin, take.at + take.fadeIn));
   scheduleEnd(gain, take);
-  src.connect(gain).connect(onPartBus(take) ? partBus[take.part] : master);
+  src.connect(gain).connect(busOf(take));
   src.start(begin, Math.max(0, take.from + begin - take.at));
   src.stop(takeEnd(take));
   voices.set(take, { src, gain, endFrom: endStart(take) });
@@ -129,7 +149,7 @@ function move(part: JamPart, m: Move): void {
   partBus[part].gain.setTargetAtTime(m.target, Math.max(ctx.currentTime, m.at), m.tc);
 }
 
-const output: JamOutput = { play, end, move };
+const output: JamOutput = { play, end, move, duck };
 const session = new JamSession(song, output, Math.random);
 let auto: Auto = "off";
 let nextTurn = 0;
@@ -419,7 +439,7 @@ function ledgerRow(p: Played, i: number, first: number): HTMLElement {
     el("span", { class: "num" }, `${(p.start - first).toFixed(1)} s`),
     el("span", { class: "num" }, p.heat.toFixed(1)),
     el("span", {}, ""),
-    el("span", { class: "dim" }, p.guitars ? `${p.join}, guitar pushed` : p.join),
+    el("span", { class: "dim" }, p.join),
   );
 }
 

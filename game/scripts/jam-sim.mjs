@@ -4,7 +4,7 @@ import path from 'node:path';
 import { JAM_PARTS, MIX } from '../src/data/sounds.ts';
 import { nextRandom } from '../src/sim/rng.ts';
 import { BAND_EVENT_LABELS } from '../src/three/band-session.ts';
-import { JAM_DEFAULTS, JamSession, onPartBus, takeEnd, takeLevel } from '../src/three/jam-session.ts';
+import { ducked, JAM_DEFAULTS, JamSession, onPartBus, takeEnd, takeLevel } from '../src/three/jam-session.ts';
 import { SCRIPT_NAMES } from '../src/three/score-sim.ts';
 
 const SONG_DIR = 'public/tmp/jam';
@@ -106,7 +106,7 @@ function decode(file) {
   return [left, right];
 }
 
-const silentOutput = { play: () => {}, end: () => {}, move: () => {} };
+const silentOutput = { play: () => {}, end: () => {}, move: () => {}, duck: () => {} };
 
 function play(session, e, t) {
   if (e.name === 'dense') session.denseTurn(t);
@@ -132,7 +132,7 @@ function silence(length) {
 }
 
 function gainAt(session, take, t) {
-  return takeLevel(take, t) * (onPartBus(take) ? session.levelOf(take.part, t) : 1) * MIX.busVolume.music;
+  return takeLevel(take, t) * (onPartBus(take) ? session.levelOf(take.part, t) : 1) * (ducked(take) ? session.duckAt(t) : 1) * MIX.busVolume.music;
 }
 
 function addSamples(take, source, out, from, to, gain) {
@@ -187,8 +187,13 @@ const pad = (text, width) => String(text).padEnd(width);
 const time = (t) => `${t.toFixed(2)}`.padStart(7);
 
 function blocksText(session) {
-  const rows = session.blocks.played.map((p) => `${time(p.start)}  ${pad(p.label, 12)}${pad(p.join, 9)}${pad(p.heat.toFixed(1), 6)}${p.guitars ? 'guitar pushed' : ''}`);
+  const rows = session.blocks.played.map((p) => `${time(p.start)}  ${pad(p.label, 12)}${pad(p.join, 9)}${pad(p.heat.toFixed(1), 6)}${leanText(session, p)}`);
   return [`${pad('  start', 9)}${pad('block', 12)}${pad('join', 9)}${pad('heat', 6)}`, ...rows].join('\n');
+}
+
+function leanText(session, p) {
+  const lean = session.blocks.leans.find((l) => l.from >= p.start - 1e-6 && l.from < p.end - 1e-6);
+  return lean ? `guitar leans in at ${lean.from.toFixed(2)} until ${lean.to.toFixed(2)}` : '';
 }
 
 function bandText(session) {

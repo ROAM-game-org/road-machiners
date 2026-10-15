@@ -8,7 +8,7 @@ export type JamSwitches = { parts: "band" | "all"; answers: "band" | "fills"; ju
 export type TakeKind = "block" | "push" | "fill" | "answer";
 export type Take = { kind: TakeKind; part: JamPart; cue: BandEvent | null; from: number; at: number; fadeIn: number; until: number; endFade: number; ring: number | null; gain: number };
 export type JamPress = { cue: BandEvent; at: number; slot: number | null; answers: Take[]; crowded: JamPart[]; cut: Take[] };
-export type JamOutput = { play(take: Take): void; end(take: Take): void; move(part: JamPart, move: Move): void };
+export type JamOutput = { play(take: Take): void; end(take: Take): void; move(part: JamPart, move: Move): void; duck(moves: readonly Move[], from: number): void };
 
 export const JAM_DEFAULTS: JamSwitches = { parts: "band", answers: "band", jumps: "fade" };
 const RING_TIME_CONSTANTS = 7;
@@ -17,6 +17,10 @@ const PUSHED: JamPart = "guitar";
 
 export function onPartBus(take: Take): boolean {
   return take.kind === "block" || take.kind === "push";
+}
+
+export function ducked(take: Take): boolean {
+  return take.kind === "block";
 }
 
 export function takeEnd(take: Take): number {
@@ -46,6 +50,7 @@ export class JamSession {
   readonly presses: JamPress[] = [];
   readonly plans: BarPlan<JamPart>[] = [];
   readonly moves = Object.fromEntries(JAM_PARTS.map((p) => [p, [] as Move[]])) as Record<JamPart, Move[]>;
+  readonly ducks: Move[] = [];
   readonly blocks: BlockSession;
   readonly beat: number;
   readonly barSeconds: number;
@@ -74,6 +79,10 @@ export class JamSession {
 
   levelOf(part: JamPart, t: number): number {
     return levelAt(this.moves[part], 0, t);
+  }
+
+  duckAt(t: number): number {
+    return levelAt(this.ducks, 1, t);
   }
 
   heatAt(t: number): number {
@@ -200,14 +209,40 @@ export class JamSession {
     return {
       voice: (part, offset, when, length, fade, level) => this.voice(part, offset, when, length, fade, level),
       fill: (offset, at, length, level) => this.fill(offset, at, length, level),
+      lean: (offset, at, length, songScale, guitarLevel) => this.lean(offset, at, length, songScale, guitarLevel),
     };
   }
 
+  private lean(offset: number, at: number, length: number, songScale: number, guitarLevel: number): VoiceHandle {
+    const seam = SCORE_BLOCKS.seamSeconds;
+    const take: Take = { kind: "push", part: PUSHED, cue: null, from: offset, at, fadeIn: seam, until: at + length, endFade: seam, ring: null, gain: guitarLevel * SCORE_BLOCKS.songGain * SCORE_BLOCKS.guitarPush };
+    this.add(take);
+    this.setDuck(at - seam, songScale);
+    this.setDuck(at + length - seam, 1);
+    return {
+      fadeOut: (t, f) => this.jumpEnd(take, t, f),
+      cut: (t) => this.unduck(take, t),
+    };
+  }
+
+  private setDuck(at: number, target: number): void {
+    const move = { at, target, tc: SCORE_BLOCKS.seamSeconds / 3 };
+    this.ducks.push(move);
+    this.out.duck([move], at);
+  }
+
+  private unduck(take: Take, t: number): void {
+    this.cut(take, t);
+    const from = t - SCORE_BLOCKS.seamSeconds;
+    const kept = this.ducks.filter((m) => m.at < from);
+    this.ducks.splice(0, this.ducks.length, ...kept, { at: from, target: 1, tc: SCORE_BLOCKS.seamSeconds / 3 });
+    this.out.duck(this.ducks.slice(kept.length), from);
+  }
+
   private voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
-    const parts: readonly JamPart[] = part === "song" ? JAM_PARTS : [PUSHED];
-    const kind: TakeKind = part === "song" ? "block" : "push";
-    const gain = level * SCORE_BLOCKS.songGain * (part === "song" ? 1 : SCORE_BLOCKS.guitarPush);
-    const takes = parts.map((p) => ({ kind, part: p, cue: null, from: offset, at: when, fadeIn: fade, until: when + length, endFade: SCORE_BLOCKS.seamSeconds, ring: null, gain }));
+    if (part !== "song") throw new Error(`The block session asked for a ${part} voice, which only a lean plays`);
+    const gain = level * SCORE_BLOCKS.songGain;
+    const takes: Take[] = JAM_PARTS.map((p) => ({ kind: "block", part: p, cue: null, from: offset, at: when, fadeIn: fade, until: when + length, endFade: SCORE_BLOCKS.seamSeconds, ring: null, gain }));
     for (const take of takes) this.add(take);
     return {
       fadeOut: (at, f) => takes.forEach((t) => this.jumpEnd(t, at, f)),
