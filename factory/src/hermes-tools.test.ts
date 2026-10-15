@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -216,7 +216,7 @@ describe('the agy and codex commands of the Hermes image', () => {
     const command = readFileSync(join(home, 'command'), 'utf8');
     const [prefix, tool, payload] = command.split(' tool ').flatMap((part, index) => (index === 0 ? [part] : part.split(' ')));
     expect(prefix).toBe('cd /opt/factory/code/factory && npm run -s factory --');
-    expect(decodeToolCall(tool, payload)).toEqual({ tool: 'codex', cwd, args: ['exec', 'Скажи "ok"; rm -rf $HOME', ''] });
+    expect(decodeToolCall(tool, payload)).toEqual({ tool: 'codex', cwd: realpathSync(cwd), args: ['exec', 'Скажи "ok"; rm -rf $HOME', ''] });
     expect(readFileSync(join(home, 'stdin'), 'utf8')).toBe('prompt text');
   });
 });

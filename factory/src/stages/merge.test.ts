@@ -1,8 +1,10 @@
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readLedger } from '../ledger';
 import { EMPTY_STATE, readState, updateState, writeState } from '../state';
 import { RELEASE_TASK_LABEL, STUCK_LABEL, type AgentRun, type Card, type Ctx } from '../types';
+import { CheckTimeoutError } from '../container';
 import { BudgetError } from './checkpoint';
 
 const deployed: string[] = [];
@@ -18,6 +20,7 @@ let merges: Record<string, { commit: string | null; conflicts: string[] }[]> = {
 let shellFailures: string[] = [];
 let pushFailures = 0;
 let diff = '';
+let files: string[] = [];
 let messages: string[] = [];
 let limits: (number | undefined)[] = [];
 let logs: string[] = [];
@@ -25,8 +28,9 @@ let costs: number[] = [];
 let changed: string[] = [];
 let movedBy: string[] = [];
 let scripts: string[] = [];
+let heads = 0;
 const PASS = 'pass';
-const HUNG = 'CheckTimeoutError: the checks ran past their 45 minute limit, and the factory removed their container.';
+const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
 const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
 const result = (cost = 1) => `${JSON.stringify({ type: 'result', total_cost_usd: cost, duration_ms: 1000 })}\n`;
@@ -42,6 +46,7 @@ beforeEach(() => {
   shellFailures = [];
   pushFailures = 0;
   diff = '';
+  files = [];
   messages = [];
   limits = [];
   logs = [];
@@ -49,8 +54,9 @@ beforeEach(() => {
   changed = [];
   movedBy = ['game/src/sim/world.ts'];
   scripts = [];
+  heads = 0;
   deployed.length = 0;
-  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
+  writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), approvedResolving: { 5: 'Ann', 6: 'Bob' }, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [9], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann' });
 });
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
@@ -70,12 +76,12 @@ function fakeCtx(budget = 5): Ctx {
     telegram: { sendMessage: async (_chat: string, text: string) => { calls.push(`message ${text}`); return 1; } },
     container: {
       agent: async (run: AgentRun) => { runs.push(run); calls.push('agent'); return result(costs.shift()); },
-      shell: async (_dir: string, script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number) => {
+      shell: async (_kind: string, _dir: string, script: string, _log: string, _env?: Record<string, string>, _mounts?: Record<string, string>, limit?: number) => {
         calls.push('checks');
         scripts.push(script);
         limits.push(limit);
         const failure = shellFailures.shift();
-        if (failure !== undefined && failure !== PASS) throw new Error(failure);
+        if (failure !== undefined && failure !== PASS) throw failure.includes(HUNG) ? new CheckTimeoutError(failure) : new Error(failure);
       },
     },
     repo: {
@@ -88,7 +94,9 @@ function fakeCtx(budget = 5): Ctx {
       },
       fetchFromWork: async () => 'head1',
       changedInWork: async (_dir: string, from: string) => (from === 'head1' ? movedBy : changed),
+      workHead: async () => `merged${++heads}`,
       diff: async () => diff,
+      changedFiles: async () => files,
       push: async (commit: string, branch: string) => {
         calls.push(`push ${commit} ${branch}`);
         if (pushFailures-- > 0) throw new Error('rejected: non-fast-forward');
@@ -140,6 +148,32 @@ describe('merge queue', () => {
     await merge(fakeCtx());
     expect(scripts[0]).not.toContain('test:cached');
     expect(scripts[0]).toContain('npm run build');
+  });
+
+  it('records each merge commit of a dev batch in devMerges and on its ledger line', async () => {
+    await merge(fakeCtx());
+    expect(readState(`${home}/state.json`).devMerges).toEqual([
+      { issue: 5, title: 'Card 5', sha: 'merged1', into: 'dev', reverted: [] },
+      { issue: 6, title: 'Card 6', sha: 'merged2', into: 'dev', reverted: [] },
+    ]);
+    const lines = readLedger(home, new Date(0)).filter((line) => line.kind === 'card' && line.step === 'merged');
+    expect(lines).toMatchObject([{ issue: 5, to: 'Done', into: 'dev', sha: 'merged1' }, { issue: 6, to: 'Done', into: 'dev', sha: 'merged2' }]);
+    expect(readState(`${home}/state.json`).release?.merges).toEqual([]);
+  });
+
+  it('records the merge commits of a release batch in the release and leaves devMerges alone', async () => {
+    cards = [card(5, ['release-task'])];
+    await merge(fakeCtx());
+    const state = readState(`${home}/state.json`);
+    expect(state.release?.merges).toEqual([{ issue: 5, title: 'Card 5', sha: 'merged1', into: 'release/2026-09-29', reverted: [] }]);
+    expect(state.devMerges).toEqual([]);
+    expect(readLedger(home, new Date(0))).toContainEqual(expect.objectContaining({ issue: 5, step: 'merged', into: 'release/2026-09-29', sha: 'merged1' }));
+  });
+
+  it('records nothing when the batch fails', async () => {
+    shellFailures = ['boom', 'boom', 'boom', 'boom', 'boom', 'boom'];
+    await merge(fakeCtx(0.5)).catch(() => undefined);
+    expect(readState(`${home}/state.json`).devMerges).toEqual([]);
   });
 
   it('takes only the cards of the first card base, and a release batch drops the candidate post', async () => {
@@ -285,12 +319,12 @@ describe('merge queue', () => {
   it('judges each run by its own lines of the shared checks log, so a real failure after a hung run reaches the agent', async () => {
     const outputs = [HUNG, "src/a.ts(1,1): error TS2322: Type 'string' is not assignable to type 'number'."];
     const ctx = fakeCtx();
-    ctx.container.shell = async (_dir: string, _script: string, log: string) => {
+    ctx.container.shell = async (_kind: string, _dir: string, _script: string, log: string) => {
       calls.push('checks');
       const output = outputs.shift();
       if (output === undefined) return;
       appendFileSync(log, `${output}\n`);
-      throw new Error('shell failed with exit 2');
+      throw output === HUNG ? new CheckTimeoutError(HUNG) : new Error('shell failed with exit 2');
     };
     await merge(ctx);
     expect(runs).toHaveLength(1);
@@ -337,7 +371,7 @@ describe('merge queue', () => {
   });
 
   it('refuses a result that touches a protected path', async () => {
-    diff = 'diff --git a/.github/workflows/x.yml b/.github/workflows/x.yml\n';
+    files = ['.github/workflows/x.yml'];
     await expect(merge(fakeCtx())).rejects.toThrow('paths an agent may not push');
     expect(calls.some((call) => call.startsWith('push'))).toBe(false);
   });
@@ -352,7 +386,7 @@ describe('merge queue', () => {
   it('leaves release task cards out while a ship runs, and merges dev cards', async () => {
     cards = [card(6), card(7, [RELEASE_TASK_LABEL])];
     const ship = { id: 'ship-20-x', stage: 'ship' as const, issue: 20, pid: 1, startedAt: '', log: '' };
-    updateState(`${home}/state.json`, (state) => ({ ...state, jobs: [ship], release: { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }));
+    updateState(`${home}/state.json`, (state) => ({ ...state, jobs: [ship], release: { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }));
     await merge(fakeCtx());
     expect(calls.filter((call) => call.startsWith('merge '))).toEqual(['merge factory/issue-6']);
   });

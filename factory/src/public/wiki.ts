@@ -141,4 +141,3 @@ const pageLink = (repo: string, page: string): string => `https://github.com/${r
 
 export const passageLink = (repo: string, passage: Passage): string => `${pageLink(repo, passage.page)}${passage.anchor === '' ? '' : `#${passage.anchor}`}`;
 
-export const wikiHome = (repo: string): string => pageLink(repo, 'README.md');

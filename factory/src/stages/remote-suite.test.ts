@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { causeOf } from '../fail';
 import { ghClient } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { readObservation } from '../observability';
@@ -96,6 +97,10 @@ describe('remoteSuite', () => {
       delete process.env[JOB_ID_ENV];
       rmSync(home, { recursive: true, force: true });
     }
+  });
+
+  it('records a suite that could not run with the GitHub cause, so the stuck sweep retries it', () => {
+    expect(causeOf(new SuiteMachineError('run 77 did not start within 15 minutes'))).toBe('github');
   });
 
   it('is a machine failure when the dispatch fails', async () => {

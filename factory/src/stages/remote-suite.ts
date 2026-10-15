@@ -1,4 +1,5 @@
 import { stripAnsi } from '../fail';
+import { GithubError } from '../github';
 import { JOB_ID_ENV } from '../jobs';
 import { reportObservation } from '../observability';
 import type { Ctx, Stage, SuiteRun } from '../types';
@@ -6,7 +7,7 @@ import { FAILURE_TAIL_LINES } from './checks';
 
 export const SUITE_DOWN_MARK = 'The full suite on GitHub Actions could not run';
 
-export class SuiteMachineError extends Error {
+export class SuiteMachineError extends GithubError {
   constructor(reason: string) {
     super(`${SUITE_DOWN_MARK}: ${reason}`);
   }
