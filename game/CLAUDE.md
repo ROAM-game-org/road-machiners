@@ -16,6 +16,7 @@ Read the doc for an area before changing it.
 
 - [Tools](docs/tools.md): command flags, config, browser checks, debug console and perf timers.
 - [NPCs, combat and deals](docs/architecture/npcs.md): brains, states, hostility, dialogue, tows, escorts and aid.
+- [Bots](docs/architecture/bots.md): what each playtest bot archetype does, including the escort and the sprinter.
 - [Economy, jobs and progression](docs/architecture/economy.md): salvage, shops, wear, jobs, sites and XP.
 - [Movement](docs/architecture/movement.md): NPC driving, routes, physics turns, far NPCs, auto travel and the camera.
 - [Rendering and UI](docs/architecture/render.md): outlines, scope, props, debris, tips and audio.
