@@ -38,3 +38,5 @@ export function describeQuestWalks(title: string, wanted: (questId: string) => b
     }
   });
 }
+
+export const inFirstNoseFile = (questId: string): boolean => /^nose_(depot_leak|edda|ibo)$/.test(questId);
