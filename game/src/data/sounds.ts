@@ -254,7 +254,7 @@ export const MIX = {
 
 export const BAND_EVENTS = ["accent-sighted", "accent-struck", "accent-crit", "accent-crash", "accent-hit", "accent-miss"] as const;
 export type BandEvent = (typeof BAND_EVENTS)[number];
-export const BAND_PARTS = ["drums", "bass", "riff"] as const;
+export const BAND_PARTS = ["drums", "bass", "riff", "wall", "keys", "solo"] as const;
 export type BandPart = (typeof BAND_PARTS)[number];
 
 const SHOTS: readonly BandEvent[] = ["accent-hit", "accent-miss", "accent-crit", "accent-struck"];
@@ -263,7 +263,11 @@ export const BAND: BandRules<BandPart, BandEvent> = {
   parts: {
     drums: { always: true },
     bass: { always: true },
-    riff: { enter: { events: SHOTS, count: 2, withinBars: 2 }, needs: null, stayBars: 4, quietBars: 4, quietOn: SHOTS },  },
+    riff: { enter: { events: SHOTS, count: 2, withinBars: 2 }, needs: null, stayBars: 4, quietBars: 4, quietOn: SHOTS },
+    wall: { enter: { heat: MIX.score.hotHeat }, needs: "riff", stayBars: 8, quietBars: 4, quietOn: SHOTS },
+    keys: { enter: { heat: MIX.score.hotHeat * 1.5 }, needs: "wall", stayBars: 8, quietBars: 8, quietOn: SHOTS },
+    solo: { enter: { events: ["accent-crit"], count: 1, withinBars: 1 }, needs: null, stayBars: 8, quietBars: 0, quietOn: ["accent-crit"] },
+  },
   cut: { on: ["accent-sighted"], keep: ["drums"], bars: 1 },
   heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
   weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,

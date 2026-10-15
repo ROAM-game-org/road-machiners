@@ -10,9 +10,12 @@ import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
 
 const STEMS: Record<BandPart, { file: string; phase: number; gain: number }> = {
-  drums: { file: "/tmp/band/stems/drums.wav", phase: 0.176, gain: 1 },
-  bass: { file: "/tmp/band/stems/bass.wav", phase: 0.176, gain: 1 },
-  riff: { file: "/tmp/band/stems/riff.wav", phase: 0.172, gain: 1 },};
+  drums: { file: "/tmp/band/jaw/drums.wav", phase: 0, gain: 1 },
+  bass: { file: "/tmp/band/jaw/bass.wav", phase: 0, gain: 1 },
+  riff: { file: "/tmp/band/jaw/riff.wav", phase: 0, gain: 1 },
+  wall: { file: "/tmp/band/jaw/wall.wav", phase: 0, gain: 1 },
+  keys: { file: "/tmp/band/jaw/keys.wav", phase: 0, gain: 2 },
+  solo: { file: "/tmp/band/jaw/solo.wav", phase: 0, gain: 0.7 },};
 const BARS_PER_LOOP = 8;
 const START_LEAD_SECONDS = 0.1;
 const PLAN_AHEAD_SECONDS = 0.2;
