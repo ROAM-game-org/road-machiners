@@ -65,7 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
-import FORMAT_2_63 from './save-fixtures/format-2-63.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1347,29 +1347,64 @@ describe('MIGRATIONS[61]', () => {
 });
 
 describe('save migration 62 to 63', () => {
-  it('keeps every contract and job as it is, since survey contracts and jobs are new variants no old save holds', () => {
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
     expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
+  });
+
+  it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
+
+    expect(next).toEqual(FORMAT_2_62);
   });
 });
 
-describe('save migration 63 to 64', () => {
-  const next = () => MIGRATIONS[63](structuredClone(FORMAT_2_63)) as typeof FORMAT_2_63;
+describe('save migration 64 to 65', () => {
+  it('gives an old save an idle encounter log and changes nothing else', () => {
+    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
 
-  it('drops the search area of every survey point and counts a surveyed point as found', () => {
-    const held = next().player.contracts.find((c) => c.id === 'ct-2');
-    expect(held).toEqual({ ...FORMAT_2_63.player.contracts[1], points: [{ site: 'survey-house-21', found: true, done: true }, { site: 'survey-house-48', found: false, done: false }] });
-    expect(next().shops.bowl.contracts).toEqual([{ ...FORMAT_2_63.shops.bowl.contracts[0], points: [{ site: 'survey-tank-183', found: false, done: false }] }]);
+    expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
+    expect(next.player.money).toBe(1200);
+    expect({ ...next, player: { ...next.player, encounters: undefined } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, encounters: undefined } });
   });
 
-  it('drops a survey of a site no longer surveyed, on a board or held, with its job and no charge', () => {
-    const w = next();
-    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct-1', 'ct-2']);
-    expect(w.shops.nose.contracts).toEqual([]);
-    expect(w.vehicles).toEqual([{ id: 'v1', job: null }, { id: 'v2', job: null }]);
-    expect(w.turn).toBe(FORMAT_2_63.turn);
-  });
+  it('keeps an encounter log that is already there', () => {
+    const log = { next: 40, pending: null, story: null };
+    const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
 
-  it('keeps a contract of another kind as it is', () => {
-    expect(next().player.contracts[0]).toEqual(FORMAT_2_63.player.contracts[0]);
+    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
+  });
+});
+
+describe('MIGRATIONS[65]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});
+
+describe('MIGRATIONS[67]', () => {
+  it('keeps a save as it is, since survey contracts are a new variant no old save holds', () => {
+    expect(MIGRATIONS[67](structuredClone(FORMAT_2_64))).toEqual(FORMAT_2_64);
   });
 });

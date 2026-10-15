@@ -1,6 +1,7 @@
 
 import { PARTS, type PartDef } from './parts';
 import type { Weighted } from './npcs';
+import { NPC_BEHAVIOR } from './npc-behavior';
 import { TIME } from './time';
 
 
@@ -106,6 +107,30 @@ export const CONTRACTS = {
     knowledgeRange: 12,
     xpPerEffort: 0.003,
   },
+  escort: {
+    xpPerEffort: 0.003,
+  },
+
+  rescue: {
+    range: 132,
+    areaRadius: 13,
+    areaOffset: 11,
+    xpPerEffort: 0.003,
+  },
+};
+
+export type Threat = Tier;
+
+export const ESCORT_JOB = {
+  postTurns: 75,
+  graceTurns: 40,
+  stuckTurns: 120,
+  holdTurns: 90,
+  apartGap: NPC_BEHAVIOR.escortCatchUpGap,
+  threatReach: 40,
+  minWin: { 1: 0.55, 2: 0.65, 3: 0.75 } as Record<Threat, number>,
+  threatPremium: { 1: 0.6, 2: 1, 3: 1.5 } as Record<Threat, number>,
+  postWeight: { 1: 0.2, 2: 1, 3: 2 } as Record<Threat, number>,
 };
 
 export type ShopKind = 'garage' | 'stall';

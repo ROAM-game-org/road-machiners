@@ -39,13 +39,16 @@ describe('NPC spawns', () => {
 
   it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
     const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
-    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards].sort();
+    const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
+    const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners].sort();
     const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
     for (let seed = 1; seed <= 20; seed++) {
-      const npcs = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain);
+      const world = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const npcs = world.vehicles.filter((v) => v.brain);
+      const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
       expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
       const perSite = new Map<string, number>();
-      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town')) {
+      for (const v of npcs.filter((v) => NPCS[v.brain!.templateId].spawn.kind === 'town' && !followers.has(v.id))) {
         const id = nearestSite(v.pos).id;
         perSite.set(id, (perSite.get(id) ?? 0) + 1);
       }
@@ -76,6 +79,61 @@ describe('NPC spawns', () => {
     }
     expect(NPCS.trader.money).toBeGreaterThan(NPCS.scavenger.money);
   }, 15_000);
+
+  it('starts a pair of couriers with one following the other on every seed', () => {
+    for (const seed of [1, 42, 1337]) {
+      const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const couriers = w.vehicles.filter((v) => v.brain?.templateId === 'courier');
+      expect(couriers).toHaveLength(2);
+      const ids = couriers.map((c) => c.id);
+      const states = w.states.filter((s) => s.kind === 'escort' && ids.includes(s.holder));
+      expect(states.map((s) => [s.holder, s.other])).toEqual([[couriers[1].id, couriers[0].id]]);
+    }
+  }, budget(30_000));
+
+  describe('courier respawns', () => {
+    const couriersOf = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain?.templateId === 'courier');
+    const tick = (w: ReturnType<typeof emptyWorld>) => {
+      w.spawnTimer.courier = 1;
+      spawnNpcs(w);
+    };
+    const far = () => emptyWorld({ x: 5, y: 5 });
+
+    it('spawns a pair when no courier is left', () => {
+      const w = far();
+      tick(w);
+      expect(couriersOf(w)).toHaveLength(2);
+      expect(w.states.filter((s) => s.kind === 'escort')).toHaveLength(1);
+    });
+
+    it('spawns one partner for a lone courier at the site nearest it', () => {
+      const w = far();
+      tick(w);
+      const [leader, follower] = couriersOf(w);
+      w.states = [];
+      w.vehicles = w.vehicles.filter((v) => v.id !== follower.id);
+      tick(w);
+      const partner = couriersOf(w).find((v) => v.id !== leader.id)!;
+      expect(partner).toBeDefined();
+      expect(w.states.some((s) => s.kind === 'escort' && s.holder === partner.id && s.other === leader.id)).toBe(true);
+      expect(siteGap(nearestSite(leader.pos), partner.pos)).toBeLessThanOrEqual(SPAWN.gateSpread + 12);
+    });
+
+    it('spawns nothing at the cap, or one under it with no lone courier', () => {
+      const w = far();
+      tick(w);
+      tick(w);
+      expect(couriersOf(w)).toHaveLength(NPCS.courier.cap);
+      tick(w);
+      expect(couriersOf(w)).toHaveLength(NPCS.courier.cap);
+      const lost = couriersOf(w).find((v) => !w.states.some((s) => s.holder === v.id))!;
+      w.vehicles = w.vehicles.filter((v) => v.id !== lost.id);
+      w.states = [];
+      for (const v of couriersOf(w)) v.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
+      tick(w);
+      expect(couriersOf(w)).toHaveLength(NPCS.courier.cap - 1);
+    });
+  });
 
   it('never respawns a driver close to the player', () => {
     const bowl = REGION.towns.find((t) => t.id === 'bowl')!;

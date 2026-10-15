@@ -63,7 +63,8 @@ export type Aim = "body" | string;
 export type WeaponOrder = { targetId: string; aim: Aim };
 export type UtilityOrder =
   | { kind: 'self' }
-  | { kind: 'point'; pos: Vec };
+  | { kind: 'point'; pos: Vec }
+  | { kind: 'disarm' };
 
 export type Pose = { x: number; y: number; heading: number };
 
@@ -163,7 +164,7 @@ export type WeatherEvent =
 
 
 export type GoalReason =
-  | 'arrived' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
+  | 'arrived' | 'calledOut' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
   | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
   | 'combatStopsSearch' | 'contactGone' | 'damagedThreatened' | 'defendLoot' | 'deliverCargo' | 'droppedTow'
   | 'escapeAttacker' | 'escapeThreat' | 'explore' | 'exploredSpot' | 'fightBack' | 'fightHostile' | 'finishedRepairs'
@@ -180,7 +181,7 @@ export type GoalReason =
   | 'waitTow' | 'waitTowAnswer' | 'warnedOff'
   | 'avoidRanFrom' | 'breakOffFight' | 'cannotWearDown' | 'holdFull' | 'leftPost' | 'lootWontFit' | 'ranFromIt' | 'salvageOutOfReach'
   | 'takeSpilledCargo' | 'watchedRoad' | 'cornered' | 'defeated'
-  | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey';
+  | 'awaitEscort' | 'escortHired' | 'fightOverLoot' | 'looterWontLeave' | 'warningUnanswered' | 'defendPromisedLoot' | 'keepLoot' | 'searchOldHulks' | 'searchOldRuin' | 'springOnPrey';
 
 export type SimNote =
   | { id: 'engineHot' }
@@ -231,7 +232,7 @@ export type Refusal =
   | { id: 'utilityOrder'; part: string; order: 'point' | 'self' }
   | { id: 'utilityBlocked'; part: string; block: UtilityBlock };
 
-export type UtilityBlock = FireBlock | 'armed' | 'fuel';
+export type UtilityBlock = FireBlock | 'armed' | 'unarmed' | 'fuel';
 
 export type UnitId = 'part';
 
@@ -258,6 +259,7 @@ export type NpcActivity = {
   until?: number;
   watchUntil?: number;
   leg?: { from: Vec; turn: number };
+  posted?: true;
 };
 
 export type NpcBrain = {
@@ -278,7 +280,7 @@ export type NpcBrain = {
     lastPos?: Vec;
     stalled?: number;
     stuck?: number;
-    progress?: { key: string; since: number };
+    progress?: { key: string; since: number; at: Vec };
     recovery?: number;
     recoveryGoal?: Vec;
     ramChoice?: string;
@@ -293,7 +295,10 @@ export type NpcBrain = {
 export type TrackChoice = 'keep' | 'fight' | 'flee' | 'investigate';
 export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number | null; choice: TrackChoice | null; chosenInSight: boolean };
 
-export type MemoryFact = { kind: 'prices'; shop: string; pressure: Record<string, number> } | { kind: 'stripped'; stock: string };
+export type MemoryFact =
+  | { kind: 'prices'; shop: string; pressure: Record<string, number> }
+  | { kind: 'stripped'; stock: string }
+  | { kind: 'wronged'; by: string };
 export type Memory = { turn: number; fact: MemoryFact };
 
 export type Vehicle = {
@@ -386,6 +391,13 @@ export type QuestLive = { quest: string; lang: QuestLanguage; ink: string; lines
 export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null };
 export type TopicOutcome = "agreed" | "refused" | "done";
 
+export type EncounterId = 'tale' | 'tip' | 'challenge' | 'courier';
+export type PendingEncounter = { encounter: EncounterId; driver: string; until: number };
+export type CourierBeat = 'asked' | 'promised' | 'helped' | 'paid' | 'refused' | 'owed' | 'ended';
+export type CourierTopic = 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor';
+export type CourierStory = { driver: string; beat: CourierBeat; turn: number; aidValue: number; free: boolean };
+export type EncounterLog = { next: number; pending: PendingEncounter | null; story: CourierStory | null };
+
 export type Player = {
   vehicleId: string;
   money: number;
@@ -428,6 +440,7 @@ export type Player = {
   rumored: string[];
   notes: { id: NoteId; turn: number }[];
   hostilesSeen: string[];
+  encounters: EncounterLog;
 };
 
 export type ShotRound = {
@@ -444,6 +457,8 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
 export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
+
+export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost';
 
 export type GameEvent =
   | { t: 'activity'; vehicle: string; previous: NpcActivity['kind'] | null; activity: NpcActivity['kind'] | null; reason: GoalReason }
@@ -464,9 +479,10 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart' }
   | { t: 'contract'; contract: Contract; outcome: 'found'; site: string }
   | { t: 'discover'; location: string }
+  | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
   | { t: 'death' }
@@ -483,6 +499,7 @@ export type GameEvent =
   | { t: 'transfer'; from: string; to: string; amount: number }
   | { t: 'escortHired'; by: string; client: string; site: string; fee: number }
   | { t: 'escortRefused'; by: string; client: string }
+  | { t: 'escortEnded'; contract: string; client: string; end: EscortEnd }
   | { t: 'towDropped'; by: string; client: string; reason: 'refused' | 'unhitched' | 'danger' | 'stranded' | 'gone' | 'blocked' }
   | { t: 'stateEnded'; state: NpcState; ending: StateEnding }
   | { t: 'job'; vehicle: string; job: Job; outcome: 'started' | 'done' | 'cancelled' }

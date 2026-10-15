@@ -101,7 +101,7 @@ describe('survey hand-in', () => {
   it('throws when not every site is done, and when parked elsewhere', () => {
     const { w, c } = offerAt('bowl');
     const held = acceptContract(w, c.id);
-    expect(() => deliverContract(held, c.id)).toThrow(/not done/);
+    expect(() => deliverContract(held, c.id)).toThrow(/not met/);
     const mine = held.player.contracts[0] as SurveyContract;
     mine.points.forEach((p) => (p.done = true));
     held.vehicles[0].pos = { ...sitePads(siteOf('nose'))[0] };

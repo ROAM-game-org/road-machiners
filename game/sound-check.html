@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Road Machiners sound decode check</title>
+  </head>
+  <body>
+    <script type="module">
+      import { SOUNDS } from '/src/data/sounds.ts';
+      import { SFX_BYTES } from '/src/config.ts';
+      import { loadBank, recoverBank } from '/src/audio/bank.ts';
+
+      const WATCHED = { 'hit-metal-2.ogg': 0.6, 'ui-open-1.ogg': 0.501, 'mg-fire-2.ogg': 0.6 };
+      const DURATION_TOLERANCE = 0.02;
+      const AUDIBLE_PEAK = 0.01;
+
+      function peakOf(buffer) {
+        let peak = 0;
+        for (const x of buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(x));
+        return peak;
+      }
+
+      function check(bank, file) {
+        const buffer = bank.get(file);
+        const shared = [...bank.entries()].some(([other, b]) => other !== file && b === buffer);
+        const peak = peakOf(buffer);
+        const real = !shared && Math.abs(buffer.duration - WATCHED[file]) <= DURATION_TOLERANCE && peak > AUDIBLE_PEAK;
+        return { file, real, duration: buffer.duration, peak };
+      }
+
+      const ctx = new OfflineAudioContext(2, 48000, 48000);
+      const options = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType('audio/ogg; codecs=opus') };
+      const loaded = await loadBank(ctx, SOUNDS, options);
+      await recoverBank(ctx, loaded, options);
+      window.__SOUND_CHECK__ = {
+        failures: loaded.failures.map((f) => f.file),
+        checks: Object.keys(WATCHED).map((file) => check(loaded.bank, file)),
+      };
+    </script>
+  </body>
+</html>

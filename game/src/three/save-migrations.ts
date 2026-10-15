@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -869,9 +873,22 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
+  withEscortJobs_62_63,
+  withRescueContracts_63_64,
+  withEncounters_64_65,
+  withProgressAnchor_65_66,
   (world) => world,
-  withFoundSurveyPoints_63_64,
+  (world) => world,
 ];
+
+function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
@@ -891,6 +908,10 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -985,46 +1006,10 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
-const SURVEY_SITES_63_64 = new Set([
-  'survey-house-21',
-  'survey-ruin-43',
-  'survey-house-48',
-  'survey-house-53',
-  'survey-house-72',
-  'survey-house-75',
-  'survey-ruin-81',
-  'survey-tank-183',
-  'survey-tank-185',
-  'survey-tank-187',
-  'survey-tank-188',
-]);
-
-type SurveyContract_63 = { id: string; kind: 'survey'; points: { site: string; area?: unknown; done: boolean }[] };
-type SavedContract_63 = { id: string; kind: string } | SurveyContract_63;
-
-function isSurvey_63(c: SavedContract_63): c is SurveyContract_63 {
-  return c.kind === 'survey';
-}
-
-function withFoundSurveyContracts_63_64(contracts: SavedContract_63[]): SavedContract_63[] {
-  return contracts.flatMap((c) => {
-    if (!isSurvey_63(c)) return [c];
-    if (!c.points.every((p) => SURVEY_SITES_63_64.has(p.site))) return [];
-    return [{ ...c, points: c.points.map((p) => ({ site: p.site, found: p.done, done: p.done })) }];
-  });
-}
-
-function withFoundSurveyPoints_63_64(world: SavedJson): SavedJson {
-  const player = world.player as SavedJson & { contracts: SavedContract_63[] };
-  const contracts = withFoundSurveyContracts_63_64(player.contracts);
-  const held = new Set(contracts.map((c) => c.id));
-  const shops = Object.fromEntries(
-    Object.entries(world.shops as Record<string, SavedJson & { contracts: SavedContract_63[] }>).map(([id, shop]) => [id, { ...shop, contracts: withFoundSurveyContracts_63_64(shop.contracts) }]),
-  );
-  const vehicles = (world.vehicles as (SavedJson & { job: { kind: string; contractId?: string } | null })[]).map((v) =>
-    v.job?.kind === 'survey' && !held.has(v.job.contractId ?? '') ? { ...v, job: null } : v,
-  );
-  return { ...world, player: { ...player, contracts }, shops, vehicles };
+function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
