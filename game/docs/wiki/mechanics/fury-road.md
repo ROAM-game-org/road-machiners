@@ -131,6 +131,7 @@ Group trucks spawn out of sight with full tanks and no cargo, parked and heading
 - Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.
+- A group truck never parks on a halt whim, the fight whim that parks a roaming truck for a few turns. It keeps its fight drive instead.
 - Group trucks are never hostile to each other, whatever their factions, so they never fight among themselves.
 - A group truck always drives at its own speed and never overdrives. A truck with no gun rams.
 
