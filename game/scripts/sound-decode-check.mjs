@@ -9,7 +9,7 @@ const url = arg('url', 'http://localhost:4173/');
 const breakArg = arg('break', 'all');
 const tag = arg('tag', 'run');
 const cpu = process.argv.includes('--cpu');
-const BOOT_KEY = 'roam.save.boot';
+const BOOT_KEY = `${process.env.SAVE_SCOPE ? `roam.save.${process.env.SAVE_SCOPE}` : 'roam.save'}.boot`;
 const NEW_GAME = JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true });
 
 function askNewGameOnce({ key, request }) {
