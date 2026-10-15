@@ -24,6 +24,18 @@ On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the t
 
 `FACTORY_VITEST_WORKERS_IMPLEMENT` and `FACTORY_VITEST_WORKERS_TEST` set how many workers the game's test runner starts in a container of each pool. The factory passes the count as `TEST_WORKERS`. Light containers get none and keep the game's rule of one worker per CPU.
 
+## Full suite on GitHub Actions
+
+`.github/workflows/game-suite.yml` runs the whole game suite for one commit on a standard GitHub runner, in the Playwright image the agent image is built on. `remoteSuite` in `src/stages/remote-suite.ts` dispatches it from `main` with the commit, takes the run id the dispatch returns, and reads the run every `FACTORY_SUITE_POLL_SECONDS` until it ends. A failed `tests` step goes to the fix agent with the end of its log. Any other failure, and a run still queued after `FACTORY_SUITE_START_MINUTES`, is a machine failure for the stuck sweep.
+
+Standard runners are free on a public repository. Larger runners always cost money. Set this once so a mistake can never bill:
+
+1. Open the org's Settings, then Billing and licensing, then Budgets and alerts.
+2. If the org has a payment method, add a budget for Actions of $0 and turn on "Stop usage when budget limit is reached".
+3. Without a payment method, paid usage is blocked already.
+
+Run the workflow by hand with `gh workflow run game-suite.yml -R <repo> --ref main -f sha=<commit>`, and watch it with `gh run list -R <repo> --workflow game-suite.yml`.
+
 ## Memory
 
 Memory, not CPU, limits how many jobs fit on the host. Each container prints its cgroup's peak memory when it ends. The job keeps the highest peak of its containers and writes it to its ledger line as `peakGb`. A container killed before its end prints none.
@@ -89,7 +101,7 @@ Each record has a kind. The first that fits wins:
 - `blocked`: an empty budget, a committee question, the release tracking card, an action the sweep already took in this column, a refused action, and every other failure, like a failed check. It stays for Hermes.
 - `merge-batch`: a Merging card of a merge batch of two or more cards that timed out or died.
 - `clone-merge`: a Design, Implementation, Testing or Hardening card whose work clone has an open merge, revert, cherry-pick or rebase.
-- `machine`: a GitHub call that timed out, hit the rate limit, got a 5xx or lost its connection, since the tick just read the board, or a full disk once `FACTORY_MIN_FREE_GB` is free again.
+- `machine`: a GitHub call that timed out, hit the rate limit, got a 5xx or lost its connection, since the tick just read the board, a full suite on GitHub Actions that could not run, or a full disk once `FACTORY_MIN_FREE_GB` is free again.
 
 The sweep acts with the commands Hermes uses, and writes `tries` and `released` on the record before it acts:
 
