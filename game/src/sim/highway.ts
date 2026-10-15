@@ -185,11 +185,11 @@ export function outpostId(milestone: number): string {
 }
 
 export function isOutpostSite(id: string): boolean {
-  return /^outpost-[1-9]\d*$/.test(id);
+  return /^outpost-(0|[1-9]\d*)$/.test(id);
 }
 
 export function outpostSite(seed: number, j: number): OutpostSite {
-  if (!Number.isInteger(j) || j < 1) throw new Error(`Milestone ${j} has no outpost`);
+  if (!Number.isInteger(j) || j < 0) throw new Error(`Milestone ${j} has no outpost`);
   const key = `${seed}:${j}`;
   let site = SITES.get(key);
   if (!site) {
@@ -216,7 +216,7 @@ export function outpostFort(seed: number, window: number, j: number): SiteLocati
 }
 
 function windowForts(seed: number, window: number): SiteLocationDef[] {
-  return [window, window + 1].filter((j) => j >= 1).map((j) => outpostFort(seed, window, j));
+  return [window, window + 1].map((j) => outpostFort(seed, window, j));
 }
 
 type FortFrame = { out: number; lat: number };
@@ -224,7 +224,7 @@ type FortFrame = { out: number; lat: number };
 type FortAxes = { center: RoadPos; cos: number; sin: number };
 
 function fortAxes(seed: number, j: number): FortAxes | null {
-  if (j < 1) return null;
+  if (j < 0) return null;
   const site = outpostSite(seed, j);
   return { center: site.center, cos: Math.cos(site.out), sin: Math.sin(site.out) };
 }
@@ -252,10 +252,6 @@ function onFortConcrete(f: FortFrame | null): boolean {
   return inStrip(f, POST.radius, POST.radius + PAD.length, PAD.width / 2) || inStrip(f, POST.spur.from, front, POST.spur.half);
 }
 
-export function highwayStart(seed: number): { pos: Vec; heading: number } {
-  const n = milestoneAt(0);
-  return { pos: roadPoint(seed, 0, n, ROAD.lanes[HIGHWAY.startLane]), heading: roadHeading(seed, n) };
-}
 
 function relief(seed: number, at: RoadPos): number {
   const { amplitude, octaves } = HIGHWAY.relief;

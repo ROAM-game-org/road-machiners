@@ -4,18 +4,20 @@ import { PARTS, partDef } from '../data/parts';
 import { GARAGE_STOCK } from '../data/market';
 import { RU } from '../text/ru';
 import { haulerOf, ownedTruck, playerTrucks, playerVehicle } from './damage';
-import { HAULER_KIT } from '../data/start';
+import { HAULER_KIT, startKit } from '../data/start';
 import { chassisDef } from '../data/chassis';
 import { getResources } from './resources';
 import { fuelCap, vehicleStats } from './stats';
 import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
-import { outpostFactsAt, spawnGroup, waveOf } from './fury-road';
+import { betweenLevels, canWaitForRoad, furyRoadReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, waitForRoad, waveOf } from './fury-road';
+import { planHaulerOrder } from './hauler';
+import { endTurn } from './world';
 import { gearMoneyOf } from './fury-road-danger';
 import { generateNpcLoadout } from './npc-loadout';
 import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
-import { furyRoadWorld } from './testkit';
+import { furyRoadStart, furyRoadWorld } from './testkit';
 import { RULES } from '../data/rules';
 import { dist } from './vec';
 import type { Vehicle } from './types';
@@ -25,17 +27,44 @@ function partsOf(w: ReturnType<typeof furyRoadWorld>) {
 }
 
 describe('Fury Road starter kit', () => {
-  it('is a scout with one machine gun and a rebar cage front and back on every seed', () => {
+  it('is a scout with one machine gun, no armor and the start money on every seed', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadWorld(seed);
-      const truck = playerVehicle(w);
-      expect(truck.chassisId).toBe('scout');
+      const w = furyRoadStart(seed);
+      expect(playerVehicle(w).chassisId).toBe('scout');
       const parts = partsOf(w).filter((it) => partDef(it.part.defId).kind !== 'core');
-      expect(parts.filter((it) => partDef(it.part.defId).kind === 'weapon').map((it) => it.part.defId)).toEqual(['mg']);
-      const cages = parts.filter((it) => it.part.defId === 'cage');
-      expect(cages.map((it) => it.y).sort()).toEqual([0, 7]);
-      expect(parts.filter((it) => partDef(it.part.defId).kind === 'armor')).toHaveLength(2);
+      expect(parts.map((it) => it.part.defId).sort()).toEqual(['mg', 'stockEngine']);
+      expect(w.player.money).toBe(startKit('furyRoad').money);
     }
+  });
+});
+
+describe('Fury Road start outpost', () => {
+  it('starts both trucks parked on the paid pad of outpost 0, where the player can shop and wait for the road', () => {
+    for (const seed of [1, 3, 99]) {
+      const w = furyRoadStart(seed);
+      expect(outpostFactsAt(w, 0).paid).toBe(true);
+      expect(reachedOutpostAt(w)?.id).toBe('outpost-0');
+      expect(reachedOutpostAt(w, haulerOf(w))?.id).toBe('outpost-0');
+      expect(betweenLevels(w)).toBe(true);
+      expect(canWaitForRoad(w)).toBe(true);
+    }
+  });
+
+  it('spawns no group before the road opens', () => {
+    let w = furyRoadStart(3);
+    for (let i = 0; i < FURY_ROAD.pacing.quiet * 2; i++) w = endTurn(w, () => {});
+    expect(w.furyRoad!.groups.some((g) => g.spawned)).toBe(false);
+    expect(haulerOf(w).speed).toBe(0);
+  });
+
+  it('opens stretch 1 on the same window at the wait, with the hauler setting off for outpost 1', () => {
+    const w = waitForRoad(furyRoadStart(3));
+    expect(w.furyRoad!.window).toBe(0);
+    expect(w.furyRoad!.waitingAt).toBeNull();
+    expect(w.events).toContainEqual({ t: 'roadOpened', stretch: 1 });
+    expect(furyRoadReadout(w)?.stretch).toBe(1);
+    planHaulerOrder(w);
+    expect(haulerOf(w).order?.kind).toBe('through');
   });
 });
 
@@ -58,11 +87,11 @@ describe('Fury Road hauler', () => {
 
   it('starts the hauler ahead of the player truck with a clear gap between them', () => {
     for (const seed of [1, 3, 99]) {
-      const w = furyRoadWorld(seed);
+      const w = furyRoadStart(seed);
       const hauler = haulerOf(w);
       const me = playerVehicle(w);
       const gap = dist(hauler.pos, me.pos) - chassisDef(hauler.chassisId).radius - chassisDef(me.chassisId).radius;
-      expect(gap).toBeGreaterThanOrEqual(RULES.yieldDistance);
+      expect(gap).toBeCloseTo(RULES.yieldDistance, 9);
     }
   });
 
@@ -113,7 +142,7 @@ describe('Fury Road outpost stock', () => {
     const w = furyRoadWorld(5);
     const before = outpostFactsAt(w, 1).stock;
     const loaded = JSON.parse(JSON.stringify(w));
-    expect(loaded.furyRoad.outposts[0].stock).toEqual(before);
+    expect(loaded.furyRoad.outposts[1].stock).toEqual(before);
   });
 });
 

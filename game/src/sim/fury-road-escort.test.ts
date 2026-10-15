@@ -49,12 +49,12 @@ describe('winning a stretch', () => {
     const alone = furyRoadWorld();
     park(alone, playerVehicle(alone), 0);
     advanceFuryRoad(alone);
-    expect(alone.furyRoad!.outposts[0].paid).toBe(false);
+    expect(alone.furyRoad!.outposts[1].paid).toBe(false);
 
     const hauled = furyRoadWorld();
     park(hauled, haulerOf(hauled), 0);
     advanceFuryRoad(hauled);
-    expect(hauled.furyRoad!.outposts[0].paid).toBe(true);
+    expect(hauled.furyRoad!.outposts[1].paid).toBe(true);
     expect(betweenLevels(hauled)).toBe(true);
   });
 
@@ -240,7 +240,7 @@ describe('waiting for the road', () => {
     expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId, haulerOf(after).id]);
     expect(playerTrucks(after).every((t) => t.order === null && t.trail.length === 0)).toBe(true);
     expect(dist(haulerOf(after).pos, playerVehicle(after).pos)).toBeLessThan(10);
-    expect(() => moveWindow(after)).toThrow(/paid/);
+    expect(() => moveWindow(after)).toThrow(/waits at outpost 2/);
   });
 
   it('refuses the wait while the hauler is off the pad', () => {

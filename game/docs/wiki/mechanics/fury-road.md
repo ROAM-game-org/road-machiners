@@ -71,7 +71,7 @@ The land is generated as you go, in windows of 410 by 410 tiles, each 310 tiles 
 
 ## Outposts
 
-An outpost stands at each milestone from 1 on. It is a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad to the gate. Its label shows `???` until the player sees it, then "Outpost N". Discovering it gives XP as any site does.
+An outpost stands at each milestone from 0 on. It is a walled fort with the Salvage Yard's walls, corner towers, gate and yard, set beside the road on a side drawn from the seed, with its gate facing the road. A concrete spur runs from the asphalt across the town pad to the gate. Its label shows `???` until the player sees it, then "Outpost N". Discovering it gives XP as any site does.
 
 The hauler reaching the pad of the next outpost wins the level in that turn, at any speed, in combat or out. The gun truck on the pad alone wins nothing. The outpost pays 120 M's for stretch 1 and 50 M's more for each later stretch. Pay has no cap, and neither the wrecks nor the hauler's condition change it. The outpost is marked paid, so it never pays again, even after a reload. The other trucks of the stretch leave the road and their fights end.
 
@@ -140,4 +140,4 @@ The death screen names the mode, the last outpost reached and how far north the 
 
 ## Start
 
-The run starts at milestone 0, the gun truck in the inner right lane and the hauler level with it in the inner left lane, heading north. The Chaos Highway kit is a scout with one MG, a stock engine, a Rebar cage on the front and another on the back, a full tank, base supplies, 4 parts for field patching and 200 M's. It is the same every run.
+The run starts parked on the pad of outpost 0, at milestone 0, with the hauler just ahead of the gun truck, both heading north. Outpost 0 starts paid and known, so it gives no XP and pays nothing. It is a shop like every outpost, and the run waits there until the player presses Wait for the road. That opens stretch 1 on the same window, with no window move. Nothing spawns before it. The Chaos Highway kit is a scout with one MG, a stock engine, no armor, a full tank, base supplies, 4 parts for field patching and 350 M's to spend at outpost 0. It is the same every run.

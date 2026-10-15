@@ -120,8 +120,6 @@ export const HIGHWAY = {
   milestoneClear: { south: 34, north: 24, across: 34 },
   sceneClear: { along: 4, across: 24 },
   propGap: 0.3,
-  startLane: 2,
-  haulerLane: 1,
 };
 
 export type SceneKind = 'pileup' | 'jackknife' | 'checkpoint' | 'tankline' | 'rockfall' | 'craters' | 'ramp';

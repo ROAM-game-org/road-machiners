@@ -634,7 +634,7 @@ describe("Fury Road readouts", () => {
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);
 
-    w.furyRoad!.outposts[0].paid = true;
+    w.furyRoad!.outposts[1].paid = true;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: true, target: { kind: "outpost" } });
     playerVehicle(w).speed = 2;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: false, target: { kind: "outpost" } });

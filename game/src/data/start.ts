@@ -98,13 +98,9 @@ export const START_KITS: Record<string, StartKit> = {
   furyRoad: {
     chassis: 'scout',
     parts: ['mg', 'stockEngine'],
-    placed: [
-      { defId: 'cage', x: 2, y: 0, rot: 1 },
-      { defId: 'cage', x: 2, y: 7, rot: 1 },
-    ],
     storage: [],
     wear: 0,
-    money: 20000,
+    money: 35000,
     fuel: CHASSIS.scout.fuelCap,
     supplies: RULES.baseSupplies,
     cargo: { parts: 4 },

@@ -62,7 +62,8 @@ describe('the Fury Road run log per stretch', () => {
     log.note(spawned, spawned, [hit, mine]);
     const reached = structuredClone(spawned);
     reached.events = [{ t: 'outpostReached', milestone: 1, pay: 30000, wrecks: 0 }];
-    reached.furyRoad!.outposts[0].paid = true;
+    reached.furyRoad!.outposts[1].paid = true;
+    reached.furyRoad!.waitingAt = 1;
 
     const lines = log.note(spawned, reached, reached.events);
     const line = lines.find((l) => l.t === 'stretch');

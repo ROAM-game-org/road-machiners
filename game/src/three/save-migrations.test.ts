@@ -64,6 +64,7 @@ import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
+import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1341,5 +1342,24 @@ describe('MIGRATIONS[61]', () => {
     const none = at('x', 'y');
     none.player.quests.session = null;
     expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('save migration 62 to 63', () => {
+  it('has a run parked at its paid next outpost wait there for the road', () => {
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual({ ...FORMAT_2_62, furyRoad: { ...FORMAT_2_62.furyRoad, waitingAt: 2 } });
+  });
+
+  it('has a run on the road wait nowhere', () => {
+    const run = { ...structuredClone(FORMAT_2_62.furyRoad), outposts: [FORMAT_2_62.furyRoad.outposts[0], { ...FORMAT_2_62.furyRoad.outposts[1], paid: false }] };
+    const world = { ...structuredClone(FORMAT_2_62), furyRoad: run };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_62), furyRoad: null };
+
+    expect(MIGRATIONS[62](structuredClone(roaming))).toEqual(roaming);
   });
 });

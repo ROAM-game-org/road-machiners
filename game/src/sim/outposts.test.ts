@@ -24,7 +24,7 @@ function atOutpost(): World {
 }
 
 function fittingStock(w: World): PartInstance {
-  const part = w.furyRoad!.outposts[0].stock.find((p) => canStowPart(playerVehicle(w), p));
+  const part = w.furyRoad!.outposts[1].stock.find((p) => canStowPart(playerVehicle(w), p));
   if (!part) throw new Error('Nothing in stock fits the truck');
   return part;
 }
@@ -76,7 +76,7 @@ describe('outpost services', () => {
 
     const after = outpostBuyPart(w, part.id);
 
-    expect(after.furyRoad!.outposts[0].stock.map((p) => p.id)).not.toContain(part.id);
+    expect(after.furyRoad!.outposts[1].stock.map((p) => p.id)).not.toContain(part.id);
     expect(playerVehicle(after).items.some((it) => it.kind === 'part' && it.part.id === part.id)).toBe(true);
     expect(after.player.money).toBe(w.player.money - price);
   });
@@ -127,7 +127,7 @@ describe('outpost commands off the pad', () => {
     ['repair all', outpostRepairAll],
     ['repair basics', outpostRepairBasics],
     ['buy fuel', (w) => outpostBuySupply(w, 'fuel', 1)],
-    ['buy a part', (w) => outpostBuyPart(w, w.furyRoad!.outposts[0].stock[0].id)],
+    ['buy a part', (w) => outpostBuyPart(w, w.furyRoad!.outposts[1].stock[0].id)],
     ['buy parts', (w) => outpostBuyGood(w, 1)],
   ];
 

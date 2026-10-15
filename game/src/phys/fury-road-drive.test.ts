@@ -20,7 +20,7 @@ const TURNS = 160;
 type FortDrive = { w: World; turns: number; stalls: number; startGap: number; path: Vec[] };
 
 function arrived(w: World): boolean {
-  return w.furyRoad!.outposts[0].paid;
+  return w.furyRoad!.outposts[1].paid;
 }
 
 function driveToFirstFort(seed: number): FortDrive {

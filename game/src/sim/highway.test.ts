@@ -6,7 +6,7 @@ import { atlasOf } from './atlas';
 import { REGION } from '../data/region';
 import { fortressProps } from './fortress';
 import { deckAt } from './bridge';
-import { acrossOf, centerU, fromRoad, highwayMap, highwayStart, milestoneAt, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchOf, toRoad, WINDOW_SHIFT, windowSpan } from './highway';
+import { acrossOf, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchOf, toRoad, WINDOW_SHIFT, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
 import { northClosureAt, sceneAt, southClosureAt } from './road-hazards';
 import { canUseSite, sitePads } from './sites';
@@ -129,13 +129,12 @@ describe('a highway window', () => {
     for (let y = 0; y < SIZE; y += 7) for (let x = 0; x < SIZE; x += 7) if (offRamps(x + 0.3, y + 0.6)) expect(heightAt(map.terrain, x + 0.3, y + 0.6)).toBe(groundAt(map.terrain, x + 0.3, y + 0.6));
   });
 
-  it('starts the truck on a lane at the first milestone, facing north', () => {
-    const start = highwayStart(7);
-    const map = highwayMap(7, 0);
+  it('builds an outpost at the start milestone, beside the road at its milestone', () => {
+    const fort = outpostFort(7, 0, 0);
 
-    expect(typeAt(map, start.pos)).toBe('asphalt');
-    expect(start.heading).toBeCloseTo(NORTH, 9);
-    expect(toRoad(0, start.pos).n).toBeCloseTo(milestoneAt(0), 0);
+    expect(fort.id).toBe('outpost-0');
+    expect(toRoad(0, fort.pos).n).toBeCloseTo(milestoneAt(0), 0);
+    expect(highwayAtlas(7, 0).locations.map((l) => l.id)).toEqual(['outpost-0', 'outpost-1']);
   });
 
   it('builds a window in well under the boot budget', () => {
@@ -205,7 +204,7 @@ describe('the highway road', () => {
       for (const k of [0, 1, 2, 3]) {
         const map = highwayMap(seed, k);
         const layer = navLayer(map.terrain, mapObstacles(map), radius);
-        const from = k === 0 ? highwayStart(seed).pos : padOf(seed, k, k);
+        const from = padOf(seed, k, k);
         const to = padOf(seed, k, k + 1);
         const start = componentOf(layer, cellOf(from));
         expect(start, `seed ${seed} window ${k} start`).not.toBe(0);

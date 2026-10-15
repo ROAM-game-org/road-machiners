@@ -527,7 +527,7 @@ export type WaveGroup = {
   retryUntil: number | null;
 };
 export type GroupSide = 'ahead' | 'left' | 'right';
-export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number; hauler: HaulerFacts };
+export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number; waitingAt: number | null; hauler: HaulerFacts };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 

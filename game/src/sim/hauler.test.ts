@@ -162,7 +162,7 @@ describe('the hauler driver', () => {
 
   it('parks between levels, braking only while it still rolls', () => {
     const { w, hauler } = openRoad();
-    w.furyRoad!.outposts[0].paid = true;
+    w.furyRoad!.waitingAt = 1;
     expect(betweenLevels(w)).toBe(true);
     hauler.speed = 3;
     planHaulerOrder(w);
@@ -198,7 +198,7 @@ describe('the hauler driver', () => {
       expect(events()).toEqual([]);
     }
     resetHaulerWatch();
-    w.furyRoad!.outposts[0].paid = true;
+    w.furyRoad!.waitingAt = 1;
     hauler.speed = 0;
     for (let i = 0; i < FURY_ROAD.hauler.stallTurns * 3; i++) {
       w.turn++;

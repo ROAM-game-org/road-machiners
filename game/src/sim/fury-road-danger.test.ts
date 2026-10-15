@@ -9,7 +9,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { furyRoadWorld } from './testkit';
 import type { World } from './types';
 
-const START_GEAR = [...['mg', 'stockEngine', 'cage', 'cage'], ...HAULER_KIT.parts].reduce((sum, id) => sum + PARTS[id].value, 0);
+const START_GEAR = [...['mg', 'stockEngine'], ...HAULER_KIT.parts].reduce((sum, id) => sum + PARTS[id].value, 0);
 const STRETCHES = Array.from({ length: 50 }, (_, i) => i + 1);
 const GROWTHS = [0, 0.25, 1, 2];
 

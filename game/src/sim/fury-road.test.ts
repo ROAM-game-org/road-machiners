@@ -223,7 +223,7 @@ describe('the pace of encounters', () => {
 
   it('keeps a group hunting a player it meets long after it spawns', () => {
     const sturdy = { ...startKit('furyRoad'), chassis: 'hauler', parts: ['cannon', 'heavyMg', 'mg', 'workhorseDiesel', 'ram', 'plates', 'plates', 'rack'], placed: [] };
-    let w = newWorld(3, sturdy, highwayMap(3, 0), defaultSetup('furyRoad'));
+    let w = waitForRoad(newWorld(3, sturdy, highwayMap(3, 0), defaultSetup('furyRoad')));
     spawnFirst(w);
     for (let i = 0; i < 15; i++) w = endTurn(w, still);
 
@@ -291,7 +291,7 @@ describe('arriving at an outpost', () => {
     expect(after.mapHash).toBe(highwayHash(w.seed, 0));
     expect(after.player.money).toBe(money + payOf(1));
     expect(after.events).toContainEqual({ t: 'outpostReached', milestone: 1, pay: payOf(1), wrecks: 0 });
-    expect(runOf(after).outposts.map((o) => [o.milestone, o.paid])).toEqual([[1, true]]);
+    expect(runOf(after).outposts.map((o) => [o.milestone, o.paid])).toEqual([[0, true], [1, true]]);
     expect(runOf(after).groups).toEqual([]);
     expect(betweenLevels(after)).toBe(true);
     expect(canWaitForRoad(after)).toBe(true);
@@ -385,7 +385,7 @@ describe('arriving at an outpost', () => {
 
     for (const w of [moving, off]) advanceFuryRoad(w);
 
-    expect([moving, off].map((w) => runOf(w).outposts[0].paid)).toEqual([true, false]);
+    expect([moving, off].map((w) => runOf(w).outposts[1].paid)).toEqual([true, false]);
   });
 
   it('pays the base alone whatever the wrecks, and keeps the run totals', () => {
@@ -430,7 +430,7 @@ describe('arriving at an outpost', () => {
   it('refuses to move the window before the outpost is paid or with the player off the pad', () => {
     const early = furyRoadWorld();
     parkOnNext(early);
-    expect(() => moveWindow(early)).toThrow(/paid/);
+    expect(() => moveWindow(early)).toThrow(/waits at outpost 1/);
 
     const off = arrive(furyRoadWorld());
     moveTo(off, milestoneAt(1) + 20);

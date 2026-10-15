@@ -869,7 +869,16 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
+  withRunWait_62_63,
 ];
+
+function withRunWait_62_63(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const next = (run.window as number) + 1;
+  const arrived = (run.outposts as SavedJson[]).some((post) => post.milestone === next && post.paid === true);
+  return { ...world, furyRoad: { ...run, waitingAt: arrived ? next : null } };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];

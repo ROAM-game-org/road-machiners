@@ -44,8 +44,7 @@ import { advanceAid, readyAid } from './aid';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
-import { highwayStart } from './highway';
-import { advanceFuryRoad, startRun } from './fury-road';
+import { advanceFuryRoad, runStart, startRun } from './fury-road';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
@@ -182,7 +181,7 @@ function startHealth(kit: StartKit): number {
 }
 
 function kitStart(kit: StartKit, seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
-  return kit.intro?.pose ?? startOf(seed, setup);
+  return kit.intro?.pose ?? startOf(seed, setup, kit.chassis);
 }
 
 function requireMapFits(map: BakedMap, setup: WorldSetup): void {
@@ -203,8 +202,8 @@ function setUpWorldStock(world: World, map: BakedMap, truck: Vehicle, kit: Start
   stockOldSpots(world, map);
 }
 
-export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'highway' ? highwayStart(seed) : startPose();
+export function startOf(seed: number, setup: WorldSetup, chassisId: string): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'highway' ? runStart(seed, chassisId).player : startPose();
 }
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
@@ -524,7 +523,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
   const seed = pick(carried.seed, freshSeed());
-  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup));
+  const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed), setup, true, carriedStart(seed, setup, truckKit.chassis));
   carryPlayer(world, carried);
   carryQuests(world, carried.quests, report);
   carryTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
@@ -535,8 +534,8 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   return { world, report };
 }
 
-function carriedStart(seed: number, setup: WorldSetup): { pos: Vec; heading: number } {
-  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup);
+function carriedStart(seed: number, setup: WorldSetup, chassisId: string): { pos: Vec; heading: number } {
+  return modeMap(setup.mode) === 'icarus' ? townStart() : startOf(seed, setup, chassisId);
 }
 
 function carriedSetup(setup: unknown): ReturnType<typeof repairSetup> {
