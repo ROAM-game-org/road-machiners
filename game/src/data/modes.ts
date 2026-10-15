@@ -80,6 +80,7 @@ export const FURY_ROAD = {
     convoy: { weight: 1, from: 6, floor: 45000, chase: true },
   } as Record<string, EnemyCard>,
   chaseSpeed: 5.5,
+  nerve: 0.4,
   sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
   pacing: { near: 30 },
   spawnStagger: 3,

@@ -3,9 +3,10 @@ import { GARAGE_STOCK } from '../data/market';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
+import { partDef } from '../data/parts';
 import { HAULER_KIT } from '../data/start';
 import { makeVehicle } from './factory';
-import { isDefeated } from './defeat';
+import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
 import { canUseSite, sitePads } from './sites';
@@ -17,7 +18,7 @@ import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
 import { directStretch, payOf, toughness, type PlannedWave } from './fury-road-director';
 import { mountedParts } from './grid';
-import { setStartHp } from './wear';
+import { maxHp, setStartHp } from './wear';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
@@ -155,6 +156,7 @@ function factsOf(run: FuryRoadRun, milestone: number): OutpostFacts {
 export function advanceFuryRoad(world: World): void {
   const run = world.furyRoad;
   if (!run || world.player.state !== 'active' || betweenLevels(world)) return;
+  breakHurt(world, run);
   countBeaten(world, run);
   retireWoken(world, run);
   huntConvoy(world, run);
@@ -178,6 +180,20 @@ function countBeaten(world: World, run: FuryRoadRun): void {
     group.counted.push(e.vehicle);
     group.wrecked++;
   }
+}
+
+function breakHurt(world: World, run: FuryRoadRun): void {
+  for (const group of run.groups) {
+    for (const v of fighting(world, group)) if (hurtShare(v, group) >= FURY_ROAD.nerve) knockOutNpc(world, v);
+  }
+}
+
+export function hurtShare(v: Vehicle, group: WaveGroup): number {
+  const parts = mountedParts(v);
+  const start = (part: PartInstance) => maxHp(part) * (!group.elite && partDef(part.defId).kind === 'core' ? toughness(group.stretch) : 1);
+  const full = parts.reduce((sum, part) => sum + start(part), 0);
+  const now = parts.reduce((sum, part) => sum + Math.min(part.hp, start(part)), 0);
+  return full > 0 ? 1 - now / full : 0;
 }
 
 function retireWoken(world: World, run: FuryRoadRun): void {
