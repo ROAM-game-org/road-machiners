@@ -1,7 +1,7 @@
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { changesSaveMajor } from '../save-guard';
-import { GAME_DIR, MergeConflictError, RevertConflictError, type Ctx, type MergeStep, type Resolution, type Stage } from '../types';
+import { GAME_DIR, MergeConflictError, RevertConflictError, type CheckedBuild, type Ctx, type MergeStep, type Resolution, type Stage } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { factoryPaths } from '../diff-guard';
 import { agentHome, fillPrompt, resetOutputs } from './common';
@@ -9,11 +9,11 @@ import { releaseLog } from './release-common';
 
 const ISSUE_BRANCH = /^factory\/issue-\d+$/;
 
-export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[]): Promise<void> {
+export async function mergeResolving(ctx: Ctx, stage: Stage, steps: MergeStep[], checked?: CheckedBuild): Promise<void> {
   const resolutions: Resolution[] = [];
   for (;;) {
     try {
-      await ctx.repo.merge(steps, resolutions);
+      await ctx.repo.merge(steps, resolutions, checked);
       return;
     } catch (error) {
       if (!(error instanceof MergeConflictError) || ISSUE_BRANCH.test(error.branch)) throw error;

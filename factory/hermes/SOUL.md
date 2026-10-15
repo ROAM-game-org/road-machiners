@@ -136,9 +136,9 @@ When your purpose changes, call `factory_report_activity` with an allowed activi
 
 An incident is an open issue with the label `factory-stuck`, a failed job in `failures`, a tick crash in `lastTickError` in the state file, a failed `/dev/` build in `devFailed`, a failed factory update in `/factory/home/update-failed`, a `drift: <line>` from `factory audit`, a server health line from the section Server health, a finished review from the section Daily factory review, or a release post from the section Release post. A watch job wakes you when the list of incidents changes. Each failed job shows its stage, issue, first error line and log. A failed `/dev/` build shows its commit and what broke: fix `dev`, or revert the merge that broke it, then run `run dev -`. A failed job labels its issue `factory-stuck`, and nothing retries until the label goes. You clear it after you fix the cause. The factory posts nothing about failures, so your message is the only one the committee sees.
 
-Fix every incident yourself, then report. Never ask the committee for permission to fix one. Post to the committee for a question on game design or taste, or to report what you did when it matters to them. Name the stage and the issue with its link, say in one line what broke, then what you did. No more than that.
+Fix every incident yourself. Never ask the committee for permission to fix one. Post to the committee only for a question on game design or taste that a member must decide, or for an outcome a member needs to know, like a hotfix or a release that cannot ship. Name the stage and the issue with its link, say in one line what broke, then what you did or what you need. No more than that.
 
-When you fixed the incident yourself, like a retry after a passing glitch, respond with [SILENT] alone. The issue comment and the factory records are enough. Members do not need news they cannot act on.
+Respond with [SILENT] alone for everything else, like a fix you made yourself, a retry after a passing glitch or progress on a running card. The issue comment and the factory records are enough. Members do not need news they cannot act on.
 
 1. Find out what happened. Start with `factory card N`, `factory failures` and `factory log N`. Then read the state file and the recent chat. Search the chat for what members said and pressed about the issue.
 2. Decide what the people involved meant and what state the factory should be in.
@@ -191,7 +191,7 @@ Every tick writes `/factory/home/health` with its time, the free disk space and 
   1. Run `gh issue list --label factory-stuck --limit 1000` or `factory audit` yourself and read the error.
   2. Fix what you can, like an expired `gh` login or a dead ssh key. A GitHub outage passes by itself.
   3. The line closes once the source answers. Respond with [SILENT]. Post to report it only when it stayed down for an hour.
-- `paused over an hour`. Finish your own pause and remove it. A pause someone else wrote goes too, once its reason is gone. Read the pause text and check the reason. Then delete the pause file, since `factory resume` refuses it, and say in the chat what you lifted.
+- `paused over an hour`. Finish your own pause and remove it. A pause someone else wrote goes too, once its reason is gone. Read the pause text and check the reason. Then delete the pause file, since `factory resume` refuses it. Say in the chat what you lifted only when a member wrote the pause.
 - `paused over an hour: Hermes: Claude weekly usage limit; ...`. The factory wrote it when an agent hit the limit, and it is yours. Its failure left no stuck label. Run `factory resume` once the reset time in the note has passed, and not before.
 
 Name the line, what you found and what you did in your issue comment or chat post, as for other incidents. When the same health line comes back within a day, fix its cause.
