@@ -51,6 +51,7 @@ export class BlockSession {
   private surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
   private familiar = new Map<BlockEvent, Fading>();
   private nudge: Partial<Record<Role, number>> = {};
+  private peakHeat = 0;
   private sequencer: BlockSequencer | null = null;
   private blocks: Block[];
   private wanted = new Set<Lane>();
@@ -96,6 +97,7 @@ export class BlockSession {
     this.surprise = new Fading(SCORE_BLOCKS.surpriseHalfLifeSeconds);
     this.familiar.clear();
     this.nudge = {};
+    this.peakHeat = 0;
     this.sequencer = new BlockSequencer(this.blocks, SCORE_BLOCKS.arc, this.roll);
     this.nextAt = this.schedule(this.sequencer.next(0), start, 0);
   }
@@ -122,6 +124,7 @@ export class BlockSession {
     const weight = SCORE_BLOCKS.weights[kind];
     this.heat.add(at, weight);
     this.heats.push({ at, value: this.heat.read(at) });
+    this.peakHeat = Math.max(this.peakHeat, this.heat.read(at));
     this.surprise.add(at, weight / (1 + this.familiarity(kind).read(at)));
     this.familiarity(kind).add(at, 1);
     const surprise = this.surprise.read(at);
@@ -150,9 +153,12 @@ export class BlockSession {
   tick(now: number): void {
     if (!this.sequencer) return;
     if (this.nextAt - now < SCORE_BLOCKS.aheadSeconds) {
-      const h = this.heat.read(this.nextAt);
+      const h = Math.max(this.peakHeat, this.heat.read(this.nextAt));
       this.nextAt = this.schedule(this.sequencer.next(h, this.nudge), this.nextAt, h);
-      if (this.sequencer.choices.length > 0) this.nudge = {};
+      if (this.sequencer.choices.length > 0) {
+        this.nudge = {};
+        this.peakHeat = 0;
+      }
     }
     for (const lane of LANES) this.startOverlay(lane, now);
   }

@@ -41,6 +41,8 @@ def downbeat_phase(drums_path, first, beat):
 
 def bar_times(song_path, drums_path, bpm, bars, planned):
     first, beat, length = beat_grid(song_path, bpm)
+    if planned:
+        first -= round(first / beat) * beat
     phase = 0 if planned else downbeat_phase(drums_path, first, beat)
     start = first + phase * beat
     if start - beat * BEATS_PER_BAR >= -beat / 2:
