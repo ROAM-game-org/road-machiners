@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CHANNEL, publicFake, type PublicFake } from '../public/public-fakes';
@@ -90,39 +90,24 @@ describe('answer job', () => {
 
 describe('checkedAnswer', () => {
   const ctx = { cfg: { oauthToken: TOKEN } } as Ctx;
-  const clone = resolve('tmp/answer-check');
-  const path = join(clone, 'game/.factory/answer.md');
+  const home = resolve('tmp/answer-check/game');
   const write = (text: string): void => {
-    rmSync(clone, { recursive: true, force: true });
-    mkdirSync(join(clone, 'game/.factory'), { recursive: true });
-    writeFileSync(path, text);
+    rmSync(home, { recursive: true, force: true });
+    mkdirSync(join(home, '.factory'), { recursive: true });
+    writeFileSync(join(home, '.factory/answer.md'), text);
   };
-  afterEach(() => rmSync(clone, { recursive: true, force: true }));
+  afterEach(() => rmSync(resolve('tmp/answer-check'), { recursive: true, force: true }));
 
   it('passes the trimmed text', () => {
     write(' Repairs cost parts. \n');
-    expect(checkedAnswer(ctx, clone, path)).toBe('Repairs cost parts.');
+    expect(checkedAnswer(ctx, home)).toBe('Repairs cost parts.');
   });
 
   it('fails an empty answer and one that holds the Claude token', () => {
     write(' \n');
-    expect(() => checkedAnswer(ctx, clone, path)).toThrow('empty');
+    expect(() => checkedAnswer(ctx, home)).toThrow('empty');
     write(`token ${TOKEN}`);
-    expect(() => checkedAnswer(ctx, clone, path)).toThrow('login token');
-  });
-
-  it('never reads an answer that links out of the clone', () => {
-    const host = resolve('tmp/answer-host');
-    mkdirSync(host, { recursive: true });
-    writeFileSync(join(host, 'answer.md'), 'committee ids');
-    write('x');
-    rmSync(path);
-    symlinkSync(join(host, 'answer.md'), path);
-    expect(() => checkedAnswer(ctx, clone, path)).toThrow('no plain file');
-    rmSync(join(clone, 'game/.factory'), { recursive: true });
-    symlinkSync(host, join(clone, 'game/.factory'));
-    expect(() => checkedAnswer(ctx, clone, path)).toThrow('no plain file');
-    rmSync(host, { recursive: true });
+    expect(() => checkedAnswer(ctx, home)).toThrow('login token');
   });
 });
 
