@@ -328,6 +328,13 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async mergeLog(from, to) {
       return lines(await git(['log', '--first-parent', '--merges', '--format=%s', `${await ref(to)}..${await ref(from)}`]));
     },
+    async newCommits(from, to, limit) {
+      const log = lines(await git(['log', '--first-parent', `--max-count=${limit}`, '--format=%H%x09%s', `${from}..${await ref(to)}`]));
+      return Promise.all(log.map(async (line) => {
+        const [hash, ...subject] = line.split('\t');
+        return { hash, subject: subject.join('\t'), files: lines(await git(['diff-tree', '--no-commit-id', '--name-only', '-r', '-m', '--first-parent', hash])) };
+      }));
+    },
   });
 }
 

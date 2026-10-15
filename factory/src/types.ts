@@ -62,6 +62,7 @@ export type FactoryConfig = {
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
+  overlapCheckHours: number;
   itchTarget: string | null;
   butlerKey: string | null;
   maxJobsPerCard: number;
@@ -206,7 +207,10 @@ export type FactoryState = {
   held: Record<string, Hold>;
   stuck: Record<string, StuckRecord>;
   sweepError: string | null;
+  overlap: OverlapState;
 };
+
+export type OverlapState = { at: string | null; main: string | null; dev: string | null; reported: string[]; error: string | null };
 
 export type StuckKind = 'running' | 'held' | 'merge-batch' | 'clone-merge' | 'machine' | 'blocked' | 'unrecorded';
 export type StuckCause = { incident: string; stage: Stage | null; cause: string; log: string | null; batch: number; since: string; decision: boolean };
@@ -291,7 +295,10 @@ export interface HostRepo {
   hasNewCommits(base: string, branch: string): Promise<boolean>;
   merge(steps: MergeStep[], resolutions?: Resolution[]): Promise<void>;
   mergeLog(from: string, to: string): Promise<string[]>;
+  newCommits(from: string, to: string, limit: number): Promise<BranchCommit[]>;
 }
+
+export type BranchCommit = { hash: string; subject: string; files: string[] };
 
 export type Resolution = { base: string; source: string; head: string };
 
@@ -354,6 +361,7 @@ export const ERROR_REPORT_LABEL = 'error-report';
 export const fingerprintLine = (fingerprint: string): string => `Error fingerprint: ${fingerprint}`;
 export type FingerprintIssue = { number: number; state: 'OPEN' | 'CLOSED'; stateReason: string | null; closedAt: string | null };
 export const BUNDLED_LABEL = 'bundled';
+export const SUPERSEDED_LABEL = 'superseded';
 export const CANDIDATE_LABELS = ['feature-request', BUG_LABEL];
 export const INCIDENT_LOG = 'docs/incident-log.md';
 export const INCIDENT_BRANCH = (issue: number): string => `factory/incident-${issue}`;

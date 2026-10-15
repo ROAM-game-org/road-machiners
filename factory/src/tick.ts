@@ -16,6 +16,7 @@ import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
 import { waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
+import { checkOverlaps } from './overlap';
 import { sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
@@ -484,6 +485,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   await ctx.repo.fetch();
   const heads = { dev: await ctx.repo.headHash('dev'), release: await releaseHead(ctx) };
   dropStaleCandidate(ctx, heads.release);
+  await checkOverlaps(ctx, cards);
   const report = evaluateSchedule(readState(ctx.statePath), cards, ctx.now(), ctx.cfg, heads);
   reportScheduler(ctx.cfg.home, 'ready', ctx.now(), report, cards);
   if (report.picks.length === 0) return ctx.log('tick', null, 'nothing to start');

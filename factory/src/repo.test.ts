@@ -177,6 +177,22 @@ describe('merging on GitHub', () => {
     expect(await repo.hasNewCommits('main', 'dev')).toBe(true);
   });
 
+  it('lists the first-parent commits since a head with the files each brought, a merge counted whole', async () => {
+    const { repo, feature, head, commit } = await setup();
+    const before = (await head('dev')).slice(0, 7);
+    await feature(3, 'f.txt', 'three\n');
+    await commit('dev', 'g.txt', 'direct\n');
+    await repo.fetch();
+    const commits = await repo.newCommits(before, 'dev', 50);
+    expect(commits.map(({ subject, files }) => ({ subject, files }))).toEqual([
+      { subject: 'dev changes g.txt', files: ['g.txt'] },
+      { subject: 'Merge issue #3: title 3', files: ['f.txt'] },
+    ]);
+    expect(await repo.newCommits(before, 'dev', 1)).toHaveLength(1);
+    expect(await repo.isMerged(commits[1].hash, 'dev')).toBe(true);
+    expect(await repo.isMerged(commits[1].hash, 'main')).toBe(false);
+  });
+
   it('lists both paths of a moved file', async () => {
     const { repo, by } = await setup();
     await by('checkout', '-B', 'dev', 'origin/dev');

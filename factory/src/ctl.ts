@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
+import { previewOverlaps } from './overlap';
 import { pauseFile, pausedReason } from './pause';
 import { publicRows } from './public/overview';
 import { openStore } from './public/store';
@@ -29,6 +30,7 @@ const READ: Record<string, { usage: string; help: string; run: Handler }> = {
   stuck: { usage: 'stuck', help: "list the stuck sweep's record of each stuck card: its kind, incident, cause and what the sweep did", run: stuckRecords },
   log: { usage: 'log N [stage]', help: 'print the tail of the newest log of a card', run: log },
   audit: { usage: 'audit', help: 'print each drift between stores, and nothing when all agree', run: audit },
+  overlaps: { usage: 'overlaps', help: 'dry run of the overlap check: list each open card that shares files or a title with a commit on main or dev since the last check, and mark the pairs already handed to Hermes. Fetches and writes nothing else', run: overlaps },
   public: { usage: 'public', help: 'list the proposals with their votes and posted time, the open build posts and the latest player chat messages with their outcome', run: publicState },
   help: { usage: 'help', help: 'list the commands', run: help },
 };
@@ -132,6 +134,10 @@ async function status(ctx: Ctx): Promise<void> {
   if (!response.ok) throw new Error(`${url} answered ${response.status}.`);
   const held = Object.entries(readState(ctx.statePath).held).map(([issue, hold]) => ({ issue: Number(issue), ...hold }));
   console.log(JSON.stringify({ ...((await response.json()) as object), held }, null, 2));
+}
+
+async function overlaps(ctx: Ctx): Promise<void> {
+  for (const line of await previewOverlaps(ctx, await ctx.github.cards())) console.log(line);
 }
 
 async function cards(ctx: Ctx): Promise<void> {
