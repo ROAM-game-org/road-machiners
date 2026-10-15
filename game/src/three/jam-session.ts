@@ -4,8 +4,8 @@ import { BlockSession, DENSE_TURN, TURN_SECONDS, type BlockOutput, type BlockSon
 import { levelAt, type Move } from "./score-session";
 
 export type JamSong = Omit<BlockSong, "file" | "stems"> & { parts: Record<JamPart, string> };
-export type JamSwitches = { parts: "band" | "all"; answers: "band" | "fills"; jumps: "ring" | "fade" };
-export type TakeKind = "block" | "push" | "fill" | "answer";
+export type JamSwitches = { parts: "band" | "all"; answers: "band" | "off"; jumps: "ring" | "fade" };
+export type TakeKind = "block" | "push" | "cymbal" | "answer";
 export type Take = { kind: TakeKind; part: JamPart; cue: BandEvent | null; from: number; at: number; fadeIn: number; until: number; endFade: number; ring: number | null; gain: number };
 export type JamPress = { cue: BandEvent; at: number; slot: number | null; answers: Take[]; crowded: JamPart[]; cut: Take[] };
 export type JamOutput = { play(take: Take): void; end(take: Take): void; move(part: JamPart, move: Move): void; duck(moves: readonly Move[], from: number): void };
@@ -208,7 +208,6 @@ export class JamSession {
   private blockOutput(): BlockOutput {
     return {
       voice: (part, offset, when, length, fade, level) => this.voice(part, offset, when, length, fade, level),
-      fill: (offset, at, length, level) => this.fill(offset, at, length, level),
       lean: (offset, at, length, songScale, guitarLevel) => this.lean(offset, at, length, songScale, guitarLevel),
     };
   }
@@ -240,20 +239,16 @@ export class JamSession {
   }
 
   private voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
-    if (part !== "song") throw new Error(`The block session asked for a ${part} voice, which only a lean plays`);
+    if (part === "guitars") throw new Error("The block session asked for a guitars voice, which only a lean plays");
+    const kind: TakeKind = part === "song" ? "block" : "cymbal";
+    const parts: readonly JamPart[] = part === "song" ? JAM_PARTS : ["drums"];
     const gain = level * SCORE_BLOCKS.songGain;
-    const takes: Take[] = JAM_PARTS.map((p) => ({ kind: "block", part: p, cue: null, from: offset, at: when, fadeIn: fade, until: when + length, endFade: SCORE_BLOCKS.seamSeconds, ring: null, gain }));
+    const takes: Take[] = parts.map((p) => ({ kind, part: p, cue: null, from: offset, at: when, fadeIn: fade, until: when + length, endFade: SCORE_BLOCKS.seamSeconds, ring: null, gain }));
     for (const take of takes) this.add(take);
     return {
       fadeOut: (at, f) => takes.forEach((t) => this.jumpEnd(t, at, f)),
       cut: (at) => takes.forEach((t) => this.cut(t, at)),
     };
-  }
-
-  private fill(offset: number, at: number, length: number, level: number): void {
-    if (this.switches.answers !== "fills") return;
-    const seam = SCORE_BLOCKS.seamSeconds;
-    this.add({ kind: "fill", part: "drums", cue: null, from: offset, at, fadeIn: seam, until: at + length, endFade: seam, ring: null, gain: level * SCORE_BLOCKS.songGain });
   }
 
   private jumpEnd(take: Take, at: number, fade: number): void {

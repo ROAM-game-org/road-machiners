@@ -8,6 +8,7 @@ const STEP = 1 / 60;
 
 const SONG: JamSong = {
   parts: { drums: "drums.wav", bass: "bass.wav", guitar: "guitar.wav", vocals: "vocals.wav" },
+  cymbals: { file: "cymbals.wav", from: 21 },
   bpm: 150,
   length: BARS * BAR_SECONDS,
   barTimes: Array.from({ length: BARS + 1 }, (_, i) => i * BAR_SECONDS),
@@ -104,10 +105,14 @@ describe("JamSession", () => {
     expect(fade.heard.ends.filter((t) => t.kind === "block").every((t) => t.ring === null)).toBe(true);
   });
 
-  it("plays drum fills and no band answers when answers are drum fills", () => {
-    const { session } = fight(turn(3), 8, { answers: "fills" });
+  it("keeps the block score's cymbal lane and guitar lean, and plays no band answers when they are off", () => {
+    const { session } = fight(turn(3), 12, { answers: "off" });
     expect(session.presses.every((p) => p.answers.length === 0)).toBe(true);
-    expect(session.takes.some((t) => t.kind === "fill")).toBe(true);
+    expect(session.takes.some((t) => t.kind === "cymbal")).toBe(true);
+    expect(session.takes.some((t) => t.kind === "push")).toBe(true);
+    const lean = session.blocks.overlays.filter((o) => o.lane === "guitars").at(-1)!;
+    expect(session.duckAt((lean.from + lean.to) / 2)).toBeLessThan(1);
+    expect(session.duckAt(lean.to + 0.1)).toBeCloseTo(1);
   });
 
   it("shapes a take with a rise around its start and a ring after its end", () => {

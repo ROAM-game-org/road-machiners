@@ -53,10 +53,12 @@ def main(plan_path, stems_dir, reference_path, out_dir):
     mix = sum(parts.values())
     mix_path = out / "mix.wav"
     sf.write(mix_path, mix, rate)
-    bars, length = block_prep().bar_times(str(mix_path), f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"])
+    prep = block_prep()
+    bars, length = prep.bar_times(str(mix_path), f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"])
     for part, audio in parts.items():
         sf.write(out / f"{part}.wav", audio, rate, subtype="PCM_16")
-    song = {"parts": {part: f"{part}.wav" for part in PARTS}, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": bar_power(mix, parts[PUSHED], rate, bars), "sections": plan["sections"], "end": plan["end"]}
+    cymbals = prep.cymbals(str(out / "drums.wav"), out / "cymbals.wav", bars, plan["sections"], str(mix_path))
+    song = {"parts": {part: f"{part}.wav" for part in PARTS}, "cymbals": cymbals, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": bar_power(mix, parts[PUSHED], rate, bars), "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
     print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and parts {', '.join(PARTS)}")
 

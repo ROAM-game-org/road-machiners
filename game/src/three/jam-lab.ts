@@ -63,6 +63,7 @@ mixer.unlockOn(window);
 const ctx = mixer.ctx;
 const song = await loadSong();
 const buffers = Object.fromEntries(await Promise.all(JAM_PARTS.map(async (part) => [part, await decode(song.parts[part])] as const))) as Record<JamPart, AudioBuffer>;
+const cymbalBuffer = await decode(song.cymbals.file);
 const master = ctx.createGain();
 master.connect(mixer.input("music"));
 const partBus = Object.fromEntries(
@@ -124,7 +125,7 @@ function play(take: Take): void {
   const now = ctx.currentTime;
   const begin = Math.max(now, take.at - take.fadeIn);
   const src = ctx.createBufferSource();
-  src.buffer = buffers[take.part];
+  src.buffer = take.kind === "cymbal" ? cymbalBuffer : buffers[take.part];
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, begin);
   gain.gain.linearRampToValueAtTime(take.gain, Math.max(begin, take.at + take.fadeIn));
@@ -391,7 +392,7 @@ const autoChoice = choice<Auto>(
 );
 const switches = [
   ...switchRow("parts", "Parts", ["By heat", "band"], ["All", "all"]),
-  ...switchRow("answers", "Answers", ["Band", "band"], ["Drum fills", "fills"]),
+  ...switchRow("answers", "Band answers", ["On", "band"], ["Off", "off"]),
   ...switchRow("jumps", "Jumps", ["Fade", "fade"], ["Ring out", "ring"]),
 ];
 const statsBox = el("div", { class: "score-lab-picks" });

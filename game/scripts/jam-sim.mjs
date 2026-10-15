@@ -20,16 +20,16 @@ const CUT_DB = 20;
 const HEARD_DB = -50;
 const MERGE_SECONDS = 0.25;
 const SILENT_DB = -60;
-const SWITCHES = { parts: ['band', 'all'], answers: ['band', 'fills'], jumps: ['fade', 'ring'] };
+const SWITCHES = { parts: ['band', 'all'], answers: ['band', 'off'], jumps: ['fade', 'ring'] };
 
-const HELP = `Usage: npm run jam:sim -- <event@seconds ...> [--seed n] [--length s] [--end s] [--parts band|all] [--answers band|fills] [--jumps fade|ring] [--out file.wav]
+const HELP = `Usage: npm run jam:sim -- <event@seconds ...> [--seed n] [--length s] [--end s] [--parts band|all] [--answers band|off] [--jumps fade|ring] [--out file.wav]
 
 Plays a scripted fight through the jam lab's session, the same code /jam.html runs, renders what the player would hear and prints it.
 Events: ${Object.keys(SCRIPT_NAMES).join(', ')}, and dense, a full turn of up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second. An event at time t is a press at t. Combat starts at 0.
 
 Switches, the first value is the default:
   --parts    band: the conductor brings parts in and out by heat. all: every part always plays, as in /blocks.html.
-  --answers  band: each event is answered by its parts from the block playing. fills: drum fills, as in /blocks.html.
+  --answers  band: each event is also answered by its parts from the block playing. off: only the cymbal lane and guitar lean that heavy events open, as in /blocks.html.
   --jumps    fade: everything fades in 30 ms, as in /blocks.html. ring: on a jump the old block's bass, guitar and vocals play on into the song's next bar while they decay.
 
 Output:
@@ -192,8 +192,8 @@ function blocksText(session) {
 }
 
 function leanText(session, p) {
-  const lean = session.blocks.leans.find((l) => l.from >= p.start - 1e-6 && l.from < p.end - 1e-6);
-  return lean ? `guitar leans in at ${lean.from.toFixed(2)} until ${lean.to.toFixed(2)}` : '';
+  const opened = session.blocks.overlays.filter((l) => l.from >= p.start - 1e-6 && l.from < p.end - 1e-6);
+  return opened.map((l) => `${l.lane === 'guitars' ? 'guitar lean' : 'cymbals'} ${l.from.toFixed(2)} to ${l.to.toFixed(2)}`).join(', ');
 }
 
 function bandText(session) {
@@ -238,12 +238,12 @@ function summaryText(session, rendered, seconds) {
   const bars = barsOf(session, seconds);
   const busy = JAM_PARTS.map((part) => `${part} ${Math.round((100 * bars.filter((p) => windowDb(rendered[part], p.start, p.start + session.barSeconds) >= SILENT_DB).length) / bars.length)}%`);
   const answered = session.presses.filter((p) => p.answers.length > 0).length;
-  const fills = session.takes.filter((k) => k.kind === 'fill').length;
+  const lanes = session.blocks.overlays.map((l) => l.lane);
   return [
     `Bars per role: ${Object.entries(roles).map(([r, b]) => `${r} ${b}`).join(', ')}`,
     `${blocks.filter((p) => p.join === 'jump').length} jumps in ${blocks.length} blocks`,
     `Bars each part sounds in: ${busy.join(', ')}`,
-    `Events answered by the band: ${answered} of ${session.presses.length}. Drum fills played: ${fills}`,
+    `Events answered by the band: ${answered} of ${session.presses.length}. Lanes opened: ${lanes.filter((l) => l === 'cymbals').length} cymbal, ${lanes.filter((l) => l === 'guitars').length} guitar lean`,
   ].join('\n');
 }
 
@@ -276,8 +276,10 @@ function main() {
   for (const part of JAM_PARTS) {
     const source = decode(path.join(SONG_DIR, song.parts[part]));
     rendered[part] = silence(length);
-    for (const take of session.takes.filter((k) => k.part === part)) renderTake(session, take, source, rendered[part]);
+    for (const take of session.takes.filter((k) => k.part === part && k.kind !== 'cymbal')) renderTake(session, take, source, rendered[part]);
   }
+  const cymbals = decode(path.join(SONG_DIR, song.cymbals.file));
+  for (const take of session.takes.filter((k) => k.kind === 'cymbal')) renderTake(session, take, cymbals, rendered.drums);
   writeWav(Object.values(rendered), o.out);
   const s = o.switches;
   console.log(`jam:sim ${o.events.map((e) => `${e.name}@${e.at}`).join(' ')} | seed ${o.seed} | ${seconds.toFixed(1)} s | parts ${s.parts}, answers ${s.answers}, jumps ${s.jumps} | bar ${session.barSeconds.toFixed(3)} s`);
