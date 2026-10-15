@@ -67,8 +67,6 @@ export class TouchGestures {
       case "pinch":
         this.endPinch();
         return null;
-      default:
-        throw new Error(`Touch pointer ${id} lifted in unknown phase ${String(finger.phase)}`);
     }
   }
 

@@ -634,8 +634,6 @@ export class Game {
         return this.touchTap(intent.x, intent.y);
       case "hold":
         return this.touchHold(intent.x, intent.y);
-      default:
-        throw new Error(`Unknown touch intent ${JSON.stringify(intent)}`);
     }
   }
 
@@ -676,8 +674,6 @@ export class Game {
         return;
       case "click":
         return this.onLeftClick(x, y, false);
-      default:
-        throw new Error(`Unknown touch tap ${JSON.stringify(tap)}`);
     }
   }
 
