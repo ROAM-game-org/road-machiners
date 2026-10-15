@@ -23,7 +23,7 @@ from typing import Optional
 from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
 from .observability import register_observation
-from .public import make_public_factory, watch_polling_conflicts
+from .public import make_public_factory, public_chats, watch_polling_conflicts
 from .readiness import Readiness, refusal
 from .status import register_status
 
@@ -577,7 +577,7 @@ async def _reply(gateway, event, text: str) -> None:
 def make_hook(cfg: Config, readiness: Readiness):
     async def on_dispatch(event, gateway, session_store, **kwargs):
         source = event.source
-        if str(source.chat_id) == cfg.discussion:
+        if str(source.chat_id) in public_chats(cfg):
             return {"action": "skip", "reason": "factory-public-discussion"}
         if not cfg.committee.is_member(source.user_id):
             return {"action": "skip", "reason": "factory-not-committee"}

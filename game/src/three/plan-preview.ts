@@ -7,7 +7,7 @@ import { throttleFor } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { reportError } from "./crash";
-import { workerError } from "./travel";
+import { workerError, workerFailure } from "./travel";
 
 export function throttleColor(me: Vehicle, p: Vec): number {
   return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed)];
@@ -68,7 +68,10 @@ export class PlanPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<PreviewResponse>) => this.receive(event.data);
-    worker.onerror = (event) => this.fail(`Preview worker failed: ${event.message}`);
+    worker.onerror = (event) => {
+      event.preventDefault();
+      this.fail(workerFailure("Preview worker", event));
+    };
     worker.onmessageerror = () => this.fail("Could not read preview worker response");
     return worker;
   }

@@ -16,6 +16,8 @@ export const UI: Translation<typeof EN> = {
   'feedback.send': 'Отправить',
   'feedback.off': 'В этой сборке отчеты выключены.',
   'feedback.failed': 'Не удалось отправить. Попробуйте ещё раз.',
+  'feedback.limited': 'Лимит отчетов на этот час исчерпан. Вы сможете отправить снова через {n, plural, one {# минуту} few {# минуты} many {# минут} other {# минуты}}.',
+  'feedback.limitedLater': 'Лимит отчетов на этот час исчерпан. Вы сможете отправить снова позже.',
   'feedback.sent': 'Спасибо. Отчет отправлен.',
   'hud.overdriveNoEngine': 'Нет двигателя',
   'hud.overdriveWorn': 'Двигатель слишком изношен для форсажа. Нужна прочность выше {pct}% [O]',
