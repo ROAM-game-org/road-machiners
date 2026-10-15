@@ -11,10 +11,11 @@ import { clearSessions } from './sessions';
 import { readState, updateState } from './state';
 import { agentHome, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
+import { releaseBundle } from './stages/bundle';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
-import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, STUCK_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
+import { BRANCH, GAME_DIR, NEEDS_INFO_LABEL, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, SUPERSEDED_LABEL, TASK_FILE, VOTING_LABEL, isCleanupTask, type Card, type Column, type Ctx, type FactoryState, type ReleaseState } from './types';
 
 export const DROP_QUEUES = ['approval', 'removal', 'ship', 'change', 'incident'] as const;
 export type DropQueue = (typeof DROP_QUEUES)[number];
@@ -28,7 +29,8 @@ export type ControlAction =
   | { action: 'drop'; queue: DropQueue; id: number | null }
   | { action: 'merge-change'; id: number }
   | { action: 'hold'; issue: number }
-  | { action: 'unhold'; issue: number };
+  | { action: 'unhold'; issue: number }
+  | { action: 'supersede'; issue: number; commit: string };
 export type ControlCommand = ControlAction & { by: string; reason: string };
 
 type Outcome = { issue: number | null; text: string };
@@ -62,6 +64,15 @@ function requireOneOf<T extends string>(data: Data, name: string, allowed: reado
   return value as T;
 }
 
+export function commitHash(value: string | undefined): string {
+  if (value === undefined || !/^[0-9a-f]{7,40}$/.test(value)) throw new Error(`A supersede command needs a commit hash of 7 to 40 hex digits, not "${value ?? ''}".`);
+  return value;
+}
+
+function requireCommit(data: Data): string {
+  return commitHash(requireText(data, 'commit'));
+}
+
 function requireDropId(data: Data): number | null {
   if (data.id === null) return null;
   return requireNumber(data, 'id');
@@ -77,6 +88,7 @@ const SHAPES: { [A in ControlAction['action']]: (data: Data) => Extract<ControlA
   'merge-change': (data) => ({ action: 'merge-change', id: requireNumber(data, 'id') }),
   hold: (data) => ({ action: 'hold', issue: requireNumber(data, 'issue') }),
   unhold: (data) => ({ action: 'unhold', issue: requireNumber(data, 'issue') }),
+  supersede: (data) => ({ action: 'supersede', issue: requireNumber(data, 'issue'), commit: requireCommit(data) }),
 };
 
 export function parseControl(raw: unknown): ControlCommand {
@@ -115,7 +127,7 @@ function approves(command: ControlCommand): command is Extract<ControlCommand, {
 type Handlers = { [A in ControlAction['action']]: (ctx: Ctx, command: Extract<ControlCommand, { action: A }>, by: string) => Promise<Outcome> };
 
 const HANDLERS: Handlers = {
-  move, merge, ship, cut, remove, drop,
+  move, merge, ship, cut, remove, drop, supersede,
   'merge-change': async (ctx, command) => {
     await ctx.github.mergePullRequest(`factory-change/${command.id}`);
     return { issue: null, text: `Factory change ${command.id} is merged into main. The deploy follows.` };
@@ -275,6 +287,47 @@ async function move(ctx: Ctx, command: Extract<ControlCommand, { action: 'move' 
 function keptHold(held: FactoryState['held'], key: string, to: MoveTarget): FactoryState['held'] {
   if (!(key in held)) return held;
   return to === 'done' ? omitKey(held, key) : { ...held, [key]: { ...held[key], stage: null } };
+}
+
+function requireSupersedable(ctx: Ctx, card: Card): void {
+  const { issue } = card;
+  const key = String(issue);
+  const state = readState(ctx.statePath);
+  if (key in state.approvedResolving || key in state.pendingApprovals) throw new Error(`Issue #${issue} is approved by the committee. Only a member drops approved work, with move ${issue} done.`);
+  if (card.labels.includes(RELEASE_TASK_LABEL)) throw new Error(`Issue #${issue} is a task of the open release. The release flow owns it.`);
+  const branchJob = state.jobs.find((job) => job.issue === issue && !CARD_JOBS.includes(job.stage));
+  if (branchJob !== undefined) throw new Error(`Issue #${issue} has a running ${branchJob.stage} job. Repeat the order after it ends.`);
+  if (Object.values(state.unroutedReplies).some((reply) => reply.issue === issue)) throw new Error(`Issue #${issue} has a committee reply waiting for its route. Route it first.`);
+}
+
+async function coveringBranch(ctx: Ctx, commit: string): Promise<string> {
+  await ctx.repo.fetch();
+  for (const branch of ['main', 'dev']) if (await ctx.repo.isMerged(commit, branch)) return branch;
+  throw new Error(`Commit ${commit} is on neither main nor dev. Only merged work supersedes a card.`);
+}
+
+async function supersede(ctx: Ctx, command: Extract<ControlCommand, { action: 'supersede' }>, by: string): Promise<Outcome> {
+  const { issue, commit } = command;
+  const card = await requireWorkCard(ctx, issue);
+  if ((await ctx.github.issue(issue)).state === 'CLOSED') throw new Error(`Issue #${issue} is closed already.`);
+  requireSupersedable(ctx, card);
+  const branch = await coveringBranch(ctx, commit);
+  const link = `https://github.com/${ctx.cfg.repo}/commit/${commit}`;
+  const text = `Superseded by ${link} on ${branch}, which already does what this issue asks. The factory stopped this card's work, closed its pull request unmerged and closed the issue as completed. A report of the same error from a later build reopens it.`;
+  if (card.column !== 'Done') {
+    await relocate(ctx, card, [], {
+      column: 'Done',
+      step: 'superseded',
+      status: `↪️ Superseded by ${commit} on ${branch}, ordered by ${by}`,
+      dropsApproval: true,
+      enter: (state) => ({ ...state, held: omitKey(state.held, String(issue)), builds: omitKey(state.builds, String(issue)) }),
+    });
+  }
+  if ((await ctx.github.pullRequestFor(BRANCH(issue))) !== null) await ctx.github.closePullRequest(BRANCH(issue), text);
+  await ctx.github.addLabel(issue, SUPERSEDED_LABEL);
+  await ctx.github.close(issue, 'completed');
+  await releaseBundle(ctx, issue, `was superseded by ${commit}`);
+  return { issue, text };
 }
 
 async function merge(ctx: Ctx, command: Extract<ControlCommand, { action: 'merge' }>, by: string): Promise<Outcome> {

@@ -12,7 +12,7 @@ const DELIVERY_STAGES: DeliveryStage[] = ['triage', 'design', 'implementation', 
 const STEP_KINDS: Record<CardStep, StepKind> = {
   entered: 'path', accepted: 'path', voted: 'path', planned: 'path', built: 'path', patched: 'path', posted: 'path', approved: 'path', hardened: 'path', merged: 'path',
   questions: 'loop', rebuild: 'loop', 'plan-wrong': 'loop', 'review-failed': 'loop', patch: 'loop', redesign: 'loop', 'patch-replan': 'loop', conflict: 'loop', removed: 'loop', unbundled: 'loop',
-  'triage-wont-do': 'end', 'design-wont-do': 'end', bundled: 'end', denied: 'end', dropped: 'end',
+  'triage-wont-do': 'end', 'design-wont-do': 'end', bundled: 'end', denied: 'end', dropped: 'end', superseded: 'end',
   moved: 'other', 'merge-ordered': 'other', shipped: 'other', reported: 'other',
 };
 const GATES: Record<Gate, { pass: CardStep[]; reject: CardStep[] }> = {

@@ -25,6 +25,9 @@ let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
 let editFails = false;
+let merged: Record<string, string[]> = {};
+let openPulls: string[] = [];
+let closedIssues: number[] = [];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -39,7 +42,9 @@ function fakeCtx(): Ctx {
         if (moveFails) throw new Error('board down');
         calls.push(`move ${n} ${column}`);
       },
-      pullRequestFor: async () => null,
+      pullRequestFor: async (branch: string) => (openPulls.includes(branch) ? `https://github.com/o/r/pull/${branch}` : null),
+      closePullRequest: async (branch: string, body: string) => { calls.push(`closePullRequest ${branch} ${body}`); },
+      issue: async (n: number) => ({ number: n, title: `Issue ${n}`, state: closedIssues.includes(n) ? 'CLOSED' : 'OPEN' }),
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
@@ -65,6 +70,7 @@ function fakeCtx(): Ctx {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
       },
+      isMerged: async (commit: string, branch: string) => (merged[branch] ?? []).includes(commit),
     },
   } as unknown as Ctx;
 }
@@ -102,6 +108,9 @@ beforeEach(() => {
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
   editFails = false;
+  merged = {};
+  openPulls = [];
+  closedIssues = [];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
   calls = [];
@@ -123,7 +132,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }, { action: 'supersede', issue: 4, commit: 'abcdef1' }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -550,6 +559,107 @@ describe('move and merge preconditions and write order', () => {
     expect(calls).toContain('move 4 Done');
     expect(readState(statePath).approvalPosts).toEqual({ 43: 5 });
     expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card').map((line) => line.kind === 'card' && line.step)).toEqual(['dropped', 'dropped']);
+  });
+});
+
+describe('supersede', () => {
+  const FIX = 'a1b2c3d';
+  const cardLines = () => readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'card');
+
+  function testingCard(): void {
+    cards = [card(4, 'Testing', ['bug', 'error-report'])];
+    openPulls = ['factory/issue-4'];
+    merged = { main: [FIX] };
+    seed({
+      jobs: [JOB], interrupted: [4], builds: { 4: 'b4' }, bundles: { 4: [8] },
+      held: { 4: { by: 'Ann', reason: 'r', at: 'a', stage: 'verify' } },
+      approvalPosts: { 42: 4 }, postCaptions: { 42: 'Post four' },
+    });
+  }
+
+  it('stops the card job, closes its post and pull request unmerged, labels it, closes the issue as completed and leaves one issue comment', async () => {
+    testingCard();
+    await applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX, by: 'hermes' }));
+    expect(killed).toEqual(['77 verify-4-x']);
+    const state = readState(statePath);
+    expect(state).toMatchObject({ jobs: [], interrupted: [], approvalPosts: {}, builds: {}, held: {}, bundles: {} });
+    expect(calls).toContain(`editCaption 42 Post four\n\n↪️ Superseded by ${FIX} on main, ordered by Hermes`);
+    expect(calls).toContain('move 4 Done');
+    expect(calls.find((call) => call.startsWith('closePullRequest factory/issue-4'))).toContain(`https://github.com/o/r/commit/${FIX}`);
+    expect(calls).toContain('addLabel 4 superseded');
+    expect(calls).toContain('close 4 completed');
+    expect(calls).not.toContain('addLabel 4 wont-do');
+    expect(calls.some((call) => call.startsWith('mergePullRequest'))).toBe(false);
+    const comments = calls.filter((call) => call.startsWith('comment 4 '));
+    expect(comments).toHaveLength(1);
+    expect(comments[0]).toContain(`Superseded by https://github.com/o/r/commit/${FIX} on main`);
+    expect(comments[0]).toContain('Ordered by Hermes.');
+    expect(cardLines().map((line) => line.kind === 'card' && `${line.issue} ${line.step}`)).toEqual(['4 superseded', '8 unbundled']);
+    expect(readLedger(ROOT, new Date(0)).some((line) => line.kind === 'job' && line.outcome === 'stopped')).toBe(true);
+  });
+
+  it('sends a bundled issue back to triage, so its own report stays open', async () => {
+    testingCard();
+    await applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX }));
+    expect(calls).toContain('removeLabel 8 bundled');
+    expect(calls).toContain('move 8 Triage');
+    expect(calls).not.toContain('close 8 completed');
+  });
+
+  it('refuses a commit on neither main nor dev and changes nothing, so an open alternative never closes a card', async () => {
+    testingCard();
+    merged = { 'factory/issue-530': [FIX] };
+    await expect(applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX, by: 'hermes' }))).rejects.toThrow('on neither main nor dev');
+    expect(killed).toEqual([]);
+    expect(calls.filter((call) => call !== 'fetch')).toEqual([]);
+    expect(readState(statePath).jobs).toEqual([JOB]);
+  });
+
+  it('takes a commit on dev', async () => {
+    testingCard();
+    merged = { dev: [FIX] };
+    await applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX }));
+    expect(calls.find((call) => call.startsWith('comment 4'))).toContain('on dev');
+  });
+
+  it.each([
+    ['an approved card', { approvedResolving: { 4: 'Bob' } }, [], 'approved by the committee'],
+    ['a queued approval', { pendingApprovals: { 4: 'Bob' } }, [], 'approved by the committee'],
+    ['a running approve job', { jobs: [{ ...JOB, id: 'approve-4-x', stage: 'approve' as const }] }, [], 'running approve job'],
+    ['a running incident job', { jobs: [{ ...JOB, id: 'incident-4-x', stage: 'incident' as const }] }, [], 'running incident job'],
+    ['a merge batch', { jobs: [{ ...JOB, id: 'merge-x', stage: 'merge' as const, issue: null, batch: [4] }] }, [], 'merging now'],
+    ['an unrouted committee reply', { unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' } } }, [], 'committee reply'],
+    ['a release task', {}, ['release-task'], 'task of the open release'],
+  ])('refuses %s and changes nothing', async (_name, patch, labels, error) => {
+    cards = [card(4, (patch as Partial<FactoryState>).jobs?.[0]?.stage === 'merge' ? 'Merging' : 'Testing', labels as string[])];
+    merged = { main: [FIX] };
+    seed(patch as Partial<FactoryState>);
+    const before = readState(statePath);
+    await expect(applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX, by: 'hermes' }))).rejects.toThrow(error as string);
+    expect(readState(statePath)).toEqual(before);
+    expect(calls.filter((call) => call !== 'fetch')).toEqual([]);
+  });
+
+  it('refuses the release card, a card off the board and a closed issue', async () => {
+    merged = { main: [FIX] };
+    cards = [card(20, 'Approval', ['release'])];
+    await expect(applyControl(fakeCtx(), command({ action: 'supersede', issue: 20, commit: FIX }))).rejects.toThrow('release tracking card');
+    await expect(applyControl(fakeCtx(), command({ action: 'supersede', issue: 5, commit: FIX }))).rejects.toThrow('not on the board');
+    cards = [card(4, 'Done')];
+    closedIssues = [4];
+    await expect(applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX }))).rejects.toThrow('closed already');
+  });
+
+  it('finishes a repeated order on a card already in Done whose issue stayed open', async () => {
+    cards = [card(4, 'Done', ['superseded'])];
+    merged = { main: [FIX] };
+    await applyControl(fakeCtx(), command({ action: 'supersede', issue: 4, commit: FIX }));
+    expect(calls).not.toContain('move 4 Done');
+    expect(calls).toContain('close 4 completed');
+  });
+
+  it('rejects a command whose commit is no hash', () => {
+    expect(() => parseControl({ by: 'Ann', reason: 'r', action: 'supersede', issue: 4, commit: 'main' })).toThrow('commit hash');
   });
 });
 

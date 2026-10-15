@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DROP_QUEUES, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
+import { DROP_QUEUES, commitHash, isGated, resolveActor, writeControl, type ControlAction, type DropQueue } from './control';
 import { previewOverlaps } from './overlap';
 import { pauseFile, pausedReason } from './pause';
 import { publicRows } from './public/overview';
@@ -52,6 +52,7 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
+  supersede: { usage: 'supersede N <commit>', help: "close a card whose work a commit on main or dev already does: stop its job, close its post and pull request unmerged, label it superseded, close the issue as completed with one comment that links the commit, and send its bundled issues back to triage. Refuses an approved card, a release task, a running branch job, an unrouted committee reply and a commit on neither branch", build: ([n, commit]) => ({ action: 'supersede', issue: number(n), commit: commitHash(commit) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
 

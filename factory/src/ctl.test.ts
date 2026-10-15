@@ -7,6 +7,7 @@ import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
 
 vi.mock('./control', async (importOriginal) => ({
   DROP_QUEUES: (await importOriginal<{ DROP_QUEUES: readonly string[] }>()).DROP_QUEUES,
+  commitHash: (await importOriginal<{ commitHash: (value: string | undefined) => string }>()).commitHash,
   resolveActor: (_ctx: unknown, by: string, gated: boolean) => {
     if (by === 'hermes' && gated) throw new Error('hermes cannot order this');
     if (by !== 'hermes' && by !== 'ann') throw new Error(`unknown actor ${by}`);
@@ -80,9 +81,15 @@ describe('write commands', () => {
     [['merge-change', '9'], { action: 'merge-change', id: 9 }],
     [['pause-card', '5'], { action: 'hold', issue: 5 }],
     [['resume-card', '5'], { action: 'unhold', issue: 5 }],
+    [['supersede', '5', 'a1b2c3d'], { action: 'supersede', issue: 5, commit: 'a1b2c3d' }],
   ])('%j writes %j', async (args, action) => {
     await run(fake(), ...args, '--by', 'ann', '--reason', 'because');
     expect(stored()).toEqual({ kind: 'control', ...action, by: 'ann', reason: 'because' });
+  });
+
+  it('refuses a supersede with no commit hash before it writes anything', async () => {
+    await expect(run(fake(), 'supersede', '5', 'main', '--by', 'hermes', '--reason', 'r')).rejects.toThrow('commit hash');
+    expect(existsSync(join(ROOT, 'inbox'))).toBe(false);
   });
 });
 
@@ -203,7 +210,7 @@ describe('read commands', () => {
 
   it('help lists every command', async () => {
     await run(fake(), 'help');
-    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'retry N', 'pause', 'resume', 'repair-clone N']) {
+    for (const name of ['status', 'cards', 'card N', 'jobs', 'queues', 'release', 'failures', 'stuck', 'log N', 'audit', 'public', 'move N', 'merge N', 'ship', 'cut', 'remove N', 'drop', 'merge-change', 'pause-card N', 'resume-card N', 'supersede N', 'overlaps', 'retry N', 'pause', 'resume', 'repair-clone N']) {
       expect(out.some((line) => line.startsWith(name))).toBe(true);
     }
   });
