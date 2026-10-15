@@ -117,21 +117,21 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 
 ## Balance evidence
 
-`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each with `--physics true`, with the numbers in this page, gave:
+`npm run escort:report` reads the escort and sprinter recorder logs. The last batch, 1600 turns each with `--physics true`, with the numbers in this page, gave:
 
-- Measured gear share of pay on both trucks: median 0.41 over 109 outposts, against the 0.3 `gearShare` the danger uses. The danger rule defines that share as what the escort bot spends, so it needs a re-measure in the next balance pass.
-- Beatable passes with no margin: 6 of 10 escort seeds beat stretch 10, and 15 of 20 on seeds 1 to 20. The seeds that fail lose the hauler to a group of two or three trucks within a turn or two, or lose the gun truck.
-- Fight fails: 67 of 110 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort fires only after a truck shot it, and keeps firing while that truck stays in sight.
-- React fails: 2 of 3 stretches begun at 90% or better lost the hauler in under 10 turns. Damage, Variety, Choice and Rise pass: the hauler took damage on 94 of 118 stretches, the enemy mix changed on 8 or 9 of 9 transitions in every full run, 58 of 110 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 11 on stretches 1 to 3 to 90 on stretches 8 to 10.
+- Measured gear share of pay on both trucks: median 0.56 over 301 outposts, against the 0.3 `gearShare` the danger uses. The danger rule defines that share as what the escort bot spends, so it needs a re-measure in the next balance pass.
+- Beatable passes: 18 of 20 escort seeds beat stretch 10 on seeds 1 to 20, and 14 of 20 on seeds 21 to 40, which is 32 of 40. Of the 8 misses, 3 are sim defects (a hauler stall and two scene errors) and 5 are a gun truck wrecked by one or two trucks.
+- Fight fails: 0 of 302 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort never fires. Hostile groups shoot only the hauler unless the gun truck shoots them or crashes into them, so a quiet gun truck is barely punished, and an armored hauler drives through. Every escort variant that fired, guarded the hauler, dueled a lone truck or ran from fights scored lower than the quiet one, from 7 to 15 of 20 against 16 to 18 of 20.
+- React fails: 1 of 2 stretches begun at 90% or better lost the hauler in under 10 turns. Damage, Variety, Choice and Rise pass: the hauler took damage on 243 of 316 stretches, the enemy mix changed on 8 or 9 of 9 transitions in every full run, 174 of 302 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 19 on stretches 1 to 3 to 65 on stretches 8 to 10.
 - Not sprintable fails: 3 of 10 sprinter seeds lost the run before stretch 10. The sprinter bot is unchanged from before the escort work, which gave the same 3 of 10.
-- The hauler can stall for good in physics. When the gun truck rides beside the hauler, the semi stops against the ground at the start of some road bends on 2 of 10 seeds and the recorder fails the run on a `stall` event. It does not stall with the gun truck 10 tiles behind in the hauler's lane.
+- The hauler can stall for good in physics, 15 to 17 tiles off the road with speed 0, and the recorder fails the run on a `stall` event. It raised 8 stalls in 60 seeds after the hauler-stall merge. Three runs ended on `Stretch N has no room for 4 scenes between arenas of 36 tiles`, at stretches 8, 11 and 20.
 
 Bot constants and the batches behind them:
 
-- `FOLLOW_BEHIND` is 10 tiles in the hauler's lane. With the gun truck beside the hauler, or 3 tiles behind in the next lane, seeds 4 and 9 stalled. At 10 tiles in the lane none stalled, and 15 of 20 seeds beat stretch 10 against 14 of 20 beside the hauler, on the same older flee rule.
-- `HAULER_SHARE` is 15% of gear money for hauler armor. It is the value the bot had before. Raising it to 40% gave 13 of 20 seeds beating stretch 10 against 13 of 20 at 15%, so there is no evidence for a change.
-- `FOCUS_REACH_FROM_HAULER` is `FURY_ROAD.pacing.near`, 30 tiles, the radius that holds an encounter on. It only picks which foe the guns aim at, and no batch isolates it.
-- The bot runs ahead only after a truck shot it. A rule that ran ahead whenever a hostile truck was in sight gave 11 of 20 seeds, against 15 of 20 for the shot rule. Standing to fight every group it rated winnable gave 11 of 20, and a bot that never fired gave 15 of 20.
+- `FOLLOW_BEHIND` is 10 tiles in the hauler's lane. Before the hauler-stall merge, a gun truck beside the hauler or 3 tiles behind in the next lane stalled seeds 4 and 9, and at 10 tiles in the lane none stalled. After the merge, 40 tiles behind gave 16 of 20 and 14 of 20 against 18 of 20 and 14 of 20 at 10 tiles.
+- `HAULER_SHARE` is 100% of gear money on hauler armor. At 15% the quiet bot gave 16 of 20, at 50% 8 of 20 and at 100% 17 of 20, so only the extremes are measured and the middle value is noise or an interaction with the truck purchase.
+- Truck first, then saving: among runs that bought a truck by stretch 6, 15 of 16 beat stretch 10 against 90 of 121 that kept the scout. Saving for a truck within reach of the next pay raised the quiet bot from 17 of 20 to 18 of 20.
+- Auto repair ranks a holed tank last, so a bot that let it patch wheels first ran dry with 4 patch parts unused. The bot now turns auto repair off and patches the tank first.
 
 ## Defeat
 

@@ -41,31 +41,31 @@ TDD: yes for the pure choices. The batch run checks the whole bot.
 ## Conclusion
 
 ### Hands-off decisions
-- An earlier version of the bot read `brain.attackers` of hostile trucks, which is hidden NPC state. Review found it. Every result that used it is void, including 18 of 20 and 20 of 20. That key is set on every spawned group truck by its feud on the player, so it warned the bot of groups before it could see them. Run with the key back in place it gave 20 of 20 seeds, so the hidden read was the whole gain. The bot now reads only the last turn's `shot` events aimed at its truck and the hostile trucks in sight.
-- Behaviors were judged by 20-seed batches with `--physics true`. Stretch 10 reached: baseline bot 3 of 10 on 3 seeds with early losses, one target plus stand-off plus break-off about 9 of 20, the same bot standing to shoot 11 of 20, a bot that never fired 15 of 20 with the gun truck behind the hauler. Those used the old hidden read only in the sense that it was absent, so they stand.
-- Visible rules, 20 seeds each: run ahead and fire after a shot, plus keep running while a hostile stays in sight, 15 of 20. The same counting only shots from trucks in sight, 14 of 20. Run ahead whenever a hostile is in sight 11 of 20. Hauler armor share of 40% instead of 15%, 13 of 20 against 13 of 20.
-- Cut for no measurable gain: ram opening, guard from the verge, body-blocking, break-off point, stand-off distance, saving for a truck, and odds or gear-value engage rules. Fighting groups the bot rated winnable lost more runs than holding fire. `fightOdds` rated 85 to 93 percent on fights the bot lost.
-- Kept: one target for the guns (`pickTarget`), the truck-first shop with a pace check (`bestTruck`, `keepsPace`), the engine douse at the heat warning, and the ride 10 tiles behind the hauler in its lane.
-- The gun truck rides behind the hauler in its lane and not beside it. Beside the hauler, the physics hauler stalls for good on 2 of 10 seeds (a sim defect, see Deferred).
-- Patch goods stay at 4. Eight goods cost enough gear money that every kit stayed at one MG and 10 of 10 runs died by stretch 8.
-- The sprinter path keeps its old shop order, so its results did not move.
-- `BEATABLE_SEEDS` in `escort:report` is unchanged, as the coordinator asked. The report counts the seeds against 6, and this task judges against 9.
-- The coordinator changed the goal: the bot must play competently, not copy the user's run. The Goal, the last Context bullet and the Design were rewritten. Ram-opening, verge guarding and saving for a truck are no longer required, and each behavior is kept only if batches show it wins more.
-- The user raised the target from 6 to 9 of 10 seeds. The Goal says so, and the final 10-seed batch is judged against 9.
+- An earlier version of the bot read `brain.attackers` of hostile trucks, which is hidden NPC state. Review found it. Every result that used it is void. That key is set on every spawned group truck by its feud on the player, so it warned the bot of groups before it could see them. The bot now reads only its own trucks, the outpost stock and, in earlier versions, shots it saw.
+- Branches run-log and hauler-stall were merged into escort-bot, local only. The recorder now writes `<bot>-<seed>.stream.jsonl` and `run:timeline` reads it.
+- Behaviors were judged by 20-seed batches with `--physics true`, counting seeds that beat stretch 10. The score is noisy, about plus or minus 2 seeds, so a change counted only when it moved the score by more than that or fixed a named failure.
+- Result on the judged seeds 1 to 20, by variant, with the same shop (tank first, truck first) unless noted. Run ahead after a shot, 15 of 20. Never fire and never run, 16 of 20. Fire and stand when a lone truck shot the gun truck, 9 of 20. Fire and run when the hauler is shot, 7 of 20 with the gun truck 4 tiles behind. Fight when the gun truck outguns a group by gear value, 8 of 20 and 11 of 20 in the two earlier forms. Never fire, all gear money to the hauler, 17 of 20. The same, saving for a better truck, 18 of 20.
+- The shipped bot never fires and never runs. Every variant that made the gun truck fight, guard, duel or decoy scored lower than the variant that left it quiet, so the bot is not a competent fighter. The gun truck wins nothing by fighting at this skill, and the diagnosis table shows why: groups of two trucks out-damage a scout in a few turns.
+- Shop: the bot spends the money after repairs, fuel and patch goods on a better truck first. It buys the most valuable truck it can pay that keeps pace with the hauler's top speed after damage. When a better truck is within reach of the next pay but not yet affordable, it saves and spends nothing on gear. It puts all remaining gear money on hauler armor (`HAULER_SHARE` is 1). Among runs that bought a truck by stretch 6, 15 of 16 beat stretch 10, against 90 of 121 that kept the scout.
+- Repairs: auto repair is off while the tank is holed, and the bot patches the tank first. It parks to patch any broken core part out of combat. It douses a hot engine at the heat warning. Seeds 8 and 13 had lost the run to a leaking tank that auto repair ranks last.
+- The gun truck rides 10 tiles behind the hauler in its lane. Riding beside the hauler was not tried after the hauler-stall merge. 40 tiles behind gave 16 of 20 and 14 of 20, no better than 10 tiles behind.
+- Patch goods stay at 4. Eight goods cost enough gear money that every kit stayed at one MG.
+- The sprinter path keeps its old shop order and behavior, and its batch gave 3 of 10 losing before stretch 10, as before the escort work.
+- `BEATABLE_SEEDS` in `escort:report` is unchanged.
+- The coordinator changed the goal: the bot must play competently, not copy the user's run. The user raised the target from 6 to 9 of 10 seeds, then to 18 of 20 on seeds 1 to 20.
 
 ### Deferred (needs user input)
-- The bot misses the 9 of 10 bar: 6 of 10 on seeds 1 to 10 and 15 of 20 on seeds 1 to 20, with no hidden read. The hidden read gave 20 of 20, so early warning of a group decides the run. A player sees a group only at the sight radius. Decide whether the bar needs a scanner purchase, a bot that reads the hauler's alarm, or a balance change.
-- Game design: a gun truck that never fires is barely punished. Hostile groups shoot only the hauler, and a bot that never fired beat stretch 10 on 15 of 20 seeds.
-- Sim defect: with the gun truck beside the hauler, the physics hauler stops against the ground at the start of some bends and raises `stall` (seed 4 at turn 20, seed 9 at turn 438, window 0 and later). Alone or with the gun truck far behind it passes. Not fixed, since sim rules are out of scope.
-- The Not sprintable criterion already failed before this work: 3 of 10 sprinter seeds lost before stretch 10. IV3 cannot hold on today's balance. Not touched.
-- The Choice criterion fails (55 of 161 outposts): the escort spends money on repairs and a truck, so fewer outposts show more useful parts than money. It is a balance criterion for later tuning.
-- The wiki defines the danger's gear share as what the escort spends on parts. The old bot measured 0.31 against the 0.3 `gearShare`. The new bot measures 0.43, so balance tuning must re-measure `gearShare`.
-- Stall after the hauler-stall merge: seed 10 raised a `stall` for the hauler at turn 1159 near (199.3, 190.1). The hauler had been moving at 3 to 4 tiles a turn before it, with the gun truck 18 tiles behind. Not worked around.
+- The bar holds on the judged seeds and not on fresh ones. The shipped bot beat stretch 10 on 18 of 20 on seeds 1 to 20 and on 14 of 20 on seeds 21 to 40, which is 32 of 40 pooled. Of the 8 failures, 3 are sim defects (a hauler stall and two scene errors) and 5 are the gun truck wrecked by one or two trucks. Without the sim defects the pooled rate is 32 of 37.
+- Game design: the bot wins by holding fire and putting its money on the hauler. Hostile groups shoot only the hauler unless the gun truck shoots first or crashes into them, so a quiet gun truck is barely punished. The Fight criterion reads 0 of 302. Decide whether groups must punish a quiet gun truck, since any bot that fights scored lower here.
+- Sim defect, hauler `stall`, which raises the recorder error. The hauler sits at speed 0 on a `through` order with 74 to 95 percent hp and 15 to 17 tiles off the road. Seen after the hauler-stall merge: seed 19 at T753 near (186.6, 238.5); seed 28 at T841 near (205.3, 299.0); seed 25 at T301 near (239.0, 213.4); seed 31 at T673 near (195.6, 265.5); seed 6 at T193 near (206.8, 281.1); seed 10 at T1159 near (199.3, 190.1); seeds 1 and 3 at T1532 and T1574. In seed 6 the hauler hit barriers 147 and 148, drove off the road and rammed deadTruck-155 for 12 turns. Not worked around.
+- Sim defect, scene generation: `Stretch N has no room for 4 scenes between arenas of 36 tiles` ends the run for seed 34 at stretch 8 (T473), seed 38 at stretch 11 (T719) and seed 15 at stretch 20 (T1444).
+- The gear share the danger rule assumes (0.3) differs from what the bot spends: 0.56 over 301 outposts. Balance tuning must re-measure `gearShare`.
+- The Not sprintable criterion already failed before this work and still reads 3 of 10. IV3 cannot hold on today's balance.
 - UK1 stays open: `escort:report` still reads `run.jsonl`.
 
 ### Diagnosis of the lost runs (seeds 1 to 20, no hidden read, after merging run-log and hauler-stall)
 
-Batch `game/tmp/d1/`: 13 of 20 beat stretch 10. Read with `run:timeline --by stretch` and the turn logs. The seven runs that ended before stretch 10:
+Batch `game/tmp/d1/` (the bot before the shop and repair changes): 13 of 20 beat stretch 10. Read with `run:timeline --by stretch` and the turn logs. The seven runs that ended before stretch 10:
 
 | Seed | Stretch | Lost | Enemy kit | Damage | Fight length | What the bot did | What a competent player does |
 |---|---|---|---|---|---|---|---|
@@ -77,16 +77,18 @@ Batch `game/tmp/d1/`: 13 of 20 beat stretch 10. Read with `run:timeline --by str
 | 13 | 3 | stranded, run abandoned | buggy (slug cannon) | tank holed in the fight | 40 turns | Fled with a leaking tank, fuel 11 to 0 in 11 turns, then abandoned with 4 patch parts | Break away sooner and patch the tank the moment combat ends |
 | 15 | 3 | hauler | lincoln (battle rifle) | 277 on the hauler over 36 turns | 36 turns | Fired 20 rounds with 2 hits, then ran ahead; the lincoln stayed on the hauler | Stay with the hauler and keep firing, or ram the lincoln |
 
-Across all 20 seeds the bot sat about 18 tiles behind the hauler for most of every run, past the 12 tile range of an MG. Seed 10 raised a hauler `stall` at turn 1159 at (199, 190) after the merge, recorded under Deferred.
+Across those 20 seeds the bot sat about 18 tiles behind the hauler for most of every run, past the 12 tile range of an MG. Later batches showed the same shape for the gun truck: one truck that fires at it for 15 to 30 turns wrecks it, and it does not fire back. The causes by count over the failed runs of the later batches: gun truck wrecked by one or two trucks (most), hauler lost to a group of two or three trucks in one or two turns, tank leak or broken wheel left unpatched, and hauler or scene sim defects.
 
 ## Verify
 
-Final batch: `--physics true`, 1600 turns, seeds 1 to 10, with no hidden read. Logs: `game/tmp/final3/`. Visible-state version at the commit "Escort bot keeps running ahead while a hostile that shot it stays in sight".
+Final bot, `--physics true`, 1600 turns. Logs: `game/tmp/final4/` for seeds 1 to 20 and `game/tmp/o0/` for seeds 21 to 40 of the same bot.
 
-Escort, last stretch beaten per seed: 10, 16, 11, 9, 8, 5, 12, 17, 15, 7. Seeds 1, 2, 3, 7, 8 and 9 beat stretch 10, which is 6 of 10 against the bar of 9. Seeds 11 to 20 gave 9 of 10 beating it, so 15 of 20 in all.
+Escort, last stretch beaten per seed 1 to 20: 14, 15, 17, 15, 2, 20, 13, 14, 14, 20, 20, 20, 16, 20, 12, 18, 15, 13, 9, 15. 18 of 20 beat stretch 10, which meets the bar. Seed 5 was wrecked at stretch 3 and seed 19 raised a hauler stall at stretch 9.
 
-Sprinter, last stretch beaten per seed: 8, 11, 6, 15, 7, 16, 11, 8, 10, 10. Seeds 1, 3 and 8 lost before stretch 10 (3 of 10). The sprinter bot is unchanged, and the batch before the escort work gave the same 3 of 10.
+Seeds 21 to 40: 14 of 20, with two scene errors and four wrecked gun trucks among the 6 misses. Pooled, 32 of 40.
 
-`escort:report` on the final batch: Beatable PASS (6 of 10, need 6), Damage PASS, Variety PASS, Choice PASS, Rise PASS, Fight FAIL (67 of 110), React FAIL (2 of 3), Not sprintable FAIL (3 of 10). The analyzer shows no stall, tow or dry tank.
+Sprinter, last stretch beaten per seed 1 to 10: 10, 7, 14, 14, 8, 8, 11, 16, 10, 16. Seeds 2, 5 and 6 lost before stretch 10.
 
-Tests: `escort-tactics.test.ts`, `runner.test.ts`, `bot.test.ts`, `escort-report.test.ts` and `recorder-mover.test.ts` pass, and `npm run typecheck` passes.
+`escort:report` on seeds 1 to 20 and the sprinter batch: Beatable PASS (18 of 20, need 6), Damage PASS, Variety PASS, Choice PASS, Rise PASS, Fight FAIL (0 of 302), React FAIL (1 of 2), Not sprintable FAIL (3 of 10).
+
+Tests: `escort-tactics.test.ts`, `runner.test.ts`, `run-timeline.test.ts`, `hauler.test.ts`, `hauler-drive.test.ts`, `escort-report.test.ts` and `record.test.ts` pass, and `npm run typecheck` passes.
