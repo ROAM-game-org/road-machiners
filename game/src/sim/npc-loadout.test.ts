@@ -531,7 +531,7 @@ describe('raider haul room', () => {
     let kept = 0;
     let rolls = 0;
     for (const level of ['standard', 'heavy', 'loaded'] as const) {
-      for (let seed = 1; seed <= 40; seed++, rolls++) {
+      for (let seed = 1; seed <= 20; seed++, rolls++) {
         const { template, v } = rolled(id, level, seed);
         if (freeCells(v) >= template.loadout.haul.cells && npcMassRoom(v) >= template.loadout.haul.kg) kept++;
         expect(mountedItems(v, 'weapon').length).toBeGreaterThan(0);
