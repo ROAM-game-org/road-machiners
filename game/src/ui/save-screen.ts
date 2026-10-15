@@ -2,9 +2,9 @@
 import type { CarryReport } from '../sim/world';
 import { bindAttr } from '../text/language';
 import { list, t, verbatim, type Msg } from '../text/msg';
-import { goodName, partName, settingName } from '../text/names';
+import { goodName, partName, questTitle, settingName } from '../text/names';
 import { WORLD_SETTINGS } from '../data/modes';
-import type { SaveError } from '../three/save';
+import type { LoadRepair, SaveError } from '../three/save';
 import type { SlotId } from '../three/save-slots';
 import { disabledWith, download, el, panel } from './dom';
 import { openNewGame, type NewGameActions } from './new-game';
@@ -63,11 +63,19 @@ export function chooseStart(newest: SlotId | null, newGame: NewGameActions): Pro
 }
 
 export function showCarryReport(report: CarryReport): Promise<void> {
+  const lines = [...repairLines(report.questsReset), ...carryLines(report), ...changeLines(report)];
+  return showReport(t('save.migrated'), lines.length === 0 ? [t('save.allCarried')] : lines);
+}
+
+export function showRepairReport(repair: LoadRepair): Promise<void> {
+  return showReport(t('save.repaired'), [...repairLines(repair.questsReset), ...changeLines(repair)]);
+}
+
+function showReport(title: Msg, lines: readonly Msg[]): Promise<void> {
   return new Promise((resolve) => {
-    const root = savePanel(t('save.migrated'));
-    const lines = reportLines(report);
+    const root = savePanel(title);
     root.append(
-      ...(lines.length === 0 ? [el('div', {}, t('save.allCarried'))] : lines.map((line) => el('div', {}, line))),
+      ...lines.map((line) => el('div', {}, line)),
       el('div', { class: 'death-buttons' }, el('button', { onclick: () => { root.remove(); resolve(); } }, t('save.driveOn'))),
     );
   });
@@ -87,12 +95,18 @@ function savePanel(title: Msg): HTMLElement {
   return root;
 }
 
-function reportLines(report: CarryReport): Msg[] {
+function repairLines(questsReset: readonly string[]): Msg[] {
+  return questsReset.length > 0 ? [t('save.questsReset', { quests: list(questsReset.map(questTitle)) })] : [];
+}
+
+function carryLines(report: CarryReport): Msg[] {
   const sold = report.sold.map((s) => t('save.sold', { n: s.units, good: goodName(s.good), money: moneyMsg(s.money) }));
+  return [...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []), ...sold];
+}
+
+function changeLines(changes: Pick<CarryReport, 'lost' | 'settingsReset'>): Msg[] {
   return [
-    ...(report.toGarage.length > 0 ? [t('save.toGarage', { parts: list(report.toGarage.map(partName)) })] : []),
-    ...sold,
-    ...(report.lost.length > 0 ? [t('save.lost', { ids: list(report.lost.map(verbatim)) })] : []),
-    ...report.settingsReset.map((id) => t('save.settingReset', { setting: settingName(id), pct: Math.round(WORLD_SETTINGS[id].default * 100) })),
+    ...(changes.lost.length > 0 ? [t('save.lost', { ids: list(changes.lost.map(verbatim)) })] : []),
+    ...changes.settingsReset.map((id) => t('save.settingReset', { setting: settingName(id), pct: Math.round(WORLD_SETTINGS[id].default * 100) })),
   ];
 }

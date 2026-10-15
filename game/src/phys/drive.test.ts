@@ -16,7 +16,7 @@ import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
 import { buildDrive, freeDrive, initPhysics, restWheels, routeAim, simulateTurn, syncDrive, tailKick, trailFrames, TURN_STEPS, type Drive, type TurnResult } from './drive';
-import { headingOf, upOf } from './frames';
+import { headingOf, rotateBy, upOf } from './frames';
 import { dropClearance, spillOil, type OilSpill } from '../sim/hazards';
 import { OIL, oilSlickLength } from '../data/utilities';
 import { physicsMove } from './turn';
@@ -180,6 +180,7 @@ function ordered(order: MoveOrder, speed = 0, heading = 0): World {
 const me = (w: World) => w.vehicles[0];
 const HILL_GRADE = 0.2;
 const LIMP_GRADE = 0.35;
+const CRAWL_GRADE = 0.53;
 const KICK_SEEN = 0.2;
 
 describe('physics turns', () => {
@@ -788,6 +789,30 @@ describe('physics turns', () => {
     const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 8);
     expect(me(w).pos.x).toBeGreaterThan(30);
     expect(me(w).speed).toBeGreaterThan(0.5);
+  }, budget(240_000));
+
+  it.each([0, -4])('a truck on a hill it can climb with a start speed of %s m/s drives up instead of backing away', async (start) => {
+    let w = emptyWorld({ x: 30, y: 30 });
+    w.player.fuel = 999;
+    const t = editableTerrain(w);
+    const n = t.size;
+    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) t.heights[j * (n + 1) + i] = Math.max(0, i - 20) * CRAWL_GRADE;
+    let d = buildDrive(w);
+    d.world.getRigidBody(d.bodies[me(w).id]).setLinvel({ x: start, y: start * CRAWL_GRADE, z: 0 }, true);
+    for (let i = 0; i < 8; i++) {
+      w = setMoveOrder(w, { kind: 'through', dest: { x: 50, y: 30 } });
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+      freeDrive(d);
+      d = next!;
+      expect(d.memory[me(w).id].backFrom).toBeNull();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+    const body = d.world.getRigidBody(d.bodies[me(w).id]);
+    const forward = rotateBy(body.rotation(), { x: 1, y: 0, z: 0 });
+    const v = body.linvel();
+    freeDrive(d);
+    expect(v.x * forward.x + v.y * forward.y + v.z * forward.z).toBeGreaterThan(0);
   }, budget(240_000));
 
   it('a limping courier crawls up a bank as steep as any chassis limps up', async () => {
