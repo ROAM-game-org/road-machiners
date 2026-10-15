@@ -7,7 +7,7 @@ import { markResumed, resumeError, resumedStage } from './sessions';
 import { BudgetError } from './stages/checkpoint';
 import { CommitteeDecisionError } from './diff-guard';
 import { EMPTY_STATE, readState, writeState } from './state';
-import type { Ctx, FactoryConfig, JobStage } from './types';
+import type { Ctx, FactoryConfig, FactoryState, JobStage } from './types';
 
 const ROOT = resolve('tmp/factory-job-test');
 
@@ -57,6 +57,18 @@ describe('runJob', () => {
     const ctx = { cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
     await runJob(ctx, 'merge', null);
     expect(readState(statePath).failures).toMatchObject([{ stage: 'merge', issue: null, error: 'offline', batch: [6, 7] }]);
+  });
+
+  it('writes the batch the merge job took while it ran on its ledger line', async () => {
+    rmSync(ROOT, { recursive: true, force: true });
+    mkdirSync(ROOT, { recursive: true });
+    const statePath = join(ROOT, 'state.json');
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'm', stage: 'merge', issue: null, pid: 1, startedAt: '', log: 'l' }] });
+    const takeBatch = (state: FactoryState): FactoryState => ({ ...state, jobs: state.jobs.map((job) => ({ ...job, batch: [8, 9] })) });
+    const github = { cards: async () => { writeState(statePath, takeBatch(readState(statePath))); throw new Error('offline'); } };
+    const ctx = { cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig, statePath, now: () => new Date(), log: () => undefined, github } as unknown as Ctx;
+    await runJob(ctx, 'merge', null);
+    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ id: 'm', stage: 'merge', outcome: 'failed', batch: [8, 9] }]);
   });
 
   describe('a failed card stage', () => {
@@ -139,14 +151,14 @@ describe('runJob', () => {
       container: { shell: async () => undefined },
     } as unknown as Ctx;
     await runJob(ctx, 'dev', null).catch(() => undefined);
-    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toEqual([{ kind: 'job', retryOf: null, id: 'dev-1', stage: 'dev', issue: null, startedAt: '2026-01-10T11:00:00Z', endedAt: '2026-01-10T12:00:00.000Z', outcome: expect.any(String), agents: [{ model: 'sonnet', costUsd: 0.5, minutes: 4 }] }]);
+    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toEqual([{ kind: 'job', retryOf: null, id: 'dev-1', stage: 'dev', issue: null, startedAt: '2026-01-10T11:00:00Z', endedAt: '2026-01-10T12:00:00.000Z', outcome: expect.any(String), log: join(ROOT, 'dev.log'), agents: [{ model: 'sonnet', costUsd: 0.5, minutes: 4 }], parts: [] }]);
   });
 
   it('clears the queued ship after a failed ship, and reports on the tracking issue', async () => {
     rmSync(ROOT, { recursive: true, force: true });
     mkdirSync(ROOT, { recursive: true });
     const statePath = join(ROOT, 'state.json');
-    writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'a', stage: 'ship', issue: 20, pid: 1, startedAt: '', log: 'l' }], pendingShip: 'Ann', release: { issue: 20, branch: 'release/x', day: 'd', postId: 5, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'a', stage: 'ship', issue: 20, pid: 1, startedAt: '', log: 'l' }], pendingShip: 'Ann', release: { issue: 20, branch: 'release/x', day: 'd', postId: 5, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
     const labels: string[] = [];
     const ctx = {
       cfg: {

@@ -18,6 +18,7 @@ import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { playerSees } from "../sim/vision";
 import { autoRuns, hostileToPlayer, playerCanAct } from "../sim/world";
+import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
   visible: Set<number>;
@@ -308,12 +309,6 @@ export function workerError(workerStack: string): Error {
   return error;
 }
 
-export function workerFailure(label: string, event: ErrorEvent): string {
-  if (typeof event.message === "string" && event.message !== "") return `${label} failed: ${event.message}`;
-  const where = event.filename ? ` (${event.filename}:${event.lineno})` : "";
-  return `${label} failed: script did not load or start${where}`;
-}
-
 export class TurnFailure extends Error {
   constructor(workerStack: string, readonly drive: DriveSnapshot) {
     const { name, message } = workerErrorHead(workerStack);
@@ -324,6 +319,7 @@ export class TurnFailure extends Error {
 }
 
 export class TurnPreparation {
+  private readonly load = new WorkerLoad("turn worker");
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
   private serial = 0;
@@ -341,6 +337,7 @@ export class TurnPreparation {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
+      this.load.loaded();
       const response = event.data;
       if ("error" in response) return this.fail(response.id, response.error);
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
@@ -348,10 +345,24 @@ export class TurnPreparation {
     };
     worker.onerror = (event) => {
       event.preventDefault();
+      if (worker !== this.worker) return;
+      if (this.load.failed(event, () => this.restart())) return this.dropWorker();
       this.fail(null, workerFailure("Turn worker", event));
     };
     worker.onmessageerror = () => this.fail(null, "Could not read turn worker response");
     return worker;
+  }
+
+  private dropWorker(): void {
+    this.worker?.terminate();
+    this.worker = null;
+    this.terrain = null;
+  }
+
+  private restart(): void {
+    const pending = this.pending;
+    if (!pending || pending.ready || pending.failure) return;
+    pending.id = this.post(pending.before, { ...pending.drive, snapshot: pending.drive.snapshot.slice() });
   }
 
   private fail(id: number | null, message: string): void {
@@ -377,6 +388,7 @@ export class TurnPreparation {
   private post(world: World, saved: DriveSnapshot): number {
     const { terrain, ...state } = world;
     const id = ++this.serial;
+    if (this.load.gaveUp || this.load.waiting) return id;
     this.worker ??= this.createWorker();
     this.worker.postMessage(
       {
