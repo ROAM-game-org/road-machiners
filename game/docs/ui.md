@@ -92,7 +92,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 
 | Zone | Job | Lives there |
 | --- | --- | --- |
-| Top left | System | Feedback button |
+| Top left | System, then the map | Feedback button, then the minimap |
 | Top center | Transient and waiting | Action bar at the edge, toast below it, then notices and tips |
 | Top right | System, then the cursor card | Menu and camera switch at the edge, the hover card below them |
 | Right side | Ambient and waiting on | Radio, then contracts |
@@ -231,7 +231,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 - Spacing steps run `--space-1` 2px to `--space-10` 32px. Padding, margin and gap use them. A 1px hairline and 0 stay raw.
 - `--radius-s` and `--radius-m` round corners. A circle stays `50%`.
 - `--icon-xs` 12px to `--icon-hero` 56px size icon boxes. `--meter-s`, `--meter-m` and `--meter-l` set bar heights, and `--pip` sets a rank pip or a footprint cell.
-- Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal.
+- Panel widths are `--panel-s` 260px, `--panel-m` 300px, `--panel-l` 420px and `--panel-xl` 520px. `--dock-width` is the right dock, and it narrows on small windows. `--modal-width` and `--modal-height` cap a modal. `--minimap-size` is the minimap disc and `--world-map-size` caps the full map and the charts drawing, since no panel width fits a square drawing. `--map-chrome` is the height the map shares with a modal's own header.
 - Phone layout: `--safe-top`, `--safe-right`, `--safe-bottom` and `--safe-left` are `--hud-inset` or the device inset, whichever is larger, and place every HUD zone. `--touch-target` is the smallest touch target, 32px. `--phone-readouts-h` is the height of the readouts in the bottom bar, and `--phone-bar-h` is the bar with its tabs.
 - HUD placement: `--hud-inset` from the window edge, `--hud-gap` between HUD panels, `--hud-hover-top` for the hover panel and `--hud-notice-top` for notices.
 - Layers run `--z-hud` to `--z-crash`. A new layer goes between two others in `tokens.css`, never as a raw number.
@@ -240,6 +240,7 @@ Name a token by its role, like `--ink-muted` or `--panel-l`, never by its value.
 
 Use a shared piece before writing a new rule. A screen may add its own layout to a piece, but not its own colors, type or frame.
 
+- `.map-view`: the square canvas of the map painter in `src/ui/map-view.ts`. The minimap shows a disc around the truck turned so screen up is up on the map, and the full map and the charts tab show the whole region as a diamond. It marks only explored ground, discovered sites (a square for a town, a dot for a place) and rumored wrecks (a dashed ring, since dashed means knowledge that is not exact). The minimap hides on windows 720px wide or less, where the top-centre notices span its place, and K still opens the full map. The pointer is `--ink-bright`, and only the selected chart sheet takes the accent. Explored ground is painted through the quest-art look: the ground colours go through the rust-to-cream ramp in 12 steps with part of the original colour and a light grain, so the map reads as drawn on paper (`paintBase` in `src/render/minimap-paint.ts`).
 - `.panel` is the base of every HUD box: panel surface, strong edge, shadow and the standard padding of `--space-4` by `--space-5`. The radio, the instruments and the weapons are drawn hardware and use the compact padding of `--space-2` by `--space-4`. Only the help panel sets its own, since its rows carry their own margins.
 - `.dialog` frames a modal, the save panel and the New game screen, with the scrim over the game and padding of `--space-9` on every side.
 - `.dock-panel` is a panel of the right dock: the log, the contracts and the radio.

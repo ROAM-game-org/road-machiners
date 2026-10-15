@@ -177,6 +177,8 @@ const STATES = {
   inventory: { setup: openInventory, teardown: escape },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown },
+  'world-map': { setup: (page) => key(page, 'KeyK'), teardown: escape },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },

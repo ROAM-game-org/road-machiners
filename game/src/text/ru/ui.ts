@@ -203,6 +203,7 @@ export const UI: Translation<typeof EN> = {
   'help.does.inventory': 'Инвентарь',
   'help.does.character': 'Персонаж',
   'help.does.journal': 'Журнал',
+  'help.does.map': 'Карта',
   'hitTip.weapon': 'Расшатанное оружие',
   'hitTip.range': 'Далеко',
   'hitTip.recoil': 'Отдача',

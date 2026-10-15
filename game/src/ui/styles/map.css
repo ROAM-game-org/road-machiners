@@ -1,0 +1,49 @@
+/* The map drawing is a square canvas that scales to its box. The minimap is a disc, the full map and the charts show the whole region as a diamond. */
+.map-view {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--surface-sunk);
+}
+#ui .minimap {
+  position: relative;
+  width: var(--minimap-size);
+  padding: 0;
+  border-radius: 50%;
+  overflow: visible;
+  cursor: pointer;
+}
+#ui .minimap .map-view {
+  border-radius: 50%;
+}
+#ui .minimap:is(:hover, :focus-visible) {
+  border-color: var(--line-bright);
+}
+.map-tip {
+  position: absolute;
+  z-index: var(--z-popup);
+  pointer-events: none;
+  white-space: nowrap;
+}
+#ui .world-map-screen .world-map-body {
+  position: relative;
+  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--space-10)));
+  margin: 0 auto;
+}
+.charts-map {
+  position: relative;
+  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--map-chrome)));
+  margin: 0 auto;
+}
+.charts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+}
+.charts-map .map-view {
+  cursor: pointer;
+}
+#ui .world-map-screen .close {
+  z-index: var(--z-popup);
+}

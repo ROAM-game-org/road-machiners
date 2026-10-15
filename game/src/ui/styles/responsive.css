@@ -1,4 +1,7 @@
 @media (max-width: 720px) {
+  #ui .minimap {
+    display: none;
+  }
   .speed-tip {
     position: fixed;
     left: var(--space-6);
