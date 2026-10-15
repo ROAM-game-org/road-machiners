@@ -43,7 +43,7 @@ export function isAlive(pid: number): boolean {
 }
 
 async function jobContainers(run: Run, id: string): Promise<string[]> {
-  const listed = must(await run('docker', ['ps', '-q', '--filter', `label=${jobLabel(id)}`]), 'docker ps');
+  const listed = must(await run('docker', ['ps', '-q', '--filter', `label=${jobLabel(id)}`], { activity: 'command' }), 'docker ps');
   return listed
     .split('\n')
     .map((line) => line.trim())
@@ -61,7 +61,7 @@ export async function killJob(run: Run, pid: number, id: string): Promise<void> 
 
 export async function removeJobContainers(run: Run, id: string): Promise<void> {
   for (const container of await jobContainers(run, id)) {
-    const result = await run('docker', ['rm', '-f', container]);
+    const result = await run('docker', ['rm', '-f', container], { activity: 'command' });
     if (!GONE.test(result.stderr)) must(result, `docker rm ${container}`);
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { moneyAmount, moneyDelta, moneyNumber, moneyText, turnsText } from './units';
+import { resolve } from '../text/resolve';
+import { agoText, moneyAmount, moneyDelta, moneyNumber, moneyText, turnsText } from './units';
 
 describe('money display', () => {
   it('reads cents as whole M', () => {
@@ -59,5 +60,14 @@ describe('money display', () => {
     expect(moneyText(-100)).toBe('−1 M');
     expect(() => moneyNumber(NaN)).toThrow();
     expect(() => moneyNumber(Infinity)).toThrow();
+  });
+});
+
+describe('ago text', () => {
+  it('says under an hour, then whole hours', () => {
+    expect(resolve(agoText(0), 'en')).toBe('under an hour ago');
+    expect(resolve(agoText(18), 'en')).toBe('under an hour ago');
+    expect(resolve(agoText(19), 'en')).toBe('about 1 hour ago');
+    expect(resolve(agoText(60), 'en')).toBe('about 3 hours ago');
   });
 });

@@ -191,7 +191,7 @@ describe('auto mounting on the deck', () => {
 
 function freeDeck(v: Vehicle): void {
   removeAllGoods(v);
-  v.items = v.items.filter((it) => it.kind === 'good' || !['mg', 'panniers'].includes(it.part.defId));
+  v.items = v.items.filter((it) => it.kind !== 'part' || !['mg', 'panniers'].includes(it.part.defId));
 }
 
 describe('stores', () => {

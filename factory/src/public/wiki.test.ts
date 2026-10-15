@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { excerpt, groundWith, passageLink, readWiki, searchWiki, WIKI_DIR, wikiHome } from './wiki';
+import { excerpt, groundWith, passageLink, readWiki, searchWiki, WIKI_DIR } from './wiki';
 
 const PAGE = `# Winches
 
@@ -114,11 +114,10 @@ describe('groundWith', () => {
 });
 
 describe('links and excerpts', () => {
-  it('links a passage to its section on main and the wiki home', () => {
+  it('links a passage to its section on main', () => {
     const passage = { page: 'mechanics/truck.md', title: 'Truck', heading: 'Field repair', anchor: 'field-repair', text: 'x' };
     expect(passageLink('o/r', passage)).toBe('https://github.com/o/r/blob/main/game/docs/wiki/mechanics/truck.md#field-repair');
     expect(passageLink('o/r', { ...passage, anchor: '' })).toBe('https://github.com/o/r/blob/main/game/docs/wiki/mechanics/truck.md');
-    expect(wikiHome('o/r')).toBe('https://github.com/o/r/blob/main/game/docs/wiki/README.md');
   });
 
   it('cuts a long passage at the last sentence that fits', () => {

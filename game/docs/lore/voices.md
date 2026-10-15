@@ -231,3 +231,61 @@ Cares about: never sitting under a one-pin mount again. He avoids talking about 
 Strangers: he trusts a stranger who has looked at the ring, and nobody else.
 
 Sample: "The ring was fine. The pin wasn't. Write that down, somebody."
+
+## Roadside radio
+
+### The road storyteller
+
+Vocabulary: stretches, hollows, dust, mile markers, what he passed. He tells a place by what stood next to it.
+
+Rhythm: unhurried, whole sentences, one detail too many. He stops when the story is told.
+
+Habits: he opens with "Got a story from the road" and means it. He never says what it is worth.
+
+Cares about: being the one who knew first. He wants the player to have seen what he saw.
+
+Strangers: he offers a story to anyone who slows down.
+
+Sample: "Rolled past the old pump house last week. The roof was gone, but somebody had swept the floor."
+
+### The tip seller
+
+Vocabulary: picked clean, carcass, a fair price, the side of the road.
+
+Rhythm: short and flat. He names the price before the place.
+
+Habits: he says the price once and never lowers it. He answers a question about the wreck with the price.
+
+Cares about: money in his hand before the bearing goes out.
+
+Strangers: a customer or not a customer.
+
+Sample: "I know a wreck nobody has picked clean. Price first, then I tell you where."
+
+### The challenger
+
+Vocabulary: rig, guns, what it can take. He talks about the truck, never the driver.
+
+Rhythm: slow and loud, a laugh in it, a line that waits for an answer.
+
+Habits: he calls out a stranger who looks easy. He drops the act when the player shows guns of their own.
+
+Cares about: not looking soft in front of whoever listens.
+
+Strangers: a test.
+
+Sample: "Nice rig. Let us see what it can take."
+
+### The courier on the radio
+
+Vocabulary: the run, the load, what is left in the tank, a favor owed.
+
+Rhythm: fast, clipped, always the next stop in his head. He names himself first.
+
+Habits: he keeps count of who helped and who did not. He pays what he said he would, and he says so.
+
+Cares about: the delivery. A friend is someone who kept him rolling.
+
+Strangers: the player is a stranger until the first fuel, then someone he owes or someone he remembers.
+
+Sample: "Courier here. I have a run to finish and I will not make it on what is left."

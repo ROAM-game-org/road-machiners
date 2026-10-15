@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { appendLedger } from './ledger';
 import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
 import { ROOT, fake, reset, type Fake } from './stages/test-fakes';
@@ -89,10 +90,10 @@ describe('write commands', () => {
 describe('write commands while paused', () => {
   it('still writes the order and says it waits for the pause to lift', async () => {
     const f = fake();
-    writeFileSync(join(ROOT, 'paused'), 'Paused with factory pause: fixing state\n');
+    writeFileSync(join(ROOT, 'paused'), JSON.stringify({ kind: 'factory', note: 'fixing state', by: 'cli', at: '2026-01-01T00:00:00.000Z' }));
     await run(f, 'cut', '--by', 'ann', '--reason', 'r');
     expect(stored()).toMatchObject({ action: 'cut' });
-    expect(out.join('\n')).toContain('The factory is paused: Paused with factory pause: fixing state.');
+    expect(out.join('\n')).toContain('The factory is paused: fixing state.');
     expect(out.join('\n')).toContain('applies when the pause is lifted');
   });
 });
@@ -188,17 +189,17 @@ describe('read commands', () => {
 
   it('stuck and card print the sweep record, failures prints a merge batch, and stuck shows a sweep crash', async () => {
     const f = board();
-    const record = { incident: '5:merge:t', stage: 'merge' as const, cause: 'timed out after 240 minutes\nmore', log: '/m.log', batch: 10, since: 't', decision: false, column: 'Merging' as const, kind: 'merge-batch' as const, tries: 1, released: 'r', refused: null };
-    const merge = { stage: 'merge' as const, issue: null, error: 'timed out after 240 minutes', log: '/m.log', at: 't', batch: [5, 7] };
+    const record = { incident: '5:merge:t', stage: 'merge' as const, error: 'timed out after 240 minutes\nmore', cause: 'timeout' as const, log: '/m.log', batch: 10, since: 't', column: 'Merging' as const, kind: 'merge-batch' as const, tries: 1, released: 'r', refused: null };
+    const merge = { stage: 'merge' as const, issue: null, error: 'timed out after 240 minutes', cause: 'timeout' as const, log: '/m.log', at: 't', batch: [5, 7] };
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), stuck: { '5': record }, failures: [merge], sweepError: 'boom\nmore' });
     await run(f, 'stuck');
-    expect(out).toEqual(['sweep error: boom', '#5 merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (log /m.log)']);
+    expect(out).toEqual(['sweep error: boom', '#5 merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)']);
     out.length = 0;
     await run(f, 'card', '5');
-    expect(out).toContain('stuck sweep: merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (log /m.log)');
+    expect(out).toContain('stuck sweep: merge-batch in Merging, incident 5:merge:t, tries 1, released r: timed out after 240 minutes (cause timeout, log /m.log)');
     out.length = 0;
     await run(f, 'failures');
-    expect(out).toEqual(['t merge: timed out after 240 minutes (log /m.log) batch #5,#7']);
+    expect(out).toEqual(['t merge: timed out after 240 minutes (cause timeout, log /m.log) batch #5,#7']);
   });
 
   it('help lists every command', async () => {
@@ -232,30 +233,51 @@ describe('read commands', () => {
     expect(out.join('\n')).toContain('"jobs"');
   });
 
-  it('log prints the tail of the newest log of the issue', async () => {
+  it('log prints the tail of the newest log that the state and the ledger record for the issue', async () => {
     const f = fake();
     const logs = join(ROOT, 'logs');
     mkdirSync(logs, { recursive: true });
-    writeFileSync(join(logs, 'design-5-1.log'), 'old\n');
-    writeFileSync(join(logs, 'issue-5-adhoc.log'), `${Array.from({ length: 80 }, (_, i) => `line ${i}`).join('\n')}\n`);
-    writeFileSync(join(logs, 'design-6-9.log'), 'other\n');
-    utimesSync(join(logs, 'design-5-1.log'), new Date(1000), new Date(1000));
+    const file = (name: string, text: string): string => {
+      writeFileSync(join(logs, name), text);
+      return join(logs, name);
+    };
+    const done = file('first.log', 'old\n');
+    const failed = file('second.log', 'failed\n');
+    const running = file('third.log', `${Array.from({ length: 80 }, (_, i) => `line ${i}`).join('\n')}\n`);
+    file('other.log', 'other\n');
+    appendLedger(ROOT, { kind: 'job', id: 'a', stage: 'design', issue: 5, startedAt: '2026-10-01T00:00:00Z', endedAt: '2026-10-01T01:00:00Z', outcome: 'done', log: done, agents: [] });
+    appendLedger(ROOT, { kind: 'job', id: 'o', stage: 'design', issue: 6, startedAt: '2026-10-09T00:00:00Z', endedAt: '2026-10-09T01:00:00Z', outcome: 'done', log: join(logs, 'other.log'), agents: [] });
+    writeState(join(ROOT, 'state.json'), {
+      ...structuredClone(EMPTY_STATE),
+      failures: [{ stage: 'implement', issue: 5, error: 'boom', cause: null, log: failed, at: '2026-10-02T00:00:00Z' }],
+      jobs: [{ id: 'c', stage: 'verify', issue: 5, pid: 1, startedAt: '2026-10-03T00:00:00Z', log: running }],
+    });
     await run(f, 'log', '5');
-    expect(out[0]).toContain('issue-5-adhoc.log');
+    expect(out[0]).toContain('third.log');
     expect(out[1]).toContain('line 79');
     expect(out[1]).not.toContain('line 0\n');
+    await run(f, 'log', '5', 'implement');
+    expect(out[2]).toContain('second.log');
     await run(f, 'log', '5', 'design');
-    expect(out[2]).toContain('design-5-1.log');
+    expect(out[4]).toContain('first.log');
     await expect(run(f, 'log', '7')).rejects.toThrow('No log');
+  });
+
+  it('log names a recorded log whose file is gone and reads a ledger line with no log as no record', async () => {
+    const f = fake();
+    appendLedger(ROOT, { kind: 'job', id: 'a', stage: 'design', issue: 5, startedAt: '2026-10-01T00:00:00Z', endedAt: '2026-10-01T01:00:00Z', outcome: 'done', agents: [] });
+    await expect(run(f, 'log', '5')).rejects.toThrow('No log');
+    appendLedger(ROOT, { kind: 'job', id: 'b', stage: 'design', issue: 5, startedAt: '2026-10-02T00:00:00Z', endedAt: '2026-10-02T01:00:00Z', outcome: 'done', log: join(ROOT, 'logs', 'gone.log'), agents: [] });
+    await expect(run(f, 'log', '5')).rejects.toThrow('the file is gone');
   });
 });
 
-const RELEASE = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, candidateSha: null, removed: [], tasks: [] };
+const RELEASE = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, candidateSha: null, removed: [], tasks: [], merges: [] };
 
 describe('immediate commands', () => {
   it('retry removes the stuck label and only that card failures', async () => {
     const f = fake();
-    const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', log: null, at: '2026-09-29T09:00:00Z' });
+    const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', cause: 'error' as const, log: null, at: '2026-09-29T09:00:00Z' });
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), failures: [failure(5), failure(6)] });
     await run(f, 'retry', '5');
     expect(f.calls).toContain('removeLabel 5 factory-stuck');
@@ -283,7 +305,7 @@ describe('immediate commands', () => {
   it('pause writes the pause file and resume removes it', async () => {
     const f = fake();
     await run(f, 'pause', 'fixing', 'state');
-    expect(readFileSync(join(ROOT, 'paused'), 'utf8')).toBe('Paused with factory pause: fixing state\n');
+    expect(JSON.parse(readFileSync(join(ROOT, 'paused'), 'utf8'))).toEqual({ kind: 'factory', note: 'fixing state', by: 'cli', at: f.ctx.now().toISOString() });
     await expect(run(f, 'pause')).rejects.toThrow('needs a reason');
     await run(f, 'resume');
     expect(existsSync(join(ROOT, 'paused'))).toBe(false);
@@ -311,9 +333,35 @@ describe('immediate commands', () => {
     expect(repairs).toEqual([]);
   });
 
-  it('resume keeps a pause written by hand', async () => {
-    writeFileSync(join(ROOT, 'paused'), 'Hermes fixing #5\npid: 12\n');
-    await expect(run(fake(), 'resume')).rejects.toThrow('This pause was written by hand or by a member. Once its reason is gone, delete the pause file.');
+  it('pause --by and --pid write a member record with the process', async () => {
+    const f = fake();
+    await run(f, 'pause', 'fixing', '#5', '--by', 'hermes', '--pid', '12');
+    expect(JSON.parse(readFileSync(join(ROOT, 'paused'), 'utf8'))).toEqual({ kind: 'member', note: 'fixing #5', by: 'hermes', at: f.ctx.now().toISOString(), pid: 12 });
+    await run(f, 'pause', 'checks', '--pid', '13');
+    expect(JSON.parse(readFileSync(join(ROOT, 'paused'), 'utf8'))).toMatchObject({ kind: 'member', by: 'hermes', pid: 13 });
+    await run(f, 'pause', 'by ann', '--by', 'ann');
+    const written = JSON.parse(readFileSync(join(ROOT, 'paused'), 'utf8'));
+    expect(written).toMatchObject({ kind: 'member', by: 'ann' });
+    expect(written).not.toHaveProperty('pid');
+    await expect(run(f, 'pause', 'x', '--by', 'bob')).rejects.toThrow('unknown actor');
+    await expect(run(f, 'pause', 'x', '--pid', 'soon')).rejects.toThrow('not an issue number');
+  });
+
+  it('resume keeps a member pause', async () => {
+    writeFileSync(join(ROOT, 'paused'), JSON.stringify({ kind: 'member', note: 'Hermes fixing #5', by: 'Hermes', at: '2026-01-01T00:00:00.000Z', pid: 12 }));
+    await expect(run(fake(), 'resume')).rejects.toThrow('This pause was written by a member. Once its reason is gone, delete the pause file.');
+    expect(existsSync(join(ROOT, 'paused'))).toBe(true);
+  });
+
+  it('resume lifts a usage limit pause', async () => {
+    writeFileSync(join(ROOT, 'paused'), JSON.stringify({ kind: 'usage-limit', note: 'limit', by: 'factory', at: '2026-01-01T00:00:00.000Z' }));
+    await run(fake(), 'resume');
+    expect(existsSync(join(ROOT, 'paused'))).toBe(false);
+  });
+
+  it('resume fails loud on a pause file in text', async () => {
+    writeFileSync(join(ROOT, 'paused'), 'Hermes fixing #5\n');
+    await expect(run(fake(), 'resume')).rejects.toThrow();
     expect(existsSync(join(ROOT, 'paused'))).toBe(true);
   });
 });

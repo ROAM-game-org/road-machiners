@@ -19,6 +19,7 @@ import { backedOff, canReachSalvage, claimantOf, claimPile, dropHaul, dumpOnPile
 import { isStranded } from './stats';
 import { addState, endState, lootWarningData, pleaData, stateOf } from './states';
 import type { DecisionOptions } from '../data/npcs';
+import { remember } from './memory';
 import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
@@ -62,6 +63,7 @@ export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: Gri
   if (!modeRules(world).looting) throw new Error(`${loser.id} cannot hand over cargo where nothing is looted`);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
   cede(world, loser, winner, stock, 'takeHandedCargo');
+  if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id });
   creditYield(world, loser, winner);
 }
 

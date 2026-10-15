@@ -16,6 +16,11 @@ import { physicsMove } from './turn';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
 import { defaultSetup } from '../sim/settings';
+import { reusedWorld } from '../test/world-cache';
+
+function standardWorld(): World {
+  return reusedWorld('standard', () => newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
+}
 
 beforeAll(async () => {
   await initPhysics();
@@ -64,13 +69,15 @@ describe('NPC driving', () => {
   });
 
   it('travels between towns without entering either site', () => {
-    let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
     const nose = REGION.towns[1];
     const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    addGoods(w, npc, 'scrap', 1);
+    npc.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
     let arrived = false;
     let d = buildDrive(w);
     for (let i = 0; i < w.size && !arrived; i++) {
@@ -85,7 +92,7 @@ describe('NPC driving', () => {
   }, budget(120_000));
 
   it('passes the oncoming player without stopping or touching it', () => {
-    let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    let w = standardWorld();
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
@@ -122,7 +129,7 @@ describe('NPC driving', () => {
   it.each([-3, -1.5].flatMap((dx) => [-3, -1.5, 0, 1.5, 3].map((dy) => [dx, dy])))(
     'two NPCs closing head-on never touch: second goal offset %s,%s',
     (dx, dy) => {
-      let w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      let w = standardWorld();
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
       w.vehicles[0].pos = { x: 300, y: 200 };

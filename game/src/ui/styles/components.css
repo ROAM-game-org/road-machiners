@@ -223,3 +223,20 @@
 .num {
   font: var(--text-dense) var(--font-mono);
 }
+
+/* The tab row of the phone layout: one icon button per drawer. The open drawer's tab is .selected, and a tab whose drawer
+   has something that needs the player takes the danger edge with .marked, which stays while the state is true. */
+.drawer-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+#ui .drawer-tabs > button {
+  min-width: var(--btn-h-l);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#ui .drawer-tabs > button.marked {
+  border-color: var(--danger);
+}

@@ -204,7 +204,7 @@ async function queueAdhoc(ctx: Ctx, command: InboxCommand, by: string): Promise<
   const text = requireText(command).trim();
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat.`, [ADHOC_LABEL]);
-  await addCard(ctx, n, 'Implementation', 'adhoc');
+  await addCard(ctx, n, 'Implementation', ctx.now().toISOString(), 'adhoc');
   const reply = { chat: command.chat, messageId: command.messageId };
   updateState(ctx.statePath, (state) => ({ ...state, adhocReplies: { ...state.adhocReplies, [String(n)]: reply } }));
   return `Queued as #${n}. The report comes as a reply here.`;
@@ -216,7 +216,7 @@ async function openReleaseTask(ctx: Ctx, command: InboxCommand, by: string): Pro
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat as a task of release ${release.day}.`, [RELEASE_TASK_LABEL]);
   recordReleaseTask(ctx, n);
-  await addCard(ctx, n, 'Design', 'release-task');
+  await addCard(ctx, n, 'Design', ctx.now().toISOString(), 'release-task');
   updateState(ctx.statePath, (state) => ({ ...state, pendingShip: null, release: state.release && { ...state.release, postId: null } }));
   return `Opened #${n} as a task of release ${release.day}. A new candidate follows when it is done.`;
 }
