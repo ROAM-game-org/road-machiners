@@ -521,7 +521,7 @@ describe('courier pairs', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const me = courierAt(w, { x: 52, y: 60 });
     const other = courierAt(w, { x: 60, y: 60 });
-    other.faction = 'raiders';
+    other.faction = 'scrapjaw';
     expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
   });
 

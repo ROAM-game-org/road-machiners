@@ -64,7 +64,7 @@ describe('player piles', () => {
 
   it('a truck handing over cargo twice in one turn drops two piles', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'scout', [], { x: 31, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', [], { x: 31, y: 30 });
     addGoods(w, npc, 'scrap', 2);
     const first = dropHaul(w, npc, looseCargo(npc));
     addGoods(w, npc, 'scrap', 1);

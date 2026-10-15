@@ -33,7 +33,7 @@ function setup(): { w: World; trader: Vehicle; offer: EscortContract } {
   const w = emptyWorld(sitePads(BOWL)[0]);
   const pad = sitePads(BOWL)[0];
   const pos = { x: pad.x + 20, y: pad.y };
-  const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], pos);
+  const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], pos);
   trader.brain = npcBrain('trader', pos, ['trader']);
   trader.brain.goals = [sellGoal(), waitGoal()];
   postEscortOffer(w, trader, 'bowl', 'nose');
@@ -157,7 +157,7 @@ describe('taking the job', () => {
 function setupSecond(w: World): EscortContract {
   const pad = playerVehicle(w).pos;
   const pos = { x: pad.x + 25, y: pad.y + 5 };
-  const other = addVehicle(w, 'traders', 'hauler', ['stockEngine'], pos);
+  const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], pos);
   other.brain = npcBrain('trader', pos, ['trader']);
   other.brain.goals = [sellGoal(), waitGoal()];
   postEscortOffer(w, other, 'bowl', 'nose');
@@ -195,7 +195,7 @@ describe('the abandonment clock', () => {
     const { w, trader, offer } = setup();
     const next = take(w, offer);
     leave(next, traderIn(next, trader), ESCORT_JOB.apartGap + 10);
-    const foe = addVehicle(next, 'raiders', 'buggy', [], { x: 200, y: 200 });
+    const foe = addVehicle(next, 'scrapjaw', 'buggy', [], { x: 200, y: 200 });
     startCombat(next, foe, traderIn(next, trader));
     tick(next, ESCORT_JOB.graceTurns + 5);
     expect(heldEscort(next)!.apart).toBe(0);

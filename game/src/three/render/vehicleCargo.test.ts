@@ -77,7 +77,7 @@ type Placed = { defId: string; x: number; y: number; rot: Rot };
 
 function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: PartItem[] } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const v = addVehicle(w, 'scrapjaw', chassisId, [], { x: 30, y: 30 });
   const items = placed.map((p, i): PartItem => ({ id: `i-${p.defId}-${i}`, x: p.x, y: p.y, rot: p.rot, kind: 'part', part: makePart(w, p.defId, 0) }));
   return { v, items };
 }
