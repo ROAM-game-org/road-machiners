@@ -7,11 +7,15 @@ import { mergeResolving } from './merge-resolve';
 export async function catchUp(ctx: Ctx, issue: number): Promise<void> {
   const card = (await ctx.github.cards()).find((other) => other.issue === issue);
   if (card === undefined || !waitingMerges(readState(ctx.statePath), [card]).length) return ctx.log('catch-up', issue, 'the card no longer waits in Merging');
-  if (!claim(ctx, issue)) return ctx.log('catch-up', issue, 'no merge job runs, or it took the card or caught it up already');
   const base = baseBranchFor(ctx, card.labels);
   await ctx.repo.fetch();
-  if (await ctx.repo.isMerged(base, BRANCH(issue))) return ctx.log('catch-up', issue, `${BRANCH(issue)} already holds ${base}`);
+  const head = await ctx.repo.headHash(base);
+  if (await ctx.repo.isMerged(base, BRANCH(issue))) {
+    recordCaughtUp(ctx, issue, head);
+    return ctx.log('catch-up', issue, `${BRANCH(issue)} already holds ${base}`);
+  }
   await mergeBase(ctx, issue, base);
+  recordCaughtUp(ctx, issue, head);
   ctx.log('catch-up', issue, `${BRANCH(issue)} took ${base}`);
 }
 
@@ -23,13 +27,6 @@ async function mergeBase(ctx: Ctx, issue: number, base: string): Promise<void> {
   }
 }
 
-function claim(ctx: Ctx, issue: number): boolean {
-  let claimed = false;
-  updateState(ctx.statePath, (state) => {
-    const merge = state.jobs.find((job) => job.stage === 'merge');
-    if (merge?.batch === undefined || merge.batch.includes(issue) || (merge.caughtUp ?? []).includes(issue)) return state;
-    claimed = true;
-    return { ...state, jobs: state.jobs.map((job) => (job === merge ? { ...job, caughtUp: [...(job.caughtUp ?? []), issue] } : job)) };
-  });
-  return claimed;
+function recordCaughtUp(ctx: Ctx, issue: number, head: string): void {
+  updateState(ctx.statePath, (state) => ({ ...state, caughtUpTo: { ...state.caughtUpTo, [issue]: head } }));
 }

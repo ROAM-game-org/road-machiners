@@ -1,4 +1,4 @@
-import { START_KITS, startKit, type StartKit } from '../data/start';
+import { startKit } from '../data/start';
 
 import { RULES } from '../data/rules';
 import { makeVehicle } from './factory';
@@ -7,15 +7,14 @@ import { mountedParts } from './grid';
 import { burnFuel } from './resources';
 import { vehicleStats } from './stats';
 import type { Terrain } from './terrain';
-import { TEST_MAP } from '../test/map';
-import { onTestFinished } from 'vitest';
+import { inject, onTestFinished } from 'vitest';
+import { emptyWorldFrom, flatTerrain, PLAIN_KIT } from '../test/empty-world';
 import { DECISIONS, NPC_UPKEEP, STATE_WEIGHTS, TRAITS, type DecisionId, type DecisionOptions, type TraitId } from '../data/npcs';
 import type { PersonalityId } from '../data/personalities';
 import { addState } from './states';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities } from './npc-activities';
 import type { Faction, GameEvent, NpcBrain, Obstacle, PartInstance, SalvageStock, Vehicle, World, XpSource } from './types';
-import { ICARUS_KEY } from './atlas';
 import { highwayMap } from './highway';
 import { dist, type Vec } from './vec';
 import { REGION } from '../data/region';
@@ -32,10 +31,6 @@ import { addGoods } from './inventory';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
-
-export function flatTerrain(size: number): Terrain {
-  return { size, heights: new Array((size + 1) * (size + 1)).fill(0), types: new Array(size * size).fill('road'), atlas: ICARUS_KEY };
-}
 
 export function furyRoadWorld(seed = 3): World {
   return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
@@ -78,31 +73,22 @@ export function stockOfKind(w: World, kind: PartKind): PartInstance {
 }
 
 export function editableTerrain(w: World): Terrain {
-  w.terrain = { ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] };
+  w.terrain = Object.freeze({ ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] });
   return w.terrain;
 }
 
-export const PLAIN_KIT: StartKit = {
-  ...START_KITS.standard,
-  parts: [...START_KITS.standard.parts, 'cage'],
-  autoRepair: true,
-  opening: null,
-};
+export { PLAIN_KIT, flatTerrain };
 
 let emptyTemplate: World | undefined;
 
+function templateFromSetup(): World {
+  const provided = inject('emptyTemplate');
+  if (provided === undefined) throw new Error('The empty world template was not provided. List src/test/empty-template-setup.ts under globalSetup in the vitest config');
+  return emptyWorldFrom(provided);
+}
+
 export function emptyWorld(pos: Vec = { x: 30, y: 30 }): World {
-  if (!emptyTemplate) {
-    emptyTemplate = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
-    emptyTemplate.obstacles = [];
-    emptyTemplate.terrain = flatTerrain(emptyTemplate.size);
-    Object.freeze(emptyTemplate.terrain.heights);
-    Object.freeze(emptyTemplate.terrain.types);
-    Object.freeze(emptyTemplate.terrain);
-    emptyTemplate.vehicles = emptyTemplate.vehicles.filter((v) => v.faction === 'player');
-    emptyTemplate.states = [];
-    emptyTemplate.rngState = -1655809527;
-  }
+  emptyTemplate ??= templateFromSetup();
   const w = cloneWorld(emptyTemplate);
   const p = w.vehicles[0];
   p.pos = { ...pos };

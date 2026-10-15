@@ -3,7 +3,7 @@ import { newPlaytest, readState, updateState } from '../state';
 import { MAINTENANCE_LABEL, RELEASE_LABEL, RELEASE_TASK_LABEL, type Ctx } from '../types';
 import { fillPrompt } from './common';
 import { mergeResolving } from './merge-resolve';
-import { featureLine, recordReleaseTask, requireDevMerges, toFeatures } from './release-common';
+import { featureLine, recordReleaseTask, toFeatures } from './release-common';
 
 const CLEANUP_TASKS = [
   { title: 'Optimize against the speed budget', prompt: 'release-optimize' },
@@ -14,7 +14,7 @@ export async function release(ctx: Ctx): Promise<void> {
   const now = ctx.now();
   await ctx.repo.fetch();
   await bringMainIntoDev(ctx);
-  const merges = requireDevMerges(readState(ctx.statePath));
+  const merges = readState(ctx.statePath).devMerges;
   const features = toFeatures(merges);
   if (features.length === 0) {
     ctx.log('release', null, 'nothing new on dev, skipped');
@@ -29,7 +29,7 @@ export async function release(ctx: Ctx): Promise<void> {
     await ctx.repo.deleteBranch(branch);
     throw error;
   });
-  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString(), devMerges: requireDevMerges(state).slice(merges.length), release: { issue: tracking, branch, day, postId: null, candidateSha: null, removed: [], tasks: [], merges, playtest: newPlaytest(day) } }));
+  updateState(ctx.statePath, (state) => ({ ...state, lastRelease: now.toISOString(), devMerges: state.devMerges.slice(merges.length), release: { issue: tracking, branch, day, postId: null, candidateSha: null, removed: [], tasks: [], merges, playtest: newPlaytest(day) } }));
   await addCard(ctx, tracking, 'Approval', now.toISOString(), 'release');
   for (const task of CLEANUP_TASKS) {
     const n = await ctx.github.createIssue(`${task.title} (release ${day})`, fillPrompt(task.prompt, {}), [RELEASE_TASK_LABEL, MAINTENANCE_LABEL]);
