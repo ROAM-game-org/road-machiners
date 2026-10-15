@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD } from '../data/modes';
 import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
+import { TERRAIN } from '../data/terrain';
 import { autoOrders, groupPrey, isHostile, targetBlock } from './combat';
 import { dist } from './vec';
 import { refreshVision } from './vision';
@@ -150,13 +151,13 @@ describe('Chaos Highway rolling start', () => {
     expect(rollingOrder(w, truck)).toBeNull();
   });
 
-  it('spawns group trucks already rolling north at the hauler pace, with a trail behind them', () => {
+  it('spawns group trucks parked out of the hauler sight, heading north along the road', () => {
     const w = furyRoadWorld(3);
     const trucks = spawned(w, ['buggy', 'courier'], 1);
     for (const truck of trucks) {
-      expect(truck.speed).toBe(Math.min(FURY_ROAD.hauler.cruise, vehicleStats(w, truck).maxSpeed));
+      expect(truck.speed).toBe(0);
       expect(truck.heading).toBeCloseTo(roadHeading(w.seed, alongOf(w.seed, toRoad(w.furyRoad!.window, truck.pos))));
-      expect(truck.trail.length).toBe(2);
+      expect(dist(truck.pos, haulerOf(w).pos)).toBeGreaterThan(TERRAIN.vision.radius);
     }
   });
 });

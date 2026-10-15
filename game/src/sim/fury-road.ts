@@ -263,9 +263,6 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
     const v = spawnAt(world, tpl, loadout, spots[i]);
     getResources(world, v).fuel = fuelCap(v);
     v.heading = roadHeading(world.seed, alongOf(world.seed, toRoad(run.window, v.pos)));
-    v.speed = Math.min(FURY_ROAD.hauler.cruise, vehicleStats(world, v).maxSpeed);
-    const back = { x: v.pos.x - Math.cos(v.heading) * v.speed, y: v.pos.y - Math.sin(v.heading) * v.speed, heading: v.heading };
-    v.trail = [back, { ...v.pos, heading: v.heading }];
     group.vehicles.push(v.id);
     declareFeud(world, v, hauler.id);
     markHostile(world, v, me.id);
