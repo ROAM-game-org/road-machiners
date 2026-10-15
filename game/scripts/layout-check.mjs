@@ -160,10 +160,18 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
-  void chooseStart('auto', { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
 });
 
+const openStartLoad = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').nth(1).click();
+  await page.evaluate(() => { document.querySelector('.start-menu .start-buttons').style.visibility = 'hidden'; });
+};
+
 const closeStartMenu = (page) => page.evaluate(() => {
+  document.querySelector('#ui .save-panel')?.remove();
   document.querySelector('#ui .start-menu')?.remove();
   for (const node of document.querySelectorAll('#ui > [data-layout-display]')) {
     node.style.display = node.dataset.layoutDisplay;
@@ -185,6 +193,7 @@ const STATES = {
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
+  'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };
