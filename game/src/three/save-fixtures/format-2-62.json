@@ -1,8 +1,25 @@
 {
-  "turn": 240,
-  "vehicles": [
-    { "id": "v7", "pos": { "x": 41.5, "y": 77.25 }, "brain": { "goals": [], "progress": { "key": "41,77 explore:null:explore -", "since": 231 } } },
-    { "id": "v8", "pos": { "x": 12, "y": 9 }, "brain": { "goals": [] } },
-    { "id": "v1", "pos": { "x": 30, "y": 30 }, "brain": null }
+  "turn": 412,
+  "setup": {
+    "mode": "furyRoad",
+    "settings": {
+      "damage": 1,
+      "fuelUse": 1,
+      "supplyUse": 1,
+      "enemyGearGrowth": 1
+    }
+  },
+  "furyRoad": null,
+ "shops": {
+  "bowl": {
+   "contracts": [
+    { "id": "ct1", "shop": "bowl", "kind": "haul", "good": "salt", "units": 3, "to": "nose", "reward": 500, "deadline": 1400, "window": 500, "rush": false, "tier": 1 }
+   ]
+  }
+ },
+ "player": {
+  "contracts": [
+   { "id": "ct2", "shop": "bowl", "kind": "bounty", "template": "buggy", "reward": 300, "deadline": 1600, "window": 700, "tier": 1, "fulfilled": false }
   ]
+ }
 }

@@ -3,12 +3,12 @@ import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL } from '../config';
-import { download } from '../download';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
+import { fetchAsset } from '../fetch-asset';
 import { perfSnapshot, resetPerf } from '../perf';
 import { decodeMap, type BakedMap } from '../sim/terrain';
 import type { World, WorldSetup } from '../sim/types';
@@ -23,14 +23,14 @@ import type { QuestLanguage } from '../data/quests';
 import { setQuestLanguage } from '../sim/quests';
 import { t } from '../text/msg';
 import type { NewGameActions } from '../ui/new-game';
-import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport } from '../ui/save-screen';
+import { chooseSaveFate, chooseStart, saveErrorText, showCarryReport, showRepairReport } from '../ui/save-screen';
 import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
 import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
-import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
+import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
 import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
@@ -47,7 +47,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await download(MAPGEN.file)));
+  return decodeMap(new Uint8Array(await fetchAsset('Map file', MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
@@ -74,11 +74,12 @@ async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Boo
 
 async function bootSlot(slot: SlotId): Promise<Booted> {
   try {
-    const world = loadWorld(slots, slot, map);
-    if (!world) return newGameSaved(defaultSetup('roaming'), true);
+    const loaded = loadSave(slots, slot, map);
+    if (!loaded) return newGameSaved(defaultSetup('roaming'), true);
     const runId = savedRunId(storedSave(slots, slot));
     if (runId === null) throw new Error(`The save in ${slot} loaded but names no run`);
-    return { world, runId, loadedFrom: slot, fresh: false };
+    if (hasRepair(loaded.repair)) await boot.aside(() => showRepairReport(loaded.repair));
+    return { world: loaded.world, runId, loadedFrom: slot, fresh: false };
   } catch (err) {
     if (!(err instanceof SaveError)) throw err;
     return rescuedOrNew(err, slot);
@@ -146,7 +147,8 @@ language.subscribe(() => {
   relocalize(element('overlay'));
   relocalizeGame?.();
 });
-const boot = BootScreen.adopt();
+let flushSaves = (): Promise<void> => Promise.resolve();
+const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
@@ -161,6 +163,7 @@ const loading = Promise.all([
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
 const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
+flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),

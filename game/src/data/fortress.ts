@@ -56,3 +56,17 @@ export const FORTRESS_STYLES: Record<FortressStyle, FortressStyleDef> = {
   yard: { flush: true, gate: { width: 2.5, depth: 1, height: 3 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
   shipMetal: { flush: true, gate: { width: 6, depth: 1.5, height: 4.5 }, gateFlare: 0, pieces: ['wall', 'tower', 'gate'] },
 };
+
+export type FortressLampPiece = 'wall' | 'tower' | 'gate';
+export type FortressLampMount = { face: number; height: number };
+
+export const FORTRESS_LAMPS: Record<FortressStyle, Partial<Record<FortressLampPiece, FortressLampMount>>> = {
+  pumpworks: { wall: { face: 0.24, height: 2.3 }, tower: { face: 0.63, height: 2.3 }, gate: { face: 0.23, height: 1.6 } },
+  cistern: { wall: { face: 0.16, height: 2.3 }, tower: { face: 0.65, height: 2.9 }, gate: { face: 0.09, height: 1 } },
+  shipMetal: { wall: { face: 0.32, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.08, height: 1.6 } },
+  scrap: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.61, height: 2.3 }, gate: { face: 0.35, height: 1.6 } },
+  patchwork: { wall: { face: 0.35, height: 2.3 }, tower: { face: 0.71, height: 2.3 }, gate: { face: 0.15, height: 1.6 } },
+  compound: { wall: { face: 0.34, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.13, height: 2.4 } },
+  ring: { wall: { face: 0.34, height: 2.3 }, gate: { face: 0.02, height: 2 } },
+  yard: { wall: { face: 0.27, height: 2.3 }, tower: { face: 0.65, height: 2.3 }, gate: { face: 0.18, height: 1.6 } },
+};

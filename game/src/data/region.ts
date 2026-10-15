@@ -423,7 +423,6 @@ export const REGION = {
     wreckThickness: 1,
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
-    lampHeight: 1.6,
   },
   playerStart: { road: 0, distance: 125, offset: 45, wreck: { ahead: 6, side: 5 } },
 };

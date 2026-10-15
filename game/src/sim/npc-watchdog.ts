@@ -6,6 +6,7 @@ import { isKnockedOut } from './defeat';
 import { awaitsTower, exploreGoal, idleGoal, logChange, pushGoal, saleGoal, topGoal } from './npc-activities';
 import { hasSaleCargo, npcProfile } from './npc-decisions';
 import { liesUp } from './npc-service';
+import { namedClients } from './rescue';
 import { isShutDown } from './utility';
 import { route } from './path';
 import { randRange } from './rng';
@@ -13,21 +14,23 @@ import { nearestPad } from './sites';
 import { modeRules } from './settings';
 import { isFree } from './spawn';
 import { isStranded, vehicleStats } from './stats';
-import { isOnRope, npcHomeSite } from './tow';
+import { escortsOf, isOnRope, npcHomeSite } from './tow';
+import { awaitsEscort } from './escort-job';
 import type { NpcBrain, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
 
 export function watchStalls(world: World): void {
+  const named = namedClients(world);
   for (const v of world.vehicles) {
     if (!v.brain) continue;
-    if (madeProgress(world, v)) v.brain.progress = progressHere(world, v);
+    if (madeProgress(world, v, named)) v.brain.progress = progressHere(world, v);
     else if (world.turn - v.brain.progress!.since >= NPC_BEHAVIOR.stallTurns) giveUp(world, v);
   }
 }
 
-function madeProgress(world: World, v: Vehicle): boolean {
-  if (isKnockedOut(v) || waits(world, v)) return true;
+function madeProgress(world: World, v: Vehicle, named: ReadonlySet<string>): boolean {
+  if (isKnockedOut(v) || named.has(v.id) || waits(world, v)) return true;
   const last = v.brain!.progress;
   return !last || last.key !== progressKey(v) || dist(v.pos, last.at) > NPC_BEHAVIOR.progressReach;
 }
@@ -37,7 +40,11 @@ function progressHere(world: World, v: Vehicle): NonNullable<NpcBrain['progress'
 }
 
 function waits(world: World, v: Vehicle): boolean {
-  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || strandedForGood(world, v);
+  return isShutDown(world, v) || isOnRope(world, v.id) || awaitsTower(world, v) || liesUp(v) || waitsOnLeader(world, v) || awaitsEscort(v) || leadsPlayer(world, v) || strandedForGood(world, v);
+}
+
+function leadsPlayer(world: World, v: Vehicle): boolean {
+  return escortsOf(world, v.id).some((e) => !e.brain);
 }
 
 function strandedForGood(world: World, v: Vehicle): boolean {

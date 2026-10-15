@@ -11,7 +11,7 @@ A quest is built in three steps: play out the story behind it, write it, then pl
 3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
-   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a pump station where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
+   npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a water outpost where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
    The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default. `--lang ru --prompt docs/quest-playtest-prompt-ru.md` plays the Russian twins with a native Russian reader, who marks every line that reads as a translation with «ПЕРЕВОД:». In Russian the player is agy in place of Codex, since agy reads Russian better, and `--model` then names an agy model. Write its situation and `--then` lines in Russian.
@@ -183,6 +183,10 @@ Players' saves hold quest variables by name and the checkpoint by name. `src/thr
 - Renaming or removing a variable or a checkpoint, or changing a variable's type, needs a save migration step. Add one step to `MIGRATIONS` in `src/three/save-migrations.ts` with the quest helpers: `renameQuestVar()`, `dropQuestVar()`, `moveQuestCheckpoint()`, `endQuestSession()` and `dropQuest()`. Pass `null` as the quest for a world variable.
 - Give the step a test on a small fixture in `src/three/save-fixtures/`, then run `npm run save:shape`. Never edit a step that is already committed.
 - Changing the text before a checkpoint changes nothing in saves. A player who loads sees the new text from the checkpoint on.
+- Changing what a quest reads, writes, gives or begins makes `npm run save:shape` ask whether old progress still makes sense. If it does, run `npm run save:shape -- --compatible <quest>`. If it does not, raise the quest's `# revision:` tag in both twins. A load then resets that quest and the quests whose saved progress stands on it, and the Save updated screen names them to play again. Everything else in the world stays.
+- Example: A begins B, B begins C, and a rework puts a new quest Z between B and C. Old saves hold B's outcome, which C was built on. Raise B's revision. On load B resets, C resets because it reads B's outcome or was begun by B, and A keeps its state. The player can go back to whoever begins B and play B, Z and C.
+- A raised revision also lets a quest drop or retype its own variables and checkpoints with no step, since its variables reset.
+- Prefer a migration step for a scene the game opens, like `first_fall` and `wagon_seven`. A raised revision resets its gate, and the game opens it again only on its next trigger, which a player who searched the wagon may never meet.
 
 ## A new game function
 
