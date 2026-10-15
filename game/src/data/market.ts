@@ -115,6 +115,13 @@ export const CONTRACTS = {
   escort: {
     xpPerEffort: 0.003,
   },
+
+  rescue: {
+    range: 132,
+    areaRadius: 13,
+    areaOffset: 11,
+    xpPerEffort: 0.003,
+  },
 };
 
 export type Threat = Tier;

@@ -874,7 +874,8 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
-  withClaimRivals_63_64,
+  withRescueContracts_63_64,
+  withClaimRivals_64_65,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -897,16 +898,20 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-const CLAIM_KIND_63_64 = 'claim';
-
-function withRival_63_64(contract: SavedJson): SavedJson {
-  return contract.kind === CLAIM_KIND_63_64 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
-function withClaimRivals_63_64(world: SavedJson): SavedJson {
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_63_64) }]));
+const CLAIM_KIND_64_65 = 'claim';
+
+function withRival_64_65(contract: SavedJson): SavedJson {
+  return contract.kind === CLAIM_KIND_64_65 ? { ...contract, rivalAt: contract.deadline, rival: null, leads: [] } : contract;
+}
+
+function withClaimRivals_64_65(world: SavedJson): SavedJson {
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: (shop.contracts as SavedJson[]).map(withRival_64_65) }]));
   const player = world.player as SavedJson;
-  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_63_64) } };
+  return { ...world, shops, player: { ...player, contracts: (player.contracts as SavedJson[]).map(withRival_64_65) } };
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {

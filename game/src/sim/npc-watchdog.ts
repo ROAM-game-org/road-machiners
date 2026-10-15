@@ -6,6 +6,7 @@ import { isKnockedOut } from './defeat';
 import { awaitsTower, exploreGoal, idleGoal, logChange, pushGoal, saleGoal, topGoal } from './npc-activities';
 import { hasSaleCargo, npcProfile } from './npc-decisions';
 import { liesUp } from './npc-service';
+import { namedClients } from './rescue';
 import { isShutDown } from './utility';
 import { route } from './path';
 import { randRange } from './rng';
@@ -20,15 +21,16 @@ import { canVehicleSee } from './vision';
 import { dist, type Vec } from './vec';
 
 export function watchStalls(world: World): void {
+  const named = namedClients(world);
   for (const v of world.vehicles) {
     if (!v.brain) continue;
-    if (madeProgress(world, v)) v.brain.progress = { key: progressKey(v), since: world.turn };
+    if (madeProgress(world, v, named)) v.brain.progress = { key: progressKey(v), since: world.turn };
     else if (world.turn - v.brain.progress!.since >= NPC_BEHAVIOR.stallTurns) giveUp(world, v);
   }
 }
 
-function madeProgress(world: World, v: Vehicle): boolean {
-  if (isKnockedOut(v) || waits(world, v)) return true;
+function madeProgress(world: World, v: Vehicle, named: ReadonlySet<string>): boolean {
+  if (isKnockedOut(v) || named.has(v.id) || waits(world, v)) return true;
   return v.brain!.progress?.key !== progressKey(v);
 }
 
