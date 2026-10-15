@@ -2,7 +2,11 @@ A committee member asked to change how the ROAM factory works. Read the request 
 The request may hold the member's own words and Hermes's notes. The member's words rule. Check Hermes's facts, take its reading as a guess, and design the change yourself.
 You work alone in a clone of the repo on its own branch. The clone is your isolated checkout, so make no worktree and switch no branch.
 
-Read ../CLAUDE.md and CLAUDE.md first.
+Your first step is to read the game docs in ../game/. Do it before every other step of this prompt, also before `npm ci` when this prompt asks for it.
+Read ../game/CLAUDE.md and ../game/docs/DESIGN.md in full. The Docs list in ../game/CLAUDE.md is the index of the game docs.
+Read in full each doc of that index that covers this task, and skip the others. This step edits nothing.
+
+Then read ../CLAUDE.md and CLAUDE.md.
 Follow them.
 Read docs/process.md and the `.dot` diagrams in docs/diagrams/ before you design. They are the spec of how the factory works. A change to the process updates its diagram and doc in the same commit. Run `npm run diagrams` after you edit a `.dot` file.
 Run `npm ci` here, then `cd .. && npm ci && npm run hooks:install`.
