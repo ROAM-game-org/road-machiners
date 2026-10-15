@@ -5,7 +5,7 @@ import { Mixer } from "../audio/mixer";
 import type { Role } from "../audio/designer";
 import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
-import { BlockSession, HEAVY, TURN_SECONDS, type BlockOutput, type BlockSong, type Part, type Played, type VoiceHandle } from "./block-session";
+import { BlockSession, HEAVY, TURN_SECONDS, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 import type { AccentCue } from "./sound";
 
 const SONG_DIR = "/tmp/score-proto/";
@@ -21,7 +21,7 @@ const LANES = [
   { id: "events", height: 60 },
   { id: "song", height: 90 },
   { id: "guitars", height: 40 },
-  { id: "drums", height: 60 },
+  { id: "cymbals", height: 40 },
   { id: "heat", height: 80 },
 ] as const;
 type LaneId = (typeof LANES)[number]["id"];
@@ -73,12 +73,10 @@ const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const ctx = mixer.ctx;
 const song = await loadSong();
-const [songBuffer, drumBuffer, guitarBuffer] = await Promise.all([decode(song.file), decode(song.stems.drums), decode(song.stems.guitars)]);
+const [songBuffer, cymbalBuffer, guitarBuffer] = await Promise.all([decode(song.file), decode(song.cymbals.file), decode(song.stems.guitars)]);
 const songLevel = ctx.createGain();
 songLevel.gain.value = SCORE_BLOCKS.songGain;
 songLevel.connect(mixer.input("music"));
-const fillLevel = ctx.createGain();
-fillLevel.connect(songLevel);
 const guitarLevel = ctx.createGain();
 guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
 guitarLevel.connect(songLevel);
@@ -87,6 +85,7 @@ songDuck.connect(songLevel);
 const PARTS: Record<Part, { buffer: AudioBuffer; out: AudioNode }> = {
   song: { buffer: songBuffer, out: songDuck },
   guitars: { buffer: guitarBuffer, out: guitarLevel },
+  cymbals: { buffer: cymbalBuffer, out: songLevel },
 };
 
 async function loadSong(): Promise<BlockSong> {
@@ -132,19 +131,6 @@ function voice(part: Part, offset: number, when: number, length: number, fade: n
   };
 }
 
-function fill(offset: number, at: number, length: number, level: number): void {
-  const seam = SCORE_BLOCKS.seamSeconds;
-  const src = ctx.createBufferSource();
-  src.buffer = drumBuffer;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0, at - seam);
-  gain.gain.linearRampToValueAtTime(level, at + seam);
-  gain.gain.setValueAtTime(level, at + length - seam);
-  gain.gain.linearRampToValueAtTime(0, at + length + seam);
-  src.connect(gain).connect(fillLevel);
-  src.start(at - seam, offset - seam, length + 2 * seam);
-}
-
 function lean(offset: number, at: number, length: number, songScale: number, level: number): VoiceHandle {
   const seam = SCORE_BLOCKS.seamSeconds;
   const guitars = voice("guitars", offset, at, length, seam, level);
@@ -164,7 +150,7 @@ function lean(offset: number, at: number, length: number, songScale: number, lev
   };
 }
 
-const output: BlockOutput = { voice, fill, lean };
+const output: BlockOutput = { voice, lean };
 const session = new BlockSession(song, output, Math.random);
 let auto: Auto = "off";
 let nextTurn = 0;
@@ -251,8 +237,8 @@ function draw(): void {
   drawGrid();
   drawEvents();
   drawSong();
-  drawGuitars();
-  drawDrums();
+  drawOverlays("guitars");
+  drawOverlays("cymbals");
   drawHeat();
   g.fillStyle = INK.now;
   g.fillRect(xOf(viewNow), 0, 1, HEIGHT);
@@ -319,20 +305,10 @@ function drawJump(p: Played, top: number, height: number): void {
   g.fillRect(xOf(p.start) - 1, top + 20, 3, height - 22);
 }
 
-function drawGuitars(): void {
-  const top = laneTop("guitars");
-  g.fillStyle = ROLE_INK.solo;
-  for (const l of session.leans) if (l.to > l.from) g.fillRect(xOf(l.from), top + 8, xOf(l.to) - xOf(l.from) - 1, laneHeight("guitars") - 16);
-}
-
-function drawDrums(): void {
-  const top = laneTop("drums");
-  const height = laneHeight("drums");
-  for (const p of session.pushes) {
-    const h = p.stab ? height - 12 : (height - 12) / 2;
-    g.fillStyle = p.line === "lead" ? INK.heavy : INK.light;
-    g.fillRect(xOf(p.at), top + height - 6 - h, 3, h);
-  }
+function drawOverlays(lane: Lane): void {
+  const top = laneTop(lane);
+  g.fillStyle = lane === "guitars" ? ROLE_INK.solo : INK.heavy;
+  for (const o of session.overlays) if (o.lane === lane && o.to > o.from) g.fillRect(xOf(o.from), top + 8, xOf(o.to) - xOf(o.from) - 1, laneHeight(lane) - 16);
 }
 
 function drawHeat(): void {
@@ -357,8 +333,8 @@ function drawGutter(): void {
   const readouts: Record<LaneId, string> = {
     events: String(session.fired.length),
     song: playing?.label ?? "",
-    guitars: session.leans.some((l) => l.from <= viewNow && viewNow < l.to) ? "pushed" : "",
-    drums: String(session.pushes.length),
+    guitars: session.open("guitars", viewNow) ? "pushed" : "",
+    cymbals: session.open("cymbals", viewNow) ? "open" : "",
     heat: session.heatAt(viewNow).toFixed(2),
   };
   for (const lane of LANES) {
@@ -414,7 +390,20 @@ const autoChoice = choice<Auto>(
 const statsBox = el("div", { class: "score-lab-picks" });
 const denseButton = el("button", { onclick: () => session.denseTurn(ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds) }, "Dense turn");
 denseButton.title = "Up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second";
-const controlsPanel = panel(el("div", { class: "score-lab-buttons" }, combatButton, denseButton), ...eventButtons, el("span", { class: "dim" }, "Auto fight"), autoChoice);
+const gains = SCORE_BLOCKS.cymbalGains;
+const cymbalChoice = choice(
+  gains.map((gain) => ({ label: `x${gain}`, value: gain })),
+  (gain) => (session.cymbalGain = gain),
+  gains.indexOf(SCORE_BLOCKS.cymbalGain),
+);
+const controlsPanel = panel(
+  el("div", { class: "score-lab-buttons" }, combatButton, denseButton),
+  ...eventButtons,
+  el("span", { class: "dim" }, "Auto fight"),
+  autoChoice,
+  el("span", { class: "dim" }, "Cymbal lane gain"),
+  cymbalChoice,
+);
 const statsPanel = panel(statsBox);
 
 const zoomChoice = choice(
