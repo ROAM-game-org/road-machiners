@@ -1,6 +1,3 @@
-// Physics as the sim's movement step. The turn pipeline hands the draft world to physicsMove, which
-// runs the turn in the physics engine and writes breaks, poses, speeds, trails, fuel, crashes and orders back.
-// Vehicles far from the player have no body and travel through advanceFar.
 
 import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';

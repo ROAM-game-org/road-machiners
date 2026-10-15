@@ -2,13 +2,13 @@
 import { loadBank, SoundDecodeFailure } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_BUILD, ERROR_REPORT_URL, GAME_VERSION } from '../config';
-import { fetchBytes } from '../fetch-bytes';
+import { CONFIG, ERROR_REPORT_URL } from '../config';
 import { MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
 import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
+import { fetchAsset } from '../fetch-asset';
 import { perfSnapshot, resetPerf } from '../perf';
 import { decodeMap, type BakedMap } from '../sim/terrain';
 import type { World, WorldSetup } from '../sim/types';
@@ -28,7 +28,7 @@ import { mountPerfPanel } from '../ui/perf-panel';
 import { SoundSettings } from '../ui/sound';
 import { RadioPanel, RadioStation } from '../ui/radio';
 import { bootStep, installCrashScreen, keepRunningOnErrors, onEveryError, onReport, reportError } from './crash';
-import { ErrorReporter } from './error-report';
+import { ErrorReporter, gameContext } from './error-report';
 import { Game } from './game';
 import { clearGame, loadWorld, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
@@ -47,7 +47,7 @@ function element(id: string): HTMLElement {
 }
 
 async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await fetchBytes(MAPGEN.file)));
+  return decodeMap(new Uint8Array(await fetchAsset('Map file', MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
@@ -146,8 +146,9 @@ language.subscribe(() => {
   relocalize(element('overlay'));
   relocalizeGame?.();
 });
-const boot = BootScreen.adopt();
-const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, ERROR_REPORT_BUILD, GAME_VERSION) : null;
+let flushSaves = (): Promise<void> => Promise.resolve();
+const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
+const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
 const mixer = new Mixer(MIX);
@@ -161,6 +162,7 @@ const loading = Promise.all([
 bootStep('loading the map');
 const map = await boot.track('map', fetchMap());
 const slots = await openSaves(saveKey, window.localStorage, allSlots(CONFIG.saveSlots));
+flushSaves = () => slots.flush();
 persistSaves().catch(reportError);
 const newGameActions: NewGameActions = {
   requestBoot: (request) => requestBoot(window.sessionStorage, saveKey, request),
@@ -199,7 +201,7 @@ if (failures.length) {
 }
 onEveryError(() => game.holdSaves());
 bootStep('running');
-reporter?.watch({ world: () => game.state, log: () => game.logTexts(), slots });
+gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');
 void boot.finish();
 if (import.meta.env.DEV) {

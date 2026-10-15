@@ -14,7 +14,7 @@ import { setMoveOrder } from "../sim/world";
 import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
 import type { World } from "../sim/types";
 import { reportError } from "./crash";
-import { TurnPreparation } from "./travel";
+import { TurnPreparation, workerFailure } from "./travel";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
@@ -123,8 +123,20 @@ it("throws a calculation failure once, then prepares again", () => {
 it("fails the pending turn on a worker error event", () => {
   const turns = new TurnPreparation();
   turns.prepare(world, drive);
-  TestWorker.latest.onerror?.({ message: "boom" } as ErrorEvent);
+  TestWorker.latest.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
   expect(() => turns.take(world)).toThrow("Turn worker failed: boom");
+});
+
+it("names a worker that did not load instead of printing undefined", () => {
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  TestWorker.latest.onerror?.({ preventDefault() {} } as ErrorEvent);
+  expect(() => turns.take(world)).toThrow("did not load or start");
+});
+
+it("adds the script location to a worker load failure", () => {
+  const event = { message: "", filename: "turn.js", lineno: 3 } as ErrorEvent;
+  expect(workerFailure("Turn worker", event)).toBe("Turn worker failed: script did not load or start (turn.js:3)");
 });
 
 it("does not fail the pending turn when the warm-up fails", () => {

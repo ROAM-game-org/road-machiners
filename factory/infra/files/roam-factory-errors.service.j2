@@ -13,8 +13,8 @@ Restart=on-failure
 RestartSec=5
 NoNewPrivileges=yes
 ProtectSystem=strict
-# The socket, and the store, reports and alert under the factory home. The source maps are only read.
-ReadWritePaths={{ factory_root }}/errors {{ factory_root }}/home/error-reports
+# The socket, the store, reports and alert under the factory home, and the public store. The source maps and the state file are only read.
+ReadWritePaths={{ factory_root }}/errors {{ factory_root }}/home/error-reports {{ factory_root }}/home/public
 StandardOutput=append:{{ home_dir }}/logs/errors.log
 StandardError=append:{{ home_dir }}/logs/errors.log
 

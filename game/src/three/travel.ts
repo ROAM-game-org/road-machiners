@@ -310,6 +310,12 @@ export function workerError(workerStack: string): Error {
   return error;
 }
 
+export function workerFailure(label: string, event: ErrorEvent): string {
+  if (typeof event.message === "string" && event.message !== "") return `${label} failed: ${event.message}`;
+  const where = event.filename ? ` (${event.filename}:${event.lineno})` : "";
+  return `${label} failed: script did not load or start${where}`;
+}
+
 export class TurnFailure extends Error {
   constructor(workerStack: string, readonly drive: DriveSnapshot) {
     const { name, message } = workerErrorHead(workerStack);
@@ -343,7 +349,10 @@ export class TurnPreparation {
       mergePerf(response.id === this.warmId ? { "turn-warm": response.perf.turn } : response.perf);
       if (this.pending?.id === response.id) this.pending.ready = response.turn;
     };
-    worker.onerror = (event) => this.fail(null, `Turn worker failed: ${event.message}`);
+    worker.onerror = (event) => {
+      event.preventDefault();
+      this.fail(null, workerFailure("Turn worker", event));
+    };
     worker.onmessageerror = () => this.fail(null, "Could not read turn worker response");
     return worker;
   }

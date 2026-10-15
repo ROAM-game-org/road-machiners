@@ -1,16 +1,10 @@
-// Reruns the turn of an error report headless, with the same pipeline as the turn worker, and prints what it throws.
-// Usage: npm run error:replay -- <report.json.gz> [--from world|autosave]
-// --from world, the default, loads the world in memory at the error. A failed turn's report also holds the physics drive it
-// started from, so that turn reruns exactly. Without a drive, and always with --from autosave, the drive is built fresh from
-// the world, and physics may differ from the player's run.
-// Run it on the report's commit. A save from another commit may load through migrations but run other code.
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { buildDrive, captureDrive, freeDrive, initPhysics } from '../src/phys/drive.ts';
 import { computeTurn } from '../src/phys/turn.ts';
 import { GAME_VERSION } from '../src/config.ts';
-import { loadWorld, SAVE_KEY } from '../src/three/save.ts';
-import { slotKey } from '../src/three/save-slots.ts';
+import { loadWorld } from '../src/three/save.ts';
+import { memoryBackend, SaveSlots } from '../src/three/save-db.ts';
 import { TEST_MAP } from '../src/test/map.ts';
 
 const file = process.argv[2];
@@ -19,14 +13,14 @@ const fromIndex = process.argv.indexOf('--from');
 const from = fromIndex >= 0 ? process.argv[fromIndex + 1] : 'world';
 if (from !== 'world' && from !== 'autosave') throw new Error(`--from must be world or autosave, got "${from}"`);
 
-const report = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'));
-console.log(`Report: ${report.error.name}: ${report.error.message}`);
+const sent = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'));
+const report = sent.context ? { ...sent.context, drive: null } : sent;
+console.log(sent.context ? `Player report, ${sent.kind}: ${sent.text}` : `Report: ${report.error.name}: ${report.error.message}`);
 console.log(`Report build ${report.build} ${report.version}, this checkout ${GAME_VERSION}`);
 if (report.version !== GAME_VERSION) console.warn('Warning: this checkout is not the report\'s version.');
 
-const save = savedJson(report, from);
-const storage = new Map([[slotKey(SAVE_KEY, 'auto'), save]]);
-const world = loadWorld({ getItem: (key) => storage.get(key) ?? null }, 'auto', TEST_MAP);
+const save = JSON.parse(savedJson(report, from));
+const world = loadWorld(new SaveSlots(memoryBackend(), new Map([['auto', save]])), 'auto', TEST_MAP);
 if (!world) throw new Error('The save did not load');
 console.log(`Loaded the ${from} at turn ${world.turn}`);
 
@@ -38,7 +32,7 @@ console.log(`The turn ran with no error and reached turn ${turn.world.turn}.`);
 
 function savedJson(report, from) {
   if (from === 'world') {
-    if (!report.world) throw new Error('The report holds no world. It came from a boot error.');
+    if (!report.world) throw new Error('The report holds no world. The game had not booted.');
     return JSON.stringify(report.world);
   }
   if (report.autosaveIsWorld) throw new Error('The autosave is the world in memory. Use --from world.');
