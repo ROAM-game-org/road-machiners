@@ -258,7 +258,7 @@ describe('public chat about known work', () => {
     post(f, { id: 196, text: EXPLAINED, thread: 9999, addressed: true, context: BUILD_TEXT });
     await tick();
     expect(asked[0]).toMatchObject({ source: 'message', context: BUILD_TEXT });
-    expect(asked[0]!.work).toContain('#564 Landmark directions: Towns give directions by landmarks you can see.');
+    expect(asked[0]!.work).toContain('#564 [approved, being finished] Landmark directions: Towns give directions by landmarks you can see.');
     expect(f.created).toEqual([]);
     expect(f.comments.map((comment) => comment.issue)).toEqual([LANDMARKS]);
     expect(f.comments[0]!.body).toContain(`> ${EXPLAINED}`);

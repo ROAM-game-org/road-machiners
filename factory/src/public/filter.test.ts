@@ -118,6 +118,19 @@ describe('filterWith', () => {
     await filterWith(CFG, fetch)({ source: 'message', text: 'Add boats', work: [] });
     expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
   });
+
+  it('asks a correction question only with an earlier message, shows that message and reads the answer', async () => {
+    const work = ['#571 [being built] Map markers'];
+    const reply = answers(intent(0.95, 0.03, 0.02), pick('kind', 'feedback'), pick('correction', 'corrects'), pick('work', '1'), pick('language', 'en'));
+    const { fetch, sent } = fake(200, reply);
+    const input = { source: 'message', text: 'Wrong issue, the map one', context: 'This is about #652', corrected: 'The marker sits in the sea', work } as const;
+    expect(await filterWith(CFG, fetch)(input)).toMatchObject({ corrects: true, work: 0 });
+    const body = bodyOf(sent);
+    expect(body.input).toMatch(/\n\nEarlier message: The marker sits in the sea\n\nReplying to: This is about #652\n\nPlayer text: Wrong issue/);
+    expect(body.questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'correction', 'work', 'language']);
+    const plain = await filterWith(CFG, fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feedback'), pick('language', 'en'))).fetch)({ source: 'message', text: 'Thanks' });
+    expect(plain).not.toHaveProperty('corrects');
+  });
 });
 
 describe('pickPassageWith', () => {

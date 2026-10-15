@@ -16,6 +16,9 @@ export type ReplyText = {
   added: (link: string) => string;
   aboutWork: (link: string, status: string) => string;
   images: Record<ImageOutcome, string>;
+  moved: (from: string | null, to: string, status: string) => string;
+  stays: (from: string | null) => string;
+  toTeam: string;
 };
 
 const ENGLISH: ReplyText = {
@@ -37,6 +40,9 @@ const ENGLISH: ReplyText = {
     lost: 'I could not get its image from Telegram, so the team has the text only.',
     none: 'I have no image of that message, so the team has the text only.',
   },
+  moved: (from, to, status) => `Sorry, I put it in the wrong place. I moved the earlier message${from === null ? '' : ` from ${from}`} to the player comments of ${to}\n${status}`,
+  stays: (from) => (from === null ? 'I found no open work this fits, so nothing moved.' : `I found no other open work this fits, so it stays on ${from}`),
+  toTeam: 'Your words went to the factory team as a committee request.',
 };
 
 const RUSSIAN: ReplyText = {
@@ -58,6 +64,9 @@ const RUSSIAN: ReplyText = {
     lost: 'Картинку не удалось получить из Telegram, у команды только текст.',
     none: 'Картинки этого сообщения у меня нет, у команды только текст.',
   },
+  moved: (from, to, status) => `Извините, я положил это не туда. Прошлое сообщение перенесено${from === null ? '' : ` из ${from}`} в комментарии игроков к ${to}\n${status}`,
+  stays: (from) => (from === null ? 'Подходящей открытой задачи не нашлось, ничего не перенесено.' : `Другой подходящей открытой задачи не нашлось, сообщение остаётся в ${from}`),
+  toTeam: 'Ваши слова переданы команде фабрики как просьба комитета.',
 };
 
 export const textsFor = (language: ReplyLanguage | null): ReplyText => (language === 'ru' ? RUSSIAN : ENGLISH);

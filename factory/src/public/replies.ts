@@ -7,7 +7,7 @@ import { textsFor, type ReplyText } from './reply-text';
 import type { IssueComment, PublicStore, StoredComment } from './store';
 import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
 
-const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
+export const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
 const APPROVED: Column[] = ['Hardening', 'Merging'];
 const IN_WORK: Column[] = ['Design', 'Implementation', 'Testing', 'Approval'];
@@ -18,7 +18,7 @@ async function columnStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<s
   return column !== undefined && IN_WORK.includes(column) ? text.inWork : text.notBuilt;
 }
 
-async function issueStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
+export async function issueStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
   const found = await ctx.github.issue(issue);
   if (found.state === 'CLOSED') return text.closed;
   if (found.labels.includes(RELEASE_CANDIDATE_LABEL)) return text.releaseCandidate;

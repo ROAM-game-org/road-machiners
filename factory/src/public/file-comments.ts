@@ -22,7 +22,7 @@ function issueBody(comment: StoredComment): string {
   ].join('\n\n');
 }
 
-async function isOpen(ctx: Ctx, comment: StoredComment, work: number): Promise<boolean> {
+export async function isOpen(ctx: Ctx, comment: StoredComment, work: number): Promise<boolean> {
   try {
     return (await ctx.github.issue(work)).state === 'OPEN';
   } catch (error) {

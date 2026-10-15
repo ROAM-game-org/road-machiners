@@ -123,7 +123,7 @@ export type Issue = {
   author: string;
 };
 
-export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
+export type Card = { itemId: string; issue: number; title?: string; column: Column; labels: string[] };
 
 export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste';
 export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[]; caughtUp?: number[] };

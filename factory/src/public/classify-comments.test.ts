@@ -68,7 +68,7 @@ describe('classifyComments', () => {
     const seen: FilterInput[] = [];
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), kind: 'feedback', work: 0, language: 'ru' }; }));
     expect(seen[0]).toMatchObject({ source: 'message', context: 'Landmark directions' });
-    expect(seen[0]!.work![0]).toBe('#564 Landmark directions: Towns give directions by landmarks you can see.');
+    expect(seen[0]!.work![0]).toBe('#564 [proposal] Landmark directions: Towns give directions by landmarks you can see.');
     expect(seen[0]!.work!.map((work) => work.split(' ')[0])).toEqual(['#564', '#570', '#568']);
     const [stored] = f.store.recentChat(1);
     expect([stored!.kind, stored!.workIssue, stored!.language]).toEqual(['feedback', 564, 'ru']);
@@ -84,7 +84,7 @@ describe('classifyComments', () => {
     const seen: FilterInput[] = [];
     const decide: Record<string, Partial<Decision>> = { 'winch thanks': { kind: 'chatter', work: 0 }, 'winch spam': { verdict: 'reject', work: 0 }, 'winch idea': { kind: 'feature' } };
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), ...decide[input.text] }; }));
-    expect(seen.map((input) => input.work)).toEqual([['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.']]);
+    expect(seen.map((input) => input.work)).toEqual([['#8 [proposal] Winch upgrade: A stronger winch.'], ['#8 [proposal] Winch upgrade: A stronger winch.'], ['#8 [proposal] Winch upgrade: A stronger winch.']]);
     expect(f.store.recentChat(3).map((comment) => comment.workIssue)).toEqual([null, null, null]);
   });
 });
