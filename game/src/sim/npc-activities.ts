@@ -344,10 +344,6 @@ function resumeOrDrop(world: World, vehicle: Vehicle): void {
   if (isWatching(vehicle)) popGoal(world, vehicle, 'leftPost');
 }
 
-function heldTow(world: World, vehicle: Vehicle): NpcState | null {
-  return towHeldBy(world, vehicle.id);
-}
-
 type GoalCheck = (world: World, vehicle: Vehicle, goal: NpcActivity, contacts: Contact[]) => GoalReason | null;
 
 const GAVE_UP_ROBBERY = 'strandedRobbery';
@@ -442,7 +438,7 @@ function lootInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalRea
 }
 
 function towInvalid(world: World, vehicle: Vehicle, goal: NpcActivity): GoalReason | null {
-  if (heldTow(world, vehicle)) return null;
+  if (towHeldBy(world, vehicle.id)) return null;
   const client = world.vehicles.find((v) => v.id === goal.targetId);
   if (!client || stateOf(world, 'turnedDown', vehicle.id, client.id)) return 'towOff';
   if (!stateOf(world, 'answering', vehicle.id, client.id)) return 'towUnanswered';
@@ -486,7 +482,7 @@ const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {
   if (!inCombat(world, vehicle)) return;
-  const tow = heldTow(world, vehicle);
+  const tow = towHeldBy(world, vehicle.id);
   if (tow) dropTow(world, tow, 'danger');
   for (const s of world.states.filter((x) => BROKEN_OFF.includes(x.kind) && (x.holder === vehicle.id || x.other === vehicle.id))) endState(world, s, 'broken');
 }
@@ -615,7 +611,7 @@ function seenFleeReason(world: World, vehicle: Vehicle, enemy: Vehicle): GoalRea
 }
 
 function interrupt(world: World, vehicle: Vehicle, goal: NpcActivity): void {
-  const tow = heldTow(world, vehicle);
+  const tow = towHeldBy(world, vehicle.id);
   if (tow) {
     dropTow(world, tow, 'danger');
     if (popGoal(world, vehicle, 'droppedTow').kind !== 'tow') throw new Error(`${vehicle.id} held a tow without a tow goal on top`);
@@ -650,7 +646,7 @@ function onHostilesSeen(world: World, vehicle: Vehicle, profile: NpcProfile): vo
 }
 
 function onContactsHeard(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[]): void {
-  if (heldTow(world, vehicle)) return;
+  if (towHeldBy(world, vehicle.id)) return;
   for (const contact of hostileContacts(world, vehicle, contacts)) {
     const option = reactHeard(world, vehicle, contact);
     if (option === null || option === 'keep') continue;
@@ -851,7 +847,7 @@ type Steer = (world: World, vehicle: Vehicle, goal: NpcActivity, profile: NpcPro
 const STEERS: Partial<Record<NpcActivity['kind'], Steer>> = {
   fight: steerFight,
   flee: (world, vehicle, goal, profile, contacts) => steerFlee(world, vehicle, profile, contacts, goal),
-  tow: (world, vehicle, goal) => { if (!heldTow(world, vehicle)) steerToStranded(world, vehicle, goal); },
+  tow: (world, vehicle, goal) => { if (!towHeldBy(world, vehicle.id)) steerToStranded(world, vehicle, goal); },
   meet: (world, _vehicle, goal) => { if (goal.destination) goal.destination = { ...vehicleById(world, goal.targetId!).pos }; },
   follow: steerFollow,
   investigate: steerInvestigate,
@@ -909,6 +905,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onRamChance(world, vehicle);
   onFightWhim(world, vehicle);
   judgeStrandedFoe(world, vehicle);
+  dropInvalidGoals(world, vehicle, contacts);
   steer(world, vehicle, profile, contacts);
   return currentActivity(world, vehicle, profile);
 }
@@ -940,7 +937,7 @@ function dropInvalidGoals(world: World, vehicle: Vehicle, contacts: Contact[]): 
 }
 
 function applyFixedRules(world: World, vehicle: Vehicle, profile: NpcProfile): void {
-  if (heldTow(world, vehicle)) {
+  if (towHeldBy(world, vehicle.id)) {
     keepTowGoal(world, vehicle);
     return;
   }
