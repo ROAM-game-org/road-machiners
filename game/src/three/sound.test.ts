@@ -449,7 +449,7 @@ describe("SoundDirector accent timing", () => {
 
 describe("CombatScore", () => {
   type BaseId = "score-drums" | "score-bass" | "score-horns" | "score-trombone";
-  type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; tones: number[]; ducks: number[] };
+  type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; ducks: number[] };
   type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number; from?: number }?];
   const fakePlayer = () => {
     const loops: Call[] = [];
@@ -460,13 +460,12 @@ describe("CombatScore", () => {
       play: (...args: Play) => { plays.push(args); },
       chooseWithPeak: (id: string) => ({ file: `${id}-1.ogg`, peak: 0.1 }),
       beatLoop: (id: BaseId, file: string, when: number, offset: number) => {
-        const call: Call = { id, file, when, offset, gains: [], tones: [], ducks: [] };
+        const call: Call = { id, file, when, offset, gains: [], ducks: [] };
         loops.push(call);
         const duration = SOUNDS[id].beat!.bars * 4;
         return {
           duration,
           setGain: (g: number) => call.gains.push(g),
-          setTone: (hz: number) => call.tones.push(hz),
           glide: () => {},
           once: () => {},
           stop: () => {},
@@ -493,7 +492,7 @@ describe("CombatScore", () => {
     expect(loops.every((l) => l.gains.length === 0)).toBe(true);
   });
 
-  it("plays one random base per battle, quiet and muffled with no heat, and fades it out after", () => {
+  it("plays one random base per battle at full level, and fades it out after", () => {
     const { player, loops } = fakePlayer();
     const rolls = [0.3, 0, 0, 0.1];
     const score = new CombatScore(player, () => rolls.shift() ?? 0);
@@ -501,8 +500,7 @@ describe("CombatScore", () => {
     score.setCombat(true, 3);
     score.setCombat(false, 3);
     score.setCombat(true, 3);
-    expect(loops.map((l) => l.gains)).toEqual([[s.quietGain], [s.quietGain, 0], [], []]);
-    expect(loops[1].tones).toEqual([s.quietCutoffHz]);
+    expect(loops.map((l) => l.gains)).toEqual([[1], [1, 0], [], []]);
   });
 
   it("plays a preferred base in every battle instead of a random one", () => {
@@ -513,7 +511,7 @@ describe("CombatScore", () => {
     score.setCombat(false, 3);
     score.preferBase(null);
     score.setCombat(true, 3);
-    expect(loops.map((l) => l.gains)).toEqual([[s.quietGain], [], [s.quietGain, 0], []]);
+    expect(loops.map((l) => l.gains)).toEqual([[1], [], [1, 0], []]);
   });
 
   it("ignores accents outside a battle", () => {
@@ -576,13 +574,12 @@ describe("CombatScore", () => {
     expect(loops[0].ducks).toEqual([]);
   });
 
-  it("opens the base as heat rises, on the next bar", () => {
+  it("keeps the base at full level however hot the fight gets", () => {
     const { player, loops, clock } = fakePlayer();
     const score = new CombatScore(player, () => 0);
     score.setCombat(true, 3);
     for (let i = 0; i < 3; i++) score.accent("accent-crash", 0);
     run(score, clock, 4);
-    expect(loops[0].gains.at(-1)).toBeGreaterThan(s.quietGain);
-    expect(loops[0].tones.at(-1)).toBeGreaterThan(s.quietCutoffHz);
+    expect(loops[0].gains).toEqual([1]);
   });
 });

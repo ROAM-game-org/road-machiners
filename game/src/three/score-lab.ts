@@ -18,6 +18,7 @@ const LANE_HEIGHT = 64;
 const LABEL_ROWS = 4;
 const LABEL_WIDTH = 90;
 const UNKNOWN_TAIL_SECONDS = 0.25;
+const HEAT_CEILING_OVER_HOT = 2;
 const LANES = ["turns", "events", "lead", "secondary", "base", "heat"] as const;
 type Lane = (typeof LANES)[number];
 
@@ -52,7 +53,6 @@ const INK = {
   duck: token("--danger"),
   heat: token("--danger-bright"),
   hot: token("--danger-deep"),
-  full: token("--accent-dim"),
 };
 const RESULT_INK: Record<string, string> = { played: token("--accent"), skipped: token("--ink-faint"), crowded: token("--danger") };
 const FONT = `${token("--text-dense")} ${token("--font-mono")}`;
@@ -71,7 +71,6 @@ const offered: Offered[] = [];
 const turns: TurnSpan[] = [];
 const ducks: number[] = [];
 const baseGain = new Map<string, Step[]>();
-const baseTone = new Map<string, Step[]>();
 const baseGrid = new Map<string, { start: number; beat: number }>();
 const heats: Step[] = [];
 const pinnedTakes = new Map<string, string>();
@@ -100,10 +99,8 @@ function recordBase(id: string, file: string, when: number, offset: number): Bea
   const loop = player.beatLoop(id, file, when, offset);
   const beat = SOUNDS[id as BaseCue].beat!;
   const gains: Step[] = [{ at: when, value: 0 }];
-  const tones: Step[] = [{ at: when, value: MIX.score.openCutoffHz }];
   baseGrid.set(id, { start: when, beat: loop.duration / (beat.bars * BEATS_PER_BAR) });
   baseGain.set(id, gains);
-  baseTone.set(id, tones);
   return {
     ...loop,
     duration: loop.duration,
@@ -111,10 +108,6 @@ function recordBase(id: string, file: string, when: number, offset: number): Bea
       if (gain > 0) lastRaised = id;
       gains.push({ at: player.now(), value: gain });
       loop.setGain(gain, ramp);
-    },
-    setTone: (hz, ramp) => {
-      tones.push({ at: player.now(), value: hz });
-      loop.setTone(hz, ramp);
     },
     duck: (time, level, attack, release) => {
       ducks.push(time);
@@ -308,12 +301,10 @@ function drawBase(now: number): void {
 
 function drawHeat(now: number): void {
   const top = laneTop("heat");
-  const ceiling = MIX.score.fullHeat * 1.5;
+  const ceiling = MIX.score.hotHeat * HEAT_CEILING_OVER_HOT;
   const scale = (v: number) => top + LANE_HEIGHT - 4 - (Math.min(v, ceiling) / ceiling) * (LANE_HEIGHT - 8);
-  for (const [v, ink] of [[MIX.score.hotHeat, INK.hot], [MIX.score.fullHeat, INK.full]] as const) {
-    g.fillStyle = ink;
-    g.fillRect(LABEL_WIDTH, scale(v), WIDTH - LABEL_WIDTH, 1);
-  }
+  g.fillStyle = INK.hot;
+  g.fillRect(LABEL_WIDTH, scale(MIX.score.hotHeat), WIDTH - LABEL_WIDTH, 1);
   g.strokeStyle = INK.heat;
   g.beginPath();
   for (let x = LABEL_WIDTH; x <= xOf(now, now); x += 2) {
@@ -324,11 +315,10 @@ function drawHeat(now: number): void {
 }
 
 function baseRows(base: string | null): [string, string][] {
-  if (!base) return [["Base", "none"], ["Base level", "-"], ["Base cutoff", "-"]];
+  if (!base) return [["Base", "none"], ["Base level", "-"]];
   return [
     ["Base", base.replace("score-", "")],
     ["Base level", baseGain.get(base)!.at(-1)!.value.toFixed(2)],
-    ["Base cutoff", `${Math.round(baseTone.get(base)!.at(-1)!.value)} Hz`],
   ];
 }
 
@@ -340,7 +330,7 @@ function showStats(now: number, paused: boolean): void {
   const rows: [string, string][] = [
     ["Combat", inCombat ? "on" : "off"],
     ...baseRows(activeBase()),
-    ["Heat", `${heatAt(now).toFixed(2)} of ${MIX.score.fullHeat}, hot at ${MIX.score.hotHeat}`],
+    ["Heat", `${heatAt(now).toFixed(2)}, hot at ${MIX.score.hotHeat}`],
     ["Paused", paused ? "yes" : "no"],
     ["Turn", turn ? `playing at ${turn.speed}x` : "idle"],
   ];

@@ -17,7 +17,6 @@ export type LoopHandle = {
 export type BeatLoopHandle = LoopHandle & {
   readonly duration: number;
   duck(time: number, gain: number, attackSeconds: number, releaseSeconds: number): void;
-  setTone(cutoffHz: number, rampSeconds: number): void;
 };
 
 const PEAK_WINDOW_SECONDS = 0.02;
@@ -71,10 +70,8 @@ export class SoundPlayer {
     const buffer = this.getBuffer(id, cue, file);
     const src = this.loopSource(buffer);
     const duck = this.mixer.ctx.createGain();
-    const tone = this.mixer.ctx.createBiquadFilter();
-    tone.type = "lowpass";
-    src.connect(duck).connect(tone);
-    const gain = this.chain(tone, cue, { pan: 0, gain: 0 });
+    src.connect(duck);
+    const gain = this.chain(duck, cue, { pan: 0, gain: 0 });
     src.start(when, offset);
     return {
       ...this.loopHandle(src, gain, cue),
@@ -83,7 +80,6 @@ export class SoundPlayer {
         duck.gain.setTargetAtTime(level, time, attack / 3);
         duck.gain.setTargetAtTime(1, time + attack, release / 3);
       },
-      setTone: (cutoff, ramp) => tone.frequency.setTargetAtTime(cutoff, this.mixer.ctx.currentTime, ramp / 3),
     };
   }
 

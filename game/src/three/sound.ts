@@ -54,7 +54,6 @@ export class CombatScore {
   private active: Base | null = null;
   private designer: SoundDesigner | null = null;
   private heat = new Fading(MIX.score.heatHalfLifeSeconds);
-  private lastBar = -Infinity;
   private paused = false;
   private preferred: BaseCue | null = null;
 
@@ -74,8 +73,7 @@ export class CombatScore {
     if (!this.active) return;
     const now = this.player.now();
     this.designer = new SoundDesigner(this.active.grid, MIX.score, this.roll, now + ACCENT_LEAD_SECONDS);
-    this.lastBar = this.barAt(this.active, now);
-    this.setIntensity(this.active, now, fadeSeconds);
+    this.active.loop.setGain(1, fadeSeconds);
   }
 
   preferBase(id: BaseCue | null): void {
@@ -97,10 +95,6 @@ export class CombatScore {
     const now = this.player.now();
     const hits = this.designer.step(now + ACCENT_LEAD_SECONDS, now + LOOKAHEAD_SECONDS, this.paused, this.heat.read(now));
     for (const h of hits) this.sound(base, h, now);
-    const bar = this.barAt(base, now);
-    if (bar <= this.lastBar) return;
-    this.lastBar = bar;
-    this.setIntensity(base, now, base.grid.beat * base.grid.beatsPerBar);
   }
 
   take(cue: AccentCue): AccentTake {
@@ -125,17 +119,6 @@ export class CombatScore {
     this.player.play(h.cue as AccentCue, { pan: h.pan, gain: h.gain }, (start - now) * 1000, selection);
     const s = MIX.score;
     if (h.line === "lead") base.loop.duck(start, s.duckGain, s.duckAttackSeconds, base.grid.beat * s.duckReleaseBeats);
-  }
-
-  private setIntensity(base: Base, now: number, rampSeconds: number): void {
-    const s = MIX.score;
-    const t = Math.min(1, this.heat.read(now) / s.fullHeat);
-    base.loop.setGain(s.quietGain + (1 - s.quietGain) * t, rampSeconds);
-    base.loop.setTone(s.quietCutoffHz * (s.openCutoffHz / s.quietCutoffHz) ** t, rampSeconds);
-  }
-
-  private barAt(base: Base, time: number): number {
-    return Math.floor((time - base.grid.start) / (base.grid.beat * base.grid.beatsPerBar));
   }
 
   private base(id: BaseCue, start: number): Base {
