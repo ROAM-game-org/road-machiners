@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { partDef } from '../../data/parts';
+import { FURY_ROAD } from '../../data/modes';
+import { vehicleStats } from '../stats';
 import { onOutpostPad, outpostPad } from '../fury-road';
 import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
 import type { Vehicle, World } from '../types';
@@ -116,6 +118,15 @@ describe('the Fury Road escort bot', () => {
 
     expect(turn.world.player.state).toBe('dead');
     expect(turn.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'abandoned' });
+  });
+
+  it('never refits its own truck below the hauler top speed, however much money it has', () => {
+    const w = atFirstOutpost();
+    w.player.money = 2_000_000;
+
+    const turn = botOrders(w, 'escort');
+
+    expect(vehicleStats(turn.world, playerVehicle(turn.world)).maxSpeed).toBeGreaterThanOrEqual(FURY_ROAD.hauler.hurry);
   });
 
   it('refits its own truck by the merc loadout, then spends the rest on hauler armor and never a gun', () => {

@@ -157,7 +157,7 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   buyPatchGoods(o);
   if (inCombat(o.world, o.me)) return;
   if (style === 'sprinter') {
-    refitGear(o, 1);
+    refitGear(o, style);
     return buyTruck(o, post, style);
   }
   restockEscort(o, post, style);
@@ -167,7 +167,7 @@ function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
   const before = o.me.chassisId;
   buyTruck(o, post, style);
   if (o.me.chassisId === before && savingForTruck(o, post)) return;
-  refitGear(o, 1);
+  refitGear(o, style);
   armorHauler(o);
 }
 
@@ -176,12 +176,13 @@ function savingForTruck(o: Orders, post: Outpost): boolean {
   return savesFor(offers, chassisDef(o.me.chassisId).value, gearBudget(o.world, o.me, 'fighter'), payOf(post.milestone + 1));
 }
 
-function refitGear(o: Orders, share: number): void {
+function refitGear(o: Orders, style: RoadStyle): void {
   const forSale = reachedOutpostAt(o.world)!.stock.filter((part) => !isJunk(part));
-  const money = gearBudget(o.world, o.me, 'fighter') * share;
+  const money = gearBudget(o.world, o.me, 'fighter');
   const owned = new Set(o.me.items.map((it) => it.id));
   const added = (v: Vehicle) => v.items.flatMap((it) => (it.kind === 'part' && !owned.has(it.id) ? [it] : []));
-  const allowed = (v: Vehicle) => added(v).every(sturdy) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
+  const paced = (v: Vehicle) => style === 'sprinter' || keepsPace(vehicleStats(o.world, v).maxSpeed, FURY_ROAD.hauler.hurry);
+  const allowed = (v: Vehicle) => added(v).every(sturdy) && paced(v) && buysFor(added(v), forSale) !== null && cost(o, buysFor(added(v), forSale)!) <= money;
   const target = refitLoadout(o.world, { rngState: o.world.rngState }, o.me, { priorities: NPCS[FIGHTER].loadout.priorities, money, allowed, paysFuel: false });
   const kept = new Set(target.items.map((it) => it.id));
   for (const it of o.me.items.filter((it) => it.kind === 'part' && !kept.has(it.id))) o.run((w) => storePart(w, it.id), 'gear');
