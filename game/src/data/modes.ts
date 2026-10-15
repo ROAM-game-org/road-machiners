@@ -54,7 +54,7 @@ export const FURY_ROAD = {
     { level: 'heavy', gear: LATE_GEAR },
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
-  danger: { firstPercent: 45, risePercent: 6, truckPercent: 45, truckFloorPercent: 35, groupMax: 3, gearShare: 0.3 },
+  danger: { firstPercent: 45, risePercent: 10, truckPercent: 45, truckFloorPercent: 35, groupMax: 3, gearShare: 1 },
   pool: [
     { upTo: 2, floor: 20000, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
     { upTo: 5, floor: 20000, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, merc: 3, bowlFarmer: 1 } },
@@ -70,7 +70,7 @@ export const FURY_ROAD = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 12000, step: 5000 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 6, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,
