@@ -1391,3 +1391,14 @@ describe('MIGRATIONS[65]', () => {
     expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
   });
 });
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});

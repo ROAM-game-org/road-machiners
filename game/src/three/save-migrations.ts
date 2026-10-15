@@ -877,6 +877,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withRescueContracts_63_64,
   withEncounters_64_65,
   withProgressAnchor_65_66,
+  (world) => world,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {

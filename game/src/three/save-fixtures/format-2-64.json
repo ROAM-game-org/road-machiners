@@ -6,6 +6,11 @@
   "vehicles": [
     { "id": "v7", "pos": { "x": 41.5, "y": 77.25 }, "brain": { "goals": [], "progress": { "key": "41,77 explore:null:explore -", "since": 231 } } },
     { "id": "v8", "pos": { "x": 12, "y": 9 }, "brain": { "goals": [] } },
-    { "id": "v1", "pos": { "x": 30, "y": 30 }, "brain": null }
+    { "id": "v1", "pos": { "x": 30, "y": 30 }, "brain": null },
+    {
+      "id": "p1",
+      "items": [{ "kind": "part", "part": { "id": "p343", "defId": "claymoreRam", "hp": 40, "charge": { "reload": 0, "armed": true } } }],
+      "utilityOrders": { "p343": { "kind": "self" } }
+    }
   ]
 }

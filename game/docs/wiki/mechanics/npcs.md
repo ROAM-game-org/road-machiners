@@ -37,7 +37,7 @@ NPCs carry and use utilities by the player's rules. At spawn each truck may roll
 - Smoke mortar: a fleeing driver shells the midpoint between itself and its nearest attacker in sight.
 - Flare cannon: at night, a driver investigating a contact lights the contact.
 - Emitter: in combat, every truck it sees in range is hostile, and there is at least one.
-- Claymore ram: the driver has chosen to ram.
+- Claymore ram: the driver has chosen to ram. It disarms an armed ram once it is out of a fight and has chosen no ram.
 
 The harpoon rolls with the utilities, but it is a gun, so a driver fires it at its fight target like its other guns.
 
