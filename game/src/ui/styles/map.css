@@ -25,10 +25,14 @@
   pointer-events: none;
   white-space: nowrap;
 }
-#ui .world-map-screen .world-map-body,
+#ui .world-map-screen .world-map-body {
+  position: relative;
+  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--space-10)));
+  margin: 0 auto;
+}
 .charts-map {
   position: relative;
-  width: min(var(--world-map-size), 100%);
+  width: min(var(--world-map-size), 100%, calc(100dvh - var(--modal-reserve) - var(--map-chrome)));
   margin: 0 auto;
 }
 .charts {
@@ -39,4 +43,7 @@
 }
 .charts-map .map-view {
   cursor: pointer;
+}
+#ui .world-map-screen .close {
+  z-index: var(--z-popup);
 }
