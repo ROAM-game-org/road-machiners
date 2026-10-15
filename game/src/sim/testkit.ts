@@ -82,6 +82,12 @@ export function editableTerrain(w: World): Terrain {
   return w.terrain;
 }
 
+export function lockTerrain(w: World): void {
+  Object.freeze(w.terrain.heights);
+  Object.freeze(w.terrain.types);
+  Object.freeze(w.terrain);
+}
+
 export const PLAIN_KIT: StartKit = {
   ...START_KITS.standard,
   parts: [...START_KITS.standard.parts, 'cage'],
