@@ -103,7 +103,7 @@ describe('public chat', () => {
     expect(f.comments).toEqual([]);
   });
 
-  it('gives an honest fallback with the wiki link when no passage states the answer, or the wiki lookup fails', async () => {
+  it('sends no canned fallback when no passage states the answer or the wiki lookup fails, and reports the failure', async () => {
     const specific = '@roam_bot how much does a winch cost in the Bowl?';
     const broken = '@roam_bot what does the horn do?';
     const { f, tick } = chat([{ text: specific, decision: { kind: 'question', relevance: 'other' } }, { text: broken, decision: { kind: 'question', relevance: 'other' } }], async (question) => {
@@ -113,24 +113,27 @@ describe('public chat', () => {
     post(f, { id: 13, text: specific, addressed: true });
     post(f, { id: 14, text: broken, addressed: true, sender: '43' });
     await tick();
-    for (const id of [13, 14]) {
-      const [reply] = repliesTo(f, id);
-      expect(reply!.text).toContain('The game wiki has no passage that answers this, so I will not guess. The wiki: https://github.com/o/r/blob/main/game/docs/wiki/README.md');
-      expect(reply!.text).not.toMatch(/winch|horn|Bowl/);
-    }
-    expect(repliesTo(f, 14)).toHaveLength(1);
+    expect(f.messages).toEqual([]);
+    expect(f.created).toEqual([]);
     expect(f.logs.some((line) => line.includes('the wiki answer to player comment') && line.includes('status 500'))).toBe(true);
   });
 
-  it('answers an on-topic question in its thread from the wiki and adds it to the parent comments', async () => {
+  it('gives an on-topic question in its thread only the issue note when the wiki has no answer, and adds it to the parent comments', async () => {
     const text = 'Does the reputation reset when I die?';
     const { f, tick } = chat([{ text, decision: { kind: 'question', relevance: 'parent' } }]);
     post(f, { id: 23, text, thread: PROPOSAL });
     await tick();
     expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
-    const [reply] = repliesTo(f, 23);
-    expect(reply!.text).toMatch(/^The game wiki has no passage that answers this/);
-    expect(reply!.text).toContain('player comments of #568');
+    expect(repliesTo(f, 23).map((reply) => reply.text)).toEqual(['Thanks. I added this to the player comments of #568: https://github.com/o/r/issues/568']);
+  });
+
+  it('never answers addressed feedback outside a thread with the canned invitation to file', async () => {
+    const remark = '@roam_bot thanks, the new truck sounds are nice';
+    const { f, tick } = chat([{ text: remark, decision: { kind: 'feedback', relevance: 'other' } }]);
+    post(f, { id: 24, text: remark, addressed: true });
+    await tick();
+    expect(f.messages).toEqual([]);
+    expect(f.created).toEqual([]);
   });
 
   it('files a standalone @mention idea, and leaves an unaddressed question and chatter unanswered', async () => {
@@ -205,12 +208,12 @@ describe('public chat', () => {
     expect(f.comments).toEqual([]);
   });
 
-  it('reports a missing game wiki as a failure and still gives the player the fallback once', async () => {
+  it('reports a missing game wiki as a failure and sends the player no canned fallback', async () => {
     const asked = '@roam_bot how do flares work?';
     const { f, tick } = chat([{ text: asked, decision: { kind: 'question', relevance: 'other' } }], groundWith(async () => 0, 'tmp/no-such-wiki'));
     post(f, { id: 26, text: asked, addressed: true });
     await tick();
-    expect(repliesTo(f, 26).map((reply) => reply.text)).toEqual([expect.stringMatching(/^The game wiki has no passage that answers this/)]);
+    expect(repliesTo(f, 26)).toEqual([]);
     expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('the wiki answer to player comment')]);
   });
 
@@ -279,7 +282,7 @@ describe('public chat about known work', () => {
     expect(repliesTo(f, 197)[0]!.text).toContain('This is about #568');
   });
 
-  it('answers an addressed question about known work from the wiki and adds it to that work, and keeps unaddressed ones silent', async () => {
+  it('gives an addressed question about known work its status with no canned wiki fallback, adds it to that work, and keeps unaddressed ones silent', async () => {
     const question = '@roam_bot when do the landmark directions come out?';
     const remark = 'landmark directions sound great';
     const between = 'do the landmark directions work at night?';
@@ -297,7 +300,7 @@ describe('public chat about known work', () => {
     expect(f.comments[0]!.body).toContain(between);
     expect(repliesTo(f, 57)).toEqual([]);
     const [reply] = repliesTo(f, 50);
-    expect(reply!.text).toMatch(/^The game wiki has no passage that answers this/);
+    expect(reply!.text).toMatch(/^Thanks\. This is about/);
     expect(reply!.text).toContain('This is about #564: https://github.com/o/r/issues/564, which the factory already has.\nIt is approved and being finished.\nI added your message to its player comments. It opens no new issue or vote.');
     expect(repliesTo(f, 51)).toEqual([]);
   });
