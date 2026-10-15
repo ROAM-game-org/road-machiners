@@ -5,6 +5,7 @@ import { haulerOf } from './damage';
 import { isDefeated } from './defeat';
 import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
 import { acrossOf, alongOf, roadPoint, toRoad, windowSpan } from './highway';
+import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
 import { isStranded } from './stats';
 import type { MoveOrder, Vehicle, World } from './types';
@@ -14,6 +15,7 @@ const HAULER = FURY_ROAD.hauler;
 const LANES: readonly number[] = HIGHWAY.road.lanes;
 const BEHIND = 2;
 const WINDOW_EDGE = 2;
+const CRATER_STEP = 1;
 
 export type SideThreat = 'left' | 'right' | 'both' | null;
 
@@ -78,11 +80,23 @@ function truckInLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   return otherRunTrucks(world, hauler).some((t) => t.speed < pace && segmentDist(t.pos, a, b) < chassisDef(t.chassisId).radius + radius);
 }
 
+function crateredLane(world: World, hauler: Vehicle, lane: number): boolean {
+  const craters = windowCraters(world.seed, runOf(world).window);
+  const radius = chassisDef(hauler.chassisId).radius;
+  const along = alongNow(world, hauler);
+  for (let n = along - BEHIND; n <= along + HAULER.craterLookahead; n += CRATER_STEP) {
+    for (const u of [LANES[lane] - radius, LANES[lane], LANES[lane] + radius]) {
+      if (craterDip(craters, { n, u }) >= HAULER.craterDip) return true;
+    }
+  }
+  return false;
+}
+
 export function laneClear(world: World, hauler: Vehicle, lane: number): boolean {
   const along = alongNow(world, hauler);
   const a = lanePoint(world, along - BEHIND, lane);
   const b = lanePoint(world, along + HAULER.lookahead, lane);
-  return !inReachOfLane(world, hauler, a, b) && !truckInLane(world, hauler, a, b);
+  return !inReachOfLane(world, hauler, a, b) && !truckInLane(world, hauler, a, b) && !crateredLane(world, hauler, lane);
 }
 
 function nearestClearLane(world: World, hauler: Vehicle, from: number): number | null {

@@ -1,16 +1,16 @@
 import { beforeAll, expect, it } from 'vitest';
 import { HIGHWAY } from '../data/modes';
-import { haulerOf } from '../sim/damage';
+import { haulerOf, playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { setHeadless } from '../sim/fidelity';
-import { acrossOf, outpostFort, toRoad } from '../sim/highway';
+import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
 import { canUseSite } from '../sim/sites';
 import { furyRoadWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
-import { buildDrive, freeDrive, initPhysics, type Drive, type TurnResult } from './drive';
+import { buildDrive, freeDrive, GROUND, initPhysics, type Drive, type TurnResult } from './drive';
 import { physicsMove } from './turn';
 
 beforeAll(async () => {
@@ -18,6 +18,7 @@ beforeAll(async () => {
 });
 
 const TURNS = 200;
+const CRATERS_PASSED = 140;
 
 function onPad(w: World): boolean {
   return canUseSite(haulerOf(w).pos, outpostFort(w.seed, 0, 1));
@@ -90,4 +91,35 @@ it.each(KINDS)('drives the hauler in physics through a %s scene to the fort pad'
   const { w, turns, stalls } = haulerRun(seed);
   expect(stalls, `seed ${seed}`).toBe(0);
   expect(onPad(w), `seed ${seed} after ${turns} turns`).toBe(true);
+}, budget(300_000));
+
+const ESCORT_BESIDE = { ahead: 3, across: 2 };
+
+function escortedRun(seed: number, turns: number): { grounded: number; stalls: number; farthest: number } {
+  let w = furyRoadWorld(seed);
+  w.furyRoad!.groups = [];
+  let drive: Drive = buildDrive(w);
+  let grounded = 0;
+  let stalls = 0;
+  for (let turn = 0; turn < turns; turn++) {
+    const at = toRoad(0, haulerOf(w).pos);
+    const spot = roadPoint(seed, 0, alongOf(seed, at) + ESCORT_BESIDE.ahead, acrossOf(seed, at) + ESCORT_BESIDE.across);
+    playerVehicle(w).order = { kind: 'through', dest: spot, pace: 6 };
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    const hauler = haulerOf(w);
+    grounded += w.events.filter((e) => e.t === 'collision' && e.b === GROUND && e.a === hauler.id).length;
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    freeDrive(drive);
+    drive = result!.next;
+  }
+  freeDrive(drive);
+  return { grounded, stalls, farthest: alongOf(seed, toRoad(0, haulerOf(w).pos)) };
+}
+
+it('keeps the hauler out of the craters of stretch 1 with the gun truck riding beside it', () => {
+  const { grounded, stalls, farthest } = escortedRun(4, 30);
+  expect(grounded).toBe(0);
+  expect(stalls).toBe(0);
+  expect(farthest).toBeGreaterThan(CRATERS_PASSED);
 }, budget(300_000));
