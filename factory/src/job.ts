@@ -13,6 +13,7 @@ import { candidate } from './stages/candidate';
 import { playtest } from './stages/playtest';
 import { release } from './stages/release';
 import { runStage as incident } from './stages/incident';
+import { answerNext } from './stages/answer';
 import { remove } from './stages/remove';
 import { ship } from './stages/ship';
 import { runStage as checks } from './stages/checks';
@@ -29,7 +30,7 @@ import { QUEUE_OF, type Ctx, type Job, type JobStage } from './types';
 
 type Handler = (ctx: Ctx, issue: number) => Promise<void>;
 
-const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge'>, Handler> = {
+const HANDLERS: Record<Exclude<JobStage, 'release' | 'dev' | 'waste' | 'merge' | 'answer'>, Handler> = {
   triage, design, implement, verify, harden, checks, change, adhoc, playtest, candidate, remove, incident,
   'catch-up': catchUp,
   ship: (ctx, issue) => ship(ctx, issue, readState(ctx.statePath).pendingShip),
@@ -124,8 +125,9 @@ function clearSessionsOf(ctx: Ctx, stage: JobStage, issue: number | null): void 
   if (issue !== null && QUEUE_OF[stage] !== 'branch') clearSessions(ctx.cfg.home, issue);
 }
 
-const ISSUELESS: Record<'release' | 'dev' | 'waste' | 'merge', (ctx: Ctx, job: Job | null) => Promise<unknown>> = {
+const ISSUELESS: Record<'release' | 'dev' | 'waste' | 'merge' | 'answer', (ctx: Ctx, job: Job | null) => Promise<unknown>> = {
   release: (ctx) => release(ctx),
+  answer: (ctx) => answerNext(ctx),
   waste: (ctx) => waste(ctx),
   merge: (ctx) => merge(ctx),
   dev: (ctx, job) => rebuildDev(ctx, job?.log ?? `${ctx.cfg.home}/logs/dev-build.log`),

@@ -619,7 +619,7 @@ describe('ship, cut and remove', () => {
 describe('drop', () => {
   const full = (): void => seed({
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, pendingRemovals: [{ issue: 7, by: 'b', text: 't' }, { issue: 8, by: 'b', text: 't' }],
-    pendingShip: 'Bob', pendingChanges: [{ id: 100, text: 'x', by: 'b' }, { id: 101, text: 'y', by: 'b' }], pendingIncidents: [30, 31],
+    pendingShip: 'Bob', pendingChanges: [{ id: 100, text: 'x', by: 'b' }, { id: 101, text: 'y', by: 'b' }], pendingIncidents: [30, 31], pendingAnswers: [60, 61],
   });
 
   it('removes one entry of each queue', async () => {
@@ -629,20 +629,22 @@ describe('drop', () => {
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'ship', id: null }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'change', id: 100 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'incident', id: 30 }));
+    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'answer', id: 60 }));
     const state = readState(statePath);
     expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(state.pendingRemovals.map((item) => item.issue)).toEqual([8]);
     expect(state.pendingShip).toBeNull();
     expect(state.pendingChanges.map((item) => item.id)).toEqual([101]);
     expect(state.pendingIncidents).toEqual([31]);
-    expect(ctrlLines()).toHaveLength(5);
+    expect(state.pendingAnswers).toEqual([61]);
+    expect(ctrlLines()).toHaveLength(6);
     expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Ann');
   });
 
   it('throws on a miss and changes nothing (IV4)', async () => {
     full();
     const before = readState(statePath);
-    for (const [queue, id] of [['approval', 99], ['removal', 99], ['change', 99], ['incident', 99]] as const) {
+    for (const [queue, id] of [['approval', 99], ['removal', 99], ['change', 99], ['incident', 99], ['answer', 99]] as const) {
       await expect(applyControl(fakeCtx(), command({ action: 'drop', queue, id }))).rejects.toThrow(String(id));
     }
     seed({ ...before, pendingShip: null });

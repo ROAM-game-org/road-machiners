@@ -69,6 +69,15 @@ describe('chooseJobs with no daily cap', () => {
     expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { issue: 3, branch: 'release/x', day: 'x', postId: 1, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
   });
 
+  it('runs one issueless answer job at a time while player questions wait, in the triage queue and past the card limit', () => {
+    const waiting = state({ pendingAnswers: [41, 42], cardStarts: { 4: starts(23, 5) } });
+    expect(chooseJobs(waiting, [], NOW, CFG)).toEqual([{ stage: 'answer', issue: null }]);
+    expect(chooseJobs({ ...waiting, jobs: [running('answer', null)] }, [], NOW, CFG)).toEqual([]);
+    expect(chooseJobs({ ...waiting, jobs: [running('triage', 9)] }, [card(5, 'Triage')], NOW, { ...CFG, triageWorkers: 1 })).toEqual([]);
+    expect(chooseJobs(state(), [], NOW, CFG)).toEqual([]);
+    expect(timeoutOf({ triageTimeoutMinutes: 30 } as FactoryConfig, 'answer')).toBe(30);
+  });
+
   it('starts no merge for release task cards while a ship runs, and one for a dev card', () => {
     const shipping = { ...busy, lastRelease: FRESH.lastRelease, jobs: [{ id: 'ship-3-x', stage: 'ship' as const, issue: 3, pid: 1, startedAt: NOW.toISOString(), log: '' }] };
     expect(chooseJobs(shipping, [card(7, 'Merging', ['release-task'])], NOW, CFG)).toEqual([]);

@@ -217,15 +217,20 @@ export class PublicStore {
     return [...proposals, ...filed.filter((work) => !proposed.has(work.issue))];
   }
 
+  comment(id: number): StoredComment | null {
+    const row = this.db.prepare('select * from comments where id = ?').get(id);
+    return row === undefined ? null : toComment(row);
+  }
+
   unsentComments(): IssueComment[] {
-    return this.db.prepare(`select * from comments where classified_at is not null and sent_at is null and dropped_at is null and kind not in ('rejected', 'chatter') and issue is not null and ${ON_TOPIC} order by issue, id`).all().map(toIssueComment);
+    return this.db.prepare(`select * from comments where classified_at is not null and sent_at is null and dropped_at is null and kind not in ('rejected', 'chatter', 'question') and issue is not null and ${ON_TOPIC} order by issue, id`).all().map(toIssueComment);
   }
 
   dropCommentsOnClosedPosts(now: Date): number {
     const matches = (post: string): string => `(c.post_chat = ${post}.chat and c.post_message_id = ${post}.message_id) or (c.post_chat = ${post}.discussion_chat and c.post_message_id = ${post}.discussion_id)`;
     const onOpenProposal = `exists (select 1 from proposals p where p.issue = c.issue and p.posted_at is not null and p.closed_at is null and (${matches('p')}))`;
     const onOpenBuildPost = `exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and (${matches('b')}))`;
-    const aboutThread = "c.classified_at is not null and (c.relevance is null or c.relevance = 'parent')";
+    const aboutThread = "c.classified_at is not null and c.kind != 'question' and (c.relevance is null or c.relevance = 'parent')";
     const sql = `update comments as c set dropped_at = ? where c.sent_at is null and c.dropped_at is null and c.post_message_id is not null and ${aboutThread} and not ${onOpenProposal} and not ${onOpenBuildPost}`;
     return Number(this.db.prepare(sql).run(now.toISOString()).changes);
   }
@@ -294,7 +299,7 @@ export class PublicStore {
 
   pendingRoutes(): IssueComment[] {
     const onOpenPost = 'exists (select 1 from build_posts b where b.issue = c.issue and b.open = 1 and ((c.post_chat = b.chat and c.post_message_id = b.message_id) or (c.post_chat = b.discussion_chat and c.post_message_id = b.discussion_id)))';
-    const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind != 'rejected' and c.issue is not null and (c.relevance is null or c.relevance = 'parent') and (c.source = 'game' or ${onOpenPost}) order by c.id`;
+    const sql = `select c.* from comments c where c.route in ('patch', 'redesign') and c.routed_at is null and c.kind not in ('rejected', 'question') and c.issue is not null and (c.relevance is null or c.relevance = 'parent') and (c.source = 'game' or ${onOpenPost}) order by c.id`;
     return this.db.prepare(sql).all().map(toIssueComment);
   }
 

@@ -163,6 +163,24 @@ describe('public store', () => {
     expect(store.pendingRoutes()).toEqual([]);
   });
 
+  it('keeps questions out of digests, routes and drops on closed posts, and reads one comment by id', () => {
+    const store = postedStore();
+    store.addBuildPost(7, 'abc', CHANNEL, 200, now);
+    const add = (id: string, text: string) => store.addComment({ issue: 7, source: 'telegram', sourceId: id, postChat: CHANNEL, postMessageId: 200, author: 'Ann', sender: '1', text, at: now.toISOString(), messageId: 1 });
+    const asked = add('c1', 'What does the winch pull?')!;
+    add('c2', 'The winch snaps');
+    const [question, bug] = store.unclassifiedComments(100);
+    store.classify(question!.id, 'question', 'patch', now, 'parent');
+    store.classify(bug!.id, 'bug', 'patch', now, 'parent');
+    expect(store.unsentComments().map((c) => c.text)).toEqual(['The winch snaps']);
+    expect(store.pendingRoutes().map((c) => c.text)).toEqual(['The winch snaps']);
+    store.closeBuildPosts(7);
+    expect(store.dropCommentsOnClosedPosts(now)).toBe(1);
+    expect(store.toReply().map((c) => c.text)).toEqual(['What does the winch pull?']);
+    expect(store.comment(asked)).toMatchObject({ id: asked, text: 'What does the winch pull?', kind: 'question', issue: 7 });
+    expect(store.comment(asked + 100)).toBeNull();
+  });
+
   it('counts posted proposals in a window', () => {
     const store = postedStore();
     expect(store.proposalPostAttemptsSince(new Date(now.getTime() - 1000))).toBe(1);

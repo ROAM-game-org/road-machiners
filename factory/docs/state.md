@@ -91,6 +91,7 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
 - `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
+- `pendingAnswers`: ids of player questions in the public store that wait for an answer job. The tick adds a question it would answer, once. The answer job takes the first id off the queue as it starts, so a crash never runs it twice. Drop with `drop answer <id>`.
 - `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 
 ## Health records

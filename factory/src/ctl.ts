@@ -212,16 +212,16 @@ function jobs(ctx: Ctx): void {
   printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}${job.caughtUp === undefined ? '' : ` caught up ${job.caughtUp.map((issue) => `#${issue}`).join(',')}`}`));
 }
 
+const listed = (items: string[]): string => items.join(', ') || 'none';
+
 function queues(ctx: Ctx): void {
   const state = readState(ctx.statePath);
-  const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
-  const removals = state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`);
-  const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}`);
-  console.log(`approval: ${approvals.join(', ') || 'none'}`);
-  console.log(`removal: ${removals.join(', ') || 'none'}`);
+  console.log(`approval: ${listed(Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`))}`);
+  console.log(`removal: ${listed(state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`))}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
-  console.log(`change: ${changes.join(', ') || 'none'}`);
-  console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`change: ${listed(state.pendingChanges.map((row) => `${row.id} by ${row.by}`))}`);
+  console.log(`incident: ${listed(state.pendingIncidents.map((issue) => `#${issue}`))}`);
+  console.log(`answer: ${listed(state.pendingAnswers.map((id) => `player comment ${id}`))}`);
 }
 
 function release(ctx: Ctx): void {

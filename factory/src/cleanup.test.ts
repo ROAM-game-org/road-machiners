@@ -44,6 +44,12 @@ describe('sweepWork', () => {
     expect([has(root, 'issue-5/node_modules'), has(root, 'check-issue-5/node_modules'), has(root, 'issue-7/node_modules'), has(root, 'release-candidate/node_modules')]).toEqual([true, true, true, true]);
   });
 
+  it('removes a left answer clone, and keeps it while an answer job runs', () => {
+    const root = work('answer-9');
+    expect(sweepWork(root, `${root}-locks`, state({ jobs: [running('answer', null)] }), []).removed).toEqual([]);
+    expect(sweepWork(root, `${root}-locks`, state(), []).removed).toEqual(['answer-9']);
+  });
+
   it('keeps queued changes and incidents and the candidate of an open release', () => {
     const root = work('change-12', 'incident-6', 'release-candidate');
     const release = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };

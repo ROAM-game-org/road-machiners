@@ -2,7 +2,7 @@ import type { Ctx } from '../types';
 import type { Classify, Decision, FilterInput, PublicFilter } from './decision';
 import { isolated } from './isolate';
 import type { Judged, KnownWork, PublicStore, StoredComment } from './store';
-import { rankByWords } from './wiki';
+import { rankByWords } from './rank';
 
 const WORK_CANDIDATES = 6;
 

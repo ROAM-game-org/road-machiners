@@ -31,7 +31,7 @@ const COLUMN_STAGES: Record<Column, { stage: DeliveryStage | null; steps: Partia
   Done: { stage: null, steps: {} },
 };
 const RETRY_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'harden', 'checks'];
-const AGENT_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'waste'];
+const AGENT_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'answer', 'waste'];
 const PRIVATE_STAGES: JobStage[] = ['change', 'adhoc'];
 const OUTCOMES: Record<JobOutcome, { wasted: boolean; retried: boolean }> = {
   done: { wasted: false, retried: false }, held: { wasted: false, retried: false }, stopped: { wasted: true, retried: false },
