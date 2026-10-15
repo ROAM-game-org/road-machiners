@@ -1,7 +1,9 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { afterEach, expect, it } from 'vitest';
 import * as activity from './activity';
-import { readObservation } from './observability';
+import { parseAgentStatus, readObservation, scriptStatusRecord } from './observability';
+import { CACHED_SUITE, buildScript, checkScript, previewScript } from './stages/checks';
 import type { Run } from './types';
 const homes: string[] = [];
 function createHome() { mkdirSync('tmp', { recursive: true }); const home = mkdtempSync('tmp/activity-'); homes.push(home); return home; }
@@ -19,7 +21,7 @@ it('reports structured tool activity across chunk boundaries without publishing 
     return { code: 0, stdout: 'original output', stderr: '' };
   };
   const observed = activity.createObservedRun(run, home, 'job-1', 10000, 1024 * 1024);
-  expect(await observed('docker', ['run', 'factory-agent'])).toEqual({ code: 0, stdout: 'original output', stderr: '' });
+  expect(await observed('docker', ['run', 'factory-agent'], { activity: 'model' })).toEqual({ code: 0, stdout: 'original output', stderr: '' });
   expect(readObservation(home, 'job-1')?.data).toMatchObject({ phase: 'completed' });
 });
 it('keeps an agent milestone while runner events change the current operation', async () => {
@@ -32,20 +34,20 @@ it('keeps an agent milestone while runner events change the current operation', 
     expect(JSON.stringify(current)).not.toContain('PRIVATE_TOKEN');
     return { code: 0, stdout: '', stderr: '' };
   }, home, 'job-milestone', 10000, 1024 * 1024);
-  await observed('docker', ['run', 'factory-agent']);
+  await observed('docker', ['run', 'factory-agent'], { activity: 'model' });
   expect(readObservation(home, 'job-milestone')?.data).toMatchObject({ milestone: 'validating', phase: 'completed' });
 });
 it('clears the active operation on command failure without replacing its result', async () => {
   expect(activity).toHaveProperty('createObservedRun');
   const home = createHome();
   const observed = activity.createObservedRun(async () => ({ code: 1, stdout: '', stderr: 'PRIVATE error' }), home, 'job-2', 10000, 1024 * 1024);
-  expect((await observed('git', ['fetch'])).code).toBe(1);
+  expect((await observed('git', ['fetch'], { activity: 'git' })).code).toBe(1);
   expect(readObservation(home, 'job-2')?.data).toMatchObject({ activity: 'git', phase: 'failed' });
   expect(JSON.stringify(readObservation(home, 'job-2'))).not.toContain('PRIVATE');
 });
 it('recognizes machine check steps and rejects arbitrary status text', () => {
   expect(activity).toHaveProperty('readActivityLine');
-  expect(activity.readActivityLine('[checks] 12:10:00 playtest')).toEqual({ activity: 'playtest', step: true, source: 'runner' });
+  expect(activity.readActivityLine('[checks] 12:10:00 playtest')).toBeNull();
   expect(activity.readActivityLine('{"type":"factory_status","activity":"install"}')).toEqual({ activity: 'install', source: 'agent' });
   expect(activity.readActivityLine('{"type":"factory_status","milestone":"validating"}')).toEqual({ milestone: 'validating', source: 'agent' });
   const toolResult = { type: 'user', message: { content: [{ type: 'tool_result', content: [{ type: 'text', text: '{"type":"factory_status","milestone":"reviewing"}\n' }] }] } };
@@ -63,18 +65,32 @@ it('finds a milestone in chained command output, as agents send it in the factor
   expect(activity.readActivityLine(JSON.stringify(plain))).toEqual({ activity: 'model', source: 'runner' });
 });
 
-it('reads factory script steps and phases, and drops a phase the dashboard may not show', () => {
-  expect(activity.readActivityLine('[step] 12:10:00 npm ci')).toEqual({ activity: 'install', step: true, source: 'runner' });
-  expect(activity.readActivityLine('[step] 12:10:04 playtest')).toEqual({ activity: 'playtest', step: true, source: 'runner' });
-  expect(activity.readActivityLine('[step] 12:10:04 toString')).toBeNull();
-  expect(activity.readActivityLine('[phase] Playing the release seed')).toEqual({ milestone: 'Playing the release seed', source: 'runner' });
-  expect(activity.readActivityLine('[phase] see /opt/secret')).toBeNull();
+it('reads factory script records, and ignores the log text and records that claim more than a step or phase', () => {
+  expect(activity.readActivityLine(scriptStatusRecord({ activity: 'install' }))).toEqual({ activity: 'install', step: true, source: 'runner' });
+  expect(activity.readActivityLine(scriptStatusRecord({ milestone: 'Playing the release seed' }))).toEqual({ milestone: 'Playing the release seed', source: 'runner' });
+  expect(activity.readActivityLine('[step] 12:10:00 npm ci')).toBeNull();
+  expect(activity.readActivityLine('[phase] Playing the release seed')).toBeNull();
+  expect(activity.readActivityLine('{"type":"factory_status","source":"runner","activity":"install","note":"x"}')).toBeNull();
+  expect(activity.readActivityLine('{"type":"factory_status","source":"runner","milestone":"see /opt/secret"}')).toBeNull();
+  expect(activity.readActivityLine('{"type":"factory_status","source":"runner","activity":"toString"}')).toBeNull();
+  expect(parseAgentStatus(scriptStatusRecord({ activity: 'install' }))).toBeNull();
 });
 
-it('builds a script that names each step before it runs', () => {
+it('builds a script that records each step before it runs', () => {
   const script = activity.stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', 'npm test']]);
-  expect(script.split('\n')).toEqual(['set -e', activity.STEP_FUNCTION, 'echo "[phase] Release full suite"', 'step "npm ci"', 'npm ci', 'step "tests"', 'npm test', 'step "done"', '']);
-  expect(() => activity.stepScript('rm $HOME', [])).toThrow('Invalid script phase');
+  expect(script.split('\n')).toEqual(['set -e', activity.STEP_FUNCTION, activity.phaseLine('Release full suite'), activity.stepCall('npm ci'), 'npm ci', activity.stepCall('tests'), 'npm test', activity.stepCall('done'), '']);
+  expect(() => activity.stepScript('rm $HOME', [])).toThrow('Invalid script milestone');
+});
+
+it('prints records that real bash runs and the reader accepts, with a quote in the phase', () => {
+  const script = activity.stepScript("Fixing the driver's tow fee", [['npm ci', 'true'], ['playtest', 'true']]);
+  const lines = execFileSync('bash', ['-c', script], { encoding: 'utf8' }).split('\n').filter((line) => line.startsWith('{'));
+  expect(lines.map((line) => activity.readActivityLine(line))).toEqual([
+    { milestone: "Fixing the driver's tow fee", source: 'runner' },
+    { activity: 'install', step: true, source: 'runner' },
+    { activity: 'playtest', step: true, source: 'runner' },
+    { activity: 'finished', step: true, source: 'runner' },
+  ]);
 });
 
 it('moves a factory script past npm ci, shows its phase only while it runs, and counts each step as progress', async () => {
@@ -82,18 +98,35 @@ it('moves a factory script past npm ci, shows its phase only while it runs, and 
   const seen: unknown[] = [];
   const observed = activity.createObservedRun(async (_command, args, opts) => {
     if (args.includes('factory-agent')) { opts?.onStdout?.('{"type":"factory_status","milestone":"Reviewing the play"}\n'); return { code: 0, stdout: '', stderr: '' }; }
-    for (const line of ['[phase] Playing the release seed', '[step] 12:00:00 npm ci']) opts?.onStdout?.(`${line}\n`);
+    for (const record of [scriptStatusRecord({ milestone: 'Playing the release seed' }), scriptStatusRecord({ activity: 'install' })]) opts?.onStdout?.(`${record}\n`);
     seen.push(readObservation(home, 'job-script')?.data);
     await new Promise((resolve) => setTimeout(resolve, 5));
-    opts?.onStdout?.('added 300 packages in 4s\n[step] 12:00:04 playtest\n');
+    opts?.onStdout?.(`added 300 packages in 4s\n${scriptStatusRecord({ activity: 'playtest' })}\n`);
     seen.push(readObservation(home, 'job-script')?.data);
     return { code: 0, stdout: '', stderr: '' };
   }, home, 'job-script', 10000, 1024 * 1024);
-  await observed('docker', ['run', 'factory-agent']);
-  await observed('docker', ['run', 'image', 'bash', '-lc', 'npm ci && npm run progression:playthrough']);
+  await observed('docker', ['run', 'factory-agent'], { activity: 'model' });
+  await observed('docker', ['run', 'image', 'bash', '-lc', 'script'], { activity: 'starting' });
   const [installing, playing] = seen as { progressAt: string }[];
   expect(installing).toMatchObject({ activity: 'install', milestone: 'Playing the release seed', phase: 'running' });
   expect(playing).toMatchObject({ activity: 'playtest', milestone: 'Playing the release seed', phase: 'running' });
   expect(Date.parse(playing.progressAt)).toBeGreaterThan(Date.parse(installing.progressAt));
   expect(readObservation(home, 'job-script')?.data).toMatchObject({ milestone: 'Reviewing the play', phase: 'completed' });
+});
+
+it('starts an operation on the activity its caller names, whatever the command text says', async () => {
+  const home = createHome();
+  const observed = activity.createObservedRun(async () => {
+    expect(readObservation(home, 'job-caller')?.data).toMatchObject({ activity: 'publish', phase: 'running' });
+    return { code: 0, stdout: '', stderr: '' };
+  }, home, 'job-caller', 10000, 1024 * 1024);
+  await observed('git', ['npm', 'test', 'factory-agent'], { activity: 'publish' });
+});
+
+it('has every step of the check, preview, build and candidate scripts record an activity the reader accepts', () => {
+  const scripts = [checkScript('npm run playtest'), previewScript('npm run playtest'), buildScript, CACHED_SUITE];
+  const records = scripts.flatMap((script) => [...script.matchAll(/^\s*step '(\{.*\})' "/gm)].map((match) => activity.readActivityLine(match[1])));
+  expect(records.length).toBeGreaterThan(10);
+  expect(records.every((record) => record !== null && 'activity' in record && record.step === true)).toBe(true);
+  expect(checkScript('x')).not.toMatch(/^\s*step "/m);
 });

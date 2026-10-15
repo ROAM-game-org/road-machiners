@@ -494,7 +494,7 @@ function soldCargo(w: World, id: string): boolean {
 }
 
 function holdings(w: World, ids: string[]): string[] {
-  return ids.flatMap((id) => vehicle(w, id).items.map((item) => (item.kind === 'good' ? `good:${item.good}` : `part:${item.part.id}`))).sort();
+  return ids.flatMap((id) => vehicle(w, id).items.map((item) => (item.kind === 'part' ? `part:${item.part.id}` : `${item.kind}:${item.kind === 'good' ? item.good : item.contract}`))).sort();
 }
 
 function goodsOn(w: World, id: string, good: string): number {

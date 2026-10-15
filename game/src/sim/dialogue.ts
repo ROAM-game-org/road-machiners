@@ -4,6 +4,7 @@ import { PERSONALITIES, TALK_PRICE, type Gate, type Personality } from '../data/
 import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
+import { raiseEncounter } from './encounters';
 import { CONDITIONS, EFFECTS, helpedByPlayer, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
@@ -236,6 +237,7 @@ export function raiseCalls(world: World): void {
     const topic = raisedTopic(world, npc, me);
     if (!topic) continue;
     enterTopic(world, npc, begin(world, npc, topic.nodes[topic.start].line), topic);
+    raiseEncounter(world, npc, topic.id);
     return;
   }
 }

@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
-import { fake, reset } from './test-fakes';
+import type { IssueMerge } from '../types';
+import { fake, issueMerge, reset } from './test-fakes';
 import { release } from './release';
+
+const TRUCKS = issueMerge(3, 'faster trucks');
+const HORN = issueMerge(5, 'louder horn');
+
+function devHolds(merges: IssueMerge[] | null): void {
+  const f = fake();
+  writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), devMerges: merges });
+}
 
 beforeEach(reset);
 
 describe('release cut', () => {
-  it('only records the time when dev has no feature merges', async () => {
+  it('only records the time when dev holds no feature merges', async () => {
     const f = fake();
-    f.changelog = ['Merge main into dev after release 2026-09-22'];
     await release(f.ctx);
     const state = readState(f.ctx.statePath);
     expect(state.lastRelease).toBe('2026-09-29T10:00:00.000Z');
@@ -18,7 +26,7 @@ describe('release cut', () => {
 
   it('cuts the branch, opens the tracking issue and two cleanup tasks, and sets the release', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #5: louder horn'];
+    devHolds([TRUCKS, HORN]);
     await release(f.ctx);
     expect(f.calls).toEqual([
       'fetch',
@@ -34,12 +42,32 @@ describe('release cut', () => {
     expect(f.created[0].body).toContain('- #3 faster trucks');
     expect(f.created[1].body).toContain('npm run perf');
     expect(f.created[2].body).toContain('stale doc');
-    expect(readState(f.ctx.statePath).release).toEqual({ issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, candidateSha: null, removed: [], tasks: [12, 13], playtest: { seed: 20260929, runs: 0, passed: null, blocked: null, notes: [] } });
+    expect(f.created[0].body).toContain('- #5 louder horn');
+    expect(readState(f.ctx.statePath).devMerges).toEqual([]);
+    expect(readState(f.ctx.statePath).release).toEqual({ issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, candidateSha: null, removed: [], tasks: [12, 13], merges: [TRUCKS, HORN], playtest: { seed: 20260929, runs: 0, passed: null, blocked: null, notes: [] } });
+  });
+
+  it('keeps merges that landed on dev after the cut read, and moves only the cut ones', async () => {
+    const f = fake();
+    devHolds([TRUCKS]);
+    f.ctx.repo.createBranch = async () => { writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), devMerges: [TRUCKS, HORN] }); };
+    await release(f.ctx);
+    const state = readState(f.ctx.statePath);
+    expect(state.release?.merges).toEqual([TRUCKS]);
+    expect(state.devMerges).toEqual([HORN]);
+  });
+
+  it('throws when the merges on dev are not migrated yet, and cuts nothing', async () => {
+    const f = fake();
+    devHolds(null);
+    await expect(release(f.ctx)).rejects.toThrow('not filled yet');
+    expect(f.calls.some((call) => call.startsWith('branch'))).toBe(false);
+    expect(readState(f.ctx.statePath).release).toBeNull();
   });
 
   it('merges main into dev first when dev lacks it, so the release merges into main without conflicts', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
+    devHolds([TRUCKS]);
     f.ctx.repo.isMerged = async (base: string, branch: string) => !(base === 'main' && branch === 'dev');
     await release(f.ctx);
     expect(f.calls.slice(0, 4)).toEqual(['fetch', 'merge main dev', 'push dev','branch release/2026-09-29 dev']);
@@ -47,7 +75,7 @@ describe('release cut', () => {
 
   it('has an agent resolve a conflict of main into dev, pushes dev, and records the cut', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
+    devHolds([TRUCKS]);
     f.ctx.repo.isMerged = async (base: string, branch: string) => !(base === 'main' && branch === 'dev');
     f.mergeConflicts = ['main dev'];
     await release(f.ctx);
@@ -61,7 +89,7 @@ describe('release cut', () => {
   it('leaves lastRelease alone when the cut fails, so the next tick cuts again', async () => {
     const f = fake();
     writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), lastRelease: '2026-09-01T00:00:00.000Z' });
-    f.changelog = ['Merge issue #3: faster trucks'];
+    devHolds([TRUCKS]);
     f.ctx.repo.isMerged = async () => false;
     f.ctx.repo.merge = async () => { throw new Error('push of dev failed'); };
     await expect(release(f.ctx)).rejects.toThrow('push of dev failed');
@@ -70,7 +98,7 @@ describe('release cut', () => {
 
   it('removes the new branch when the tracking issue cannot be opened, so the next cut finds no branch', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
+    devHolds([TRUCKS]);
     f.ctx.github.createIssue = async () => { throw new Error('gh down'); };
     await expect(release(f.ctx)).rejects.toThrow('gh down');
     expect(f.calls).toContain('delete release/2026-09-29');
@@ -79,7 +107,7 @@ describe('release cut', () => {
 
   it('keeps the release set when a task cannot be opened, so the failure names the tracking issue', async () => {
     const f = fake();
-    f.changelog = ['Merge issue #3: faster trucks'];
+    devHolds([TRUCKS]);
     let created = 0;
     f.ctx.github.createIssue = async () => {
       created += 1;

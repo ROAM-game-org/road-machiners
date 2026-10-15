@@ -149,6 +149,7 @@ function transferLoot(world: World, stock: SalvageStock, item: GridItem, to: Spo
 
 function placeLoot(world: World, stock: SalvageStock, item: GridItem): void {
   const me = playerVehicle(world);
+  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} never lies in salvage`);
   if (item.kind === 'good') {
     takeBasis(world, stock, item.good, goodsCount(me)[item.good] ?? 0, 1);
     me.items.push(item);
