@@ -293,6 +293,7 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async push(commit, branch) {
       await pushAll(new Map([[branch, commit]]));
     },
+    replaceBranch: async (commit, branch) => void (await git(['push', '--force', 'origin', `${commit}:refs/heads/${branch}`])),
     async catchUpBase(dir, base) {
       await gitIn(dir, ['fetch', '--quiet', 'origin']);
       const open = await openMergeOf(dir, base);
@@ -331,9 +332,7 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     async changedFiles(base, branch) {
       return lines(await git(['diff', '--name-only', '--no-renames', `${await ref(base)}...${await ref(branch)}`]));
     },
-    async changedInWork(dir, from) {
-      return lines(await gitIn(dir, ['diff', '--name-only', '--no-renames', `${from}...HEAD`]));
-    },
+    changedInWork: async (dir, from) => lines(await gitIn(dir, ['diff', '--name-only', '--no-renames', `${from}...HEAD`])),
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },

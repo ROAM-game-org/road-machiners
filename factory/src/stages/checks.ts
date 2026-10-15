@@ -5,25 +5,17 @@ import { readApproval, type Approval } from '../clone-checks';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
-import { reportFailure, stripAnsi } from '../fail';
+import { FAILURE_TAIL_LINES, reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
 import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
-import { join } from 'node:path';
 import { testPoolPin } from '../cpus';
-import { isLocked, withLock } from '../lock';
 import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Pin, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
+import { remoteSuite } from './remote-suite';
 
-export const CACHED_SUITE = `if grep -q '"test:cached"' package.json; then
-  npm run test:cached -- --cache /test-cache
-else
-  step "branch has no test:cached, full suite"
-  npm test
-fi`;
-
-const testStep = (tests: string) => (tests === '' ? 'step "no tests match the change"' : `step "tests"
+const testStep = (tests: string) => (tests === '' ? 'step "no local tests"' : `step "tests"
 ${tests}`);
 
 export const checkScript = (playtest: string, tests: string) => `set -e
@@ -93,27 +85,16 @@ function checkDir(ctx: Ctx, issue: number): string {
 }
 
 export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'build' | 'hotfix'): Promise<string | null> {
-  const script = checkScript(playtestCommand(ctx.cfg, false), CACHED_SUITE);
-  const hotfixCheck = () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, () => runScript(ctx, issue, base, build, script, 'verify', testPoolPin(ctx.cfg)));
-  const check = kind === 'build' ? () => runScript(ctx, issue, base, build, buildScript, 'verify') : hotfixCheck;
-  return checkUntilReal(check, (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
-}
-
-export async function oneSuiteAtATime<T>(ctx: Ctx, at: { stage: Stage; issue: number | null }, work: () => Promise<T>): Promise<T> {
-  const lock = join(ctx.cfg.home, 'locks', 'full-suite');
-  if (isLocked(lock)) ctx.log(at.stage, at.issue, 'waits for the full suite of another job, since one runs at a time');
-  const longestJobMinutes = Math.max(ctx.cfg.verifyTimeoutMinutes, ctx.cfg.mergeTimeoutMinutes, ctx.cfg.playtestTimeoutMinutes);
-  return withLock(lock, longestJobMinutes * 60_000, work);
+  const local = (script: string, pin?: Pin) => checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify', pin), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+  if (kind === 'build') return local(buildScript);
+  const suite = remoteSuite(ctx, { stage: 'verify', issue }, build);
+  suite.catch(() => undefined);
+  const failure = await local(checkScript(playtestCommand(ctx.cfg, false), ''), testPoolPin(ctx.cfg));
+  return failure ?? await suite;
 }
 
 export function suiteEnv(cfg: FactoryConfig): Record<string, string> {
   return { TEST_STALL_MINUTES: String(cfg.testStallMinutes) };
-}
-
-export function testCacheMount(ctx: Ctx): Record<string, string> {
-  const cache = `${ctx.cfg.home}/test-cache`;
-  mkdirSync(cache, { recursive: true });
-  return { [cache]: '/test-cache' };
 }
 
 async function runScript(ctx: Ctx, issue: number, base: string, build: string, script: string, stage: Stage = 'checks', pin?: Pin): Promise<string | null> {
@@ -132,7 +113,7 @@ export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | nu
   const from = existsSync(log) ? statSync(log).size : 0;
   const progress = setInterval(() => ctx.log(at.stage, at.issue, checksProgress(log, started)), PROGRESS_MS);
   try {
-    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes, pin);
+    await ctx.container.shell(dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, {}, ctx.cfg.checksTimeoutMinutes, pin);
     return null;
   } catch (error) {
     return checkFailure(log, error, from);
@@ -166,7 +147,6 @@ export async function checkUntilReal(check: () => Promise<string | null>, onTime
   }
 }
 
-export const FAILURE_TAIL_LINES = 150;
 
 function checkFailure(log: string, error: unknown, from: number): string {
   const message = error instanceof Error ? error.message : String(error);
