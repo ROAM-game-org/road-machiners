@@ -134,7 +134,9 @@ function worldAtWindow(seed: number, window: number): World {
     w.furyRoad!.waitingAt = milestone;
     w.furyRoad!.groups = [];
     moveWindow(w);
+    w.furyRoad!.waitingAt = null;
   }
+  w.furyRoad!.groups = [];
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   return w;
 }
