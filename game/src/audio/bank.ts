@@ -1,10 +1,11 @@
+import { AssetUnreachable, fetchAsset } from "../fetch-asset";
 import { BANK, beatLoopSeconds, type Cue } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
 export const FAILURE_KINDS = ["http", "not-ogg", "truncated", "decoder"] as const;
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 export type DecodeFailure = { file: string; kind: FailureKind; error: unknown };
-export type LoadedBank = { bank: Bank; failures: DecodeFailure[] };
+export type LoadedBank = { bank: Bank; failures: DecodeFailure[]; unreachable: DecodeFailure[] };
 type Attempt = { buffer: AudioBuffer } | DecodeFailure;
 
 export type OggShape = "ok" | "not-ogg" | "truncated";
@@ -14,6 +15,13 @@ const OGG_CAPTURE = [0x4f, 0x67, 0x67, 0x53];
 const OPUS_HEAD = [0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64];
 const OGG_FIXED_HEADER = 27;
 const OGG_END_OF_STREAM = 4;
+
+export class SoundUnreachable extends Error {
+  constructor(file: string, cause: unknown) {
+    super(`Sound ${file} could not be fetched`, { cause });
+    this.name = "SoundUnreachable";
+  }
+}
 
 export const SFX_DIR = `${import.meta.env.BASE_URL}sfx/`;
 
@@ -54,7 +62,12 @@ export async function loadBank(
   await firstPass(files, (file, result) => ("buffer" in result ? settle(file, result) : failed.set(file, result)), ctx);
   for (const file of files.filter((f) => failed.has(f))) settle(file, await retry(ctx, file, failed.get(file)!));
   const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
-  return { bank, failures: files.flatMap((f) => (decoded.has(f) ? [] : [failed.get(f)!])) };
+  const inFileOrder = files.flatMap((f) => (decoded.has(f) ? [] : [failed.get(f)!]));
+  return {
+    bank,
+    failures: inFileOrder.filter((x) => !(x.error instanceof SoundUnreachable)),
+    unreachable: inFileOrder.filter((x) => x.error instanceof SoundUnreachable),
+  };
 }
 
 async function firstPass(files: string[], onResult: (file: string, result: Attempt) => void, ctx: BaseAudioContext): Promise<void> {
@@ -70,18 +83,16 @@ async function firstPass(files: string[], onResult: (file: string, result: Attem
 
 async function retry(ctx: BaseAudioContext, file: string, failure: DecodeFailure): Promise<Attempt> {
   let result: Attempt = failure;
-  for (let tries = 1; tries < BANK.tries && !("buffer" in result); tries++) result = await attempt(ctx, file);
+  for (let tries = 1; tries < BANK.tries && !("buffer" in result) && !(result.error instanceof SoundUnreachable); tries++) result = await attempt(ctx, file);
   return result;
 }
 
 async function attempt(ctx: BaseAudioContext, file: string): Promise<Attempt> {
   let bytes: ArrayBuffer;
   try {
-    const res = await fetch(SFX_DIR + file);
-    if (!res.ok) throw new Error(`Sound ${file} failed to load: HTTP ${res.status}`);
-    bytes = await res.arrayBuffer();
+    bytes = await fetchAsset('Sound', SFX_DIR + file);
   } catch (error) {
-    return { file, kind: "http", error };
+    return { file, kind: "http", error: error instanceof AssetUnreachable ? new SoundUnreachable(file, error) : error };
   }
   return decode(ctx, file, bytes);
 }

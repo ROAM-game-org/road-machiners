@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BANK, beatLoopSeconds, type Cue } from '../data/sounds';
-import { loadBank, oggShape, SoundDecodeFailure } from './bank';
+import { ASSET_RETRY_DELAYS_MS } from '../fetch-asset';
+import { loadBank, oggShape, SoundDecodeFailure, SoundUnreachable } from './bank';
 
 const SFX = 'public/sfx/';
 const sfxFiles = readdirSync(SFX).filter((f) => f.endsWith('.ogg'));
@@ -29,7 +30,10 @@ const rejecting = ctxOf(async (data) => {
   throw new Error('bad');
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('loadBank', () => {
   it('reports 0 first, then each decoded file', async () => {
@@ -55,6 +59,21 @@ describe('loadBank', () => {
     expect(bank.get('hit-2.ogg')).toBe(good);
     expect(failures.map((f) => f.file)).toEqual(['hit-2.ogg']);
     expect(Math.max(...calls)).toBe(2);
+  });
+
+  it('gives a file that never decodes the buffer of a decoded sibling', async () => {
+    const good = { id: 'good' } as unknown as AudioBuffer;
+    const fetch = vi.fn(async (url: string) => ({ ...ok, arrayBuffer: async () => new TextEncoder().encode(url).buffer }));
+    vi.stubGlobal('fetch', fetch);
+    const decode = vi.fn(async (data: ArrayBuffer) => {
+      if (new TextDecoder().decode(data).endsWith('hit-2.ogg')) throw new Error('EncodingError');
+      return good;
+    });
+    const { bank, failures } = await loadBank(ctxOf(decode), PAIR);
+    expect(bank.get('hit-1.ogg')).toBe(good);
+    expect(bank.get('hit-2.ogg')).toBe(good);
+    expect(failures.map((f) => f.file)).toEqual(['hit-2.ogg']);
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('hit-2.ogg'))).toHaveLength(BANK.tries);
   });
 
   it('retries a file that fails once', async () => {
@@ -91,8 +110,9 @@ describe('loadBank', () => {
 
   it('treats a 404 like a decode failure', async () => {
     vi.stubGlobal('fetch', async () => ({ ...ok, ok: false, status: 404 }));
-    const { bank, failures } = await loadBank(ctx, SOUNDS);
+    const { bank, failures, unreachable } = await loadBank(ctx, SOUNDS);
     expect(failures).toHaveLength(2);
+    expect(unreachable).toEqual([]);
     expect(bank.size).toBe(2);
   });
 
@@ -157,12 +177,6 @@ describe('loadBank', () => {
     expect(failures.map((f) => f.kind)).toEqual(['http']);
   });
 
-  it('gives a fetch that throws the kind http', async () => {
-    vi.stubGlobal('fetch', async () => { throw new TypeError('NetworkError'); });
-    const { failures } = await loadBank(ctx, { a: SOUNDS.a });
-    expect(failures.map((f) => f.kind)).toEqual(['http']);
-  });
-
   it.each([
     ['not-ogg', () => new ArrayBuffer(1)],
     ['decoder', () => realOgg().buffer],
@@ -175,9 +189,59 @@ describe('loadBank', () => {
 
   it('takes the kind from the last try', async () => {
     let fetches = 0;
-    vi.stubGlobal('fetch', async () => (++fetches === 1 ? { ...ok, ok: false, status: 503 } : { ...ok, arrayBuffer: async () => realOgg().buffer }));
+    vi.stubGlobal('fetch', async () => (++fetches === 1 ? { ...ok, ok: false, status: 404 } : { ...ok, arrayBuffer: async () => realOgg().buffer }));
     const { failures } = await loadBank(rejecting, { a: SOUNDS.a });
     expect(failures.map((f) => f.kind)).toEqual(['decoder']);
+  });
+});
+
+describe('loadBank with the network down', () => {
+  const down = new TypeError('Failed to fetch');
+  beforeEach(() => vi.useFakeTimers());
+
+  it('stands in for an unreachable file and does not report it', async () => {
+    const fetch = vi.fn(async () => { throw down; });
+    vi.stubGlobal('fetch', fetch);
+    const run = loadBank(ctx, { a: SOUNDS.a });
+    await vi.advanceTimersByTimeAsync(20000);
+    const { bank, failures, unreachable } = await run;
+    expect(failures).toEqual([]);
+    expect(unreachable.map((f) => f.file)).toEqual(['a.mp3']);
+    expect(bank.get('a.mp3')!.duration).toBeCloseTo(BANK.silentSeconds, 1);
+    expect(fetch).toHaveBeenCalledTimes(ASSET_RETRY_DELAYS_MS.length + 1);
+  });
+
+  it('recovers when the second try gets through', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => {
+      if (++calls === 1) throw down;
+      return ok;
+    });
+    const run = loadBank(ctx, { a: SOUNDS.a });
+    await vi.advanceTimersByTimeAsync(20000);
+    const { failures, unreachable } = await run;
+    expect(failures).toEqual([]);
+    expect(unreachable).toEqual([]);
+  });
+
+  it('gives an unreachable file the buffer of its sibling', async () => {
+    const good = { id: 'good' } as unknown as AudioBuffer;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('hit-2.ogg')) throw down;
+      return ok;
+    });
+    const run = loadBank(ctxOf(async () => good), PAIR);
+    await vi.advanceTimersByTimeAsync(20000);
+    const { bank, failures, unreachable } = await run;
+    expect(bank.get('hit-2.ogg')).toBe(good);
+    expect(failures).toEqual([]);
+    expect(unreachable.map((f) => f.file)).toEqual(['hit-2.ogg']);
+  });
+
+  it('keeps the network error as the cause', () => {
+    const error = new SoundUnreachable('a.mp3', down);
+    expect(error.cause).toBe(down);
+    expect(error.message).toContain('a.mp3');
   });
 });
 
@@ -200,6 +264,24 @@ describe('SoundDecodeFailure', () => {
     expect(one.message).toBe('Sounds failed to decode: 1 of 104 (decoder 1), Ogg Opus support "maybe": EncodingError');
     expect(one.message).toBe(two.message);
     expect(one.files).toEqual(['a.ogg']);
+  });
+
+  it('counts a file once when its download is retried', async () => {
+    vi.useFakeTimers();
+    let first = true;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('a.mp3') && first) {
+        first = false;
+        throw new TypeError('Load failed');
+      }
+      return ok;
+    });
+    const calls: [number, number][] = [];
+    const run = loadBank(ctx, SOUNDS, (done, total) => calls.push([done, total]));
+    await vi.advanceTimersByTimeAsync(20000);
+    const { failures } = await run;
+    expect(calls).toEqual([[0, 2], [1, 2], [2, 2]]);
+    expect(failures).toEqual([]);
   });
 });
 

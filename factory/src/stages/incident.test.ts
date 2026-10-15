@@ -26,7 +26,7 @@ function fakeCtx(outcome: string | null, log = 'ID: R6\nrepo: game\n'): Ctx {
     statePath: `${home}/state.json`,
     log: () => undefined,
     github: {
-      issue: async () => ({ number: 7, title: 'Slow sight checks', body: 'Turns are slow', labels: ['bug'], createdAt: '', state: 'CLOSED', author: 'anna', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'Slow sight checks', body: 'Turns are slow', labels: ['bug'], createdAt: '', state: 'CLOSED', author: 'anna' }),
       comments: async () => [],
       comment: record('comment'),
     },

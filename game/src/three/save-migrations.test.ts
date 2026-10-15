@@ -63,6 +63,8 @@ import FORMAT_2_57 from './save-fixtures/format-2-57.json';
 import FORMAT_2_58 from './save-fixtures/format-2-58.json';
 import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
+import FORMAT_2_61 from './save-fixtures/format-2-61.json';
+import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1312,5 +1314,46 @@ describe('save migration 60 to 61', () => {
     const roaming = { ...structuredClone(FORMAT_2_60), setup: { ...FORMAT_2_60.setup, mode: 'roaming' }, furyRoad: null };
 
     expect(MIGRATIONS[60](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('MIGRATIONS[61]', () => {
+  const sessionOf = (world: unknown) => (world as { player: { quests: { session: unknown } } }).player.quests.session;
+  const at = (quest: string, checkpoint: string) => {
+    const world = structuredClone(FORMAT_2_61) as { player: { quests: { session: unknown } } };
+    world.player.quests.session = { quest, checkpoint, seed: 17 };
+    return world;
+  };
+
+  it('moves the wagon_seven hub session to the start of the scene', () => {
+    const next = MIGRATIONS[61](structuredClone(FORMAT_2_61));
+
+    expect(sessionOf(next)).toEqual({ quest: 'wagon_seven', checkpoint: 'start', seed: 17 });
+    expect({ ...next, player: { ...(next.player as object), quests: null } }).toEqual({ ...FORMAT_2_61, player: { ...FORMAT_2_61.player, quests: null } });
+  });
+
+  it('moves the wagon_bench hub session to the report', () => {
+    expect(sessionOf(MIGRATIONS[61](at('wagon_bench', 'bench.hub')))).toEqual({ quest: 'wagon_bench', checkpoint: 'bench.report', seed: 17 });
+  });
+
+  it('keeps another quest at start.hub and a save with no session as they are', () => {
+    const other = at('nose_kovac', 'start.hub');
+    expect(MIGRATIONS[61](structuredClone(other))).toEqual(other);
+    const none = at('x', 'y');
+    none.player.quests.session = null;
+    expect(MIGRATIONS[61](structuredClone(none))).toEqual(none);
+  });
+});
+
+describe('save migration 62 to 63', () => {
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
   });
 });

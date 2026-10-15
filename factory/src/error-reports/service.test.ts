@@ -2,7 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import { openStore } from '../public/store';
 import type { FingerprintIssue } from '../types';
+import { Feedback } from './feedback';
 import { alertPath, ErrorReports, ErrorServer, issueReports, readStore, reportsDir, type ReportDeps } from './service';
 
 const SHA = 'abc1234'.padEnd(40, '0');
@@ -41,13 +43,22 @@ function setup(over: Partial<ReportDeps['cfg']> = {}): World {
 
 function report(over: Record<string, unknown> = {}): Buffer {
   return gzipSync(JSON.stringify({
-    build: 'dev', version: '2.24.72+abc1234', userAgent: 'Firefox `rm -rf`', turn: 44, log: ['Day 2 08:00 Sold scrap'],
+    build: 'dev', version: '2.24.72+abc1234', userAgent: 'Firefox `rm -rf`', language: 'en', screen: { width: 1280, height: 720, pixelRatio: 1 }, turn: 44, log: ['Day 2 08:00 Sold scrap'],
     error: { name: 'Error', message: 'No vehicle npc-37', stack: 'Error: No vehicle npc-37\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)\n    at chrome-extension://x/inject.js:4:2' },
     world: { format: { major: 2, minor: 24 }, world: {} }, autosave: null, autosaveIsWorld: true, drive: null, ...over,
   }));
 }
 
 describe('error reports', () => {
+  it('breaks mentions and issue references in the error title, since a report can carry any message', async () => {
+    const { deps, calls } = setup();
+    const stack = 'Error: x\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)';
+    await new ErrorReports(deps).take(report({ error: { name: 'Error', message: 'ping @octocat about o/r#5 and GH-7', stack } }));
+    const title = calls[1]!.split('\n')[0]!;
+    expect(title).not.toMatch(/@\w|#\d|GH-\d/);
+    expect(title.replace(/‍/g, '')).toContain('ping @octocat about o/r#5 and GH-7');
+  });
+
   it('opens one bug issue for a new error, with the mapped stack and the fingerprint line, and keeps the report', async () => {
     const { home, deps, calls } = setup();
     await new ErrorReports(deps).take(report());
@@ -59,6 +70,17 @@ describe('error reports', () => {
     const fingerprint = /Error fingerprint: ([0-9a-f]{16})$/.exec(calls[1])?.[1] ?? '';
     expect(existsSync(join(reportsDir(home), fingerprint, `${SHA}.json.gz`))).toBe(true);
     expect(readStore(home).known[fingerprint]).toEqual({ issue: 100, count: 1, commits: [SHA] });
+  });
+
+  it('names the language and the screen in the issue, and still files a report from an older game without them', async () => {
+    const first = setup();
+    await new ErrorReports(first.deps).take(report());
+    expect(first.calls[1]).toContain('- Language: en');
+    expect(first.calls[1]).toContain('- Screen: 1280 by 720 at pixel ratio 1');
+    const old = setup();
+    await new ErrorReports(old.deps).take(report({ language: undefined, screen: undefined }));
+    expect(old.calls[1]).toMatch(/^create Error: No vehicle npc-37/);
+    expect(old.calls[1]).not.toContain('- Language:');
   });
 
   it('gives the agents of the issue its report folder read-only, listed in their prompt', async () => {
@@ -152,8 +174,9 @@ describe('error server', () => {
 
   async function start(ipPerHour = 2): Promise<{ url: string; home: string; calls: string[] }> {
     const { home, deps, calls } = setup();
-    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour };
-    const server = new ErrorServer(new ErrorReports(deps), cfg, deps.now, () => undefined);
+    const cfg = { home, publicUrl: 'https://play.test/play', errorOrigins: 'https://html.itch.zone', errorBodyKb: 64, errorIpPerHour: ipPerHour, reportIpPerHour: 5, reportMaxChars: 3000, errorDiskMb: 10, errorUnzippedMb: 1 };
+    const feedback = new Feedback({ cfg, store: openStore(home), classify: async () => { throw new Error('no filter in this test'); }, github: deps.github, now: deps.now, log: () => undefined, alert: () => undefined });
+    const server = new ErrorServer(new ErrorReports(deps), feedback, cfg, deps.now, () => undefined);
     servers.push(server);
     return { url: `http://127.0.0.1:${await server.listenPort(0)}/errors`, home, calls };
   }
@@ -167,6 +190,13 @@ describe('error server', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://html.itch.zone');
     expect(calls.some((call) => call.startsWith('create'))).toBe(true);
+  });
+
+  it('refuses a language that is not a language tag and opens no issue', async () => {
+    const { url, calls } = await start();
+    const language = 'en\n\n@octocat GH-5\n\n## Committee feedback';
+    expect((await post(url, report({ language }))).status).toBe(400);
+    expect(calls).toEqual([]);
   });
 
   it('answers the preflight of an allowed origin, and also takes the play site itself', async () => {
@@ -192,5 +222,18 @@ describe('error server', () => {
     expect(statuses).toEqual([204, 204, 429]);
     expect((await post(url, report(), { 'cf-connecting-ip': '5.6.7.8' })).status).toBe(204);
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_ERROR_IP_PER_HOUR=2');
+  });
+
+  it('counts every address of one IPv6 /64 together', async () => {
+    const { url } = await start(2);
+    const statuses = [];
+    for (const ip of ['2001:db8::1', '2001:db8:0:0:1::1', '2001:db8::2']) statuses.push((await post(url, report(), { 'cf-connecting-ip': ip })).status);
+    expect(statuses).toEqual([204, 204, 429]);
+    expect((await post(url, report(), { 'cf-connecting-ip': '2001:db8:0:1::1' })).status).toBe(204);
+  });
+
+  it('refuses a client address that is not an IP address', async () => {
+    const { url } = await start(2);
+    expect((await post(url, report(), { 'cf-connecting-ip': 'not-an-ip' })).status).toBe(400);
   });
 });
