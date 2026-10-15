@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs';
 import { moveCard } from '../card-events';
 import { readApproval } from '../clone-checks';
-import { BRANCH, FEEDBACK_HEADING, PLAYER_REPORT_HEADING, GAME_DIR, OUT_DIR, TASK_FILE, type Ctx, type IssueComment } from '../types';
+import { BRANCH, FEEDBACK_HEADING, PLAYER_REPORT_HEADING, GAME_DIR, OUT_DIR, TASK_FILE, type Ctx, type IssueComment, type KeptApproval } from '../types';
+import { containsApproved, invalidateApproval, keptApprovalOf, requeueApproved, stillApproved } from './kept-approval';
 import { runCost, untilPasses } from './checkpoint';
 import { POST_MARK, postCheckpoint, publishAndPost } from './checks';
 import { hardenPrompt } from './harden';
@@ -19,7 +20,8 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const { commit: merged, note } = await mergeBase(ctx, issue, base, home, 'verify');
   if (readOutput(home, 'merge-conflicts.md') === null && await docsOnly(ctx, issue, base)) return docsRound(ctx, issue, base, home, merged);
   const hotfix = base === HOTFIX_BASE;
-  const spent = await firstRounds(ctx, issue, base, hotfix, note);
+  const approval = hotfix ? await stillApproved(ctx, issue) : null;
+  const spent = approval === null ? await firstRounds(ctx, issue, base, hotfix, note) : await integrateRound(ctx, issue, approval, note, home);
   if (await redesigned(ctx, issue, home)) return;
   let build = '';
   await untilPasses(ctx.cfg.testingBudgetUsd, spent, async () => {
@@ -29,7 +31,25 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
     build = await ctx.repo.headHash(BRANCH(issue));
     return checkpoint(ctx, issue, base, build, hotfix ? 'full' : 'preview', home);
   }, (failure) => fixRound(ctx, issue, home, failure));
+  await finish(ctx, issue, home, base, build);
+}
+
+async function finish(ctx: Ctx, issue: number, home: string, base: string, build: string): Promise<void> {
+  const approval = keptApprovalOf(ctx, issue);
+  if (approval !== null && await containsApproved(ctx, approval, build)) return requeueApproved(ctx, issue, approval, build);
+  if (approval !== null) await invalidateApproval(ctx, issue, `the checked build ${build} no longer contains the approved build.`);
   await publishAndPost(ctx, issue, readApproval(home), home, base, build, false);
+}
+
+async function integrateRound(ctx: Ctx, issue: number, approval: KeptApproval, baseNote: string, home: string): Promise<number> {
+  const vars = {
+    issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false),
+    approvedBy: approval.by, approvedBuild: approval.build, reason: approval.reason ?? 'its tip is no longer part of the approved build.',
+  };
+  const spent = runCost(await runAgent(ctx, issue, 'verify', ROUND, fillPrompt('integrate', vars)));
+  const changed = readOutput(home, 'intent-changed.md');
+  if (changed !== null) await invalidateApproval(ctx, issue, `the merge with newer main changes what was approved. ${changed.trim()}`);
+  return spent;
 }
 
 async function firstRounds(ctx: Ctx, issue: number, base: string, hotfix: boolean, baseNote: string): Promise<number> {
@@ -92,5 +112,5 @@ async function docsRound(ctx: Ctx, issue: number, base: string, home: string, me
   const build = await ctx.repo.headHash(BRANCH(issue));
   const failure = await postCheckpoint(ctx, issue, base, build, 'docs');
   if (failure !== null) throw new Error(`The build of a docs change failed.\n${failure}`);
-  await publishAndPost(ctx, issue, approval, home, base, build, false);
+  await finish(ctx, issue, home, base, build);
 }

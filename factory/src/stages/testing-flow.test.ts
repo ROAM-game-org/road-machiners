@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import type * as Os from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
@@ -9,6 +10,7 @@ import { testPoolPin } from '../cpus';
 
 const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
+vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
 vi.mock('../deploy', () => ({ checkScope: () => undefined, publishBuild: (_ctx: unknown, _clone: string, scope: string) => `https://play.test/${scope}/`, recordBuild: () => undefined }));
 const { runStage: runPost, approvalCaption, timeoutOnly } = await import('./checks');
 const { runStage: runVerify, taskText } = await import('./verify');
@@ -28,6 +30,7 @@ let labels: string[] = [];
 let bases: string[] = [];
 let conflicts: string[] = [];
 let merged = true;
+let approvedKept = true;
 let kept: string | null = null;
 let changed: string[] = [];
 let runs: AgentRun[] = [];
@@ -37,6 +40,7 @@ beforeEach(() => {
   albumFails = false;
   conflicts = [];
   merged = true;
+  approvedKept = true;
   kept = null;
   changed = ['game/src/sim/far.ts'];
   mkdirSync('tmp', { recursive: true });
@@ -120,7 +124,7 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       fetch: async () => undefined,
       catchUpBase: async (_dir: string, base: string) => { bases.push(`merge ${base}`); return kept === null ? { commit: 'base0001', conflicts, kept } : { commit: null, conflicts: [], kept }; },
       mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
-      isMerged: async () => merged,
+      isMerged: async (older: string) => (older === 'aaa1111' ? approvedKept : merged),
       changedFiles: async () => changed,
     },
   };
@@ -256,6 +260,68 @@ describe('testing in one job', () => {
     expect(shellScripts[0]).toContain('test:cached');
     expect(shellPins).toEqual([testPoolPin(POOLS)]);
     expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
+  });
+
+  describe('a hotfix whose approval is kept after main moved', () => {
+    const approval = { by: 'bob', at: '2026-09-30T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111'], reason: 'main moved to ccc3333 after the checks ran on aaa1111, so they no longer count.' };
+    const keep = () => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), keptApprovals: { 7: approval } });
+    const shown = () => calls.filter((call) => /^(photo|buttons|message|album)/.test(call));
+
+    beforeEach(() => {
+      labels = ['hotfix', 'bug'];
+      keep();
+    });
+
+    it('runs one integration round, the full checks on the pushed commit, and queues the approval again with no post', async () => {
+      await runVerify(fakeCtx(posts), 7);
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.prompt).toContain('This is the integration round of a hotfix');
+      expect(runs[0]!.prompt).toContain('bob played build aaa1111');
+      expect(runs[0]!.prompt).toContain(approval.reason);
+      expect(shellScripts[0]).toContain('test:cached');
+      expect(shown()).toEqual([]);
+      expect(calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Approval']);
+      expect(commentBodies.at(-1)).toBe('The full checks passed on abc123, which merges newer main into the approved build aaa1111. The approval by bob still holds, so it ships next with no new post.');
+      const state = readState(`${home}/state.json`);
+      expect(state.pendingApprovals).toEqual({ 7: 'bob' });
+      expect(state.builds).toEqual({ 7: 'abc123' });
+      expect(state.keptApprovals[7]?.checked).toEqual(['aaa1111', 'abc123']);
+      expect(state.approvalPosts).toEqual({});
+    });
+
+    it('takes a failed check back into the same session and still ships nothing until the checks pass', async () => {
+      await runVerify(fakeCtx(posts, ['typecheck failed']), 7);
+      expect(runs).toHaveLength(2);
+      expect(runs[1]!.session?.resume).toBe(true);
+      expect(shellScripts).toHaveLength(2);
+      expect(readState(`${home}/state.json`).pendingApprovals).toEqual({ 7: 'bob' });
+    });
+
+    it('keeps the approval and queues nothing when the checks never pass', async () => {
+      await expect(runVerify(fakeCtx(posts, Array(9).fill('typecheck failed'), 3), 7)).rejects.toThrow(BudgetError);
+      const state = readState(`${home}/state.json`);
+      expect(state.pendingApprovals).toEqual({});
+      expect(state.keptApprovals[7]?.checked).toEqual(['aaa1111']);
+      expect(shown()).toEqual([]);
+    });
+
+    it('drops the approval with the agent\'s reason and posts the build for a new one when the merge changes what was approved', async () => {
+      await runVerify(fakeCtx((run) => { posts(run); writeFileSync(`${out(run)}/intent-changed.md`, 'Main removed the horn the fix tunes.\n'); }), 7);
+      expect(commentBodies).toContain('The approval by bob of build aaa1111 no longer holds: the merge with newer main changes what was approved. Main removed the horn the fix tunes. The changed build needs a new approval, so it gets a new post.');
+      const state = readState(`${home}/state.json`);
+      expect(state.keptApprovals).toEqual({});
+      expect(state.pendingApprovals).toEqual({});
+      expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
+    });
+
+    it('drops the approval and runs the normal rounds when the branch no longer holds the approved build', async () => {
+      approvedKept = false;
+      await runVerify(fakeCtx((run, index) => { if (index === 1) posts(run); }), 7);
+      expect(commentBodies[0]).toContain('no longer holds: factory/issue-7 no longer contains the approved build');
+      expect(runs[0]!.prompt).toContain('This is the hardening stage');
+      expect(readState(`${home}/state.json`).keptApprovals).toEqual({});
+      expect(shown().some((call) => call.startsWith('photo'))).toBe(true);
+    });
   });
 
   it('posts a docs change with no agent and only a build', async () => {

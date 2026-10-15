@@ -7,6 +7,7 @@ import { BRANCH, BaseMovedError, FEEDBACK_HEADING, QUESTION_HEADING, MergeConfli
 import { HOTFIX_BASE, baseBranchFor, mediaDir, workDir } from './common';
 import { releaseBundle } from './bundle';
 import { shipHotfix } from './hotfix';
+import { dropKeptApproval, invalidateApproval } from './kept-approval';
 
 async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
   const card = (await ctx.github.cards()).find((item) => item.issue === issue);
@@ -28,24 +29,6 @@ function forgetPosts(ctx: Ctx, issue: number): void {
     return { ...state, approvalPosts, pendingApprovals, builds, approvedResolving, postOnly, unroutedReplies };
   });
   dropReplyMedia(ctx.cfg.home, closed);
-}
-
-function dropKeptApproval(ctx: Ctx, issue: number): KeptApproval | null {
-  let dropped: KeptApproval | null = null;
-  updateState(ctx.statePath, (state) => {
-    const { [String(issue)]: kept, ...rest } = state.keptApprovals;
-    dropped = kept ?? null;
-    return { ...state, keptApprovals: rest };
-  });
-  return dropped;
-}
-
-export async function invalidateApproval(ctx: Ctx, issue: number, reason: string): Promise<boolean> {
-  const dropped = dropKeptApproval(ctx, issue);
-  if (dropped === null) return false;
-  await ctx.github.comment(issue, `The approval by ${dropped.by} of build ${dropped.build} no longer holds: ${reason} The changed build needs a new approval, so it gets a new post.`);
-  ctx.log('approve', issue, `kept approval by ${dropped.by} dropped: ${reason}`);
-  return true;
 }
 
 export async function approve(ctx: Ctx, issue: number, by: string): Promise<void> {
