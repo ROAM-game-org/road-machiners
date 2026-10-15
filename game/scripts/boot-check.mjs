@@ -293,7 +293,7 @@ async function lostWorker(browser, viewport) {
 
 mkdirSync('.playtest', { recursive: true });
 async function inBrowser(run) {
-  const browser = await ENGINES[engine].launch({ args: launchArgs() });
+  const browser = await ENGINES[engine].launch({ args: launchArgs(), headless: engine === 'chromium' });
   try {
     await run(browser);
   } finally {
