@@ -103,9 +103,9 @@ export function screenFor(err: unknown): 'webgl' | 'download' | 'crash' {
   return 'crash';
 }
 
-export function downloadFailedText(err: DownloadFailed): { title: Msg; lines: Msg[]; detail: string } {
+export function downloadFailedText(err: DownloadFailed): { title: Msg; lines: Msg[]; detail: string; action: Msg } {
   const cause = err.cause instanceof Error ? err.cause.message : String(err.cause);
-  return { title: t('download.title'), lines: [t('download.reload'), t('download.saves')], detail: `${err.url}\n${cause}` };
+  return { title: t('download.title'), lines: [t('download.reload'), t('download.saves')], detail: `${err.url}\n${cause}`, action: t('download.action') };
 }
 
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
@@ -145,7 +145,7 @@ function showCrash(err: unknown, facts: ErrorFacts | null): void {
   document.body.appendChild(box);
 }
 
-function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null }): void {
+function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; action?: Msg }): void {
   if (shown) return;
   shown = true;
   const box = document.createElement('div');
@@ -159,6 +159,14 @@ function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null }): 
     setText(row, line);
     box.append(row);
   }
+  let reload: HTMLButtonElement | null = null;
+  if (text.action) {
+    reload = document.createElement('button');
+    reload.className = 'crash-reload';
+    setText(reload, text.action);
+    reload.addEventListener('click', () => location.reload());
+    box.append(reload);
+  }
   if (text.detail) {
     const detail = document.createElement('div');
     detail.className = 'crash-hint';
@@ -166,4 +174,5 @@ function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null }): 
     box.append(detail);
   }
   document.body.appendChild(box);
+  reload?.focus();
 }
