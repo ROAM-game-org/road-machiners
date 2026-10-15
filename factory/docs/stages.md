@@ -146,6 +146,10 @@ The approval also drops with a reason on a patch or redesign route, Deny, `facto
 
 Ship and the hotfix ship queue an incident job for each shipped fix of a `bug` issue and each hotfix, in `pendingIncidents`. The job runs the design model in a clone of `dev`. It reads the issue as untrusted text and the fix commit, and judges the bug against the bar in `docs/incident-log.md`. Each entry is a class of bug with a rule, a check and the bugs seen. A bug that repeats a class updates that entry. A bug that starts a class gets a new entry, and a one-off bug gets none. The factory merges the change into `dev`. The job comments the outcome on the issue. A missing or malformed `.factory/incident.json` fails the job.
 
+## Chat answer
+
+The tick queues each player question the bot answers in `pendingAnswers`, and an answer job investigates it in a clone of `main`. [process.md](process.md#public-inputs) has the rules. It never commits, pushes, comments on GitHub or moves a card. A missing or malformed `.factory/answer.json`, or one that fails its checks, fails the job and sends the player one fixed line.
+
 ## Factory change
 
 A committee message starting with `/change` or Hermes's `factory_queue_change` tool queues a factory change. The job runs the design model in a clone of `main` with the cwd in `factory/`. The agent runs up:make in hands-off mode on the task file `.factory-tasks/change-<id>.md`, through design, plan, execute, verify and review. It writes the pull request title and body from `prompts/change-pr.md`. The change may touch any file in the repo, like the quality gate at the root or game text. The factory pushes `factory-change/<id>` and opens a pull request against `main`. It never merges it. Once a member merges it, the server deploys it.
@@ -160,7 +164,7 @@ The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus ad
 
 - `design-sonnet` runs design on Sonnet.
 - `implementation-opus` runs implementation on Opus. Testing and hardening stay on Sonnet.
-- The release playtest, candidate, incident and factory change agents always run Opus. Triage always runs Haiku. Merge, ad hoc and waste review agents always run Sonnet.
+- The release playtest, candidate, incident, chat answer and factory change agents always run Opus. Triage always runs Haiku. Merge, ad hoc and waste review agents always run Sonnet.
 - The triage prompt aims for about 20% Opus and 80% Sonnet in measured agent tokens. It is a rule of thumb, never a cap.
 
 Triage rates each `ready` issue once and comments the rating under `Model routing from triage:`.
