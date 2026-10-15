@@ -39,7 +39,7 @@ describe('runAgentCheck', () => {
     const { code, text } = lines(['test']);
     expect(code).toBe(0);
     expect(text).toContain('Not checked here');
-    expect(text).toContain('the typecheck, playtest and build');
+    expect(text).toContain('the build in a fresh clone');
   });
 
   it('passes after a later commit, since evidence is not tied to a commit', () => {

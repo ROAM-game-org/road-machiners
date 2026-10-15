@@ -1,4 +1,4 @@
-// Hardening and Merging columns. One hardening session reviews and fixes an approved card. The merge queue checks up to three waiting cards of a base merged together before the base takes them, and the next job takes the rest. While a merge job runs, a catch-up job merges the base into the branches of the next waiting cards.
+// Hardening and Merging columns. One hardening session reviews and fixes an approved card. The merge queue checks up to three waiting cards of a base merged together before the base takes them, and the next job takes the rest. Each time a base moves, a catch-up job merges it into the branches of the waiting cards.
 // Red: loops back. Grey: leaves the column or enters from outside.
 digraph hardening {
   rankdir=LR; nodesep=0.35; ranksep=0.55; bgcolor=white; pad=0.3;
@@ -11,11 +11,11 @@ digraph hardening {
   }
   subgraph cluster_merge {
     label="Merge job: up to three Merging cards of one base, oldest first"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
-    MM [label="Merge each card\ninto a clone of the base"]; MC [label="Merge checkpoint\nfull suite, typecheck,\nplaytest, build"]; MP [label="Push the base\nrebuild /dev/"];
+    MM [label="Merge each card\ninto a clone of the base"]; MC [label="Merge checkpoint\nmatching tests,\nplaytest, build"]; MP [label="Push the base\nrebuild /dev/"];
     MM -> MC -> MP [weight=100];
   }
   HH -> MM [label="Merging column"];
-  CU [label="Catch-up job, one at a time\nmerge the base into the branch\nof each of the next six cards"];
+  CU [label="Catch-up job, one at a time\nmerge each new base head\ninto every waiting card's branch"];
   XA [label="Approve", fillcolor="#f3f4f6", color="#6b7280"];
   XO [label="factory merge", fillcolor="#f3f4f6", color="#6b7280"];
   XS [label="factory-stuck\nevery card of the batch", fillcolor="#f3f4f6", color="#6b7280"];
@@ -24,7 +24,7 @@ digraph hardening {
   MM -> MM [label="conflict: the merge\nsession resolves it"];
   MC -> MM [label="failure or stalled test:\nback into the merge session"];
   MC -> MC [label="timed out or past\nFACTORY_CHECKS_TIMEOUT_MINUTES:\nrun the files with no pass\nagain, at most 3 runs"];
-  MP -> MM [label="base moved:\nmerge it in, check again"];
+  MP -> MM [label="base moved:\nmerge it in, check again\nonly if game source changed"];
   XS -> MM [label="timed out or died:\nthe stuck sweep releases\nhalf the batch"];
   MP -> MM [label="cards left: the next\njob takes the next batch"];
   CU -> CU [label="conflict: an agent\nresolves it, push\nthe issue branch only"];
@@ -34,6 +34,7 @@ digraph hardening {
   XO -> MM;
   MC -> XS [label="fix budget spent, timeout\nor job death"];
   MP -> XN;
-  HH -> CU [label="waits while\na merge job runs"];
-  CU -> MM [label="its batch meets only\nwhat the base gained since"];
+  HH -> CU [label="waits in Merging"];
+  MP -> CU [label="base moved"];
+  CU -> MM [label="its batch meets only what\nthe batch before it landed"];
 }
