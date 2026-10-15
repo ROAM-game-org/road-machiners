@@ -278,7 +278,7 @@ export type NpcBrain = {
     lastPos?: Vec;
     stalled?: number;
     stuck?: number;
-    progress?: { key: string; since: number };
+    progress?: { key: string; since: number; at: Vec };
     recovery?: number;
     recoveryGoal?: Vec;
     ramChoice?: string;

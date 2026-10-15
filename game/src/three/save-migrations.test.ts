@@ -1381,3 +1381,13 @@ describe('save migration 64 to 65', () => {
     expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
   });
 });
+
+describe('MIGRATIONS[65]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});

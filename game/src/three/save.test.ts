@@ -599,6 +599,21 @@ describe('game save', () => {
     expect(loaded.player.xp).toEqual(world.player.xp);
   });
 
+  it('keeps the spot a driver last made progress at through a reload, and load pays nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const trader = addVehicle(world, 'traders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    trader.brain.progress = { key: 'idle -', since: 880, at: { x: 38.5, y: 41 } };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.vehicles.find((v) => v.id === trader.id)!.brain!.progress).toEqual(trader.brain.progress);
+    expect([loaded.player.money, loaded.player.xp, loaded.events]).toEqual([world.player.money, world.player.xp, []]);
+  });
+
   it('keeps every driver personality through a save and a load, and awards nothing on load', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
