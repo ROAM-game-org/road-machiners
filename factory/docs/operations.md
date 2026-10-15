@@ -17,7 +17,7 @@ A work clone with no commit checked out, like one a full disk cut short, holds n
 Each job's containers run on a fixed set of CPUs. `FACTORY_CPU_LIGHT`, `FACTORY_CPU_IMPLEMENT` and `FACTORY_CPU_TEST` set each pool's share, and each pool gets round(share × cores) whole CPUs, at least 1. The pools must fit the host, or every job start throws.
 
 - light: triage, waste review, design and branch jobs other than the merge and the candidate, so a catch-up's agent never takes the merge checks' CPUs.
-- implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its preview checks here.
+- implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its build-only checkpoint here.
 - test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks. A job of another pool runs each full suite here too: a hotfix's post checkpoint, the release playtest's suite and its fix checks. On the 3 implement CPUs beside the agents, a full suite ran past its time limit.
 
 On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the test pool's CPUs. The merge checks share them only with the post-only builds, since one full suite runs at a time. Each full suite run takes the lock `$FACTORY_HOME/locks/full-suite`, and its `FACTORY_CHECKS_TIMEOUT_MINUTES` clock starts once it has the lock. Three suites at once on these 4 CPUs each ran past that limit, and one alone takes about 25 minutes. Docker pins containers with `--cpuset-cpus`. A step run by hand is not pinned.
