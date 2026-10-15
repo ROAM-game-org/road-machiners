@@ -3,7 +3,6 @@ import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
 import { askOf, loadArt } from './quest-screen';
 import { QUEST_ART } from '../data/quest-art';
-import { CONFIG } from '../config';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
 
@@ -54,19 +53,14 @@ describe('loadArt', () => {
   const key = Object.keys(QUEST_ART)[0]!;
   const fakeImage = (decode: () => Promise<void>) => {
     const attrs = new Map<string, string>();
-    const classes = new Set<string>();
     return {
       style: {} as Record<string, string>,
-      classList: { add: (c: string) => classes.add(c) },
-      classes,
-      srcWrites: 0,
       onerror: null as null | (() => void),
       decode,
       setAttribute: (n: string, v: string) => attrs.set(n, v),
       hasAttribute: (n: string) => attrs.has(n),
       removeAttribute: (n: string) => attrs.delete(n),
       set src(v: string) {
-        this.srcWrites++;
         attrs.set('src', v);
       },
       get src() {
@@ -87,26 +81,17 @@ describe('loadArt', () => {
     vi.unstubAllGlobals();
   });
 
-  it('retries once, then leaves the picture blank without throwing', async () => {
+  it('leaves the picture blank without throwing when it fails to show', async () => {
     loadArt(key);
     await vi.advanceTimersByTimeAsync(0);
-    expect(img.srcWrites).toBe(1);
     expect(() => img.onerror?.()).not.toThrow();
-    vi.advanceTimersByTime(CONFIG.questArtRetryMs);
-    expect(img.srcWrites).toBe(2);
-    expect(() => img.onerror?.()).not.toThrow();
-    expect(img.classes.has('quest-art-failed')).toBe(true);
     expect(img.style.visibility).toBe('hidden');
-    vi.advanceTimersByTime(CONFIG.questArtRetryMs * 2);
-    expect(img.srcWrites).toBe(2);
   });
 
-  it('does not revive an image that was dropped before the retry', async () => {
+  it('swallows a decode failure', async () => {
+    img = fakeImage(() => Promise.reject(new Error('EncodingError')));
     loadArt(key);
     await vi.advanceTimersByTimeAsync(0);
-    img.onerror?.();
-    img.removeAttribute('src');
-    vi.advanceTimersByTime(CONFIG.questArtRetryMs);
-    expect(img.hasAttribute('src')).toBe(false);
+    expect(img.hasAttribute('src')).toBe(true);
   });
 });

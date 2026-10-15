@@ -33,5 +33,4 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
-  questArtRetryMs: 1500,
 };
