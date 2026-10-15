@@ -1,31 +1,25 @@
 import { addCard } from './card-events';
-import { githubLogins, readCommittee } from './committee';
-import { CANDIDATE_LABELS, ERROR_REPORT_LABEL, HOTFIX_LABEL } from './types';
+import { CANDIDATE_LABELS, ERROR_REPORT_LABEL, HOTFIX_LABEL, PLAYER_REPORT_LABEL } from './types';
 import type { Ctx, Issue } from './types';
-
-type MarkRules = { minVotes: number; minAgeHours: number; committee: string[] };
 
 const HOUR_MS = 3_600_000;
 
-export function isMarked(issue: Issue, now: Date, rules: MarkRules): boolean {
-  const ageHours = (now.getTime() - new Date(issue.createdAt).getTime()) / HOUR_MS;
-  if (ageHours < rules.minAgeHours) return false;
-  const byCommittee = issue.thumbsUp.some((login) => rules.committee.includes(login));
-  const votes = issue.thumbsUp.filter((login) => login !== issue.author);
-  return byCommittee || votes.length >= rules.minVotes;
+function isAged(issue: Issue, now: Date, minAgeHours: number): boolean {
+  return (now.getTime() - new Date(issue.createdAt).getTime()) / HOUR_MS >= minAgeHours;
 }
+
+const IMMEDIATE_LABELS = [HOTFIX_LABEL, ERROR_REPORT_LABEL, PLAYER_REPORT_LABEL];
+
+const isImmediate = (issue: Issue): boolean => issue.labels.some((label) => IMMEDIATE_LABELS.includes(label));
 
 export async function intake(ctx: Ctx): Promise<number[]> {
   const { cfg, github } = ctx;
-  const bootstrap = { telegram: cfg.committeeBootstrapTelegram, github: cfg.committeeBootstrapGithub };
-  const rules = { minVotes: cfg.minVotes, minAgeHours: cfg.minAgeHours, committee: githubLogins(readCommittee(cfg.home, bootstrap)) };
   const onBoard = new Set((await github.cards()).map((card) => card.issue));
   const candidates = await github.candidates([...CANDIDATE_LABELS, HOTFIX_LABEL]);
   const added: number[] = [];
   for (const issue of candidates) {
     const hotfix = issue.labels.includes(HOTFIX_LABEL);
-    const voteless = hotfix || issue.labels.includes(ERROR_REPORT_LABEL);
-    if (onBoard.has(issue.number) || !(voteless || isMarked(issue, ctx.now(), rules))) continue;
+    if (onBoard.has(issue.number) || !(isImmediate(issue) || isAged(issue, ctx.now(), cfg.minAgeHours))) continue;
     await addToBoard(ctx, issue.number, hotfix);
     added.push(issue.number);
   }

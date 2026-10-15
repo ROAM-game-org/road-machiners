@@ -103,13 +103,13 @@ export function aimStateOf(w: World, selected: string | null, locked: boolean, t
   return { guns: gunsLabel(w, selected), body: bodyMarks(w, targetId), bodyAimed: aimsBody(w, weapons, targetId), locked, hasGuns: weapons.length > 0 };
 }
 
-type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (w: World) => void };
+type AimHost = { world: () => World; selected: () => string | null; canAim: () => boolean; apply: (next: () => World) => void };
 
 export function aimActions(h: AimHost) {
   const guns = () => weaponsForClick(h.world(), h.selected());
   return {
     aimState: (id: string) => aimStateOf(h.world(), h.selected(), !h.canAim(), id),
-    aimPart: (id: string, partId: string) => h.canAim() && h.apply(aimAtPart(h.world(), guns(), vehicleById(h.world(), id), partId)),
+    aimPart: (id: string, partId: string) => h.canAim() && h.apply(() => aimAtPart(h.world(), guns(), vehicleById(h.world(), id), partId)),
   };
 }
 

@@ -1,10 +1,9 @@
-// Runs the game tests and skips every test file whose imports, disk reads and global inputs already passed.
-// Usage: npm run test:cached -- --cache <dir> [test file filters]. Without --cache it runs every file and records nothing.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { createVitest } from 'vitest/node';
 import { globalKey } from '../src/test/cache/fingerprint';
 import { recordRun, selectTests } from '../src/test/cache/select';
+import { createStallWatch, stallMinutes } from '../src/test/cache/stall';
 import { testId } from '../src/test/cache/store';
 
 const root = process.cwd();
@@ -39,12 +38,63 @@ function readsOf(readsDir, test) {
   }
 }
 
+function passRecorder(cache, readsDir) {
+  let key = null;
+  let uncacheable = 0;
+  const record = (mod) => {
+    const test = relative(root, mod.moduleId);
+    uncacheable += recordRun(root, cache, key, [{ test, passed: true, graphFiles: importsOf(mod.project, mod.moduleId), reads: readsOf(readsDir, test) }]);
+  };
+  return {
+    start: (globalKey) => { key = globalKey; },
+    uncacheable: () => uncacheable,
+    reporter: {
+      onTestModuleEnd(mod) {
+        if (cache && key !== null && mod.state() === 'passed') record(mod);
+      },
+    },
+  };
+}
+
+function stallReporter(watch) {
+  const fileOf = (mod) => relative(root, mod.moduleId);
+  return {
+    onTestModuleStart: (mod) => watch.fileStarted(fileOf(mod), Date.now()),
+    onTestModuleEnd: (mod) => watch.fileEnded(fileOf(mod), Date.now()),
+    onTestCaseReady: (test) => watch.caseStarted(test.id, fileOf(test.module), test.fullName),
+    onTestCaseResult: (test) => watch.caseEnded(test.id, Date.now()),
+  };
+}
+
+const CLOSE_LIMIT_MS = 10_000;
+
+function stopOnStall(watch, vitest, readsDir) {
+  let stalled = false;
+  const timer = setInterval(async () => {
+    const stall = watch.stalled(Date.now());
+    if (stall === null) return;
+    stalled = true;
+    clearInterval(timer);
+    console.log(stall);
+    await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
+    rmSync(readsDir, { recursive: true, force: true });
+    process.exit(1);
+  }, 1000);
+  timer.unref();
+  return () => stalled;
+}
+
 const { cache, filters } = parseArgs(process.argv.slice(2));
 mkdirSync(join(root, 'tmp'), { recursive: true });
 const readsDir = mkdtempSync(join(root, 'tmp', 'test-cache-reads-'));
 process.env.TEST_CACHE_READS = readsDir;
 let failed = false;
-const vitest = await createVitest('test', { watch: false });
+const stallLimit = stallMinutes(process.env);
+const watch = stallLimit === null ? null : createStallWatch(stallLimit * 60_000, Date.now());
+const recorder = passRecorder(cache, readsDir);
+const reporters = ['default', recorder.reporter, ...(watch ? [stallReporter(watch)] : [])];
+const vitest = await createVitest('test', { watch: false, reporters });
+const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();
@@ -54,21 +104,14 @@ try {
   const tests = specs.map(relOf);
   const { run, skipped } = cache ? selectTests(root, cache, key, tests) : { run: tests, skipped: [] };
   const selected = specs.filter((spec) => run.includes(relOf(spec)));
-  let uncacheable = 0;
+  recorder.start(key);
   if (selected.length) {
     const { testModules, unhandledErrors } = await vitest.runTestSpecifications(selected);
     failed = unhandledErrors.length > 0 || testModules.some((mod) => mod.state() !== 'passed' && mod.state() !== 'skipped');
-    if (cache) {
-      const results = testModules.filter((mod) => mod.state() === 'passed').map((mod) => {
-        const test = relative(root, mod.moduleId);
-        return { test, passed: true, graphFiles: importsOf(mod.project, mod.moduleId), reads: readsOf(readsDir, test) };
-      });
-      uncacheable = recordRun(root, cache, key, results);
-    }
   }
-  console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${uncacheable}`);
+  console.log(`[test-cache] ran ${run.length}, skipped ${skipped.length}, uncacheable ${recorder.uncacheable()}`);
 } finally {
   await vitest.close();
   rmSync(readsDir, { recursive: true, force: true });
 }
-process.exit(failed ? 1 : 0);
+process.exit(failed || stalled() ? 1 : 0);

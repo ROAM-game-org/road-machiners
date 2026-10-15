@@ -3,7 +3,7 @@ import { Refused } from '../sim/world';
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
-import { isMounted, type Spot } from "../sim/grid";
+import { isMounted, mountedParts, type Spot } from "../sim/grid";
 import { installSpot, moveItem, planItemMove, storePart, stowSpot, takeFromStorage, type RefitLayout } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
@@ -88,6 +88,10 @@ function instantGridCommand(w: World, c: ClickedItem): ((w: World) => World) | n
 export function plannedVehicle(v: Vehicle, plan: RefitLayout): Vehicle {
   if (Object.keys(plan).length === 0) return v;
   return { ...v, items: v.items.map((it) => (plan[it.id] ? { ...it, ...plan[it.id] } : it)) };
+}
+
+export function canFieldPatch(real: Vehicle, plannedMounted: boolean, partId: string): boolean {
+  return plannedMounted && mountedParts(real).some((p) => p.id === partId);
 }
 
 export function planAfterMove(v: Vehicle, plan: RefitLayout, itemId: string, to: Spot): RefitLayout {

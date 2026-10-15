@@ -218,6 +218,15 @@ describe('dockerContainer', () => {
     expect(runCall(light.calls).args.join(' ')).not.toContain('TEST_WORKERS');
   });
 
+  it('runs a shell pinned to another pool on that pool, with its test workers', async () => {
+    const { run, calls } = fakeRun();
+    await dockerContainer(run, cfg, 'verify-8-x', '1-3', 2).shell('/c', 'x', '/l', {}, {}, undefined, { cpus: '4-7', testWorkers: 4 });
+    const args = runCall(calls).args.join(' ');
+    expect(args).toContain('--cpuset-cpus 4-7');
+    expect(args).toContain('-e TEST_WORKERS=4');
+    expect(args).not.toContain('1-3');
+  });
+
   it('records the highest container peak of a job on its ledger line, also from a failed run', async () => {
     rmSync(HOME, { recursive: true, force: true });
     const peak = (gib: number): string => `log line\nFACTORY_MEMORY_PEAK ${gib * 1024 ** 3}\n`;

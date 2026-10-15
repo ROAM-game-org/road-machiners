@@ -12,6 +12,9 @@ export const TOUCH = {
   longPressMs: 500,
 };
 
+declare const __FEEDBACK_URL__: string;
+export const FEEDBACK_URL = __FEEDBACK_URL__;
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
@@ -28,6 +31,4 @@ export const CONFIG = {
   questWordMs: 125,
   questLineMs: 300,
   questPauseMs: 700,
-  assetFetchTries: 3,
-  assetRetryMs: 500,
 };
