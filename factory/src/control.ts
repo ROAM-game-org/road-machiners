@@ -12,6 +12,7 @@ import { readState, updateState } from './state';
 import { agentHome, workDir } from './stages/common';
 import { closeCard } from './stages/approval';
 import { invalidateApproval, verifiedApproval } from './stages/kept-approval';
+import { requireReleaseMerges } from './stages/release-common';
 import { moveCard, type CardStep } from './card-events';
 import { openStore } from './public/store';
 import { closeByHand } from './public/votes';
@@ -192,6 +193,7 @@ function clearCardState(state: FactoryState, issue: number, dropsApproval: boole
   return {
     ...state,
     postOnly: state.postOnly.filter((number) => number !== issue),
+    asked: omitKey(state.asked, key),
     interrupted: state.interrupted.filter((number) => number !== issue),
     pendingApprovals: omitKey(state.pendingApprovals, key),
     approvedResolving: dropsApproval ? omitKey(state.approvedResolving, key) : state.approvedResolving,
@@ -325,6 +327,7 @@ export function queueShip(ctx: Ctx, issue: number, by: string): string {
 export function queueRemoval(ctx: Ctx, issue: number, by: string, text: string, finishRemoved = false): string {
   const release = openRelease(ctx);
   if (release.removed.includes(issue) && !finishRemoved) throw new Error(`Issue #${issue} is already removed from release ${release.day}.`);
+  if (!requireReleaseMerges(release).some((merge) => merge.issue === issue)) throw new Error(`Issue #${issue} is not in release ${release.day}.`);
   if (readState(ctx.statePath).pendingRemovals.some((item) => item.issue === issue)) throw new Error(`A removal of #${issue} is already queued.`);
   updateState(ctx.statePath, (state) => ({ ...state, pendingRemovals: [...state.pendingRemovals, { issue, by, text }] }));
   return `Removal of #${issue} from release ${release.day} is queued. The revert starts on a coming tick.`;
