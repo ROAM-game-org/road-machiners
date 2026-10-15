@@ -13,7 +13,9 @@ import { wornDef, wornTurns } from './wear';
 
 export type UseKind = UtilityEffectType | 'claymore';
 
-const ORDER_KIND: Record<UseKind, UtilityOrder['kind'] | null> = {
+type PlacingKind = Exclude<UtilityOrder['kind'], 'disarm'>;
+
+const ORDER_KIND: Record<UseKind, PlacingKind | null> = {
   sprout: 'self',
   caltrops: 'self',
   oil: 'self',
@@ -77,7 +79,7 @@ export function useKindOf(def: PartDef): UseKind {
   throw new Error(`${def.id} is not a utility`);
 }
 
-export function orderKindOf(part: PartInstance): UtilityOrder['kind'] | null {
+export function orderKindOf(part: PartInstance): PlacingKind | null {
   return ORDER_KIND[useKindOf(partDef(part.defId))];
 }
 

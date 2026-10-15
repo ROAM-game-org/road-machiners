@@ -7,7 +7,7 @@ import type { Aim, PartInstance, UtilityOrder, Vehicle, World } from "../sim/typ
 import { playerSees } from "../sim/vision";
 import { workOf } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
-import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
+import { chargeOf, chargedParts, orderKindOf, useKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
 import { bottomLeft, el, panel } from "./dom";
 import { meters } from "./units";
@@ -262,7 +262,7 @@ export function utilityStatus(w: World, part: PartInstance, selected: boolean): 
   const kind = orderKindOf(part);
   if (kind === null) throw new Error(`${part.defId} is passive and has no slot`);
   const order = playerVehicle(w).utilityOrders[part.id];
-  if (order) return { state: "set", text: t("utility.fires") };
+  if (order) return { state: "set", text: t(order.kind === "disarm" ? "utility.disarms" : "utility.fires") };
   if (chargeOf(part).armed) return { state: "armed", text: t("utility.armed") };
   return aimingStatus(w, part, kind, selected) ?? idleStatus(w, part);
 }
@@ -344,7 +344,7 @@ export class UtilityRow {
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
-    if (orderKindOf(part) === "self") return this.useSelf(w, part);
+    if (orderKindOf(part) === "self") return chargeOf(part).armed && useKindOf(partDef(part.defId)) === "claymore" ? this.disarm(w, part) : this.useSelf(w, part);
     this.togglePick(w, part);
   }
 
@@ -356,6 +356,11 @@ export class UtilityRow {
   private clearOrder(w: World, part: PartInstance): void {
     if (this.host.selectedUtility() === part.id) this.host.selectUtility(null);
     this.host.apply(setUtilityOrder(w, part.id, null));
+  }
+
+  private disarm(w: World, part: PartInstance): void {
+    if (utilityOrderError(w, playerVehicle(w), part.id, { kind: "disarm" }) === null)
+      this.host.apply(setUtilityOrder(w, part.id, { kind: "disarm" }));
   }
 
   private useSelf(w: World, part: PartInstance): void {
