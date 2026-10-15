@@ -555,6 +555,7 @@ export type DecisionOptions = {
   aidAsked: 'give' | 'refuse';
   escortWanted: 'go' | 'post';
   needySeen: 'keep' | 'aid';
+  strangerSeen: 'keep' | 'tale' | 'tip' | 'challenge' | 'courier';
 };
 export type DecisionId = keyof DecisionOptions;
 
@@ -590,6 +591,7 @@ export const DECISIONS: { [D in DecisionId]: Record<DecisionOptions[D], number> 
   aidAsked: { give: 1, refuse: 9 },
   escortWanted: { go: 3, post: 1 },
   needySeen: { keep: 1, aid: 0 },
+  strangerSeen: { keep: 1, tale: 0, tip: 0, challenge: 0, courier: 0 },
 };
 
 export type WeightChange = { add?: number; mul?: number };
@@ -598,7 +600,7 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {},
   truce: {},
   grievance: {},
   strayFire: {},
@@ -628,6 +630,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   tow: null,
   patch: 40,
   trade: 20,
+  handover: 20,
   aid: 20,
   truce: 60,
   grievance: 5,

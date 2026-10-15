@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, writeState } from '../state';
 import { ROOT, fake, reset, type Fake } from './test-fakes';
-import { change, diffPaths } from './change';
+import { change } from './change';
 
 beforeEach(reset);
 
@@ -15,7 +15,7 @@ describe('change', () => {
   it('opens a pull request for a diff outside factory/ and lists its files', async () => {
     const f = fake();
     pending(f);
-    f.diff = 'diff --git a/factory/src/a.ts b/factory/src/a.ts\n+x\ndiff --git a/quality/check.ts b/quality/check.ts\n+y\n';
+    f.files = ['factory/src/a.ts', 'quality/check.ts'];
     await change(f.ctx, 4);
     expect(f.calls).toContain('push work-head factory-change/4');
     expect(f.prBodies.at(-1)).toContain('quality/check.ts');
@@ -25,7 +25,7 @@ describe('change', () => {
   it('opens a pull request for a factory-only diff and clears the request', async () => {
     const f = fake();
     pending(f);
-    f.diff = 'diff --git a/factory/src/a.ts b/factory/src/a.ts\n+x\n';
+    f.files = ['factory/src/a.ts'];
     f.agentWrites = { 'pr-title.txt': 'Post daily\n' };
     f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus' };
     const dirs: string[] = [];
@@ -50,11 +50,5 @@ describe('change', () => {
   it('throws for an unknown id', async () => {
     const f = fake();
     await expect(change(f.ctx, 9)).rejects.toThrow('no pending');
-  });
-});
-
-describe('diffPaths', () => {
-  it('lists both sides of a rename', () => {
-    expect(diffPaths('diff --git a/factory/a b/docs/b\n')).toEqual(['factory/a', 'docs/b']);
   });
 });

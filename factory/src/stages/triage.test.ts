@@ -34,7 +34,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     log: () => undefined,
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
-      comments: async () => earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') })),
+      comments: async () => earlier.map((body) => ({ login: 'anna', body, createdAt: '2026-09-30T09:30:00Z', byFactory: body.includes('<!-- roam-factory -->') })),
       cards: async () => cards,
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
     },
@@ -50,7 +50,6 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
     },
     repo: {
       fetch: record('fetch'), push: record('push'), fetchFromWork: record('fetchFromWork'),
-      mergeLog: async () => ['Merge issue #5: Night driving', 'Merge main into dev'],
       prepareWorkClone: async (_b: string, _base: string, dir: string) => { mkdirSync(dir, { recursive: true }); },
     },
   };
@@ -114,13 +113,16 @@ describe('triage stage', () => {
   });
 
   it('does not relabel on a later run after a member removed the label', async () => {
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), routed: [7] });
     await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y\n\n<!-- roam-factory -->']), 7);
     expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+    expect(calls.find((call) => call.startsWith('comment 7 Triage passed'))).toContain('kept as the committee left the labels');
   });
 
-  it('still routes when only a stranger wrote the routing line', async () => {
-    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Model routing from triage: hard, default models.']), 7);
+  it('routes by the state record, not by routing lines in the comments, and records the routing', async () => {
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: hard, default models.\n\n<!-- roam-factory -->']), 7);
     expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual(['addLabel 7 design-sonnet']);
+    expect(readState(`${home}/state.json`).routed).toEqual([7]);
   });
 
   it.each([
@@ -160,16 +162,22 @@ describe('triage stage', () => {
   });
 
   it('adds no second notice while the earlier question set is unanswered', async () => {
-    const asked = '## Questions from the factory\n\n1. Old?\n\n<!-- roam-factory -->';
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] }), [], [asked]), 7);
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), asked: { 7: '2026-09-30T09:00:00Z' } });
+    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] })), 7);
     expect(calls).toContain('addLabel 7 needs-info');
     expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
   });
 
   it('notifies again for a new set after the author answered', async () => {
-    const asked = ['## Questions from the factory\n\n1. Old?\n\n<!-- roam-factory -->', 'This one'];
-    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] }), [], asked), 7);
+    writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), asked: { 7: '2026-09-30T09:00:00Z' } });
+    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] }), [], ['This one']), 7);
     expect(calls.filter((call) => call.startsWith('message'))).toHaveLength(1);
+    expect(readState(`${home}/state.json`).asked).toEqual({ 7: '2026-09-30T10:00:00.000Z' });
+  });
+
+  it('records the time of the questions it asked', async () => {
+    await runStage(fakeCtx(verdict({ verdict: 'unclear', reason: 'Vague', questions: ['Which horn?'] })), 7);
+    expect(readState(`${home}/state.json`).asked).toEqual({ 7: '2026-09-30T10:00:00.000Z' });
   });
 
   it('keeps the questions and label when Telegram fails', async () => {
@@ -209,7 +217,7 @@ describe('triage stage', () => {
 });
 
 describe('triage release fixes', () => {
-  const release = { issue: 40, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+  const release = { issue: 40, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [{ issue: 5, title: 'Night driving', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
   const openRelease = (postId: number | null) => writeState(`${home}/state.json`, { ...structuredClone(EMPTY_STATE), release: { ...release, postId } });
 
   it('tells the agent that no release takes fixes when none is open', async () => {
