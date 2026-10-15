@@ -38,6 +38,7 @@ import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { leaderToJoin } from './pairs';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -599,7 +600,7 @@ function canHaul(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {
-  return hasTrait(vehicle, 'guard') && unguardedLeader(world, vehicle) !== null;
+  return leaderToJoin(world, vehicle) !== null;
 }
 
 function canPostEscort(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
