@@ -26,6 +26,7 @@ Run these from `factory/`. Run `npm ci` first.
 
 ## Rules
 
+- A fact comes from the simple structured record that holds it: the ledger, state, a typed error or an API field. Code never recovers it by parsing text or by computing it from other data. When no such record exists, the writer adds the fact as a field, and every reader uses that field. Text the factory writes is for people only.
 - `settings.env` is tracked and holds limits, models and timeouts. `.env` holds secrets, committee ids and host paths, and never leaves its host. A key in both files stops the factory.
 - The server runs only GitHub's `main`. Factory changes reach it by a merge into `main`, never by a hand edit on the server.
 - GitHub holds every branch. Each git step runs in a throwaway worktree under a lock and pushes at once. A conflict or rejected push must leave GitHub and the host as they were.

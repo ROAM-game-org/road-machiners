@@ -4,7 +4,8 @@ import { promisify } from 'node:util';
 
 const runFile = promisify(execFile);
 export type ContainerResource = { jobId: string | null; service: string; cpu: number; memory: number; readBytes: number; writtenBytes: number };
-type Container = { ID: string; Names: string; Labels: string };
+type Container = { ID: string; Names: string; Job: string };
+const PS_FORMAT = '{"ID":{{json .ID}},"Names":{{json .Names}},"Job":{{json (.Label "factory-job")}}}';
 type Stats = { ID: string; CPUPerc: string; MemUsage: string; BlockIO: string };
 const UNITS: Record<string, number> = { B: 1, kB: 1000, KB: 1000, MB: 1000000, GB: 1000000000, TB: 1000000000000, KiB: 1024, MiB: 1048576, GiB: 1073741824, TiB: 1099511627776 };
 function parseBytes(text: string): number {
@@ -18,8 +19,7 @@ function parseCpu(text: string, cores: number): number {
 }
 function readOwner(container: Container | undefined): Pick<ContainerResource, 'jobId' | 'service'> {
   if (!container) return { jobId: null, service: 'Unattributed container' };
-  const label = container.Labels.split(',').find((value) => value.startsWith('factory-job='));
-  if (label) return { jobId: label.slice('factory-job='.length), service: 'Factory job' };
+  if (container.Job !== '') return { jobId: container.Job, service: 'Factory job' };
   const services: Record<string, string> = { 'factory-hermes': 'Hermes', 'factory-caddy': 'Web server', 'factory-tunnel': 'Public tunnel', 'roam-factory-proxy': 'Agent network proxy' };
   return { jobId: null, service: Object.hasOwn(services, container.Names) ? services[container.Names] : 'Other container' };
 }
@@ -47,7 +47,7 @@ function groupUnattributedContainers(rows: ContainerResource[]): ContainerResour
   return [...rows.filter((row) => !unknown.includes(row)), group];
 }
 export async function readContainerResources(timeoutMs: number): Promise<ContainerResource[]> {
-  const containers = await runFile('docker', ['ps', '--format', '{{json .}}'], { timeout: timeoutMs });
+  const containers = await runFile('docker', ['ps', '--format', PS_FORMAT], { timeout: timeoutMs });
   const stats = await runFile('docker', ['stats', '--no-stream', '--format', '{{json .}}'], { timeout: timeoutMs });
   return parseContainerResources(containers.stdout, stats.stdout, cpus().length);
 }

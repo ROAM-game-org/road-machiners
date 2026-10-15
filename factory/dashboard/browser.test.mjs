@@ -33,13 +33,16 @@ function createSummary(days) {
     ],
     activity: jobs.map((job) => ({ stage: job.stage, issue: job.issue, outcome: 'done', at: now })), delivery: createDelivery(days) };
 }
-function createMerges() {
+function createPart(value) { return { value, error: null }; }
+function createMergeQueue() {
+  return [{ issue: 60, title: `In the batch ${'long'.repeat(40)}`, state: 'merging' }, { issue: 61, title: 'Waits next', state: 'next' }, { issue: 62, title: 'Stuck merge', state: 'stuck' }];
+}
+function createIssueToDev(days) {
   const hour = 3600000;
-  const merge = (issue, ageHours, mergedHoursAgo) => {
-    const mergedAt = Date.parse(now) - mergedHoursAgo * hour;
-    return { issue, createdAt: new Date(mergedAt - ageHours * hour).toISOString(), mergedAt: new Date(mergedAt).toISOString() };
-  };
-  return [merge(1, 50, 2), merge(2, 10, 72), merge(3, 120, 480)];
+  const ages = { 1: [50], 7: [10, 50], 30: [10, 50, 120] }[days];
+  const mean = ages.reduce((sum, age) => sum + age, 0) / ages.length;
+  const median = ages.length % 2 ? ages[(ages.length - 1) / 2] : (ages[ages.length / 2 - 1] + ages[ages.length / 2]) / 2;
+  return { issues: ages.length, mean_ms: mean * hour, median_ms: median * hour, fastest_ms: ages[0] * hour, slowest_ms: ages.at(-1) * hour, missing_open: 1 };
 }
 function createDelivery(days) {
   const hour = 3600000;
@@ -49,6 +52,19 @@ function createDelivery(days) {
     loops: [{ step: 'questions', events: 2, issues: 2 }, { step: 'rebuild', events: 0, issues: 0 }, { step: 'patch', events: 3, issues: 1 }], looped: 3,
     retries: [{ stage: 'design', runs: 2, issues: 1 }, { stage: 'verify', runs: 0, issues: 0 }],
     rejections: [{ gate: 'triage', decided: 8, rejected: 2 }, { gate: 'design', decided: 6, rejected: 0 }, { gate: 'committee', decided: 0, rejected: 0 }] };
+}
+function createFlowPanels(days) {
+  const hour = 3600000;
+  const scale = days / 7;
+  const stage = (name, visits, wait, [agent, checks = 0, build = 0, factory = 0], waitsOn = 'workers', unknown = 0) => ({ stage: name, waits_on: waitsOn, visits: Math.round(visits * scale), unknown_visits: unknown,
+    wait_ms: wait * hour * scale, agent_ms: agent * hour * scale, checks_ms: checks * hour * scale, build_ms: build * hour * scale, factory_ms: factory * hour * scale });
+  const move = (from, to, moves) => ({ from_stage: from, to_stage: to, moves: Math.max(1, Math.round(moves * scale)) });
+  return {
+    flow_stages: [stage('triage', 38, 4.7, [0.9, 0, 0, 0.1]), stage('design', 84, 45, [19, 0, 0, 2]), stage('implementation', 83, 118, [100, 0, 0, 6]), stage('preview', 103, 760, [30, 18, 0, 3]),
+      stage('approval', 103, 314, [0, 0, 0, 0.2], 'committee'), stage('harden', 57, 180, [4, 0, 0, 1]), stage('merge', 2, 2.8, [0.3, 1.5, 0.2, 0.4], 'workers', 52)],
+    flow_moves: [move('triage', 'design', 32), move('triage', 'done', 6), move('design', 'implementation', 82), move('design', 'triage', 1), move('design', 'done', 1), move('implementation', 'preview', 82), move('implementation', 'design', 1),
+      move('preview', 'approval', 102), move('preview', 'design', 1), move('approval', 'harden', 77), move('approval', 'preview', 15), move('approval', 'design', 9), move('approval', 'done', 2), move('harden', 'merge', 57), move('merge', 'done', 52), move('merge', 'harden', 2)],
+  };
 }
 function createBucketRows(bucket) {
   const rows = (grouping, segments) => Object.entries(segments).map(([key, segment]) => ({ start: bucket.start, grouping, key, cost: segment.cost, tokens: bucket.tokens ? segment.tokens : null }));
@@ -71,13 +87,15 @@ function createRangePanels(summary) {
     counters: [{ worker_ms: summary.workerMs, cost: summary.cost, input: tokens.input, output: tokens.output, cache_read: tokens.cacheRead, cache_write: tokens.cacheWrite,
       wasted_cost: wasted.cost, wasted_input: wasted.tokens.input, wasted_output: wasted.tokens.output, wasted_cache_read: wasted.tokens.cacheRead, wasted_cache_write: wasted.tokens.cacheWrite }],
     usage_buckets: summary.buckets.flatMap(createBucketRows),
-    stage_time: summary.stages.map((row) => ({ stage: row.stage, worker_ms: row.workerMs })),
+    stage_time: summary.stages.map((row) => ({ stage: row.stage, worker_ms: row.workerMs, agent_ms: row.workerMs / 2, checks_ms: row.workerMs / 4, build_ms: 0, factory_ms: row.workerMs / 8, unsplit_ms: row.workerMs / 8 })),
     waiting: [{ waiting_ms: summary.waitingMs, span_ms: summary.waitingSpanMs, gaps: summary.waitingGaps }],
     waiting_stages: summary.waitingStages.map((row) => ({ stage: row.stage, waiting_ms: row.workerMs })),
     retries: summary.retries.map((row) => ({ outcome: row.outcome, runs: row.runs, worker_ms: row.workerMs, cost: row.cost })),
     stage_models: summary.stageModels.map((row) => ({ stage: row.stage, model: row.model, input: row.input, output: row.output, cache_read: row.cacheRead, cache_write: row.cacheWrite, cost: row.cost })),
     activity: summary.activity,
+    issue_to_dev: [createIssueToDev(summary.days)],
     ...createDeliveryPanels(summary.delivery),
+    ...createFlowPanels(summary.days),
   };
 }
 function createAnalytics(mutate = () => {}) {
@@ -88,9 +106,9 @@ function createAnalytics(mutate = () => {}) {
 function withAnalytics(mutate) { const value = structuredClone(fixture); value.analytics = createSource(createAnalytics(mutate)); return value; }
 const fixture = {
   generatedAt: now, repoUrl: 'https://github.com/example/factory', playUrl: 'https://example.com/',
-  operations: createSource({ jobs, queues: Object.fromEntries(['branch', 'triage', 'design', 'implement', 'verify', 'test'].map((queue) => [queue, { total: 20, busy: 15 }])), releaseKey: 'release', release: { issue: 99 }, candidateUrl: null }),
-  github: createSource({ releaseKey: 'release', merges: createMerges(), features: Array.from({ length: 34 }, (_, index) => ({ issue: index + 1, title: `Feature ${index + 1} ${'long'.repeat(60)}` })), cards: jobs.map((job, index) => ({ issue: job.issue, column: cardColumns[index % cardColumns.length], title: `Task ${job.issue} ${'unbroken'.repeat(60)}` })) }),
-  live: createSource({ workers: jobs.map((job) => ({ key: job.key, activity: 'tests', phase: 'running', status: 'ok', source: 'runner', progressAt: now })), manager: { activity: 'command', intent: 'investigate', phase: 'running', status: 'ok', at: now, since: now }, scheduler: { status: 'ready', freshness: 'ok', at: now, counts: { Triage: 12345678, Design: 200, Implementation: 31, Testing: 20, Approval: 10, Done: 99 }, decisions: [{ stage: 'design', queue: 'design', issue: 42, reasons: ['needs-info'] }], release: { reason: 'release-tasks', issues: [42] } } }),
+  operations: createSource({ jobs, queues: Object.fromEntries(['branch', 'triage', 'design', 'implement', 'verify', 'test'].map((queue) => [queue, { total: 20, busy: 15 }])), release: { issue: 99 }, features: Array.from({ length: 34 }, (_, index) => ({ issue: index + 1, title: `Feature ${index + 1} ${'long'.repeat(60)}` })), candidateUrl: null }),
+  github: createSource({ cards: createPart(jobs.map((job, index) => ({ issue: job.issue, column: cardColumns[index % cardColumns.length], title: `Task ${job.issue} ${'unbroken'.repeat(60)}` }))), mergeQueue: createPart(createMergeQueue()) }),
+  live: createSource({ workers: jobs.map((job) => ({ key: job.key, activity: 'tests', phase: 'running', status: 'ok', source: 'runner', progressAt: now })), manager: { activity: 'command', intent: 'investigate', phase: 'running', status: 'ok', at: now, since: now }, scheduler: { status: 'ready', freshness: 'ok', at: now, counts: { Triage: 12345678, Design: 200, Implementation: 31, Testing: 20, Approval: 10, Done: 99 }, decisions: [{ stage: 'design', queue: 'design', issue: 42, reasons: ['needs-info'] }, { stage: 'verify', queue: 'verify', issue: 50, reasons: ['queue-full'] }, { stage: 'harden', queue: 'verify', issue: 51, reasons: ['queue-full'] }, { stage: 'harden', queue: 'verify', issue: 51, reasons: ['queue-full', 'held'] }, { stage: 'implement', queue: 'implement', issue: 52, reasons: ['issue-running'] }], release: { reason: 'release-tasks', issues: [42] } } }),
   host: createSource({ cpu: createSource(85), ram: createSource({ used: 10000000000, total: 16000000000 }), gpu: createSource([{ utilization: 90 }]), ssd: createSource({ free: 20000000000 }), containers: createSource(jobs.map((job) => ({ jobId: job.key, service: 'worker', cpu: 2, memory: 1000000000 }))) }),
   analytics: createSource(createAnalytics()),
   labels: LABELS,
@@ -109,13 +127,14 @@ const server = createServer(async (request, response) => {
     response.end(bytes);
   } catch { response.writeHead(404).end(); }
 });
+async function readExplain(locator) { return JSON.parse(await locator.getAttribute('data-explain')); }
 async function waitForRender(page) { await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))); }
 async function sendSnapshot(page, value) {
   await page.evaluate((data) => window.fixtureStream.listeners.snapshot({ data: JSON.stringify(data) }), value);
   await waitForRender(page);
 }
 async function checkLayout(page, size) {
-  for (const tab of ['overview', 'analytics', 'delivery']) {
+  for (const tab of ['overview', 'analytics', 'delivery', 'flow']) {
     await page.locator(`#${tab}-tab`).click();
     await waitForRender(page);
     const overflow = await page.evaluate(() => ({
@@ -189,8 +208,23 @@ async function checkExpandedViews(page) {
 }
 async function checkCapacityAndCpu(page) {
   await page.locator('#overview-tab').click();
-  assert.match(await page.locator('#free-slots').textContent(), /Branch.*5/);
-  assert.match(await page.locator('#capacity-rows').textContent(), /#42.*Needs author reply/);
+  assert.equal(await page.locator('#free-count').textContent(), '90 / 120 busy');
+  const queueRows = await page.locator('#queue-rows tr').evaluateAll((rows) => rows.map((row) => [...row.children].map((cell) => cell.textContent)));
+  assert.deepEqual(queueRows.map((row) => row[0]), ['Triage', 'Design', 'Implement', 'Verify', 'Test', 'Branch']);
+  assert.deepEqual(queueRows[1], ['Design', '15 / 20', '1', 'Needs author reply']);
+  assert.deepEqual(queueRows[2], ['Implement', '15 / 20', '0', '']);
+  assert.deepEqual(queueRows[3], ['Verify', '15 / 20', '2', 'Queue occupied 2, Held until resumed 1']);
+  assert.deepEqual((await readExplain(page.locator('#queue-rows tr').nth(3).locator('td').last())).rows, [['Queue occupied', '#50 Verify, #51 Harden'], ['Held until resumed', '#51 Harden']]);
+  assert.equal(await page.locator('#capacity-pages').count(), 0);
+  assert.deepEqual(await page.locator('#merge-items li span').allTextContents(), ['Merging', 'Next', 'Stuck']);
+  assert.equal(await page.locator('#merge-count').textContent(), '3');
+  const mergesFailed = structuredClone(fixture);
+  mergesFailed.github.value.mergeQueue = { value: null, error: 'GitHub board unavailable' };
+  await sendSnapshot(page, mergesFailed);
+  assert.equal(await page.locator('#merge-items').textContent(), 'GitHub board unavailable');
+  assert.deepEqual(await page.locator('#funnel strong').allTextContents(), boardColumns.map((column) => String(fixture.github.value.cards.value.filter((card) => card.column === column).length)));
+  assert.equal(await page.locator('#release-count').textContent(), '34 changes');
+  await sendSnapshot(page, fixture);
   const usage = structuredClone(fixture);
   usage.host.value.containers.value[0].cpu = 1;
   usage.host.value.containers.value[1].cpu = 8;
@@ -201,32 +235,34 @@ async function checkCapacityAndCpu(page) {
   stale.live.value.scheduler.freshness = 'stale';
   await sendSnapshot(page, stale);
   assert.match(await page.locator('#capacity-status').textContent(), /Scheduler stale/);
-  assert.match(await page.locator('#capacity-rows').textContent(), /Reasons unavailable/);
+  assert.deepEqual(await page.locator('#queue-rows tr td:nth-child(3)').allTextContents(), Array(6).fill('—'));
   await sendSnapshot(page, fixture);
 }
 async function checkCounters(page) {
   await page.locator('#analytics-tab').click();
   await waitForRender(page);
-  await page.locator('#usage-tokens').focus();
+  await page.locator('#usage-input').focus();
   await page.keyboard.press('Enter');
-  assert.equal(await page.locator('#full-text').textContent(), '1600000');
+  assert.deepEqual(await page.locator('#full-text .tooltip-row').evaluateAll((rows) => rows.map((row) => [...row.children].map((cell) => cell.textContent))), [['New input', '1M'], ['Cache read', '200K'], ['Cache write', '100K']]);
+  assert.equal(await page.locator('#full-text .tooltip-row .num').first().evaluate((node) => getComputedStyle(node).fontFamily.includes('Plex')), true);
   assert.equal(await page.locator('#full-text').evaluate((node) => node === document.activeElement), true);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#full-text').isVisible(), false);
-  assert.equal(await page.locator('#usage-tokens').evaluate((node) => node === document.activeElement), true);
+  assert.equal(await page.locator('#usage-input').evaluate((node) => node === document.activeElement), true);
   assert.equal(await page.locator('.token-counter.panel').count(), 1);
   assert.equal(await page.locator('.token-counter .panel').count(), 0);
-  assert.deepEqual(await page.locator('.token-counter .counter span').allTextContents(), ['Total tokens', 'Input incl. cache', 'Output']);
+  assert.deepEqual(await page.locator('.token-counter .counter span').allTextContents(), ['Total tokens', 'Input with cache', 'Output']);
   assert.equal(await page.locator('#usage-wasted-cost').textContent(), '$4.25');
-  assert.equal(await page.locator('#usage-wait').textContent(), '2.0 cards');
-  assert.equal(await page.locator('#usage-wait').getAttribute('data-exact'), '1h 0m summed card-time');
-  assert.equal(await page.locator('#usage-wasted-tokens').textContent(), '450K tokens');
+  assert.equal(await page.locator('#usage-wait').textContent(), '2.0');
+  assert.deepEqual((await readExplain(page.locator('#usage-wait'))).rows[0], ['Card time', '1h 0m']);
+  assert.deepEqual((await readExplain(page.locator('#usage-wasted-cost'))).rows, [['Tokens', '450K']]);
   assert.equal(await page.locator('#usage-input').textContent(), '1.3M');
-  assert.equal(await page.locator('#usage-input').getAttribute('data-exact'), '1300000');
   assert.equal(await page.locator('#usage-output').textContent(), '300K');
-  assert.equal(await page.locator('#usage-output').getAttribute('data-exact'), '300000');
+  assert.equal(await page.locator('#usage-output').getAttribute('data-explain'), null);
+  assert.equal(await page.locator('#retry-rows td').first().textContent(), 'Timed out');
+  assert.deepEqual(await page.locator('.table-panel th').evaluateAll((heads) => heads.slice(1, 4).map((head) => getComputedStyle(head).textAlign)), ['right', 'right', 'right']);
   assert.deepEqual(await page.locator('#stage-model-header th').allTextContents(), ['Stage', 'claude-opus-5-5', 'claude-sonnet-5-5']);
-  assert.deepEqual(await page.locator('#stage-model-measures th').allTextContents(), ['Input + cache', 'Output', 'Input + cache', 'Output']);
+  assert.deepEqual(await page.locator('#stage-model-measures th').allTextContents(), ['Input with cache', 'Output', 'Input with cache', 'Output']);
   assert.ok(!(await page.locator('#analytics').textContent()).includes('Input incl. cache / output, measured runs'));
   const verify = page.locator('#stage-model-rows tr').filter({ has: page.locator('td:first-child', { hasText: 'Verify' }) });
   assert.deepEqual(await verify.locator('td').allTextContents(), ['Verify', '130K', '100K', '380K', '80K']);
@@ -243,7 +279,7 @@ async function checkCounters(page) {
   assert.match(await page.locator('#coverage').textContent(), /2 runs lack token counts, Waiting time failed: Conversion Error/);
   assert.equal(await page.locator('#usage-wait').textContent(), '—');
   assert.equal(await page.locator('#usage-wasted-cost').textContent(), '$4.25');
-  assert.equal(await page.locator('#retry-rows td').first().textContent(), 'timeout');
+  assert.equal(await page.locator('#retry-rows td').first().textContent(), 'Timed out');
   await sendSnapshot(page, fixture);
   assert.match(await page.locator('#coverage').textContent(), /History from .*UTC.*2 runs lack token counts/);
   assert.equal(await page.getByRole('button', { name: 'Cost', exact: true }).getAttribute('aria-pressed'), 'true');
@@ -273,18 +309,25 @@ async function checkDelivery(page) {
   await waitForRender(page);
   assert.equal(await page.locator('#issue-mean').textContent(), '30h 0m');
   assert.equal(await page.locator('#issue-median').textContent(), '30h 0m');
-  assert.equal(await page.locator('#issue-mean').getAttribute('data-exact'), `${30 * 3600000} ms mean of 2 issues`);
+  assert.deepEqual((await readExplain(page.locator('#issue-mean'))).rows, [['Issues', '2'], ['Fastest', '10h 0m'], ['Slowest', '50h 0m'], ['No open date', '1']]);
+  const panelFailed = structuredClone(fixture);
+  panelFailed.analytics.value.issue_to_dev = { error: 'Binder Error', ranges: null };
+  await sendSnapshot(page, panelFailed);
+  assert.equal(await page.locator('#issue-mean').textContent(), '—');
+  assert.deepEqual(await readExplain(page.locator('#issue-mean')), { rows: [], note: 'Issue to dev failed: Binder Error' });
+  await sendSnapshot(page, fixture);
   assert.equal(await page.locator('#lead-open').textContent(), '7');
   assert.equal(await page.locator('#loop-rate').textContent(), '4%');
   assert.match(await page.locator('#delivery-coverage').textContent(), /^84 cards, records since 2026-08-01 UTC$/);
-  assert.match(await page.locator('#delivery-coverage').getAttribute('data-exact'), /4 cards joined before records\. 3 hotfix.*1 merges lack a start/);
+  assert.deepEqual((await readExplain(page.locator('#delivery-coverage'))).rows, [['Joined before records', '4'], ['Hotfix, release or private', '3'], ['Merges without a start', '1']]);
   const dwell = await page.locator('#dwell-rows tr').evaluateAll((rows) => rows.map((row) => [...row.cells].map((cell) => cell.textContent)));
   assert.deepEqual(dwell[0], ['Triage', '', '2h 0m', '2h 0m', '6', '2, 5h 0m']);
-  assert.ok(dwell.some((row) => row[0] === 'Merge queue' && row[2] === '—' && row[4] === '0'));
+  assert.ok(dwell.some((row) => row[0] === 'Merge' && row[2] === '—' && row[4] === '0'));
   assert.deepEqual(await page.locator('#loop-rows td:first-child').allTextContents(), ['Design asks the author', 'Committee patch']);
   assert.deepEqual(await page.locator('#triage-rate, #design-rate, #committee-rate').allTextContents(), ['25%', '0%', '—']);
-  assert.equal(await page.locator('#triage-rate').getAttribute('data-exact'), 'Triage wont-do: 2 of 8 decided cards');
-  assert.equal(await page.locator('#committee-rate').getAttribute('data-exact'), 'Committee Deny: 0 of 0 decided cards');
+  assert.deepEqual((await readExplain(page.locator('#triage-rate'))).rows, [['Refused', '2'], ['Decided', '8']]);
+  assert.deepEqual((await readExplain(page.locator('#committee-rate'))).rows, [['Denied', '0'], ['Decided', '0']]);
+  assert.equal(await page.locator('#triage-rate').evaluate((node) => getComputedStyle(node).textDecorationStyle), 'dotted');
   assert.deepEqual(await page.locator('#stage-retry-rows td').allTextContents(), ['Design', '2', '1']);
   assert.equal(await page.getByRole('button', { name: '30 days', exact: true }).count(), 1);
   await page.getByRole('button', { name: '24 hours', exact: true }).click();
@@ -317,6 +360,12 @@ async function checkDelivery(page) {
 }
 async function checkPagination(page) {
   await page.locator('#overview-tab').click();
+  const previous = page.getByRole('button', { name: 'Previous worker', exact: true });
+  assert.equal(await previous.getAttribute('aria-disabled'), 'true');
+  assert.deepEqual(await readExplain(previous), { rows: [], note: 'First page' });
+  await previous.dispatchEvent('click');
+  await waitForRender(page);
+  assert.ok((await page.locator('#worker-rows').textContent()).includes('Task 1 '));
   await page.getByRole('button', { name: 'Next worker', exact: true }).click();
   await waitForRender(page);
   assert.ok(!(await page.locator('#worker-rows').textContent()).includes('Task 1 '));
@@ -325,7 +374,8 @@ async function checkPagination(page) {
   const full = structuredClone(fixture);
   for (const queue of Object.values(full.operations.value.queues)) queue.busy = queue.total;
   await sendSnapshot(page, full);
-  assert.ok((await page.locator('#capacity-rows').textContent()).includes('#42'));
+  assert.ok((await page.locator('#queue-rows').textContent()).includes('Needs author reply'));
+  assert.equal(await page.locator('#queue-rows tr').nth(3).locator('td').nth(1).getAttribute('class'), 'numeric high');
   const fewer = structuredClone(fixture);
   fewer.operations.value.jobs = jobs.slice(0, 1);
   await sendSnapshot(page, fewer);
@@ -339,11 +389,11 @@ async function checkPause(page) {
   paused.live.value.scheduler.status = 'paused';
   paused.live.value.scheduler.counts = {};
   await sendSnapshot(page, paused);
-  assert.deepEqual(await page.locator('#funnel strong').allTextContents(), boardColumns.map((column) => String(fixture.github.value.cards.filter((card) => card.column === column).length)));
+  assert.deepEqual(await page.locator('#funnel strong').allTextContents(), boardColumns.map((column) => String(fixture.github.value.cards.value.filter((card) => card.column === column).length)));
   assert.match(await page.locator('#source-status').textContent(), /Paused.*Claude weekly usage limit/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), false);
   await page.screenshot({ path: `${evidence}/paused-${page.viewportSize().width}.png` });
-  assert.ok(!(await page.locator('#capacity-rows').textContent()).includes('No eligible work'));
+  assert.match(await page.locator('#capacity-status').textContent(), /Starts paused/);
   await page.locator('#analytics-tab').click();
   await waitForRender(page);
   assert.match(await page.locator('#source-status').textContent(), /Paused/);
@@ -375,16 +425,55 @@ async function checkNarrow(page) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.equal(await page.locator('#dwell-rows tr').count(), 7);
   await page.screenshot({ path: `${evidence}/delivery-narrow.png`, fullPage: true });
+  await page.locator('#flow-tab').click();
+  await waitForRender(page);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  assert.equal(await page.locator('.flow-stage').count(), 8);
+  await page.screenshot({ path: `${evidence}/flow-narrow.png`, fullPage: true });
+}
+async function checkFlow(page) {
+  await page.locator('#flow-tab').click();
+  await waitForRender(page);
+  assert.equal(await page.locator('.flow-stage').count(), 8);
+  assert.deepEqual(await page.locator('.flow-stage.worst h3').allTextContents(), ['Test']);
+  assert.equal(await page.locator('.flow-move').count(), 16);
+  assert.equal(await page.locator('.flow-move.back').count(), 6);
+  assert.equal(await page.locator('.flow-move.next').count(), 7);
+  assert.equal(await page.locator('.flow-visits').last().textContent(), '2 visits, 52 unmeasured');
+  assert.match((await readExplain(page.locator('.flow-visits').last())).note, /^Unmeasured visits overlap/);
+  assert.deepEqual(await page.locator('.flow-stage').nth(3).locator('.flow-bar-head span:first-child').allTextContents(), ['Waiting', 'Agent', 'Checks', 'Git and GitHub']);
+  assert.deepEqual(await page.locator('.flow-stage').nth(4).locator('.flow-bar-head span:first-child').allTextContents(), ['Committee', 'Git and GitHub']);
+  const spill = await page.locator('.flow-bar').evaluateAll((blocks) => blocks.filter((block) => block.scrollWidth > block.clientWidth + 1).length);
+  assert.equal(spill, 0);
+  const outside = await page.evaluate(() => {
+    const panel = document.querySelector('.flow-panel').getBoundingClientRect();
+    return [...document.querySelectorAll('.flow-lines text')].filter((node) => { const box = node.getBoundingClientRect(); return box.top < panel.top || box.bottom > panel.bottom || box.left < panel.left || box.right > panel.right; }).length;
+  });
+  assert.equal(outside, 0);
+  const back = page.locator('.flow-move.back text').first();
+  await back.hover();
+  assert.equal(await page.locator('#full-text').isVisible(), true);
+  assert.match(await page.locator('#full-text').textContent(), /Moves.* to /);
+  await page.locator('#overview-tab').focus();
+  await page.keyboard.press('End');
+  assert.equal(await page.locator('#flow-tab').getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('#overview-tab').getAttribute('aria-selected'), 'true');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.locator('#flow-tab').getAttribute('aria-selected'), 'true');
+  assert.equal(await page.locator('#flow').isVisible(), true);
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('#overview').isVisible(), true);
 }
 async function checkUntrustedAndMissingData(page) {
   const malicious = structuredClone(fixture);
-  malicious.github.value.cards[0].title = '<img src=x onerror="window.injected=true">';
+  malicious.github.value.cards.value[0].title = '<img src=x onerror="window.injected=true">';
   malicious.operations.value.privateChat = 'PRIVATE CHAT MUST NOT RENDER';
   await sendSnapshot(page, malicious);
   assert.equal(await page.locator('#worker-rows img').count(), 0);
   assert.ok((await page.locator('#worker-rows').textContent()).includes('<img'));
   assert.ok(!(await page.locator('body').textContent()).includes('PRIVATE CHAT MUST NOT RENDER'));
-  malicious.github.value.features[0].title = '<img src=x onerror="window.injected=true">';
+  malicious.operations.value.features[0].title = '<img src=x onerror="window.injected=true">';
   await sendSnapshot(page, malicious);
   await page.getByRole('button', { name: 'Expand next release' }).click();
   assert.equal(await page.getByRole('dialog', { name: 'Next release' }).locator('img').count(), 0);
@@ -409,11 +498,15 @@ async function checkUntrustedAndMissingData(page) {
   assert.equal(await page.locator('#delivery-coverage').textContent(), 'Card records unavailable');
   assert.equal(await page.locator('#dwell-rows').textContent(), 'Unavailable');
   assert.equal(await page.locator('#committee-rate').textContent(), '—');
+  await page.locator('#flow-tab').click();
+  await waitForRender(page);
+  assert.equal(await page.locator('#flow-coverage').textContent(), 'Card records unavailable');
+  assert.equal(await page.locator('#flow-map').textContent(), 'Unavailable');
   await page.locator('#overview-tab').click();
   await waitForRender(page);
   assert.deepEqual(await page.locator('#funnel strong').allTextContents(), fill('—'));
   const empty = structuredClone(fixture);
-  empty.github.value.cards = [];
+  empty.github.value.cards.value = [];
   await sendSnapshot(page, empty);
   assert.deepEqual(await page.locator('#funnel strong').allTextContents(), fill('0'));
   const stale = structuredClone(fixture);
@@ -446,6 +539,7 @@ try {
     await checkCapacityAndCpu(page);
     await checkCounters(page);
     await checkDelivery(page);
+    await checkFlow(page);
     await checkPagination(page);
     await checkPause(page);
     await checkUntrustedAndMissingData(page);

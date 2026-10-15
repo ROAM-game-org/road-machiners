@@ -322,6 +322,29 @@ describe('public store', () => {
     expect(openStore(home).unclassifiedComments(100)).toEqual([]);
   });
 
+  it('lists each proposal and each issue filed from the chat once as known work, with the proposal text first', () => {
+    const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
+    store.addProposal(564, 'Landmark directions\n\nTowns give directions by landmarks.\nMore.', now);
+    const add = (sourceId: string, text: string) => store.addComment({ issue: null, source: 'telegram', sourceId, postChat: 'c', postMessageId: null, author: 'Ann', text, at: now.toISOString(), messageId: 1 })!;
+    store.setFiled(add('c:1', 'Add   boats\nplease'), 601);
+    store.setFiled(add('c:2', 'Boats again'), 601);
+    store.setFiled(add('c:3', 'Same as the proposal'), 564);
+    expect(store.knownWork()).toEqual([{ issue: 564, text: 'Landmark directions: Towns give directions by landmarks.' }, { issue: 601, text: 'Add boats please' }]);
+    store.close();
+  });
+
+  it('adds the context, known work, language and link columns to a store of main and keeps its comments', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    openStore(home).close();
+    const db = new DatabaseSync(storePath(home));
+    for (const column of ['context', 'work_issue', 'language', 'linked']) db.exec(`alter table comments drop column ${column}`);
+    db.prepare("insert into comments (issue, source, source_id, post_chat, post_message_id, author, text, at, message_id) values (null, 'telegram', 'c:1', 'c', null, 'Ann', 'Hi', ?, 1)").run(now.toISOString());
+    db.close();
+    const store = openStore(home);
+    expect(store.unclassifiedComments(100).map((c) => [c.text, c.context, c.workIssue, c.language, c.linked])).toEqual([['Hi', null, null, null, false]]);
+    store.close();
+  });
+
   it('moves old comments into the new table and never replies to or files them', () => {
     const home = mkdtempSync(join(tmpdir(), 'public-store-'));
     openStore(home).close();
