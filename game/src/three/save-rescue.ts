@@ -83,22 +83,31 @@ function truckOf(world: Json, player: Json): Carried['truck'] {
   return { chassisId, items: itemsOf(vehicle) };
 }
 
-function runOf(world: Json, scale: number): CarriedRun | null {
-  const run = objectOf(world.furyRoad);
-  if (!run || !('hauler' in run)) return null;
-  const window = windowOf(run.window);
+const HAULER_FORMAT_2_60 = 2060;
+
+function runOf(world: Json, format: number): CarriedRun | null {
+  if (world.furyRoad === null || world.furyRoad === undefined) return null;
+  const run = objectOf(world.furyRoad) ?? {};
+  if (!('hauler' in run) && format < HAULER_FORMAT_2_60) return null;
+  return readRun(world, run);
+}
+
+type RunTotals = { window: number; earned: number; wrecks: number };
+
+function readRun(world: Json, run: Json): CarriedRun {
+  const [window, earned, wrecks] = [windowOf(run.window), countOf(run.earned), countOf(run.wrecks)];
   const hauler = vehicleOf(world, objectOf(run.hauler)?.id);
-  if (window === null || !hauler) throw new Error(`The Chaos Highway run in this save has no readable window or hauler, so it cannot be rescued`);
-  return carriedRun(run, window, hauler, scale);
+  if (window === null || earned === null || wrecks === null || !hauler) throw new Error('The Chaos Highway run in this save has no readable window, totals or hauler, so it cannot be rescued');
+  return carriedRun(run, { window, earned, wrecks }, hauler);
 }
 
 function windowOf(value: unknown): number | null {
   return isGridInt(value) && value >= 0 ? value : null;
 }
 
-function carriedRun(run: Json, window: number, hauler: Json, scale: number): CarriedRun {
+function carriedRun(run: Json, { window, earned, wrecks }: RunTotals, hauler: Json): CarriedRun {
   const from = run.waitingAt === window + 1 ? window + 1 : window;
-  return { from, earned: centsOf(run.earned, scale) ?? 0, wrecks: countOf(run.wrecks) ?? 0, trucksSold: soldAt(run, from), hauler: haulerTruckOf(hauler) };
+  return { from, earned, wrecks, trucksSold: soldAt(run, from), hauler: haulerTruckOf(hauler) };
 }
 
 function haulerTruckOf(hauler: Json): CarriedRun['hauler'] {
@@ -138,7 +147,7 @@ export function readCarried(raw: unknown): Carried {
     storage: listOf(player.storage).flatMap((p) => partOf(p) ?? []),
     setup: world.setup,
     quests: questVarsOf(player.quests),
-    run: runOf(world, scale),
+    run: runOf(world, formatNumber(raw)),
   };
 }
 
@@ -148,10 +157,14 @@ function questVarsOf(value: unknown): Carried['quests'] {
   return { world: objectOf(quests?.world) ?? {}, local: Object.fromEntries(local) };
 }
 
-function moneyScale_29_30(raw: unknown): number {
+function formatNumber(raw: unknown): number {
   const format = objectOf(objectOf(raw)?.format);
   const part = (key: 'major' | 'minor'): number => (typeof format?.[key] === 'number' ? format[key] : 0);
-  return part('major') * 1000 + part('minor') < 2030 ? CENTS_PER_MONEY_29_30 : 1;
+  return part('major') * 1000 + part('minor');
+}
+
+function moneyScale_29_30(raw: unknown): number {
+  return formatNumber(raw) < 2030 ? CENTS_PER_MONEY_29_30 : 1;
 }
 
 function centsOf(value: unknown, scale: number): number | null {

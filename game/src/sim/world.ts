@@ -533,7 +533,7 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
   const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
   const truckKit = carriedKit(carried, kit, report);
   const seed = pick(carried.seed, freshSeed());
-  const run = modeRulesOf(setup.mode).run ? carried.run : null;
+  const run = runIn(setup, carried.run);
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, truckKit.chassis, from));
   carryPlayer(world, carried);
@@ -549,6 +549,11 @@ export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: Wor
 
 function carriedStart(seed: number, setup: WorldSetup, chassisId: string, from: number): { pos: Vec; heading: number } {
   return modeMap(setup.mode) === 'icarus' ? townStart() : runStart(seed, chassisId, from).player;
+}
+
+function runIn(setup: WorldSetup, run: CarriedRun | null): CarriedRun | null {
+  if (run !== null && !modeRulesOf(setup.mode).run) throw new Error(`The save holds a Chaos Highway run, but its setup reads as ${setup.mode}, so the run cannot be rescued`);
+  return run;
 }
 
 function startOutpost(run: CarriedRun | null): number {

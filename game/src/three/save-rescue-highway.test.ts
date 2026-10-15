@@ -111,11 +111,32 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(next.player.discovered).toEqual(expect.arrayContaining(MID_STRETCH.world.player.discovered));
   });
 
-  it('throws on a run that names no hauler truck', () => {
+  it.each([
+    ['names no hauler truck', (run: Record<string, unknown>) => { run.hauler = { id: 'gone', alarmUntil: null }; }],
+    ['has no hauler', (run: Record<string, unknown>) => { delete run.hauler; }],
+    ['has no earned money', (run: Record<string, unknown>) => { delete run.earned; }],
+    ['has no wreck count', (run: Record<string, unknown>) => { run.wrecks = 'many'; }],
+    ['has no window', (run: Record<string, unknown>) => { run.window = -1; }],
+  ])('throws on a run that %s', (_, damage) => {
     const broken = structuredClone(MID_STRETCH);
-    broken.world.furyRoad.hauler.id = 'gone';
+    damage(broken.world.furyRoad as unknown as Record<string, unknown>);
 
-    expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/no readable window or hauler/);
+    expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/cannot be rescued/);
+  });
+
+  it('throws on a run whose setup no longer reads as Chaos Highway', () => {
+    const broken = structuredClone(MID_STRETCH) as unknown as { world: { setup: unknown } };
+    broken.world.setup = { mode: 'nowhere' };
+
+    expect(() => rescueSave(slotsWith(broken), 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)).toThrow(/cannot be rescued/);
+  });
+
+  it('starts a fresh run for a save from before the hauler', () => {
+    const old = structuredClone(MID_STRETCH) as unknown as { format: { minor: number }; world: { furyRoad: Record<string, unknown> } };
+    old.format.minor = 59;
+    delete old.world.furyRoad.hauler;
+
+    expect(readCarried(old).run).toBeNull();
   });
 
   it('starts a fresh run for a save whose run older rules dropped', () => {
