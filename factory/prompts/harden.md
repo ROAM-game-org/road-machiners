@@ -4,9 +4,9 @@ Issue {{issue}} is built. Its plan is in {{taskFile}}. The change is `git diff o
 The committee already played this change and approved it, unless it is a hotfix that ships on approval.
 Keep what the committee approved. Do not change how the feature looks or plays, unless a fix needs it.
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The factory removes installed packages from clones between stages, and the commit hook needs them.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The factory removes installed packages from clones between stages, and the commit hook needs them.
 
 {{baseNote}}
 If `.factory/merge-conflicts.md` exists, that merge stopped on conflicts in the files it lists.
@@ -39,12 +39,13 @@ Look for a full scan in hot code, work repeated every frame or turn that could r
 Fix each cost the change added.
 
 Commit each fix on the current branch.
+{{fixDocs}}
 
 ## Checks
 
 This machine is shared and slow. Keep checks focused.
 Run the tests near your changes with `npx vitest run <files>`, and `npm run typecheck`.
-Do not run the full suite or the playtest. The full suite runs on the merged result before the merge, and its failures go to a merge agent.
+Do not run the full suite or the playtest. The merge runs the tests next to the changed files on the merged result, and its failures go to a merge agent. The release runs them all.
 
 A failing saved-shape test means the saved world changed without a migration step.
 Follow Save migrations in CLAUDE.md.

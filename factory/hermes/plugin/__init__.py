@@ -328,7 +328,8 @@ QUEUE_SCHEMA = {
                 "type": "string",
                 "description": (
                     "The full task text. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to run, what to measure and what to report."
+                    "For a member, keep their own words and add what the agent cannot find alone. "
+                    "For a task of your own, say what to run, what to measure and what to report."
                 ),
             },
         },
@@ -353,7 +354,7 @@ CHANGE_SCHEMA = {
                 "type": "string",
                 "description": (
                     "The full change request. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to change and why, and name the setting or behavior."
+                    "Keep the member's own words and add what the agent cannot find alone."
                 ),
             },
         },
