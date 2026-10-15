@@ -126,7 +126,7 @@ export type Issue = {
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
 
 export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste';
-export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[]; caughtUp?: number[] };
+export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[] };
 
 export type Queue = 'branch' | 'triage' | 'design' | 'implement' | 'verify' | 'test';
 export const AGENT_QUEUES: Queue[] = ['triage', 'design', 'implement', 'verify'];
@@ -187,6 +187,7 @@ export type FactoryState = {
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;
+  caughtUpTo: Record<string, string>;
   keptApprovals: Record<string, KeptApproval>;
   pendingChanges: ChangeRequest[];
   pendingIncidents: number[];

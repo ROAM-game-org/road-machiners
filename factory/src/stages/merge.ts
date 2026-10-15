@@ -98,15 +98,20 @@ async function nextBatch(ctx: Ctx): Promise<{ base: string; cards: Card[] } | nu
   const cards = await ctx.github.cards();
   let taken: { base: string; cards: Card[] } | null = null;
   updateState(ctx.statePath, (state) => {
-    const waiting = waitingMerges(state, cards).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
-    if (waiting.length === 0) return state;
-    const base = baseBranchFor(ctx, waiting[0]!.labels);
-    const batchCards = waiting.filter((card) => baseBranchFor(ctx, card.labels) === base).slice(0, MERGE_BATCH_CARDS);
-    taken = { base, cards: batchCards };
+    const batchCards = nextBatchCards(state, cards, (card) => baseBranchFor(ctx, card.labels));
+    if (batchCards.length === 0) return state;
+    taken = { base: baseBranchFor(ctx, batchCards[0]!.labels), cards: batchCards };
     const batch = batchCards.map((card) => card.issue);
     return { ...state, jobs: state.jobs.map((job) => (job.stage === 'merge' ? { ...job, batch } : job)) };
   });
   return taken;
+}
+
+export function nextBatchCards(state: FactoryState, cards: Card[], baseOf: (card: Card) => string): Card[] {
+  const waiting = waitingMerges(state, cards).filter((card) => !state.jobs.some((job) => job.issue === card.issue));
+  if (waiting.length === 0) return [];
+  const base = baseOf(waiting[0]!);
+  return waiting.filter((card) => baseOf(card) === base).slice(0, MERGE_BATCH_CARDS);
 }
 
 export function waitingMerges(state: FactoryState, cards: Card[]): Card[] {
