@@ -104,6 +104,8 @@ Hermes acts for a member with the member's Telegram id. A route or a task that H
 
 A member's message outside a post reply that only thanks, like "thanks" or "спасибо", with no question mark and no picture, stops at the plugin. A yes like "ok" or an emoji may answer Hermes's question, so it still reaches Hermes, and so does a message with no text. Hermes never sees it, so it sends no empty acknowledgment. A reply to an approval, release or draft post takes its usual path, and every factory notice, status line and failure reply stays.
 
+Hermes writes a change, an ad hoc task or a route for a member in the member's own words, with the facts it checked apart from its reading, as `hermes/SOUL.md` says. This is guidance to Hermes only. No code checks the text, and the change and ad hoc agents follow the member's words over Hermes's notes.
+
 A reply that gets no route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a failure with no issue, so Hermes sees it. Its text names the issue and tells Hermes to route the reply on its best reading. The card gets no stuck label.
 
 A patch or a redesign queues when its text has at least `FACTORY_ROUTE_MIN_WORDS` words, so it names what to change. The plugin checks this for Hermes's route and for a member's `patch:` or `redesign:` reply. A shorter text queues nothing, and the plugin tells Hermes or the member why. Images never block a route.
