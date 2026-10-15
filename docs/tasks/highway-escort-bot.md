@@ -92,3 +92,20 @@ Sprinter, last stretch beaten per seed 1 to 10: 10, 7, 14, 14, 8, 8, 11, 16, 10,
 `escort:report` on seeds 1 to 20 and the sprinter batch: Beatable PASS (18 of 20, need 6), Damage PASS, Variety PASS, Choice PASS, Rise PASS, Fight FAIL (0 of 302), React FAIL (1 of 2), Not sprintable FAIL (3 of 10).
 
 Tests: `escort-tactics.test.ts`, `runner.test.ts`, `run-timeline.test.ts`, `hauler.test.ts`, `hauler-drive.test.ts`, `escort-report.test.ts` and `record.test.ts` pass, and `npm run typecheck` passes.
+
+## Fight bot (branch fight-bot)
+
+The escort bot now fights the way an NPC fighter does and adds only what a player must do. Auto fire stays on, so each gun takes the nearest hostile it can hit, as `autoOrders()` does for an NPC. The gun truck drives at the visible hostile nearest the hauler with the NPC maneuver scoring of `fightPoint()` in `src/sim/ai.ts`, rebuilt in `escort-brain.ts` from the same exported pieces (`exposure`, `afterTurn`, `leadOf`, `ramValue`), and charges when it has no working gun. With no hostile in sight it rides 10 tiles behind the hauler. Shop, repairs, tank first patching and the engine douse are unchanged, except gear money now splits half to hauler armor and half to the gun truck, by gain per cost.
+
+Run once on the merged enemy-fire rules, seeds 1 to 40, `--physics true`, 1600 turns (`game/tmp/fin1`, `game/tmp/fin2`): 0 of 40 beat stretch 10. Last stretch beaten per seed: 5 4 0 0 5 2 0 1 2 2 1 3 0 2 4 4 1 2 5 0, then 0 3 4 5 0 0 6 2 5 4 1 0 2 1 1 1 0 1 0 0. Losses: 40 runs, 35 gun truck wrecked, 5 abandoned after a drive or tank loss. 13 ended in stretch 1, 15 in stretches 2 and 3, 12 later. No run won, so the check that a won run was won by fighting has nothing to read; the lost runs do show fighting (20 to 120 player shots per run).
+
+Why, from the timelines: the start gun truck (one MG, two cages) trades at point blank with a stretch 1 truck of 150 to 200 M of gear (a slug cannon niva, a double MG jeep). The NPC maneuver closes to the smallest ring, as it does for an NPC with a matching gun, and the foe out-damages it in 5 to 10 turns (seed 3: wrecked at T38 by a jeep with two MGs, seed 1: a buggy dealt 347 damage in 5 turns at stretch 6 against 114). Past stretch 3 the same duel is lost to groups of two trucks of 450 M each. Tuned variants earlier in this task (hold at the escort spot, leashed orbit, bigger gun truck share) reached 9 of 20 at best and were dropped by instruction, so the number above is the untuned result.
+
+Findings for the balance work:
+- A quiet gun truck 40 tiles behind the hauler, hauler armor only, still beat stretch 10 on 12 of 20 seeds on the enemy-fire rules (tmp/q40), and a quiet one 10 behind on 1 of 20. Groups left behind stop near the road and fire on the gun truck as it passes.
+- Gear is the limit. The gun truck had 244 to 900 M of gear at stretch 6 against groups of two at 450 M each. A scout has 6 deck cells, so the bigger guns in the outpost stock do not fit until it buys a truck of 400 to 800 M, which the pay does not allow before stretch 4.
+- Money: repairs took about 35 percent of pay and a truck swap costs 400 to 800 M against a pay of 120 to 470 M.
+
+### Deferred bugs found
+- `fightOdds()` returns NaN for the gun truck with two slug cannons and a heavy MG against a van with a flamer and 4 armor parts (seed 2 at T753 in a tuned variant). Escape XP then throws `XP source escape needs a difficulty in [0, 1], got NaN` and the recorder ends the run.
+- Hauler stall (`stall` event, hauler v35) on seed 6 at T212 near (206.9, 250.7) in two tuned variants. Not worked around.
