@@ -290,26 +290,26 @@ describe('fillPrompt', () => {
 });
 
 describe('factoryPaths', () => {
-  it('finds agent messages and task files in a diff', () => {
-    const diff = 'diff --git a/src/a.ts b/src/a.ts\n+x\ndiff --git a/.factory-tasks/issue-8.md b/.factory-tasks/issue-8.md\n+y\ndiff --git a/.factory/approval.json b/.factory/approval.json\n';
-    expect(factoryPaths(diff)).toEqual(['.factory-tasks/issue-8.md', '.factory/approval.json']);
+  it('finds agent messages and task files among changed files', () => {
+    const files = ['src/a.ts', '.factory-tasks/issue-8.md', '.factory/approval.json'];
+    expect(factoryPaths(files)).toEqual(['.factory-tasks/issue-8.md', '.factory/approval.json']);
   });
 });
 
 describe('factoryPaths for reference images', () => {
   it('refuses the media folder, so downloaded issue images never reach the game repo', () => {
-    expect(factoryPaths('diff --git a/game/.factory-media/ref-a.png b/game/.factory-media/ref-a.png\n')).toEqual(['game/.factory-media/ref-a.png']);
+    expect(factoryPaths(['game/.factory-media/ref-a.png'])).toEqual(['game/.factory-media/ref-a.png']);
   });
 });
 
 describe('factoryPaths at any depth', () => {
   it('finds agent folders under game/ and factory/', () => {
-    const diff = 'diff --git a/game/.factory/a.json b/game/.factory/a.json\n+x\ndiff --git a/factory/.factory-tasks/issue-1.md b/factory/.factory-tasks/issue-1.md\n+y\ndiff --git a/game/src/.factoryish/a.ts b/game/src/.factoryish/a.ts\n+z\n';
-    expect(factoryPaths(diff)).toEqual(['game/.factory/a.json', 'factory/.factory-tasks/issue-1.md']);
+    const files = ['game/.factory/a.json', 'factory/.factory-tasks/issue-1.md', 'game/src/.factoryish/a.ts'];
+    expect(factoryPaths(files)).toEqual(['game/.factory/a.json', 'factory/.factory-tasks/issue-1.md']);
   });
 
   it('refuses .github only at the root', () => {
-    expect(factoryPaths('diff --git a/game/.github/x b/game/.github/x\n')).toEqual([]);
+    expect(factoryPaths(['game/.github/x'])).toEqual([]);
   });
 });
 
@@ -321,7 +321,7 @@ describe('agentHome', () => {
 
 describe('factoryPaths and workflows', () => {
   it('refuses GitHub workflow files', () => {
-    expect(factoryPaths('diff --git a/.github/workflows/x.yml b/.github/workflows/x.yml\n+on: push\n')).toEqual(['.github/workflows/x.yml']);
+    expect(factoryPaths(['.github/workflows/x.yml'])).toEqual(['.github/workflows/x.yml']);
   });
 });
 
@@ -329,7 +329,7 @@ describe('base branch', () => {
   const statePath = 'tmp/factory-common-test/state.json';
   const withRelease = () => {
     mkdirSync('tmp/factory-common-test', { recursive: true });
-    writeState(statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } });
   };
   const ctxWith = (labels: string[]) => ({ statePath, github: { issue: async () => ({ labels }) } }) as unknown as Ctx;
 

@@ -12,7 +12,7 @@ export function spillDeadRows(world: World): void {
 function spillVehicle(world: World, v: Vehicle): void {
   const g = gridOf(v);
   if (g.deadFrom === g.h) return;
-  const items = v.items.filter((it) => onDeadRow(g, it));
+  const items = v.items.filter((it) => it.kind !== 'parcel' && onDeadRow(g, it));
   if (items.length === 0) return;
   const broken = mountedParts(v, 'cargo').find((p) => p.hp === 0);
   if (!broken) throw new Error(`${v.id} has dead rows but no broken cargo part`);

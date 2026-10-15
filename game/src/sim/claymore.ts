@@ -26,6 +26,12 @@ export function armClaymore(v: Vehicle, part: PartInstance): void {
   charge.armed = true;
 }
 
+export function disarmClaymore(v: Vehicle, part: PartInstance): void {
+  claymoreOf(part);
+  if (!part.charge?.armed) throw new Error(`${v.id} cannot disarm claymore ram ${part.id}`);
+  delete part.charge.armed;
+}
+
 export function disarm(part: PartInstance): void {
   delete part.charge?.armed;
 }

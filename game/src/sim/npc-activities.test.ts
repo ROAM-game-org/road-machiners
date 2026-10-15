@@ -15,7 +15,7 @@ import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChance
 import { affordableBuyCount, getLotTradePrice, getTradePrice } from './economy';
 import { cargoRoom } from './inventory';
 import { ECONOMY, GOODS } from '../data/goods';
-import { endTurn, newWorld } from './world';
+import { endTurn } from './world';
 import { corePart, freeCells, goodsCount } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
@@ -31,8 +31,7 @@ import { chassisDef } from '../data/chassis';
 import { cloneWorld } from './world';
 import { canUseSite, siteGates, sitePads } from './sites';
 import { territoryEntries, territoryOfStock, territoryPieces, territorySpots } from './territory';
-import { START_KITS } from '../data/start';
-import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { fuelCap, vehicleStats } from './stats';
 import { heatAt } from './sun';
 import { dist, polylineDist, type Vec } from './vec';
@@ -44,7 +43,6 @@ import { inCombat } from './combat';
 import { refreshVision } from './vision';
 import { emptyHidden } from './salvage';
 import { forgetOld, recall } from './memory';
-import { defaultSetup } from './settings';
 
 function overlookSalvage(w: World, npc: Vehicle): void {
   for (const stock of w.salvage) npc.brain!.noticed[`salvageSeen:${stock.id}`] = w.turn;
@@ -579,7 +577,7 @@ describe('NPC activities', () => {
     });
 
     it('drives into the cage by its open end to a cache inside, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const cage = territoryPieces(sun as never).find((p) => p.look === 'shipCage')!;
       const along = { x: Math.cos(cage.yaw), y: Math.sin(cage.yaw) };
@@ -619,7 +617,7 @@ describe('NPC activities', () => {
     });
 
     it('drives from the west road down into the crash furrow to a spot there, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const furrow = TERRAIN.features.furrow;
       const start = territoryEntries(sun as never)[0];
@@ -1755,10 +1753,33 @@ describe('stall watchdog', () => {
     expect(npc.pos).toEqual(start);
   });
 
-  it('counts a new tile or a job turn as progress', () => {
+  it('raises a stall for a truck that swings back and forth inside the progress reach', () => {
+    const { w, npc } = frozen();
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall' && e.vehicle === npc.id)).toBe(true);
+  });
+
+  it('keeps the truck where it is when the player sees the swing', () => {
+    const { w, npc } = frozen();
+    w.vehicles[0].pos = { x: npc.pos.x + 5, y: npc.pos.y };
+    refreshVision(w);
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall')).toBe(true);
+    expect([0, 2.5]).toContain(npc.pos.x - start.x);
+  });
+
+  it('counts a truck that drives on past the progress reach, or a job turn, as progress', () => {
     const { w, npc } = frozen();
     for (let i = 0; i <= NPC_BEHAVIOR.stallTurns * 2; i++) {
-      npc.pos = { x: npc.pos.x + (i % 2 === 0 ? 1 : -1), y: npc.pos.y };
+      npc.pos = { x: npc.pos.x + 1, y: npc.pos.y };
       run(w, 1);
     }
     npc.job = { kind: 'weld', turnsLeft: 1000, total: 1000 };

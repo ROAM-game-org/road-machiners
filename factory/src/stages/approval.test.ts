@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { solidPng } from '../media-fixtures';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeState, readState, EMPTY_STATE } from '../state';
-import { MergeConflictError, type Column, type Ctx, type MergeStep } from '../types';
+import { BaseMovedError, MergeConflictError, type CheckedBuild, type Column, type Ctx, type KeptApproval, type MergeStep } from '../types';
 
 vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' }));
 const { approve, closeCard, deny, routeFeedback } = await import('./approval');
@@ -49,7 +49,7 @@ function fakeCtx(): Ctx {
         mkdirSync(`${String(args[2])}/game/dist`, { recursive: true });
         writeFileSync(`${String(args[2])}/game/dist/index.js.map`, '{}');
       },
-      merge: async (steps: MergeStep[]) => { for (const step of steps) calls.push(`merge ${step.branch} ${step.into} ${step.message}`); calls.push(`push ${steps.map((step) => step.into).join(' ')}`); },
+      merge: async (steps: MergeStep[], _resolutions: unknown, checked?: CheckedBuild) => { if (checked) calls.push(`checked ${checked.branch} ${checked.build} ${checked.base}`); for (const step of steps) calls.push(`merge ${step.branch} ${step.into} ${step.message}`); calls.push(`push ${steps.map((step) => step.into).join(' ')}`); },
     },
   };
   return fake as unknown as Ctx;
@@ -70,11 +70,12 @@ describe('approve', () => {
 
   it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
-    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' } });
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' }, builds: { 7: 'aaa1111' } });
     await approve(fakeCtx(), 7, 'bob');
     const changelog = 'ROAM hotfix 2026-09-30\n\nFixed: #7 Big horn';
     expect(calls.filter((call) => !call.startsWith('prepare') && !call.startsWith('shell'))).toEqual([
       'fetch ',
+      'checked factory/issue-7 aaa1111 main',
       'merge factory/issue-7 main Hotfix #7: Big horn',
       'merge main dev Merge main into dev after hotfix #7',
       'push main dev',
@@ -91,18 +92,83 @@ describe('approve', () => {
     expect(state.pendingShip).toBe('ann');
     expect(state.pendingApprovals).toEqual({});
     expect(state.pendingIncidents).toEqual([7]);
+    expect(state.keptApprovals).toEqual({});
   });
 
-  it('sends a hotfix that conflicts with main back to Testing, which merges main and posts again', async () => {
+  it('keeps a hotfix approval when main moved with no conflict, and sends it to Testing with no chat post', async () => {
+    labels = ['bug', 'hotfix'];
+    const ctx = fakeCtx();
+    ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'aaa1111', 'main moved to ccc3333 after the checks ran on aaa1111, so they no longer count.'); };
+    await approve(ctx, 7, 'bob');
+    expect(calls.filter((call) => !call.startsWith('fetch'))).toEqual([
+      'comment 7 The approval by bob of build aaa1111 still holds. main moved to ccc3333 after the checks ran on aaa1111, so they no longer count. Testing merges main, keeps both sides and runs the full checks on the result. It ships with no new post, unless the merge changes what was approved.',
+      'move 7 Testing',
+    ]);
+    const state = readState(`${home}/state.json`);
+    expect(state.keptApprovals).toEqual({ 7: { by: 'bob', at: '2026-09-30T10:00:00.000Z', build: 'aaa1111', checked: ['aaa1111'], reason: 'main moved to ccc3333 after the checks ran on aaa1111, so they no longer count.' } });
+    expect(state.approvalPosts).toEqual({ 200: 8 });
+    expect(state.pendingApprovals).toEqual({});
+    expect(state.builds).toEqual({ 8: 'bbb2222' });
+    expect(readLedger(home, new Date(0)).filter((entry) => entry.kind === 'card')).toEqual([{ kind: 'card', issue: 7, step: 'base-moved', to: 'Testing', at: '2026-09-30T10:00:00.000Z', flow: 'hotfix' }]);
+  });
+
+  it('keeps a hotfix approval when the branch conflicts with main', async () => {
     labels = ['bug', 'hotfix'];
     const ctx = fakeCtx();
     ctx.repo.merge = async ([step]: MergeStep[]) => { throw new MergeConflictError(step, ['game/src/a.ts'], 'boom', 'b1', 's1'); };
     await approve(ctx, 7, 'bob');
-    expect(calls.filter((call) => call.startsWith('comment') || call.startsWith('move'))).toEqual([
-      'comment 7 Approved by bob, but main moved on and the branch conflicts with it in game/src/a.ts. Testing merges main again and posts the build again.',
+    expect(calls.filter((call) => call.startsWith('comment') || call.startsWith('move') || call.startsWith('message'))).toEqual([
+      'comment 7 The approval by bob of build aaa1111 still holds. main moved on, and the branch conflicts with it in game/src/a.ts. Testing merges main, keeps both sides and runs the full checks on the result. It ships with no new post, unless the merge changes what was approved.',
       'move 7 Testing',
     ]);
-    expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
+    expect(readState(`${home}/state.json`).keptApprovals[7]?.by).toBe('bob');
+  });
+
+  it('ships the integrated build under the kept approval and names both builds', async () => {
+    labels = ['bug', 'hotfix'];
+    const kept: KeptApproval = { by: 'bob', at: '2026-09-30T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111', 'ddd4444'], reason: 'main moved' };
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' }, builds: { 7: 'ddd4444' }, keptApprovals: { 7: kept } });
+    await approve(fakeCtx(), 7, 'bob');
+    expect(calls).toContain('checked factory/issue-7 ddd4444 main');
+    expect(calls).toContain('comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io. The approval was of build aaa1111. The shipped build ddd4444 merges newer main into it, and the full checks passed on it.');
+    expect(readState(`${home}/state.json`).keptApprovals).toEqual({});
+  });
+
+  it('keeps the approval through another move of main during the second checks, and sends the card back to Testing again', async () => {
+    labels = ['bug', 'hotfix'];
+    const kept: KeptApproval = { by: 'bob', at: '2026-09-30T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111', 'ddd4444'], reason: 'main moved' };
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' }, builds: { 7: 'ddd4444' }, keptApprovals: { 7: kept } });
+    const ctx = fakeCtx();
+    ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'ddd4444', 'main moved again.'); };
+    await approve(ctx, 7, 'bob');
+    expect(calls).toContain('move 7 Testing');
+    expect(calls.some((call) => call.startsWith('message') || call.startsWith('release'))).toBe(false);
+    expect(readState(`${home}/state.json`).keptApprovals[7]).toEqual({ ...kept, reason: 'main moved again.' });
+  });
+
+  it('takes a new member approval of a newly posted build as a new kept approval', async () => {
+    labels = ['bug', 'hotfix'];
+    const old: KeptApproval = { by: 'ann', at: '2026-09-29T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111'], reason: null };
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' }, builds: { 7: 'eee5555' }, keptApprovals: { 7: old } });
+    const ctx = fakeCtx();
+    ctx.repo.merge = async () => { throw new BaseMovedError('factory/issue-7', 'eee5555', 'main moved.'); };
+    await approve(ctx, 7, 'bob');
+    expect(readState(`${home}/state.json`).keptApprovals[7]).toEqual({ by: 'bob', at: '2026-09-30T10:00:00.000Z', build: 'eee5555', checked: ['eee5555'], reason: 'main moved.' });
+  });
+
+  it('refuses a hotfix with no published build before any git call', async () => {
+    labels = ['hotfix'];
+    writeState(`${home}/state.json`, { ...EMPTY_STATE, pendingApprovals: { 7: 'bob' } });
+    await expect(approve(fakeCtx(), 7, 'bob')).rejects.toThrow('no published build');
+    expect(calls).toEqual([]);
+  });
+
+  it('keeps the approval when shipping fails for another reason, so a retry ships without a new press', async () => {
+    labels = ['hotfix'];
+    const ctx = fakeCtx();
+    ctx.repo.merge = async () => { throw new Error('GitHub is down'); };
+    await expect(approve(ctx, 7, 'bob')).rejects.toThrow('GitHub is down');
+    expect(readState(`${home}/state.json`).keptApprovals[7]?.checked).toEqual(['aaa1111']);
   });
 
   it('refuses a hotfix without itch.io keys before any git call', async () => {
@@ -136,15 +202,31 @@ describe('routeFeedback', () => {
     expect(state.pendingApprovals).toEqual({});
   });
 
+  it('a patch of a hotfix with a kept approval drops that approval and says why', async () => {
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), keptApprovals: { 7: { by: 'ann', at: 'a', build: 'aaa1111', checked: ['aaa1111'], reason: null } } });
+    await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
+    expect(calls.at(-1)).toBe('comment 7 The approval by ann of build aaa1111 no longer holds: bob sent it back as a patch, which changes what was approved. The changed build needs a new approval, so it gets a new post.');
+    expect(readState(`${home}/state.json`).keptApprovals).toEqual({});
+  });
+
   it('patch moves the card to Testing, whose session reads the reply, and drops the posts', async () => {
     await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
     expect(calls).toEqual(['comment 7 ## Committee feedback\n\nFrom bob, routed as patch:\n\nLouder horn', 'move 7 Testing']);
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
   });
 
-  it('writes the heading it is given in place of the committee heading', async () => {
-    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, '## Player report');
+  it('writes the player heading for a player source', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, 'player');
     expect(calls).toEqual(['comment 7 ## Player report\n\nFrom public, routed as patch:\n\nIt breaks', 'move 7 Testing']);
+  });
+
+  it('records the comment body and its source as the pending feedback of a patch or redesign, and none for an answer', async () => {
+    await routeFeedback(fakeCtx(), 7, 'bob', 'q', 'answer', 100);
+    expect(readState(`${home}/state.json`).pendingFeedback).toEqual({});
+    await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
+    expect(readState(`${home}/state.json`).pendingFeedback).toEqual({ 7: { source: 'committee', body: '## Committee feedback\n\nFrom bob, routed as patch:\n\nLouder horn' } });
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'redesign', 100, 'player');
+    expect(readState(`${home}/state.json`).pendingFeedback[7]).toEqual({ source: 'player', body: '## Player report\n\nFrom public, routed as redesign:\n\nIt breaks' });
   });
 
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {
@@ -213,6 +295,12 @@ describe('deny', () => {
     expect(state.approvalPosts).toEqual({ 200: 8 });
     expect(state.pendingApprovals).toEqual({});
     expect(state.builds).toEqual({ 8: 'bbb2222' });
+  });
+
+  it('drops a kept approval with the card', async () => {
+    writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), keptApprovals: { 7: { by: 'ann', at: 'a', build: 'aaa1111', checked: ['aaa1111'], reason: null } } });
+    await deny(fakeCtx(), 7, 'bob');
+    expect(readState(`${home}/state.json`).keptApprovals).toEqual({});
   });
 
   it('sends each bundled issue back to Triage on its own and forgets the bundle', async () => {
