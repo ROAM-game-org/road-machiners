@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createStallWatch, stallMinutes } from './stall';
+import { createStallWatch, stallMinutes, suiteMinutes, suiteOverMessage } from './stall';
 
 const MINUTE = 60_000;
 
@@ -15,6 +15,22 @@ describe('stallMinutes', () => {
 
   it('fails loudly on a value that is not a positive number', () => {
     for (const raw of ['', '0', '-3', 'soon']) expect(() => stallMinutes({ TEST_STALL_MINUTES: raw })).toThrow(/TEST_STALL_MINUTES/);
+  });
+});
+
+describe('suite time limit', () => {
+  it('reads TEST_SUITE_MINUTES and fails loudly on a bad value', () => {
+    expect(suiteMinutes({})).toBeNull();
+    expect(suiteMinutes({ TEST_SUITE_MINUTES: '15' })).toBe(15);
+    expect(() => suiteMinutes({ TEST_SUITE_MINUTES: 'soon' })).toThrow(/TEST_SUITE_MINUTES/);
+  });
+
+  it('names the slowest finished files, slowest first, ten at most', () => {
+    const finished = Array.from({ length: 12 }, (_, i) => ({ file: `src/f${i}.test.ts`, ms: i * 1000 }));
+    const message = suiteOverMessage(15, finished);
+    expect(message).toMatch(/limit of 15 minutes/);
+    expect(message).toMatch(/src\/f11\.test\.ts 11 s, src\/f10\.test\.ts 10 s/);
+    expect(message).toMatch(/src\/f2\.test\.ts 2 s$/);
   });
 });
 
