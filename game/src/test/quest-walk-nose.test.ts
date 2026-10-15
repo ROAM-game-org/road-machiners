@@ -1,3 +1,3 @@
-import { describeQuestWalks } from './quest-walk';
+import { describeQuestWalks, inFirstNoseFile } from './quest-walk';
 
-describeQuestWalks('the nose quests', (id) => id.startsWith('nose_'));
+describeQuestWalks('the nose quests, first half', inFirstNoseFile);
