@@ -209,7 +209,7 @@ function publicState(ctx: Ctx): void {
 }
 
 function jobs(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}${job.caughtUp === undefined ? '' : ` caught up ${job.caughtUp.map((issue) => `#${issue}`).join(',')}`}`));
+  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}`));
 }
 
 function queues(ctx: Ctx): void {
@@ -222,6 +222,12 @@ function queues(ctx: Ctx): void {
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
   console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`caught up: ${caughtUpRows(state)}`);
+}
+
+function caughtUpRows(state: FactoryState): string {
+  const rows = Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`);
+  return rows.length === 0 ? 'none' : rows.join(', ');
 }
 
 function formatMerges(merges: IssueMerge[]): string {

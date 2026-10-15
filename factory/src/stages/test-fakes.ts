@@ -98,6 +98,7 @@ export function fake(): Fake {
         return { resolution: { base: conflict.base, source: conflict instanceof MergeConflictError ? conflict.source : conflict.merge, head: 'resolved-head' }, diff: '', files: [] };
       },
       diff: async () => f.diff,
+      changedInWork: async () => [],
       changedFiles: async () => f.files,
       hasNewCommits: async () => true,
       isMerged: async () => true,
