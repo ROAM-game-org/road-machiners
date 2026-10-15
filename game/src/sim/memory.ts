@@ -22,7 +22,8 @@ function brainOf(vehicle: Vehicle): NpcBrain {
 export function remember(world: World, vehicle: Vehicle, fact: MemoryFact): void {
   const brain = brainOf(vehicle);
   const subject = subjectOf(fact);
-  brain.memories = brain.memories.filter((m) => subjectOf(m.fact) !== subject);
+  const old = brain.memories.findIndex((m) => subjectOf(m.fact) === subject);
+  if (old >= 0) brain.memories.splice(old, 1);
   brain.memories.push({ turn: world.turn, fact });
 }
 
