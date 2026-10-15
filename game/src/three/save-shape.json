@@ -1,5 +1,5 @@
 {
- "format": "2.65",
+ "format": "2.70",
  "shape": {
   "broken": [],
   "craters": [],
@@ -51,6 +51,11 @@
    },
    "deeds": [],
    "discovered": [],
+   "encounters": {
+    "next": "number",
+    "pending": "null",
+    "story": "null"
+   },
    "engineHeat": "number",
    "explored": "string",
    "frozen": "boolean",
@@ -1173,6 +1178,26 @@
      },
      {
       "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
       "fulfilled": "boolean",
       "id": "string",
       "kind": "string",
@@ -1264,6 +1289,26 @@
      },
      {
       "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
       "fulfilled": "boolean",
       "id": "string",
       "kind": "string",
@@ -1343,6 +1388,26 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1431,6 +1496,26 @@
      },
      {
       "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
       "fulfilled": "boolean",
       "id": "string",
       "kind": "string",
@@ -1510,6 +1595,26 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1606,6 +1711,26 @@
      },
      {
       "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
       "fulfilled": "boolean",
       "id": "string",
       "kind": "string",
@@ -1684,6 +1809,26 @@
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1770,6 +1915,14 @@
     "heading": "number",
     "id": "string",
     "items": [
+     {
+      "contract": "string",
+      "id": "string",
+      "kind": "string",
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
      {
       "good": "string",
       "id": "string",

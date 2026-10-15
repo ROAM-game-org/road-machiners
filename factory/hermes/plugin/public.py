@@ -51,7 +51,7 @@ def emoji_of(reaction: dict) -> Optional[str]:
 def count_event(raw: dict) -> dict:
     body = raw["message_reaction_count"]
     counts = {}
-    for entry in body["reactions"]:
+    for entry in body.get("reactions", []):
         emoji = emoji_of(entry["type"])
         if emoji is not None:
             counts[emoji] = entry["total_count"]
@@ -65,7 +65,7 @@ def reaction_event(raw: dict) -> Optional[dict]:
     body = raw["message_reaction"]
     if "user" not in body:
         return None
-    emoji = [found for found in map(emoji_of, body["new_reaction"]) if found is not None]
+    emoji = [found for found in map(emoji_of, body.get("new_reaction", [])) if found is not None]
     return {
         "updateId": raw["update_id"], "kind": "reaction", "chat": str(body["chat"]["id"]),
         "messageId": body["message_id"], "user": str(body["user"]["id"]), "emoji": emoji,
@@ -114,6 +114,16 @@ def is_addressed(message: dict, bot: Optional[Bot]) -> bool:
     return replied.get("id") == bot.id or mentions(message, bot)
 
 
+CONTEXT_CHARS = 500
+
+
+def reply_context(message: dict) -> Optional[str]:
+    quoted = (message.get("quote") or {}).get("text")
+    replied = message.get("reply_to_message") or {}
+    context = quoted or replied.get("text") or replied.get("caption")
+    return context[:CONTEXT_CHARS] if context else None
+
+
 def comment_event(raw: dict, message: dict, standalone: bool, bot: Optional[Bot]) -> Optional[dict]:
     text = message.get("text") or message.get("caption")
     if is_skipped(message, text):
@@ -126,7 +136,7 @@ def comment_event(raw: dict, message: dict, standalone: bool, bot: Optional[Bot]
         "updateId": raw["update_id"], "kind": "comment", "chat": str(message["chat"]["id"]),
         "messageId": message["message_id"], "threadId": thread, "author": author_of(message),
         "sender": sender_of(message), "text": text, "at": iso_date(message["date"]),
-        "addressed": is_addressed(message, bot), "standalone": standalone,
+        "addressed": is_addressed(message, bot), "standalone": standalone, "context": reply_context(message),
     }
 
 

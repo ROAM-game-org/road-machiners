@@ -201,11 +201,16 @@ function favors(world: World, w: Vehicle, i: Incident): boolean {
   return !isLawman(w) && attitude(world, w, i.aggressor) >= attitude(world, w, i.victim);
 }
 
+export function declareFeud(world: World, w: Vehicle, against: Vehicle): boolean {
+  if (w.brain) w.brain.attackers[against.id] = false;
+  if (stateOf(world, 'feud', w.id, against.id)) return false;
+  addState(world, 'feud', w.id, against.id, { kind: 'feud', robbery: false });
+  world.events.push({ t: 'hostile', vehicle: w.id, against: against.id });
+  return true;
+}
+
 function joinAgainst(world: World, w: Vehicle, i: Incident): void {
-  if (w.brain) w.brain.attackers[i.aggressor.id] = false;
-  if (stateOf(world, 'feud', w.id, i.aggressor.id)) return;
-  addState(world, 'feud', w.id, i.aggressor.id, { kind: 'feud', robbery: false });
-  world.events.push({ t: 'hostile', vehicle: w.id, against: i.aggressor.id });
+  if (!declareFeud(world, w, i.aggressor)) return;
   const player = world.player.vehicleId;
   if (w.id !== i.victim.id && (i.aggressor.id === player || i.victim.id === player)) world.events.push({ t: 'joins', vehicle: w.id, against: i.aggressor.id, victim: i.victim.id });
 }

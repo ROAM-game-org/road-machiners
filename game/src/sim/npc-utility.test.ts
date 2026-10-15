@@ -256,6 +256,27 @@ describe('NPC claymore ram', () => {
   });
 });
 
+describe('an NPC with an armed claymore ram', () => {
+  it('orders a disarm with no ram choice and no fight', () => {
+    const { w, npc, part } = npcWith('claymoreRam');
+    part.charge = { reload: 0, armed: true };
+
+    assignUtilityOrders(w);
+
+    expect(npc.utilityOrders[part.id]).toEqual({ kind: 'disarm' });
+  });
+
+  it('keeps it armed in a fight', () => {
+    const { w, npc, part } = npcWith('claymoreRam');
+    part.charge = { reload: 0, armed: true };
+    startCombat(w, foeAt(w, npc, 6), npc);
+
+    assignUtilityOrders(w);
+
+    expect(npc.utilityOrders[part.id]).toBeUndefined();
+  });
+});
+
 describe('who gets utility orders', () => {
   it('never orders for the player truck, even in a fight', () => {
     const w = emptyWorld();

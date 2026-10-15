@@ -1,13 +1,15 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { must, realRun } from './exec';
+import { must, realRun as spawn, withActivity } from './exec';
 import { backupRoot, repairClone, type RepairFs } from './repair-clone';
 import { hostRepo } from './repo';
 import { EMPTY_STATE, readState, writeState } from './state';
 import type { Ctx, FactoryConfig, FactoryState } from './types';
 
 vi.setConfig({ testTimeout: 60_000 });
+
+const realRun = withActivity(spawn, 'git');
 
 const ID = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
 const ORDER = { issue: 5, by: 'hermes', reason: 'merge left the clone dirty', backupMerge: false, refuseUnpushed: false };
@@ -74,7 +76,7 @@ const backups = (home: string) => (existsSync(backupRoot(home)) ? readdirSync(ba
 describe('repairClone', () => {
   it(`backs up ${DEV_FILES} staged and unstaged changes of an aborted dev merge and checks out the branch fresh`, async () => {
     const { home, ctx, git, work, push, hub, setState, unstuck } = await setup();
-    const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', log: null, at: '2026-10-07T09:00:00Z' });
+    const failure = (issue: number) => ({ stage: 'checks' as const, issue, error: 'boom', cause: 'error' as const, log: null, at: '2026-10-07T09:00:00Z' });
     setState({ failures: [failure(5), failure(6)] });
     await push('dev', Object.fromEntries(Array.from({ length: DEV_FILES }, (_, i) => [`d${i}.txt`, `${i}\n`])));
     await ctx.repo.fetch();

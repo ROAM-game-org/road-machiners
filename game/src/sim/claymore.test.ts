@@ -72,6 +72,65 @@ describe('arming a claymore ram', () => {
   });
 });
 
+describe('disarming a claymore ram by order', () => {
+  const disarmOrder = (user: Vehicle, claymore: PartInstance) => {
+    user.utilityOrders[claymore.id] = { kind: 'disarm' };
+  };
+
+  it('clears the charge at the utility step, keeps the reload and raises no event', () => {
+    const { w, user, claymore } = setup();
+    arm(w, user, claymore);
+    w.events = [];
+    disarmOrder(user, claymore);
+
+    activateUtilities(w);
+
+    expect(claymore.charge).toEqual({ reload: 0 });
+    expect(w.events.filter((e) => e.t === 'utility')).toEqual([]);
+    expect(user.utilityOrders[claymore.id]).toBeUndefined();
+  });
+
+  it('can be armed again with a self order', () => {
+    const { w, user, claymore } = setup();
+    arm(w, user, claymore);
+    disarmOrder(user, claymore);
+    activateUtilities(w);
+
+    arm(w, user, claymore);
+
+    expect(claymore.charge).toEqual({ reload: 0, armed: true });
+  });
+
+  it('still blows in a crash during the move of the same turn', () => {
+    const { w, user, other, claymore, side } = setup();
+    arm(w, user, claymore);
+    disarmOrder(user, claymore);
+
+    applyContactCrash(w, user, other, other.id, CLAYMORE.minImpact, hit(side));
+    activateUtilities(w);
+
+    expect(blasts(w)).toHaveLength(1);
+    expect(claymore.charge?.armed).toBeUndefined();
+    expect(claymore.charge?.reload).toBeGreaterThan(0);
+  });
+
+  it('is refused on an unarmed, shut down or broken ram, and throws on another part', () => {
+    const { w, user, claymore } = setup();
+    const order = { kind: 'disarm' } as const;
+    expect(utilityOrderError(w, user, claymore.id, order)).toMatchObject({ id: 'utilityBlocked', block: 'unarmed' });
+    arm(w, user, claymore);
+    expect(utilityOrderError(w, user, claymore.id, order)).toBeNull();
+    user.shutDown = { from: w.turn, until: w.turn + 2 };
+    expect(utilityOrderError(w, user, claymore.id, order)).toMatchObject({ block: 'shutDown' });
+    delete user.shutDown;
+    claymore.hp = 0;
+    expect(utilityOrderError(w, user, claymore.id, order)).toMatchObject({ block: 'disabled' });
+    const sprout = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'sprout'], { x: 10, y: 10 });
+    const smoke = mountedParts(sprout).find((p) => p.defId === 'sprout');
+    expect(() => utilityOrderError(w, sprout, smoke!.id, order)).toThrow();
+  });
+});
+
 describe('claymore detonation', () => {
   it('needs arming', () => {
     const { w, user, other, claymore, side } = setup();

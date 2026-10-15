@@ -64,13 +64,22 @@ export type GridItem =
       rot: Rot;
       kind: "good";
       good: string;
+    }
+  | {
+      id: string;
+      x: number;
+      y: number;
+      rot: Rot;
+      kind: "parcel";
+      contract: string;
     };
 
 export type Aim = "body" | string;
 export type WeaponOrder = { targetId: string; aim: Aim };
 export type UtilityOrder =
   | { kind: 'self' }
-  | { kind: 'point'; pos: Vec };
+  | { kind: 'point'; pos: Vec }
+  | { kind: 'disarm' };
 
 export type Pose = { x: number; y: number; heading: number };
 
@@ -169,7 +178,7 @@ export type WeatherEvent =
 
 
 export type GoalReason =
-  | 'arrived' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
+  | 'arrived' | 'calledOut' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
   | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
   | 'combatStopsSearch' | 'contactGone' | 'damagedThreatened' | 'defendLoot' | 'deliverCargo' | 'droppedTow'
   | 'escapeAttacker' | 'escapeThreat' | 'explore' | 'exploredSpot' | 'fightBack' | 'fightHostile' | 'finishedRepairs'
@@ -213,6 +222,7 @@ export type Refusal =
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
+  | { id: 'parcelKept' }
   | { id: 'salvageOutOfReach' }
   | { id: 'salvagePartGone' }
   | { id: 'builtInStays' }
@@ -237,7 +247,7 @@ export type Refusal =
   | { id: 'utilityOrder'; part: string; order: 'point' | 'self' }
   | { id: 'utilityBlocked'; part: string; block: UtilityBlock };
 
-export type UtilityBlock = FireBlock | 'armed' | 'fuel';
+export type UtilityBlock = FireBlock | 'armed' | 'unarmed' | 'fuel';
 
 export type UnitId = 'part';
 
@@ -285,7 +295,7 @@ export type NpcBrain = {
     lastPos?: Vec;
     stalled?: number;
     stuck?: number;
-    progress?: { key: string; since: number };
+    progress?: { key: string; since: number; at: Vec };
     recovery?: number;
     recoveryGoal?: Vec;
     ramChoice?: string;
@@ -304,7 +314,9 @@ export type MemoryFact =
   | { kind: 'prices'; shop: string; pressure: Record<string, number> }
   | { kind: 'stripped'; stock: string }
   | { kind: 'wronged'; by: string; deed: WrongDeed }
-  | { kind: 'helped'; by: string; deed: HelpDeed };
+  | { kind: 'helped'; by: string; deed: HelpDeed }
+  | { kind: 'sighting'; vehicle: string; at: Vec; heading: number };
+export type SightingFact = Extract<MemoryFact, { kind: 'sighting' }>;
 export type Memory = { turn: number; fact: MemoryFact };
 
 export type Vehicle = {
@@ -343,7 +355,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -380,6 +392,7 @@ export type CallVar =
   | { kind: "aid"; fuel: number; supplies: number }
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
+  | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
   | { kind: "answer"; option: string }
   | { kind: "line"; line: LineId };
 export type CallVars = Record<string, CallVar>;
@@ -396,6 +409,13 @@ export type QuestCheck = { skill: SkillId; level: number };
 export type QuestLive = { quest: string; lang: QuestLanguage; ink: string; lines: QuestLine[]; choices: string[]; costs: (number | null)[]; checks: (QuestCheck | null)[] };
 export type QuestState = { world: QuestVars; local: Record<string, QuestVars>; session: QuestSession | null; live: QuestLive | null };
 export type TopicOutcome = "agreed" | "refused" | "done";
+
+export type EncounterId = 'tale' | 'tip' | 'challenge' | 'courier';
+export type PendingEncounter = { encounter: EncounterId; driver: string; until: number };
+export type CourierBeat = 'asked' | 'promised' | 'helped' | 'paid' | 'refused' | 'owed' | 'ended';
+export type CourierTopic = 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor';
+export type CourierStory = { driver: string; beat: CourierBeat; turn: number; aidValue: number; free: boolean };
+export type EncounterLog = { next: number; pending: PendingEncounter | null; story: CourierStory | null };
 
 export type Player = {
   vehicleId: string;
@@ -441,6 +461,7 @@ export type Player = {
   rumored: string[];
   notes: { id: NoteId; turn: number }[];
   hostilesSeen: string[];
+  encounters: EncounterLog;
 };
 
 export type ShotRound = {
@@ -483,6 +504,7 @@ export type GameEvent =
   | { t: 'money'; amount: number; reason: MoneyReason }
   | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart' }
   | { t: 'discover'; location: string }
+  | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
   | { t: 'supply'; what: string; note: SimNote }
   | { t: 'death' }

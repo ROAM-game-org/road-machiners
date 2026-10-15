@@ -22,7 +22,7 @@ import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
 import { refreshTrack } from './tracks';
 import type { FuryRoadRun, GroupSide, OutpostFacts, PartInstance, RunLossCause, Vehicle, WaveGroup, World } from './types';
-import { refreshVision } from './vision';
+import { refreshVision, sightRadius } from './vision';
 import { dist, type Vec } from './vec';
 import { playerCommand } from './world';
 
@@ -246,6 +246,10 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
   const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
+  if (spots === 'seen') {
+    group.retryUntil = null;
+    return;
+  }
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
@@ -260,19 +264,32 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   });
   group.spawned = true;
   group.retryUntil = null;
+  run.quietFrom = world.turn;
 }
 
 type Candidate = { along: number; across: number };
 
-function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: number, radii: number[]): Vec[] | null {
+function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: number, radii: number[]): Vec[] | 'seen' | null {
   const candidates = spotCandidates(from, progress, haulerAcross(world, run));
+  const unseen = searchSpots(world, run, candidates, radii, outOfSight(world));
+  if (unseen) return unseen;
+  return searchSpots(world, run, candidates, radii, () => true) ? 'seen' : null;
+}
+
+function searchSpots(world: World, run: FuryRoadRun, candidates: Candidate[], radii: number[], hidden: (pos: Vec) => boolean): Vec[] | null {
   const spots: Vec[] = [];
   for (const radius of radii) {
-    const spot = freeSpot(world, run, candidates, radius, spots);
+    const spot = freeSpot(world, run, candidates, radius, spots, hidden);
     if (!spot) return null;
     spots.push(spot);
   }
   return spots;
+}
+
+function outOfSight(world: World): (pos: Vec) => boolean {
+  const me = playerVehicle(world);
+  const reach = sightRadius(world, me, true) + FURY_ROAD.sightMargin;
+  return (pos) => dist(pos, me.pos) > reach;
 }
 
 function haulerAcross(world: World, run: FuryRoadRun): number {
@@ -304,12 +321,12 @@ function lineCandidate(progress: number, line: number): (step: number) => Candid
   };
 }
 
-function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[]): Vec | null {
+function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[], hidden: (pos: Vec) => boolean): Vec | null {
   const from = milestoneAt(run.window);
   const to = milestoneAt(run.window + 1);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
-    if (!insideWindow(world, pos, radius)) continue;
+    if (!insideWindow(world, pos, radius) || !hidden(pos)) continue;
     if (isFree(world, pos, radius, null) && taken.every((t) => dist(t, pos) > radius * 2 + 0.5)) return pos;
   }
   return null;
