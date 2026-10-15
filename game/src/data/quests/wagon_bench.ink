@@ -69,7 +69,6 @@ Corporal Teller. A word outside, driver. # speaker: Teller
 -> hub
 
 = hub
-# checkpoint: bench.hub
 + {wagon_pin == "held"} [Send for Kovac and give him the stub.]
   ~ report_seen = true
   -> sign

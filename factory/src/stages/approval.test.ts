@@ -36,7 +36,7 @@ function fakeCtx(): Ctx {
     run: async (cmd: string, args: string[]) => { calls.push(`run ${cmd} ${args[0]}`); return { code: 0, stdout: cmd === 'git' ? 'abc1234'.padEnd(40, '0') : '', stderr: '' }; },
     github: {
       cards: async () => [{ itemId: 'x', issue: 7, column, labels: [] }],
-      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), pullRequestFor: async () => openPr, closePullRequest: record('closePullRequest'), close: record('close'), move: record('move'),
       createRelease: record('release'),
     },
@@ -68,7 +68,7 @@ describe('approve', () => {
     expect(state.pendingApprovals).toEqual({});
   });
 
-  it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, and closes the issue', async () => {
+  it('ships a hotfix from main to itch.io, brings main into dev, leaves the open release and its candidate alone, closes the issue and tells only the committee', async () => {
     labels = ['bug', 'hotfix'];
     writeState(`${home}/state.json`, { ...EMPTY_STATE, release: { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 300, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } }, pendingShip: 'ann', pendingApprovals: { 7: 'bob' } });
     await approve(fakeCtx(), 7, 'bob');
@@ -80,7 +80,6 @@ describe('approve', () => {
       'push main dev',
       'run git rev-parse',
       'run butler push',
-      `message public ${changelog}`,
       `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
       'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.',
       'close 7 completed',
@@ -141,6 +140,11 @@ describe('routeFeedback', () => {
     await routeFeedback(fakeCtx(), 7, 'bob', 'Louder horn', 'patch', 100);
     expect(calls).toEqual(['comment 7 ## Committee feedback\n\nFrom bob, routed as patch:\n\nLouder horn', 'move 7 Testing']);
     expect(readState(`${home}/state.json`).approvalPosts).toEqual({ 200: 8 });
+  });
+
+  it('writes the heading it is given in place of the committee heading', async () => {
+    await routeFeedback(fakeCtx(), 7, 'public', 'It breaks', 'patch', 100, '## Player report');
+    expect(calls).toEqual(['comment 7 ## Player report\n\nFrom public, routed as patch:\n\nIt breaks', 'move 7 Testing']);
   });
 
   it('answer only comments, and keeps the card, its posts and its queued approval', async () => {

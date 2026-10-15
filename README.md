@@ -16,11 +16,12 @@ Imagine you could play the game, leave a feature request and see it appear in a 
 
 ROAM is built in public by a software factory of AI coding agents.
 
-1. Anyone can file a feature request or a bug areport as a [GitHub issue](https://github.com/btseytlin/road-machiners/issues). If the issue gets enough votes from the community, coding agents start working on it.
-2. Agents triage the top issues, then design, build and test them.
-3. A human committee plays each result and approves or denies it.
-4. Approved work goes to the [dev build](https://roam-game.online/dev/) at once and ships to [itch.io](https://btseytlin.itch.io/road-machiners) as a weekly release.
-5. A Hermes agent manages the factory and fixes its failures.
+1. Anyone can send a bug report or an idea from inside the game, or file a [GitHub issue](https://github.com/ROAM-game-org/road-machiners/issues).
+2. Agents triage each one. Bugs and small improvements go to work at once. A new feature goes to the [Telegram channel](https://t.me/roam_game_dispatch) as a proposal, and players vote on it with reactions.
+3. Agents design, build and test the work. Players can play a voted feature's build and comment on it in the channel.
+4. A human committee plays each result and approves or denies it.
+5. Approved work goes to the [dev build](https://roam-game.online/dev/) at once and ships to [itch.io](https://btseytlin.itch.io/road-machiners) as a weekly release.
+6. A Hermes agent manages the factory and fixes its failures.
 
 ## Links
 

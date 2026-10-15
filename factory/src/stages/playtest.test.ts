@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
-import type { AgentRun, Issue, ReleaseState } from '../types';
+import { testPoolPin } from '../cpus';
+import type { AgentRun, Issue, Pin, ReleaseState } from '../types';
 import { CACHED_SUITE } from './checks';
 import { auditDir, playtest } from './playtest';
 import { logText } from './playtest-fixtures';
@@ -28,7 +29,7 @@ const clean: Turn = { review: review(), report: '## Run\nAll good.' };
 
 type Turn = { review?: string; report?: string; commit?: string };
 type Run = {
-  f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string> }[]; prompts: string[]; sessions: AgentRun['session'][];
+  f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string>; pin?: Pin }[]; prompts: string[]; sessions: AgentRun['session'][];
   releaseHead: string; cloneHead: string; turns: Turn[]; checkFailures: number; dirty: string; pushFails: boolean; mainMerged: boolean;
   passedAncestor: boolean; changed: string[];
 };
@@ -37,10 +38,11 @@ const harnessRuns = (run: Run) => run.shells.filter((shell) => shell.script.incl
 const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('[checks]'));
 const SUITE = stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]);
 const CACHE_MOUNT = { [join(ROOT, 'test-cache')]: '/test-cache' };
+const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = { f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true, changed: ['game/src/sim/raid.ts'] };
   f.ctx.run = async (_cmd: string, args: string[]) => {
@@ -62,8 +64,8 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     run.releaseHead = commit;
   };
   f.ctx.github.candidates = async () => [{ number: 40, title: 'Old raider loop' } as Issue];
-  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}) => {
-    run.shells.push({ clone, script, env, mounts });
+  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}, _limit?: number, pin?: Pin) => {
+    run.shells.push({ clone, script, env, mounts, ...(pin === undefined ? {} : { pin }) });
     if (script === SUITE) return;
     if (script.includes('[checks]')) {
       if (run.checkFailures-- > 0) throw new Error('npm test failed');
@@ -128,6 +130,9 @@ describe('playtest', () => {
     expect(script.indexOf('npm ci')).toBeLessThan(script.indexOf('npm run test:cached -- --cache /test-cache'));
     expect(script).toMatch(/if grep -q '"test:cached"' package.json; then\n\s+npm run test:cached -- --cache \/test-cache\nelse\n.*\n\s+npm test\nfi/);
     expect(run.shells[0]!.mounts).toEqual(CACHE_MOUNT);
+    expect(run.shells[0]!.env).toEqual({ TEST_STALL_MINUTES: '15' });
+    expect(run.shells[0]!.pin).toEqual(testPoolPin(POOLS));
+    expect(harnessRuns(run).map((shell) => shell.pin)).toEqual([undefined, undefined]);
   });
 
   it('fails on a failing full suite before the first play, so it spends no play', async () => {
@@ -159,7 +164,7 @@ describe('playtest', () => {
     expect(run.sessions[0]).toMatchObject({ resume: false });
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(checkRuns(run)).toHaveLength(1);
-    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001' } });
+    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001', TEST_STALL_MINUTES: '15' }, pin: testPoolPin(POOLS) });
     expect(checkRuns(run)[0].script).toContain('npm run playtest -- --no-fps-gate');
     expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
     expect(run.f.created).toEqual([]);
