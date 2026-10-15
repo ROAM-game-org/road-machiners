@@ -27,7 +27,7 @@ A `ready` issue may bundle other free Triage cards that touch the same code. Eac
 Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It uses up:udesign and up:uplan in hands-off mode. A change to the game's UI or overlays is planned with the steps of `game/docs/ui.md`, and the task file gets a UI section with the decision, the tiers, the zone, the shared pieces and the event levels. The agent reads `docs/incident-log.md` from the clone, and the plan says how it keeps the rule of each class the change touches. It writes the task file `.factory-tasks/issue-N.md` in the work clone on branch `factory/issue-N`. Git ignores the task file, so design posts it to the issue as a comment, and later stages read it from the clone.
 
 - Before the agent starts, the factory merges GitHub's issue branch and the latest base into the work clone, as [process.md](process.md#branches) says. The agent cannot fetch. It never asks the author about branches or the network, and work it cannot find is an assumption.
-- `.factory/questions.md` sends the card back to Triage with the questions, as unclear triage does.
+- `.factory/questions.json`, a JSON array of questions, sends the card back to Triage with the questions, as unclear triage does.
 - `.factory/wont-do.md` closes the issue as wont-do.
 - A revision reads the issue comments under "## Committee feedback". Comments under "## Committee question" are context only.
 
@@ -169,7 +169,7 @@ Triage rates each `ready` issue once and comments the rating under `Model routin
 - `hard` is a cross-system bug with no known cause, or a change to a save format or to shared data that many systems read. Triage adds `implementation-opus`. A change that only spans several systems is `intermediate`.
 - `intermediate` or in doubt adds no label.
 
-A label already on the issue wins, and triage never changes labels. A later triage run adds nothing once its routing comment exists. A member can add or remove a label at any time, and the next agent run reads it.
+A label already on the issue wins, and triage never changes labels. A later triage run adds nothing once the issue is in the state's `routed` list. A member can add or remove a label at any time, and the next agent run reads it.
 
 Committee rework that runs Implementation again gets its model from Hermes's judgment, not from code. After Hermes routes a redesign, or moves a card to Design or Implementation for a member, it removes `implementation-opus` for a small rework and adds it for a big redesign. It writes no label for a patch, whose testing session runs on Sonnet. Two reruns of Implementation never reach Hermes, so the issue keeps its label unless a member changes it: a member's own `redesign:` reply, and a patch whose testing session writes `.factory/needs-redesign.md`.
 

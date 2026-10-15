@@ -1,10 +1,15 @@
 
+import { Drawers } from "./drawers";
+import { phoneMode, touchMode } from "./input-mode";
 import { escortStatus, type EscortContract } from "../sim/escort-job";
-import { DialoguePanel, type DialogueHost } from "./dialogue";
+import { callError, DialoguePanel, type DialogueHost } from "./dialogue";
+import { markError } from "../sim/detect";
+import { modeRules } from "../sim/settings";
+import { playerCanAct } from "../sim/world";
 import type { Vehicle, World } from "../sim/types";
 import { workOf, type Work } from "../sim/states";
 import { isAutoPatch } from "../sim/jobs";
-import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight } from "./dom";
+import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
   escortStatusText,
@@ -37,11 +42,12 @@ import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
-import { driverName, factionName, templateName, vehicleTitle } from "../text/names";
+import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
   | { kind: 'trade'; id: string }
+  | { kind: 'parcel'; id: string }
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
@@ -81,6 +87,8 @@ type HudActions = {
   autoTravel: () => boolean;
   dialogue: DialogueHost;
   recenter: () => void;
+  unpin: () => void;
+  markInspected: () => void;
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
@@ -137,28 +145,50 @@ export class Hud {
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
   private knockedOut = panel("status-mark", topCenter());
-  private truckStack = el("div", { class: "truck-stack" });
+  private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
+  private healthSlot = el("div", { class: "health-slot" });
   private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
   cameraMode: CameraMode = "auto";
+  private readonly drawers = new Drawers(uiRoot(), () => this.drawerMoved());
   private toastTimer: number | null = null;
 
   private readonly dialogue: DialoguePanel;
 
   private placeInfo = (): void => {
-    if (this.info.style.display === "none") return;
+    if (this.info.style.display === "none" || this.info.getClientRects().length === 0) return;
     const gap = parseFloat(token("--hud-gap"));
     const top = topRight().getBoundingClientRect().bottom + gap;
     this.info.style.top = `${top}px`;
     this.info.style.width = "";
-    const slot = this.radio.root.getBoundingClientRect().top - gap - top;
+    const slot = this.floorOfInfo() - gap - top;
     this.info.style.height = `${slot}px`;
-    if (this.inspectedAimable) this.growForAim(top, slot);
+    if (this.inspectedAimable && !phoneMode()) this.growForAim(top, slot);
     this.coverUnder(this.info.getBoundingClientRect().bottom);
     this.inspected.fitTo(this.inspectedDraw);
   };
+
+  private drawerMoved(): void {
+    requestAnimationFrame(this.placeInfo);
+  }
+
+  markCombat(on: boolean): void {
+    this.drawers.mark("guns", on);
+  }
+
+  private floorOfInfo(): number {
+    if (!phoneMode()) return this.radio.root.getBoundingClientRect().top;
+    const open = this.drawers.open();
+    const frame = open === null ? null : document.querySelector<HTMLElement>(`#ui [data-drawer-frame="${open}"]`);
+    const card = this.info.getBoundingClientRect();
+    const tops = [this.top, this.drawers.element, frame]
+      .map((node) => node?.getBoundingClientRect())
+      .filter((box) => box !== undefined && box.left < card.right && box.right > card.left)
+      .map((box) => box!.top);
+    return Math.min(...tops);
+  }
 
   private growForAim(top: number, slot: number): void {
     const need = this.inspected.boxFor(parseFloat(token("--btn-h-s")));
@@ -193,6 +223,7 @@ export class Hud {
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter")));
+    topRight().prepend(this.healthSlot);
     this.showCameraMode();
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
@@ -226,9 +257,17 @@ export class Hud {
     });
   }
 
-  private toggleCameraMode(): void {
+  toggleCameraMode(): void {
     this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
     this.showCameraMode();
+  }
+
+  cameraModeLabel(): Msg {
+    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
+  }
+
+  openFeedback(): void {
+    this.feedbackForm.open("bug");
   }
 
   private showCameraMode(): void {
@@ -315,7 +354,7 @@ export class Hud {
         ...disabledWith(action.ready ? null : (actionTitle(action) ?? null), onUse),
         class: action.combat !== undefined ? "btn-danger" : "",
       },
-      action.hint ? action.label : t("hud.actionKey", { label: action.label }),
+      action.hint || touchMode() ? action.label : t("hud.actionKey", { label: action.label }),
     );
     const cycle = (step: 1 | -1, glyph: Msg, key: string) =>
       el("button", { class: "cycle", title: t("hud.cycleKey", { key }), onclick: () => onCycle(step) }, glyph);
@@ -441,6 +480,11 @@ export class Hud {
     );
   }
 
+  private hornButton(w: World): HTMLElement {
+    const reason = playerCanAct(w) ? null : refusalText(w, { id: "cannotAct" });
+    return el("button", { class: "instrument-button touch-only", ...disabledWith(reason, () => this.dialogue.honk()) }, t("hud.horn"));
+  }
+
   private journalButton(busy: boolean): HTMLElement {
     return el(
       "button",
@@ -491,6 +535,12 @@ export class Hud {
   }
 
   private renderReadouts(readout: ReturnType<typeof getHudReadout>): void {
+    this.fillReadouts(readout);
+    const health = this.readoutSlot.querySelector('[data-resource="driver"]');
+    this.healthSlot.replaceChildren(...(phoneMode() && health ? [health] : []));
+  }
+
+  private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
     this.readoutSlot.replaceChildren(
       ...readout.resources.map((resource) =>
         el(
@@ -555,7 +605,17 @@ export class Hud {
       ...this.engineButtons(w, busy),
       this.characterButton(w, busy),
       this.journalButton(busy),
+      ...(modeRules(w).radio ? [this.hornButton(w)] : []),
     );
+  }
+
+  private cardButtons(w: World, v: Vehicle): HTMLElement {
+    const own = v.faction === "player";
+    const call = !own && v.brain && modeRules(w).radio ? [el("button", { class: "btn-s", ...disabledWith(callError(w, v.id), () => this.dialogue.callInspected()) }, t("card.call"))] : [];
+    const refusal = markError(w, v.id);
+    const mark = own ? [] : [el("button", { class: "btn-s", ...disabledWith(refusal && refusalText(w, refusal), () => this.actions.markInspected()) }, t("card.mark"))];
+    const close = el("button", { class: "btn-s", "aria-label": t("card.unpin"), title: t("card.unpin"), onclick: () => this.actions.unpin() }, t("hint.closeMark"));
+    return el("span", { class: "info-touch touch-only" }, ...call, ...mark, close);
   }
 
   flushHorn(): void {
@@ -599,7 +659,7 @@ export class Hud {
     this.inspected.render(v, aim);
     this.info.style.display = "";
     this.infoBody.replaceChildren(
-      infoHead(w, v, hostile),
+      infoHead(w, v, hostile, this.cardButtons(w, v)),
       el("div", { class: "info-state" }, formatVehicleState(w, v)),
       ...quietLines(w, v).map((line) => el("div", { class: "info-state info-quiet" }, line)),
       el("div", { class: "info-body" }, this.inspectedDraw, this.infoColumn),
@@ -612,7 +672,7 @@ function rescueOf<K extends RescueReadout["kind"]>(r: RescueReadout | null, kind
   return r?.kind === kind ? (r as Extract<RescueReadout, { kind: K }>) : null;
 }
 
-function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
+function infoHead(w: World, v: Vehicle, hostile: boolean, buttons: HTMLElement): HTMLElement {
   const quiet = [v.brain ? templateName(v.brain.templateId) : null, factionName(v.faction)].filter((part) => part !== null);
   const quietText = list(quiet);
   return el(
@@ -621,6 +681,7 @@ function infoHead(w: World, v: Vehicle, hostile: boolean): HTMLElement {
     el("span", { class: "info-name" }, v.brain ? driverName(v) : vehicleTitle(w, v)),
     el("span", { class: "info-quiet", title: quietText }, quietText),
     ...(v.faction === "player" ? [] : [el("span", { class: `tag ${hostile ? "bad" : "dim"}` }, t(hostile ? "hud.tagHostile" : "hud.tagNeutral"))]),
+    buttons,
   );
 }
 

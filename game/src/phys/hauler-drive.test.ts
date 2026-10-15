@@ -25,7 +25,17 @@ function onPad(w: World): boolean {
   return inYard(w, haulerOf(w).pos, 1);
 }
 
-function haulerRun(seed: number): { w: World; turns: number; stalls: number; widest: number } {
+type HaulerRun = { w: World; turns: number; stalls: number; widest: number };
+
+const played = new Map<number, HaulerRun>();
+
+function haulerRun(seed: number): HaulerRun {
+  const done = played.get(seed) ?? playHauler(seed);
+  played.set(seed, done);
+  return done;
+}
+
+function playHauler(seed: number): HaulerRun {
   let w = furyRoadWorld(seed);
   w.furyRoad!.groups = [];
   let drive: Drive = buildDrive(w);

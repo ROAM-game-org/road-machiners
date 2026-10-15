@@ -7,12 +7,14 @@ import { buyChassis, buyStockPart, chassisTradeIn, partTradePrice, sellPart } fr
 import { type Spot, goodsCount, mountedItems } from '../grid';
 import { installSpot, moveItem, spareParts, storePart, takeFromStorage } from '../inventory';
 import { shopAt, shopState } from '../market';
-import { townAt } from '../sites';
+import { canUseSite, nearestPad, townAt, type Site } from '../sites';
+import type { Vec } from '../vec';
 import { getUpkeepReserve } from '../npc-decisions';
 import { bestPlan, gearBudget, gearPlans, probe, type GearJob, type Offer } from './gear';
 import type { ThreatAnswer } from '../parley';
 import type { GameEvent, GridItem, PartInstance, Vehicle, World } from '../types';
 import { isJunk } from '../wear';
+import { setMoveOrder } from '../world';
 
 export const LEDGER_KEYS = ['fuel', 'supplies', 'repairs', 'gear', 'goodsBought', 'goodsSold', 'lootSales', 'contracts', 'fees', 'payouts', 'other'] as const;
 export type LedgerKey = (typeof LEDGER_KEYS)[number];
@@ -137,4 +139,15 @@ function itemOf(world: World, partId: string, truckId?: string): string {
   const item = truckFor(world, truckId).items.find((it) => it.kind === 'part' && it.part.id === partId);
   if (!item) throw new Error(`Part ${partId} is not on the truck`);
   return item.id;
+}
+
+export function driveToSite(o: Orders, site: Site): void {
+  if (canUseSite(o.me.pos, site)) return;
+  driveTo(o, nearestPad(site, o.me.pos));
+}
+
+export function driveTo(o: Orders, dest: Vec): void {
+  const order = o.me.order;
+  if (order?.kind === 'stopAt' && order.dest.x === dest.x && order.dest.y === dest.y) return;
+  o.run((w) => setMoveOrder(w, { kind: 'stopAt', dest }));
 }

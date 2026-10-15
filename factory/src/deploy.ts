@@ -15,7 +15,7 @@ export function checkScope(scope: string): void {
 
 export async function buildAndDeploy(ctx: Ctx, clone: string, scope: string, log: string, reports: ReportBuild | null = null): Promise<string> {
   checkScope(scope);
-  await ctx.container.shell(clone, stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: scope, ...(reports ? reportEnv(ctx.cfg, reports) : {}) });
+  await ctx.container.shell('build', clone, stepScript('Building the game', [['npm ci', 'npm ci'], ['build', 'npm run build']]), log, { SAVE_SCOPE: scope, ...(reports ? reportEnv(ctx.cfg, reports) : {}) });
   if (reports) await takeMaps(ctx, clone, reports);
   return publishBuild(ctx, clone, scope);
 }

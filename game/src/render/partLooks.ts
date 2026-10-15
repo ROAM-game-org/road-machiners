@@ -1,13 +1,13 @@
 
 import type { ModelName } from '../three/render/models';
 import type { ChassisDef } from '../data/chassis';
-import { GOODS, type GoodDef } from '../data/goods';
+import { GOODS, PARCEL, type GoodDef } from '../data/goods';
 import { PARTS, type PartDef, type PartKind } from '../data/parts';
 import { hashStr } from './noise';
-import type { PartInstance } from '../sim/types';
+import type { GridItem, PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
 import { chassisName, goodName, partName } from '../text/names';
-import type { Msg } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
 
 const enName = (msg: Msg): string => resolve(msg, 'en');
@@ -66,7 +66,7 @@ const KIND_TONES: Record<PartKind, ItemTone> = {
 export function itemTone(id: string): ItemTone {
   const part = PARTS[id];
   if (part) return KIND_TONES[part.kind];
-  if (id in GOODS) return 'cargo';
+  if (id in GOODS || id === PARCEL.id) return 'cargo';
   throw new Error(`No item ${id}, so it has no tone`);
 }
 
@@ -136,6 +136,7 @@ export const PART_MODELS: Record<string, ModelName> = {
   parts: 'good_parts',
   fuelDrums: 'good_fuel_drums',
   water: 'good_water',
+  [PARCEL.id]: 'parcel',
 };
 
 export type WeaponPool = { mount: ModelName[]; receiver: ModelName[]; barrel: ModelName[]; extra: ModelName[] };
@@ -258,6 +259,11 @@ export const WEAPON_POOLS: Record<string, WeaponPool> = {
 };
 
 export type WeaponLook = { mount: ModelName; receiver: ModelName; barrel: ModelName; extra: ModelName | null };
+
+export function itemLookId(item: GridItem): string {
+  if (item.kind === 'part') return item.part.defId;
+  return item.kind === 'good' ? item.good : PARCEL.id;
+}
 
 export function partModel(defId: string): ModelName {
   if (BODY_PARTS.has(defId)) throw new Error(`Part ${defId} is drawn by the truck body and has no model`);
@@ -387,6 +393,7 @@ export function iconCatalog(
   const drafts: IconDraft[] = [
     ...Object.values(parts).map((def) => partDraft(def, picks)),
     ...Object.values(goods).map(goodDraft),
+    parcelDraft(),
     ...Object.values(chassis).map(chassisDraft),
   ];
   checkUniqueIds(drafts);
@@ -413,6 +420,10 @@ function partDraft(def: PartDef, picks: Record<string, WeaponLook>): IconDraft {
 
 function goodDraft(def: GoodDef): IconDraft {
   return { entry: { id: def.id, section: 'good', label: enName(goodName(def.id)), models: [partModel(def.id)], footprint: { w: 1, h: 1 }, weapon: null }, hp: 0 };
+}
+
+function parcelDraft(): IconDraft {
+  return { entry: { id: PARCEL.id, section: 'good', label: enName(t('item.parcel')), models: [partModel(PARCEL.id)], footprint: { w: 1, h: 1 }, weapon: null }, hp: 0 };
 }
 
 const PORTRAIT_MODELS: readonly ModelName[] = ['coilover', 'axle', 'antenna', 'tow_chain'];
