@@ -145,6 +145,7 @@ export class Hud {
   private truckStack = el("div", { class: "truck-stack", "data-drawer-frame": "truck" });
   private stranded = panel("stranded notice", this.truckStack);
   private recenter = panel("recenter", bottomLeft());
+  private healthSlot = el("div", { class: "health-slot" });
   private cameraSwitch = panel("camera-mode", topRight());
   private tips = new Tips(window.localStorage, topCenter(), () => this.toast(t("hud.tipsOff")));
   cameraMode: CameraMode = "auto";
@@ -172,15 +173,6 @@ export class Hud {
 
   markCombat(on: boolean): void {
     this.drawers.mark("guns", on);
-  }
-
-  private arrangeDials(): void {
-    const target = phoneMode() ? this.truckStack : this.top;
-    if (this.speedSlot.parentElement === target) return;
-    if (target === this.top) this.top.prepend(this.speedSlot);
-    else target.append(this.speedSlot);
-    this.top.append(this.clockSlot, this.readoutSlot);
-    target.append(this.actionSlot);
   }
 
   private floorOfInfo(): number {
@@ -228,6 +220,7 @@ export class Hud {
     this.stranded.style.display = "none";
     this.recenter.style.display = "none";
     this.recenter.append(el("button", { onclick: () => actions.recenter() }, t("hud.recenter")));
+    topRight().prepend(this.healthSlot);
     this.showCameraMode();
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
@@ -261,9 +254,17 @@ export class Hud {
     });
   }
 
-  private toggleCameraMode(): void {
+  toggleCameraMode(): void {
     this.cameraMode = this.cameraMode === "auto" ? "centered" : "auto";
     this.showCameraMode();
+  }
+
+  cameraModeLabel(): Msg {
+    return this.cameraMode === "auto" ? t("hud.camAuto") : t("hud.camCentered");
+  }
+
+  openFeedback(): void {
+    this.feedbackForm.open("bug");
   }
 
   private showCameraMode(): void {
@@ -498,7 +499,6 @@ export class Hud {
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
     if (!this.top.firstChild) this.top.append(this.clockSlot, this.speedSlot, this.readoutSlot, this.actionSlot);
-    this.arrangeDials();
     this.renderClock(readout.clock);
     this.renderSpeedometer(readout, busy);
     this.renderReadouts(readout);
@@ -532,6 +532,12 @@ export class Hud {
   }
 
   private renderReadouts(readout: ReturnType<typeof getHudReadout>): void {
+    this.fillReadouts(readout);
+    const health = this.readoutSlot.querySelector('[data-resource="driver"]');
+    this.healthSlot.replaceChildren(...(phoneMode() && health ? [health] : []));
+  }
+
+  private fillReadouts(readout: ReturnType<typeof getHudReadout>): void {
     this.readoutSlot.replaceChildren(
       ...readout.resources.map((resource) =>
         el(

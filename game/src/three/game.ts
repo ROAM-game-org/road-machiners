@@ -323,7 +323,11 @@ export class Game {
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
     const saves = this.saves.menuActions(() => this.world);
-    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch());
+    this.menu = new GameMenu(saves, () => this.anim !== null, () => this.world.setup, this.hud.tipSwitch(), {
+      cameraLabel: () => this.hud.cameraModeLabel(),
+      toggleCamera: () => this.hud.toggleCameraMode(),
+      report: () => this.hud.openFeedback(),
+    });
     this.death = new DeathScreen(saves);
 
     this.bindInput();

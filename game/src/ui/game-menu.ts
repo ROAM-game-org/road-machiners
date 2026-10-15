@@ -1,5 +1,5 @@
 
-import { closeLabel, touchMode } from "./input-mode";
+import { closeLabel, phoneMode, touchMode } from "./input-mode";
 import { ERROR_REPORT_BUILD, ERROR_REPORT_URL, FEEDBACK_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -19,7 +19,9 @@ export type GameMenuActions = SavePanelActions & {
   newGame: NewGameActions;
 };
 
-export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help";
+export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help" | "camera" | "report";
+
+export type PhoneMenuLinks = { cameraLabel: () => Msg; toggleCamera: () => void; report: () => void };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -28,7 +30,11 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "options", label: t("menu.options") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
+  { entry: "camera", label: t("hud.camAuto") },
+  { entry: "report", label: t("hud.feedbackTitle") },
 ];
+
+const PHONE_ENTRIES: MenuEntry[] = ["camera", "report"];
 
 type KeyCap = string | Msg;
 type Control = { keys: KeyCap[]; on?: Msg; does: Msg; needs?: "radio" };
@@ -122,7 +128,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options") return true;
+  if (entry === "help" || entry === "tips" || entry === "options" || entry === "camera" || entry === "report") return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -357,7 +363,7 @@ export class GameMenu {
     if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget)) this.closeList(false);
   };
 
-  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch) {
+  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks) {
     this.help = new HelpPanel(setup);
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {
@@ -381,6 +387,8 @@ export class GameMenu {
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
+    setText(this.items.camera, this.phone.cameraLabel());
+    for (const entry of PHONE_ENTRIES) this.items[entry].hidden = !phoneMode();
   }
 
   private setReason(item: HTMLButtonElement, reason: Msg | null): void {
@@ -399,7 +407,7 @@ export class GameMenu {
   }
 
   private allItems(): HTMLButtonElement[] {
-    return ENTRIES.map((e) => this.items[e.entry]);
+    return ENTRIES.map((e) => this.items[e.entry]).filter((item) => !item.hidden);
   }
 
   private enabledItems(): HTMLButtonElement[] {
@@ -442,7 +450,11 @@ export class GameMenu {
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
-    } else if (entry === "help") this.help.toggle();
+    } else if (entry === "camera") {
+      this.phone.toggleCamera();
+      this.refresh();
+    } else if (entry === "report") this.phone.report();
+    else if (entry === "help") this.help.toggle();
     else this.newGame();
   }
 
