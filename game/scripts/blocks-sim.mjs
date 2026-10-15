@@ -15,8 +15,9 @@ An event at time t lands at t. Combat starts at 0.
 
 Output:
   Blocks: each block with its start, how it joined the one before, the heat when it was chosen, the level trim that keeps it as loud as the median block and the odds behind the choice.
-  Answers: each beat's winning event and what the drum lane did with it. Events that lost their beat are only counted.
-  Summary: bars per role, jumps, guitar pushes and drum fills.
+  Answers: each beat whose winning event was heavy and asked for the lanes. Other events are only counted.
+  Lanes: each run of the guitar and cymbal lanes.
+  Summary: bars per role, jumps and how long each lane was open.
 
 Options:
   --seed <n>          Seed of every random choice. Default 1.
@@ -59,7 +60,7 @@ function parseEvent(token) {
 }
 
 const silentVoice = { fadeOut: () => {}, cut: () => {} };
-const output = { voice: () => silentVoice, fill: () => {}, lean: () => silentVoice };
+const output = { voice: () => silentVoice, lean: () => silentVoice };
 
 function play(session, e) {
   if (e.name === 'dense') session.denseTurn(e.at);
@@ -91,31 +92,26 @@ function printBlocks(session) {
   console.log('Blocks');
   console.log(`  ${pad('start', 8)}  ${pad('block', 12)} ${pad('join', 8)} ${pad('heat', 6)} ${pad('trim', 8)} odds`);
   for (const p of session.played) console.log(`  ${time(p.start)}  ${pad(p.label, 12)} ${pad(p.join, 8)} ${pad(p.heat.toFixed(1), 6)} ${pad(trimText(p.level), 8)} ${p.odds}`);
-  console.log('\nGuitar pushes');
-  for (const l of session.leans) console.log(`  ${time(l.from)} to ${time(l.to)}  from bar ${l.bar}`);
+  console.log('\nLanes');
+  for (const o of session.overlays) console.log(`  ${pad(o.lane, 8)} ${time(o.from)} to ${time(o.to)}  from bar ${o.bar}`);
 }
 
 function printAnswers(session) {
   console.log('\nAnswers');
   const winners = session.fired.filter((f) => f.result !== null);
-  for (const f of winners) {
-    const fills = session.pushes.filter((p) => Math.abs(p.at - f.at) < 1e-6 && p.stab);
-    const fill = fills.length ? `stab, fill from bar ${fills[0].fillBar}` : '';
-    console.log(`  ${time(f.at)}  ${pad(f.cue.replace('accent-', ''), 8)} ${pad(f.result, 8)} ${fill}`);
-  }
-  console.log(`  ${session.fired.length} events, ${winners.length} won their beat, ${session.fired.length - winners.length} only added heat`);
+  for (const f of winners.filter((w) => w.result === 'lanes')) console.log(`  ${time(f.at)}  ${f.cue.replace('accent-', '')} asked for the lanes`);
+  console.log(`  ${session.fired.length} events, ${winners.length} won their beat, ${winners.filter((w) => w.result === 'lanes').length} of them heavy`);
 }
 
 function printSummary(session) {
   const blocks = session.played.filter((p) => p.role !== 'end');
   const bars = {};
   for (const p of blocks) bars[p.role] = (bars[p.role] ?? 0) + p.bars;
-  const stabs = session.pushes.filter((p) => p.stab).length;
+  const seconds = (lane) => session.overlays.filter((o) => o.lane === lane).reduce((sum, o) => sum + o.to - o.from, 0);
   console.log('\nSummary');
   console.log(`  bars per role: ${Object.entries(bars).map(([r, b]) => `${r} ${b}`).join(', ')}`);
   console.log(`  ${blocks.filter((p) => p.join === 'jump').length} jumps in ${blocks.length} blocks`);
-  console.log(`  guitar pushes: ${session.leans.length}`);
-  console.log(`  drum fills: ${stabs} stabs and ${session.pushes.length - stabs} tail hits`);
+  for (const lane of ['guitars', 'cymbals']) console.log(`  ${lane}: open ${seconds(lane).toFixed(1)} s in ${session.overlays.filter((o) => o.lane === lane).length} runs`);
 }
 
 const session = run(parseArgs(process.argv.slice(2)));

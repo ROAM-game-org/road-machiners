@@ -1,5 +1,6 @@
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import numpy as np
 
 BEATS_PER_BAR = 4
 KICK_HZ = 120
+CYMBAL_HZ = 5000
 STEMS = {"drums": "drums.wav", "guitars": "other.wav"}
 
 
@@ -58,6 +60,21 @@ def bar_power(song_path, guitars_path, bars):
     return out
 
 
+def cymbals(drums_path, out, bars, sections, song_path):
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", drums_path, "-af", f"highpass=f={CYMBAL_HZ},highpass=f={CYMBAL_HZ}", str(out)], check=True)
+    cym, sr = librosa.load(str(out), sr=None, mono=True)
+    song, _ = librosa.load(song_path, sr=sr, mono=True)
+    span = lambda y, s: y[int(bars[s["from"] - 1] * sr) : int(bars[s["from"] - 1 + s["bars"]] * sr)]
+    walls = [s for s in sections if s["role"] == "wall"]
+    loudest = max(walls, key=lambda s: float(np.mean(span(cym, s) ** 2)))
+    for s in sections:
+        a, c = span(song, s), span(cym, s)
+        lift = 10 * np.log10(np.mean((a + c) ** 2) / np.mean(a**2))
+        print(f"{s['role']} {s['from']}: cymbals {10 * np.log10(np.mean(c ** 2)):.1f} dB, a same-strength layer lifts the mix {lift:.1f} dB")
+    print(f"cymbals come from the wall at bar {loudest['from']}")
+    return {"file": out.name, "from": loudest["from"]}
+
+
 def main(map_path, song_path, stems_dir, out_dir):
     plan = json.loads(Path(map_path).read_text())
     out = Path(out_dir)
@@ -67,7 +84,8 @@ def main(map_path, song_path, stems_dir, out_dir):
     for name, stem in STEMS.items():
         shutil.copy(f"{stems_dir}/{stem}", out / f"{name}.wav")
     power = bar_power(song_path, f"{stems_dir}/{STEMS['guitars']}", bars)
-    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
+    cymbal = cymbals(f"{stems_dir}/{STEMS['drums']}", out / "cymbals.wav", bars, plan["sections"], song_path)
+    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in STEMS}, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
     print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections and stems {', '.join(STEMS)}")
 
