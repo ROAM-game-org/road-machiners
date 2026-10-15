@@ -21,7 +21,8 @@ import {
   formatVehicleState,
   type LogLine,
 } from "./format";
-import { bugReportUrl, featureRequestUrl, getHudReadout, getRescueReadout, overdriveSwitch, versionLabel, type RescueReadout, type TipLine } from "./hud-readout";
+import { FeedbackForm, type FeedbackKind } from "./game-menu";
+import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
 import { createIcon, createSpeedDial } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
@@ -35,10 +36,10 @@ import { ENGINE_HEAT } from "../data/wear";
 import type { RadioPanel } from "./radio";
 import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
-import { bindAttr, say, setText } from "../text/language";
+import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
 import { isMet, type Contract } from "../sim/market";
-import { driverName, factionName, setupText, templateName, vehicleTitle } from "../text/names";
+import { driverName, factionName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
   | { kind: 'aid'; id: string }
@@ -134,6 +135,7 @@ export class Hud {
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
   private feedback = panel("feedback", topLeft());
+  private feedbackForm = new FeedbackForm((text) => this.toast(text));
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
@@ -198,16 +200,16 @@ export class Hud {
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyV" && !isBrowserChord(e) && !document.activeElement?.matches("input, select, textarea")) this.toggleCameraMode();
     });
-    const setup = say(setupText(this.actions.dialogue.world().setup));
     const feedbackMenu = el("details", {});
-    const feedbackLink = (href: string, text: Msg) =>
+    const feedbackEntry = (kind: FeedbackKind, text: Msg) =>
       el(
-        "a",
+        "button",
         {
-          href,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          onclick: () => feedbackMenu.removeAttribute("open"),
+          class: "btn-s",
+          onclick: () => {
+            feedbackMenu.removeAttribute("open");
+            this.feedbackForm.open(kind);
+          },
         },
         text,
       );
@@ -217,8 +219,8 @@ export class Hud {
         { title: t("hud.feedbackTitle"), "aria-label": t("hud.feedbackTitle") },
         t("hud.feedbackMark"),
       ),
-      feedbackLink(bugReportUrl(`${versionLabel()}, ${setup}`), t("hud.reportBug")),
-      feedbackLink(featureRequestUrl(), t("hud.requestFeature")),
+      feedbackEntry("bug", t("hud.reportBug")),
+      feedbackEntry("idea", t("hud.requestFeature")),
     );
     this.feedback.append(feedbackMenu);
     window.addEventListener("keydown", (e) => {

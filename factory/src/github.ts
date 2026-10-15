@@ -5,7 +5,7 @@ import type { Card, Column, FactoryConfig, FingerprintIssue, GitHub, Issue, Issu
 const ISSUE_FIELDS = 'number,title,body,labels,createdAt,state,author';
 
 type Board = { projectId: string; fieldId: string; options: Record<string, string> };
-type RawIssue = Omit<Issue, 'labels' | 'thumbsUp' | 'author'> & { labels: { name: string }[]; author: { login: string } };
+type RawIssue = Omit<Issue, 'labels' | 'author'> & { labels: { name: string }[]; author: { login: string } };
 type Vars = Record<string, string | number>;
 
 type BoardData = {
@@ -22,14 +22,12 @@ const ITEMS_QUERY = `query($project: ID!, $cursor: String) { node(id: $project) 
 
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
-    reactions(content: THUMBS_UP, first: 100) { pageInfo { hasNextPage } nodes { user { login } } }
     projectItems(first: 20) { nodes { project { id } } } } } } }`;
 
 type CandidateNode = {
   number: number; title: string; body: string; createdAt: string; state: Issue['state']; author: { login: string } | null;
   labels: { nodes: { name: string }[] };
   projectItems: { nodes: { project: { id: string } }[] };
-  reactions: { pageInfo: { hasNextPage: boolean }; nodes: { user: { login: string } | null }[] };
 };
 
 type CandidatesPage = {
@@ -59,7 +57,9 @@ const TAG_EXISTS = /a release with the same tag name already exists/;
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
-type ClientConfig = Pick<FactoryConfig, 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
+type RawComment = { login: string; body: string; createdAt: string; appId: number | null };
+
+type ClientConfig = Pick<FactoryConfig, 'githubAppId' | 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
 
 export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHub {
   const repo = cfg.repo;
@@ -101,13 +101,8 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     repoLabels.add(label);
   }
 
-  async function thumbsUp(number: number): Promise<string[]> {
-    return lines(['api', `repos/${repo}/issues/${number}/reactions`, '--paginate',
-      '--jq', '.[] | select(.content == "+1") | .user.login']);
-  }
-
-  async function fill(raw: RawIssue): Promise<Issue> {
-    return { ...raw, author: raw.author.login, labels: raw.labels.map((label) => label.name), thumbsUp: await thumbsUp(raw.number) };
+  function fill(raw: RawIssue): Issue {
+    return { ...raw, author: raw.author.login, labels: raw.labels.map((label) => label.name) };
   }
 
   async function candidates(labels: string[]): Promise<Issue[]> {
@@ -184,8 +179,11 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     issue,
     async comments(number): Promise<IssueComment[]> {
       const rows = await lines(['api', `repos/${repo}/issues/${number}/comments`, '--paginate',
-        '--jq', '.[] | {login: .user.login, body: .body, createdAt: .created_at}']);
-      return rows.map((row) => JSON.parse(row) as IssueComment);
+        '--jq', '.[] | {login: .user.login, body: .body, createdAt: .created_at, appId: .performed_via_github_app.id}']);
+      return rows.map((row) => {
+        const { appId, ...comment } = JSON.parse(row) as RawComment;
+        return { ...comment, byFactory: appId !== null && String(appId) === cfg.githubAppId };
+      });
     },
     async comment(number, body) {
       await gh(['issue', 'comment', String(number), '-R', repo, '--body', `${body}\n\n${FACTORY_MARK}`]);
@@ -271,11 +269,9 @@ function graphqlArgs(query: string, vars: Vars): string[] {
 }
 
 function toIssue(node: CandidateNode): Issue {
-  if (node.reactions.pageInfo.hasNextPage) throw new Error(`Issue ${node.number} has over 100 thumbs-up, and intake reads only the first 100`);
   return {
     number: node.number, title: node.title, body: node.body, createdAt: node.createdAt, state: node.state,
     author: node.author?.login ?? 'ghost', labels: node.labels.nodes.map((label) => label.name),
-    thumbsUp: node.reactions.nodes.flatMap((reaction) => reaction.user ? [reaction.user.login] : []),
   };
 }
 

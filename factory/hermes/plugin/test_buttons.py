@@ -44,7 +44,7 @@ def press(tmp_path, query, state=None):
     state_dir.mkdir(exist_ok=True)
     if state is not None:
         (state_dir / "state.json").write_text(json.dumps(state))
-    cfg = plugin.Config(str(tmp_path), str(state_dir), "-100", FakeCommittee())
+    cfg = plugin.Config(str(tmp_path), str(state_dir), "-100", FakeCommittee(), "-200", "-300", "/pub")
     handler = plugin.make_button_handler(cfg)
     asyncio.run(handler(SimpleNamespace(callback_query=query), None))
     return [json.loads(f.read_text()) for f in sorted(tmp_path.glob("*.json"))]
@@ -152,6 +152,6 @@ def test_factory_registers_scoped_handler(monkeypatch):
     ext = SimpleNamespace(CallbackQueryHandler=lambda callback, pattern: ("cqh", callback, pattern))
     monkeypatch.setitem(sys.modules, "telegram", telegram)
     monkeypatch.setitem(sys.modules, "telegram.ext", ext)
-    cfg = plugin.Config("/inbox", "/state", "-100", FakeCommittee())
+    cfg = plugin.Config("/inbox", "/state", "-100", FakeCommittee(), "-200", "-300", "/pub")
     plugin.make_button_factory(cfg)(SimpleNamespace(add_handler=added.append), None)
     assert added[0][0] == "cqh" and added[0][2] == plugin.BUTTON_PATTERN

@@ -129,7 +129,7 @@ it("reports a worker error event and still posts the next request", () => {
   const plans = new PlanPreparation();
   plans.request(world, drive, world.player.vehicleId);
   const worker = TestWorker.latest;
-  worker.onerror?.({ message: "boom" } as ErrorEvent);
+  worker.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
   expect(reportError).toHaveBeenCalledWith(new Error("Preview worker failed: boom"));
   plans.request(moved(), drive, world.player.vehicleId);
   expect(worker.requests).toHaveLength(2);

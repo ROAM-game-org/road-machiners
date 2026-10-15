@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest a change to the game. Thumbs-up votes decide what the factory builds.
+description: Suggest a change to the game. Triage builds small improvements at once and puts new features to a player vote in the Telegram channel.
 labels: [feature-request]
 body:
   - type: textarea

@@ -25,6 +25,8 @@ export const SCREENS: Translation<typeof EN> = {
   'boot.failed': 'сбой',
   'boot.counted': '{label} ({done} из {total})',
   'boot.stepFailed': '{label}: сбой',
+  'boot.unreachable': 'Файлы игры не дошли. Проверьте подключение.',
+  'boot.retry': 'Повторить',
   'boot.failedToLoad': 'Игра не загрузилась. Проверьте подключение и перезагрузите страницу.',
   'save.slot.auto': 'Автосохранение',
   'save.slot.day': 'Начало дня',

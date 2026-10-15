@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { drawsOwnBumpers } from '../../render/partLooks';
 import { CHASSIS } from '../../data/chassis';
+import { PARTS } from '../../data/parts';
 import { wheelMounts } from '../../phys/body';
 import { bodyOf, cellRect, highestUnder } from '../../sim/body';
 import { makePart } from '../../sim/factory';
 import { baseGrid, itemCells, placementError } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
-import type { GridItem, Vehicle } from '../../sim/types';
+import type { GridItem, Rot, Vehicle } from '../../sim/types';
 import { loadModels } from './models';
 import { hidesInside, VehicleView } from './vehicle';
 
@@ -72,6 +73,41 @@ function withCaltropsAt(chassisId: string, x: number, y: number): { v: Vehicle; 
   return { v, caltrops };
 }
 
+type Placed = { defId: string; x: number; y: number; rot: Rot };
+
+function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: PartItem[] } {
+  const w = emptyWorld();
+  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const items = placed.map((p, i): PartItem => ({ id: `i-${p.defId}-${i}`, x: p.x, y: p.y, rot: p.rot, kind: 'part', part: makePart(w, p.defId, 0) }));
+  return { v, items };
+}
+
+const REPORTED_BUGGY: Placed[] = [
+  { defId: 'panniers', x: 1, y: 3, rot: 0 },
+  { defId: 'caltrops', x: 2, y: 3, rot: 0 },
+  { defId: 'mg', x: 1, y: 4, rot: 1 },
+  { defId: 'plowRam', x: 1, y: 7, rot: 0 },
+  { defId: 'plowRam', x: 1, y: 0, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
+  { defId: 'workhorseDiesel', x: 2, y: 1, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 3, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 3, rot: 0 },
+  { defId: 'panniers', x: 4, y: 7, rot: 0 },
+];
+
+const ALWAYS_DRAWN_KINDS = new Set(['weapon', 'armor', 'engine', 'core']);
+
+function hiddenSingleCellDefs(): string[] {
+  return Object.values(PARTS)
+    .filter((def) => def.w === 1 && def.h === 1 && !ALWAYS_DRAWN_KINDS.has(def.kind))
+    .map((def) => def.id);
+}
+
 function rimCells(chassisId: string): { x: number; y: number }[] {
   const grid = baseGrid(chassisId);
   return grid.cells.flatMap((row, y) => row.flatMap((cell, x) => (cell === 'F' || cell === 'B' ? [{ x, y }] : [])));
@@ -94,6 +130,35 @@ describe('parts on bare nose and tail cells', () => {
         if (placementError(baseGrid(chassisId), v.items, caltrops, null)) continue;
         v.items.push(caltrops);
         expect(() => new VehicleView(v, true), `${chassisId} ${cell.x},${cell.y}`).not.toThrow();
+      }
+    }
+  });
+
+  it('builds the reported buggy with panniers on its bare tail cell', () => {
+    const { v, items } = withParts('buggy', REPORTED_BUGGY);
+    const grid = baseGrid('buggy');
+    for (const item of items) {
+      expect(placementError(grid, v.items, item, null), `${item.part.defId} ${item.x},${item.y}`).toBeNull();
+      v.items.push(item);
+    }
+    const tailPanniers = items[items.length - 1];
+    expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('B');
+    let view: VehicleView | undefined;
+    expect(() => { view = new VehicleView(v, true); }).not.toThrow();
+    expect(view!.hasPart(tailPanniers.part.id)).toBe(true);
+  });
+
+  it('builds the buggy view for every hidden 1x1 part kind on every legal nose and tail cell', () => {
+    const defs = hiddenSingleCellDefs();
+    expect(defs.length).toBeGreaterThan(0);
+    for (const defId of defs) {
+      for (const cell of rimCells('buggy')) {
+        const { v, items: [item] } = withParts('buggy', [{ defId, x: cell.x, y: cell.y, rot: 0 }]);
+        if (placementError(baseGrid('buggy'), v.items, item, null)) continue;
+        v.items.push(item);
+        let view: VehicleView | undefined;
+        expect(() => { view = new VehicleView(v, true); }, `${defId} ${cell.x},${cell.y}`).not.toThrow();
+        expect(view!.hasPart(item.part.id), `${defId} ${cell.x},${cell.y}`).toBe(true);
       }
     }
   });
