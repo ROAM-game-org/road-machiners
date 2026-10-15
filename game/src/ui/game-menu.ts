@@ -161,7 +161,7 @@ export type FeedbackKind = "bug" | "idea";
 
 export type FeedbackReport = { kind: FeedbackKind; text: string; build: string; context: ReportContext };
 
-export type FeedbackResult = { status: "sent" } | { status: "failed" };
+export type FeedbackResult = { status: "sent" } | { status: "failed" } | { status: "limited"; minutes: number | null };
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -172,8 +172,29 @@ export function feedbackBuild(releaseFlag: string, pathname: string): string {
 
 const isSent = (body: unknown): boolean => typeof body === "object" && body !== null && (body as { status?: unknown }).status === "sent";
 
+const RATE_LIMITED = 429;
+
+function limitMinutes(body: unknown): number | null {
+  const seconds = typeof body === "object" && body !== null ? (body as { retryAfterSeconds?: unknown }).retryAfterSeconds : undefined;
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds / 60) : null;
+}
+
+async function limitedResult(response: Response): Promise<FeedbackResult> {
+  const body: unknown = await response.json().catch(() => null);
+  return { status: "limited", minutes: limitMinutes(body) };
+}
+
+async function resultOf(response: Response): Promise<FeedbackResult> {
+  if (response.status === RATE_LIMITED) return limitedResult(response);
+  if (!response.ok) return { status: "failed" };
+  const body: unknown = await response.json();
+  return isSent(body) ? { status: "sent" } : { status: "failed" };
+}
+
 export function feedbackStatus(result: FeedbackResult): Msg {
-  return result.status === "sent" ? t("feedback.sent") : t("feedback.failed");
+  if (result.status === "sent") return t("feedback.sent");
+  if (result.status === "failed") return t("feedback.failed");
+  return result.minutes === null ? t("feedback.limitedLater") : t("feedback.limited", { n: result.minutes });
 }
 
 export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
@@ -181,9 +202,7 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
   if (report.text.length > FEEDBACK_TEXT_LIMIT) throw new Error(`Feedback text is over ${FEEDBACK_TEXT_LIMIT} characters`);
   try {
     const response = await post(url, { method: "POST", headers: { "content-type": "application/gzip" }, body: await gzip(JSON.stringify(report)) });
-    if (!response.ok) return { status: "failed" };
-    const body: unknown = await response.json();
-    return isSent(body) ? { status: "sent" } : { status: "failed" };
+    return await resultOf(response);
   } catch {
     return { status: "failed" };
   }

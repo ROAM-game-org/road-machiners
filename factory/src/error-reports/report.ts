@@ -32,6 +32,12 @@ export class Rejected extends Error {
   }
 }
 
+export class RateLimited extends Rejected {
+  constructor(readonly resetAt: Date) {
+    super('feedback-rate', 429, 'Too many reports from this address this hour.');
+  }
+}
+
 const BUILDS: readonly string[] = ['release', 'dev', 'candidate'];
 const VERSION = /^\d+\.\d+\.\d+\+([0-9a-f]{7,40})$/;
 const LANGUAGE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,3}$/;
