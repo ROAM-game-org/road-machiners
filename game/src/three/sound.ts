@@ -149,19 +149,6 @@ function plainAccent(struck: boolean, mine: boolean): AccentCue | null {
   return struck ? "accent-struck" : null;
 }
 
-export type CombatSigns = { sighted: boolean };
-
-export class CombatWatch {
-  private seen = new Map<string, number>();
-
-  observe(turn: number, hostiles: string[]): CombatSigns {
-    const sighted = hostiles.some((id) => (this.seen.get(id) ?? -Infinity) < turn - 1);
-    for (const [id, last] of this.seen) if (last < turn - 1) this.seen.delete(id);
-    for (const id of hostiles) this.seen.set(id, turn);
-    return { sighted };
-  }
-}
-
 export class SoundDirector {
   readonly log: string[] = [];
 
