@@ -12,9 +12,7 @@ import { token } from "../ui/tokens";
 const STEMS: Record<BandPart, { file: string; phase: number; gain: number }> = {
   drums: { file: "/tmp/band/stems/drums.wav", phase: 0.176, gain: 1 },
   bass: { file: "/tmp/band/stems/bass.wav", phase: 0.176, gain: 1 },
-  riff: { file: "/tmp/band/stems/riff.wav", phase: 0.172, gain: 1 },
-  keys: { file: "/tmp/band/stems/keys.wav", phase: 0, gain: 0.5 },
-};
+  riff: { file: "/tmp/band/stems/riff.wav", phase: 0.172, gain: 1 },};
 const BARS_PER_LOOP = 8;
 const START_LEAD_SECONDS = 0.1;
 const PLAN_AHEAD_SECONDS = 0.2;
