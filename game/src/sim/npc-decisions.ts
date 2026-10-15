@@ -319,7 +319,7 @@ export function hasSaleCargo(vehicle: Vehicle): boolean {
 function afterSale(vehicle: Vehicle): Vehicle {
   const mounted = new Set(mountedParts(vehicle).map((part) => part.id));
   let reserve = NPC_UPKEEP.repairParts;
-  const kept = vehicle.items.filter((it) => (it.kind === 'part' ? mounted.has(it.part.id) : it.good === 'parts' && reserve-- > 0));
+  const kept = vehicle.items.filter((it) => (it.kind === 'part' ? mounted.has(it.part.id) : it.kind === 'good' && it.good === 'parts' && reserve-- > 0));
   return { ...vehicle, items: kept };
 }
 

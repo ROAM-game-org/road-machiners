@@ -9,6 +9,8 @@ import { defaultSetup } from './settings';
 import { inOverdrive, maxSpeedSteps } from './stats';
 import { inCombat } from './combat';
 import { haulerOf, playerVehicle } from './damage';
+import { sightRadius } from './vision';
+import { dist } from './vec';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, toRoad, WINDOW_SHIFT } from './highway';
@@ -20,7 +22,7 @@ import { addState, stateOf } from './states';
 import { furyRoadWorld } from './testkit';
 import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
 import { heightAt } from './terrain';
-import { endTurn, newWorld } from './world';
+import { cloneWorld, endTurn, newWorld } from './world';
 
 function runOf(w: World): FuryRoadRun {
   if (!w.furyRoad) throw new Error('No run');
@@ -152,6 +154,104 @@ describe('the sides a group comes from', () => {
   });
 });
 
+describe('spawning out of the gun truck sight', () => {
+  function placeGunTruck(w: World, n: number, across: number): void {
+    const me = playerVehicle(w);
+    me.pos = roadPoint(w.seed, runOf(w).window, n, across);
+    me.speed = 0;
+  }
+
+  function reach(w: World): number {
+    return sightRadius(w, playerVehicle(w), true) + FURY_ROAD.sightMargin;
+  }
+
+  const CASES = [
+    { from: 'ahead', lead: 8, across: HIGHWAY.road.lanes[2] },
+    { from: 'left', lead: 0, across: -15 },
+    { from: 'right', lead: 0, across: 15 },
+  ] as const;
+
+  it.each(CASES)('puts a group from $from beyond the sight of a gun truck', ({ from, lead, across }) => {
+    for (const rank of [0, 5]) {
+      const w = furyRoadWorld();
+      w.player.ranks.perception = rank;
+      moveTo(w, milestoneAt(0) + 120);
+      placeGunTruck(w, milestoneAt(0) + 120 + lead, across);
+      const first = group(w);
+      first.from = from;
+      first.templates = ['buggy', 'trader', 'merc'];
+
+      spawnGroup(w, runOf(w), first, alongOf(w.seed, toRoad(0, haulerOf(w).pos)));
+
+      expect(first.vehicles).toHaveLength(3);
+      for (const v of trucksOf(w, first)) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThan(reach(w));
+    }
+  });
+
+  it('waits with no failure clock while every spot is in sight, then spawns when one is not', () => {
+    const w = furyRoadWorld();
+    moveTo(w, milestoneAt(0) + 120);
+    const first = group(w);
+    first.from = 'ahead';
+    placeGunTruck(w, milestoneAt(0) + 120 + FURY_ROAD.sides.ahead, HIGHWAY.road.lanes[1]);
+    quietUntilDue(w);
+    for (let i = 0; i < FURY_ROAD.spawnRetryTurns + 5; i++) {
+      advanceFuryRoad(w);
+      w.turn += 1;
+    }
+    expect(first.spawned).toBe(false);
+    expect(first.retryUntil).toBeNull();
+
+    placeGunTruck(w, milestoneAt(0) + 120, HIGHWAY.road.lanes[2]);
+    advanceFuryRoad(w);
+
+    expect(first.spawned).toBe(true);
+  });
+
+  it('throws after the retry turns when no free spot exists even with sight ignored', () => {
+    const w = furyRoadWorld();
+    moveTo(w, milestoneAt(0) + 120);
+    const first = group(w);
+    first.from = 'ahead';
+    w.size = 2;
+    quietUntilDue(w);
+    expect(() => {
+      for (let i = 0; i < FURY_ROAD.spawnRetryTurns + 2; i++) {
+        advanceFuryRoad(w);
+        w.turn += 1;
+      }
+    }).toThrow(/no free lane spot/);
+  });
+
+  it('clears a running failure clock once the only blocker is sight', () => {
+    const w = furyRoadWorld();
+    moveTo(w, milestoneAt(0) + 120);
+    const first = group(w);
+    first.from = 'ahead';
+    placeGunTruck(w, milestoneAt(0) + 120 + FURY_ROAD.sides.ahead, HIGHWAY.road.lanes[1]);
+    first.retryUntil = w.turn + FURY_ROAD.spawnRetryTurns;
+    quietUntilDue(w);
+    advanceFuryRoad(w);
+
+    expect(first.spawned).toBe(false);
+    expect(first.retryUntil).toBeNull();
+  });
+
+  it('starts the quiet clock when a group spawns, so the next group waits', () => {
+    const w = furyRoadWorld();
+    const first = spawnFirst(w);
+    const turn = w.turn;
+
+    expect(first.spawned).toBe(true);
+    expect(runOf(w).quietFrom).toBe(turn);
+    for (let i = 1; i < FURY_ROAD.pacing.quiet; i++) {
+      w.turn = turn + i;
+      advanceFuryRoad(w);
+      expect(groupTrucks(w), `turn ${w.turn}`).toHaveLength(first.vehicles.length);
+    }
+  });
+});
+
 describe('the pace of encounters', () => {
   it('holds the first group of a level for twenty quiet turns', () => {
     let w = furyRoadWorld();
@@ -209,7 +309,12 @@ describe('the pace of encounters', () => {
     for (const g of run.groups) {
       quietUntilDue(w);
       advanceFuryRoad(w);
-      for (const v of trucksOf(w, g)) v.pos = { x: v.pos.x, y: v.pos.y + 2 * FURY_ROAD.pacing.near };
+      for (const v of trucksOf(w, g)) {
+        const away = haulerOf(w).pos;
+        const gap = dist(v.pos, away);
+        const push = (3 * FURY_ROAD.pacing.near) / gap;
+        v.pos = { x: away.x + (v.pos.x - away.x) * (1 + push), y: away.y + (v.pos.y - away.y) * (1 + push) };
+      }
       run.quietFrom = -FURY_ROAD.pacing.quiet;
     }
     const late = { ...run.groups[0], id: 'late', spawned: false, vehicles: [], engaged: [], templates: ['buggy'] };
@@ -416,7 +521,7 @@ describe('arriving at an outpost', () => {
     const group = spawnFirst(w);
     for (const v of w.vehicles) if (group.vehicles.includes(v.id)) v.pos = { x: v.pos.x + 100, y: v.pos.y };
     w.states = w.states.filter((s) => s.kind !== 'combat');
-    const passing = structuredClone(w);
+    const passing = cloneWorld(w);
     moveTo(passing, milestoneAt(1) - 10);
 
     const after = arrive(w);

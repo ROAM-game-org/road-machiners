@@ -22,7 +22,7 @@ import {
 import { chooseNpcRepair, continueNpcRepair, isDamaged, isStrandedForGood, repairsHere, resolveNpcRepair } from './npc-repair';
 import { getResources } from './resources';
 import { standingPressures } from './market';
-import { remember } from './memory';
+import { remember, rememberSightings } from './memory';
 import { chance, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
@@ -476,12 +476,12 @@ const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   loot: lootInvalid,
   tow: towInvalid,
   patch: patchInvalid,
-  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
+  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
 };
 
 const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
-const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'aid'];
+const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];
 const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {
@@ -883,6 +883,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   const { seen, contacts } = npcSenses(world, vehicle);
   forget(world, vehicle, contacts);
   senseTracks(world, vehicle, seen, contacts);
+  rememberSightings(world, vehicle, seen);
   pruneAttackers(world, vehicle);
   forgetFullHold(world, vehicle);
   breakOffDeals(world, vehicle);
