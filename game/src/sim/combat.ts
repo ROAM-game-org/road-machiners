@@ -1027,8 +1027,13 @@ function clearOldWrecks(world: World): void {
 
 function canNpcEngage(world: World, v: Vehicle, target: Vehicle): boolean {
   if (!v.brain) return true;
+  if (target.faction === 'player' && isGroupTruck(world, v)) return true;
   if (target.id in v.brain.attackers && !robs(world, v, target)) return true;
   return opensFireOn(v.brain.goals, target);
+}
+
+function isGroupTruck(world: World, v: Vehicle): boolean {
+  return world.furyRoad !== null && world.furyRoad.groups.some((g) => g.vehicles.includes(v.id));
 }
 
 function robs(world: World, v: Vehicle, target: Vehicle): boolean {

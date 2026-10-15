@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
-import { assignAutoOrders, noteCollision } from './combat';
+import { assignAutoOrders, inCombat, noteCollision } from './combat';
 import { damagePart } from './damage';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { isDefeated } from './defeat';
@@ -69,17 +69,50 @@ describe('winning a stretch', () => {
 });
 
 describe('who a group truck shoots', () => {
-  it('fires only at the hauler while the player leaves it alone', () => {
+  it('fires at the nearer player truck in its sights, and keeps driving at the hauler', () => {
     const w = furyRoadWorld();
     const truck = spawnOne(w);
     nearBoth(w, truck);
+    const hauler = haulerOf(w);
+    const me = playerVehicle(w);
+    me.pos = { x: (truck.pos.x + hauler.pos.x) / 2, y: (truck.pos.y + hauler.pos.y) / 2 };
     assignAutoOrders(w);
-
     const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
     expect(targets.length).toBeGreaterThan(0);
-    expect(new Set(targets)).toEqual(new Set([haulerOf(w).id]));
+    expect(new Set(targets)).toEqual(new Set([me.id]));
     expect(hostileToPlayer(w, truck)).toBe(true);
     expect(turnedOnPlayer(w, truck)).toBe(false);
+    advanceFuryRoad(w);
+    expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: hauler.id });
+  });
+
+  it('fires at the hauler when it is the nearer player truck', () => {
+    const w = furyRoadWorld();
+    const truck = spawnOne(w);
+    nearBoth(w, truck);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    truck.pos = { x: hauler.pos.x + 2, y: hauler.pos.y - 6 };
+    me.pos = { x: hauler.pos.x + 2, y: hauler.pos.y + 14 };
+    assignAutoOrders(w);
+    const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(new Set(targets)).toEqual(new Set([hauler.id]));
+  });
+
+  it('a shot at the gun truck puts it in combat while it never fired', () => {
+    const w = furyRoadWorld();
+    const truck = spawnOne(w);
+    nearBoth(w, truck);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    me.pos = { x: (truck.pos.x + hauler.pos.x) / 2, y: (truck.pos.y + hauler.pos.y) / 2 };
+    w.player.autoFire = false;
+    expect(inCombat(w, me)).toBe(false);
+    let now = w;
+    for (let i = 0; i < 6 && !inCombat(now, playerVehicle(now)); i++) now = endTurn(now, still);
+    expect(inCombat(now, playerVehicle(now))).toBe(true);
+    expect(now.events.some((e) => e.t === 'shot' && e.shooter === playerVehicle(now).id)).toBe(false);
   });
 
   it('turns on the player once the player shoots it, then goes back to the hauler when the player leaves its sight', () => {
