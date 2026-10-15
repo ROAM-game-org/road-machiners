@@ -27,7 +27,7 @@ function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
   let drive: Drive = buildDrive(w);
   let speed = 0;
   for (let turn = 0; turn < TURNS; turn++) {
-    const along = alongOf(SEED, toRoad(0, playerVehicle(w).pos));
+    const along = alongOf(SEED, toRoad(SEED, 0, playerVehicle(w).pos));
     w = setMoveOrder(w, { kind: 'through', dest: roadPoint(SEED, 0, along + 30, offset) });
     let next: Drive | null = null;
     w = endTurn(w, physicsMove(drive, (r) => (next = r.next)));

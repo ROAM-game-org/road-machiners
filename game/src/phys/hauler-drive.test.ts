@@ -39,7 +39,7 @@ function haulerRun(seed: number): { w: World; turns: number; stalls: number; wid
     stalls += w.events.filter((e) => e.t === 'stall').length;
     freeDrive(drive);
     drive = result!.next;
-    widest = Math.max(widest, Math.abs(acrossOf(seed, toRoad(0, haulerOf(w).pos))));
+    widest = Math.max(widest, Math.abs(acrossOf(seed, toRoad(seed, 0, haulerOf(w).pos))));
   }
   freeDrive(drive);
   return { w, turns, stalls, widest };
@@ -104,7 +104,7 @@ function escortedRun(seed: number, turns: number): { grounded: number; stalls: n
   let grounded = 0;
   let stalls = 0;
   for (let turn = 0; turn < turns; turn++) {
-    const at = toRoad(0, haulerOf(w).pos);
+    const at = toRoad(seed, 0, haulerOf(w).pos);
     const spot = roadPoint(seed, 0, alongOf(seed, at) + ESCORT_BESIDE.ahead, acrossOf(seed, at) + ESCORT_BESIDE.across);
     playerVehicle(w).order = { kind: 'through', dest: spot, pace: 6 };
     let result: TurnResult | null = null;
@@ -116,7 +116,7 @@ function escortedRun(seed: number, turns: number): { grounded: number; stalls: n
     drive = result!.next;
   }
   freeDrive(drive);
-  return { grounded, stalls, farthest: alongOf(seed, toRoad(0, haulerOf(w).pos)) };
+  return { grounded, stalls, farthest: alongOf(seed, toRoad(seed, 0, haulerOf(w).pos)) };
 }
 
 it('keeps the hauler out of the craters of stretch 1 with the gun truck riding beside it', () => {
@@ -172,7 +172,7 @@ it('threads a checkpoint that blocks every lane from the outer lane, with no hit
   freeDrive(drive);
   expect(hits).toBe(0);
   expect(stalls).toBe(0);
-  expect(alongOf(CHECKPOINT_SEED, toRoad(stretch - 1, haulerOf(w).pos))).toBeGreaterThan(checkpoint.to + 40);
+  expect(alongOf(CHECKPOINT_SEED, toRoad(CHECKPOINT_SEED, stretch - 1, haulerOf(w).pos))).toBeGreaterThan(checkpoint.to + 40);
 }, budget(300_000));
 
 const WEDGE_SEED = 1;

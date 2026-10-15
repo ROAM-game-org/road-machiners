@@ -23,7 +23,7 @@ function spawned(w: World, templates: string[], stretch: number): Vehicle[] {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], stretch, from: 'ahead' as const, templates, level: waveOf(stretch).level, money: FURY_ROAD.cards[templates[0]].floor, elite: false };
   run.groups = [group];
-  spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
+  spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
   return group.vehicles.map((id) => w.vehicles.find((v) => v.id === id)!);
 }
 
@@ -61,11 +61,11 @@ describe('Chaos Highway waves', () => {
   it('sends a blocker card only from ahead and a chasing card from any side', () => {
     const blocker = BLOCKERS[0];
     const chaser = CHASERS[0];
-    const wave = (template: string, i: number) => ({ at: milestoneAt(5) + 40 * (i + 1), template, size: 2, money: 45000, elite: false });
+    const waves = (seed: number, template: string) => [0, 1, 2, 3].map((i) => ({ at: milestoneAt(seed, 5) + 40 * (i + 1), template, size: 2, money: 45000, elite: false }));
     for (const seed of [1, 2, 3, 4, 5]) {
-      expect(planStretch(seed, 6, [0, 1, 2, 3].map((i) => wave(blocker, i))).every((g) => g.from === 'ahead'), `seed ${seed}`).toBe(true);
+      expect(planStretch(seed, 6, waves(seed, blocker)).every((g) => g.from === 'ahead'), `seed ${seed}`).toBe(true);
     }
-    const sides = new Set([1, 2, 3, 4, 5].flatMap((seed) => planStretch(seed, 6, [0, 1, 2, 3].map((i) => wave(chaser, i))).map((g) => g.from)));
+    const sides = new Set([1, 2, 3, 4, 5].flatMap((seed) => planStretch(seed, 6, waves(seed, chaser)).map((g) => g.from)));
     expect(sides.size).toBeGreaterThan(1);
   });
 
@@ -82,7 +82,7 @@ describe('Chaos Highway waves', () => {
     const run = w.furyRoad!;
     const rivalGroup = { ...run.groups[0], id: 'g1-rival', templates: ['courier'], vehicles: [], spawned: false };
     run.groups.push(rivalGroup);
-    spawnGroup(w, run, rivalGroup, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
+    spawnGroup(w, run, rivalGroup, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
     const rival = w.vehicles.find((v) => v.id === rivalGroup.vehicles[0])!;
     expect(raider.faction).not.toBe(rival.faction);
     expect(isHostile(w, raider, rival)).toBe(false);
@@ -117,7 +117,7 @@ describe('Chaos Highway rolling start', () => {
     prey.speed = 4;
     const window = w.furyRoad!.window;
     const at = (gap: number) => {
-      truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(window, prey.pos)) + gap, 0);
+      truck.pos = roadPoint(w.seed, window, alongOf(w.seed, toRoad(w.seed, window,prey.pos)) + gap, 0);
       return rollingOrder(w, truck);
     };
     const { near, ramp } = FURY_ROAD.rolling;
@@ -127,7 +127,7 @@ describe('Chaos Highway rolling start', () => {
     if (far?.kind !== 'through' || close?.kind !== 'through') throw new Error('expected rolling orders');
     expect(far.pace!).toBeLessThan(close.pace!);
     expect(close.pace!).toBeLessThan(prey.speed);
-    expect(alongOf(w.seed, toRoad(window, close.dest))).toBeGreaterThan(alongOf(w.seed, toRoad(window, truck.pos)));
+    expect(alongOf(w.seed, toRoad(w.seed, window,close.dest))).toBeGreaterThan(alongOf(w.seed, toRoad(w.seed, window,truck.pos)));
     expect(at(near - 1)).toBeNull();
     prey.speed = 0;
     expect(at(near + ramp * 0.5)).toBeNull();
@@ -139,13 +139,13 @@ describe('Chaos Highway rolling start', () => {
     const prey = groupPrey(w, truck);
     prey.speed = 4;
     const window = w.furyRoad!.window;
-    const preyAlong = alongOf(w.seed, toRoad(window, prey.pos));
+    const preyAlong = alongOf(w.seed, toRoad(w.seed, window,prey.pos));
     const reach = Math.max(...vehicleStats(w, truck).weapons.map((mw) => mw.def.range));
     truck.pos = roadPoint(w.seed, window, preyAlong - reach - 10, 0);
     const order = rollingOrder(w, truck);
     if (order?.kind !== 'through') throw new Error('expected a catch-up order');
     expect(order.pace).toBe(vehicleStats(w, truck).maxSpeed);
-    expect(alongOf(w.seed, toRoad(window, order.dest))).toBeGreaterThan(preyAlong);
+    expect(alongOf(w.seed, toRoad(w.seed, window,order.dest))).toBeGreaterThan(preyAlong);
     truck.pos = roadPoint(w.seed, window, preyAlong - reach + 2, 0);
     expect(rollingOrder(w, truck)).toBeNull();
   });
@@ -155,7 +155,7 @@ describe('Chaos Highway rolling start', () => {
     const trucks = spawned(w, ['buggy', 'courier'], 1);
     for (const truck of trucks) {
       expect(truck.speed).toBe(Math.min(FURY_ROAD.hauler.cruise, vehicleStats(w, truck).maxSpeed));
-      expect(truck.heading).toBeCloseTo(roadHeading(w.seed, alongOf(w.seed, toRoad(w.furyRoad!.window, truck.pos))));
+      expect(truck.heading).toBeCloseTo(roadHeading(w.seed, alongOf(w.seed, toRoad(w.seed, w.furyRoad!.window, truck.pos))));
       expect(truck.trail.length).toBe(2);
     }
   });

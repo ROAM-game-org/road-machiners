@@ -8,7 +8,7 @@ import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
 import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
-import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
 import { canUseSite, sitePads } from './sites';
 import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
@@ -106,7 +106,7 @@ export function startRun(world: World): void {
 
 export function runStart(seed: number, playerChassis: string): { player: Pose; hauler: Pose } {
   const pad = sitePads(outpostFort(seed, 0, 0))[0];
-  const heading = roadHeading(seed, milestoneAt(0));
+  const heading = roadHeading(seed, milestoneAt(seed, 0));
   const half = (chassisDef(HAULER_KIT.chassis).radius + chassisDef(playerChassis).radius + RULES.yieldDistance) / 2;
   const at = (ahead: number): Pose => ({ pos: { x: pad.x + Math.cos(heading) * ahead, y: pad.y + Math.sin(heading) * ahead }, heading });
   return { player: at(-half), hauler: at(half) };
@@ -165,11 +165,11 @@ export function advanceFuryRoad(world: World): void {
 }
 
 function playerProgress(world: World, run: FuryRoadRun): number {
-  return alongOf(world.seed, toRoad(run.window, playerVehicle(world).pos));
+  return alongOf(world.seed, toRoad(world.seed, run.window, playerVehicle(world).pos));
 }
 
 function haulerProgress(world: World, run: FuryRoadRun): number {
-  return alongOf(world.seed, toRoad(run.window, haulerOf(world).pos));
+  return alongOf(world.seed, toRoad(world.seed, run.window, haulerOf(world).pos));
 }
 
 function countBeaten(world: World, run: FuryRoadRun): void {
@@ -231,7 +231,7 @@ export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, 
   const hunterSpeed = vehicleStats(world, hunter).maxSpeed;
   if (me.speed === 0 || hunterSpeed === 0) return me.pos;
   const lead = Math.min((me.speed * dist(hunter.pos, me.pos)) / hunterSpeed, FURY_ROAD.pacing.near);
-  const ahead = toRoad(run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
+  const ahead = toRoad(world.seed, run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
   return roadPoint(world.seed, run.window, alongOf(world.seed, ahead), withinFlanks(acrossOf(world.seed, ahead)));
 }
 
@@ -260,7 +260,7 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   loadouts.forEach(({ tpl, loadout }, i) => {
     const v = spawnAt(world, tpl, loadout, spots[i]);
     getResources(world, v).fuel = fuelCap(v);
-    v.heading = roadHeading(world.seed, alongOf(world.seed, toRoad(run.window, v.pos)));
+    v.heading = roadHeading(world.seed, alongOf(world.seed, toRoad(world.seed, run.window, v.pos)));
     v.speed = Math.min(FURY_ROAD.hauler.cruise, vehicleStats(world, v).maxSpeed);
     const back = { x: v.pos.x - Math.cos(v.heading) * v.speed, y: v.pos.y - Math.sin(v.heading) * v.speed, heading: v.heading };
     v.trail = [back, { ...v.pos, heading: v.heading }];
@@ -287,7 +287,7 @@ function groupSpots(world: World, run: FuryRoadRun, from: GroupSide, progress: n
 }
 
 function haulerAcross(world: World, run: FuryRoadRun): number {
-  return acrossOf(world.seed, toRoad(run.window, haulerOf(world).pos));
+  return acrossOf(world.seed, toRoad(world.seed, run.window, haulerOf(world).pos));
 }
 
 function withinFlanks(across: number): number {
@@ -316,8 +316,8 @@ function lineCandidate(progress: number, line: number): (step: number) => Candid
 }
 
 function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[]): Vec | null {
-  const from = milestoneAt(run.window);
-  const to = milestoneAt(run.window + 1);
+  const from = milestoneAt(world.seed, run.window);
+  const to = milestoneAt(world.seed, run.window + 1);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
     if (!insideWindow(world, pos, radius)) continue;
@@ -446,10 +446,11 @@ export function moveWindow(world: World): void {
   requireMovable(world, run);
   const next = run.window + 1;
   const map = highwayMap(world.seed, next);
+  const shift = windowShift(world.seed, run.window);
   for (const key of Object.keys(DROPPED) as (keyof typeof DROPPED)[]) (world as Record<string, unknown>)[key] = DROPPED[key]();
-  shiftVehicles(world);
-  shiftPlayer(world);
-  shiftStorms(world);
+  shiftVehicles(world, shift);
+  shiftPlayer(world, shift);
+  shiftStorms(world, shift);
   world.terrain = map.terrain;
   world.mapHash = map.hash;
   world.obstacles = mapObstacles(map);
@@ -459,20 +460,20 @@ export function moveWindow(world: World): void {
   refreshVision(world);
 }
 
-function shifted(p: Vec): Vec {
-  return { x: p.x + WINDOW_SHIFT.x, y: p.y + WINDOW_SHIFT.y };
+function shifted(p: Vec, shift: Vec): Vec {
+  return { x: p.x + shift.x, y: p.y + shift.y };
 }
 
-function shiftStorms(world: World): void {
-  for (const storm of world.weather) if (storm.kind === 'storm') storm.pos = shifted(storm.pos);
+function shiftStorms(world: World, shift: Vec): void {
+  for (const storm of world.weather) if (storm.kind === 'storm') storm.pos = shifted(storm.pos, shift);
 }
 
-function shiftVehicles(world: World): void {
+function shiftVehicles(world: World, shift: Vec): void {
   const kept = playerTrucks(world);
   world.removed.push(...world.vehicles.filter((v) => !kept.includes(v)));
   world.vehicles = kept;
   for (const truck of kept) {
-    truck.pos = shifted(truck.pos);
+    truck.pos = shifted(truck.pos, shift);
     truck.order = null;
     truck.trail = [];
     truck.weaponOrders = {};
@@ -480,11 +481,11 @@ function shiftVehicles(world: World): void {
   }
 }
 
-function shiftPlayer(world: World): void {
+function shiftPlayer(world: World, shift: Vec): void {
   const p = world.player;
   const size = world.size;
   const explored = new Uint8Array(size * size);
-  const { x: sx, y: sy } = WINDOW_SHIFT;
+  const { x: sx, y: sy } = shift;
   const fromX = Math.max(0, -sx);
   const toX = Math.min(size, size - sx);
   for (let y = Math.max(0, -sy); y < Math.min(size, size - sy); y++) explored.set(p.explored.subarray(y * size + fromX, y * size + toX), (y + sy) * size + fromX + sx);
@@ -525,7 +526,7 @@ export function runEarnings(world: World): { pay: number; wrecks: number; reache
     pay: run.earned,
     wrecks: run.wrecks + run.groups.reduce((n, g) => n + g.wrecked, 0),
     reached: run.window + (run.waitingAt === run.window + 1 ? 1 : 0),
-    north: Math.max(0, playerProgress(world, run) - milestoneAt(0)),
+    north: Math.max(0, playerProgress(world, run) - milestoneAt(world.seed, 0)),
   };
 }
 

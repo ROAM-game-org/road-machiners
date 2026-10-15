@@ -42,8 +42,8 @@ type Wave = Omit<PlannedWave, 'at'>;
 export function planWaves(seed: number, j: number, budget: number, base: number): PlannedWave[] {
   requireStretch(j);
   const rng = stretchStream(seed, j, 'director');
-  const from = milestoneAt(j - 1) + HAZARDS.clearAfterOutpost;
-  const to = milestoneAt(j) - HAZARDS.clearBeforeOutpost;
+  const from = milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost;
+  const to = milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost;
   const count = Math.min(Math.floor((to - from) / DIRECTOR.spacing), roll(rng, lineAt(DIRECTOR.waves, j)));
   const waves = fitBudget(Array.from({ length: count }, () => drawWave(rng, j, base)), budget);
   let left = budget - trucksIn(waves);

@@ -25,7 +25,7 @@ function runOf(world: World) {
 }
 
 function roadPos(world: World, pos: Vec) {
-  return toRoad(runOf(world).window, pos);
+  return toRoad(world.seed, runOf(world).window, pos);
 }
 
 function alongNow(world: World, v: Vehicle): number {
@@ -38,7 +38,7 @@ function acrossNow(world: World, pos: Vec): number {
 
 function lanePoint(world: World, along: number, lane: number): Vec {
   const run = runOf(world);
-  const edge = windowSpan(run.window).to - WINDOW_EDGE;
+  const edge = windowSpan(world.seed, run.window).to - WINDOW_EDGE;
   return roadPoint(world.seed, run.window, Math.min(along, edge), LANES[lane]);
 }
 

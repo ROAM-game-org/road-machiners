@@ -14,13 +14,13 @@ import { DEG, type Vec } from './vec';
 
 const SIZE = HIGHWAY.size;
 const ROAD = HIGHWAY.road;
-const STRIDE = HIGHWAY.stride;
+const STRETCH = HIGHWAY.stretch;
 const BEND = ROAD.bend;
 
 const STRETCH_SALT = 0x68777374;
 const CHUNK_SALT = 0x6877636b;
 const LINE_SALT = 0x68776c6e;
-const STREAM_PARTS = { post: 1, scenes: 2, director: 3, stock: 4, bends: 5, sides: 6, trucks: 7 } as const;
+const STREAM_PARTS = { post: 1, scenes: 2, director: 3, stock: 4, bends: 5, sides: 6, trucks: 7, length: 8 } as const;
 export type StretchPart = keyof typeof STREAM_PARTS;
 
 export type RoadPos = { n: number; u: number };
@@ -33,35 +33,78 @@ export function chunkStream(seed: number, c: number): Rng {
   return { rngState: Math.floor(hashRandom(seed, CHUNK_SALT, c) * 0x100000000) | 0 };
 }
 
-export const WINDOW_SHIFT: Vec = { x: 0, y: STRIDE };
+function drawLength(seed: number, j: number): number {
+  return randInt(stretchStream(seed, j, 'length'), STRETCH.min, STRETCH.max);
+}
+
+export function stretchLength(seed: number, j: number): number {
+  if (!Number.isInteger(j) || j < 1) throw new Error(`Stretch ${j} has no length`);
+  return milestoneAt(seed, j) - milestoneAt(seed, j - 1);
+}
+
+const MILESTONES = new Map<number, number[]>();
+
+function milestoneList(seed: number): number[] {
+  let list = MILESTONES.get(seed);
+  if (!list) {
+    list = [HIGHWAY.milestoneInset];
+    MILESTONES.set(seed, list);
+  }
+  return list;
+}
+
+export function milestoneAt(seed: number, j: number): number {
+  if (!Number.isInteger(j) || j < 0) throw new Error(`Milestone ${j} is not a whole number from 0`);
+  const list = milestoneList(seed);
+  while (list.length <= j) list.push(list[list.length - 1] + drawLength(seed, list.length));
+  return list[j];
+}
+
+export function stretchOf(seed: number, n: number): number {
+  if (!Number.isFinite(n)) throw new Error(`Road position ${n} is not a number`);
+  if (n < HIGHWAY.milestoneInset) return 0;
+  const list = milestoneList(seed);
+  while (list[list.length - 1] <= n) milestoneAt(seed, list.length);
+  let low = 1;
+  let high = list.length - 1;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (list[mid] > n) high = mid;
+    else low = mid + 1;
+  }
+  return low;
+}
+
+export function nearestMilestone(seed: number, n: number): number {
+  const j = stretchOf(seed, n);
+  if (j === 0) return 0;
+  return n - milestoneAt(seed, j - 1) < milestoneAt(seed, j) - n ? j - 1 : j;
+}
+
+export function windowOrigin(seed: number, window: number): number {
+  return milestoneAt(seed, window) - HIGHWAY.milestoneInset;
+}
+
+export function windowShift(seed: number, window: number): Vec {
+  return { x: 0, y: stretchLength(seed, window + 1) };
+}
 
 export function roadVector(dn: number, du: number): Vec {
   return { x: du, y: -dn };
 }
 
-export function toRoad(window: number, p: Vec): RoadPos {
-  return { n: SIZE + window * STRIDE - p.y, u: p.x - SIZE / 2 };
+export function toRoad(seed: number, window: number, p: Vec): RoadPos {
+  return { n: SIZE + windowOrigin(seed, window) - p.y, u: p.x - SIZE / 2 };
 }
 
-export function fromRoad(window: number, n: number, u: number): Vec {
-  const step = roadVector(n - SIZE - window * STRIDE, u);
+export function fromRoad(seed: number, window: number, n: number, u: number): Vec {
+  const step = roadVector(n - SIZE - windowOrigin(seed, window), u);
   return { x: SIZE / 2 + step.x, y: step.y };
 }
 
-export function windowSpan(window: number): { from: number; to: number } {
-  return { from: window * STRIDE, to: window * STRIDE + SIZE };
-}
-
-export function milestoneAt(j: number): number {
-  return HIGHWAY.milestoneInset + j * STRIDE;
-}
-
-export function stretchOf(n: number): number {
-  return Math.floor((n - HIGHWAY.milestoneInset) / STRIDE) + 1;
-}
-
-export function nearestMilestone(n: number): number {
-  return Math.round((n - HIGHWAY.milestoneInset) / STRIDE);
+export function windowSpan(seed: number, window: number): { from: number; to: number } {
+  const from = windowOrigin(seed, window);
+  return { from, to: from + SIZE };
 }
 
 export function highwayHash(seed: number, window: number): string {
@@ -103,25 +146,32 @@ export function bendPlan(seed: number, j: number): number[] {
   return plan;
 }
 
-function bendCell(): number {
-  return (STRIDE - 2 * BEND.ends) / BEND.cells;
+function bendCell(length: number): number {
+  return (length - 2 * BEND.ends) / BEND.cells;
+}
+
+function bendScale(length: number): number {
+  return (bendCell(length) / bendCell(STRETCH.max)) ** 2;
 }
 
 function drawBend(seed: number, j: number): number[] {
   const rng = stretchStream(seed, j, 'bends');
   const straight = j < 1 || nextRandom(rng) < BEND.straightChance;
   const side = sideOf(rng);
-  const shift = (i: number) => randRange(rng, BEND.shift[0], BEND.shift[1]) * side * (i % 2 === 1 ? 1 : -1);
+  const length = j < 1 ? STRETCH.max : stretchLength(seed, j);
+  const scale = bendScale(length);
+  const shift = (i: number) => randRange(rng, BEND.shift[0], BEND.shift[1]) * scale * side * (i % 2 === 1 ? 1 : -1);
   const plan = Array.from({ length: BEND.cells + 1 }, (_, i) => (straight || i === 0 || i === BEND.cells ? 0 : shift(i)));
-  const steepest = Math.max(...plan.slice(1).map((w, i) => (Math.abs(w - plan[i]) * Math.PI) / (2 * bendCell())));
+  const steepest = Math.max(...plan.slice(1).map((w, i) => (Math.abs(w - plan[i]) * Math.PI) / (2 * bendCell(length))));
   if (Math.atan(steepest) > BEND.maxHeading * DEG) throw new Error(`Stretch ${j} of seed ${seed} bends ${(Math.atan(steepest) / DEG).toFixed(1)} degrees off north, past ${BEND.maxHeading}`);
   return plan;
 }
 
 export function centerU(seed: number, n: number): number {
-  const j = stretchOf(n);
-  const along = n - milestoneAt(j - 1) - BEND.ends;
-  const cell = bendCell();
+  const j = stretchOf(seed, n);
+  if (j < 1) return 0;
+  const along = n - milestoneAt(seed, j - 1) - BEND.ends;
+  const cell = bendCell(stretchLength(seed, j));
   if (along <= 0 || along >= cell * BEND.cells) return 0;
   const plan = bendPlan(seed, j);
   const i = Math.floor(along / cell);
@@ -151,7 +201,7 @@ export function roadAt(seed: number, n: number, offset: number): RoadPos {
 
 export function roadPoint(seed: number, window: number, n: number, offset: number): Vec {
   const at = roadAt(seed, n, offset);
-  return fromRoad(window, at.n, at.u);
+  return fromRoad(seed, window, at.n, at.u);
 }
 
 const FOOT_STEPS = 3;
@@ -194,7 +244,7 @@ export function outpostSite(seed: number, j: number): OutpostSite {
   const key = `${seed}:${j}`;
   let site = SITES.get(key);
   if (!site) {
-    const n = milestoneAt(j);
+    const n = milestoneAt(seed, j);
     const side: 1 | -1 = randInt(stretchStream(seed, j, 'post'), 0, 1) === 0 ? 1 : -1;
     const out = roadHeading(seed, n) + Math.PI / 2 + (side > 0 ? Math.PI : 0);
     site = { milestone: j, n, side, center: roadAt(seed, n, side * POST.across), out };
@@ -208,7 +258,7 @@ export function outpostFort(seed: number, window: number, j: number): SiteLocati
   let fort = FORTS.get(key);
   if (!fort) {
     const site = outpostSite(seed, j);
-    const pos = fromRoad(window, site.center.n, site.center.u);
+    const pos = fromRoad(seed, window, site.center.n, site.center.u);
     const gate = { x: pos.x + Math.cos(site.out) * POST.radius, y: pos.y + Math.sin(site.out) * POST.radius };
     fort = { id: outpostId(j), kind: 'convoy', pos, radius: POST.radius, look: POST.look, turn: site.out / DEG - 45, gates: [gate] };
     FORTS.set(key, fort);
@@ -296,8 +346,8 @@ type LineSample = { n: number; c: number; len: number; h: number; fort: FortAxes
 function lineSamples(seed: number, window: number): LineSample[] {
   const forts = new Map<number, FortAxes | null>();
   return Array.from({ length: 2 * SIZE + 1 }, (_, half) => {
-    const n = toRoad(window, { x: 0, y: half / 2 }).n;
-    const j = nearestMilestone(n);
+    const n = toRoad(seed, window, { x: 0, y: half / 2 }).n;
+    const j = nearestMilestone(seed, n);
     if (!forts.has(j)) forts.set(j, fortAxes(seed, j));
     return { n, c: centerU(seed, n), len: Math.hypot(1, centerSlope(seed, n)), h: roadHeight(seed, n), fort: forts.get(j) ?? null };
   });
@@ -342,7 +392,7 @@ function sideOf(rng: Rng): 1 | -1 {
 
 function clearOfMilestones(seed: number, at: RoadPos, r: number): boolean {
   const clear = HIGHWAY.milestoneClear;
-  const along = at.n - milestoneAt(nearestMilestone(at.n));
+  const along = at.n - milestoneAt(seed, nearestMilestone(seed, at.n));
   const near = along > -clear.south - r && along < clear.north + r;
   return !near || Math.abs(acrossOf(seed, at)) >= clear.across + r;
 }
@@ -403,7 +453,7 @@ function powerLine(seed: number, from: number, to: number, keep: Keep): RoadPiec
   const out: RoadPiece[] = [];
   for (let i = Math.ceil(from / line.spacing); i * line.spacing <= to; i++) {
     const n = i * line.spacing;
-    const side = powerLineSide(seed, stretchOf(n));
+    const side = powerLineSide(seed, stretchOf(seed, n));
     const pole = { ...roadPiece('pole', roadAt(seed, n, side * line.across), line.r, roadHeading(seed, n)), group: i, step: side > 0 ? 1 : 0 };
     if (clearOfMilestones(seed, pole.at, pole.r) && keep(pole)) out.push(pole);
   }
@@ -422,13 +472,13 @@ function clearOfScenes(seed: number): Keep {
 }
 
 function windowPieces(seed: number, window: number): RoadPiece[] {
-  const span = windowSpan(window);
+  const span = windowSpan(seed, window);
   const scenes = windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap(scenePieces));
   return [...sceneryPieces(seed, span.from, span.to, clearOfScenes(seed)), ...scenes, ...closurePieces(seed, window)];
 }
 
 function bakedProps(seed: number, window: number): BakedProp[] {
-  const pieces = windowPieces(seed, window).map((p): BakedProp => ({ kind: p.kind, pos: fromRoad(window, p.at.n, p.at.u), r: p.r, yaw: p.yaw, group: p.group, step: p.step, ...(p.hulk ? { hulk: p.hulk } : {}) }));
+  const pieces = windowPieces(seed, window).map((p): BakedProp => ({ kind: p.kind, pos: fromRoad(seed, window, p.at.n, p.at.u), r: p.r, yaw: p.yaw, group: p.group, step: p.step, ...(p.hulk ? { hulk: p.hulk } : {}) }));
   const forts = windowForts(seed, window).flatMap(fortressProps);
   return [...pieces, ...forts].filter((p) => p.pos.x >= p.r && p.pos.x <= SIZE - p.r && p.pos.y >= p.r && p.pos.y <= SIZE - p.r);
 }
@@ -447,9 +497,9 @@ export function newMapFor(setup: WorldSetup, seed: number, icarus: BakedMap): Ba
 }
 
 export function highwayLine(seed: number, window: number): Vec[] {
-  const span = windowSpan(window);
+  const span = windowSpan(seed, window);
   const points: Vec[] = [];
-  for (let n = span.from; n <= span.to; n += ROAD.sample) points.push(fromRoad(window, n, centerU(seed, n)));
+  for (let n = span.from; n <= span.to; n += ROAD.sample) points.push(fromRoad(seed, window, n, centerU(seed, n)));
   return points;
 }
 
@@ -466,6 +516,6 @@ export function highwayAtlas(seed: number, window: number): Atlas {
     hazards: [],
     oldSpots: false,
     landforms: false,
-    origin: { x: -window * WINDOW_SHIFT.x, y: -window * WINDOW_SHIFT.y },
+    origin: { x: 0, y: -windowOrigin(seed, window) },
   };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { atlasOf } from './atlas';
 import { playerVehicle } from './damage';
 import { waitForRoad } from './fury-road';
-import { highwayMap, WINDOW_SHIFT } from './highway';
+import { highwayMap, windowShift } from './highway';
 import { playerFields, replay, replayBySession, RunStream, scopeOf, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
 import { addVehicle, emptyWorld, parkedAtOutpost, startCombat } from './testkit';
 import { clockOf } from './sun';
@@ -55,13 +55,13 @@ describe('world positions', () => {
   it('keeps one truck at one world position across a window move', () => {
     const before = parkedAtOutpost();
     const after = waitForRoad(before);
-    expect(playerVehicle(after).pos.y).toBe(playerVehicle(before).pos.y + WINDOW_SHIFT.y);
+    expect(playerVehicle(after).pos.y).toBe(playerVehicle(before).pos.y + windowShift(before.seed, 0).y);
     expect(worldPos(after, playerVehicle(after).pos)).toEqual(worldPos(before, playerVehicle(before).pos));
   });
 
   it('gives each map its own origin', () => {
     expect(atlasOf(emptyWorld().terrain).origin).toEqual({ x: 0, y: 0 });
-    expect(atlasOf(highwayMap(3, 2).terrain).origin).toEqual({ x: -2 * WINDOW_SHIFT.x, y: -2 * WINDOW_SHIFT.y });
+    expect(atlasOf(highwayMap(3, 2).terrain).origin).toEqual({ x: 0, y: -(windowShift(3, 0).y + windowShift(3, 1).y) });
   });
 
   it('writes event positions in the world frame', () => {

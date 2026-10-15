@@ -174,8 +174,8 @@ function hopToward(o: Orders, pad: Vec): void {
 
 function nextHop(world: World, me: Vehicle, pad: Vec): Vec {
   const window = world.furyRoad?.window ?? 0;
-  const along = alongOf(world.seed, toRoad(window, me.pos)) + HOP;
-  return along >= alongOf(world.seed, toRoad(window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
+  const along = alongOf(world.seed, toRoad(world.seed, window, me.pos)) + HOP;
+  return along >= alongOf(world.seed, toRoad(world.seed, window, pad)) ? pad : roadPoint(world.seed, window, along, 0);
 }
 
 function canPatchOn(world: World, me: Vehicle): boolean {

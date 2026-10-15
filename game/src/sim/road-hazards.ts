@@ -53,12 +53,9 @@ export function lanesCoveredOf(j: number): number {
 
 function layStretch(seed: number, j: number): StretchLayout {
   const rng = stretchStream(seed, j, 'scenes');
-  const from = milestoneAt(j - 1) + H.clearAfterOutpost;
-  const to = milestoneAt(j) - H.clearBeforeOutpost;
-  const room = to - from - (scenesOf(j) + 1) * H.arenaMin;
-  const drafted = draftFitting(rng, j, room);
-  if (!drafted) throw new Error(`Stretch ${j} has no room for ${scenesOf(j)} scenes between arenas of ${H.arenaMin} tiles`);
-  const { drafts, extents, spare } = drafted;
+  const from = milestoneAt(seed, j - 1) + H.clearAfterOutpost;
+  const to = milestoneAt(seed, j) - H.clearBeforeOutpost;
+  const { drafts, extents, spare } = draftFitting(rng, j, to - from);
   const shares = Array.from({ length: drafts.length + 1 }, () => nextRandom(rng) + 0.25);
   const total = shares.reduce((a, b) => a + b, 0);
   const arenas: Span[] = [];
@@ -75,12 +72,26 @@ function layStretch(seed: number, j: number): StretchLayout {
   return { stretch: j, arenas, scenes };
 }
 
-function draftFitting(rng: Rng, j: number, room: number): { drafts: Draft[]; extents: Span[]; spare: number } | null {
-  for (let tries = 0; tries < H.maxTries; tries++) {
-    const drafts = Array.from({ length: scenesOf(j) }, (_, i) => draftScene(rng, j, i));
-    const extents = drafts.map(draftSpan);
-    const spare = room - extents.reduce((sum, e) => sum + (e.to - e.from), 0);
-    if (spare >= 0) return { drafts, extents, spare };
+type Fitted = { drafts: Draft[]; extents: Span[]; spare: number };
+
+function draftFitting(rng: Rng, j: number, space: number): Fitted {
+  const fitted: Fitted = { drafts: [], extents: [], spare: space - H.arenaMin };
+  if (fitted.spare < 0) throw new Error(`Stretch ${j} has no room for one arena of ${H.arenaMin} tiles`);
+  for (let i = 0; i < scenesOf(j); i++) {
+    const next = draftWithin(rng, j, i, fitted.spare - H.arenaMin);
+    if (!next) break;
+    fitted.drafts.push(next.draft);
+    fitted.extents.push(next.extent);
+    fitted.spare -= H.arenaMin + next.extent.to - next.extent.from;
+  }
+  return fitted;
+}
+
+function draftWithin(rng: Rng, j: number, i: number, room: number): { draft: Draft; extent: Span } | null {
+  for (let tries = 0; tries < H.maxTries && room >= 0; tries++) {
+    const draft = draftScene(rng, j, i);
+    const extent = draftSpan(draft);
+    if (extent.to - extent.from <= room) return { draft, extent };
   }
   return null;
 }
@@ -413,7 +424,7 @@ export function scenePieces(scene: Scene): RoadPiece[] {
 }
 
 export function sceneAt(seed: number, n: number, margin: number): Scene | null {
-  const j = stretchOf(n);
+  const j = stretchOf(seed, n);
   if (j < 1) return null;
   return stretchLayout(seed, j).scenes.find((s) => n >= s.from - margin && n <= s.to + margin) ?? null;
 }
@@ -460,17 +471,17 @@ function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => 
   return out;
 }
 
-export function northClosureAt(window: number): number {
-  return milestoneAt(window + 1) + H.closures.north.gap;
+export function northClosureAt(seed: number, window: number): number {
+  return milestoneAt(seed, window + 1) + H.closures.north.gap;
 }
 
-export function southClosureAt(window: number): number {
-  return milestoneAt(window) - H.closures.south.behind;
+export function southClosureAt(seed: number, window: number): number {
+  return milestoneAt(seed, window) - H.closures.south.behind;
 }
 
 function northClosure(seed: number, window: number): RoadPiece[] {
   const N = H.closures.north;
-  const n = northClosureAt(window);
+  const n = northClosureAt(seed, window);
   const barrier = (): Local => piece('barrier', 0, 0, Math.PI / 2);
   const rows = Array.from({ length: N.rows }, (_, i) => lineRow(seed, n + i * N.rowGap, (i % 2) * 0.5, barrier, N.reach));
   const ahead = n - N.trapsAhead;
@@ -487,7 +498,7 @@ function northClosure(seed: number, window: number): RoadPiece[] {
 
 function southClosure(seed: number, window: number): RoadPiece[] {
   const S = H.closures.south;
-  const n = southClosureAt(window);
+  const n = southClosureAt(seed, window);
   const wreck = (row: number) => (k: number): Local => {
     const key = 3 * (1000 * (row + 1) + k);
     const rel = Math.PI / 2 + (closureRoll(seed, window, key) < 0.5 ? -1 : 1) * S.yaw * DEG;
@@ -506,8 +517,8 @@ export function highwayDecks(seed: number, window: number): DeckSpec[] {
   const size = HIGHWAY.size;
   const inside = (p: Vec) => p.x >= 0 && p.y >= 0 && p.x <= size && p.y <= size;
   return windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap((s) => s.ramps)).flatMap((ramp) => {
-    const from = fromRoad(window, ramp.from.n, ramp.from.u);
-    const to = fromRoad(window, ramp.to.n, ramp.to.u);
+    const from = fromRoad(seed, window, ramp.from.n, ramp.from.u);
+    const to = fromRoad(seed, window, ramp.to.n, ramp.to.u);
     if (!inside(from) || !inside(to)) return [];
     return [{ id: ramp.id, line: [{ at: from, rise: 0 }, { at: to, rise: ramp.rise }], width: ramp.width, cut: null, skirt: true, look: 'ship_flap' as const }];
   });

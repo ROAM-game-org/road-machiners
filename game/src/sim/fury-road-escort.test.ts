@@ -34,7 +34,7 @@ function spawnOne(w: World, template = 'buggy'): Vehicle {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], stretch: 1, from: 'ahead' as const, templates: [template], level: waveOf(1).level };
   run.groups = [group];
-  spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, haulerOf(w).pos)));
+  spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));
   return w.vehicles.find((v) => v.id === group.vehicles[0])!;
 }
 
@@ -136,7 +136,7 @@ describe('who a group truck shoots', () => {
     assignAutoOrders(w);
     expect(Object.values(truck.weaponOrders).some((o) => o.targetId === me.id)).toBe(true);
 
-    me.pos = roadPoint(w.seed, 0, alongOf(w.seed, toRoad(0, me.pos)) - 400, LANES[2]);
+    me.pos = roadPoint(w.seed, 0, alongOf(w.seed, toRoad(w.seed, 0, me.pos)) - 400, LANES[2]);
     delete truck.brain!.attackers[me.id];
     advanceFuryRoad(w);
     expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: haulerOf(w).id });
@@ -147,7 +147,7 @@ describe('who a group truck shoots', () => {
     const truck = spawnOne(w);
     nearBoth(w, truck);
     truck.brain!.attackers[w.player.vehicleId] = false;
-    playerVehicle(w).pos = roadPoint(w.seed, 0, milestoneAt(0) - 30, LANES[2]);
+    playerVehicle(w).pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) - 30, LANES[2]);
     const after = endTurn(w, still);
     const same = after.vehicles.find((v) => v.id === truck.id)!;
     expect(same).toBeDefined();
@@ -232,15 +232,15 @@ describe('where the trouble spawns', () => {
     const w = furyRoadWorld();
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
-    me.pos = roadPoint(w.seed, 0, milestoneAt(0) + 150, LANES[2]);
+    me.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) + 150, LANES[2]);
     w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
 
     const group = w.furyRoad!.groups[0];
     expect(group.spawned).toBe(true);
     const spawned = w.vehicles.filter((v) => group.vehicles.includes(v.id));
-    const alongHauler = alongOf(w.seed, toRoad(0, hauler.pos));
-    for (const v of spawned) expect(Math.abs(alongOf(w.seed, toRoad(0, v.pos)) - alongHauler)).toBeLessThan(FURY_ROAD.sides.ahead + 40);
+    const alongHauler = alongOf(w.seed, toRoad(w.seed, 0, hauler.pos));
+    for (const v of spawned) expect(Math.abs(alongOf(w.seed, toRoad(w.seed, 0, v.pos)) - alongHauler)).toBeLessThan(FURY_ROAD.sides.ahead + 40);
     expect(dist(spawned[0].pos, me.pos)).toBeGreaterThan(100);
   });
 
@@ -252,7 +252,7 @@ describe('where the trouble spawns', () => {
     advanceFuryRoad(w);
     expect(group.spawned).toBe(false);
 
-    group.at = alongOf(w.seed, toRoad(0, haulerOf(w).pos));
+    group.at = alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos));
     advanceFuryRoad(w);
     expect(group.spawned).toBe(true);
   });
@@ -297,7 +297,7 @@ describe('waiting for the road', () => {
     park(w, haulerOf(w), 0);
     park(w, playerVehicle(w), 2);
     const after = endTurn(w, still);
-    haulerOf(after).pos = roadPoint(after.seed, 1, milestoneAt(1) + 30, LANES[1]);
+    haulerOf(after).pos = roadPoint(after.seed, 1, milestoneAt(after.seed, 1) + 30, LANES[1]);
     expect(canWaitForRoad(after)).toBe(false);
   });
 });

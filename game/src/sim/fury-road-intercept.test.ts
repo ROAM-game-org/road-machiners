@@ -24,11 +24,11 @@ function spawnedFrom(w: World, from: 'ahead') {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], stretch: 1, from, templates: ['buggy'], level: waveOf(1).level };
   run.groups = [group];
-  spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, playerVehicle(w).pos)));
+  spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, playerVehicle(w).pos)));
   return w.vehicles.find((v) => v.id === group.vehicles[0])!;
 }
 
-const acrossAt = (w: World, pos: { x: number; y: number }) => acrossOf(w.seed, toRoad(0, pos));
+const acrossAt = (w: World, pos: { x: number; y: number }) => acrossOf(w.seed, toRoad(w.seed, 0, pos));
 
 describe('Fury Road groups on the player line', () => {
   it('spawn ahead around the player on the verge, not on the road', () => {
@@ -55,7 +55,7 @@ describe('Fury Road hunters', () => {
   it('aim ahead of a moving player, at most the encounter range ahead', () => {
     const { w, me, hunter } = hunterWorld(8);
     const aim = interceptPoint(w, w.furyRoad!, hunter, me);
-    const lead = alongOf(w.seed, toRoad(0, aim)) - alongOf(w.seed, toRoad(0, me.pos));
+    const lead = alongOf(w.seed, toRoad(w.seed, 0, aim)) - alongOf(w.seed, toRoad(w.seed, 0, me.pos));
 
     expect(lead).toBeGreaterThan(5);
     expect(dist(aim, me.pos)).toBeLessThanOrEqual(FURY_ROAD.pacing.near + 0.5);

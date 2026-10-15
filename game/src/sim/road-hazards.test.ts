@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { HAZARDS, HIGHWAY, type SceneKind } from '../data/modes';
-import { acrossOf, alongOf, fromRoad, highwayMap, WINDOW_SHIFT, milestoneAt, outpostFort, roadHeading, roadPoint, toRoad } from './highway';
+import { acrossOf, alongOf, fromRoad, highwayMap, windowShift, milestoneAt, stretchLength, outpostFort, roadHeading, roadPoint, toRoad } from './highway';
 import { boxDistance, mapObstacles, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { CELL, componentOf, navLayer } from './nav/layer';
 import { closurePieces, highwayDecks, lanesCoveredOf, leavesPassage, northClosureAt, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
@@ -11,13 +11,12 @@ import type { Vec } from './vec';
 import type { RoadPiece } from './highway';
 
 const SIZE = HIGHWAY.size;
-const STRIDE = HIGHWAY.stride;
 const ROAD = HIGHWAY.road;
 const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1);
 const STRETCHES = Array.from({ length: 10 }, (_, i) => i + 1);
 
-function baked(p: RoadPiece, window: number): BakedProp {
-  return { kind: p.kind, pos: fromRoad(window, p.at.n, p.at.u), r: p.r, yaw: p.yaw, group: 0, step: 0, ...(p.hulk ? { hulk: p.hulk } : {}) };
+function baked(seed: number, p: RoadPiece, window: number): BakedProp {
+  return { kind: p.kind, pos: fromRoad(seed, window, p.at.n, p.at.u), r: p.r, yaw: p.yaw, group: 0, step: 0, ...(p.hulk ? { hulk: p.hulk } : {}) };
 }
 
 function corners(b: PosedBox): Vec[] {
@@ -32,22 +31,22 @@ function acrossSpan(seed: number, window: number, p: RoadPiece): [number, number
     const d = acrossOf(seed, p.at);
     return [d - p.r, d + p.r];
   }
-  const ds = propBoxes(propObstacle(baked(p, window), 0)).flatMap(corners).map((c) => acrossOf(seed, toRoad(window, c)));
+  const ds = propBoxes(propObstacle(baked(seed, p, window), 0)).flatMap(corners).map((c) => acrossOf(seed, toRoad(seed, window, c)));
   return [Math.min(...ds), Math.max(...ds)];
 }
 
-function boxesOf(p: RoadPiece, window: number): readonly PosedBox[] {
-  return propBoxes(propObstacle(baked(p, window), 0));
+function boxesOf(seed: number, p: RoadPiece, window: number): readonly PosedBox[] {
+  return propBoxes(propObstacle(baked(seed, p, window), 0));
 }
 
-function touch(a: RoadPiece, b: RoadPiece, window: number): boolean {
-  const pa = fromRoad(window, a.at.n, a.at.u);
-  const pb = fromRoad(window, b.at.n, b.at.u);
+function touch(seed: number, a: RoadPiece, b: RoadPiece, window: number): boolean {
+  const pa = fromRoad(seed, window, a.at.n, a.at.u);
+  const pb = fromRoad(seed, window, b.at.n, b.at.u);
   if (Math.hypot(pa.x - pb.x, pa.y - pb.y) > 8) return false;
-  if (a.kind === 'rock' || a.kind === 'crag') return boxesOf(b, window).some((box) => boxDistance(box, pa) < a.r) || ((b.kind === 'rock' || b.kind === 'crag') && Math.hypot(pa.x - pb.x, pa.y - pb.y) < a.r + b.r);
-  if (b.kind === 'rock' || b.kind === 'crag') return touch(b, a, window);
-  const ba = boxesOf(a, window);
-  const bb = boxesOf(b, window);
+  if (a.kind === 'rock' || a.kind === 'crag') return boxesOf(seed, b, window).some((box) => boxDistance(box, pa) < a.r) || ((b.kind === 'rock' || b.kind === 'crag') && Math.hypot(pa.x - pb.x, pa.y - pb.y) < a.r + b.r);
+  if (b.kind === 'rock' || b.kind === 'crag') return touch(seed, b, a, window);
+  const ba = boxesOf(seed, a, window);
+  const bb = boxesOf(seed, b, window);
   return ba.some((x) => bb.some((y) => corners(x).some((c) => boxDistance(y, c) === 0) || corners(y).some((c) => boxDistance(x, c) === 0)));
 }
 
@@ -70,10 +69,10 @@ describe('a stretch layout', () => {
     for (const seed of SEEDS) {
       for (const j of STRETCHES) {
         const { arenas, scenes } = stretchLayout(seed, j);
-        expect(scenes).toHaveLength(scenesOf(j));
+        expect(scenes.length).toBeLessThanOrEqual(scenesOf(j));
         expect(arenas).toHaveLength(scenes.length + 1);
-        expect(arenas[0].from).toBeCloseTo(milestoneAt(j - 1) + HAZARDS.clearAfterOutpost, 6);
-        expect(arenas[arenas.length - 1].to).toBeCloseTo(milestoneAt(j) - HAZARDS.clearBeforeOutpost, 6);
+        expect(arenas[0].from).toBeCloseTo(milestoneAt(seed, j - 1) + HAZARDS.clearAfterOutpost, 6);
+        expect(arenas[arenas.length - 1].to).toBeCloseTo(milestoneAt(seed, j) - HAZARDS.clearBeforeOutpost, 6);
         scenes.forEach((s, i) => {
           expect(arenas[i].to - arenas[i].from).toBeGreaterThanOrEqual(HAZARDS.arenaMin - 1e-9);
           expect(s.from).toBeCloseTo(arenas[i].to, 6);
@@ -89,7 +88,7 @@ describe('a stretch layout', () => {
         expect(leavesPassage(row.map((p) => acrossSpan(seed, j - 1, p))), `seed ${seed} stretch ${j} ${scene.kind}`).toBe(true);
       }
       const pieces = scene.rows.flat();
-      pieces.forEach((a, i) => pieces.slice(i + 1).forEach((b) => expect(touch(a, b, j - 1), `seed ${seed} stretch ${j} ${scene.kind} ${a.kind} ${b.kind}`).toBe(false)));
+      pieces.forEach((a, i) => pieces.slice(i + 1).forEach((b) => expect(touch(seed, a, b, j - 1), `seed ${seed} stretch ${j} ${scene.kind} ${a.kind} ${b.kind}`).toBe(false)));
     }
   });
 
@@ -141,7 +140,7 @@ describe('a stretch layout', () => {
   it('holds its scene count at the cap however far the run goes', () => {
     expect(scenesOf(1)).toBe(HAZARDS.scenes.first);
     expect(scenesOf(100)).toBe(HAZARDS.scenes.max);
-    expect(stretchLayout(3, 60).scenes).toHaveLength(HAZARDS.scenes.max);
+    expect(stretchLayout(3, 60).scenes.length).toBeLessThanOrEqual(HAZARDS.scenes.max);
   });
 });
 
@@ -160,11 +159,11 @@ describe('a highway window with its scenes', () => {
       for (const k of [0, 1, 2]) {
         const map = highwayMap(seed, k);
         const stray = map.props.filter((p) => {
-          const at = toRoad(k, p.pos);
+          const at = toRoad(seed, k, p.pos);
           return inArena(seed, alongOf(seed, at)) && Math.abs(acrossOf(seed, at)) - p.r <= ROAD.verge && !['pole', 'carWreck', 'deadTruck'].includes(p.kind);
         });
         expect(stray.map((p) => p.kind), `seed ${seed} window ${k}`).toEqual([]);
-        expect(map.props.filter((p) => p.hulk && inArena(seed, alongOf(seed, toRoad(k, p.pos))))).toEqual([]);
+        expect(map.props.filter((p) => p.hulk && inArena(seed, alongOf(seed, toRoad(seed, k, p.pos))))).toEqual([]);
       }
     }
   });
@@ -188,9 +187,9 @@ describe('a highway window with its scenes', () => {
         const map = highwayMap(seed, k);
         const layer = navLayer(map.terrain, mapObstacles(map), smallest);
         const pad = sitePads(outpostFort(seed, k, k + 1))[0];
-        const beyond = roadPoint(seed, k, northClosureAt(k) + 12, ROAD.lanes[1]);
-        const behind = roadPoint(seed, k, southClosureAt(k) - 10, ROAD.lanes[1]);
-        const start = roadPoint(seed, k, milestoneAt(k) + 4, ROAD.lanes[1]);
+        const beyond = roadPoint(seed, k, northClosureAt(seed, k) + 12, ROAD.lanes[1]);
+        const behind = roadPoint(seed, k, southClosureAt(seed, k) - 10, ROAD.lanes[1]);
+        const start = roadPoint(seed, k, milestoneAt(seed, k) + 4, ROAD.lanes[1]);
         const inside = componentOf(layer, nCell(pad));
         expect(inside, `seed ${seed} window ${k}`).not.toBe(0);
         expect(componentOf(layer, nCell(start))).toBe(inside);
@@ -202,12 +201,12 @@ describe('a highway window with its scenes', () => {
 
   it('lays the south closure a fixed way behind its milestone, on straight road and clear of the fort', () => {
     for (const k of [1, 2, 5]) {
-      expect(southClosureAt(k)).toBe(milestoneAt(k) - HAZARDS.closures.south.behind);
       for (const seed of [1, 2, 3]) {
+        expect(southClosureAt(seed, k)).toBe(milestoneAt(seed, k) - HAZARDS.closures.south.behind);
         const fort = outpostFort(seed, k, k);
-        const wrecks = closurePieces(seed, k).filter((p) => Math.abs(p.at.n - southClosureAt(k)) < 5);
+        const wrecks = closurePieces(seed, k).filter((p) => Math.abs(p.at.n - southClosureAt(seed, k)) < 5);
         expect(wrecks.length).toBeGreaterThan(0);
-        expect(wrecks.every((p) => siteGap(fort, fromRoad(k, p.at.n, p.at.u)) > p.r), `seed ${seed} window ${k}`).toBe(true);
+        expect(wrecks.every((p) => siteGap(fort, fromRoad(seed, k, p.at.n, p.at.u)) > p.r), `seed ${seed} window ${k}`).toBe(true);
       }
     }
   });
@@ -252,10 +251,11 @@ describe('a hull-plate ramp', () => {
   it('is the same deck in both windows that hold it', () => {
     for (const seed of SEEDS.slice(0, 10)) {
       for (const k of [0, 1, 2]) {
-        const shift = (spec: ReturnType<typeof highwayDecks>[number], by: number) => ({ ...spec, line: spec.line.map((s) => ({ at: { x: +(s.at.x + by * WINDOW_SHIFT.x / STRIDE).toFixed(6), y: +(s.at.y + by * WINDOW_SHIFT.y / STRIDE).toFixed(6) }, rise: s.rise })) });
+        const stride = windowShift(seed, k).y;
+        const shift = (spec: ReturnType<typeof highwayDecks>[number], by: number) => ({ ...spec, line: spec.line.map((s) => ({ at: { x: +s.at.x.toFixed(6), y: +(s.at.y + by).toFixed(6) }, rise: s.rise })) });
         const inOverlap = (spec: ReturnType<typeof highwayDecks>[number], from: number, to: number) => spec.line.every((s) => s.at.y >= from && s.at.y <= to);
-        const a = highwayDecks(seed, k).filter((s) => inOverlap(s, 0, SIZE - STRIDE)).map((s) => shift(s, 0));
-        const b = highwayDecks(seed, k + 1).filter((s) => inOverlap(s, STRIDE, SIZE)).map((s) => shift(s, -STRIDE));
+        const a = highwayDecks(seed, k).filter((s) => inOverlap(s, 0, SIZE - stride)).map((s) => shift(s, 0));
+        const b = highwayDecks(seed, k + 1).filter((s) => inOverlap(s, stride, SIZE)).map((s) => shift(s, -stride));
         expect(b).toEqual(a);
       }
     }
@@ -280,11 +280,27 @@ describe('every stretch lays out', () => {
   const seeds = [...Array.from({ length: 60 }, (_, i) => i + 1), 15, 34, 38];
   const stretches = Array.from({ length: 40 }, (_, i) => i + 1);
 
+  it('holds fewer scenes on short stretches and never throws for lack of room', () => {
+    const short = seeds.flatMap((seed) => stretches.map((j) => ({ seed, j }))).filter(({ seed, j }) => j >= 3 && stretchLength(seed, j) <= HIGHWAY.stretch.min + 5);
+    expect(short.length).toBeGreaterThan(20);
+    for (const { seed, j } of short) {
+      const layout = stretchLayout(seed, j);
+      expect(layout.scenes.length).toBeLessThan(scenesOf(j));
+      expect(layout.arenas.length).toBe(layout.scenes.length + 1);
+    }
+  });
+
+  it('holds the full scene count on the longest stretches', () => {
+    const long = seeds.flatMap((seed) => stretches.map((j) => ({ seed, j }))).filter(({ seed, j }) => stretchLength(seed, j) === HIGHWAY.stretch.max);
+    expect(long.length).toBeGreaterThan(5);
+    expect(long.some(({ seed, j }) => stretchLayout(seed, j).scenes.length === scenesOf(j))).toBe(true);
+  });
+
   it('fits its scenes between arenas of the minimum length for stretches 1 to 40 on many seeds', () => {
     for (const seed of seeds) {
       for (const j of stretches) {
         const layout = stretchLayout(seed, j);
-        expect(layout.scenes, `seed ${seed} stretch ${j}`).toHaveLength(scenesOf(j));
+        expect(layout.scenes.length, `seed ${seed} stretch ${j}`).toBeLessThanOrEqual(scenesOf(j));
         for (const arena of layout.arenas) expect(arena.to - arena.from, `seed ${seed} stretch ${j}`).toBeGreaterThanOrEqual(HAZARDS.arenaMin);
         for (const [i, scene] of layout.scenes.entries()) {
           expect(scene.from).toBeGreaterThanOrEqual(layout.arenas[i].to - 1e-6);

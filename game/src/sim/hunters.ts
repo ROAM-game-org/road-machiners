@@ -37,11 +37,11 @@ function reachOf(world: World, v: Vehicle): number {
 }
 
 function alongNow(world: World, v: Vehicle): number {
-  return alongOf(world.seed, toRoad(world.furyRoad!.window, v.pos));
+  return alongOf(world.seed, toRoad(world.seed, world.furyRoad!.window, v.pos));
 }
 
 function acrossNow(world: World, v: Vehicle): number {
-  return acrossOf(world.seed, toRoad(world.furyRoad!.window, v.pos));
+  return acrossOf(world.seed, toRoad(world.seed, world.furyRoad!.window, v.pos));
 }
 
 function onRoad(world: World, along: number, across: number) {

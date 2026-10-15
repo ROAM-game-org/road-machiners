@@ -13,8 +13,8 @@ beforeAll(async () => {
   await initPhysics();
 });
 
-const SEED = 10;
-const RAMP_WINDOW = 6;
+const SEED = 66;
+const RAMP_WINDOW = 2;
 const LAYOUT: [string, number, number, Rot][] = [
   ['cabPickup', 2, 3, 0],
   ['transmission', 2, 5, 0],
@@ -30,9 +30,9 @@ const LAYOUT: [string, number, number, Rot][] = [
   ['heavyDiesel', 2, 1, 0],
 ];
 const LIP_POSE = {
-  at: { x: 831.14, y: 1.44, z: 1170.09 },
+  at: { x: 830.9, y: 6.46, z: 1169.73 },
   turn: { x: -0.0867, y: 0.8774, z: -0.3816, w: 0.2775 },
-  backedFrom: { x: 209.1, y: 292.9 },
+  backedFrom: { x: 209.04, y: 292.81 },
 };
 const DEST = { x: 212, y: 262 };
 const TURNS = 20;
