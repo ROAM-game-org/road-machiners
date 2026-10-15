@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { REGION, type SiteLocationDef, type TownDef } from '../../data/region';
-import { FORTRESS, FORTRESS_STYLES, type FortressKind } from '../../data/fortress';
-import { fortressGates, fortressOutline, fortressPieces, fortressStyle, insideCurtain, onFortressRock, type FortGate, type FortressPiece } from '../../sim/fortress';
+import { FORTRESS_LAMPS, FORTRESS_STYLES, type FortressKind, type FortressLampMount, type FortressLampPiece } from '../../data/fortress';
+import { fortressGates, fortressOutline, fortressPieces, fortressProps, fortressStyle, insideCurtain, onFortressRock, type FortGate, type FortressPiece } from '../../sim/fortress';
 import { PHYSICS } from '../../data/physics';
 import { PAL } from '../../render/palette';
 import { hash2 } from '../../render/noise';
 import { isFortress, siteLook } from '../../sim/sites';
 import { atlasOf } from '../../sim/atlas';
-import { deckById, deckCenterAt, type Deck } from '../../sim/bridge';
+import { deckById, deckCenterAt, propBase, type Deck } from '../../sim/bridge';
+import { propObstacle } from '../../sim/mapgen';
 import { deckSegments, heightAt, type DeckSegment, type Terrain } from '../../sim/terrain';
 import { pointInPolygon, segmentDist } from '../../sim/vec';
 import { instancedModel, model, type ModelName } from './models';
@@ -73,17 +74,23 @@ export class SiteBuilder {
   addTank(x: number, z: number, radius: number, height: number, color: number, lift = 0): void {
     this.addShape(new THREE.CylinderGeometry(radius * S, radius * S, height * S, 10), color, x, z, lift + height / 2);
   }
-  addLampHead(x: number, z: number, top: number, yaw: number): THREE.Mesh {
-    this.addBox(x, z, 0.2 / LAMP_SHRINK, 0.35 / LAMP_SHRINK, 0.6 / LAMP_SHRINK, PAL.metal, top, yaw);
-    const head = this.addBox(x, z, 0.24 / LAMP_SHRINK, 0.22 / LAMP_SHRINK, 0.45 / LAMP_SHRINK, PAL.lamp.amber, top + 0.06 / LAMP_SHRINK, yaw);
+  private rebase(x: number, z: number, base?: number): number {
+    return base === undefined ? 0 : base - this.groundAt(x, z);
+  }
+  addLampHead(x: number, z: number, top: number, yaw: number, base?: number): THREE.Mesh {
+    const lift = top + this.rebase(x, z, base);
+    this.addBox(x, z, 0.2 / LAMP_SHRINK, 0.35 / LAMP_SHRINK, 0.6 / LAMP_SHRINK, PAL.metal, lift, yaw);
+    const head = this.addBox(x, z, 0.24 / LAMP_SHRINK, 0.22 / LAMP_SHRINK, 0.45 / LAMP_SHRINK, PAL.lamp.amber, lift + 0.06 / LAMP_SHRINK, yaw);
     this.lamps.push(head);
     return head;
   }
-  addWallLamp(face: { x: number; z: number }, out: { x: number; z: number }, height: number): THREE.Mesh {
+  addBracket(x: number, z: number, length: number, top: number, yaw: number, base: number): void {
+    this.addBox(x, z, length, 0.12, 0.12, PAL.metal, top - 0.12 + this.rebase(x, z, base), yaw);
+  }
+  addWallLamp(face: { x: number; z: number }, out: { x: number; z: number }, height: number, base: number): THREE.Mesh {
     const yaw = Math.atan2(-out.z, out.x);
-    const bracket = { x: face.x + (out.x * SCONCE.reach) / 2, z: face.z + (out.z * SCONCE.reach) / 2 };
-    this.addBox(bracket.x, bracket.z, SCONCE.reach, 0.12, 0.12, PAL.metal, height - 0.12, yaw);
-    return this.addLampHead(face.x + out.x * SCONCE.reach, face.z + out.z * SCONCE.reach, height, yaw);
+    this.addBracket(face.x + (out.x * SCONCE.reach) / 2, face.z + (out.z * SCONCE.reach) / 2, SCONCE.reach, height, yaw, base);
+    return this.addLampHead(face.x + out.x * SCONCE.reach, face.z + out.z * SCONCE.reach, height, yaw, base);
   }
   addLantern(x: number, z: number, yaw: number): THREE.Mesh {
     const out = { x: Math.cos(yaw), z: -Math.sin(yaw) };
@@ -197,7 +204,7 @@ const WORK_MAST = 3.3;
 const LANTERN = { height: 1.15, post: 0.09, arm: 0.28, cap: 0.17, glass: 0.11, drop: 0.04 };
 const FIRE_PIT = { ring: 0.45, rim: 0.12, flame: 0.16 };
 const FILL = { height: 6, reach: 1.6 };
-const SCONCE = { reach: 0.7, height: 2.3, throw: 2.5, gap: 6, outsideApart: (40 * Math.PI) / 180 };
+const SCONCE = { reach: 0.7, throw: 2.5, gap: 6, outsideApart: (40 * Math.PI) / 180, towerClear: 1.5 };
 const WASH = { mast: 2.4, aim: 3.8, lift: 3 };
 const SET = REGION.settlement;
 
@@ -205,17 +212,31 @@ function isBannered(site: Site): boolean {
   return REGION.towns.some((t) => t.id === site.id) || ('kind' in site && site.kind === 'camp');
 }
 
-function dressGates(b: SiteBuilder, site: Site): void {
+export function lampMount(site: Site, piece: FortressLampPiece): FortressLampMount {
+  const style = fortressStyle(site);
+  const mount = FORTRESS_LAMPS[style][piece];
+  if (mount === undefined) throw new Error(`Fortress style ${style} has no lamp mount for ${piece}`);
+  return mount;
+}
+
+function dressGates(b: SiteBuilder, site: Site, t: Terrain): void {
   const guarded = isBannered(site);
   const first = b.root.children.length;
-  for (const fort of fortressGates(site)) dressGate(b, site, fort, guarded);
-  addSconces(b, site);
+  const placed = placedPieces(site, t);
+  for (const fort of fortressGates(site)) dressGate(b, site, fort, guarded, gateBase(placed, fort));
+  addSconces(b, site, placed);
   b.addFill();
   for (const piece of b.root.children.slice(first)) piece.userData.gateFurniture = true;
 }
 
 type Vec2 = { x: number; z: number };
-type Mount = { n: Vec2; face: Vec2; lamp: Vec2; throwAt: Vec2; inside: boolean };
+type Mount = { n: Vec2; face: Vec2; lamp: Vec2; throwAt: Vec2; inside: boolean; height: number; base: number };
+
+function gateBase(placed: Placed[], fort: FortGate): number {
+  const gates = placed.filter((p) => p.piece.kind === 'gate');
+  const near = (p: Placed) => Math.hypot(p.piece.pos.x - fort.face.x, p.piece.pos.y - fort.face.y);
+  return gates.reduce((best, p) => (near(p) < near(best) ? p : best)).base;
+}
 
 function sconceNormals(piece: FortressPiece): Vec2[] {
   const across = { x: -Math.sin(piece.yaw), z: Math.cos(piece.yaw) };
@@ -225,11 +246,11 @@ function sconceNormals(piece: FortressPiece): Vec2[] {
   return [...sides, along, { x: -along.x, z: -along.z }];
 }
 
-function sconceMount(site: Site, centre: Vec2, depth: number, n: Vec2): Mount {
-  const face = { x: centre.x + (n.x * depth) / 2, z: centre.z + (n.z * depth) / 2 };
+function sconceMount(site: Site, centre: Vec2, mount: FortressLampMount, base: number, n: Vec2): Mount {
+  const face = { x: centre.x + n.x * mount.face, z: centre.z + n.z * mount.face };
   const lamp = { x: face.x + n.x * SCONCE.reach, z: face.z + n.z * SCONCE.reach };
   const throwAt = { x: lamp.x + n.x * SCONCE.throw, z: lamp.z + n.z * SCONCE.throw };
-  return { n, face, lamp, throwAt, inside: insideAt(site, lamp) };
+  return { n, face, lamp, throwAt, inside: insideAt(site, lamp), height: mount.height, base };
 }
 
 function insideAt(site: Site, p: Vec2): boolean {
@@ -248,18 +269,21 @@ function innerMount(site: Site, mounts: Mount[], centre: Vec2, kind: FortressKin
 }
 
 function hangSconce(b: SiteBuilder, m: Mount): void {
-  b.addWallLamp(m.face, m.n, SCONCE.height);
+  b.addWallLamp(m.face, m.n, m.height, m.base);
 }
 
-const PIECE_DEPTH: Partial<Record<FortressKind, number>> = { wall: FORTRESS.wallDepth, tower: FORTRESS.towerSize };
+type Placed = { piece: FortressPiece; base: number; centre: Vec2; mounts: Mount[] };
 
-type Placed = { piece: FortressPiece; centre: Vec2; mounts: Mount[] };
-
-function placed(site: Site, piece: FortressPiece): Placed | null {
-  const depth = PIECE_DEPTH[piece.kind];
-  if (depth === undefined) return null;
-  const centre = { x: piece.pos.x - site.pos.x, z: piece.pos.y - site.pos.y };
-  return { piece, centre, mounts: sconceNormals(piece).map((n) => sconceMount(site, centre, depth, n)) };
+function placedPieces(site: Site, t: Terrain): Placed[] {
+  const pieces = fortressPieces(site);
+  return fortressProps(site).map((prop, k) => {
+    const piece = pieces[k];
+    const centre = { x: piece.pos.x - site.pos.x, z: piece.pos.y - site.pos.y };
+    const base = propBase(t, propObstacle(prop, k));
+    const lit = piece.kind === 'wall' || piece.kind === 'tower';
+    const mounts = lit ? sconceNormals(piece).map((n) => sconceMount(site, centre, lampMount(site, piece.kind as FortressLampPiece), base, n)) : [];
+    return { piece, base, centre, mounts };
+  });
 }
 
 function bearingGap(a: number, b: number): number {
@@ -283,8 +307,11 @@ function clearOf(hung: Vec2[], m: Mount): boolean {
   return hung.every((p) => Math.hypot(p.x - m.lamp.x, p.z - m.lamp.z) >= SCONCE.gap);
 }
 
-function addSconces(b: SiteBuilder, site: Site): void {
-  const all = fortressPieces(site).map((piece) => placed(site, piece)).filter((p): p is Placed => p !== null);
+function clearOfTowers(towers: Placed[], m: Mount): boolean {
+  return towers.every((t) => Math.hypot(t.centre.x - m.lamp.x, t.centre.z - m.lamp.z) >= SCONCE.towerClear);
+}
+
+function addSconces(b: SiteBuilder, site: Site, all: Placed[]): void {
   const towers = all.filter((p) => p.piece.kind === 'tower');
   const walls = all.filter((p) => p.piece.kind === 'wall');
   const outside = outsideTowers(site, towers);
@@ -296,21 +323,22 @@ function addSconces(b: SiteBuilder, site: Site): void {
   const hung: Vec2[] = [];
   for (const p of [...towers, ...walls]) {
     const m = innerMount(site, p.mounts, p.centre, p.piece.kind);
-    if (!m || !clearOf(hung, m)) continue;
+    if (!m || !clearOf(hung, m) || (p.piece.kind === 'wall' && !clearOfTowers(towers, m))) continue;
     hangSconce(b, m);
     hung.push(m.lamp);
   }
 }
 
-function dressGate(b: SiteBuilder, site: Site, fort: FortGate, guarded: boolean): void {
+function dressGate(b: SiteBuilder, site: Site, fort: FortGate, guarded: boolean, base: number): void {
+  const mount = lampMount(site, 'gate');
   const { face, out, width, height } = fort;
   const a = Math.atan2(out.y, out.x);
   const at = (reach: number, side: number) => ({ x: face.x - site.pos.x + out.x * reach - out.y * side, z: face.y - site.pos.y + out.y * reach + out.x * side });
   for (const side of [-1, 1]) {
-    const p = at(LAMP_REACH, (side * width) / 4);
-    const bracket = at(LAMP_REACH / 2, (side * width) / 4);
-    b.addBox(bracket.x, bracket.z, LAMP_REACH, 0.12, 0.12, PAL.metal, SET.lampHeight - 0.12, -a);
-    const head = b.addLampHead(p.x, p.z, SET.lampHeight, -a);
+    const p = at(LAMP_REACH - mount.face, (side * width) / 4);
+    const bracket = at(LAMP_REACH / 2 - mount.face, (side * width) / 4);
+    b.addBracket(bracket.x, bracket.z, LAMP_REACH, mount.height, -a, base);
+    const head = b.addLampHead(p.x, p.z, mount.height, -a, base);
     if (side === 1) b.addLight('gate', head, at(GATE_APRON_AIM, 0));
   }
   if (!guarded) return;
@@ -375,7 +403,7 @@ function buildWingDeck(t: Terrain): THREE.Group {
 function closeSite(b: SiteBuilder, site: Site, t: Terrain): void {
   if (!isFortress(site)) throw new Error(`Site ${site.id} has no fortress`);
   pullInside(site, b.root, t);
-  dressGates(b, site);
+  dressGates(b, site, t);
 }
 
 function insideSiteCurtain(site: Site, obj: THREE.Object3D): boolean {
