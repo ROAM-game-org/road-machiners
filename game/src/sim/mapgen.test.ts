@@ -13,6 +13,7 @@ import type { Obstacle } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 import { newWorld } from './world';
 import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { boxesOverlap } from '../test/boxes';
 import { deckHeight, groundAt, heightAt, PROP_KINDS, type BakedMap, type BakedProp } from './terrain';
 import type { PosedBox } from './mapgen';
@@ -62,7 +63,7 @@ describe('baked map obstacles', () => {
 
   it('knows every obstacle it makes as baked, and no other', () => {
     const baked = mapObstacles(mapWith([prop('rock', 10), prop('pole', 20, { group: 4, step: 7 }), prop('tank', 30), prop('bridgeSpan', 40)]));
-    const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const world = standardWorld(1337);
     const others = world.obstacles.filter((o) => !mapObstacles(TEST_MAP).some((b) => b.id === o.id));
     const runtimeWrecks: Obstacle[] = [{ id: 'wreck-v12', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }, { id: 'wreck31', pos: { x: 1, y: 1 }, r: 1, kind: 'wreck' }];
 
@@ -96,7 +97,7 @@ describe('breakable props', () => {
 });
 
 describe('world from the baked map', () => {
-  const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  const world = standardWorld(1337);
   const baked = world.obstacles.filter(isBakedObstacle);
 
   it('takes its terrain, hash and baked props from the map', () => {
@@ -392,7 +393,7 @@ describe('Broken Wing on the baked map', () => {
   });
 
   it('keeps every other prop, road wreck and site off the road under the hoop, on the ramps and on the deck', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = standardWorld(1337);
     const points = [...under, ...stretch];
     const on = w.obstacles.filter((o) => o.id !== hoop.id && o.kind !== 'water' && points.some((p) => dist(o.pos, p) <= o.r));
     expect(on.map((o) => o.id)).toEqual([]);
