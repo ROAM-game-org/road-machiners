@@ -1,11 +1,10 @@
-// The stuck label and the stuck sweep. Every tick the sweep records why each open stuck card waits, repairs only mechanical causes
-// with the sanctioned retry and repair-clone, and releases a timed-out merge batch half at a time. docs/operations.md#stuck-sweep has the rules.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { summarizeError } from './fail';
 import { inMergeBatch } from './position';
 import type { RepairOrder } from './repair-clone';
 import { baseBranchFor } from './stages/common';
+import { SUITE_DOWN_MARK } from './stages/remote-suite';
 import { readState, updateState } from './state';
 import { OPEN_MARKS, RELEASE_LABEL, STUCK_LABEL, WORK_DIR, type Card, type Column, type Ctx, type Failure, type FactoryState, type StuckCause, type StuckKind, type StuckRecord } from './types';
 
@@ -95,7 +94,7 @@ function hasOpenMerge(input: SweepInput, card: Card): boolean {
 }
 
 function machineGone(input: SweepInput, record: Unkinded): boolean {
-  return GITHUB_DOWN.test(record.cause) || (input.diskOk && DISK_FULL.test(record.cause));
+  return GITHUB_DOWN.test(record.cause) || record.cause.includes(SUITE_DOWN_MARK) || (input.diskOk && DISK_FULL.test(record.cause));
 }
 
 export function openMarks(home: string, issue: number): string[] {

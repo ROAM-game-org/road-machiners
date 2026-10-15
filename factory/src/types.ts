@@ -59,6 +59,8 @@ export type FactoryConfig = {
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
   testStallMinutes: number;
+  suiteStartMinutes: number;
+  suitePollSeconds: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
@@ -240,7 +242,12 @@ export interface GitHub {
   findByFingerprint(fingerprint: string): Promise<FingerprintIssue | null>;
   errorIssue(number: number): Promise<FingerprintIssue>;
   mergePullRequest(branch: string): Promise<void>;
+  dispatchSuite(sha: string): Promise<number>;
+  suiteRun(id: number): Promise<SuiteRun>;
+  suiteLog(id: number): Promise<string>;
 }
+
+export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
 
 export type InlineButton = { text: string; data: string };
 

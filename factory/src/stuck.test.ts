@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, updateState, writeState } from './state';
+import { SuiteMachineError } from './stages/remote-suite';
 import { classifyStuck, sweepStuck, type Repair } from './stuck';
 import { STUCK_LABEL, WORK_DIR, type Card, type Ctx, type Failure, type FactoryState, type Job } from './types';
 
@@ -139,6 +140,14 @@ describe('the stuck sweep', () => {
     await sweep(b);
     expect(readState(b.ctx.statePath).stuck['4']).toMatchObject({ kind: 'blocked', refused: 'holds 2 commits on no GitHub branch', tries: 1 });
     expect(b.logs.filter((line) => line.includes('left for Hermes'))).toHaveLength(1);
+  });
+
+  it('retries a full suite that could not run on GitHub Actions, and leaves a failed test for Hermes', async () => {
+    const down = new SuiteMachineError('run 77 did not start within 15 minutes: https://github.com/o/r/actions/runs/77').message;
+    const b = board([stuck(4, 'Testing'), stuck(5, 'Testing')], { failures: [failure(4, down, { stage: 'verify' }), failure(5, 'The full suite failed on GitHub Actions for abc1234: FAIL src/a.test.ts', { stage: 'verify' })] });
+    await sweep(b, false);
+    expect(b.removed).toEqual([4]);
+    expect(kinds(b)).toMatchObject({ 5: 'blocked' });
   });
 
   it('retries a GitHub outage once, after this tick read the board, and a full disk only once the disk is free', async () => {

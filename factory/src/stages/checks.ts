@@ -166,7 +166,7 @@ export async function checkUntilReal(check: () => Promise<string | null>, onTime
   }
 }
 
-const FAILURE_TAIL_LINES = 150;
+export const FAILURE_TAIL_LINES = 150;
 
 function checkFailure(log: string, error: unknown, from: number): string {
   const message = error instanceof Error ? error.message : String(error);
