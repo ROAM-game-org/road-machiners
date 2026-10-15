@@ -49,6 +49,10 @@ export class ZonesView {
     return mesh;
   }
 
+  hideBands(): void {
+    for (const k of Object.keys(this.bands) as Throttle[]) this.bands[k].visible = false;
+  }
+
   update(terrain: Terrain, pos: Vec, heading: number, speed: number, halfAngle: number): void {
     const z = zoneEdges();
     const brakeEnd = speed === 0 ? z.restBrakeEnd : z.brakeEnd;
