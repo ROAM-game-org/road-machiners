@@ -58,6 +58,18 @@ describe('groundWith', () => {
     await expect(groundWith(compose, DOCS)(asked('repair engine cost?'))).rejects.toThrow('holds a link');
   });
 
+  it('refuses a bare domain or a handle that no offered passage has, since Telegram turns both into links', async () => {
+    for (const answer of ['Repairs are cheaper at scam.example.', 'Ask @free_parts_bot for an engine repair.']) {
+      await expect(groundWith(composing({ answer, sources: [1] }).compose, DOCS)(asked('repair engine cost?'))).rejects.toThrow('no offered source has');
+    }
+  });
+
+  it('keeps a page name or a number with a dot that the offered passages hold', async () => {
+    const answer = 'An engine repair costs 40, as truck.md says, and brings the part to half its HP. 0.5 of it, in short.';
+    const grounded = await groundWith(composing({ answer, sources: [1] }).compose, tempDocs({ 'wiki/truck.md': '# Truck\n\nAn engine repair costs 40, see truck.md.\n' }))(asked('repair engine cost?'));
+    expect(grounded!.text).toBe(answer);
+  });
+
   it('throws when the docs folder has no passages, so a broken deploy never reads as no answer', async () => {
     const { compose } = composing({ answer: 'x', sources: [1] });
     await expect(groundWith(compose, 'tmp/no-such-docs-dir-' + Date.now())(asked('repair?'))).rejects.toThrow();

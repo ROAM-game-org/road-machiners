@@ -10,7 +10,8 @@ const ENDPOINT = 'https://api.openai.com/v1/responses';
 const RULES = readFileSync(fileURLToPath(new URL('../../prompts/chat-answer.md', import.meta.url)), 'utf8').trim();
 const CANDIDATES = 8;
 const SOURCE_CHARS = 800;
-const LINK = /https?:\/\/|www\.|t\.me\//i;
+const SCHEME = /[a-z][\w+.-]*:\/\//i;
+const LINKABLE = /@\w+|[\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*\.\p{L}{2,}\b/gu;
 
 const SCHEMA = {
   type: 'object',
@@ -30,10 +31,17 @@ function cited(composed: Composed, candidates: Passage[]): Passage[] {
   return picked;
 }
 
+function unsourcedLinks(text: string, candidates: Passage[]): string[] {
+  const sources = candidates.map(sourceText).join('\n').toLowerCase();
+  return (text.match(LINKABLE) ?? []).filter((token) => !sources.includes(token.toLowerCase()));
+}
+
 function checked(composed: Composed, candidates: Passage[]): Grounded | null {
   const text = composed.answer.trim();
   if (text === '') return null;
-  if (LINK.test(text)) throw new Error('The chat answer holds a link, so it is not sent.');
+  if (SCHEME.test(text)) throw new Error('The chat answer holds a link, so it is not sent.');
+  const unsourced = unsourcedLinks(text, candidates);
+  if (unsourced.length > 0) throw new Error(`The chat answer holds a link or handle no offered source has, so it is not sent: ${unsourced.join(', ')}.`);
   return { text, passages: cited(composed, candidates) };
 }
 
