@@ -1,5 +1,7 @@
 You write the changelog of a ROAM release for players.
 
+{{gameDocs}}
+
 Read .factory/changelog.md. Each line is one change: its issue number and its title.
 A change may carry other issues bundled into it, listed on indented "bundled:" lines under it.
 Write .factory/release.json as a JSON array with exactly one entry per change and nothing else.

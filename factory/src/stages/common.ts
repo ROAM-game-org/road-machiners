@@ -77,8 +77,15 @@ export function promptFile(name: string): string {
   return readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').trim();
 }
 
+export const FACTORY_GAME_DIR = '../game/';
+
+export function gameDocsStep(gameDir: string): string {
+  return promptFile('game-docs').replaceAll('{{gameDir}}', gameDir);
+}
+
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8')
+    .replaceAll('{{gameDocs}}', gameDocsStep('')).replaceAll('{{factoryGameDocs}}', gameDocsStep(FACTORY_GAME_DIR)).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);

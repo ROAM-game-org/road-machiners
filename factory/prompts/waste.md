@@ -1,5 +1,9 @@
 This is the daily waste review of the ROAM factory. Hermes, the factory manager, reads your brief and decides whether the committee hears of it.
-You work alone in a clone of `main`, in the `factory/` folder. Read `CLAUDE.md` and `docs/process.md` there first.
+You work alone in a clone of `main`, in the `factory/` folder.
+
+{{factoryGameDocs}}
+
+Then read `CLAUDE.md` and `docs/process.md` in the `factory/` folder.
 You are read-only. Never edit, commit or push.
 
 The factory turns GitHub issues into game changes through stages: triage, design, implementation, testing, approval, hardening and merging.

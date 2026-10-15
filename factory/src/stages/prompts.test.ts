@@ -1,13 +1,13 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { fillPrompt, promptFile } from './common';
+import { FACTORY_GAME_DIR, fillPrompt, gameDocsStep, promptFile } from './common';
 
 const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
-const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc'];
+const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release'];
 const FACTORY_STAGES = ['change', 'waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'release', 'game-docs', 'fix-docs', 'design-bug', 'change-pr', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
+const NO_DOCS_STEP = ['game-docs', 'fix-docs', 'design-bug', 'change-pr', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
 const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
 function filled(name: string): string {
@@ -17,7 +17,7 @@ function filled(name: string): string {
 }
 
 describe('the game docs step', () => {
-  const docs = promptFile('game-docs');
+  const docs = gameDocsStep('');
 
   it('names the game docs and the index, and asks for no edit, so read-only stages keep their rules', () => {
     expect(docs).toContain('Read CLAUDE.md and docs/DESIGN.md in full.');
@@ -28,7 +28,7 @@ describe('the game docs step', () => {
 
   it('sorts every prompt into game stages or prompts with no docs step', () => {
     const names = readdirSync(PROMPTS).filter((file) => file.endsWith('.md')).map((file) => file.slice(0, -3));
-    expect(names.filter((name) => !GAME_STAGES.includes(name) && !NO_DOCS_STEP.includes(name))).toEqual([]);
+    expect(names.filter((name) => ![...GAME_STAGES, ...FACTORY_STAGES, ...NO_DOCS_STEP].includes(name))).toEqual([]);
   });
 
   it.each(GAME_STAGES)('comes first in the %s prompt, before any other step', (name) => {
@@ -48,8 +48,14 @@ describe('the game docs step', () => {
     expect(text).toMatch(/(Run `npm ci`|Install the hooks) right after the docs step, before any code, test or check\./);
   });
 
-  it.each(FACTORY_STAGES)('stays out of the %s prompt, which works on the factory', (name) => {
-    expect(filled(name)).not.toContain(docs);
+  it.each(FACTORY_STAGES)('comes first in the %s prompt with the game docs under ../game/, since it works in factory/', (name) => {
+    const text = filled(name);
+    const factoryDocs = gameDocsStep(FACTORY_GAME_DIR);
+    const at = text.indexOf(factoryDocs);
+    expect(factoryDocs).toContain('Read ../game/CLAUDE.md and ../game/docs/DESIGN.md in full.');
+    expect(at).toBeGreaterThan(0);
+    expect(text.slice(0, at)).not.toMatch(STEP_LINE);
+    expect(text).not.toContain(docs);
   });
 });
 
