@@ -556,7 +556,7 @@ export function garageParts(world: World, v: Vehicle): PartInstance[] {
 }
 
 export function basicParts(world: World, v: Vehicle): PartInstance[] {
-  return garageParts(world, v).filter((p) => partDef(p.defId).kind === "core" || partDef(p.defId).kind === "engine");
+  return garageParts(world, v).filter((p) => ["core", "engine"].includes(partDef(p.defId).kind));
 }
 
 function brokenDriveParts(world: World, v: Vehicle): PartInstance[] {
