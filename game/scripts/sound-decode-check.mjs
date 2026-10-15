@@ -63,9 +63,7 @@ async function run(engine, scenario) {
   }
 }
 
-const judge = (scenario, report) => scenario === 'all-files'
-  ? report.failures.length === 0 && report.checks.every((c) => c.real)
-  : report.checks.find((c) => c.file === TRUNCATED_FILE || scenario === 'decoder-fault').real && report.checks.every((c) => c.real);
+const judge = (scenario, report) => report.checks.every((c) => c.real) && (scenario !== 'all-files' || report.failures.length === 0);
 
 let failed = false;
 for (const engine of Object.keys(engines)) {

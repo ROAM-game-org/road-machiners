@@ -8,7 +8,7 @@
     <script type="module">
       import { SOUNDS } from '/src/data/sounds.ts';
       import { SFX_BYTES } from '/src/config.ts';
-      import * as bankModule from '/src/audio/bank.ts';
+      import { loadBank, recoverBank } from '/src/audio/bank.ts';
 
       const WATCHED = { 'hit-metal-2.ogg': 0.6, 'ui-open-1.ogg': 0.501, 'mg-fire-2.ogg': 0.6 };
       const DURATION_TOLERANCE = 0.02;
@@ -29,10 +29,9 @@
       }
 
       const ctx = new OfflineAudioContext(2, 48000, 48000);
-      const modern = 'recoverBank' in bankModule;
       const options = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType('audio/ogg; codecs=opus') };
-      const loaded = modern ? await bankModule.loadBank(ctx, SOUNDS, options) : await bankModule.loadBank(ctx, SOUNDS);
-      if (modern) await bankModule.recoverBank(ctx, loaded, options);
+      const loaded = await loadBank(ctx, SOUNDS, options);
+      await recoverBank(ctx, loaded, options);
       window.__SOUND_CHECK__ = {
         failures: loaded.failures.map((f) => f.file),
         checks: Object.keys(WATCHED).map((file) => check(loaded.bank, file)),
