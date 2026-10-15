@@ -875,8 +875,20 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
   withRescueContracts_63_64,
-  withoutBearingCall_64_65,
+  withEncounters_64_65,
+  withProgressAnchor_65_66,
+  (world) => world,
+  withoutBearingCall_67_68,
 ];
+
+function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
@@ -994,13 +1006,19 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
-const BEARING_LINES_64_65: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked'];
+function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
 
-function withoutBearingCall_64_65(world: SavedJson): SavedJson {
+const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];
+
+function withoutBearingCall_67_68(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   const said = (call?.line as SavedJson | undefined)?.line;
-  return typeof said === 'string' && BEARING_LINES_64_65.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+  return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

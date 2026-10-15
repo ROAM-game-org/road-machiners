@@ -75,7 +75,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
   const icon = turnedIcon(it, cell);
   const node = el(
     "div",
-    { class: itemClass(it, mounted), "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemName(it), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: itemClass(it, mounted), "data-hold": "", "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemName(it), tabindex: 0, role: "button", "aria-label": itemName(it) },
     icon,
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
   );

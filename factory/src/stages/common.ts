@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
-import { isAnswered, isQuestion } from '../questions';
+import { askedAt, isAnswered, recordAsked } from '../questions';
 import { resumeError, resumedStage, roundSession } from '../sessions';
 import { readCommitteeMedia } from '../reply-media';
 import { issueReports } from '../error-reports/service';
@@ -104,7 +104,7 @@ export function mediaDir(ctx: Ctx, issue: number): string {
 }
 
 async function githubToken(ctx: Ctx): Promise<string | undefined> {
-  const out = await ctx.run('gh', ['auth', 'token']).catch(() => null);
+  const out = await ctx.run('gh', ['auth', 'token'], { activity: 'git' }).catch(() => null);
   return out !== null && out.code === 0 && out.stdout.trim() !== '' ? out.stdout.trim() : undefined;
 }
 
@@ -166,11 +166,14 @@ export function fitComment(text: string, fullAt: string): string {
 
 export async function askAuthor(ctx: Ctx, issue: number, questions: string[], stage: 'triage' | 'design'): Promise<void> {
   const [{ author }, earlier] = await Promise.all([ctx.github.issue(issue), ctx.github.comments(issue)]);
-  const stillOpen = earlier.some(isQuestion) && !isAnswered(earlier);
+  const before = askedAt(ctx.statePath, issue);
+  const stillOpen = before !== null && !isAnswered(earlier, before);
   const numbered = questions.map((question, index) => `${index + 1}. ${question}`);
   const body = [QUESTIONS_HEADING, `@${author}`, numbered.join('\n'), 'The work continues once someone answers here.'].join('\n\n');
+  const at = ctx.now().toISOString();
   await ctx.github.comment(issue, body);
   await ctx.github.addLabel(issue, NEEDS_INFO_LABEL);
+  recordAsked(ctx.statePath, issue, at);
   if (stillOpen) return;
   const text = `❓ ${stage === 'triage' ? 'Triage' : 'Design'} needs answers on #${issue}. The questions are on the GitHub issue: https://github.com/${ctx.cfg.repo}/issues/${issue}\nAnswer there. Replies in this chat do not reach the stage.`;
   await ctx.telegram.sendMessage(ctx.cfg.committeeChat, text).catch((error: unknown) => ctx.log(stage, issue, `could not notify the committee of the questions: ${error instanceof Error ? error.message : String(error)}`));
@@ -198,7 +201,7 @@ async function guardedHead(ctx: Ctx, issue: number, base: string, stage: CardSta
   const untracked = await ctx.repo.untrackFactoryFiles(workDir(ctx, issue));
   if (untracked.length > 0) ctx.log(stage, issue, `took factory files out of the branch: ${untracked.join(', ')}`);
   const head = await ctx.repo.fetchFromWork(workDir(ctx, issue), BRANCH(issue));
-  guardDiff(await ctx.repo.diff(base, head));
+  guardDiff({ files: await ctx.repo.changedFiles(base, head), diff: await ctx.repo.diff(base, head) });
   return head;
 }
 

@@ -16,7 +16,7 @@ import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
 import { itemMass, vehicleMass } from '../sim/mass';
-import { clearGame, clearSlot, hasSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
+import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
 import { REGION } from '../data/region';
 import { sitePads } from '../sim/sites';
@@ -30,8 +30,8 @@ import { TIME } from '../data/time';
 import { MIGRATIONS, SAVE_FORMAT, SAVE_MAJOR } from './save-migrations';
 import SAVED_SHAPE from './save-shape.json';
 import { allSlots, type SlotId } from './save-slots';
-import { lostQuestNames, newGameShape, questNames } from '../test/save-shape';
-import { chooseQuestOption, QUESTS, questView, startQuest } from '../sim/quests';
+import { lostQuestNames, newGameShape, questLinks, questNames } from '../test/save-shape';
+import { chooseQuestOption, QUESTS, questProblems, questView, startQuest } from '../sim/quests';
 import { defaultSetup, parseSetup } from '../sim/settings';
 import { TOPICS } from '../data/dialogue';
 import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
@@ -104,6 +104,24 @@ describe('game save', () => {
     writeSave(slots, 'auto', world, RUN, 1000);
     const loaded = loadWorld(slots, 'auto', TEST_MAP);
     expect(loaded?.vehicles[0].weaponOrders.w1).toEqual({ targetId: foe.id, aim: 'body' });
+  });
+
+  it('keeps a pending disarm order on an armed ram through a reload, and load awards nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    const truck = addVehicle(world, 'traders', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
+    const ram = mountedParts(truck).find((p) => p.defId === 'claymoreRam')!;
+    ram.charge = { reload: 0, armed: true };
+    truck.utilityOrders[ram.id] = { kind: 'disarm' };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    const back = loaded.vehicles.find((v) => v.id === truck.id)!;
+    expect(back.utilityOrders[ram.id]).toEqual({ kind: 'disarm' });
+    expect(mountedParts(back).find((p) => p.id === ram.id)!.charge).toEqual({ reload: 0, armed: true });
+    expect(loaded.player.money).toBe(world.player.money);
+    expect(loaded.events).toEqual([]);
   });
 
   it('keeps a duty leg in flight through a reload, and load pays nothing', () => {
@@ -401,6 +419,10 @@ describe('game save', () => {
     expect(questNames(QUESTS), 'Saved quest names changed. A removed, renamed or retyped name needs a migration step. Then run npm run save:shape').toEqual(SAVED_SHAPE.quests);
   });
 
+  it('records the links and revision of every quest, so a link change asks for a revision or a compatible mark', () => {
+    expect(questLinks(QUESTS), 'Quest links changed. Run npm run save:shape and follow what it asks').toEqual(SAVED_SHAPE.questLinks);
+  });
+
   it('finds a removed, retyped or lost checkpoint name against the recorded names', () => {
     const recorded = { world: { heard: 'boolean' as const }, local: { bowl: { trust: 'number' as const } }, checkpoints: { bowl: ['start', 'start.talk'] } };
     const current = { world: {}, local: { bowl: { trust: 'string' as const } }, checkpoints: { bowl: ['start'] } };
@@ -423,20 +445,110 @@ describe('game save', () => {
     expect(loaded?.events).toEqual([]);
   });
 
-  it('rejects a save holding a quest variable or checkpoint this version does not know', () => {
+  it('loads Agnes\'s finished outcome and an open road session unchanged, awarding nothing', () => {
+    const slots = makeSlots();
+    const base = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const finished = structuredClone(base);
+    finished.player.quests.world.pipe_fate = 'delivered';
+    finished.player.quests.world.marr_regard = 'enemy';
+    const open = chooseQuestOption(startQuest(structuredClone(base), QUESTS, 'pump_agnes', 'start'), QUESTS, 0);
+    for (const [slot, world] of [['auto', finished], ['day', open]] as const) {
+      writeSave(slots, slot, world, 'run', 1);
+      const loaded = loadWorld(slots, slot, TEST_MAP);
+      expect(loaded?.player.quests.world).toEqual(world.player.quests.world);
+      expect(loaded?.player.quests.local).toEqual(world.player.quests.local);
+      expect(loaded?.player.quests.session).toEqual(world.player.quests.session);
+      expect(loaded?.player.money).toBe(world.player.money);
+      expect(loaded?.player.notes).toEqual(world.player.notes);
+      expect(loaded?.events).toEqual([]);
+    }
+  });
+
+  it('repairs in place a save holding a quest variable, quest or checkpoint this version does not know', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     const cases = [
-      [{ world: { gone: true }, local: {}, session: null }, /badQuests: World variable gone is not declared/],
-      [{ world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } }, /badQuests: Quest bowl_hattie has no checkpoint nowhere/],
-      [{ world: {}, local: [], session: null }, /badQuests/],
+      [{ world: { gone: true }, local: {}, session: null }, { questsReset: [], lost: ['gone'] }],
+      [{ world: {}, local: { retired_quest: { n: 1 } }, session: null }, { questsReset: [], lost: ['retired_quest'] }],
+      [{ world: {}, local: {}, session: { quest: 'bowl_hattie', checkpoint: 'nowhere', seed: 1 } }, { questsReset: ['bowl_hattie'], lost: [] }],
     ] as const;
-    for (const [quests, error] of cases) {
+    for (const [quests, repair] of cases) {
       const saved = saveOf(world).world as { player: Record<string, unknown> };
       slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests } } });
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
-      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(error);
+      const loaded = loadSave(slots, 'auto', TEST_MAP);
+      expect(loaded?.repair).toEqual({ ...repair, settingsReset: [] });
+      expect(loaded && questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
+      expect(loaded?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
     }
+  });
+
+  it('still rejects quest state that is no quest state', () => {
+    const slots = makeSlots();
+    const saved = saveOf(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))).world as { player: Record<string, unknown> };
+    slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, quests: { world: {}, local: [], session: null } } } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/badQuests/);
+  });
+
+  it('rejects notes that are no notes as an invalid world', () => {
+    const slots = makeSlots();
+    const saved = saveOf(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'))).world as { player: Record<string, unknown> };
+    slots.put('auto', { format: SAVE_FORMAT, world: { ...saved, player: { ...saved.player, notes: [null] } } });
+    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/invalidWorld/);
+  });
+
+  describe('quest revisions', () => {
+    const hattieMid = () => chooseQuestOption(startQuest(newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming')), QUESTS, 'bowl_hattie', 'start'), QUESTS, 0);
+
+    function savedAt(world: World, revisions: Record<string, unknown> | undefined): SaveSlots {
+      const slots = makeSlots();
+      writeSave(slots, 'auto', world, RUN, 1);
+      const envelope = { ...(slots.get('auto') as Record<string, unknown>) };
+      if (revisions === undefined) delete envelope.quests;
+      else envelope.quests = { ...(envelope.quests as object), ...revisions };
+      slots.put('auto', envelope);
+      return slots;
+    }
+
+    it('writes the revision of every quest on the save', () => {
+      const slots = makeSlots();
+      writeSave(slots, 'auto', hattieMid(), RUN, 1);
+      expect((slots.get('auto') as { quests: unknown }).quests).toEqual(Object.fromEntries(Object.entries(QUESTS.quests).map(([id, q]) => [id, q.revision])));
+    });
+
+    it('loads a save with no revisions as revision 1 everywhere, with nothing to repair', () => {
+      const mid = hattieMid();
+      const loaded = loadSave(savedAt(mid, undefined), 'auto', TEST_MAP);
+      expect(loaded?.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(loaded?.world.player.quests.session).toEqual(mid.player.quests.session);
+    });
+
+    it('resets a quest the game raised past the save, reports it and awards nothing', () => {
+      const mid = hattieMid();
+      const loaded = loadSave(savedAt(mid, { bowl_hattie: 0 }), 'auto', TEST_MAP)!;
+      expect(loaded.repair.questsReset).toEqual(['bowl_hattie']);
+      expect(loaded.world.player.quests.session).toBeNull();
+      expect(loaded.world.player.quests.local.bowl_hattie).toBeUndefined();
+      expect(loaded.world.player.money).toBe(mid.player.money);
+      expect(loaded.world.player.xp).toBe(mid.player.xp);
+      expect(loaded.world.events).toEqual([]);
+      expect(questProblems(loaded.world.player.quests, QUESTS)).toEqual([]);
+    });
+
+    it('repeats the same repair on every load until the next save, which then loads clean', () => {
+      const slots = savedAt(hattieMid(), { bowl_hattie: 0 });
+      const first = loadSave(slots, 'auto', TEST_MAP)!;
+      expect(loadSave(slots, 'auto', TEST_MAP)!.repair).toEqual(first.repair);
+      writeSave(slots, 'auto', first.world, RUN, 2);
+      const next = loadSave(slots, 'auto', TEST_MAP)!;
+      expect(next.repair).toEqual({ questsReset: [], lost: [], settingsReset: [] });
+      expect(next.world.player.quests).toEqual(first.world.player.quests);
+    });
+
+    it('rejects a save made by a build with a newer revision of a quest', () => {
+      const slots = savedAt(hattieMid(), { bowl_hattie: 99 });
+      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(SaveError);
+      expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/newerQuests: bowl_hattie/);
+    });
   });
 
   it('rejects a save missing a field required for future turns', () => {
@@ -528,6 +640,21 @@ describe('game save', () => {
     expect([loaded.player.xp, loaded.player.repeats]).toEqual([world.player.xp, world.player.repeats]);
     practiceContacts(loaded, refreshVision(loaded));
     expect(loaded.player.xp).toEqual(world.player.xp);
+  });
+
+  it('keeps the spot a driver last made progress at through a reload, and load pays nothing', () => {
+    const slots = makeSlots();
+    const world = emptyWorld();
+    world.turn = 900;
+    const trader = addVehicle(world, 'traders', 'scout', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    trader.brain = npcBrain('trader', trader.pos, ['trader']);
+    trader.brain.progress = { key: 'idle -', since: 880, at: { x: 38.5, y: 41 } };
+    writeSave(slots, 'auto', world, RUN, 1000);
+
+    const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
+
+    expect(loaded.vehicles.find((v) => v.id === trader.id)!.brain!.progress).toEqual(trader.brain.progress);
+    expect([loaded.player.money, loaded.player.xp, loaded.events]).toEqual([world.player.money, world.player.xp, []]);
   });
 
   it('keeps every driver personality through a save and a load, and awards nothing on load', () => {
@@ -703,11 +830,17 @@ describe('saved world settings', () => {
   });
 
   it.each([
-    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
+    ['NaN, which JSON stores as null', { mode: 'roaming', settings: { damage: NaN, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
+    ['zero', { mode: 'roaming', settings: { damage: 1, fuelUse: 0, supplyUse: 1, enemyGearGrowth: 1 } }, ['fuelUse']],
+    ['a runaway value', { mode: 'roaming', settings: { damage: 10, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, ['damage']],
+  ])('loads a save with %s, resetting that setting and reporting it', (_, setup, reset) => {
+    const loaded = loadSave(storedWith(setup), 'auto', TEST_MAP)!;
+    expect(loaded.repair.settingsReset).toEqual(reset);
+    expect(loaded.world.setup).toEqual(defaultSetup('roaming'));
+  });
+
+  it.each([
     ['an unknown mode', { mode: 'campaign', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }],
-    ['no enemy gear growth', { mode: 'furyRoad', settings: { damage: 1, fuelUse: 1, supplyUse: 1 } }],
     ['no setup at the current format', undefined],
   ])('rejects a save with %s as a save error', (_, setup) => {
     expect(() => loadWorld(storedWith(setup), 'auto', TEST_MAP)).toThrow(SaveError);

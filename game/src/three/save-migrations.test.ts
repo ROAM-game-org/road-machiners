@@ -66,6 +66,7 @@ import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1365,29 +1366,67 @@ describe('save migration 62 to 63', () => {
   });
 });
 
-describe('MIGRATIONS[64]', () => {
+describe('save migration 64 to 65', () => {
+  it('gives an old save an idle encounter log and changes nothing else', () => {
+    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
+
+    expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
+    expect(next.player.money).toBe(1200);
+    expect({ ...next, player: { ...next.player, encounters: undefined } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, encounters: undefined } });
+  });
+
+  it('keeps an encounter log that is already there', () => {
+    const log = { next: 40, pending: null, story: null };
+    const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
+
+    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
+  });
+});
+
+describe('MIGRATIONS[65]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});
+
+describe('MIGRATIONS[67]', () => {
   const callOf = (world: unknown) => (world as { player: { call: unknown } }).player.call;
   const saying = (line: string) => {
-    const world = structuredClone(FORMAT_2_64) as { player: { call: { line: { line: string } } } };
+    const world = structuredClone(FORMAT_2_67) as { player: { call: { line: { line: string } } } };
     world.player.call.line.line = line;
     return world;
   };
 
   it('hangs up a call on the old town bearing line and keeps every other field', () => {
-    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64));
+    const next = MIGRATIONS[67](structuredClone(FORMAT_2_67));
     expect(callOf(next)).toBeNull();
-    expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, call: null } });
+    expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_67, player: { ...FORMAT_2_67.player, call: null } });
   });
 
   it('hangs up a call on the old site and wreck bearing lines', () => {
-    expect(callOf(MIGRATIONS[64](saying('siteBearing')))).toBeNull();
-    expect(callOf(MIGRATIONS[64](saying('aWreckNobodyPicked')))).toBeNull();
+    expect(callOf(MIGRATIONS[67](saying('siteBearing')))).toBeNull();
+    expect(callOf(MIGRATIONS[67](saying('aWreckNobodyPicked')))).toBeNull();
   });
 
   it('keeps a call on another line and a save with no call as they are', () => {
     const other = saying('heardYou');
-    expect(MIGRATIONS[64](structuredClone(other))).toEqual(other);
+    expect(MIGRATIONS[67](structuredClone(other))).toEqual(other);
     const none = { turn: 3, player: { call: null } };
-    expect(MIGRATIONS[64](structuredClone(none))).toEqual(none);
+    expect(MIGRATIONS[67](structuredClone(none))).toEqual(none);
   });
 });

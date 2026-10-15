@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
 import { createWriteStream } from 'node:fs';
-import type { Run, RunResult } from './types';
+import type { Activity } from './observability';
+import type { Run, RunOptions, RunResult } from './types';
 
-export const realRun: Run = (cmd, args, opts = {}) => new Promise((done, fail) => {
+export const realRun: Run = (cmd, args, opts) => new Promise((done, fail) => {
   const child = spawn(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...opts.env } });
   const log = opts.logPath ? createWriteStream(opts.logPath, { flags: 'a' }) : null;
   let stdout = '';
@@ -22,7 +23,11 @@ export const realRun: Run = (cmd, args, opts = {}) => new Promise((done, fail) =
   else child.stdin.end();
 });
 
-export function must(result: RunResult, what: string): string {
-  if (result.code !== 0) throw new Error(`${what} failed with exit ${result.code}: ${(result.stderr || result.stdout).trim().slice(-2000)}`);
+export function withActivity(run: Run, activity: Activity): (cmd: string, args: string[], opts?: Omit<RunOptions, 'activity'>) => Promise<RunResult> {
+  return (cmd, args, opts = {}) => run(cmd, args, { ...opts, activity });
+}
+
+export function must(result: RunResult, what: string, failure: new (message: string) => Error = Error): string {
+  if (result.code !== 0) throw new failure(`${what} failed with exit ${result.code}: ${(result.stderr || result.stdout).trim().slice(-2000)}`);
   return result.stdout;
 }
