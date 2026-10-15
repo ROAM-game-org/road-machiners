@@ -82,7 +82,7 @@ export const FURY_ROAD = {
   chaseSpeed: 5.5,
   nerve: 0.3,
   sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
-  pacing: { near: 30, lateBy: 60 },
+  pacing: { near: 30, lateBy: 100 },
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
