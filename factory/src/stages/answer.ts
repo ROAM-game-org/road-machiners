@@ -1,4 +1,4 @@
-import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { UsageLimitError } from '../pause';
 import { isOnThread, threadNote } from '../public/replies';
@@ -85,7 +85,7 @@ async function investigate(ctx: Ctx, question: Question, clone: string): Promise
     if (error instanceof UsageLimitError) throw error;
     throw new Error(`The answer agent run failed, see ${log}.`);
   }
-  return checkedAnswer(ctx, home);
+  return checkedAnswer(ctx, clone);
 }
 
 const quoted = (text: string): string => text.split(/\r\n|\r|\n/).map((line) => `> ${line}`).join('\n');
@@ -100,9 +100,15 @@ function writeQuestion(question: Question, home: string): void {
   writeFileSync(`${home}/${OUT_DIR}/question.md`, `${parts.join('\n\n')}\n`);
 }
 
-export function checkedAnswer(ctx: Ctx, home: string): string {
-  const path = join(home, OUT_DIR, ANSWER_FILE);
-  if (lstatSync(path, { throwIfNoEntry: false })?.isFile() !== true) throw new Error(`The answer agent left no plain file ${OUT_DIR}/${ANSWER_FILE}.`);
+function answerPath(clone: string): string {
+  const path = join(realpathSync(clone), GAME_DIR, OUT_DIR, ANSWER_FILE);
+  const plain = lstatSync(path, { throwIfNoEntry: false })?.isFile() === true && realpathSync(path) === path;
+  if (!plain) throw new Error(`The answer agent left no plain file ${OUT_DIR}/${ANSWER_FILE}.`);
+  return path;
+}
+
+export function checkedAnswer(ctx: Ctx, clone: string): string {
+  const path = answerPath(clone);
   const text = readFileSync(path, 'utf8').trim();
   if (text === '' || text.length > TEXT_LIMIT) throw new Error(`The answer has ${text.length} characters, outside 1 to ${TEXT_LIMIT}.`);
   if (text.includes(ctx.cfg.oauthToken)) throw new Error('The answer holds the Claude login token.');

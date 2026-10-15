@@ -108,14 +108,14 @@ describe('answer job', () => {
 
 describe('checkedAnswer', () => {
   const ctx = { cfg: { repo: 'o/r', publicUrl: 'https://roam.example/play', oauthToken: TOKEN } } as Ctx;
-  const home = resolve('tmp/answer-check');
+  const clone = resolve('tmp/answer-check');
   const check = (text: string): string => {
-    rmSync(home, { recursive: true, force: true });
-    mkdirSync(join(home, '.factory'), { recursive: true });
-    writeFileSync(join(home, '.factory/answer.md'), text);
-    return checkedAnswer(ctx, home);
+    rmSync(clone, { recursive: true, force: true });
+    mkdirSync(join(clone, 'game/.factory'), { recursive: true });
+    writeFileSync(join(clone, 'game/.factory/answer.md'), text);
+    return checkedAnswer(ctx, clone);
   };
-  afterEach(() => rmSync(home, { recursive: true, force: true }));
+  afterEach(() => rmSync(clone, { recursive: true, force: true }));
 
   it('passes links to the repo on GitHub and to the public game', () => {
     expect(check(' See https://github.com/o/r/issues/5, https://github.com/o/r and https://roam.example/play/. \n')).toBe('See https://github.com/o/r/issues/5, https://github.com/o/r and https://roam.example/play/.');
@@ -132,12 +132,16 @@ describe('checkedAnswer', () => {
     expect(() => check(text)).toThrow();
   });
 
-  it('never reads an answer file that is a link', () => {
-    rmSync(home, { recursive: true, force: true });
-    mkdirSync(join(home, '.factory'), { recursive: true });
-    writeFileSync(join(home, 'secret.txt'), 'committee ids');
-    symlinkSync(join(home, 'secret.txt'), join(home, '.factory/answer.md'));
-    expect(() => checkedAnswer(ctx, home)).toThrow('no plain file');
+  it('never reads an answer file that is a link or sits under a linked folder', () => {
+    rmSync(clone, { recursive: true, force: true });
+    mkdirSync(join(clone, 'game/.factory'), { recursive: true });
+    mkdirSync(join(clone, 'host'), { recursive: true });
+    writeFileSync(join(clone, 'host/answer.md'), 'committee ids');
+    symlinkSync(join(clone, 'host/answer.md'), join(clone, 'game/.factory/answer.md'));
+    expect(() => checkedAnswer(ctx, clone)).toThrow('no plain file');
+    rmSync(join(clone, 'game/.factory'), { recursive: true });
+    symlinkSync(join(clone, 'host'), join(clone, 'game/.factory'));
+    expect(() => checkedAnswer(ctx, clone)).toThrow('no plain file');
   });
 });
 
