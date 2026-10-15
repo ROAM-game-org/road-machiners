@@ -81,13 +81,13 @@ async function harden(ctx: Ctx, issue: number, by: string, base: string): Promis
   ctx.log('approve', issue, `approved by ${by}, to Hardening`);
 }
 
-export async function closeMerged(ctx: Ctx, issue: number, labels: string[], message: string): Promise<void> {
+export async function closeMerged(ctx: Ctx, issue: number, labels: string[], message: string | null): Promise<void> {
   await moveCard(ctx, issue, 'Done', 'merged', cardFlow(labels));
   forgetPosts(ctx, issue);
   dropKeptApproval(ctx, issue);
   rmSync(workDir(ctx, issue), { recursive: true, force: true });
   rmSync(`${ctx.cfg.home}/work/check-issue-${issue}`, { recursive: true, force: true });
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, message);
+  if (message !== null) await ctx.telegram.sendMessage(ctx.cfg.committeeChat, message);
 }
 
 export async function routeFeedback(ctx: Ctx, issue: number, by: string, text: string, route: Route, post: number, heading: string = FEEDBACK_HEADING): Promise<boolean> {
