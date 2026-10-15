@@ -21,6 +21,7 @@ type GateView = { id: string; leaves: Leaf[] };
 export class OutpostGateViews {
   private readonly gates: GateView[];
   private seen: World | null = null;
+  private shut = false;
 
   constructor(scope: RenderScope, terrain: Terrain, world: World) {
     const run = world.furyRoad;
@@ -34,9 +35,10 @@ export class OutpostGateViews {
     if (!playing && this.seen !== world) {
       this.sync(world);
       this.seen = world;
+      this.shut = gatesShut(world);
     }
     this.tick(dt);
-    return !playing && this.settled() && gatesShut(world);
+    return !playing && this.shut && this.settled();
   }
 
   sync(world: World): void {
