@@ -124,3 +124,7 @@ export function reset(): void {
   writeState(join(ROOT, 'state.json'), structuredClone(EMPTY_STATE));
 }
 
+
+export function skillStream(skills: string[]): string {
+  return skills.map((skill) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Skill', input: { skill } }] } })).join('\n');
+}
