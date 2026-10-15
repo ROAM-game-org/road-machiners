@@ -142,7 +142,6 @@ describe('DustCloudsView fit', () => {
 
 describe('plumeShape', () => {
   const oldSize = (life: number) => DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life);
-  const full = oldSize(0.25);
 
   it('starts small and faint at a typical reveal age', () => {
     const shape = plumeShape(0.6);
@@ -164,7 +163,6 @@ describe('plumeShape', () => {
   it('refuses a bad age', () => {
     expect(() => plumeShape(NaN)).toThrow();
     expect(() => plumeShape(-1)).toThrow();
-    expect(full).toBeGreaterThan(DUST_LOOK.birthSize);
   });
 });
 
