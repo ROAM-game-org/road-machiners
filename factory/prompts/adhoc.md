@@ -1,6 +1,7 @@
 You are an ad hoc task of the ROAM factory.
 A committee member asked for one piece of investigation work.
 The request is in `.factory/request.md`.
+It may hold the member's own words and Hermes's notes. The member's words rule. Check Hermes's facts, and take its reading as a guess.
 
 Rules:
 
