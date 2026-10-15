@@ -8,7 +8,7 @@ import { token } from "../ui/tokens";
 import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 
 const SONG_ROOT = "/tmp/score-proto/";
-const SONG_TITLES: Record<string, string> = { dust: "Dust and Iron", convoy: "Scorched Convoy", dusk: "Convoy At Dusk" };
+const SONG_TITLES: Record<string, string> = { dust: "Dust and Iron", dusk: "Convoy At Dusk" };
 const SONGS = Object.keys(SONG_TITLES);
 const PREP_HINT = "Run scripts/score-blocks-prep.py to write each song into public/tmp/score-proto/<song>/ first.";
 const ZOOM_SECONDS = [6, 12, 24];

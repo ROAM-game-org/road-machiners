@@ -14,24 +14,6 @@
   ],
   "end": 86
  },
- "convoy": {
-  "source": "Scorched_Convoy_2026-10-15T225455.wav",
-  "guitarStem": "bass.wav",
-  "bpm": 125,
-  "bars": 87,
-  "sections": [
-   { "role": "intro", "from": 6, "bars": 2 },
-   { "role": "verse", "from": 8, "bars": 14 },
-   { "role": "wall", "from": 22, "bars": 8 },
-   { "role": "stop", "from": 30, "bars": 4 },
-   { "role": "verse", "from": 34, "bars": 16 },
-   { "role": "wall", "from": 50, "bars": 8 },
-   { "role": "solo", "from": 58, "bars": 8 },
-   { "role": "stop", "from": 66, "bars": 4 },
-   { "role": "wall", "from": 70, "bars": 16 }
-  ],
-  "end": 86
- },
  "dusk": {
   "source": "Convoy_At_Dusk_2026-10-15T225738.wav",
   "guitarStem": "guitar.wav",
