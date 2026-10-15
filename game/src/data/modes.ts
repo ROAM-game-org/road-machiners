@@ -99,7 +99,7 @@ export type BandRule = { kind: PropKind; count: [number, number]; r: [number, nu
 export type GroundBand = { below: number; type: TerrainTypeId };
 
 export const HIGHWAY = {
-  version: 3,
+  version: 4,
   size: 410,
   stride: 310,
   milestoneInset: 50,
@@ -112,7 +112,7 @@ export const HIGHWAY = {
     flatTo: 15,
     blend: 7,
     ridge: { rise: 4, run: 1.5 },
-    bend: { ends: 60, cells: 2, shift: [16, 36] as [number, number], straightChance: 0.2, maxHeading: 35 },
+    bend: { ends: 60, cells: 3, shift: [6, 10] as [number, number], straightChance: 0.1, maxHeading: 35 },
     profile: { amplitude: 1.5, wavelength: 300, seedOffset: 103 },
     sample: 2,
     paint: { band: 0.3, bandSpread: 0.75, holeInset: 0.75 },

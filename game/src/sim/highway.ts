@@ -110,8 +110,9 @@ function bendCell(): number {
 function drawBend(seed: number, j: number): number[] {
   const rng = stretchStream(seed, j, 'bends');
   const straight = j < 1 || nextRandom(rng) < BEND.straightChance;
-  const shift = randRange(rng, BEND.shift[0], BEND.shift[1]) * sideOf(rng);
-  const plan = Array.from({ length: BEND.cells + 1 }, (_, i) => (straight || i === 0 || i === BEND.cells ? 0 : shift));
+  const side = sideOf(rng);
+  const shift = (i: number) => randRange(rng, BEND.shift[0], BEND.shift[1]) * side * (i % 2 === 1 ? 1 : -1);
+  const plan = Array.from({ length: BEND.cells + 1 }, (_, i) => (straight || i === 0 || i === BEND.cells ? 0 : shift(i)));
   const steepest = Math.max(...plan.slice(1).map((w, i) => (Math.abs(w - plan[i]) * Math.PI) / (2 * bendCell())));
   if (Math.atan(steepest) > BEND.maxHeading * DEG) throw new Error(`Stretch ${j} of seed ${seed} bends ${(Math.atan(steepest) / DEG).toFixed(1)} degrees off north, past ${BEND.maxHeading}`);
   return plan;

@@ -517,7 +517,9 @@ describe('arriving at an outpost', () => {
 
     expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId, haulerOf(after).id]);
     expect(passed.vehicles.some((v) => group.vehicles.includes(v.id))).toBe(true);
-    expect(after.player.xp).toBe(passed.player.xp);
+    const practiced = (x: World) => x.events.flatMap((e) => (e.t === 'practice' ? [`${e.source}:${e.target}`] : []));
+    expect(practiced(passed)).toEqual(expect.arrayContaining(practiced(after)));
+    expect(after.player.xp).toBeLessThanOrEqual(passed.player.xp);
   });
 
   it('refuses to move the window before the outpost is paid or with the player off the pad', () => {

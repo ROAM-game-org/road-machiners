@@ -22,7 +22,7 @@ A mode that turns on `traffic` or `rescue` needs a map with towns, so a new worl
 
 Chaos Highway plays on its own generated map, never on Icarus. The world seed builds the land. North is map north, which the fixed camera draws toward the top right of the screen.
 
-Each stretch bends once. The road runs straight for 60 tiles after each outpost and before the next one. Between them it swings to one side and back, 16 to 36 tiles off its line, to a side drawn from the seed. One stretch in five stays straight. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
+Each stretch bends twice. The road runs straight for 60 tiles after each outpost and before the next one. Between them it swings 6 to 10 tiles off its line to one side, then 6 to 10 tiles to the other, and back, starting on a side drawn from the seed. One stretch in ten stays straight. Every bend keeps a radius of at least 40 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
 
 - The road is one carriageway of four northbound lanes, 2 tiles each, with a 1-tile shoulder on each side, 10 tiles of asphalt in all. It carries no lane paint.
 - A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles wide. The verge and badlands cut top speed by 10%, so the asphalt is the fast lane.
@@ -118,10 +118,10 @@ Spawn spots and the encounter test measure from the hauler and never from behind
 
 Encounters are paced by place. Each group has a place along the stretch, at the middle of its share of the stretch, moved up to 15% of that share either way. A group spawns once the hauler reaches its place, whether or not the last fight is over, so holding back from a fight never holds the next group back. Groups spawn in plan order, so a fight may meet a scene.
 
-Group trucks spawn with full tanks and no cargo. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
+Group trucks spawn with full tanks and no cargo, already rolling north along the road at the hauler's cruise speed. Each holds a feud on both player trucks until the level ends, so the player's guns see it as hostile.
 
 - Each turn a group truck picks its prey. It picks the gun truck while it is in danger from it: one of the gun truck's working guns can hit it now, or the gun truck shot it or crashed into it so that it took damage. Otherwise it picks the nearer of the two trucks, and the hauler counts as nearer only when it is more than 8 tiles nearer, so a tie goes to the gun truck. `groupPrey()` in `src/sim/combat.ts` holds the rule.
-- Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north in its own place across the road instead. It waits while the prey is more than 36 tiles back and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. `rollingOrder()` in `src/sim/hunters.ts` holds the rule.
+- Its drive hunts its prey. While its moving prey is more than 6 tiles behind it on the road, it rolls north toward the prey's lane instead. It waits while the prey is more than 36 tiles back and speeds up as the prey closes, so it reaches the prey's speed as the prey reaches it. While its moving prey is ahead of it beyond its gun reach, it drives at its full speed for a point 12 tiles ahead of the prey. `rollingOrder()` in `src/sim/hunters.ts` holds both rules.
 - Each gun fires on the prey when it can hit it now, in range, in arc and with a line of fire, and otherwise on the nearest player truck it can hit.
 - A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns.
 - A group truck that turns to flee is brought back to the fight on the next turn.

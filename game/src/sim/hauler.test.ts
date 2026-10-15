@@ -87,15 +87,25 @@ describe('the hauler driver', () => {
 
   it('leaves a lane that runs into a crater dip early enough to change lanes, and ignores a crater beyond that', () => {
     const { w, hauler } = openRoad(4);
-    hauler.pos = roadPoint(4, 0, 100, LANES[2]);
-    hauler.heading = roadHeading(4, 100);
-    expect(laneClear(w, hauler, 2)).toBe(false);
-    expect(laneClear(w, hauler, 0)).toBe(true);
-    expect(chosenLane(w, hauler)).toBe(0);
+    playerVehicle(w).pos = roadPoint(4, 0, 0, LANES[3]);
+    const at = (along: number, lane: number) => {
+      hauler.pos = roadPoint(4, 0, along, LANES[lane]);
+      hauler.heading = roadHeading(4, along);
+    };
+    const spots = [60, 80, 100, 120, 140, 160, 180].flatMap((along) => LANES.map((_, lane) => ({ along, lane })));
+    const dip = spots.find(({ along, lane }) => {
+      at(along, lane);
+      return !laneClear(w, hauler, lane) && LANES.some((_, other) => laneClear(w, hauler, other));
+    });
+    if (!dip) throw new Error('seed 4 has no crater dip on its first stretch');
+    at(dip.along, dip.lane);
+    const lane = chosenLane(w, hauler);
+    expect(lane).not.toBe(dip.lane);
+    expect(laneClear(w, hauler, lane)).toBe(true);
 
-    hauler.pos = roadPoint(4, 0, 80, LANES[2]);
-    expect(laneClear(w, hauler, 2)).toBe(true);
-    expect(chosenLane(w, hauler)).toBe(2);
+    at(dip.along - FURY_ROAD.hauler.laneLook - 20, dip.lane);
+    expect(laneClear(w, hauler, dip.lane)).toBe(true);
+    expect(chosenLane(w, hauler)).toBe(dip.lane);
   });
 
   it('keeps its lane when every lane is blocked, for the router to thread the gap', () => {

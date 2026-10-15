@@ -7,7 +7,7 @@ import { refreshVision } from './vision';
 import { topGoal } from './npc-activities';
 import { haulerOf, playerVehicle } from './damage';
 import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
-import { alongOf, milestoneAt, roadPoint, toRoad } from './highway';
+import { alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { rollingOrder } from './hunters';
 import { generateNpcLoadout, OPEN_GEAR } from './npc-loadout';
 import { mountedParts } from './grid';
@@ -131,6 +131,33 @@ describe('Chaos Highway rolling start', () => {
     expect(at(near - 1)).toBeNull();
     prey.speed = 0;
     expect(at(near + ramp * 0.5)).toBeNull();
+  });
+
+  it('runs at full speed for a point ahead of a prey that is out of its gun reach ahead, and leaves a prey in reach to the fight AI', () => {
+    const w = furyRoadWorld(2);
+    const [truck] = spawned(w, ['buggy'], 1);
+    const prey = groupPrey(w, truck);
+    prey.speed = 4;
+    const window = w.furyRoad!.window;
+    const preyAlong = alongOf(w.seed, toRoad(window, prey.pos));
+    const reach = Math.max(...vehicleStats(w, truck).weapons.map((mw) => mw.def.range));
+    truck.pos = roadPoint(w.seed, window, preyAlong - reach - 10, 0);
+    const order = rollingOrder(w, truck);
+    if (order?.kind !== 'through') throw new Error('expected a catch-up order');
+    expect(order.pace).toBe(vehicleStats(w, truck).maxSpeed);
+    expect(alongOf(w.seed, toRoad(window, order.dest))).toBeGreaterThan(preyAlong);
+    truck.pos = roadPoint(w.seed, window, preyAlong - reach + 2, 0);
+    expect(rollingOrder(w, truck)).toBeNull();
+  });
+
+  it('spawns group trucks already rolling north at the hauler pace, with a trail behind them', () => {
+    const w = furyRoadWorld(3);
+    const trucks = spawned(w, ['buggy', 'courier'], 1);
+    for (const truck of trucks) {
+      expect(truck.speed).toBe(Math.min(FURY_ROAD.hauler.cruise, vehicleStats(w, truck).maxSpeed));
+      expect(truck.heading).toBeCloseTo(roadHeading(w.seed, alongOf(w.seed, toRoad(w.furyRoad!.window, truck.pos))));
+      expect(truck.trail.length).toBe(2);
+    }
   });
 });
 

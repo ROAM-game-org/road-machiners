@@ -3,7 +3,7 @@ import { reachedOutpostAt } from '../fury-road';
 import { storePart } from '../inventory';
 import { haulerTakes, outpostBuyPart, outpostPartPrice } from '../outposts';
 import { isJunk } from '../wear';
-import { gearBudget, gearPlans, type GearJob, type Plan } from './gear';
+import { gearPlans, type GearJob, type Plan } from './gear';
 import { mountBought, type Orders } from './orders';
 
 export function bestValue<P extends Plan>(plans: readonly P[], budget: number): P | null {
@@ -32,5 +32,5 @@ function buyGear(o: Orders, truckId: string, job: GearJob, budget: number): void
 }
 
 export function armorHauler(o: Orders, share: number): void {
-  buyGear(o, haulerOf(o.world).id, 'hauler', share * gearBudget(o.world, o.me, 'fighter'));
+  buyGear(o, haulerOf(o.world).id, 'hauler', share * o.world.player.money);
 }

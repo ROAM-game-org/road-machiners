@@ -6,7 +6,7 @@ import { atlasOf } from './atlas';
 import { REGION } from '../data/region';
 import { fortressProps } from './fortress';
 import { deckAt } from './bridge';
-import { acrossOf, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchOf, toRoad, WINDOW_SHIFT, windowSpan } from './highway';
+import { acrossOf, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, toRoad, WINDOW_SHIFT, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
 import { northClosureAt, sceneAt, southClosureAt } from './road-hazards';
 import { canUseSite, sitePads } from './sites';
@@ -167,20 +167,23 @@ describe('the highway road', () => {
     }
   });
 
-  it('bends in many stretches, now to one side and now to the other', () => {
-    const swings: number[] = [];
+  it('bends in most stretches, swinging to one side and then the other', () => {
+    const cell = (STRIDE - 2 * ROAD.bend.ends) / ROAD.bend.cells;
+    let bentStretches = 0;
+    let stretches = 0;
     for (let seed = 1; seed <= 30; seed++) {
       for (let j = 1; j <= 8; j++) {
-        const mid = (milestoneAt(j - 1) + milestoneAt(j)) / 2;
-        expect(stretchOf(mid)).toBe(j);
-        swings.push(centerU(seed, mid));
+        const swing = (i: number) => centerU(seed, milestoneAt(j - 1) + ROAD.bend.ends + i * cell);
+        const swings = Array.from({ length: ROAD.bend.cells - 1 }, (_, k) => swing(k + 1));
+        stretches++;
+        expect(swings.every((w) => Math.abs(w) <= ROAD.bend.shift[1] + 1e-9)).toBe(true);
+        if (swings.every((w) => w === 0)) continue;
+        bentStretches++;
+        expect(swings.every((w) => Math.abs(w) >= ROAD.bend.shift[0] - 1e-9)).toBe(true);
+        swings.slice(1).forEach((w, k) => expect(Math.sign(w), `seed ${seed} stretch ${j}`).toBe(-Math.sign(swings[k])));
       }
     }
-    const bent = swings.filter((w) => Math.abs(w) >= ROAD.bend.shift[0]);
-
-    expect(bent.length).toBeGreaterThanOrEqual(swings.length / 5);
-    expect(bent.some((w) => w > 0) && bent.some((w) => w < 0)).toBe(true);
-    expect(swings.every((w) => Math.abs(w) <= ROAD.bend.shift[1])).toBe(true);
+    expect(bentStretches).toBeGreaterThanOrEqual(stretches * 0.8);
   });
 
   it('keeps the lanes on asphalt and the verge off it on bends', () => {
