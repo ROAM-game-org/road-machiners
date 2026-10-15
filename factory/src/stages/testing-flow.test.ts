@@ -34,8 +34,12 @@ let approvedKept = true;
 let kept: string | null = null;
 let changed: string[] = [];
 let runs: AgentRun[] = [];
+let suites: string[] = [];
+let failingSuites = 0;
 
 beforeEach(() => {
+  suites = [];
+  failingSuites = 0;
   albums = [];
   albumFails = false;
   conflicts = [];
@@ -66,7 +70,7 @@ const APPROVAL = JSON.stringify({ description: 'A loud horn.', howToTry: 'Press 
 function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: string[] = [], budget = 10): Ctx {
   const failures = [...shellFailures];
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, publicUrl: 'https://play.test', ...POOLS },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', repo: 'o/r', committeeChat: 'chat', gpu: false, testingBudgetUsd: budget, publicUrl: 'https://play.test', suiteStartMinutes: 15, suitePollSeconds: 0, ...POOLS },
     log: () => undefined,
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
@@ -77,6 +81,12 @@ function fakeCtx(agent: (run: AgentRun, index: number) => void, shellFailures: s
       comments: async () => priorComments,
       pullRequestFor: async () => openPr,
       openPullRequest: async (branch: string, base: string, title: string, body: string) => { calls.push(`openPullRequest ${branch} ${base} ${title} | ${body}`); return 'https://github.com/o/r/pull/50'; },
+      dispatchSuite: async (sha: string) => suites.push(sha),
+      suiteRun: async () => {
+        const failed = failingSuites-- > 0;
+        return { done: true, started: true, passed: !failed, testsFailed: failed, conclusion: failed ? 'failure' : 'success', url: 'https://github.com/o/r/actions/runs/1' };
+      },
+      suiteLog: async () => 'FAIL src/sim/far.test.ts > drives far',
     },
     telegram: {
       sendPhoto: async (chat: string, path: string, caption: string, buttons?: unknown) => { calls.push(`photo ${chat} ${path} ${caption}`); photoButtons = buttons; return 100; },
@@ -259,9 +269,22 @@ describe('testing in one job', () => {
     expect(runs[1]!.prompt).toContain('This is the testing stage');
     expect(runs[1]!.prompt).toContain('Read `../docs/incident-log.md`');
     expect(runs[1]!.session).toEqual({ ...runs[0]!.session, resume: true });
-    expect(shellScripts[0]).toContain('test:cached');
+    expect(shellScripts[0]).not.toContain('test:cached');
+    expect(shellScripts[0]).toContain('npm run playtest -- --cpu');
+    expect(suites).toEqual(['abc123']);
     expect(shellPins).toEqual([testPoolPin(POOLS)]);
     expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
+  });
+
+  it('hands a hotfix suite failure on GitHub Actions back to the same session, and posts once a new run passes', async () => {
+    labels = ['hotfix', 'bug'];
+    failingSuites = 1;
+    await runVerify(fakeCtx((run, index) => { if (index === 1) posts(run); }), 7);
+    expect(runs).toHaveLength(3);
+    expect(runs[2]!.prompt).toContain('FAIL src/sim/far.test.ts > drives far');
+    expect(runs[2]!.session?.resume).toBe(true);
+    expect(suites).toEqual(['abc123', 'abc123']);
+    expect(calls.some((call) => call.startsWith('photo'))).toBe(true);
   });
 
   describe('a hotfix whose approval is kept after main moved', () => {
@@ -280,7 +303,7 @@ describe('testing in one job', () => {
       expect(runs[0]!.prompt).toContain('This is the integration round of a hotfix');
       expect(runs[0]!.prompt).toContain('bob played build aaa1111');
       expect(runs[0]!.prompt).toContain(approval.reason);
-      expect(shellScripts[0]).toContain('test:cached');
+      expect(suites).toEqual(['abc123']);
       expect(shown()).toEqual([]);
       expect(calls.filter((call) => call.startsWith('move'))).toEqual(['move 7 Approval']);
       expect(commentBodies.at(-1)).toBe('The full checks passed on abc123, which merges newer main into the approved build aaa1111. The approval by bob still holds, so it ships next with no new post.');

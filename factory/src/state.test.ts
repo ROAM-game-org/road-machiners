@@ -11,6 +11,12 @@ describe('state', () => {
     expect(readState(path).adhocReplies).toEqual({});
   });
 
+  it('drops the retired change queue of an old state file', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
+    writeFileSync(path, JSON.stringify({ jobs: [], approvalPosts: {}, pendingChanges: [{ id: 1, text: 't', by: 'u' }] }));
+    expect('pendingChanges' in readState(path)).toBe(false);
+  });
+
   it('reads an old state file without the ask and feedback records as empty records', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
     writeFileSync(path, JSON.stringify({ jobs: [], approvalPosts: {} }));

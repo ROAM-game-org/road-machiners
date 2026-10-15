@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join, sep } from 'node:path';
+import { readAgentOutput } from './agent-output';
 import { readPhoto } from './photo-file';
 import { OUT_DIR } from './types';
 
@@ -20,7 +21,7 @@ export function readShown(home: string): Shown {
   const out = join(home, OUT_DIR);
   const problems: string[] = [];
   if (!existsSync(join(out, PRIMARY_FILE))) return { evidence: null, problem: `The testing agent wrote no .factory/${PRIMARY_FILE}.` };
-  const listed = manifest(out, problems);
+  const listed = manifest(home, problems);
   const primary = usable(out, PRIMARY_FILE, listed.find((item) => item.file === PRIMARY_FILE)?.description ?? '', problems);
   if (primary === null) return { evidence: null, problem: problems.join(' ') };
   const images = [primary, ...others(out, listed.filter((entry) => entry.file !== PRIMARY_FILE), hashOf(primary.path), problems)];
@@ -40,11 +41,11 @@ function others(out: string, listed: Listed[], primaryHash: string, problems: st
   return images.slice(0, EVIDENCE_MAX - 1);
 }
 
-function manifest(out: string, problems: string[]): Listed[] {
-  const path = join(out, MANIFEST_FILE);
-  if (!existsSync(path)) return [];
+function manifest(home: string, problems: string[]): Listed[] {
   try {
-    const raw = (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>).images;
+    const text = readAgentOutput(home, MANIFEST_FILE);
+    if (text === null) return [];
+    const raw = (JSON.parse(text) as Record<string, unknown>).images;
     if (!Array.isArray(raw)) throw new Error('it has no list "images"');
     return raw.map((item) => item as Record<string, unknown>).filter((item) => typeof item.file === 'string').map((item) => ({ file: item.file as string, description: typeof item.description === 'string' ? item.description : '' }));
   } catch (error) {
