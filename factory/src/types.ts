@@ -61,6 +61,8 @@ export type FactoryConfig = {
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
   testStallMinutes: number;
+  suiteStartMinutes: number;
+  suitePollSeconds: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
@@ -126,7 +128,7 @@ export type Issue = {
 export type Card = { itemId: string; issue: number; column: Column; labels: string[] };
 
 export type JobStage = CardStage | ReleaseStage | 'checks' | 'approve' | 'merge' | 'catch-up' | 'change' | 'adhoc' | 'incident' | 'dev' | 'waste';
-export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[]; caughtUp?: number[] };
+export type Job = { id: string; stage: JobStage; issue: number | null; pid: number; startedAt: string; log: string; batch?: number[] };
 
 export type Queue = 'branch' | 'triage' | 'design' | 'implement' | 'verify' | 'test';
 export const AGENT_QUEUES: Queue[] = ['triage', 'design', 'implement', 'verify'];
@@ -167,7 +169,7 @@ export type ReleaseState = {
   candidateSha: string | null;
   removed: number[];
   tasks: number[];
-  merges: IssueMerge[] | null;
+  merges: IssueMerge[];
   playtest: PlaytestState;
   shipping?: { sha: string; features: { issue: number; title: string }[] };
 };
@@ -185,13 +187,14 @@ export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
   lastRelease: string | null;
-  devMerges: IssueMerge[] | null;
+  devMerges: IssueMerge[];
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
   pendingShip: string | null;
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;
+  caughtUpTo: Record<string, string>;
   keptApprovals: Record<string, KeptApproval>;
   pendingChanges: ChangeRequest[];
   pendingIncidents: number[];
@@ -217,10 +220,7 @@ export type FactoryState = {
   asked: Record<string, string>;
   pendingFeedback: Record<string, PendingFeedback>;
   routed: number[];
-  recordsToFill: FilledRecord[];
 };
-
-export type FilledRecord = 'asked' | 'pendingFeedback' | 'routed';
 
 export type FeedbackSource = 'committee' | 'player';
 export type PendingFeedback = { source: FeedbackSource; body: string };
@@ -255,7 +255,12 @@ export interface GitHub {
   reopen(number: number): Promise<void>;
   errorIssue(number: number): Promise<FingerprintIssue>;
   mergePullRequest(branch: string): Promise<void>;
+  dispatchSuite(sha: string): Promise<number>;
+  suiteRun(id: number): Promise<SuiteRun>;
+  suiteLog(id: number): Promise<string>;
 }
+
+export type SuiteRun = { done: boolean; started: boolean; passed: boolean; testsFailed: boolean; conclusion: string | null; url: string };
 
 export type InlineButton = { text: string; data: string };
 
@@ -309,11 +314,10 @@ export interface HostRepo {
   forkPoint(a: string, b: string): Promise<string>;
   diff(base: string, branch: string): Promise<string>;
   changedFiles(base: string, branch: string): Promise<string[]>;
+  changedInWork(dir: string, from: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
-  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;
-  legacyMerges(from: string, to: string): Promise<{ sha: string; subject: string }[]>;
-}
+  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;}
 
 export type Resolution = { base: string; source: string; head: string };
 

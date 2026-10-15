@@ -6,7 +6,7 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
 import { vehicleStats } from "../sim/stats";
 import { refreshVision } from "../sim/vision";
-import { endTurn, newWorld, setMoveOrder, startPose } from "../sim/world";
+import { cloneWorld, endTurn, newWorld, setMoveOrder, startPose } from "../sim/world";
 import { startKit } from "../data/start";
 import { CONDITION } from "../data/wear";
 import { findSpot, gridOf, isMounted, MOUNT_CELLS, mountedParts, type Spot } from "../sim/grid";
@@ -172,7 +172,7 @@ describe("farewell tip", () => {
 
 describe("opening tips", () => {
   let template: World | undefined;
-  const opening = (): World => structuredClone((template ??= newWorld(1, startKit("standard"), TEST_MAP, defaultSetup("roaming"))));
+  const opening = (): World => cloneWorld((template ??= newWorld(1, startKit("standard"), TEST_MAP, defaultSetup("roaming"))));
 
   const turns = (w: World, n: number): World => {
     let next = w;
