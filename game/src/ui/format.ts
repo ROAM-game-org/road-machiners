@@ -34,9 +34,10 @@ import type { GameEvent, GridItem, Job, NpcState, PartInstance, RefitJob, ShotRo
 import { concat, list, t, verbatim, type Msg } from '../text/msg';
 import { goalText, goodName, moneyReasonText, noteText, noteTitle, partName as partNameOf, refusalText, siteName, skillName, templateName, traitName, vehicleTitle } from '../text/names';
 import { Refused } from '../sim/world';
-import { aidWords, lineText } from './dialogue';
+import { aidWords, compass, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
-import { damage, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { siteOf } from '../sim/market';
+import { damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -541,9 +542,11 @@ function escortContractText(outcome: keyof typeof CONTRACT_CLS, what: Msg, rewar
 function contractText(c: Contract, outcome: keyof typeof CONTRACT_CLS): LogLine {
   const cls = CONTRACT_CLS[outcome];
   if (outcome === 'fulfilled') {
-    if (c.kind !== 'bounty') throw new Error(`Only a bounty is fulfilled, not a ${c.kind} contract`);
+    if (c.kind === 'rescue') return line(t('log.contract.rescueFulfilled', { driver: verbatim(c.driver), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
+    if (c.kind !== 'bounty') throw new Error(`Only a bounty or a rescue is fulfilled, not a ${c.kind} contract`);
     return line(t('log.contract.fulfilled', { target: templateName(c.template), reward: moneyMsg(c.reward), site: siteName(c.shop) }), cls);
   }
+  if (outcome === 'lapsed' && c.kind === 'rescue') return line(t('log.contract.rescueLapsed', { driver: verbatim(c.driver) }), cls);
   const what = contractSummary(c);
   if (c.kind === 'escort') return line(escortContractText(outcome, what, c.reward), cls);
   if (outcome === 'released' || outcome === 'apart') throw new Error(`Only an escort is ${outcome}, not a ${c.kind} contract`);
@@ -558,8 +561,15 @@ export function contractSummary(c: Contract): Msg {
   }
   if (c.kind === 'fetch') return t('contract.fetch', { part: partNameOf(c.defId), site: siteName(c.shop), n: CONTRACTS.fetch.maxWear });
   if (c.kind === 'escort') return t('contract.escort', { site: siteName(c.to) });
+  if (c.kind === 'rescue') return c.fulfilled ? t('contract.rescueMet', { driver: verbatim(c.driver), site: siteName(c.shop) }) : t('contract.rescue', { driver: verbatim(c.driver) });
   const bounty = { target: templateName(c.template), site: siteName(c.shop) };
   return c.fulfilled ? t('contract.bountyMet', bounty) : t('contract.bountyAt', bounty);
+}
+
+export function rescueWhere(c: Extract<Contract, { kind: 'rescue' }>): Msg {
+  const shop = siteOf(c.shop).pos;
+  const rad = Math.atan2(c.area.y - shop.y, c.area.x - shop.x);
+  return t('contract.rescueWhere', { distance: distanceText(dist(shop, c.area)), direction: compass(rad), site: siteName(c.shop) });
 }
 
 export function contractWindow(c: Contract): Msg {
@@ -572,7 +582,7 @@ export function contractDue(c: Contract): Msg {
 
 export function heldContractDue(c: Contract): Msg {
   if (c.kind === 'escort') return t('contract.noDeadline');
-  return c.kind === 'bounty' && c.fulfilled ? t('contract.ready') : contractDue(c);
+  return (c.kind === 'bounty' || c.kind === 'rescue') && c.fulfilled ? t('contract.ready') : contractDue(c);
 }
 
 export function escortLeaves(c: Contract): Msg {

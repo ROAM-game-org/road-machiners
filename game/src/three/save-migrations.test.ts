@@ -1356,4 +1356,10 @@ describe('save migration 62 to 63', () => {
     expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
     expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
   });
+
+  it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
+
+    expect(next).toEqual(FORMAT_2_62);
+  });
 });

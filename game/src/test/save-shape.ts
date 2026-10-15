@@ -15,6 +15,7 @@ const CONTRACT_KINDS: Contract[] = [
   { id: 'c', shop: 's', kind: 'haul', good: 'g', units: 1, to: 't', reward: 1, deadline: 1, window: 1, rush: false, tier: 1 },
   { id: 'c', shop: 's', kind: 'fetch', defId: 'p', reward: 1, deadline: 1, window: 1, tier: 1 },
   { id: 'c', shop: 's', kind: 'bounty', template: 't', reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
+  { id: 'c', shop: 's', kind: 'rescue', client: 'v', driver: 'd', need: 'fuel', area: { x: 1, y: 1 }, reward: 1, deadline: 1, window: 1, tier: 1, fulfilled: false },
 ];
 
 const WEAPON_ID = Object.keys(PARTS).find((id) => PARTS[id].kind === 'weapon');
