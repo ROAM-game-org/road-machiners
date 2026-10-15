@@ -106,6 +106,8 @@ A member's message outside a post reply that only thanks, like "thanks" or "сп
 
 Hermes writes a change, an ad hoc task or a route for a member in the member's own words, with the facts it checked apart from its reading, as `hermes/SOUL.md` says. This is guidance to Hermes only. No code checks the text, and the change and ad hoc agents follow the member's words over Hermes's notes.
 
+The plugin also keeps the request of record itself. It records each member message that reaches Hermes, in memory only. When Hermes queues a change or an ad hoc task on a member's message, the command carries that member's messages in the chat from the 30 minutes before, at most 8, ending with the message Hermes acted on. The agent's request file puts them first, quoted as written, as the words that rule, and Hermes's text after them as its notes. Nothing parses or checks either text, and the member takes no new step. A request whose message the plugin never recorded, like one after a Hermes restart, queues with Hermes's text alone, as before. The words stay in the state and the agent's request file, and never reach a GitHub issue or pull request.
+
 A reply that gets no route within `FACTORY_REPLY_ROUTE_MINUTES` becomes a failure with no issue, so Hermes sees it. Its text names the issue and tells Hermes to route the reply on its best reading. The card gets no stuck label.
 
 A patch or a redesign queues when its text has at least `FACTORY_ROUTE_MIN_WORDS` words, so it names what to change. The plugin checks this for Hermes's route and for a member's `patch:` or `redesign:` reply. A shorter text queues nothing, and the plugin tells Hermes or the member why. Images never block a route.
@@ -183,7 +185,7 @@ The release stays put after its cut. Only its release tasks, the playtest fixes 
 
 These jobs run beside the cards.
 
-- change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it.
+- change: a factory change from `/change`, Hermes or the waste review. The agent runs up:make in hands-off mode on a clone of `main`, may edit any file in the repo and the factory opens a pull request. A member merges it. The factory answers the member's own message when the change is queued, when its pull request opens and when it fails and leaves the queue, so the member never has to ask after it.
 - adhoc: one-off work a member asks Hermes for. The agent runs in a clone of `dev`, pushes nothing and replies with a report and files.
 - incident: after a shipped fix of a `bug` issue or a hotfix. The agent judges the bug against the bar in `docs/incident-log.md`, and on `dev` it may update the entry of the class the bug repeats or add a new class.
 - waste: every `FACTORY_WASTE_REVIEW_DAYS`. The agent reads the ledger numbers beside the period before and names one bottleneck. Hermes gets it and tells the committee only what matters. A failed review keeps its period for the next one.

@@ -6,7 +6,7 @@ import { BudgetError } from './stages/checkpoint';
 import { CommitteeDecisionError } from './diff-guard';
 import { adhoc } from './stages/adhoc';
 import { approve } from './stages/approval';
-import { change } from './stages/change';
+import { change, pendingChange, tellChangeFailed } from './stages/change';
 import { runStage as design } from './stages/design';
 import { runStage as implement } from './stages/implement';
 import { candidate } from './stages/candidate';
@@ -45,6 +45,7 @@ export function failureNote(ctx: Ctx, stage: JobStage, startedAt: string | null)
 }
 
 async function noteFailure(ctx: Ctx, stage: JobStage, issue: number | null, job: Job | null): Promise<void> {
+  if (stage === 'change' && issue !== null) return tellChangeFailed(ctx, pendingChange(ctx, issue));
   if (issue === null || !(stage in CARD_STAGE_NAMES)) return;
   await ctx.github.comment(issue, failureNote(ctx, stage, job?.startedAt ?? null));
 }

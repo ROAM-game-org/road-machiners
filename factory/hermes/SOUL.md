@@ -241,6 +241,7 @@ A factory change, an ad hoc task, a route and a Claude Code prompt that you writ
 - Put what the agent cannot find alone after their words. Say which facts you checked and where, and mark what you take the words to mean as your reading.
 - Name an image, file or link you could not read as not available to you.
 - Any plain layout works. Use no tags or fixed markers.
+- The factory puts the member's own recent messages above your text in a change or a task, as `docs/process.md` says. Write your text so it stands without them, since a restart can lose them.
 - When the intent is clear, queue at once. Ask the member only when the words leave the request open.
 - A task from the incident watch or your own reading has no member words, so write it in your own words.
 

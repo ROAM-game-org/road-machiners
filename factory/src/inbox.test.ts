@@ -238,6 +238,32 @@ describe('drainInbox', () => {
     expect(sent[0]).toContain('not in Approval');
   });
 
+  it('keeps the member words and the origin message with a queued change, apart from Hermes text', async () => {
+    const words = [{ messageId: 2, at: '2026-10-15T10:00:00Z', text: 'Queue opus to analyze the logs' }, { messageId: 3, at: '2026-10-15T10:01:00Z', text: 'yes' }];
+    put('1.json', { kind: 'change', text: 'Hermes reading', postId: null, words });
+    put('2.json', { kind: 'change', text: 'legacy', postId: null });
+    await drainInbox(fakeCtx([], [], []));
+    expect(readState(statePath).pendingChanges).toEqual([
+      { id: 5000, text: 'Hermes reading', by: 'Ann', words, origin: { chat: '-5', messageId: 3 } },
+      { id: 5000, text: 'legacy', by: 'Ann', origin: { chat: '-5', messageId: 3 } },
+    ]);
+  });
+
+  it('keeps the member words of an ad hoc task in the state and never in the GitHub issue', async () => {
+    const calls: string[] = [];
+    const words = [{ messageId: 3, at: '2026-10-15T10:00:00Z', text: 'private member words' }];
+    put('1.json', { kind: 'adhoc', text: 'Hermes task text', postId: null, words });
+    await drainInbox(fakeCtx([], [], calls));
+    expect(calls.join('\n')).not.toContain('private member words');
+    expect(readState(statePath).adhocReplies).toEqual({ '9': { chat: '-5', messageId: 3, words } });
+  });
+
+  it('refuses a command whose member words are malformed', () => {
+    const base = { kind: 'change', text: 'x', by: '1', chat: 'c', messageId: 1, postId: null };
+    expect(() => parseCommand(JSON.stringify({ ...base, words: [{ messageId: '1', at: 'a', text: 't' }] }))).toThrow('malformed member words');
+    expect(() => parseCommand(JSON.stringify({ ...base, words: 'yes' }))).toThrow('malformed member words');
+  });
+
   it('queues change requests in order', async () => {
     put('1.json', { kind: 'change', text: 'a' });
     put('2.json', { kind: 'change', text: 'b' });

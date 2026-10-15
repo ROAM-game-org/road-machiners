@@ -94,7 +94,8 @@ The release tracking card has the label `release`. It waits in Approval for the 
 - `pendingApprovals`: approvals the approve job runs. It moves the card to Hardening, or ships a hotfix. Fed by an Approve press on the card's current post, by a hotfix's Testing job whose checks passed under its kept approval, and by the tick for an Approval card whose kept approval waits with no job, failure, hold or stuck label. Drop with `drop approval <issue>`, which also drops the kept approval.
 - `pendingRemovals`: features to take out of the release. Fed by `remove N`. Drop with `drop removal <issue>`.
 - `pendingShip`: a Ship press the ship job runs. Fed by `ship`. Drop with `drop ship`.
-- `pendingChanges`: factory change requests the change job runs. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
+- `pendingChanges`: factory change requests the change job runs, each with `text` from Hermes or `/change`, `by`, and, for a request queued since member words were kept, `words`, the member's own messages that the plugin recorded, and `origin`, the member's chat message. The change job answers on `origin` when it opens the pull request and when it fails, or in the committee chat for a request with no `origin`. `factory queues` prints how many member messages each request keeps. Drop with `drop change <id>`. `merge-change <id>` merges a finished change PR into `main`, which deploys it.
+- `adhocReplies`: the chat message each ad hoc task answers, by issue, with `words`, the member's own messages the plugin recorded, when it has them. The words stay in the state and never reach the GitHub issue.
 - `pendingIncidents`: shipped bug issues the incident job runs. Drop with `drop incident <issue>`.
 - `retried`: approve, remove, ship and incident orders whose job died or timed out once, as `stage:issue`. The order stays queued and runs once more. The job's end, or its second death, clears the entry.
 

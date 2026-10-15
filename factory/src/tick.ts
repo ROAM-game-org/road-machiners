@@ -23,6 +23,7 @@ import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
 import { migrateMerges } from './migrate-merges';
 import { migrateRecords } from './migrate-records';
+import { pendingChange, tellChangeFailed } from './stages/change';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -302,11 +303,13 @@ async function stopJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
 async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Promise<void> {
   await stopJob(ctx, job, alive, deps);
   if (retriesOrder(ctx, job)) return retryOrder(ctx, job, alive);
+  const change = job.stage === 'change' && job.issue !== null ? pendingChange(ctx, job.issue) : undefined;
   dropJob(ctx, job);
   for (const issue of job.batch ?? []) await ctx.github.addLabel(issue, STUCK_LABEL);
   forgetResume(ctx, job);
   const reason = alive ? new JobTimeoutError(`timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes`) : new JobDiedError('job process died without finishing');
   await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log, job.batch ?? []);
+  await tellChangeFailed(ctx, change);
 }
 
 export function timeoutOf(cfg: FactoryConfig, stage: JobStage): number {

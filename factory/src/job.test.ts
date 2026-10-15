@@ -43,9 +43,30 @@ describe('runJob', () => {
     expect(state.pendingChanges).toEqual([]);
     expect(state.interrupted).toEqual([]);
     expect(existsSync(join(ROOT, 'sessions', 'issue-9'))).toBe(false);
-    expect(posts).toEqual([]);
+    expect(posts).toEqual(['Factory change 9 failed and left the queue. Hermes is looking into it.']);
     expect(state.failures).toMatchObject([{ stage: 'change', issue: null, error: 'offline' }]);
     expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ kind: 'job', id: 'b', stage: 'change', issue: 9, outcome: 'failed', agents: [] }]);
+  });
+
+  it('answers a failed change on the member message that asked for it, and a lost answer keeps the failure', async () => {
+    rmSync(ROOT, { recursive: true, force: true });
+    mkdirSync(ROOT, { recursive: true });
+    const statePath = join(ROOT, 'state.json');
+    const origin = { chat: '-7', messageId: 31 };
+    writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'b', stage: 'change', issue: 9, pid: 1, startedAt: '', log: 'l' }], pendingChanges: [{ id: 9, text: 't', by: 'b', origin }] });
+    const replies: string[] = [];
+    const ctx = {
+      cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig,
+      statePath,
+      now: () => new Date(),
+      log: () => undefined,
+      repo: { fetch: async () => { throw new Error('offline'); } },
+      telegram: { sendMessage: async (chat: string, _text: string, replyTo?: number) => { replies.push(`${chat} ${replyTo}`); throw new Error('telegram down'); } },
+      github: {},
+    } as unknown as Ctx;
+    await runJob(ctx, 'change', 9);
+    expect(replies).toEqual(['-7 31']);
+    expect(readState(statePath).failures).toMatchObject([{ stage: 'change', issue: null, error: 'offline' }]);
   });
 
   it('records the batch a failed merge job wrote on its entry', async () => {

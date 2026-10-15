@@ -456,6 +456,14 @@ describe('tick', () => {
     expect(readLedger(h.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ id: 'change-job', outcome: 'died' }]);
   });
 
+  it('answers the member message of a change whose job died a second time', async () => {
+    const h = harness(job('2026-01-10T11:50:00Z', 'change', 3), false);
+    writeState(h.ctx.statePath, state({ jobs: [job('2026-01-10T11:50:00Z', 'change', 3)], interrupted: [3], pendingChanges: [{ id: 3, text: 't', by: 'ann', origin: { chat: '-7', messageId: 31 } }], retried: ['change:3'] }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).pendingChanges).toEqual([]);
+    expect(h.sent).toContain('Factory change 3 failed and left the queue. Hermes is looking into it.');
+  });
+
   it('starts the chosen jobs and records each with its id', async () => {
     const h = harness(null, false, [card(8, 'Implementation'), card(9, 'Testing')]);
     await tick(h.ctx, '/code', h.deps);

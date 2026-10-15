@@ -146,7 +146,10 @@ export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'change-id' | 'none'> 
 export type Route = 'answer' | 'patch' | 'redesign';
 export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
 export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[] };
-export type ChangeRequest ={ id: number; text: string; by: string };
+export type MemberWord = { messageId: number; at: string; text: string };
+export type ChatMessage = { chat: string; messageId: number };
+export type ChangeRequest = { id: number; text: string; by: string; words?: MemberWord[]; origin?: ChatMessage };
+export type AdhocReply = { chat: string; messageId: number | null; words?: MemberWord[] };
 export type Removal = { issue: number; by: string; text: string };
 
 export type PlaytestState = {
@@ -198,7 +201,7 @@ export type FactoryState = {
   bundles: Record<string, number[]>;
   lastTickError: string | null;
   failures: Failure[];
-  adhocReplies: Record<string, { chat: string; messageId: number | null }>;
+  adhocReplies: Record<string, AdhocReply>;
   builds: Record<string, string>;
   cardStarts: Record<string, string[]>;
   postCaptions: Record<string, string>;

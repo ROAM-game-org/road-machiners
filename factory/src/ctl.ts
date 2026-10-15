@@ -217,7 +217,7 @@ function queues(ctx: Ctx): void {
   const state = readState(ctx.statePath);
   const approvals = Object.entries(state.pendingApprovals).map(([issue, by]) => `#${issue} by ${by}`);
   const removals = state.pendingRemovals.map((row) => `#${row.issue} by ${row.by}`);
-  const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}`);
+  const changes = state.pendingChanges.map((row) => `${row.id} by ${row.by}${row.words?.length ? ` with ${row.words.length} member messages` : ''}`);
   console.log(`approval: ${approvals.join(', ') || 'none'}`);
   console.log(`removal: ${removals.join(', ') || 'none'}`);
   console.log(`ship: ${state.pendingShip ?? 'none'}`);

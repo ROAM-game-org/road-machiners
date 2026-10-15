@@ -9,7 +9,7 @@ import { postDraft, publishPost } from './release-post';
 import { deny, routeFeedback } from './stages/approval';
 import { recordReleaseTask } from './stages/release-common';
 import { readState, updateState } from './state';
-import { ADHOC_LABEL, RELEASE_TASK_LABEL, type Ctx, type Route } from './types';
+import { ADHOC_LABEL, RELEASE_TASK_LABEL, type Ctx, type MemberWord, type Route } from './types';
 
 const TITLE_LIMIT = 80;
 const KINDS = ['approve', 'deny', 'reply', 'answer', 'patch', 'redesign', 'change', 'adhoc', 'ship', 'remove', 'release-task', 'release-draft', 'publish'];
@@ -28,6 +28,7 @@ export type InboxCommand = {
   messageId: number | null;
   postId: number | null;
   image?: string | null;
+  words?: MemberWord[];
 };
 
 export function inboxDir(home: string): string {
@@ -40,6 +41,7 @@ export function parseCommand(raw: string): InboxCommand {
   if (typeof data.by !== 'string' || typeof data.chat !== 'string') throw new Error('Inbox command lacks by or chat');
   requireMessageId(data.by, data.messageId);
   requirePostId(data.postId);
+  requireWords(data.words);
   return data as InboxCommand;
 }
 
@@ -57,6 +59,16 @@ function requireMessageId(by: string, messageId: unknown): void {
 
 function requirePostId(postId: unknown): void {
   if (typeof postId !== 'number' && postId !== null) throw new Error('Inbox command lacks postId');
+}
+
+function isMemberWord(word: unknown): word is MemberWord {
+  const item = word as Partial<MemberWord> | null;
+  return typeof item?.messageId === 'number' && typeof item.at === 'string' && typeof item.text === 'string';
+}
+
+function requireWords(words: unknown): void {
+  if (words === undefined || (Array.isArray(words) && words.every(isMemberWord))) return;
+  throw new Error('Inbox command has malformed member words');
 }
 
 export async function drainInbox(ctx: Ctx): Promise<void> {
@@ -135,7 +147,7 @@ function senderName(command: InboxCommand): string {
 async function handle(ctx: Ctx, command: InboxCommand): Promise<string> {
   const by = resolveSender(ctx, command);
   if (command.kind === 'adhoc') return queueAdhoc(ctx, command, by);
-  if (command.kind === 'change') return queueChange(ctx, requireText(command), by);
+  if (command.kind === 'change') return queueChange(ctx, command, by);
   if (command.kind === 'release-task') return openReleaseTask(ctx, command, by);
   if (command.kind === 'release-draft') return postDraft(ctx, requireText(command), command.image);
   if (command.kind === 'publish') return publishPost(ctx, requirePost(command));
@@ -205,7 +217,7 @@ async function queueAdhoc(ctx: Ctx, command: InboxCommand, by: string): Promise<
   const title = text.split('\n')[0].trim().slice(0, TITLE_LIMIT);
   const n = await ctx.github.createIssue(title, `${text}\n\nRequested by ${by} in the committee chat.`, [ADHOC_LABEL]);
   await addCard(ctx, n, 'Implementation', ctx.now().toISOString(), 'adhoc');
-  const reply = { chat: command.chat, messageId: command.messageId };
+  const reply = { chat: command.chat, messageId: command.messageId, ...wordsOf(command) };
   updateState(ctx.statePath, (state) => ({ ...state, adhocReplies: { ...state.adhocReplies, [String(n)]: reply } }));
   return `Queued as #${n}. The report comes as a reply here.`;
 }
@@ -221,9 +233,15 @@ async function openReleaseTask(ctx: Ctx, command: InboxCommand, by: string): Pro
   return `Opened #${n} as a task of release ${release.day}. A new candidate follows when it is done.`;
 }
 
-function queueChange(ctx: Ctx, text: string, by: string): string {
+function wordsOf(command: InboxCommand): { words?: MemberWord[] } {
+  return command.words?.length ? { words: command.words } : {};
+}
+
+function queueChange(ctx: Ctx, command: InboxCommand, by: string): string {
   const id = ctx.now().getTime();
-  updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: [...state.pendingChanges, { id, text, by }] }));
+  const origin = command.messageId === null ? {} : { origin: { chat: command.chat, messageId: command.messageId } };
+  const request = { id, text: requireText(command), by, ...wordsOf(command), ...origin };
+  updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: [...state.pendingChanges, request] }));
   return `Change request ${id} is queued. The factory answers with a pull request.`;
 }
 

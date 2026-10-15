@@ -5,8 +5,9 @@ import { ARTIFACT_DIR, collectArtifacts, holdArtifacts, releaseArtifacts } from 
 import { roundSession } from '../sessions';
 import { readState, updateState } from '../state';
 import { transcriptsDir } from '../transcript-archive';
-import { GAME_DIR, OUT_DIR, type Ctx } from '../types';
+import { GAME_DIR, OUT_DIR, type AdhocReply, type Ctx } from '../types';
 import { RESUME_NOTE, agentHome, fillPrompt, isResuming, playtestCommand, prepareOutputs, readOutput, useOpenNetwork } from './common';
+import { requestOfRecord } from './request-of-record';
 
 export const FACTORY_STATE_MOUNT = '/factory/state';
 export const FACTORY_LOGS_MOUNT = '/factory/logs';
@@ -22,7 +23,7 @@ export async function adhoc(ctx: Ctx, issue: number): Promise<void> {
   await prepareClone(ctx, issue, dir);
   const home = agentHome(dir, GAME_DIR);
   prepareOutputs(ctx, issue, home);
-  writeFileSync(`${home}/${OUT_DIR}/request.md`, `# Committee request\n\n${item.body}\n`);
+  writeFileSync(`${home}/${OUT_DIR}/request.md`, `# Committee request\n\n${requestOfRecord(reply.words, item.body)}\n`);
   await runAdhocAgent(ctx, issue, dir);
   const report = readOutput(home, 'report.md')?.trim();
   if (!report) throw new Error(`The agent wrote no ${OUT_DIR}/report.md`);
@@ -71,9 +72,7 @@ function analyticsMounts(home: string): Record<string, string> {
   return { [ledger]: FACTORY_LEDGER_MOUNT, [transcriptsDir(home)]: FACTORY_TRANSCRIPTS_MOUNT };
 }
 
-type Reply = { chat: string; messageId: number | null };
-
-async function deliverable(ctx: Ctx, issue: number, home: string, reply: Reply) {
+async function deliverable(ctx: Ctx, issue: number, home: string, reply: AdhocReply) {
   let files;
   try {
     files = collectArtifacts(home);
@@ -84,7 +83,7 @@ async function deliverable(ctx: Ctx, issue: number, home: string, reply: Reply) 
   return holdArtifacts(ctx.cfg.home, issue, files);
 }
 
-async function tell(ctx: Ctx, issue: number, reply: Reply, text: string): Promise<void> {
+async function tell(ctx: Ctx, issue: number, reply: AdhocReply, text: string): Promise<void> {
   try {
     await ctx.telegram.sendMessage(reply.chat, text, reply.messageId);
   } catch {

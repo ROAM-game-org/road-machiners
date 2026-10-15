@@ -2,8 +2,9 @@ import { join } from 'node:path';
 import { rmSync, writeFileSync } from 'node:fs';
 import { roundSession } from '../sessions';
 import { updateState, readState } from '../state';
-import { FACTORY_DIR, OUT_DIR, TASK_DIR, type Ctx } from '../types';
+import { FACTORY_DIR, OUT_DIR, TASK_DIR, type ChangeRequest, type Ctx } from '../types';
 import { prBody, prGuide, prTitle } from './change-pr';
+import { requestOfRecord } from './request-of-record';
 import { RESUME_NOTE, agentHome, agentLog, fillPrompt, isResuming, prepareOutputs, readOutput, useOpenNetwork } from './common';
 
 const CHANGE_BASE = 'main';
@@ -11,7 +12,7 @@ const CHANGE_BASE = 'main';
 export const CHANGE_TASK_FILE = (id: number): string => `${TASK_DIR}/change-${id}.md`;
 
 export async function change(ctx: Ctx, id: number): Promise<void> {
-  const request = readState(ctx.statePath).pendingChanges.find((item) => item.id === id);
+  const request = pendingChange(ctx, id);
   if (!request) throw new Error(`no pending factory change ${id}`);
   const dir = join(ctx.cfg.home, 'work', `change-${id}`);
   const branch = `factory-change/${id}`;
@@ -21,7 +22,7 @@ export async function change(ctx: Ctx, id: number): Promise<void> {
   await ctx.repo.prepareWorkClone(branch, CHANGE_BASE, dir);
   const home = agentHome(dir, FACTORY_DIR);
   prepareOutputs(ctx, id, home);
-  writeFileSync(join(home, OUT_DIR, 'request.md'), `Committee request from ${request.by}:\n\n${request.text}\n`);
+  writeFileSync(join(home, OUT_DIR, 'request.md'), `Committee request from ${request.by}:\n\n${requestOfRecord(request.words, request.text)}\n`);
   await runChangeAgent(ctx, id, dir, resuming);
   const head = await ctx.repo.fetchFromWork(dir, branch);
   if (!(await ctx.repo.hasNewCommits(CHANGE_BASE, head))) throw new Error(`change ${id} made no commits`);
@@ -31,8 +32,26 @@ export async function change(ctx: Ctx, id: number): Promise<void> {
   const body = prBody(readOutput(home, 'pr-body.md'), request.by, request.text, paths);
   const url = await ctx.github.openPullRequest(branch, CHANGE_BASE, title, body);
   updateState(ctx.statePath, (state) => ({ ...state, pendingChanges: state.pendingChanges.filter((item) => item.id !== id) }));
-  await ctx.telegram.sendMessage(ctx.cfg.committeeChat, `Factory change ${id} is ready for review: ${url}`);
+  await answerOrigin(ctx, request, `Factory change ${id} is ready for review: ${url}`);
   ctx.log('change', id, `opened ${url}`);
+}
+
+function answerOrigin(ctx: Ctx, request: ChangeRequest, text: string): Promise<number> {
+  const { chat, messageId } = request.origin ?? { chat: ctx.cfg.committeeChat, messageId: null };
+  return ctx.telegram.sendMessage(chat, text, messageId);
+}
+
+export function pendingChange(ctx: Ctx, id: number): ChangeRequest | undefined {
+  return readState(ctx.statePath).pendingChanges.find((item) => item.id === id);
+}
+
+export async function tellChangeFailed(ctx: Ctx, request: ChangeRequest | undefined): Promise<void> {
+  if (request === undefined) return;
+  try {
+    await answerOrigin(ctx, request, `Factory change ${request.id} failed and left the queue. Hermes is looking into it.`);
+  } catch (error) {
+    ctx.log('change', request.id, `could not tell the chat the change failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 async function runChangeAgent(ctx: Ctx, id: number, dir: string, resuming: boolean): Promise<void> {

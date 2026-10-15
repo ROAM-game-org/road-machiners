@@ -9,13 +9,13 @@ digraph committee {
   bare [label="Only thanks"];
   member [label="Member says what\nto change"];
   node [fillcolor="#f3f4f6", color="#6b7280"];
-  hermes [label="Hermes routes"]; hermes2 [label="Hermes queues"];
+  hermes [label="Hermes routes"]; hermes2 [label="Hermes queues;\nplugin adds the\nmember's words"];
   node [fillcolor="#eef2ff", color="#6366f1"];
   ready [label="Plugin checks the text;\nimages never block"];
   node [fillcolor="#eef2ff", color="#6366f1"];
   approveJob [label="approve job"]; closed [label="Issue closed\nas wont-do"]; answer [label="Answer in chat\ncard stays"];
   patchJob [label="Card to Testing\nthe reply is the task"]; design [label="Card to Design"]; shipJob [label="ship job"]; removeJob [label="remove job"];
-  newTask [label="release-task issue\nin Design"]; changeJob [label="change job"]; adhocJob [label="adhoc job"];
+  newTask [label="release-task issue\nin Design"]; changeJob [label="change job\nanswers on the\nmember's message"]; adhocJob [label="adhoc job"];
   quiet [label="Plugin drops it\nno reply"];
   approve -> approveJob; deny -> closed;
   reply -> hermes; hermes -> answer [label="answer"]; hermes -> ready [label="patch or\nredesign"];

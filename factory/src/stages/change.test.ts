@@ -47,6 +47,28 @@ describe('change', () => {
     expect(readFileSync(join(ROOT, 'work/change-4/factory/.factory/request.md'), 'utf8')).toContain('ann');
   });
 
+  it('gives the agent the member words above Hermes notes and answers the member message with the pull request', async () => {
+    const f = fake();
+    const words = [{ messageId: 30, at: '2026-10-15T10:00:00Z', text: 'Queue opus to analyze\nall logs' }, { messageId: 31, at: '2026-10-15T10:01:00Z', text: 'yes' }];
+    writeState(f.ctx.statePath, { ...EMPTY_STATE, pendingChanges: [{ id: 4, text: 'Hermes reading', by: 'ann', words, origin: { chat: '-7', messageId: 31 } }] });
+    f.files = ['factory/src/a.ts'];
+    await change(f.ctx, 4);
+    const request = readFileSync(join(ROOT, 'work/change-4/factory/.factory/request.md'), 'utf8');
+    expect(request).toContain('> Queue opus to analyze\n> all logs\n\n> yes');
+    expect(request.indexOf('> yes')).toBeLessThan(request.indexOf('Hermes reading'));
+    expect(f.prBodies.at(-1)).not.toContain('Queue opus');
+    expect(f.calls).toContain('message -7 31 Factory change 4 is ready for review: http://pr');
+  });
+
+  it('writes a legacy request as before and posts its pull request to the committee chat', async () => {
+    const f = fake();
+    pending(f);
+    f.files = ['factory/src/a.ts'];
+    await change(f.ctx, 4);
+    expect(readFileSync(join(ROOT, 'work/change-4/factory/.factory/request.md'), 'utf8')).toBe('Committee request from ann:\n\npost daily\n');
+    expect(f.calls).toContain(`message ${f.ctx.cfg.committeeChat} - Factory change 4 is ready for review: http://pr`);
+  });
+
   it('throws for an unknown id', async () => {
     const f = fake();
     await expect(change(f.ctx, 9)).rejects.toThrow('no pending');

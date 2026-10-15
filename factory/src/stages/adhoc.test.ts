@@ -27,6 +27,17 @@ describe('adhoc', () => {
     expect(existsSync(`${cfg.home}/work/adhoc-7`)).toBe(false);
   });
 
+  it('gives the agent the member words above the issue text', async () => {
+    const f = fake();
+    updateState(f.ctx.statePath, (state) => ({ ...state, adhocReplies: { '7': { chat: '-5', messageId: 3, words: [{ messageId: 3, at: '2026-10-15T10:00:00Z', text: 'how fast is the MG' }] } } }));
+    f.agentWrites = { 'report.md': 'x' };
+    let request = '';
+    const agent = f.ctx.container.agent;
+    f.ctx.container.agent = async (run) => { request = readFileSync(`${run.clone}/game/.factory/request.md`, 'utf8'); return agent(run); };
+    await adhoc(f.ctx, 7);
+    expect(request).toMatch(/^# Committee request\n\nThe member's own words[^\n]*\n\n> how fast is the MG\n\nHermes's notes[^\n]*\n\n/);
+  });
+
   it('gives the agent the state, logs, ledger and transcripts read only, made first on a fresh host', async () => {
     const f = fake();
     queueReply(f.ctx.statePath);
