@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { CHASSIS } from '../../data/chassis';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
-import { BODY_PARTS, partModel, weaponLook } from '../../render/partLooks';
+import { BODY_PARTS, itemLookId, partModel, weaponLook } from '../../render/partLooks';
 import { aimWithin, gunSpans } from '../../sim/armor';
 import { cellRect, highestUnder, restOn, surfaceSamples } from '../../sim/body';
 import { makeVehicle, newId } from '../../sim/factory';
@@ -49,7 +49,7 @@ function obstacles(v: Vehicle, skip: GridItem): Box[] {
   const out: Box[] = [];
   for (const it of v.items) {
     if (it === skip || itemCells(it).some((c) => c.y >= g.h)) continue;
-    let what: string = it.kind === 'good' ? it.good : it.part.defId;
+    let what: string = itemLookId(it);
     if (it.kind === 'part') {
       const d = partDef(it.part.defId);
       if (BODY_PARTS.has(d.id) || d.kind === 'weapon' || d.kind === 'armor' || d.kind === 'engine') continue;

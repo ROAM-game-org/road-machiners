@@ -198,5 +198,118 @@
     "label": "drop",
     "from": "written",
     "text": "lol"
+  },
+  {
+    "label": "keep",
+    "from": "chat, reply to the #564 build post, explanation in Russian",
+    "text": "Я имел в виду, что направления должны называть то, что видно с дороги: «поверни у сгоревшего автобуса», а не «иди на северо-восток». Так задумано в #564.",
+    "expect": "stay",
+    "source": "message",
+    "context": "Landmark directions\n\nPlay: https://roam.example/play/564\n\nTowns now give directions by landmarks you can see from the road.\n\nTell us what you think in the comments.",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, no thread, clarification of approved work",
+    "text": "To clarify how the landmark directions should work: the townsfolk should name things you can actually see, like the water tower or the crashed plane, not compass points.",
+    "expect": "stay",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, comment on the #564 build post",
+    "text": "Played it. Works, but the idea was that they say \"past the burnt bus\", like a local would, not the map name of the place.",
+    "expect": "stay",
+    "source": "comment",
+    "parent": "Landmark directions",
+    "context": "Landmark directions\n\nPlay: https://roam.example/play/564\n\nTowns now give directions by landmarks you can see from the road.\n\nTell us what you think in the comments.",
+    "work": [
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, asks again for approved work",
+    "text": "Please make towns give directions with landmarks instead of north and south.",
+    "expect": "stay",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, question about approved work",
+    "text": "Когда ориентиры в подсказках выйдут в релиз?",
+    "expect": "stay",
+    "source": "message",
+    "context": "Landmark directions\n\nPlay: https://roam.example/play/564\n\nTowns now give directions by landmarks you can see from the road.\n\nTell us what you think in the comments.",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, thanks under a build post",
+    "text": "Thanks, looks good!",
+    "expect": "stay",
+    "source": "message",
+    "context": "Landmark directions\n\nPlay: https://roam.example/play/564\n\nTowns now give directions by landmarks you can see from the road.\n\nTell us what you think in the comments.",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, new standalone request",
+    "text": "Add boats so we can cross the big lake instead of driving around it.",
+    "expect": "file",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, unrelated bug report",
+    "text": "My truck falls through the bridge near the farm since the last update.",
+    "expect": "file",
+    "source": "message",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
+  },
+  {
+    "label": "keep",
+    "from": "chat, unrelated bug under the #564 build post",
+    "text": "Unrelated, but the fuel gauge shows full when the tank is empty after loading a save.",
+    "expect": "file",
+    "source": "comment",
+    "parent": "Landmark directions",
+    "context": "Landmark directions\n\nPlay: https://roam.example/play/564\n\nTowns now give directions by landmarks you can see from the road.\n\nTell us what you think in the comments.",
+    "work": [
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ]
   }
 ]
