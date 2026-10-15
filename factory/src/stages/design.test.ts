@@ -282,8 +282,8 @@ describe('design stage', () => {
 describe('design of a bug', () => {
   const designPrompts = async (streams: string[] = [skillStream(['up:expand', 'up:udesign', 'up:uplan'])], taskBefore = false): Promise<string[]> => {
     const prompts: string[] = [];
-    const task = `${home}/work/issue-7/game/${TASK_FILE(7)}`;
     if (taskBefore) {
+      const task = `${home}/work/issue-7/game/${TASK_FILE(7)}`;
       mkdirSync(dirname(task), { recursive: true });
       writeFileSync(task, PLAN);
     }
@@ -318,11 +318,22 @@ describe('design of a bug', () => {
     expect(prompts[0]).not.toContain('{{');
   });
 
-  it('revises a bug design with no expansion and no check, since its task file exists', async () => {
+  it('revises a bug design with no expansion and no check, since the ledger shows it was planned', async () => {
     labels = ['bug'];
+    await runStage(fakeCtx((run) => {
+      mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
+      writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
+    }, [skillStream(['up:expand', 'up:udesign'])]), 7);
     const prompts = await designPrompts([skillStream(['up:udesign'])], true);
     expect(prompts).toHaveLength(1);
     expect(prompts[0]).not.toContain('up:expand');
+  });
+
+  it('expands again on a retry of a first design that left a task file but never reached its plan', async () => {
+    labels = ['bug'];
+    const prompts = await designPrompts([skillStream(['up:udesign']), skillStream(['up:expand'])], true);
+    expect(prompts[0]).toContain('Run the ultrapack skill expand on the bug');
+    expect(prompts).toHaveLength(2);
   });
 
   it('asks the same session once for the expansion when up:expand did not come first', async () => {

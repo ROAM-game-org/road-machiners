@@ -8,7 +8,7 @@ Every agent prompt that opens a session starts with `prompts/game-docs.md`. `fil
 
 The stages that fix game code after implementation, testing, the hotfix integration round, hardening, merge-fix, ship-fix and the release playtest, get `prompts/fix-docs.md` in `{{fixDocs}}`: a fix that changes behavior a doc describes updates that doc in the same commit, with no broad docs pass.
 
-The agent image build fails unless ultrapack, installed as the plugin `up`, ships the skills expand and udocument. Design and implementation invoke them with the Skill tool as `up:expand` and `up:udocument`. The factory reads the `Skill` tool calls of the session's stream-json output, never its text. When the call is missing or out of order, one follow-up in the same session asks for it, and the stage fails when that follow-up makes no call either.
+The agent image build fails unless ultrapack, installed as the plugin `up`, ships the skills expand and udocument. Design and implementation invoke them with the Skill tool as `up:expand` and `up:udocument`. The factory reads the `Skill` tool calls of the session's stream-json output, never its text. When the call is missing or out of order, one follow-up in the same session asks for it, and the stage fails when that follow-up makes no call either. A resumed session shows only the calls since the resume, so it may get that follow-up although the skill ran before.
 
 ## Intake
 
@@ -38,7 +38,7 @@ Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It
 - `.factory/questions.json`, a JSON array of questions, sends the card back to Triage with the questions, as unclear triage does.
 - `.factory/wont-do.md` closes the issue as wont-do.
 - A revision reads the issue comments under "## Committee feedback". Comments under "## Committee question" are context only.
-- The first design of a card labeled `bug` or `hotfix`, the one that finds no task file, gets `prompts/design-bug.md`. Before up:udesign, the agent runs the ultrapack skill expand, `up:expand handsoff`, on the bug, through its plan step only. It writes a `## Bug expansion` section with the reproduction, expected against actual, the constraints and the verification hypotheses. A design that reaches its plan needs an `up:expand` call before its first `up:udesign` call. A revision keeps the section and needs no call.
+- A card labeled `bug` or `hotfix` gets `prompts/design-bug.md` until the ledger holds its `planned` move, so a retry of a failed first design expands again. Before up:udesign, the agent runs the ultrapack skill expand, `up:expand handsoff`, on the bug, through its plan step only. It writes a `## Bug expansion` section with the reproduction, expected against actual, the constraints and the verification hypotheses. A design that reaches its plan needs an `up:expand` call before its first `up:udesign` call. A revision after `planned` keeps the section and needs no call.
 
 ## Implementation
 

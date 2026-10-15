@@ -1,4 +1,5 @@
 import { moveCard } from '../card-events';
+import { readLedger } from '../ledger';
 import { BRANCH, BUG_LABEL, GAME_DIR, HOTFIX_LABEL, TASK_FILE, WONT_DO_LABEL, type Ctx } from '../types';
 import { releaseBundle } from './bundle';
 import { agentHome, askAuthor, baseBranchOf, catchUpBase, fillPrompt, fitComment, guardAndPush, prepareOutputs, promptFile, readOutput, runAgent, throwIfNeedsCommittee, workDir, writeIssueInput } from './common';
@@ -19,7 +20,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const home = agentHome(clone, GAME_DIR);
   prepareOutputs(ctx, issue, home);
   await writeIssueInput(ctx, issue, home);
-  const expands = await expandsBug(ctx, issue, home);
+  const expands = await expandsBug(ctx, issue);
   const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, bugExpansion: expands ? promptFile('design-bug') : '' });
   const stream = await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
   throwIfNeedsCommittee(home);
@@ -35,10 +36,13 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   await moveCard(ctx, issue, 'Implementation', 'planned');
 }
 
-async function expandsBug(ctx: Ctx, issue: number, home: string): Promise<boolean> {
+async function expandsBug(ctx: Ctx, issue: number): Promise<boolean> {
   const { labels } = await ctx.github.issue(issue);
-  const firstDesign = !existsSync(`${home}/${TASK_FILE(issue)}`);
-  return firstDesign && (labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL));
+  return !wasPlanned(ctx, issue) && (labels.includes(BUG_LABEL) || labels.includes(HOTFIX_LABEL));
+}
+
+function wasPlanned(ctx: Ctx, issue: number): boolean {
+  return readLedger(ctx.cfg.home, new Date(0)).some((line) => line.kind === 'card' && line.issue === issue && line.step === 'planned');
 }
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
