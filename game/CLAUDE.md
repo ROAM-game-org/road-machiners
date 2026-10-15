@@ -106,7 +106,6 @@ Read the project-local skills before related work:
 
 ## Verification
 
-- A test bot stands in for a competent player, so balance can be tuned on its runs. Build it from the NPC combat AI plus plain rules for what only a player does, such as the shop and repairs. Change it only to fix a bad decision found in a lost run's timeline, never to raise a batch score. A bot that wins by a play no player would call fair is a balance bug to report, not a result. Its numbers count only when its play checks pass.
 - Before calling a change done, inspect how related systems will be affected by it.
 - Find the existing code that does the same kind of thing, and match everything it handles. A new way to end a deal must settle money, states and goals like the old ways.
 - Tests check the side effects of a change, not only the behavior you asked for.
