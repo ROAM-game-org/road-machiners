@@ -47,9 +47,9 @@ export async function requeueApproved(ctx: Ctx, issue: number, approval: KeptApp
     const kept = state.keptApprovals[key] ?? approval;
     return { ...state, builds: { ...state.builds, [key]: build }, keptApprovals: { ...state.keptApprovals, [key]: { ...kept, checked: [...kept.checked, build] } } };
   });
-  await ctx.github.comment(issue, `The full checks passed on ${build}, which merges newer main into the approved build ${approval.build}. The approval by ${approval.by} still holds, so it ships next with no new post.`);
   await moveCard(ctx, issue, 'Approval', 'requeued', cardFlow((await ctx.github.issue(issue)).labels));
   updateState(ctx.statePath, (state) => ({ ...state, pendingApprovals: { ...state.pendingApprovals, [key]: approval.by } }));
+  await ctx.github.comment(issue, `The full checks passed on ${build}, which merges newer main into the approved build ${approval.build}. The approval by ${approval.by} still holds, so it ships next with no new post.`);
   ctx.log('verify', issue, `checks passed on ${build}, approval by ${approval.by} queued again`);
 }
 

@@ -42,7 +42,7 @@ Fields that belong to one position:
 - `postOnly` belongs to Testing only.
 - `approvalPosts`, `postCaptions` and `pendingApprovals` belong to Approval only.
 - `approvedResolving` marks an approved card in Hardening or Merging. The merge comment names the approver.
-- `keptApprovals` holds a hotfix's approval from the approve job until the hotfix ships, in Approval or in Testing: `by`, the member, `at`, `build`, the approved build, `checked`, each build whose full checks passed under it, and `reason`, why it last went back to Testing. Only the approve job of a member's approval and `recover-approval` write a new one. A patch or redesign route, Deny, `move` to any position but `verify`, `merge` and `drop approval` drop it, and each drop but Deny comments the reason. `factory card N` prints it.
+- `keptApprovals` holds a hotfix's approval from the approve job until the hotfix ships, in Approval or in Testing: `by`, the member, `at`, `build`, the approved build, `checked`, each build whose full checks passed under it, and `reason`, why it last went back to Testing. Only the approve job of a member's approval and `recover-approval` write a new one. A patch or redesign route, Deny, `move` to any position but `verify`, `merge` and `drop approval` drop it, and each drop but Deny comments the reason. `factory card N` prints it. Testing records a passing build in `checked` before it moves the card to Approval and queues the approval, so a crash between the two leaves a card the tick queues again.
 
 Flags hold on any position:
 

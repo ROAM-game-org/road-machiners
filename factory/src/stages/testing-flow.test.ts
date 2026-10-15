@@ -314,6 +314,22 @@ describe('testing in one job', () => {
       expect(photoButtons).toEqual([[{ text: 'Approve and ship to players', data: 'factory:approve:7' }, { text: 'Deny', data: 'factory:deny:7' }]]);
     });
 
+    it('drops the approval when a fix round must change the approved behavior to pass the checks', async () => {
+      await runVerify(fakeCtx((run, index) => { posts(run); if (index === 1) writeFileSync(`${out(run)}/intent-changed.md`, 'The fix had to slow the horn.\n'); }, ['typecheck failed']), 7);
+      expect(runs[1]!.prompt).toContain('Keep the behavior the committee approved.');
+      expect(commentBodies.some((body) => body.includes('no longer holds: the merge with newer main changes what was approved. The fix had to slow the horn.'))).toBe(true);
+      expect(readState(`${home}/state.json`).pendingApprovals).toEqual({});
+      expect(shown().some((call) => call.startsWith('photo'))).toBe(true);
+    });
+
+    it('drops the approval and posts when the card lost its hotfix label meanwhile', async () => {
+      labels = ['bug'];
+      await runVerify(fakeCtx(posts), 7);
+      expect(commentBodies.some((body) => body.includes('no longer holds: the card is no hotfix any more'))).toBe(true);
+      expect(readState(`${home}/state.json`).pendingApprovals).toEqual({});
+      expect(shown().some((call) => call.startsWith('photo'))).toBe(true);
+    });
+
     it('drops the approval and runs the normal rounds when the branch no longer holds the approved build', async () => {
       approvedKept = false;
       await runVerify(fakeCtx((run, index) => { if (index === 1) posts(run); }), 7);

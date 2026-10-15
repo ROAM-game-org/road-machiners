@@ -21,7 +21,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   if (readOutput(home, 'merge-conflicts.md') === null && await docsOnly(ctx, issue, base)) return docsRound(ctx, issue, base, home, merged);
   const hotfix = base === HOTFIX_BASE;
   const approval = hotfix ? await stillApproved(ctx, issue) : null;
-  const spent = approval === null ? await firstRounds(ctx, issue, base, hotfix, note) : await integrateRound(ctx, issue, approval, note, home);
+  const spent = approval === null ? await firstRounds(ctx, issue, base, hotfix, note) : await integrateRound(ctx, issue, approval, note);
   if (await redesigned(ctx, issue, home)) return;
   let build = '';
   await untilPasses(ctx.cfg.testingBudgetUsd, spent, async () => {
@@ -30,26 +30,31 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
     if (unfinished !== null) return unfinished;
     build = await ctx.repo.headHash(BRANCH(issue));
     return checkpoint(ctx, issue, base, build, hotfix ? 'full' : 'preview', home);
-  }, (failure) => fixRound(ctx, issue, home, failure));
+  }, (failure) => fixRound(ctx, issue, home, failure, approval !== null));
   await finish(ctx, issue, home, base, build);
 }
 
 async function finish(ctx: Ctx, issue: number, home: string, base: string, build: string): Promise<void> {
   const approval = keptApprovalOf(ctx, issue);
-  if (approval !== null && await containsApproved(ctx, approval, build)) return requeueApproved(ctx, issue, approval, build);
-  if (approval !== null) await invalidateApproval(ctx, issue, `the checked build ${build} no longer contains the approved build.`);
+  const lost = approval === null ? null : await lostReason(ctx, approval, home, base, build);
+  if (approval !== null && lost === null) return requeueApproved(ctx, issue, approval, build);
+  if (lost !== null) await invalidateApproval(ctx, issue, lost);
   await publishAndPost(ctx, issue, readApproval(home), home, base, build, false);
 }
 
-async function integrateRound(ctx: Ctx, issue: number, approval: KeptApproval, baseNote: string, home: string): Promise<number> {
+async function lostReason(ctx: Ctx, approval: KeptApproval, home: string, base: string, build: string): Promise<string | null> {
+  const changed = readOutput(home, 'intent-changed.md');
+  if (changed !== null) return `the merge with newer main changes what was approved. ${changed.trim()}`;
+  if (base !== HOTFIX_BASE) return 'the card is no hotfix any more, so it takes the normal path with a post.';
+  return (await containsApproved(ctx, approval, build)) ? null : `the checked build ${build} no longer contains the approved build.`;
+}
+
+async function integrateRound(ctx: Ctx, issue: number, approval: KeptApproval, baseNote: string): Promise<number> {
   const vars = {
     issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote, playtest: playtestCommand(ctx.cfg, false),
     approvedBy: approval.by, approvedBuild: approval.build, reason: approval.reason ?? 'its tip is no longer part of the approved build.',
   };
-  const spent = runCost(await runAgent(ctx, issue, 'verify', ROUND, fillPrompt('integrate', vars)));
-  const changed = readOutput(home, 'intent-changed.md');
-  if (changed !== null) await invalidateApproval(ctx, issue, `the merge with newer main changes what was approved. ${changed.trim()}`);
-  return spent;
+  return runCost(await runAgent(ctx, issue, 'verify', ROUND, fillPrompt('integrate', vars)));
 }
 
 async function firstRounds(ctx: Ctx, issue: number, base: string, hotfix: boolean, baseNote: string): Promise<number> {
@@ -94,8 +99,10 @@ async function checkpoint(ctx: Ctx, issue: number, base: string, build: string, 
   return postCheckpoint(ctx, issue, base, build, kind);
 }
 
-async function fixRound(ctx: Ctx, issue: number, home: string, failure: string): Promise<string> {
-  const prompt = `The factory's checks of your pushed branch failed. Fix the cause, commit, and end again. The end of the log:\n\n${failure}`;
+const KEEP_APPROVED = 'Keep the behavior the committee approved. If the fix cannot pass without changing it, write why to `.factory/intent-changed.md` as well.';
+
+async function fixRound(ctx: Ctx, issue: number, home: string, failure: string, approved: boolean): Promise<string> {
+  const prompt = `The factory's checks of your pushed branch failed. Fix the cause, commit, and end again.${approved ? ` ${KEEP_APPROVED}` : ''} The end of the log:\n\n${failure}`;
   const stream = await runAgent(ctx, issue, 'verify', ROUND, prompt, { continue: true });
   throwIfNeedsCommittee(home);
   return stream;
