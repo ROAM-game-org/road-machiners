@@ -1,9 +1,9 @@
-import { lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { UsageLimitError } from '../pause';
 import { openStore, type StoredComment } from '../public/store';
 import { updateState } from '../state';
 import { GAME_DIR, OUT_DIR, type Ctx } from '../types';
-import { agentHome, fillPrompt, playtestCommand, resetOutputs, writeIssueInput } from './common';
+import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs, writeIssueInput } from './common';
 
 const LANGUAGE_NAME = { en: 'English', ru: 'Russian' } as const;
 
@@ -50,7 +50,7 @@ async function investigate(ctx: Ctx, question: Question): Promise<string> {
     const prompt = fillPrompt('answer', { repo: ctx.cfg.repo, publicUrl: ctx.cfg.publicUrl, playtest: playtestCommand(ctx.cfg, false) });
     mkdirSync(`${ctx.cfg.home}/logs`, { recursive: true });
     await runAgent(ctx, clone, prompt, `${ctx.cfg.home}/logs/answer-${question.id}.log`);
-    return checkedAnswer(ctx, clone, `${home}/${OUT_DIR}/answer.md`);
+    return checkedAnswer(ctx, home);
   } finally {
     rmSync(clone, { recursive: true, force: true });
   }
@@ -77,13 +77,8 @@ function writeQuestion(question: Question, home: string): void {
   writeFileSync(`${home}/${OUT_DIR}/question.md`, `${parts.join('\n\n')}\n`);
 }
 
-function insideClone(clone: string, path: string): boolean {
-  return lstatSync(path, { throwIfNoEntry: false })?.isFile() === true && realpathSync(path).startsWith(`${realpathSync(clone)}/`);
-}
-
-export function checkedAnswer(ctx: Ctx, clone: string, path: string): string {
-  if (!insideClone(clone, path)) throw new Error('The answer agent left no plain file answer.md in its clone.');
-  const text = readFileSync(path, 'utf8').trim();
+export function checkedAnswer(ctx: Ctx, home: string): string {
+  const text = readOutput(home, 'answer.md')?.trim() ?? '';
   if (text === '') throw new Error('The answer agent left an empty answer.md.');
   if (text.includes(ctx.cfg.oauthToken)) throw new Error('The answer holds the Claude login token.');
   return text;

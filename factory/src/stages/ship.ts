@@ -1,13 +1,14 @@
 import { stepScript } from '../activity';
+import { agentOutputPath } from '../agent-output';
 import { moveCard } from '../card-events';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { deployDev } from '../deploy';
 import { must } from '../exec';
 import { releasePostDir } from '../release-post';
 import { reportEnv, takeMaps } from '../sourcemaps';
 import { updateState } from '../state';
-import { BUG_LABEL, GAME_DIR, OUT_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
+import { BUG_LABEL, GAME_DIR, RELEASE_CANDIDATE_LABEL, type Ctx, type ReleasePost, type ReleaseState } from '../types';
 import { withWorkFolder } from '../work-lock';
 import { closeBundle } from './bundle';
 import { agentLog, fillPrompt, resetOutputs } from './common';
@@ -72,10 +73,10 @@ async function buildAndPush(ctx: Ctx, keys: ItchKeys, logName: string): Promise<
 export async function ship(ctx: Ctx, issue: number, by: string | null): Promise<void> {
   const keys = itchKeys(ctx);
   const release = await requireShippable(ctx, issue, by);
-  const clone = join(candidateDir(ctx), GAME_DIR, OUT_DIR);
-  const screenshot = join(clone, 'screenshot.png');
-  const notesPath = join(clone, 'release.json');
-  if (!existsSync(screenshot) || !existsSync(notesPath)) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
+  const home = join(candidateDir(ctx), GAME_DIR);
+  const screenshot = agentOutputPath(home, 'screenshot.png');
+  const notesPath = agentOutputPath(home, 'release.json');
+  if (screenshot === null || notesPath === null) throw new Error('The candidate screenshot or notes are gone from its work clone, so the public post cannot be made.');
   await ctx.repo.fetch();
   await requirePlayed(ctx, release);
   const features = await shippingFeatures(ctx, release);

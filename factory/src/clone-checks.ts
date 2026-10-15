@@ -1,12 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readAgentOutput } from './agent-output';
 import { readShown } from './evidence';
-import { OUT_DIR } from './types';
 
 export type Approval = { description: string; howToTry: string };
 
 export function readApproval(home: string): Approval {
-  const raw = readOutput(home, 'approval.json');
+  const raw = readAgentOutput(home, 'approval.json');
   if (raw === null) throw new Error('The testing stage wrote no .factory/approval.json');
   return parseApproval(JSON.parse(raw));
 }
@@ -15,11 +13,6 @@ function parseApproval(data: unknown): Approval {
   const { description, howToTry } = (data ?? {}) as Record<string, unknown>;
   if (typeof description !== 'string' || typeof howToTry !== 'string') throw new Error('.factory/approval.json needs string fields description and howToTry');
   return { description, howToTry };
-}
-
-function readOutput(home: string, name: string): string | null {
-  const path = join(home, OUT_DIR, name);
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
 }
 
 export type CloneRound = 'test';
