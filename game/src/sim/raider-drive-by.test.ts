@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HUNT } from '../data/npcs';
+import { HUNT, NPCS } from '../data/npcs';
 import { REGION } from '../data/region';
 import { START_KITS } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -65,6 +65,7 @@ function scene(seed: number, kind: Prey, night: boolean): Scene {
   const others = w.vehicles.filter((v) => v.id !== me.id);
   w.vehicles = w.vehicles.filter((v) => v.id === me.id);
   w.removed.push(...others);
+  for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { ...post });
   raider.brain = npcBrain('buggy', sitePads(camp)[0], ['raider']);
   raider.brain.goals = [{ kind: 'raid', targetId: null, destination: null, phase: 'act', reason: 'watchedRoad', watchUntil: w.turn + HUNT.watchTurns }];
