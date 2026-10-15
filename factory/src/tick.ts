@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
-import { sweepLogs, sweepTestCache, sweepWork } from './cleanup';
+import { sweepLogs, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
@@ -435,8 +435,6 @@ function cleanWork(ctx: Ctx, cards: Card[]): void {
 function cleanArchives(ctx: Ctx): void {
   const transcripts = sweepTranscripts(ctx.cfg.home, ctx.now(), ctx.cfg.transcriptDays);
   if (transcripts.length > 0) ctx.log('tick', null, `removed ${transcripts.length} agent transcripts older than ${ctx.cfg.transcriptDays} days`);
-  const cached = sweepTestCache(join(ctx.cfg.home, 'test-cache'), ctx.now(), ctx.cfg.testCacheDays);
-  if (cached > 0) ctx.log('tick', null, `removed ${cached} test cache files older than ${ctx.cfg.testCacheDays} days`);
 }
 
 async function expireReplies(ctx: Ctx): Promise<void> {

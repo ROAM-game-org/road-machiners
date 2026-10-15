@@ -78,7 +78,6 @@ export type FactoryConfig = {
   minAvailableGb: number;
   logDays: number;
   transcriptDays: number;
-  testCacheDays: number;
   cpuLight: number;
   cpuImplement: number;
   cpuTest: number;
@@ -310,6 +309,7 @@ export interface HostRepo {
   untrackFactoryFiles(dir: string): Promise<string[]>;
   fetchFromWork(dir: string, branch: string): Promise<string>;
   push(commit: string, branch: string): Promise<void>;
+  replaceBranch(commit: string, branch: string): Promise<void>;
   catchUpBase(dir: string, base: string): Promise<{ commit: string | null; conflicts: string[]; kept: string | null }>;
   mergeBranchIntoWork(dir: string, branch: string, message?: string): Promise<{ commit: string | null; conflicts: string[] }>;
   isMerged(base: string, branch: string): Promise<boolean>;

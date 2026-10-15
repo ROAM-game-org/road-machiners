@@ -67,7 +67,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 ![Testing column](diagrams/testing.svg)
 
-- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening.
+- A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite on GitHub Actions and the playtest. It never enters Hardening.
 - Hermes can move a card to Approval with no testing. A checks job then builds the branch and posts it with no tests, and the post says so.
 - A hotfix with a kept approval runs the integration round in place of the hardening and test rounds, and its passing checks queue the approval again in place of a post.
 
@@ -75,7 +75,7 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 The factory's job is to need people as little as it can. A member approves a hotfix once, and the approval stays with the approved build, the member and each checked build that came from it, in `keptApprovals`. Newer `main` merged in mechanically, a retry, a restart or a failed check never asks for it again.
 
-- `main` takes only the build whose full suite, typecheck, playtest and build passed, and only while `main` is an ancestor of it. A `main` that moved before the push, with or without a conflict, sends the card back to Testing with the approval kept. Testing merges `main`, resolves any conflict in its session, runs the full checks on the exact pushed commit and queues the approval again.
+- `main` takes only the build whose full suite, playtest and build passed, and only while `main` is an ancestor of it. A `main` that moved before the push, with or without a conflict, sends the card back to Testing with the approval kept. Testing merges `main`, resolves any conflict in its session, runs the full checks on the exact pushed commit and queues the approval again.
 - The approval drops with its reason, and the changed build gets a normal post, when the merge needs a product choice or changes what the committee played, when a member patches, redesigns or denies it, when a move sends the card elsewhere, and when `factory drop approval N` revokes it.
 - Only a member's press creates a kept approval. So an unapproved hotfix never ships.
 - Approve and Deny work only from the card's current post. An older post gets an error reply.
@@ -172,7 +172,7 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 ![Release](diagrams/release.svg)
 
-The playtest is one job, after every release task merged and before the candidate. Before the first play it runs the game suite on the release head through the shared test cache, so only test files that passed with unchanged inputs are skipped, and a failing suite fails the job. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
+The playtest is one job, after every release task merged and before the candidate. It runs the full game suite on the release head on GitHub Actions while the first play runs, and a failure goes to the playtest agent to fix. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks any fixes with the full suite on GitHub Actions and the playtest and build on the laptop, and the fixes then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
 
 The public Telegram channel gets only the release post that a member publishes. After Ship, Hermes drafts the post into the committee chat, and it stays a draft until a member presses Publish. Nothing else goes to the channel: no hotfix, candidate, approval, card, job, incident or status message. Only `publishPost` in `src/release-post.ts` sends to the channel, and a test checks this.
 
