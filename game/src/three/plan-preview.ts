@@ -23,6 +23,7 @@ type Wanted = { world: World; drive: DriveSnapshot; meId: string };
 export class PlanPreparation {
   private readonly load = new WorkerLoad("preview worker");
   private sent: Wanted | null = null;
+  private answered = false;
   private worker: Worker | null = null;
   private terrain: World["terrain"] | null = null;
   private serial = 0;
@@ -47,7 +48,7 @@ export class PlanPreparation {
     const wanted = this.queued;
     if (!wanted || this.load.gaveUp || this.load.waiting) return;
     this.queued = null;
-    this.sent = { ...wanted, drive: { ...wanted.drive, snapshot: wanted.drive.snapshot.slice() } };
+    this.sent = this.answered ? null : { ...wanted, drive: { ...wanted.drive, snapshot: wanted.drive.snapshot.slice() } };
     const { terrain, ...state } = wanted.world;
     const id = ++this.serial;
     this.worker ??= this.createWorker();
@@ -87,12 +88,14 @@ export class PlanPreparation {
     this.worker = null;
     this.terrain = null;
     this.running = null;
+    this.answered = false;
     this.queued ??= this.sent;
     this.sent = null;
   }
 
   private receive(response: PreviewResponse): void {
     this.load.loaded();
+    this.answered = true;
     if ("error" in response) reportError(workerError(response.error));
     else {
       mergePerf(response.perf);
@@ -108,6 +111,7 @@ export class PlanPreparation {
 
   private finish(): void {
     this.running = null;
+    this.sent = null;
     this.postQueued();
   }
 }
