@@ -3,7 +3,7 @@ import { FURY_ROAD } from '../data/modes';
 import { MIN_NPC_SPEED } from '../data/npcs';
 import { isHostile } from './combat';
 import { haulerOf, playerVehicle } from './damage';
-import { planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
+import { advanceFuryRoad, hurtShare, planStretch, spawnGroup, waveGear, waveOf } from './fury-road';
 import { alongOf, milestoneAt, toRoad } from './highway';
 import { OPEN_GEAR } from './npc-loadout';
 import { toughness } from './fury-road-director';
@@ -81,6 +81,36 @@ describe('Chaos Highway waves', () => {
     expect(isHostile(w, raider, rival)).toBe(false);
     expect(isHostile(w, rival, raider)).toBe(false);
     expect(isHostile(w, raider, playerVehicle(w))).toBe(true);
+  });
+});
+
+describe('Chaos Highway nerve', () => {
+  function hurt(v: Vehicle, share: number): void {
+    for (const part of mountedParts(v)) damagePart(part, part.hp * share, 0);
+  }
+
+  it('knocks out a wave truck once it has lost the nerve share of the HP it spawned with, and counts it beaten', () => {
+    const w = furyRoadWorld(5);
+    const [truck] = spawned(w, ['buggy'], 2);
+    const group = w.furyRoad!.groups[0];
+    hurt(truck, FURY_ROAD.nerve - 0.1);
+    expect(hurtShare(truck, group)).toBeLessThan(FURY_ROAD.nerve);
+    advanceFuryRoad(w);
+    expect(truck.defeat ?? null).toBeNull();
+    hurt(truck, 0.2);
+    expect(hurtShare(truck, group)).toBeGreaterThanOrEqual(FURY_ROAD.nerve);
+    advanceFuryRoad(w);
+    expect(truck.defeat?.phase).toBe('out');
+    expect(group.counted).toEqual([truck.id]);
+    expect(w.events).toContainEqual(expect.objectContaining({ t: 'npcKnockout', vehicle: truck.id }));
+  });
+
+  it('measures an elite truck against its whole HP, so the same hits leave it in the fight longer', () => {
+    const w = furyRoadWorld(5);
+    const [truck] = spawned(w, ['buggy'], 4);
+    const plain = w.furyRoad!.groups[0];
+    expect(hurtShare(truck, plain)).toBeCloseTo(0, 5);
+    expect(hurtShare(truck, { ...plain, elite: true })).toBeGreaterThan(0);
   });
 });
 

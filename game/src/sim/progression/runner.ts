@@ -3,6 +3,7 @@ import { ECONOMY } from '../../data/goods';
 import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
+import { bodyCondition } from '../npc-decisions';
 import { TERRAIN } from '../../data/terrain';
 import { alongOf, outpostFort, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
@@ -26,8 +27,7 @@ import { FURY_ROAD } from '../../data/modes';
 import { escortFoe, escortMove, gunTarget, hostilesSeen } from './escort-brain';
 import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
-import { bestTruck, keepsPace, savesFor } from './escort-tactics';
-import { payOf } from '../fury-road-director';
+import { bestTruck, keepsPace } from './escort-tactics';
 import { gearBudget } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
@@ -36,6 +36,7 @@ export type RoadStyle = 'escort' | 'sprinter';
 const PATCH_GOODS = 4;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
+const HAULER_REPAIR_BELOW = 0.75;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
 const RECLICK_SHARE = 0.5;
@@ -173,7 +174,7 @@ function parkedTrucks(world: World): Vehicle[] {
 
 function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   for (const truck of parkedTrucks(o.world)) {
-    repair(o, truck);
+    if (wantsRepair(o.world, truck)) repair(o, truck);
     for (const kind of SUPPLIES) topUp(o, kind, truck);
   }
   buyPatchGoods(o);
@@ -185,17 +186,14 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
   restockEscort(o, post, style);
 }
 
-function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
-  const before = o.me.chassisId;
-  buyTruck(o, post, style);
-  if (o.me.chassisId === before && savingForTruck(o, post)) return;
-  refitGear(o, style);
-  armorHauler(o);
+function wantsRepair(world: World, truck: Vehicle): boolean {
+  return truck.id !== haulerOf(world).id || bodyCondition(truck) < HAULER_REPAIR_BELOW;
 }
 
-function savingForTruck(o: Orders, post: Outpost): boolean {
-  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
-  return savesFor(offers, chassisDef(o.me.chassisId).value, gearBudget(o.world, o.me, 'fighter'), payOf(post.milestone + 1));
+function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
+  refitGear(o, style);
+  armorHauler(o);
+  buyTruck(o, post, style);
 }
 
 function refitGear(o: Orders, style: RoadStyle): void {

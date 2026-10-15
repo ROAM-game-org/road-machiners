@@ -57,7 +57,7 @@ export const FURY_ROAD = {
   director: {
     budget: { first: 4, step: 2.5 } as Line,
     truckShare: 19,
-    gearShare: 0.5,
+    gearShare: 0.25,
     elite: { from: 3, cost: 2, money: 2 },
     waves: { first: 2, step: 0.5 } as Line,
     wave: { min: 1, size: { first: 1.5, step: 0.25 } as Line, cap: 5 },
@@ -82,7 +82,7 @@ export const FURY_ROAD = {
   chaseSpeed: 5.5,
   nerve: 0.4,
   sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
-  pacing: { near: 30 },
+  pacing: { near: 30, lateBy: 60 },
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,

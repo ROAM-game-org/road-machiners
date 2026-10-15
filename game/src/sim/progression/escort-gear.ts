@@ -31,6 +31,8 @@ function buyGear(o: Orders, truckId: string, job: GearJob, budget: number): void
   }
 }
 
+const HAULER_SHARE = 0.5;
+
 export function armorHauler(o: Orders): void {
-  buyGear(o, haulerOf(o.world).id, 'hauler', gearBudget(o.world, o.me, 'fighter'));
+  buyGear(o, haulerOf(o.world).id, 'hauler', HAULER_SHARE * gearBudget(o.world, o.me, 'fighter'));
 }

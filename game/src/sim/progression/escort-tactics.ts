@@ -8,7 +8,3 @@ export function bestTruck(offers: readonly TruckOffer[], currentValue: number, b
 export function keepsPace(maxSpeed: number, haulerTopSpeed: number): boolean {
   return maxSpeed >= haulerTopSpeed;
 }
-
-export function savesFor(offers: readonly TruckOffer[], currentValue: number, budget: number, nextPay: number): boolean {
-  return offers.some((t) => t.value > currentValue && t.price > budget && t.price <= budget + nextPay);
-}

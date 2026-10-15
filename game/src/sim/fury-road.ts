@@ -244,7 +244,13 @@ function huntsTarget(v: Vehicle, target: Vehicle): boolean {
 function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
   const group = run.groups.find((g) => !g.spawned);
   if (!group || progress < group.at || aliveCount(world, run) + group.templates.length > FURY_ROAD.maxAlive) return;
+  if (fightOn(world, run) && progress < group.at + FURY_ROAD.pacing.lateBy) return;
   spawnGroup(world, run, group, progress);
+}
+
+function fightOn(world: World, run: FuryRoadRun): boolean {
+  const hauler = haulerOf(world);
+  return run.groups.some((g) => fighting(world, g).some((v) => dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near));
 }
 
 export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {

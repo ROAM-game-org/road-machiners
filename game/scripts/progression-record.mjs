@@ -179,8 +179,7 @@ async function recordOne({ archetype, seed }, turns, options, place) {
 }
 
 function writeRunLines(runFd, runLog, before, step) {
-  if (before === null) return;
-  const lines = runLog.note(before, step.world, step.events);
+  const lines = runLog.note(before ?? step.world, step.world, step.events);
   if (lines.length > 0) writeSync(runFd, lines.map((line) => `${JSON.stringify(line)}\n`).join(''));
 }
 
