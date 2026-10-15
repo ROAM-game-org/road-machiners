@@ -5,8 +5,9 @@ import { TIME } from '../../data/time';
 import type { World, XpSource } from '../types';
 import { cumulativeCost } from '../progress';
 import { playerVehicle } from '../damage';
-import { emptyWorld } from '../testkit';
-import { FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
+import { emptyWorld, furyRoadWorld } from '../testkit';
+import { haulerOf } from '../damage';
+import { failOnStall, FAR_MOVER, record, recordFrom, recordTurns, StallWatch, stepsFrom, type TraceLine } from './record';
 import { replay } from './replay';
 
 const SHORT_RUN = 60;
@@ -117,5 +118,19 @@ describe('StallWatch', () => {
     watch.note(150, start, true);
 
     expect(() => watch.note(1 + TIME.turnsPerDay, start, false)).not.toThrow();
+  });
+});
+
+describe('failOnStall', () => {
+  it('names the run hauler and its order when a brainless truck stalls', () => {
+    const w = furyRoadWorld();
+    const hauler = haulerOf(w);
+    hauler.order = { kind: 'stopAt', dest: { x: 40, y: 50 } };
+    w.events.push({ t: 'stall', vehicle: hauler.id, goal: null, reason: 'idle' });
+    const fail = () => failOnStall(w, new Map(), false);
+    expect(fail).toThrow(new RegExp(`${hauler.id} gave up idle`));
+    expect(fail).toThrow(/run hauler/);
+    expect(fail).toThrow(/order \{.*"stopAt"/);
+    expect(fail).not.toThrow(/without a driver/);
   });
 });

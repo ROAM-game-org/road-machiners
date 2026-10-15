@@ -235,7 +235,7 @@ function topGoals(w: World): Map<string, NpcActivity> {
   return tops;
 }
 
-function failOnStall(w: World, goals: Map<string, NpcActivity>, tolerate: boolean): void {
+export function failOnStall(w: World, goals: Map<string, NpcActivity>, tolerate: boolean): void {
   const stalls = w.events.flatMap((e) => (e.t === 'stall' ? [describeStall(w, e, goals.get(e.vehicle))] : []));
   if (stalls.length > 0 && !tolerate) throw new Error(`${stalls.length} stall${stalls.length > 1 ? 's' : ''}:\n${stalls.join('\n')}`);
 }
@@ -263,13 +263,18 @@ function surroundings(w: World, v: Vehicle): string {
 }
 
 function vehicleLine(w: World, v: Vehicle): string {
-  if (!v.brain) throw new Error(`${v.id} stalled without a driver`);
+  if (!v.brain) return brainlessLine(w, v);
   const r = getResources(w, v);
   const goals = v.brain.goals.map((g) => `${g.kind}:${g.reason}`).join(' > ') || 'none';
   const states = w.states.filter((s) => s.holder === v.id || s.other === v.id).map((s) => `${s.kind}${s.holder === v.id ? '>' : '<'}`).join(',') || 'none';
   return `${v.brain.templateId} ${v.chassisId} at ${Math.round(v.pos.x)},${Math.round(v.pos.y)} speed ${v.speed.toFixed(2)} stranded ${isStranded(w, v)} `
     + `money ${r.money} fuel ${r.fuel.toFixed(0)} engines ${mountedParts(v, 'engine').length} job ${v.job?.kind ?? '-'} `
     + `goals now ${goals} states ${states} goods ${JSON.stringify(goodsCount(v))}`;
+}
+
+function brainlessLine(w: World, v: Vehicle): string {
+  const role = v.id === w.furyRoad?.hauler.id ? 'run hauler' : 'player truck';
+  return `${role} ${v.chassisId} at ${Math.round(v.pos.x)},${Math.round(v.pos.y)} speed ${v.speed.toFixed(2)} stranded ${isStranded(w, v)} order ${JSON.stringify(v.order)}`;
 }
 
 function nonCoreTruckValue(v: Vehicle): number {
