@@ -1,19 +1,9 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { readState, updateState } from '../state';
-import { RELEASE_TASK_LABEL, type Card, type Ctx, type FactoryState, type IssueMerge, type ReleaseState } from '../types';
+import { RELEASE_TASK_LABEL, type Card, type Ctx, type IssueMerge, type ReleaseState } from '../types';
 
 export type Feature = { issue: number; title: string };
-
-export function requireDevMerges(state: FactoryState): IssueMerge[] {
-  if (state.devMerges === null) throw new Error('The list of merges on dev is not filled yet. The merge migration fills it at the start of a tick.');
-  return state.devMerges;
-}
-
-export function requireReleaseMerges(release: ReleaseState): IssueMerge[] {
-  if (release.merges === null) throw new Error(`The list of merges in release ${release.day} is not filled yet. The merge migration fills it at the start of a tick.`);
-  return release.merges;
-}
 
 export function toFeatures(merges: IssueMerge[]): Feature[] {
   return merges.map(({ issue, title }) => ({ issue, title }));
@@ -68,7 +58,7 @@ export function requireRelease(ctx: Ctx): ReleaseState {
 }
 
 export function releaseFeatures(release: ReleaseState): Feature[] {
-  return toFeatures(requireReleaseMerges(release).filter((merge) => !release.removed.includes(merge.issue)));
+  return toFeatures(release.merges.filter((merge) => !release.removed.includes(merge.issue)));
 }
 
 export function candidateDir(ctx: Ctx): string {

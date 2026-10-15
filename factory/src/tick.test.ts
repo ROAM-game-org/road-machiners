@@ -329,14 +329,6 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath)).toMatchObject({ jobs: [], retried: [], failures: [{ stage: 'catch-up', issue: 8, error: 'job process died without finishing' }] });
   });
 
-  it('fills the merge records from git before it starts any job', async () => {
-    const h = harness(null, false);
-    Object.assign(h.ctx.repo, { legacyMerges: async () => [{ sha: 'a'.repeat(40), subject: 'Merge issue #4: horn' }] });
-    writeState(h.ctx.statePath, state({ devMerges: null }));
-    await tick(h.ctx, '/code', h.deps);
-    expect(readState(h.ctx.statePath).devMerges).toEqual([{ issue: 4, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }]);
-  });
-
   it('keeps the queued ship of a ship job past its timeout once, and clears it on the second timeout', async () => {
     const ship = job('2026-01-10T08:00:00Z', 'ship', 20);
     const h = harness(ship, true);

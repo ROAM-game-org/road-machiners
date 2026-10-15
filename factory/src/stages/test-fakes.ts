@@ -111,7 +111,6 @@ export function fake(): Fake {
       },
       workHead: async () => `head${++heads}`.padEnd(40, '0'),
       containsCommit: async () => true,
-      legacyMerges: async () => [],
       deleteBranch: async (branch: string) => note(`delete ${branch}`),
     },
   } as unknown as Ctx;

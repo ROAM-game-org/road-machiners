@@ -2,6 +2,14 @@
 
 The rules of each step in [process.md](process.md). A card stage comments on its issue only when it fails for good, with the time it took. The board shows every other move, and each comment counts toward GitHub's spam checks. Agents write `.factory/needs-committee.md` only for a game design fork or a major save bump. A stage that ends with that file fails, so Hermes puts the question to the committee.
 
+## Game docs first
+
+Every agent prompt that works in a game clone opens with `prompts/game-docs.md`, which `fillPrompt` fills in for `{{gameDocs}}`. Before any other step, `npm ci` included, the agent reads `game/CLAUDE.md` and `game/docs/DESIGN.md`. It then reads each doc in the Docs list of CLAUDE.md that covers its task, follows them and names them in its reasoning. The step edits nothing, so triage, design, incident and adhoc keep their rules on what they may change. A test fails when a new prompt is neither a game stage nor listed as one without the step. The change and waste prompts work on the factory and skip it. So do the release changelog, which reads only its change list, and the follow-up prompts of a session that already read the docs.
+
+The stages that fix game code after implementation, testing, the hotfix integration round, hardening, merge-fix, ship-fix and the release playtest, get `prompts/fix-docs.md` in `{{fixDocs}}`: a fix that changes behavior a doc describes updates that doc in the same commit, with no broad docs pass.
+
+The agent image build fails unless ultrapack ships `up:expand` and `up:udocument`, which design and implementation invoke.
+
 ## Intake
 
 Intake puts every `feature-request` or `bug` issue older than `FACTORY_MIN_AGE_HOURS` into Triage. Nobody votes on GitHub. An issue labeled `hotfix` by a collaborator goes straight to Design.
@@ -30,10 +38,11 @@ Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It
 - `.factory/questions.json`, a JSON array of questions, sends the card back to Triage with the questions, as unclear triage does.
 - `.factory/wont-do.md` closes the issue as wont-do.
 - A revision reads the issue comments under "## Committee feedback". Comments under "## Committee question" are context only.
+- A card labeled `bug` or `hotfix` gets `prompts/design-bug.md`. Before up:udesign, the agent runs `up:expand handsoff` on the bug once, through its plan step only, and writes a `## Bug expansion` section with the reproduction, expected against actual, the constraints and the verification hypotheses. A revision or a retry keeps the section. Design is the first stage of every bug path, since a hotfix skips triage, and triage never touches code.
 
 ## Implementation
 
-Implementation runs Sonnet with up:uexecute on the task file, and Opus advises it through `claude --advisor` with `FACTORY_ADVISOR_MODEL`. A card with `implementation-opus` runs on Opus and gets no advisor. Subagents are off, so the agent implements every phase itself at the model triage picked. For a change a player can see, the agent captures real in-game screenshots, compares them with the issue, the plan, `game/docs/DESIGN.md` and, for the UI, the principle tests of `game/docs/ui.md`, and fixes until nothing obvious differs. The screenshots stay out of the commits. The stage fails when the agent made no new commit.
+Implementation runs Sonnet with up:uexecute on the task file, and Opus advises it through `claude --advisor` with `FACTORY_ADVISOR_MODEL`. A card with `implementation-opus` runs on Opus and gets no advisor. Subagents are off, so the agent implements every phase itself at the model triage picked. For a change a player can see, the agent captures real in-game screenshots, compares them with the issue, the plan, `game/docs/DESIGN.md` and, for the UI, the principle tests of `game/docs/ui.md`, and fixes until nothing obvious differs. The screenshots stay out of the commits. Its last step runs `up:udocument` on the game docs the change made stale and commits the edits, or edits nothing and says why in the task file. The stage fails when the agent made no new commit.
 
 ## Testing
 
@@ -140,7 +149,7 @@ A hotfix approval is given once and stays. The approve job records it in `keptAp
 - When the checks pass and the commit still contains the approved build, the build joins the approval's checked builds, the approval is queued again under the original member and the card moves to Approval with no post. The approve job ships it, or sends it back again if `main` moved again.
 - The agent writes `.factory/intent-changed.md` when the merge, or a fix the checks need, needs a product choice or changes what the committee played. The approval then drops with that reason, and the build gets a normal post for a new approval. A card that lost its `hotfix` label drops it the same way.
 
-The approval also drops with a reason on a patch or redesign route, Deny, `factory move` to any position but `verify`, `factory merge` and `factory drop approval N`, which is the explicit revocation. A branch that no longer contains the approved build drops it too. A tick queues a kept approval again for an Approval card whose current build is a checked one, with no job, failure, hold or stuck label, so a failed approve job ships after `retry N` with no new press. `factory recover-approval N` restores an approval lost before this rule, as [state.md](state.md#commands) says.
+The approval also drops with a reason on a patch or redesign route, Deny, `factory move` to any position but `verify`, `factory merge` and `factory drop approval N`, which is the explicit revocation. A branch that no longer contains the approved build drops it too. A tick queues a kept approval again for an Approval card whose current build is a checked one, with no job, failure, hold or stuck label, so a failed approve job ships after `retry N` with no new press.
 
 ## Incident
 
