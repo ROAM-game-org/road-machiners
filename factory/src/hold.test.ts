@@ -21,7 +21,7 @@ const JOB: Job = { id: 'implement-4-x', stage: 'implement', issue: 4, pid: 77, s
 
 let cards: Card[] = [];
 let comments: string[] = [];
-const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels });
 
 function fakeCtx(): Ctx {
   const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', tokenPrices: {} } as FactoryConfig;

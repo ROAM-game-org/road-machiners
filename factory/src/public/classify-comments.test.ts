@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classifyComments } from './classify-comments';
 import type { Classify, Decision, FilterInput } from './decision';
+import { readState } from '../state';
 import { CHANNEL, filterOf, publicFake } from './public-fakes';
 
 const ACCEPT: Classify = async () => ({ verdict: 'accept', intent: 'sincere', sincere: 0.9, kind: 'bug', route: 'none', relevance: 'parent' });
@@ -68,7 +69,7 @@ describe('classifyComments', () => {
     const seen: FilterInput[] = [];
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), kind: 'feedback', work: 0, language: 'ru' }; }));
     expect(seen[0]).toMatchObject({ source: 'message', context: 'Landmark directions' });
-    expect(seen[0]!.work![0]).toBe('#564 Landmark directions: Towns give directions by landmarks you can see.');
+    expect(seen[0]!.work![0]).toBe('#564 (proposal) Landmark directions: Towns give directions by landmarks you can see.');
     expect(seen[0]!.work!.map((work) => work.split(' ')[0])).toEqual(['#564', '#570', '#568']);
     const [stored] = f.store.recentChat(1);
     expect([stored!.kind, stored!.workIssue, stored!.language]).toEqual(['feedback', 564, 'ru']);
@@ -84,7 +85,23 @@ describe('classifyComments', () => {
     const seen: FilterInput[] = [];
     const decide: Record<string, Partial<Decision>> = { 'winch thanks': { kind: 'chatter', work: 0 }, 'winch spam': { verdict: 'reject', work: 0 }, 'winch idea': { kind: 'feature' } };
     await classifyComments(f.ctx, f.store, filterOf(async (input) => { seen.push(input); return { ...(await ACCEPT(input)), ...decide[input.text] }; }));
-    expect(seen.map((input) => input.work)).toEqual([['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.'], ['#8 Winch upgrade: A stronger winch.']]);
+    expect(seen.map((input) => input.work)).toEqual([['#8 (proposal) Winch upgrade: A stronger winch.'], ['#8 (proposal) Winch upgrade: A stronger winch.'], ['#8 (proposal) Winch upgrade: A stronger winch.']]);
     expect(f.store.recentChat(3).map((comment) => comment.workIssue)).toEqual([null, null, null]);
+  });
+
+  it('lists an open card the text names first, and still classifies with chat work when the board cannot be read', async () => {
+    const f = publicFake();
+    f.store.addProposal(652, 'Region map\nA map of the region.', f.clock.now);
+    f.cards = [{ itemId: 'm', title: 'Hand-drawn region map', issue: 571, column: 'Implementation', labels: [] }, { itemId: 'd', title: 'Done map', issue: 300, column: 'Done', labels: [] }];
+    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:1', postChat: CHANNEL, postMessageId: null, author: 'Ann', sender: '1', text: 'Put the region map on #571 please', at: f.clock.now.toISOString() });
+    const seen: FilterInput[] = [];
+    const filter = filterOf(async (input) => { seen.push(input); return ACCEPT(input); });
+    await classifyComments(f.ctx, f.store, filter);
+    expect(seen[0]!.work).toEqual(['#571 (being built) Hand-drawn region map', '#652 (proposal) Region map: A map of the region.']);
+    f.ctx.github.cards = async () => { throw new Error('GitHub is down'); };
+    f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:2', postChat: CHANNEL, postMessageId: null, author: 'Ann', sender: '2', text: 'Region map again', at: f.clock.now.toISOString() });
+    await classifyComments(f.ctx, f.store, filter);
+    expect(seen[1]!.work).toEqual(['#652 (proposal) Region map: A map of the region.']);
+    expect(readState(f.ctx.statePath).failures.map((failure) => failure.error)).toEqual([expect.stringContaining('the board could not be read')]);
   });
 });

@@ -9,7 +9,7 @@ function posted(counts: Record<string, number> | null) {
   const f = publicFake();
   f.store.addProposal(7, 'Winch', f.clock.now);
   f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
-  f.cards = [{ itemId: 'x', issue: 7, column: 'Triage', labels: ['voting'] }];
+  f.cards = [{ itemId: 'x', title: '', issue: 7, column: 'Triage', labels: ['voting'] }];
   if (counts) f.store.applyEvent({ updateId: 1, kind: 'reaction-count', chat: CHANNEL, messageId: 100, counts });
   return f;
 }
@@ -124,7 +124,7 @@ describe('countVotes', () => {
   it.each([
     ['the issue is closed', (f: ReturnType<typeof posted>) => { f.issueState[7] = 'CLOSED'; }],
     ['the voting label was removed by hand', (f: ReturnType<typeof posted>) => { f.issueLabels[7] = []; }],
-    ['the card was moved by hand out of Triage', (f: ReturnType<typeof posted>) => { f.cards = [{ itemId: 'x', issue: 7, column: 'Implementation', labels: ['voting'] }]; }],
+    ['the card was moved by hand out of Triage', (f: ReturnType<typeof posted>) => { f.cards = [{ itemId: 'x', title: '', issue: 7, column: 'Implementation', labels: ['voting'] }]; }],
     ['the card left the board', (f: ReturnType<typeof posted>) => { f.cards = []; }],
   ])('closes a passed proposal with no GitHub write when %s', async (_name, change) => {
     const f = posted({ '👍': 3 });
@@ -140,7 +140,7 @@ describe('countVotes', () => {
 
   it('closes a committee-rejected proposal with no GitHub write when its card left Triage', async () => {
     const f = posted(null);
-    f.cards = [{ itemId: 'x', issue: 7, column: 'Done', labels: [] }];
+    f.cards = [{ itemId: 'x', title: '', issue: 7, column: 'Done', labels: [] }];
     react(f, 2, '42', ['👎']);
     await countVotes(f.ctx, f.store);
     expect(f.calls).toEqual(['issue 7']);

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { pngBytes } from '../photo-fixtures';
 import { readShelf, PLAYER_SHELF } from '../reply-media';
 import { mediaDir } from '../stages/common';
-import { fetchChatMedia, holdDir, imageLines, placeChatMedia } from './chat-media';
+import { fetchChatMedia, holdDir, placeChatMedia } from './chat-media';
+import { imageLines } from './digest';
 import { CHANNEL, publicFake, type PublicFake } from './public-fakes';
 import type { CommentKind } from './store';
 

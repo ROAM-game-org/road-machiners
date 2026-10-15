@@ -14,6 +14,11 @@ export type ReplyText = {
   fromWiki: (label: string) => string;
   added: (link: string) => string;
   aboutWork: (link: string, status: string) => string;
+  moved: (from: string | null, to: string, status: string) => string;
+  stays: (from: string | null) => string;
+  toTeam: string;
+  imageKept: string;
+  imageLost: string;
 };
 
 const ENGLISH: ReplyText = {
@@ -30,6 +35,11 @@ const ENGLISH: ReplyText = {
   fromWiki: (label) => `From the game wiki, ${label}:`,
   added: (link) => `Thanks. I added this to the player comments of ${link}`,
   aboutWork: (link, status) => `Thanks. This is about ${link}, which the factory already has.\n${status}\nI added your message to its player comments. It opens no new issue or vote.`,
+  moved: (from, to, status) => `Sorry, I put it in the wrong place. I moved the earlier message${from === null ? '' : ` from ${from}`} to the player comments of ${to}\n${status}`,
+  stays: (from) => (from === null ? 'I found no open work this fits, so nothing moved.' : `I found no other open work this fits, so it stays on ${from}`),
+  toTeam: 'Your request went to the factory team as a committee request.',
+  imageKept: 'Its image is kept for the team.',
+  imageLost: 'I could not keep its image, so the team has the text only.',
 };
 
 const RUSSIAN: ReplyText = {
@@ -46,6 +56,11 @@ const RUSSIAN: ReplyText = {
   fromWiki: (label) => `Из вики игры, ${label}:`,
   added: (link) => `Спасибо. Это добавлено в комментарии игроков к ${link}`,
   aboutWork: (link, status) => `Спасибо. Это про ${link}, она у фабрики уже есть.\n${status}\nВаше сообщение добавлено в комментарии игроков к ней. Новой задачи и голосования не будет.`,
+  moved: (from, to, status) => `Извините, я положил это не туда. Прошлое сообщение перенесено${from === null ? '' : ` из ${from}`} в комментарии игроков к ${to}\n${status}`,
+  stays: (from) => (from === null ? 'Подходящей открытой задачи не нашлось, ничего не перенесено.' : `Другой подходящей открытой задачи не нашлось, сообщение остаётся в ${from}`),
+  toTeam: 'Ваша просьба передана команде фабрики как просьба комитета.',
+  imageKept: 'Его картинка сохранена для команды.',
+  imageLost: 'Его картинку сохранить не удалось, у команды только текст.',
 };
 
 export const textsFor = (language: ReplyLanguage | null): ReplyText => (language === 'ru' ? RUSSIAN : ENGLISH);

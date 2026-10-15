@@ -8,7 +8,7 @@ import { FEEDBACK_HEADING, NEEDS_INFO_LABEL, PLAYER_REPORT_HEADING, QUESTIONS_HE
 beforeEach(reset);
 
 const said = (body: string, createdAt: string, byFactory = true): IssueComment => ({ login: byFactory ? 'factory' : 'ann', body, createdAt, byFactory });
-const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels });
 
 function withComments(byIssue: Record<number, IssueComment[]>) {
   const f = fake();

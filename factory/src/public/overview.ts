@@ -28,14 +28,21 @@ function placeOf(comment: StoredComment): string {
   return comment.relevance === 'other' ? `off-topic under #${comment.issue}` : `on #${comment.issue}`;
 }
 
-function chatRow(comment: StoredComment): string {
+function imagesOf(store: PublicStore, comment: StoredComment): string[] {
+  const media = store.mediaOf(comment.id);
+  if (media.length === 0) return [];
+  return [`${media.filter((item) => item.image !== null).length} of ${media.length} images kept`];
+}
+
+function chatRow(store: PublicStore, comment: StoredComment): string {
   const filed = comment.filedIssue === null ? [] : [`filed as #${comment.filedIssue}`];
+  const answers = comment.answers === null ? [] : [`answers the bot reply to comment ${comment.answers}`];
   const replied = comment.replyId === null ? 'no reply' : `replied ${comment.replyId}`;
-  return `chat message ${comment.messageId} ${comment.at}: ${[comment.kind, placeOf(comment), ...filed, replied].join(', ')}`;
+  return `chat message ${comment.messageId} ${comment.at}: ${[comment.kind, placeOf(comment), ...filed, ...answers, ...imagesOf(store, comment), replied].join(', ')}`;
 }
 
 export function publicRows(ctx: Ctx, store: PublicStore): string[] {
   const proposals = [...store.unpostedProposals(), ...store.openProposals()];
-  const chat = store.recentChat(RECENT_CHAT).map(chatRow);
+  const chat = store.recentChat(RECENT_CHAT).map((comment) => chatRow(store, comment));
   return [...proposals.map((proposal) => proposalRow(ctx, store, proposal)), ...buildRows(ctx, store, proposals), ...chat];
 }

@@ -57,7 +57,7 @@ function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[
 }
 
 const verdict = (over: Record<string, unknown>): string => JSON.stringify({ verdict: 'ready', reason: 'Clear goal', questions: [], hotfix: false, releaseFix: false, complexity: 'intermediate', complexityReason: 'Touches the horn code and the audio module.', bundle: [], ...over });
-const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels });
 
 describe('triage stage', () => {
   it('comments and moves to Design when ready', async () => {

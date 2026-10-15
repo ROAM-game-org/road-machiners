@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Ctx } from './types';
 
 export type Member = { telegram: string; github: string | null; name: string | null };
 
@@ -40,4 +41,9 @@ export function githubLogins(members: Member[]): string[] {
 
 export function telegramIds(members: Member[]): string[] {
   return members.map((member) => member.telegram);
+}
+
+export function committeeIds(ctx: Ctx): string[] {
+  const { home, committeeBootstrapTelegram: telegram, committeeBootstrapGithub: github } = ctx.cfg;
+  return telegramIds(readCommittee(home, { telegram, github }));
 }

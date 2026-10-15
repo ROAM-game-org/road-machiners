@@ -129,7 +129,7 @@ describe('candidate', () => {
     const f = fake();
     holds(f, [TRUCKS]);
     f.agentWrites = { 'release.json': ONLY_TRUCKS, 'screenshot.png': SHOT };
-    f.cards = [{ itemId: 'i74', issue: 74, column: 'Design', labels: ['release-task'] }];
+    f.cards = [{ itemId: 'i74', title: '', issue: 74, column: 'Design', labels: ['release-task'] }];
     await candidate(f.ctx, 11);
     expect(f.photos).toEqual([]);
     expect(f.calls.some((call) => call.startsWith('comment') || call.startsWith('message'))).toBe(false);

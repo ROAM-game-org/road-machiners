@@ -102,8 +102,8 @@ describe('read commands', () => {
   function board(): Fake {
     const f = fake();
     f.cards = [
-      { itemId: 'i5', issue: 5, column: 'Design', labels: ['hotfix'] },
-      { itemId: 'i6', issue: 6, column: 'Approval', labels: [] },
+      { itemId: 'i5', title: '', issue: 5, column: 'Design', labels: ['hotfix'] },
+      { itemId: 'i6', title: '', issue: 6, column: 'Approval', labels: [] },
     ];
     return f;
   }

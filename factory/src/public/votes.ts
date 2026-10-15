@@ -1,5 +1,5 @@
 import { moveCard } from '../card-events';
-import { readCommittee, telegramIds } from '../committee';
+import { committeeIds } from '../committee';
 import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
 import { ACCEPTED_BY_COMMITTEE, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
@@ -8,8 +8,7 @@ import type { Proposal, PublicStore, Tally } from './store';
 type Outcome = { kind: 'accept' | 'reject'; reason: string; conclusion: string };
 
 export async function countVotes(ctx: Ctx, store: PublicStore): Promise<void> {
-  const { home, committeeBootstrapTelegram: telegram, committeeBootstrapGithub: github } = ctx.cfg;
-  const committee = telegramIds(readCommittee(home, { telegram, github }));
+  const committee = committeeIds(ctx);
   const sides = voteSides(ctx);
   for (const proposal of store.openProposals()) {
     const tally = store.tally(proposal.issue, sides.up, sides.down);

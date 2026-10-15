@@ -11,7 +11,7 @@ vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' })
 const { ship } = await import('./ship');
 
 const RELEASE: ReleaseState = { issue: 11, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [6], tasks: [], merges: [issueMerge(3, 'faster trucks'), issueMerge(6, 'gone')], candidateSha: 'abc1234', playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
-const done = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Done', labels });
+const done = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column: 'Done', labels });
 
 beforeEach(() => {
   reset();
@@ -25,7 +25,7 @@ beforeEach(() => {
 function shippable(): Fake {
   const f = fake();
   Object.assign(f.ctx.cfg, { itchTarget: 'u/g', butlerKey: 'secret' });
-  f.cards = [{ itemId: 'i11', issue: 11, column: 'Approval', labels: ['release'] }, done(12, ['release-task', 'maintenance'])];
+  f.cards = [{ itemId: 'i11', title: '', issue: 11, column: 'Approval', labels: ['release'] }, done(12, ['release-task', 'maintenance'])];
   return f;
 }
 
@@ -232,7 +232,7 @@ describe('ship', () => {
 
   it('refuses while a release task is outside Done (IV3)', async () => {
     const f = shippable();
-    f.cards.push({ itemId: 'i13', issue: 13, column: 'Testing', labels: ['release-task'] });
+    f.cards.push({ itemId: 'i13', title: '', issue: 13, column: 'Testing', labels: ['release-task'] });
     await expect(ship(f.ctx, 11, 'Ann')).rejects.toThrow('still open: #13');
     expect(f.calls.some((call) => call.startsWith('merge'))).toBe(false);
   });

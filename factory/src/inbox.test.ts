@@ -46,7 +46,7 @@ describe('drainInbox', () => {
   it('queues an approval for a card in Approval and empties the inbox', async () => {
     const sent: string[] = [];
     put('1.json', { kind: 'approve', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(readState(statePath).pendingApprovals).toEqual({ '4': 'Ann' });
     expect(readdirSync(join(ROOT, 'inbox'))).toEqual([]);
     expect(sent).toEqual([]);
@@ -56,7 +56,7 @@ describe('drainInbox', () => {
     const sent: string[] = [];
     writeState(statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { 99: 4 }, postCaptions: { [POST]: 'Post' } });
     put('1.json', { kind: 'approve', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(readState(statePath).pendingApprovals).toEqual({});
     expect(sent).toEqual(['That did not work: That post of #4 is no longer current, so it cannot approve anything. Only the newest post of #4 can.']);
   });
@@ -66,7 +66,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, { ...structuredClone(EMPTY_STATE), postCaptions: { [POST]: 'Post' } });
     put('1.json', { kind: 'deny', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, calls));
     expect(calls).toEqual([]);
     expect(sent[0]).toContain('is no longer current');
   });
@@ -94,7 +94,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), builds: { 4: 'abc1234' } }));
     put('1.json', { kind: 'route', route: 'patch', issue: 4, text: 'make the horn louder', by: 'hermes', byName: null, messageId: null });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], [], calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], [], calls));
     expect(calls).toContain('move 4 Testing');
     expect(calls).toContain('edit -5 42 Post\n\n🔧 Patch from Hermes. Sonnet fixes the build, then the checks run again.');
   });
@@ -102,7 +102,7 @@ describe('drainInbox', () => {
   it('refuses an approve, a deny, a ship and a remove from Hermes', async () => {
     const sent: string[] = [];
     for (const kind of ['approve', 'deny', 'ship', 'remove']) put(`${kind}.json`, { kind, issue: 4, text: 'x', by: 'hermes', byName: null, messageId: null });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(sent).toHaveLength(4);
     for (const text of sent) expect(text).toContain('Only committee members can do that');
     expect(readState(statePath).pendingApprovals).toEqual({});
@@ -137,7 +137,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, { ...structuredClone(EMPTY_STATE), postCaptions: { [POST]: 'Post' }, textPosts: [String(POST)] });
     put('1.json', { kind: 'redesign', issue: 4, text: 'too loud' });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], [], calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], [], calls));
     expect(calls.at(-1)).toBe('editText -5 42 Post\n\n💬 Feedback from Ann. Back to design.');
     expect(calls.some((call) => call.startsWith('edit -5'))).toBe(false);
   });
@@ -145,7 +145,7 @@ describe('drainInbox', () => {
   it('sends a redesign back to design at once', async () => {
     const calls: string[] = [];
     put('1.json', { kind: 'redesign', issue: 4, text: 'too loud' });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], [], calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], [], calls));
     expect(calls).toEqual([expect.stringContaining('routed as redesign:\n\ntoo loud'), 'move 4 Design', 'edit -5 42 Post\n\n💬 Feedback from Ann. Back to design.']);
   });
 
@@ -153,7 +153,7 @@ describe('drainInbox', () => {
     const sent: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), pendingApprovals: { 4: 'Ann' } }));
     put('1.json', { kind: 'redesign', issue: 4, text: 'too loud' });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(readState(statePath).pendingApprovals).toEqual({});
     expect(sent).toEqual([]);
   });
@@ -162,7 +162,7 @@ describe('drainInbox', () => {
     const sent: string[] = [];
     const calls: string[] = [];
     put('1.json', { kind: 'reply', issue: 4, text: 'show the atlas', messageId: 3 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, calls));
     expect(readState(statePath).unroutedReplies).toEqual({ 3: { issue: 4, postId: POST, text: 'show the atlas', at: new Date(5000).toISOString() } });
     expect(sent).toEqual([]);
     expect(calls).toEqual([]);
@@ -172,7 +172,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), builds: { 4: 'abc1234' }, unroutedReplies: { 3: { issue: 4, postId: POST, text: 'x', at: 'a' }, 8: { issue: 5, postId: 77, text: 'y', at: 'a' } } }));
     put('1.json', { kind: 'route', route: 'patch', issue: 4, text: 'Use top-down icons in the grid.', messageId: 6 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], [], calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], [], calls));
     const state = readState(statePath);
     expect(state.unroutedReplies).toEqual({ 8: { issue: 5, postId: 77, text: 'y', at: 'a' } });
     expect(calls).toEqual([expect.stringContaining('routed as patch:\n\nUse top-down icons in the grid.'), 'move 4 Testing', 'edit -5 42 Post\n\n🔧 Patch from Ann. Sonnet fixes the build, then the checks run again.']);
@@ -183,7 +183,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), unroutedReplies: { 3: { issue: 4, postId: POST, text: 'x', at: 'a' } } }));
     put('1.json', { kind: 'route', route: 'answer', issue: 4, text: 'Is there a top-down atlas?' });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, calls));
     expect(calls).toEqual([expect.stringContaining('routed as answer')]);
     expect(sent).toEqual([]);
     expect(readState(statePath).unroutedReplies).toEqual({});
@@ -205,7 +205,7 @@ describe('drainInbox', () => {
     const calls: string[] = [];
     writeState(statePath, withPost({ ...structuredClone(EMPTY_STATE), approvalPosts: { 100: 4, 200: 5 }, pendingApprovals: { 4: 'Ann' } }));
     put('1.json', { kind: 'deny', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, calls));
     expect(calls).toEqual(['comment 4 Denied by Ann in the committee chat.', 'addLabel 4 wont-do', 'close 4 not planned', 'move 4 Done', 'edit -5 42 Post\n\n❌ Denied by Ann']);
     expect(readState(statePath).approvalPosts).toEqual({ 200: 5 });
     expect(readState(statePath).pendingApprovals).toEqual({});
@@ -215,7 +215,7 @@ describe('drainInbox', () => {
   it('adds the approver under the post caption and remembers the new caption', async () => {
     const calls: string[] = [];
     put('1.json', { kind: 'approve', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], [], calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], [], calls));
     expect(calls).toEqual(['edit -5 42 Post\n\n✅ Approved by Ann']);
     expect(readState(statePath).postCaptions).toEqual({ [POST]: 'Post\n\n✅ Approved by Ann' });
   });
@@ -224,7 +224,7 @@ describe('drainInbox', () => {
     const sent: string[] = [];
     writeState(statePath, { ...structuredClone(EMPTY_STATE), approvalPosts: { [POST]: 4 } });
     put('1.json', { kind: 'approve', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Approval', labels: [] }], sent, []));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Approval', labels: [] }], sent, []));
     expect(readState(statePath).pendingApprovals).toEqual({ '4': 'Ann' });
     expect(sent).toEqual([expect.stringMatching(/^Approval of #4 is queued.*\nThe post could not show its status: No caption is recorded for post 42$/)]);
   });
@@ -233,7 +233,7 @@ describe('drainInbox', () => {
     const sent: string[] = [];
     const calls: string[] = [];
     put('1.json', { kind: 'deny', issue: 4 });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Testing', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Testing', labels: [] }], sent, calls));
     expect(calls).toEqual([]);
     expect(sent[0]).toContain('not in Approval');
   });
@@ -365,7 +365,7 @@ describe('control files', () => {
     const sent: string[] = [];
     const calls: string[] = [];
     putControl('1-control.json', { action: 'move', issue: 4, to: 'design' });
-    await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Testing', labels: [] }], sent, calls));
+    await drainInbox(fakeCtx([{ itemId: 'i', title: '', issue: 4, column: 'Testing', labels: [] }], sent, calls));
     expect(calls).toContain('move 4 Design');
     expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Reason: the gate failed on load');
     expect(readdirSync(join(ROOT, 'inbox'))).toEqual([]);

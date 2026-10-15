@@ -14,7 +14,7 @@ let resolutionDiff = '';
 let resolutionFiles: string[] = [];
 let logs: string[] = [];
 
-const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
+const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column: 'Merging', labels });
 const mergeJob = (batch: number[] | undefined, caughtUp?: number[]): Job => ({ id: 'merge-x', stage: 'merge', issue: null, pid: 1, startedAt: '', log: '', batch, ...(caughtUp ? { caughtUp } : {}) });
 const RELEASE = { issue: 20, branch: 'release/2026-10-09', day: '2026-10-09', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 

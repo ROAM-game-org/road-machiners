@@ -28,7 +28,7 @@ let heads = 0;
 const PASS = 'pass';
 const HUNG = 'the checks ran past their 45 minute limit, and the factory removed their container.';
 
-const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column: 'Merging', labels });
+const card = (issue: number, labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column: 'Merging', labels });
 const result = (cost = 1) => `${JSON.stringify({ type: 'result', total_cost_usd: cost, duration_ms: 1000 })}\n`;
 
 beforeEach(() => {

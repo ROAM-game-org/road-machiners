@@ -7,7 +7,7 @@ import { EMPTY_STATE } from './state';
 import type { Card, FactoryState, Job } from './types';
 
 const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...over });
-const card = (issue: number, column: Card['column']): Card => ({ itemId: `i${issue}`, issue, column, labels: [] });
+const card = (issue: number, column: Card['column']): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels: [] });
 const running = (stage: Job['stage'], issue: number | null): Job => ({ id: `${stage}-${issue}`, stage, issue, pid: 1, startedAt: '', log: '' });
 
 function work(...names: string[]): string {

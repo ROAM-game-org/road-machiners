@@ -5,7 +5,7 @@ import { routeReports } from './routes';
 
 function reported(route: 'patch' | 'redesign' | 'none', withPost: boolean) {
   const f = publicFake();
-  f.cards = [{ itemId: 'x', issue: 7, column: 'Approval', labels: [] }];
+  f.cards = [{ itemId: 'x', title: '', issue: 7, column: 'Approval', labels: [] }];
   f.store.addProposal(7, 'Winch', f.clock.now);
   f.store.markProposalPosted(7, CHANNEL, 100, 'footer', f.clock.now);
   f.store.addBuildPost(7, 'abc1234', CHANNEL, 200, f.clock.now);
@@ -43,7 +43,7 @@ describe('routeReports', () => {
 
   it('routes a game report on a bug card that never had a proposal through its committee post', async () => {
     const f = publicFake();
-    f.cards = [{ itemId: 'x', issue: 8, column: 'Approval', labels: [] }];
+    f.cards = [{ itemId: 'x', title: '', issue: 8, column: 'Approval', labels: [] }];
     updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 400: 8 }, postCaptions: { 400: 'caption' }, textPosts: ['400'] }));
     const id = f.store.addComment({ issue: 8, source: 'game', sourceId: 'report:1', postChat: null, postMessageId: null, author: 'Player', text: 'The horn never stops', at: f.clock.now.toISOString() })!;
     f.store.classify(id, 'bug', 'patch', f.clock.now);
@@ -155,7 +155,7 @@ describe('routeReports', () => {
 
   it('keeps mentions, team mentions and cross-repo references of a routed comment from reaching GitHub live', async () => {
     const f = publicFake();
-    f.cards = [{ itemId: 'x', issue: 8, column: 'Approval', labels: [] }];
+    f.cards = [{ itemId: 'x', title: '', issue: 8, column: 'Approval', labels: [] }];
     updateState(f.ctx.statePath, (state) => ({ ...state, approvalPosts: { 400: 8 }, postCaptions: { 400: 'caption' }, textPosts: ['400'] }));
     const id = f.store.addComment({ issue: 8, source: 'game', sourceId: 'report:2', postChat: null, postMessageId: null, author: '@torvalds', text: 'cc @octocat @github/security see torvalds/linux#1', at: f.clock.now.toISOString() })!;
     f.store.classify(id, 'bug', 'patch', f.clock.now);

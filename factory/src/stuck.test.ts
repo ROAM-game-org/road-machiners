@@ -9,8 +9,8 @@ import { STUCK_LABEL, WORK_DIR, type Card, type Ctx, type Failure, type FactoryS
 
 const NOW = new Date('2026-10-09T12:00:00Z');
 const minutesAgo = (minutes: number): string => new Date(NOW.getTime() - minutes * 60_000).toISOString();
-const stuck = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels: [...labels, STUCK_LABEL] });
-const ready = (issue: number, column: Card['column'] = 'Merging'): Card => ({ itemId: `i${issue}`, issue, column, labels: [] });
+const stuck = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels: [...labels, STUCK_LABEL] });
+const ready = (issue: number, column: Card['column'] = 'Merging'): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels: [] });
 const range = (from: number, count: number): number[] => Array.from({ length: count }, (_, index) => from + index);
 const mergeDown = (batch: number[], at: string, over: Partial<Failure> = {}): Failure => ({ stage: 'merge', issue: null, error: 'timed out after 240 minutes', cause: 'timeout', log: `/logs/merge-${at}.log`, at, batch, ...over });
 const failure = (issue: number, error: string, over: Partial<Failure> = {}): Failure => ({ stage: 'verify', issue, error, cause: 'error', log: '/logs/v.log', at: minutesAgo(30), ...over });

@@ -307,7 +307,7 @@ describe('playtest', () => {
 
   it('refuses while a release task is open, a recorded one included, or the playtest is blocked, and plays nothing', async () => {
     const open = setup();
-    open.f.cards = [{ itemId: 'i', issue: 30, column: 'Testing', labels: ['release-task'] }];
+    open.f.cards = [{ itemId: 'i', title: '', issue: 30, column: 'Testing', labels: ['release-task'] }];
     await expect(playtest(open.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #30');
     const recorded = setup({ tasks: [31] });
     await expect(playtest(recorded.f.ctx, 11)).rejects.toThrow('Release tasks are still open: #31');

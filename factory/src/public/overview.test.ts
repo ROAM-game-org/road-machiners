@@ -24,16 +24,20 @@ describe('publicRows', () => {
 
   it('lists the latest classified chat messages with where they went and whether they got a reply', () => {
     const f = publicFake();
-    f.store.addComment({ issue: 568, source: 'telegram', sourceId: 'c:169', postChat: CHANNEL, postMessageId: 100, author: 'Ann', text: 'minimap', at: 'T1', messageId: 169 });
+    f.store.addComment({ issue: 568, source: 'telegram', sourceId: 'c:169', postChat: CHANNEL, postMessageId: 100, author: 'Ann', text: 'minimap', at: 'T1', messageId: 169, media: [{ fileId: 'f', uniqueId: 'u', origin: 'message' }] });
     f.store.addComment({ issue: null, source: 'telegram', sourceId: 'c:170', postChat: CHANNEL, postMessageId: null, author: 'Bob', text: 'hi', at: 'T2', messageId: 170 });
     const [offTopic, standalone] = f.store.unclassifiedComments(100);
     f.store.classify(offTopic!.id, 'feature', 'none', f.clock.now, 'other');
     f.store.classify(standalone!.id, 'chatter', 'none', f.clock.now, 'other');
     f.store.setFiled(offTopic!.id, 571);
     f.store.setReplyId(offTopic!.id, 700);
+    f.store.applyEvent({ updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 171, threadId: 700, author: 'Ann', sender: '1', text: 'wrong', at: 'T3', standalone: true });
+    const [correction] = f.store.unclassifiedComments(100);
+    f.store.classify(correction!.id, 'correction', 'none', f.clock.now, 'other');
     expect(publicRows(f.ctx, f.store)).toEqual([
+      `chat message 171 T3: correction, off-topic under #568, answers the bot reply to comment ${offTopic!.id}, no reply`,
       'chat message 170 T2: chatter, no thread, no reply',
-      'chat message 169 T1: feature, off-topic under #568, filed as #571, replied 700',
+      'chat message 169 T1: feature, off-topic under #568, filed as #571, 0 of 1 images kept, replied 700',
     ]);
   });
 });

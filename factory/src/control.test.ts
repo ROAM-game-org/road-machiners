@@ -28,7 +28,7 @@ let editFails = false;
 let issueComments: IssueComment[] = [];
 let contained: string[] = [];
 
-const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels });
 
 function fakeCtx(): Ctx {
   const cfg = { home: ROOT, committeeBootstrapTelegram: '11', committeeBootstrapGithub: 'boss', committeeChat: '-5', tokenPrices: {}, repo: 'o/r', voteEmoji: '👍', vetoEmoji: '👎', minVotes: 3 } as FactoryConfig;

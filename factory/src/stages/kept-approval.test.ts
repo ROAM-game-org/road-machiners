@@ -6,7 +6,7 @@ import type { Card, Ctx, FactoryState, KeptApproval } from '../types';
 import { readyToShip, requeueKept } from './kept-approval';
 
 const KEPT: KeptApproval = { by: 'Bob', at: '2026-09-30T09:00:00.000Z', build: 'aaa1111', checked: ['aaa1111', 'ddd4444'], reason: 'main moved' };
-const card = (column: Card['column'], labels: string[] = ['hotfix']): Card => ({ itemId: 'i7', issue: 7, column, labels });
+const card = (column: Card['column'], labels: string[] = ['hotfix']): Card => ({ itemId: 'i7', title: '', issue: 7, column, labels });
 const waiting = (patch: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), keptApprovals: { 7: KEPT }, builds: { 7: 'ddd4444' }, ...patch });
 
 let home = '';

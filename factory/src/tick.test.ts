@@ -18,7 +18,7 @@ const DEV = 'dev0001';
 const FRESH = { lastRelease: '2026-01-09T12:00:00Z', devBuild: DEV };
 
 const state = (over: Partial<FactoryState> = {}): FactoryState => ({ ...structuredClone(EMPTY_STATE), ...FRESH, ...over });
-const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
+const card = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, title: '', issue, column, labels });
 const running = (stage: Job['stage'], issue: number | null): Job => ({ id: `${stage}-${issue}`, stage, issue, pid: 1, startedAt: '', log: '' });
 
 const starts = (...hoursAgo: number[]): string[] => hoursAgo.map((h) => new Date(NOW.getTime() - h * 3_600_000).toISOString());

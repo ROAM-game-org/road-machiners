@@ -118,6 +118,25 @@ describe('filterWith', () => {
     await filterWith(CFG, fetch)({ source: 'message', text: 'Add boats', work: [] });
     expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
   });
+
+  it('asks a reply to the bot whether it corrects the bot, with the earlier message in the input', async () => {
+    const work = ['#571 (being built) Hand-drawn region map'];
+    const { fetch, sent } = fake(200, answers(intent(0.7, 0.2, 0.1), pick('kind', 'chatter'), pick('correction', 'corrects'), pick('work', '1'), pick('language', 'en')));
+    const input = { source: 'message', text: 'Not this task. Post it with the image to the task working on the map', context: 'Thanks. This is about #652', corrected: 'Add this map as an example to #571', work } as const;
+    expect(await filterWith(CFG, fetch)(input)).toMatchObject({ verdict: 'reject', kind: 'chatter', corrects: true, work: 0 });
+    const body = bodyOf(sent);
+    expect(body.input).toMatch(/\n\nEarlier message: Add this map as an example to #571\n\nReplying to: Thanks\. This is about #652\n\nPlayer text: Not this task/);
+    expect(body.questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'correction', 'work', 'language']);
+    expect(body.questions[2].choices.map((option: { value: string }) => option.value)).toEqual(['corrects', 'accepts']);
+    const accepts = fake(200, answers(intent(0.9, 0.05, 0.05), pick('kind', 'chatter'), pick('correction', 'accepts'), pick('work', 'none'), pick('language', 'en')));
+    expect(await filterWith(CFG, accepts.fetch)(input)).toMatchObject({ corrects: false });
+  });
+
+  it('asks no correction question of a message that does not reply to the bot', async () => {
+    const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('language', 'en')));
+    expect(await filterWith(CFG, fetch)({ source: 'message', text: 'Add boats' })).not.toHaveProperty('corrects');
+    expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
+  });
 });
 
 describe('pickPassageWith', () => {

@@ -1,4 +1,8 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pngBytes } from '../photo-fixtures';
+import { PLAYER_SHELF, readShelf } from '../reply-media';
+import { mediaDir } from '../stages/common';
 import { describe, expect, it } from 'vitest';
 import { inboxDir } from '../inbox';
 import { readState, updateState } from '../state';
@@ -15,7 +19,7 @@ type Said = { text: string; decision: Partial<Decision>; about?: number };
 
 function chat(said: Said[], ground: Ground = async () => null) {
   const f = publicFake();
-  f.cards = [{ itemId: 'x', issue: 568, column: 'Approval', labels: [] }];
+  f.cards = [{ itemId: 'x', title: '', issue: 568, column: 'Approval', labels: [] }];
   f.store.addProposal(568, 'Faction reputation\nTowns remember what you did.', f.clock.now);
   f.store.markProposalPosted(568, CHANNEL, PROPOSAL, 'footer', f.clock.now);
   f.store.addBuildPost(568, 'abc1234', CHANNEL, BUILD, f.clock.now);
@@ -33,11 +37,13 @@ function chat(said: Said[], ground: Ground = async () => null) {
 
 let update = 0;
 
-function post(f: PublicFake, message: { id: number; text: string; thread?: number | null; sender?: string; addressed?: boolean; context?: string }): void {
+type Media = { fileId: string; uniqueId: string; origin: 'message' | 'reply' };
+
+function post(f: PublicFake, message: { id: number; text: string; thread?: number | null; sender?: string; addressed?: boolean; context?: string; media?: Media[] }): void {
   const dir = `${f.home}/public-inbox`;
   mkdirSync(dir, { recursive: true });
   update += 1;
-  const event = { updateId: update, kind: 'comment', chat: CHANNEL, messageId: message.id, threadId: message.thread ?? null, author: 'Ann Lee', sender: message.sender ?? '42', text: message.text, at: f.clock.now.toISOString(), addressed: message.addressed ?? false, standalone: true, context: message.context ?? null };
+  const event = { updateId: update, kind: 'comment', chat: CHANNEL, messageId: message.id, threadId: message.thread ?? null, author: 'Ann Lee', sender: message.sender ?? '42', text: message.text, at: f.clock.now.toISOString(), addressed: message.addressed ?? false, standalone: true, context: message.context ?? null, media: message.media ?? [] };
   writeFileSync(`${dir}/${String(update).padStart(10, '0')}.json`, JSON.stringify(event));
 }
 
@@ -248,7 +254,7 @@ describe('public chat about known work', () => {
     made.f.store.addProposal(LANDMARKS, 'Landmark directions\nTowns give directions by landmarks you can see.', made.f.clock.now);
     made.f.store.markProposalPosted(LANDMARKS, CHANNEL, 400, 'footer', made.f.clock.now);
     made.f.store.closeProposal(LANDMARKS, made.f.clock.now);
-    made.f.cards.push({ itemId: 'y', issue: LANDMARKS, column: 'Hardening', labels: [] });
+    made.f.cards.push({ itemId: 'y', title: '', issue: LANDMARKS, column: 'Hardening', labels: [] });
     made.f.issueLabels[LANDMARKS] = [];
     return made;
   }
@@ -258,7 +264,7 @@ describe('public chat about known work', () => {
     post(f, { id: 196, text: EXPLAINED, thread: 9999, addressed: true, context: BUILD_TEXT });
     await tick();
     expect(asked[0]).toMatchObject({ source: 'message', context: BUILD_TEXT });
-    expect(asked[0]!.work).toContain('#564 Landmark directions: Towns give directions by landmarks you can see.');
+    expect(asked[0]!.work).toContain('#564 (approved, being finished) Landmark directions: Towns give directions by landmarks you can see.');
     expect(f.created).toEqual([]);
     expect(f.comments.map((comment) => comment.issue)).toEqual([LANDMARKS]);
     expect(f.comments[0]!.body).toContain(`> ${EXPLAINED}`);
@@ -349,5 +355,131 @@ describe('public chat about known work', () => {
     expect(f.comments.map((comment) => comment.issue)).toEqual([LANDMARKS, LANDMARKS]);
     expect(f.comments[1]!.body).toContain(follow);
     expect(repliesTo(f, 56)[0]!.text).toBe('Thanks. I added this to the player comments of #564: https://github.com/o/r/issues/564');
+  });
+});
+
+describe('public chat corrections and images', () => {
+  const ACTIVE_MAP = 571;
+  const DUPLICATE = 652;
+  const MEMBER = '42';
+  const PLAYER = '7';
+  const MAP = pngBytes(9, 1280, 853);
+  const ASK = '@road_machiners_bot add this map as an example with its image to the active map implementation #571, and apply the ROAM UI rules and art postprocessing for a hand-drawn look';
+  const PHOTO_TEXT = 'My map of the wasteland';
+  const WRONG_TASK = 'Dude, not this task. Close this one. Post the reference WITH THE IMAGE to the actual task working on the map';
+  const PHOTO: Media[] = [{ fileId: 'photo-215', uniqueId: 'u215', origin: 'reply' }];
+
+  function mapChat(said: Said[]) {
+    const made = chat(said);
+    made.f.cards.push({ itemId: 'm', title: 'Hand-drawn region map', issue: ACTIVE_MAP, column: 'Implementation', labels: [] });
+    made.f.cards.push({ itemId: 'd', title: 'Region map proposal', issue: DUPLICATE, column: 'Triage', labels: ['voting'] });
+    made.f.issueLabels[ACTIVE_MAP] = [];
+    made.f.store.addProposal(DUPLICATE, 'Region map\nA map of the region you can open on the road.', made.f.clock.now);
+    made.f.store.markProposalPosted(DUPLICATE, CHANNEL, 700, 'footer', made.f.clock.now);
+    made.f.files['photo-215'] = MAP;
+    return made;
+  }
+
+  const shelf = (f: PublicFake, issue: number) => readShelf(mediaDir(f.ctx, issue), PLAYER_SHELF);
+  const failures = (f: PublicFake) => readState(f.ctx.statePath).failures.map((failure) => failure.error);
+
+  it('message 219: links a member ask that names active work to that work, with the image of the replied photo, over the Triage duplicate', async () => {
+    const { f, asked, tick } = mapChat([{ text: ASK, decision: { kind: 'feature', relevance: 'other' }, about: ACTIVE_MAP }]);
+    post(f, { id: 219, text: ASK, sender: MEMBER, addressed: true, context: PHOTO_TEXT, media: PHOTO });
+    await tick();
+    expect(asked[0]!.work!.slice(0, 2)).toEqual(['#571 (being built) Hand-drawn region map', '#652 (proposal) Region map: A map of the region you can open on the road.']);
+    expect(f.created).toEqual([]);
+    expect(f.comments.map((comment) => comment.issue)).toEqual([ACTIVE_MAP]);
+    expect(f.comments[0]!.body).toContain('From Ann Lee, committee member, feature:');
+    expect(f.comments[0]!.body).toMatch(/An image on the message it replies to: png, 1280x853, 32 bytes, sha256 [0-9a-f]{64}\. The agents get it/);
+    const [entry] = shelf(f, ACTIVE_MAP);
+    expect(entry).toMatchObject({ status: 'ok', type: 'png', width: 1280, height: 853 });
+    expect(readFileSync(join(mediaDir(f.ctx, ACTIVE_MAP), entry!.file!))).toEqual(MAP);
+    const [reply] = repliesTo(f, 219);
+    expect(reply!.text).toContain('This is about #571');
+    expect(reply!.text).toContain('Its image is kept for the team.');
+    expect(cardMoves(f)).toEqual([]);
+  });
+
+  async function wronglyLinked(correctionSender: string, decision: Partial<Decision>, about: number | null = ACTIVE_MAP) {
+    const made = mapChat([
+      { text: ASK, decision: { kind: 'feature', relevance: 'other' }, about: DUPLICATE },
+      { text: WRONG_TASK, decision: { kind: 'chatter', relevance: 'other', ...decision }, about: about ?? undefined },
+    ]);
+    const { f, tick } = made;
+    post(f, { id: 219, text: ASK, sender: MEMBER, addressed: true, context: PHOTO_TEXT, media: PHOTO });
+    await tick();
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE]);
+    const botReply = repliesTo(f, 219)[0]!;
+    expect(botReply.text).toContain('#652');
+    post(f, { id: 221, text: WRONG_TASK, thread: f.store.recentChat(1)[0]!.replyId, sender: correctionSender, addressed: true, context: botReply.text });
+    f.clock.now = new Date('2026-10-14T10:05:00Z');
+    await tick();
+    return made;
+  }
+
+  it('message 221: a member correction moves the message and its image to the active work, answers, and asks Hermes to close the wrong issue', async () => {
+    const { f, asked } = await wronglyLinked(MEMBER, { corrects: true });
+    expect(asked[1]).toMatchObject({ text: WRONG_TASK, corrected: ASK });
+    expect(asked[1]!.work!.some((work) => work.startsWith('#652 '))).toBe(false);
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE, ACTIVE_MAP]);
+    expect(f.comments[1]!.body).toContain('add this map as an example with its image to the active map implementation');
+    expect(f.comments[1]!.body).not.toContain('Dude');
+    expect(shelf(f, ACTIVE_MAP)).toEqual([expect.objectContaining({ status: 'ok', type: 'png' })]);
+    const [reply] = repliesTo(f, 221);
+    expect(reply!.text).toContain('I moved the earlier message from #652: https://github.com/o/r/issues/652 to the player comments of #571');
+    expect(reply!.text).toContain('Its image is kept for the team.');
+    expect(reply!.text).toContain('Your request went to the factory team');
+    expect(failures(f)).toEqual([expect.stringMatching(/^Committee member Ann Lee \(Telegram 42\) corrected the public chat bot.* on #652, and the factory moved it to #571\..*closing the wrong issue.*«Dude, not this task/)]);
+    expect(cardMoves(f)).toEqual([]);
+  });
+
+  it('message 221 from a player: moves the message and answers, but asks nobody to close anything', async () => {
+    const { f } = await wronglyLinked(PLAYER, { corrects: true });
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE, ACTIVE_MAP]);
+    const [reply] = repliesTo(f, 221);
+    expect(reply!.text).toContain('to the player comments of #571');
+    expect(reply!.text).not.toContain('factory team');
+    expect(failures(f)).toEqual([]);
+    expect(cardMoves(f)).toEqual([]);
+  });
+
+  it('answers a member correction the sincerity gate rejects, and says so when no other open work fits', async () => {
+    const { f } = await wronglyLinked(MEMBER, { corrects: true, verdict: 'reject', intent: 'troll' }, null);
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE]);
+    expect(repliesTo(f, 221)[0]!.text).toContain('I found no other open work this fits, so it stays on #652');
+    expect(failures(f)).toEqual([expect.stringContaining('found no other open work for it')]);
+  });
+
+  it('keeps a reply to the bot that does not correct it on its old path', async () => {
+    const { f } = await wronglyLinked(PLAYER, { corrects: false });
+    expect(repliesTo(f, 221)).toEqual([]);
+    expect(f.comments.map((comment) => comment.issue)).toEqual([DUPLICATE]);
+    expect(failures(f)).toEqual([]);
+  });
+
+  it('says the image could not be kept when Telegram no longer serves it, and never claims it is attached', async () => {
+    const { f, tick } = mapChat([{ text: ASK, decision: { kind: 'feature', relevance: 'other' }, about: ACTIVE_MAP }]);
+    delete f.files['photo-215'];
+    post(f, { id: 219, text: ASK, sender: MEMBER, addressed: true, context: PHOTO_TEXT, media: PHOTO });
+    await tick();
+    expect(f.comments[0]!.body).toContain('An image on the message it replies to is not available: Telegram getFile failed: Bad Request: wrong file_id');
+    expect(f.comments[0]!.body).not.toContain('The agents get it');
+    expect(shelf(f, ACTIVE_MAP)).toEqual([]);
+    const [reply] = repliesTo(f, 219);
+    expect(reply!.text).toContain('I could not keep its image');
+    expect(reply!.text).not.toContain('is kept');
+  });
+
+  it('files a new idea with the image of its own message listed in the issue body and placed in the new issue media folder', async () => {
+    const idea = 'Add boats so we can cross the big lake, like in this sketch';
+    const { f, tick } = mapChat([{ text: idea, decision: { kind: 'feature', relevance: 'other' } }]);
+    f.files.boat = pngBytes(3, 800, 600);
+    post(f, { id: 230, text: idea, sender: PLAYER, media: [{ fileId: 'boat', uniqueId: 'ub', origin: 'message' }] });
+    await tick();
+    expect(f.created[0]!.body).toContain('- From: Ann Lee, message 230 of chat');
+    expect(f.created[0]!.body).toContain('- An image on the message: png, 800x600');
+    expect(shelf(f, 601)).toEqual([expect.objectContaining({ status: 'ok', width: 800 })]);
+    expect(repliesTo(f, 230)[0]!.text).toContain('Its image is kept for the team.');
   });
 });

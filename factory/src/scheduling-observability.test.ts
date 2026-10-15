@@ -5,7 +5,7 @@ import { STUCK_LABEL, NEEDS_INFO_LABEL, type Card, type Job } from './types';
 
 const now = new Date('2026-10-04T12:00:00Z');
 const config = { releaseDays: 7, wasteReviewDays: 7, maxJobsPerCard: 30, triageWorkers: 1, designWorkers: 1, implementWorkers: 1, verifyWorkers: 1, testWorkers: 1 };
-function createCard(issue: number, column: Card['column'], labels: string[] = []): Card { return { issue, column, labels, itemId: String(issue) }; }
+function createCard(issue: number, column: Card['column'], labels: string[] = []): Card { return { issue, column, labels, itemId: String(issue), title: '' }; }
 function createState() { return { ...structuredClone(EMPTY_STATE), lastRelease: now.toISOString() }; }
 
 it('explains both slot contention and an already running issue without changing selections', () => {

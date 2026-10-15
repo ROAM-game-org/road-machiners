@@ -3,7 +3,7 @@ import { EMPTY_STATE } from './state';
 import { CARD_JOBS, cardDrift, cardPosition, holdDrift, releaseDrift, runningJobs } from './position';
 import type { Card, Column, FactoryState, Job, JobStage } from './types';
 
-const card = (column: Column, issue = 157, labels: string[] = []): Card => ({ itemId: 'i', issue, column, labels });
+const card = (column: Column, issue = 157, labels: string[] = []): Card => ({ itemId: 'i', title: '', issue, column, labels });
 const withState = (patch: Record<string, unknown>): FactoryState => ({ ...EMPTY_STATE, ...patch }) as FactoryState;
 const job = (stage: JobStage, issue: number | null): Job => ({ id: 'j', stage, issue, pid: 1, startedAt: '2026-01-01T00:00:00Z', log: 'l' });
 const postState = withState({ postOnly: [157] });

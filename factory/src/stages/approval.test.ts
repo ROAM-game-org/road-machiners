@@ -35,7 +35,7 @@ function fakeCtx(): Ctx {
     log: () => undefined,
     run: async (cmd: string, args: string[]) => { calls.push(`run ${cmd} ${args[0]}`); return { code: 0, stdout: cmd === 'git' ? 'abc1234'.padEnd(40, '0') : '', stderr: '' }; },
     github: {
-      cards: async () => [{ itemId: 'x', issue: 7, column, labels: [] }],
+      cards: async () => [{ itemId: 'x', title: '', issue: 7, column, labels: [] }],
       issue: async () => ({ number: 7, title: 'Big horn', body: '', labels, createdAt: '', state: 'OPEN' }),
       comment: record('comment'), addLabel: record('addLabel'), removeLabel: record('removeLabel'), pullRequestFor: async () => openPr, closePullRequest: record('closePullRequest'), close: record('close'), move: record('move'),
       createRelease: record('release'),

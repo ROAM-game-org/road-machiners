@@ -3,6 +3,7 @@ import type { Ctx } from '../types';
 import { postProposal } from './proposals';
 import { fetchChatMedia, placeChatMedia } from './chat-media';
 import { classifyComments } from './classify-comments';
+import { applyCorrections } from './corrections';
 import type { PublicFilter } from './decision';
 import { sendDigests } from './digest';
 import { fileComments } from './file-comments';
@@ -20,6 +21,7 @@ const STEPS: Step[] = [
   fetchChatMedia,
   postProposal,
   countVotes,
+  applyCorrections,
   fileComments,
   sendDigests,
   placeChatMedia,

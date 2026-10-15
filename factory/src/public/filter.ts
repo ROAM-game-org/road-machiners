@@ -60,10 +60,20 @@ function workQuestion(work: string[]): Question {
   return {
     type: 'choice',
     name: 'work',
-    instructions: 'Each listed work is a proposal, a build or an issue the factory already has. Which one is the player text about? Pick it when the text discusses, explains, clarifies, asks about, reports a problem with, or asks for the same thing as that work. Pick none when the text asks for something that none of them covers.',
+    instructions: 'Each listed work is a proposal, a build or an issue the factory already has, with its status in brackets. Which one is the player text about? Pick it when the text discusses, explains, clarifies, asks about, reports a problem with, or asks for the same thing as that work. When more than one is about the same thing, pick the one the text names by number, else one being built or approved over a proposal or an issue filed from the chat. Never pick a work only because the text names its number. Pick none when the text asks for something that none of them covers.',
     choices: [...listed, { value: NO_WORK, description: 'The text is about none of the listed work.' }],
   };
 }
+
+const CORRECTION = {
+  type: 'choice',
+  name: 'correction',
+  instructions: 'The player text replies to the bot, whose reply is shown under Replying to. The bot wrote that reply about the message shown under Earlier message. Does the player text say the bot got that wrong?',
+  choices: [
+    { value: 'corrects', description: 'It says the bot picked the wrong work, lost or left out something such as an image, or should put the earlier message somewhere else. "Not this task, the one working on the map." "Post it with the image." "Wrong issue."' },
+    { value: 'accepts', description: 'It thanks, agrees, asks a follow-up or talks about something else. "Thanks!" "When will it ship?" "Also the truck is slow."' },
+  ],
+};
 
 const RELEVANCE = {
   type: 'choice',
@@ -92,6 +102,7 @@ const REPORT_KINDS = REPORT_KIND.choices.map((choice) => choice.value) as Decisi
 const RELEVANCES = RELEVANCE.choices.map((choice) => choice.value) as Relevance[];
 const LANGUAGES = LANGUAGE.choices.map((choice) => choice.value);
 const ROUTES = ROUTE.choices.map((choice) => choice.value) as PublicRoute[];
+const CORRECTIONS = CORRECTION.choices.map((choice) => choice.value);
 
 type Answer = { type?: unknown; name?: unknown; choice?: unknown; probabilities?: unknown };
 
@@ -145,16 +156,20 @@ const oneLine = (text: string): string => text.replace(/\s+/g, ' ').trim();
 function inputText(input: FilterInput): string {
   const thread = hasParent(input) ? `Thread: ${input.parent.trim()}\n\n` : '';
   const replying = input.context ? `Replying to: ${oneLine(input.context)}\n\n` : '';
-  return `Game: ${GAME}\n\n${thread}${replying}Player text: ${input.text}`;
+  const earlier = isCorrecting(input) ? `Earlier message: ${oneLine(input.corrected)}\n\n` : '';
+  return `Game: ${GAME}\n\n${thread}${earlier}${replying}Player text: ${input.text}`;
 }
 
 const knownWork = (input: FilterInput): string[] => input.work ?? [];
+
+const isCorrecting = (input: FilterInput): input is FilterInput & { corrected: string } => typeof input.corrected === 'string';
 
 function chatQuestions(input: FilterInput): Question[] {
   const route = input.source === 'comment' ? [ROUTE] : [];
   const relevance = hasParent(input) ? [RELEVANCE] : [];
   const work = knownWork(input).length > 0 ? [workQuestion(knownWork(input))] : [];
-  return [INTENT, CHAT_KIND, ...route, ...relevance, ...work, LANGUAGE];
+  const correction = isCorrecting(input) ? [CORRECTION] : [];
+  return [INTENT, CHAT_KIND, ...route, ...relevance, ...correction, ...work, LANGUAGE];
 }
 
 function questionsFor(input: FilterInput): Question[] {
@@ -173,9 +188,13 @@ function workOf(input: FilterInput, answers: Answer[]): { work?: number } {
   return picked === NO_WORK ? {} : { work: Number(picked) - 1 };
 }
 
-function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'work' | 'language'> {
+function correctionOf(input: FilterInput, answers: Answer[]): Pick<Decision, 'corrects'> {
+  return isCorrecting(input) ? { corrects: choice(answers, 'correction', CORRECTIONS) === 'corrects' } : {};
+}
+
+function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'work' | 'language' | 'corrects'> {
   if (input.source === 'report') return {};
-  return { ...workOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
+  return { ...workOf(input, answers), ...correctionOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
 }
 
 function answersOf(body: unknown): Answer[] {

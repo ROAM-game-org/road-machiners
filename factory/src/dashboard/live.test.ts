@@ -51,7 +51,7 @@ it('does not invent idle manager activity when no reports exist', () => {
 });
 it('keeps the scheduler snapshot fresh when a card sits in Merging', () => {
   const home = createHome();
-  const card = (issue: number, column: Card['column']): Card => ({ itemId: `I${issue}`, issue, column, labels: [] });
+  const card = (issue: number, column: Card['column']): Card => ({ itemId: `I${issue}`, title: '', issue, column, labels: [] });
   reportScheduler(home, 'ready', new Date('2026-10-04T12:00:00Z'), null, [card(1, 'Testing')]);
   reportScheduler(home, 'ready', new Date('2026-10-04T12:05:00Z'), null, [card(1, 'Testing'), card(163, 'Merging')]);
   const result = live.readLiveOperations(home, EMPTY_STATE, new Date('2026-10-04T12:05:30Z'), 10000, 60000);

@@ -94,11 +94,3 @@ export async function placeChatMedia(ctx: Ctx, store: PublicStore): Promise<void
     if (media.image !== null && !store.holdsFile(media.image.file)) rmSync(join(holdDir(ctx.cfg.home), media.image.file), { force: true });
   }
 }
-
-const ORIGIN_TEXT = { message: 'the message', reply: 'the message it replies to' };
-
-export function imageLines(media: ChatMedia[]): string[] {
-  return media.map((item) => item.image === null
-    ? `- An image on ${ORIGIN_TEXT[item.origin]} is not available: ${item.reason ?? 'it was not fetched'}.`
-    : `- An image on ${ORIGIN_TEXT[item.origin]}: ${item.image.type}, ${item.image.width}x${item.image.height}, ${item.image.bytes} bytes, sha256 ${item.image.sha256}. The agents get it in the issue's media folder, and it is not posted here.`);
-}

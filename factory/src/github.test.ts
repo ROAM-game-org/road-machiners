@@ -142,7 +142,7 @@ describe('ghClient', () => {
 
   it('lists cards of this repo with a status', async () => {
     const cards = await ghClient(fake([], project(ALL)), CFG).cards();
-    expect(cards).toEqual([{ itemId: 'I7', issue: 7, column: 'Design', labels: ['bug'] }]);
+    expect(cards).toEqual([{ itemId: 'I7', title: '', issue: 7, column: 'Design', labels: ['bug'] }]);
   });
 
   it('move sets the status option of the item', async () => {

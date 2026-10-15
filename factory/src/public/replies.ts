@@ -3,10 +3,10 @@ import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '..
 import { isolated } from './isolate';
 import type { PublicFilter } from './decision';
 import { textsFor, type ReplyText } from './reply-text';
-import type { IssueComment, PublicStore, StoredComment } from './store';
+import type { ChatMedia, IssueComment, PublicStore, StoredComment } from './store';
 import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
 
-const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
+export const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
 const APPROVED: Column[] = ['Hardening', 'Merging'];
 const IN_WORK: Column[] = ['Design', 'Implementation', 'Testing', 'Approval'];
@@ -17,7 +17,7 @@ async function columnStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<s
   return column !== undefined && IN_WORK.includes(column) ? text.inWork : text.notBuilt;
 }
 
-async function issueStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
+export async function issueStatus(ctx: Ctx, issue: number, text: ReplyText): Promise<string> {
   const found = await ctx.github.issue(issue);
   if (found.state === 'CLOSED') return text.closed;
   if (found.labels.includes(RELEASE_CANDIDATE_LABEL)) return text.releaseCandidate;
@@ -62,8 +62,21 @@ async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment, te
 
 const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
 
+export function imageNote(media: ChatMedia[], text: ReplyText): string | null {
+  if (media.length === 0) return null;
+  return media.every((item) => item.image !== null) ? text.imageKept : text.imageLost;
+}
+
+const landsOnIssue = (comment: StoredComment): boolean => comment.filedIssue !== null || (comment.issue !== null && comment.relevance !== 'other');
+
 export async function replyText(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
-  if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter') return null;
+  const reply = await plainReply(ctx, store, ground, comment);
+  const note = reply !== null && landsOnIssue(comment) ? imageNote(store.mediaOf(comment.id), textsFor(comment.language)) : null;
+  return note === null ? reply : `${reply}\n${note}`;
+}
+
+async function plainReply(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
+  if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter' || comment.kind === 'correction') return null;
   const text = textsFor(comment.language);
   if (isOnThread(comment)) return onThreadReply(ctx, ground, comment, text);
   if (comment.kind === 'bug' || comment.kind === 'feature') return filingReply(ctx, store, comment, text);
