@@ -528,14 +528,19 @@ SESSION = {
 }
 
 
+def member_request(words, context=None):
+    text = f"<member-words>\n{words}\n</member-words>"
+    return text if context is None else f"{text}\n\nContext from Hermes:\n{context}"
+
+
 def test_queue_tool_writes_adhoc_command(tmp_path):
     inbox, handle = queue_setup(tmp_path, SESSION)
-    result = json.loads(handle({"request": "  Run npm run combat and report hit rates.  "}))
+    result = json.loads(handle({"request": "  " + member_request("How often do raiders hit?") + "  "}))
     assert result["success"] is True
     files = list(inbox.iterdir())
     assert len(files) == 1
     assert json.loads(files[0].read_text()) == {
-        "kind": "adhoc", "issue": None, "text": "Run npm run combat and report hit rates.",
+        "kind": "adhoc", "issue": None, "text": member_request("How often do raiders hit?"),
         "by": "1", "byName": "Ann", "chat": "-100", "messageId": 77, "postId": None,
     }
 
@@ -547,10 +552,54 @@ def test_change_tool_writes_change_command(tmp_path):
     inbox.mkdir()
     cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
     handle = plugin.make_queue_handler(cfg, session_env=lambda key: SESSION.get(key, ""), kind="change", done=plugin.CHANGE_DONE)
-    assert json.loads(handle({"request": "Set FACTORY_TEST_WORKERS to 2."}))["message"] == plugin.CHANGE_DONE
+    request = member_request("Set FACTORY_TEST_WORKERS to 2.")
+    assert json.loads(handle({"request": request}))["message"] == plugin.CHANGE_DONE
     [path] = list(inbox.iterdir())
     assert json.loads(path.read_text())["kind"] == "change"
-    assert json.loads(path.read_text())["text"] == "Set FACTORY_TEST_WORKERS to 2."
+    assert json.loads(path.read_text())["text"] == request
+
+
+def change_setup(tmp_path):
+    committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
+    committee.seed()
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    cfg = plugin.Config(str(inbox), "/st", "-100", committee, "-400", "-300", "/pub")
+    return inbox, plugin.make_queue_handler(cfg, session_env=lambda key: SESSION.get(key, ""), kind="change", done=plugin.CHANGE_DONE)
+
+
+def test_change_tool_keeps_the_member_words_and_the_context_apart_and_unchanged(tmp_path):
+    inbox, handle = change_setup(tmp_path)
+    words = "Queue factory change to instruct Hermes to quote the user verbatim.\n\nПусть   дизайн делает opus up flow!"
+    context = "- Evidence: the member sent two messages, quoted in order.\n- Reading: none. A screenshot was not available to Hermes."
+    assert json.loads(handle({"request": member_request(words, context)}))["success"] is True
+    [path] = list(inbox.iterdir())
+    text = json.loads(path.read_text(encoding="utf-8"))["text"]
+    assert text == f"<member-words>\n{words}\n</member-words>\n\nContext from Hermes:\n{context}"
+
+
+@pytest.mark.parametrize("request_text", [
+    "Make Hermes quote members and add a verbatim check to the plugin.",
+    "The member wants this.\n" + "<member-words>\nQuote me.\n</member-words>",
+])
+def test_change_tool_refuses_a_request_that_does_not_quote_the_member_apart(tmp_path, request_text):
+    inbox, handle = change_setup(tmp_path)
+    error = json.loads(handle({"request": request_text}))["error"]
+    assert error.startswith("Nothing was queued") and "<member-words>" in error
+    assert list(inbox.iterdir()) == []
+
+
+def test_queue_tool_refuses_a_member_task_with_no_quotation(tmp_path):
+    inbox, handle = queue_setup(tmp_path, SESSION)
+    assert "Nothing was queued" in json.loads(handle({"request": "Run npm run combat and report hit rates."}))["error"]
+    assert list(inbox.iterdir()) == []
+
+
+def test_queue_schemas_ask_for_the_member_words_not_a_design():
+    for schema in (plugin.QUEUE_SCHEMA, plugin.CHANGE_SCHEMA):
+        described = schema["parameters"]["properties"]["request"]["description"]
+        assert "<member-words>" in described and "Context from Hermes:" in described
+        assert "acceptance criteria" in described
 
 
 def test_change_guidance_asks_for_an_acknowledgment_not_silence():
@@ -620,10 +669,10 @@ def test_queue_tool_refuses_empty_request(tmp_path):
 def test_queue_tool_two_calls_make_two_files(tmp_path, monkeypatch):
     inbox, handle = queue_setup(tmp_path, SESSION)
     monkeypatch.setattr(plugin.time, "time", lambda: 1700000000.0)
-    handle({"request": "first"})
-    handle({"request": "second"})
+    handle({"request": member_request("first")})
+    handle({"request": member_request("second")})
     texts = sorted(json.loads(p.read_text())["text"] for p in inbox.iterdir())
-    assert texts == ["first", "second"]
+    assert texts == [member_request("first"), member_request("second")]
 
 
 def test_register_adds_queue_tool(tmp_path, monkeypatch):
