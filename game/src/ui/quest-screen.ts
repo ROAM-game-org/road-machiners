@@ -7,6 +7,7 @@ import { localName, localRole } from '../text/names';
 import { t, verbatim, type Msg } from '../text/msg';
 import { el, isBrowserChord, panel } from './dom';
 import { commandFailure } from './format';
+import { AssetUnreachable, fetchAsset } from '../fetch-asset';
 import { questArt, questArtUrl } from '../data/quest-art';
 import type { UiHost } from './host';
 import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn } from './quest-lines';
@@ -61,14 +62,15 @@ class QuestArtStage {
     for (const [key, img] of this.images) {
       if (keys.includes(key)) continue;
       img.onerror = null;
+      if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
       img.removeAttribute('src');
       this.images.delete(key);
     }
-    for (const key of keys) if (!this.images.has(key)) this.images.set(key, loadArt(key));
+    for (const key of keys) if (!this.images.has(key)) this.images.set(key, loadArt(key, (img) => this.images.get(key) === img));
   }
 }
 
-function loadArt(key: string): HTMLImageElement {
+function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean): HTMLImageElement {
   const focus = `${questArt(key).focusX}% 50%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
@@ -78,11 +80,25 @@ function loadArt(key: string): HTMLImageElement {
   img.onerror = () => {
     throw new Error(`Quest art ${key} failed to load from ${img.src}`);
   };
-  img.src = questArtUrl(key);
-  img.decode().catch((e: unknown) => {
+  void showArt(img, key, isHeld);
+  return img;
+}
+
+async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLImageElement) => boolean): Promise<void> {
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await fetchAsset('Quest art', questArtUrl(key));
+  } catch (e) {
+    if (!(e instanceof AssetUnreachable)) throw e;
+    img.hidden = true;
+    console.warn(`${e.label} ${e.url} did not arrive after ${e.attempts} attempts`);
+    return;
+  }
+  if (!isHeld(img)) return;
+  img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
+  await img.decode().catch((e: unknown) => {
     if (img.hasAttribute('src')) throw e;
   });
-  return img;
 }
 
 export class QuestScreen {

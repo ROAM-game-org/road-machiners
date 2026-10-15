@@ -1,19 +1,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import type * as Os from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
-import type { AgentRun, Issue, ReleaseState } from '../types';
+import { testPoolPin } from '../cpus';
+import type { AgentRun, Issue, Pin, ReleaseState, ShellKind } from '../types';
 import { CACHED_SUITE } from './checks';
 import { auditDir, playtest } from './playtest';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
 import { ROOT, fake, reset, type Fake } from './test-fakes';
 
+vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
+
 const DAY = '2026-10-07';
 const SEED = 20261007;
 const BRANCH = `release/${DAY}`;
-const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], playtest: newPlaytest(DAY) };
+const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], merges: [], playtest: newPlaytest(DAY) };
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
@@ -28,19 +32,20 @@ const clean: Turn = { review: review(), report: '## Run\nAll good.' };
 
 type Turn = { review?: string; report?: string; commit?: string };
 type Run = {
-  f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string> }[]; prompts: string[]; sessions: AgentRun['session'][];
+  f: Fake; shells: { clone: string; script: string; env: Record<string, string>; mounts: Record<string, string>; pin?: Pin }[]; prompts: string[]; sessions: AgentRun['session'][];
   releaseHead: string; cloneHead: string; turns: Turn[]; checkFailures: number; dirty: string; pushFails: boolean; mainMerged: boolean;
   passedAncestor: boolean; changed: string[];
 };
 
 const harnessRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('progression:playthrough'));
-const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('[checks]'));
+const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('mkdir -p tmp'));
 const SUITE = stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]);
 const CACHE_MOUNT = { [join(ROOT, 'test-cache')]: '/test-cache' };
+const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
 
 function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   const f = fake();
-  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true };
+  f.ctx.cfg = { ...f.ctx.cfg, designModel: 'opus', playtestTurns: 100, playtestRuns: 3, gpu: true, ...POOLS };
   writeState(f.ctx.statePath, { ...structuredClone(EMPTY_STATE), release: { ...RELEASE, ...state, playtest: { ...RELEASE.playtest, ...state.playtest } } });
   const run: Run = { f, shells: [], prompts: [], sessions: [], releaseHead: start, cloneHead: start, turns: [], checkFailures: 0, dirty: '', pushFails: false, mainMerged: true, passedAncestor: true, changed: ['game/src/sim/raid.ts'] };
   f.ctx.run = async (_cmd: string, args: string[]) => {
@@ -62,10 +67,11 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     run.releaseHead = commit;
   };
   f.ctx.github.candidates = async () => [{ number: 40, title: 'Old raider loop' } as Issue];
-  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}) => {
-    run.shells.push({ clone, script, env, mounts });
+  f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}, _limit?: number, pin?: Pin) => {
+    if (kind !== 'checks') throw new Error(`playtest shells are checks, not ${kind}`);
+    run.shells.push({ clone, script, env, mounts, ...(pin === undefined ? {} : { pin }) });
     if (script === SUITE) return;
-    if (script.includes('[checks]')) {
+    if (script.includes('mkdir -p tmp')) {
       if (run.checkFailures-- > 0) throw new Error('npm test failed');
       return;
     }
@@ -128,11 +134,14 @@ describe('playtest', () => {
     expect(script.indexOf('npm ci')).toBeLessThan(script.indexOf('npm run test:cached -- --cache /test-cache'));
     expect(script).toMatch(/if grep -q '"test:cached"' package.json; then\n\s+npm run test:cached -- --cache \/test-cache\nelse\n.*\n\s+npm test\nfi/);
     expect(run.shells[0]!.mounts).toEqual(CACHE_MOUNT);
+    expect(run.shells[0]!.env).toEqual({ TEST_STALL_MINUTES: '15' });
+    expect(run.shells[0]!.pin).toEqual(testPoolPin(POOLS));
+    expect(harnessRuns(run).map((shell) => shell.pin)).toEqual([undefined, undefined]);
   });
 
   it('fails on a failing full suite before the first play, so it spends no play', async () => {
     const run = setup();
-    run.f.ctx.container.shell = async (clone: string, script: string) => {
+    run.f.ctx.container.shell = async (_kind: ShellKind, clone: string, script: string) => {
       run.shells.push({ clone, script, env: {}, mounts: {} });
       throw new Error('suite failed');
     };
@@ -159,7 +168,7 @@ describe('playtest', () => {
     expect(run.sessions[0]).toMatchObject({ resume: false });
     expect(run.sessions[1]).toEqual({ ...run.sessions[0], resume: true });
     expect(checkRuns(run)).toHaveLength(1);
-    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001' } });
+    expect(checkRuns(run)[0]).toMatchObject({ clone: CLONE, env: { BUILD_SCOPE: 'fix0001', TEST_STALL_MINUTES: '15' }, pin: testPoolPin(POOLS) });
     expect(checkRuns(run)[0].script).toContain('npm run playtest -- --no-fps-gate');
     expect(pushes(run.f)).toEqual([`push fix0001 ${BRANCH}`]);
     expect(run.f.created).toEqual([]);
@@ -234,7 +243,7 @@ describe('playtest', () => {
 
   it('fails before any check or push when the fixes touch a path an agent may not push', async () => {
     const run = setup();
-    run.f.diff = 'diff --git a/.github/workflows/x.yml b/.github/workflows/x.yml\n';
+    run.changed = ['.github/workflows/x.yml'];
     run.turns = [fixed('fix0001'), clean];
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('paths an agent may not push: .github/workflows/x.yml');
     expect(checkRuns(run)).toEqual([]);
@@ -285,8 +294,8 @@ describe('playtest', () => {
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;
-    run.f.ctx.container.shell = async (clone: string, script: string, log: string) => {
-      await shell(clone, script, log);
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      await shell(kind, clone, script, log);
       if (script === SUITE) return;
       const sha = /--sha (\S+)/.exec(script)?.[1] ?? '';
       writeFileSync(join(clone, 'game', '.factory', 'playtest', 'log.jsonl'), logText({ end: { reason: 'error', message: 'the player truck stalled' } }, { seed: SEED, turns: 100, sha }));

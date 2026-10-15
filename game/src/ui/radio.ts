@@ -10,7 +10,7 @@ import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { say } from '../text/language';
 import { byId, t, type Msg } from '../text/msg';
-import { goodLower, partName, siteName, templateName } from '../text/names';
+import { fullName, goodLower, partName, siteName, templateName } from '../text/names';
 import { el, panel, rightDock } from './dom';
 
 export type Broadcast = { topic: RadioTopic; variant: number; text: Msg; turn: number; rank: 'news' | 'time' | 'filler' };
@@ -135,9 +135,9 @@ export class RadioStation {
     }
     if (fresh.length === 0) return;
     const found = (id: string) => world.player.discovered.includes(id);
-    const known = fresh.filter((c) => found(c.shop) && (c.kind !== 'haul' || found(c.to)));
+    const known = fresh.filter((c): c is BoardContract => c.kind !== 'escort' && found(c.shop) && (c.kind !== 'haul' || found(c.to)));
     const best = known.sort((a, b) => b.reward - a.reward)[0];
-    if (best) this.push(best.kind, contractVars(best), 'news');
+    if (best) this.push(best.kind, contractVars(world, best), 'news');
   }
 
   private timeCall(prevTurn: number, turn: number): void {
@@ -197,10 +197,14 @@ function boardIds(world: World): Set<string> {
   return new Set(Object.values(world.shops).flatMap((s) => s.contracts.map((c) => c.id)));
 }
 
-function contractVars(c: Contract): Slots {
+type BoardContract = Exclude<Contract, { kind: 'escort' }>;
+
+function contractVars(world: World, c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
+  if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
+  if (c.kind === 'search') return { shop, target: fullName(c.driver) };
   return { shop, target: templateName(c.template) };
 }
 
@@ -218,9 +222,13 @@ function placeOf(world: World, pos: Vec): Place {
   if (dist(nearest.pos, pos) <= RADIO.nearTiles && world.player.discovered.includes(nearest.id)) {
     return { key: nearest.id, words: t('radio.near', { site: siteName(nearest.id) }) };
   }
-  const center = world.size / 2;
-  const basin = compass({ x: pos.x - center, y: pos.y - center });
+  const basin = basinOf(world, pos);
   return { key: basin, words: t(`radio.basin.${basin}`) };
+}
+
+function basinOf(world: World, pos: Vec): Direction {
+  const center = world.size / 2;
+  return compass({ x: pos.x - center, y: pos.y - center });
 }
 
 function compass(v: Vec): Direction {

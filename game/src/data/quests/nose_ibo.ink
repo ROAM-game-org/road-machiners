@@ -25,7 +25,7 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
 = hub
 # checkpoint: start.hub
 + [What do you do in this shack?]
-  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the big hull that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
+  Freeze, mostly, and listen. The Army pays me for its own calls, and whatever else drifts through I keep for myself. There's Jill Jane, who runs Waste Of Time Radio and comes in best after dark. There's the couriers of the <term=guild>Guild</term> calling their rounds. And now and then there's a tone out of the <term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater, that nobody can explain. The set itself is <term=old_world>Old World</term> work, built back when there were masts on every hill. It's cold work, but it's quiet, and I never wanted better.
   ~ heard_oldworld = true
   ~ heard_jj = true
   ~ heard_couriers = true
@@ -50,8 +50,8 @@ Eh? Pull up a crate. I'm Ibo. I listen to the air for the Army, and to everythin
   Nobody knows, but I'd wager she moves it. Her signal's strongest at night, and it drifts like the mast is on wheels. Don't tell the Sergeant I listen to her. He thinks this shack is for the Army alone.
   ~ asked_jj = true
   -> hub
-+ {heard_tone and not asked_tone} [What does the tone from the hull say?]
-  Some say it counts the years since the fall. A tone's a tone, though. I've listened a long while and I hear a tone. If it counts, it counts without me.
++ {heard_tone and not asked_tone} [What does the tone from the Fallen Sun say?]
+  It's a low, steady note that comes and goes, always from the crater's side. Some say it counts the years since the fall. I've no key to decode it, and the Army never asked me to log it. If it counts, it counts without me.
   ~ asked_tone = true
   -> hub
 + {heard_couriers and not asked_couriers} [Who are the Guild couriers?]

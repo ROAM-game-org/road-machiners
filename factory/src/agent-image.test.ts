@@ -105,7 +105,7 @@ function proxiedShell(script: string, env: Record<string, string>, mounts: Recor
   chmodSync(join(clone, 'game'), 0o777);
   const log = join(root, 'shell.log');
   const cfg = { image: smokeImage, home: root, gpu: false } as FactoryConfig;
-  return { clone, log, done: dockerContainer(realRun, cfg, null).shell(clone, script, log, env, mounts) };
+  return { clone, log, done: dockerContainer(realRun, cfg, null).shell('checks', clone, script, log, env, mounts) };
 }
 
 describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex in the real agent container', () => {

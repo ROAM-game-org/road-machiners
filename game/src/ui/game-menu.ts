@@ -1,4 +1,5 @@
 
+import { closeLabel, phoneMode, touchMode } from "./input-mode";
 import { ERROR_REPORT_BUILD, ERROR_REPORT_URL, FEEDBACK_URL } from "../config";
 import { modeRulesOf } from "../sim/settings";
 import type { ModeRules, WorldSetup } from "../sim/types";
@@ -18,7 +19,9 @@ export type GameMenuActions = SavePanelActions & {
   newGame: NewGameActions;
 };
 
-export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help";
+export type MenuEntry = "new" | "save" | "load" | "options" | "tips" | "help" | "camera" | "report";
+
+export type PhoneMenuLinks = { cameraLabel: () => Msg; toggleCamera: () => void; report: () => void };
 
 const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "new", label: t("menu.newGame") },
@@ -27,7 +30,11 @@ const ENTRIES: { entry: MenuEntry; label: Msg }[] = [
   { entry: "options", label: t("menu.options") },
   { entry: "tips", label: t("menu.showTips") },
   { entry: "help", label: t("menu.help") },
+  { entry: "camera", label: t("hud.camAuto") },
+  { entry: "report", label: t("hud.feedbackTitle") },
 ];
+
+const PHONE_ENTRIES: MenuEntry[] = ["camera", "report"];
 
 type KeyCap = string | Msg;
 type Control = { keys: KeyCap[]; on?: Msg; does: Msg; needs?: "radio" };
@@ -84,7 +91,23 @@ export const CONTROLS: ControlGroup[] = [
   },
 ];
 
-export function controlsFor(rules: ModeRules): ControlGroup[] {
+const TOUCH_CONTROLS: ControlGroup[] = [
+  {
+    title: t("help.group.touch"),
+    controls: [
+      { keys: [t("help.key.tap")], on: t("help.on.ground"), does: t("help.does.driveByRoad") },
+      { keys: [t("help.key.hold")], on: t("help.on.ground"), does: t("help.does.stopThere") },
+      { keys: [t("help.key.drag")], does: t("help.does.moveView") },
+      { keys: [t("help.key.pinch")], does: t("help.does.zoom") },
+      { keys: [t("help.key.tap")], on: t("help.on.truck"), does: t("help.does.look") },
+      { keys: [t("help.key.tapAgain")], on: t("help.on.truck"), does: t("help.does.aimGun") },
+      { keys: [t("help.key.hold")], on: t("help.on.control"), does: t("help.does.why") },
+    ],
+  },
+];
+
+export function controlsFor(rules: ModeRules, touch = false): ControlGroup[] {
+  if (touch) return TOUCH_CONTROLS;
   return CONTROLS.map((group) => ({ ...group, controls: group.controls.filter((c) => !c.needs || rules[c.needs]) }));
 }
 
@@ -105,7 +128,7 @@ function controlGroup(group: ControlGroup): HTMLElement {
 }
 
 export function entryEnabled(entry: MenuEntry, busy: boolean, hasSave: boolean): boolean {
-  if (entry === "help" || entry === "tips" || entry === "options") return true;
+  if (entry === "help" || entry === "tips" || entry === "options" || entry === "camera" || entry === "report") return true;
   if (entry === "load") return !busy && hasSave;
   return !busy;
 }
@@ -134,8 +157,8 @@ export class HelpPanel {
     const setup = this.setup();
     const notes = [verbatim(versionLabel()), setupText(setup), ...(ERROR_REPORT_URL ? [t("help.errorsSent")] : [])];
     root.append(
-      el("button", { class: "close btn-s", onclick: () => this.close() }, t("menu.closeEsc")),
-      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode)).map(controlGroup)),
+      el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel()),
+      el("div", { class: "help-groups" }, ...controlsFor(modeRulesOf(setup.mode), touchMode()).map(controlGroup)),
       el("div", { class: "help-notes" }, ...notes.map((note) => el("div", {}, note))),
     );
     this.root = root;
@@ -161,7 +184,7 @@ export type FeedbackKind = "bug" | "idea";
 
 export type FeedbackReport = { kind: FeedbackKind; text: string; build: string; context: ReportContext };
 
-export type FeedbackResult = { status: "sent" } | { status: "failed" };
+export type FeedbackResult = { status: "sent" } | { status: "failed" } | { status: "limited"; minutes: number | null };
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -172,8 +195,29 @@ export function feedbackBuild(releaseFlag: string, pathname: string): string {
 
 const isSent = (body: unknown): boolean => typeof body === "object" && body !== null && (body as { status?: unknown }).status === "sent";
 
+const RATE_LIMITED = 429;
+
+function limitMinutes(body: unknown): number | null {
+  const seconds = typeof body === "object" && body !== null ? (body as { retryAfterSeconds?: unknown }).retryAfterSeconds : undefined;
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds / 60) : null;
+}
+
+async function limitedResult(response: Response): Promise<FeedbackResult> {
+  const body: unknown = await response.json().catch(() => null);
+  return { status: "limited", minutes: limitMinutes(body) };
+}
+
+async function resultOf(response: Response): Promise<FeedbackResult> {
+  if (response.status === RATE_LIMITED) return limitedResult(response);
+  if (!response.ok) return { status: "failed" };
+  const body: unknown = await response.json();
+  return isSent(body) ? { status: "sent" } : { status: "failed" };
+}
+
 export function feedbackStatus(result: FeedbackResult): Msg {
-  return result.status === "sent" ? t("feedback.sent") : t("feedback.failed");
+  if (result.status === "sent") return t("feedback.sent");
+  if (result.status === "failed") return t("feedback.failed");
+  return result.minutes === null ? t("feedback.limitedLater") : t("feedback.limited", { n: result.minutes });
 }
 
 export async function sendFeedback(post: Fetch, url: string, report: FeedbackReport): Promise<FeedbackResult> {
@@ -181,9 +225,7 @@ export async function sendFeedback(post: Fetch, url: string, report: FeedbackRep
   if (report.text.length > FEEDBACK_TEXT_LIMIT) throw new Error(`Feedback text is over ${FEEDBACK_TEXT_LIMIT} characters`);
   try {
     const response = await post(url, { method: "POST", headers: { "content-type": "application/gzip" }, body: await gzip(JSON.stringify(report)) });
-    if (!response.ok) return { status: "failed" };
-    const body: unknown = await response.json();
-    return isSent(body) ? { status: "sent" } : { status: "failed" };
+    return await resultOf(response);
   } catch {
     return { status: "failed" };
   }
@@ -196,6 +238,7 @@ export class FeedbackForm {
   };
 
   constructor(
+    private readonly onSent: (text: Msg) => void,
     private readonly post: Fetch = (url, init) => fetch(url, init),
     private readonly url: string = FEEDBACK_URL,
     private readonly context: GameContext = gameContext,
@@ -222,11 +265,11 @@ export class FeedbackForm {
   }
 
   private closeButton(): HTMLElement {
-    return el("button", { class: "btn-s feedback-close", onclick: () => this.close() }, t("menu.closeEsc"));
+    return el("button", { class: "close btn-s", onclick: () => this.close() }, closeLabel());
   }
 
   private offContent(): HTMLElement[] {
-    return [el("div", {}, t("feedback.off")), this.closeButton()];
+    return [el("div", {}, t("feedback.off")), el("div", { class: "feedback-foot" }, this.closeButton())];
   }
 
   private formContent(first: FeedbackKind): HTMLElement[] {
@@ -237,31 +280,35 @@ export class FeedbackForm {
       idea: el("button", { onclick: () => choose("idea") }, t("feedback.idea")),
     };
     const box = el("textarea", { class: "feedback-text", maxlength: FEEDBACK_TEXT_LIMIT, rows: 8, "aria-label": t("feedback.title") }) as HTMLTextAreaElement;
-    const count = el("span", { class: "num dim" });
-    const status = el("div", { class: "feedback-status" });
+    const count = el("span", { class: "num dim feedback-count" });
+    const status = el("div", { class: "feedback-status bad", role: "status" });
     const send = el("button", { class: "feedback-send", onclick: () => submit() }, t("feedback.send"));
 
     const refresh = () => {
       for (const [name, button] of Object.entries(kinds)) button.classList.toggle("on", name === kind);
       setText(count, verbatim(`${box.value.length} / ${FEEDBACK_TEXT_LIMIT}`));
-      const blocked = busy || box.value.trim() === "";
-      if (blocked) send.setAttribute("aria-disabled", "true");
+      if (busy) send.setAttribute("aria-disabled", "true");
       else send.removeAttribute("aria-disabled");
     };
     const choose = (next: FeedbackKind) => {
       kind = next;
       refresh();
+      box.focus();
     };
     const submit = async () => {
-      if (busy || box.value.trim() === "") return;
+      if (busy) return;
+      if (box.value.trim() === "") return box.focus();
       busy = true;
       refresh();
       const report = { kind, text: box.value, build: feedbackBuild(ERROR_REPORT_BUILD, location.pathname), context: this.context.capture() };
       const result = await sendFeedback(this.post, this.url, report);
       busy = false;
-      if (result.status === "sent") box.value = "";
+      if (result.status === "sent") {
+        this.close();
+        this.onSent(feedbackStatus(result));
+        return;
+      }
       setText(status, feedbackStatus(result));
-      status.classList.toggle("bad", result.status !== "sent");
       refresh();
     };
 
@@ -269,10 +316,10 @@ export class FeedbackForm {
     refresh();
     queueMicrotask(() => box.focus());
     return [
-      el("div", { class: "feedback-kinds" }, kinds.bug, kinds.idea),
+      el("div", { class: "tabs" }, kinds.bug, kinds.idea),
       box,
-      el("div", { class: "feedback-foot" }, count, status),
-      el("div", { class: "feedback-actions" }, this.closeButton(), send),
+      status,
+      el("div", { class: "feedback-foot" }, count, this.closeButton(), send),
     ];
   }
 }
@@ -316,7 +363,7 @@ export class GameMenu {
     if (e.relatedTarget instanceof Node && !this.root.contains(e.relatedTarget)) this.closeList(false);
   };
 
-  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch) {
+  constructor(private actions: GameMenuActions, private isBusy: () => boolean, setup: () => WorldSetup, private tips: TipSwitch, private phone: PhoneMenuLinks) {
     this.help = new HelpPanel(setup);
     this.savePanel = new SavePanel(actions);
     for (const { entry, label } of ENTRIES) {
@@ -340,6 +387,8 @@ export class GameMenu {
     const on = this.tips.isOn();
     this.items.tips.setAttribute("aria-checked", String(on));
     setText(this.items.tips, t(on ? "menu.showTipsOn" : "menu.showTips"));
+    setText(this.items.camera, this.phone.cameraLabel());
+    for (const entry of PHONE_ENTRIES) this.items[entry].hidden = !phoneMode();
   }
 
   private setReason(item: HTMLButtonElement, reason: Msg | null): void {
@@ -358,7 +407,7 @@ export class GameMenu {
   }
 
   private allItems(): HTMLButtonElement[] {
-    return ENTRIES.map((e) => this.items[e.entry]);
+    return ENTRIES.map((e) => this.items[e.entry]).filter((item) => !item.hidden);
   }
 
   private enabledItems(): HTMLButtonElement[] {
@@ -401,7 +450,11 @@ export class GameMenu {
     else if (entry === "tips") {
       this.tips.setOn(!this.tips.isOn());
       this.refresh();
-    } else if (entry === "help") this.help.toggle();
+    } else if (entry === "camera") {
+      this.phone.toggleCamera();
+      this.refresh();
+    } else if (entry === "report") this.phone.report();
+    else if (entry === "help") this.help.toggle();
     else this.newGame();
   }
 

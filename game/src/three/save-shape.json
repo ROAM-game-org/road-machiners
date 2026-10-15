@@ -1,5 +1,5 @@
 {
- "format": "2.64",
+ "format": "2.71",
  "shape": {
   "broken": [],
   "craters": [],
@@ -50,6 +50,11 @@
     "scrap": "number"
    },
    "discovered": [],
+   "encounters": {
+    "next": "number",
+    "pending": "null",
+    "story": "null"
+   },
    "engineHeat": "number",
    "explored": "string",
    "frozen": "boolean",
@@ -1136,12 +1141,49 @@
    "bowl": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1210,12 +1252,49 @@
    "dustwell": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1277,12 +1356,49 @@
    "granary": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1343,12 +1459,49 @@
    "green-pit": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1410,12 +1563,49 @@
    "nose": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1484,12 +1674,49 @@
    "pump-station": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1550,12 +1777,49 @@
    "salvage-yard": {
     "contracts": [
      {
+      "area": {
+       "x": "number",
+       "y": "number"
+      },
+      "client": "string",
+      "deadline": "number",
+      "driver": "string",
+      "fulfilled": "boolean",
+      "id": "string",
+      "kind": "string",
+      "need": "string",
+      "reward": "number",
+      "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
       "deadline": "number",
       "defId": "string",
       "id": "string",
       "kind": "string",
       "reward": "number",
       "shop": "string",
+      "tier": "number",
+      "window": "number"
+     },
+     {
+      "deadline": "number",
+      "delivered": "boolean",
+      "driver": "string",
+      "id": "string",
+      "kind": "string",
+      "lead": {
+       "at": {
+        "x": "number",
+        "y": "number"
+       },
+       "turn": "number"
+      },
+      "reward": "number",
+      "shop": "string",
+      "target": "string",
+      "template": "string",
       "tier": "number",
       "window": "number"
      },
@@ -1642,6 +1906,14 @@
     "heading": "number",
     "id": "string",
     "items": [
+     {
+      "contract": "string",
+      "id": "string",
+      "kind": "string",
+      "rot": "number",
+      "x": "number",
+      "y": "number"
+     },
      {
       "good": "string",
       "id": "string",
@@ -2155,6 +2427,331 @@
     "start",
     "start.hub"
    ]
+  }
+ },
+ "questLinks": {
+  "bowl_dag": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "wagon_fate",
+     "wagon_saw"
+    ],
+    "readsNotes": [
+     "wagonBowl"
+    ],
+    "writes": {
+     "wagon_fate": [
+      "told"
+     ]
+    },
+    "notes": [
+     "talkKilnFight",
+     "wagonDag"
+    ],
+    "begins": []
+   }
+  },
+  "bowl_hattie": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "towed_to_bowl"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "varga_truck_known": [
+      true
+     ]
+    },
+    "notes": [
+     "glassTank",
+     "talkGlassLean",
+     "talkSunwardTake",
+     "wagonBowl"
+    ],
+    "begins": []
+   }
+  },
+  "bowl_jory": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "talkGranaryGate",
+     "talkSeepPipe"
+    ],
+    "begins": []
+   }
+  },
+  "bowl_ruben": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "first_fall": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "intro_step"
+    ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "intro_arrival": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "intro_bowl": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "nose_depot_leak": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "depot_thief"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "depot_thief": [
+      "bought",
+      "lost",
+      "open",
+      "pell",
+      "vance"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "nose_edda": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "nose_ibo": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "depot_thief"
+    ],
+    "readsNotes": [
+     "burntConvoy"
+    ],
+    "writes": {},
+    "notes": [
+     "burntConvoy",
+     "talkArmyStarved",
+     "talkCommitteeRent"
+    ],
+    "begins": []
+   }
+  },
+  "nose_kovac": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "depot_thief",
+     "wagon_fate",
+     "wagon_pin",
+     "wagon_seen"
+    ],
+    "readsNotes": [
+     "wagonBowl"
+    ],
+    "writes": {},
+    "notes": [
+     "wagonFound",
+     "wagonNose"
+    ],
+    "begins": [
+     "nose_depot_leak"
+    ]
+   }
+  },
+  "nose_lena": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "wagon_fate",
+     "wagon_pin"
+    ],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "greenPit",
+     "talkOnePin"
+    ],
+    "begins": [
+     "wagon_bench"
+    ]
+   }
+  },
+  "pump_agnes": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "pipe_fate"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "marr_regard": [
+      "bought"
+     ],
+     "pipe_fate": [
+      "searched"
+     ]
+    },
+    "notes": [
+     "pipeBook"
+    ],
+    "begins": [
+     "pump_pipe"
+    ]
+   }
+  },
+  "pump_pipe": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {
+     "marr_regard": [
+      "bought",
+      "enemy"
+     ],
+     "pipe_fate": [
+      "delivered",
+      "filed",
+      "metered",
+      "read",
+      "seized",
+      "sold"
+     ]
+    },
+    "notes": [
+     "pipeCanal",
+     "pipeDraw",
+     "pipeOffer"
+    ],
+    "begins": []
+   }
+  },
+  "radio_wagon_driver": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [
+     "wagonNose"
+    ],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "wagon_bench": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "wagon_pin",
+     "wagon_read",
+     "wagon_saw"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "wagon_fate": [
+      "admitted",
+      "buried",
+      "logged"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "wagon_seven": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "wagon_pin",
+     "wagon_read",
+     "wagon_saw",
+     "wagon_watched"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "wagon_pin": [
+      "bent",
+      "held"
+     ],
+     "wagon_read": [
+      true
+     ],
+     "wagon_saw": [
+      true
+     ],
+     "wagon_watched": [
+      true
+     ]
+    },
+    "notes": [
+     "wagonPin"
+    ],
+    "begins": []
+   }
+  },
+  "yard_sefa": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "wagon_fate",
+     "wagon_pin",
+     "wagon_watched"
+    ],
+    "readsNotes": [
+     "burntConvoy"
+    ],
+    "writes": {
+     "wagon_fate": [
+      "sold"
+     ]
+    },
+    "notes": [
+     "talkConvoyNotClean",
+     "talkCraneBook",
+     "talkPierceGuns"
+    ],
+    "begins": []
+   }
   }
  }
 }

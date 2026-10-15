@@ -446,8 +446,12 @@ export function followGoal(leader: Vehicle): NpcActivity {
   return { kind: 'follow', targetId: leader.id, destination: { ...leader.pos }, phase: 'travel', reason: 'followLeader' };
 }
 
+export function hireEscort(world: World, holder: Vehicle, leader: Vehicle, site: string | null, fee: number): void {
+  addState(world, 'escort', holder.id, leader.id, { kind: 'escort', site, fee });
+}
+
 export function startEscort(world: World, escort: Vehicle, leader: Vehicle, site: string | null, fee: number): NpcActivity {
-  addState(world, 'escort', escort.id, leader.id, { kind: 'escort', site, fee });
+  hireEscort(world, escort, leader, site, fee);
   const goal = followGoal(leader);
   placeBase(world, escort, goal);
   return goal;
@@ -457,7 +461,10 @@ export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): 
   const leader = vehicleById(world, goal.targetId!);
   const rank = escortsOf(world, leader.id).findIndex((e) => e.id === vehicle.id);
   if (rank < 0) throw new Error(`${vehicle.id} follows ${leader.id} without escorting it`);
-  goal.destination = followSpot(world, vehicle, leader, rank);
+  const fresh = followSpot(world, vehicle, leader, rank);
+  const gap = dist(vehicle.pos, leader.pos);
+  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && goal.destination !== null && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
+  if (!holds) goal.destination = fresh;
 }
 
 export function followSpot(world: World, vehicle: Vehicle, leader: Vehicle, rank: number): Vec {
@@ -487,12 +494,6 @@ export function unguardedLeader(world: World, guard: Vehicle): Vehicle | null {
   return free.sort((a, b) => dist(guard.pos, a.pos) - dist(guard.pos, b.pos))[0] ?? null;
 }
 
-export function joinLeader(world: World, guard: Vehicle): NpcActivity {
-  const leader = unguardedLeader(world, guard);
-  if (!leader) throw new Error(`${guard.id} chose an escort with no unguarded leader`);
-  return startEscort(world, guard, leader, null, 0);
-}
-
 function escortData(s: NpcState): Extract<StateData, { kind: 'escort' }> {
   if (s.data.kind !== 'escort') throw new Error(`State ${s.id} holds no escort`);
   return s.data;
@@ -512,6 +513,7 @@ function escortBroken(w: World, escort: Vehicle, leader: Vehicle): boolean {
 }
 
 export function payEscort(w: World, s: NpcState): void {
+  if (escortData(s).fee === 0) return;
   const leader = getResources(w, vehicleById(w, s.other));
   const fee = Math.min(escortData(s).fee, Math.max(0, leader.money));
   leader.money -= fee;

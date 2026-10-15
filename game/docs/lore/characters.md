@@ -1,6 +1,6 @@
 # Characters
 
-Named people of Icarus. Their groups are in [Peoples](peoples.md). J.J. of Waste Of Time Radio is in [Lore](../lore.md).
+Named people of Icarus. Their groups are in [Peoples](peoples.md). J.J. of Waste Of Time Radio is in [Lore](README.md).
 
 Each person gets a sheet, then their story, then their line. The sheet is built on the Fate Core character sheet, without the dice parts, plus the goal, fear and habit of the [Story game](story-game.md). A quest writer reads it to know what the person does in a scene.
 
@@ -178,7 +178,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 ## Agnes Ondra
 
 - Way: fear.
-- High concept: The keeper of the Pump Station and the pump book of her late uncle Wendell.
+- High concept: The keeper of Dustwell's pump book of her late uncle Wendell.
 - Trouble: She writes the truth in her book, but she is afraid to refuse the steward's oil to his face.
 - Aspects: Wendell Ondra's pump book under her pillow; Takes Aurel Brede's barrel of oil; Sava Kettering sits on a drum at her gate.
 - Skills: best machining, worst social.
@@ -187,7 +187,7 @@ Her line is "Every sack that goes to Kiln is written on the gate."
 - Habit: She reads every meter at dusk and writes it in the book.
 - Secret: She made a sealed copy of the book, and she took the steward's oil. She hides both from Aurel Brede and Sava Kettering.
 
-Agnes keeps the Pump Station and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
+Agnes keeps the pump at Dustwell and the pump book her uncle Wendell kept before he died at the Green Pit sluice. She sleeps with the book under her pillow. Every week the pump brings up less, and the water trucks load less. The Archon's household sends its own tanker to the pump every week, and a Senate order made her take the meter off its hose, so its loads go in no book. Over the winter of year 129 she made a sealed copy of the book. In autumn of year 130 the household steward Aurel Brede left her an envelope: a barrel of oil a month, as Wendell got. She was afraid to refuse it to his face. She means to send it back before the frost. Every driver who loads reads her the big dial, and she writes the number with the driver's name. She wants a driver who read the dial to carry the copy to Bowl and swear to the number, since a driver has no stake in Bowl's water. A household watchman, Sava Kettering, sits on a drum by her gate.
 
 Her line is "I did not come to take your water. I came to write down how much of it there is."
 
@@ -203,7 +203,7 @@ Her line is "I did not come to take your water. I came to write down how much of
 - Habit: She counts every barrel the water trucks pour in at the lock house and writes it in the open book.
 - Secret: None.
 
-Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from the Pump Station pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
+Mirela keeps the Canal book for the Canal families, the last proud Duarte of the canals. She speaks first and thinks after. The book lives in a lock house on the lowest canal in Bowl, far below the Archon's terraces. Her cousin Tomas serves ten years in the Bowl patrols for scraping a meter's chalk off a sluice, and he serves them at her own lock in a Bowl coat. The water trucks from Dustwell pour their loads into the canals at her lock house, and she counts every barrel in the Canal book. She does not want the household's tanker metered as much as she wants the proof read on the Senate floor, so the Senate splits and the Canal families win back the lock share they lost in year 90. Her lock crew takes household wages through the dry season of year 130, and she does not.
 
 Tomas saw the household's tanker unload on the top terrace on patrol and wrote it in a report, which the steward filed unread. At the lock he told the tenant drivers about it. The steward then bought his silence with oil for his mother, and the same week Mirela made him say it again on her steps.
 
@@ -237,7 +237,7 @@ His line is "You came for water, and water is what you should carry out."
 - Habit: He lets his tea go cold while he listens.
 - Secret: He sells what he hears at the gate to the Canal families. He hides it from Aurel.
 
-Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Pump Station gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
+Sava grew up on the bottom terrace, two doors from Jory, and now wears a grey household coat. Aurel Brede pays him by the week to sit on a drum at the Dustwell gate and report every truck and every word Agnes says. He lets his tea go cold while he listens. He wants to be sworn to the household, and he sells what he hears to both sides. He told the drivers at the well about Agnes's envelope.
 
 His line is "Friend, what did Agnes give you for the drive?"
 
@@ -493,7 +493,7 @@ In autumn of year 130 her men cut the tow chain on wagon Seven's cannon and coul
 - Habit: He checks his watch when he lies.
 - Secret: He told Command that raiders took wagon Seven, but its one-pin swivel slid on the bend. He hides it from Command and the Salvage Yard.
 
-Teller drove Nose Army wagon Seven on the weekly water run from the Pump Station down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke the arm of his relief driver. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
+Teller drove Nose Army wagon Seven on the weekly water run from Dustwell down the Bowl north road to Bowl for four years, and never lost a truck. His stripes pay for his sister's ration card. In autumn of year 130 the wagon's one-pin swivel slid on the bend into a hollow, and the cannon's breech stove in the cab and broke the arm of his relief driver. At Kovac's desk Teller reported that raiders ran the wagon down and that the cannon went over the edge. Command wrote Seven off. Later he told Kovac the truth, and Kovac wrote none of it. After the rain he drove an Army truck back to the bend alone, walked down to take the broken pin out of the ring and could not shift it.
 
 His line is "Look, I've driven that track four years. You don't know the bend."
 

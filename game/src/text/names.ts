@@ -10,6 +10,7 @@ export const partName = (defId: string): Msg => byId(`part.${defId}`);
 export const chassisName = (id: string): Msg => byId(`chassis.${id}`);
 export const goodName = (id: string): Msg => byId(`good.${id}`);
 export const goodLower = (id: string): Msg => byId(`good.${id}.lower`);
+export const questTitle = (id: string): Msg => byId(`quest.${id}.title`);
 const OUTPOST_ID = /^outpost-(\d+)$/;
 
 export const outpostName = (milestone: number): Msg => t('outpost.name', { word: t('outpost.word'), n: milestone });

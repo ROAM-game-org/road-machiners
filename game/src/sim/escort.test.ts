@@ -13,6 +13,7 @@ import { addState, advanceStates, endState, settleStates, stateOf } from './stat
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
 import { escortFee, escortsOf, isOnRope, startEscort, towOf } from './tow';
+import { safeBesidePartner } from './pairs';
 import type { GameEvent, NpcActivity, NpcState, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
 import { refreshVision } from './vision';
@@ -484,5 +485,75 @@ describe('a leader with escorts', () => {
     const { w, convoy } = pair(60 - NPC_BEHAVIOR.escortCatchUpGap);
     planNpcOrders(w);
     expect(convoy.order?.kind).toBe('brake');
+  });
+});
+
+describe('courier pairs', () => {
+  const courierAt = (w: World, pos: Vec) => createNpc(w, 'courier', ['courier'], 'courier', ['mg', 'stockEngine'], pos);
+
+  it('a lone courier follows the nearest lone courier', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const near = courierAt(w, { x: 70, y: 60 });
+    courierAt(w, { x: 150, y: 60 });
+    const me = courierAt(w, { x: 52, y: 60 });
+    forceOption('idle', 'escort');
+    const goal = thinkNpc(w, me);
+
+    expect(goal).toMatchObject({ kind: 'follow', targetId: near.id });
+    expect(escortOf(w, me, near)?.data).toEqual({ kind: 'escort', site: null, fee: 0 });
+  });
+
+  it('never offers a courier that leads, follows or is knocked out', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const leader = courierAt(w, { x: 60, y: 60 });
+    const follower = courierAt(w, { x: 60, y: 52 });
+    startEscort(w, follower, leader, null, 0);
+    const out = courierAt(w, { x: 62, y: 60 });
+    out.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: false };
+    const me = courierAt(w, { x: 80, y: 60 });
+
+    expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
+    expect(optionWeights(w, follower, 'idle', null, null)).not.toHaveProperty('escort');
+    expect(optionWeights(w, leader, 'idle', null, null)).not.toHaveProperty('escort');
+  });
+
+  it('never joins a courier of another faction or one that is hostile', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = courierAt(w, { x: 52, y: 60 });
+    const other = courierAt(w, { x: 60, y: 60 });
+    other.faction = 'raiders';
+    expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
+  });
+
+  it('has no escort option without a partner', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = courierAt(w, { x: 52, y: 60 });
+    expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
+  });
+
+  it('offers no escort on the Chaos Highway', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    w.setup = { ...w.setup, mode: 'furyRoad' };
+    const me = courierAt(w, { x: 52, y: 60 });
+    courierAt(w, { x: 60, y: 60 });
+    expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
+  });
+
+  it('gives escort about nine chances in ten to a lone courier with a partner', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const me = courierAt(w, { x: 52, y: 60 });
+    courierAt(w, { x: 60, y: 60 });
+    const chances = optionChances(optionWeights(w, me, 'idle', null, null));
+    expect(chances.escort).toBeGreaterThan(0.8);
+    expect(chances.escort).toBeLessThan(0.95);
+  });
+
+  it('flees toward its leader when the leader is away from the threat', () => {
+    const w = emptyWorld({ x: 300, y: 300 });
+    const leader = courierAt(w, { x: 20, y: 60 });
+    const follower = courierAt(w, { x: 60, y: 60 });
+    startEscort(w, follower, leader, null, 0);
+    expect(safeBesidePartner(w, follower, { x: 120, y: 60 })).toEqual(leader.pos);
+    expect(safeBesidePartner(w, follower, { x: 0, y: 60 })).toBeNull();
   });
 });

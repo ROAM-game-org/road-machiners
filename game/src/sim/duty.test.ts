@@ -97,6 +97,46 @@ describe('duty pay', () => {
     expect(shopPay(away, roamer)).toEqual([]);
   });
 
+  it('pays a courier partner for the same leg from the same shop', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, partner, leader, null, 0);
+    const goal = onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    const money = getResources(w, partner).money;
+
+    resolveNpcActivities(w);
+
+    const pay = dutyPay(w, partner, goal.leg!, leader.pos);
+    expect(shopPay(w, partner).map((e) => [e.kind, e.amount])).toEqual([['dispatchPay', pay]]);
+    expect(getResources(w, partner).money).toBe(money + pay);
+    expect(shopPay(w, leader)).toHaveLength(1);
+  });
+
+  it('pays neither courier of a pair for a leg to a territory', () => {
+    const w = legWorld();
+    const edge = { ...TERRITORY.pos };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], edge);
+    const partner = createNpc(w, 'courier', ['courier'], ['stockEngine'], { x: edge.x + 4, y: edge.y });
+    startEscort(w, partner, leader, null, 0);
+    onLeg(w, leader, { kind: 'travel', targetId: TERRITORY.id, destination: { ...edge }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [partner]);
+    expect(shopPay(w, partner)).toEqual([]);
+    expect(shopPay(w, leader)).toEqual([]);
+  });
+
+  it('gives a merc escort of a courier no dispatch pay', () => {
+    const w = legWorld();
+    const pad = { ...sitePads(NOSE)[0] };
+    const leader = createNpc(w, 'courier', ['courier'], ['stockEngine'], pad);
+    const merc = createNpc(w, 'merc', ['merc'], ['mg', 'stockEngine'], { ...sitePads(NOSE)[1] });
+    startEscort(w, merc, leader, 'nose', 10);
+    onLeg(w, leader, { kind: 'travel', targetId: 'nose', destination: { ...pad }, phase: 'travel', reason: 'tripToSite' });
+    payDuty(w, leader, leader.brain!.goals[0], [merc]);
+    expect(shopPay(w, merc)).toEqual([]);
+  });
+
   it('has a convoy pay each guard when it sells, never more than it holds', () => {
     const w = legWorld();
     const pad = { ...sitePads(NOSE)[0] };

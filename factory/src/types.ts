@@ -1,5 +1,7 @@
 
-export const COLUMNS = ['Triage', 'Design', 'Implementation', 'Testing', 'Approval', 'Hardening', 'Merging', 'Done'] as const;
+import type { Activity } from './observability';
+
+export const COLUMNS =['Triage', 'Design', 'Implementation', 'Testing', 'Approval', 'Hardening', 'Merging', 'Done'] as const;
 export type Column = typeof COLUMNS[number];
 
 export type CardStage = 'triage' | 'design' | 'implement' | 'verify' | 'harden';
@@ -12,6 +14,7 @@ export type FactoryConfig = {
   repo: string;
   projectOwner: string;
   projectNumber: number;
+  githubAppId: string;
   githubRetries: number;
   githubRetryBaseSeconds: number;
   githubTimeoutSeconds: number;
@@ -57,6 +60,7 @@ export type FactoryConfig = {
   playtestTimeoutMinutes: number;
   mergeTimeoutMinutes: number;
   checksTimeoutMinutes: number;
+  testStallMinutes: number;
   testingBudgetUsd: number;
   mergingBudgetUsd: number;
   wasteReviewDays: number;
@@ -89,23 +93,25 @@ export type FactoryConfig = {
   publicDiscussion: string;
   proposalsPerDay: number;
   voteEmoji: string;
+  vetoEmoji: string;
   publicDigestMinutes: number;
   openaiKey: string;
   filterModel: string;
   filterTimeoutSeconds: number;
   filterSincereMin: number;
+  filterPerTick: number;
   reportIpPerHour: number;
   reportMaxChars: number;
 };
 
 export type TokenPrice = { input: number; output: number; cacheRead: number; cacheWrite5m: number; cacheWrite1h: number };
 
-export type RunOptions = { cwd?: string; env?: Record<string, string>; input?: string; logPath?: string; onStdout?: (chunk: string) => void; timeoutMs?: number };
+export type RunOptions = { activity: Activity; cwd?: string; env?: Record<string, string>; input?: string; logPath?: string; onStdout?: (chunk: string) => void; timeoutMs?: number };
 export type RunResult = { code: number; stdout: string; stderr: string };
-export type Run = (cmd: string, args: string[], opts?: RunOptions) => Promise<RunResult>;
+export type Run = (cmd: string, args: string[], opts: RunOptions) => Promise<RunResult>;
 
 export type Reaction = { login: string; content: string };
-export type IssueComment = { login: string; body: string; createdAt: string };
+export type IssueComment = { login: string; body: string; createdAt: string; byFactory: boolean };
 
 export type Issue = {
   number: number;
@@ -138,7 +144,8 @@ export const JOB_ISSUE: Record<JobStage, 'github-issue' | 'change-id' | 'none'> 
   release: 'none', merge: 'none', dev: 'none', waste: 'none',
 };
 export type Route = 'answer' | 'patch' | 'redesign';
-export type Failure = { stage: Stage; issue: number | null; error: string; log: string | null; at: string; batch?: number[]; decision?: boolean };
+export type FailureCause = 'timeout' | 'died' | 'github' | 'disk' | 'decision' | 'error';
+export type Failure = { stage: Stage; issue: number | null; error: string; cause: FailureCause | null; log: string | null; at: string; batch?: number[] };
 export type ChangeRequest ={ id: number; text: string; by: string };
 export type Removal = { issue: number; by: string; text: string };
 
@@ -150,6 +157,8 @@ export type PlaytestState = {
   notes: string[];
 };
 
+export type IssueMerge = { issue: number; title: string; sha: string; into: string; reverted: string[] };
+
 export type ReleaseState = {
   issue: number;
   branch: string;
@@ -158,6 +167,7 @@ export type ReleaseState = {
   candidateSha: string | null;
   removed: number[];
   tasks: number[];
+  merges: IssueMerge[] | null;
   playtest: PlaytestState;
   shipping?: { sha: string; features: { issue: number; title: string }[] };
 };
@@ -175,12 +185,14 @@ export type FactoryState = {
   jobs: Job[];
   approvalPosts: Record<string, number>;
   lastRelease: string | null;
+  devMerges: IssueMerge[] | null;
   release: ReleaseState | null;
   releasePost: ReleasePost | null;
   pendingShip: string | null;
   pendingRemovals: Removal[];
   pendingApprovals: Record<string, string>;
   approvedResolving: Record<string, string>;
+  keptApprovals: Record<string, KeptApproval>;
   pendingChanges: ChangeRequest[];
   pendingIncidents: number[];
   bundles: Record<string, number[]>;
@@ -202,13 +214,24 @@ export type FactoryState = {
   held: Record<string, Hold>;
   stuck: Record<string, StuckRecord>;
   sweepError: string | null;
+  asked: Record<string, string>;
+  pendingFeedback: Record<string, PendingFeedback>;
+  routed: number[];
+  recordsToFill: FilledRecord[];
 };
 
+export type FilledRecord = 'asked' | 'pendingFeedback' | 'routed';
+
+export type FeedbackSource = 'committee' | 'player';
+export type PendingFeedback = { source: FeedbackSource; body: string };
+
 export type StuckKind = 'running' | 'held' | 'merge-batch' | 'clone-merge' | 'machine' | 'blocked' | 'unrecorded';
-export type StuckCause = { incident: string; stage: Stage | null; cause: string; log: string | null; batch: number; since: string; decision: boolean };
+export type StuckCause = { incident: string; stage: Stage | null; error: string; cause: FailureCause | null; log: string | null; batch: number; since: string };
 export type StuckRecord = StuckCause & { column: Column; kind: StuckKind; tries: number; released: string | null; refused: string | null };
 
 export type Hold = { by: string; reason: string; at: string; stage: JobStage | null };
+
+export type KeptApproval = { by: string; at: string; build: string; checked: string[]; reason: string | null };
 
 export type UnroutedReply = { issue: number; postId: number; text: string; at: string };
 
@@ -230,7 +253,6 @@ export interface GitHub {
   pullRequestFor(branch: string): Promise<string | null>;
   closePullRequest(branch: string, comment: string): Promise<void>;
   reopen(number: number): Promise<void>;
-  findByFingerprint(fingerprint: string): Promise<FingerprintIssue | null>;
   errorIssue(number: number): Promise<FingerprintIssue>;
   mergePullRequest(branch: string): Promise<void>;
 }
@@ -247,25 +269,33 @@ export interface Telegram {
   sendDocument(chat: string, path: string, replyTo?: number): Promise<number>;
   editCaption(chat: string, messageId: number, caption: string): Promise<void>;
   editText(chat: string, messageId: number, text: string): Promise<void>;
+  sendHtml(chat: string, html: string): Promise<number>;
+  editHtml(chat: string, messageId: number, html: string): Promise<void>;
 }
 
 export type AgentSession = { dir: string; id: string; resume: boolean };
 export type AgentRun = { clone: string; dir: string; model: string; prompt: string; log: string; openNetwork?: boolean; mediaDir?: string; readOnly?: Record<string, string>; session?: AgentSession; skill?: string; effort?: string; disallowedTools?: string[]; advisor?: string };
 
+export type Pin = { cpus: string | null; testWorkers: number | null };
+
+export type ShellKind = 'checks' | 'build';
+
 export interface Container {
   agent(run: AgentRun): Promise<string>;
-  shell(clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number): Promise<void>;
+  shell(kind: ShellKind, clone: string, script: string, log: string, env?: Record<string, string>, mounts?: Record<string, string>, limitMinutes?: number, pin?: Pin): Promise<void>;
 }
 
-export type MergeStep = { branch: string; into: string; message: string };
+export type MergeStep = { branch: string; into: string; message: string; issue: number | null };
 
 export interface HostRepo {
   path: string;
   fetch(): Promise<void>;
   createBranch(name: string, from: string): Promise<void>;
-  revertIssueMerge(issue: number, branch: string, resolutions?: Resolution[]): Promise<boolean>;
+  revertMerge(merge: Pick<IssueMerge, 'issue' | 'sha'>, branch: string, resolutions?: Resolution[]): Promise<void>;
+  workHead(dir: string): Promise<string>;
+  containsCommit(branch: string, sha: string): Promise<boolean>;
   openConflict(dir: string, conflict: MergeConflictError | RevertConflictError): Promise<void>;
-  closeConflict(dir: string, conflict: MergeConflictError | RevertConflictError): Promise<{ resolution: Resolution; diff: string }>;
+  closeConflict(dir: string, conflict: MergeConflictError | RevertConflictError): Promise<{ resolution: Resolution; diff: string; files: string[] }>;
   deleteBranch(branch: string): Promise<void>;
   prepareWorkClone(branch: string, base: string, dir: string): Promise<void>;
   cloneBranch(branch: string, dir: string): Promise<string>;
@@ -281,11 +311,19 @@ export interface HostRepo {
   changedFiles(base: string, branch: string): Promise<string[]>;
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
-  merge(steps: MergeStep[], resolutions?: Resolution[]): Promise<void>;
-  mergeLog(from: string, to: string): Promise<string[]>;
+  merge(steps: MergeStep[], resolutions?: Resolution[], checked?: CheckedBuild): Promise<void>;
+  legacyMerges(from: string, to: string): Promise<{ sha: string; subject: string }[]>;
 }
 
 export type Resolution = { base: string; source: string; head: string };
+
+export type CheckedBuild = { branch: string; build: string; base: string };
+
+export class BaseMovedError extends Error {
+  constructor(readonly branch: string, readonly build: string, reason: string) {
+    super(reason);
+  }
+}
 
 export class MergeConflictError extends Error {
   constructor(readonly step: MergeStep, readonly files: string[], reason: string, readonly base: string, readonly source: string, readonly done: Resolution[] = []) {

@@ -9,7 +9,7 @@ const { values, positionals } = parseArgs({
     situation: { type: 'string' }, out: { type: 'string' }, screens: { type: 'string', default: '40' }, model: { type: 'string' },
     then: { type: 'string', multiple: true, default: [] }, set: { type: 'string', multiple: true, default: [] },
     skill: { type: 'string', multiple: true, default: [] },
-    lang: { type: 'string', default: 'en' }, prompt: { type: 'string', default: 'docs/quest-playtest-prompt.md' },
+    lang: { type: 'string', default: 'en' }, prompt: { type: 'string', default: 'docs/writing/playtest-prompt.md' },
   },
 });
 const quests = positionals;

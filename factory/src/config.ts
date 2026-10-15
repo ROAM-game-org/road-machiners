@@ -16,6 +16,7 @@ const KEYS = {
   repo: 'FACTORY_REPO',
   projectOwner: 'FACTORY_PROJECT_OWNER',
   projectNumber: 'FACTORY_PROJECT_NUMBER',
+  githubAppId: 'FACTORY_GITHUB_APP_ID',
   githubRetries: 'FACTORY_GITHUB_RETRIES',
   githubRetryBaseSeconds: 'FACTORY_GITHUB_RETRY_BASE_SECONDS',
   githubTimeoutSeconds: 'FACTORY_GITHUB_TIMEOUT_SECONDS',
@@ -61,6 +62,7 @@ const KEYS = {
   playtestTimeoutMinutes: 'FACTORY_PLAYTEST_TIMEOUT_MINUTES',
   mergeTimeoutMinutes: 'FACTORY_MERGE_TIMEOUT_MINUTES',
   checksTimeoutMinutes: 'FACTORY_CHECKS_TIMEOUT_MINUTES',
+  testStallMinutes: 'FACTORY_TEST_STALL_MINUTES',
   testingBudgetUsd: 'FACTORY_TESTING_BUDGET_USD',
   mergingBudgetUsd: 'FACTORY_MERGING_BUDGET_USD',
   wasteReviewDays: 'FACTORY_WASTE_REVIEW_DAYS',
@@ -93,18 +95,20 @@ const KEYS = {
   publicDiscussion: 'FACTORY_PUBLIC_DISCUSSION',
   proposalsPerDay: 'FACTORY_PROPOSALS_PER_DAY',
   voteEmoji: 'FACTORY_VOTE_EMOJI',
+  vetoEmoji: 'FACTORY_VETO_EMOJI',
   publicDigestMinutes: 'FACTORY_PUBLIC_DIGEST_MINUTES',
   openaiKey: 'OPENAI_API_KEY',
   filterModel: 'FACTORY_FILTER_MODEL',
   filterTimeoutSeconds: 'FACTORY_FILTER_TIMEOUT_SECONDS',
   filterSincereMin: 'FACTORY_FILTER_SINCERE_MIN',
+  filterPerTick: 'FACTORY_FILTER_PER_TICK',
   reportIpPerHour: 'FACTORY_REPORT_IP_PER_HOUR',
   reportMaxChars: 'FACTORY_REPORT_MAX_CHARS',
 } as const satisfies Record<keyof FactoryConfig, string>;
 
 const RELEASE_ONLY = new Set<keyof FactoryConfig>(['itchTarget', 'butlerKey']);
 
-const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'replyRouteMinutes', 'releaseDays', 'playtestTurns', 'playtestRuns', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testingBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays', 'testCacheDays', 'cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'reportIpPerHour', 'reportMaxChars']);
+const NUMBERS = new Set<keyof FactoryConfig>(['observationHeartbeatMs', 'observationMaxEventBytes', 'projectNumber', 'githubRetries', 'githubRetryBaseSeconds', 'githubTimeoutSeconds','sfxMaxGenerations', 'agyMaxRuns', 'minVotes', 'minAgeHours', 'needsInfoHours', 'triageTimeoutMinutes', 'designTimeoutMinutes', 'implementTimeoutMinutes', 'verifyTimeoutMinutes', 'testTimeoutMinutes', 'branchTimeoutMinutes', 'agentJobMaxMinutes', 'replyRouteMinutes', 'releaseDays', 'playtestTurns', 'playtestRuns', 'playtestTimeoutMinutes', 'mergeTimeoutMinutes', 'checksTimeoutMinutes', 'testStallMinutes', 'testingBudgetUsd', 'mergingBudgetUsd', 'wasteReviewDays','maxJobsPerCard', 'triageWorkers', 'designWorkers', 'implementWorkers', 'verifyWorkers', 'testWorkers', 'minFreeGb', 'minAvailableGb', 'logDays', 'transcriptDays', 'testCacheDays', 'cpuLight', 'cpuImplement', 'cpuTest', 'vitestWorkersImplement', 'vitestWorkersTest', 'errorDailyIssues', 'errorDiskMb', 'errorMapDays', 'errorBodyKb', 'errorUnzippedMb', 'errorIpPerHour', 'proposalsPerDay', 'publicDigestMinutes', 'filterTimeoutSeconds', 'filterSincereMin', 'filterPerTick', 'reportIpPerHour', 'reportMaxChars']);
 
 export function loadConfig(env: Record<string, string | undefined>): FactoryConfig {
   const missing = Object.entries(KEYS).filter(([field, key]) => !RELEASE_ONLY.has(field as keyof FactoryConfig) && !env[key]?.trim()).map(([, key]) => key);

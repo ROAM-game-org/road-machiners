@@ -62,6 +62,16 @@ describe('player piles', () => {
     expect(w.player.scavenged).not.toContain(pile.id);
   });
 
+  it('a truck handing over cargo twice in one turn drops two piles', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'traders', 'scout', [], { x: 31, y: 30 });
+    addGoods(w, npc, 'scrap', 2);
+    const first = dropHaul(w, npc, looseCargo(npc));
+    addGoods(w, npc, 'scrap', 1);
+    const second = dropHaul(w, npc, looseCargo(npc));
+    expect(second.id).not.toBe(first.id);
+  });
+
   it('a looted unit taken first does not wipe the paid basis of goods taken back from the player pile', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];

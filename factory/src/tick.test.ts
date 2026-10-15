@@ -8,7 +8,7 @@ import { readObservation, type SchedulerData } from './observability';
 import { resumedStage } from './sessions';
 import { checkJobs, chooseJobs, evaluateSchedule, tick, timeoutOf, type TickDeps } from './tick';
 import { EMPTY_STATE, clearQueued, readState, updateState, writeState } from './state';
-import { FACTORY_MARK, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUESTIONS_HEADING, STUCK_LABEL, VOTING_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
+import { HOTFIX_LABEL, NEEDS_INFO_LABEL, STUCK_LABEL, VOTING_LABEL, type Card, type ReleaseState, type Ctx, type IssueComment, type FactoryConfig, type FactoryState, type Job } from './types';
 
 const NOW = new Date('2026-01-10T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
@@ -66,7 +66,7 @@ describe('chooseJobs with no daily cap', () => {
     const capped = { ...busy, lastRelease: FRESH.lastRelease };
     const queuedIncident = { ...capped, pendingIncidents: [7, 8] };
     expect(chooseJobs(queuedIncident, [], NOW, CFG)).toEqual([{ stage: 'incident', issue: 7 }]);
-    expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { issue: 3, branch: 'release/x', day: 'x', postId: 1, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
+    expect(chooseJobs({ ...queuedIncident, pendingShip: 'u', release: { issue: 3, branch: 'release/x', day: 'x', postId: 1, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } } }, [], NOW, CFG)).toEqual([{ stage: 'ship', issue: 3 }, { stage: 'incident', issue: 7 }]);
   });
 
   it('starts no merge for release task cards while a ship runs, and one for a dev card', () => {
@@ -82,7 +82,7 @@ describe('chooseJobs with no daily cap', () => {
   });
 });
 
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-01-05', day: '2026-01-05', postId: null, removed: [], tasks: [], merges: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const tracking = (labels: string[] = ['release']): Card => card(20, 'Approval', labels);
 
 const AT_HEAD = { dev: null, release: 'rel0001' };
@@ -329,6 +329,14 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath)).toMatchObject({ jobs: [], retried: [], failures: [{ stage: 'catch-up', issue: 8, error: 'job process died without finishing' }] });
   });
 
+  it('fills the merge records from git before it starts any job', async () => {
+    const h = harness(null, false);
+    Object.assign(h.ctx.repo, { legacyMerges: async () => [{ sha: 'a'.repeat(40), subject: 'Merge issue #4: horn' }] });
+    writeState(h.ctx.statePath, state({ devMerges: null }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(readState(h.ctx.statePath).devMerges).toEqual([{ issue: 4, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }]);
+  });
+
   it('keeps the queued ship of a ship job past its timeout once, and clears it on the second timeout', async () => {
     const ship = job('2026-01-10T08:00:00Z', 'ship', 20);
     const h = harness(ship, true);
@@ -365,7 +373,7 @@ describe('tick', () => {
   it('releases half of a timed-out merge batch and starts its merge in the same tick, with every stuck card recorded', async () => {
     const cards = [card(6, 'Merging', [STUCK_LABEL]), card(7, 'Merging', [STUCK_LABEL]), card(8, 'Testing', [STUCK_LABEL])];
     const h = harness(null, false, cards);
-    writeState(h.ctx.statePath, state({ failures: [{ stage: 'merge', issue: null, error: 'timed out after 30 minutes', log: '/m.log', at: hoursAgo(1), batch: [6, 7] }] }));
+    writeState(h.ctx.statePath, state({ failures: [{ stage: 'merge', issue: null, error: 'timed out after 30 minutes', cause: 'timeout' as const, log: '/m.log', at: hoursAgo(1), batch: [6, 7] }] }));
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([`6:${STUCK_LABEL}`]);
     expect(args(h)).toEqual([['merge', '-']]);
@@ -381,7 +389,7 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath).failures[0].error).toBe('timed out after 30 minutes');
     expect(h.sent).toEqual([]);
     expect(readState(h.ctx.statePath).jobs).toEqual([]);
-    expect(readLedger(h.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'job')).toEqual([{ kind: 'job', retryOf: null, id: 'design-job', stage: 'design', issue: 5, startedAt: '2026-01-10T11:00:00Z', endedAt: NOW.toISOString(), outcome: 'timeout', agents: [] }]);
+    expect(readLedger(h.ctx.cfg.home, new Date(0)).filter((line) => line.kind === 'job')).toEqual([{ kind: 'job', retryOf: null, id: 'design-job', stage: 'design', issue: 5, startedAt: '2026-01-10T11:00:00Z', endedAt: NOW.toISOString(), outcome: 'timeout', log: '/l.log', agents: [], parts: [] }]);
   });
 
   it('times a job by the limit of its own queue', async () => {
@@ -528,7 +536,7 @@ describe('tick', () => {
     });
 
     it('skips a card whose catch-up failed within the day, so a failing merge costs no agent round per merge job', () => {
-      const failure = { stage: 'catch-up' as const, issue: 8, error: 'e', log: null, at: NOW.toISOString() };
+      const failure = { stage: 'catch-up' as const, issue: 8, error: 'e', cause: 'error' as const, log: null, at: NOW.toISOString() };
       expect(chooseJobs(state({ jobs: [merging([5, 6, 7])], failures: [failure] }), queue, NOW, CFG)).toEqual([{ stage: 'catch-up', issue: 9 }]);
     });
 
@@ -567,7 +575,7 @@ describe('tick', () => {
   });
 
   it('starts no waste review while its failure stands, so a broken review does not run again each tick', () => {
-    const failure = { stage: 'waste' as const, issue: null, error: 'gh issue view failed', log: null, at: '2026-01-05T11:00:00Z' };
+    const failure = { stage: 'waste' as const, issue: null, error: 'gh issue view failed', cause: 'github' as const, log: null, at: '2026-01-05T11:00:00Z' };
     const due = state({ lastWasteReview: '2026-01-02T12:00:00Z', failures: [failure] });
     expect(chooseJobs(due, [], NOW, CFG)).toEqual([]);
     expect(chooseJobs({ ...due, failures: [{ ...failure, stage: 'dev' }] }, [], NOW, CFG)).toEqual([{ stage: 'waste', issue: null }]);
@@ -594,36 +602,47 @@ describe('tick', () => {
     expect(readState(h.ctx.statePath).cardStarts).toEqual({ 8: [NOW.toISOString()] });
   });
 
-  it('removes needs-info from an answered Triage card and starts its triage', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1) };
-    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked, { login: 'anna', body: 'This', createdAt: hoursAgo(1) }]);
+  it('removes needs-info from an answered Triage card, forgets its ask time and starts its triage', async () => {
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [{ login: 'anna', body: 'This', createdAt: hoursAgo(0.5), byFactory: false }]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(1) } }));
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
     expect(args(h)).toEqual([['triage', '8']]);
+    expect(readState(h.ctx.statePath).asked).toEqual({});
   });
 
-  it('keeps needs-info while nobody answered and starts nothing', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(1) };
-    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
+  it('keeps needs-info while only the factory or an earlier comment is on the issue and starts nothing', async () => {
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [{ login: 'anna', body: 'before', createdAt: hoursAgo(2), byFactory: false }, { login: 'bot', body: 'x', createdAt: hoursAgo(0.5), byFactory: true }]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(1) } }));
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([]);
     expect(h.spawned).toEqual([]);
+    expect(readState(h.ctx.statePath).asked).toEqual({ 8: hoursAgo(1) });
   });
 
   it('removes needs-info from a Triage card whose questions passed the time limit and starts its triage', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(25) };
-    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(25) } }));
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([`8:${NEEDS_INFO_LABEL}`]);
     expect(args(h)).toEqual([['triage', '8']]);
+    expect(readState(h.ctx.statePath).asked).toEqual({});
   });
 
   it('keeps needs-info on a question inside the time limit', async () => {
-    const asked = { login: 'bot', body: `${QUESTIONS_HEADING}\n\n1. What?\n\n${FACTORY_MARK}`, createdAt: hoursAgo(23) };
-    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [asked]);
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])]);
+    writeState(h.ctx.statePath, state({ asked: { 8: hoursAgo(23) } }));
     await tick(h.ctx, '/code', h.deps);
     expect(h.removed).toEqual([]);
     expect(h.spawned).toEqual([]);
+  });
+
+  it('starts the wait for a needs-info card with no ask record at now, and keeps the card waiting', async () => {
+    const h = harness(null, false, [card(8, 'Triage', [NEEDS_INFO_LABEL])], [{ login: 'anna', body: 'old', createdAt: hoursAgo(30), byFactory: false }]);
+    await tick(h.ctx, '/code', h.deps);
+    expect(h.removed).toEqual([]);
+    expect(h.spawned).toEqual([]);
+    expect(readState(h.ctx.statePath).asked).toEqual({ 8: NOW.toISOString() });
   });
 
   it('counts and prunes card starts, not committee-driven ones', async () => {

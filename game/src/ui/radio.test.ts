@@ -122,6 +122,33 @@ describe('RadioStation', () => {
     expect(drain(s, w2)).toBeNull();
   });
 
+  it('announces a new search by the name of the person wanted', () => {
+    const w = world(10, ['bowl']);
+    const s = tuned(w);
+    const w2 = later(w, RADIO.minGapTurns);
+    w2.shops.bowl.contracts = [{
+      id: 's1', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed Cobb', template: 'trader',
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 3700, deadline: 9999, window: 100, tier: 1, delivered: false,
+    }];
+    s.hear(w2);
+    const b = s.next()!;
+    expect(b.topic).toBe('search');
+    expect(en(b.text)).toContain('Jed Cobb');
+  });
+
+  it('announces a new rescue with the basin of its area', () => {
+    const w = world(10, ['bowl']);
+    const s = tuned(w);
+    const w2 = later(w, RADIO.minGapTurns);
+    const centre = w2.size / 2;
+    w2.shops.bowl.contracts = [{ id: 'c5', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed Cobb', need: 'fuel', area: { x: centre + 50, y: centre - 50 }, reward: 200, deadline: 900, window: 400, tier: 1, fulfilled: false }];
+    s.hear(w2);
+    const b = s.next()!;
+    expect(b.topic).toBe('rescue');
+    expect(en(b.text)).toContain('in the northeast basin');
+    expect(en(b.text)).toContain('Bowl');
+  });
+
   it('re-baselines when the turn goes backwards or the seed changes', () => {
     const w = world(100);
     const s = tuned(w);

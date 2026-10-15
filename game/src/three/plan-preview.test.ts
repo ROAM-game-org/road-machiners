@@ -13,6 +13,7 @@ vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
 class TestWorker {
   static latest: TestWorker;
+  static created = 0;
   requests: PreviewRequest[] = [];
   transfers: Transferable[][] = [];
   onmessage: ((event: MessageEvent<PreviewResponse>) => void) | null = null;
@@ -20,11 +21,13 @@ class TestWorker {
   onmessageerror: (() => void) | null = null;
   constructor() {
     TestWorker.latest = this;
+    TestWorker.created++;
   }
   postMessage(request: PreviewRequest, transfer: Transferable[]): void {
     this.requests.push(request);
     this.transfers.push(transfer);
   }
+  terminate(): void {}
   respond(response: PreviewResponse): void {
     if (!this.onmessage) throw new Error("Missing worker response handler");
     this.onmessage({ data: response } as MessageEvent<PreviewResponse>);
@@ -43,6 +46,7 @@ beforeEach(() => {
   vi.stubGlobal("Worker", TestWorker);
   vi.mocked(reportError).mockClear();
   resetPerf();
+  TestWorker.created = 0;
   world = emptyWorld();
   drive = buildDrive(world);
 });
@@ -129,7 +133,7 @@ it("reports a worker error event and still posts the next request", () => {
   const plans = new PlanPreparation();
   plans.request(world, drive, world.player.vehicleId);
   const worker = TestWorker.latest;
-  worker.onerror?.({ message: "boom" } as ErrorEvent);
+  worker.onerror?.({ message: "boom", preventDefault() {} } as ErrorEvent);
   expect(reportError).toHaveBeenCalledWith(new Error("Preview worker failed: boom"));
   plans.request(moved(), drive, world.player.vehicleId);
   expect(worker.requests).toHaveLength(2);
@@ -142,4 +146,40 @@ it("transfers a snapshot of the drive and leaves the main drive in place", () =>
   const worker = TestWorker.latest;
   expect(worker.transfers[0]).toEqual([worker.requests[0].drive.snapshot.buffer]);
   expect(drive.world.takeSnapshot()).toEqual(before);
+});
+
+it("restarts a preview worker whose script did not load and posts the lost request again", () => {
+  vi.useFakeTimers();
+  const plans = new PlanPreparation();
+  plans.request(world, drive, "me");
+  const first = TestWorker.latest;
+  first.onerror?.({ preventDefault() {} } as ErrorEvent);
+  expect(reportError).not.toHaveBeenCalled();
+  expect(TestWorker.created).toBe(1);
+  vi.advanceTimersByTime(500);
+  const second = TestWorker.latest;
+  expect(second).not.toBe(first);
+  expect(second.requests).toHaveLength(1);
+  expect(second.requests[0].terrain).toBe(world.terrain);
+  expect(second.requests[0].drive.snapshot.byteLength).toBeGreaterThan(0);
+  second.answer(0, plan(true));
+  expect(plans.take(world)?.waypoint).toBe(true);
+  vi.useRealTimers();
+});
+
+it("gives up on a preview worker that never loads with one download failure", () => {
+  vi.useFakeTimers();
+  const plans = new PlanPreparation();
+  plans.request(world, drive, "me");
+  for (let i = 0; i < 6; i++) {
+    TestWorker.latest.onerror?.({ preventDefault() {} } as ErrorEvent);
+    vi.advanceTimersByTime(4000);
+  }
+  expect(reportError).toHaveBeenCalledOnce();
+  expect((vi.mocked(reportError).mock.calls[0][0] as Error).name).toBe("DownloadFailed");
+  expect((vi.mocked(reportError).mock.calls[0][0] as Error).message).toContain("preview worker");
+  expect(TestWorker.created).toBe(6);
+  plans.request(world, drive, "me");
+  expect(TestWorker.created).toBe(6);
+  vi.useRealTimers();
 });

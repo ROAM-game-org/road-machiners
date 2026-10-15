@@ -15,7 +15,7 @@ function setup() {
   const body = new THREE.Group();
   const antenna = new THREE.Group();
   const chain = new THREE.Group();
-  const motion = new TruckMotion(body, new THREE.Vector3(0, -0.3, 0), 0);
+  const motion = new TruckMotion(body, new THREE.Vector3(0, -0.3, 0), 2.6, 0);
   motion.addWhip(antenna, WHIPS.antenna);
   motion.addWhip(chain, WHIPS.chain);
   return { body, antenna, chain, motion };
@@ -47,6 +47,35 @@ describe('truck motion', () => {
     drive(motion, { x: 500, y: 0, z: 500 });
     expect(Math.abs(body.rotation.z)).toBeLessThan(0.13);
     expect(Math.abs(body.rotation.x)).toBeLessThan(0.13);
+  });
+
+  function pitchAfter(half: number, accel: number): number {
+    const body = new THREE.Group();
+    const motion = new TruckMotion(body, new THREE.Vector3(0, -0.3, 0), half, 0);
+    drive(motion, { x: accel, y: 0, z: 0 });
+    return body.rotation.z;
+  }
+
+  it('tilts a long body less so its ends move no more than a 4 m body\'s', () => {
+    const short = pitchAfter(4, 8);
+    const long = pitchAfter(10.26, 8);
+    expect(long * 10.26).toBeLessThanOrEqual(short * 4 + 1e-6);
+    expect(long / short).toBeCloseTo(4 / 10.26, 6);
+  });
+
+  it('keeps a short body\'s lean as before', () => {
+    expect(pitchAfter(2.6, 8)).toBe(pitchAfter(4, 8));
+    expect(pitchAfter(2.6, 8)).toBeGreaterThan(0.03);
+  });
+
+  it('caps a long body\'s pitch at the scaled cap on a hard bump', () => {
+    expect(Math.abs(pitchAfter(10.26, 500))).toBeLessThan(0.13 * (4 / 10.26));
+  });
+
+  it('rejects a body with no length', () => {
+    for (const half of [0, -1, NaN]) {
+      expect(() => new TruckMotion(new THREE.Group(), new THREE.Vector3(), half, 0)).toThrow(/half-length/);
+    }
   });
 
   it('holds the lean while the same frame repeats, as between turns', () => {

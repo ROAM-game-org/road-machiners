@@ -6,7 +6,7 @@ import { mapAt } from '../sim/highway';
 import type { World } from '../sim/types';
 import type { SlotId } from './save-slots';
 import { CENTS_PER_MONEY_29_30, pooledSkills_9_10 } from './save-migrations';
-import { savedRunId, storedSave, writeSave } from './save';
+import { savedRevisionsOf, savedRunId, storedSave, writeSave } from './save';
 import type { SaveSlots } from './save-db';
 
 type Json = Record<string, unknown>;
@@ -122,7 +122,7 @@ function soldAt(run: Json, milestone: number): string[] {
 
 const NO_CARRIED: Carried = {
   seed: null, money: null, xp: null, ranks: {}, xpBySource: {}, perks: [], discovered: [], knockouts: null, autoFire: null,
-  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null,
+  autoRepair: null, fuel: null, supplies: null, costBasis: {}, truck: null, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {},
 };
 
 export function readCarried(raw: unknown): Carried {
@@ -148,7 +148,14 @@ export function readCarried(raw: unknown): Carried {
     setup: world.setup,
     quests: questVarsOf(player.quests),
     run: runOf(world, formatNumber(raw)),
+    notes: listOf(player.notes).flatMap(noteOf),
+    revisions: savedRevisionsOf(raw),
   };
+}
+
+function noteOf(value: unknown): string[] {
+  const id = idOf(objectOf(value)?.id);
+  return id === null ? [] : [id];
 }
 
 function questVarsOf(value: unknown): Carried['quests'] {

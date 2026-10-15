@@ -83,7 +83,7 @@ Between levels nothing spawns. A paid outpost is a garage, as a town garage is. 
 
 The outpost screen shows the truck and the hauler as a switch above the grid. The grid, the repair bar, the supplies and the Buy parts tab act on the one chosen. The hauler is chosen only while it is parked on the pad. The screen has three tabs:
 
-- Market: repair all or the basics at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
+- Market: repair all, the basics (the built-in parts and the engine) or one part at the garage price, fuel and supplies at the town price, and parts for field patching at 1.5 times their value.
 - Buy parts: each outpost stocks five guns, six armor parts, three engines, three cargo parts, three utility parts, both store parts and the scanner. No part appears twice. The stock is rolled from the seed and kept in the save. A part goes onto the truck's cargo cells if it fits, and into storage if not. The hauler refuses a gun.
 - Trucks: three chassis, drawn without repeats from every player chassis but the scout. The offer is a pure function of the seed and the milestone, and a bought truck leaves the offer. The price is the chassis value less the trade-in of the truck the player drives, or a payout when the trade-in is worth more. The swap is the town's, `swapChassis()`: the new chassis brings its own built-in parts, every fitted part is fitted again where it fits, then stowed, then stored, and the goods go back in cargo. Swap is disabled with the reason when the money is short or the goods would not fit the new truck. Fuel and supplies clamp to the new tanks.
 
@@ -118,7 +118,7 @@ A group of chasers comes from ahead, the left or the right, never from the side 
 - ahead: 45 tiles ahead of the hauler, on the hauler's line across the road.
 - left or right: 36 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road.
 
-Both are past the sight radius of 20 tiles from the hauler, so a group shows first as dust on the road ahead before it comes into view.
+Both are past the sight radius of 20 tiles from the hauler. A spot must also lie more than the gun truck's sight radius, without the night factor, plus 6 tiles from the gun truck, so a group never appears in sight and shows first as a dust or engine contact. A group whose free spots are all in sight waits for the next turn with no failure clock.
 
 Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
 

@@ -24,8 +24,8 @@ function part(defId: string, over: Partial<Extract<CarriedItem, { kind: 'part' }
 function kitItems(): CarriedItem[] {
   const w = newWorld(1, KIT, TEST_MAP, defaultSetup('roaming'), false);
   return playerVehicle(w).items.map((it): CarriedItem =>
-    it.kind === 'good'
-      ? { kind: 'good', good: it.good, x: it.x, y: it.y, rot: it.rot }
+    it.kind !== 'part'
+      ? { kind: 'good', good: it.kind === 'good' ? it.good : '', x: it.x, y: it.y, rot: it.rot }
       : { kind: 'part', part: { defId: it.part.defId, wear: it.part.wear, hp: it.part.hp, rebuilt: false }, x: it.x, y: it.y, rot: it.rot });
 }
 
@@ -33,7 +33,7 @@ function carriedOf(over: Partial<Carried> = {}): Carried {
   return {
     seed: 99, money: 777, xp: 340, ranks: { driving: 2, social: 1 }, xpBySource: { ram: 12 }, perks: [], discovered: [],
     knockouts: 2, autoFire: true, autoRepair: false, fuel: 5, supplies: 3, costBasis: { scrap: 8 },
-    truck: { chassisId: 'scout', items: kitItems() }, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, ...over,
+    truck: { chassisId: 'scout', items: kitItems() }, storage: [], setup: undefined, quests: { world: {}, local: {} }, run: null, notes: [], revisions: {}, ...over,
   };
 }
 
@@ -58,7 +58,7 @@ describe('carriedWorld', () => {
     expect(truck.items.filter((it) => it.kind === 'good').length).toBe(4);
     expect(world.player.costBasis).toEqual({ scrap: 8 });
     expect(getLayoutError(truck, truck.items)).toBeNull();
-    expect(report).toEqual({ toGarage: [], sold: [], lost: [], settingsReset: [] });
+    expect(report).toEqual({ toGarage: [], sold: [], lost: [], settingsReset: [], questsReset: [] });
   });
 
   it('sends a part with an invalid spot to the garage', () => {

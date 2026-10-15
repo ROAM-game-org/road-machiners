@@ -40,8 +40,8 @@ function toCell(ch: string): Cell | null {
   throw new Error(`Bad layout character "${ch}"`);
 }
 
-export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' })): { w: number; h: number } {
-  if (item.kind === 'good') return { w: 1, h: 1 };
+export function itemSize(item: Pick<GridItem, 'rot'> & ({ kind: 'part'; part: PartInstance } | { kind: 'good' } | { kind: 'parcel' })): { w: number; h: number } {
+  if (item.kind !== 'part') return { w: 1, h: 1 };
   const d = partDef(item.part.defId);
   return item.rot % 2 === 1 ? { w: d.h, h: d.w } : { w: d.w, h: d.h };
 }
@@ -153,6 +153,7 @@ export function corePart(v: Vehicle, role: CoreDef['role']): PartInstance {
 }
 
 export function isLoot(chassisId: string, item: GridItem): boolean {
+  if (item.kind === 'parcel') return false;
   return item.kind === 'good' || partDef(item.part.defId).kind !== 'core' || !isMounted(chassisId, item);
 }
 

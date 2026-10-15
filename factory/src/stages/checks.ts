@@ -1,37 +1,42 @@
+import { STEP_FUNCTION, stepCall } from '../activity';
 import { cardFlow, moveCard } from '../card-events';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { CHECKS_TIMEOUT_MARK } from '../container';
+import { CheckTimeoutError } from '../container';
 import { readApproval, type Approval } from '../clone-checks';
 import { readShown, type Shown } from '../evidence';
 import { postWithEvidence } from '../evidence-post';
 import { checkScope, publishBuild, recordBuild } from '../deploy';
 import { reportFailure, stripAnsi } from '../fail';
 import { postBuild } from '../public/build-post';
+import { clearFeedback } from '../pending-feedback';
 import { feedbackEnv } from '../sourcemaps';
 import { readState, updateState } from '../state';
-import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type InlineButton, type Stage } from '../types';
+import { join } from 'node:path';
+import { testPoolPin } from '../cpus';
+import { isLocked, withLock } from '../lock';
+import { BRANCH, GAME_DIR, OUT_DIR, type Ctx, type FactoryConfig, type InlineButton, type Pin, type Stage } from '../types';
 import { bundleOf } from './bundle';
 import { HOTFIX_BASE, agentHome, agentLog, baseBranchFor, playtestCommand, workDir } from './common';
 
 export const CACHED_SUITE = `if grep -q '"test:cached"' package.json; then
   npm run test:cached -- --cache /test-cache
 else
-  step "branch has no test:cached, full suite"
+  echo "branch has no test:cached, full suite"
   npm test
 fi`;
 
 export const checkScript = (playtest: string) => `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
+${STEP_FUNCTION}
 mkdir -p tmp
-step "npm ci"
+${stepCall('npm ci')}
 npm ci
-step "tests and typecheck"
+${stepCall('tests and typecheck')}
 npm run typecheck > tmp/typecheck.log 2>&1 &
 typecheck=$!
 ${CACHED_SUITE}
-step "tests done"
+${stepCall('tests done')}
 if ! wait "$typecheck"; then cat tmp/typecheck.log; exit 1; fi
-step "dev server"
+${stepCall('dev server')}
 npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
 server=$!
 ready=0
@@ -40,26 +45,26 @@ for i in $(seq 1 60); do
   sleep 1
 done
 if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
-step "playtest"
+${stepCall('playtest')}
 set +e
 ${playtest}
 code=$?
 kill "$server"
 if [ "$code" -ne 0 ]; then exit "$code"; fi
 set -e
-step "build"
+${stepCall('build')}
 SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
+${stepCall('done')}
 `;
 
 export const previewScript = (playtest: string) => `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
+${STEP_FUNCTION}
 mkdir -p tmp
-step "npm ci"
+${stepCall('npm ci')}
 npm ci
-step "typecheck"
+${stepCall('typecheck')}
 npm run typecheck
-step "dev server"
+${stepCall('dev server')}
 npm run dev -- --port 5173 --strictPort > tmp/dev-server.log 2>&1 &
 server=$!
 ready=0
@@ -68,26 +73,26 @@ for i in $(seq 1 60); do
   sleep 1
 done
 if [ "$ready" -ne 1 ]; then kill "$server"; exit 1; fi
-step "playtest"
+${stepCall('playtest')}
 set +e
 ${playtest}
 code=$?
 kill "$server"
 if [ "$code" -ne 0 ]; then exit "$code"; fi
 set -e
-step "build"
+${stepCall('build')}
 SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
+${stepCall('done')}
 `;
 
 export const buildScript = `set -e
-step() { echo "[checks] $(date -u +%T) $1"; }
+${STEP_FUNCTION}
 mkdir -p tmp
-step "npm ci"
+${stepCall('npm ci')}
 npm ci
-step "build"
+${stepCall('build')}
 SAVE_SCOPE="$BUILD_SCOPE" npm run build
-step "done"
+${stepCall('done')}
 `;
 
 export async function runStage(ctx: Ctx, issue: number): Promise<void> {
@@ -96,7 +101,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const item = await ctx.github.issue(issue);
   const base = baseBranchFor(ctx, item.labels);
   const build = await ctx.repo.headHash(BRANCH(issue));
-  const failure = await runScript(ctx, issue, base, build, buildScript);
+  const failure = (await runScript(ctx, issue, base, build, buildScript))?.failure ?? null;
   if (failure !== null) throw new Error(`The build failed, no factory checks ran.\n${failure}`);
   await publishAndPost(ctx, issue, approvalOrDefault(home), home, base, build, true);
   updateState(ctx.statePath, (state) => ({ ...state, postOnly: state.postOnly.filter((n) => n !== issue) }));
@@ -120,10 +125,25 @@ function checkDir(ctx: Ctx, issue: number): string {
 }
 
 export async function postCheckpoint(ctx: Ctx, issue: number, base: string, build: string, kind: 'docs' | 'preview' | 'full'): Promise<string | null> {
-  if (kind === 'docs') return runScript(ctx, issue, base, build, buildScript);
+  if (kind === 'docs') return (await runScript(ctx, issue, base, build, buildScript))?.failure ?? null;
+  return checkUntilReal(checkRun(ctx, issue, base, build, kind), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+}
+
+function checkRun(ctx: Ctx, issue: number, base: string, build: string, kind: 'preview' | 'full'): () => Promise<CheckOutcome> {
   const playtest = playtestCommand(ctx.cfg, false);
-  const script = kind === 'full' ? checkScript(playtest) : previewScript(playtest);
-  return checkUntilReal(() => runScript(ctx, issue, base, build, script, 'verify'), (run) => ctx.log('verify', issue, `the checks only timed out, run ${run} of ${CHECK_RUNS}, running them again`));
+  if (kind === 'preview') return () => runScript(ctx, issue, base, build, previewScript(playtest), 'verify');
+  return () => oneSuiteAtATime(ctx, { stage: 'verify', issue }, () => runScript(ctx, issue, base, build, checkScript(playtest), 'verify', testPoolPin(ctx.cfg)));
+}
+
+export async function oneSuiteAtATime<T>(ctx: Ctx, at: { stage: Stage; issue: number | null }, work: () => Promise<T>): Promise<T> {
+  const lock = join(ctx.cfg.home, 'locks', 'full-suite');
+  if (isLocked(lock)) ctx.log(at.stage, at.issue, 'waits for the full suite of another job, since one runs at a time');
+  const longestJobMinutes = Math.max(ctx.cfg.verifyTimeoutMinutes, ctx.cfg.mergeTimeoutMinutes, ctx.cfg.playtestTimeoutMinutes);
+  return withLock(lock, longestJobMinutes * 60_000, work);
+}
+
+export function suiteEnv(cfg: FactoryConfig): Record<string, string> {
+  return { TEST_STALL_MINUTES: String(cfg.testStallMinutes) };
 }
 
 export function testCacheMount(ctx: Ctx): Record<string, string> {
@@ -132,23 +152,23 @@ export function testCacheMount(ctx: Ctx): Record<string, string> {
   return { [cache]: '/test-cache' };
 }
 
-async function runScript(ctx: Ctx, issue: number, base: string, build: string, script: string, stage: Stage = 'checks'): Promise<string | null> {
+async function runScript(ctx: Ctx, issue: number, base: string, build: string, script: string, stage: Stage = 'checks', pin?: Pin): Promise<CheckOutcome> {
   checkScope(build);
   const dir = checkDir(ctx, issue);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(`${ctx.cfg.home}/work`, { recursive: true });
   await ctx.repo.prepareWorkClone(BRANCH(issue), base, dir);
-  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) });
+  return runChecks(ctx, { stage, issue }, dir, script, agentLog(ctx, issue, 'checks'), { BUILD_SCOPE: build, ...feedbackEnv(ctx.cfg) }, pin);
 }
 
 const PROGRESS_MS = 5 * 60_000;
 
-export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | null }, dir: string, script: string, log: string, env: Record<string, string>): Promise<string | null> {
+export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | null }, dir: string, script: string, log: string, env: Record<string, string>, pin?: Pin): Promise<CheckOutcome> {
   const started = Date.now();
   const from = existsSync(log) ? statSync(log).size : 0;
   const progress = setInterval(() => ctx.log(at.stage, at.issue, checksProgress(log, started)), PROGRESS_MS);
   try {
-    await ctx.container.shell(dir, script, log, env, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes);
+    await ctx.container.shell('checks', dir, script, log, { ...env, ...suiteEnv(ctx.cfg) }, testCacheMount(ctx), ctx.cfg.checksTimeoutMinutes, pin);
     return null;
   } catch (error) {
     return checkFailure(log, error, from);
@@ -160,35 +180,37 @@ export async function runChecks(ctx: Ctx, at: { stage: Stage; issue: number | nu
 export function checksProgress(log: string, started: number): string {
   const minutes = Math.round((Date.now() - started) / 60_000);
   if (!existsSync(log)) return `the checks still run after ${minutes} min, with no log yet`;
-  const step = readFileSync(log, 'utf8').match(/^\[checks\] .*$/gm)?.at(-1) ?? 'no step yet';
-  return `the checks still run after ${minutes} min, log ${Math.round(statSync(log).size / 1024)} KB, last step: ${step}`;
+  return `the checks still run after ${minutes} min, log ${Math.round(statSync(log).size / 1024)} KB`;
 }
 
-const TIMEOUT_LINE = new RegExp(`(Test|Hook) timed out in \\d+ms|Timeout calling "onTaskUpdate"|${CHECKS_TIMEOUT_MARK} [\\d.]+ minute limit`);
+const TIMEOUT_LINE = /(Test|Hook) timed out in \d+ms|Timeout calling "onTaskUpdate"/;
 
-export function timeoutOnly(failure: string): boolean {
-  const errors = failure.split('\n').filter((line) => /Error:|timed out in/.test(line));
-  return errors.length > 0 && errors.every((line) => TIMEOUT_LINE.test(line));
+export type CheckOutcome = { failure: string; timedOut: boolean } | null;
+
+export function timeoutOnly(outcome: NonNullable<CheckOutcome>): boolean {
+  const errors = outcome.failure.split('\n').filter((line) => /Error:|timed out in/.test(line));
+  return (outcome.timedOut || errors.length > 0) && errors.every((line) => TIMEOUT_LINE.test(line));
 }
 
 export const CHECK_RUNS = 3;
 
-export async function checkUntilReal(check: () => Promise<string | null>, onTimeout: (run: number) => void): Promise<string | null> {
+export async function checkUntilReal(check: () => Promise<CheckOutcome>, onTimeout: (run: number) => void): Promise<string | null> {
   for (let run = 1; ; run++) {
-    const failure = await check();
-    if (failure === null || !timeoutOnly(failure)) return failure;
-    if (run === CHECK_RUNS) throw new Error(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason.\n${failure}`);
+    const outcome = await check();
+    if (outcome === null) return null;
+    if (!timeoutOnly(outcome)) return outcome.failure;
+    if (run === CHECK_RUNS) throw new Error(`The factory checks timed out ${CHECK_RUNS} times, under load or in a hung step. No test failed for another reason.\n${outcome.failure}`);
     onTimeout(run);
   }
 }
 
 const FAILURE_TAIL_LINES = 150;
 
-function checkFailure(log: string, error: unknown, from: number): string {
+function checkFailure(log: string, error: unknown, from: number): NonNullable<CheckOutcome> {
   const message = error instanceof Error ? error.message : String(error);
   const written = existsSync(log) ? readFileSync(log).subarray(from).toString('utf8') : '';
   const tail = written.trim() === '' ? message : written.split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
-  return stripAnsi(tail);
+  return { failure: stripAnsi(tail), timedOut: error instanceof CheckTimeoutError };
 }
 
 export const POST_MARK = 'Ready for approval:';
@@ -203,6 +225,7 @@ export async function post(ctx: Ctx, issue: number, approval: Approval, shown: S
   const pr = await pullRequestUrl(ctx, issue, item.title, approval, base);
   const notice = `${problem === null ? '' : `⚠️ ${problem}\n\n`}${unchecked ? `${UNCHECKED_NOTICE}\n\n` : ''}`;
   await ctx.github.comment(issue, `${POST_MARK} ${url}\n\n${notice}${approval.description}\n\nHow to try: ${approval.howToTry}`);
+  clearFeedback(ctx.statePath, issue);
   const caption = approvalCaption(`#${issue} ${item.title}`, url, link, pr, approval, base, evidence === null, unchecked);
   const track = {
     add: (id: number) => updateState(ctx.statePath, (state) => ({ ...state, approvalPosts: { ...state.approvalPosts, [id]: issue }, postCaptions: { ...state.postCaptions, [id]: caption }, textPosts: evidence === null ? [...state.textPosts, String(id)] : state.textPosts })),

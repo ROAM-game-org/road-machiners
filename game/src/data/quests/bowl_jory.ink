@@ -36,7 +36,7 @@ Jory Baptiste. I speak for the tenants, which is to say I talk and the <term=sen
   ~ note("talkGranaryGate")
   -> hub
 + {jory_green} [Why do the top terraces stay green?]
-  Because, if the word's right, the household's own tanker fills up at the Pump Station every week and drives straight up to the top gardens. Its loads go in nobody's book. If you say so in the market, they'll ask for the book, so I say it only here.
+  Because, if the word's right, the household's own tanker fills up at Dustwell every week and drives straight up to the top gardens. Its loads go in nobody's book. If you say so in the market, they'll ask for the book, so I say it only here.
   Have I seen the tanker unload? No. I've seen the kitchen gardens up there, and they're very green for a dry year. Either the tanker exists or those cabbages are saints.
   ~ note("talkSeepPipe")
   -> hub

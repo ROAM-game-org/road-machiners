@@ -12,6 +12,8 @@ import { haulerOf, playerVehicle } from './damage';
 import { abandonRun, advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, furyRoadReadout, moveWindow, onOutpostPad, outpostPad, planStretch, reachedOutpostAt, runEarnings, spawnGroup, waitForRoad, waveOf, WINDOW_MOVE } from './fury-road';
 import { cardsOf, directStretch, expectedGear, payOf, planWaves, stretchBudget, type PlannedWave } from './fury-road-director';
 import { acrossOf, alongOf, highwayHash, highwayMap, milestoneAt, roadPoint, stretchLength, toRoad, windowShift } from './highway';
+import { sightRadius } from './vision';
+import { dist } from './vec';
 import { topGoal } from './npc-activities';
 import { planNpcOrders } from './ai';
 import { optionWeights, tradeOffers } from './npc-decisions';
@@ -225,6 +227,74 @@ describe('the sides a group comes from', () => {
         if (from === 'right') expect(at.across).toBeGreaterThanOrEqual(18);
       }
     }
+  });
+});
+
+describe('spawning out of the gun truck sight', () => {
+  function placeGunTruck(w: World, n: number, across: number): void {
+    const me = playerVehicle(w);
+    me.pos = roadPoint(w.seed, runOf(w).window, n, across);
+    me.speed = 0;
+  }
+
+  function reach(w: World): number {
+    return sightRadius(w, playerVehicle(w), true) + FURY_ROAD.sightMargin;
+  }
+
+  const CASES = [
+    { from: 'ahead', lead: 8, across: HIGHWAY.road.lanes[2] },
+    { from: 'left', lead: 0, across: -15 },
+    { from: 'right', lead: 0, across: 15 },
+  ] as const;
+
+  it.each(CASES)('puts a group from $from beyond the sight of a gun truck', ({ from, lead, across }) => {
+    for (const rank of [0, 5]) {
+      const w = furyRoadWorld();
+      w.player.ranks.perception = rank;
+      const at = milestoneAt(w.seed, 0) + 120;
+      moveTo(w, at);
+      placeGunTruck(w, at + lead, across);
+      const first = group(w);
+      first.from = from;
+      first.templates = ['buggy', 'trader', 'merc'];
+
+      spawnGroup(w, runOf(w), first, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));
+
+      expect(first.vehicles).toHaveLength(3);
+      for (const v of trucksOf(w, first)) expect(dist(v.pos, playerVehicle(w).pos)).toBeGreaterThan(reach(w));
+    }
+  });
+
+  it('waits with no failure clock while every spot is in sight, then spawns when one is not', () => {
+    const w = furyRoadWorld();
+    const first = group(w);
+    first.from = 'ahead';
+    moveTo(w, first.at + 1);
+    placeGunTruck(w, first.at + 1 + FURY_ROAD.sides.ahead, HIGHWAY.road.lanes[1]);
+    for (let i = 0; i < FURY_ROAD.spawnRetryTurns + 5; i++) {
+      advanceFuryRoad(w);
+      w.turn += 1;
+    }
+    expect(first.spawned).toBe(false);
+    expect(first.retryUntil).toBeNull();
+
+    placeGunTruck(w, first.at + 1, HIGHWAY.road.lanes[2]);
+    advanceFuryRoad(w);
+
+    expect(first.spawned).toBe(true);
+  });
+
+  it('clears a running failure clock once the only blocker is sight', () => {
+    const w = furyRoadWorld();
+    const first = group(w);
+    first.from = 'ahead';
+    moveTo(w, first.at + 1);
+    placeGunTruck(w, first.at + 1 + FURY_ROAD.sides.ahead, HIGHWAY.road.lanes[1]);
+    first.retryUntil = w.turn + FURY_ROAD.spawnRetryTurns;
+    advanceFuryRoad(w);
+
+    expect(first.spawned).toBe(false);
+    expect(first.retryUntil).toBeNull();
   });
 });
 
@@ -658,6 +728,24 @@ describe('a Fury Road group truck between fights', () => {
 
     expect(tradeOffers(w, npc)).toEqual([]);
     expect(() => optionWeights(w, npc, 'idle', null, null)).not.toThrow();
+  });
+
+  it('keeps driving at a moving player through a halt whim, which only parks a roaming truck', () => {
+    const w = furyRoadWorld();
+    const group = spawnFirst(w);
+    const npc = w.vehicles.find((v) => v.id === group.vehicles[0])!;
+    const me = playerVehicle(w);
+    const at = roadSpot(w, me);
+    npc.pos = roadPoint(w.seed, runOf(w).window, at.along + 8, at.across);
+    me.speed = 4;
+    haulerOf(w).speed = 4;
+    planNpcOrders(w);
+    npc.brain!.whim = { kind: 'halt', until: w.turn + 99, angle: 0 };
+
+    planNpcOrders(w);
+
+    expect(topGoal(npc)?.kind).toBe('fight');
+    expect(npc.order?.kind).not.toBe('brake');
   });
 });
 

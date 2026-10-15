@@ -1,4 +1,4 @@
-// Public inputs: voting, build feedback and game reports. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
+// Public inputs: voting, build feedback, game reports and chat messages. Black: normal path. Red: loops back. Grey: leaves the flow. Yellow: waits for people.
 digraph public {
   rankdir=LR; nodesep=0.3; ranksep=0.55; bgcolor=white; pad=0.3; newrank=true;
   node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#6366f1", fontname="Helvetica", fontsize=13, margin="0.2,0.1", penwidth=1.3, width=1.5];
@@ -8,8 +8,8 @@ digraph public {
     label="1. Voting"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     triage [label="Triage\nverdict vote\nlabel voting"];
     proposal [label="Proposal post\nin the player chat\nat most 4 a day"];
-    votes [label="Players react 👍", fillcolor="#fde68a", color="#b45309"];
-    design [label="Design\nat 10 votes"];
+    votes [label="Players react 👍 or 👎", fillcolor="#fde68a", color="#b45309"];
+    design [label="Design\nat 3 more 👍 than 👎"];
     triage -> proposal -> votes -> design;
   }
 
@@ -26,24 +26,40 @@ digraph public {
   subgraph cluster_report {
     label="3. Game reports"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
     form [label="Player sends a bug\nor an idea in the game", fillcolor="#fde68a", color="#b45309"];
-    feedback [label="/feedback\nchecks origin, size\nand 5 an hour per address"];
+    feedback [label="/feedback\nchecks origin, size\nand 20 an hour per address"];
     form -> feedback;
   }
 
-  filter [label="Decisions API filter\nspam, kind, route"];
+  subgraph cluster_chat {
+    label="4. Chat messages"; fontname="Helvetica-Bold"; fontsize=14; color="#d1d5db"; style=rounded;
+    message [label="Player writes in the chat\n@mention, reply to the bot\nor a plain message\nkeeps the replied text", fillcolor="#fde68a", color="#b45309"];
+    plugin [label="Plugin\nstops it before Hermes"];
+    message -> plugin;
+  }
+
+  filter [label="Decisions API filter\nspam, kind, language,\nabout its thread, route,\nabout known work\n20 chat messages an hour per player"];
+  linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
-  newIssue [label="New issue\nlabel player-report"];
+  newIssue [label="Own issue\nbug or feature-request\nand player-report"];
+  answer [label="Reply in the thread\nin English or Russian\nissue link and status,\nor a quoted wiki passage\nnever a canned fallback"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
   rejected [label="Dropped as spam", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
+  ignored [label="Ignored\nbots, forwards, commands", fillcolor="#f3f4f6", color="#6b7280", fontcolor="#374151"];
 
   design -> testing [weight=0];
   comment -> filter;
   feedback -> filter;
-  filter -> digest [label="comment, or report\nfrom a card's build\nor the candidate"];
-  filter -> newIssue [label="any other\nreport"];
+  plugin -> filter;
+  filter -> digest [label="about its thread, or report\nfrom a card's build\nor the candidate"];
+  filter -> linked [label="off its thread or with none,\nabout known work"];
+  linked -> digest;
+  filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
+  filter -> answer [label="question"];
   newIssue -> intake;
+  digest -> answer;
+  newIssue -> answer;
 
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   filter -> patch [label="patch"];
@@ -51,4 +67,5 @@ digraph public {
 
   edge [color="#6b7280", fontcolor="#6b7280", style=dashed, penwidth=1.3];
   filter -> rejected [label="spam"];
+  plugin -> ignored;
 }

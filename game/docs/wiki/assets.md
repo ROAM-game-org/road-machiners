@@ -1,6 +1,6 @@
 # Assets
 
-Models and sound cues. The map from chassis and part ids to models is `src/render/partLooks.ts`, and the cue list is `src/data/sounds.ts`. Adding a model is described in [Art pipeline](../art.md), and sound in `docs/sound.md`.
+Models and sound cues. The map from chassis and part ids to models is `src/render/partLooks.ts`, and the cue list is `src/data/sounds.ts`. Adding a model is described in [Art pipeline](../art/models.md), and sound in [Sound](../sound.md).
 
 ## Models
 
@@ -84,6 +84,7 @@ Each chassis has one base model. Parts and goods have their own. A part with no 
 | good | parts | good_parts |
 | good | fuelDrums | good_fuel_drums |
 | good | water | good_water |
+| good | parcel | parcel |
 <!-- /wiki:models -->
 
 ## Weapon pools

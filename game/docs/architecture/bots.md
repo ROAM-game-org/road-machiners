@@ -21,6 +21,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - `hunter` seeks fights. It starts from the snowball kit unless `--kit` names another.
 - `climber` plays the trader until it mounts three guns, then plays a hunter.
 - `markov` plays a random one of trader, scavenger, hunter and fastTrader, and holds each choice for `--markov-turns` turns.
+- `searcher` takes a search job whenever a board it reads offers one, and otherwise drives from board to board. It asks drivers in sight where they last saw the target, drives to a fresh lead and waits there, tours the shops outward from a stale lead, calls the target when it sees it, waits for the pull-over, hands the parcel over and claims the pay. `npm run progression:report` adds a search effort section for it.
 - `robber` and `convoyRobber` belong to the income harness, not to the recorder. They demand cargo from traders, and `convoyRobber` also takes on convoys.
 
 ## Hunter

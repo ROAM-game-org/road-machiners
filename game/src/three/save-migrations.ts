@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -869,26 +873,42 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
-  withRunWait_62_63,
-  withPlannedGroups_63_64,
+  withEscortJobs_62_63,
+  withRescueContracts_63_64,
+  withEncounters_64_65,
+  withProgressAnchor_65_66,
+  (world) => world,
+  withSearches_67_68,
+  withParcelSearches_68_69,
+  withRunWait_69_70,
+  withPlannedGroups_70_71,
 ];
 
-const GROUP_MONEY_63_64 = 20000;
+const GROUP_MONEY_70_71 = 20000;
 
-function withPlannedGroups_63_64(world: SavedJson): SavedJson {
+function withPlannedGroups_70_71(world: SavedJson): SavedJson {
   const run = world.furyRoad as SavedJson | null;
   if (run === null) return world;
   const { quietFrom: _quietFrom, ...rest } = run;
-  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, at: 0, money: GROUP_MONEY_63_64, elite: false }));
+  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, at: 0, money: GROUP_MONEY_70_71, elite: false }));
   return { ...world, furyRoad: { ...rest, groups } };
 }
 
-function withRunWait_62_63(world: SavedJson): SavedJson {
+function withRunWait_69_70(world: SavedJson): SavedJson {
   const run = world.furyRoad as SavedJson | null;
   if (run === null) return world;
   const next = (run.window as number) + 1;
   const arrived = (run.outposts as SavedJson[]).some((post) => post.milestone === next && post.paid === true);
   return { ...world, furyRoad: { ...run, waitingAt: arrived ? next : null } };
+}
+
+function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
 }
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -909,6 +929,33 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withSearches_67_68(world: SavedJson): SavedJson {
+  return world;
+}
+const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+  return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
+}
+function withParcelSearches_68_69(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      call: call?.topic === 'found' ? null : call,
+    },
+  };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -1001,6 +1048,12 @@ const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[]
 
 function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
+}
+
+function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

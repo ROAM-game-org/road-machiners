@@ -1,44 +1,57 @@
 import { randomUUID } from 'node:crypto';
-import { appendFileSync, mkdirSync, renameSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { GUARD_ROUND } from './agent-check';
-import { must } from './exec';
+import { must, withActivity } from './exec';
 import { requireCodexLogin } from './health';
 import { MEDIA_MOUNT } from './media';
 import { jobLabel } from './jobs';
-import { closeRun, closeRunFromTranscript, openRun, recordPeak, runProjectsDir, usageFromOutput } from './ledger';
+import { closePart, closeRun, closeRunFromTranscript, findResult, openPart, openRun, parseLine, recordPeak, runProjectsDir, usageFromOutput, type PartKind } from './ledger';
 import { withLock } from './lock';
 import { pauseForUsageLimit, UsageLimitError } from './pause';
 import { AGENT_NETWORK, GAME_DIR, PROXY_NAME, PROXY_PORT, type AgentSession, type Container, type FactoryConfig, type Run, type RunResult } from './types';
 
-export const CHECKS_TIMEOUT_MARK = 'the checks ran past their';
+export class CheckTimeoutError extends Error {}
 const CLIENT_GRACE_MINUTES = 2;
 const REMOVE_TIMEOUT_MS = 60_000;
 
 export const FACTORY_LABEL = 'factory=1';
 
-function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number | null, gpu: boolean): string[] {
+function baseArgs(jobId: string | null, cpus: string | null, testWorkers: number | null, gpu: boolean, peakDir: string): string[] {
   const label = jobId === null ? [] : ['--label', jobLabel(jobId)];
   const pin = cpus === null ? [] : ['--cpuset-cpus', cpus];
   const workers = testWorkers === null ? [] : ['-e', `TEST_WORKERS=${testWorkers}`];
   const card = gpu ? ['--gpus', 'all', '-e', 'NVIDIA_DRIVER_CAPABILITIES=all'] : [];
-  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off'];
+  return ['run', '--rm', '--label', FACTORY_LABEL, ...label, ...pin, ...workers, ...card, '-e', 'TEST_TIMEOUTS=off', '-v', `${peakDir}:${PEAK_MOUNT}`];
 }
 
-const PEAK_MARK = 'FACTORY_MEMORY_PEAK';
-const PEAK_TRAP = `trap 'echo "${PEAK_MARK} $(cat /sys/fs/cgroup/memory.peak)" >&2' EXIT`;
+const PEAK_MOUNT = '/factory-peak';
+const PEAK_FILE = 'bytes';
+const PEAK_TRAP = `trap 'cat /sys/fs/cgroup/memory.peak > ${PEAK_MOUNT}/${PEAK_FILE}' EXIT`;
 const GB = 1024 ** 3;
 
-export function readPeakGb(stderr: string): number | undefined {
-  const bytes = [...stderr.matchAll(new RegExp(`^${PEAK_MARK} (\\d+)$`, 'gm'))].at(-1)?.[1];
-  return bytes === undefined ? undefined : Math.round((Number(bytes) / GB) * 100) / 100;
+export function readPeakGb(dir: string): number | undefined {
+  const file = join(dir, PEAK_FILE);
+  if (!existsSync(file)) return undefined;
+  const bytes = readFileSync(file, 'utf8').trim();
+  if (!/^\d+$/.test(bytes)) throw new Error(`The memory peak file holds "${bytes}", not a byte count`);
+  return Math.round((Number(bytes) / GB) * 100) / 100;
 }
 
-function recordContainerPeak(cfg: FactoryConfig, jobId: string | null, result: RunResult): void {
-  const peak = readPeakGb(result.stderr);
-  if (jobId !== null && peak !== undefined) recordPeak(cfg.home, jobId, peak);
+async function withPeak<T>(cfg: FactoryConfig, jobId: string | null, body: (peakDir: string) => Promise<T>): Promise<T> {
+  mkdirSync(join(cfg.home, 'peaks'), { recursive: true });
+  const dir = mkdtempSync(join(cfg.home, 'peaks', 'run-'));
+  chmodSync(dir, 0o777);
+  try {
+    const result = await body(dir);
+    const peak = readPeakGb(dir);
+    if (jobId !== null && peak !== undefined) recordPeak(cfg.home, jobId, peak);
+    return result;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 const PROXY_URL = `http://${PROXY_NAME}:${PROXY_PORT}`;
 const NO_PROXY = 'localhost,127.0.0.1';
@@ -76,7 +89,8 @@ export function ensureProxy(run: Run, cfg: FactoryConfig): Promise<void> {
   return withLock(join(cfg.home, 'locks', 'proxy'), PROXY_LOCK_MS, () => setUpProxy(run, cfg));
 }
 
-async function setUpProxy(run: Run, cfg: FactoryConfig): Promise<void> {
+async function setUpProxy(observedRun: Run, cfg: FactoryConfig): Promise<void> {
+  const run = withActivity(observedRun, 'command');
   const docker = async (what: string, args: string[]) => must(await run('docker', args), what);
   if ((await run('docker', ['network', 'inspect', AGENT_NETWORK])).code !== 0) {
     await docker(`create network ${AGENT_NETWORK}`, ['network', 'create', '--internal', AGENT_NETWORK]);
@@ -149,15 +163,14 @@ function disallowedArgs(tools: string[] | undefined): string[] {
 
 function recordUsage(cfg: FactoryConfig, jobId: string | null, result: RunResult, model: string, session: AgentSession | undefined): void {
   if (jobId === null) return;
-  if (result.code === 0 || result.stdout.includes('"type":"result"')) return closeRun(cfg.home, jobId, usageFromOutput(result.stdout, model, session?.resume ?? false));
+  if (result.code === 0 || findResult(result.stdout) !== undefined) return closeRun(cfg.home, jobId, usageFromOutput(result.stdout, model, session?.resume ?? false));
   closeRunFromTranscript(cfg.home, jobId, cfg.tokenPrices, new Date());
 }
 
 export function usageLimitMessage(stdout: string): string | null {
   for (const line of stdout.split('\n')) {
-    if (!line.includes('"api_error_status":429')) continue;
-    const event = JSON.parse(line) as { type?: string; result?: unknown };
-    if (event.type !== 'result') continue;
+    const event = parseLine(line);
+    if (event?.type !== 'result' || event.api_error_status !== 429) continue;
     if (typeof event.result !== 'string') throw new Error(`A usage-limit result has no message: ${line.slice(0, 200)}`);
     return event.result;
   }
@@ -167,6 +180,16 @@ export function usageLimitMessage(stdout: string): string | null {
 function openRecordedRun(cfg: FactoryConfig, jobId: string | null, model: string, session: AgentSession | undefined): void {
   if (jobId === null || session === undefined) return;
   openRun(cfg.home, jobId, { model, projects: session.dir, sessionId: session.id, resumed: session.resume, startedAt: new Date().toISOString() });
+}
+
+async function asPart<T>(cfg: FactoryConfig, jobId: string | null, kind: PartKind, work: () => Promise<T>): Promise<T> {
+  if (jobId === null) return work();
+  const part = openPart(cfg.home, jobId, kind, new Date());
+  try {
+    return await work();
+  } finally {
+    closePart(cfg.home, jobId, part, new Date());
+  }
 }
 
 function recordedSession(cfg: FactoryConfig, jobId: string | null, session: AgentSession | undefined): AgentSession | undefined {
@@ -188,40 +211,41 @@ export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | nu
         CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes),
       };
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
-      const args = [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codexMount(cfg.home), ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+      const argsFor = (peakDir: string) => [
+        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codexMount(cfg.home), ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');
       openRecordedRun(cfg, jobId, model, session);
-      const result = await run('docker', args, { env, input, logPath: log });
-      recordUsage(cfg, jobId, result, model, session);
-      recordContainerPeak(cfg, jobId, result);
+      const result = await asPart(cfg, jobId, 'agent', () => withPeak(cfg, jobId, async (peakDir) => {
+        const ran = await run('docker', argsFor(peakDir), { activity: 'model', env, input, logPath: log });
+        recordUsage(cfg, jobId, ran, model, session);
+        return ran;
+      }));
       const limit = usageLimitMessage(result.stdout);
       if (limit !== null) {
-        pauseForUsageLimit(cfg.home, limit);
+        pauseForUsageLimit(cfg.home, limit, new Date());
         throw new UsageLimitError(`agent in ${clone} hit the usage limit: ${limit}`);
       }
       return must(result, `agent in ${clone}`);
     },
-    async shell(clone, script, log, env = {}, mounts = {}, limitMinutes) {
+    async shell(kind, clone, script, log, env = {}, mounts = {}, limitMinutes, pin = { cpus, testWorkers }) {
       await ensureProxy(run, cfg);
       const extraMounts = Object.entries(mounts).flatMap(([host, path]) => ['-v', `${host}:${path}`]);
-      const args = (named: string[]) => [...baseArgs(jobId, cpus, testWorkers, cfg.gpu), ...named, ...mountArgs(cfg, clone, GAME_DIR), ...extraMounts, ...networkArgs(false), ...envArgs(env), cfg.image, 'bash', '-lc', `${PEAK_TRAP}\n${script}`];
-      const result = await runLimited(run, log, limitMinutes, args);
-      recordContainerPeak(cfg, jobId, result);
+      const args = (peakDir: string) => (named: string[]) => [...baseArgs(jobId, pin.cpus, pin.testWorkers, cfg.gpu, peakDir), ...named, ...mountArgs(cfg, clone, GAME_DIR), ...extraMounts, ...networkArgs(false), ...envArgs(env), cfg.image, 'bash', '-lc', `${PEAK_TRAP}\n${script}`];
+      const result = await asPart(cfg, jobId, kind, () => withPeak(cfg, jobId, (peakDir) => runLimited(run, log, limitMinutes, args(peakDir))));
       must(result, `shell in ${clone}`);
     },
   };
 }
 
 async function runLimited(run: Run, log: string, limitMinutes: number | undefined, args: (named: string[]) => string[]): Promise<RunResult> {
-  if (limitMinutes === undefined) return run('docker', args([]), { logPath: log });
+  if (limitMinutes === undefined) return run('docker', args([]), { activity: 'starting', logPath: log });
   const name = `factory-checks-${randomUUID()}`;
   const limit = removeAfter(run, name, limitMinutes);
   let result: RunResult;
   try {
-    result = await run('docker', args(['--name', name]), { logPath: log, timeoutMs: (limitMinutes + CLIENT_GRACE_MINUTES) * 60_000 });
+    result = await run('docker', args(['--name', name]), { activity: 'starting', logPath: log, timeoutMs: (limitMinutes + CLIENT_GRACE_MINUTES) * 60_000 });
   } finally {
     limit.cancel();
   }
@@ -232,13 +256,13 @@ async function runLimited(run: Run, log: string, limitMinutes: number | undefine
 
 function removeAfter(run: Run, name: string, minutes: number): { cancel: () => void; removal: () => Promise<RunResult | null> } {
   let removal: Promise<RunResult> | null = null;
-  const timer = setTimeout(() => { removal = run('docker', ['rm', '-f', name], { timeoutMs: REMOVE_TIMEOUT_MS }); }, minutes * 60_000);
+  const timer = setTimeout(() => { removal = run('docker', ['rm', '-f', name], { activity: 'command', timeoutMs: REMOVE_TIMEOUT_MS }); }, minutes * 60_000);
   return { cancel: () => clearTimeout(timer), removal: async () => removal };
 }
 
-function checksTimedOut(log: string, minutes: number, removal: RunResult): Error {
+function checksTimedOut(log: string, minutes: number, removal: RunResult): CheckTimeoutError {
   const cleanup = removal.code === 0 ? 'the factory removed their container' : `removing their container failed: ${removal.stderr.trim().slice(-300)}`;
-  const message = `CheckTimeoutError: ${CHECKS_TIMEOUT_MARK} ${minutes} minute limit, and ${cleanup}.`;
+  const message = `the checks ran past their ${minutes} minute limit, and ${cleanup}.`;
   appendFileSync(log, `\n${message}\n`);
-  return new Error(message);
+  return new CheckTimeoutError(message);
 }

@@ -7,6 +7,7 @@ import { conditionLabel, TruckConditionReadout } from "./hud-readout";
 import { tintedIcon, truckOutline } from "./plans";
 import { PLAN_PAD } from "../render/partLooks";
 import { token } from "./tokens";
+import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
@@ -77,10 +78,7 @@ export class TruckConditionView {
     const part = this.tiles.find((p) => p.id === this.hoverId);
     this.tip.style.display = part ? "" : "none";
     if (!part) return;
-    this.tip.replaceChildren(
-      el("span", {}, part.name),
-      el("span", { class: part.percent === 0 ? "num bad" : "num" }, part.percent === 0 ? t("cond.broken") : t("setting.percent", { n: part.percent })),
-    );
+    this.tip.replaceChildren(...tipRows(part));
     this.tip.style.left = `${part.x * CELL}px`;
     this.tip.style.top = `${part.y === 0 ? (part.y + part.h) * CELL + 2 : part.y * CELL - 22}px`;
   }
@@ -96,6 +94,7 @@ export class TruckConditionView {
     node.classList.toggle("broken", part.broken);
     markAim(node, part.id, aim);
     bindAttr(node, "aria-label", conditionLabel(part));
+    registerTipSource(node, () => el("div", { class: "tooltip-row" }, ...tipRows(this.tiles.find((p) => p.id === part.id) ?? part)));
     node.onmouseenter = () => {
       this.hoverId = part.id;
       this.showTip();
@@ -119,6 +118,13 @@ export class TruckConditionView {
       { duration: 300, iterations: 2 },
     );
   }
+}
+
+function tipRows(part: ConditionPart): HTMLElement[] {
+  return [
+    el("span", {}, part.name),
+    el("span", { class: part.percent === 0 ? "num bad" : "num" }, part.percent === 0 ? t("cond.broken") : t("setting.percent", { n: part.percent })),
+  ];
 }
 
 function boxStyle(x: number, y: number, w: number, h: number): string {

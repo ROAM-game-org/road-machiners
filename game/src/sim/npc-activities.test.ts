@@ -351,6 +351,7 @@ describe('NPC activities', () => {
     npc.brain!.templateId = 'trader';
     npc.brain!.traits = ['trader'];
     forceOption('idle', 'trade');
+    forceOption('escortWanted', 'go');
     planNpcOrders(w);
     const source = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)?.targetId)!;
     npc.pos = { ...sitePads(source)[0] };
@@ -1754,10 +1755,33 @@ describe('stall watchdog', () => {
     expect(npc.pos).toEqual(start);
   });
 
-  it('counts a new tile or a job turn as progress', () => {
+  it('raises a stall for a truck that swings back and forth inside the progress reach', () => {
+    const { w, npc } = frozen();
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall' && e.vehicle === npc.id)).toBe(true);
+  });
+
+  it('keeps the truck where it is when the player sees the swing', () => {
+    const { w, npc } = frozen();
+    w.vehicles[0].pos = { x: npc.pos.x + 5, y: npc.pos.y };
+    refreshVision(w);
+    const start = { ...npc.pos };
+    for (let i = 0; i <= NPC_BEHAVIOR.stallTurns + 1; i++) {
+      npc.pos = { x: start.x + (i % 2 === 0 ? 0 : 2.5), y: start.y };
+      run(w, 1);
+    }
+    expect(w.events.some((e) => e.t === 'stall')).toBe(true);
+    expect([0, 2.5]).toContain(npc.pos.x - start.x);
+  });
+
+  it('counts a truck that drives on past the progress reach, or a job turn, as progress', () => {
     const { w, npc } = frozen();
     for (let i = 0; i <= NPC_BEHAVIOR.stallTurns * 2; i++) {
-      npc.pos = { x: npc.pos.x + (i % 2 === 0 ? 1 : -1), y: npc.pos.y };
+      npc.pos = { x: npc.pos.x + 1, y: npc.pos.y };
       run(w, 1);
     }
     npc.job = { kind: 'weld', turnsLeft: 1000, total: 1000 };

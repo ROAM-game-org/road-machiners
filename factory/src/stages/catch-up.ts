@@ -1,5 +1,3 @@
-// While a merge job runs, a waiting Merging card takes the newest base into its issue branch, so its own merge batch meets fewer conflicts.
-// A conflict goes to an agent through mergeResolving, which guards the resolution and pushes only the issue branch. docs/process.md has the rules.
 import { readState, updateState } from '../state';
 import { BRANCH, type Ctx } from '../types';
 import { baseBranchFor } from './common';
@@ -19,7 +17,7 @@ export async function catchUp(ctx: Ctx, issue: number): Promise<void> {
 
 async function mergeBase(ctx: Ctx, issue: number, base: string): Promise<void> {
   try {
-    await mergeResolving(ctx, 'catch-up', [{ branch: base, into: BRANCH(issue), message: `Merge ${base} into ${BRANCH(issue)} while it waits in Merging` }]);
+    await mergeResolving(ctx, 'catch-up', [{ branch: base, into: BRANCH(issue), message: `Merge ${base} into ${BRANCH(issue)} while it waits in Merging`, issue: null }]);
   } catch (error) {
     throw new Error(`The catch-up of #${issue} with ${base} failed, and its merge job merges it as before: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }

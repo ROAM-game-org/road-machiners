@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters, kg } from "./units";
 import { CRATE_MASS } from "../data/goods";
@@ -136,6 +136,63 @@ describe("contract text", () => {
   it("logs a met bounty with its reward and where to claim it", () => {
     const line = eventText(emptyWorld(), { t: "contract", contract: { ...bounty, fulfilled: true }, outcome: "fulfilled" })!;
     expect([en(line.text), line.cls]).toEqual(["Bounty met: Raider outrider beaten, claim 1 M at Bowl", "good"]);
+  });
+
+  describe("search", () => {
+    const search: Contract = {
+      id: "c3", shop: "bowl", kind: "search", target: "v1", driver: "Jed Cobb", template: "trader",
+      lead: { at: { x: 1, y: 1 }, turn: 0 }, reward: 9200, deadline: 100, window: 100, tier: 1, delivered: false,
+    };
+
+    it("names who gets the parcel and where to claim", () => {
+      expect(en(contractSummary(search))).toBe("Bring a parcel to Trader Jed Cobb, claim at Bowl");
+    });
+
+    it("reads a delivered search as ready to claim", () => {
+      const met: Contract = { ...search, delivered: true };
+      expect(en(contractSummary(met))).toBe("Parcel delivered to Trader Jed Cobb, claim at Bowl");
+      expect(en(heldContractDue(met))).toBe("Ready");
+      expect(en(heldContractDue(search))).toBe(en(contractDue(search)));
+    });
+
+    it("logs the handover with its reward and where to claim it", () => {
+      const line = eventText(emptyWorld(), { t: "contract", contract: { ...search, delivered: true }, outcome: "fulfilled" })!;
+      expect([en(line.text), line.cls]).toEqual(["Handed the parcel to Trader Jed Cobb. Claim 92 M's at Bowl.", "good"]);
+    });
+
+    it("says the parcel is void when the search fails or lapses", () => {
+      const failed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "failed" })!;
+      const lapsed = eventText(emptyWorld(), { t: "contract", contract: search, outcome: "lapsed" })!;
+      expect(en(failed.text)).toBe("Contract failed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
+      expect(en(lapsed.text)).toBe("Contract lapsed: Bring a parcel to Trader Jed Cobb, claim at Bowl. The parcel is void.");
+    });
+  });
+
+  describe("a rescue", () => {
+    const rescue: Extract<Contract, { kind: "rescue" }> = { id: "c9", shop: "bowl", kind: "rescue", client: "v5", driver: "Jed Cobb", need: "fuel", area: { x: 0, y: 0 }, reward: 100, deadline: 100, window: 100, tier: 1, fulfilled: false };
+
+    it("names the driver, and reads as ready to claim once met", () => {
+      expect(en(contractSummary(rescue))).toBe("Rescue Jed Cobb");
+      expect(en(contractSummary({ ...rescue, fulfilled: true }))).toBe("Jed Cobb is moving, claim at Bowl");
+      expect(en(heldContractDue({ ...rescue, fulfilled: true }))).toBe("Ready");
+      expect(en(heldContractDue(rescue))).toBe(en(contractDue(rescue)));
+    });
+
+    it("says how far and which way from the shop the driver waits", () => {
+      const bowl = REGION.towns.find((t) => t.id === "bowl")!.pos;
+      const east = { ...rescue, area: { x: bowl.x + 40, y: bowl.y } };
+      expect(en(rescueWhere(east))).toMatch(/^\d+ m east of Bowl$|^[\d.]+ km east of Bowl$/);
+      expect(en(rescueWhere({ ...east, area: { x: bowl.x, y: bowl.y - 40 } }))).toContain("north of Bowl");
+    });
+
+    it("logs a met rescue with the driver and a lapsed one without a price", () => {
+      const met = eventText(emptyWorld(), { t: "contract", contract: { ...rescue, fulfilled: true }, outcome: "fulfilled" })!;
+      expect([en(met.text), met.cls]).toEqual(["Rescue met: Jed Cobb is moving, claim 1 M at Bowl", "good"]);
+      const lapsed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "lapsed" })!;
+      expect([en(lapsed.text), lapsed.cls]).toEqual(["Rescue lapsed: Jed Cobb no longer needs you", "dim"]);
+      const failed = eventText(emptyWorld(), { t: "contract", contract: rescue, outcome: "failed" })!;
+      expect(en(failed.text)).toBe("Contract failed: Rescue Jed Cobb, pays 1 M");
+    });
   });
 
   it("says the hand-in part must still work and be rebuilt at most once", () => {

@@ -1,7 +1,8 @@
 
 import { ECONOMY } from '../data/goods';
 import { NPC_BEHAVIOR, NPC_UPKEEP, SPAWN, type DecisionOptions } from '../data/npcs';
-import { SHOPS } from '../data/market';
+import { ESCORT_JOB, SHOPS } from '../data/market';
+import { postEscortOffer } from './escort-job';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { callLawmen, inCombat, inCombatWith, isHostile, startFeuds, turnPartHits } from './combat';
@@ -21,12 +22,13 @@ import {
 import { chooseNpcRepair, continueNpcRepair, isDamaged, isStrandedForGood, repairsHere, resolveNpcRepair } from './npc-repair';
 import { getResources } from './resources';
 import { standingPressures } from './market';
-import { remember } from './memory';
+import { remember, rememberSightings } from './memory';
 import { chance, hashRandom, randInt, randRange } from './rng';
 import { sampleWeighted } from './npc-loadout';
 import { canLootTruck, canReachSalvage, canTakeAny, CANNOT_HOLD, hasSalvage, lootClaimedBy, lootTruckTurn, searchTarget, STRIPPED, oldSpotOf, oldSpotsNear, oldStockId } from './salvage';
 import { beginSearch } from './search';
 import { onNeedySeen } from './aid';
+import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { answersHoldUp, demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
@@ -41,10 +43,11 @@ import { heatAt } from './sun';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
 import { chooseOn, comesInSight, sensedAt, senseTracks, trackOf } from './tracks';
-import { dropTow, escortsOf, follows, isOnRope, joinLeader, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
+import { dropTow, escortsOf, follows, isOnRope, mercsInSight, npcHomeSite, offerEscort, runTow, steerFollow, steerToStranded, strandedAt, towGoal, towHeldBy, towStop } from './tow';
+import { joinLeader, safeBesidePartner } from './pairs';
 import { isDefeated, isKnockedOut } from './defeat';
 import { payDuty, stampLeg } from './duty';
-import { beginRearm, holdsRearm, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
+import { beginRearm, holdsRearm, lieUpSpot, liesUp, rearmInvalid, resolveRearm, resolveResupply, serveStranded, servingSiteIds } from './npc-service';
 
 export const INTERRUPTIONS: readonly NpcActivity['kind'][] = ['fight', 'flee', 'investigate', 'resupply', 'tow', 'loot', 'repair', 'patch', 'meet', 'retreat', 'rearm', 'follow'];
 
@@ -142,6 +145,8 @@ function createSiteActivity(kind: NpcActivity['kind'], id: string, reason: GoalR
 }
 
 function fleeDestination(world: World, vehicle: Vehicle, profile: NpcProfile, threatPos: Vec): Vec {
+  const partner = safeBesidePartner(world, vehicle, threatPos);
+  if (partner) return partner;
   const safe = [...profile.towns, ...profile.bases].map(getKnownSite).filter((site) => pointsAway(vehicle.pos, site.pos, threatPos));
   safe.sort((a, b) => dist(vehicle.pos, a.pos) - dist(vehicle.pos, b.pos));
   const away = { x: vehicle.pos.x + (vehicle.pos.x - threatPos.x), y: vehicle.pos.y + (vehicle.pos.y - threatPos.y) };
@@ -464,18 +469,19 @@ export function meetGoal(world: World, npc: Vehicle, other: Vehicle, reason: Goa
 const GOAL_CHECKS: Partial<Record<NpcActivity['kind'], GoalCheck>> = {
   fight: fightInvalid,
   rearm: rearmInvalid,
+  wait: (world, vehicle) => (escortsOf(world, vehicle.id).length > 0 ? 'escortHired' : null),
   flee: fleeInvalid,
   investigate: investigateInvalid,
   scavenge: scavengeInvalid,
   loot: lootInvalid,
   tow: towInvalid,
   patch: patchInvalid,
-  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
+  meet: (world, vehicle, goal) => (world.states.some((s) => (s.kind === 'trade' || s.kind === 'handover' || s.kind === 'aid') && s.holder === vehicle.id && s.other === goal.targetId) ? null : 'meetingOff'),
   follow: (world, vehicle, goal) => (follows(world, vehicle, goal.targetId!) ? null : 'leftLeader'),
 };
 
 const EXPOSED: readonly NpcActivity['kind'][] = ['repair', 'patch', 'meet', 'tow', 'loot'];
-const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'aid'];
+const BROKEN_OFF: readonly NpcState['kind'][] = ['patch', 'trade', 'handover', 'aid'];
 const DEAL_GOALS: readonly NpcActivity['kind'][] = ['meet', 'patch'];
 
 function breakOffDeals(world: World, vehicle: Vehicle): void {
@@ -517,7 +523,7 @@ function perceives(world: World, vehicle: Vehicle, decision: string, id: string,
   return PERCEIVES[decision as NoticedDecision](world, vehicle, id, contacts);
 }
 
-export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested';
+export type NoticedDecision = 'preySeen' | 'strandedSeen' | 'salvageSeen' | 'ramChance' | 'escortSeen' | 'strandedFoe' | 'surrenderOffered' | 'needySeen' | 'lootContested' | 'strangerSeen';
 
 type Perception = (world: World, vehicle: Vehicle, id: string, contacts: Contact[]) => boolean;
 
@@ -545,6 +551,7 @@ const PERCEIVES: Record<NoticedDecision, Perception> = {
   surrenderOffered: seesVehicle,
   needySeen: seesVehicle,
   lootContested: seesVehicle,
+  strangerSeen: seesVehicle,
 };
 
 export function react<D extends NoticedDecision>(world: World, vehicle: Vehicle, decision: D, id: string): DecisionOptions[D] | null {
@@ -783,6 +790,17 @@ function onEscortSeen(world: World, vehicle: Vehicle): void {
   if (merc) offerEscort(world, vehicle, merc);
 }
 
+function onEscortWanted(world: World, vehicle: Vehicle, trip: NpcActivity, from: string): void {
+  const to = trip.targetId;
+  if (trip.posted || to === null || to === from || !(from in SHOPS) || !vehicle.brain!.traits.includes('trader')) return;
+  if (inDanger(vehicle) || inCombat(world, vehicle) || escortsOf(world, vehicle.id).length > 0 || keepsWord(world, vehicle, 'escortWanted', null)) return;
+  trip.posted = true;
+  if (decide(world, vehicle, 'escortWanted', `${from}>${to}`, null) !== 'post') return;
+  const spot = lieUpSpot(world, vehicle, getKnownSite(from));
+  postEscortOffer(world, vehicle, from, to);
+  pushGoal(world, vehicle, { kind: 'wait', targetId: null, destination: spot, phase: 'travel', reason: 'awaitEscort', until: world.turn + ESCORT_JOB.postTurns });
+}
+
 function onRamChance(world: World, vehicle: Vehicle): void {
   const brain = vehicle.brain!;
   const target = fightTarget(vehicle);
@@ -865,6 +883,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   const { seen, contacts } = npcSenses(world, vehicle);
   forget(world, vehicle, contacts);
   senseTracks(world, vehicle, seen, contacts);
+  rememberSightings(world, vehicle, seen);
   pruneAttackers(world, vehicle);
   forgetFullHold(world, vehicle);
   breakOffDeals(world, vehicle);
@@ -885,6 +904,7 @@ export function thinkNpc(world: World, vehicle: Vehicle): NpcActivity {
   onHoldUp(world, vehicle);
   onStrandedSeen(world, vehicle);
   onNeedySeen(world, vehicle);
+  onStrangerSeen(world, vehicle);
   onSalvageSeen(world, vehicle);
   onEscortSeen(world, vehicle);
   onRamChance(world, vehicle);
@@ -997,12 +1017,13 @@ export function noteHurt(world: World): void {
 
 export function getActivityDestination(world: World, vehicle: Vehicle, activity: NpcActivity): Vec | null {
   if (!activity.destination) return null;
-  if (activity.kind === 'repair' || activity.kind === 'rearm') return parksHere(vehicle, activity) ? null : activity.destination;
+  if (activity.kind === 'repair' || activity.kind === 'rearm' || activity.kind === 'wait') return parksHere(vehicle, activity) ? null : activity.destination;
   if (['fight', 'flee', 'raid', 'prowl', 'investigate', 'patrol', 'explore', 'follow'].includes(activity.kind)) return activity.destination;
   return siteStop(world, vehicle, activity, activity.destination);
 }
 
 function parksHere(vehicle: Vehicle, activity: NpcActivity): boolean {
+  if (activity.kind === 'wait') return withinReach(vehicle, activity);
   return activity.kind === 'repair' ? repairsHere(vehicle, activity) : liesUp(vehicle);
 }
 
@@ -1123,7 +1144,9 @@ function resolveTrade(world: World, vehicle: Vehicle, activity: NpcActivity): vo
     tradeGoods(world, vehicle, site.id, activity.purchase.good, count, 'buy');
     topUpAtPump(world, vehicle, site.id);
     if (vehicle.brain!.goals[0] !== activity) throw new Error(`${vehicle.id} trades above its long-term goal`);
-    replaceBase(world, vehicle, createSiteActivity('sell', activity.purchase.sellShop, 'deliverCargo'));
+    const trip = createSiteActivity('sell', activity.purchase.sellShop, 'deliverCargo');
+    replaceBase(world, vehicle, trip);
+    onEscortWanted(world, vehicle, trip, site.id);
     return;
   }
   topUpAtPump(world, vehicle, site.id);
@@ -1168,6 +1191,12 @@ function resolveRetreat(world: World, vehicle: Vehicle, activity: NpcActivity): 
   if (site) beginRearm(world, vehicle, site);
 }
 
+function resolveWait(world: World, vehicle: Vehicle, activity: NpcActivity): void {
+  if (activity.until === undefined) throw new Error(`${vehicle.id} waits with no until turn`);
+  if (withinReach(vehicle, activity)) activity.phase = 'act';
+  if (world.turn >= activity.until) finishGoal(world, vehicle, 'tripToSite');
+}
+
 function resolveRepair(world: World, vehicle: Vehicle, activity: NpcActivity): void {
   if (resolveNpcRepair(world, vehicle, activity)) finishGoal(world, vehicle, 'finishedRepairs');
 }
@@ -1177,6 +1206,7 @@ const RESOLVERS: Partial<Record<NpcActivity['kind'], Resolver>> = {
   repair: resolveRepair,
   retreat: resolveRetreat,
   rearm: resolveRearm,
+  wait: resolveWait,
   scavenge: resolveSearch,
   loot: resolveSearch,
   raid: resolveRaid,

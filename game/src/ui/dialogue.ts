@@ -9,17 +9,17 @@ import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
 import { byId, list, t, type Msg } from '../text/msg';
-import { goodLower, lineKey, partName, siteName, unitCount, vehicleTitle } from '../text/names';
+import { fullName, goodLower, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { renderLine } from './quest-text';
-import { fuelLiters, meters, moneyM } from './units';
+import { agoText, fuelLiters, meters, moneyM } from './units';
 
 const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
 const METERS_PER_KM = 1000;
 
-function compass(rad: number): Msg {
+export function compass(rad: number): Msg {
   const step = (2 * Math.PI) / COMPASS.length;
   const i = Math.round(rad / step);
   return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
@@ -57,6 +57,13 @@ export function tipText(v: Extract<CallVar, { kind: 'tip' }>): Msg {
   return v.tip.dear ? t('tip.dear', words) : t('tip.cheap', words);
 }
 
+export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
+  const driver = fullName(v.driver);
+  if (!v.seen) return t('sighting.none', { driver });
+  const { bearing, tiles, turns, heading } = v.seen;
+  return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compass(bearing), heading: compass(heading) });
+}
+
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
   const names = [
     ...Object.entries(v.goods).map(([good, n]) => t('call.haulGood', { n, good: goodLower(good) })),
@@ -80,6 +87,7 @@ const VAR_TEXT: VarText = {
   aid: (v) => aidWords(v.fuel, v.supplies),
   haul: haulText,
   tip: tipText,
+  sighting: sightingText,
   line: (v) => lineText(v.line, {}),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };
@@ -102,9 +110,16 @@ function isTyping(): boolean {
   return document.activeElement?.matches('input, select, textarea') ?? false;
 }
 
-export function canCall(w: World, id: string): boolean {
+export function callError(w: World, id: string): Msg | null {
   const v = w.vehicles.find((x) => x.id === id);
-  return modeRules(w).radio && !!v?.brain && !isKnockedOut(v) && playerCanAct(w) && playerSees(w, v.pos);
+  if (!playerCanAct(w)) return refusalText(w, { id: 'cannotAct' });
+  if (!v?.brain) return refusalText(w, { id: 'noTruck' });
+  if (isKnockedOut(v)) return t('call.knockedOut');
+  return playerSees(w, v.pos) ? null : refusalText(w, { id: 'unseen' });
+}
+
+export function canCall(w: World, id: string): boolean {
+  return modeRules(w).radio && callError(w, id) === null;
 }
 
 export type DialogueHost = {
@@ -205,7 +220,7 @@ export class DialoguePanel {
     if (e.code === 'KeyH' && this.honk()) e.stopImmediatePropagation();
   }
 
-  private honk(): boolean {
+  honk(): boolean {
     if (!playerCanAct(this.host.world()) || !modeRules(this.host.world()).radio) return false;
     this.horn.sound();
     return true;
@@ -225,7 +240,7 @@ export class DialoguePanel {
     this.host.talk(chooseOption(this.host.world(), index));
   }
 
-  private callInspected(): boolean {
+  callInspected(): boolean {
     const id = this.host.inspected();
     if (!id || !canCall(this.host.world(), id)) return false;
     this.host.talk(callVehicle(this.host.world(), id));

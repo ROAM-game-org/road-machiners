@@ -17,6 +17,7 @@ export function removableParts(victim: Vehicle): PartItem[] {
 }
 
 function value(item: GridItem): number {
+  if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
   return item.kind === 'part' ? partSellPrice(item.part) : GOODS[item.good].value;
 }
 
@@ -71,6 +72,7 @@ export function haulVar(items: GridItem[]): Extract<CallVar, { kind: 'haul' }> {
   const goods: Record<string, number> = {};
   const parts: string[] = [];
   for (const item of items) {
+    if (item.kind === 'parcel') throw new Error(`Parcel ${item.id} is nobody's loot`);
     if (item.kind === 'good') goods[item.good] = (goods[item.good] ?? 0) + 1;
     else parts.push(item.part.defId);
   }

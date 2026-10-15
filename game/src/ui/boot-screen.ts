@@ -1,4 +1,5 @@
 
+import { AssetUnreachable } from '../fetch-asset';
 import { bindAttr, setText } from '../text/language';
 import { sameMsg, t, type Msg } from '../text/msg';
 import { BOOT_STEPS, BOOT_TEXT, BootProgress, type BootState, type BootStep } from './boot-progress';
@@ -23,7 +24,13 @@ export class BootScreen {
   private live: Msg | null = null;
   private stageShown: Msg = BOOT_TEXT.code;
 
-  private constructor(private readonly root: HTMLElement) {
+  private unreachable = false;
+  private retryButton: HTMLButtonElement | null = null;
+
+  private constructor(
+    private readonly root: HTMLElement,
+    private readonly retry: () => void,
+  ) {
     this.bar = part(root, '[role=progressbar]');
     this.stage = part(root, '.boot-stage');
     const list = part(root, '.boot-steps');
@@ -53,10 +60,10 @@ export class BootScreen {
     this.render();
   }
 
-  static adopt(): BootScreen {
+  static adopt(retry: () => void): BootScreen {
     const root = document.getElementById('boot');
     if (!root) throw new Error('#boot element missing from the page');
-    return new BootScreen(root);
+    return new BootScreen(root, retry);
   }
 
   async track<T>(step: BootStep, work: Promise<T> | (() => T), label?: Msg): Promise<T> {
@@ -69,6 +76,7 @@ export class BootScreen {
       return result;
     } catch (err) {
       if (!this.progress.failed) this.progress.fail(step);
+      if (err instanceof AssetUnreachable) this.offerRetry();
       this.render();
       throw err;
     }
@@ -117,7 +125,20 @@ export class BootScreen {
     setTimeout(() => this.root.remove(), FADE_MS * 2);
   }
 
+  private offerRetry(): void {
+    this.unreachable = true;
+    if (this.retryButton) return;
+    const button = document.createElement('button');
+    button.className = 'btn-l boot-retry';
+    setText(button, t('boot.retry'));
+    button.addEventListener('click', () => this.retry());
+    part(this.root, '.boot-box').append(button);
+    button.focus();
+    this.retryButton = button;
+  }
+
   private failure(): Msg {
+    if (this.unreachable) return t('boot.unreachable');
     const step = BOOT_STEPS.find((s) => this.progress.state(s) === 'failed');
     return step ? t('boot.stepFailed', { label: this.progress.label(step) }) : t('boot.failedToLoad');
   }

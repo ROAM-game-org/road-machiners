@@ -23,7 +23,7 @@ function fakeCtx(labels: string[], models: string[], prompts: string[] = [], run
     container: { agent: async (run: AgentRun) => { runs.push(run); models.push(run.model); prompts.push(run.prompt); mkdirSync(`${run.clone}/${run.dir}/.factory`, { recursive: true }); } },
     repo: {
       prepareWorkClone: async (_b: string, _base: string, dir: string) => { mkdirSync(dir, { recursive: true }); },
-      fetchFromWork: async () => 'w1', isMerged, untrackFactoryFiles: async () => [], diff: async () => '', push: async () => undefined,
+      fetchFromWork: async () => 'w1', isMerged, untrackFactoryFiles: async () => [], diff: async () => '', changedFiles: async () => [], push: async () => undefined,
       fetch: async () => undefined, mergeBranchIntoWork: async () => ({ commit: null, conflicts: [] }),
     },
   };

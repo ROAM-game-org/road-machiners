@@ -1,8 +1,10 @@
 
 import { dealAvailable } from './patch';
+import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { ECONOMY } from '../data/goods';
-import { GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
+import { ESCORT_JOB, GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
+import { routeThreat } from './escort-job';
 import {
   DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
@@ -36,7 +38,8 @@ import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } fro
 import { territoryAt, territoryGrounds } from './territory';
 import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf, statesHeld } from './states';
 import { isStranded, vehicleStats } from './stats';
-import { canHire, canTakeEscort, declineFactor, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
+import { leaderToJoin } from './pairs';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -143,7 +146,7 @@ export function perceiveDanger(world: World, observer: Vehicle, other: Vehicle):
   return judgeDanger(world, observer, other) * randRange(world, 1 - spread, 1 + spread);
 }
 
-function isManageable(vehicle: Vehicle, danger: number): boolean {
+export function isManageable(vehicle: Vehicle, danger: number): boolean {
   return danger <= NPC_BEHAVIOR.threatRatio * npcProfile(vehicle).boldness;
 }
 
@@ -316,7 +319,7 @@ export function hasSaleCargo(vehicle: Vehicle): boolean {
 function afterSale(vehicle: Vehicle): Vehicle {
   const mounted = new Set(mountedParts(vehicle).map((part) => part.id));
   let reserve = NPC_UPKEEP.repairParts;
-  const kept = vehicle.items.filter((it) => (it.kind === 'part' ? mounted.has(it.part.id) : it.good === 'parts' && reserve-- > 0));
+  const kept = vehicle.items.filter((it) => (it.kind === 'part' ? mounted.has(it.part.id) : it.kind === 'good' && it.good === 'parts' && reserve-- > 0));
   return { ...vehicle, items: kept };
 }
 
@@ -598,7 +601,16 @@ function canHaul(_world: World, vehicle: Vehicle): boolean {
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {
-  return hasTrait(vehicle, 'guard') && unguardedLeader(world, vehicle) !== null;
+  return leaderToJoin(world, vehicle) !== null;
+}
+
+function canPostEscort(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {
+  return subject !== null && escortsOf(world, vehicle.id).length === 0 && !isDefeated(vehicle);
+}
+
+function postFactor(world: World, _vehicle: Vehicle, _decision: DecisionId, subject: string | null): number {
+  const [from, to] = (subject ?? '').split('>');
+  return ESCORT_JOB.postWeight[routeThreat(world, from, to)];
 }
 
 type OptionName = DecisionOptions[DecisionId];
@@ -625,6 +637,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   explore: canDrive,
   haul: canHaul,
   escort: canEscort,
+  go: always,
+  post: canPostEscort,
   paid: dealAvailable('paid'),
   ownParts: dealAvailable('ownParts'),
   free: dealAvailable('free'),
@@ -650,6 +664,10 @@ const AVAILABLE: Record<OptionName, Availability> = {
   aid: canSpareSubject,
   warn: always,
   leave: always,
+  tale: (world, vehicle) => encounterAvailable(world, vehicle, 'tale'),
+  tip: (world, vehicle) => encounterAvailable(world, vehicle, 'tip'),
+  challenge: (world, vehicle) => encounterAvailable(world, vehicle, 'challenge'),
+  courier: (world, vehicle) => encounterAvailable(world, vehicle, 'courier'),
 };
 
 type SituationFactor = (world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null) => number;
@@ -866,6 +884,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   explore: neutral,
   haul: neutral,
   escort: neutral,
+  go: neutral,
+  post: postFactor,
   paid: neutral,
   ownParts: neutral,
   free: neutral,
@@ -889,6 +909,10 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   aid: neutral,
   warn: neutral,
   leave: leaveFactor,
+  tale: neutral,
+  tip: neutral,
+  challenge: neutral,
+  courier: neutral,
 };
 
 function changeTables(world: World, vehicle: Vehicle, subject: string | null): TraitWeights[] {
@@ -974,7 +998,9 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   escortSeen: 'venture',
   hireOffered: 'response',
   aidAsked: 'response',
+  escortWanted: 'venture',
   needySeen: 'venture',
+  strangerSeen: 'venture',
 };
 
 export function keepsWord(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {

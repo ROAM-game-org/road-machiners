@@ -1,4 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { EN } from '../text/en';
 import { LOCALS, type NoteId } from '../data/locals';
 import { CONTRACTS, SHOPS } from '../data/market';
 import { REGION } from '../data/region';
@@ -80,6 +82,16 @@ describe('settlement locals', () => {
     expect(choices(w, 'bowl_ruben')).toContain('What is the Fallen Sun really?');
   });
 
+  it('names the hull behind Ibo\'s tone and answers what he hears', () => {
+    const shack = talk(parkedAt('nose'), 'nose_ibo', ['What do you do in this shack?']);
+    expect(questView(shack, QUESTS).lines.map((line) => line.text).join(' ')).toContain('<term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater');
+    expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
+
+    const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
+    expect(lastLine(answered)).toContain('no key to decode it');
+    expect(lastLine(answered)).not.toContain("A tone's a tone");
+  });
+
   it('offers a stranger only questions that name nothing unheard', () => {
     const w = parkedAt('bowl');
     expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'Goodbye.']);
@@ -118,7 +130,7 @@ describe('settlement locals', () => {
 
   it('greets with the copy line only when Agnes has told of a copy', () => {
     const lines = (w: World) => questView(startQuest(w, QUESTS, 'pump_agnes', 'start'), QUESTS).lines.map((l) => l.text).join(' ');
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
     w.player.quests.local.pump_agnes = { trusted: true };
     expect(lines(w)).not.toContain('Changed your mind about the copy?');
     w.player.quests.local.pump_agnes = { trusted: true, knows_copy: true };
@@ -460,12 +472,13 @@ describe('locals at stalls', () => {
   const TERRACE = 'Follow the tanker\'s tracks up to the top terrace.';
   const BOLT = 'Bolt Agnes\'s meter onto the inlet.';
 
-  it('lists Agnes at the Pump Station', () => {
-    expect(localsAt('pump-station').map((l) => l.id)).toContain('agnes');
+  it('lists Agnes at Dustwell', () => {
+    expect(localsAt('dustwell').map((l) => l.id)).toContain('agnes');
+    expect(localsAt('pump-station')).toEqual([]);
   });
 
   it('keeps the copy from a driver who tells the watchman, and pays only the driver who takes his purse', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const paid = talk(w, 'pump_agnes', [...OPEN, 'Tell him what she said.', 'Take the purse.']);
     expect(paid.player.quests.world).toEqual({ pipe_fate: 'searched', marr_regard: 'bought' });
@@ -478,7 +491,7 @@ describe('locals at stalls', () => {
   });
 
   it('holds the copy back from a silent driver until the watchman is named', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const silent = talk(w, 'pump_agnes', [...OPEN, 'Say nothing.']);
     expect(questView(silent, QUESTS).choices).not.toContain(CARRY);
@@ -488,7 +501,7 @@ describe('locals at stalls', () => {
   });
 
   it('opens the pipe quest from Agnes and ends it with the copy dropped', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const dropped = talk(w, 'pump_agnes', [...ROAD, 'Throw the copy in a ditch.']);
 
@@ -499,7 +512,7 @@ describe('locals at stalls', () => {
   });
 
   it('reaches the Bowl lock house once the gate is bought', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
     const lost = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", LOCK]);
 
     expect(questView(lost, QUESTS).choices).toContain(SIGN);
@@ -508,7 +521,7 @@ describe('locals at stalls', () => {
   });
 
   it('pays the gate patrol with a bribe, signs Mirela\'s book and pays on delivery', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
     const gate = [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", LOCK];
 
     const signed = talk(w, 'pump_agnes', [...gate, SIGN]);
@@ -520,7 +533,7 @@ describe('locals at stalls', () => {
   });
 
   it('fines a driver whose gate talk fails and who hands the copy over, and fines nobody who hands it over at once', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
     const gate = [...ROAD, 'Drive on to the Bowl gate.'];
 
     const seized = talk(w, 'pump_agnes', [...gate, LIE, 'Hand it over.']);
@@ -533,7 +546,7 @@ describe('locals at stalls', () => {
   });
 
   it('charges double to buy off a patrolman who caught the lie', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const bought = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', LIE, 'Pay him to forget it.', LOCK]);
     expect(questView(bought, QUESTS).choices).toContain(SIGN);
@@ -541,7 +554,7 @@ describe('locals at stalls', () => {
   });
 
   it('bills a failed meter fit on the top terrace, shuts the terrace and still reaches the lock house', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const sheared = talk(w, 'pump_agnes', [...ROAD, 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE, BOLT]);
     expect(questView(sheared, QUESTS).choices).toEqual([LOCK]);
@@ -552,7 +565,7 @@ describe('locals at stalls', () => {
   });
 
   it('offers the meter bolt only to a driver who took the meter', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
     const left = [...OPEN, COVER, CARRY, 'Take the copy and leave the meter.', 'Keep the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", TERRACE];
 
     expect(questView(talk(w, 'pump_agnes', left), QUESTS).choices).not.toContain(BOLT);
@@ -560,7 +573,7 @@ describe('locals at stalls', () => {
   });
 
   it('takes a fine in the Bowl market and keeps the tenants talking about it', () => {
-    const w = parkedAt('pump-station');
+    const w = parkedAt('dustwell');
 
     const read = talk(w, 'pump_agnes', [...ROAD, 'Cut the seal and read the copy.', 'Drive on to the Bowl gate.', "Slip the older one a few M's.", 'Read the copy aloud in the market.']);
 
@@ -613,5 +626,27 @@ describe('journal notes', () => {
       const bundle = compileBundle(withEnglishTwins({ 'world.ink': readQuestSources('src/data/quests')['world.ink'], 'q.ink': bad(text) }));
       expect(() => startQuest(w, bundle, 'q', 'start')).toThrow(error);
     }
+  });
+});
+
+describe('the Pump Station fuel role', () => {
+  const QUEST_DIR = 'src/data/quests';
+  const sentencesOf = (text: string) => text.split(/(?<=[.!?])\s+|\n/);
+  const waterClaims = (text: string) => sentencesOf(text).filter((s) => /pump[ _-]?station/i.test(s) && /water/i.test(s) && !/track/i.test(s));
+
+  it('says no catalog entry sends water from the Pump Station', () => {
+    const claims = Object.entries(EN).flatMap(([key, text]) => waterClaims(String(text)).map((s) => `${key}: ${s}`));
+    expect(claims).toEqual([]);
+  });
+
+  it('says no English quest line loads water at the Pump Station', () => {
+    const files = readdirSync(QUEST_DIR).filter((f) => f.endsWith('.ink'));
+    const claims = files.flatMap((f) => waterClaims(readFileSync(`${QUEST_DIR}/${f}`, 'utf8')).map((s) => `${f}: ${s}`));
+    expect(claims).toEqual([]);
+  });
+
+  it('keeps no one living at the Pump Station and no water made there', () => {
+    expect(Object.values(LOCALS).filter((l) => l.town === 'pump-station')).toEqual([]);
+    expect(localsAt('dustwell').map((l) => l.id)).toEqual(['agnes']);
   });
 });

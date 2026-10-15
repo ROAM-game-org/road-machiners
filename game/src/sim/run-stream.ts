@@ -52,7 +52,7 @@ function gunText(order: WeaponOrder): string {
 }
 
 function utilityText(world: World, order: UtilityOrder): string {
-  if (order.kind === 'self') return 'self';
+  if (order.kind !== 'point') return order.kind;
   const [x, y] = worldPos(world, order.pos);
   return `point@${x},${y}`;
 }

@@ -9,7 +9,7 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { FACTION_COLORS, PAL } from '../../render/palette';
-import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
@@ -72,17 +72,11 @@ type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 export function signatureOf(v: Vehicle): string {
   const items = v.items
     .map((it) => {
-      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : it.good;
+      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : itemLookId(it);
       return `${what}@${it.x},${it.y},${it.rot}`;
     })
     .join(',');
   return `${v.chassisId}|${v.faction}|${items}`;
-}
-
-export function viewOf(views: Map<string, VehicleView>, id: string): VehicleView {
-  const view = views.get(id);
-  if (!view) throw new Error(`Vehicle ${id} has no view`);
-  return view;
 }
 
 export class VehicleView {
@@ -220,7 +214,7 @@ export class VehicleView {
     this.turrets.clear();
     this.anchors.clear();
     const body = bodyOf(v.chassisId);
-    this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), hashStr(v.id));
+    this.motion = new TruckMotion(this.body, new THREE.Vector3(0, body.wheelY, 0), body.half.x, hashStr(v.id));
     const paint = FACTION_COLORS[v.faction].top;
     const on = this.lampMat.color.getHex() === PAL.lamp.on;
     this.lampMat = new THREE.MeshBasicMaterial({ color: on ? PAL.lamp.on : PAL.lamp.off });
@@ -235,7 +229,7 @@ export class VehicleView {
     const guns: PartItem[] = [];
     const obstacles: Obstacle[] = [];
     for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) {
-      if (item.kind === 'good') {
+      if (item.kind !== 'part') {
         const good = this.placeItem(v, item, paint, standingY(v, item));
         still.add(good);
         obstacles.push(obstacleOf(good));
@@ -273,7 +267,7 @@ export class VehicleView {
   private placedPart(v: Vehicle, body: Body, item: PartItem, def: PartDef, paint: number): THREE.Object3D {
     const mounted = isMounted(v.chassisId, item);
     if (isWheel(def)) return this.spareWheel(v, body, item, paint, standingY(v, item));
-    if (def.kind === 'armor') return this.placeArmor(v, body, item, paint, mounted);
+    if (def.kind === 'armor') return this.placeArmor(v, item, paint);
     if (def.kind === 'engine' && mounted) return this.placeEngine(v, item, paint);
     return this.placeItem(v, item, paint, standingY(v, item));
   }
@@ -378,22 +372,11 @@ export class VehicleView {
     return obj;
   }
 
-  private placeArmor(v: Vehicle, body: Body, item: PartItem, paint: number, mounted: boolean): THREE.Object3D {
+  private placeArmor(v: Vehicle, item: PartItem, paint: number): THREE.Object3D {
     const def = partDef(item.part.defId);
     if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
-    const side = armorSide(v, item);
-    const across = side === 'F' || side === 'B';
-    const rect = rectOf(v, item);
-    const at = mounted ? { pos: new THREE.Vector3((rect.x0 + rect.x1) / 2, 0, (rect.z0 + rect.z1) / 2) } : footprint(v, item, standingY(v, item));
-    const depth = armorDepth(mounted, across);
     const obj = model(partModel(def.id));
-    if (mounted) {
-      const height = new THREE.Box3().setFromObject(obj).max.y;
-      at.pos.y = { plates: body.half.y - height, ram: -body.half.y, cage: body.half.y - height }[def.look];
-      seatArmor(at.pos, rect, side, depth);
-    }
-    const n = Math.max(def.w, def.h);
-    place(obj, { pos: at.pos, yaw: SIDE_YAW[side], scale: new THREE.Vector3(depth / CELL.along, 1, armorSpan(item, rect, mounted, across) / (n * CELL.across)) });
+    place(obj, armorPlacement(v, item, new THREE.Box3().setFromObject(obj)));
     tint(obj, paint, lookOf(item));
     return obj;
   }
@@ -663,8 +646,8 @@ export function wouldFloat(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boole
 function alwaysDrawn(v: Pick<Vehicle, 'chassisId'>, item: GridItem): boolean {
   if (item.kind !== 'part') return false;
   const def = partDef(item.part.defId);
-  if (def.kind === 'weapon' || def.kind === 'armor') return true;
-  return (def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
+  if (def.kind === 'weapon') return true;
+  return (def.kind === 'armor' || def.kind === 'engine' || isWheel(def)) && isMounted(v.chassisId, item);
 }
 
 function restOf(v: Pick<Vehicle, 'chassisId'>, item: GridItem): Rest {
@@ -675,7 +658,7 @@ export function standingY(v: Pick<Vehicle, 'chassisId'>, item: GridItem): number
   return restOf(v, item).y;
 }
 
-function armorSide(v: Vehicle, item: PartItem): SideLetter {
+function armorSide(v: Pick<Vehicle, 'chassisId'>, item: PartItem): SideLetter {
   const size = itemSize(item);
   const side = plateSide(v.chassisId, item);
   const depthCells = ['F', 'B'].includes(side) ? size.h : size.w;
@@ -683,10 +666,33 @@ function armorSide(v: Vehicle, item: PartItem): SideLetter {
   return side;
 }
 
-function armorSpan(item: PartItem, rect: CellRect, mounted: boolean, across: boolean): number {
-  const size = itemSize(item);
-  if (!mounted) return across ? size.w * CELL.across : size.h * CELL.along;
-  return across ? rect.z1 - rect.z0 : rect.x1 - rect.x0;
+export function armorPlacement(v: Pick<Vehicle, 'chassisId'>, item: PartItem, box: THREE.Box3): Placement {
+  const def = partDef(item.part.defId);
+  if (def.kind !== 'armor') throw new Error(`Part ${def.id} is not armor`);
+  const side = armorSide(v, item);
+  const across = side === 'F' || side === 'B';
+  const n = Math.max(def.w, def.h);
+  if (!isMounted(v.chassisId, item)) {
+    const { rect, y } = restOf(v, item);
+    const dx = rect.x1 - rect.x0;
+    const dz = rect.z1 - rect.z0;
+    const size = box.getSize(new THREE.Vector3());
+    const middle = box.getCenter(new THREE.Vector3());
+    const scale = across ? new THREE.Vector3(dx / size.x, 1, dz / size.z) : new THREE.Vector3(dz / size.x, 1, dx / size.z);
+    const yaw = SIDE_YAW[side];
+    const shiftX = middle.x * scale.x;
+    const shiftZ = middle.z * scale.z;
+    const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2 - (shiftX * Math.cos(yaw) + shiftZ * Math.sin(yaw)), y, (rect.z0 + rect.z1) / 2 - (shiftZ * Math.cos(yaw) - shiftX * Math.sin(yaw)));
+    return { pos, yaw, scale };
+  }
+  const scaleOf = (depth: number, span: number) => new THREE.Vector3(depth / CELL.along, 1, span / (n * CELL.across));
+  const rect = rectOf(v, item);
+  const depth = across ? CELL.along : SIDE_SKIN;
+  const half = bodyOf(v.chassisId).half.y;
+  const y = { plates: half - box.max.y, ram: -half, cage: half - box.max.y }[def.look];
+  const pos = new THREE.Vector3((rect.x0 + rect.x1) / 2, y, (rect.z0 + rect.z1) / 2);
+  seatArmor(pos, rect, side, depth);
+  return { pos, yaw: SIDE_YAW[side], scale: scaleOf(depth, across ? rect.z1 - rect.z0 : rect.x1 - rect.x0) };
 }
 
 function seatArmor(pos: THREE.Vector3, rect: CellRect, side: SideLetter, depth: number): void {
@@ -701,13 +707,8 @@ function bumperPlacement(rect: CellRect, nose: boolean, top: number, yaw: number
   return { pos: new THREE.Vector3(x, top, (rect.z0 + rect.z1) / 2), yaw, scale: new THREE.Vector3(1, stretch, width) };
 }
 
-function armorDepth(mounted: boolean, across: boolean): number {
-  if (across) return CELL.along;
-  return mounted ? SIDE_SKIN : CELL.across;
-}
-
 function itemModel(item: GridItem) {
-  return partModel(item.kind === 'part' ? item.part.defId : item.good);
+  return partModel(itemLookId(item));
 }
 
 function cabOf(v: Vehicle): GridItem | undefined {
@@ -720,7 +721,7 @@ function cabLook(v: Vehicle): Look {
 }
 
 function lookOf(item: GridItem): Look {
-  if (item.kind === 'good') return PRISTINE;
+  if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
   return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[partDef(item.part.defId).kind], step, partId: item.part.id };
 }

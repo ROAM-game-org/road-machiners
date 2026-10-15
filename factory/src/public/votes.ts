@@ -1,20 +1,81 @@
 import { moveCard } from '../card-events';
-import { VOTING_LABEL, type Ctx } from '../types';
+import { readCommittee, telegramIds } from '../committee';
+import { VOTING_LABEL, WONT_DO_LABEL, type Ctx } from '../types';
 import { isolated } from './isolate';
-import type { Proposal, PublicStore } from './store';
+import { ACCEPTED_BY_COMMITTEE, CLOSED_CONCLUSION, netScore, proposalText, REJECTED_BY_COMMITTEE, signed, voteFooter, voteSides, type VoteSides } from './proposals';
+import type { Proposal, PublicStore, Tally } from './store';
+
+type Outcome = { kind: 'accept' | 'reject'; reason: string; conclusion: string };
 
 export async function countVotes(ctx: Ctx, store: PublicStore): Promise<void> {
-  const emoji = ctx.cfg.voteEmoji.split(/\s+/).filter((item) => item !== '');
+  const { home, committeeBootstrapTelegram: telegram, committeeBootstrapGithub: github } = ctx.cfg;
+  const committee = telegramIds(readCommittee(home, { telegram, github }));
+  const sides = voteSides(ctx);
   for (const proposal of store.openProposals()) {
-    const votes = store.votes(proposal.issue, emoji);
-    if (votes < ctx.cfg.minVotes) continue;
+    const tally = store.tally(proposal.issue, sides.up, sides.down);
+    const footer = voteFooter(ctx, tally);
+    const outcome = outcomeOf(ctx, store, proposal.issue, tally, committee, sides);
+    if (outcome === null) {
+      await showFooter(ctx, store, proposal, footer);
+      continue;
+    }
+    const final = `${footer}\n${outcome.conclusion}`;
     store.closeProposal(proposal.issue, ctx.now());
-    await isolated(ctx, proposal.issue, `the proposal passed with ${votes} votes but the card did not move, so move it to design by hand`, () => pass(ctx, proposal, votes));
+    store.setShownFooter(proposal.issue, final);
+    await isolated(ctx, proposal.issue, `the proposal was ${outcome.kind}ed ${outcome.reason} but the card did not move, so move it by hand`, () => conclude(ctx, proposal, footer, outcome));
   }
 }
 
-async function pass(ctx: Ctx, proposal: Proposal, votes: number): Promise<void> {
-  await ctx.github.removeLabel(proposal.issue, VOTING_LABEL);
-  await moveCard(ctx, proposal.issue, 'Design', 'voted');
-  await ctx.telegram.sendMessage(proposal.chat!, `This proposal got ${votes} votes. The factory starts work on it now.`, proposal.messageId);
+function outcomeOf(ctx: Ctx, store: PublicStore, issue: number, tally: Tally, committee: string[], sides: VoteSides): Outcome | null {
+  const byCommittee = (emoji: string[]): boolean => store.votersWith(issue, emoji).some((voter) => committee.includes(voter));
+  if (byCommittee(sides.down)) return { kind: 'reject', reason: 'by a committee vote', conclusion: REJECTED_BY_COMMITTEE };
+  if (byCommittee(sides.up)) return { kind: 'accept', reason: 'by a committee vote', conclusion: ACCEPTED_BY_COMMITTEE };
+  const score = netScore(tally);
+  if (score >= ctx.cfg.minVotes) return { kind: 'accept', reason: `with a net score of ${signed(score)}`, conclusion: `✅ Accepted with net ${signed(score)}` };
+  return null;
 }
+
+export async function closeByHand(ctx: Ctx, store: PublicStore, issue: number): Promise<void> {
+  const proposal = store.openProposals().find((open) => open.issue === issue);
+  store.closeProposal(issue, ctx.now());
+  if (proposal === undefined) return;
+  const sides = voteSides(ctx);
+  const final = `${voteFooter(ctx, store.tally(issue, sides.up, sides.down))}\n${CLOSED_CONCLUSION}`;
+  store.setShownFooter(issue, final);
+  await isolated(ctx, issue, 'the card moved by hand but its proposal post still shows the open vote text, so edit it by hand', () => editPost(ctx, proposal, final));
+}
+
+async function showFooter(ctx: Ctx, store: PublicStore, proposal: Proposal, footer: string): Promise<void> {
+  if (store.shownFooter(proposal.issue) === footer) return;
+  store.setShownFooter(proposal.issue, footer);
+  await isolated(ctx, proposal.issue, 'the vote count on the proposal post did not update', () => editPost(ctx, proposal, footer));
+}
+
+async function conclude(ctx: Ctx, proposal: Proposal, footer: string, outcome: Outcome): Promise<void> {
+  if (!(await stillVoting(ctx, proposal.issue))) {
+    ctx.log('public', proposal.issue, 'the issue is closed, lost its voting label or left Triage, so its proposal closes without a card change');
+    await editPost(ctx, proposal, `${footer}\n${CLOSED_CONCLUSION}`);
+    return;
+  }
+  if (outcome.kind === 'accept') await moveCard(ctx, proposal.issue, 'Design', 'voted');
+  else await reject(ctx, proposal.issue);
+  await ctx.github.removeLabel(proposal.issue, VOTING_LABEL);
+  await editPost(ctx, proposal, `${footer}\n${outcome.conclusion}`);
+}
+
+async function stillVoting(ctx: Ctx, issue: number): Promise<boolean> {
+  const item = await ctx.github.issue(issue);
+  if (item.state !== 'OPEN' || !item.labels.includes(VOTING_LABEL)) return false;
+  const card = (await ctx.github.cards()).find((candidate) => candidate.issue === issue);
+  return card?.column === 'Triage';
+}
+
+async function reject(ctx: Ctx, issue: number): Promise<void> {
+  await ctx.github.comment(issue, 'A committee member rejected this proposal in the player chat.');
+  await ctx.github.addLabel(issue, WONT_DO_LABEL);
+  await ctx.github.close(issue, 'not planned');
+  await moveCard(ctx, issue, 'Done', 'denied');
+}
+
+const editPost = (ctx: Ctx, proposal: Proposal, footer: string): Promise<void> =>
+  ctx.telegram.editHtml(proposal.chat!, proposal.messageId!, proposalText(ctx, proposal.issue, proposal.pitch, footer));

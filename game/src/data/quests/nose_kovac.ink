@@ -58,7 +58,7 @@ VAR asked_paper = false
   ~ begin("nose_depot_leak")
   -> END
 + {has_note("wagonBowl")} [About that scavenger with the Army radio.]
-  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. She ran water drums from the Pump Station down to Bowl every week, and she went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
+  Him. He sold us our own radio back, and I paid stock price for it. That set came off wagon Seven. She ran water drums from Dustwell down the Bowl north road to Bowl every week, and she went dark on the bend in the Bowl north road. The crew walked in and reported raiders, and her cannon lost over the edge. Command wrote her off. I log it.
   The scavenger said for a little more that the cannon's still on her. I didn't pay a little more.
   ~ note("wagonNose")
   -> hub

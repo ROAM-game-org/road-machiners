@@ -2,7 +2,7 @@
 import { GAME_MODES, WORLD_SETTINGS } from '../data/modes';
 import type { GameModeId, MapKind, ModeRules, World, WorldSettings, WorldSetup } from './types';
 
-type SettingId = keyof WorldSettings;
+export type SettingId = keyof WorldSettings;
 const SETTING_IDS = Object.keys(WORLD_SETTINGS) as SettingId[];
 
 export function defaultSetup(mode: GameModeId): WorldSetup {

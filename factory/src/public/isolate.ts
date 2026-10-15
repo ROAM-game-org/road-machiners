@@ -1,7 +1,7 @@
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
 
-export async function isolated(ctx: Ctx, issue: number, what: string, work: () => Promise<void>): Promise<void> {
+export async function isolated(ctx: Ctx, issue: number | null, what: string, work: () => Promise<void>): Promise<void> {
   try {
     await work();
   } catch (error) {

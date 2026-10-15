@@ -4,7 +4,7 @@ NPC activities, traits, decisions, states and escorts. The principles behind the
 
 ## NPC activities
 
-NPC behavior has three layers. Traits are permanent and set the chances of choices. A goal stack keeps long-term work under interruptions like fights, flight, service and repairs. The driver usually resumes that work once an interruption ends. Decision points pick reactions by weighted chance when a new hostile, contact, attack, prey, stranded truck or passed wreck appears. Traits give fixed knowledge of towns, salvage sites and hunting grounds. Each NPC remembers the subjects it already decided on and the attackers still in sight. There is no live shared intelligence. Drivers also keep hidden memories of what they saw, each with when they saw it. A newer memory of the same thing replaces the old one, and a memory fades after a day. The first kind is shop prices: a driver remembers a shop's prices when it does business there, and tells of them on the radio. The second kind is salvage it found stripped. The hover panel shows what a seen driver is doing and why, under its name. It also shows every state the driver holds toward the player, like feuds, grudges, revenge and deals, with the turns left. The full log debug flag logs each goal change and its reason. Messages name an NPC by its profession and driver name, like Roamer Silas Kane.
+NPC behavior has three layers. Traits are permanent and set the chances of choices. A goal stack keeps long-term work under interruptions like fights, flight, service and repairs. The driver usually resumes that work once an interruption ends. Decision points pick reactions by weighted chance when a new hostile, contact, attack, prey, stranded truck or passed wreck appears. Traits give fixed knowledge of towns, salvage sites and hunting grounds. Each NPC remembers the subjects it already decided on and the attackers still in sight. There is no live shared intelligence. Drivers also keep hidden memories of what they saw, each with when they saw it. A newer memory of the same thing replaces the old one, and a memory fades after a day. The first kind is shop prices: a driver remembers a shop's prices when it does business there, and tells of them on the radio. The second kind is salvage it found stripped. The third kind is a truck that attacked or robbed it, kept for six days, and only the courier story reads it. The hover panel shows what a seen driver is doing and why, under its name. It also shows every state the driver holds toward the player, like feuds, grudges, revenge and deals, with the turns left. The full log debug flag logs each goal change and its reason. Messages name an NPC by its profession and driver name, like Roamer Silas Kane.
 
 A driver never stands still for good. Of two drivers closing on each other, one waits while the other goes around. It waits for a parked truck ahead only while that truck is about to drive. A point it cannot reach, like one another truck covers, counts as reached once it gets as close as it can. A driver that still stays put for a while with its goal out of reach drives to a random free spot nearby and tries again.
 
@@ -26,6 +26,8 @@ A driver with no room for any good, by cells or by mass, takes no detour to salv
 
 A started refit on a knocked-out truck finishes before a repair or service trip takes the driver off the loot goal. Only urgent supplies interrupt it.
 
+A driver that makes no headway in one spot, even by driving back and forth against a wall, gives up its goal and takes a new one after a hundred turns.
+
 An NPC stays parked on the pad of a town, stall, camp or oasis for a few turns for each resupply, sale, purchase or load, with a progress bar over its truck, and the deal happens when the bar fills. Driving off or combat cancels it, and it starts over.
 
 NPCs carry and use utilities by the player's rules. At spawn each truck may roll one utility for its type. Scavengers, roamers and convoys favor the patcher crane, and scavengers and vultures the scraper's knife. Lawmen carry flare cannons and harpoons, and convoy guards flare cannons and smoke mortars. Only a heavy or loaded merc rolls an emitter. Each turn a driver picks its utility orders:
@@ -35,7 +37,7 @@ NPCs carry and use utilities by the player's rules. At spawn each truck may roll
 - Smoke mortar: a fleeing driver shells the midpoint between itself and its nearest attacker in sight.
 - Flare cannon: at night, a driver investigating a contact lights the contact.
 - Emitter: in combat, every truck it sees in range is hostile, and there is at least one.
-- Claymore ram: the driver has chosen to ram.
+- Claymore ram: the driver has chosen to ram. It disarms an armed ram once it is out of a fight and has chosen no ram.
 
 The harpoon rolls with the utilities, but it is a gun, so a driver fires it at its fight target like its other guns.
 
@@ -59,7 +61,7 @@ Every NPC carries a set of traits instead of one class. Each trait adds activiti
 - Brave almost never runs, pleads or gives up its cargo.
 - Lawman patrols the roads out to about a sixth of the way to the other town and fights raiders on sight. Its home town pays it at each patrol stop. It attacks whoever fires the first shot at a neutral NPC or starts robbing one, the player included.
 - Vulture prowls the hunting roads for wrecks and knocked-out trucks, and rarely helps anyone. Most vultures are cowards and some are scumbags.
-- Courier travels between towns and locations, and almost never stops for salvage. The town or stall it reaches pays it for the trip, and a territory pays nothing.
+- Courier travels between towns and locations, and almost never stops for salvage. Couriers run in pairs of two couriers, and one follows the other as its escort. The town or stall a pair reaches pays each of them for the trip, and a territory pays nothing.
 - Roamer mostly explores random places, off road too, and trades and scavenges when it finds a chance.
 - Supplier hauls fuel drums from the Pump Station to the towns. About one trip in three it buys goods for up to 2500 and trades them between towns instead.
 - Guard follows a supply convoy and protects it.
@@ -93,8 +95,12 @@ States are timed relations between two trucks. Each ends as expired, fulfilled o
 
 ## Escorts
 
-One truck can follow another as its escort. The follower rides beside its leader's tail at the leader's pace, and resumes following after any fight or tow. The leader waits for an escort that falls a little behind while following, but not for one coming back from afar, and not while it heads for its own service stop. It does not wait for an escort busy with a fight or a service stop, which catches up after. It treats shots at the leader as shots at itself, so it fights back or flees as it would for itself. It tows a stranded leader to the usual tow site.
+One truck can follow another as its escort. The follower rides beside its leader's tail at the leader's pace, and resumes following after any fight or tow. The leader waits for an escort that falls a little behind while following, but not for one coming back from afar, and not while it heads for its own service stop. It does not wait for an escort busy with a fight or a service stop, which catches up after, nor for one that is stranded or on a tow rope. A courier leader waits for its partner up to 150 tiles back, and a partner that flees runs to its leader when the leader lies away from the threat. An escort far behind drives at full speed and keeps its aim until the leader has moved a good way, so a long chase does not rebuild its route every turn. It treats shots at the leader as shots at itself, so it fights back or flees as it would for itself. It tows a stranded leader to the usual tow site.
+
+A trader that has just bought cargo to carry to another shop may instead post an escort job on that shop's board, more often on a dangerous road. It then parks off the pads and waits up to 75 turns for a taker. A free merc it sees can still hire it, which takes the offer down. A trader escorted by the player drives its trip, brakes while the player is behind it and drives on while the player is ahead. It waits beside a stranded player, and it waits where it is under the radio order Wait here until the order Let's move or 90 turns pass.
 
 A trader, courier or roamer on its way to a site may hire a free merc it sees. The fee is the merc's plain running cost to the destination and back plus the lowest wage, and the client must afford it above its upkeep reserve. The merc accepts or refuses, and a hurt merc refuses more often. The client pays once, when it reaches the destination. A territory counts as reached at its edge, where a trip there ends. An escort ends unpaid when either truck is gone, knocked out or turns hostile.
 
 Each supply convoy spawns with a guard that escorts it. The convoy pays its guard each time it loads, buys or sells at a site, up to the money it holds. A threatened or warned-off driver whose escort is in sight and awake gives way a tenth as often, whoever makes the threat, so a demand on a guarded convoy or a trader with a hired merc mostly starts a fight with the escort. A guard whose convoy is gone joins another unguarded convoy, or drives between the towns until it finds one.
+
+A courier pair is two couriers. When one is knocked out or wrecked, the escort ends, and the other is a lone courier. A lone courier mostly joins the nearest lone courier of its faction that is not hostile to it, and a knocked-out courier does the same when it wakes. When a courier is lone and the cap has room, the town sends a new courier from the nearest site to ride with it, and with no courier at all it sends a pair. Chaos Highway has no pairs. Generic pairs are not Tamsin Roe's pair, who stay a story.

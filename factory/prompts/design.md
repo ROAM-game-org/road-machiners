@@ -22,7 +22,7 @@ The check is a screenshot of the finished game from the image's view, put next t
 Gameplay tests alone cannot prove a look.
 An image marked NOT AVAILABLE was not seen.
 Never design as if you had seen it.
-When the request depends on it and the author did not get this question yet, write one question to `.factory/questions.md` that asks the author to upload it again.
+When the request depends on it and the author did not get this question yet, write one question to `.factory/questions.json` that asks the author to upload it again.
 
 Modeling an asset from a reference image: when the plan builds one, name the skill and the phases it uses in the task file.
 Use the `blender-image-to-3d` skill when the work builds or reshapes a game model that a reference image shows.
@@ -84,7 +84,7 @@ Write the reason in plain words to `.factory/wont-do.md`.
 Then stop.
 
 If a real blocker makes design impossible, do not write a task file.
-Write the questions to `.factory/questions.md`, one per line.
+Write the questions to `.factory/questions.json` as a JSON array of strings, one string per question.
 Then stop.
 Use this only for a real blocker.
 When in doubt, make a reasonable choice.

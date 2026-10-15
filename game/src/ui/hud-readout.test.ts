@@ -25,7 +25,7 @@ import { partDef } from "../data/parts";
 import { startKit } from "../data/start";
 import { actBlock, newWorld } from "../sim/world";
 import { playerVehicle } from "../sim/damage";
-import { stowPart } from "../sim/inventory";
+import { stowParcel, stowPart } from "../sim/inventory";
 import { beginSearch } from "../sim/search";
 import { dumpOnPile, emptyHidden, isRoadWreck, oldSpotPicks, oldStockId } from "../sim/salvage";
 import { TEST_MAP } from "../test/map";
@@ -481,6 +481,39 @@ describe('trade interaction', () => {
   it('offers the town while the trader still drives', () => {
     const { w, town } = atTownWithTrader(RULES.parkedSpeed + 1);
     expect(actions(w)[0]).toMatchObject({ label: `Enter ${siteEn(town.id)}`, ready: true });
+  });
+});
+
+describe('parcel handover action', () => {
+  function withTarget(npcSpeed: number) {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = w.vehicles[0];
+    const npc = addVehicle(w, 'traders', 'scout', [], { x: me.pos.x + 3, y: me.pos.y });
+    npc.brain = npcBrain('trader', npc.pos, ['trader']);
+    npc.speed = npcSpeed;
+    w.player.contracts.push({
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: npc.id, driver: npc.brain.driver, template: 'trader',
+      lead: { at: { x: 0, y: 0 }, turn: 0 }, reward: 9200, deadline: 900, window: 600, tier: 1, delivered: false,
+    });
+    stowParcel(me, { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-s' });
+    addState(w, 'handover', npc.id, w.player.vehicleId, { kind: 'none' });
+    return { w, npc };
+  }
+
+  it('is ready once the target is parked beside the player', () => {
+    const { w, npc } = withTarget(0);
+    expect(actions(w)[0]).toMatchObject({ label: `Hand the parcel to ${npcName(npc)}`, ready: true, target: { kind: 'parcel', id: npc.id } });
+  });
+
+  it('waits while the target still drives', () => {
+    const { w, npc } = withTarget(RULES.parkedSpeed + 1);
+    expect(actions(w)).toContainEqual(expect.objectContaining({ label: `Hand the parcel to ${npcName(npc)}`, ready: false }));
+  });
+
+  it('is gone with no handover open', () => {
+    const { w } = withTarget(0);
+    w.states = [];
+    expect(actions(w).some((a) => a.target.kind === 'parcel')).toBe(false);
   });
 });
 

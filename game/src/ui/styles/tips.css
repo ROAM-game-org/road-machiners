@@ -21,3 +21,9 @@
   display: flex;
   justify-content: flex-end;
 }
+#ui .touch-tip {
+  position: fixed;
+  z-index: var(--z-toast);
+  max-width: calc(100vw - var(--safe-left) - var(--safe-right));
+  pointer-events: none;
+}

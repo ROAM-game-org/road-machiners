@@ -11,7 +11,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).parent / "factory-incidents.sh"
 
 
-def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, state: dict | None = None) -> list[str]:
+def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = None, audit: str = "exit 0", review: str | None = None, gh: str = "exit 0", dev: dict | None = None, error_alert: str | None = None, public_alert: str | None = None, state: dict | None = None) -> list[str]:
     home = tmp_path / "home"
     (home / "state").mkdir(parents=True)
     (home / "state" / "state.json").write_text(json.dumps({"failures": [], "lastTickError": None, "devFailed": None, **(dev or {}), **(state or {})}))
@@ -20,11 +20,13 @@ def run(tmp_path: Path, health: dict | None, pause_age_minutes: int | None = Non
     if error_alert is not None:
         (home / "error-reports").mkdir()
         (home / "error-reports" / "alert").write_text(error_alert)
+    if public_alert is not None:
+        (home / "public-alert").write_text(public_alert)
     if health is not None:
         (home / "health").write_text(json.dumps(health))
     if pause_age_minutes is not None:
         paused = home / "paused"
-        paused.write_text("Hermes fixing #5")
+        paused.write_text(json.dumps({"kind": "member", "note": "Hermes fixing #5", "by": "Hermes", "at": "2026-01-01T00:00:00.000Z"}))
         old = time.time() - pause_age_minutes * 60
         os.utime(paused, (old, old))
     bin_dir = tmp_path / "bin"
@@ -181,4 +183,10 @@ def test_a_pending_review_wakes_hermes_until_the_file_goes(tmp_path):
 def test_an_error_service_cap_wakes_hermes_until_the_file_goes(tmp_path):
     alert = "error reports: the daily cap of 5 new issues was hit on 2026-10-07\n"
     assert run(tmp_path / "hit", health(), error_alert=alert) == ["error reports: the daily cap of 5 new issues was hit on 2026-10-07"]
+    assert run(tmp_path / "handled", health()) == []
+
+
+def test_a_failed_public_inbox_write_wakes_hermes_until_the_file_goes(tmp_path):
+    alert = "public updates: the plugin could not write a player vote or comment to the inbox on 2026-10-14\n"
+    assert run(tmp_path / "hit", health(), public_alert=alert) == ["public updates: the plugin could not write a player vote or comment to the inbox on 2026-10-14"]
     assert run(tmp_path / "handled", health()) == []

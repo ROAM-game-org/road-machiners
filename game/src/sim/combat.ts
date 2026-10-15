@@ -24,6 +24,7 @@ import { sampleWeighted } from './npc-loadout';
 import { vehicleMass } from './mass';
 import { vehicleStats, type MountedWeapon } from './stats';
 import { partDef, type WeaponDef } from '../data/parts';
+import { remember } from './memory';
 import type { Aim, GameEvent, GunState, NpcActivity, PartInstance, ShotRound, Vehicle, VehicleHits, World } from './types';
 import { digCrater } from './craters';
 import { weatherOn } from './weather';
@@ -880,6 +881,7 @@ function learnsAttack(world: World, observer: Vehicle, shooter: Vehicle, target:
 
 export function noteAttack(world: World, attacker: Vehicle, victim: Vehicle, calm: boolean): void {
   recordAttack(world, attacker, victim);
+  if (victim.brain) remember(world, victim, { kind: 'wronged', by: attacker.id });
   if (!calm) return;
   if (victim.brain && boundTo(world, attacker.id, victim.id)) addState(world, "revenge", victim.id, attacker.id, { kind: "none" });
   startFeuds(world, attacker, victim);

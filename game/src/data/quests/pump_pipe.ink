@@ -48,7 +48,7 @@ VAR toll = 50
 === start ===
 # checkpoint: start
 { taken: -> road }
-Agnes leads you into the shed behind the dials, out of the watchman's sight, and pulls the door to. # place: Pump Station
+Agnes leads you into the shed behind the dials, out of the watchman's sight, and pulls the door to. # place: Dustwell
 She takes a flat bundle from under the pillow on her cot. It is the copy, wrapped in oilcloth. She opens it, writes this week's line in with your name beside the dial, and seals it with wax.
 From her desk drawer she takes an old meter and sets it on the desk. Behind it lies an envelope with a lantern seal. She shuts the drawer on it.
 That's the meter the Senate made me take off the tanker's hose. It also fits the tank the tanker empties into, up on the household's terrace. # speaker: Agnes
@@ -85,7 +85,7 @@ Agnes watches you go, then goes back to her dials.
 
 === steward ===
 # checkpoint: steward
-A cart waits where the pump track meets the Bowl road. # page # place: The Bowl road
+A cart waits where the Dustwell track meets the Bowl road. # page # place: The Bowl road
 A grey-haired man in a grey coat sits on the back of it. A lantern is stitched on his collar, and a purse sits beside him.
 I am Aurel Brede, steward to the Archon's household. My watchman saw Agnes give you something sealed. He also saw you read her dial. # speaker: Steward
 I'm not asking you to burn anything. Lose the paper on the road. And if anyone in Bowl asks, you never read a dial. # speaker: Steward

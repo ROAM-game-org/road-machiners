@@ -253,7 +253,7 @@ function noteOwner(owner: Map<number, string>, body: RAPIER.RigidBody, vehicleId
   for (let i = 0; i < body.numColliders(); i++) owner.set(body.collider(i).handle, vehicleId);
 }
 
-type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean };
+type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean; world: RAPIER.World };
 
 function run(d: Drive, w: World, steps: number): TurnResult {
   const world = RAPIER.World.restoreSnapshot(d.world.takeSnapshot());
@@ -266,7 +266,7 @@ function run(d: Drive, w: World, steps: number): TurnResult {
     const s = vehicleStats(w, v);
     const b = bodyOf(v.chassisId);
     const mem = memory[v.id];
-    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false };
+    return { v, s, b, body, ctl: makeCar(world, body, b, s.mass), mem, plan: planOf(w, v, s, body, mem), result: { passed: false, arrived: false }, grip: 1, topShare: 1, oil: oilInReach(oil, v, s, body), kicked: false, world };
   });
   const owner = new Map<number, string>();
   for (const c of cars) noteOwner(owner, c.body, c.v.id);
@@ -803,8 +803,27 @@ function backsToPoint(c: Car, rearAng: number, far: number, target: number, spee
 
 function blockedInFront(c: Car, target: number, speed: number): boolean {
   const pushing = target >= D.pushSpeed || (target > 0 && c.mem.stall > 0);
-  c.mem.stall = pushing && Math.abs(speed) < D.stallSpeed ? c.mem.stall + DT : 0;
+  c.mem.stall = pushing && Math.abs(speed) < D.stallSpeed && touchesAhead(c) ? c.mem.stall + DT : 0;
   return c.mem.stall >= D.stallSeconds;
+}
+
+function touchesAhead(c: Car): boolean {
+  const forward = rotateBy(c.body.rotation(), { x: 1, y: 0, z: 0 });
+  let ahead = false;
+  for (let i = 0; i < c.body.numColliders(); i++) {
+    const mine = c.body.collider(i);
+    c.world.contactPairsWith(mine, (other) => {
+      c.world.contactPair(mine, other, (manifold, flipped) => {
+        if (manifold.numContacts() === 0) return;
+        const raw = manifold.normal();
+        const sign = flipped ? -1 : 1;
+        const length = Math.hypot(raw.x, raw.y, raw.z);
+        if (length === 0) throw new Error(`Contact of ${c.v.id} has no normal`);
+        if ((raw.x * forward.x + raw.y * forward.y + raw.z * forward.z) * sign / length >= D.blockFacing) ahead = true;
+      });
+    });
+  }
+  return ahead;
 }
 
 function turnWheels(c: Car, steerTo: number): void {

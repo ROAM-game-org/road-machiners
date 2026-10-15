@@ -4,9 +4,9 @@ import { sweepLogs, sweepTestCache, sweepWork } from './cleanup';
 import { cpuSets, poolOf, vitestWorkersOf } from './cpus';
 import { removeStaleBuilds } from './deploy';
 import { freeGb, requireCodexLogin } from './health';
-import { failureIssue, pruneFailures, reportFailure } from './fail';
+import { JobDiedError, JobTimeoutError, failureIssue, pruneFailures, reportFailure } from './fail';
 import { intake } from './intake';
-import { filterWith } from './public/filter';
+import { publicFilterWith } from './public/filter';
 import { publicTick } from './public/tick-steps';
 import { recordJob } from './ledger';
 import { reportAttempt, reportScheduler } from './observability';
@@ -14,12 +14,15 @@ import { pruneCaptions } from './post-status';
 import { isAlive, killJob, removeJobContainers, spawnJob } from './jobs';
 import { repairClone } from './repair-clone';
 import { clearSessions, markResumed } from './sessions';
+import { requeueKept } from './stages/kept-approval';
 import { waitingMerges } from './stages/merge';
 import { openTasks } from './stages/release-common';
 import { sweepStuck, type Repair } from './stuck';
 import { clearQueued, isQueued, orderKey, readState, updateState } from './state';
 import { sweepTranscripts } from './transcript-archive';
-import { askedAt, isAnswered } from './questions';
+import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
+import { migrateMerges } from './migrate-merges';
+import { migrateRecords } from './migrate-records';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
 import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
@@ -253,7 +256,7 @@ export const REAL_DEPS: TickDeps = {
   spawn: spawnJob,
   cores: availableParallelism,
   repair: repairClone,
-  publicTick: (ctx) => publicTick(ctx, filterWith(ctx.cfg, fetch)),
+  publicTick: (ctx) => publicTick(ctx, publicFilterWith(ctx.cfg, fetch)),
 };
 
 function dropJob(ctx: Ctx, job: Job): void {
@@ -302,7 +305,7 @@ async function failJob(ctx: Ctx, job: Job, alive: boolean, deps: TickDeps): Prom
   dropJob(ctx, job);
   for (const issue of job.batch ?? []) await ctx.github.addLabel(issue, STUCK_LABEL);
   forgetResume(ctx, job);
-  const reason = alive ? `timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes` : 'job process died without finishing';
+  const reason = alive ? new JobTimeoutError(`timed out after ${timeoutOf(ctx.cfg, job.stage)} minutes`) : new JobDiedError('job process died without finishing');
   await reportFailure(ctx, job.stage, failureIssue(job.stage, job.issue, readState(ctx.statePath)), reason, job.log, job.batch ?? []);
 }
 
@@ -375,10 +378,16 @@ function startJob(ctx: Ctx, codeDir: string, pick: JobPick, deps: TickDeps): voi
 
 async function releaseReason(ctx: Ctx, card: Card): Promise<'answered' | 'no answer in time' | null> {
   if (card.column !== 'Triage' || !card.labels.includes(NEEDS_INFO_LABEL)) return null;
-  const comments = await ctx.github.comments(card.issue);
-  if (isAnswered(comments)) return 'answered';
-  const asked = askedAt(comments);
-  return asked !== null && minutesSince(ctx, asked) > ctx.cfg.needsInfoHours * 60 ? 'no answer in time' : null;
+  const asked = askedAt(ctx.statePath, card.issue);
+  if (asked === null) return startAskClock(ctx, card.issue);
+  if (isAnswered(await ctx.github.comments(card.issue), asked)) return 'answered';
+  return minutesSince(ctx, asked) > ctx.cfg.needsInfoHours * 60 ? 'no answer in time' : null;
+}
+
+function startAskClock(ctx: Ctx, issue: number): null {
+  recordAsked(ctx.statePath, issue, ctx.now().toISOString());
+  ctx.log('tick', issue, `${NEEDS_INFO_LABEL} has no record of when the questions came, so the wait for answers starts now`);
+  return null;
 }
 
 export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> {
@@ -390,6 +399,7 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
       continue;
     }
     await ctx.github.removeLabel(card.issue, NEEDS_INFO_LABEL);
+    clearAsked(ctx.statePath, card.issue);
     ctx.log('tick', card.issue, `${reason}, removed ${NEEDS_INFO_LABEL}`);
     released.push({ ...card, labels: card.labels.filter((label) => label !== NEEDS_INFO_LABEL) });
   }
@@ -444,6 +454,8 @@ export async function checkJobs(ctx: Ctx, deps: TickDeps = REAL_DEPS): Promise<v
 }
 
 export async function tick(ctx: Ctx, codeDir: string, deps: TickDeps = REAL_DEPS): Promise<void> {
+  await migrateMerges(ctx);
+  await migrateRecords(ctx);
   await checkJobs(ctx, deps);
   await settleRouting(ctx);
   await startJobs(ctx, codeDir, deps);
@@ -476,6 +488,7 @@ async function startJobs(ctx: Ctx, codeDir: string, deps: TickDeps): Promise<voi
   updateState(ctx.statePath, pruneFailures(ctx.now()));
   const free = freeGb(ctx.cfg.home);
   const cards = await sweepStuck(ctx, answered, free >= ctx.cfg.minFreeGb, deps.repair);
+  requeueKept(ctx, cards);
   if (free < ctx.cfg.minFreeGb) {
     reportScheduler(ctx.cfg.home, 'disk-low', ctx.now());
     return ctx.log('tick', null, `disk low: ${free} GB free, under ${ctx.cfg.minFreeGb} GB, starts nothing`);

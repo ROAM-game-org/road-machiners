@@ -17,6 +17,7 @@ import {
   type QuestBundle,
   type QuestFact,
   type QuestLanguage,
+  type QuestLinks,
   type QuestScene,
   type QuestStat,
   type QuestText,
@@ -147,12 +148,52 @@ function siteArg(fn: string, args: readonly unknown[]): string {
 export function parseBundle(value: unknown): QuestBundle {
   if (!isRecord(value) || !isRecord(value.world) || !Array.isArray(value.externals) || !isRecord(value.quests)) throw new Error('Quest bundle has no world, externals or quests');
   const quests = Object.fromEntries(Object.entries(value.quests).map(([id, quest]) => [id, parseQuest(id, quest)]));
-  return { world: parseVars('world', value.world), externals: value.externals.map(String), quests };
+  const bundle = { world: parseVars('world', value.world), externals: value.externals.map(String), quests };
+  checkQuestLinks(bundle);
+  return bundle;
+}
+
+export function checkQuestLinks(bundle: QuestBundle): void {
+  for (const [id, quest] of Object.entries(bundle.quests)) checkLinks(id, quest.links, bundle);
 }
 
 function parseQuest(id: string, value: unknown): CompiledQuest {
   if (!isRecord(value) || !isRecord(value.vars) || !Array.isArray(value.checkpoints) || !Array.isArray(value.art) || !isRecord(value.text)) throw new Error(`Quest ${id} has no vars, checkpoints, art or text`);
-  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), art: value.art.map(String), text: parseTexts(id, value.text) };
+  return { vars: parseVars(id, value.vars), checkpoints: value.checkpoints.map(String), view: parseView(id, value.view), art: value.art.map(String), revision: parseRevision(id, value.revision), links: parseLinks(id, value.links), text: parseTexts(id, value.text) };
+}
+
+function parseRevision(id: string, value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw new Error(`Quest ${id} has no revision`);
+  return value;
+}
+
+function parseLinks(id: string, value: unknown): QuestLinks {
+  if (!isRecord(value) || !isRecord(value.writes)) throw new Error(`Quest ${id} has no links`);
+  const texts = (key: string): string[] => {
+    const list = value[key];
+    if (!Array.isArray(list) || !list.every((item) => typeof item === 'string')) throw new Error(`Quest ${id} has bad ${key} links`);
+    return list;
+  };
+  const writes = Object.fromEntries(Object.entries(value.writes).map(([name, values]) => {
+    if (!Array.isArray(values) || !values.every(isQuestValue)) throw new Error(`Quest ${id} writes bad values to ${name}`);
+    return [name, values];
+  }));
+  return { reads: texts('reads'), readsNotes: texts('readsNotes'), writes, notes: texts('notes'), begins: texts('begins') };
+}
+
+function checkLinks(id: string, links: QuestLinks, bundle: QuestBundle): void {
+  const unknownVar = [...links.reads, ...Object.keys(links.writes)].find((name) => !bundle.world[name]);
+  if (unknownVar) throw new Error(`Quest ${id} links to world variable ${unknownVar}, which world.ink does not declare`);
+  const badValue = Object.entries(links.writes).find(([name, values]) => values.some((v) => typeof v !== bundle.world[name].type));
+  if (badValue) throw new Error(`Quest ${id} writes a value of the wrong type to ${badValue[0]}`);
+  const unknownNote = [...links.notes, ...links.readsNotes].find((note) => !isNoteId(note));
+  if (unknownNote) throw new Error(`Quest ${id} links to note ${unknownNote}, which is no note`);
+  const unknownQuest = links.begins.find((quest) => !bundle.quests[quest]);
+  if (unknownQuest) throw new Error(`Quest ${id} begins ${unknownQuest}, which is no quest`);
+}
+
+export function isQuestValue(value: unknown): value is QuestValue {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
 function parseView(id: string, value: unknown): QuestViewKind {
@@ -382,24 +423,6 @@ export function questProblems(state: QuestState, bundle: QuestBundle): Error[] {
 }
 
 export type CarriedQuestVars = { world: Record<string, unknown>; local: Record<string, Record<string, unknown>> };
-
-export function fittingQuestVars(carried: CarriedQuestVars, bundle: QuestBundle): { world: QuestVars; local: Record<string, QuestVars>; lost: string[] } {
-  const world = fitting(carried.world, bundle.world, (name) => name);
-  const locals = Object.entries(carried.local).map(([id, vars]) => [id, fitting(vars, bundle.quests[id]?.vars ?? {}, (name) => `${id}.${name}`)] as const);
-  const local = Object.fromEntries(locals.filter(([, fit]) => Object.keys(fit.kept).length > 0).map(([id, fit]) => [id, fit.kept]));
-  return { world: world.kept, local, lost: [...world.lost, ...locals.flatMap(([, fit]) => fit.lost)] };
-}
-
-function fitting(vars: Record<string, unknown>, decls: Record<string, QuestVarDecl>, label: (name: string) => string): { kept: QuestVars; lost: string[] } {
-  const kept: QuestVars = {};
-  const lost: string[] = [];
-  for (const [name, value] of Object.entries(vars)) {
-    const decl = decls[name];
-    if (!decl || typeof value !== decl.type) lost.push(label(name));
-    else if (value !== decl.init) kept[name] = value as QuestVars[string];
-  }
-  return { kept, lost };
-}
 
 function localProblems(id: string, vars: QuestVars, bundle: QuestBundle): Error[] {
   const quest = bundle.quests[id];

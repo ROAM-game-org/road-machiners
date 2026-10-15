@@ -81,7 +81,7 @@ export function beginRearm(world: World, vehicle: Vehicle, site: Site): void {
   pushGoal(world, vehicle, { kind: 'rearm', targetId: site.id, destination: lieUpSpot(world, vehicle, site), phase: 'travel', reason: 'lieUp', until });
 }
 
-function lieUpSpot(world: World, vehicle: Vehicle, site: Site): Vec {
+export function lieUpSpot(world: World, vehicle: Vehicle, site: Site): Vec {
   if (isStranded(world, vehicle)) return { ...vehicle.pos };
   for (let i = 0; i < SPAWN.tries; i++) {
     const spot = tryLieUpSpot(world, vehicle, site);

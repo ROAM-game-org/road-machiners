@@ -65,7 +65,11 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
-import FORMAT_2_63 from './save-fixtures/format-2-63.json';
+import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_67 from './save-fixtures/format-2-67.json';
+import FORMAT_2_68 from './save-fixtures/format-2-68.json';
+import FORMAT_2_69 from './save-fixtures/format-2-69.json';
+import FORMAT_2_70 from './save-fixtures/format-2-70.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1347,35 +1351,121 @@ describe('MIGRATIONS[61]', () => {
 });
 
 describe('save migration 62 to 63', () => {
-  it('has a run parked at its paid next outpost wait there for the road', () => {
-    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual({ ...FORMAT_2_62, furyRoad: { ...FORMAT_2_62.furyRoad, waitingAt: 2 } });
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
+
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
   });
 
-  it('has a run on the road wait nowhere', () => {
-    const run = { ...structuredClone(FORMAT_2_62.furyRoad), outposts: [FORMAT_2_62.furyRoad.outposts[0], { ...FORMAT_2_62.furyRoad.outposts[1], paid: false }] };
-    const world = { ...structuredClone(FORMAT_2_62), furyRoad: run };
+  it('keeps every contract as it is in step 63 to 64, since old saves hold no rescue and the new kind adds no field to the others', () => {
+    const next = MIGRATIONS[63](structuredClone(FORMAT_2_62));
 
-    expect(MIGRATIONS[62](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
-  });
-
-  it('keeps a world with no run as it is', () => {
-    const roaming = { ...structuredClone(FORMAT_2_62), furyRoad: null };
-
-    expect(MIGRATIONS[62](structuredClone(roaming))).toEqual(roaming);
+    expect(next).toEqual(FORMAT_2_62);
   });
 });
 
-describe('save migration 63 to 64', () => {
-  it('drops the quiet gap and lets every saved group come at once with plain gear', () => {
-    const { quietFrom: _quietFrom, ...run } = FORMAT_2_63.furyRoad;
-    const groups = FORMAT_2_63.furyRoad.groups.map((group) => ({ ...group, at: 0, money: 20000, elite: false }));
+describe('save migration 64 to 65', () => {
+  it('gives an old save an idle encounter log and changes nothing else', () => {
+    const next = MIGRATIONS[64](structuredClone(FORMAT_2_64)) as { player: { encounters: unknown; money: number } };
 
-    expect(MIGRATIONS[63](structuredClone(FORMAT_2_63))).toEqual({ ...FORMAT_2_63, furyRoad: { ...run, groups } });
+    expect(next.player.encounters).toEqual({ next: 0, pending: null, story: null });
+    expect(next.player.money).toBe(1200);
+    expect({ ...next, player: { ...next.player, encounters: undefined } }).toEqual({ ...FORMAT_2_64, player: { ...FORMAT_2_64.player, encounters: undefined } });
+  });
+
+  it('keeps an encounter log that is already there', () => {
+    const log = { next: 40, pending: null, story: null };
+    const world = { ...structuredClone(FORMAT_2_64), player: { ...FORMAT_2_64.player, encounters: log } };
+
+    expect(MIGRATIONS[64](structuredClone(world))).toEqual(world);
+  });
+});
+
+describe('MIGRATIONS[65]', () => {
+  it('anchors each saved progress at the truck position and leaves other trucks alone', () => {
+    const next = MIGRATIONS[65](structuredClone(FORMAT_2_64)) as { vehicles: { brain: { progress?: { key: string; since: number; at: { x: number; y: number } } } | null }[] };
+
+    expect(next.vehicles[0].brain!.progress).toEqual({ key: '41,77 explore:null:explore -', since: 231, at: { x: 41.5, y: 77.25 } });
+    expect(next.vehicles[1]).toEqual(FORMAT_2_64.vehicles[1]);
+    expect(next.vehicles[2]).toEqual(FORMAT_2_64.vehicles[2]);
+  });
+});
+
+describe('MIGRATIONS[66]', () => {
+  it('keeps a save with an armed ram and its order as it is', () => {
+    const before = structuredClone(FORMAT_2_64);
+
+    const next = MIGRATIONS[66](before);
+
+    expect(next).toEqual(FORMAT_2_64);
+    expect(before).toEqual(FORMAT_2_64);
+  });
+});
+
+describe('save migration 67 to 68', () => {
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[67](structuredClone(FORMAT_2_67))).toEqual(FORMAT_2_67);
+  });
+});
+
+describe('save migration 68 to 69', () => {
+  const migrated = () => MIGRATIONS[68](structuredClone(FORMAT_2_68)) as typeof FORMAT_2_68;
+
+  it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
+    const w = migrated();
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct4']);
+    expect(w.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct3']);
+    expect(w.shops.nose.contracts).toEqual([]);
+  });
+
+  it('ends a call on the removed found topic and forgets that topic', () => {
+    const w = migrated();
+    expect(w.player.call).toBeNull();
+    expect(w.player.talked).toEqual({ v7: { directions: 'done' }, v3: { lastSeen: 'done' } });
+  });
+
+  it('keeps a call on another topic', () => {
+    const save = structuredClone(FORMAT_2_68);
+    save.player.call.topic = 'lastSeen';
+    expect((MIGRATIONS[68](save) as typeof FORMAT_2_68).player.call).toEqual(save.player.call);
+  });
+});
+
+describe('save migration 69 to 70', () => {
+  it('has a run parked at its paid next outpost wait there for the road', () => {
+    expect(MIGRATIONS[69](structuredClone(FORMAT_2_69))).toEqual({ ...FORMAT_2_69, furyRoad: { ...FORMAT_2_69.furyRoad, waitingAt: 2 } });
+  });
+
+  it('has a run on the road wait nowhere', () => {
+    const run = { ...structuredClone(FORMAT_2_69.furyRoad), outposts: [FORMAT_2_69.furyRoad.outposts[0], { ...FORMAT_2_69.furyRoad.outposts[1], paid: false }] };
+    const world = { ...structuredClone(FORMAT_2_69), furyRoad: run };
+
+    expect(MIGRATIONS[69](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
   });
 
   it('keeps a world with no run as it is', () => {
-    const roaming = { ...structuredClone(FORMAT_2_63), furyRoad: null };
+    const roaming = { ...structuredClone(FORMAT_2_69), furyRoad: null };
 
-    expect(MIGRATIONS[63](structuredClone(roaming))).toEqual(roaming);
+    expect(MIGRATIONS[69](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 70 to 71', () => {
+  it('drops the quiet gap and lets every saved group come at once with plain gear', () => {
+    const { quietFrom: _quietFrom, ...run } = FORMAT_2_70.furyRoad;
+    const groups = FORMAT_2_70.furyRoad.groups.map((group) => ({ ...group, at: 0, money: 20000, elite: false }));
+
+    expect(MIGRATIONS[70](structuredClone(FORMAT_2_70))).toEqual({ ...FORMAT_2_70, furyRoad: { ...run, groups } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_70), furyRoad: null };
+
+    expect(MIGRATIONS[70](structuredClone(roaming))).toEqual(roaming);
   });
 });

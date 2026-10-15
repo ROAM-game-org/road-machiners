@@ -1,6 +1,3 @@
-// Render-only motion of a truck body and its loose parts. Driving physics never reads it.
-// The body leans on a spring toward a tilt set by the truck's acceleration. It lifts its nose when the truck speeds up,
-// dips it on braking and leans out of turns. A running engine shakes it a little while a turn plays.
 
 import * as THREE from 'three';
 import type { VehicleFrame } from '../../phys/frames';
@@ -14,6 +11,7 @@ const SWAY = {
   maxPitch: 0.085,
   maxRoll: 0.1,
   maxLift: 0.06,
+  reachHalf: 4,
 };
 const MAX_ACCEL = 20;
 const IDLE = { liftHz: 11, lift: 0.012, rollHz: 7.3, roll: 0.005 };
@@ -78,6 +76,7 @@ export class TruckMotion {
   private readonly roll = new Spring(SWAY.hz, SWAY.damping);
   private readonly lift = new Spring(SWAY.hz, SWAY.damping);
   private readonly whips: Whip[] = [];
+  private readonly pitchShare: number;
   private time = 0;
   private last: VehicleFrame | null = null;
   private readonly local = new THREE.Vector3();
@@ -88,8 +87,13 @@ export class TruckMotion {
   constructor(
     private readonly body: THREE.Object3D,
     private readonly pivot: THREE.Vector3,
+    halfLength: number,
     phase: number,
   ) {
+    if (!Number.isFinite(halfLength) || !(halfLength > 0)) {
+      throw new Error(`Truck motion needs a positive half-length, got ${halfLength}`);
+    }
+    this.pitchShare = Math.min(1, SWAY.reachHalf / halfLength);
     this.time = phase * 100;
   }
 
@@ -113,7 +117,7 @@ export class TruckMotion {
     const along = clamp(this.local.x, MAX_ACCEL);
     const up = clamp(this.local.y, MAX_ACCEL);
     const across = clamp(this.local.z, MAX_ACCEL);
-    const pitch = clamp(along * SWAY.pitchPerAccel, SWAY.maxPitch);
+    const pitch = clamp(along * SWAY.pitchPerAccel * this.pitchShare, SWAY.maxPitch * this.pitchShare);
     const roll = clamp(-across * SWAY.rollPerAccel, SWAY.maxRoll);
     const lift = clamp(-up * SWAY.liftPerAccel, SWAY.maxLift);
     let left = Math.min(dt, MAX_GAP);

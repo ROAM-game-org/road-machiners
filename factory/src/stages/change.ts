@@ -6,12 +6,6 @@ import { FACTORY_DIR, OUT_DIR, TASK_DIR, type Ctx } from '../types';
 import { prBody, prGuide, prTitle } from './change-pr';
 import { RESUME_NOTE, agentHome, agentLog, fillPrompt, isResuming, prepareOutputs, readOutput, useOpenNetwork } from './common';
 
-export function diffPaths(diff: string): string[] {
-  const paths: string[] = [];
-  for (const match of diff.matchAll(/^diff --git a\/(.+) b\/(.+)$/gm)) paths.push(match[1], match[2]);
-  return [...new Set(paths)];
-}
-
 const CHANGE_BASE = 'main';
 
 export const CHANGE_TASK_FILE = (id: number): string => `${TASK_DIR}/change-${id}.md`;
@@ -31,7 +25,7 @@ export async function change(ctx: Ctx, id: number): Promise<void> {
   await runChangeAgent(ctx, id, dir, resuming);
   const head = await ctx.repo.fetchFromWork(dir, branch);
   if (!(await ctx.repo.hasNewCommits(CHANGE_BASE, head))) throw new Error(`change ${id} made no commits`);
-  const paths = diffPaths(await ctx.repo.diff(CHANGE_BASE, head));
+  const paths = await ctx.repo.changedFiles(CHANGE_BASE, head);
   await ctx.repo.push(head, branch);
   const title = prTitle(readOutput(home, 'pr-title.txt'), id);
   const body = prBody(readOutput(home, 'pr-body.md'), request.by, request.text, paths);

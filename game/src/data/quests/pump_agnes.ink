@@ -36,12 +36,12 @@ VAR tip = 20
     Changed your mind about the copy? # speaker: Agnes
     -> hub
   }
-  The <term=pump_station>Pump Station</term> is a pumphouse behind a wall of oil drums. It smells of hot iron and wet stone. Water trucks wait in a line at the loading bay.
-  Every hose at the bay has a meter box on it, except one. A big grey tanker with a lantern painted on its door is filling from that one. It sits low on its springs already.
+  <term=dustwell>Dustwell</term> is a small square of rust corrugated walls round a pumpjack that nods over the well. It smells of hot iron and wet stone. Pipes run from the well to the tall tanks, and water trucks wait in a line at the tanks.
+  Every hose at the tanks has a meter box on it, except one. A big grey tanker with a lantern painted on its door is filling from that one. It sits low on its springs already.
   A woman in a canvas apron stands at a row of dials and copies each number into a book.
   A man in a grey coat sits on a drum by the gate with a mug of tea. He watches the woman, not you.
   { skill("perception") >= 2: His tea has gone cold, and he hasn't drunk any. He is listening to her. }
-  Water's in the tank by the drums. Read me the big dial while you fill. Every driver does, and I write the number down with your name. # speaker: Agnes
+  Water's in the tank by the lean-to drums. Read me the big dial while you fill. Every driver does, and I write the number down with your name. # speaker: Agnes
 }
 -> hub
 

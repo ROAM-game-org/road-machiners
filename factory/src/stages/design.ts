@@ -16,7 +16,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   const prompt = fillPrompt('design', { issue: String(issue), taskFile: TASK_FILE(issue), branch: BRANCH(issue), baseNote });
   await runAgent(ctx, issue, 'design', 'design', prompt, { effort: ctx.cfg.designEffort });
   throwIfNeedsCommittee(home);
-  const questions = readOutput(home, 'questions.md');
+  const questions = readOutput(home, 'questions.json');
   if (questions !== null) return askBack(ctx, issue, questions);
   const reason = readOutput(home, 'wont-do.md');
   if (reason !== null) return refuse(ctx, issue, reason);
@@ -27,10 +27,15 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
 }
 
 async function askBack(ctx: Ctx, issue: number, text: string): Promise<void> {
-  const questions = text.split('\n').map((line) => line.trim()).filter((line) => line !== '');
-  if (questions.length === 0) throw new Error('The design stage wrote an empty questions.md');
+  const questions = parseQuestions(text);
   await askAuthor(ctx, issue, questions, 'design');
   await moveCard(ctx, issue, 'Triage', 'questions');
+}
+
+function parseQuestions(text: string): string[] {
+  const data: unknown = JSON.parse(text);
+  if (!Array.isArray(data) || data.length === 0 || data.some((item) => typeof item !== 'string' || item.trim() === '')) throw new Error('questions.json must be a non-empty array of non-empty strings');
+  return data.map((item: string) => item.trim());
 }
 
 async function refuse(ctx: Ctx, issue: number, reason: string): Promise<void> {

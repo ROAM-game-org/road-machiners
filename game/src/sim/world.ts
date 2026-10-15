@@ -38,19 +38,24 @@ import { noteHurt, resolveNpcActivities } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
 import { advanceStates } from './states';
 import { forgetOld } from './memory';
+import { lapseEncounter } from './encounters';
 import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from './tow';
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
+import { readyHandover } from './parcel';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
-import { fittingQuestVars, QUESTS, type CarriedQuestVars } from './quests';
+import { QUESTS, type CarriedQuestVars } from './quests';
+import { repairQuests, type SavedRevisions } from './quest-repair';
+import { isNoteId } from './dialogue-rules';
 import { advanceFuryRoad, outpostFactsAt, runStart, startRun } from './fury-road';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
+import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
@@ -104,6 +109,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       perks: [],
       marked: [],
       rumored: [],
+      encounters: { next: 0, pending: null, story: null },
       notes: [],
       health: startHealth(kit),
       fuel: kit.fuel,
@@ -285,8 +291,12 @@ export function autoRuns(world: World): boolean {
   const p = world.player;
   if (p.call || p.quests.live) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
-  if (readyAid(world)) return false;
+  if (readyDeal(world)) return false;
   return waitsOnBeacon(world);
+}
+
+function readyDeal(world: World): boolean {
+  return readyAid(world) !== null || readyHandover(world) !== null;
 }
 
 export function isAtRest(v: Vehicle): boolean {
@@ -376,8 +386,10 @@ export function endTurn(
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
+    lapseEncounter(w);
     resolveNpcActivities(w);
     noteEngagements(w);
     discoverSites(w);
@@ -418,7 +430,7 @@ export function setWeaponOrder(
     if (!target || target.id === me.id)
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
-      throw new Error("You cannot see that target");
+      throw new Refused({ id: "unseen" });
     if (order.aim !== "body" && !findPart(target, order.aim))
       throw new Error(`Target has no part ${order.aim}`);
     me.weaponOrders[weaponId] = order;
@@ -508,6 +520,8 @@ export type Carried = {
   storage: CarriedPart[];
   setup: unknown;
   quests: CarriedQuestVars;
+  notes: string[];
+  revisions: SavedRevisions;
   run: CarriedRun | null;
 };
 
@@ -524,20 +538,21 @@ export type CarryReport = {
   sold: { good: string; units: number; money: number }[];
   lost: string[];
   settingsReset: (keyof WorldSettings)[];
+  questsReset: string[];
 };
 
 const KNOWN_SITES = new Set([...REGION.towns, ...REGION.locations].map((s) => s.id));
 
 export function carriedWorld(carried: Carried, kit: StartKit, mapOf: (setup: WorldSetup, seed: number, window: number) => BakedMap, freshSeed: () => number): { world: World; report: CarryReport } {
   const { setup, reset } = carriedSetup(carried.setup);
-  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset };
+  const report: CarryReport = { toGarage: [], sold: [], lost: [], settingsReset: reset, questsReset: [] };
   const truckKit = carriedKit(carried, kit, report);
   const seed = pick(carried.seed, freshSeed());
   const run = runIn(setup, carried.run);
   const from = startOutpost(run);
   const world = newWorld(seed, { ...truckKit, opening: null, intro: null, autoRepair: true }, mapOf(setup, seed, from), setup, true, carriedStart(seed, setup, truckKit.chassis, from));
   carryPlayer(world, carried);
-  carryQuests(world, carried.quests, report);
+  carryQuests(world, carried, report);
   carryPlayerTruck(world, carried, carried.truck !== null && truckKit !== kit, report);
   if (run) carryRun(world, run, report);
   world.player.costBasis = heldBasis(world, carried.costBasis);
@@ -618,10 +633,13 @@ function knownSite(world: World, id: string): boolean {
   return KNOWN_SITES.has(id) || (world.furyRoad !== null && isOutpostSite(id));
 }
 
-function carryQuests(world: World, carried: CarriedQuestVars, report: CarryReport): void {
-  const { world: shared, local, lost } = fittingQuestVars(carried, QUESTS);
-  world.player.quests = { world: shared, local, session: null, live: null };
-  report.lost.push(...lost);
+function carryQuests(world: World, carried: Carried, report: CarryReport): void {
+  const known = carried.notes.filter(isNoteId).map((id) => ({ id, turn: world.turn }));
+  const repair = repairQuests({ ...carried.quests, session: null }, known, carried.revisions, QUESTS);
+  world.player.quests = { ...repair.quests, live: null };
+  world.player.notes = repair.notes;
+  report.lost.push(...repair.lost, ...carried.notes.filter((id) => !isNoteId(id)));
+  report.questsReset.push(...repair.reset);
 }
 
 function carryPerks(world: World, perks: string[]): void {

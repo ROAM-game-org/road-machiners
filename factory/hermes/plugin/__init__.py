@@ -23,7 +23,7 @@ from typing import Optional
 from .allowlist import write_allowlist
 from .committee import Committee, CommitteeError
 from .observability import register_observation
-from .public import make_public_factory
+from .public import make_public_factory, public_chats, watch_polling_conflicts
 from .readiness import Readiness, refusal
 from .status import register_status
 
@@ -46,6 +46,12 @@ REMOVE_REPLY = re.compile(r"remove\s+#?(\d+)\b", re.IGNORECASE)
 ROUTE_PREFIX = re.compile(r"(patch|redesign)\s*:", re.IGNORECASE)
 # The `by` of an order Hermes gives on its own reading. The factory accepts it for a task and a route only.
 HERMES = "hermes"
+THANKS = frozenset({
+    "thanks", "thank you", "thank you very much", "thanks a lot", "many thanks", "much appreciated", "thx", "ty",
+    "спасибо", "спасибо большое", "большое спасибо", "благодарю",
+})
+MENTION = re.compile(r"@\w+")
+NOT_WORD = re.compile(r"[^\w\s]+")
 log = logging.getLogger(__name__)
 
 
@@ -135,6 +141,12 @@ def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None,
     if draft_post_id is not None and reply_to_message_id is not None and str(reply_to_message_id) == str(draft_post_id):
         return ("draft-reply", text or "")
     return _request(text or "", reply_to_message_id, approval_posts, release)
+
+
+def is_bare_thanks(text) -> bool:
+    if "?" in (text or ""):
+        return False
+    return " ".join(NOT_WORD.sub(" ", MENTION.sub(" ", text or "")).lower().split()) in THANKS
 
 
 def committee_args(text) -> Optional[str]:
@@ -577,7 +589,7 @@ async def _reply(gateway, event, text: str) -> None:
 def make_hook(cfg: Config, readiness: Readiness):
     async def on_dispatch(event, gateway, session_store, **kwargs):
         source = event.source
-        if str(source.chat_id) == cfg.discussion:
+        if str(source.chat_id) in public_chats(cfg):
             return {"action": "skip", "reason": "factory-public-discussion"}
         if not cfg.committee.is_member(source.user_id):
             return {"action": "skip", "reason": "factory-not-committee"}
@@ -597,6 +609,8 @@ def make_hook(cfg: Config, readiness: Readiness):
         draft_post_id = release_post.get("postId") if release_post else None
         decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id)
         if decision is None:
+            if is_bare_thanks(event.text) and not getattr(event, "media_urls", None):
+                return {"action": "skip", "reason": "factory-thanks"}
             return None
         if decision[0] == "draft-reply":
             # Hermes revises the draft with its tool. The factory waits for no route, so nothing goes to the inbox.
@@ -631,6 +645,7 @@ def register(ctx) -> None:
     cfg.committee.seed()
     readiness = Readiness(min_words=int(os.environ["FACTORY_ROUTE_MIN_WORDS"]), inbox=cfg.inbox)
     ctx.register_hook("pre_gateway_dispatch", make_hook(cfg, readiness))
+    watch_polling_conflicts(cfg)
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))

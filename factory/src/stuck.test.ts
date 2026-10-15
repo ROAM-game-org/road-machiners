@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EMPTY_STATE, readState, updateState, writeState } from './state';
+import { stuckText } from './position';
 import { classifyStuck, sweepStuck, type Repair } from './stuck';
 import { STUCK_LABEL, WORK_DIR, type Card, type Ctx, type Failure, type FactoryState, type Job } from './types';
 
@@ -11,8 +12,8 @@ const minutesAgo = (minutes: number): string => new Date(NOW.getTime() - minutes
 const stuck = (issue: number, column: Card['column'], labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels: [...labels, STUCK_LABEL] });
 const ready = (issue: number, column: Card['column'] = 'Merging'): Card => ({ itemId: `i${issue}`, issue, column, labels: [] });
 const range = (from: number, count: number): number[] => Array.from({ length: count }, (_, index) => from + index);
-const mergeDown = (batch: number[], at: string, error = 'timed out after 240 minutes'): Failure => ({ stage: 'merge', issue: null, error, log: `/logs/merge-${at}.log`, at, batch });
-const failure = (issue: number, error: string, over: Partial<Failure> = {}): Failure => ({ stage: 'verify', issue, error, log: '/logs/v.log', at: minutesAgo(30), ...over });
+const mergeDown = (batch: number[], at: string, over: Partial<Failure> = {}): Failure => ({ stage: 'merge', issue: null, error: 'timed out after 240 minutes', cause: 'timeout', log: `/logs/merge-${at}.log`, at, batch, ...over });
+const failure = (issue: number, error: string, over: Partial<Failure> = {}): Failure => ({ stage: 'verify', issue, error, cause: 'error', log: '/logs/v.log', at: minutesAgo(30), ...over });
 const mergeJob = (batch: number[]): Job => ({ id: 'merge-x', stage: 'merge', issue: null, pid: 1, startedAt: minutesAgo(10), log: '/l', batch });
 
 type Board = { ctx: Ctx; cards: Card[]; removed: number[]; repairs: number[]; logs: string[]; failRemove: Set<number> };
@@ -56,8 +57,8 @@ describe('the stuck sweep', () => {
     await sweep(b);
     const records = readState(b.ctx.statePath).stuck;
     expect(Object.keys(records)).toHaveLength(150);
-    expect(records['2']).toMatchObject({ kind: 'blocked', incident: `2:verify:${minutesAgo(30)}`, cause: 'checks failed: 3 tests', log: '/logs/v.log' });
-    expect(records['1']).toMatchObject({ kind: 'unrecorded', cause: 'no failure names this card' });
+    expect(records['2']).toMatchObject({ kind: 'blocked', incident: `2:verify:${minutesAgo(30)}`, error: 'checks failed: 3 tests', cause: 'error', log: '/logs/v.log' });
+    expect(records['1']).toMatchObject({ kind: 'unrecorded', error: 'no failure names this card', cause: null });
     expect(b.removed).toEqual([]);
   });
 
@@ -101,15 +102,42 @@ describe('the stuck sweep', () => {
     expect(b.removed).toEqual([12, 10, 11]);
   });
 
+  it('releases a batch that died the same way as one that timed out', async () => {
+    const b = board([10, 11].map((issue) => stuck(issue, 'Merging')), { failures: [mergeDown([10, 11], minutesAgo(30), { error: 'job process died without finishing', cause: 'died' })] });
+    await sweep(b);
+    expect(kinds(b)).toEqual({ 10: 'merge-batch', 11: 'merge-batch' });
+    expect(b.removed).toEqual([10]);
+  });
+
+  it('reads the cause field and never the error text', async () => {
+    const lookalike = (issue: number, error: string) => failure(issue, error, { stage: 'design' });
+    const b = board(
+      [10, 11, 4, 5, 6].map((issue) => stuck(issue, issue > 9 ? 'Merging' : 'Design')),
+      { failures: [mergeDown([10, 11], minutesAgo(30), { cause: 'error' }), lookalike(4, 'gh api graphql failed with exit 1: HTTP 502'), lookalike(5, 'write failed: ENOSPC: no space left on device'), lookalike(6, 'The stage spent $9 of its $8 budget; the agent needs a committee decision')] },
+    );
+    openMerge(b, 6);
+    await sweep(b);
+    expect(kinds(b)).toEqual({ 10: 'blocked', 11: 'blocked', 4: 'blocked', 5: 'blocked', 6: 'clone-merge' });
+    expect(b.removed).toEqual([6]);
+  });
+
+  it('keeps a decision blocked even beside an open clone merge', async () => {
+    const b = board([stuck(6, 'Design')], { failures: [failure(6, 'x', { stage: 'design', cause: 'decision' })] });
+    openMerge(b, 6);
+    await sweep(b);
+    expect(kinds(b)).toEqual({ 6: 'blocked' });
+    expect(b.repairs).toEqual([]);
+  });
+
   it('keeps a failed check of a whole batch and an empty budget blocked', async () => {
-    const b = board([stuck(10, 'Merging'), stuck(11, 'Merging')], { failures: [mergeDown([10, 11], minutesAgo(30), 'The stage spent $9.10 of its $8 budget, and its checkpoint still fails.')] });
+    const b = board([stuck(10, 'Merging'), stuck(11, 'Merging')], { failures: [mergeDown([10, 11], minutesAgo(30), { error: 'The stage spent $9.10 of its $8 budget, and its checkpoint still fails.', cause: 'decision' })] });
     await sweep(b);
     expect(kinds(b)).toEqual({ 10: 'blocked', 11: 'blocked' });
     expect(b.removed).toEqual([]);
   });
 
   it('repairs one stale clone merge per tick with the clone kept, and only once per card in its column', async () => {
-    const b = board([stuck(4, 'Testing'), stuck(5, 'Hardening')], { failures: [failure(4, 'The agent left the merge of dev at abc1234 into factory/issue-4 unfinished.'), failure(5, 'job process died without finishing', { stage: 'harden' })] });
+    const b = board([stuck(4, 'Testing'), stuck(5, 'Hardening')], { failures: [failure(4, 'The agent left the merge of dev at abc1234 into factory/issue-4 unfinished.'), failure(5, 'job process died without finishing', { stage: 'harden', cause: 'died' })] });
     openMerge(b, 4);
     openMerge(b, 5);
     await sweep(b);
@@ -124,7 +152,7 @@ describe('the stuck sweep', () => {
   });
 
   it('repairs no clone while the disk is low, and none of a card that asked the committee', async () => {
-    const b = board([stuck(4, 'Testing'), stuck(5, 'Testing')], { failures: [failure(4, 'unfinished merge'), failure(5, 'The agent needs a committee decision: pick a color', { decision: true })] });
+    const b = board([stuck(4, 'Testing'), stuck(5, 'Testing')], { failures: [failure(4, 'unfinished merge'), failure(5, 'The agent needs a committee decision: pick a color', { cause: 'decision' })] });
     openMerge(b, 4);
     openMerge(b, 5);
     await sweep(b, false);
@@ -143,14 +171,14 @@ describe('the stuck sweep', () => {
 
   it('retries a GitHub outage once, after this tick read the board, and a full disk only once the disk is free', async () => {
     const gh = 'gh api graphql failed with exit 1: \ngh timed out after 30000 ms and was killed';
-    const b = board([stuck(4, 'Design'), stuck(5, 'Design')], { failures: [failure(4, gh, { stage: 'design' }), failure(5, 'write failed: ENOSPC: no space left on device', { stage: 'design' })] });
+    const b = board([stuck(4, 'Design'), stuck(5, 'Design')], { failures: [failure(4, gh, { stage: 'design', cause: 'github' }), failure(5, 'write failed: ENOSPC: no space left on device', { stage: 'design', cause: 'disk' })] });
     await sweep(b, false);
     expect(b.removed).toEqual([4]);
     expect(readState(b.ctx.statePath).failures.map((row) => row.issue)).toEqual([5]);
     await sweep(b, true);
     expect(b.removed).toEqual([4, 5]);
     b.cards = b.cards.map((card) => (card.issue === 4 ? stuck(4, 'Design') : card));
-    updateState(b.ctx.statePath, (state) => ({ ...state, failures: [failure(4, gh, { stage: 'design', at: minutesAgo(1) })] }));
+    updateState(b.ctx.statePath, (state) => ({ ...state, failures: [failure(4, gh, { stage: 'design', cause: 'github', at: minutesAgo(1) })] }));
     await sweep(b);
     expect(b.removed).toEqual([4, 5]);
     expect(kinds(b)).toMatchObject({ 4: 'blocked' });
@@ -158,7 +186,7 @@ describe('the stuck sweep', () => {
 
   it('waits out a board that still lists a removed label, and gives a label that comes back with no new failure to Hermes', async () => {
     const gh = 'gh api graphql failed with exit 1: HTTP 502';
-    const b = board([stuck(4, 'Design'), stuck(10, 'Merging'), stuck(11, 'Merging')], { failures: [failure(4, gh, { stage: 'design' }), mergeDown([10, 11], minutesAgo(30))] });
+    const b = board([stuck(4, 'Design'), stuck(10, 'Merging'), stuck(11, 'Merging')], { failures: [failure(4, gh, { stage: 'design', cause: 'github' }), mergeDown([10, 11], minutesAgo(30))] });
     const lagging = b.cards;
     await sweep(b);
     expect(b.removed).toEqual([10, 4]);
@@ -193,6 +221,29 @@ describe('the stuck sweep', () => {
     await sweep(b);
     expect(readState(b.ctx.statePath).stuck['4']!.incident).toBe(`4:verify:${minutesAgo(1)}`);
     expect(b.logs.filter((line) => line.startsWith('#4 stuck sweep: blocked'))).toHaveLength(2);
+  });
+
+  it('shows a failure recorded before causes as such and leaves its card for Hermes', async () => {
+    const b = board([stuck(4, 'Design'), stuck(10, 'Merging'), stuck(11, 'Merging')]);
+    const old = { stage: 'design', issue: 4, error: 'gh api graphql failed with exit 1: HTTP 502', log: '/l', at: minutesAgo(30) };
+    const oldMerge = { stage: 'merge', issue: null, error: 'timed out after 240 minutes', log: '/m', at: minutesAgo(30), batch: [10, 11] };
+    writeFileSync(b.ctx.statePath, JSON.stringify({ ...structuredClone(EMPTY_STATE), failures: [old, oldMerge] }));
+    await sweep(b);
+    expect(kinds(b)).toEqual({ 4: 'blocked', 10: 'blocked', 11: 'blocked' });
+    expect(readState(b.ctx.statePath).stuck['4']).toMatchObject({ cause: null, error: old.error });
+    expect(stuckText(readState(b.ctx.statePath).stuck['4'])).toContain('cause recorded before causes');
+    expect(b.removed).toEqual([]);
+  });
+
+  it('reads a state file written before causes: a decision flag becomes the decision cause and a stuck record keeps its text', () => {
+    const b = board([]);
+    const failures = [{ stage: 'design', issue: 5, error: 'asked', log: null, at: 'a', decision: true }, { stage: 'design', issue: 6, error: 'plain', log: null, at: 'a' }];
+    const record = { incident: '4:verify:t', stage: 'verify', cause: 'checks failed', log: null, batch: 0, since: 't', decision: true, column: 'Testing', kind: 'blocked', tries: 0, released: null, refused: null };
+    writeFileSync(b.ctx.statePath, JSON.stringify({ ...structuredClone(EMPTY_STATE), failures, stuck: { 4: record } }));
+    const state = readState(b.ctx.statePath);
+    expect(state.failures.map((row) => [row.cause, 'decision' in row])).toEqual([['decision', false], [null, false]]);
+    expect(state.stuck['4']).toMatchObject({ error: 'checks failed', cause: 'decision' });
+    expect('decision' in state.stuck['4']!).toBe(false);
   });
 
   it('drops the record of a card someone else released, and keeps a released card until it leaves its column', async () => {

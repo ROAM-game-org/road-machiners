@@ -1,15 +1,17 @@
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { ghClient } from '../github';
 import { must } from '../exec';
+import { readPause } from '../pause';
 import { readState } from '../state';
-import { featureMerges, type Feature } from '../stages/release-common';
+import { toFeatures, type Feature } from '../stages/release-common';
 import { LABELS, type Labels } from './labels';
 import { createWorkerKey, readLiveOperations } from './live';
-import { ADHOC_LABEL, QUEUE_OF, RELEASE_CANDIDATE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL } from '../types';
+import { ADHOC_LABEL, QUEUE_OF, RELEASE_TASK_LABEL, STUCK_LABEL } from '../types';
 import type { Card, FactoryState, GitHub, Queue, Run, RunResult } from '../types';
+import { waitingMerges } from '../stages/merge';
 import type { AnalyticsRunner, Analytics } from './analytics';
 import type { DashboardConfig } from './config';
 import type { HostSampler, HostLoad } from './host';
@@ -19,21 +21,17 @@ export type Source<T> = { value: T | null; at: string | null; status: 'ok' | 'st
 type PauseReason = 'agent-usage-limit' | 'operator';
 export type Operations = ReturnType<typeof buildOperations> & { pauseReason: PauseReason | null };
 export type PublicCard = { issue: number; title: string; column: string; blocked: boolean; releaseTask: boolean };
-export type DevMerge = { issue: number; createdAt: string; mergedAt: string };
-export type GithubSnapshot = { cards: PublicCard[]; features: Feature[]; merges: DevMerge[]; releaseKey: string; provisional: boolean };
+export type MergeState = 'merging' | 'next' | 'stuck' | 'held' | 'after-ship';
+export type MergeQueueItem = { issue: number; title: string; state: MergeState };
+export type Part<T> = { value: T; error: null } | { value: null; error: string };
+export type GithubSnapshot = { cards: Part<PublicCard[]>; mergeQueue: Part<MergeQueueItem[]> };
 export type Snapshot = {
   generatedAt: string; repoUrl: string; playUrl: string; channelUrl: string | null;
   operations: Source<Operations>; github: Source<GithubSnapshot>; analytics: Source<Analytics>; host: Source<HostLoad>;
   live: Source<ReturnType<typeof readLiveOperations>>;
   labels: Labels;
 };
-export type Commit = { sha: string; parents: { sha: string }[]; commit: { message: string } };
-type ComparePage = { total_commits: number; commits: Commit[] };
 type PublicIssue = { number: number; title: string; labels: { name: string }[]; pull_request?: unknown };
-type MergedIssue = { number: number; createdAt: string; labels: string[]; mergedAt: string | null };
-
-const MERGES_QUERY = `query($owner:String!,$name:String!,$endCursor:String){repository(owner:$owner,name:$name){issues(labels:["${RELEASE_CANDIDATE_LABEL}"],states:[OPEN,CLOSED],first:50,after:$endCursor){pageInfo{hasNextPage endCursor}nodes{number createdAt labels(first:20){nodes{name}}timelineItems(first:100,itemTypes:[LABELED_EVENT]){nodes{...on LabeledEvent{createdAt label{name}}}}}}}}`;
-const MERGES_JQ = `.data.repository.issues.nodes[]|{number,createdAt,labels:[.labels.nodes[].name],mergedAt:([.timelineItems.nodes[]|select(.label.name=="${RELEASE_CANDIDATE_LABEL}")|.createdAt]|sort|first)}`;
 
 function createSource<T>(): Source<T> { return { value: null, at: null, status: 'unavailable' }; }
 function recordFailure<T>(source: Source<T>, name: string, error: unknown): Source<T> {
@@ -48,8 +46,10 @@ function expireSource<T>(source: Source<T>, budgetMs: number): Source<T> {
 function getPublicIssue(stage: string, issue: number | null): number | null {
   return ['change', 'adhoc'].includes(stage) ? null : issue;
 }
-export function getReleaseKey(state: FactoryState): string {
-  return JSON.stringify({ branch: state.release?.branch ?? 'dev', removed: state.release?.removed ?? [] });
+function readNextFeatures(state: FactoryState): Feature[] | null {
+  if (state.release === null) return state.devMerges && toFeatures(state.devMerges);
+  const { merges, removed } = state.release;
+  return merges && toFeatures(merges.filter((merge) => !removed.includes(merge.issue)));
 }
 function getFactoryStatus(state: FactoryState, paused: boolean): string {
   if (paused) return 'paused';
@@ -63,65 +63,42 @@ export function buildOperations(state: FactoryState, paused: boolean, config: Pi
   const count = (queue: Queue, total: number) => ({ busy: jobs.filter((job) => job.queue === queue).length, total });
   const candidateUrl = state.release?.postId != null ? `${config.publicUrl}/rc/` : null;
   const release = state.release === null ? null : { issue: state.release.issue, day: state.release.day };
-  return { status: getFactoryStatus(state, paused), jobs, queues: { branch: count('branch', 1), triage: count('triage', config.triageWorkers), design: count('design', config.designWorkers), implement: count('implement', config.implementWorkers), verify: count('verify', config.verifyWorkers), test: count('test', config.testWorkers) }, release, releaseKey: getReleaseKey(state), candidateUrl };
-}
-export function selectReleaseFeatures(commits: Commit[], head: string, removed: number[]): Feature[] {
-  const index = new Map(commits.map((commit) => [commit.sha, commit]));
-  const subjects: string[] = [];
-  const seen = new Set<string>();
-  let commit = index.get(head);
-  while (commit) {
-    if (seen.has(commit.sha)) throw new Error('Cycle in commit history');
-    seen.add(commit.sha);
-    if (commit.parents.length > 1) subjects.push(commit.commit.message.split('\n')[0]);
-    commit = index.get(commit.parents[0]?.sha ?? '');
-  }
-  return featureMerges(subjects).filter((feature) => !removed.includes(feature.issue));
+  return { status: getFactoryStatus(state, paused), jobs, queues: { branch: count('branch', 1), triage: count('triage', config.triageWorkers), design: count('design', config.designWorkers), implement: count('implement', config.implementWorkers), verify: count('verify', config.verifyWorkers), test: count('test', config.testWorkers) }, release, features: readNextFeatures(state), candidateUrl };
 }
 
 export class PublicGitHub {
   private readonly github: GitHub;
   constructor(private readonly config: DashboardConfig, private readonly run: Run) { this.github = ghClient(run, config); }
-  private async query(args: string[]): Promise<string> { return must(await this.run('gh', args), 'Dashboard GitHub read'); }
+  private async query(args: string[]): Promise<string> { return must(await this.run('gh', args, { activity: 'git' }), 'Dashboard GitHub read'); }
   private async readIssues(): Promise<PublicIssue[]> {
     const output = await this.query(['api', `repos/${this.config.repo}/issues?state=open&per_page=100`, '--paginate', '--jq', '.[] | {number,title,labels,pull_request}']);
     return output.split('\n').filter(Boolean).map((line) => JSON.parse(line) as PublicIssue);
   }
-  private async readMerges(): Promise<DevMerge[]> {
-    const [owner, name] = this.config.repo.split('/');
-    const output = await this.query(['api', 'graphql', '--paginate', '-f', `query=${MERGES_QUERY}`, '-f', `owner=${owner}`, '-f', `name=${name}`, '--jq', MERGES_JQ]);
-    const issues = output.split('\n').filter(Boolean).map((line) => JSON.parse(line) as MergedIssue);
-    return issues.filter((issue) => !issue.labels.includes(RELEASE_TASK_LABEL) && !issue.labels.includes(ADHOC_LABEL)).map((issue) => {
-      if (issue.mergedAt === null) throw new Error(`Issue ${issue.number} has ${RELEASE_CANDIDATE_LABEL} but no label event`);
-      return { issue: issue.number, createdAt: issue.createdAt, mergedAt: issue.mergedAt };
-    });
-  }
-  private async readHead(branch: string): Promise<string> {
-    const head = (await this.query(['api', `repos/${this.config.repo}/commits/${encodeURIComponent(branch)}`, '--jq', '.sha'])).trim();
-    if (!/^[a-f0-9]{40}$/.test(head)) throw new Error('Invalid GitHub head');
-    return head;
-  }
-  private async readFeatures(state: FactoryState): Promise<Feature[]> {
-    const branch = state.release?.branch ?? 'dev';
-    const [head, base] = await Promise.all([this.readHead(branch), this.readHead('main')]);
-    const commits = await this.readComparison(base, head);
-    return selectReleaseFeatures(commits, head, state.release?.removed ?? []);
-  }
-  private async readComparison(base: string, head: string): Promise<Commit[]> {
-    const output = await this.query(['api', `repos/${this.config.repo}/compare/${base}...${head}?per_page=100`, '--paginate', '--jq', '{total_commits,commits:[.commits[]|{sha,parents:[.parents[]|{sha}],commit:{message:.commit.message}}]}']);
-    const pages = output.split('\n').filter(Boolean).map((line) => JSON.parse(line) as ComparePage);
-    const commits = pages.flatMap((page) => page.commits);
-    if (!pages.length || commits.length !== pages[0].total_commits) throw new Error('Incomplete GitHub comparison');
-    return commits;
-  }
   async read(state: FactoryState): Promise<GithubSnapshot> {
     const visibility = (await this.query(['api', `repos/${this.config.repo}`, '--jq', '.visibility'])).trim();
     if (visibility !== 'public') throw new Error('Dashboard requires a public repository');
-    const [cards, issues, features, merges] = await Promise.all([this.github.cards(), this.readIssues(), this.readFeatures(state), this.readMerges()]);
-    return { cards: selectPublicCards(cards, issues), features, merges, releaseKey: getReleaseKey(state), provisional: state.release === null };
+    const [board] = await Promise.allSettled([this.readBoard()]);
+    const boardPart = toPart(board, 'board');
+    const cards = mapPart(boardPart, 'cards', ({ cards: raw, issues }) => selectPublicCards(raw, issues));
+    const mergeQueue = mapPart(boardPart, 'merge queue', ({ cards: raw, issues }) => selectMergeQueue(state, raw, issues));
+    return { cards, mergeQueue };
+  }
+  private async readBoard(): Promise<{ cards: Card[]; issues: PublicIssue[] }> {
+    const [cards, issues] = await Promise.all([this.github.cards(), this.readIssues()]);
+    return { cards, issues };
   }
 }
 
+function toPart<T>(result: PromiseSettledResult<T>, name: string): Part<T> {
+  if (result.status === 'fulfilled') return { value: result.value, error: null };
+  console.error(`Dashboard GitHub ${name} unavailable:`, result.reason);
+  return { value: null, error: `GitHub ${name} unavailable` };
+}
+function mapPart<T, R>(part: Part<T>, name: string, select: (value: T) => R): Part<R> {
+  if (part.error !== null) return part;
+  try { return { value: select(part.value), error: null }; }
+  catch (error) { return toPart<R>({ status: 'rejected', reason: error }, name); }
+}
 function selectPublicCards(cards: Card[], issues: PublicIssue[]): PublicCard[] {
   const byNumber = new Map(issues.filter((issue) => !issue.pull_request).map((issue) => [issue.number, issue]));
   const publicCards: PublicCard[] = [];
@@ -132,6 +109,30 @@ function selectPublicCards(cards: Card[], issues: PublicIssue[]): PublicCard[] {
     publicCards.push({ issue: card.issue, title: issue.title, column: card.column, blocked: card.labels.includes(STUCK_LABEL), releaseTask: card.labels.includes(RELEASE_TASK_LABEL) });
   }
   return publicCards;
+}
+const MERGE_STATE_ORDER: MergeState[] = ['merging', 'next', 'stuck', 'held', 'after-ship'];
+function selectMergeQueue(state: FactoryState, cards: Card[], issues: PublicIssue[]): MergeQueueItem[] {
+  const shown = new Map(selectPublicCards(cards, issues).filter((card) => card.column === 'Merging').map((card) => [card.issue, card]));
+  const batch = state.jobs.filter((job) => job.stage === 'merge').flatMap((job) => job.batch ?? []);
+  const waiting = new Set(waitingMerges(state, cards).map((card) => card.issue));
+  const shipping = state.jobs.some((job) => job.stage === 'ship');
+  const tests: Record<MergeState, (card: Card) => boolean> = {
+    merging: (card) => batch.includes(card.issue),
+    next: (card) => waiting.has(card.issue),
+    stuck: (card) => card.labels.includes(STUCK_LABEL),
+    held: (card) => String(card.issue) in state.held,
+    'after-ship': (card) => shipping && card.labels.includes(RELEASE_TASK_LABEL),
+  };
+  const readMergeState = (card: Card): MergeState => {
+    const found = MERGE_STATE_ORDER.find((mergeState) => tests[mergeState](card));
+    if (found === undefined) throw new Error(`Merging card ${card.issue} matches no merge queue state`);
+    return found;
+  };
+  const items = cards.flatMap((card) => {
+    const publicCard = shown.get(card.issue);
+    return publicCard ? [{ issue: card.issue, title: publicCard.title, state: readMergeState(card) }] : [];
+  });
+  return items.sort((a, b) => MERGE_STATE_ORDER.indexOf(a.state) - MERGE_STATE_ORDER.indexOf(b.state));
 }
 
 export function createGithubRun(timeoutMs: number, env: NodeJS.ProcessEnv): Run {
@@ -149,13 +150,9 @@ export function createGithubRun(timeoutMs: number, env: NodeJS.ProcessEnv): Run 
 }
 
 function readPauseReason(home: string): PauseReason | null {
-  let note: string;
-  try { note = readFileSync(join(home, 'paused'), 'utf8'); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw error;
-  }
-  return /^Hermes: Claude weekly usage limit(?:[;.\n]|$)/i.test(note) ? 'agent-usage-limit' : 'operator';
+  const pause = readPause(home);
+  if (pause === null) return null;
+  return pause.kind === 'usage-limit' ? 'agent-usage-limit' : 'operator';
 }
 function projectHostResources(host: HostLoad): HostLoad {
   if (!host.containers?.value) return host;
@@ -168,6 +165,7 @@ export class SnapshotCollector {
   private operations = createSource<Operations>();
   private github = createSource<GithubSnapshot>();
   private analytics = createSource<Analytics>();
+  private ledgerSize: number | null = null;
   private host = createSource<HostLoad>();
   private live = createSource<ReturnType<typeof readLiveOperations>>();
   constructor(private readonly config: DashboardConfig, private readonly publicGithub: PublicGitHub, private readonly hostSampler: HostSampler, private readonly analyticsRunner: AnalyticsRunner) {}
@@ -181,10 +179,16 @@ export class SnapshotCollector {
     } catch (error) { this.operations = recordFailure(this.operations, 'state', error); }
   }
   private async refreshAnalytics(): Promise<void> {
+    const path = join(this.config.home, 'ledger.jsonl');
+    const size = existsSync(path) ? statSync(path).size : null;
+    if (size !== null && size === this.ledgerSize) return void (this.analytics = { ...this.analytics, at: new Date().toISOString(), status: 'ok' });
     try {
-      const panels = await this.analyticsRunner.read(join(this.config.home, 'ledger.jsonl'), new Date(), this.config.tickIntervalMs * 3);
-      this.analytics = recordSuccess(panels);
-    } catch (error) { this.analytics = recordFailure(this.analytics, 'analytics', error); }
+      this.analytics = recordSuccess(await this.analyticsRunner.read(path, new Date(), this.config.tickIntervalMs * 3));
+      this.ledgerSize = size;
+    } catch (error) {
+      this.ledgerSize = null;
+      this.analytics = recordFailure(this.analytics, 'analytics', error);
+    }
   }
   private refreshLive(): void {
     if (this.state === null) return;
