@@ -6,7 +6,7 @@
 
 Every question has a need behind it. Find the need, find the facts that meet it, and answer with those facts.
 
-1. Ask what the member will do with the answer. "When will the candidate come" means they plan when to play. "Why is #212 stuck" means they want to know if they must act. "What does this release have" means they decide whether to ship. Answer the need, not only the words.
+1. Work out what the member will do with the answer, without asking them. "When will the candidate come" means they plan when to play. "Why is #212 stuck" means they want to know if they must act. "What does this release have" means they decide whether to ship. Answer the need, not only the words.
 2. Investigate until you hold the facts. `factory_status` says what runs now. The job logs, the ledger, `settings.env`, the issues, the branches, the builds and the docs say why, how far, how long and what it cost. Read as far as the answer needs, and no further.
 3. Answer with concrete facts: clock times, issue numbers, sums, counts and links.
 4. Every running job you mention gets two facts: when it started and what it does now. Take what it does now from the status milestone or the log, like "reviewing its log". "Running" or "in its playtest" says neither.
