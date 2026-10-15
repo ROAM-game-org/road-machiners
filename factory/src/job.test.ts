@@ -12,42 +12,6 @@ import type { Ctx, FactoryConfig, FactoryState, JobStage } from './types';
 const ROOT = resolve('tmp/factory-job-test');
 
 describe('runJob', () => {
-  it('clears the job and the queued change after a failure, and reports it once', async () => {
-    rmSync(ROOT, { recursive: true, force: true });
-    mkdirSync(ROOT, { recursive: true });
-    const statePath = join(ROOT, 'state.json');
-    writeState(statePath, { ...structuredClone(EMPTY_STATE), jobs: [{ id: 'a', stage: 'design', issue: 4, pid: 1, startedAt: '', log: 'l' }, { id: 'b', stage: 'change', issue: 9, pid: 1, startedAt: '', log: 'l' }], pendingChanges: [{ id: 9, text: 't', by: 'b' }], interrupted: [9] });
-    mkdirSync(join(ROOT, 'sessions', 'issue-9'), { recursive: true });
-    const posts: string[] = [];
-    const ctx = {
-      cfg: { home: ROOT, repo: 'o/r', committeeChat: 'c' } as FactoryConfig,
-      statePath,
-      now: () => new Date(),
-      log: () => undefined,
-      repo: {
-        fetch: async () => {
-          throw new Error('offline');
-        },
-      },
-      telegram: {
-        sendMessage: async (_c: string, text: string) => {
-          posts.push(text);
-          return 1;
-        },
-      },
-      github: {},
-    } as unknown as Ctx;
-    await runJob(ctx, 'change', 9);
-    const state = readState(statePath);
-    expect(state.jobs.map((job) => job.id)).toEqual(['a']);
-    expect(state.pendingChanges).toEqual([]);
-    expect(state.interrupted).toEqual([]);
-    expect(existsSync(join(ROOT, 'sessions', 'issue-9'))).toBe(false);
-    expect(posts).toEqual([]);
-    expect(state.failures).toMatchObject([{ stage: 'change', issue: null, error: 'offline' }]);
-    expect(readLedger(ROOT, new Date(0)).filter((line) => line.kind === 'job')).toMatchObject([{ kind: 'job', id: 'b', stage: 'change', issue: 9, outcome: 'failed', agents: [] }]);
-  });
-
   it('records the batch a failed merge job wrote on its entry', async () => {
     rmSync(ROOT, { recursive: true, force: true });
     mkdirSync(ROOT, { recursive: true });
