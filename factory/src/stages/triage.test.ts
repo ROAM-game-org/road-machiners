@@ -27,14 +27,14 @@ afterEach(() => rmSync(home, { recursive: true, force: true }));
 function fakeCtx(verdict: string | null, labels: string[] = [], earlier: string[] = []): Ctx {
   const record = (name: string) => async (...args: unknown[]) => { calls.push(`${name} ${args.join(' ')}`); };
   const fake = {
-    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', repo: 'o/r', committeeChat: 'chat' },
+    cfg: { home, designModel: 'opus', buildModel: 'sonnet', triageModel: 'haiku', triageEffort: 'low', repo: 'o/r', committeeChat: 'chat', minVotes: 10 },
     statePath: `${home}/state.json`,
     now: () => new Date('2026-09-30T10:00:00Z'),
     telegram: { sendMessage: record('message') },
     log: () => undefined,
     github: {
       issue: async (number: number) => ({ number, title: number === 7 ? 'Big horn' : `Horn idea ${number}`, body: number === 7 ? 'Add a horn' : `Body of ${number}`, labels: number === 7 ? labels : [], createdAt: '', state: 'OPEN', author: 'anna' }),
-      comments: async () => earlier.map((body) => ({ login: 'bot', body })),
+      comments: async () => earlier.map((body) => ({ login: 'bot', body, byFactory: body.includes('<!-- roam-factory -->') })),
       cards: async () => cards,
       comment: record('comment'), addLabel: record('addLabel'), close: record('close'), move: record('move'),
     },
@@ -114,8 +114,13 @@ describe('triage stage', () => {
   });
 
   it('does not relabel on a later run after a member removed the label', async () => {
-    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y']), 7);
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Triage passed: x\n\nModel routing from triage: trivial, label design-sonnet. y\n\n<!-- roam-factory -->']), 7);
     expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual([]);
+  });
+
+  it('still routes when only a stranger wrote the routing line', async () => {
+    await runStage(fakeCtx(verdict({ complexity: 'trivial' }), [], ['Model routing from triage: hard, default models.']), 7);
+    expect(calls.filter((call) => call.startsWith('addLabel'))).toEqual(['addLabel 7 design-sonnet']);
   });
 
   it.each([
@@ -271,6 +276,39 @@ describe('triage vote', () => {
     const store = openStore(home);
     expect(store.proposal(7)?.pitch).toBe(`${PITCH.title}\n\n${PITCH.text}`);
     store.close();
+  });
+
+  it('adds the voting label before it writes the proposal row, and comments after both', async () => {
+    const ctx = fakeCtx(vote());
+    const seen: string[] = [];
+    const add = ctx.github.addLabel;
+    ctx.github.addLabel = async (number: number, label: string) => {
+      const store = openStore(home);
+      seen.push(`${label} row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return add(number, label);
+    };
+    const comment = ctx.github.comment;
+    ctx.github.comment = async (number: number, body: string) => {
+      const store = openStore(home);
+      seen.push(`comment row ${store.proposal(number) === null ? 'absent' : 'present'}`);
+      store.close();
+      return comment(number, body);
+    };
+    await runStage(ctx, 7);
+    expect(seen).toContain('voting row absent');
+    expect(seen.at(-1)).toBe('comment row present');
+    expect(calls.filter((call) => call.startsWith('comment 7'))).toHaveLength(1);
+  });
+
+  it('writes no row and no comment when adding the voting label fails, so a rerun starts clean', async () => {
+    const ctx = fakeCtx(vote());
+    ctx.github.addLabel = async () => { throw new Error('GitHub down'); };
+    await expect(runStage(ctx, 7)).rejects.toThrow('GitHub down');
+    const store = openStore(home);
+    expect(store.proposal(7)).toBeNull();
+    store.close();
+    expect(calls.filter((call) => call.startsWith('comment'))).toEqual([]);
   });
 
   it('adds the bundle like ready', async () => {

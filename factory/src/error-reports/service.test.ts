@@ -50,6 +50,15 @@ function report(over: Record<string, unknown> = {}): Buffer {
 }
 
 describe('error reports', () => {
+  it('breaks mentions and issue references in the error title, since a report can carry any message', async () => {
+    const { deps, calls } = setup();
+    const stack = 'Error: x\n    at Xy (https://play.test/dev/assets/index-abc.js:1:10)';
+    await new ErrorReports(deps).take(report({ error: { name: 'Error', message: 'ping @octocat about o/r#5 and GH-7', stack } }));
+    const title = calls[1]!.split('\n')[0]!;
+    expect(title).not.toMatch(/@\w|#\d|GH-\d/);
+    expect(title.replace(/‍/g, '')).toContain('ping @octocat about o/r#5 and GH-7');
+  });
+
   it('opens one bug issue for a new error, with the mapped stack and the fingerprint line, and keeps the report', async () => {
     const { home, deps, calls } = setup();
     await new ErrorReports(deps).take(report());
@@ -183,6 +192,13 @@ describe('error server', () => {
     expect(calls.some((call) => call.startsWith('create'))).toBe(true);
   });
 
+  it('refuses a language that is not a language tag and opens no issue', async () => {
+    const { url, calls } = await start();
+    const language = 'en\n\n@octocat GH-5\n\n## Committee feedback';
+    expect((await post(url, report({ language }))).status).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
   it('answers the preflight of an allowed origin, and also takes the play site itself', async () => {
     const { url } = await start();
     const preflight = await fetch(url, { method: 'OPTIONS', headers: { origin: 'https://play.test' } });
@@ -206,5 +222,18 @@ describe('error server', () => {
     expect(statuses).toEqual([204, 204, 429]);
     expect((await post(url, report(), { 'cf-connecting-ip': '5.6.7.8' })).status).toBe(204);
     expect(readFileSync(alertPath(home), 'utf8')).toContain('FACTORY_ERROR_IP_PER_HOUR=2');
+  });
+
+  it('counts every address of one IPv6 /64 together', async () => {
+    const { url } = await start(2);
+    const statuses = [];
+    for (const ip of ['2001:db8::1', '2001:db8:0:0:1::1', '2001:db8::2']) statuses.push((await post(url, report(), { 'cf-connecting-ip': ip })).status);
+    expect(statuses).toEqual([204, 204, 429]);
+    expect((await post(url, report(), { 'cf-connecting-ip': '2001:db8:0:1::1' })).status).toBe(204);
+  });
+
+  it('refuses a client address that is not an IP address', async () => {
+    const { url } = await start(2);
+    expect((await post(url, report(), { 'cf-connecting-ip': 'not-an-ip' })).status).toBe(400);
   });
 });

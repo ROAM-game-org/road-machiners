@@ -57,7 +57,9 @@ const TAG_EXISTS = /a release with the same tag name already exists/;
 type Wait = (ms: number) => Promise<void>;
 const sleep: Wait = (ms) => new Promise((done) => setTimeout(done, ms));
 
-type ClientConfig = Pick<FactoryConfig, 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
+type RawComment = { login: string; body: string; createdAt: string; appId: number | null };
+
+type ClientConfig = Pick<FactoryConfig, 'githubAppId' | 'repo' | 'projectOwner' | 'projectNumber' | 'githubRetries' | 'githubRetryBaseSeconds' | 'githubTimeoutSeconds'>;
 
 export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHub {
   const repo = cfg.repo;
@@ -177,8 +179,11 @@ export function ghClient(run: Run, cfg: ClientConfig, wait: Wait = sleep): GitHu
     issue,
     async comments(number): Promise<IssueComment[]> {
       const rows = await lines(['api', `repos/${repo}/issues/${number}/comments`, '--paginate',
-        '--jq', '.[] | {login: .user.login, body: .body, createdAt: .created_at}']);
-      return rows.map((row) => JSON.parse(row) as IssueComment);
+        '--jq', '.[] | {login: .user.login, body: .body, createdAt: .created_at, appId: .performed_via_github_app.id}']);
+      return rows.map((row) => {
+        const { appId, ...comment } = JSON.parse(row) as RawComment;
+        return { ...comment, byFactory: appId !== null && String(appId) === cfg.githubAppId };
+      });
     },
     async comment(number, body) {
       await gh(['issue', 'comment', String(number), '-R', repo, '--body', `${body}\n\n${FACTORY_MARK}`]);

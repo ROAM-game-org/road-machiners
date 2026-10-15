@@ -33,7 +33,8 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
 import { READY_ARC_BIT } from "./render/models";
@@ -306,7 +307,7 @@ export class Game {
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
-      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (w) => this.apply(w) }),
+      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -597,7 +598,17 @@ export class Game {
 
   private clickVehicle(id: string): void {
     this.pin.click(id);
-    if (this.selected !== null && this.canClick()) this.apply(toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), vehicleById(this.world, id)));
+    if (this.selected === null || !this.canClick()) return;
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), vehicleById(this.world, id)));
+  }
+
+  private applyRefusable(next: () => World): void {
+    try {
+      this.apply(next());
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.hud.note(this.world, refusalText(this.world, err.refusal), "bad");
+    }
   }
 
   private canShowCombatVehicle(v: Vehicle): boolean {
