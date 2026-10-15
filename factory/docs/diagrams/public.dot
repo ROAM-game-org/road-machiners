@@ -41,7 +41,9 @@ digraph public {
   linked [label="Linked to known work\nwhile its issue is open\nno new issue, vote or route"];
   digest [label="Digest comment\non the issue\nat most one an hour"];
   newIssue [label="Own issue\nbug or feature-request\nand player-report"];
-  answer [label="Reply in the thread\nin English or Russian\nissue link and status,\nor a quoted wiki passage\nnever a canned fallback"];
+  answer [label="Reply in the thread\nin English or Russian\nissue link and status\nnever a canned fallback"];
+  answerJob [label="Answer job, one at a time\nat most FACTORY_ANSWERS_PER_DAY\nSonnet reads and runs\nthe game on main,\nreplies with its answer"];
+  images [label="Its images and the replied\nperson's image, downloaded once\ninto the issue's media folder"];
   intake [label="Intake\nthen Triage"];
   patch [label="Card to Testing\nthe comment is the task"];
   redesign [label="Card to Design"];
@@ -57,9 +59,12 @@ digraph public {
   linked -> digest;
   filter -> newIssue [label="bug or feature off its thread\nor with none, no open known work,\nany other report"];
   filter -> answer [label="question"];
+  filter -> answerJob [label="question"];
   newIssue -> intake;
   digest -> answer;
   newIssue -> answer;
+  digest -> images;
+  newIssue -> images;
 
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   filter -> patch [label="patch"];

@@ -22,6 +22,7 @@ const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => b
   'release-playtest': { stages: ['playtest'], keep: () => false },
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },
+  answer: { stages: ['answer'], keep: () => false },
   'merge-queue': { stages: ['merge'], keep: () => false },
   'ship-main': { stages: ['ship'], keep: () => false },
 };

@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { TIMEOUT_MS, readCapped } from './media';
 import { readPhoto } from './photo-file';
 import { MESSAGE_LIMIT } from './telegram-limits';
 import type { AlbumPhoto, InlineButton, Telegram } from './types';
@@ -22,6 +23,13 @@ export function botClient(token: string, fetchFn: typeof fetch): Telegram {
   const callForId = async (method: string, body: string | FormData): Promise<number> => messageId(method, await call(method, body));
 
   return {
+    async downloadFile(fileId) {
+      const file = (await call('getFile', JSON.stringify({ file_id: fileId }))) as { file_path?: unknown };
+      if (typeof file.file_path !== 'string') throw new Error('Telegram getFile gave no file path');
+      const response = await fetchFn(`https://api.telegram.org/file/bot${token}/${file.file_path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (!response.ok) throw new Error(`Telegram answered HTTP ${response.status} for the file`);
+      return readCapped(response);
+    },
     async sendMessage(chat, text, replyTo) {
       const ids: number[] = [];
       for (const part of splitText(text)) {

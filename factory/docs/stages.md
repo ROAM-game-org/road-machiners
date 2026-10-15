@@ -4,7 +4,7 @@ The rules of each step in [process.md](process.md). A card stage comments on its
 
 ## Game docs first
 
-Every agent prompt that works in a game clone opens with `prompts/game-docs.md`, which `fillPrompt` fills in for `{{gameDocs}}`. Before any other step, `npm ci` included, the agent reads `game/CLAUDE.md` and `game/docs/DESIGN.md`. It then reads each doc in the Docs list of CLAUDE.md that covers its task, follows them and names them in its reasoning. The step edits nothing, so triage, design, incident and adhoc keep their rules on what they may change. A test fails when a new prompt is neither a game stage nor listed as one without the step. The change and waste prompts work on the factory and skip it. So do the release changelog, which reads only its change list, and the follow-up prompts of a session that already read the docs.
+Every agent prompt that works in a game clone opens with `prompts/game-docs.md`, which `fillPrompt` fills in for `{{gameDocs}}`. Before any other step, `npm ci` included, the agent reads `game/CLAUDE.md` and `game/docs/DESIGN.md`. It then reads each doc in the Docs list of CLAUDE.md that covers its task, follows them and names them in its reasoning. The release changelog opens with it too. The change and waste prompts work in `factory/`, so each opens with the same step written for `../game/CLAUDE.md` and `../game/docs/DESIGN.md`. The step edits nothing, so triage, design, incident, adhoc, the player answer, the changelog and the waste review keep their rules on what they may change. A test fails when a new prompt is neither a stage with the step nor listed as one without it. Only prompt fragments and the follow-up prompts of a session that already read the docs skip it.
 
 The stages that fix game code after implementation, testing, the hotfix integration round, hardening, merge-fix, ship-fix and the release playtest, get `prompts/fix-docs.md` in `{{fixDocs}}`: a fix that changes behavior a doc describes updates that doc in the same commit, with no broad docs pass.
 
@@ -163,13 +163,17 @@ A committee message starting with `/change` or Hermes's `factory_queue_change` t
 
 A member can ask Hermes for one-off work, like "simulate 10 battles and tell me if the MG is too weak". Hermes opens an `adhoc` issue in Implementation. The job runs Sonnet in a fresh clone of `dev` with the state, the job logs, the ledger and the archived agent transcripts mounted read only. A member can ask it what agents did on an issue, where they got stuck or what cost the most. It may run any repo harness and pushes nothing. It answers the member's message with `.factory/report.md` and any files, as [evidence.md](evidence.md#ad-hoc-files) says.
 
+## Player answer
+
+The tick sends a player's chat question that the bot would answer to `pendingAnswers`: one in its thread, or one that addressed the bot. It sends at most `FACTORY_ANSWERS_PER_DAY` a day, counting the answer jobs that ended in the last 24 hours in the ledger, the running one and the queued ones. Past that, the question gets no answer. Its thread note goes out at once either way. One answer job runs at a time, in the branch queue. It takes the first question off the queue as it starts, so a failed, dead or timed-out job never sends a second reply, and its question gets no answer. It runs Sonnet in a clone of `main` with `prompts/answer.md` on the restricted network, with only its Claude login: no tool keys and no Codex login. The agent reads the player text and the replied text in `.factory/question.md`, and the issue of a question under one in `.factory/issue.md`, as untrusted text. It reads the game's code and data, runs tests, scripts or the game when reading is not enough, and writes `.factory/answer.md`. The factory sends the answer as written when it is a plain, non-empty file inside the clone that does not hold the Claude login token. Anything else fails the job. The failure holds ids and the log path only, never player text.
+
 ## Model routing
 
 The baseline is triage Haiku, design Opus, implementation Sonnet with an Opus advisor, and testing Sonnet. `FACTORY_DESIGN_MODEL` is the Opus id, `FACTORY_BUILD_MODEL` the Sonnet id and `FACTORY_TRIAGE_MODEL` the Haiku id. The issue's labels at the moment an agent starts decide its model.
 
 - `design-sonnet` runs design on Sonnet.
 - `implementation-opus` runs implementation on Opus. Testing and hardening stay on Sonnet.
-- The release playtest, candidate, incident and factory change agents always run Opus. Triage always runs Haiku. Merge, ad hoc and waste review agents always run Sonnet.
+- The release playtest, candidate, incident and factory change agents always run Opus. Triage always runs Haiku. Merge, ad hoc, player answer and waste review agents always run Sonnet.
 - The triage prompt aims for about 20% Opus and 80% Sonnet in measured agent tokens. It is a rule of thumb, never a cap.
 
 Triage rates each `ready` issue once and comments the rating under `Model routing from triage:`.

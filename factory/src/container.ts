@@ -199,20 +199,26 @@ function recordedSession(cfg: FactoryConfig, jobId: string | null, session: Agen
   return { dir, id: randomUUID(), resume: false };
 }
 
+export function agentEnv(cfg: FactoryConfig, publicOutput: boolean): Record<string, string> {
+  const own = { CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes) };
+  if (publicOutput) return own;
+  return {
+    ...own, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
+    GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
+    CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort,
+  };
+}
+
 export function dockerContainer(run: Run, cfg: FactoryConfig, jobId: string | null, cpus: string | null = null, testWorkers: number | null = null): Container {
   return {
-    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor }) {
+    async agent({ clone, dir, model, prompt, log, openNetwork, mediaDir, readOnly = {}, session: issueSession, skill, effort, disallowedTools, advisor, publicOutput }) {
       if (!openNetwork) await ensureProxy(run, cfg);
       const session = recordedSession(cfg, jobId, issueSession);
-      const env = {
-        CLAUDE_CODE_OAUTH_TOKEN: cfg.oauthToken, ELEVENLABS_API_KEY: cfg.elevenlabsKey, SFX_MAX_GENERATIONS: String(cfg.sfxMaxGenerations),
-        GEMINI_API_KEY: cfg.geminiKey, AGY_MAX_RUNS: String(cfg.agyMaxRuns), AGY_MODEL: cfg.agyModel,
-        CODEX_MODEL: cfg.codexModel, CODEX_EFFORT: cfg.codexEffort,
-        CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: String(cfg.agentJobMaxMinutes),
-      };
+      const env = agentEnv(cfg, publicOutput === true);
+      const codex = publicOutput === true ? [] : codexMount(cfg.home);
       const readOnlyArgs = await readOnlyMounts(cfg.home, readOnly);
       const argsFor = (peakDir: string) => [
-        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codexMount(cfg.home), ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
+        ...baseArgs(jobId, cpus, testWorkers, cfg.gpu, peakDir), '-i', ...mountArgs(cfg, clone, dir, mediaDir), ...codex, ...sessionMount(session), ...readOnlyArgs, ...networkArgs(openNetwork === true), ...Object.keys(env).flatMap((key) => ['-e', key]), cfg.image,
         'bash', '-c', `${PEAK_TRAP}; factory-agent "$@"`, 'factory-agent', '-p', '--model', model, ...effortArgs(effort), ...advisorArgs(advisor), ...disallowedArgs(disallowedTools), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', ...sessionArgs(session),
       ];
       const input = [skill, outputsNote(dir, cfg.agentJobMaxMinutes), prompt].filter((part) => part !== undefined).join('\n\n');
