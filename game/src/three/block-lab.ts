@@ -36,7 +36,7 @@ type Song = {
 };
 type Voice = { src: AudioBufferSourceNode; gain: GainNode };
 type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: Voice[]; heat: number; sinceStop: number; join: string };
-type Fired = { cue: AccentCue; at: number };
+type Fired = { cue: AccentCue; at: number; answered: boolean };
 type Span = { from: number; to: number };
 type Auto = "off" | "busy" | "pauses";
 
@@ -54,12 +54,14 @@ const EVENT_GROUPS: AccentCue[][] = [
 ];
 const HEAVY = new Set<AccentCue>(["accent-sighted", "accent-struck", "accent-crit", "accent-crash"]);
 const LEAD_UNDER = new Set<Role>(["intro", "verse", "wall"]);
-const AUTO_ODDS: [AccentCue, number][] = [
-  ["accent-hit", 0.35],
-  ["accent-miss", 0.25],
-  ["accent-struck", 0.2],
-  ["accent-crit", 0.05],
-  ["accent-crash", 0.04],
+const PRIORITY: AccentCue[] = ["accent-crash", "accent-sighted", "accent-struck", "accent-crit", "accent-hit", "accent-miss"];
+const DENSE_TURN: [AccentCue, number][] = [
+  ["accent-hit", 10],
+  ["accent-miss", 8],
+  ["accent-struck", 3],
+  ["accent-crit", 2],
+  ["accent-crash", 2],
+  ["accent-sighted", 1],
 ];
 const AUTO_PAUSE_SECONDS = [1, 4];
 
@@ -130,6 +132,7 @@ let inCombat = false;
 let auto: Auto = "off";
 let nextTurn = 0;
 let span = DEFAULT_ZOOM;
+const beats = new Map<number, Fired[]>();
 const leadOpen: Span[] = [];
 const beatSeconds = 60 / song.bpm;
 
@@ -191,6 +194,7 @@ function startCombat(): void {
   sequencer = new BlockSequencer(blocks, SCORE_BLOCKS.arc, Math.random);
   nextAt = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
   nextTurn = nextAt;
+  nextAt = schedule(sequencer.next(0), nextAt, 0);
 }
 
 function nextBeatAfter(t: number): number {
@@ -205,6 +209,7 @@ function endCombat(): void {
   sequencer = null;
   const at = nextBeatAfter(ctx.currentTime + SCORE_BLOCKS.startLeadSeconds);
   for (const p of played.filter((x) => x.end > at)) cut(p, at);
+  beats.clear();
   closeLead(at);
   const offset = barTime(song.end);
   const voices = [voice(songBuffer, songLevel, offset, at, song.length - offset, 0)];
@@ -240,10 +245,43 @@ function flipCombat(): void {
 
 function fire(cue: AccentCue, at = ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds): void {
   if (!inCombat) return;
-  if (HEAVY.has(cue)) openLead(at);
   heat.add(at, MIX.score.accents[cue].weight);
   heats.push({ at, value: heat.read(at) });
-  fired.push({ cue, at });
+  const event = { cue, at, answered: false };
+  fired.push(event);
+  const beat = beatLineAfter(at);
+  const bucket = beats.get(beat);
+  if (bucket) bucket.push(event);
+  else beats.set(beat, [event]);
+}
+
+function gridBlock(t: number): Played | undefined {
+  return played.find((p) => p.start <= t && t < p.end && p.role !== "end") ?? played.filter((p) => p.role !== "end").at(-1);
+}
+
+function beatLineAfter(t: number): number {
+  const p = gridBlock(t);
+  if (!p) throw new Error("An event came in with no block playing");
+  const beat = (p.end - p.start) / (p.bars * BEATS_PER_BAR);
+  return p.start + Math.ceil((t - p.start) / beat - 1e-6) * beat;
+}
+
+function answerDue(now: number): void {
+  for (const [beat, events] of beats) {
+    if (beat - now > SCORE_BLOCKS.aheadSeconds) continue;
+    beats.delete(beat);
+    const winner = events.reduce((best, e) => (PRIORITY.indexOf(e.cue) < PRIORITY.indexOf(best.cue) ? e : best));
+    winner.answered = true;
+    winner.at = beat;
+    if (HEAVY.has(winner.cue)) openLead(beat);
+  }
+}
+
+function denseTurn(start: number): void {
+  for (const [cue, most] of DENSE_TURN) {
+    const count = Math.floor(Math.random() * (most + 1));
+    for (let i = 0; i < count; i++) fire(cue, start + Math.random() * TURN_SECONDS);
+  }
 }
 
 function closeAfter(at: number): number {
@@ -267,8 +305,7 @@ function openLead(at: number): void {
 
 function autoTurn(now: number): void {
   if (auto === "off" || !inCombat || now < nextTurn) return;
-  const events = AUTO_ODDS.filter(([, odds]) => Math.random() < odds).map(([cue]) => cue);
-  events.forEach((cue, i) => fire(cue, nextTurn + ((i + 1) / (events.length + 1)) * TURN_SECONDS));
+  denseTurn(nextTurn);
   const [lo, hi] = AUTO_PAUSE_SECONDS;
   nextTurn += TURN_SECONDS + (auto === "pauses" ? lo + Math.random() * (hi - lo) : 0);
 }
@@ -280,6 +317,7 @@ function frame(): void {
     nextAt = schedule(sequencer.next(h), nextAt, h);
   }
   autoTurn(now);
+  answerDue(now);
   draw();
   syncStats();
   syncLedger();
@@ -366,10 +404,15 @@ function drawBeats(p: Played): void {
 function drawEvents(): void {
   const top = laneTop("events");
   let labelEnd = -Infinity;
+  const height = laneHeight("events");
   for (const f of fired) {
     const x = xOf(f.at);
     g.fillStyle = HEAVY.has(f.cue) ? INK.heavy : INK.light;
-    g.fillRect(x, top + 4, 2, laneHeight("events") - 8);
+    if (!f.answered) {
+      g.fillRect(x, top + height - 14, 1, 10);
+      continue;
+    }
+    g.fillRect(x, top + 4, 2, height - 8);
     if (x < labelEnd + LABEL_GAP) continue;
     const text = EVENTS[f.cue];
     g.fillStyle = INK.text;
@@ -489,7 +532,9 @@ const autoChoice = choice<Auto>(
   },
 );
 const statsBox = el("div", { class: "score-lab-picks" });
-const controlsPanel = panel(el("div", { class: "score-lab-buttons" }, combatButton), ...eventButtons, el("span", { class: "dim" }, "Auto fight"), autoChoice);
+const denseButton = el("button", { onclick: () => denseTurn(ctx.currentTime + SCORE_BLOCKS.eventLeadSeconds) }, "Dense turn");
+denseButton.title = "Up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes and a sighting in one second";
+const controlsPanel = panel(el("div", { class: "score-lab-buttons" }, combatButton, denseButton), ...eventButtons, el("span", { class: "dim" }, "Auto fight"), autoChoice);
 const statsPanel = panel(statsBox);
 
 const zoomChoice = choice(
