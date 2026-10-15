@@ -44,7 +44,7 @@ describe('field refits', () => {
   it('charges removal and installation for relocation between mounts', () => {
     const w = emptyWorld();
     removeAllGoods(w.vehicles[0]);
-    w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind === 'good' || it.part.defId !== 'panniers');
+    w.vehicles[0].items = w.vehicles[0].items.filter((it) => it.kind !== 'part' || it.part.defId !== 'panniers');
     const weapon = getWeapon(w);
     const to = findSpot(gridOf(w.vehicles[0]), w.vehicles[0].items, { ...weapon, id: 'probe' }, MOUNT_CELLS.weapon, null);
     if (!to) throw new Error('Expected spare mount');

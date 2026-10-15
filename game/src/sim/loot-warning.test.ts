@@ -12,6 +12,7 @@ import { addState, advanceStates, lootWarningData, stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls } from './testkit';
 import type { GameEvent, Vehicle, World } from './types';
 import { refreshVision } from './vision';
+import { cloneWorld } from './world';
 
 const WRECK = 'wreck901';
 
@@ -239,7 +240,7 @@ describe('a driver that reaches loot the player is looting', () => {
     expect(w.player.call).toBeNull();
     expect(warnedOffTarget(w, me, WRECK)).not.toBeNull();
     expect(looterOf(w, WRECK)).toBeNull();
-    const d = structuredClone(w);
+    const d = cloneWorld(w);
     resolveNpcActivities(d);
     expect(after(d, npc).job).toMatchObject({ kind: 'search', stockId: WRECK });
   });

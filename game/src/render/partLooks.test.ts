@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import { GOOD_IDS } from '../data/goods';
+import { GOOD_IDS, PARCEL } from '../data/goods';
 import { PARTS, type PartKind } from '../data/parts';
 import type { PartInstance } from '../sim/types';
 import { maxHp } from '../sim/wear';
@@ -15,7 +15,7 @@ const otherIds = Object.values(PARTS).filter((d) => d.kind !== 'weapon' && !BODY
 describe('part looks', () => {
   it('gives every non-weapon part def and every good a model, except parts the body draws', () => {
     for (const id of [...otherIds, ...GOOD_IDS]) expect(() => partModel(id), id).not.toThrow();
-    expect(Object.keys(PART_MODELS).sort()).toEqual([...otherIds, ...GOOD_IDS].sort());
+    expect(Object.keys(PART_MODELS).sort()).toEqual([...otherIds, ...GOOD_IDS, PARCEL.id].sort());
   });
 
   it('gives every weapon def a pool with a model in each required slot', () => {

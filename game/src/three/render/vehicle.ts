@@ -9,7 +9,7 @@ import { aimWithin, gunSpans, spansHold, type FireSpan } from '../../sim/armor';
 import { CLIP_TOLERANCE, bodyOf, cellCenter, cellRect, engineAnchor, highestUnder, restOn, surfaceAt, surfaceSamples, type Body, type CellRect, type Rest } from '../../sim/body';
 import { headingOf, headingQuat, type V3, type VehicleFrame } from '../../phys/frames';
 import { FACTION_COLORS, PAL } from '../../render/palette';
-import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
+import { BODY_PARTS, baseModel, drawsOwnBumpers, grayShare, grayed, jagOffset, itemLookId, partModel, weaponLook, wearLookStep } from '../../render/partLooks';
 import { baseGrid, facingOf, isMounted, itemCells, itemSize, plateSide, type SideLetter } from '../../sim/grid';
 import type { GridItem, Vehicle, World } from '../../sim/types';
 import { angleDiff, DEG } from '../../sim/vec';
@@ -72,17 +72,11 @@ type Placement = { pos: THREE.Vector3; yaw: number; scale: THREE.Vector3 };
 export function signatureOf(v: Vehicle): string {
   const items = v.items
     .map((it) => {
-      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : it.good;
+      const what = it.kind === 'part' ? `${it.part.defId}#${it.part.id}:${wearLookStep(it.part)}` : itemLookId(it);
       return `${what}@${it.x},${it.y},${it.rot}`;
     })
     .join(',');
   return `${v.chassisId}|${v.faction}|${items}`;
-}
-
-export function viewOf(views: Map<string, VehicleView>, id: string): VehicleView {
-  const view = views.get(id);
-  if (!view) throw new Error(`Vehicle ${id} has no view`);
-  return view;
 }
 
 export class VehicleView {
@@ -235,7 +229,7 @@ export class VehicleView {
     const guns: PartItem[] = [];
     const obstacles: Obstacle[] = [];
     for (const item of onBody.filter((it) => !hidesInside(v, it) && !wouldFloat(v, it))) {
-      if (item.kind === 'good') {
+      if (item.kind !== 'part') {
         const good = this.placeItem(v, item, paint, standingY(v, item));
         still.add(good);
         obstacles.push(obstacleOf(good));
@@ -714,7 +708,7 @@ function bumperPlacement(rect: CellRect, nose: boolean, top: number, yaw: number
 }
 
 function itemModel(item: GridItem) {
-  return partModel(item.kind === 'part' ? item.part.defId : item.good);
+  return partModel(itemLookId(item));
 }
 
 function cabOf(v: Vehicle): GridItem | undefined {
@@ -727,7 +721,7 @@ function cabLook(v: Vehicle): Look {
 }
 
 function lookOf(item: GridItem): Look {
-  if (item.kind === 'good') return PRISTINE;
+  if (item.kind !== 'part') return PRISTINE;
   const step = wearLookStep(item.part);
   return { tone: item.part.hp > 0 ? 1 : BROKEN_TONE[partDef(item.part.defId).kind], step, partId: item.part.id };
 }

@@ -1,30 +1,21 @@
 import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { GUARD_HOOK } from './container';
-import { must } from './exec';
+import { must, withActivity } from './exec';
 import { withLock } from './lock';
 import { createLockWaitReporter } from './observability';
 import { BaseMovedError, CLONE_LOCK_MS, MEDIA_DIR, MergeConflictError, OUT_DIR, RevertConflictError, TASK_DIR, WORK_LOCK, type CheckedBuild, type FactoryConfig, type HostRepo, type MergeStep, type Resolution, type Run } from './types';
 
 const NO_HOOKS = ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=ROAM Factory', '-c', 'user.email=factory@roam.invalid'];
 
-function mergeToRevert(log: string, issue: number): string | null {
-  const merge = `Merge issue #${issue}:`;
-  const reverted = `Revert "Merge issue #${issue}:`;
-  for (const line of log.split('\n').filter(Boolean)) {
-    const [hash, ...words] = line.split(' ');
-    const subject = words.join(' ');
-    if (subject.startsWith(reverted)) return null;
-    if (subject.startsWith(merge)) return hash;
-  }
-  return null;
-}
-
 const lines = (text: string): string[] => text.split('\n').filter(Boolean);
+
+const nulSeparated = (text: string): string[] => text.split('\0').filter(Boolean);
 
 const mergeFlags = (message: string | undefined): string[] => (message === undefined ? ['--no-edit'] : ['--no-ff', '-m', message]);
 
-export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = null): HostRepo {
+export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | null = null): HostRepo {
+  const run = withActivity(observedRun, 'git');
   const path = `${cfg.home}/repo`;
   const landDir = join(cfg.home, 'work', 'land');
   const gitIn = async (cwd: string, args: string[]): Promise<string> => must(await run('git', [...NO_HOOKS, ...args], { cwd }), `git ${args.join(' ')}`);
@@ -211,11 +202,11 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
     if (result.code !== 0 || head === ancestor) throw new Error(`The agent's commit ${head.slice(0, 7)} does not hold ${ancestor.slice(0, 7)}, ${what}`);
   }
 
-  async function agentAdded(base: string, source: string, head: string): Promise<string> {
-    const names = async (side: string): Promise<string[]> => (await git(['diff', '--name-only', '-z', side, head])).split('\0').filter(Boolean);
+  async function agentAdded(base: string, source: string, head: string): Promise<{ files: string[]; diff: string }> {
+    const names = async (side: string): Promise<string[]> => nulSeparated(await git(['diff', '--name-only', '-z', side, head]));
     const fromSource = new Set(await names(source));
-    const added = (await names(base)).filter((file) => fromSource.has(file));
-    return added.length === 0 ? '' : git(['diff', base, head, '--', ...added]);
+    const files = (await names(base)).filter((file) => fromSource.has(file));
+    return { files, diff: files.length === 0 ? '' : await git(['diff', base, head, '--', ...files]) };
   }
 
   async function checkoutBranch(dir: string, branch: string, base: string): Promise<void> {
@@ -240,15 +231,16 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       if (await hasRef(path, `refs/remotes/origin/${name}`)) throw new Error(`branch ${name} exists on GitHub already`);
       await pushAll(new Map([[name, await commitOf(from)]]));
     },
-    async revertIssueMerge(issue, branch, resolutions = []) {
+    async revertMerge(merge, branch, resolutions = []) {
       for (;;) {
         const tip = await commitOf(branch);
-        const hash = mergeToRevert(await git(['log', '--first-parent', '--format=%H %s', `${await ref('main')}..${tip}`]), issue);
-        if (hash === null) return false;
-        const head = await revertCommit(issue, branch, { tip, hash }, resolutions);
-        if (await pushUnlessMoved(new Map([[branch, head]]), new Map([[branch, tip]]))) return true;
+        if ((await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', merge.sha, tip], { cwd: path })).code !== 0) throw new Error(`The recorded merge ${merge.sha} of issue #${merge.issue} is not on ${branch}`);
+        const head = await revertCommit(merge.issue, branch, { tip, hash: merge.sha }, resolutions);
+        if (await pushUnlessMoved(new Map([[branch, head]]), new Map([[branch, tip]]))) return;
       }
     },
+    async containsCommit(branch, sha) { return containsIn(run, path, branch, sha, await ref(branch)); },
+    async workHead(dir) { return (await gitIn(dir, ['rev-parse', 'HEAD'])).trim(); },
     async openConflict(dir, conflict) {
       rmSync(dir, { recursive: true, force: true });
       await prepareClone(conflict.into, conflict.into, dir);
@@ -268,8 +260,8 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       const head = await headFromWork(dir, conflict.into);
       await requireDescends(head, conflict.base, `the tip of ${conflict.into}`);
       if (merging) await requireDescends(head, source, `the commit to merge into ${conflict.into}`);
-      const diff = merging ? await agentAdded(conflict.base, source, head) : await git(['diff', conflict.base, head]);
-      return { resolution: { base: conflict.base, source, head }, diff };
+      const { files, diff } = merging ? await agentAdded(conflict.base, source, head) : { files: nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', conflict.base, head])), diff: await git(['diff', conflict.base, head]) };
+      return { resolution: { base: conflict.base, source, head }, diff, files };
     },
     async deleteBranch(branch) {
       if (lines(await git(['ls-remote', '--heads', 'origin', branch])).length > 0) await git(['push', 'origin', '--delete', branch]);
@@ -290,9 +282,8 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       return tracked;
     },
     fetchFromWork: headFromWork,
-    async push(commit, branch) {
-      await pushAll(new Map([[branch, commit]]));
-    },
+    push: (commit, branch) => pushAll(new Map([[branch, commit]])),
+    replaceBranch: async (commit, branch) => void (await git(['push', '--force', 'origin', `${commit}:refs/heads/${branch}`])),
     async catchUpBase(dir, base) {
       await gitIn(dir, ['fetch', '--quiet', 'origin']);
       const open = await openMergeOf(dir, base);
@@ -329,8 +320,9 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
       return git(['show', `${await ref(branch)}:${path}`]);
     },
     async changedFiles(base, branch) {
-      return lines(await git(['diff', '--name-only', '--no-renames', `${await ref(base)}...${await ref(branch)}`]));
+      return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
+    changedInWork: async (dir, from) => nulSeparated(await gitIn(dir, ['diff', '--name-only', '--no-renames', '-z', `${from}...HEAD`])),
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
@@ -341,10 +333,13 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
         if (await pushUnlessMoved(heads, started)) return;
       }
     },
-    async mergeLog(from, to) {
-      return lines(await git(['log', '--first-parent', '--merges', '--format=%s', `${await ref(to)}..${await ref(from)}`]));
-    },
   });
+}
+
+async function containsIn(run: Run, path: string, branch: string, sha: string, tip: string): Promise<boolean> {
+  const result = await run('git', [...NO_HOOKS, 'merge-base', '--is-ancestor', sha, tip], { activity: 'git', cwd: path });
+  if (result.code === 0 || result.code === 1) return result.code === 0;
+  throw new Error(`git merge-base --is-ancestor ${sha} ${branch} failed: ${result.stderr.trim()}`);
 }
 
 const REPO_LOCK_MS = 15 * 60_000;

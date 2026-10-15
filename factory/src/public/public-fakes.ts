@@ -3,7 +3,6 @@ import { EMPTY_STATE, writeState } from '../state';
 import { VOTING_LABEL, type Card, type Ctx, type Column, type FactoryConfig } from '../types';
 import type { Classify, PublicFilter } from './decision';
 import { openStore, type PublicStore } from './store';
-import type { Ground } from './wiki';
 
 export type SentMessage = { chat: string; text: string; replyTo: number | null | undefined };
 
@@ -35,7 +34,7 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   f.store = openStore(home);
   const note = (text: string) => { f.calls.push(text); };
   f.ctx = {
-    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, minVotes: 3, voteEmoji: '👍 ❤', vetoEmoji: '👎', publicDigestMinutes: 60, filterPerTick: 10, reportIpPerHour: 5, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
+    cfg: { home, repo: 'o/r', committeeChat: COMMITTEE, proposalChat: CHANNEL, proposalsPerDay: 2, answersPerDay: 3, minVotes: 3, voteEmoji: '👍 ❤', vetoEmoji: '👎', publicDigestMinutes: 60, filterPerTick: 10, reportIpPerHour: 5, committeeBootstrapTelegram: '42', committeeBootstrapGithub: 'boss', ...overrides } as FactoryConfig,
     statePath,
     now: () => f.clock.now,
     log: (stage: string, issue: number | null, msg: string) => { f.logs.push(`${stage} ${issue} ${msg}`); },
@@ -60,4 +59,4 @@ export function publicFake(overrides: Partial<FactoryConfig> = {}): PublicFake {
   return f;
 }
 
-export const filterOf = (classify: Classify, ground: Ground = async () => null): PublicFilter => ({ classify, ground });
+export const filterOf = (classify: Classify): PublicFilter => ({ classify });

@@ -7,6 +7,11 @@ declare const __ERROR_REPORT_BUILD__: string;
 export const ERROR_REPORT_URL = __ERROR_REPORT_URL__;
 export const ERROR_REPORT_BUILD = __ERROR_REPORT_BUILD__;
 
+export const TOUCH = {
+  slopPx: 10,
+  longPressMs: 500,
+};
+
 declare const __SFX_BYTES__: Record<string, number>;
 export const SFX_BYTES = __SFX_BYTES__;
 declare const __FEEDBACK_URL__: string;

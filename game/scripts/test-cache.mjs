@@ -3,7 +3,7 @@ import { join, relative, resolve } from 'node:path';
 import { createVitest } from 'vitest/node';
 import { globalKey } from '../src/test/cache/fingerprint';
 import { recordRun, selectTests } from '../src/test/cache/select';
-import { createStallWatch, stallMinutes } from '../src/test/cache/stall';
+import { createStallWatch, stallMinutes, suiteMinutes, suiteOverMessage } from '../src/test/cache/stall';
 import { testId } from '../src/test/cache/store';
 
 const root = process.cwd();
@@ -66,7 +66,30 @@ function stallReporter(watch) {
   };
 }
 
+function fileTimes() {
+  const finished = [];
+  return {
+    finished,
+    reporter: {
+      onTestModuleEnd(mod) {
+        const { collectDuration, duration } = mod.diagnostic();
+        finished.push({ file: relative(root, mod.moduleId), ms: collectDuration + duration });
+      },
+    },
+  };
+}
+
 const CLOSE_LIMIT_MS = 10_000;
+
+function stopAtSuiteLimit(limitMinutes, times, vitest, readsDir) {
+  const timer = setTimeout(async () => {
+    console.log(suiteOverMessage(limitMinutes, times.finished));
+    await Promise.race([vitest.close(), new Promise((done) => setTimeout(done, CLOSE_LIMIT_MS))]);
+    rmSync(readsDir, { recursive: true, force: true });
+    process.exit(1);
+  }, limitMinutes * 60_000);
+  timer.unref();
+}
 
 function stopOnStall(watch, vitest, readsDir) {
   let stalled = false;
@@ -91,10 +114,13 @@ process.env.TEST_CACHE_READS = readsDir;
 let failed = false;
 const stallLimit = stallMinutes(process.env);
 const watch = stallLimit === null ? null : createStallWatch(stallLimit * 60_000, Date.now());
+const suiteLimit = suiteMinutes(process.env);
 const recorder = passRecorder(cache, readsDir);
-const reporters = ['default', recorder.reporter, ...(watch ? [stallReporter(watch)] : [])];
+const times = fileTimes();
+const reporters = ['default', recorder.reporter, times.reporter, ...(watch ? [stallReporter(watch)] : [])];
 const vitest = await createVitest('test', { watch: false, reporters });
 const stalled = watch ? stopOnStall(watch, vitest, readsDir) : () => false;
+if (suiteLimit !== null) stopAtSuiteLimit(suiteLimit, times, vitest, readsDir);
 try {
   vitest.projects[0].config.setupFiles.push(resolve(root, 'src/test/cache/reads-setup.ts'));
   await vitest.init();

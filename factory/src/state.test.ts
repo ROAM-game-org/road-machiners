@@ -11,6 +11,19 @@ describe('state', () => {
     expect(readState(path).adhocReplies).toEqual({});
   });
 
+  it('drops the retired change queue of an old state file', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
+    writeFileSync(path, JSON.stringify({ jobs: [], approvalPosts: {}, pendingChanges: [{ id: 1, text: 't', by: 'u' }] }));
+    expect('pendingChanges' in readState(path)).toBe(false);
+  });
+
+  it('reads an old state file without the ask and feedback records as empty records', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
+    writeFileSync(path, JSON.stringify({ jobs: [], approvalPosts: {} }));
+    expect(readState(path).asked).toEqual({});
+    expect(readState(path).pendingFeedback).toEqual({});
+  });
+
   it('reads an old state file without builds', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
     writeFileSync(path, JSON.stringify({ job: null, approvalPosts: {}, lastRelease: null, lastMaintenance: null, pendingApprovals: {}, pendingChanges: [] }));
@@ -32,8 +45,8 @@ describe('state', () => {
 
   it('gives a release cut before the playtest its playtest, seeded by its day, no candidate commit and no recorded tasks', () => {
     const path = join(mkdtempSync(join(tmpdir(), 'factory-state-')), 'state.json');
-    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [] } }));
-    expect(readState(path).release).toEqual({ issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], tasks: [], candidateSha: null, playtest: { seed: 20261007, runs: 0, passed: null, blocked: null, notes: [] } });
+    writeFileSync(path, JSON.stringify({ release: { issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], merges: [] } }));
+    expect(readState(path).release).toEqual({ issue: 3, branch: 'release/2026-10-07', day: '2026-10-07', postId: 9, removed: [], tasks: [], candidateSha: null, merges: [], playtest: { seed: 20261007, runs: 0, passed: null, blocked: null, notes: [] } });
   });
 
   it('drops the run streak of a playtest saved before one job did all its plays', () => {

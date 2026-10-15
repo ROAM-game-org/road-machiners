@@ -242,6 +242,14 @@
   --hud-gap: 8px;
   --hud-hover-top: 64px;
   --hud-notice-top: 112px;
+  --safe-top: max(var(--hud-inset), env(safe-area-inset-top));
+  --safe-right: max(var(--hud-inset), env(safe-area-inset-right));
+  --safe-bottom: max(var(--hud-inset), env(safe-area-inset-bottom));
+  --safe-left: max(var(--hud-inset), env(safe-area-inset-left));
+  --touch-target: 32px;
+  --phone-readouts-h: 104px;
+  --phone-bar-h: calc(var(--phone-readouts-h) + var(--hud-gap) + var(--btn-h-l));
+  --phone-end-w: 120px;
 
   /* Layers, bottom to top */
   --z-outline: 1;
@@ -273,5 +281,11 @@
 @media (max-width: 720px) {
   :root {
     --dock-width: 200px;
+  }
+}
+
+@media (orientation: landscape) {
+  :root {
+    --phone-bar-h: var(--phone-readouts-h);
   }
 }

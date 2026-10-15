@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MESSAGE_LIMIT } from '../telegram-limits';
 import { postBuild } from './build-post';
 import { CHANNEL, publicFake } from './public-fakes';
 
@@ -14,8 +15,8 @@ describe('postBuild', () => {
     expect(text).toContain('Winch');
     expect(text).toContain('https://play.test/abc1234/');
     expect(text).toContain('It pulls trucks.');
-    expect(text).toContain('comments');
-    expect(text).toContain('committee decides');
+    expect(text).toContain('Tell us what you think in the comments.');
+    expect(text).not.toContain('The committee decides if it ships.');
     expect(f.store.openBuildPost(7)).toMatchObject({ build: 'abc1234', chat: CHANNEL, messageId: 501 });
   });
 
@@ -45,9 +46,10 @@ describe('postBuild', () => {
     await postBuild(f.ctx, 7, 'abc1234', 'https://play.test/abc1234/', '🚚'.repeat(3000));
     expect(f.messages).toHaveLength(1);
     const { text } = f.messages[0]!;
-    expect(text.length).toBeLessThanOrEqual(4096);
+    expect(text.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
     expect(text).toContain('…\n\nTell us what you think');
-    expect(text.endsWith('The committee decides if it ships.')).toBe(true);
+    expect(text.endsWith('Tell us what you think in the comments.')).toBe(true);
+    expect(text).not.toContain('The committee decides if it ships.');
   });
 
   it('does nothing for an issue with no posted proposal', async () => {

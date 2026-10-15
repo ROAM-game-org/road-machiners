@@ -7,7 +7,7 @@ import { workDir } from './stages/common';
 import { readLedger } from './ledger';
 import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
-import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type IssueComment, type Job, type KeptApproval, type ReleaseState } from './types';
+import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type KeptApproval, type ReleaseState } from './types';
 
 const killed: string[] = [];
 vi.mock('./jobs', async (original) => ({ ...(await original<object>()), killJob: async (_run: unknown, pid: number, id: string) => { killed.push(`${pid} ${id}`); } }));
@@ -17,7 +17,7 @@ type Command = Parameters<typeof applyControl>[1];
 const ROOT = resolve('tmp/factory-control-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-09-29T10:00:00Z');
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const JOB: Job = { id: 'verify-4-x', stage: 'verify', issue: 4, pid: 77, startedAt: '2026-09-29T09:00:00Z', log: 'l' };
 
 let calls: string[] = [];
@@ -25,7 +25,6 @@ let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
 let editFails = false;
-let issueComments: IssueComment[] = [];
 let contained: string[] = [];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
@@ -45,8 +44,6 @@ function fakeCtx(): Ctx {
       close: async (n: number, reason: string) => { calls.push(`close ${n} ${reason}`); },
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
-      mergePullRequest: async (branch: string) => { calls.push(`mergePullRequest ${branch}`); },
-      comments: async () => issueComments,
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -85,7 +82,7 @@ function busyCard(): void {
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, approvedResolving: { 4: 'Bob' },
     approvalPosts: { 42: 4, 43: 5 }, postCaptions: { 42: 'Post four', 43: 'Post five' },
     unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' }, 10: { issue: 5, postId: 43, text: 't', at: 'a' } },
-    failures: [{ stage: 'checks', issue: 4, error: 'e', log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', log: null, at: 'a' }],
+    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }],
   });
 }
 
@@ -106,7 +103,6 @@ beforeEach(() => {
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
   editFails = false;
-  issueComments = [];
   contained = ['abc1111'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
@@ -129,7 +125,7 @@ describe('writeControl and parseControl', () => {
   });
 
   it('parses every action', () => {
-    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 }, { action: 'merge-change', id: 12 }, { action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
+    for (const body of [{ action: 'merge', issue: 4 }, { action: 'ship' }, { action: 'cut' }, { action: 'remove', issue: 4 }, { action: 'drop', queue: 'ship', id: null }, { action: 'drop', queue: 'approval', id: 4 },{ action: 'hold', issue: 4 }, { action: 'unhold', issue: 4 }]) {
       expect(parseControl({ kind: 'control', by: 'Ann', reason: 'r', ...body })).toEqual({ by: 'Ann', reason: 'r', ...body });
     }
   });
@@ -180,10 +176,9 @@ describe('resolveActor', () => {
 });
 
 describe('isGated', () => {
-  it('gates ship, merge-change and the merge of an unapproved card', () => {
+  it('gates ship and the merge of an unapproved card', () => {
     const ctx = fakeCtx();
     expect(isGated(ctx, command({ action: 'ship' }))).toBe(true);
-    expect(isGated(ctx, command({ action: 'merge-change', id: 1 }))).toBe(true);
     expect(isGated(ctx, command({ action: 'merge', issue: 4 }))).toBe(true);
     expect(isGated(ctx, command({ action: 'move', issue: 4, to: 'done' }))).toBe(false);
     expect(isGated(ctx, command({ action: 'cut' }))).toBe(false);
@@ -600,6 +595,12 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('already queued');
   });
 
+  it('refuses a removal of an issue with no recorded merge in the release', async () => {
+    seed({ release: { ...RELEASE, merges: [] } });
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('Issue #5 is not in release');
+    expect(readState(statePath).pendingRemovals).toEqual([]);
+  });
+
   it('refuses a removal from Hermes', async () => {
     seed({ release: RELEASE });
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5, by: 'hermes' }))).rejects.toThrow('--by <member>');
@@ -619,7 +620,7 @@ describe('ship, cut and remove', () => {
 describe('drop', () => {
   const full = (): void => seed({
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, pendingRemovals: [{ issue: 7, by: 'b', text: 't' }, { issue: 8, by: 'b', text: 't' }],
-    pendingShip: 'Bob', pendingChanges: [{ id: 100, text: 'x', by: 'b' }, { id: 101, text: 'y', by: 'b' }], pendingIncidents: [30, 31],
+    pendingShip: 'Bob', pendingIncidents: [30, 31],
   });
 
   it('removes one entry of each queue', async () => {
@@ -627,22 +628,20 @@ describe('drop', () => {
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'removal', id: 7 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'ship', id: null }));
-    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'change', id: 100 }));
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'incident', id: 30 }));
     const state = readState(statePath);
     expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(state.pendingRemovals.map((item) => item.issue)).toEqual([8]);
     expect(state.pendingShip).toBeNull();
-    expect(state.pendingChanges.map((item) => item.id)).toEqual([101]);
     expect(state.pendingIncidents).toEqual([31]);
-    expect(ctrlLines()).toHaveLength(5);
+    expect(ctrlLines()).toHaveLength(4);
     expect(calls.find((call) => call.startsWith('comment 4'))).toContain('Ann');
   });
 
   it('throws on a miss and changes nothing (IV4)', async () => {
     full();
     const before = readState(statePath);
-    for (const [queue, id] of [['approval', 99], ['removal', 99], ['change', 99], ['incident', 99]] as const) {
+    for (const [queue, id] of [['approval', 99], ['removal', 99], ['incident', 99]] as const) {
       await expect(applyControl(fakeCtx(), command({ action: 'drop', queue, id }))).rejects.toThrow(String(id));
     }
     seed({ ...before, pendingShip: null });
@@ -653,20 +652,8 @@ describe('drop', () => {
   });
 });
 
-describe('merge-change', () => {
-  it('merges the factory change pull request for a member only (IV5)', async () => {
-    await expect(applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: 'hermes' }))).rejects.toThrow('--by <member>');
-    expect(calls).toEqual([]);
-    await applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: '11' }));
-    expect(calls).toContain('mergePullRequest factory-change/12');
-    expect(ctrlLines()[0]).toMatchObject({ action: 'merge-change', issue: null, by: 'Ann' });
-  });
-});
-
 describe('kept hotfix approvals', () => {
   const KEPT: KeptApproval = { by: 'Bob', at: '2026-09-28T10:00:00Z', build: 'abc1111', checked: ['abc1111'], reason: 'main moved' };
-  const factory = (body: string): IssueComment => ({ login: 'roam-factory[bot]', body, createdAt: '2026-09-28T10:00:00Z', byFactory: true });
-  const post = (build: string) => factory(`Ready for approval: https://play.test/play/${build}/\n\nA loud horn.`);
 
   it('keeps the approval when Hermes moves the card to verify for a fresh Testing run', async () => {
     cards = [card(4, 'Approval', ['hotfix'])];
@@ -689,34 +676,5 @@ describe('kept hotfix approvals', () => {
     seed({ keptApprovals: { 4: KEPT } });
     await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
     expect(readState(statePath).keptApprovals).toEqual({});
-  });
-
-  it('recovers an approval that main moved past, from the factory record on the issue, and sends an Approval card to Testing', async () => {
-    cards = [card(4, 'Approval', ['hotfix', 'bug'])];
-    seed({ approvalPosts: { 90: 4 }, postCaptions: { 90: 'Post' }, builds: { 4: 'fff9999' } });
-    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in game/src/a.ts. Testing merges main again and posts the build again.'), post('fff9999')];
-    await applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4, by: 'hermes' }));
-    const state = readState(statePath);
-    expect(state.keptApprovals).toEqual({ 4: { by: 'Bob', at: '2026-09-28T10:00:00Z', build: 'abc1111', checked: [], reason: 'recovered by Hermes: the gate failed on load' } });
-    expect(state.approvalPosts).toEqual({});
-    expect(calls).toContain('move 4 Testing');
-    expect(calls).toContain('editCaption 90 Post\n\n↪️ Approval by Bob recovered by Hermes');
-  });
-
-  it('refuses to recover an approval when a patch came after the approved post', async () => {
-    cards = [card(4, 'Testing', ['hotfix'])];
-    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in a.ts.'), factory('## Committee feedback\n\nFrom Ann, routed as patch:\n\nLouder')];
-    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('#4 changed after the post Bob approved: ## Committee feedback');
-    expect(readState(statePath).keptApprovals).toEqual({});
-  });
-
-  it('refuses to recover when the branch lost the approved build, when no approval is on record, and for a card that is no hotfix', async () => {
-    cards = [card(4, 'Testing', ['hotfix']), card(6, 'Testing')];
-    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in a.ts.')];
-    contained = [];
-    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('factory/issue-4 no longer contains build abc1111');
-    issueComments = [post('abc1111'), { ...factory('Approved by Bob, but main moved on'), byFactory: false }];
-    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('No factory comment on #4 records an approval');
-    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 6 }))).rejects.toThrow('#6 is no hotfix');
   });
 });
