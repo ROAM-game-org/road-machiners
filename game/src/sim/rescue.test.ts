@@ -109,6 +109,7 @@ describe('posting a rescue', () => {
     expect(isRescueCandidate(w, npc, new Set([npc.id]))).toBe(false);
     const raider = scene('fuel').npc;
     raider.faction = 'scrapjaw';
+    raider.brain!.traits = ['raider'];
     expect(isRescueCandidate(w, raider, none)).toBe(false);
     npc.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: true };
     expect(isRescueCandidate(w, npc, none)).toBe(false);

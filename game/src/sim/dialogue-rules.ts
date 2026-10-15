@@ -3,7 +3,7 @@ import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, 
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -515,10 +515,6 @@ export function takeTownWork(world: World): void {
   const offer = townWork(world);
   if (!offer) throw new Error('The board offers no work to take');
   takeContract(world, offer.id);
-}
-
-export function isNoteId(id: string): id is NoteId {
-  return (NOTE_IDS as readonly string[]).includes(id);
 }
 
 export function learnNote(world: World, id: NoteId): void {

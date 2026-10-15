@@ -13,7 +13,7 @@ NPC behavior has three layers. Traits in `brain.traits` are permanent. A goal st
 | scavenger | Scavenger | Scavenger | independent | scavenger | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 4 | 12 | {"kind":"town"} |
 | bowlFarmer | Bowl Farmers patrol | Bowl Farmer | spawn site, else bowl | lawman, brave |  | hold | 0 | 3 | 70 | {"kind":"sites","ids":["bowl"]} |
 | noseArmy | Nose Army patrol | Nose soldier | spawn site, else nose | lawman, brave |  | hold | 0 | 3 | 70 | {"kind":"sites","ids":["nose"]} |
-| courier | Courier | Courier | guidestar | courier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 3 | 30 | {"kind":"town"} |
+| courier | Courier | Courier | guidestar | courier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 4 | 30 | {"kind":"town"} |
 | roamer | Roamer | Roamer | independent | roamer | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 3 | 30 | {"kind":"town"} |
 | vulture | Vulture | Vulture | independent | vulture | coward (0.6), scumbag (0.35), brave (0.1) | hold | 0 | 3 | 30 | {"kind":"town"} |
 | convoy | Supply convoy | Convoy driver | spawn site, else bowl | supplier | scumbag (0.25), coward (0.25), brave (0.15) | hold | 0 | 2 | 100 | {"kind":"sites","ids":["bowl","nose"]} |

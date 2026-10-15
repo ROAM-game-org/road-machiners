@@ -45,7 +45,7 @@ import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Veh
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
-import { isNoteId } from './dialogue-rules';
+import { isNoteId } from '../data/locals';
 import { highwayStart } from './highway';
 import { advanceFuryRoad, startRun } from './fury-road';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
