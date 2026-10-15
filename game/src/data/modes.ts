@@ -70,7 +70,7 @@ export const FURY_ROAD = {
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 12000, step: 5000 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 6, alarmTurns: 4, approach: 25, stallTurns: 12 },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 6, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, craterLookahead: 32 },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,

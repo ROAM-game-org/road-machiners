@@ -36,6 +36,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Start: the same every run: semi cores, a workhorse diesel, two plates, a full tank, base supplies and a full-health driver. It starts level with the player in the inner left lane.
 - Lane: it aims at the center of one of the four lanes, 12 tiles ahead. Its lane is the lane center nearest to it, so nothing about the lane is saved.
 - Hazards: when its lane is blocked within the 12 tiles ahead, by a prop, a wreck, a hazard or a truck of the run that is parked or slower than it, it takes the nearest clear lane, and on a tie the lane toward the road middle. With no clear lane it keeps its aim and the router threads the gap. It never aims off the asphalt, and only the router uses the shoulder or verge.
+- Craters: a crater dip of 0.1 or more under the hauler's width in its lane, within 32 tiles ahead, also blocks the lane. A lane change of a long truck takes about 24 tiles, so the look is longer than for other hazards. A semi that crosses a deep dip can bottom out on the rim and stop. With no clear lane it keeps its aim like any other block.
 - Flank trucks: a group truck that is not beaten, abeam within 6 tiles and closing across, sends it one lane away from that side. With threats on both sides, or no lane left on the far side, it holds its lane.
 - Speed: 4.5 tiles a turn, and its top speed for 4 turns after it takes damage. It never brakes for a fight and never stops on the road.
 - Outpost: within 25 tiles of the next outpost pad it drives to the pad and parks there. Between levels it stays parked.
@@ -50,7 +51,7 @@ A stretch alternates open arenas of at least 36 tiles, where fights start, with 
 - Checkpoint: 2 or 3 barrier lines, each across two lanes and a shoulder on alternate sides, 10 tiles apart, so the road becomes a chicane. Sandbags sit behind each line, tank traps on its verge and an army truck beside one.
 - Tank line: a dead tank on a verge and 6 to 10 tank traps in two staggered rows over 1 or 2 lanes, 3 to 4 tiles apart.
 - Rockfall: a crag on the badlands edge and 6 to 12 rocks fanning onto the verge and the outer lane, smaller toward the road. The rocks keep 0.6 tiles apart, so they stay apart on the inside of a bend.
-- Craters: 2 to 4 gravel dips on the lanes, with junk at their rims. They slow and jolt a truck but block nothing.
+- Craters: 2 to 4 gravel dips on the lanes, with junk at their rims. They slow and jolt a truck but block nothing. The hauler still changes lane around them.
 - Ramp: a Fallen Sun hull plate in one lane, 3 tiles wide, rising 0.35 over 5 tiles toward the north, sometimes just before a crater. A truck at speed flies off it. It is never the only way through.
 
 Early stretches lean to pileups, rockfalls and craters, later ones to checkpoints and tank lines. A scene covers at most 2 of the 4 lanes up to stretch 2, then at most 3.

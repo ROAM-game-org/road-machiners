@@ -85,6 +85,19 @@ describe('the hauler driver', () => {
     expect(chosenLane(w, hauler)).toBe(2);
   });
 
+  it('leaves a lane that runs into a crater dip early enough to change lanes, and ignores a crater beyond that', () => {
+    const { w, hauler } = openRoad(4);
+    hauler.pos = roadPoint(4, 0, 100, LANES[2]);
+    hauler.heading = roadHeading(4, 100);
+    expect(laneClear(w, hauler, 2)).toBe(false);
+    expect(laneClear(w, hauler, 0)).toBe(true);
+    expect(chosenLane(w, hauler)).toBe(0);
+
+    hauler.pos = roadPoint(4, 0, 80, LANES[2]);
+    expect(laneClear(w, hauler, 2)).toBe(true);
+    expect(chosenLane(w, hauler)).toBe(2);
+  });
+
   it('keeps its lane when every lane is blocked, for the router to thread the gap', () => {
     const { w, hauler } = openRoad();
     const trucks = LANES.map((lane) => addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 6, lane), 0));
