@@ -8,7 +8,8 @@ export type QuestFact = { name: string; text: string };
 export type QuestLanguage = 'en' | 'ru';
 export type QuestScene = { img: string | null; place: string | null };
 export type QuestText = { story: string; stats: QuestStat[]; facts: QuestFact[]; scenes: Record<string, QuestScene> };
-export type CompiledQuest = { vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; art: string[]; text: Record<QuestLanguage, QuestText> };
+export type QuestLinks = { reads: string[]; readsNotes: string[]; writes: Record<string, QuestValue[]>; notes: string[]; begins: string[] };
+export type CompiledQuest = { vars: Record<string, QuestVarDecl>; checkpoints: string[]; view: QuestViewKind; art: string[]; revision: number; links: QuestLinks; text: Record<QuestLanguage, QuestText> };
 export type QuestBundle = { world: Record<string, QuestVarDecl>; externals: string[]; quests: Record<string, CompiledQuest> };
 
 export const CHECKPOINT_TAG = 'checkpoint:';
@@ -25,5 +26,14 @@ export const TOWED_TO_BOWL = 'towed_to_bowl';
 export const AMBUSH_RAIDER = 'ambush_raider';
 
 export const INTRO_STEP = 'intro_step';
+
+export type GameWorldVar = { gates: string | null };
+export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
+  [INTRO_STEP]: { gates: null },
+  [TOWED_TO_BOWL]: { gates: null },
+  [AMBUSH_RAIDER]: { gates: null },
+  [FIRST_FALL_SEEN]: { gates: GAME_OPENED_QUESTS.firstFall },
+  [WAGON_SEEN]: { gates: GAME_OPENED_QUESTS.wagonSeven },
+};
 export const INTRO_STEPS = ['off', 'drive', 'patched', 'ambush', 'done'] as const;
 export type IntroStep = (typeof INTRO_STEPS)[number];

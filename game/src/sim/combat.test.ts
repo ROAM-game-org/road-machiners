@@ -557,7 +557,7 @@ describe('player vision', () => {
     autoOrders(w, me);
     expect(me.weaponOrders).toEqual({});
     const far = w.vehicles.find((v) => v.faction === 'raiders')!;
-    expect(() => setWeaponOrder(w, vehicleStats(w, me).weapons[0].part.id, { targetId: far.id, aim: 'body' })).toThrow(/cannot see/);
+    expect(() => setWeaponOrder(w, vehicleStats(w, me).weapons[0].part.id, { targetId: far.id, aim: 'body' })).toThrow("Refused: unseen");
   });
 
   it('a rock between you and a raider blocks the shot', () => {
