@@ -1,6 +1,6 @@
 # Russian copy
 
-How to write the Russian text in `src/text/ru/`. Read it before you add or change a Russian entry. [Text and languages](architecture/text.md) covers the catalog itself.
+How to write the Russian text in `src/text/ru/`. Read it before you add or change a Russian entry. [Text and languages](../architecture/text.md) covers the catalog itself.
 
 ## The bar
 
@@ -34,7 +34,7 @@ Translate what the line means where the player sees it, not its words. The key t
 
 ## Names in sentences
 
-A name inside a sentence takes the case the grammar needs, and the verb agrees with its gender. [Text and languages](architecture/text.md) has the syntax.
+A name inside a sentence takes the case the grammar needs, and the verb agrees with its gender. [Text and languages](../architecture/text.md) has the syntax.
 
 - `log.patchDoneYou`: «Вы починили: {who}.» → «Вы починили {who, case, acc}.»
 - `log.patchDoneThem`: «{who} починил ваш грузовик.» → «{who} {who, gender, m {починил} f {починила} n {починило} pl {починили}} ваш грузовик.»
@@ -101,7 +101,7 @@ Good lines to match:
 
 ## Quests
 
-Each quest in `src/data/quests/<quest>.ink` has a Russian twin in `src/data/quests/ru/<quest>.ink`. [Quests](architecture/quests.md) explains how the game picks the twin and how the checker compares them. A twin is the same script with Russian words.
+Each quest in `src/data/quests/<quest>.ink` has a Russian twin in `src/data/quests/ru/<quest>.ink`. [Quests](../architecture/quests.md) explains how the game picks the twin and how the checker compares them. A twin is the same script with Russian words.
 
 What stays exactly as in the English file:
 
@@ -133,7 +133,7 @@ How it reads:
 - Ink has no plurals. A number from a variable sits before a word whose form does not change, like «М», or the sentence is rewritten around it.
 - Table rows use the Russian number format: a decimal comma and a no-break space between thousands.
 - A dialogue dash is «—». A hyphen at the start of a line is an ink gather, so never start a line of text with «-».
-- Each speaker keeps their voice from [the voice sheets](lore/voices.md): their words, rhythm and habits.
+- Each speaker keeps their voice from [the voice sheets](../lore/voices.md): their words, rhythm and habits.
 
 Names:
 

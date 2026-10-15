@@ -47,4 +47,4 @@ The constants at the top of the script apply to every picture. Change them only 
 
 ## Add the picture to a quest
 
-Add the key to `QUEST_ART` in `src/data/quest-art.ts` and tag the line with `# img: <key>`. [Writing quests](quest-authoring.md) has the tag rules.
+Add the key to `QUEST_ART` in `src/data/quest-art.ts` and tag the line with `# img: <key>`. [Writing quests](../writing/quests.md) has the tag rules.

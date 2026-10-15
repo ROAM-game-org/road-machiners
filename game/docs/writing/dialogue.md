@@ -1,6 +1,6 @@
 # Writing dialogue
 
-This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quest-authoring.md) covers ink, quest structure and page narration. [Voices](lore/voices.md) keeps one sheet per speaker.
+This guide covers how people in the basin talk and how the player talks back. It holds for town locals, radio calls and the spoken lines inside page scenes. [Writing quests](quests.md) covers ink, quest structure and page narration. [Voices](../lore/voices.md) keeps one sheet per speaker.
 
 The examples are written for ROAM. A line marked Bad is the kind of line that has shipped before and confused players.
 
@@ -96,7 +96,7 @@ End a scene on a dry, small line, often the next chore or a flat joke. Never end
 
 ## Before you write a person
 
-Write their voice sheet in [Voices](lore/voices.md) first. A sheet answers five questions.
+Write their voice sheet in [Voices](../lore/voices.md) first. A sheet answers five questions.
 
 1. What one speech rule shows in every line they say? Kovac states one fact, then what follows from it. Hattie names her source, then doubts it. Ruben winds through water and his grandmother before he lands.
 2. What do they want from the player? A stranger is a buyer, a pair of hands, a witness, a messenger or a risk. A person with nothing to want has nothing to say.

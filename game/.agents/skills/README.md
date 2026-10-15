@@ -35,7 +35,7 @@ The [awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gam
 - Game UI: `game-ui-ux` from awesome-gamedev-agent-skills and `threejs-game-ui-designer` from threejs-game-skills. Start interface work with `game-ui-design` above.
 - Blender: `blender-image-to-3d` from [blender-game-skills](https://github.com/majidmanzarpour/blender-game-skills), the skill the factory image also carries. `blender-python-scripting`, `blender-modeling-modifiers`, `blender-scene-rendering` and `blender-shader-nodes` from [blender-claude-plugin](https://github.com/ra100/blender-claude-plugin). `blender` from [AI-SKILL-blender](https://github.com/LevyBytes/AI-SKILL-blender) is the Blender manual and Python API reference, read on demand through its six area indexes.
 
-The same boundaries apply. Their examples target generic games and other engines. The project's docs, its sim and render split and the [Art pipeline](../../docs/art.md) win over them.
+The same boundaries apply. Their examples target generic games and other engines. The project's docs, its sim and render split and the [Art pipeline](../../docs/art/models.md) win over them.
 
 ## Boundaries
 
