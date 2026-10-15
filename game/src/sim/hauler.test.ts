@@ -10,7 +10,7 @@ import type { Vehicle, World } from './types';
 import { dist } from './vec';
 
 const LANES = HIGHWAY.road.lanes;
-const N = 150;
+const N = 140;
 
 function openRoad(seed = 3): { w: World; hauler: Vehicle } {
   const w = furyRoadWorld(seed);

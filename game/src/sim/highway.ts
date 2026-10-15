@@ -146,12 +146,12 @@ export function bendPlan(seed: number, j: number): number[] {
   return plan;
 }
 
-function bendCell(length: number): number {
-  return (length - 2 * BEND.ends) / BEND.cells;
+export function bendCells(length: number): number {
+  return Math.floor((length - 2 * BEND.ends) / BEND.cell);
 }
 
-function bendScale(length: number): number {
-  return (bendCell(length) / bendCell(STRETCH.max)) ** 2;
+function bendCell(length: number): number {
+  return (length - 2 * BEND.ends) / bendCells(length);
 }
 
 function drawBend(seed: number, j: number): number[] {
@@ -159,9 +159,9 @@ function drawBend(seed: number, j: number): number[] {
   const straight = j < 1 || nextRandom(rng) < BEND.straightChance;
   const side = sideOf(rng);
   const length = j < 1 ? STRETCH.max : stretchLength(seed, j);
-  const scale = bendScale(length);
-  const shift = (i: number) => randRange(rng, BEND.shift[0], BEND.shift[1]) * scale * side * (i % 2 === 1 ? 1 : -1);
-  const plan = Array.from({ length: BEND.cells + 1 }, (_, i) => (straight || i === 0 || i === BEND.cells ? 0 : shift(i)));
+  const cells = bendCells(length);
+  const shift = (i: number) => randRange(rng, BEND.shift[0], BEND.shift[1]) * side * (i % 2 === 1 ? 1 : -1);
+  const plan = Array.from({ length: cells + 1 }, (_, i) => (straight || i === 0 || i === cells ? 0 : shift(i)));
   const steepest = Math.max(...plan.slice(1).map((w, i) => (Math.abs(w - plan[i]) * Math.PI) / (2 * bendCell(length))));
   if (Math.atan(steepest) > BEND.maxHeading * DEG) throw new Error(`Stretch ${j} of seed ${seed} bends ${(Math.atan(steepest) / DEG).toFixed(1)} degrees off north, past ${BEND.maxHeading}`);
   return plan;
@@ -171,8 +171,9 @@ export function centerU(seed: number, n: number): number {
   const j = stretchOf(seed, n);
   if (j < 1) return 0;
   const along = n - milestoneAt(seed, j - 1) - BEND.ends;
-  const cell = bendCell(stretchLength(seed, j));
-  if (along <= 0 || along >= cell * BEND.cells) return 0;
+  const length = stretchLength(seed, j);
+  const cell = bendCell(length);
+  if (along <= 0 || along >= cell * bendCells(length)) return 0;
   const plan = bendPlan(seed, j);
   const i = Math.floor(along / cell);
   const ramp = (1 - Math.cos((Math.PI * (along - i * cell)) / cell)) / 2;
@@ -471,10 +472,14 @@ function clearOfScenes(seed: number): Keep {
   return (p) => Math.abs(acrossOf(seed, p.at)) - p.r >= clear.across || sceneAt(seed, p.at.n, clear.along + p.r) === null;
 }
 
+const SCENERY_ACROSS = Math.max(HIGHWAY.powerLine.across, HIGHWAY.billboard.across[1], HIGHWAY.ditched.across[1], ...HIGHWAY.badlands.map((rule) => rule.across[1]));
+const SCENERY_LEAN = Math.ceil(SCENERY_ACROSS * Math.sin(BEND.maxHeading * DEG));
+
 function windowPieces(seed: number, window: number): RoadPiece[] {
   const span = windowSpan(seed, window);
   const scenes = windowStretches(window).flatMap((j) => stretchLayout(seed, j).scenes.flatMap(scenePieces));
-  return [...sceneryPieces(seed, span.from, span.to, clearOfScenes(seed)), ...scenes, ...closurePieces(seed, window)];
+  const scenery = sceneryPieces(seed, span.from - SCENERY_LEAN, span.to + SCENERY_LEAN, clearOfScenes(seed));
+  return [...scenery, ...scenes, ...closurePieces(seed, window)];
 }
 
 function bakedProps(seed: number, window: number): BakedProp[] {

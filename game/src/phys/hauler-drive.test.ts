@@ -145,7 +145,7 @@ const OUTER_LANE = 3;
 const CHECKPOINT_LEAD = 16;
 const CHECKPOINT_TURNS = 30;
 const CHECKPOINT_STRETCH = 10;
-const CHECKPOINT_SEED = 19;
+const CHECKPOINT_SEED = 39;
 
 it('threads a checkpoint that blocks every lane from the outer lane, with no hit and no stall', () => {
   const stretch = CHECKPOINT_STRETCH;

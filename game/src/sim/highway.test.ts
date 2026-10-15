@@ -6,7 +6,7 @@ import { atlasOf } from './atlas';
 import { REGION } from '../data/region';
 import { fortressProps } from './fortress';
 import { deckAt } from './bridge';
-import { acrossOf, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowShift, windowSpan } from './highway';
+import { acrossOf, bendCells, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowShift, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
 import { northClosureAt, sceneAt, southClosureAt } from './road-hazards';
 import { canUseSite, sitePads } from './sites';
@@ -222,7 +222,7 @@ describe('a highway window', () => {
 
 describe('the highway road', () => {
   it('keeps within 35 degrees of north, its bends wide and its grade under the road limit', () => {
-    const bendRadius = 40;
+    const bendRadius = 22;
     for (let seed = 1; seed <= 30; seed++) {
       for (let n = milestoneAt(seed, 0); n < milestoneAt(seed, 8); n += 1) {
         expect(Math.abs(roadHeight(seed, n + 1) - roadHeight(seed, n))).toBeLessThan(TERRAIN.roadGrade);
@@ -241,21 +241,23 @@ describe('the highway road', () => {
     }
   });
 
-  it('bends in most stretches, swinging to one side and then the other', () => {
-    const cellOfStretch = (length: number) => (length - 2 * ROAD.bend.ends) / ROAD.bend.cells;
+  it('bends in most stretches, swinging to one side and then the other at least twice, more on longer stretches', () => {
     let bentStretches = 0;
     let stretches = 0;
     for (let seed = 1; seed <= 30; seed++) {
       for (let j = 1; j <= 8; j++) {
-        const cell = cellOfStretch(stretchLength(seed, j));
-        const scale = (cell / cellOfStretch(STRETCH.max)) ** 2;
+        const length = stretchLength(seed, j);
+        const cells = bendCells(length);
+        const cell = (length - 2 * ROAD.bend.ends) / cells;
+        expect(cells).toBeGreaterThanOrEqual(3);
+        expect(cell).toBeGreaterThanOrEqual(ROAD.bend.cell);
         const swing = (i: number) => centerU(seed, milestoneAt(seed, j - 1) + ROAD.bend.ends + i * cell);
-        const swings = Array.from({ length: ROAD.bend.cells - 1 }, (_, k) => swing(k + 1));
+        const swings = Array.from({ length: cells - 1 }, (_, k) => swing(k + 1));
         stretches++;
-        expect(swings.every((w) => Math.abs(w) <= ROAD.bend.shift[1] * scale + 1e-9)).toBe(true);
+        expect(swings.every((w) => Math.abs(w) <= ROAD.bend.shift[1] + 1e-9)).toBe(true);
         if (swings.every((w) => w === 0)) continue;
         bentStretches++;
-        expect(swings.every((w) => Math.abs(w) >= ROAD.bend.shift[0] * scale - 1e-9)).toBe(true);
+        expect(swings.every((w) => Math.abs(w) >= ROAD.bend.shift[0] - 1e-9)).toBe(true);
         swings.slice(1).forEach((w, k) => expect(Math.sign(w), `seed ${seed} stretch ${j}`).toBe(-Math.sign(swings[k])));
       }
     }

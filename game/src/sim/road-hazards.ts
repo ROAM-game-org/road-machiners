@@ -2,7 +2,7 @@ import { chassisDef } from '../data/chassis';
 import { FURY_ROAD, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
-import { START_KITS } from '../data/start';
+import { HAULER_KIT, START_KITS } from '../data/start';
 import { hulkBoxes } from './body';
 import { fromRoad, milestoneAt, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
 import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
@@ -129,6 +129,7 @@ const DRAFTS: Record<SceneKind, (rng: Rng, cap: number) => Draft | null> = {
   rockfall: draftRockfall,
   craters: draftCraters,
   ramp: draftRamp,
+  roadblock: draftRoadblock,
 };
 
 function pick<T>(rng: Rng, list: readonly T[]): T {
@@ -268,7 +269,7 @@ function draftRockfall(rng: Rng): Draft | null {
       return { kind: 'rock', a: randRange(rng, -R.fan, R.fan) * (0.4 + t), o, r, rel: 0 };
     }, R.gap);
   }
-  return out.length >= R.rocks[0] ? { kind: 'rockfall', rows: [out], craters: [], ramps: [] } : null;
+  return out.length > R.rocks[0] ? { kind: 'rockfall', rows: [out], craters: [], ramps: [] } : null;
 }
 
 function draftCraters(rng: Rng): Draft | null {
@@ -295,6 +296,26 @@ function draftRamp(rng: Rng): Draft | null {
   const lane = pick(rng, ROAD.lanes);
   const craters = nextRandom(rng) < R.craterChance ? [{ a: R.length + R.craterGap, o: lane, radius: randRange(rng, ...H.craters.radius), depth: randRange(rng, ...H.craters.depth) }] : [];
   return { kind: 'ramp', rows: [[]], craters, ramps: [{ a: 0, o: lane }] };
+}
+
+function draftRoadblock(rng: Rng): Draft | null {
+  const R = H.roadblock;
+  const side = sign(rng);
+  const reach = ROAD.asphalt + randRange(rng, ...R.openReach);
+  const from = side > 0 ? -reach : -ROAD.verge;
+  const to = side > 0 ? ROAD.verge : reach;
+  const row: Local[] = [];
+  let cursor = from;
+  while (cursor < to) {
+    const kind = pick(rng, R.line);
+    const rel = Math.PI / 2 + randRange(rng, -R.yaw, R.yaw) * DEG;
+    const bare = piece(kind, randRange(rng, -R.jitter, R.jitter), 0, rel);
+    const [lo, hi] = rowSpan([bare], ACROSS);
+    const o = cursor - lo + H.pieceGap;
+    row.push({ ...bare, o });
+    cursor = o + hi;
+  }
+  return { kind: 'roadblock', rows: [row], craters: [], ramps: [] };
 }
 
 function proxyProp(p: Local) {
@@ -363,6 +384,7 @@ let widest: number | null = null;
 export function passageInflate(): number {
   widest ??= Math.max(
     chassisDef(START_KITS.furyRoad.chassis).radius,
+    chassisDef(HAULER_KIT.chassis).radius,
     ...Object.keys(FURY_ROAD.cards).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
   );
   return widest + H.inflate;
@@ -385,9 +407,21 @@ export function leavesPassage(blocked: [number, number][]): boolean {
   return freeAcross(blocked).some(([lo, hi]) => hi - lo >= H.passage && Math.min(hi, ROAD.asphalt) - Math.max(lo, -ROAD.asphalt) >= H.onAsphalt);
 }
 
+export function leavesVergeGap(blocked: [number, number][]): boolean {
+  const free = freeAcross(blocked);
+  const onAsphalt = free.some(([lo, hi]) => Math.min(hi, ROAD.asphalt) > Math.max(lo, -ROAD.asphalt));
+  const offAsphalt = free.some(([lo, hi]) => hi - lo >= H.roadblock.room && (lo >= ROAD.asphalt || hi <= -ROAD.asphalt));
+  return !onAsphalt && offAsphalt;
+}
+
+function rowPasses(kind: SceneKind, row: Local[]): boolean {
+  const blocked = row.flatMap((p) => shapesOf(p).map((s) => shapeSpan(s, ACROSS)));
+  return kind === 'roadblock' ? leavesVergeGap(blocked) : leavesPassage(blocked);
+}
+
 function draftPasses(draft: Draft): boolean {
   const rows = draft.rows.filter((row) => row.length > 0);
-  if (!rows.every((row) => leavesPassage(row.flatMap((p) => shapesOf(p).map((s) => shapeSpan(s, ACROSS)))))) return false;
+  if (!rows.every((row) => rowPasses(draft.kind, row))) return false;
   const along = rows.map((row) => rowSpan(row, ALONG)).sort((x, y) => x[0] - y[0]);
   return along.every((span, i) => i === 0 || span[0] - along[i - 1][1] >= H.passage + 2 * passageInflate());
 }

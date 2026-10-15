@@ -24,7 +24,7 @@ Chaos Highway plays on its own generated map, never on Icarus. The world seed bu
 
 Each stretch between two outposts has its own length, drawn from the seed: any whole number of tiles from 230 to 310. The next stretch cannot be guessed from the last one. The range lives in `HIGHWAY`.
 
-Each stretch bends twice. The road runs straight for 60 tiles after each outpost and before the next one. Between them it swings off its line to one side, then to the other, and back, starting on a side drawn from the seed. On a 310 tile stretch each swing is 6 to 10 tiles. A shorter stretch has less room to turn, so its swings shrink with the square of the room, down to about a third at 230 tiles. One stretch in ten stays straight. Every bend keeps a radius of at least 40 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
+The road winds, so a sprinter has no long straight run. It runs straight for 40 tiles after each outpost and before the next one. Between them it is cut into bend cells of at least 40 tiles, 3 on the shortest stretch and 5 on the longest. At each cell end it swings 4 to 7 tiles off its line, to alternating sides, starting on a side drawn from the seed. One stretch in ten stays straight. Every bend keeps a radius of at least 22 tiles. The heading stays within 35° of north. The bend numbers live in `HIGHWAY`.
 
 - The road is one carriageway of four northbound lanes, 2 tiles each, with a 1-tile shoulder on each side, 10 tiles of asphalt in all. It carries no lane paint.
 - A flat verge of hardpan and sand runs 13 tiles beside the asphalt on each side, so the drivable corridor is 36 tiles wide. The verge and badlands cut top speed by 10%, so the asphalt is the fast lane.
@@ -51,17 +51,18 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 
 ## Scenes
 
-A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes. Stretches 1 and 2 aim for 3 scenes, and later stretches aim for 4. The first 24 tiles after an outpost and the last 30 before the next one stay clear. Scenes are drawn one after another, and a scene that leaves less than 36 tiles for any arena is drawn again. A short stretch that runs out of room holds fewer scenes, down to none, and is never refused. Each scene always leaves a way through on the road:
+A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes. Stretches 1 and 2 aim for 3 scenes, and later stretches aim for 4. The first 24 tiles after an outpost and the last 30 before the next one stay clear. Scenes are drawn one after another, and a scene that leaves less than 36 tiles for any arena is drawn again. A short stretch that runs out of room holds fewer scenes, down to none, and is never refused. Each scene but the roadblock always leaves a way through on the road:
 
 - Pileup: 3 to 6 car wrecks and burnt truck hulks over 1 or 2 lanes, slewed 20° to 80° off the road, with drums and junk spilled ahead.
 - Jackknife: a bus or hauler hulk across two lanes at 60° to 90°, with 1 or 2 cars rear-ended behind it.
 - Checkpoint: 2 or 3 barrier lines, each across two lanes and a shoulder on alternate sides, 10 tiles apart, so the road becomes a chicane. Sandbags sit behind each line, tank traps on its verge and an army truck beside one.
 - Tank line: a dead tank on a verge and 6 to 10 tank traps in two staggered rows over 1 or 2 lanes.
 - Rockfall: a crag on the badlands edge and 6 to 12 rocks fanning onto the verge and the outer lane.
+- Roadblock: one solid line of barriers, sandbags, tank traps and wrecked cars and trucks across all four lanes and both shoulders, and on into the verge of one side, all the way to the badlands. On the other side it stops 2 to 5 tiles past the asphalt. The only way round is the verge on that open side. The gap there is at least 3 tiles wider than the semi, so the semi passes without touching a prop. The roadblock is the one scene that blocks the asphalt, and no lane limit applies to it.
 - Craters: 2 to 4 gravel dips on the lanes, with junk at their rims. They slow and jolt a truck but block nothing. The hauler still changes lane around them.
 - Ramp: a Fallen Sun hull plate in one lane, 3 tiles wide, rising 0.35 over 5 tiles toward the north, sometimes just before a crater. A truck at speed flies off it. It is never the only way through.
 
-Early stretches lean to pileups, rockfalls and craters, later ones to checkpoints and tank lines. A scene covers at most 2 of the 4 lanes up to stretch 2, then at most 3.
+Early stretches lean to pileups, rockfalls and craters, later ones to checkpoints and tank lines. Roadblocks start on stretch 2 and grow more common later, up to about one a stretch. The hauler plans its own way round one: no lane is clear, so it aims past the block and the router takes it over the verge. A scene that leaves the asphalt open covers at most 2 of the 4 lanes up to stretch 2, then at most 3.
 
 ## Windows
 
