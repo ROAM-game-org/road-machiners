@@ -106,6 +106,7 @@ describe('merge queue', () => {
     expect(calls).toContain('move 5 Done');
     expect(calls).toContain('move 6 Done');
     expect(deployed).toEqual(['dev']);
+    expect(calls.filter((call) => call.startsWith('message'))).toEqual([]);
     expect(readState(`${home}/state.json`).approvedResolving).toEqual({});
   });
 

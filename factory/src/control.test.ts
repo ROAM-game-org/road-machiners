@@ -7,7 +7,7 @@ import { workDir } from './stages/common';
 import { readLedger } from './ledger';
 import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
-import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type ReleaseState } from './types';
+import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type IssueComment, type Job, type KeptApproval, type ReleaseState } from './types';
 
 const killed: string[] = [];
 vi.mock('./jobs', async (original) => ({ ...(await original<object>()), killJob: async (_run: unknown, pid: number, id: string) => { killed.push(`${pid} ${id}`); } }));
@@ -25,6 +25,8 @@ let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
 let editFails = false;
+let issueComments: IssueComment[] = [];
+let contained: string[] = [];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -44,6 +46,7 @@ function fakeCtx(): Ctx {
       addLabel: async (n: number, label: string) => { calls.push(`addLabel ${n} ${label}`); },
       removeLabel: async (n: number, label: string) => { calls.push(`removeLabel ${n} ${label}`); },
       mergePullRequest: async (branch: string) => { calls.push(`mergePullRequest ${branch}`); },
+      comments: async () => issueComments,
     },
     telegram: {
       editCaption: async (_chat: string, id: number, caption: string) => {
@@ -61,6 +64,7 @@ function fakeCtx(): Ctx {
     },
     repo: {
       fetch: async () => { calls.push('fetch'); },
+      isMerged: async (older: string) => contained.includes(older),
       headHash: async (branch: string) => {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
@@ -102,6 +106,8 @@ beforeEach(() => {
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
   editFails = false;
+  issueComments = [];
+  contained = ['abc1111'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
   calls = [];
@@ -654,5 +660,63 @@ describe('merge-change', () => {
     await applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: '11' }));
     expect(calls).toContain('mergePullRequest factory-change/12');
     expect(ctrlLines()[0]).toMatchObject({ action: 'merge-change', issue: null, by: 'Ann' });
+  });
+});
+
+describe('kept hotfix approvals', () => {
+  const KEPT: KeptApproval = { by: 'Bob', at: '2026-09-28T10:00:00Z', build: 'abc1111', checked: ['abc1111'], reason: 'main moved' };
+  const factory = (body: string): IssueComment => ({ login: 'roam-factory[bot]', body, createdAt: '2026-09-28T10:00:00Z', byFactory: true });
+  const post = (build: string) => factory(`Ready for approval: https://play.test/play/${build}/\n\nA loud horn.`);
+
+  it('keeps the approval when Hermes moves the card to verify for a fresh Testing run', async () => {
+    cards = [card(4, 'Approval', ['hotfix'])];
+    seed({ keptApprovals: { 4: KEPT }, pendingApprovals: { 4: 'Bob' } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'verify', by: 'hermes' }));
+    const state = readState(statePath);
+    expect(state.keptApprovals).toEqual({ 4: KEPT });
+    expect(state.pendingApprovals).toEqual({});
+  });
+
+  it('drops the approval with a reason when a move sends the card anywhere else', async () => {
+    cards = [card(4, 'Testing', ['hotfix'])];
+    seed({ keptApprovals: { 4: KEPT } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));
+    expect(readState(statePath).keptApprovals).toEqual({});
+    expect(calls).toContain('comment 4 The approval by Bob of build abc1111 no longer holds: Ann moved the card to design: the gate failed on load The changed build needs a new approval, so it gets a new post.');
+  });
+
+  it('revokes the kept approval with drop approval, so the tick cannot queue it again', async () => {
+    seed({ keptApprovals: { 4: KEPT } });
+    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
+    expect(readState(statePath).keptApprovals).toEqual({});
+  });
+
+  it('recovers an approval that main moved past, from the factory record on the issue, and sends an Approval card to Testing', async () => {
+    cards = [card(4, 'Approval', ['hotfix', 'bug'])];
+    seed({ approvalPosts: { 90: 4 }, postCaptions: { 90: 'Post' }, builds: { 4: 'fff9999' } });
+    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in game/src/a.ts. Testing merges main again and posts the build again.'), post('fff9999')];
+    await applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4, by: 'hermes' }));
+    const state = readState(statePath);
+    expect(state.keptApprovals).toEqual({ 4: { by: 'Bob', at: '2026-09-28T10:00:00Z', build: 'abc1111', checked: [], reason: 'recovered by Hermes: the gate failed on load' } });
+    expect(state.approvalPosts).toEqual({});
+    expect(calls).toContain('move 4 Testing');
+    expect(calls).toContain('editCaption 90 Post\n\n↪️ Approval by Bob recovered by Hermes');
+  });
+
+  it('refuses to recover an approval when a patch came after the approved post', async () => {
+    cards = [card(4, 'Testing', ['hotfix'])];
+    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in a.ts.'), factory('## Committee feedback\n\nFrom Ann, routed as patch:\n\nLouder')];
+    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('#4 changed after the post Bob approved: ## Committee feedback');
+    expect(readState(statePath).keptApprovals).toEqual({});
+  });
+
+  it('refuses to recover when the branch lost the approved build, when no approval is on record, and for a card that is no hotfix', async () => {
+    cards = [card(4, 'Testing', ['hotfix']), card(6, 'Testing')];
+    issueComments = [post('abc1111'), factory('Approved by Bob, but main moved on and the branch conflicts with it in a.ts.')];
+    contained = [];
+    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('factory/issue-4 no longer contains build abc1111');
+    issueComments = [post('abc1111'), { ...factory('Approved by Bob, but main moved on'), byFactory: false }];
+    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 4 }))).rejects.toThrow('No factory comment on #4 records an approval');
+    await expect(applyControl(fakeCtx(), command({ action: 'recover-approval', issue: 6 }))).rejects.toThrow('#6 is no hotfix');
   });
 });

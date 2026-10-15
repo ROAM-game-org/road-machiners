@@ -78,7 +78,8 @@ A branch whose every changed file since its base is a Markdown file outside `gam
 ## Approval
 
 - Approve on a previewed card records the approver in `approvedResolving` and moves the card to Hardening.
-- Approve on a hotfix ships it at once. A hotfix that conflicts with `main` goes back to Testing.
+- Approve on a hotfix ships it at once, on the build its full checks passed. When `main` moved since those checks, with or without a conflict, the card goes back to Testing and keeps its approval, as [Hotfix](#hotfix) says.
+- Approve and Deny work only from the card's current post. A press on an older post gets an error reply and changes nothing.
 - Deny labels the issue `wont-do` and closes it and its pull request as not planned.
 
 ## Approval replies
@@ -131,6 +132,15 @@ Ship runs on the current candidate post only, with no release task open and the 
 ## Hotfix
 
 A hotfix fixes a bug in the shipped game. Its jobs run before other cards and past the card job limit. Its branch starts from `main`, and testing merges `main` into it. The post opens with a hotfix warning, and its button reads "Approve and ship to players". Approve merges and ships it like a release. A GitHub release tagged `hotfix-<day>-issue-<N>` gets a one-line changelog, and the committee chat says the hotfix shipped. The public channel gets nothing. The fix goes to `main` and `dev`. The open release stays as it is and meets the fix at its Ship.
+
+A hotfix approval is given once and stays. The approve job records it in `keptApprovals`: the member, the time, the approved build and each build whose full checks passed under it. `main` takes only a checked build, and only while `main` is an ancestor of it. The guard runs again after a rejected push, so a `main` that moved during the checks or before the push never takes an unchecked merge. Otherwise the card goes back to Testing with the approval kept, with one issue comment and no chat message:
+
+- Testing merges `main` as usual, and its session resolves any conflict. Then it runs `prompts/integrate.md` in place of the hardening and test rounds. The agent keeps the approved fix and what `main` gained, plays the fix and fixes what the merge broke.
+- The post checkpoint runs the full suite, the typecheck, the playtest and the build on the pushed commit, and a failure goes back into the same session. A spent budget fails the stage, and the approval stays for the retry.
+- When the checks pass and the commit still contains the approved build, the build joins the approval's checked builds, the approval is queued again under the original member and the card moves to Approval with no post. The approve job ships it, or sends it back again if `main` moved again.
+- The agent writes `.factory/intent-changed.md` when the merge, or a fix the checks need, needs a product choice or changes what the committee played. The approval then drops with that reason, and the build gets a normal post for a new approval. A card that lost its `hotfix` label drops it the same way.
+
+The approval also drops with a reason on a patch or redesign route, Deny, `factory move` to any position but `verify`, `factory merge` and `factory drop approval N`, which is the explicit revocation. A branch that no longer contains the approved build drops it too. A tick queues a kept approval again for an Approval card whose current build is a checked one, with no job, failure, hold or stuck label, so a failed approve job ships after `retry N` with no new press. `factory recover-approval N` restores an approval lost before this rule, as [state.md](state.md#commands) says.
 
 ## Incident
 

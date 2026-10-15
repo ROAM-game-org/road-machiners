@@ -25,7 +25,7 @@ Each agent stage is one agent session that owns its stage. The agent runs the ch
 
 - Intake takes every aged `bug` and `feature-request` issue into Triage. A `player-report` or `error-report` issue goes in at once, since nobody edits it after it is filed. Nobody votes on GitHub.
 - Triage passes a bug and a justified improvement of an existing thing to Design. A new feature or a substantial change gets the verdict `vote` and the label `voting`, and waits in Triage for player votes, as [Public inputs](#public-inputs) says. A bug is never put to a vote.
-- A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once.
+- A bug a collaborator labels `hotfix` skips Triage. Triage can also label a bug `hotfix`. Approve ships a hotfix at once, and the approval stays until the hotfix ships, as [Hotfix approval](#hotfix-approval) says.
 - The error service opens an `error-report` bug for each new game error, at most `FACTORY_ERROR_DAILY_ISSUES` a day. Intake takes it into Triage with no votes. A later report of the same error from a new build comments on its issue, and reopens a fixed one when the build came after the fix. [operations.md](operations.md#error-reports) has the details.
 - Triage labels a fix of an open release's feature `release-task`, until the release's candidate is posted. It runs on the release branch and ships with that release. New work stays on `dev` for the next release.
 - A merged issue stays open with the label `release-candidate`. It closes when its release ships.
@@ -35,6 +35,7 @@ The loops:
 - unclear and questions: the author gets questions and the label `needs-info`. The tick removes the label once someone answers on GitHub, or once `FACTORY_NEEDS_INFO_HOURS` pass with no answer. Triage then runs again. With no answer it picks the most sensible reading, and design writes each open question and its reading into the design comment as an assumption.
 - plan wrong: the testing agent found that the plan itself contradicts the issue or the game docs, so no fix of the build can satisfy both. The card keeps its branch.
 - patch: a small committee change. The card goes back to Testing, whose session takes the reply as its whole task.
+- main moved: an approved hotfix whose checked build no longer sits on `main`. The card goes back to Testing with its approval kept, and comes back to Approval with no post.
 - redesign: the committee reply changes the plan.
 - removed from release: `remove #N` on the release candidate post.
 
@@ -66,6 +67,19 @@ Testing is one job. The testing session merges the base, plays the build, fixes 
 
 - A hotfix ships on approval, so its session first runs the hardening prompt, and its post checkpoint also runs the full suite. It never enters Hardening.
 - Hermes can move a card to Approval with no testing. A checks job then builds the branch and posts it with no tests, and the post says so.
+- A hotfix with a kept approval runs the integration round in place of the hardening and test rounds, and its passing checks queue the approval again in place of a post.
+
+## Hotfix approval
+
+The factory's job is to need people as little as it can. A member approves a hotfix once, and the approval stays with the approved build, the member and each checked build that came from it, in `keptApprovals`. Newer `main` merged in mechanically, a retry, a restart or a failed check never asks for it again.
+
+- `main` takes only the build whose full suite, typecheck, playtest and build passed, and only while `main` is an ancestor of it. A `main` that moved before the push, with or without a conflict, sends the card back to Testing with the approval kept. Testing merges `main`, resolves any conflict in its session, runs the full checks on the exact pushed commit and queues the approval again.
+- The approval drops with its reason, and the changed build gets a normal post, when the merge needs a product choice or changes what the committee played, when a member patches, redesigns or denies it, when a move sends the card elsewhere, and when `factory drop approval N` revokes it.
+- Only a member's press, or `factory recover-approval N` after it verified a member's earlier approval on the issue, creates a kept approval. So an unapproved hotfix never ships.
+- Approve and Deny work only from the card's current post. An older post gets an error reply.
+- The hotfix still pushes `main` and `dev` in one atomic push.
+
+![Hotfix approval](diagrams/hotfix.svg)
 
 ## Hardening and Merging columns
 
@@ -137,13 +151,13 @@ Members, other jobs and releases push all the time, so any branch may move while
 - Design does the same on the host before its agent starts, since the agent cannot fetch. A clean clone takes the base: a fast-forward, or a merge that keeps its own commits and its task files. It needs no issue branch on GitHub. A clone with uncommitted changes stays as it is, and the agent is told it may lack recent base work. A conflict goes to an agent in the same job, never to the author, and a retry gives that unfinished merge to an agent again. Any other unfinished merge fails the stage for `factory repair-clone`.
 - The merge queue moves `dev` or the release only with a result its checks passed. A base that moved meanwhile is merged in and checked again. A catch-up merges the base into the issue branch of a waiting Merging card and pushes only that branch.
 - A merge into `main` or the release that GitHub rejects because a target moved runs again on the new tips.
-- A conflict between whole branches never stops the factory. It covers the release cut, the hotfix fan-out and the reverts of Remove. Ship resolves its own conflict in its session. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix that conflicts with `main` at approve goes back to Testing.
+- A conflict between whole branches never stops the factory. It covers the release cut, the hotfix fan-out and the reverts of Remove. Ship resolves its own conflict in its session. The step keeps the conflicted merge in a work clone of the target, and an agent resolves it with `prompts/merge-branches.md`, or `prompts/revert-merge.md` for a revert. The factory checks that the commit finished the merge and that the agent's own changes pass the diff checks. Then the step pushes as before. A target that moved meanwhile gets the merge again, and a new agent round only if that conflicts too. A hotfix is the exception: `main` takes only its checked build, so a `main` that moved sends it back to Testing with its approval kept.
 
 ![Branches](diagrams/branches.svg)
 
 - The release cut merges `main` into `dev` first when `dev` lacks any of it. It opens a tracking issue labeled `release` and two cleanup tasks. `lastRelease` changes only when the cut succeeds or finds nothing new, so a failed cut runs again on the next tick.
 - Ship merges the release into a work clone of `main` once, and the ship session resolves any conflict. The ship checkpoint runs the full suite, the typecheck, the playtest and the build on the result. A failure goes back into the ship session, until the checks pass or its fix rounds spent `FACTORY_MERGING_BUDGET_USD`. Resolving the conflict spends none of that budget. A spent budget fails Ship, and Hermes asks a member. Then Ship pushes `main`, merges `main` into `dev`, builds `main` and pushes it to itch.io.
-- A hotfix merges its branch into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
+- A hotfix merges its checked build into `main`, and `main` into `dev`, in one push. Then it ships like a release. The open release stays as it is and meets the fix at its Ship.
 - Remove reverts a feature's merge in both `dev` and the release, and sends its issue back to Design.
 
 ## Release
@@ -152,7 +166,9 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 The playtest is one job, after every release task merged and before the candidate. Before the first play it runs the game suite on the release head through the shared test cache, so only test files that passed with unchanged inputs are skipped, and a failing suite fails the job. It plays one seed of the progression harness on the release head and on a baseline: the last commit the release passed, or `main` where the release branched off it. An Opus agent reviews the logs and sorts each finding as caused by the release or old. It fixes the release's important findings in its clone, and the factory replays the seed on the fixes in the same agent session. A clean play passes its commit, after the factory checks for any fixes, which then land on the release. An important old finding opens a bug issue for `dev` and does not block. A blocked verdict or the play limit blocks the release until Hermes retries it with a decision. [stages.md](stages.md#release-playtest) has the rules.
 
-The public Telegram channel gets only the release post that a member publishes. After Ship, Hermes drafts the post into the committee chat, and it stays a draft until a member presses Publish. Nothing else goes to the channel: no hotfix, candidate, approval, card, job, incident or status message. Those go to the committee chat and GitHub. Only `publishPost` in `src/release-post.ts` sends to the channel, and a test checks this.
+The public Telegram channel gets only the release post that a member publishes. After Ship, Hermes drafts the post into the committee chat, and it stays a draft until a member presses Publish. Nothing else goes to the channel: no hotfix, candidate, approval, card, job, incident or status message. Only `publishPost` in `src/release-post.ts` sends to the channel, and a test checks this.
+
+The committee chat gets only what a member acts on or must know: a post that asks for a product decision, with its play link, evidence and hotfix warning, a question on game design or taste, and a short outcome like a shipped hotfix or release, or one that cannot ship. It gets no repeated approval post, no merge into `dev`, no `/dev/` rebuild, and no job, incident or progress status. Those stay on GitHub and in the factory records.
 
 The release stays put after its cut. Only its release tasks, the playtest fixes and Remove change it, and nothing from `main` enters it until Ship. Each of these moves drops the Ship button of the current post, and the playtest plays the new head in full. The candidate builds only the commit the playtest passed, and its post records it. A reply can open a release task while a candidate builds. That candidate lacks the task, so it is not posted.
 

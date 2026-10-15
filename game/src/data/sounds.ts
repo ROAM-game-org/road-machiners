@@ -186,7 +186,7 @@ export function engineStrainFileFor(chassisId: string): string {
   return file;
 }
 
-export type SoundFormat = { ext: string; dir: string; mime: string };
+export type SoundFormat = { ext: string; dir: string; mime: string; signature: { at: number; text: string } };
 
 export const BANK = {
   decodeAtOnce: 4,
@@ -194,8 +194,8 @@ export const BANK = {
   silentSeconds: 0.1,
   beatSlackSeconds: 0.05,
   formats: [
-    { ext: "ogg", dir: "sfx/", mime: "audio/ogg; codecs=opus" },
-    { ext: "m4a", dir: "sfx-m4a/", mime: 'audio/mp4; codecs="mp4a.40.2"' },
+    { ext: "ogg", dir: "sfx/", mime: "audio/ogg; codecs=opus", signature: { at: 0, text: "OggS" } },
+    { ext: "m4a", dir: "sfx-m4a/", mime: 'audio/mp4; codecs="mp4a.40.2"', signature: { at: 4, text: "ftyp" } },
   ] satisfies SoundFormat[],
 };
 

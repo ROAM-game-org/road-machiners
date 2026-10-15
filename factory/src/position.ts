@@ -53,7 +53,7 @@ function approvalDrift(card: Card, state: FactoryState): string[] {
   const key = String(card.issue);
   const posts = Object.entries(state.approvalPosts).filter(([, issue]) => issue === card.issue).map(([id]) => id);
   const queued = key in state.pendingApprovals;
-  if (card.column === 'Approval') return posts.length || queued ? [] : [`#${card.issue} column Approval but no open post and no approval`];
+  if (card.column === 'Approval') return posts.length || queued || key in state.keptApprovals ? [] : [`#${card.issue} column Approval but no open post and no approval`];
   const lines = posts.map((id) => `#${card.issue} open approval post ${id} but column ${card.column}`);
   if (queued) lines.push(`#${card.issue} queued approval but column ${card.column}`);
   return lines;
