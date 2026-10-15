@@ -4,7 +4,7 @@ import type { Run } from './types';
 type StreamBlock = { type?: string; name?: string; input?: { command?: string }; content?: unknown };
 type StreamEvent = { type?: string; message?: { content?: StreamBlock[] } };
 type ActivityUpdate = ({ activity: Activity; step?: true } | { milestone: Milestone }) & { source: ActivityData['source'] };
-const STEPS = { 'npm ci': 'install', 'tests and typecheck': 'tests', 'tests done': 'typecheck', typecheck: 'typecheck', tests: 'tests', 'dev server': 'starting', playtest: 'playtest', build: 'build', done: 'finished' } as const satisfies Record<string, Activity>;
+const STEPS = { 'npm ci': 'install', tests: 'tests', 'dev server': 'starting', playtest: 'playtest', build: 'build', done: 'finished' } as const satisfies Record<string, Activity>;
 export type StepName = keyof typeof STEPS;
 function printRecord(status: Parameters<typeof scriptStatusRecord>[0]): string { return `printf '%s\\n' '${scriptStatusRecord(status).replaceAll("'", "'\\''")}'`; }
 export function stepScript(phase: Milestone, steps: [StepName, string][]): string {
