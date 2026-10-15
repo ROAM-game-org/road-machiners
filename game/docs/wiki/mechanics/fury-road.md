@@ -94,7 +94,7 @@ A director plans each stretch's groups when the road opens, in `src/sim/fury-roa
 - Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch. A fraction rolls up or down, so stretches of one level differ.
 - Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
 - Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
-- Gear money: each truck's gear money is 15% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
+- Gear money: each truck's gear money is 16% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
 
 Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first. A blocker is never elite.
 
