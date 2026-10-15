@@ -18,8 +18,11 @@ http://{$DOMAIN} {
 	handle /factory* {
 		reverse_proxy unix//opt/factory/dashboard/http.sock
 	}
-	# Game builds post error reports here. The tunnel's CF-Connecting-IP header passes through to the service.
+	# Game builds post error reports and player feedback here. The tunnel's CF-Connecting-IP header passes through to the service.
 	handle /errors {
+		reverse_proxy unix//opt/factory/errors/http.sock
+	}
+	handle /feedback {
 		reverse_proxy unix//opt/factory/errors/http.sock
 	}
 	root * /srv/www

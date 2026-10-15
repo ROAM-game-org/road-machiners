@@ -36,7 +36,7 @@ def hook_setup(tmp_path):
     (tmp_path / "inbox").mkdir()
     committee = plugin.Committee(str(tmp_path / "committee"), "1", "boss")
     committee.seed()
-    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee)
+    cfg = plugin.Config(str(tmp_path / "inbox"), str(tmp_path / "state"), "-100", committee, "-200", "-300", "/pub")
     adapter = Adapter()
     gateway = types.SimpleNamespace(adapters={"telegram": adapter})
     source = types.SimpleNamespace(user_id="1", user_name="Ann", chat_id="-100", platform="telegram")

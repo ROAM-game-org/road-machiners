@@ -6,7 +6,7 @@ import { agentHome } from './common';
 import { MergeConflictError, RevertConflictError, type AgentRun, type Card, type Ctx, type FactoryConfig, type InlineButton, type MergeStep, type Resolution } from '../types';
 
 export const ROOT = resolve(`tmp/factory-periodic-test/${randomUUID()}`);
-export const cfg = { home: ROOT, buildModel: 'sonnet', publicChannel: 'public', committeeChat: 'committee', repo: 'o/r', transcriptDays: 10, publicUrl: 'https://play.test/play', errorMapDays: 14 } as FactoryConfig;
+export const cfg = { home: ROOT, buildModel: 'sonnet', publicChannel: 'public', committeeChat: 'committee', repo: 'o/r', transcriptDays: 10, publicUrl: 'https://play.test/play', errorMapDays: 14, testStallMinutes: 15 } as FactoryConfig;
 export const CLONE_SHA = 'abc1234'.padEnd(40, '0');
 
 export type Photo = { chat: string; path: string; caption: string; buttons?: InlineButton[][] };
@@ -28,7 +28,7 @@ export function fake(): Fake {
       cards: async () => f.cards,
       pullRequestFor: async () => null,
       reopen: async (n: number) => note(`reopen ${n}`),
-      issue: async () => ({ number: 7, title: 'T', body: 'Simulate battles', labels: ['adhoc'], createdAt: '', state: 'OPEN', thumbsUp: [] }),
+      issue: async () => ({ number: 7, title: 'T', body: 'Simulate battles', labels: ['adhoc'], createdAt: '', state: 'OPEN' }),
       editIssue: async () => note('editIssue'),
       comment: async (_n: number, body: string) => note(`comment ${body}`),
       move: async (_n: number, column: string) => note(`move ${column}`),

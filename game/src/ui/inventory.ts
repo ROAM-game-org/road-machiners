@@ -68,6 +68,7 @@ import { fuelLiters, kg, moneyEl, moneyMsg, pricedEl } from "./units";
 import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
+  canFieldPatch,
   doubleClickCommand,
   planAfterMove,
   plannedVehicle,
@@ -385,7 +386,7 @@ export class InventoryView {
   private itemActions(w: World, item: GridItem, mounted: boolean): HTMLElement[] {
     if (item.kind !== "part") return this.goodActions(w, item.good);
     const buttons: (HTMLElement | null)[] = [
-      mounted ? this.patchButton(w, this.mine(w), item.part) : null,
+      canFieldPatch(this.mine(w), mounted, item.part.id) ? this.patchButton(w, this.mine(w), item.part) : null,
       shopAt(w) ? this.repairButton(w, item.part) : null,
       !mounted && partDef(item.part.defId).kind !== "core"
         ? this.stripButton(w, this.mine(w), item.part)
