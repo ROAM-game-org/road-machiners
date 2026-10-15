@@ -36,7 +36,7 @@ type Song = {
   end: number;
 };
 type Voice = { src: AudioBufferSourceNode; gain: GainNode };
-type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: Voice[]; heat: number; sinceStop: number; join: string; guitars: boolean };
+type Played = { label: string; role: Role | "end"; bar: number; bars: number; start: number; end: number; voices: Voice[]; heat: number; odds: string; join: string; guitars: boolean };
 type Fired = { cue: AccentCue; at: number; result: string | null };
 type Push = { at: number; line: LineId; stab: boolean };
 type Auto = "off" | "busy" | "pauses";
@@ -64,6 +64,8 @@ const DENSE_TURN: [AccentCue, number][] = [
   ["accent-sighted", 1],
 ];
 const AUTO_PAUSE_SECONDS = [1, 4];
+const FILL_ROLES = new Set<Role>(["verse", "wall"]);
+const ODDS_SHOWN = 4;
 
 const ROLE_INK: Record<Role | "end", string> = {
   intro: token("--ink-muted"),
@@ -102,9 +104,8 @@ const blocks = blocksOf(song.sections, SCORE_BLOCKS.arc.blockBars);
 const songLevel = ctx.createGain();
 songLevel.gain.value = SCORE_BLOCKS.songGain;
 songLevel.connect(mixer.input("music"));
-const drumLevel = ctx.createGain();
-drumLevel.gain.value = 0;
-drumLevel.connect(songLevel);
+const fillLevel = ctx.createGain();
+fillLevel.connect(songLevel);
 const guitarLevel = ctx.createGain();
 guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
 guitarLevel.connect(songLevel);
@@ -140,6 +141,8 @@ const beatSeconds = (song.barTimes[1] - song.barTimes[0]) / BEATS_PER_BAR;
 let designer: SoundDesigner | null = null;
 let guitarsWanted = false;
 let gridStart = 0;
+const fillOf = new Map<LineId, number>();
+const fills = song.sections.filter((s) => FILL_ROLES.has(s.role)).flatMap((s) => Array.from({ length: s.bars / 2 }, (_, i) => barTime(s.from + 2 * i + 1) + (BEATS_PER_BAR - 1) * beatSeconds));
 
 function barTime(bar: number): number {
   return song.barTimes[bar - 1];
@@ -174,7 +177,7 @@ function joinOf(block: Block): string {
 }
 
 function blockVoices(block: Block, when: number, offset: number, length: number, fade: number): Voice[] {
-  const voices = [voice(songBuffer, songLevel, offset, when, length, fade), voice(drumBuffer, drumLevel, offset, when, length, fade)];
+  const voices = [voice(songBuffer, songLevel, offset, when, length, fade)];
   if (guitarsWanted) voices.push(voice(guitarBuffer, guitarLevel, offset, when, length, fade));
   return voices;
 }
@@ -187,7 +190,7 @@ function schedule(block: Block, when: number, heatNow: number): number {
   if (join === "jump") fadeOut(played.at(-1)!, fade);
   const voices = blockVoices(block, when, offset, length, fade);
   const label = `${block.role} ${block.bar}-${block.bar + block.bars - 1}`;
-  played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, sinceStop: sequencer!.barsSinceStop, join, guitars: guitarsWanted });
+  played.push({ label, role: block.role, bar: block.bar, bars: block.bars, start: when, end: when + length, voices, heat: heatNow, odds: oddsText(), join, guitars: guitarsWanted });
   guitarsWanted = false;
   return when + length;
 }
@@ -218,11 +221,9 @@ function endCombat(): void {
   beats.clear();
   designer = null;
   guitarsWanted = false;
-  drumLevel.gain.cancelScheduledValues(at);
-  drumLevel.gain.setTargetAtTime(0, at, SCORE_BLOCKS.seamSeconds);
   const offset = barTime(song.end);
   const voices = [voice(songBuffer, songLevel, offset, at, song.length - offset, SCORE_BLOCKS.seamSeconds)];
-  played.push({ label: "end", role: "end", bar: song.end, bars: 1, start: at, end: at + song.length - offset, voices, heat: heat.read(at), sinceStop: 0, join: "end", guitars: false });
+  played.push({ label: "end", role: "end", bar: song.end, bars: 1, start: at, end: at + song.length - offset, voices, heat: heat.read(at), odds: "", join: "end", guitars: false });
 }
 
 function cut(p: Played, at: number): void {
@@ -292,10 +293,36 @@ function onSlot(t: number): number {
 
 function push(h: Hit, stab: boolean): void {
   const at = Math.max(onSlot(h.time), ctx.currentTime);
-  const level = drumLevel.gain;
-  level.setTargetAtTime(h.gain * SCORE_BLOCKS.drumPush[h.line], at - SCORE_BLOCKS.seamSeconds, SCORE_BLOCKS.seamSeconds / 3);
-  level.setTargetAtTime(0, at + SCORE_BLOCKS.drumPushHoldSeconds, SCORE_BLOCKS.drumPushReleaseSeconds / 3);
+  if (stab) fillOf.set(h.line, pickFill(fillOf.get(h.line)));
+  const fill = fillOf.get(h.line);
+  if (fill === undefined) throw new Error(`A ${h.line} tail came with no stab before it`);
+  playFill(fill, at, h.gain * SCORE_BLOCKS.fillGain[h.line]);
   pushes.push({ at, line: h.line, stab });
+}
+
+function pickFill(last: number | undefined): number {
+  const fresh = fills.filter((f) => f !== last);
+  return fresh[Math.floor(Math.random() * fresh.length)];
+}
+
+function playFill(offset: number, at: number, level: number): void {
+  const seam = SCORE_BLOCKS.seamSeconds;
+  const src = ctx.createBufferSource();
+  src.buffer = drumBuffer;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at - seam);
+  gain.gain.linearRampToValueAtTime(level, at + seam);
+  gain.gain.setValueAtTime(level, at + beatSeconds - seam);
+  gain.gain.linearRampToValueAtTime(0, at + beatSeconds + seam);
+  src.connect(gain).connect(fillLevel);
+  src.start(at - seam, offset - seam, beatSeconds + 2 * seam);
+}
+
+function oddsText(): string {
+  return sequencer!.choices
+    .slice(0, ODDS_SHOWN)
+    .map((c) => `${c.role} ${c.from} ${Math.round(c.chance * 100)}%`)
+    .join(", ");
 }
 
 function denseTurn(start: number): void {
@@ -563,16 +590,14 @@ const holder = el("div", { class: "score-lab-canvas" }, canvas);
 const timelinePanel = panel(el("div", { class: "score-lab-bar" }, zoomChoice), holder);
 
 const ledgerRows = el("div", { class: "score-lab-rows" });
-const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "Since stop", "Join"].map((word) => el("span", {}, word)));
+const ledgerHead = el("div", { class: "score-lab-entry score-lab-head" }, ...["", "Block", "Bars", "Starts", "Heat", "", "Join and odds"].map((word) => el("span", {}, word)));
 const ledgerPanel = panel(ledgerHead, ledgerRows);
 
 function statRows(): [string, string][] {
-  const [bars, sinceStop] = sequencer ? [sequencer.barsPlayed, sequencer.barsSinceStop] : [0, 0];
   return [
     ["Combat", inCombat ? "on" : "off"],
     ["Playing", playingNow()?.label ?? "-"],
-    ["Bars played", String(bars)],
-    ["Since stop", String(sinceStop)],
+    ["Bars played", String(sequencer?.barsPlayed ?? 0)],
     ["Heat", heat.read(ctx.currentTime).toFixed(2)],
   ];
 }
@@ -602,8 +627,8 @@ function syncLedger(): void {
           el("span", {}, p.label.replace(`${p.role} `, "")),
           el("span", { class: "num" }, `${(p.start - first).toFixed(1)} s`),
           el("span", { class: "num" }, p.heat.toFixed(1)),
-          el("span", { class: "num" }, String(p.sinceStop)),
-          el("span", { class: "dim" }, p.join),
+          el("span", {}, ""),
+          el("span", { class: "dim" }, p.odds ? `${p.join}. Odds were ${p.odds}` : p.join),
         ),
       )
       .reverse(),

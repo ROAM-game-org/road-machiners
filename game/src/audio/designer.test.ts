@@ -130,48 +130,74 @@ const SECTIONS: Section[] = [
   { role: "stop", from: 37, bars: 4 },
   { role: "verse", from: 41, bars: 8 },
   { role: "wall", from: 49, bars: 20 },
-  { role: "solo", from: 69, bars: 8 },
 ];
-const ARC: ArcTuning = { blockBars: 4, verseBars: 8, wallBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: 2, coolHeat: 1 };
+const ARC: ArcTuning = {
+  blockBars: 4,
+  hotHeat: 2,
+  coolHeat: 1,
+  memoryHalfLifeBars: 16,
+  memoryWeight: 0.08,
+  stay: 3,
+  next: { intro: { verse: 3, wall: 1 }, verse: { verse: 4, wall: 3, stop: 1 }, wall: { wall: 4, verse: 2, stop: 1 }, stop: { verse: 2, wall: 2 }, solo: { wall: 1 } },
+  hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1 },
+  calm: { intro: 1, verse: 2, wall: 0.3, stop: 0.3, solo: 1 },
+};
 
-function play(heats: number[], blockBars = 4) {
-  const seq = new BlockSequencer(blocksOf(SECTIONS, blockBars), { ...ARC, blockBars }, () => 0);
-  return heats.map((h) => seq.next(h));
+function sequencer(roll = () => 0) {
+  return new BlockSequencer(blocksOf(SECTIONS, 4), ARC, roll);
+}
+
+function chanceOf(seq: BlockSequencer, role: string): number {
+  return seq.choices.filter((c) => c.role === role).reduce((sum, c) => sum + c.chance, 0);
 }
 
 describe("BlockSequencer", () => {
-  it("moves a calm fight from intro through verse, wall and a stop", () => {
-    const roles = play(Array(8).fill(0)).map((b) => b.role);
-    expect(roles).toEqual(["intro", "verse", "verse", "wall", "wall", "stop", "verse", "verse"]);
+  it("starts on the intro and plays it to its end", () => {
+    const seq = sequencer();
+    expect(seq.next(5).bar).toBe(5);
   });
 
-  it("follows the song where the next bars have the wanted role", () => {
-    const bars = play(Array(4).fill(0)).map((b) => b.bar);
-    expect(bars).toEqual([5, 9, 13, 21]);
+  it("stays in the verse when the fight is calm", () => {
+    const seq = sequencer();
+    seq.next(0);
+    expect(seq.next(0).role).toBe("verse");
+    seq.next(0);
+    expect(seq.choices[0]).toMatchObject({ role: "verse", from: 9 });
+    expect(chanceOf(seq, "wall")).toBeLessThan(0.15);
   });
 
-  it("brings the wall early and holds it while the fight is hot, until the stop", () => {
-    const roles = play([0, 3, 3, 3, 3, 3]).map((b) => b.role);
-    expect(roles).toEqual(["intro", "wall", "wall", "wall", "wall", "stop"]);
+  it("leans to the wall when the fight is hot", () => {
+    const seq = sequencer();
+    seq.next(0);
+    seq.next(0);
+    seq.next(5);
+    expect(chanceOf(seq, "wall")).toBeGreaterThan(0.6);
   });
 
-  it("plays the solo once after enough bars, then returns to the wall", () => {
-    const roles = play(Array(20).fill(0)).map((b) => b.role);
-    expect(roles.filter((r) => r === "solo")).toHaveLength(2);
-    expect(roles[roles.lastIndexOf("solo") + 1]).toBe("wall");
+  it("only offers the moves the table allows from the current section", () => {
+    const seq = sequencer();
+    seq.next(0);
+    seq.next(0);
+    expect(new Set(seq.choices.map((c) => c.role))).toEqual(new Set(["verse", "wall"]));
+    seq.next(0);
+    expect(new Set(seq.choices.map((c) => c.role))).toEqual(new Set(["verse", "wall", "stop"]));
   });
 
-  it("plays the intro and a stop to the end of their section, even when the fight is hot", () => {
-    const blocks = play([0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], 2);
-    expect(blocks.slice(0, 2).map((b) => b.bar)).toEqual([5, 7]);
-    const stop = blocks.findIndex((b) => b.role === "stop");
-    expect(blocks.slice(stop, stop + 2).map((b) => b.bar)).toEqual([37, 39]);
+  it("makes staying less likely the longer a section loops", () => {
+    const seq = sequencer(() => 0);
+    seq.next(0);
+    seq.next(0);
+    seq.next(0);
+    const early = seq.choices.find((c) => c.from === 9)!.chance;
+    for (let i = 0; i < 6; i++) seq.next(0);
+    const late = seq.choices.find((c) => c.from === 9)!.chance;
+    expect(late).toBeLessThan(early);
   });
 
-  it("loops a role inside the section it chose instead of jumping to another copy", () => {
-    const seq = new BlockSequencer(blocksOf(SECTIONS, 4), { ...ARC, stopEveryBars: 100 }, () => 0);
-    const bars = [0, 3, 3, 3, 3, 3, 3].map((h) => seq.next(h).bar);
-    expect(bars).toEqual([5, 21, 25, 29, 33, 21, 25]);
+  it("plays a stop to the end of its section before choosing again", () => {
+    const blocks = blocksOf([{ role: "intro", from: 1, bars: 2 }, { role: "stop", from: 3, bars: 4 }, { role: "verse", from: 7, bars: 2 }], 2);
+    const seq = new BlockSequencer(blocks, { ...ARC, blockBars: 2, next: { ...ARC.next, intro: { stop: 1 } } }, () => 0);
+    expect([0, 0, 0, 0].map((h) => seq.next(h).bar)).toEqual([1, 3, 5, 7]);
   });
 
   it("refuses a section that does not split into blocks", () => {

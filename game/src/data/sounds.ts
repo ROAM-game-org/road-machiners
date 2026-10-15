@@ -251,12 +251,26 @@ export const MIX = {
 } as const;
 
 export const SCORE_BLOCKS = {
-  arc: { blockBars: 4, verseBars: 8, wallBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: MIX.score.hotHeat, coolHeat: 1 },
+  arc: {
+    blockBars: 4,
+    hotHeat: MIX.score.hotHeat,
+    coolHeat: 1,
+    memoryHalfLifeBars: 16,
+    memoryWeight: 0.08,
+    stay: 6,
+    next: {
+      intro: { verse: 3, wall: 1 },
+      verse: { verse: 4, wall: 3, stop: 1 },
+      wall: { wall: 4, verse: 2, stop: 1, solo: 1 },
+      stop: { verse: 2, wall: 2 },
+      solo: { wall: 3, verse: 1 },
+    },
+    hot: { intro: 1, verse: 0.4, wall: 3, stop: 0.7, solo: 1.5 },
+    calm: { intro: 1, verse: 2, wall: 0.15, stop: 0.15, solo: 0.15 },
+  },
   songGain: 0.6,
   guitarPush: 0.8,
-  drumPush: { lead: 1, secondary: 0.5 },
-  drumPushHoldSeconds: 0.08,
-  drumPushReleaseSeconds: 0.12,
+  fillGain: { lead: 1, secondary: 0.6 },
   jumpFadeSeconds: 0.03,
   seamSeconds: 0.01,
   aheadSeconds: 0.25,

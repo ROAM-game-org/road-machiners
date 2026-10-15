@@ -188,13 +188,17 @@ export type Block = { role: Role; bar: number; bars: number; section: number };
 
 export type ArcTuning = {
   blockBars: number;
-  verseBars: number;
-  wallBars: number;
-  stopEveryBars: number;
-  soloAfterBars: number;
   hotHeat: number;
   coolHeat: number;
+  memoryHalfLifeBars: number;
+  memoryWeight: number;
+  stay: number;
+  next: Record<Role, Partial<Record<Role, number>>>;
+  hot: Record<Role, number>;
+  calm: Record<Role, number>;
 };
+
+export type Choice = { section: number; role: Role; from: number; chance: number };
 
 const WHOLE_SECTIONS = new Set<Role>(["intro", "stop", "solo"]);
 
@@ -207,105 +211,92 @@ export function blocksOf(sections: readonly Section[], blockBars: number): Block
 
 export class BlockSequencer {
   private current: Block | null = null;
-  private inRole = 0;
-  private sinceStop = 0;
   private total = 0;
-  private soloed = false;
-  private chosen = new Map<Role, number>();
+  private memory: number[];
+  private sections: number[];
+  private weighed: Choice[] = [];
 
   constructor(
     private blocks: readonly Block[],
     private tuning: ArcTuning,
     private roll: () => number,
   ) {
-    for (const role of ["intro", "verse", "wall", "stop"] as const)
-      if (!blocks.some((b) => b.role === role)) throw new Error(`Song has no ${role} section`);
-  }
-
-  get barsSinceStop(): number {
-    return this.sinceStop;
+    if (!blocks.some((b) => b.role === "intro")) throw new Error("Song has no intro section");
+    this.sections = [...new Set(blocks.map((b) => b.section))];
+    this.memory = this.sections.map(() => 0);
   }
 
   get barsPlayed(): number {
     return this.total;
   }
 
+  get choices(): readonly Choice[] {
+    return this.weighed;
+  }
+
   next(heat: number): Block {
-    const role = this.current ? this.nextRole(this.current, heat) : "intro";
-    const block = this.blockFor(role);
-    this.count(block);
+    const block = this.current ? this.pick(this.current, heat) : this.firstOf(this.blocks.find((b) => b.role === "intro")!.section);
+    this.remember(block);
     this.current = block;
     return block;
   }
 
-  private count(block: Block): void {
-    this.inRole = this.current?.role === block.role ? this.inRole + block.bars : block.bars;
+  private remember(block: Block): void {
+    const fade = 0.5 ** (block.bars / this.tuning.memoryHalfLifeBars);
+    this.memory = this.memory.map((m) => m * fade);
+    this.memory[this.sections.indexOf(block.section)] += block.bars;
     this.total += block.bars;
-    this.sinceStop = block.role === "stop" ? 0 : this.sinceStop + (block.role === "intro" ? 0 : block.bars);
-    this.soloed ||= block.role === "solo";
   }
 
-  private nextRole(current: Block, heat: number): Role {
-    if (WHOLE_SECTIONS.has(current.role) && this.sectionGoesOn(current)) return current.role;
-    const rules: Record<Role, () => Role> = {
-      intro: () => this.afterBreak(heat),
-      stop: () => this.afterBreak(heat),
-      solo: () => "wall",
-      verse: () => this.afterVerse(heat),
-      wall: () => this.afterWall(heat),
-    };
-    return rules[current.role]();
+  private pick(current: Block, heat: number): Block {
+    const goesOn = this.nextInSection(current);
+    if (WHOLE_SECTIONS.has(current.role) && goesOn) {
+      this.weighed = [];
+      return goesOn;
+    }
+    this.weighed = this.weigh(current, heat);
+    const section = this.draw(this.weighed);
+    return section === current.section ? (goesOn ?? this.firstOf(section)) : this.firstOf(section);
   }
 
-  private sectionGoesOn(current: Block): boolean {
-    return this.blocks.some((b) => b.section === current.section && b.bar === current.bar + current.bars);
+  private weigh(current: Block, heat: number): Choice[] {
+    const weights = this.sections.map((section) => this.weightOf(current, section, heat));
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    if (total <= 0) throw new Error(`No way out of the ${current.role} at bar ${current.bar}`);
+    return this.sections
+      .map((section, i) => ({ section, role: this.firstOf(section).role, from: this.firstOf(section).bar, chance: weights[i] / total }))
+      .filter((c) => c.chance > 0)
+      .sort((a, b) => b.chance - a.chance);
   }
 
-  private afterBreak(heat: number): Role {
-    return heat >= this.tuning.hotHeat ? "wall" : "verse";
+  private weightOf(current: Block, section: number, heat: number): number {
+    const t = this.tuning;
+    const role = this.firstOf(section).role;
+    const base = (t.next[current.role][role] ?? 0) / this.sections.filter((s) => this.firstOf(s).role === role).length;
+    const stay = section === current.section ? t.stay : 1;
+    const fresh = Math.exp(-t.memoryWeight * this.memory[this.sections.indexOf(section)]);
+    return base * this.mood(role, heat) * stay * fresh;
   }
 
-  private afterVerse(heat: number): Role {
-    if (this.stopDue()) return "stop";
-    return this.verseDone(heat) ? "wall" : "verse";
+  private mood(role: Role, heat: number): number {
+    if (heat >= this.tuning.hotHeat) return this.tuning.hot[role];
+    return heat < this.tuning.coolHeat ? this.tuning.calm[role] : 1;
   }
 
-  private afterWall(heat: number): Role {
-    const done = this.wallDone(heat);
-    if (done && this.soloDue()) return "solo";
-    if (this.stopDue()) return "stop";
-    return done ? "verse" : "wall";
+  private draw(choices: Choice[]): number {
+    let r = this.roll();
+    for (const c of choices) {
+      r -= c.chance;
+      if (r < 0) return c.section;
+    }
+    return choices[choices.length - 1].section;
   }
 
-  private stopDue(): boolean {
-    return this.sinceStop >= this.tuning.stopEveryBars;
+  private nextInSection(current: Block): Block | undefined {
+    return this.blocks.find((b) => b.section === current.section && b.bar === current.bar + current.bars);
   }
 
-  private wallDone(heat: number): boolean {
-    return this.inRole >= this.tuning.wallBars && heat < this.tuning.coolHeat;
-  }
-
-  private verseDone(heat: number): boolean {
-    return heat >= this.tuning.hotHeat || this.inRole >= this.tuning.verseBars;
-  }
-
-  private soloDue(): boolean {
-    return !this.soloed && this.total >= this.tuning.soloAfterBars && this.blocks.some((b) => b.role === "solo");
-  }
-
-  private blockFor(role: Role): Block {
-    const following = this.current && this.blocks.find((b) => b.bar === this.current!.bar + this.current!.bars);
-    if (following && following.role === role) return following;
-    const section = this.sectionFor(role);
+  private firstOf(section: number): Block {
     return this.blocks.find((b) => b.section === section)!;
-  }
-
-  private sectionFor(role: Role): number {
-    const kept = this.chosen.get(role);
-    if (kept !== undefined) return kept;
-    const sections = [...new Set(this.blocks.filter((b) => b.role === role).map((b) => b.section))];
-    const section = sections[Math.floor(this.roll() * sections.length)];
-    this.chosen.set(role, section);
-    return section;
   }
 }
