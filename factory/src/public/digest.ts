@@ -2,7 +2,7 @@ import { PLAYER_COMMENTS_HEADING, type Ctx } from '../types';
 import { COMMENT_TEXT_LIMIT, fitComment } from '../stages/common';
 import { defang } from './defang';
 import { isolated } from './isolate';
-import type { PublicStore, StoredComment } from './store';
+import type { PublicStore, IssueComment } from './store';
 
 const MINUTE_MS = 60_000;
 
@@ -12,12 +12,12 @@ export const quote = (text: string): string => defang(text).split(/\r\n|\r|\n/).
 
 export const playerName = (name: string): string => defang(oneLine(name));
 
-function digestLine(comment: StoredComment): string {
+function digestLine(comment: IssueComment): string {
   return `From ${playerName(comment.author)}, ${comment.kind}:\n${quote(comment.text)}`;
 }
 
-function groupByIssue(comments: StoredComment[]): Map<number, StoredComment[]> {
-  const groups = new Map<number, StoredComment[]>();
+function groupByIssue(comments: IssueComment[]): Map<number, IssueComment[]> {
+  const groups = new Map<number, IssueComment[]>();
   for (const comment of comments) groups.set(comment.issue, [...(groups.get(comment.issue) ?? []), comment]);
   return groups;
 }
@@ -39,7 +39,7 @@ const DIGEST_START = `${PLAYER_COMMENTS_HEADING}${DIGEST_JOIN}`;
 
 type DigestPart = { ids: number[]; lines: string[]; length: number };
 
-function splitDigests(comments: StoredComment[]): DigestPart[] {
+function splitDigests(comments: IssueComment[]): DigestPart[] {
   const parts: DigestPart[] = [];
   let open: DigestPart | null = null;
   for (const comment of comments) {
@@ -56,7 +56,7 @@ function splitDigests(comments: StoredComment[]): DigestPart[] {
   return parts;
 }
 
-async function sendDigest(ctx: Ctx, store: PublicStore, issue: number, comments: StoredComment[]): Promise<void> {
+async function sendDigest(ctx: Ctx, store: PublicStore, issue: number, comments: IssueComment[]): Promise<void> {
   for (const part of splitDigests(comments)) {
     await ctx.github.comment(issue, `${DIGEST_START}${part.lines.join(DIGEST_JOIN)}`);
     store.markSent(part.ids, ctx.now());

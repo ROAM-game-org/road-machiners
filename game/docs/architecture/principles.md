@@ -71,3 +71,11 @@ A feature shows state with what the player already sees: the grid, the 3D view, 
 Why: agents keep adding text that explains what the screen shows. Example of what not to do: a gun's tooltip read "arc 270°, facing rear" while the inventory grid already drew its arc fan and a triangle on the side it faces. Both the number and the words were noise.
 
 Plan check: list each new word of UI text, and name the visual that already shows it or say why none can.
+
+## 9. Player progress survives updates
+
+A change to content a save holds keeps that progress, or resets the least of it. It never throws away the whole world for one part that no longer fits. Load repairs what it can in place and tells the player what it reset. The rescue screen is only for what no repair can fix, like another map or another major format.
+
+Why: players keep their saves across updates. A rescue rebuilds the world from a new game, so one bad quest variable used to cost the player their NPCs, shops, contracts and place on the map.
+
+Plan check: name each saved fact the change invalidates, and whether a migration step keeps it, a raised quest revision resets it, or the rescue carries it.
