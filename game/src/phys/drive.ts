@@ -776,12 +776,20 @@ function backs(c: Car, at: Vec, ang: number, rearAng: number, far: number, targe
     c.mem.backFrom = null;
     return true;
   }
-  if (c.mem.backFrom && dist(at, c.mem.backFrom) < backOffDistance(c)) return true;
+  if (keepsBacking(c, at, speed)) return true;
   c.mem.backFrom = null;
   if (!blockedInFront(c, target, speed)) return false;
   c.mem.backFrom = { ...at };
   c.mem.stall = 0;
   return true;
+}
+
+function keepsBacking(c: Car, at: Vec, speed: number): boolean {
+  if (!c.mem.backFrom || dist(at, c.mem.backFrom) >= backOffDistance(c)) return false;
+  c.mem.stall = Math.abs(speed) < D.stallSpeed ? c.mem.stall + DT : 0;
+  if (c.mem.stall < D.stallSeconds) return true;
+  c.mem.stall = 0;
+  return false;
 }
 
 function backOffDistance(c: Car): number {
