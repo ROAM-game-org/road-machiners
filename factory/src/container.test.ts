@@ -73,6 +73,17 @@ describe('dockerContainer', () => {
     expect(call.args.slice(call.args.indexOf('img:1'))).toEqual(['img:1', 'bash', '-c', expect.stringMatching(/memory\.peak.*; factory-agent "\$@"$/), 'factory-agent', '-p', '--model', 'opus', '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose']);
   });
 
+  it('gives a player-facing agent only the Claude token among the secrets and no Codex login', async () => {
+    const { run, calls } = fakeRun();
+    await dockerContainer(run, cfg, null).agent({ clone: '/w/c', dir: 'game', model: 'opus', prompt: 'answer', log: '/l.log', openNetwork: false, playerFacing: true });
+    const call = runCall(calls);
+    expect(call.opts?.env).toEqual({ CLAUDE_CODE_OAUTH_TOKEN: 'secret-token', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1', FACTORY_JOB_MAX_MINUTES: '30' });
+    expect(call.args.join(' ')).not.toContain('.codex');
+    expect(call.args.join(' ')).not.toMatch(/ELEVENLABS|GEMINI|AGY|CODEX/);
+    expect(call.args.filter((a) => a === '-v')).toHaveLength(3);
+    expect(call.args).toContain('roam-factory-agents');
+  });
+
   it('mounts the folders the stage names read only', async () => {
     const { run, calls } = fakeRun();
     await dockerContainer(run, cfg, null).agent({ clone: '/c', dir: 'game', model: 'm', prompt: 'p', log: '/l', readOnly: { '/h/state': '/factory/state' } });
