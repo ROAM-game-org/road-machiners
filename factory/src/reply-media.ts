@@ -28,6 +28,22 @@ export function adoptReplyMedia(home: string, post: number, issueDir: string, by
   return entries;
 }
 
+export function adoptChatImage(issueDir: string, name: string, source: string, data: Buffer | null): MediaEntry {
+  mkdirSync(issueDir, { recursive: true });
+  const entry = data === null ? { url: `telegram:${name}`, source, status: 'failed' as const, reason: 'Telegram did not give the image' } : adoptBytes(issueDir, name, source, data);
+  writeFileSync(join(issueDir, MANIFEST), JSON.stringify(merged(readCommitteeMedia(issueDir), [entry]), null, 2));
+  return entry;
+}
+
+function adoptBytes(issueDir: string, name: string, source: string, data: Buffer): MediaEntry {
+  mkdirSync(join(issueDir, FOLDER), { recursive: true });
+  const path = join(issueDir, FOLDER, `${name}.tmp`);
+  writeFileSync(path, data);
+  const entry = safeAdopt(path, name, issueDir, source);
+  rmSync(path, { force: true });
+  return entry;
+}
+
 function merged(earlier: MediaEntry[], added: MediaEntry[]): MediaEntry[] {
   const seen = new Set<string>();
   const unique = [...added].reverse().concat([...earlier].reverse()).filter((entry) => {

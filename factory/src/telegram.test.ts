@@ -269,3 +269,15 @@ describe('botClient sendPhotos', () => {
     await expect(botClient('T', fetchFn).sendPhotos('c', photos(3))).rejects.toThrow('1 messages for 3 photos');
   });
 });
+
+describe('botClient downloadFile', () => {
+  it('asks getFile for the path and fetches the file from the file endpoint', async () => {
+    const urls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      urls.push(url);
+      return urls.length === 1 ? new Response(JSON.stringify({ ok: true, result: { file_path: 'photos/a.jpg' } })) : new Response(Buffer.from('jpg'));
+    }) as unknown as typeof fetch;
+    expect((await botClient('T', fetchFn).downloadFile('id1')).toString()).toBe('jpg');
+    expect(urls).toEqual(['https://api.telegram.org/botT/getFile', 'https://api.telegram.org/file/botT/photos/a.jpg']);
+  });
+});
