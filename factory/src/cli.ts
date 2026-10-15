@@ -8,7 +8,7 @@ import { drainInbox } from './inbox';
 import { intake } from './intake';
 import { runJob } from './job';
 import { parseStage } from './jobs';
-import { liftEndedPause, pausedReason } from './pause';
+import { liftEndedPause, readPause } from './pause';
 import { reportScheduler } from './observability';
 import { realRun } from './exec';
 import { checkJobs, tick } from './tick';
@@ -61,10 +61,10 @@ async function hermesTool([, tool, payload]: string[]): Promise<void> {
 
 function paused(ctx: ReturnType<typeof realContext>): boolean {
   const lifted = liftEndedPause(ctx.cfg.home);
-  if (lifted !== null) ctx.log('tick', null, `pause lifted, its process ended: ${lifted.replaceAll('\n', ' ')}`);
-  const reason = pausedReason(ctx.cfg.home);
-  if (reason !== null) ctx.log('tick', null, `paused: ${reason}`);
-  return reason !== null;
+  if (lifted !== null) ctx.log('tick', null, `pause lifted, its process ended: ${lifted.note}`);
+  const pause = readPause(ctx.cfg.home);
+  if (pause !== null) ctx.log('tick', null, `paused: ${pause.note}`);
+  return pause !== null;
 }
 
 function parseIssue(value: string | undefined): number {

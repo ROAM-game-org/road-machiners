@@ -363,6 +363,9 @@
 }
 .utility-slot .weapon-pick [data-status] {
   font: var(--text-caption) / 1.2 var(--font-mono);
+  white-space: normal;
+  justify-self: center;
+  text-align: center;
 }
 /* One look per utility slot state (data-state in src/ui/weapons.ts). Only aiming fills the slot. */
 #ui .utility-slot .weapon-pick {

@@ -1,7 +1,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import { GOODS } from '../data/goods';
+import { GOODS, PARCEL } from '../data/goods';
 import { PARTS, type PartDef } from '../data/parts';
 import { BODY_PARTS, iconCatalog, ICON_WEAPON_PICKS, renderKey, WEAPON_POOLS, weaponLook } from './partLooks';
 
@@ -13,8 +13,8 @@ const entry = (id: string) => {
 };
 
 describe('icon catalog', () => {
-  it('has one entry per part, good and chassis, and nothing else', () => {
-    const expected = [...Object.keys(PARTS), ...Object.keys(GOODS), ...Object.keys(CHASSIS)];
+  it('has one entry per part, good and chassis, plus the parcel, and nothing else', () => {
+    const expected = [...Object.keys(PARTS), ...Object.keys(GOODS), PARCEL.id, ...Object.keys(CHASSIS)];
     expect(catalog.map((e) => e.id).sort()).toEqual(expected.sort());
   });
 
