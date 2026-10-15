@@ -10,7 +10,7 @@ vi.mock('../deploy', () => ({ deployDev: async () => 'https://play.test/dev/' })
 const { IntegrationFailure, shipHotfix } = await import('./hotfix');
 const { currentToolchain } = await import('./integration');
 
-type Round = { main: string; hotfix: string; merged: string; conflict?: boolean; lands?: boolean; hotfixFiles?: string[]; mainFiles?: string[] };
+type Round = { main: string; hotfix: string; merged: string; sameGame?: boolean; conflict?: boolean; lands?: boolean; hotfixFiles?: string[]; mainFiles?: string[] };
 type Landed = { steps: MergeStep[]; resolutions: Resolution[]; expected: Record<string, string> };
 
 const FULL: Step[] = ['typecheck', 'suite', 'playtest', 'build'];
@@ -37,7 +37,7 @@ function integrating(f: Fake, rounds: Round[], failing = false) {
     fetchFromWork: async () => (++fetches % 2 === 1 ? round().main : round().merged),
     mergeBranchIntoWork: async (_dir: string, _branch: string, message?: string) => (message !== undefined && round().conflict ? { commit: 'x', conflicts: ['game/src/truck.ts'] } : { commit: null, conflicts: [] }),
     parentsOf: async () => [round().main, round().hotfix],
-    treeOf: async (ref: string) => `tree-${ref}`,
+    treeOf: async (ref: string) => (round().sameGame && ref === round().merged ? `tree-${round().hotfix}` : `tree-${ref}`),
     changedFiles: async (base: string) => (base === round().main ? round().hotfixFiles : round().mainFiles) ?? [],
     merge: async (steps: MergeStep[], resolutions: Resolution[] = [], expected: Record<string, string> = {}) => {
       const lands = round().lands !== false;
@@ -69,8 +69,18 @@ describe('hotfix integration with main', () => {
     await shipHotfix(f.ctx, 7, 'Big horn', 'Ann');
     expect(checks).toEqual([]);
     expect(landed).toHaveLength(1);
-    expect(comment(f)).toContain('No check ran again, since main brought no change the hotfix lacks');
+    expect(comment(f)).toContain('No check ran again, since main brought no game change the hotfix lacks');
     expect(comment(f)).toContain('It reuses the passing checks of h1.');
+  });
+
+  it('runs no check when main moved only outside the game, as with a factory change, and lands the merge', async () => {
+    const f = hotfixable();
+    passed(f, 'h1');
+    const { checks, landed } = integrating(f, [{ main: 'm2', hotfix: 'h1', merged: 'r1', sameGame: true }]);
+    await shipHotfix(f.ctx, 7, 'Big horn', 'Ann');
+    expect(checks).toEqual([]);
+    expect(landed.map((item) => item.resolutions)).toEqual([[{ base: 'm2', source: 'h1', head: 'r1' }]]);
+    expect(comment(f)).toContain('No check ran again, since main brought no game change the hotfix lacks, so the merge holds exactly the game code the committee played. It reuses the passing checks of h1.');
   });
 
   it('runs only the typecheck and the cached suite on a clean merge with a moved main, and lands that exact merge with dev in one push', async () => {

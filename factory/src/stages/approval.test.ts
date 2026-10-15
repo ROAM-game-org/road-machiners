@@ -88,10 +88,10 @@ describe('approve', () => {
       'run git rev-parse',
       'run butler push',
       `release hotfix-2026-09-30-issue-7 main ROAM hotfix 2026-09-30 ${changelog}`,
-      'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.\n\nNo check ran again, since main brought no change the hotfix lacks, so the merge holds exactly the code the committee played. It reuses no earlier checks.',
+      'comment 7 Approved by bob in the committee chat and shipped as a hotfix. It is on main and itch.io.\n\nNo check ran again, since main brought no game change the hotfix lacks, so the merge holds exactly the game code the committee played. It reuses no earlier checks.',
       'close 7 completed',
       'move 7 Done',
-      'message chat Hotfix #7 Big horn is on main and itch.io. No check ran again, since main brought no change the hotfix lacks, so the merge holds exactly the code the committee played. It reuses no earlier checks.',
+      'message chat Hotfix #7 Big horn is on main and itch.io. No check ran again, since main brought no game change the hotfix lacks, so the merge holds exactly the game code the committee played. It reuses no earlier checks.',
     ]);
     const state = readState(`${home}/state.json`);
     expect(state.release?.postId).toBe(300);

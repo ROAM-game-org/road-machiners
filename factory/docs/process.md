@@ -150,9 +150,9 @@ Members, other jobs and releases push all the time, so any branch may move while
 
 The committee approves the hotfix code it played. When only `main` moved since, the approval holds, and the factory does not run again the checks that already passed on the same inputs.
 
-- Check evidence records each pass by the git tree it ran on, which covers the game code, its tests, `package-lock.json` and every test input, and by a toolchain key, which hashes the agent image's Dockerfile and the check script. A change to any of them misses the evidence. The hotfix post checkpoint and Ship's push to `main` record the full checks. The approve job records what it ran on the merge, and which evidence it leaned on.
+- Check evidence records each pass by the git tree of the `game/` folder it ran on, which covers the game code, its tests, `package-lock.json` and every test input but no factory change, and by a toolchain key, which hashes the agent image's Dockerfile and the check script. A change to any of them misses the evidence. The hotfix post checkpoint and Ship's push to `main` record the full checks. The approve job records what it ran on the merge, and which evidence it leaned on.
 - The approve job merges the approved hotfix tip into a work clone of `main`. A tip that is not the build the committee played ships nothing. A conflict goes to the merge agent with `prompts/merge-branches.md`, and its resolution passes Ship's diff guard.
-- The merge holds the hotfix's exact code, since `main` brought nothing the hotfix lacks: no check runs.
+- The merge holds the hotfix's exact game code, since `main` brought nothing to `game/` that the hotfix lacks, like a factory change: no check runs.
 - The merged code has evidence already: no check runs.
 - The hotfix or `main` has no passing typecheck and suite on record: the full checks run on the merge, since skipping cannot be shown safe.
 - The merge conflicted, or both sides changed a same file: the typecheck, the cached suite and the playtest run on the merge.

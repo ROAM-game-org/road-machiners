@@ -1,5 +1,5 @@
 import { FULL_STEPS, evidenceFor, recordEvidence, toolchainKey, type Evidence, type Step } from '../check-evidence';
-import type { Ctx } from '../types';
+import { GAME_DIR, type Ctx } from '../types';
 import { checkScript } from './checks';
 import { playtestCommand } from './common';
 
@@ -18,7 +18,7 @@ function checked(revision: Revision): boolean {
 
 export function integrationChecks({ merged, hotfix, main, conflicted, shared }: IntegrationInput): IntegrationPlan {
   if (merged.tree === hotfix.tree) {
-    return { steps: [], reused: hotfix.evidence ? [hotfix.commit] : [], reason: 'main brought no change the hotfix lacks, so the merge holds exactly the code the committee played' };
+    return { steps: [], reused: hotfix.evidence ? [hotfix.commit] : [], reason: 'main brought no game change the hotfix lacks, so the merge holds exactly the game code the committee played' };
   }
   if (merged.evidence !== null) return { steps: [], reused: [merged.evidence.commit], reason: `the same merged code passed its checks at ${short(merged.evidence.commit)}` };
   const unchecked = [hotfix, main].filter((revision) => !checked(revision)).map((revision) => short(revision.commit));
@@ -37,12 +37,12 @@ export function currentToolchain(ctx: Ctx): string {
 }
 
 export async function revisionOf(ctx: Ctx, commit: string, toolchain: string): Promise<Revision> {
-  const tree = await ctx.repo.treeOf(commit);
+  const tree = await ctx.repo.treeOf(commit, GAME_DIR);
   return { commit, tree, evidence: evidenceFor(ctx.cfg.home, tree, toolchain) };
 }
 
 export async function recordPassed(ctx: Ctx, commit: string, record: Pick<Evidence, 'ran' | 'reused' | 'by' | 'issue'>): Promise<void> {
-  const tree = await ctx.repo.treeOf(commit);
+  const tree = await ctx.repo.treeOf(commit, GAME_DIR);
   recordEvidence(ctx.cfg.home, { tree, commit, toolchain: currentToolchain(ctx), ...record, at: ctx.now().toISOString() }, ctx.now());
 }
 

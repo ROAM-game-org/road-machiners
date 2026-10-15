@@ -142,7 +142,8 @@ describe('merging on GitHub', () => {
     await by('checkout', 'main');
     expect(await repo.merge(steps, [], { main, 'factory/issue-6': fix })).toBe(false);
     expect(await head('dev')).not.toContain(fix);
-    expect(await repo.treeOf(fix)).toBe((await host('rev-parse', `${fix}^{tree}`)).trim());
+    expect(await repo.treeOf(fix, '')).toBe((await host('rev-parse', `${fix}^{tree}`)).trim());
+    expect(await repo.treeOf(fix, '')).not.toBe(await repo.treeOf(main, ''));
     expect(await repo.parentsOf(fix)).toEqual([main]);
     await repo.fetch();
     const moved = await head('main');

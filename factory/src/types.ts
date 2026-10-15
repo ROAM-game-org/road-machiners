@@ -290,7 +290,7 @@ export interface HostRepo {
   readFile(branch: string, path: string): Promise<string>;
   hasNewCommits(base: string, branch: string): Promise<boolean>;
   merge(steps: MergeStep[], resolutions?: Resolution[], expected?: Record<string, string>): Promise<boolean>;
-  treeOf(ref: string): Promise<string>;
+  treeOf(ref: string, dir: string): Promise<string>;
   parentsOf(commit: string): Promise<string[]>;
   mergeLog(from: string, to: string): Promise<string[]>;
 }

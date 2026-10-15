@@ -331,8 +331,8 @@ export function hostRepo(run: Run, cfg: FactoryConfig, jobId: string | null = nu
         if (await pushUnlessMoved(heads, started)) return true;
       }
     },
-    async treeOf(name) {
-      return (await git(['rev-parse', `${await ref(name)}^{tree}`])).trim();
+    async treeOf(name, dir) {
+      return (await git(['rev-parse', `${await ref(name)}:${dir}`])).trim();
     },
     async parentsOf(commit) {
       return (await git(['rev-list', '--parents', '-n', '1', commit])).trim().split(' ').slice(1);
