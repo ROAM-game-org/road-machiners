@@ -1,10 +1,7 @@
-// Rebuilds cues' files from their raw sources, oldest first, after an import change. With no arguments it rebuilds
-// every cue; `field` rebuilds the world one-shots; other arguments name cues.
-// Sources come from each file's comment tag. They are saved to a manifest first, so a crashed run resumes
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { MIX, SOUNDS } from '../src/data/sounds.ts';
-import { cueOf, importFile, isField, SFX_DIR } from './sfx-lib.mjs';
+import { cueOf, importFile, isField, SFX_DIR, syncTwins } from './sfx-lib.mjs';
 
 const MANIFEST = 'tmp/sfx-sources.json';
 
@@ -34,4 +31,5 @@ for (const [id, srcs] of Object.entries(sources)) {
   for (const src of srcs) importFile(src, id, cue, MIX.level[cue.bus]);
 }
 unlinkSync(MANIFEST);
+await syncTwins();
 console.log(`rebuilt ${Object.keys(sources).join(', ')}`);
