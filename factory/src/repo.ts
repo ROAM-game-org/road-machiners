@@ -282,9 +282,8 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       return tracked;
     },
     fetchFromWork: headFromWork,
-    async push(commit, branch) {
-      await pushAll(new Map([[branch, commit]]));
-    },
+    push: (commit, branch) => pushAll(new Map([[branch, commit]])),
+    replaceBranch: async (commit, branch) => void (await git(['push', '--force', 'origin', `${commit}:refs/heads/${branch}`])),
     async catchUpBase(dir, base) {
       await gitIn(dir, ['fetch', '--quiet', 'origin']);
       const open = await openMergeOf(dir, base);
