@@ -182,14 +182,11 @@ export class Fading {
   }
 }
 
-export type Trigger<E extends string> = { events: readonly E[]; count: number; withinBars: number } | { heat: number };
-
-export type PartRule<P extends string, E extends string> =
-  | { always: true }
-  | { enter: Trigger<E>; needs: P | null; stayBars: number; quietBars: number; quietOn: readonly E[] };
+export type PartRule<P extends string> = { always: true } | { enterAt: number; leaveAt: number; holdBars: number; needs: P | null };
+type HeatRule<P extends string> = Exclude<PartRule<P>, { always: true }>;
 
 export type BandRules<P extends string, E extends string> = {
-  parts: Record<P, PartRule<P, E>>;
+  parts: Record<P, PartRule<P>>;
   phraseBars: number;
   heatHalfLifeSeconds: number;
   weights: Record<E, number>;
@@ -211,7 +208,7 @@ export class Conductor<P extends string, E extends string> {
     private barSeconds: number,
   ) {
     this.order = Object.keys(rules.parts) as P[];
-    for (const part of this.order) this.checkNeeds(part);
+    for (const part of this.order) this.checkRule(part);
   }
 
   hear(kind: E, at: number): void {
@@ -247,37 +244,24 @@ export class Conductor<P extends string, E extends string> {
     const rule = this.rules.parts[part];
     const on = this.entered.has(part);
     if ("always" in rule) return on ? null : { part, on: true, why: "always" };
-    return on ? this.leaving(part, rule, bar, t) : this.entering(part, rule, t, heat);
+    return on ? this.leaving(part, rule, bar, heat) : this.entering(part, rule, heat);
   }
 
-  private entering(part: P, rule: Exclude<PartRule<P, E>, { always: true }>, t: number, heat: number): Change<P> | null {
+  private entering(part: P, rule: HeatRule<P>, heat: number): Change<P> | null {
     if (rule.needs && !this.entered.has(rule.needs)) return null;
-    const why = this.triggered(rule.enter, t, heat);
-    return why ? { part, on: true, why } : null;
+    return heat >= rule.enterAt ? { part, on: true, why: `heat ${heat.toFixed(1)}` } : null;
   }
 
-  private leaving(part: P, rule: Exclude<PartRule<P, E>, { always: true }>, bar: number, t: number): Change<P> | null {
+  private leaving(part: P, rule: HeatRule<P>, bar: number, heat: number): Change<P> | null {
     if (rule.needs && !this.entered.has(rule.needs)) return { part, on: false, why: `${rule.needs} left` };
-    if (bar - this.entered.get(part)! < rule.stayBars) return null;
-    const quiet = this.quietBars(rule.quietOn, t);
-    return quiet >= rule.quietBars ? { part, on: false, why: `quiet ${quiet} bars` } : null;
+    if (bar - this.entered.get(part)! < rule.holdBars) return null;
+    return heat < rule.leaveAt ? { part, on: false, why: `heat ${heat.toFixed(1)}` } : null;
   }
 
-  private triggered(trigger: Trigger<E>, t: number, heat: number): string | null {
-    if ("heat" in trigger) return heat >= trigger.heat ? `heat ${heat.toFixed(1)}` : null;
-    const since = t - trigger.withinBars * this.barSeconds;
-    const count = this.heard.filter((h) => h.at >= since && h.at < t && trigger.events.includes(h.kind)).length;
-    return count >= trigger.count ? `${count} in ${trigger.withinBars} bars` : null;
-  }
-
-  private quietBars(kinds: readonly E[], t: number): number {
-    const last = Math.max(...this.heard.filter((h) => h.at < t && kinds.includes(h.kind)).map((h) => h.at));
-    return last === -Infinity ? Infinity : Math.floor((t - last) / this.barSeconds);
-  }
-
-  private checkNeeds(part: P): void {
+  private checkRule(part: P): void {
     const rule = this.rules.parts[part];
-    if ("always" in rule || !rule.needs) return;
-    if (this.order.indexOf(rule.needs) >= this.order.indexOf(part)) throw new Error(`Part ${part} needs ${rule.needs}, which must come before it`);
+    if ("always" in rule) return;
+    if (rule.leaveAt >= rule.enterAt) throw new Error(`Part ${part} must leave below the heat it enters at`);
+    if (rule.needs && this.order.indexOf(rule.needs) >= this.order.indexOf(part)) throw new Error(`Part ${part} needs ${rule.needs}, which must come before it`);
   }
 }

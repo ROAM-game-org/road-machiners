@@ -257,14 +257,13 @@ export type BandEvent = (typeof BAND_EVENTS)[number];
 export const BAND_PARTS = ["drums", "bass", "wall", "keys"] as const;
 export type BandPart = (typeof BAND_PARTS)[number];
 
-const SHOTS: readonly BandEvent[] = ["accent-hit", "accent-miss", "accent-crit", "accent-struck"];
 
 export const BAND: BandRules<BandPart, BandEvent> = {
   parts: {
     drums: { always: true },
     bass: { always: true },
-    wall: { enter: { events: SHOTS, count: 3, withinBars: 4 }, needs: null, stayBars: 8, quietBars: 4, quietOn: SHOTS },
-    keys: { enter: { heat: MIX.score.hotHeat * 1.5 }, needs: "wall", stayBars: 8, quietBars: 8, quietOn: SHOTS },
+    wall: { enterAt: 1.5, leaveAt: 0.5, holdBars: 8, needs: null },
+    keys: { enterAt: 5.5, leaveAt: 2.5, holdBars: 8, needs: "wall" },
   },
   phraseBars: 4,
   heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,

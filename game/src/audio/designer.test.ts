@@ -123,26 +123,25 @@ describe("Fading", () => {
   });
 });
 
-type Part = "drums" | "riff" | "keys" | "horns";
-type Kind = "shot" | "crash" | "sighted";
+type Part = "drums" | "riff" | "keys";
+type Kind = "shot";
 
 const BAND_RULES: BandRules<Part, Kind> = {
   parts: {
     drums: { always: true },
-    riff: { enter: { events: ["shot"], count: 2, withinBars: 2 }, needs: null, stayBars: 4, quietBars: 4, quietOn: ["shot"] },
-    keys: { enter: { heat: 2 }, needs: "riff", stayBars: 2, quietBars: 8, quietOn: ["shot"] },
-    horns: { enter: { events: ["crash"], count: 1, withinBars: 1 }, needs: null, stayBars: 2, quietBars: 2, quietOn: ["crash"] },
+    riff: { enterAt: 1.5, leaveAt: 0.5, holdBars: 2, needs: null },
+    keys: { enterAt: 3, leaveAt: 0.1, holdBars: 2, needs: "riff" },
   },
   phraseBars: 1,
-  heatHalfLifeSeconds: 8,
-  weights: { shot: 0.5, crash: 1, sighted: 0.5 },
+  heatHalfLifeSeconds: 4,
+  weights: { shot: 1 },
 };
 
 const BAR_SECONDS = 2;
 
-function conduct(events: [Kind, number][], bars: number) {
-  const c = new Conductor(BAND_RULES, 0, BAR_SECONDS);
-  for (const [kind, at] of events) c.hear(kind, at);
+function conduct(shots: number[], bars: number, rules = BAND_RULES) {
+  const c = new Conductor(rules, 0, BAR_SECONDS);
+  for (const at of shots) c.hear("shot", at);
   return Array.from({ length: bars }, (_, bar) => c.plan(bar));
 }
 
@@ -153,42 +152,35 @@ describe("Conductor", () => {
     expect(plans[0].changes).toEqual([{ part: "drums", on: true, why: "always" }]);
   });
 
-  it("brings the riff in on the bar after the second shot and keeps it until a quiet stretch", () => {
-    const plans = conduct([["shot", 0.5], ["shot", 1.5]], 12);
-    expect(plans[0].sounding).toEqual(["drums"]);
-    expect(plans[1].sounding).toEqual(["drums", "riff"]);
-    expect(plans[1].changes).toEqual([{ part: "riff", on: true, why: "2 in 2 bars" }]);
+  it("does not bring the riff in while heat stays under its entry", () => {
+    expect(conduct([0.5], 4).every((p) => !p.sounding.includes("riff"))).toBe(true);
+  });
+
+  it("brings the riff in at its entry heat and keeps it until heat falls under the lower exit", () => {
+    const plans = conduct([0.5, 1.5], 8);
+    expect(plans[1].changes).toEqual([{ part: "riff", on: true, why: "heat 1.7" }]);
+    expect(plans[3].heat).toBeLessThan(1.5);
     expect(plans[4].sounding).toContain("riff");
-    expect(plans[5].changes).toEqual([{ part: "riff", on: false, why: "quiet 4 bars" }]);
+    expect(plans[5].changes).toEqual([{ part: "riff", on: false, why: "heat 0.4" }]);
   });
 
-  it("does not bring the riff in for one shot", () => {
-    expect(conduct([["shot", 0.5]], 4).every((p) => !p.sounding.includes("riff"))).toBe(true);
-  });
-
-  it("brings keys in on heat only while the riff plays, and drops them with it", () => {
-    const shots: [Kind, number][] = [0.1, 0.3, 0.5, 0.7, 0.9, 1.1].map((at) => ["shot", at]);
-    const plans = conduct(shots, 12);
+  it("brings keys in on higher heat only with the riff, and drops them when the riff leaves", () => {
+    const plans = conduct([0.2, 0.4, 0.6, 0.8], 10);
     expect(plans[1].sounding).toEqual(["drums", "riff", "keys"]);
-    expect(conduct(shots.slice(0, 2), 3)[1].sounding).toEqual(["drums", "riff"]);
     const riffOut = plans.findIndex((p) => p.changes.some((c) => c.part === "riff" && !c.on));
     expect(plans[riffOut].changes).toContainEqual({ part: "keys", on: false, why: "riff left" });
   });
 
   it("changes parts only where a phrase starts", () => {
-    const c = new Conductor({ ...BAND_RULES, phraseBars: 4 }, 0, BAR_SECONDS);
-    c.hear("shot", 6.5);
-    c.hear("shot", 7.0);
-    c.hear("shot", 9.0);
-    const plans = Array.from({ length: 13 }, (_, bar) => c.plan(bar));
+    const plans = conduct([6.5, 7.0], 9, { ...BAND_RULES, phraseBars: 4 });
     expect(plans.findIndex((p) => p.sounding.includes("riff"))).toBe(4);
-    expect(plans[11].sounding).toContain("riff");
-    expect(plans[12].changes).toContainEqual({ part: "riff", on: false, why: "quiet 7 bars" });
+    expect(plans[7].sounding).toContain("riff");
+    expect(plans[8].changes).toContainEqual({ part: "riff", on: false, why: "heat 0.4" });
   });
 
-  it("refuses a part that needs a later part", () => {
+  it("refuses a part that needs a later part or leaves at or above its entry", () => {
     const p = BAND_RULES.parts;
-    const bad = { ...BAND_RULES, parts: { keys: p.keys, riff: p.riff, drums: p.drums, horns: p.horns } };
-    expect(() => new Conductor(bad, 0, BAR_SECONDS)).toThrow("needs riff");
+    expect(() => new Conductor({ ...BAND_RULES, parts: { keys: p.keys, riff: p.riff, drums: p.drums } }, 0, BAR_SECONDS)).toThrow("needs riff");
+    expect(() => new Conductor({ ...BAND_RULES, parts: { ...p, riff: { enterAt: 1, leaveAt: 1, holdBars: 1, needs: null } } }, 0, BAR_SECONDS)).toThrow("must leave below");
   });
 });
