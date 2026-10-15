@@ -2,6 +2,7 @@
 import { chassisDef } from '../data/chassis';
 import { partDef, type EngineDef, type StoreDef, type WeaponDef } from '../data/parts';
 import { MIN_NPC_SPEED, NPCS, PRIORITY_TOP, SPEED_SHARE, type LoadoutPriorities } from '../data/npcs';
+import { PHYSICS } from '../data/physics';
 import { RULES } from '../data/rules';
 import { skillEffect } from './progress';
 import { TOW } from '../data/tow';
@@ -151,6 +152,15 @@ export function plainFuelPerTile(world: World, v: Vehicle): number {
 
 function fuelPerTileWith(world: World, v: Vehicle, fuelMult: number): number {
   return chassisDef(v.chassisId).fuelPerTile * fuelMult * RULES.fuelUseFactor * fuelUseScale(world);
+}
+
+export function climbGrade(world: World, v: Vehicle): number {
+  const t = PHYSICS.truck;
+  const ratio = vehicleStats(world, v).accel / chassisDef(v.chassisId).accel;
+  const sine = Math.min(0.99, Math.max(0, ((t.engineAccel * (1 + t.climbReserve) * ratio) / (t.gravityScale * PHYSICS.gravity)) * t.climbPlanShare));
+  const grade = Math.tan(Math.asin(sine));
+  if (!Number.isFinite(grade)) throw new Error(`Climb grade of ${v.id} is not finite`);
+  return grade;
 }
 
 export function vehicleStats(world: World, v: Vehicle): VehicleStats {

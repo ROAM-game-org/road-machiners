@@ -1,6 +1,6 @@
 # Factory dashboard
 
-A read-only public page at `/factory/` that explains factory work. Overview shows activity, scheduling waits, release gates and server load. Analytics shows measured usage and time. Delivery shows how long issues take to reach dev, where they loop back and how often they are refused. Hermes's `factory_status` tool reads the same JSON from `/factory/api/snapshot`, so the page and Hermes never disagree. Visitors cannot start jobs or change state. `/factory/api/badges/<name>` serves the root README's live pills in the shields.io endpoint format: `release` counts the next release's features, and `building` counts open cards past triage. The code is in `src/dashboard/`, and the page in this folder.
+A read-only public page at `/factory/` that explains factory work. Overview shows activity, scheduling waits, release gates and server load. Analytics shows measured usage and time. Delivery shows how long issues take to reach dev, where they loop back and how often they are refused. Flow draws the board as a value stream: where cards wait, where jobs work on them and where they move. Hermes's `factory_status` tool reads the same JSON from `/factory/api/snapshot`, so the page and Hermes never disagree. Visitors cannot start jobs or change state. `/factory/api/badges/<name>` serves the root README's live pills in the shields.io endpoint format: `release` counts the next release's features, and `building` counts open cards past triage. The code is in `src/dashboard/`, and the page in this folder.
 
 ## Local use
 
@@ -13,7 +13,7 @@ From `factory/`:
 
 ## What the numbers mean
 
-- Every number comes from SQL over `$FACTORY_HOME/ledger.jsonl`. This keeps each number readable in one file. `src/dashboard/analytics.ts` loads the ledger lines into an in-memory DuckDB on every refresh and runs one file of `src/dashboard/queries/` per panel. It runs each file once for the 24-hour, 7-day and 30-day ranges, with the parameters `$now`, `$days` and `$budget_ms`.
+- Every number comes from SQL over `$FACTORY_HOME/ledger.jsonl`. This keeps each number readable in one file. `src/dashboard/analytics.ts` loads the ledger lines into an in-memory DuckDB and runs one file of `src/dashboard/queries/` per panel. It reruns only when the ledger file has grown since the last good run, since the factory only appends to it. It runs each file once for the 24-hour, 7-day and 30-day ranges, with the parameters `$now`, `$days` and `$budget_ms`.
 - `queries/base.sql` builds the typed tables jobs, agents, model_usage, cards, scheduler and scheduler_waits from the lines. `queries/macros.sql` holds the range filters that panels share.
 - Queries read each line as JSON and filter it by kind. So a new ledger kind or field changes nothing until a query uses it.
 - A panel returns its rows or its error. A failing panel shows its name and the error type where the panel would be, and the other panels keep their rows. A missing query file fails only its own panel.
@@ -27,7 +27,11 @@ From `factory/`:
 - Runner heartbeats show a job is alive. Agent activity reports are labelled apart and never prove a check passed. Scheduler explanations come from job selection.
 - A factory script, like the release playtest's suite and plays or a build, prints each step as it starts and its phase. So a worker shows the substep that runs, never `npm ci` for a whole script, and a phase shows only while its script runs. Each step counts as progress.
 - CPU, container CPU, memory, GPU and disk readings are whole-host percentages. A reading that fails or is not supported shows as unavailable.
-- A pause shows as an amber banner from the pause file. Raw pause notes never leave the server.
+- A pause shows as a banner in danger ink from the pause file. Raw pause notes never leave the server.
+- The GitHub source has two parts: board cards and the merge queue. Each part carries its value or its error, so one failed read blanks only its own panel. The full error goes only to `logs/dashboard.log`.
+- Next release lists the merge records in factory state: the open release's merges minus its removals, or the merges into dev since the last cut when no release is open. It shows unavailable until the tick has filled the records once.
+- The Queues table shows each worker queue with its busy slots, its cards waiting to start and why they wait. A card the scheduler reports twice for one stage counts once. The tooltip on a reason lists its cards. A queue that is full while cards wait shows its busy count in bright ink.
+- The merge queue lists the public Merging cards: the running batch first, then the cards the next batch takes in board order, then stuck, held and release tasks that wait for Ship.
 - While `DASHBOARD_HIDE_TELEGRAM=1`, the API returns no channel link or posts.
 
 Agents report their phase with `factory-status <activity>`, with no free text. `FACTORY_OBSERVATION_HEARTBEAT_MS` and `FACTORY_OBSERVATION_MAX_EVENT_BYTES` in `settings.env` set the liveness sampling and the event size limit.
@@ -38,7 +42,7 @@ The Delivery tab reads only the card lines of the ledger, with the panels `deliv
 
 - Time in stage is calendar time from the move into a stage to the next move out, waits included. It is never worker time, which Analytics shows. Testing is the preview, Hardening the harden stage and Merging the merge queue. Older lines, written before the Merging column, count Approval after hardening or `factory merge` as the merge queue. A `factory move` into Testing counts as preview.
 - A stage counts in a range when it ended in that range. Stages still open are counted with their mean age and are not in the means.
-- Issue to dev runs from the day the issue was opened to its first merge into dev, the moment GitHub shows the label `release-candidate` added. Weekly Ship is not its end. Votes and triage waits are inside it. Issues merged in the range count. Release tasks and ad hoc tasks are left out, because the factory opens them itself. It reads GitHub, so it covers merges from before card records began.
+- Issue to dev runs from the time the issue was opened to its first merge into dev. Both come from the ledger: the `entered` card line records the issue's open time as `opened`, and the `merged` line records the merge. Weekly Ship is not its end. Votes and triage waits are inside it. Issues merged in the range count. Hotfixes, release tasks, the release card and ad hoc tasks are left out. A merge whose card entered before `opened` was recorded counts under No open date.
 - In flight counts cards that triage accepted and that are not yet merged or closed. It starts at the first triage acceptance, so it needs card records. A merge with no recorded acceptance is counted apart.
 - Loops count each move back by its transition, with the cards it touched. The loop rate is cards with a loop over cards with any move in the range.
 - Failed job retries count card jobs that failed, died or timed out. The tick runs those again in the same column, so they are not loops. A job a control order stopped is no retry, but its spend counts as wasted.
@@ -46,6 +50,18 @@ The Delivery tab reads only the card lines of the ledger, with the panels `deliv
 - Hotfixes, release tasks, the release card and ad hoc tasks run other paths, so they are left out and counted.
 - A line equal to the card's previous line is a copy from a resumed job or a repeated tick, and is dropped. A move into the column the card is in starts no new stage.
 - The Delivery queries read card lines of the last 180 days. A card that moved before the first card line is counted as joined before records.
+
+## Flow
+
+The Flow tab reads the same stage visits as Time in stage, through the `stage_visits` macro in `queries/macros.sql`, with the panels `flow_stages` and `flow_moves`. So a stage's blocks on Flow add up to its done count times its mean on Delivery, when no visit is unmeasured.
+
+- Each stage box splits its visits' calendar time into one block per actor: waiting, agent, checks, build, and git and GitHub. The block times come from the `parts` of the card's own jobs of that stage, each clipped to the visit. Job time outside its parts is git and GitHub. Waiting is the rest of the visit. A block with no time in the period is hidden. `STAGE_WORK` in `src/dashboard/vocabulary.ts` maps each stage to its job stages and says whether it waits on workers or on the committee.
+- A merge job has no issue, so its time counts on the cards of its `batch`, from its ledger line.
+- A visit that overlaps a job written before jobs listed their parts, or a merge run with no `batch`, is left out of every block, and the box counts it as unmeasured.
+- Analytics' Time by stage splits each job stage's worker time the same way. Jobs written before parts existed count as not split.
+- The stage with the most waiting for a worker gets a frame in danger ink. Committee waiting has its own color and never gets the frame.
+- Arrows count moves between stages in the period. A move to the next stage runs between the boxes. A move back runs below them, and a move that skips a stage, or ends the card early, runs above them. Each count has a tooltip with its stages.
+- A visit counts in a range when it ended in that range, like Time in stage.
 
 ## Add a panel
 
@@ -68,10 +84,19 @@ Check it after an install:
 
 ## Staying in step with the factory
 
-- The page's words for columns, job stages, queues, activities, wait reasons, delivery stages, loops and gates live in `src/dashboard/labels.ts`. Each list is keyed by the factory's own type, so a new column, stage, queue, activity or wait reason fails `npm run typecheck` until it has a label. The snapshot carries the labels to the page, and a key with no label shows as itself.
+- The page's words for columns, job stages, queues, activities, wait reasons, delivery stages, loops and merge queue states live in `src/dashboard/labels.ts`. Each list is keyed by the factory's own type, so a new column, stage, queue, activity or wait reason fails `npm run typecheck` until it has a label. The snapshot carries the labels to the page, and a key with no label shows as itself.
 - `dashboard.js` is type-checked by `dashboard/tsconfig.json` against the server's `Snapshot` type. A field the server renames or drops fails the check.
 - The funnel and the card counts follow the labels, so a new column needs no CSS or page edit.
 - A commit that touches this folder or `src/dashboard/` runs the browser check below in the pre-commit hook.
+
+## Look
+
+The page follows the game's UI design system in `game/docs/ui.md`. Its token block at the top of `dashboard.css` copies the game's token names and values from `game/src/ui/tokens.css`, because the factory never imports game code. A change to a shared token in the game is copied here by hand. The dashboard adds its own tokens only for its layout sizes and chart series.
+
+- Every other rule uses a token. `src/dashboard/style-guard.test.ts` fails on a raw color or size outside the token block, on a font size off the type scale, on a native `title` tooltip and on an arrow mark.
+- Vertical space has two steps, `--gap-tight` inside a group and `--gap-wide` between groups.
+- A value that explains itself carries `data-explain`, with label and value rows and an optional short note. It shows a dotted underline and opens the shared tooltip. A tooltip never repeats the value it opens on.
+- A zero count is faint, a full queue with cards waiting is bright, and the accent marks only the selected toggle and keyboard focus.
 
 ## Browser check
 

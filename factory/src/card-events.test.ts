@@ -21,11 +21,11 @@ function fakeCtx(failMove = false): Ctx {
 }
 
 it('records each move after the board takes it, with its step and flow and no text', async () => {
-  await addCard(fakeCtx(), 4, 'Triage');
+  await addCard(fakeCtx(), 4, 'Triage', '2026-09-30T08:00:00Z');
   await moveCard(fakeCtx(), 4, 'Design', 'accepted', 'hotfix');
   expect(calls).toEqual(['addCard 4 Triage', 'move 4 Design']);
   expect(readLedger(home, new Date(0))).toEqual([
-    { kind: 'card', issue: 4, step: 'entered', to: 'Triage', at: '2026-10-01T09:00:00.000Z' },
+    { kind: 'card', issue: 4, step: 'entered', to: 'Triage', at: '2026-10-01T09:00:00.000Z', opened: '2026-09-30T08:00:00Z' },
     { kind: 'card', issue: 4, step: 'accepted', to: 'Design', at: '2026-10-01T09:00:00.000Z', flow: 'hotfix' },
   ]);
 });
