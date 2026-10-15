@@ -28,8 +28,12 @@ describe('testSubset', () => {
     expect(testSubset(['factory/src/tick.test.ts', 'factory/src/tick.ts'], existing('src/tick.test.ts'))).toEqual([]);
   });
 
-  it.each(['game/package-lock.json', 'game/vitest.config.ts', 'game/scripts/test-cache.mjs', 'game/src/test/settled-runner.ts'])('runs every test when %s changes how tests run', (file) => {
+  it.each(['game/package-lock.json', 'game/vitest.config.ts', 'game/scripts/test-cache.mjs', 'game/src/test/settled-runner.ts', 'game/src/test/cpu-limits.ts', 'game/src/test/cache/stall.ts'])('runs every test when %s changes how tests run', (file) => {
     expect(testSubset([file, 'game/src/sim/fuel.test.ts'], existing('src/sim/fuel.test.ts'))).toBe('all');
+  });
+
+  it('takes only the test next to a test helper under src/test', () => {
+    expect(testSubset(['game/src/test/quest-check.ts'], existing('src/test/quest-check.test.ts'))).toEqual(['src/test/quest-check.test.ts']);
   });
 });
 

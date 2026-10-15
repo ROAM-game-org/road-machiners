@@ -1,6 +1,3 @@
-// Dead trees drawn as one instanced model per terrain chunk, like map rocks. A grove holds hundreds of trees, so
-// one view each would cost a draw call per tree. A broken tree's instance hides, and it shows again when the tree
-// grows back. Only the trees baked into the map are drawn here.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
