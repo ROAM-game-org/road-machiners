@@ -15,7 +15,12 @@ const LANGUAGE_NAME = { en: 'English', ru: 'Russian' } as const;
 const SCHEME_LINK = /[a-z][a-z0-9+.-]*:\/\/[^\s<>"']+/gi;
 const BARE_LINK = /(?<![\w.@-])(?:www\.\S+|t\.me\/\S+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|me|ru|su|online|xyz|info|app|gg|co|link|site|top|ly|to|cc|рф)(?![\w-]))/iu;
 
+const LONG_RUN = /[A-Za-z0-9+/=_-]{40,}/g;
+const COMMIT = /^[0-9a-f]{40}$/;
+
 type Question = StoredComment & { chat: string; messageId: number };
+
+class RejectedAnswer extends Error {}
 
 export async function answer(ctx: Ctx): Promise<void> {
   const id = takeQuestion(ctx);
@@ -45,22 +50,26 @@ function questionOf(store: PublicStore, id: number): Question {
 
 async function reply(ctx: Ctx, store: PublicStore, question: Question): Promise<void> {
   const answered = await investigated(ctx, question).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+  const text = typeof answered === 'string' ? answered : null;
   const note = isOnThread(question) ? await threadNote(ctx, question, textsFor(question.language)) : null;
-  const parts = [answered instanceof Error ? null : answered, note].filter((part) => part !== null);
+  const parts = [text, note].filter((part) => part !== null);
   if (parts.length > 0) store.setReplyId(question.id, await ctx.telegram.sendMessage(question.chat, parts.join('\n\n'), question.messageId));
   if (answered instanceof Error) throw new Error(`Player comment ${question.id} got no answer after ${ANSWER_TRIES} tries: ${answered.message}`, { cause: answered });
-  ctx.log('answer', null, `answered player comment ${question.id}`);
+  ctx.log('answer', null, text === null ? `player comment ${question.id} got no answer, since both answers failed the check` : `answered player comment ${question.id}`);
 }
 
-async function investigated(ctx: Ctx, question: Question): Promise<string> {
+async function investigated(ctx: Ctx, question: Question): Promise<string | null> {
   const clone = `${ctx.cfg.home}/work/answer`;
   try {
     for (let tried = 1; ; tried += 1) {
       try {
         return await investigate(ctx, question, clone);
       } catch (error) {
-        if (error instanceof UsageLimitError || tried >= ANSWER_TRIES) throw error;
-        ctx.log('answer', null, `try ${tried} for player comment ${question.id} failed, the agent tries again: ${error instanceof Error ? error.message : String(error)}`);
+        if (error instanceof UsageLimitError) throw error;
+        ctx.log('answer', null, `try ${tried} for player comment ${question.id} failed: ${error instanceof Error ? error.message : String(error)}`);
+        if (tried < ANSWER_TRIES) continue;
+        if (error instanceof RejectedAnswer) return null;
+        throw error;
       }
     }
   } finally {
@@ -83,7 +92,7 @@ async function investigate(ctx: Ctx, question: Question, clone: string): Promise
     await ctx.container.agent({ clone, dir: GAME_DIR, model: ctx.cfg.buildModel, prompt, log, publicOutput: true });
   } catch (error) {
     if (error instanceof UsageLimitError) throw error;
-    throw new Error(`The answer agent run failed, see ${log}.`);
+    throw new Error('The answer agent run failed.');
   }
   return checkedAnswer(ctx, clone);
 }
@@ -103,17 +112,18 @@ function writeQuestion(question: Question, home: string): void {
 function answerPath(clone: string): string {
   const path = join(realpathSync(clone), GAME_DIR, OUT_DIR, ANSWER_FILE);
   const plain = lstatSync(path, { throwIfNoEntry: false })?.isFile() === true && realpathSync(path) === path;
-  if (!plain) throw new Error(`The answer agent left no plain file ${OUT_DIR}/${ANSWER_FILE}.`);
+  if (!plain) throw new RejectedAnswer(`The answer agent left no plain file ${OUT_DIR}/${ANSWER_FILE}.`);
   return path;
 }
 
 export function checkedAnswer(ctx: Ctx, clone: string): string {
   const path = answerPath(clone);
   const text = readFileSync(path, 'utf8').trim();
-  if (text === '' || text.length > TEXT_LIMIT) throw new Error(`The answer has ${text.length} characters, outside 1 to ${TEXT_LIMIT}.`);
-  if (text.includes(ctx.cfg.oauthToken)) throw new Error('The answer holds the Claude login token.');
+  if (text === '' || text.length > TEXT_LIMIT) throw new RejectedAnswer(`The answer has ${text.length} characters, outside 1 to ${TEXT_LIMIT}.`);
+  if (text.includes(ctx.cfg.oauthToken)) throw new RejectedAnswer('The answer holds the Claude login token.');
   const allowed = [`https://github.com/${ctx.cfg.repo}/`, `${new URL(ctx.cfg.publicUrl).origin}/`];
   const rest = text.replace(SCHEME_LINK, (link) => (allowed.some((prefix) => `${link}/`.startsWith(prefix)) ? ' ' : link));
-  if (new RegExp(SCHEME_LINK.source, 'i').test(rest) || BARE_LINK.test(rest)) throw new Error(`The answer has a link that is neither ${ctx.cfg.repo} on GitHub nor the public game.`);
+  if (new RegExp(SCHEME_LINK.source, 'i').test(rest) || BARE_LINK.test(rest)) throw new RejectedAnswer(`The answer has a link that is neither ${ctx.cfg.repo} on GitHub nor the public game.`);
+  if ((rest.match(LONG_RUN) ?? []).some((run) => !COMMIT.test(run))) throw new RejectedAnswer('The answer holds a long token-like string.');
   return text;
 }

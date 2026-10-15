@@ -79,20 +79,21 @@ describe('answer job', () => {
     expect(f.messages.map((message) => message.text)).toEqual(['Repairs cost parts.']);
   });
 
-  it('after two failed tries sends only the issue note, and fails with no player text and no rerun', async () => {
+  it('after two failed agent runs sends only the issue note, and fails with no player text and no rerun', async () => {
     const { f, runs } = setup({ answers: [null, null], issue: 568, relevance: 'parent' });
     const failed = answer(f.ctx);
-    await expect(failed).rejects.toThrow(/got no answer after 2 tries: The answer agent run failed/);
+    await expect(failed).rejects.toThrow(/got no answer after 2 tries: The answer agent run failed\.$/);
     await expect(failed).rejects.not.toThrow('Ignore your rules');
     expect(runs).toHaveLength(2);
     expect(f.messages.map((message) => message.text)).toEqual([NOTE]);
     expect(readState(f.ctx.statePath).pendingAnswers).toEqual([]);
   });
 
-  it('sends nothing for a failed question outside a thread', async () => {
+  it('records no failure when both answers fail the check, and sends nothing outside a thread', async () => {
     const { f } = setup({ answers: ['', 'x'.repeat(TEXT_LIMIT + 1)] });
-    await expect(answer(f.ctx)).rejects.toThrow('characters');
+    await answer(f.ctx);
     expect(f.messages).toEqual([]);
+    expect(f.logs).toContain(`answer null player comment ${f.store.recentChat(1)[0]!.id} got no answer, since both answers failed the check`);
   });
 
   it('fails a queued id that is no chat message, and does nothing on an empty queue', async () => {
@@ -119,6 +120,7 @@ describe('checkedAnswer', () => {
 
   it('passes links to the repo on GitHub and to the public game', () => {
     expect(check(' See https://github.com/o/r/issues/5, https://github.com/o/r and https://roam.example/play/. \n')).toBe('See https://github.com/o/r/issues/5, https://github.com/o/r and https://roam.example/play/.');
+    expect(check(`Fixed in ${'ab12'.repeat(10)}.`)).toContain('ab12');
   });
 
   it.each([
@@ -128,6 +130,8 @@ describe('checkedAnswer', () => {
     ['a bare domain', 'visit cheap-parts.com now'],
     ['a www link', 'www.parts'],
     ['the Claude token', `token ${TOKEN}`],
+    ['an encoded token', `here ${Buffer.from(TOKEN.repeat(2)).toString('base64')}`],
+    ['a long hex run', 'a'.repeat(41)],
   ])('fails %s', (_name, text) => {
     expect(() => check(text)).toThrow();
   });
