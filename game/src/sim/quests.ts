@@ -312,7 +312,8 @@ function liveIn(state: QuestState, session: QuestSession): QuestLive {
 }
 
 export function relanguageQuest(world: World, bundle: QuestBundle): World {
-  if (world.player.quests.live?.lang === questLanguage) return world;
+  const { live, session } = world.player.quests;
+  if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
     restoreQuest(w, bundle);

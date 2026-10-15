@@ -27,7 +27,7 @@ console.log(`Loaded the ${from} at turn ${world.turn}`);
 await initPhysics();
 const drive = from === 'world' && report.drive ? decodeDrive(report.drive) : freshDrive(world);
 const { terrain, ...state } = world;
-const turn = computeTurn({ world: state, drive }, terrain);
+const turn = computeTurn({ world: state, drive, questLanguage: report.language === 'ru' ? 'ru' : 'en' }, terrain);
 console.log(`The turn ran with no error and reached turn ${turn.world.turn}.`);
 
 function savedJson(report, from) {

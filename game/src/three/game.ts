@@ -93,7 +93,7 @@ import { touchTapAction } from "./touch-tap";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
-import { Travel, type Playback, type LiveVision } from "./travel";
+import { Travel, landInLanguage, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
 
@@ -830,8 +830,8 @@ export class Game {
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
     const { world, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
     if (this.saves.changeMapIfMoved(world)) return;
-    this.world = world;
-    this.saves.logWorld(world);
+    this.world = landInLanguage(world);
+    this.saves.logWorld(this.world);
     this.updateLoops();
     this.anim = playback;
     this.turnStart = playback.before;

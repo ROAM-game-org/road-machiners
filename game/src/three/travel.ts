@@ -13,6 +13,7 @@ import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
 import { playerVehicle } from "../sim/damage";
+import { currentQuestLanguage, QUESTS, relanguageQuest } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
@@ -84,6 +85,10 @@ export function addRopeFrames(before: World, after: World, frames: TurnResult["f
 
 function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): WheelFrame[] {
   return shown[v.id]?.wheels ?? restWheels(v.chassisId);
+}
+
+export function landInLanguage(world: World): World {
+  return relanguageQuest(world, QUESTS);
 }
 
 export function canTravel(world: World): boolean {
@@ -396,6 +401,7 @@ export class TurnPreparation {
         id,
         world: state,
         drive: saved,
+        questLanguage: currentQuestLanguage(),
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies TurnRequest,
       [saved.snapshot.buffer as ArrayBuffer],
