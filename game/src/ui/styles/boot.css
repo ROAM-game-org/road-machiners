@@ -10,6 +10,20 @@
   align-items: center;
   justify-content: center;
 }
+#boot .boot-retry {
+  pointer-events: auto;
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--btn-h-l);
+  padding: 0 var(--space-8);
+  font: var(--text-lead) var(--font-ui);
+  color: var(--ink);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+#boot .boot-retry:hover { background: var(--surface-hover); border-color: var(--line-hover); }
+#boot .boot-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #boot[hidden] { display: none; }
 #boot.leaving { opacity: 0; transition: opacity 250ms; }
 #boot .boot-box { width: min(var(--panel-l), calc(100vw - var(--space-10))); display: flex; flex-direction: column; gap: var(--space-6); }

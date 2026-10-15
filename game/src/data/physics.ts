@@ -60,6 +60,7 @@ export const PHYSICS = {
     clearStep: 0.5,
     clearEvery: 6,
     clearCrawl: 3,
+    blockFacing: 0.5,
   },
   rockHeight: 3,
   rockSink: 0.5,

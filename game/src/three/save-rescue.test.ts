@@ -138,7 +138,6 @@ describe('rescueSave', () => {
     const save = currentSave() as ReturnType<typeof currentSave> & { world: { setup: unknown } };
     save.world.setup = { mode: 'roaming', settings: { damage: null, fuelUse: 1.5, supplyUse: 40, enemyGearGrowth: 1 } };
     slots.put('auto', save);
-    expect(() => loadWorld(slots, 'auto', TEST_MAP)).toThrow(/badSetup/);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 1000)!;
 
     expect(rescued.report.settingsReset).toEqual(['damage', 'supplyUse']);
@@ -154,7 +153,7 @@ describe('rescueSave', () => {
     expect(rescued.report.settingsReset).toEqual([]);
   });
 
-  it('lists quest variables this version does not declare as lost and closes any open quest', () => {
+  it('lists quest state this version does not know as lost, resets a quest whose variables no longer fit, and closes any open quest', () => {
     const slots = makeSlots();
     const save = currentSave() as unknown as { format: unknown; world: SavedWorld & { player: { quests: unknown } } };
     save.world.mapHash = 'old-map';
@@ -166,8 +165,26 @@ describe('rescueSave', () => {
     slots.put('auto', save);
     const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000);
     expect(rescued?.world.player.quests).toEqual({ world: {}, local: {}, session: null, live: null });
-    expect(rescued?.report.lost).toEqual(expect.arrayContaining(['retired_flag', 'bowl_hattie.paid', 'gone_quest.n']));
+    expect(rescued?.report.lost).toEqual(expect.arrayContaining(['retired_flag', 'gone_quest']));
+    expect(rescued?.report.questsReset).toEqual(['bowl_hattie']);
     expect(loadWorld(slots, 'auto', TEST_MAP)?.player.quests.session).toBeNull();
+  });
+
+  it('carries the notes and outcomes of a fitting chain and drops those of a quest the game raised past the save', () => {
+    const slots = makeSlots();
+    const save = currentSave() as unknown as { quests: Record<string, number>; world: SavedWorld & { player: { quests: unknown; notes: unknown } } };
+    save.world.mapHash = 'old-map';
+    save.world.player.quests = { world: { pipe_fate: 'sold', depot_thief: 'vance' }, local: { pump_pipe: { taken: true } }, session: null };
+    save.world.player.notes = [{ id: 'pipeOffer', turn: 40 }, { id: 'burntConvoy', turn: 41 }, { id: 'retiredNote', turn: 42 }];
+    save.quests = { ...save.quests, pump_pipe: 0 };
+    slots.put('auto', save);
+    const rescued = rescueSave(slots, 'auto', TEST_MAP, KIT, fresh, freshRun, 2000)!;
+
+    expect(rescued.report.questsReset).toEqual(['pump_pipe']);
+    expect(rescued.report.lost).toEqual(expect.arrayContaining(['retiredNote']));
+    expect(rescued.world.player.quests.world).toEqual({ depot_thief: 'vance' });
+    expect(rescued.world.player.quests.local).toEqual({});
+    expect(rescued.world.player.notes).toEqual([{ id: 'burntConvoy', turn: rescued.world.turn }]);
   });
 
   it('gives nothing for an unparsable or non-object save', () => {
