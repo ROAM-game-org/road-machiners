@@ -183,7 +183,7 @@ def test_a_pending_review_wakes_hermes_until_the_file_goes(tmp_path):
 
 
 def test_each_overlap_wakes_hermes_until_the_file_goes(tmp_path):
-    overlap = "overlap #516 Sounds stop in Safari with aaaaaaa on main (Hotfix #539: Error: sound decode failed): shares game/src/audio/decode.ts\n"
+    overlap = "overlap #516 with aaaaaaa on main: shares game/src/audio/decode.ts\n"
     assert run(tmp_path / "found", health(), overlap=overlap) == [overlap.strip()]
     assert run(tmp_path / "handled", health()) == []
 

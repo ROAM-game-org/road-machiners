@@ -211,7 +211,7 @@ Name the line, what you found and what you did in your issue comment or chat pos
 
 ## Redundant work
 
-`overlap #N <title> with <commit> on <branch> (<subject>): <why>` means the daily overlap check found open card #N sharing files or a title with a new commit. It reads git alone, so it only nominates. You judge each line. [operations.md](../docs/operations.md#overlap-check) has the check and the order.
+`overlap #N with <commit> on <branch>: <why>` means the daily overlap check found open card #N sharing files or a title with a new commit. It reads git alone, so it only nominates. You judge each line. [operations.md](../docs/operations.md#overlap-check) has the check and the order.
 
 1. Read what the commit did with `gh` and `git show <commit>`, and what the card asks and has done: the issue, its comments, player and error reports, `factory card N`, its branch diff, its pull request and any approval post.
 2. Call it redundant only when the merged commit already does everything the issue asks: the same behavior, the same cause and scope, and the issue's acceptance criteria met on that branch. A title, an error fingerprint or a shared file alone is not enough.

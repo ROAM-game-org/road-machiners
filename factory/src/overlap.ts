@@ -9,7 +9,7 @@ export type OverlapBranch = (typeof OVERLAP_BRANCHES)[number];
 export type OverlapHeads = Record<OverlapBranch, string>;
 export type MergedCommit = BranchCommit & { branch: OverlapBranch };
 export type CardWork = { issue: number; title: string; files: string[] };
-export type Nomination = { issue: number; title: string; commit: string; branch: OverlapBranch; subject: string; why: string; key: string };
+export type Nomination = { issue: number; commit: string; branch: OverlapBranch; why: string; key: string };
 
 const COMMITS_PER_BRANCH = 50;
 const FILES_SHOWN = 3;
@@ -49,13 +49,13 @@ export function nominate(works: CardWork[], commits: MergedCommit[]): Nomination
       const why = reason(work, commit);
       if (why === null) return [];
       const key = `${work.issue}:${shortHash(commit.hash)}`;
-      return [{ issue: work.issue, title: work.title, commit: shortHash(commit.hash), branch: commit.branch, subject: commit.subject, why, key }];
+      return [{ issue: work.issue, commit: shortHash(commit.hash), branch: commit.branch, why, key }];
     }),
   );
 }
 
 export function overlapLine(item: Nomination): string {
-  return `overlap #${item.issue} ${item.title} with ${item.commit} on ${item.branch} (${item.subject}): ${item.why}`;
+  return `overlap #${item.issue} with ${item.commit} on ${item.branch}: ${item.why}`;
 }
 
 export type OverlapDue = 'baseline' | 'wait' | 'unchanged' | 'scan';

@@ -105,9 +105,9 @@ describe('checkOverlaps', () => {
     const f = fake({ overlap: checked(), pendingApprovals: { '630': 'Ann' } }, merged, branches, titles);
     await checkOverlaps(f.ctx, cards);
     expect(pending(f).trim().split('\n')).toEqual([
-      'overlap #516 Sounds stop in Safari with aaaaaaa on main (Hotfix #539: Error: sound decode failed: EncodingError): shares game/src/audio/decode.ts',
-      'overlap #620 Tow fee rounding with ccccccc on dev (Merge issue #610: Tow fee): shares game/src/economy/tow.ts',
-      'overlap #549 Error: sound decode failed: EncodingError with aaaaaaa on main (Hotfix #539: Error: sound decode failed: EncodingError): has the same title',
+      'overlap #516 with aaaaaaa on main: shares game/src/audio/decode.ts',
+      'overlap #620 with ccccccc on dev: shares game/src/economy/tow.ts',
+      'overlap #549 with aaaaaaa on main: has the same title',
     ]);
     expect(readState(f.ctx.statePath).overlap).toEqual({ at: NOW.toISOString(), main: 'main1', dev: 'dev1', reported: ['516:aaaaaaa', '620:ccccccc', '549:aaaaaaa'], error: null });
     expect(f.calls).toContain('log main0..main');
@@ -154,7 +154,7 @@ describe('checkOverlaps', () => {
     const lines = await previewOverlaps(f.ctx, [card(516), card(575)]);
     expect(lines).toEqual([
       'Commits since main main0 and dev dev0, to main main1 and dev dev1. Nothing is written.',
-      'overlap #516 Sounds stop in Safari with aaaaaaa on main (Hotfix #539: Error: sound decode failed: EncodingError): shares game/src/audio/decode.ts [reported]',
+      'overlap #516 with aaaaaaa on main: shares game/src/audio/decode.ts [reported]',
     ]);
     expect(pending(f)).toBe('');
     expect(readState(f.ctx.statePath).overlap).toEqual(checked({ reported: ['516:aaaaaaa'] }));
