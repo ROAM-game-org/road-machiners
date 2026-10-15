@@ -9,6 +9,7 @@ import { deckAt } from './bridge';
 import { acrossOf, centerU, fromRoad, highwayMap, highwayStart, milestoneAt, outpostFort, outpostGateSpots, outpostYardHalf, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchOf, toRoad, WINDOW_SHIFT, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
 import { sceneAt } from './road-hazards';
+import { sitePads } from './sites';
 import { CELL, componentOf, navLayer } from './nav/layer';
 import { groundAt, heightAt, isCliff, type BakedMap, type BakedProp } from './terrain';
 
@@ -270,6 +271,10 @@ describe('an outpost fort', () => {
       }
     }
     expect(FORTRESS_STYLES.outpost.gate.width).toBe(6);
+  });
+
+  it('has no town pad, since the yard is the place a truck uses', () => {
+    expect(sitePads(outpostFort(3, 0, 1))).toEqual([]);
   });
 
   it('holds the widest truck at both park spots, inside its walls', () => {

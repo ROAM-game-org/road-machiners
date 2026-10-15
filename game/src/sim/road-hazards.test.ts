@@ -5,7 +5,6 @@ import { acrossOf, alongOf, fromRoad, highwayMap, WINDOW_SHIFT, milestoneAt, out
 import { boxDistance, mapObstacles, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { CELL, componentOf, navLayer } from './nav/layer';
 import { closurePieces, fortLine, fortLineHole, highwayDecks, lanesCoveredOf, leavesPassage, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
-import { siteGap } from './sites';
 import type { BakedMap, BakedProp } from './terrain';
 import type { Vec } from './vec';
 import type { RoadPiece } from './highway';

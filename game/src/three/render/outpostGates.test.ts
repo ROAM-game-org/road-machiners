@@ -88,7 +88,6 @@ describe('the outpost gate views', () => {
     const north = leaves(root).filter((l) => l.parent!.name.endsWith('north'));
     expect(north).toHaveLength(2);
     expect(north.map((l) => Math.abs(l.position.z))).toEqual([0, 0]);
-    views.sync(w);
     expect(views.settled()).toBe(false);
     span(Math.round(OUTPOST_GATE.slideSeconds / 0.05) + 2, views, 0.05);
     expect(views.settled()).toBe(true);

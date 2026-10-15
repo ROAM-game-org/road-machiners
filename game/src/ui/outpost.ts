@@ -105,9 +105,14 @@ export class OutpostScreen {
       el("div", { class: "outpost-body" }, this.tabBody(w, post)),
       this.driveOnButton(w),
     );
-    const leave = !outpostControls(w).leave ? [] : [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))];
-    this.root.replaceChildren(...leave, el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
+    this.root.replaceChildren(...this.leaveButton(w), el("h3", {}, siteName(post.id), truckChips(w, { freeCells: true }, id)), el("div", { class: "town-split" }, truck, shop));
     this.inventory.fitTo(truck);
+  }
+
+  private leaveButton(w: World): HTMLElement[] {
+    const { leave } = outpostControls(w);
+    this.root.classList.toggle("pinned", !leave);
+    return leave ? [el("button", { class: "close", onclick: () => this.close() }, t("trade.leave"))] : [];
   }
 
   private haulerHere(w: World): boolean {

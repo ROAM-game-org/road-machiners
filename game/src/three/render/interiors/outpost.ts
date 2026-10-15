@@ -13,15 +13,14 @@ const CRATES = [
 ] as const;
 const SHED = { x: STRIP + 0.2, z: -4.2, yaw: Math.PI / 2 };
 const RACK = { x: STRIP, z: 1.1, length: 1.6, depth: 0.35, height: 0.6, shelves: 3 };
-const MAST = { x: STRIP, z: 3.6, top: 3.1, aimAcross: 0.5 };
-const FLOOD_COLOR = PAL.siteLight.sodium;
+const LANTERN = { x: STRIP + 0.4, z: 3.6 };
 
 export function buildOutpost(b: SiteBuilder): void {
   for (const d of DRUM_CLUSTERS) b.addModel('drums', d.x, d.z, d.yaw).name = 'outpost-drums';
   for (const c of CRATES) b.addModel('crates', c.x, c.z, c.yaw).name = 'outpost-crates';
   b.addModel('shack', SHED.x, SHED.z, SHED.yaw).name = 'outpost-shed';
   addRack(b);
-  addFloodMast(b);
+  addLantern(b);
 }
 
 function addRack(b: SiteBuilder): void {
@@ -34,9 +33,6 @@ function addRack(b: SiteBuilder): void {
   }
 }
 
-function addFloodMast(b: SiteBuilder): void {
-  const { x, z, top, aimAcross } = MAST;
-  b.addBox(x, z, 0.12, top, 0.12, PAL.metal);
-  const head = b.addLampHead(x, z, top, Math.PI);
-  b.addLight('flood', head, { x: -aimAcross * Math.abs(x), z }, FLOOD_COLOR);
+function addLantern(b: SiteBuilder): void {
+  b.addLantern(LANTERN.x, LANTERN.z, Math.PI);
 }

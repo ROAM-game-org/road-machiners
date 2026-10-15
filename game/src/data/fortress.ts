@@ -5,7 +5,7 @@ export type FortressKind = 'wall' | 'tower' | 'gate' | 'inner';
 export type FortressBastions = { capitals: readonly number[]; curtain: number; salient: number; gorge: number; flank: number };
 export type FortressPit = { margin: number; terraceWidth: number; stepHeight: number; terraces: number };
 export type FortressRock = { from: number; to: number };
-export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
+export type FortressSite = { shape: FortressShape; turn: number; style: FortressStyle; bastions?: FortressBastions; roadFort?: boolean; towers?: boolean; towerEvery?: number; pit?: FortressPit; rock?: readonly FortressRock[] };
 
 export type FortressGate = { width: number; depth: number; height: number };
 export type FortressStyleDef = { flush: boolean; gate: FortressGate; gateFlare: number; pieces: readonly FortressKind[] };
@@ -24,7 +24,7 @@ export const FORTRESS_SITES: Record<string, FortressSite> = {
   'pump-station': { shape: 'square', turn: 0, style: 'pumpworks' },
   granary: { shape: 'circle', turn: 36, style: 'ring', towers: false },
   'salvage-yard': { shape: 'square', turn: 45, style: 'yard' },
-  outpost: { shape: 'square', turn: 0, style: 'outpost' },
+  outpost: { shape: 'square', turn: 0, style: 'outpost', roadFort: true },
   scrapjaw: { shape: 'circle', turn: -10, style: 'scrap' },
   kiln: { shape: 'square', turn: 93, style: 'scrap' },
 };

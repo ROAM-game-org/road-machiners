@@ -51,6 +51,12 @@ export class ModalScreens {
     for (const s of this.all()) if (s !== keep) s.close();
   }
 
+  pinOutpost(): void {
+    if (this.outpost.isOpen()) return;
+    this.closeAll(null);
+    this.outpost.open();
+  }
+
   toggle(screen: Toggled): void {
     this.closeAll(screen);
     screen.toggle();

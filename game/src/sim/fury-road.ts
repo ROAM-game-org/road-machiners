@@ -322,9 +322,13 @@ function fortReach(radius: number): number {
   return outpostYardHalf() + FORTRESS.wallDepth / 2 + radius + FURY_ROAD.spawnClear;
 }
 
+function spawnRange(run: FuryRoadRun, radius: number): { from: number; to: number } {
+  const reach = fortReach(radius);
+  return { from: milestoneAt(run.window) + (run.window >= 1 ? reach : 0), to: milestoneAt(run.window + 1) - reach };
+}
+
 function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[], hidden: (pos: Vec) => boolean): Vec | null {
-  const from = milestoneAt(run.window) + (run.window >= 1 ? fortReach(radius) : 0);
-  const to = milestoneAt(run.window + 1) - fortReach(radius);
+  const { from, to } = spawnRange(run, radius);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
     if (!insideWindow(world, pos, radius) || !hidden(pos)) continue;

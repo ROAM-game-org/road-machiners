@@ -629,7 +629,7 @@ describe("Fury Road readouts", () => {
     expect(getHudReadout(w).resources.some((r) => r.id === "run")).toBe(false);
   });
 
-  it("offers to enter a reached outpost only while parked on its pad", () => {
+  it("offers to enter a reached outpost only while parked in its yard", () => {
     const w = furyRoadWorld();
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);

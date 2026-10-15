@@ -4,7 +4,7 @@ import { defaultSetup } from '../sim/settings';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { FURY_ROAD } from '../data/modes';
 import { betweenLevels, driveOn } from '../sim/fury-road';
-import { gatesShut, yardSpots } from '../sim/outpost-gates';
+import { gatesShut } from '../sim/outpost-gates';
 import { highwayHash } from '../sim/highway';
 import { furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';

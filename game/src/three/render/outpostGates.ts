@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OUTPOST_GATE } from '../../config';
 import { PHYSICS } from '../../data/physics';
 import { playerTrucks } from '../../sim/damage';
-import { inYard, outpostGates, type GateState } from '../../sim/outpost-gates';
+import { gatesShut, inYard, outpostGates, type GateState } from '../../sim/outpost-gates';
 import type { World } from '../../sim/types';
 import { groundAt, type Terrain } from '../../sim/terrain';
 import { model } from './models';
@@ -20,12 +20,23 @@ type GateView = { id: string; leaves: Leaf[] };
 
 export class OutpostGateViews {
   private readonly gates: GateView[];
+  private seen: World | null = null;
 
   constructor(scope: RenderScope, terrain: Terrain, world: World) {
     const run = world.furyRoad;
     if (!run) throw new Error('Outpost gate views need a Fury Road run');
     const movable = outpostGates(world).filter((g) => g.movable);
     this.gates = movable.map((g) => this.build(scope, terrain, g, startsClosed(world, run.window, g)));
+    this.sync(world);
+  }
+
+  frame(world: World, playing: boolean, dt: number): boolean {
+    if (!playing && this.seen !== world) {
+      this.sync(world);
+      this.seen = world;
+    }
+    this.tick(dt);
+    return !playing && this.settled() && gatesShut(world);
   }
 
   sync(world: World): void {

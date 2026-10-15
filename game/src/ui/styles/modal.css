@@ -32,6 +32,12 @@
 #ui:has(.modal:not([style*="display: none"])) > .right-dock {
   visibility: hidden;
 }
+#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right {
+  z-index: var(--z-over-modal);
+}
+#ui:has(.modal.pinned:not([style*="display: none"])) > .top-right > .game-menu {
+  visibility: visible;
+}
 #ui:has(.modal:not([style*="display: none"])) > .bottom-left > .instruments,
 #ui:has(.modal:not([style*="display: none"])) > .log {
   z-index: var(--z-over-modal);
