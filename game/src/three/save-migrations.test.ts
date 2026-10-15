@@ -1347,10 +1347,15 @@ describe('MIGRATIONS[61]', () => {
 });
 
 describe('save migration 62 to 63', () => {
-  it('keeps the world as it is, so an older build refuses a save that holds a salvage claim', () => {
-    const next = MIGRATIONS[62](structuredClone(FORMAT_2_62));
+  it('keeps a world as it is, since escort jobs only add optional and new members', () => {
+    const escort = {
+      id: 'ct9', shop: 'bowl', kind: 'escort', client: 'v4', to: 'nose', reward: 4000, deadline: 9007199254740991, window: 75, tier: 2, threat: 2,
+      span: 120, together: 80, seen: { x: 10, y: 20, turn: 5 }, apart: 3, stuck: 0, holdUntil: null,
+    };
+    const world = { ...structuredClone(FORMAT_2_62), shops: { bowl: { contracts: [escort] } } };
 
-    expect(next).toEqual(FORMAT_2_62);
+    expect(MIGRATIONS[62](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[62](structuredClone(FORMAT_2_62))).toEqual(FORMAT_2_62);
   });
 
   it('63 to 64 gives every posted and held claim no rival, no leads and a rival turn at its deadline, and leaves other contracts be', () => {

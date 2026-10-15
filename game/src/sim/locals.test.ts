@@ -80,6 +80,16 @@ describe('settlement locals', () => {
     expect(choices(w, 'bowl_ruben')).toContain('What is the Fallen Sun really?');
   });
 
+  it('names the hull behind Ibo\'s tone and answers what he hears', () => {
+    const shack = talk(parkedAt('nose'), 'nose_ibo', ['What do you do in this shack?']);
+    expect(questView(shack, QUESTS).lines.map((line) => line.text).join(' ')).toContain('<term=fallen_sun>Fallen Sun</term>, the big crashed hull in the crater');
+    expect(questView(shack, QUESTS).choices).toContain('What does the tone from the Fallen Sun say?');
+
+    const answered = chooseQuestOption(shack, QUESTS, pickIndex(shack, 'What does the tone from the Fallen Sun say?'));
+    expect(lastLine(answered)).toContain('no key to decode it');
+    expect(lastLine(answered)).not.toContain("A tone's a tone");
+  });
+
   it('offers a stranger only questions that name nothing unheard', () => {
     const w = parkedAt('bowl');
     expect(choices(w, 'bowl_ruben')).toEqual(['What is this place?', 'Who runs Bowl?', 'Where can I get water, or find work?', 'Goodbye.']);

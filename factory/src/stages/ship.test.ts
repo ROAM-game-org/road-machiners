@@ -41,8 +41,8 @@ describe('ship', () => {
     const at = (name: string) => f.calls.findIndex((call) => call.startsWith(name));
     expect(at('push work-head main')).toBeLessThan(at('merge main dev'));
     expect(at('push dev')).toBeLessThan(at('run butler'));
-    expect(shells.at(-1)).toEqual({ script: stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), env: { SAVE_SCOPE: '', ERROR_REPORT_URL: 'https://play.test/errors', ERROR_REPORT_BUILD: 'release' } });
-    expect(shells[0].env).toMatchObject({ BUILD_SCOPE: 'ship' });
+    expect(shells.at(-1)).toEqual({ script: stepScript('Building the release', [['npm ci', 'npm ci'], ['build', 'npm run build']]), env: { SAVE_SCOPE: '', ERROR_REPORT_URL: 'https://play.test/errors', ERROR_REPORT_BUILD: 'release', FEEDBACK_URL: 'https://play.test/feedback' } });
+    expect(shells[0].env).toMatchObject({ BUILD_SCOPE: 'ship', TEST_STALL_MINUTES: '15' });
     expect(runs).toEqual([
       { cmd: 'git', args: ['rev-parse', 'HEAD'], env: undefined },
       { cmd: 'butler', args: ['push', join(ROOT, 'work', 'release-main', 'game', 'dist'), 'u/g:html5', '--userversion', 'abc1234'], env: { BUTLER_API_KEY: 'secret' } },
@@ -105,7 +105,7 @@ describe('ship', () => {
     const f = shippable();
     f.changelog = ['Merge issue #3: faster trucks', 'Merge issue #4: new horn'];
     writeFileSync(join(ROOT, 'work', 'release-candidate', 'game', '.factory', 'release.md'), '- [#3] Trucks are faster.\n- [#4] A horn.\n');
-    f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 3 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a', thumbsUp: [] });
+    f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 3 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a' });
     await ship(f.ctx, 11, 'Ann');
     expect(readState(f.ctx.statePath).pendingIncidents).toEqual([3]);
   });
@@ -113,7 +113,7 @@ describe('ship', () => {
   it('closes the issues bundled into a shipped lead and queues the lead for an incident when a bundled one is a bug', async () => {
     const f = shippable();
     writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), bundles: { '3': [8, 9], '5': [10] } });
-    f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 9 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a', thumbsUp: [] });
+    f.ctx.github.issue = async (n: number) => ({ number: n, title: 'T', body: '', labels: n === 9 ? ['bug'] : ['feature-request'], createdAt: '', state: 'OPEN', author: 'a' });
     await ship(f.ctx, 11, 'Ann');
     expect(f.calls.filter((call) => call === 'comment Shipped in release 2026-09-29. It is on main and itch.io. It shipped as part of #3.')).toHaveLength(2);
     expect(f.calls.filter((call) => call === 'close completed')).toHaveLength(4);

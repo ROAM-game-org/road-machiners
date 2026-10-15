@@ -1,5 +1,3 @@
-// Orthographic iso camera. Same angle as the physics test in main.ts used to validate the view.
-// Owns pan, zoom, follow, the pan leash, the check for a truck leaving the view, plus the pixel <-> world conversions labels, fx and picking need.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';

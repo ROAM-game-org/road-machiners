@@ -1,6 +1,4 @@
-// Pure choices behind each play: which variant, where it sits in the stereo field, and whether a voice is free.
 
-// Variant index for a roll in [0, 1). Never repeats the last variant when there is a choice.
 export function pickVariant(n: number, last: number | null, roll: number): number {
   if (n < 1) throw new Error(`Cue has no variants`);
   if (n === 1) return 0;

@@ -358,11 +358,17 @@ function coreWreckScrap(vehicle: Vehicle, core: PartInstance[]): number {
 }
 
 export function dropHaul(world: World, vehicle: Vehicle, items: GridItem[]): SalvageStock {
-  const id = `cargo-${vehicle.id}-${world.turn}`;
+  const id = freeStockId(world, `cargo-${vehicle.id}-${world.turn}`);
   for (const item of items) if (!vehicle.items.includes(item)) throw new Error(`${vehicle.id} does not hold haul item ${item.id}`);
   const pile = addVehicleStock(world, vehicle, id, {}, []);
   fillPile(world, vehicle, pile, items);
   return pile;
+}
+
+function freeStockId(world: World, base: string): string {
+  let id = base;
+  for (let n = 2; world.salvage.some((stock) => stock.id === id); n++) id = `${base}-${n}`;
+  return id;
 }
 
 export function dumpOnPile(world: World, vehicle: Vehicle, item: GridItem): SalvageStock {

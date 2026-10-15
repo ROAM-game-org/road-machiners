@@ -1,5 +1,3 @@
-// Where saves and run logs live. The browser keeps them in IndexedDB, which stores objects as they are, writes each
-// transaction whole or not at all, and has a quota sized to the disk. Tests keep them in memory.
 
 import { reportError } from './crash';
 import { slotKey, type SlotId } from './save-slots';

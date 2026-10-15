@@ -9,7 +9,8 @@ import { randRange } from "./rng";
 import { isFree } from "./spawn";
 import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
-import { vehicleStats, type MountedWeapon } from "./stats";
+import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
+import { traderWaits } from "./escort-job";
 import { escortsOf, followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
@@ -123,8 +124,11 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
 function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
   return escortsOf(world, v.id).some((e) => {
+    if (!e.brain) return traderWaits(world, v, e);
     const gap = dist(e.pos, v.pos);
-    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= NPC_BEHAVIOR.escortCatchUpGap;
+    if (isStranded(world, e) || isOnRope(world, e.id)) return false;
+    const limit = NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
+    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= limit;
   });
 }
 
@@ -139,6 +143,7 @@ function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec):
 function followOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   const leader = activity.kind === "follow" ? world.vehicles.find((x) => x.id === activity.targetId) : undefined;
   if (!leader || leader.speed <= RULES.parkedSpeed) return { kind: "stopAt", dest };
+  if (dist(v.pos, leader.pos) > NPC_BEHAVIOR.escortCatchUpGap) return { kind: "through", dest };
   return { kind: "through", dest, pace: followPace(v, leader, dest) };
 }
 

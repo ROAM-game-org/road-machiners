@@ -1,0 +1,202 @@
+[
+  {
+    "label": "keep",
+    "from": "issue #547",
+    "text": "Translation: absent\n\n### What happened?\n\nLanguage in settings is Russian. But screen after first fight shows English text\n\n<img width=\"600\" height=\"630\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/d6731439-ebce-4573-bdf7-2160670045a7\" />\n\n### What did you expect?\n\nRussian text\n\n### How can we see it again?\n\n_No response_\n\n### Game version\n\nv2.61.43+a0820a30, Скитания, Урон 100%, Расход топлива 100%, Расход припасов 100%"
+  },
+  {
+    "label": "keep",
+    "from": "issue #46",
+    "text": "Freezes every few seconds in Firefox\n\n### What happened?\n\nИгра как-то люто лагает прямо с нулевой, вот такие фризы каждые несколько секунд. Firefox.\n\n### What did you expect?\n\nЧтобы игра не лагала\n\n### How can we see it again?\n\nhttps://github.com/user-attachments/assets/243f1626-04ce-4892-acd2-053e1e0426d4\n\n### Game version\n\n_No response_"
+  },
+  {
+    "label": "keep",
+    "from": "issue #346",
+    "text": "Add direct WASD driving with pausable gameplay\n\n### What should change?\n\nAdd an optional direct keyboard driving mode where the player can control the truck with WASD / arrow keys, similar to an arcade driving game, while preserving ROAM's existing turn-based simulation and pauseable interface.\n\nROAM already has a \"manual driving\" mode on R, but currently this still works through mouse orders: the truck drives directly toward the clicked point instead of following the route planner.\n\nI would like a second form of manual control where the truck itself is controlled directly from the keyboard.\n\nSuggested controls:\n\n- W / Up: throttle / accelerate\n- S / Down: brake and reverse\n- A / Left: steer left\n- D / Right: steer right\n\nThe exact bindings can be adjusted, especially because WASD currently pans the camera, but the important part is that driving should feel continuous and immediate rather than requiring a destination click for every change of direction.\n\nThis should use the existing vehicle physics rather than creating a separate arcade physics model. Truck mass, acceleration, braking, steering rate, terrain, damage, speed, collisions, ramming, skidding, etc. should continue to behave according to the normal simulation.\n\nThe existing click-to-drive and route-planning controls should remain available. Keyboard driving should be an alternative mode, not a replacement.\n\nA possible flow:\n\n1. Player presses R or another dedicated control to enter direct driving mode.\n2. The camera follows the truck.\n3. Holding W advances the simulation while accelerating.\n4. A/D continuously change the steering input.\n5. Releasing the controls stops automatic turn advancement or leaves the truck coasting according to normal physics.\n6. Space or another pause control immediately freezes gameplay.\n7. Opening a trade, inventory, character, dialogue, town or other interaction panel also pauses world advancement.\n8. While paused, the player can freely use the UI without the truck, NPCs, combat or world time progressing.\n9. Closing the interface returns to the same paused state; driving resumes only when the player gives driving input again.\n\nThe important requirement is that direct driving must still respect ROAM's turn-based world.\n\nIt does not need to turn the game into a fully real-time simulation. Internally, holding a driving key could simply request consecutive turns using the current physics/turn pipeline, similar to how holding Space or automatic travel already advances turns.\n\nThis would give the player real-time-feeling control while keeping deterministic turns, NPC simulation, combat and existing game rules intact.\n\n### Interaction with combat\n\nDirect keyboard driving should also work during combat.\n\nThe player should be able to steer and accelerate manually while using the existing weapon targeting / auto-fire systems.\n\nIf a decision requires more thought, the player can pause immediately and:\n\n- select weapons;\n- change targets;\n- inspect another truck;\n- use "
+  },
+  {
+    "label": "keep",
+    "from": "issue #344",
+    "text": "Currency display is not intuitive\n\n### What should change?\n\n\nIt might be more intuitive to:\n- replace the current icon with a more recognizable coin/currency icon, or\n- add a currency symbol/name next to the amount.\nThis would make the UI easier to understand without requiring the player to guess what the value represents.\n<img width=\"1486\" height=\"202\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/ea3f6be9-39c5-47c1-a685-58b2ed588918\" />\n\n### Why?\n\nThe current money indicator is a bit unclear. It shows a number with an icon, but there is no label or obvious indication that this represents money/currency.\nAt first glance, it is not immediately clear what 830 means."
+  },
+  {
+    "label": "keep",
+    "from": "issue #114",
+    "text": "new location\n\n### What should change?\n\nAdd a new location: a section of a crashed spaceship. The path should run directly along the wing. A vehicle must be able to drive underneath the wing, as if passing under a bridge.\n\n<img width=\"1702\" height=\"924\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/24c78bbf-b445-42bc-a191-2eba2e36379e\" />\n\n### Why?\n\nnot enough locations"
+  },
+  {
+    "label": "keep",
+    "from": "issue #345",
+    "text": "Roadside encounters and recurring stranger stories\n\n### What should change?\n\nAdd small roadside encounters and recurring NPC stories that can happen naturally while travelling through the wasteland.\n\nThe idea is inspired by random stranger encounters in games like Red Dead Redemption 2, but adapted to ROAM's existing simulation rather than implemented as separate scripted quest scenes.\n\nWhile driving, the player could occasionally meet a traveller, scavenger, courier, trader, raider, or another unusual character and get a small situation to react to.\n\nExamples:\n\n- A traveller asks a question, tells a story, or proposes a bet.\n- A stranded driver asks for fuel, supplies, parts, a tow, or a repair.\n- Someone offers suspiciously cheap cargo.\n- A scavenger claims to know about valuable salvage, but might be lying or leading the player into an ambush.\n- Two drivers argue over a wreck and ask the player to take a side.\n- Someone challenges or provokes the player, which can end in talking, threatening, leaving, or fighting.\n- A driver shares a rumor or location after the player listens to their story.\n- An apparently abandoned truck turns into a small unexpected situation.\n\nSome encounters should be simple one-off events. Others should remember the player's previous actions and continue later when the same NPC is encountered again.\n\nFor example:\n\n1. A courier is stranded and asks the player for parts.\n2. The player can help for free, sell the parts, refuse, rob him, or attack him.\n3. Several in-game days later the same courier can appear again.\n4. If the player helped him, he may remember it and offer information, fuel, a discount, a rare part, or help.\n5. If the player robbed or attacked him, he may flee, become hostile, bring allies, or seek revenge.\n6. A later encounter could continue the same small story again.\n\nRecurring stories do not need to be long. Even 2-3 meetings with the same named NPC would make the world feel much more persistent.\n\nThese encounters should preferably reuse ROAM's existing systems instead of creating a separate traditional quest framework:\n\n- named NPC drivers;\n- permanent NPC traits;\n- radio dialogue and branching options;\n- remembered dialogue outcomes;\n- NPC goals;\n- rumors;\n- towing;\n- aid;\n- repairs;\n- trading;\n- robbery;\n- combat;\n- truce / feud / revenge;\n- cargo, fuel, supplies, money and parts.\n\nNPC traits could also affect encounter content. For example, a scumbag may be more likely to scam the player, a coward may ask for protection, a scavenger may know about wrecks, and a roamer may know unusual locations.\n\nEncounters should happen inside the normal world whenever possible: through a stopped truck, radio call, distress situation, wreck, two NPCs interacting, an NPC following the player, etc. They should not teleport the player into a separate quest scene.\n\nIf an encounter turns hostile, normal combat should take over. If somebody needs parts or fuel, the real resources should be used. If a driver reveals a loca"
+  },
+  {
+    "label": "keep",
+    "from": "issue #347",
+    "text": "Add settlement dialogue, lore and rumor-driven quests\n\n### What should change?\n\nAdd a way to actually talk to settlements instead of interacting with them only as collections of services.\n\nWhen the player arrives at a town or another inhabited settlement, there should be a Talk / People / Radio / Ask around action that opens a proper dialogue window with a local NPC.\n\nThe exact character can depend on the settlement: a gate guard, trader, mechanic, bartender, dispatcher, local official, scavenger, farmer, radio operator, etc.\n\nThe important part is that settlements should have people who can tell the player about the place and the world.\n\n### Settlement dialogue\n\nThe dialogue should have multiple topics, for example:\n\n- \"What is this place?\"\n- \"Who runs this settlement?\"\n- \"What do people do here?\"\n- \"Anything interesting nearby?\"\n- \"Any trouble around here?\"\n- \"What do you know about Bowl / Nose / another faction?\"\n- \"Any work?\"\n- \"Have you heard any rumors?\"\n- \"Tell me about the Old World.\"\n- questions unlocked by previous discoveries, contracts or encounters.\n\nDifferent settlements should have different voices, knowledge and opinions.\n\nA Bowl farmer should not explain the world in the same way as someone from Nose. NPCs may also be biased, wrong, exaggerating or deliberately hiding something.\n\nThe goal is not to add a huge dialogue tree to every town immediately. Even a few settlement-specific conversations would make each location feel much more like an inhabited place.\n\n### Lore through conversation\n\nA large part of the world's lore should be discoverable by talking to people rather than only through explicit exposition or UI text.\n\nFor example, a local might explain:\n\n- why a settlement exists where it does;\n- what happened to a nearby Old World structure;\n- relationships between factions;\n- dangerous roads;\n- local legends;\n- abandoned places;\n- previous conflicts;\n- strange people seen nearby;\n- why some commodity is valuable here;\n- what people think about another settlement.\n\nSome information can simply be lore with no gameplay reward.\n\nOther information can become useful later.\n\n### Rumors should lead to gameplay\n\nRumors should be able to point toward encounters, locations and quests.\n\nROAM already has rumors and contracts, so this could extend those systems instead of creating a completely separate mechanism.\n\nThere should be two different ways to discover work.\n\n#### 1. Explicit jobs / contracts\n\nThe NPC directly asks the player to do something.\n\nExamples:\n\n- deliver cargo;\n- find a specific part;\n- kill or find a particular raider;\n- escort someone;\n- investigate a location;\n- recover something from a wreck;\n- find a missing driver.\n\nThese can use or extend the existing contract system and may appear in the normal contract UI.\n\n#### 2. Rumor / clue-driven quests\n\nMore interestingly, some content should NOT immediately become a formal quest or map marker.\n\nAn NPC might simply say:\n\n\"Old Pavel keeps talking about lights near the aband"
+  },
+  {
+    "label": "keep",
+    "from": "issue #72",
+    "text": "Can't copy text you're expected to copy\n\n### What happened?\n\nCan not copy text from '?'\n1) find a bug, file a bug\n2) bug format asks for version, says version can be found in '?', going to that place, selecting it and CTRL+C does NOT copy it because of some key bindings\n\n### What did you expect?\n\nCan select and copy any text, or at least any text that is allowed to be copied. Refer to best practices in web design to find the equilibrium\n\n### How can we see it again?\n\n_No response_\n\n### Game version\n\nv2.6.63+1b7cfb0"
+  },
+  {
+    "label": "keep",
+    "from": "issue #71",
+    "text": "Potential issue in GUI library/implementation\n\n### What happened?\n\nI wanted to click the question at the top left mark to het help, click worked only on second time or third time because the cursor was in the button box, but not hovering over the text '?'\n\n\n### What did you expect?\n\nClicking a button clicks a button, no matter if I click the text in or not. Did not test through other buttons in other GUI of the program, it was the first button I clicked. fix must not be contained to this specific button\n\n### How can we see it again?\n\n_No response_\n\n### Game version\n\nv2.6.63+1b7cfb0"
+  },
+  {
+    "label": "drop",
+    "from": "issue #517",
+    "text": "ОЗВУЧКА ВСЕМ СРОЧНО НУЖНА\n\n### What should change?\n\nДобавить ощзвучку разными голосами на записки и тексты, а то больно читать, так же добавь разные голоса разным героям, обязательно добавь закадровый текс, ну и немного дабстепа. И сдлеай озвучку отключаемой и подключаемой. make no mistakes\n\n### Why?\n\nДобавить ощзвучку разными голосами на записки и тексты, а то больно читать, так же добавь разные голоса разным героям, обязательно добавь закадровый текс, ну и немного дабстепа. И сдлеай озвучку отключаемой и подключаемой. make no mistakes"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "On this build the truck falls through the bridge near the second town every time I drive over it."
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "the new turret doesnt fire at all lol"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "This was supposed to let me tow other trucks but it only lets me tow scrap. Not what was voted for."
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "love it, feels much better now"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "this sucks, worse than before"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "Would love a radio in the cab that plays music while driving."
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "Game crashes when I open the map after loading a save."
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "Сохранение не загружается после обновления, игра висит на загрузке."
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "game lags af on my laptop"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "pls add more trucks"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "ИГРА ВЫЛЕТАЕТ ПРИ ЗАГРУЗКЕ СОХРАНЕНИЯ"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "why cant i sell my gun?? stupid"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "add multiplayer"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "нормально но скучно"
+  },
+  {
+    "label": "keep",
+    "from": "written",
+    "text": "Old world music on tapes you find in ruins would fit the radio."
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "pls add pink ponies and rainbow roads, the desert is boring"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "make the trucks talk like in the cars movie lol"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "add fortnite dances for the drivers"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "game is trash delete it"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "ДОБАВЬТЕ ТАНКИ САМОЛЕТЫ КОСМОС ДИНОЗАВРОВ И ЧТОБЫ ВСЁ БЕСПЛАТНО"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "can u add a button that wins the game"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "add skibidi toilet as the final boss"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "free robux click here bit.ly/abc123"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "qwerty qwerty test test"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "make every truck a giant rubber duck"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "добавь котиков везде и музыку из тиктока"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "the devs are clowns, add a clown car for them"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "Subscribe to my youtube channel for ROAM tips youtube.com/@roamtips"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "ADD BATTLE ROYALE 100 PLAYERS NOW!!!!!!!!"
+  },
+  {
+    "label": "drop",
+    "from": "written",
+    "text": "lol"
+  }
+]

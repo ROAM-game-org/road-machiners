@@ -137,7 +137,7 @@ export class RadioStation {
     }
     if (fresh.length === 0) return;
     const found = (id: string) => world.player.discovered.includes(id);
-    const known = fresh.filter((c) => found(c.shop) && (c.kind !== 'haul' || found(c.to)));
+    const known = fresh.filter((c): c is BoardContract => c.kind !== 'escort' && found(c.shop) && (c.kind !== 'haul' || found(c.to)));
     const best = known.sort((a, b) => b.reward - a.reward)[0];
     if (best) this.push(best.kind, contractVars(best), 'news');
   }
@@ -199,7 +199,9 @@ function boardIds(world: World): Set<string> {
   return new Set(Object.values(world.shops).flatMap((s) => s.contracts.map((c) => c.id)));
 }
 
-function contractVars(c: Contract): Slots {
+type BoardContract = Exclude<Contract, { kind: 'escort' }>;
+
+function contractVars(c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
   if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };

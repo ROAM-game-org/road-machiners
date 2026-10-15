@@ -11,6 +11,7 @@ import { discoverSite } from './locations';
 import { inCombat, isHostile } from './combat';
 import { patchGoal, startTow, topGoal } from './npc-activities';
 import { haulBlocked, isExpired, shopAt, shopState, takeContract, type Contract, goodValue, priceAtPressure, standingPrice, vehicleValue } from './market';
+import { escortBlocked, heldEscort, holdEscort, releaseHold, type EscortContract } from './escort-job';
 import { recall } from './memory';
 import { hasPerk, practice } from './progress';
 import { abandonSpill, answerPlea, standDownBeggar, backOffClaims, defyClaims, guardsClaim, answersPlea, answersSurrender, offeredSurrenderBy, answersThreat, giveUpTo, handedOver, hasStrandedPrey, hasStrippable, judgedWorthOffer, makePeace, offersGiveUp, pendingPlea, playerPleaded, settlePlayerPlea, settleThreat, spillClaimOn, standDownTo, surrenderTo, yieldTo, type ThreatAnswer } from './parley';
@@ -219,6 +220,14 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcNeedsPatch: (world, npc) => needsPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id),
   npcWorn: (world, npc) => canTakeWornPatch(world, npc) && !canFixItself(world, npc) && !inPatch(world, npc.id) && !isTowing(world, npc.id) && !isStranded(world, playerVehicle(world)),
   npcOffRope: (world, npc) => !isOnRope(world, npc.id),
+  escortFollowed: (world, npc) => {
+    const job = heldEscort(world);
+    return job !== null && job.client === npc.id && job.holdUntil === null;
+  },
+  escortHeld: (world, npc) => {
+    const job = heldEscort(world);
+    return job !== null && job.client === npc.id && job.holdUntil !== null;
+  },
   noTrade: (world, npc) => tradeWith(world, npc) === null,
   npcCalm: (world, npc) => !inCombat(world, npc),
   hasDeal: (_world, _npc, vars) => vars.deal !== undefined,
@@ -280,6 +289,8 @@ export const EFFECTS: Record<EffectId, Effect> = {
   refuseTow: (world) => refuseOffer(world),
   askTow: (world, npc) => startTow(world, npc, playerVehicle(world), strandedPlayerAt(world, npc)!),
   startTrade: (world, npc) => startTrade(world, npc),
+  holdEscort: (world) => holdEscort(world, requireEscort(world)),
+  releaseHold: (world) => releaseHold(requireEscort(world)),
   agreePatch: (world, npc, call) => {
     const terms = call.vars.deal;
     if (terms?.kind !== 'deal') throw new Error('agreePatch needs deal terms');
@@ -484,7 +495,7 @@ export function townOffers(world: World): Contract[] {
 }
 
 export function townWork(world: World): Contract | null {
-  const open = townOffers(world).filter((c) => !haulBlocked(world, c));
+  const open = townOffers(world).filter((c) => !haulBlocked(world, c) && !(c.kind === 'escort' && escortBlocked(world, c)));
   if (boardFull(world)) return null;
   return open.reduce<Contract | null>((best, c) => (best === null || c.reward > best.reward ? c : best), null);
 }
@@ -537,4 +548,10 @@ function noteClaimLead(world: World, npc: Vehicle): void {
   if (claim.leads.some((l) => l.driver === driver)) return;
   claim.leads.push({ turn: world.turn, from: { ...playerVehicle(world).pos }, driver });
   world.events.push({ t: 'claimLead', contract: claim.id, driver });
+}
+
+function requireEscort(world: World): EscortContract {
+  const job = heldEscort(world);
+  if (!job) throw new Error('The player holds no escort job');
+  return job;
 }

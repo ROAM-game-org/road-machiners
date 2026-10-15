@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -869,7 +873,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withDutyLegs_59_60,
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
-  withSalvageClaims_62_63,
+  withEscortJobs_62_63,
   withClaimRivals_63_64,
 ];
 
@@ -891,10 +895,6 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
-}
-
-function withSalvageClaims_62_63(world: SavedJson): SavedJson {
-  return world;
 }
 
 const CLAIM_KIND_63_64 = 'claim';
