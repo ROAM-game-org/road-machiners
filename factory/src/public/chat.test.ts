@@ -49,7 +49,7 @@ describe('public chat', () => {
     const { f, asked } = chat([{ text, decision: { kind: 'feature', relevance: 'parent' } }]);
     post(f, { id: 11, text, thread: PROPOSAL });
     await publicTick(f.ctx, filterOf(async (input) => { asked.push(input); return { ...SINCERE, kind: 'feature' }; }));
-    expect(asked).toEqual([{ source: 'comment', text, parent: 'Faction reputation' }]);
+    expect(asked).toEqual([{ source: 'comment', text, parent: 'Faction reputation', context: null, work: [] }]);
     expect(f.comments.map((comment) => comment.issue)).toEqual([568]);
     expect(f.comments[0]!.body).toContain(`> ${text}`);
     expect(f.created).toEqual([]);

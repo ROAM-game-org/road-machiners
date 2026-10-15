@@ -17,6 +17,8 @@ export type BuildPost = { issue: number; build: string; chat: string; messageId:
 export type StoredComment = { id: number; issue: number | null; source: 'telegram' | 'game'; author: string; text: string; at: string; kind: CommentKind | null; route: PublicRoute | null; chat: string | null; messageId: number | null; sender: string | null; addressed: boolean; relevance: Relevance | null; filedIssue: number | null; filedAt: string | null; replyId: number | null; context: string | null; workIssue: number | null; language: ReplyLanguage | null; linked: boolean };
 export type IssueComment = StoredComment & { issue: number };
 export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean; context?: string | null };
+export type KnownWork = { issue: number; text: string };
+export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
@@ -202,8 +204,17 @@ export class PublicStore {
     return this.db.prepare(`select * from (${waiting}) order by turn, id limit ?`).all(limit).map(toComment);
   }
 
-  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, relevance: Relevance = 'parent'): void {
-    this.db.prepare('update comments set kind = ?, route = ?, relevance = ?, classified_at = ? where id = ?').run(kind, route, relevance, now.toISOString(), id);
+  classify(id: number, kind: CommentKind, route: PublicRoute, now: Date, relevance: Relevance = 'parent', judged: Judged = {}): void {
+    const sql = 'update comments set kind = ?, route = ?, relevance = ?, classified_at = ?, work_issue = ?, language = ? where id = ?';
+    this.db.prepare(sql).run(kind, route, relevance, now.toISOString(), judged.workIssue ?? null, judged.language ?? null, id);
+  }
+
+  knownWork(): KnownWork[] {
+    const proposals = this.db.prepare('select issue, pitch from proposals order by issue').all().map((row) => ({ issue: Number(row.issue), text: workText(String(row.pitch)) }));
+    const firstFiled = 'select min(id) from comments where filed_issue is not null and linked = 0 group by filed_issue';
+    const filed = this.db.prepare(`select filed_issue, text from comments where id in (${firstFiled}) order by filed_issue`).all().map((row) => ({ issue: Number(row.filed_issue), text: oneLineCut(String(row.text)) }));
+    const proposed = new Set(proposals.map((work) => work.issue));
+    return [...proposals, ...filed.filter((work) => !proposed.has(work.issue))];
   }
 
   unsentComments(): IssueComment[] {
@@ -356,6 +367,14 @@ export class PublicStore {
 }
 
 type Row = Record<string, unknown>;
+
+const WORK_CHARS = 200;
+const oneLineCut = (text: string): string => text.replace(/\s+/g, ' ').trim().slice(0, WORK_CHARS);
+
+function workText(pitch: string): string {
+  const [title, ...rest] = pitch.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+  return oneLineCut(rest.length === 0 ? title ?? '' : `${title}: ${rest[0]}`);
+}
 
 const reachOf = (event: CommentEvent) => ({ sender: event.sender, messageId: event.messageId, addressed: event.addressed, context: event.context ?? null });
 
