@@ -21,15 +21,13 @@ import type { World } from './types';
 import { defaultSetup } from './settings';
 
 describe('townStart', () => {
-  it('parks every chassis on a town pad with no vehicle on top of it', () => {
-    for (const chassis of Object.keys(CHASSIS)) {
-      const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
-      const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
-      const truck = playerVehicle(world);
-      expect(townAt(world), chassis).not.toBeNull();
-      for (const v of world.vehicles.filter((o) => o !== truck)) {
-        expect(dist(v.pos, truck.pos), `${chassis} and ${v.id}`).toBeGreaterThan(vehicleStats(world, truck).radius);
-      }
+  it.each(Object.keys(CHASSIS))('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
+    const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
+    const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
+    const truck = playerVehicle(world);
+    expect(townAt(world), chassis).not.toBeNull();
+    for (const v of world.vehicles.filter((o) => o !== truck)) {
+      expect(dist(v.pos, truck.pos), `${chassis} and ${v.id}`).toBeGreaterThan(vehicleStats(world, truck).radius);
     }
   });
 

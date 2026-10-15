@@ -30,6 +30,14 @@ describe('the vendored Blender image skill', () => {
   });
 });
 
+describe('the ultrapack plugin of the image', () => {
+  it('fails the build without the up:expand and up:udocument skills the stage prompts invoke', () => {
+    const dockerfile = readFileSync(join(DOCKER, 'Dockerfile'), 'utf8');
+    const install = dockerfile.slice(dockerfile.indexOf('RUN claude plugin marketplace add'));
+    expect(install.slice(0, install.indexOf('\n\n'))).toMatch(/claude plugin install up@ultrapack \\\n && ls \S+\/skills\/expand\/SKILL\.md \S+\/skills\/udocument\/SKILL\.md/);
+  });
+});
+
 function runEntry(home: string, gameSkills: string): { code: number | null; out: string; err: string } {
   const bin = join(home, 'bin');
   mkdirSync(bin, { recursive: true });

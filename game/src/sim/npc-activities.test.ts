@@ -16,7 +16,7 @@ import { getKnownSite, getUpkeepReserve, judgeDanger, noteStripped, optionChance
 import { affordableBuyCount, getLotTradePrice, getTradePrice } from './economy';
 import { cargoRoom } from './inventory';
 import { ECONOMY, GOODS } from '../data/goods';
-import { endTurn, newWorld } from './world';
+import { endTurn } from './world';
 import { corePart, freeCells, goodsCount } from './grid';
 import { makePart } from './factory';
 import { addGoods, hasCargoRoom } from './inventory';
@@ -32,8 +32,7 @@ import { chassisDef } from '../data/chassis';
 import { cloneWorld } from './world';
 import { canUseSite, siteGates, sitePads } from './sites';
 import { territoryEntries, territoryOfStock, territoryPieces, territorySpots } from './territory';
-import { START_KITS } from '../data/start';
-import { TEST_MAP } from '../test/map';
+import { standardWorld } from '../test/world-cache';
 import { fuelCap, vehicleStats } from './stats';
 import { heatAt } from './sun';
 import { dist, polylineDist, type Vec } from './vec';
@@ -45,7 +44,6 @@ import { inCombat } from './combat';
 import { refreshVision } from './vision';
 import { emptyHidden } from './salvage';
 import { forgetOld, recall } from './memory';
-import { defaultSetup } from './settings';
 
 function overlookSalvage(w: World, npc: Vehicle): void {
   for (const stock of w.salvage) npc.brain!.noticed[`salvageSeen:${stock.id}`] = w.turn;
@@ -583,7 +581,7 @@ describe('NPC activities', () => {
     });
 
     it('drives into the cage by its open end to a cache inside, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const cage = territoryPieces(sun as never).find((p) => p.look === 'shipCage')!;
       const along = { x: Math.cos(cage.yaw), y: Math.sin(cage.yaw) };
@@ -623,7 +621,7 @@ describe('NPC activities', () => {
     });
 
     it('drives from the west road down into the crash furrow to a spot there, searches it and takes its loot', () => {
-      const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+      const w = standardWorld(1337);
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       const furrow = TERRAIN.features.furrow;
       const start = territoryEntries(sun as never)[0];

@@ -49,7 +49,6 @@ const WRITE: Record<string, { usage: string; help: string; build: Builder }> = {
   drop: { usage: `drop <${DROP_QUEUES.join('|')}> <id>`, help: 'drop one queued entry', build: ([queue, id]) => dropAction(queue, id) },
   'merge-change': { usage: 'merge-change <id>', help: 'merge a factory change PR into main', build: ([id]) => ({ action: 'merge-change', id: number(id) }) },
   'pause-card': { usage: 'pause-card N', help: "hold a card: stop its job, keep its work clone and agent sessions, and start no job on it until resume-card", build: ([n]) => ({ action: 'hold', issue: number(n) }) },
-  'recover-approval': { usage: 'recover-approval N', help: "keep a hotfix's lost approval again, after the factory checks its record on the issue: the approver, the approved build, no feedback, deny or drop since that post, and the branch still holds the build. The card then runs Testing with the full checks and ships with no new post", build: ([n]) => ({ action: 'recover-approval', issue: number(n) }) },
   'resume-card': { usage: 'resume-card N', help: 'lift the hold of a card, so its stage continues in the stopped sessions', build: ([n]) => ({ action: 'unhold', issue: number(n) }) },
 };
 
@@ -210,7 +209,7 @@ function publicState(ctx: Ctx): void {
 }
 
 function jobs(ctx: Ctx): void {
-  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}${job.caughtUp === undefined ? '' : ` caught up ${job.caughtUp.map((issue) => `#${issue}`).join(',')}`}`));
+  printRows(readState(ctx.statePath).jobs.map((job) => `${job.stage} ${job.issue === null ? '-' : `#${job.issue}`} pid ${job.pid} since ${job.startedAt} log ${job.log}${job.batch === undefined ? '' : ` batch ${job.batch.map((issue) => `#${issue}`).join(',')}`}`));
 }
 
 function queues(ctx: Ctx): void {
@@ -223,10 +222,15 @@ function queues(ctx: Ctx): void {
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
   console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`caught up: ${caughtUpRows(state)}`);
 }
 
-function formatMerges(merges: IssueMerge[] | null): string {
-  if (merges === null) return 'not filled yet';
+function caughtUpRows(state: FactoryState): string {
+  const rows = Object.entries(state.caughtUpTo).map(([issue, head]) => `#${issue} at ${head}`);
+  return rows.length === 0 ? 'none' : rows.join(', ');
+}
+
+function formatMerges(merges: IssueMerge[]): string {
   return merges.map((merge) => `#${merge.issue} ${merge.sha.slice(0, 7)}${merge.reverted.length ? ` reverted on ${merge.reverted.join(', ')}` : ''}`).join(', ') || 'none';
 }
 

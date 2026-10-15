@@ -28,7 +28,7 @@ export const CLONE_ROUNDS: readonly CloneRound[] = ['test'];
 export const HOST_ONLY_CHECKS = [
   'the guard on the pushed diff: factory paths and a SAVE_MAJOR bump',
   'the merge of the base branch into the work branch',
-  'the typecheck, playtest and build in a fresh clone',
+  'the build in a fresh clone',
 ] as const;
 
 export type CloneReport = { failures: string[] };

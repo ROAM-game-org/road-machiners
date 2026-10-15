@@ -14,6 +14,7 @@ import { addGoods, stowPart } from '../sim/inventory';
 import { kph } from './units';
 import { resetSeeAll, toggleSeeAll } from './see-all';
 import type { World } from '../sim/types';
+import { cloneWorld } from '../sim/world';
 import type { Msg } from '../text/msg';
 import { resolve } from '../text/resolve';
 
@@ -365,7 +366,7 @@ describe('the pass line of a hunting raider', () => {
     const { w, npc, player } = hunter();
     addGoods(w, player, 'scrap', 2);
     chooseOn(w, npc, player.id, player.pos, 'keep', true);
-    const before = structuredClone(w);
+    const before = cloneWorld(w);
     formatNpcPass(w, npc);
     expect(w).toEqual(before);
   });
