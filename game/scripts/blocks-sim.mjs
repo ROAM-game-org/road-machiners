@@ -3,7 +3,7 @@ import { nextRandom } from '../src/sim/rng.ts';
 import { BlockSession } from '../src/three/block-session.ts';
 import { BLOCK_EVENTS } from '../src/three/block-session.ts';
 
-const SONG_JSON = 'public/tmp/score-proto/song.json';
+const SONG_ROOT = 'public/tmp/score-proto';
 const STEP_SECONDS = 1 / 60;
 const AFTER_LAST_EVENT_SECONDS = 20;
 
@@ -23,6 +23,7 @@ Options:
   --seed <n>          Seed of every random choice. Default 1.
   --length <seconds>  How long the fight runs. Default the last event plus ${AFTER_LAST_EVENT_SECONDS} s.
   --end <seconds>     End combat at this time. Default the length.
+  --song <name>       Song folder under ${SONG_ROOT}, one of the songs in scripts/score-songs.json. Required.
 `;
 
 function fail(message) {
@@ -30,13 +31,14 @@ function fail(message) {
   process.exit(1);
 }
 
-const OPTIONS = ['--seed', '--length', '--end'];
+const OPTIONS = { '--seed': Number, '--length': Number, '--end': Number, '--song': String };
 
 function readArg(o, argv, i) {
   const arg = argv[i];
   if (arg === '--help') { console.log(HELP); process.exit(0); }
-  if (OPTIONS.includes(arg)) {
-    o[arg.slice(2)] = Number(argv[i + 1] ?? fail(`${arg} needs a value`));
+  const read = OPTIONS[arg];
+  if (read) {
+    o[arg.slice(2)] = read(argv[i + 1] ?? fail(`${arg} needs a value`));
     return i + 1;
   }
   if (arg.startsWith('--')) fail(`Unknown option ${arg}`);
@@ -45,9 +47,10 @@ function readArg(o, argv, i) {
 }
 
 function parseArgs(argv) {
-  const o = { events: [], seed: 1, length: null, end: null };
+  const o = { events: [], seed: 1, length: null, end: null, song: null };
   for (let i = 0; i < argv.length; i++) i = readArg(o, argv, i);
   if (!Number.isInteger(o.seed)) fail('--seed needs a whole number');
+  if (!o.song) fail('--song is required');
   o.events.sort((a, b) => a.at - b.at);
   return o;
 }
@@ -74,7 +77,7 @@ function step(session, pending, t, end) {
 }
 
 function run(o) {
-  const song = JSON.parse(readFileSync(SONG_JSON, 'utf8'));
+  const song = JSON.parse(readFileSync(`${SONG_ROOT}/${o.song}/song.json`, 'utf8'));
   const rng = { rngState: o.seed };
   const session = new BlockSession(song, output, () => nextRandom(rng));
   const length = o.length ?? (o.events.at(-1)?.at ?? 0) + AFTER_LAST_EVENT_SECONDS;

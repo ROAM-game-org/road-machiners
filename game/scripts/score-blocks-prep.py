@@ -10,6 +10,7 @@ import numpy as np
 BEATS_PER_BAR = 4
 KICK_HZ = 120
 CYMBAL_HZ = 5000
+DEMUCS_MODEL = "htdemucs_6s"
 
 
 def beat_grid(path, bpm):
@@ -56,7 +57,8 @@ def bar_power(song_path, guitars_path, bars):
     guitars, _ = librosa.load(guitars_path, sr=sr, mono=True)
     out = []
     for a, b in zip(bars, bars[1:]):
-        s, g = song[int(a * sr) : int(b * sr)], guitars[int(a * sr) : int(b * sr)]
+        lo, hi = max(0, int(a * sr)), int(b * sr)
+        s, g = song[lo:hi], guitars[lo:hi]
         out.append({"ss": float(np.mean(s * s)), "gg": float(np.mean(g * g)), "sg": float(np.mean(s * g))})
     return out
 
@@ -76,21 +78,42 @@ def cymbals(drums_path, out, bars, sections, song_path):
     return {"file": out.name, "from": loudest["from"]}
 
 
-def main(map_path, song_path, stems_dir, guitar_stem, out_dir):
-    plan = json.loads(Path(map_path).read_text())
+def map_song(plan, song_path, stems_dir, guitar_stem, out_dir):
     stems = {"drums": "drums.wav", "guitars": guitar_stem}
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     bars, length = bar_times(song_path, f"{stems_dir}/drums.wav", plan["bpm"], plan["bars"], plan.get("barOneAtFirstBeat", False))
-    shutil.copy(song_path, out / "song.mp3")
+    song_file = f"song{Path(song_path).suffix}"
+    shutil.copy(song_path, out / song_file)
     for name, stem in stems.items():
         shutil.copy(f"{stems_dir}/{stem}", out / f"{name}.wav")
     power = bar_power(song_path, f"{stems_dir}/{guitar_stem}", bars)
     cymbal = cymbals(f"{stems_dir}/drums.wav", out / "cymbals.wav", bars, plan["sections"], song_path)
-    song = {"file": "song.mp3", "stems": {name: f"{name}.wav" for name in stems}, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
+    song = {"file": song_file, "stems": {name: f"{name}.wav" for name in stems}, "cymbals": cymbal, "bpm": plan["bpm"], "length": length, "barTimes": bars, "barPower": power, "sections": plan["sections"], "end": plan["end"]}
     (out / "song.json").write_text(json.dumps(song, indent=1))
     print(f"wrote {out / 'song.json'} with {len(plan['sections'])} sections, guitar lane from {guitar_stem}")
 
 
+def split_once(source, work):
+    stems_dir = work / DEMUCS_MODEL / source.stem
+    if not (stems_dir / "drums.wav").exists():
+        subprocess.run([sys.executable, "-m", "demucs", "-n", DEMUCS_MODEL, "-o", str(work), str(source)], check=True)
+    return stems_dir
+
+
+def build_songs(songs_path, sources_dir, out_root):
+    work = Path(sources_dir) / "stems"
+    for name, entry in json.loads(Path(songs_path).read_text()).items():
+        source = Path(sources_dir) / entry["source"]
+        if not source.exists():
+            raise FileNotFoundError(f"{name} needs {source}")
+        plan = {**entry, "barOneAtFirstBeat": True}
+        map_song(plan, str(source), split_once(source, work), entry["guitarStem"], Path(out_root) / name)
+
+
+def main(map_path, song_path, stems_dir, guitar_stem, out_dir):
+    map_song(json.loads(Path(map_path).read_text()), song_path, stems_dir, guitar_stem, out_dir)
+
+
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    (build_songs if len(sys.argv) == 4 else main)(*sys.argv[1:])

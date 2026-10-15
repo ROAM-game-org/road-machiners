@@ -7,8 +7,9 @@ import { devEl as el, uiRoot } from "../ui/dom";
 import { token } from "../ui/tokens";
 import { BlockSession, TURN_SECONDS, type BlockEvent, type BlockOutput, type BlockSong, type Lane, type Part, type Played, type VoiceHandle } from "./block-session";
 
-const SONG_DIR = "/tmp/score-proto/";
-const PREP_HINT = "Run scripts/score-blocks-prep.py to write public/tmp/score-proto/ first.";
+const SONG_ROOT = "/tmp/score-proto/";
+const SONGS = ["dust", "convoy", "dusk"];
+const PREP_HINT = "Run scripts/score-blocks-prep.py to write each song into public/tmp/score-proto/<song>/ first.";
 const ZOOM_SECONDS = [6, 12, 24];
 const DEFAULT_ZOOM = 12;
 const FUTURE_SHARE = 0.15;
@@ -72,8 +73,9 @@ root.append(el("div", { class: "dim" }, "Loading the song..."));
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
 const ctx = mixer.ctx;
-const song = await loadSong();
-const [songBuffer, cymbalBuffer, guitarBuffer] = await Promise.all([decode(song.file), decode(song.cymbals.file), decode(song.stems.guitars)]);
+type Kit = { name: string; song: BlockSong; buffers: Record<Part, AudioBuffer> };
+const kits = new Map<string, Promise<Kit>>();
+let kit = await kitOf(pickSong());
 const songLevel = ctx.createGain();
 songLevel.gain.value = SCORE_BLOCKS.songGain;
 songLevel.connect(mixer.input("music"));
@@ -82,29 +84,42 @@ guitarLevel.gain.value = SCORE_BLOCKS.guitarPush;
 guitarLevel.connect(songLevel);
 const songDuck = ctx.createGain();
 songDuck.connect(songLevel);
-const PARTS: Record<Part, { buffer: AudioBuffer; out: AudioNode }> = {
-  song: { buffer: songBuffer, out: songDuck },
-  guitars: { buffer: guitarBuffer, out: guitarLevel },
-  cymbals: { buffer: cymbalBuffer, out: songLevel },
-};
+const OUTS: Record<Part, AudioNode> = { song: songDuck, guitars: guitarLevel, cymbals: songLevel };
 
-async function loadSong(): Promise<BlockSong> {
-  const res = await fetch(`${SONG_DIR}song.json`);
-  if (!res.ok) {
-    root.replaceChildren(el("div", { class: "dim" }, PREP_HINT));
-    throw new Error(`No song.json at ${SONG_DIR}: ${res.status}. ${PREP_HINT}`);
-  }
-  return (await res.json()) as BlockSong;
+function pickSong(): string {
+  return SONGS[Math.floor(Math.random() * SONGS.length)];
 }
 
-async function decode(file: string): Promise<AudioBuffer> {
-  const res = await fetch(SONG_DIR + file);
-  if (!res.ok) throw new Error(`Cannot fetch ${SONG_DIR + file}: ${res.status}. ${PREP_HINT}`);
+function kitOf(name: string): Promise<Kit> {
+  let loading = kits.get(name);
+  if (!loading) {
+    loading = loadKit(name);
+    kits.set(name, loading);
+  }
+  return loading;
+}
+
+async function loadKit(name: string): Promise<Kit> {
+  const dir = `${SONG_ROOT}${name}/`;
+  const res = await fetch(`${dir}song.json`);
+  if (!res.ok) {
+    root.replaceChildren(el("div", { class: "dim" }, PREP_HINT));
+    throw new Error(`No song.json at ${dir}: ${res.status}. ${PREP_HINT}`);
+  }
+  const song = (await res.json()) as BlockSong;
+  const [main, guitars, cymbals] = await Promise.all([decode(dir, song.file), decode(dir, song.stems.guitars), decode(dir, song.cymbals.file)]);
+  return { name, song, buffers: { song: main, guitars, cymbals } };
+}
+
+async function decode(dir: string, file: string): Promise<AudioBuffer> {
+  const res = await fetch(dir + file);
+  if (!res.ok) throw new Error(`Cannot fetch ${dir + file}: ${res.status}. ${PREP_HINT}`);
   return ctx.decodeAudioData(await res.arrayBuffer());
 }
 
 function voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
-  const { buffer, out } = PARTS[part];
+  const buffer = kit.buffers[part];
+  const out = OUTS[part];
   const seam = SCORE_BLOCKS.seamSeconds;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
@@ -151,17 +166,28 @@ function lean(offset: number, at: number, length: number, songScale: number, lev
 }
 
 const output: BlockOutput = { voice, lean };
-const session = new BlockSession(song, output, Math.random);
+let cymbalGain = SCORE_BLOCKS.cymbalGain;
+let session = newSession();
 let auto: Auto = "off";
 let nextTurn = 0;
 let span = DEFAULT_ZOOM;
 
+function newSession(): BlockSession {
+  const s = new BlockSession(kit.song, output, Math.random);
+  s.cymbalGain = cymbalGain;
+  return s;
+}
+
+async function startCombat(): Promise<void> {
+  kit = await kitOf(pickSong());
+  session = newSession();
+  session.start(ctx.currentTime);
+  nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
+}
+
 function flipCombat(): void {
   if (session.inCombat) session.end(ctx.currentTime);
-  else {
-    session.start(ctx.currentTime);
-    nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
-  }
+  else void startCombat();
 }
 
 function fire(kind: BlockEvent): void {
@@ -390,7 +416,10 @@ denseButton.title = "Up to 10 hits, 8 misses, 3 hits taken, 2 crits, 2 crashes a
 const gains = SCORE_BLOCKS.cymbalGains;
 const cymbalChoice = choice(
   gains.map((gain) => ({ label: `x${gain}`, value: gain })),
-  (gain) => (session.cymbalGain = gain),
+  (gain) => {
+    cymbalGain = gain;
+    session.cymbalGain = gain;
+  },
   gains.indexOf(SCORE_BLOCKS.cymbalGain),
 );
 const controlsPanel = panel(
@@ -418,6 +447,7 @@ const ledgerPanel = panel(ledgerHead, ledgerRows);
 function statRows(): [string, string][] {
   return [
     ["Combat", session.inCombat ? "on" : "off"],
+    ["Song", kit.name],
     ["Playing", session.playingAt(ctx.currentTime)?.label ?? "-"],
     ["Bars played", String(session.barsPlayed)],
     ["Heat", session.heatAt(ctx.currentTime).toFixed(2)],
