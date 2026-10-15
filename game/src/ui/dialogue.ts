@@ -9,7 +9,7 @@ import { playerSees } from '../sim/vision';
 import { playerCanAct } from '../sim/world';
 import { language, say } from '../text/language';
 import { byId, list, t, type Msg } from '../text/msg';
-import { goodLower, lineKey, partName, siteName, unitCount, vehicleTitle } from '../text/names';
+import { goodLower, lineKey, partName, refusalText, siteName, unitCount, vehicleTitle } from '../text/names';
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
@@ -102,9 +102,16 @@ function isTyping(): boolean {
   return document.activeElement?.matches('input, select, textarea') ?? false;
 }
 
-export function canCall(w: World, id: string): boolean {
+export function callError(w: World, id: string): Msg | null {
   const v = w.vehicles.find((x) => x.id === id);
-  return modeRules(w).radio && !!v?.brain && !isKnockedOut(v) && playerCanAct(w) && playerSees(w, v.pos);
+  if (!playerCanAct(w)) return refusalText(w, { id: 'cannotAct' });
+  if (!v?.brain) return refusalText(w, { id: 'noTruck' });
+  if (isKnockedOut(v)) return t('call.knockedOut');
+  return playerSees(w, v.pos) ? null : refusalText(w, { id: 'unseen' });
+}
+
+export function canCall(w: World, id: string): boolean {
+  return modeRules(w).radio && callError(w, id) === null;
 }
 
 export type DialogueHost = {
@@ -205,7 +212,7 @@ export class DialoguePanel {
     if (e.code === 'KeyH' && this.honk()) e.stopImmediatePropagation();
   }
 
-  private honk(): boolean {
+  honk(): boolean {
     if (!playerCanAct(this.host.world()) || !modeRules(this.host.world()).radio) return false;
     this.horn.sound();
     return true;
@@ -225,7 +232,7 @@ export class DialoguePanel {
     this.host.talk(chooseOption(this.host.world(), index));
   }
 
-  private callInspected(): boolean {
+  callInspected(): boolean {
     const id = this.host.inspected();
     if (!id || !canCall(this.host.world(), id)) return false;
     this.host.talk(callVehicle(this.host.world(), id));

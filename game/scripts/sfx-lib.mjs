@@ -1,11 +1,19 @@
 // Shared sound import: every file, whatever its source, gets the same treatment before the game uses it.
 // 1. Free music loses its quiet intro and outro and loops through a crossfade. A beat loop is stretched to its exact
 //    bar length, so layers stay locked.
-import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { beatLoopSeconds, MIX } from '../src/data/sounds.ts';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'node:fs';
+import { promisify } from 'node:util';
+import { BANK, beatLoopSeconds, MIX, SOUNDS } from '../src/data/sounds.ts';
 
 export const SFX_DIR = 'public/sfx';
+export const TWIN_DIR = 'public/sfx-m4a';
+export const TWIN_MANIFEST = 'src/data/sound-twins.json';
+const AAC_KBPS = 128;
+const TWIN_JOBS = 8;
+const SAMPLE_RATE = 48000;
+const run = promisify(execFile);
 const PEAK_DB = -1;
 const MAX_LIMIT_DB = 6;
 const SILENCE_DB = -60;
@@ -18,9 +26,6 @@ const MID = 'highpass=f=250,lowpass=f=4000';
 const MAX_MATCH_DB = 6;
 const METER_S = 0.4;
 const OPUS_KBPS = 96;
-const FALLBACK_KBPS = 128;
-const FRAME_RATE = 48000;
-export const LENGTHS = 'src/data/sound-lengths.json';
 const MUSIC_EDGE_DB = 15;
 const MUSIC_XFADE_S = 2;
 const SILENT_PEAK_DB = -40;
@@ -51,41 +56,9 @@ export function importFile(source, id, cue, level) {
   const gain = Math.min(level - loudness, PEAK_DB + MAX_LIMIT_DB - peak);
   const limiter = `alimiter=limit=${dbToLinear(PEAK_DB)}:attack=1:release=50:level=false:latency=true`;
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', src, '-af', `${shaped},volume=${gain.toFixed(2)}dB,${limiter}`, '-ar', '48000', '-c:a', 'libopus', '-b:a', `${OPUS_KBPS}k`, '-map_metadata', '-1', '-metadata', `comment=${source}`, out]);
-  writeFallback(name);
   const short = level - loudness - gain > 0.05 ? `, ${(level - loudness - gain).toFixed(1)} dB under target` : '';
   console.log(`${source} -> ${out}  ${loudness.toFixed(1)} LUFS, gain ${gain.toFixed(1)} dB${short}`);
   return name;
-}
-
-export function fallbackName(name) {
-  return name.replace(/\.ogg$/, '.m4a');
-}
-
-export function framesOf(name) {
-  const r = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', `${SFX_DIR}/${name}`, '-ac', '1', '-ar', String(FRAME_RATE), '-f', 's16le', '-'], { maxBuffer: 1 << 30 });
-  if (r.status !== 0) throw new Error(`ffmpeg could not decode ${name}: ${String(r.stderr).slice(-400)}`);
-  return r.stdout.length / 2;
-}
-
-export function readLengths() {
-  return existsSync(LENGTHS) ? JSON.parse(readFileSync(LENGTHS, 'utf8')) : {};
-}
-
-export function saveLengths(lengths) {
-  const sorted = Object.fromEntries(Object.entries(lengths).sort(([a], [b]) => (a < b ? -1 : 1)));
-  writeFileSync(LENGTHS, `${JSON.stringify(sorted, null, 1)}\n`);
-}
-
-export function writeFallback(name) {
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', `${SFX_DIR}/${name}`, '-c:a', 'aac', '-b:a', `${FALLBACK_KBPS}k`, '-ar', String(FRAME_RATE), '-map_metadata', '-1', `${SFX_DIR}/${fallbackName(name)}`]);
-  saveLengths({ ...readLengths(), [name]: framesOf(name) });
-}
-
-export function dropFallback(name) {
-  const file = `${SFX_DIR}/${fallbackName(name)}`;
-  if (existsSync(file)) unlinkSync(file);
-  const { [name]: _gone, ...rest } = readLengths();
-  saveLengths(rest);
 }
 
 function toneChain(src, source, id, cue) {
@@ -302,4 +275,43 @@ function roomIr() {
 
 function durationOf(src) {
   return Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', src], { encoding: 'utf8' }));
+}
+
+const twinName = (ogg) => ogg.replace(/\.ogg$/, '.m4a');
+const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+
+function samplesOf(path) {
+  const raw = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', path, '-ac', '1', '-ar', String(SAMPLE_RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 });
+  return raw.length / 4;
+}
+
+function checkTwinLength(ogg) {
+  const beat = Object.values(SOUNDS).some((cue) => cue.beat && cue.files.includes(ogg));
+  if (!beat) return;
+  const have = samplesOf(`${TWIN_DIR}/${twinName(ogg)}`);
+  const want = samplesOf(`${SFX_DIR}/${ogg}`);
+  if (Math.abs(have - want) > BANK.beatSlackSeconds * SAMPLE_RATE) throw new Error(`${twinName(ogg)} decodes to ${have} samples, ${ogg} to ${want}`);
+}
+
+async function encodeTwin(ogg) {
+  await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', `${SFX_DIR}/${ogg}`, '-ar', String(SAMPLE_RATE), '-c:a', 'aac', '-b:a', `${AAC_KBPS}k`, '-map_metadata', '-1', `${TWIN_DIR}/${twinName(ogg)}`]);
+}
+
+export async function syncTwins() {
+  mkdirSync(TWIN_DIR, { recursive: true });
+  const oggs = readdirSync(SFX_DIR).filter((f) => f.endsWith('.ogg')).sort();
+  const old = existsSync(TWIN_MANIFEST) ? JSON.parse(readFileSync(TWIN_MANIFEST, 'utf8')) : {};
+  const manifest = Object.fromEntries(oggs.map((f) => [f, sha256(`${SFX_DIR}/${f}`)]));
+  const stale = oggs.filter((f) => old[f] !== manifest[f] || !existsSync(`${TWIN_DIR}/${twinName(f)}`));
+  const wanted = new Set(oggs.map(twinName));
+  const orphans = readdirSync(TWIN_DIR).filter((f) => !wanted.has(f));
+  orphans.forEach((f) => unlinkSync(`${TWIN_DIR}/${f}`));
+  let next = 0;
+  const worker = async () => {
+    while (next < stale.length) await encodeTwin(stale[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(TWIN_JOBS, stale.length) }, worker));
+  stale.forEach(checkTwinLength);
+  writeFileSync(TWIN_MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`);
+  console.log(`twins: wrote ${stale.length}, removed ${orphans.length}`);
 }

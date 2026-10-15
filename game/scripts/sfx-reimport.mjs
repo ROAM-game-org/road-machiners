@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { MIX, SOUNDS } from '../src/data/sounds.ts';
-import { cueOf, dropFallback, importFile, isField, SFX_DIR } from './sfx-lib.mjs';
+import { cueOf, importFile, isField, SFX_DIR, syncTwins } from './sfx-lib.mjs';
 
 const MANIFEST = 'tmp/sfx-sources.json';
 
@@ -30,11 +30,9 @@ if (!existsSync(MANIFEST)) {
 const sources = JSON.parse(readFileSync(MANIFEST, 'utf8'));
 for (const [id, srcs] of Object.entries(sources)) {
   const cue = SOUNDS[id];
-  cue.files.forEach((f) => {
-    unlinkSync(`${SFX_DIR}/${f}`);
-    dropFallback(f);
-  });
+  cue.files.forEach((f) => unlinkSync(`${SFX_DIR}/${f}`));
   for (const src of srcs) importFile(src, id, cue, MIX.level[cue.bus]);
 }
 unlinkSync(MANIFEST);
+await syncTwins();
 console.log(`rebuilt ${Object.keys(sources).join(', ')}`);
