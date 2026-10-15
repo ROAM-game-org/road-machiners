@@ -1,5 +1,5 @@
 {
- "format": "2.61",
+ "format": "2.63",
  "shape": {
   "broken": [],
   "craters": [],
@@ -2099,7 +2099,8 @@
    "intro_arrival": [
     "start",
     "start.farm",
-    "start.house"
+    "start.house",
+    "start.shed"
    ],
    "intro_bowl": [
     "start"
@@ -2144,12 +2145,10 @@
    "wagon_bench": [
     "start",
     "bench",
-    "bench.report",
-    "bench.hub"
+    "bench.report"
    ],
    "wagon_seven": [
     "start",
-    "start.hub",
     "leave"
    ],
    "yard_sefa": [

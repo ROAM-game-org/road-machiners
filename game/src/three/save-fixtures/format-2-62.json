@@ -1,0 +1,13 @@
+{
+  "turn": 412,
+  "setup": {
+    "mode": "furyRoad",
+    "settings": {
+      "damage": 1,
+      "fuelUse": 1,
+      "supplyUse": 1,
+      "enemyGearGrowth": 1
+    }
+  },
+  "furyRoad": null
+}

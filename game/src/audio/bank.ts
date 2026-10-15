@@ -1,10 +1,17 @@
-import { fetchBytes } from "../fetch-bytes";
+import { AssetUnreachable, fetchAsset } from "../fetch-asset";
 import { BANK, beatLoopSeconds, SOUND_FRAME_RATE, SOUND_FRAMES, type Cue } from "../data/sounds";
 
 export type SoundFormat = "ogg" | "m4a";
 export type Bank = Map<string, AudioBuffer>;
 export type DecodeFailure = { file: string; error: unknown };
-export type LoadedBank = { bank: Bank; failures: DecodeFailure[] };
+export type LoadedBank = { bank: Bank; failures: DecodeFailure[]; unreachable: DecodeFailure[] };
+
+export class SoundUnreachable extends Error {
+  constructor(file: string, cause: unknown) {
+    super(`Sound ${file} could not be fetched`, { cause });
+    this.name = "SoundUnreachable";
+  }
+}
 
 export const SFX_DIR = `${import.meta.env.BASE_URL}sfx/`;
 
@@ -33,7 +40,7 @@ export async function loadBank(
 ): Promise<LoadedBank> {
   const files = Object.values(sounds).flatMap((c) => c.files);
   const decoded = new Map<string, AudioBuffer>();
-  const failures: DecodeFailure[] = [];
+  const failed: DecodeFailure[] = [];
   const order = [...formats];
   let done = 0;
   let next = 0;
@@ -43,13 +50,18 @@ export async function loadBank(
       const file = files[next++];
       const result = await decodeAny(ctx, file, order, lengths);
       if (result.buffer) decoded.set(file, result.buffer);
-      else failures.push({ file, error: result.error });
+      else failed.push({ file, error: result.error });
       progress?.(++done, files.length);
     }
   }
   await Promise.all(Array.from({ length: Math.min(BANK.decodeAtOnce, files.length) }, worker));
   const bank: Bank = new Map(files.map((f) => [f, decoded.get(f) ?? standIn(ctx, sounds, decoded, f)]));
-  return { bank, failures: files.flatMap((f) => failures.filter((x) => x.file === f)) };
+  const inFileOrder = files.flatMap((f) => failed.filter((x) => x.file === f));
+  return {
+    bank,
+    failures: inFileOrder.filter((x) => !(x.error instanceof SoundUnreachable)),
+    unreachable: inFileOrder.filter((x) => x.error instanceof SoundUnreachable),
+  };
 }
 
 async function decodeAny(ctx: BaseAudioContext, file: string, order: SoundFormat[], lengths: Record<string, number>): Promise<{ buffer?: AudioBuffer; error?: unknown }> {
@@ -61,6 +73,7 @@ async function decodeAny(ctx: BaseAudioContext, file: string, order: SoundFormat
       return result;
     }
     error = result.error;
+    if (error instanceof SoundUnreachable) break;
   }
   return { error };
 }
@@ -72,6 +85,7 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string, format: Soun
       return { buffer: await decodeFile(ctx, file, format, lengths) };
     } catch (e) {
       error = e;
+      if (e instanceof SoundUnreachable) break;
     }
   }
   return { error };
@@ -79,7 +93,15 @@ async function decodeWithRetry(ctx: BaseAudioContext, file: string, format: Soun
 
 async function decodeFile(ctx: BaseAudioContext, file: string, format: SoundFormat, lengths: Record<string, number>): Promise<AudioBuffer> {
   const url = format === "m4a" ? file.replace(/\.ogg$/, ".m4a") : file;
-  const buffer = await ctx.decodeAudioData(await fetchBytes(SFX_DIR + url));
+  const bytes = await fetchAsset("Sound", SFX_DIR + url).catch((e: unknown) => {
+    throw e instanceof AssetUnreachable ? new SoundUnreachable(file, e) : e;
+  });
+  let buffer: AudioBuffer;
+  try {
+    buffer = await ctx.decodeAudioData(bytes);
+  } catch (e) {
+    throw Object.assign(new Error(`Sound ${url} failed to decode: ${e}`, { cause: e }), { name: e instanceof Error ? e.name : "Error" });
+  }
   return format === "m4a" ? trimToMaster(ctx, buffer, file, lengths) : buffer;
 }
 

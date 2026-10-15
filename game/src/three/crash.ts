@@ -1,6 +1,7 @@
 
 
 import { GAME_VERSION } from '../config';
+import { AssetUnreachable } from '../fetch-asset';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
@@ -97,8 +98,20 @@ function ignoreForeign(facts: ErrorFacts): void {
 }
 
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  if (err instanceof WebGLUnavailable) showNoWebGL(err);
+  const kind = faultKind(err);
+  if (kind === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  else if (kind === 'unreachable') warnUnreachable(err as AssetUnreachable);
   else onFault(err, facts);
+}
+
+export function faultKind(err: unknown): 'webgl' | 'unreachable' | 'fault' {
+  if (err instanceof WebGLUnavailable) return 'webgl';
+  if (err instanceof AssetUnreachable) return 'unreachable';
+  return 'fault';
+}
+
+function warnUnreachable(err: AssetUnreachable): void {
+  console.warn(`${err.label} ${err.url} did not arrive after ${err.attempts} attempts`);
 }
 
 function onFault(err: unknown, facts: ErrorFacts | null): void {

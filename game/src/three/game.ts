@@ -33,7 +33,8 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
 import { READY_ARC_BIT } from "./render/models";
@@ -55,7 +56,7 @@ import { CraterViews } from "./render/craters";
 import { playBreak } from "./render/partDebris";
 import { BreakCues, shownItems, type PartBreak } from "./breakCues";
 import { PathView } from "./render/path";
-import { previewPlan, throttleColor } from "./plan-preview";
+import { firstTurnColor, PlanPreparation, throttleColor } from "./plan-preview";
 import { RenderScope, SightLimit } from "./render/scope";
 import { addSites } from "./render/sites";
 import { SiteLights } from "./render/siteLights";
@@ -176,6 +177,7 @@ export class Game {
   private readonly sightLimit: SightLimit;
   readonly follow: TruckFollow;
   private planFor: World | null = null;
+  private readonly plans = new PlanPreparation();
   private last = performance.now();
   private idleSince = performance.now();
   private pending: ((w: World) => World | null) | null = null;
@@ -305,7 +307,7 @@ export class Game {
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
-      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (w) => this.apply(w) }),
+      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -596,7 +598,17 @@ export class Game {
 
   private clickVehicle(id: string): void {
     this.pin.click(id);
-    if (this.selected !== null && this.canClick()) this.apply(toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), vehicleById(this.world, id)));
+    if (this.selected === null || !this.canClick()) return;
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), vehicleById(this.world, id)));
+  }
+
+  private applyRefusable(next: () => World): void {
+    try {
+      this.apply(next());
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.hud.note(this.world, refusalText(this.world, err.refusal), "bad");
+    }
   }
 
   private canShowCombatVehicle(v: Vehicle): boolean {
@@ -868,21 +880,17 @@ export class Game {
   }
 
   private refreshPlan(): void {
-    if (
-      this.travel.isAdvancing(this.anim, this.last) ||
-      this.planFor === this.world
-    )
-      return;
+    if (this.travel.isAdvancing(this.anim, this.last) || this.planFor === this.world) return;
     this.planFor = this.world;
     if (!playerCanAct(this.world)) return this.path.clear();
     const me = playerVehicle(this.world);
     if (!me.order && me.speed === 0) return this.path.clear();
-    timed("preview", () => this.planPath(me));
+    this.plans.request(this.world, this.drive, me.id);
   }
 
-  private planPath(me: Vehicle): void {
-    const plan = previewPlan(this.drive, this.world, me);
-    this.path.set(plan.turns, plan.first, plan.course, plan.waypoint);
+  private showPlan(): void {
+    const plan = this.plans.take(this.world);
+    if (plan) this.path.set(plan.turns, firstTurnColor(playerVehicle(this.world)), plan.course, plan.waypoint);
   }
 
   private flushUi(): void {
@@ -950,6 +958,7 @@ export class Game {
     for (const scope of this.scopes) scope.update(this.rig.camera);
     this.renderer.render(this.scene, this.rig.camera);
     this.refreshPlan();
+    this.showPlan();
   }
 
   private updateLiveVision(): void {
