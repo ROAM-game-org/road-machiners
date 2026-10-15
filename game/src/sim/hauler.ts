@@ -3,6 +3,7 @@ import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf } from './damage';
 import { backOutSpot } from './back-out';
+import { halfLength } from './body';
 import { isDefeated } from './defeat';
 import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
@@ -248,13 +249,22 @@ function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
   return isParked(hauler) && (betweenLevels(world) || onOutpostPad(world, hauler.pos, run.window + 1));
 }
 
+function stallExcused(world: World, hauler: Vehicle): boolean {
+  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || pinnedByFoe(world, hauler);
+}
+
+function pinnedByFoe(world: World, hauler: Vehicle): boolean {
+  const reach = halfLength(hauler.chassisId) + RULES.yieldDistance;
+  const foes = runOf(world).groups.flatMap((g) => g.vehicles);
+  return world.vehicles.some((v) => foes.includes(v.id) && !isDefeated(v) && dist(v.pos, hauler.pos) <= reach + halfLength(v.chassisId));
+}
+
 export function watchHaulerStall(world: World): void {
   if (!world.furyRoad || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
   const along = alongNow(world, hauler);
   const anchor = anchors.get(hauler.id);
-  const excused = isStranded(world, hauler) || parkedAtOutpost(world, hauler);
-  if (!anchor || excused || world.turn < anchor.turn || Math.abs(along - anchor.along) >= 1) {
+  if (!anchor || stallExcused(world, hauler) || world.turn < anchor.turn || Math.abs(along - anchor.along) >= 1) {
     anchors.set(hauler.id, { turn: world.turn, along });
     return;
   }

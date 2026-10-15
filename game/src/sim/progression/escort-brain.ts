@@ -9,6 +9,7 @@ import { corePart } from '../grid';
 import { alongOf, toRoad } from '../highway';
 import { inArc } from '../combat';
 import { backOutSpot } from '../back-out';
+import { isFree } from '../spawn';
 import { vehicleStats, type MountedWeapon } from '../stats';
 import { followPace, followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
@@ -63,9 +64,18 @@ function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
 }
 
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
-  const spot = followSpot(world, me, leader, 0);
+  const spot = clearFollowSpot(world, me, leader);
   if (leader.speed <= RULES.parkedSpeed) return { kind: 'stopAt', dest: spot };
   return { kind: 'through', dest: spot, pace: followPace(me, leader, spot) };
+}
+
+const FOLLOW_RANKS = [0, 1, 2, 3];
+const BEHIND_RANK = 2;
+
+function clearFollowSpot(world: World, me: Vehicle, leader: Vehicle): Vec {
+  const radius = vehicleStats(world, me).radius;
+  const spots = FOLLOW_RANKS.map((rank) => followSpot(world, me, leader, rank));
+  return spots.find((spot) => isFree(world, spot, radius, me.id)) ?? spots[BEHIND_RANK];
 }
 
 export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
@@ -92,7 +102,15 @@ export function killPriority(world: World, me: Vehicle, foe: Vehicle): number {
   const reach = Math.max(1, ...guns.map((mw) => mw.def.range));
   const near = Math.min(dist(foe.pos, me.pos), dist(foe.pos, haulerOf(world).pos));
   const damage = guns.reduce((sum, mw) => sum + sustainedDamage(mw.def), 0);
-  return (damage * Math.min(1, reach / Math.max(near, 1))) / Math.max(1, corePart(foe, 'cab').hp);
+  const threat = shootsHauler(world, foe) ? HAULER_SHOOTER : 1;
+  return (threat * damage * Math.min(1, reach / Math.max(near, 1))) / Math.max(1, corePart(foe, 'cab').hp);
+}
+
+const HAULER_SHOOTER = 2;
+
+function shootsHauler(world: World, foe: Vehicle): boolean {
+  const hauler = haulerOf(world).id;
+  return world.events.some((e) => e.t === 'shot' && e.shooter === foe.id && e.target === hauler);
 }
 
 export type Stall = { turn: number; at: Vec; stalled: number; recovery: number; goal: Vec | null };

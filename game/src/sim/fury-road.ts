@@ -4,8 +4,7 @@ import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
-import { PHYSICS } from '../data/physics';
-import { bodyOf } from './body';
+import { halfLength } from './body';
 import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
 import { isDefeated, knockOutNpc } from './defeat';
@@ -114,10 +113,6 @@ export function runStart(seed: number, playerChassis: string, from: number): { p
   const half = (halfLength(HAULER_KIT.chassis) + halfLength(playerChassis) + RULES.yieldDistance) / 2;
   const at = (ahead: number): Pose => ({ pos: { x: pad.x + Math.cos(heading) * ahead, y: pad.y + Math.sin(heading) * ahead }, heading });
   return { player: at(-half), hauler: at(half) };
-}
-
-function halfLength(chassisId: string): number {
-  return bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
 }
 
 export function spawnHauler(world: World, from: number): Vehicle {

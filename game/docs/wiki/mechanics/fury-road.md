@@ -47,7 +47,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 - Speed: 4.5 tiles a turn, and the same 4.5 for 4 turns after it takes damage, since `hurry` equals `cruise`, so it never outruns a fight. It never brakes for a fight and never stops on the road.
 - Outpost: within 25 tiles of the next outpost pad it drives to the pad and parks there. Between levels it stays parked.
 - It draws no random number. A stretch it drives alone replays exactly.
-- A hauler that makes under a tile of road progress for 12 turns, while it is not stranded or parked at an outpost, raises the `stall` event. A `stall` event is always a bug.
+- A hauler that makes under a tile of road progress for 12 turns, while it is not stranded, parked at an outpost or pinned nose to nose by a group truck that is not beaten, raises the `stall` event. A `stall` event is always a bug.
 
 ## Scenes
 
@@ -96,8 +96,8 @@ The run has no end. The HUD's run readout shows the stretch and the distance to 
 A director plans each stretch's groups when the road opens, in `src/sim/fury-road-director.ts`. Danger rises every stretch with no end, on five separate lines:
 
 - Groups: 2 on stretch 1, a quarter more each stretch, never more than one per 60 tiles of the stretch, so a short stretch holds fewer. A fraction rolls up or down, so stretches of one level differ.
-- Group size: 1.5 trucks on stretch 1, 0.15 more each stretch, from 1 to 5 trucks, rolled the same way.
-- Truck budget: 4 trucks on stretch 1, 2.5 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
+- Group size: 1 truck on stretch 1, 0.2 more each stretch, from 1 to 5 trucks, rolled the same way.
+- Truck budget: 2 trucks on stretch 1, 2 more each stretch. An elite truck costs 2. When the groups ask for more trucks than the budget, the largest group loses a truck first. Budget left over turns groups elite.
 - Gear money: each truck's gear money is 16% of the expected player gear, or its card's floor if that is more. The expected player gear is the money and parts of both start kits plus a quarter of all the pay earned before the stretch, since most pay goes to repairs. The Enemy growth world setting scales how fast it grows, as [world-settings.md](world-settings.md) describes.
 
 Elite groups start on stretch 3. A stretch has at most one, and one more every 4 stretches. An elite truck has twice the gear money, buys armor before any gun past its first. A blocker is never elite.

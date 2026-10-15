@@ -47,8 +47,8 @@ Both play a Chaos Highway world with the Chaos Highway kit and follow the hauler
 The escort plays as an NPC guard would.
 
 - Auto fire is on while no hostile is in sight.
-- With no hostile in sight, it holds the escort spot beside the hauler. `followSpot()` in `src/sim/tow.ts` gives the spot.
-- With a hostile in sight, it fights the deadliest one with the NPC merc fight code. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code. The deadliest is the one with the most working gun damage per cab HP, weighed down when it is out of its own range of the escort and the hauler. It keeps its target until another is half again as deadly.
+- With no hostile in sight, it holds the escort spot beside the hauler. `followSpot()` in `src/sim/tow.ts` gives the spots. It takes the first one clear of props and trucks, right, left, then behind, so it never steers into a roadblock beside the hauler.
+- With a hostile in sight, it fights the deadliest one with the NPC merc fight code. `fightPoint()` and `fightOrder()` in `src/sim/ai.ts` hold that code. The deadliest is the one with the most working gun damage per cab HP, weighed down when it is out of its own range of the escort and the hauler, and doubled when it shot the hauler last turn. It keeps its target until another is half again as deadly.
 - It focuses fire: every gun that reaches the target shoots it, and the others shoot the nearest hostile they reach.
 - It stands just outside the range of the foe's deadliest gun when its own guns reach further, and at 60% of its own range when they do not. It never drives into the foe.
 - It drives back to the escort spot when it falls behind the hauler along the road by more than its longest gun range.

@@ -6,7 +6,7 @@ import { betweenLevels, outpostPad } from './fury-road';
 import { chosenLane, haulerLane, haulerPace, laneClear, noteHaulerHits, planHaulerOrder, resetHaulerWatch, sideThreat, watchHaulerStall } from './hauler';
 import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from './highway';
 import { addVehicle, furyRoadWorld } from './testkit';
-import type { Vehicle, World } from './types';
+import type { Vehicle, WaveGroup, World } from './types';
 import { dist } from './vec';
 
 const LANES = HIGHWAY.road.lanes;
@@ -262,5 +262,27 @@ describe('the hauler driver', () => {
       expect(events()).toEqual([]);
     }
     expect(RULES.parkedSpeed).toBeGreaterThan(0);
+  });
+
+  it('raises no stall while a group truck pins it nose to nose, and raises one once that truck is beaten', () => {
+    resetHaulerWatch();
+    const { w, hauler } = openRoad();
+    hauler.speed = 0;
+    const foe = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 3.5, LANES[1]), 0);
+    w.furyRoad!.groups = [{ vehicles: [foe.id] } as unknown as WaveGroup];
+    const stalls = () => {
+      const seen = [];
+      for (let i = 0; i <= FURY_ROAD.hauler.stallTurns + 1; i++) {
+        w.turn++;
+        w.events = [];
+        watchHaulerStall(w);
+        seen.push(...w.events.filter((e) => e.t === 'stall'));
+      }
+      return seen;
+    };
+
+    expect(stalls()).toEqual([]);
+    foe.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [], gaveUp: true };
+    expect(stalls()).toHaveLength(1);
   });
 });
