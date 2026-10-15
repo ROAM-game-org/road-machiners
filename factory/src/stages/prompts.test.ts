@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { fillPrompt, promptFile } from './common';
 
 const PROMPTS = fileURLToPath(new URL('../../prompts/', import.meta.url));
-const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc'];
-const FACTORY_STAGES = ['change', 'waste'];
+const GAME_STAGES = ['triage', 'design', 'implement', 'test', 'integrate', 'harden', 'merge-fix', 'merge-branches', 'branch-merge', 'revert-merge', 'ship-fix', 'release-playtest', 'incident', 'adhoc', 'release', 'answer'];
+const FACTORY_STAGES = ['waste'];
 const FIX_STAGES = ['test', 'integrate', 'harden', 'merge-fix', 'ship-fix', 'release-playtest'];
-const NO_DOCS_STEP = [...FACTORY_STAGES, 'release', 'game-docs', 'fix-docs', 'design-bug', 'change-pr', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
+const NO_DOCS_STEP = [...FACTORY_STAGES, 'game-docs', 'fix-docs', 'design-bug', 'filter-game', 'release-janitor', 'release-optimize', 'release-playtest-replay', 'release-playtest-checks'];
 const STEP_LINE = /^(- )?(Read|Run|Install|Find|Score|Fix|Write|Check|Open|Create|Resolve|Play|Look|Build|Take|Use|Start|Compare)\b/m;
 
 function filled(name: string): string {
@@ -46,10 +46,6 @@ describe('the game docs step', () => {
     expect(npm).toBeGreaterThan(-1);
     expect(text.slice(end, npm)).not.toMatch(/npx vitest|npm run typecheck|npm test/);
     expect(text).toMatch(/(Run `npm ci`|Install the hooks) right after the docs step, before any code, test or check\./);
-  });
-
-  it.each(FACTORY_STAGES)('stays out of the %s prompt, which works on the factory', (name) => {
-    expect(filled(name)).not.toContain(docs);
   });
 });
 
