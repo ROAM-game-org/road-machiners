@@ -6,6 +6,13 @@ const ROAD_SHADE = 0.55;
 const SLOPE_GAIN = 0.12;
 const SLOPE_LIMIT = 0.35;
 const UNKNOWN = 2;
+const RAMP = [0x1a1410, 0x3a2418, 0x5e3420, 0x8a5e44, 0xb47f5d, 0xd9a878, 0xf0d2a8, 0xf4e8d4];
+const RAMP_STEPS = 12;
+const COLOR_KEEP = 0.6;
+const ORIGINAL_MIX = 0.5;
+const GRAIN = 6;
+const LUMA_LOW = 0.12;
+const LUMA_HIGH = 0.85;
 const FOG = { r: 0x1c, g: 0x1a, b: 0x18 };
 
 function colorOf(type: string): number {
@@ -21,6 +28,34 @@ function hillshade(t: Terrain, x: number, y: number): number {
   return 1 + Math.max(-SLOPE_LIMIT, Math.min(SLOPE_LIMIT, rise * SLOPE_GAIN));
 }
 
+function rampColor(luma: number): [number, number, number] {
+  const unit = Math.max(0, Math.min(1, (luma - LUMA_LOW) / (LUMA_HIGH - LUMA_LOW)));
+  const stepped = Math.round(unit * RAMP_STEPS) / RAMP_STEPS;
+  const at = stepped * (RAMP.length - 1);
+  const i = Math.min(RAMP.length - 2, Math.floor(at));
+  const f = at - i;
+  const a = RAMP[i];
+  const b = RAMP[i + 1];
+  const mix = (shift: number) => ((a >> shift) & 0xff) * (1 - f) + ((b >> shift) & 0xff) * f;
+  return [mix(16), mix(8), mix(0)];
+}
+
+function grain(i: number): number {
+  let h = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return ((h & 0xffff) / 0xffff - 0.5) * 2 * GRAIN;
+}
+
+function parchment(r: number, g: number, b: number, noise: number): [number, number, number] {
+  const luma = (r * 0.3 + g * 0.6 + b * 0.1) / 255;
+  const mapped = rampColor(luma);
+  const grey = (r + g + b) / 3;
+  const original = [r, g, b];
+  return mapped.map((m, c) => (m + (original[c] - grey) * COLOR_KEEP) * (1 - ORIGINAL_MIX) + original[c] * ORIGINAL_MIX + noise) as [number, number, number];
+}
+
 export function paintBase(t: Terrain): Uint8ClampedArray {
   const out = new Uint8ClampedArray(t.size * t.size * 4);
   const colors = new Map<string, number>();
@@ -34,9 +69,10 @@ export function paintBase(t: Terrain): Uint8ClampedArray {
         colors.set(type, base);
       }
       const k = hillshade(t, x, y);
-      out[i * 4] = ((base >> 16) & 0xff) * k;
-      out[i * 4 + 1] = ((base >> 8) & 0xff) * k;
-      out[i * 4 + 2] = (base & 0xff) * k;
+      const [r, g, b] = parchment(((base >> 16) & 0xff) * k, ((base >> 8) & 0xff) * k, (base & 0xff) * k, grain(i));
+      out[i * 4] = r;
+      out[i * 4 + 1] = g;
+      out[i * 4 + 2] = b;
       out[i * 4 + 3] = 255;
     }
   }

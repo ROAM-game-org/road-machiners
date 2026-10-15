@@ -16,7 +16,7 @@ export type MapOverlay = (ctx: CanvasRenderingContext2D, frame: MapFrame) => voi
 
 const BASES_KEPT = 3;
 const TIP_GAP = 12;
-const MARK = { town: 4, site: 3, wreck: 4, truck: 7, hit: 7 };
+const MARK = { town: 5, site: 4, wreck: 5, truck: 7, hit: 8 };
 const bases = new Map<string, HTMLCanvasElement>();
 
 function tileCanvas(size: number): HTMLCanvasElement {
@@ -156,7 +156,7 @@ export class MapView {
   private drawMarks(ctx: CanvasRenderingContext2D): void {
     ctx.fillStyle = token('--ink-bright');
     ctx.strokeStyle = token('--surface-sunk');
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     for (const site of this.sites) {
       const at = this.markAt(site);
       if (site.kind === 'wreck') this.drawRumor(ctx, at);
