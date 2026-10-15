@@ -5,7 +5,7 @@ import { withLockSync } from './lock';
 import { transcriptUsage } from './transcript';
 import { archiveTranscripts } from './transcript-archive';
 import type { CardFacts, CardFlow, CardStep } from './card-events';
-import type { Column, JobStage, Route, TokenPrice } from './types';
+import type { Column, JobStage, LedgerJobStage, Route, TokenPrice } from './types';
 import { reportAttempt, type Observation } from './observability';
 
 export type ModelUsage = { model: string; input: number; output: number; cacheRead: number; cacheWrite: number; cost: number };
@@ -18,7 +18,7 @@ export const isFailedOutcome = (outcome: JobOutcome): boolean => outcome !== 'do
 
 export type LedgerLine =
   | Observation
-  | { kind: 'job'; id: string; stage: JobStage; issue: number | null; startedAt: string; endedAt: string; outcome: JobOutcome; log?: string; batch?: number[]; agents: AgentUsage[]; parts?: JobPart[]; peakGb?: number; retryOf?: string | null }
+  | { kind: 'job'; id: string; stage: LedgerJobStage; issue: number | null; startedAt: string; endedAt: string; outcome: JobOutcome; log?: string; batch?: number[]; agents: AgentUsage[]; parts?: JobPart[]; peakGb?: number; retryOf?: string | null }
   | { kind: 'route'; issue: number; route: Route; by: string; at: string }
   | { kind: 'post'; id: number; channel?: string; text: string; at: string }
   | { kind: 'control'; action: string; issue: number | null; by: string; reason: string; at: string }

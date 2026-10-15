@@ -1,5 +1,6 @@
 import { reportFailure } from '../fail';
 import type { Ctx } from '../types';
+import { placeChatImages } from './chat-images';
 import { postProposal } from './proposals';
 import { classifyComments } from './classify-comments';
 import type { PublicFilter } from './decision';
@@ -19,6 +20,7 @@ const STEPS: Step[] = [
   postProposal,
   countVotes,
   fileComments,
+  placeChatImages,
   sendDigests,
   routeReports,
   sendReplies,
