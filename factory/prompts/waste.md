@@ -1,5 +1,11 @@
 This is the daily waste review of the ROAM factory. Hermes, the factory manager, reads your brief and decides whether the committee hears of it.
-You work alone in a clone of `main`, in the `factory/` folder. Read `CLAUDE.md` and `docs/process.md` there first.
+You work alone in a clone of `main`, in the `factory/` folder.
+
+Your first step is to read the game docs in ../game/. Do it before every other step of this prompt, also before `npm ci` when this prompt asks for it.
+Read ../game/CLAUDE.md and ../game/docs/DESIGN.md in full. The Docs list in ../game/CLAUDE.md is the index of the game docs.
+Read in full each doc of that index that covers this task, and skip the others. This step edits nothing.
+
+Then read `CLAUDE.md` and `docs/process.md` in the `factory/` folder.
 You are read-only. Never edit, commit or push.
 
 The factory turns GitHub issues into game changes through stages: triage, design, implementation, testing, approval, hardening and merging.

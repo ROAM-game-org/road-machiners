@@ -118,19 +118,21 @@ describe('drainInbox', () => {
 
   it('refuses a user outside the committee and queues nothing', async () => {
     const sent: string[] = [];
-    put('1.json', { kind: 'change', text: 'faster ticks', by: '99' });
+    put('1.json', { kind: 'adhoc', text: 'measure hit rates', by: '99' });
     await drainInbox(fakeCtx([], sent, []));
-    expect(readState(statePath).pendingChanges).toEqual([]);
+    expect(readState(statePath).adhocReplies).toEqual({});
     expect(sent[0]).toContain('Only committee members');
   });
 
   it('reads the committee file, so a member added later is accepted', async () => {
     mkdirSync(join(ROOT, 'committee'), { recursive: true });
     writeFileSync(join(ROOT, 'committee', 'committee.json'), '{"members":[{"telegram":"99","github":null,"name":null}]}');
-    put('1.json', { kind: 'change', text: 'x', by: '99' });
-    put('2.json', { kind: 'change', text: 'y', by: '11' });
-    await drainInbox(fakeCtx([], [], []));
-    expect(readState(statePath).pendingChanges.map((item) => item.text)).toEqual(['x']);
+    const sent: string[] = [];
+    put('1.json', { kind: 'adhoc', text: 'x', by: '99' });
+    put('2.json', { kind: 'adhoc', text: 'y', by: '11' });
+    await drainInbox(fakeCtx([], sent, []));
+    expect(Object.keys(readState(statePath).adhocReplies)).toHaveLength(1);
+    expect(sent.filter((text) => text.includes('Only committee members'))).toHaveLength(1);
   });
 
   it('shows the status of a button press on a text post by editing its text', async () => {
@@ -193,11 +195,8 @@ describe('drainInbox', () => {
     expect(() => parseCommand(JSON.stringify({ kind: 'route', route: 'ship', by: '1', chat: 'c', messageId: 1, postId: 2 }))).toThrow('Unknown route ship');
   });
 
-  it('answers a /change with one reply, since it acts on no post', async () => {
-    const sent: string[] = [];
-    put('1.json', { kind: 'change', text: 'faster ticks', postId: null });
-    await drainInbox(fakeCtx([], sent, []));
-    expect(sent).toEqual([expect.stringContaining('is queued. The factory answers with a pull request.')]);
+  it('refuses the retired change kind', () => {
+    expect(() => parseCommand(JSON.stringify({ kind: 'change', text: 'x', by: '1', chat: 'c', messageId: 1, postId: null }))).toThrow('change');
   });
 
   it('denies a card in Approval: closes, labels, moves to Done and clears state', async () => {
@@ -236,13 +235,6 @@ describe('drainInbox', () => {
     await drainInbox(fakeCtx([{ itemId: 'i', issue: 4, column: 'Testing', labels: [] }], sent, calls));
     expect(calls).toEqual([]);
     expect(sent[0]).toContain('not in Approval');
-  });
-
-  it('queues change requests in order', async () => {
-    put('1.json', { kind: 'change', text: 'a' });
-    put('2.json', { kind: 'change', text: 'b' });
-    await drainInbox(fakeCtx([], [], []));
-    expect(readState(statePath).pendingChanges.map((item) => item.text)).toEqual(['a', 'b']);
   });
 });
 
