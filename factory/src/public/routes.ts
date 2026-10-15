@@ -4,7 +4,7 @@ import { routeFeedback } from '../stages/approval';
 import { isQueued, readState } from '../state';
 import { PLAYER_REPORT_HEADING, PUBLIC_SENDER, type Ctx } from '../types';
 import { playerName, quote } from './digest';
-import type { PublicStore, StoredComment } from './store';
+import type { PublicStore, IssueComment } from './store';
 
 function committeePost(ctx: Ctx, issue: number): number | null {
   const found = Object.entries(readState(ctx.statePath).approvalPosts).find(([, number]) => number === issue);
@@ -17,12 +17,12 @@ function hasCommitteeDecision(ctx: Ctx, issue: number): boolean {
   return approving || Object.values(state.unroutedReplies).some((reply) => reply.issue === issue);
 }
 
-function routeOf(comment: StoredComment): 'patch' | 'redesign' {
+function routeOf(comment: IssueComment): 'patch' | 'redesign' {
   if (comment.route !== 'patch' && comment.route !== 'redesign') throw new Error(`Comment ${comment.id} has route ${comment.route} and cannot route a card`);
   return comment.route;
 }
 
-async function sendBack(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {
+async function sendBack(ctx: Ctx, store: PublicStore, comment: IssueComment, post: number): Promise<void> {
   const route = routeOf(comment);
   const text = `${playerName(comment.author)} wrote:\n${quote(comment.text)}`;
   await routeFeedback(ctx, comment.issue, PUBLIC_SENDER, text, route, post, PLAYER_REPORT_HEADING);
@@ -59,13 +59,13 @@ export async function routeReports(ctx: Ctx, store: PublicStore): Promise<void> 
   }
 }
 
-function isOnOlderBuild(ctx: Ctx, store: PublicStore, comment: StoredComment): boolean {
+function isOnOlderBuild(ctx: Ctx, store: PublicStore, comment: IssueComment): boolean {
   if (comment.source === 'game') return false;
   const current = readState(ctx.statePath).builds[String(comment.issue)];
   return store.openBuildPost(comment.issue)?.build !== current;
 }
 
-async function sendBackOnce(ctx: Ctx, store: PublicStore, comment: StoredComment, post: number): Promise<void> {
+async function sendBackOnce(ctx: Ctx, store: PublicStore, comment: IssueComment, post: number): Promise<void> {
   try {
     await sendBack(ctx, store, comment, post);
   } catch (error) {
