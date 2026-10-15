@@ -58,6 +58,7 @@ export const PHYSICS = {
     stallSeconds: 0.5,
     turnSample: 0.5,
     backLook: 1,
+    blockFacing: 0.5,
   },
   rockHeight: 3,
   rockSink: 0.5,
