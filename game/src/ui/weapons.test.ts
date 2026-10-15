@@ -180,6 +180,15 @@ describe("aiming the body", () => {
     expect(toggleBodyAim(aimed, [gun], target).vehicles[0].weaponOrders).toEqual({});
   });
 
+  it("refuses an unseen target and leaves the orders empty", () => {
+    const { world, target, gun } = createDuel();
+    world.vehicles[0].weaponOrders = {};
+    target.pos = { x: 400, y: 400 };
+    refreshVision(world);
+    expect(() => toggleBodyAim(world, [gun], target)).toThrow("Refused: unseen");
+    expect(world.vehicles[0].weaponOrders).toEqual({});
+  });
+
   it("moves an order from another vehicle instead of clearing it", () => {
     const { world, gun } = createDuel();
     const other = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 33 });

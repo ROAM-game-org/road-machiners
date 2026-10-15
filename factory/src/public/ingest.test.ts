@@ -133,4 +133,19 @@ describe('ingest', () => {
     await ingest(f.ctx, f.store);
     expect(f.store.unclassifiedComments(100).map((comment) => [comment.issue, comment.text])).toEqual([[7, 'The truck stalls'], [7, 'Same here']]);
   });
+
+  it('stores a standalone chat message with its sender, and reads a file with no reach flags', async () => {
+    const { f, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '42', text: '@roam_bot how do I vote?', at: '2026-10-14T10:00:00Z', addressed: true, standalone: true });
+    put('2.json', { updateId: 2, kind: 'comment', chat: CHANNEL, messageId: 33, threadId: 100, author: 'bob', sender: '7', text: 'Old file', at: '2026-10-14T10:00:00Z' });
+    await ingest(f.ctx, f.store);
+    expect(f.store.unclassifiedComments(100).map((c) => [c.issue, c.sender, c.addressed, c.messageId])).toEqual([[null, '42', true, 32], [7, '7', false, 33]]);
+  });
+
+  it('moves a comment with a bad sender flag to bad', async () => {
+    const { f, inbox, put } = setup();
+    put('1.json', { updateId: 1, kind: 'comment', chat: CHANNEL, messageId: 32, threadId: null, author: 'ann', sender: '1', text: 'x', at: 'x', addressed: 'yes' });
+    await ingest(f.ctx, f.store);
+    expect(readdirSync(`${inbox}/bad`)).toEqual(['1.json']);
+  });
 });

@@ -34,7 +34,8 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
 import { READY_ARC_BIT } from "./render/models";
@@ -87,6 +88,7 @@ import { CombatScore, CombatWatch, computeEngineGlide, EngineStrain, musicPlaceA
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { PickRing } from "./render/pick-ring";
+import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
 import { Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
@@ -139,6 +141,7 @@ export class Game {
   private readonly soundRing = new SoundRingView();
   private readonly beaconPulse = new BeaconPulseView();
   private readonly path: PathView;
+  private readonly rescueAreas: RescueAreaView;
   private readonly fx: Fx3D;
   private readonly truckFx: TruckFx;
   private readonly controls: TruckControls;
@@ -235,6 +238,7 @@ export class Game {
     addScatter(this.world.terrain, this.world.obstacles, propScope);
     this.fog = new FogView(this.world, groundChunks, this.sightLimit);
     this.path = new PathView(this.world.terrain);
+    this.rescueAreas = new RescueAreaView(this.world.terrain);
     this.shade = new ShadeView(this.world, groundChunks, this.play);
     this.weather = new WeatherView(this.world);
     this.hoverArcs = new HoverArcsView(overlay, this.rig);
@@ -245,6 +249,7 @@ export class Game {
       this.weather.root,
       this.zones.root,
       this.path.root,
+      this.rescueAreas.root,
       this.weaponRange.root,
       this.hoverArcs.root,
       this.contacts.root,
@@ -308,7 +313,7 @@ export class Game {
       autoTravel: () => this.travel.isAuto(this.world),
       dialogue: { world: () => this.world, inspected: () => this.inspected(), busy: () => this.anim !== null || this.screens.quest.isOpen(), talk: (next) => this.runRescue(() => next), commit: (next) => { this.world = next; this.saves.logWorld(next); this.refreshUi(); }, log: (next) => this.hud.pushEvents(next), playHorn: (id, delayMs) => this.playHorn(id, delayMs) },
       recenter: () => this.runKey("KeyF"),
-      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (w) => this.apply(w) }),
+      ...aimActions({ world: () => this.world, selected: () => this.selected, canAim: () => this.anim === null && playerCanAct(this.world), apply: (next) => this.applyRefusable(next) }),
     }, radio);
     this.hitCard = new HitCard(this.hud.getExchangeRoot());
     this.hoverHold.watch(this.hud.getInspectionRoot());
@@ -599,7 +604,17 @@ export class Game {
 
   private clickVehicle(id: string): void {
     this.pin.click(id);
-    if (this.selected !== null && this.canClick()) this.apply(toggleBodyAim(this.world, weaponsForClick(this.world, this.selected), vehicleById(this.world, id)));
+    if (this.selected === null || !this.canClick()) return;
+    this.applyRefusable(() => toggleBodyAim(this.world, weaponsForClick(this.world, this.selected!), vehicleById(this.world, id)));
+  }
+
+  private applyRefusable(next: () => World): void {
+    try {
+      this.apply(next());
+    } catch (err) {
+      if (!(err instanceof Refused)) throw err;
+      this.hud.note(this.world, refusalText(this.world, err.refusal), "bad");
+    }
   }
 
   private canShowCombatVehicle(v: Vehicle): boolean {
@@ -1059,6 +1074,7 @@ export class Game {
     const steer = !hide && playerCanAct(this.world);
     this.zones.root.visible = steer;
     this.path.show(steer, this.displayWorld(), this.modalOpen());
+    this.rescueAreas.show(this.world, { width: window.innerWidth, height: window.innerHeight });
     this.weaponRange.root.visible = false;
     this.hoverArcs.follow(this.displayWorld(), this.inspected(), this.frames, this.modalOpen());
     this.markers.place(this.frames, hide, this.modalOpen());
