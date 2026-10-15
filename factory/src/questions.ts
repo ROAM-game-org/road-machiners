@@ -1,10 +1,10 @@
-import { FACTORY_MARK, QUESTIONS_HEADING, type IssueComment } from './types';
+import { QUESTIONS_HEADING, type IssueComment } from './types';
 
 function isFactory(comment: IssueComment): boolean {
-  return comment.body.includes(FACTORY_MARK);
+  return comment.byFactory;
 }
 
-function isQuestion(comment: IssueComment): boolean {
+export function isQuestion(comment: IssueComment): boolean {
   return isFactory(comment) && comment.body.startsWith(QUESTIONS_HEADING);
 }
 

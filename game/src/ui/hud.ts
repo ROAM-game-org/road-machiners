@@ -131,7 +131,7 @@ export class Hud {
   private info = panel("info");
   private infoBody = el("div", { class: "info-content" });
   private feedback = panel("feedback", topLeft());
-  private feedbackForm = new FeedbackForm();
+  private feedbackForm = new FeedbackForm((text) => this.toast(text));
   private action = panel("action");
   private toastBox = panel("toast");
   private rescue = panel("rescue notice", topCenter());
