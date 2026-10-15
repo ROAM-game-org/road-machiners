@@ -1,30 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameEvent } from '../types';
-import { bestTruck, keepsPace, pickTarget, underFire } from './escort-tactics';
-
-const hauler = { x: 100, y: 100 };
-
-describe('pickTarget', () => {
-  it('picks the foe nearest the hauler', () => {
-    const foes = [{ id: 'a', pos: { x: 120, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, null)).toBe('b');
-  });
-
-  it('keeps the current target while it lives and stays in reach', () => {
-    const foes = [{ id: 'a', pos: { x: 120, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, 'a')).toBe('a');
-  });
-
-  it('drops a current target out of reach or gone', () => {
-    const foes = [{ id: 'a', pos: { x: 300, y: 100 } }, { id: 'b', pos: { x: 105, y: 100 } }];
-    expect(pickTarget(foes, hauler, 'a')).toBe('b');
-    expect(pickTarget(foes, hauler, 'gone')).toBe('b');
-  });
-
-  it('picks nothing when no foe is in reach', () => {
-    expect(pickTarget([{ id: 'a', pos: { x: 500, y: 0 } }], hauler, null)).toBeNull();
-  });
-});
+import { bestTruck, keepsPace, savesFor } from './escort-tactics';
 
 describe('bestTruck', () => {
   const offers = [{ id: 'a', value: 300, price: 90 }, { id: 'b', value: 500, price: 200 }, { id: 'c', value: 900, price: 700 }];
@@ -49,15 +24,16 @@ describe('keepsPace', () => {
   });
 });
 
-describe('underFire', () => {
-  const shot = (shooter: string, target: string) => ({ t: 'shot', shooter, target }) as unknown as GameEvent;
+describe('savesFor', () => {
+  const offers = [{ id: 'a', value: 300, price: 90 }, { id: 'b', value: 500, price: 200 }, { id: 'c', value: 900, price: 700 }];
 
-  it('is true when a truck shot the player truck last turn, seen or not', () => {
-    expect(underFire([shot('foe', 'me')], 'me')).toBe(true);
+  it('saves for a better truck that the next pay can reach', () => {
+    expect(savesFor(offers, 100, 150, 60)).toBe(true);
   });
 
-  it('is false for shots at other trucks and for no shots', () => {
-    expect(underFire([shot('foe', 'hauler')], 'me')).toBe(false);
-    expect(underFire([], 'me')).toBe(false);
+  it('does not save for a truck out of reach, one it can buy now, or one no better than its own', () => {
+    expect(savesFor(offers, 100, 150, 20)).toBe(false);
+    expect(savesFor(offers, 100, 250, 60)).toBe(false);
+    expect(savesFor(offers, 900, 150, 60)).toBe(false);
   });
 });

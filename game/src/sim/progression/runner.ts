@@ -11,28 +11,28 @@ import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
 import { isStranded, vehicleStats } from '../stats';
 import { tankLeaks } from '../supplies';
-import { hostileToPlayer, playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
+import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostPad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
+import { RULES } from '../../data/rules';
+import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
 import { haulerTakes, outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
 import type { PartInstance, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
-import { playerSees } from '../vision';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { bestTruck, keepsPace, pickTarget, underFire } from './escort-tactics';
-import { aimGuns } from './aim';
+import { payOf } from '../fury-road-danger';
+import { bestTruck, keepsPace, savesFor } from './escort-tactics';
 import { bestPlan, gearBudget, gearPlans } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
 export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
-const HAULER_SHARE = 0.15;
+const HAULER_SHARE = 1;
 const FOLLOW_BEHIND = 10;
-const HUNTER_SIGHT = TERRAIN.vision.radius;
 const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
@@ -60,9 +60,28 @@ function handleStranded(o: Orders): boolean {
     o.run(abandonRun);
     return true;
   }
-  if (!(isStranded(o.world, o.me) || tankLeaks(o.me)) || inCombat(o.world, o.me)) return false;
+  if (!needsPatching(o) || inCombat(o.world, o.me)) return false;
   park(o);
+  patchLeakingTank(o);
   return true;
+}
+
+function needsPatching(o: Orders): boolean {
+  return isStranded(o.world, o.me) || tankLeaks(o.me) || brokenCore(o);
+}
+
+function brokenCore(o: Orders): boolean {
+  return (goodsCount(o.me).parts ?? 0) > 0 && mountedParts(o.me, 'core').some((p) => p.hp <= 0);
+}
+
+function tankHoled(o: Orders): boolean {
+  return corePart(o.me, 'tank').hp <= 0 && (goodsCount(o.me).parts ?? 0) > 0;
+}
+
+function patchLeakingTank(o: Orders): void {
+  const tank = corePart(o.me, 'tank');
+  const canPatch = tank.hp <= 0 && !o.me.job && o.me.speed <= RULES.parkedSpeed && (goodsCount(o.me).parts ?? 0) > 0;
+  if (canPatch) o.run((w) => startRepair(w, tank.id));
 }
 
 function park(o: Orders): void {
@@ -70,17 +89,10 @@ function park(o: Orders): void {
 }
 
 function keepSwitches(o: Orders, style: RoadStyle): void {
-  if (!o.world.player.autoRepair) o.run((w) => setAutoRepair(w, true));
-  if (style === 'escort') return escortSwitches(o);
+  const auto = style === 'sprinter' || !tankHoled(o);
+  if (o.world.player.autoRepair !== auto) o.run((w) => setAutoRepair(w, auto));
+  if (style === 'escort') coolEngine(o);
   if (o.world.player.autoFire) o.run((w) => setAutoFire(w, false));
-}
-
-function escortSwitches(o: Orders): void {
-  coolEngine(o);
-  const fires = underAttack(o);
-  if (o.world.player.autoFire !== fires) o.run((w) => setAutoFire(w, fires));
-  const foe = fires ? chosenFoe(o) : null;
-  if (foe) aimGuns(o, foe);
 }
 
 function coolEngine(o: Orders): void {
@@ -95,35 +107,7 @@ function drive(o: Orders, style: RoadStyle): void {
 }
 
 function escort(o: Orders): void {
-  const next = nextOutpost(o.world);
-  if (underAttack(o) && next) return hopToward(o, next.pad);
   driveTo(o, escortSpot(o.world, haulerOf(o.world)));
-}
-
-function seenHostiles(o: Orders): Vehicle[] {
-  return o.world.vehicles.filter((v) => v.id !== o.me.id && hostileToPlayer(o.world, v) && playerSees(o.world, v.pos));
-}
-
-function underAttack(o: Orders): boolean {
-  const seen = seenHostiles(o);
-  if (underFire(o.lastTurn, o.me.id)) return true;
-  return runningAhead(o) && seen.some((v) => dist(v.pos, o.me.pos) <= HUNTER_SIGHT);
-}
-
-function runningAhead(o: Orders): boolean {
-  const order = o.me.order;
-  if (order?.kind !== 'stopAt') return false;
-  const window = o.world.furyRoad!.window;
-  const along = (p: Vec) => alongOf(o.world.seed, toRoad(window, p));
-  return along(order.dest) > along(haulerOf(o.world).pos);
-}
-
-function chosenFoe(o: Orders): Vehicle | null {
-  const hauler = haulerOf(o.world);
-  const foes = seenHostiles(o);
-  const current = Object.values(o.me.weaponOrders).find((w) => w.targetId && foes.some((f) => f.id === w.targetId))?.targetId ?? null;
-  const id = pickTarget(foes.map((f) => ({ id: f.id, pos: f.pos })), hauler.pos, current);
-  return foes.find((f) => f.id === id) ?? null;
 }
 
 function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
@@ -175,7 +159,13 @@ function restock(o: Orders, post: Outpost, style: RoadStyle): void {
     refitGear(o, 1);
     return buyTruck(o, post, style);
   }
+  restockEscort(o, post, style);
+}
+
+function restockEscort(o: Orders, post: Outpost, style: RoadStyle): void {
+  const before = o.me.chassisId;
   buyTruck(o, post, style);
+  if (o.me.chassisId === before && savingForTruck(o, post)) return;
   haulerGear(o, gearBudget(o.world, o.me, 'fighter') * HAULER_SHARE);
   refitGear(o, 1 - HAULER_SHARE);
 }
@@ -233,6 +223,11 @@ function buysFor(items: { part: PartInstance }[], forSale: PartInstance[]): Part
 
 function cost(o: Orders, parts: PartInstance[]): number {
   return parts.reduce((sum, p) => sum + outpostPartPrice(o.world, p), 0);
+}
+
+function savingForTruck(o: Orders, post: Outpost): boolean {
+  const offers = outpostTrucks(o.world, post).filter((id) => chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry).map((id) => ({ id, value: chassisDef(id).value, price: chassisPrice(o.world, id) }));
+  return savesFor(offers, chassisDef(o.me.chassisId).value, gearBudget(o.world, o.me, 'fighter'), payOf(post.milestone + 1));
 }
 
 function buyTruck(o: Orders, post: Outpost, style: RoadStyle): void {

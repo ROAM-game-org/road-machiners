@@ -34,10 +34,7 @@ export class Orders {
   readonly notes: BotNote[] = [];
   buysGear = true;
   fieldRepair = false;
-  readonly lastTurn: GameEvent[];
-  constructor(public world: World) {
-    this.lastTurn = world.events;
-  }
+  constructor(public world: World) {}
 
   run(command: (w: World) => World, key: LedgerKey = 'other'): void {
     const before = this.world.player.money;

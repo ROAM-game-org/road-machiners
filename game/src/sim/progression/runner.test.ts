@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { haulerOf, playerVehicle } from '../damage';
 import { corePart, goodsCount, mountedParts } from '../grid';
+import { chassisDef } from '../../data/chassis';
+import { FURY_ROAD } from '../../data/modes';
 import { partDef } from '../../data/parts';
-import { onOutpostPad, outpostPad } from '../fury-road';
+import { chassisPrice } from '../economy';
+import { gearBudget } from './gear';
+import { onOutpostPad, outpostPad, outpostTrucks } from '../fury-road';
 import { addVehicle, furyRoadWorld, npcBrain } from '../testkit';
 import type { GameEvent, Vehicle, World } from '../types';
 import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../highway';
@@ -97,17 +101,18 @@ describe('the Fury Road escort bot', () => {
     expect(playerVehicle(next).job?.kind).toBe('repair');
   });
 
-  it('parks to patch a holed tank before the fuel is gone, out of combat with parts to patch with', () => {
+  it('parks and patches a holed tank first, out of combat with parts to patch with', () => {
     const w = furyRoadWorld();
     const me = playerVehicle(w);
-    corePart(me, 'tank').hp = 0;
+    const tank = corePart(me, 'tank');
+    tank.hp = 0;
     me.speed = 0;
     me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
 
     const turn = botOrders(w, 'escort');
 
     expect(turn.world.player.state).toBe('active');
-    expect(playerVehicle(turn.world).order).toEqual({ kind: 'brake' });
+    expect(playerVehicle(turn.world).job).toMatchObject({ kind: 'repair', partId: tank.id });
   });
 
   it('ends the run when stranded with no way to patch', () => {
@@ -133,10 +138,11 @@ describe('the Fury Road escort bot', () => {
     expect(mountedParts(hauler).every((p) => ['core', 'engine', 'armor', 'cargo'].includes(partDef(p.defId).kind))).toBe(true);
   });
 
-  it('follows the hauler with its guns quiet while no truck shoots it', () => {
+  it('keeps its guns quiet and rides behind the hauler even while a truck shoots it', () => {
     const w = furyRoadWorld();
     w.player.autoFire = true;
-    hostileNear(w);
+    const foe = hostileNear(w);
+    w.events = [shotAt(foe, playerVehicle(w))];
 
     const turn = botOrders(w, 'escort');
     const order = playerVehicle(turn.world).order;
@@ -146,42 +152,49 @@ describe('the Fury Road escort bot', () => {
     expect(dist((order as { dest: Vec }).dest, escortSpotOf(w))).toBeLessThan(1);
   });
 
-  it('fires and drives toward the next pad after a visible hostile truck shot it', () => {
-    const w = furyRoadWorld();
-    const foe = hostileNear(w);
-    w.events = [shotAt(foe, playerVehicle(w))];
+  it('saves its gear money when a faster, better truck is within reach of the next pay', () => {
+    const w = atFirstOutpost();
+    const post = w.furyRoad!.outposts.find((p) => p.milestone === 1)!;
+    const me = playerVehicle(w);
+    const better = outpostTrucks(w, post)
+      .filter((id) => chassisDef(id).value > chassisDef(me.chassisId).value && chassisDef(id).maxSpeed >= FURY_ROAD.hauler.hurry)
+      .sort((a, b) => chassisPrice(w, a) - chassisPrice(w, b))[0];
+    expect(better).toBeDefined();
+    w.player.money += chassisPrice(w, better) - 1 - gearBudget(w, me, 'fighter');
+    const money = w.player.money;
+    const armor = mountedParts(haulerOf(w), 'armor').length;
 
     const turn = botOrders(w, 'escort');
-    const order = playerVehicle(turn.world).order as { kind: string; dest: Vec };
 
-    expect(turn.world.player.autoFire).toBe(true);
-    expect(order.kind).toBe('stopAt');
-    expect(dist(order.dest, outpostPad(w, 1))).toBeLessThan(dist(playerVehicle(w).pos, outpostPad(w, 1)));
-    expect(dist(order.dest, playerVehicle(w).pos)).toBeGreaterThan(dist(escortSpotOf(w), playerVehicle(w).pos));
+    expect(playerVehicle(turn.world).chassisId).toBe(me.chassisId);
+    expect(mountedParts(haulerOf(turn.world), 'armor').length).toBe(armor);
+    expect(turn.world.player.money).toBeGreaterThan(money - 1000);
   });
 
-  it('keeps running ahead while the hostile truck that shot it stays in sight, and rides behind again when it is gone', () => {
+  it('turns auto repair off while the tank is holed, so the tank is patched before anything else', () => {
     const w = furyRoadWorld();
-    const foe = hostileNear(w);
-    w.events = [shotAt(foe, playerVehicle(w))];
-    const first = botOrders(w, 'escort').world;
-    first.events = [];
+    corePart(playerVehicle(w), 'tank').hp = 0;
 
-    const running = playerVehicle(botOrders(first, 'escort').world).order as { dest: Vec };
-    const clear = structuredClone(first);
-    clear.vehicles = clear.vehicles.filter((v) => v.id !== foe.id);
-    const back = playerVehicle(botOrders(clear, 'escort').world).order as { dest: Vec };
-
-    expect(dist(running.dest, outpostPad(w, 1))).toBeLessThan(dist(back.dest, outpostPad(w, 1)));
-    expect(dist(back.dest, escortSpotOf(clear))).toBeLessThan(1);
+    expect(botOrders(w, 'escort').world.player.autoRepair).toBe(false);
+    expect(botOrders(furyRoadWorld(), 'escort').world.player.autoRepair).toBe(true);
   });
 
-  it('ignores a shot at the hauler', () => {
+  it('parks to patch a broken wheel out of combat with parts to patch with', () => {
     const w = furyRoadWorld();
-    const foe = hostileNear(w);
-    w.events = [shotAt(foe, haulerOf(w))];
+    const me = playerVehicle(w);
+    mountedParts(me, 'core').find((p) => partDef(p.defId).id === 'wheel')!.hp = 0;
+    me.speed = 0;
+    me.order = { kind: 'stopAt', dest: outpostPad(w, 1) };
 
-    expect(botOrders(w, 'escort').world.player.autoFire).toBe(false);
+    expect(playerVehicle(botOrders(w, 'escort').world).order).toEqual({ kind: 'brake' });
+  });
+
+  it('douses a hot engine', () => {
+    const w = furyRoadWorld();
+    w.player.engineHeat = 0.9;
+    w.player.supplies = 5;
+
+    expect(botOrders(w, 'escort').world.player.engineHeat).toBeLessThan(0.9);
   });
 });
 
