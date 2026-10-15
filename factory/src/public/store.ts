@@ -19,11 +19,12 @@ export type IssueComment = StoredComment & { issue: number };
 export type NewComment = { issue: number | null; source: 'telegram' | 'game'; sourceId: string; postChat: string | null; postMessageId: number | null; author: string; sender?: string; text: string; at: string; messageId?: number; addressed?: boolean; context?: string | null };
 export type KnownWork = { issue: number; text: string };
 export type Judged = { workIssue?: number | null; language?: ReplyLanguage | null };
+export type AnswerRecord = { queuedAt: string | null; tries: number; text: string | null; sentAt: string | null };
 export type HitAnswer = { taken: true } | { taken: false; resetAt: Date };
 export type ReportRow = { address: string; build: string; version: string; kind: string; text: string; verdict: 'accept' | 'reject'; intent: string; sincere: number; issue: number | null; createdIssue: number | null; at: string };
 
 const OLD_COMMENT_COLUMNS = 'id, issue, source, source_id, post_chat, post_message_id, author, text, at, kind, route, classified_at, sent_at, routed_at, sender, dropped_at';
-const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0';
+const COMMENT_COLUMNS = 'id integer primary key autoincrement, issue integer, source text not null, source_id text not null unique, post_chat text, post_message_id integer, author text not null, text text not null, at text not null, kind text, route text, classified_at text, sent_at text, routed_at text, sender text, dropped_at text, message_id integer, addressed integer not null default 0, relevance text, text_key text, filed_at text, filed_issue integer, replied_at text, reply_id integer, context text, work_issue integer, language text, linked integer not null default 0, answer_queued_at text, answer_tries integer not null default 0, answer_text text, answer_sent_at text';
 const HOUR_MS = 3_600_000;
 const FAILED_HIT = 'failed:';
 const ON_TOPIC = "(relevance is null or relevance = 'parent')";
@@ -64,7 +65,7 @@ function migrateComments(db: DatabaseSync): void {
   if (!columns.includes('dropped_at')) db.exec('alter table comments add column dropped_at text');
   if (!columns.includes('sender')) db.exec('alter table comments add column sender text');
   if (!columns.includes('message_id')) return;
-  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0']) {
+  for (const column of ['context text', 'work_issue integer', 'language text', 'linked integer not null default 0', 'answer_queued_at text', 'answer_tries integer not null default 0', 'answer_text text', 'answer_sent_at text']) {
     if (!columns.includes(column.split(' ')[0]!)) db.exec(`alter table comments add column ${column}`);
   }
 }
@@ -271,6 +272,45 @@ export class PublicStore {
 
   setReplyId(id: number, replyId: number): void {
     this.db.prepare('update comments set reply_id = ? where id = ?').run(replyId, id);
+  }
+
+  comment(id: number): StoredComment | null {
+    const row = this.db.prepare('select * from comments where id = ?').get(id);
+    return row === undefined ? null : toComment(row);
+  }
+
+  answersQueuedSince(since: Date): number {
+    return Number(this.db.prepare('select count(*) as n from comments where answer_queued_at >= ?').get(since.toISOString())?.n);
+  }
+
+  queueAnswer(id: number, now: Date): void {
+    this.db.prepare('update comments set answer_queued_at = ? where id = ?').run(now.toISOString(), id);
+  }
+
+  answerRecord(id: number): AnswerRecord | null {
+    const row = this.db.prepare('select answer_queued_at, answer_tries, answer_text, answer_sent_at from comments where id = ?').get(id);
+    if (row === undefined) return null;
+    return { queuedAt: textOrNull(row.answer_queued_at), tries: Number(row.answer_tries), text: textOrNull(row.answer_text), sentAt: textOrNull(row.answer_sent_at) };
+  }
+
+  beginAnswerTry(id: number): number {
+    return Number(this.db.prepare('update comments set answer_tries = answer_tries + 1 where id = ? returning answer_tries').get(id)?.answer_tries);
+  }
+
+  forgiveAnswerTry(id: number): void {
+    this.db.prepare('update comments set answer_tries = answer_tries - 1 where id = ? and answer_tries > 0').run(id);
+  }
+
+  saveAnswer(id: number, text: string): void {
+    this.db.prepare('update comments set answer_text = ? where id = ?').run(text, id);
+  }
+
+  claimAnswerSend(id: number, now: Date): boolean {
+    return this.db.prepare('update comments set answer_sent_at = ? where id = ? and answer_sent_at is null').run(now.toISOString(), id).changes === 1;
+  }
+
+  releaseAnswerSend(id: number): void {
+    this.db.prepare('update comments set answer_sent_at = null where id = ? and reply_id is null').run(id);
   }
 
   recentChat(limit: number): StoredComment[] {

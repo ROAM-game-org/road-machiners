@@ -322,6 +322,39 @@ describe('public store', () => {
     expect(openStore(home).unclassifiedComments(100)).toEqual([]);
   });
 
+  it('adds the answer columns to a store that had chat messages before the answer job', () => {
+    const home = mkdtempSync(join(tmpdir(), 'public-store-'));
+    openStore(home).close();
+    const db = new DatabaseSync(storePath(home));
+    for (const column of ['answer_queued_at', 'answer_tries', 'answer_text', 'answer_sent_at']) db.exec(`alter table comments drop column ${column}`);
+    db.prepare("insert into comments (issue, source, source_id, post_chat, author, text, at, message_id) values (null, 'telegram', 'c:1', 'c', 'Ann', 'How?', ?, 1)").run(now.toISOString());
+    db.close();
+    const store = openStore(home);
+    const [id] = store.unclassifiedComments(10).map((comment) => comment.id);
+    expect(store.answerRecord(id!)).toEqual({ queuedAt: null, tries: 0, text: null, sentAt: null });
+    store.close();
+  });
+
+  it('records the queue time, tries, saved text and one send claim of an answer', () => {
+    const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
+    const id = store.addComment({ issue: null, source: 'telegram', sourceId: 'c:1', postChat: 'c', postMessageId: null, author: 'Ann', text: 'How?', at: now.toISOString(), messageId: 1 })!;
+    store.queueAnswer(id, now);
+    expect(store.answersQueuedSince(new Date(now.getTime() - 1000))).toBe(1);
+    expect(store.answersQueuedSince(new Date(now.getTime() + 1000))).toBe(0);
+    expect([store.beginAnswerTry(id), store.beginAnswerTry(id)]).toEqual([1, 2]);
+    store.forgiveAnswerTry(id);
+    store.saveAnswer(id, 'Like this.');
+    expect(store.claimAnswerSend(id, now)).toBe(true);
+    expect(store.claimAnswerSend(id, now)).toBe(false);
+    store.releaseAnswerSend(id);
+    expect(store.claimAnswerSend(id, now)).toBe(true);
+    store.setReplyId(id, 9);
+    store.releaseAnswerSend(id);
+    expect(store.answerRecord(id)).toEqual({ queuedAt: now.toISOString(), tries: 1, text: 'Like this.', sentAt: now.toISOString() });
+    expect(store.answerRecord(999)).toBeNull();
+    store.close();
+  });
+
   it('lists each proposal and each issue filed from the chat once as known work, with the proposal text first', () => {
     const store = openStore(mkdtempSync(join(tmpdir(), 'public-store-')));
     store.addProposal(564, 'Landmark directions\n\nTowns give directions by landmarks.\nMore.', now);
