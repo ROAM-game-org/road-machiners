@@ -30,7 +30,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'adhoc', 'incident', 'answer', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -47,11 +47,8 @@ function queued(state: FactoryState): JobPick[] {
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
     ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
-}
-
-function changeJobs(state: FactoryState): JobPick[] {
-  return state.pendingChanges.map((change) => ({ stage: 'change' as const, issue: change.id }));
 }
 
 function openCards(state: FactoryState, cards: Card[]): Card[] {
@@ -124,7 +121,7 @@ function cardCandidates(state: FactoryState, cards: Card[]): Candidate[] {
     .sort((a, b) => a.issue - b.issue)
     .map((card) => ({ stage: 'adhoc' as const, issue: card.issue }));
   const work = rest.filter(lacks(ADHOC_LABEL));
-  const normal = [...adhoc, ...changeJobs(state), ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
+  const normal = [...adhoc, ...byProgress(state, work.filter(has(RELEASE_TASK_LABEL))), ...byProgress(state, work.filter(lacks(RELEASE_TASK_LABEL)))];
   return [...hotfix, ...normal.map((pick) => ({ ...pick, pastCardLimit: false }))];
 }
 

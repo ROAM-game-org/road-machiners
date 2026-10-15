@@ -12,7 +12,7 @@ const KEEP_NUMBERED: Record<string, Keep> = {
   issue: openCard,
   adhoc: openCard,
   'check-issue': () => false,
-  change: (id, state) => state.pendingChanges.some((change) => change.id === id),
+  change: () => false,
   incident: (id, state) => state.pendingIncidents.includes(id),
 };
 const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => boolean }> = {
@@ -22,6 +22,7 @@ const NAMED: Record<string, { stages: string[]; keep: (state: FactoryState) => b
   'release-playtest': { stages: ['playtest'], keep: () => false },
   'release-baseline': { stages: ['playtest'], keep: () => false },
   waste: { stages: ['waste'], keep: () => false },
+  answer: { stages: ['answer'], keep: () => false },
   'merge-queue': { stages: ['merge'], keep: () => false },
   'ship-main': { stages: ['ship'], keep: () => false },
 };

@@ -1,6 +1,7 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { phaseLine, stepScript } from '../activity';
+import { agentOutputPath } from '../agent-output';
 import { testPoolPin } from '../cpus';
 import { checkScope } from '../deploy';
 import { must } from '../exec';
@@ -314,8 +315,8 @@ function keepAudit(ctx: Ctx, release: ReleaseState, home: string, meta: RunMeta)
   const dir = auditDir(ctx, release, meta.run);
   mkdirSync(dir, { recursive: true });
   for (const name of ['playtest/log.jsonl', 'playtest/baseline.jsonl', 'playtest-facts.json', 'playtest-baseline-facts.json', 'playtest.json', 'playtest.md']) {
-    const from = join(home, OUT_DIR, name);
-    if (existsSync(from)) copyFileSync(from, join(dir, name.replace('playtest/', '')));
+    const from = agentOutputPath(home, name);
+    if (from !== null) copyFileSync(from, join(dir, name.replace('playtest/', '')));
   }
   writeFileSync(join(dir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`);
 }

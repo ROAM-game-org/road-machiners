@@ -28,7 +28,6 @@ export function summarizeError(message: string): string {
 }
 
 export function failureIssue(stage: JobStage, issue: number | null, state: FactoryState): number | null {
-  if (stage === 'change') return null;
   if (stage === 'release') return state.release?.issue ?? null;
   return issue;
 }
