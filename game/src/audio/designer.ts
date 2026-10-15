@@ -181,3 +181,119 @@ export class Fading {
     this.at = time;
   }
 }
+
+export type Role = "intro" | "verse" | "wall" | "stop" | "solo";
+export type Section = { role: Role; from: number; bars: number };
+export type Block = { role: Role; bar: number; bars: number; section: number };
+
+export type ArcTuning = {
+  blockBars: number;
+  verseBars: number;
+  wallBars: number;
+  soloBars: number;
+  stopEveryBars: number;
+  soloAfterBars: number;
+  hotHeat: number;
+  coolHeat: number;
+};
+
+export function blocksOf(sections: readonly Section[], blockBars: number): Block[] {
+  return sections.flatMap((s, section) => {
+    if (s.bars % blockBars !== 0) throw new Error(`Section at bar ${s.from} has ${s.bars} bars, not a multiple of ${blockBars}`);
+    return Array.from({ length: s.bars / blockBars }, (_, i) => ({ role: s.role, bar: s.from + i * blockBars, bars: blockBars, section }));
+  });
+}
+
+export class BlockSequencer {
+  private current: Block | null = null;
+  private inRole = 0;
+  private sinceStop = 0;
+  private total = 0;
+  private soloed = false;
+  private lastSection = new Map<Role, number>();
+
+  constructor(
+    private blocks: readonly Block[],
+    private tuning: ArcTuning,
+    private roll: () => number,
+  ) {
+    for (const role of ["intro", "verse", "wall", "stop"] as const)
+      if (!blocks.some((b) => b.role === role)) throw new Error(`Song has no ${role} section`);
+  }
+
+  get barsSinceStop(): number {
+    return this.sinceStop;
+  }
+
+  get barsPlayed(): number {
+    return this.total;
+  }
+
+  next(heat: number): Block {
+    const role = this.current ? this.nextRole(this.current, heat) : "intro";
+    const block = this.blockFor(role);
+    this.count(block);
+    this.current = block;
+    return block;
+  }
+
+  private count(block: Block): void {
+    this.inRole = this.current?.role === block.role ? this.inRole + block.bars : block.bars;
+    this.total += block.bars;
+    this.sinceStop = block.role === "stop" ? 0 : this.sinceStop + (block.role === "intro" ? 0 : block.bars);
+    this.soloed ||= block.role === "solo";
+  }
+
+  private nextRole(current: Block, heat: number): Role {
+    const rules: Record<Role, () => Role> = {
+      intro: () => this.afterBreak(heat),
+      stop: () => this.afterBreak(heat),
+      solo: () => (this.inRole < this.tuning.soloBars ? "solo" : "wall"),
+      verse: () => this.afterVerse(heat),
+      wall: () => this.afterWall(heat),
+    };
+    return rules[current.role]();
+  }
+
+  private afterBreak(heat: number): Role {
+    return heat >= this.tuning.hotHeat ? "wall" : "verse";
+  }
+
+  private afterVerse(heat: number): Role {
+    if (this.stopDue()) return "stop";
+    return this.verseDone(heat) ? "wall" : "verse";
+  }
+
+  private afterWall(heat: number): Role {
+    const done = this.wallDone(heat);
+    if (done && this.soloDue()) return "solo";
+    if (this.stopDue()) return "stop";
+    return done ? "verse" : "wall";
+  }
+
+  private stopDue(): boolean {
+    return this.sinceStop >= this.tuning.stopEveryBars;
+  }
+
+  private wallDone(heat: number): boolean {
+    return this.inRole >= this.tuning.wallBars && heat < this.tuning.coolHeat;
+  }
+
+  private verseDone(heat: number): boolean {
+    return heat >= this.tuning.hotHeat || this.inRole >= this.tuning.verseBars;
+  }
+
+  private soloDue(): boolean {
+    return !this.soloed && this.total >= this.tuning.soloAfterBars && this.blocks.some((b) => b.role === "solo");
+  }
+
+  private blockFor(role: Role): Block {
+    const following = this.current && this.blocks.find((b) => b.bar === this.current!.bar + this.current!.bars);
+    if (following && following.role === role) return following;
+    const sections = [...new Set(this.blocks.filter((b) => b.role === role).map((b) => b.section))];
+    const fresh = sections.length > 1 ? sections.filter((s) => s !== this.lastSection.get(role)) : sections;
+    const section = fresh[Math.floor(this.roll() * fresh.length)];
+    this.lastSection.set(role, section);
+    return this.blocks.find((b) => b.section === section)!;
+  }
+}

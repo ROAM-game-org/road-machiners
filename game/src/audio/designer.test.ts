@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Fading, SoundDesigner, type AccentPlan, type DesignerTuning } from "./designer";
+import { BlockSequencer, blocksOf, Fading, SoundDesigner, type AccentPlan, type ArcTuning, type DesignerTuning, type Section } from "./designer";
 
 const GRID = { start: 0, beat: 1, beatsPerBar: 4 };
 const TUNING: DesignerTuning = {
@@ -120,5 +120,48 @@ describe("Fading", () => {
     expect(f.read(2)).toBeCloseTo(2);
     f.add(4, 1);
     expect(f.read(4)).toBeCloseTo(2);
+  });
+});
+
+const SECTIONS: Section[] = [
+  { role: "intro", from: 5, bars: 4 },
+  { role: "verse", from: 9, bars: 12 },
+  { role: "wall", from: 21, bars: 16 },
+  { role: "stop", from: 37, bars: 4 },
+  { role: "verse", from: 41, bars: 8 },
+  { role: "wall", from: 49, bars: 20 },
+  { role: "solo", from: 69, bars: 8 },
+];
+const ARC: ArcTuning = { blockBars: 4, verseBars: 8, wallBars: 8, soloBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: 2, coolHeat: 1 };
+
+function play(heats: number[]) {
+  const seq = new BlockSequencer(blocksOf(SECTIONS, 4), ARC, () => 0);
+  return heats.map((h) => seq.next(h));
+}
+
+describe("BlockSequencer", () => {
+  it("moves a calm fight from intro through verse, wall and a stop", () => {
+    const roles = play(Array(8).fill(0)).map((b) => b.role);
+    expect(roles).toEqual(["intro", "verse", "verse", "wall", "wall", "stop", "verse", "verse"]);
+  });
+
+  it("follows the song where the next bars have the wanted role", () => {
+    const bars = play(Array(4).fill(0)).map((b) => b.bar);
+    expect(bars).toEqual([5, 9, 13, 21]);
+  });
+
+  it("brings the wall early and holds it while the fight is hot, until the stop", () => {
+    const roles = play([0, 3, 3, 3, 3, 3]).map((b) => b.role);
+    expect(roles).toEqual(["intro", "wall", "wall", "wall", "wall", "stop"]);
+  });
+
+  it("plays the solo once after enough bars, then returns to the wall", () => {
+    const roles = play(Array(20).fill(0)).map((b) => b.role);
+    expect(roles.filter((r) => r === "solo")).toHaveLength(2);
+    expect(roles[roles.lastIndexOf("solo") + 1]).toBe("wall");
+  });
+
+  it("refuses a section that does not split into blocks", () => {
+    expect(() => blocksOf([{ role: "verse", from: 1, bars: 6 }], 4)).toThrow(/multiple of 4/);
   });
 });

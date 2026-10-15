@@ -249,3 +249,15 @@ export const MIX = {
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, spread: 10 },
 } as const;
+
+export const SCORE_BLOCKS = {
+  arc: { blockBars: 4, verseBars: 8, wallBars: 8, soloBars: 8, stopEveryBars: 16, soloAfterBars: 40, hotHeat: MIX.score.hotHeat, coolHeat: 1 },
+  songGain: 0.6,
+  hitGain: 1,
+  hitDuck: 0.8,
+  hitDuckBeats: 1,
+  seamSeconds: 0.01,
+  aheadSeconds: 0.25,
+  startLeadSeconds: 0.1,
+  hitLeadSeconds: 0.05,
+};
