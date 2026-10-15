@@ -63,7 +63,7 @@ export function chooseStart(saves: SlotInfo[], newGame: NewGameActions): Promise
     const startOptions = new OptionsPanel(() => optionsButton.focus());
     optionsButton.addEventListener('click', () => startOptions.open());
     const resumes = next === null ? [] : [continueCaption(next, continueButton)];
-    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), loadButton, newGameButton, optionsButton));
+    root.append(el('h1', {}, TITLE), el('div', { class: 'start-buttons' }, el('div', { class: 'start-continue' }, continueButton, ...resumes), el('div', { class: 'start-others' }, loadButton, newGameButton, optionsButton)));
     (next === null ? newGameButton : continueButton).focus();
   });
 }
