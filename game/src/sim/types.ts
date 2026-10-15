@@ -132,7 +132,7 @@ export type Job =
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
 
-export type BusinessDeal = "resupply" | "sell" | "trade" | "haul";
+export type BusinessDeal = "resupply" | "sell" | "trade";
 
 export type Contact = {
   vehicleId: string;
@@ -232,6 +232,7 @@ export type Refusal =
   | { id: 'needsXp'; cost: number; have: number }
   | { id: 'noMoney' }
   | { id: 'noCargoRoom' }
+  | { id: 'noStock' }
   | { id: 'theyHaveNoRoom' }
   | { id: 'noSupplyRoom' }
   | { id: 'inCombat' }
@@ -254,13 +255,13 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'follow';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
   reason: GoalReason;
   purchase?: { good: string; sellShop: string };
-  load?: { good: string };
+  shipment?: Shipment;
   perceived?: number;
   worn?: { turn: number; condition: number };
   demands?: boolean;
@@ -269,6 +270,12 @@ export type NpcActivity = {
   leg?: { from: Vec; turn: number };
   posted?: true;
 };
+
+export type Shipment = { good: string; from: string; to: string };
+
+export type RoadNewsKind = 'robbed' | 'destroyed' | 'knockedOut';
+
+export type RoadNews = { turn: number; kind: RoadNewsKind; good: string; units: number; from: string; to: string };
 
 export type NpcBrain = {
     templateId: string;
@@ -500,6 +507,7 @@ export type GameEvent =
   | { t: 'wake' }
   | { t: 'scrapPatch'; fuel: number }
   | { t: 'townPatch' }
+  | { t: 'siteEvent'; shop: string; kind: 'surge' | 'breakdown'; recipe: string }
   | { t: 'towOffer'; by: string; town: string; fee: number }
   | { t: 'towHitched'; by: string; client: string; site: string }
   | { t: 'towDone'; by: string; client: string; fee: number }
@@ -576,6 +584,7 @@ export type World = {
   craters: Crater[];
   salvage: SalvageStock[];
   shops: Record<string, ShopState>;
+  roadNews: RoadNews[];
   terrain: Terrain;
   mapHash: string;
   setup: WorldSetup;

@@ -56,6 +56,25 @@ async function openTown(page, tab) {
 
 const closeTown = (page) => page.evaluate(() => window.__ROAM__.screens.town.close());
 
+async function openShortMarket(page) {
+  await page.evaluate(async () => {
+    const g = window.__ROAM__;
+    const c = await import('/src/sim/cheats.ts');
+    const w = structuredClone(c.teleport(g.state, c.placeSpot(g.state, 'granary')));
+    w.shops.granary.goods.grain = 0;
+    w.shops.granary.shortSince = { grain: w.turn - 800 };
+    w.shops.granary.goods.fuelDrums = 0;
+    w.shops.granary.opened = {};
+    w.roadNews = [
+      { turn: w.turn - 40, kind: 'robbed', good: 'grain', units: 14, from: 'bowl', to: 'granary' },
+      { turn: w.turn - 160, kind: 'knockedOut', good: 'fuelDrums', units: 12, from: 'pump-station', to: 'salvage-yard' },
+    ];
+    g.apply(w);
+    g.screens.town.open();
+  });
+  await page.evaluate(() => document.querySelector('.town-screen [data-tab="market"]').click());
+}
+
 async function openCall(page, node) {
   await page.evaluate(async (node) => {
     const g = window.__ROAM__;
@@ -96,7 +115,7 @@ const openOptions = (page) => chooseMenuItem(page, 'options');
 function faultsIn(page, locale) {
   return page.evaluate(async ({ locale, names, glyphs }) => {
     const { findLayoutFaults } = await import('/src/ui/dom.ts');
-    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English'];
+    const allow = [...names, 'WOT RADIO', 'FM', 'DAY', 'English', 'kg'];
     return findLayoutFaults(document.getElementById('ui'), { locale, allow, glyphs });
   }, { locale, names: KEY_CAPS, glyphs: GLYPHS });
 }
@@ -177,6 +196,7 @@ const STATES = {
   inventory: { setup: openInventory, teardown: escape },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
+  'trade-shortage': { setup: openShortMarket, teardown: closeTown },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },

@@ -1,4 +1,5 @@
 
+import { reportLostTruck } from './road-news';
 import { NPC_BEHAVIOR, NPCS } from "../data/npcs";
 import { chassisDef } from "../data/chassis";
 import { RULES } from "../data/rules";
@@ -129,6 +130,7 @@ export function standDown(world: World, v: Vehicle, winnerId: string): void {
 }
 
 export function knockOutNpc(world: World, v: Vehicle): void {
+  reportLostTruck(world, v, "knockedOut");
   layDown(world, v, foesOf(world, v), false);
   const by = beatenBy(world, v);
   world.events.push({ t: "npcKnockout", vehicle: v.id, by });

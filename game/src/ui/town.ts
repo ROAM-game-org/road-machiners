@@ -1,7 +1,8 @@
 
 import { PLAYER_CHASSIS } from "../data/chassis";
 import { ECONOMY, GOOD_IDS, PARCEL } from "../data/goods";
-import { CONTRACTS, shopDef, type ShopDef } from "../data/market";
+import { CONTRACTS, SHOPS, SHORT_PRESSURE, shopDef, siteRecipes, type Recipe, type ShopDef } from "../data/market";
+import { RULES } from "../data/rules";
 import { partDef, type PartKind } from "../data/parts";
 import { playerVehicle } from "../sim/damage";
 import {
@@ -28,6 +29,8 @@ import {
   sellTruckGood,
   sellTruckPart,
   supplyRoom,
+  rationing,
+  serviceRoom,
   canTradeWith,
   truckGoodPrice,
   truckPartPrice,
@@ -38,23 +41,26 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
-import { acceptContract, deliverContract, fitsFetch, isMet, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
+import { acceptContract, deliverContract, fitsFetch, goodStock, haulShort, isMet, pressureOf, searchRefusal, shopAt, shopState, stockShort, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
-import type { PartInstance, Vehicle, World } from "../sim/types";
+import type { PartInstance, RoadNews, Vehicle, World } from "../sim/types";
+import { onRelief, recipeRunning } from "../sim/production";
+import { liveRoadNews } from "../sim/road-news";
 import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconName } from "./cards";
 import { PartRows, type PartRow } from "./part-rows";
-import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
+import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
 import type { UiHost } from "./host";
 import { coinEl, fuelLiters, kph, moneyEl, moneyMsg, moneyNum } from "./units";
 import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
-import { num, PLUS, SPACE, t, type Msg } from "../text/msg";
+import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
+import { seesAll } from "./see-all";
 import { vehicleHasPerk } from "../sim/progress";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts";
@@ -65,7 +71,6 @@ export const STOCK_FILTERS: StockFilter[] = ["all", "weapon", "engine", "armor",
 
 const GARAGE_ONLY: Tab[] = ["trucks"];
 
-const PRESSURE_HINT_AT = 0.2;
 
 export class TownScreen {
   private root = panel("modal dialog");
@@ -204,45 +209,54 @@ export class TownScreen {
     const state = shopState(w, shopId);
     return el(
       "div",
-      {},
+      { class: "market" },
+      seesAll() ? recipeLine(w, shopId) : null,
       el(
         "div",
-        { class: "goods" },
-        goodsHead(false),
-        ...def.supplies.map((k) => this.supplyRow(w, k)),
+        { class: "goods stocked" },
+        goodsHead(false, true),
+        ...def.supplies.map((k) => this.shopSupplyRow(w, shopId, k)),
         ...def.goods.map((g) => this.goodRow(w, shopId, def, state, g)),
       ),
+      newsWell(w),
     );
+  }
+
+  private shopSupplyRow(w: World, shopId: string, k: Supply): HTMLElement {
+    const short = rationing(w, shopId, k);
+    const tag = short ? el("span", { class: "tag bad", title: rationingTip(k) }, t("trade.rationing")) : null;
+    return limitedSupplyRow(w, k, this, buySupply, playerVehicle(w), { room: serviceRoom(w, shopId, k), tag });
+  }
+
+  private stockedBuyCell(w: World, shopId: string, g: string, hint: PriceHint | null, stock: number): HTMLElement {
+    const buy = buyPrice(w, shopId, g);
+    const buyReason = (n: number) => (stock < n ? stockReason(stock) : this.lotReason(w, shopId, g, n));
+    return el(
+      "div",
+      { class: "trade buy" },
+      caption(GOODS_COLUMNS.buy, true),
+      stock > 0 ? priceEl(buy, shortBy(w.player.money, buy) === null, hint) : el("span", { class: "price" }),
+      this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
+      this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, stock >= 5 ? lotTitle("buy", 5, getLotTradePrice(w, playerVehicle(w), shopId, g, 5, "buy")) : null),
+    );
+  }
+
+  private lotReason(w: World, shopId: string, g: string, n: number): Msg | null {
+    const me = playerVehicle(w);
+    return shortBy(w.player.money, getLotTradePrice(w, me, shopId, g, n, "buy")) ?? (cargoRoom(me) < n ? t("trade.noRoom") : null);
   }
 
   private goodRow(w: World, shopId: string, def: ShopDef, state: ShopState, g: string): HTMLElement {
     const me = playerVehicle(w);
     const held = goodsCount(me)[g] ?? 0;
-    const buy = buyPrice(w, shopId, g);
     const sell = sellPrice(w, shopId, g);
-    const hint = pressureHint(def, state, g);
-    const buyReason = (n: number) => {
-      const lot = getLotTradePrice(w, me, shopId, g, n, "buy");
-      return shortBy(w.player.money, lot) ?? (cargoRoom(me) < n ? t("trade.noRoom") : null);
-    };
+    const stock = goodStock(state, g);
     const sellReason = held === 0 ? t("trade.nothingToSell") : null;
     return el(
       "div",
       { class: "good-row row" },
-      el(
-        "div",
-        { class: "good-name" },
-        createItemIcon(g),
-        el("b", {}, goodName(g)),
-      ),
-      el(
-        "div",
-        { class: "trade buy" },
-        caption(GOODS_COLUMNS.buy, true),
-        priceEl(buy, shortBy(w.player.money, buy) === null, hint),
-        this.button(t("trade.plus", { n: 1 }), (x) => buyGood(x, g, 1), buyReason(1), `${g}:buy1`),
-        this.button(t("trade.plus", { n: 5 }), (x) => buyGood(x, g, 5), buyReason(5), `${g}:buy5`, lotTitle("buy", 5, getLotTradePrice(w, me, shopId, g, 5, "buy"))),
-      ),
+      stockedGoodName(w, shopId, g),
+      this.stockedBuyCell(w, shopId, g, pressureHint(def, state, g), stock),
       el(
         "div",
         { class: "trade sell" },
@@ -251,6 +265,7 @@ export class TownScreen {
         this.button(t("trade.minus", { n: 1 }), (x) => sellGood(x, g, 1), sellReason, `${g}:sell1`),
         this.button(t("trade.all"), (x) => sellGood(x, g, held), sellReason, `${g}:sellAll`, held ? lotTitle("sell", held, getLotTradePrice(w, me, shopId, g, held, "sell")) : null),
       ),
+      countCell("stock", stock),
       countCell("held", held),
       profitCell(saleEstimate(held, sell, w.player.costBasis[g])),
     );
@@ -337,7 +352,7 @@ export class TownScreen {
     const full = w.player.contracts.length >= CONTRACTS.maxActive;
     const refusal = (c: Contract): Msg | null => {
       if (full) return t("contract.full", { n: CONTRACTS.maxActive });
-      return escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
+      return haulStockReason(w, c) ?? escortRefusal(w, c) ?? searchRefusalText(w, searchRefusal(w, c));
     };
     const accept = (c: Contract) => this.button(t("contract.accept"), (x) => acceptContract(x, c.id), refusal(c));
     return el(
@@ -446,21 +461,19 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
 
-function goodsHead(withTheirs: boolean): DocumentFragment {
+function goodsHead(withTheirs: boolean, withStock = false): HTMLElement {
   const c = GOODS_COLUMNS;
-  const head = el(
+  return el(
     "div",
     { class: "goods-head row dim" },
     el("span", {}, c.good),
     withTheirs ? theirsHead() : null,
     priceHead(c.buy),
     priceHead(c.sell),
+    withStock ? el("span", { class: "end" }, c.stock) : null,
     el("span", { class: "end" }, c.held),
     el("span", { class: "end", title: PROFIT_HEAD_TITLE, "aria-label": PROFIT_HEAD_TITLE }, c.profit, coinEl()),
   );
-  const fragment = document.createDocumentFragment();
-  fragment.append(head, el("div", { class: "goods-note dim" }, CRATE_NOTE));
-  return fragment;
 }
 
 function suppliesHead(): HTMLElement {
@@ -471,7 +484,7 @@ function theirsHead(): HTMLElement {
   return el("span", { class: "end" }, GOODS_COLUMNS.theirs);
 }
 
-function countCell(cls: "theirs" | "held", n: number, text: Msg = num(n, "int")): HTMLElement {
+function countCell(cls: "theirs" | "held" | "stock", n: number, text: Msg = num(n, "int")): HTMLElement {
   return el("div", { class: `count ${cls}` }, caption(GOODS_COLUMNS[cls]), el("span", { class: n === 0 ? "num dim" : "num" }, text));
 }
 
@@ -505,6 +518,86 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
   );
 }
 
+function haulStockReason(w: World, c: Contract): Msg | null {
+  if (c.kind !== "haul" || !haulShort(w, c)) return null;
+  return t("contract.noStock", { n: goodStock(shopState(w, c.shop), c.good) });
+}
+
+function rationingTip(k: Supply): Msg {
+  const pct = Math.round(RULES.scrapPatch * 100);
+  return k === "fuel" ? t("trade.rationingTip.fuel", { pct }) : t("trade.rationingTip.supplies", { pct });
+}
+
+function goodRoutesTip(good: string): Msg {
+  const sites = (list: string[]) => list.map(siteName);
+  const makers = Object.values(SHOPS).filter((s) => s.makes.includes(good)).map((s) => s.id);
+  const users = Object.values(SHOPS).filter((s) => s.needs.includes(good)).map((s) => s.id);
+  if (users.length === 0) return t("trade.goodMadeOnly", { makers: list(sites(makers)) });
+  return t("trade.goodRoutes", { makers: list(sites(makers)), users: list(sites(users)) });
+}
+
+function recipeLine(w: World, shopId: string): HTMLElement {
+  const event = shopState(w, shopId).event;
+  return el("div", { class: "recipes" }, ...siteRecipes(shopId).map((r) => recipeChip(w, shopId, r, event?.recipe === r.id ? event.kind : null)));
+}
+
+function stockReason(stock: number): Msg {
+  return stock === 0 ? t("trade.noGoodStock") : t("contract.noStock", { n: stock });
+}
+
+export function goodRoutesTitle(good: string): Msg | null {
+  return seesAll() ? goodRoutesTip(good) : null;
+}
+
+export function showsRelief(w: World, shopId: string, good: string): boolean {
+  return seesAll() && onRelief(w, shopId, good);
+}
+
+function stockedGoodName(w: World, shopId: string, g: string): HTMLElement {
+  const relief = showsRelief(w, shopId, g) ? el("span", { class: "tag bad", title: t("trade.reliefTip") }, t("trade.relief")) : null;
+  return el("div", { class: "good-name", title: goodRoutesTitle(g) ?? undefined }, createItemIcon(g), el("b", {}, goodName(g)), relief);
+}
+
+function recipeChip(w: World, shopId: string, r: Recipe, event: "surge" | "breakdown" | null): HTMLElement {
+  const run = recipeRunning(w, shopId, r.id);
+  const batch = run === "fallback" ? { inputs: {}, outputs: r.fallback ?? r.outputs } : { inputs: r.inputs, outputs: r.outputs };
+  return el(
+    "div",
+    { class: run === "stopped" ? "recipe dim" : "recipe" },
+    ...crateIcons(batch.inputs),
+    Object.keys(batch.inputs).length > 0 ? el("span", { class: "recipe-gap" }) : null,
+    ...crateIcons(batch.outputs),
+    event ? eventTag(event) : null,
+  );
+}
+
+function eventTag(event: "surge" | "breakdown"): HTMLElement {
+  return event === "surge" ? el("span", { class: "tag good" }, t("recipe.surge")) : el("span", { class: "tag bad" }, t("recipe.breakdown"));
+}
+
+function crateIcons(goods: Record<string, number>): HTMLElement[] {
+  return Object.entries(goods).map(([good, n]) => el("span", { class: "recipe-good" }, n > 1 ? el("span", { class: "num" }, num(n, "int")) : null, createItemIcon(good)));
+}
+
+function newsWell(w: World): HTMLElement | null {
+  const news = liveRoadNews(w);
+  if (news.length === 0) return null;
+  return el("div", { class: "road-news" }, ...[...news].reverse().map((n) => newsRow(w, n)));
+}
+
+const NEWS_VERB = { robbed: "news.robbed", destroyed: "news.destroyed", knockedOut: "news.knockedOut" } as const;
+
+function newsRow(w: World, n: RoadNews): HTMLElement {
+  return el(
+    "div",
+    { class: "news-row row" },
+    createItemIcon(n.good),
+    el("span", { class: "bad" }, t(NEWS_VERB[n.kind])),
+    el("span", {}, t("news.route", { from: siteName(n.from), to: siteName(n.to) })),
+    el("span", { class: "num dim" }, t("news.ago", { h: gameHours(w.turn - n.turn) })),
+  );
+}
+
 function contractSummaryCell(c: Contract): HTMLElement {
   if (c.kind !== "rescue") return el("span", {}, contractSummary(c));
   const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
@@ -512,9 +605,8 @@ function contractSummaryCell(c: Contract): HTMLElement {
 }
 
 export function pressureHint(def: ShopDef, state: ShopState, good: string): PriceHint | null {
-  const pressure = state.pressure[good] ?? 0;
-  if (pressure >= PRESSURE_HINT_AT) return { tone: "bad", title: t("trade.hint.short") };
-  if (pressure <= -PRESSURE_HINT_AT) return { tone: "good", title: t("trade.hint.flooded") };
+  if (stockShort(def.id, state, good)) return { tone: "bad", title: t("trade.hint.short") };
+  if (pressureOf(def.id, good, goodStock(state, good)) <= -SHORT_PRESSURE) return { tone: "good", title: t("trade.hint.flooded") };
   if (def.makes.includes(good)) return { tone: "good", title: t("trade.hint.cheap") };
   if (def.needs.includes(good)) return { tone: "bad", title: t("trade.hint.dear") };
   return null;

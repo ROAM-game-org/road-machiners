@@ -42,6 +42,16 @@ Sefa Krol. I trade for the families off the Burnt Convoy. Show me what you carry
   ~ heard_water = true
   ~ heard_kiln = true
   -> hub
++ [What does the Yard turn out?]
+  Scrap and parts. The crews cut down the stacks under the crane, two crates of scrap for every crate of parts worth keeping.
+  The cutting eats tools. The tools come from Nose, and Nose wants our scrap to make them. That's all we are, a circle with a crane in it.
+  { works_down():
+    The crane's down. Nothing comes off the stacks until it swings again, and the crews sit on my beans.
+  }
+  { short_of("tools"):
+    The crews are out of tools. They cut with what's left, which is slow, and my mother says loud.
+  }
+  -> hub
 + [Who runs this yard?]
   The repair crews, since they stopped answering to Pierce. The Administrator keeps them in line. Nose put an Army post inside the gate afterward. We keep to the north side of the yard, where soldiers don't like the wind.
   ~ heard_post = true

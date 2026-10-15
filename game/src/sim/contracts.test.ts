@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONTRACTS, EFFORT, SHOPS } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { GOODS } from '../data/goods';
+import { graphEdges } from '../data/market';
 import { PARTS } from '../data/parts';
 import { REGION } from '../data/region';
 import { playerVehicle } from './damage';
@@ -20,6 +21,7 @@ import {
   acceptContract,
   advanceContracts,
   advanceShops,
+  haulBlocked,
   bountyReward,
   deliverContract,
   goodValue,
@@ -179,7 +181,7 @@ describe('haul pay and rush', () => {
     const before = w.rngState;
     const rolled = new Set<boolean>();
     for (let i = 0; i < 100; i++) {
-      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ id: 'nose', pos: { x: 100, y: 0 } }], ['salt'], [], [], []);
+      const c = rollContract(w, { id: 'bowl', pos: { x: 0, y: 0 } }, [{ good: 'salt', to: { id: 'nose', pos: { x: 100, y: 0 } }, units: 20 }], [], []);
       if (c?.kind === 'haul') {
         rolled.add(c.rush);
         expect(c.window).toBe(haulWindow(estimateTurns({ x: 0, y: 0 }, { x: 100, y: 0 }), c.rush));
@@ -243,7 +245,7 @@ describe('fetchReward', () => {
 describe('rollContract', () => {
   const shop = { id: 'bowl', pos: { x: 0, y: 0 } };
   const places = [{ id: 'nose', pos: { x: 100, y: 0 } }];
-  const goods = ['salt'];
+  const legs = [{ good: 'salt', to: places[0], units: 20 }];
   const partDefIds = ['mg'];
 
   it('is deterministic for the same rng state', () => {
@@ -253,28 +255,28 @@ describe('rollContract', () => {
     w2.marketRng.rngState = 42;
     const raider = addRaider(w1, 'buggy');
     addRaider(w2, 'buggy');
-    const c1 = rollContract(w1, shop, places, goods, partDefIds, [raider], []);
-    const c2 = rollContract(w2, shop, places, goods, partDefIds, [w2.vehicles.find((v) => v.faction === 'raiders')!], []);
+    const c1 = rollContract(w1, shop, legs, partDefIds, [raider]);
+    const c2 = rollContract(w2, shop, legs, partDefIds, [w2.vehicles.find((v) => v.faction === 'raiders')!]);
     expect(c1).toEqual(c2);
   });
 
   it('returns null when every kind is impossible', () => {
     const w = emptyWorld();
-    expect(rollContract(w, shop, [], [], [], [], [])).toBeNull();
+    expect(rollContract(w, shop, [], [], [])).toBeNull();
   });
 
   it('never rolls a bounty when there are no raiders', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, partDefIds, [], []);
+      const c = rollContract(w, shop, legs, partDefIds, []);
       expect(c?.kind).not.toBe('bounty');
     }
   });
 
-  it('never rolls a haul when there are no other places', () => {
+  it('never rolls a haul when no leg is short', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], goods, partDefIds, [], []);
+      const c = rollContract(w, shop, [], partDefIds, []);
       expect(c?.kind).not.toBe('haul');
     }
   });
@@ -282,7 +284,7 @@ describe('rollContract', () => {
   it('never rolls a fetch when there are no part defs', () => {
     const w = emptyWorld();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, places, goods, [], [], []);
+      const c = rollContract(w, shop, legs, [], []);
       expect(c?.kind).not.toBe('fetch');
     }
   });
@@ -292,7 +294,7 @@ describe('rollContract', () => {
     w.turn = 10;
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, goods, [], [], []);
+      const c = rollContract(w, shop, legs, [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -301,10 +303,9 @@ describe('rollContract', () => {
 
   it('takes a haul\'s tier from the hauled good, not a random roll', () => {
     const w = emptyWorld();
-    const dearGoods = ['tools'];
     let haul: Contract | null = null;
     for (let i = 0; i < 50 && !haul; i++) {
-      const c = rollContract(w, shop, places, dearGoods, [], [], []);
+      const c = rollContract(w, shop, [{ good: 'tools', to: places[0], units: 20 }], [], []);
       if (c?.kind === 'haul') haul = c;
     }
     expect(haul).not.toBeNull();
@@ -315,7 +316,7 @@ describe('rollContract', () => {
     const w = emptyWorld();
     let fetchContract: Contract | null = null;
     for (let i = 0; i < 50 && !fetchContract; i++) {
-      const c = rollContract(w, shop, [], [], ['workhorseDiesel'], [], []);
+      const c = rollContract(w, shop, [], ['workhorseDiesel'], []);
       if (c?.kind === 'fetch') fetchContract = c;
     }
     expect(fetchContract).not.toBeNull();
@@ -329,7 +330,7 @@ describe('rollContract', () => {
     expect(stowed).toBe(true);
     let bounty: Contract | null = null;
     for (let i = 0; i < 50 && !bounty; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider], []);
+      const c = rollContract(w, shop, [], [], [raider]);
       if (c?.kind === 'bounty') bounty = c;
     }
     expect(bounty).not.toBeNull();
@@ -342,7 +343,7 @@ describe('rollContract', () => {
     const rewards = new Set<number>();
     const deadlines = new Set<number>();
     for (let i = 0; i < 50; i++) {
-      const c = rollContract(w, shop, [], [], [], [raider], []);
+      const c = rollContract(w, shop, [], [], [raider]);
       if (c?.kind === 'bounty') {
         rewards.add(c.reward);
         deadlines.add(c.deadline);
@@ -525,6 +526,52 @@ describe('contract boards and delivery', () => {
     expect(w.player.money).toBe(money + 10000);
     expect(goodsCount(playerVehicle(w)).salt ?? 0).toBe(0);
     expect(w.player.contracts).toHaveLength(0);
+  });
+
+  it('takes haul cargo from the posting shop stock and delivers it into the destination stock', () => {
+    let w = atBowlWithOffer(haul('nose', 3));
+    const bowlSalt = w.shops.bowl.goods.salt;
+    const noseSalt = w.shops.nose.goods.salt;
+    w = acceptContract(w, 'ct-haul');
+    expect(w.shops.bowl.goods.salt).toBe(bowlSalt - 3);
+    w.vehicles[0].pos = { ...sitePads(nose)[0] };
+    w = deliverContract(w, 'ct-haul');
+    expect(w.shops.nose.goods.salt).toBe(noseSalt + 3);
+  });
+
+  it('blocks a haul the posting shop has too few crates for', () => {
+    const w = atBowlWithOffer(haul('nose', 3));
+    w.shops.bowl.goods.salt = 2;
+    const c = w.shops.bowl.contracts[0];
+    expect(haulBlocked(w, c)).toBe(true);
+    expect(() => acceptContract(w, 'ct-haul')).toThrow();
+  });
+
+  it('leaves both stocks alone and the goods with the player when a haul fails', () => {
+    let w = acceptContract(atBowlWithOffer(haul('nose', 3)), 'ct-haul');
+    const stocks = { bowl: w.shops.bowl.goods.salt, nose: w.shops.nose.goods.salt };
+    w = update(w, (d) => { d.turn += 501; advanceContracts(d); });
+    expect({ bowl: w.shops.bowl.goods.salt, nose: w.shops.nose.goods.salt }).toEqual(stocks);
+    expect(goodsCount(playerVehicle(w)).salt).toBe(3);
+  });
+
+  it('posts hauls only along graph edges, to a destination at or below its target, within the origin stock', () => {
+    for (const seed of [1, 2, 3]) {
+      const w = emptyWorld();
+      w.marketRng.rngState = seed;
+      for (const state of Object.values(w.shops)) for (const good of Object.keys(state.goods)) state.goods[good] = Math.floor(state.goods[good] / 2);
+      for (const state of Object.values(w.shops)) {
+        state.contracts = [];
+        state.restockAt = w.turn;
+      }
+      advanceShops(w);
+      const hauls = Object.values(w.shops).flatMap((s) => s.contracts).filter((c): c is Extract<Contract, { kind: 'haul' }> => c.kind === 'haul');
+      expect(hauls.length).toBeGreaterThan(0);
+      for (const c of hauls) {
+        expect(graphEdges()).toContainEqual({ good: c.good, from: c.shop, to: c.to });
+        expect(c.units).toBeLessThanOrEqual(w.shops[c.shop].goods[c.good]);
+      }
+    }
   });
 
   it('counts haul cargo as paid at its value, so selling it pays no trade XP', () => {
@@ -859,7 +906,7 @@ describe('search contracts', () => {
     const { w, target } = worldWithTarget();
     w.turn = 100;
     for (let i = 0; i < 40; i++) {
-      const c = rollContract(w, bowlSpot, [], [], [], [], [], [{ vehicle: target, seenTurn: 90 }]);
+      const c = rollContract(w, bowlSpot, [], [], [], [], [{ vehicle: target, seenTurn: 90 }]);
       expect(c).toMatchObject({ kind: 'search', target: target.id, driver: target.brain!.driver, template: 'trader', delivered: false, tier: 1, reward: searchReward(), lead: { at: bowl.pos, turn: 90 } });
       expect(c!.window).toBeGreaterThanOrEqual(CONTRACTS.search.durationTurns[0]);
       expect(c!.window).toBeLessThanOrEqual(CONTRACTS.search.durationTurns[1]);

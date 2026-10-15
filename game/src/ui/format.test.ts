@@ -10,10 +10,10 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
 import { mountedParts } from "../sim/grid";
-import { fuelLiters, kg } from "./units";
-import { CRATE_MASS } from "../data/goods";
+import { fuelLiters } from "./units";
+import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { wreckVehicle } from "../sim/combat";
 import { partName, siteName, vehicleTitle } from "../text/names";
 import { t, type Msg } from "../text/msg";
@@ -219,7 +219,7 @@ describe("contract text", () => {
 
 describe("jobLabel of site business", () => {
   const town = REGION.towns[0];
-  const label = (deal: "resupply" | "sell" | "trade" | "haul", siteId = town.id) => {
+  const label = (deal: "resupply" | "sell" | "trade", siteId = town.id) => {
     const w = emptyWorld();
     return en(jobLabel(w, w.vehicles[0], { kind: "business", siteId, deal, turnsLeft: 2, total: 3 }));
   };
@@ -228,7 +228,6 @@ describe("jobLabel of site business", () => {
     expect(label("resupply")).toBe(`Refuel and repair at ${en(siteName(town.id))}`);
     expect(label("sell")).toBe(`Sell cargo at ${en(siteName(town.id))}`);
     expect(label("trade")).toBe(`Buy cargo at ${en(siteName(town.id))}`);
-    expect(label("haul")).toBe(`Load cargo at ${en(siteName(town.id))}`);
   });
 
   it("reads an oasis resupply as filling water", () => {
@@ -674,12 +673,7 @@ describe("saleEstimate", () => {
 
 describe("goods table words", () => {
   it("has terse column heads", () => {
-    expect(Object.fromEntries(Object.entries(GOODS_COLUMNS).map(([k, v]) => [k, en(v)]))).toEqual({ good: "Good", theirs: "Theirs", buy: "Buy", sell: "Sell", held: "Held", profit: "Profit/crate" });
-  });
-
-  it("says prices are per crate of the one crate mass", () => {
-    expect(en(CRATE_NOTE)).toBe(`Prices are per ${en(kg(CRATE_MASS))} crate. One crate fills one cargo cell.`);
-    expect(en(CRATE_NOTE)).toContain("50 kg");
+    expect(Object.fromEntries(Object.entries(GOODS_COLUMNS).map(([k, v]) => [k, en(v)]))).toEqual({ good: "Good", theirs: "Theirs", buy: "Buy", sell: "Sell", stock: "Stock", held: "Held", profit: "Profit/crate" });
   });
 
   it("explains the profit head in a hover title without turns", () => {
@@ -764,5 +758,21 @@ describe("the discovery line", () => {
     const line = eventText(emptyWorld(), { t: "discover", location: site })!;
 
     expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
+  });
+});
+
+describe("site event log lines", () => {
+  const surge: GameEvent = { t: "siteEvent", shop: "pump-station", kind: "surge", recipe: "pump" };
+
+  it("tell nothing while production is hidden", () => {
+    resetSeeAll();
+    expect(eventText(emptyWorld(), surge)).toBeNull();
+  });
+
+  it("tell a surge under see all", () => {
+    resetSeeAll();
+    toggleSeeAll();
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    resetSeeAll();
   });
 });

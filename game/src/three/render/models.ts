@@ -210,6 +210,7 @@ const NAMES = [
   'good_parts',
   'good_fuel_drums',
   'good_water',
+  'good_rations',
 
   'wmount_ring_small',
   'wmount_pintle',

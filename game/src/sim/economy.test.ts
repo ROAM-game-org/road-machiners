@@ -1,10 +1,10 @@
 import { START_KITS } from "../data/start";
 import { describe, expect, it } from "vitest";
 import { CHASSIS } from "../data/chassis";
-import { CRATE_MASS, ECONOMY, GOOD_IDS } from "../data/goods";
+import { CRATE_MASS, ECONOMY } from "../data/goods";
 import { vehicleMass } from "./mass";
 import { SHOPS } from "../data/market";
-import { goodBasePrice, lotPrice, shopState } from "./market";
+import { goodBasePrice, lotPrice, shopState, stockTarget } from "./market";
 import { PARTS, partDef } from "../data/parts";
 import { REGION } from "../data/region";
 import { RULES } from "../data/rules";
@@ -29,6 +29,10 @@ import {
   sellGood,
   sellPrice,
   sellPart,
+  rationing,
+  serviceAtStall,
+  serviceRoom,
+  serviceUnitsPerCrate,
   serviceVehicle,
 } from "./economy";
 import {
@@ -47,6 +51,7 @@ import { heatAt } from "./sun";
 import { sitePads, townAt, townNear } from "./sites";
 import { addVehicle, emptyWorld, spotWorld, testDrive } from "./testkit";
 import { endTurn, newWorld } from "./world";
+import { fuelCap, suppliesCap } from "./stats";
 import { TEST_MAP } from "../test/map";
 import { defaultSetup } from "./settings";
 
@@ -149,9 +154,9 @@ describe("trade", () => {
     );
   });
 
-  it("every garage prices every good", () => {
-    for (const [id] of Object.entries(SHOPS).filter(([, s]) => s.kind === "garage"))
-      for (const good of GOOD_IDS) expect(goodBasePrice(id, good)).toBeGreaterThan(0);
+  it("every shop prices every good it trades", () => {
+    for (const shop of Object.values(SHOPS))
+      for (const good of shop.goods) expect(goodBasePrice(shop.id, good)).toBeGreaterThan(0);
   });
 
   it("a lot price equals the sum of single-unit trades", () => {
@@ -160,10 +165,10 @@ describe("trade", () => {
     for (const direction of ["buy", "sell"] as const) {
       const lot = lotPrice("bowl", state, "scrap", direction, ECONOMY.spread, 25);
       let summed = 0;
-      const pressure = { ...state.pressure };
+      const goods = { ...state.goods };
       for (let i = 0; i < 25; i++) {
-        summed += lotPrice("bowl", { ...state, pressure }, "scrap", direction, ECONOMY.spread, 1);
-        pressure.scrap = (pressure.scrap ?? 0) + SHOPS.bowl.pressurePerUnit * (direction === "buy" ? 1 : -1);
+        summed += lotPrice("bowl", { ...state, goods }, "scrap", direction, ECONOMY.spread, 1);
+        goods.scrap += direction === "buy" ? -1 : 1;
       }
       expect(lot).toBe(summed);
     }
@@ -175,11 +180,11 @@ describe("trade", () => {
       for (const pressureStart of [0, 0.3, -0.3]) {
         const w = longbedAtBowl();
         w.player.ranks.social = social;
-        w.shops.bowl.pressure.scrap = pressureStart;
-        addGoods(w, w.vehicles[0], "scrap", 25 - (goodsCount(w.vehicles[0]).scrap ?? 0));
+        w.shops.bowl.goods.grain = Math.round(stockTarget("bowl", "grain") * (1 - pressureStart));
+        addGoods(w, w.vehicles[0], "grain", 25 - (goodsCount(w.vehicles[0]).grain ?? 0));
 
         const before = w.player.money;
-        const after = buyGood(sellGood(w, "scrap", 25), "scrap", 25);
+        const after = buyGood(sellGood(w, "grain", 25), "grain", 25);
         expect(after.player.money).toBeLessThan(before);
       }
     },
@@ -191,10 +196,10 @@ describe("trade", () => {
       for (const pressureStart of [0, 0.3, -0.3]) {
         const w = longbedAtBowl();
         w.player.ranks.social = social;
-        w.shops.bowl.pressure.scrap = pressureStart;
+        w.shops.bowl.goods.grain = Math.round(stockTarget("bowl", "grain") * (1 - pressureStart));
 
         const before = w.player.money;
-        const after = sellGood(buyGood(w, "scrap", 25), "scrap", 25);
+        const after = sellGood(buyGood(w, "grain", 25), "grain", 25);
         expect(after.player.money).toBeLessThan(before);
       }
     },
@@ -223,6 +228,66 @@ describe("garage", () => {
       expect(r.player[kind]).toBe(3);
       expect(r.player.money).toBe(33333 - 3 * ECONOMY.supplyPrice[kind]);
     }
+  });
+
+  it("draws a service crate per its unit conversion, and an opened crate serves the next fill", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.fuel = 0;
+    const per = serviceUnitsPerCrate("fuel");
+    const drums = shopState(w, "bowl").goods.fuelDrums;
+    const one = buySupply(w, "fuel", per + 1);
+    expect(shopState(one, "bowl").goods.fuelDrums).toBe(drums - 2);
+    expect(shopState(one, "bowl").opened.fuel).toBe(per - 1);
+    const two = buySupply(one, "fuel", per - 1);
+    expect(shopState(two, "bowl").goods.fuelDrums).toBe(drums - 2);
+    expect(two.player.money).toBe(1000000 - 2 * per * ECONOMY.supplyPrice.fuel);
+  });
+
+  it("keeps fuel and supplies at the anchor price however low the stock", () => {
+    for (const drums of [0, 1, 500]) {
+      const w = startAtBowl();
+      w.player.money = 100000;
+      w.player.fuel = 0;
+      shopState(w, "bowl").goods.fuelDrums = drums;
+      const r = buySupply(w, "fuel", 3);
+      expect(r.player.money).toBe(100000 - 3 * ECONOMY.supplyPrice.fuel);
+    }
+  });
+
+  it("rations an empty shop: it still sells, but only up to the scrap-fuel share of the tank", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.fuel = 0;
+    shopState(w, "bowl").goods.fuelDrums = 0;
+    const me = w.vehicles[0];
+    expect(rationing(w, "bowl", "fuel")).toBe(true);
+    const cap = Math.floor(fuelCap(me) * RULES.scrapPatch);
+    expect(serviceRoom(w, "bowl", "fuel")).toBe(cap);
+    const filled = buySupply(w, "fuel", cap);
+    expect(filled.player.fuel).toBe(cap);
+    expect(() => buySupply(filled, "fuel", 1)).toThrow();
+    expect(shopState(filled, "bowl").goods.fuelDrums).toBe(0);
+  });
+
+  it("rations supplies the same way when the rations run out", () => {
+    const w = startAtBowl();
+    w.player.money = 1000000;
+    w.player.supplies = 0;
+    shopState(w, "bowl").goods.rations = 0;
+    const cap = Math.floor(suppliesCap(w.vehicles[0]) * RULES.scrapPatch);
+    expect(serviceRoom(w, "bowl", "supplies")).toBe(cap);
+    expect(buySupply(w, "supplies", cap).player.supplies).toBe(cap);
+  });
+
+  it("tops an NPC up at a rationing stall to the ration share, from the same rule", () => {
+    const w = emptyWorld({ ...sitePads(REGION.locations.find((l) => l.id === "dustwell")!)[0] });
+    shopState(w, "dustwell").goods.fuelDrums = 0;
+    const npc = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...w.vehicles[0].pos });
+    npc.speed = 0;
+    npc.resources = { ...npc.resources!, money: 100000, fuel: 0 };
+    serviceAtStall(w, npc, "dustwell", 0);
+    expect(npc.resources!.fuel).toBe(Math.floor(fuelCap(npc) * RULES.scrapPatch));
   });
 
   it.each(STALLS)("repairs at the %s for the shown prices", (id) => {

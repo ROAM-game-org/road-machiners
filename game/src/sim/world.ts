@@ -57,6 +57,7 @@ import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
 import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
+import { advanceProduction } from './production';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
 import { searchStream } from './search';
@@ -88,6 +89,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     craters: [],
     salvage: [],
     shops: {},
+    roadNews: [],
     terrain: map.terrain,
     mapHash: map.hash,
     setup: parseSetup(setup),
@@ -401,6 +403,7 @@ export function endTurn(
     spawnNpcs(w);
     advanceIntro(w);
     advanceShops(w);
+    advanceProduction(w);
     practiceContacts(w, refreshVision(w));
     noteEscape(w);
     noteHurt(w);

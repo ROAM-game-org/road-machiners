@@ -80,6 +80,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 
 - Bowl is run by the canal families, a say for every gate, and guarded by the Bowl Farmers. Its people talk warm and slow, of crops, canals, water and seed. They think Nose is soldiers playing at a town.
 - Nose is an Army post that became a town. The Army runs it: command gives orders, dispatch hands them out. Its people talk short and to the point. They think Bowl is slow but needed, since its grain feeds them.
+- Bowl's grain is sorgut, a hardy sorghum the canal families grow on water trucked in from Dustwell, or from Green Pit when the Dustwell road is bad. The Granary dries and salts it into rations, the tins every truck eats on the road, and sells them back to Bowl, Nose and the stalls.
 - The locals are Ruben the canal warden, Hattie of the well house and Dag of the Farmers patrol at Bowl, and Sergeant Kovac at dispatch, Lena the mechanic and Old Ibo the radio man at Nose. Nose Army wagon Seven went dark on the Dustwell water run to Bowl, and its crew walked home.
 - Talk about the recent years comes from more locals. Jory Baptiste and Bo Lindqvist are at Bowl, a Bowl patrol driver is at the Granary, Sefa Krol trades at the Salvage Yard, and Ines Abend and an Order Bureau clerk are at Nose.
 - Jory speaks for the tenants and ends every answer with a short joke. His subjects are the vote, the patrol, Kiln and the grain, and the household's tanker to the top terraces.

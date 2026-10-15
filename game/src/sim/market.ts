@@ -4,7 +4,8 @@ import { PARTS, type PartKind } from '../data/parts';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
 import { CONDITION } from '../data/wear';
-import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, GOOD_SOURCES, PRESSURE_MAX, SHOPS, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
+import { CONTRACTS, DISTANCE_PREMIUM, EFFORT, PRESSURE_MAX, SHOPS, SHORT_PRESSURE, shopDef, type PartStockTable, type ShopDef, type Threat, type Tier } from '../data/market';
+import { dailyFlow, graphEdges, PRODUCTION, tradedGoods, type SiteEventKind } from '../data/market';
 import { chassisDef } from '../data/chassis';
 import { makePart, newId } from './factory';
 import { sampleWeighted } from './npc-loadout';
@@ -24,12 +25,27 @@ import { isJunk, partValue } from './wear';
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
 
+export type SiteEvent = { kind: SiteEventKind; recipe: string; until: number };
+
 export type ShopState = {
   contracts: Contract[];
-  pressure: Record<string, number>;
+  goods: Record<string, number>;
   stock: PartInstance[];
   restockAt: number;
+  event: SiteEvent | null;
+  shortSince: Record<string, number>;
+  opened: Partial<Record<'fuel' | 'supplies', number>>;
 };
+
+export type StockCause = 'trade' | 'recipe' | 'demand' | 'upkeep' | 'repair' | 'service' | 'contract' | 'relief';
+
+type StockWatcher = (shopId: string, good: string, delta: number, cause: StockCause) => void;
+
+let stockWatcher: StockWatcher | null = null;
+
+export function watchStock(watcher: StockWatcher | null): void {
+  stockWatcher = watcher;
+}
 
 export function goodValue(good: string): number {
   const def = GOODS[good];
@@ -75,15 +91,57 @@ function countOfKind(perKind: Partial<Record<PartKind, number>>, kind: PartKind,
 
 export function initShop(world: World, shopId: string): ShopState {
   const def = shopDef(shopId);
-  const pressure: Record<string, number> = {};
-  for (const good of def.goods) pressure[good] = 0;
+  const goods = Object.fromEntries(def.goods.map((good) => [good, stockTarget(shopId, good)]));
   const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
-  return { contracts: [], pressure, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns };
+  return { contracts: [], goods, stock: rollPartStock(world, world.marketRng, def.partStock, count, def.id), restockAt: world.turn + def.restockTurns, event: null, shortSince: {}, opened: {} };
+}
+
+export function goodStock(state: ShopState, good: string): number {
+  const stock = state.goods[good];
+  if (stock === undefined) throw new Error(`The shop keeps no stock of ${good}`);
+  return stock;
+}
+
+export function moveStock(state: ShopState, shopId: string, good: string, delta: number, cause: StockCause): void {
+  if (!Number.isInteger(delta)) throw new Error(`${shopId} moves a stock of ${good} by ${delta}, not a whole crate`);
+  const next = goodStock(state, good) + delta;
+  if (next < 0) throw new Error(`${shopId} would hold ${next} ${good} after a ${cause}`);
+  state.goods[good] = next;
+  stockWatcher?.(shopId, good, delta, cause);
+}
+
+const targets = new Map<string, number>();
+
+export function stockTarget(shopId: string, good: string): number {
+  const key = `${shopId}:${good}`;
+  const known = targets.get(key);
+  if (known !== undefined) return known;
+  if (!tradedGoods(shopId).includes(good)) throw new Error(`${shopId} keeps no stock of ${good}`);
+  const target = Math.max(PRODUCTION.minTarget[shopDef(shopId).kind], Math.ceil(dailyFlow(shopId, good) * PRODUCTION.bufferDays));
+  targets.set(key, target);
+  return target;
+}
+
+export function fullStock(shopId: string, good: string): number {
+  return Math.ceil(stockTarget(shopId, good) * PRODUCTION.fullShare);
+}
+
+export function pressureOf(shopId: string, good: string, stock: number): number {
+  const target = stockTarget(shopId, good);
+  const pressure = (PRODUCTION.elasticity * (target - stock)) / target;
+  return Math.max(-PRESSURE_MAX, Math.min(PRESSURE_MAX, pressure));
+}
+
+export function stockShort(shopId: string, state: ShopState, good: string): boolean {
+  return pressureOf(shopId, good, goodStock(state, good)) >= SHORT_PRESSURE;
+}
+
+export function shortHere(world: World, shopId: string, good: string): boolean {
+  return stockShort(shopId, shopState(world, shopId), good);
 }
 
 export function advanceShop(world: World, shopId: string, state: ShopState): void {
   const def = shopDef(shopId);
-  for (const good of def.goods) state.pressure[good] = (state.pressure[good] ?? 0) * (1 - def.driftPerTurn);
   if (world.turn >= state.restockAt) {
     const count = randInt(world.marketRng, def.stockSize[0], def.stockSize[1]);
     state.stock = rollPartStock(world, world.marketRng, def.partStock, count, def.id);
@@ -93,9 +151,8 @@ export function advanceShop(world: World, shopId: string, state: ShopState): voi
 
 function nearestMakerDistance(shopId: string, good: string): number {
   const makers = Object.values(SHOPS).filter((s) => s.id !== shopId && s.makes.includes(good)).map((s) => s.id);
-  const origins = [...makers, ...(GOOD_SOURCES[good] ?? [])];
-  if (origins.length === 0) throw new Error(`No shop or source site makes ${good}`);
-  return Math.min(...origins.map((id) => dist(shopPos(shopId), siteOf(id).pos)));
+  if (makers.length === 0) throw new Error(`No shop makes ${good}`);
+  return Math.min(...makers.map((id) => dist(shopPos(shopId), siteOf(id).pos)));
 }
 
 function priceFactorFor(def: ShopDef, good: string): number {
@@ -122,28 +179,28 @@ export function priceAtPressure(shopId: string, good: string, pressure: number, 
 }
 
 export function goodPrice(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', spread: number): number {
-  return priceAtPressure(shopId, good, state.pressure[good] ?? 0, direction, spread);
+  return priceAtPressure(shopId, good, pressureOf(shopId, good, goodStock(state, good)), direction, spread);
 }
 
 export function lotPrice(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', spread: number, count: number): number {
-  if (!Number.isInteger(count) || count <= 0) throw new Error(`Bad lot count ${count}`);
-  const perUnit = shopDef(shopId).pressurePerUnit * (direction === 'buy' ? 1 : -1);
-  let pressure = state.pressure[good] ?? 0;
+  const stock = lotStock(shopId, state, good, direction, count);
+  const step = direction === 'buy' ? -1 : 1;
   let total = 0;
-  for (let i = 0; i < count; i++) {
-    total += priceAtPressure(shopId, good, pressure, direction, spread);
-    pressure = Math.max(-PRESSURE_MAX, Math.min(PRESSURE_MAX, pressure + perUnit));
-  }
+  for (let i = 0; i < count; i++) total += priceAtPressure(shopId, good, pressureOf(shopId, good, stock + step * i), direction, spread);
   return total;
 }
 
+function lotStock(shopId: string, state: ShopState, good: string, direction: 'buy' | 'sell', count: number): number {
+  if (!Number.isInteger(count) || count <= 0) throw new Error(`Bad lot count ${count}`);
+  const stock = goodStock(state, good);
+  if (direction === 'buy' && count > stock) throw new Error(`${shopId} holds ${stock} ${good}, not ${count}`);
+  return stock;
+}
+
 export function recordTrade(shopId: string, state: ShopState, good: string, units: number, direction: 'buy' | 'sell'): void {
-  const def = shopDef(shopId);
-  if (!def.goods.includes(good)) throw new Error(`${shopId} does not trade ${good}`);
-  if (!(units >= 0)) throw new Error(`Bad trade unit count ${units}`);
-  const delta = def.pressurePerUnit * units * (direction === 'buy' ? 1 : -1);
-  const next = (state.pressure[good] ?? 0) + delta;
-  state.pressure[good] = Math.max(-PRESSURE_MAX, Math.min(PRESSURE_MAX, next));
+  if (!shopDef(shopId).goods.includes(good)) throw new Error(`${shopId} does not trade ${good}`);
+  if (!Number.isInteger(units) || units < 0) throw new Error(`Bad trade unit count ${units}`);
+  moveStock(state, shopId, good, direction === 'buy' ? -units : units, 'trade');
 }
 
 export function takeStockPart(state: ShopState, partId: string): PartInstance {
@@ -220,10 +277,11 @@ function highestPartTier(v: Vehicle): Tier {
   return tiers.length ? (Math.max(...tiers) as Tier) : 1;
 }
 
+export type HaulLeg = { good: string; to: { id: string; pos: Vec }; units: number };
+
 type RollInput = {
   shop: { id: string; pos: Vec };
-  places: { id: string; pos: Vec }[];
-  goods: string[];
+  legs: HaulLeg[];
   partDefIds: string[];
   raiders: Vehicle[];
   clients: Vehicle[];
@@ -238,7 +296,7 @@ type BoardKind = Exclude<Contract['kind'], 'escort'>;
 
 function possibleKinds(input: RollInput): BoardKind[] {
   const kinds: BoardKind[] = [];
-  if (input.places.length > 0 && input.goods.length > 0) kinds.push('haul');
+  if (input.legs.length > 0) kinds.push('haul');
   if (input.partDefIds.length > 0) kinds.push('fetch');
   if (input.raiders.length > 0) kinds.push('bounty');
   if (input.clients.length > 0) kinds.push('rescue');
@@ -247,15 +305,14 @@ function possibleKinds(input: RollInput): BoardKind[] {
 }
 
 function rollHaul(world: World, input: RollInput, id: string): Contract {
-  const to = pick(world, input.places);
-  const good = pick(world, input.goods);
-  const tier = GOODS[good].tier;
-  const units = randInt(world.marketRng, CONTRACTS.haul.units[0], CONTRACTS.haul.units[1]);
-  const turns = estimateTurns(input.shop.pos, to.pos);
+  const leg = pick(world, input.legs);
+  const tier = GOODS[leg.good].tier;
+  const units = randInt(world.marketRng, CONTRACTS.haul.units[0], Math.min(CONTRACTS.haul.units[1], leg.units));
+  const turns = estimateTurns(input.shop.pos, leg.to.pos);
   const rush = chance(world.marketRng, CONTRACTS.haul.rush.chance);
-  const reward = contractReward(turns, units * goodValue(good), rush);
+  const reward = contractReward(turns, units * goodValue(leg.good), rush);
   const window = haulWindow(turns, rush);
-  return { id, shop: input.shop.id, kind: 'haul', good, units, to: to.id, reward, deadline: world.turn + window, window, rush, tier };
+  return { id, shop: input.shop.id, kind: 'haul', good: leg.good, units, to: leg.to.id, reward, deadline: world.turn + window, window, rush, tier };
 }
 
 function rollFetch(world: World, input: RollInput, id: string): Contract {
@@ -298,18 +355,26 @@ const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty, rescue: ro
 export function rollContract(
   world: World,
   shop: { id: string; pos: Vec },
-  places: { id: string; pos: Vec }[],
-  goods: string[],
+  legs: HaulLeg[],
   partDefIds: string[],
   raiders: Vehicle[],
   clients: Vehicle[] = [],
   sought: RollInput['sought'] = [],
 ): Contract | null {
-  const input = { shop, places, goods, partDefIds, raiders, clients, sought };
+  const input = { shop, legs, partDefIds, raiders, clients, sought };
   const kinds = possibleKinds(input);
   if (kinds.length === 0) return null;
   const kind = pick(world, kinds);
   return ROLLS[kind](world, input, newId(world, 'ct'));
+}
+
+export function haulLegs(world: World, shopId: string): HaulLeg[] {
+  const origin = shopState(world, shopId);
+  return graphEdges().filter((e) => e.from === shopId).flatMap((e) => {
+    const units = goodStock(origin, e.good);
+    const wanted = goodStock(shopState(world, e.to), e.good) <= stockTarget(e.to, e.good);
+    return wanted && units >= CONTRACTS.haul.units[0] ? [{ good: e.good, to: { id: e.to, pos: shopPos(e.to) }, units }] : [];
+  });
 }
 
 export function isExpired(world: World, c: Contract): boolean {
@@ -447,20 +512,20 @@ export function shopState(world: World, shopId: string): ShopState {
 }
 
 export function standingPressures(world: World, shopId: string): Record<string, number> {
-  const live = shopState(world, shopId).pressure;
-  return Object.fromEntries(shopDef(shopId).goods.map((good) => [good, live[good] ?? 0]));
+  const state = shopState(world, shopId);
+  return Object.fromEntries(shopDef(shopId).goods.map((good) => [good, pressureOf(shopId, good, goodStock(state, good))]));
 }
 
 function fillBoard(world: World, shopId: string, state: ShopState): void {
   const def = shopDef(shopId);
-  const places = Object.keys(SHOPS).filter((id) => id !== shopId).map((id) => ({ id, pos: shopPos(id) }));
   const stocked = new Set(state.stock.map((p) => p.defId));
   const partDefIds = Object.keys(PARTS).filter((id) => PARTS[id].kind !== 'core' && !stocked.has(id));
   const clients = modeRules(world).rescue ? rescueClients(world, { id: shopId, pos: shopPos(shopId) }) : [];
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
     const raiders = world.vehicles.filter((v) => v.faction === 'raiders' && v.brain && !postedTemplates.has(v.brain.templateId));
-    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders, clients, searchCandidates(world, shopId, state));
+    const legs = haulLegs(world, shopId).filter((leg) => !state.contracts.some((c) => c.kind === 'haul' && c.good === leg.good && c.to === leg.to.id));
+    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, legs, partDefIds, raiders, clients, searchCandidates(world, shopId, state));
     if (!contract) return;
     if (contract.kind === 'rescue') clients.splice(clients.findIndex((v) => v.id === contract.client), 1);
     state.contracts.push(contract);
@@ -475,11 +540,8 @@ export function marketStream(seed: number): Rng {
 
 export function initializeShops(world: World): void {
   world.shops = {};
-  for (const shopId of Object.keys(SHOPS)) {
-    const state = initShop(world, shopId);
-    world.shops[shopId] = state;
-    fillBoard(world, shopId, state);
-  }
+  for (const shopId of Object.keys(SHOPS)) world.shops[shopId] = initShop(world, shopId);
+  for (const [shopId, state] of Object.entries(world.shops)) fillBoard(world, shopId, state);
 }
 
 export function advanceShops(world: World): void {
@@ -548,13 +610,18 @@ export function takeContract(w: World, contractId: string): void {
 }
 
 export function haulBlocked(world: World, c: Contract): boolean {
-  return c.kind === 'haul' && (world.player.money < 0 || freeCells(playerVehicle(world)) < c.units);
+  return c.kind === 'haul' && (world.player.money < 0 || freeCells(playerVehicle(world)) < c.units || haulShort(world, c));
+}
+
+export function haulShort(world: World, c: Extract<Contract, { kind: 'haul' }>): boolean {
+  return goodStock(shopState(world, c.shop), c.good) < c.units;
 }
 
 function loadHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void {
   if (world.player.money < 0) throw new Error('Cannot take on a haul while in debt');
   const v = playerVehicle(world);
   if (freeCells(v) < c.units) throw new Error(`Needs ${c.units} free cells for the cargo`);
+  moveStock(shopState(world, c.shop), c.shop, c.good, -c.units, 'contract');
   const held = goodsCount(v)[c.good] ?? 0;
   if (addGoods(world, v, c.good, c.units) !== c.units) throw new Error('Cargo capacity invariant failed');
   const paid = world.player.costBasis[c.good] ?? 0;
@@ -583,6 +650,7 @@ function handInHaul(world: World, c: Extract<Contract, { kind: 'haul' }>): void 
   const v = playerVehicle(world);
   if ((goodsCount(v)[c.good] ?? 0) < c.units) throw new Error(`Needs ${c.units} ${c.good}`);
   removeGoods(v, c.good, c.units);
+  if (shopDef(c.to).goods.includes(c.good)) moveStock(shopState(world, c.to), c.to, c.good, c.units, 'contract');
 }
 
 export function fitsFetch(c: Extract<Contract, { kind: 'fetch' }>, p: PartInstance): boolean {

@@ -28,6 +28,8 @@ import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
 import { outpostPad } from './fury-road';
 import { addGoods } from './inventory';
+import { stockTarget } from './market';
+import { PRODUCTION } from '../data/market';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
 import { chooseQuestOption, leaveQuest, QUESTS, questView } from './quests';
@@ -254,4 +256,8 @@ export function openingStopPoint(w: World): Vec {
   const from = playerVehicle(w).pos;
   const d = dist(from, stock.pos);
   return { x: stock.pos.x + ((from.x - stock.pos.x) / d) * 2.2, y: stock.pos.y + ((from.y - stock.pos.y) / d) * 2.2 };
+}
+
+export function setShopPressure(w: World, shopId: string, good: string, pressure: number): void {
+  w.shops[shopId].goods[good] = Math.max(0, Math.round(stockTarget(shopId, good) * (1 - pressure / PRODUCTION.elasticity)));
 }

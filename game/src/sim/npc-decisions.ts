@@ -3,7 +3,10 @@ import { dealAvailable } from './patch';
 import { encounterAvailable } from './encounters';
 import { canSpareFor } from './aid';
 import { ECONOMY } from '../data/goods';
-import { ESCORT_JOB, GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
+import { ESCORT_JOB, SHOPS, type ShopDef } from '../data/market';
+import { graphEdges } from '../data/market';
+import { legRisk } from './road-news';
+import { goodStock, goodValue, shopState, stockTarget } from './market';
 import { routeThreat } from './escort-job';
 import {
   DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
@@ -53,7 +56,6 @@ export type NpcProfile = {
   markets: string[];
   salvageSites: string[];
   travelSites: string[];
-  haulSites: string[];
   contactReactRadius: number;
   boldness: number;
   fuelMargin: number;
@@ -79,14 +81,13 @@ export function profileOf(traits: TraitId[]): NpcProfile {
     if (!Object.hasOwn(TRAITS, id)) throw new Error(`Unknown trait ${id}`);
     return TRAITS[id];
   });
-  const union = (key: 'towns' | 'bases' | 'markets' | 'salvageSites' | 'travelSites' | 'haulSites') => [...new Set(defs.flatMap((t) => t[key]))];
+  const union = (key: 'towns' | 'bases' | 'markets' | 'salvageSites' | 'travelSites') => [...new Set(defs.flatMap((t) => t[key]))];
   return {
     towns: union('towns'),
     bases: union('bases'),
     markets: union('markets'),
     salvageSites: union('salvageSites'),
     travelSites: union('travelSites'),
-    haulSites: union('haulSites'),
     contactReactRadius: Math.max(...defs.map((t) => t.contactReactRadius)),
     boldness: defs.reduce((product, t) => product * t.boldness, 1),
     fuelMargin: defs.reduce((product, t) => product * t.fuelMargin, 1),
@@ -181,7 +182,7 @@ export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; co
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 
-const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'haul'];
+const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel'];
 
 function isBusy(vehicle: Vehicle): boolean {
   const kind = topGoal(vehicle)?.kind;
@@ -231,15 +232,29 @@ export function tripFuelCost(world: World, vehicle: Vehicle, tiles: number): num
 }
 
 function runOffers(world: World, vehicle: Vehicle, source: ShopDef, buyer: ShopDef, spend: number): Weighted<TradePlan>[] {
-  const sourcePos = getKnownSite(source.id).pos;
-  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(buyer.id).pos);
+  return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => runOffer(world, vehicle, { source: source.id, good, sellShop: buyer.id }, spend, 1));
+}
+
+function runOffer(world: World, vehicle: Vehicle, plan: TradePlan, spend: number, need: number): Weighted<TradePlan>[] {
+  const sourcePos = getKnownSite(plan.source).pos;
+  const trip = dist(vehicle.pos, sourcePos) + dist(sourcePos, getKnownSite(plan.sellShop).pos);
   const fuel = tripFuelCost(world, vehicle, trip);
-  return source.goods.filter((good) => buyer.goods.includes(good)).flatMap((good) => {
-    const buy = getTradePrice(world, vehicle, source.id, good, 'buy');
-    const profit = getTradePrice(world, vehicle, buyer.id, good, 'sell') - buy;
-    if (spend < buy || profit <= 0) return [];
-    const loadProfit = affordableBuyCount(world, vehicle, source.id, good, cargoRoom(vehicle), spend) * profit;
-    return loadProfit > fuel ? [{ value: { source: source.id, good, sellShop: buyer.id }, weight: (loadProfit - fuel) / trip }] : [];
+  const buy = getTradePrice(world, vehicle, plan.source, plan.good, 'buy');
+  const profit = getTradePrice(world, vehicle, plan.sellShop, plan.good, 'sell') - buy;
+  if (spend < buy || profit <= 0) return [];
+  const count = affordableBuyCount(world, vehicle, plan.source, plan.good, cargoRoom(vehicle), spend);
+  const risk = count * goodValue(plan.good) * legRisk(world, plan.source, plan.sellShop);
+  const net = count * profit - fuel - risk;
+  return net > 0 ? [{ value: plan, weight: (net * need) / trip }] : [];
+}
+
+export function supplyOffers(world: World, vehicle: Vehicle): Weighted<TradePlan>[] {
+  if (!modeRules(world).traffic) return [];
+  const spend = tradeSpend(world, vehicle);
+  return graphEdges().flatMap((edge) => {
+    const short = stockTarget(edge.to, edge.good) - goodStock(shopState(world, edge.to), edge.good);
+    if (short <= 0) return [];
+    return runOffer(world, vehicle, { source: edge.from, good: edge.good, sellShop: edge.to }, spend, short / stockTarget(edge.to, edge.good));
   });
 }
 
@@ -481,12 +496,6 @@ export function travelSitesAway(vehicle: Vehicle) {
   return npcProfile(vehicle).travelSites.map(getKnownSite).filter((site) => !stands(vehicle, site));
 }
 
-export function haulGoods(siteId: string): string[] {
-  const goods = Object.entries(GOOD_SOURCES).flatMap(([good, sites]) => (sites.includes(siteId) ? [good] : []));
-  if (goods.length === 0) throw new Error(`${siteId} is no source of any good`);
-  return goods;
-}
-
 export function canRob(w: World, robber: Vehicle, target: Vehicle): boolean {
   if (robber.id === target.id || !isRobbable(w, target) || inCombatWithOther(w, target, robber.id)) return false;
   return isFairGame(w, robber, target) && canVehicleSee(w, robber, target.pos);
@@ -596,8 +605,8 @@ function canTravel(_world: World, vehicle: Vehicle): boolean {
   return travelSitesAway(vehicle).length > 0;
 }
 
-function canHaul(_world: World, vehicle: Vehicle): boolean {
-  return hasCargoRoom(vehicle) && npcProfile(vehicle).haulSites.length > 0;
+function canHaul(world: World, vehicle: Vehicle): boolean {
+  return hasCargoRoom(vehicle) && supplyOffers(world, vehicle).length > 0;
 }
 
 function canEscort(world: World, vehicle: Vehicle): boolean {

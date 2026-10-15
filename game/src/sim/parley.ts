@@ -1,4 +1,5 @@
 
+import { reportRobbedHaul, reportShipmentLoss, shipmentOf } from './road-news';
 import { SPAWN } from '../data/npcs';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
@@ -61,6 +62,7 @@ export function handedOver(world: World, loser: Vehicle, winner: Vehicle): GridI
 
 export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: GridItem[] = handedOver(world, loser, winner)): void {
   if (!modeRules(world).looting) throw new Error(`${loser.id} cannot hand over cargo where nothing is looted`);
+  reportRobbedHaul(world, loser, haul);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
   cede(world, loser, winner, stock, 'takeHandedCargo');
   if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id });
@@ -68,6 +70,8 @@ export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: Gri
 }
 
 export function abandonSpill(world: World, loser: Vehicle, winner: Vehicle, stock: SalvageStock): void {
+  const shipment = shipmentOf(loser);
+  if (shipment) reportShipmentLoss(world, loser, 'robbed', stock.goods[shipment.good] ?? 0);
   cede(world, loser, winner, stock, 'takeSpilledCargo');
 }
 
