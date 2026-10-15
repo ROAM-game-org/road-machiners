@@ -8,6 +8,7 @@ import { playerVehicle } from '../sim/damage';
 import { isNoteId, learnNote, localOfQuest, takeTownWork, townWork } from '../sim/dialogue-rules';
 import { shopAt, siteOf } from '../sim/market';
 import { chooseQuestOption, currentQuestLanguage, QUEST_EFFECTS, QUEST_QUERIES, questView, restoreQuest, setQuestLanguage, startQuest, type QuestView } from '../sim/quests';
+import { isStoryWreck } from '../sim/salvage';
 import { sitePads } from '../sim/sites';
 import type { World } from '../sim/types';
 import { cloneWorld } from '../sim/world';
@@ -71,7 +72,7 @@ function withWorldVars(scenes: World[], assigned: readonly [string, QuestValue][
 }
 
 export function gameScenes(base: World): QuestScenes {
-  const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [] };
+  const shared = { ...base, terrain: Object.freeze({ ...base.terrain }), obstacles: [], salvage: base.salvage.filter(isStoryWreck), player: { ...base.player, explored: new Uint8Array(0) } };
   return (questId) => {
     const local = localOfQuest(questId);
     const fresh = cloneWorld(shared);
