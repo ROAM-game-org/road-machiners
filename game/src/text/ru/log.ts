@@ -218,7 +218,6 @@ export const LOG: Translation<typeof EN> = {
   'goods.held': 'Есть',
   'goods.stock': 'Склад',
   'goods.profit': 'Прибыль/ящик',
-  'goods.crateNote': 'Цены за ящик в {mass}. Один ящик занимает одну клетку груза.',
   'goods.profitTitle': 'За единицу: цена продажи здесь минус средняя цена закупки. Найденный и перевезенный товар считается по обычной стоимости.',
   'goods.unknown': '?',
   'goods.even': '0',

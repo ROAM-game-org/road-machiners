@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "../text/resolve";
 import type { Msg } from "../text/msg";
-import { pressureHint } from "./town";
+import { goodRoutesTitle, pressureHint, showsRelief } from "./town";
+import { resetSeeAll, toggleSeeAll } from "./see-all";
+import { emptyWorld } from "../sim/testkit";
+import { RELIEF } from "../data/market";
 import { shortBy } from "./shop-rows";
 import { SHOPS } from "../data/market";
 import { stockTarget, type ShopState } from "../sim/market";
@@ -39,5 +42,29 @@ describe("the price hint of a good", () => {
   it("lets a strong stock shortage or glut outrank what the shop makes", () => {
     expect(hint(def, state({ salt: 0 }), "salt")).toEqual({ tone: "bad", title: "Short here" });
     expect(hint(def, state({ scrap: 2 * stockTarget("nose", "scrap") }), "scrap")).toEqual({ tone: "good", title: "Flooded here" });
+  });
+});
+
+describe("production on the market tab", () => {
+  const relieved = () => {
+    const w = emptyWorld();
+    w.turn = RELIEF.delayTurns + 10;
+    w.shops.granary.goods.grain = 0;
+    w.shops.granary.shortSince.grain = 0;
+    return w;
+  };
+
+  it("hides where a good is made and used, and the slow import, from the player", () => {
+    resetSeeAll();
+    expect(goodRoutesTitle("grain")).toBeNull();
+    expect(showsRelief(relieved(), "granary", "grain")).toBe(false);
+  });
+
+  it("shows them under see all", () => {
+    resetSeeAll();
+    toggleSeeAll();
+    expect(en(goodRoutesTitle("grain"))).toMatch(/^Made at .*Bowl.*\. Used at .*Granary/);
+    expect(showsRelief(relieved(), "granary", "grain")).toBe(true);
+    resetSeeAll();
   });
 });

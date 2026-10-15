@@ -50,7 +50,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconN
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, limitedSupplyRow, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, escortLeaves, escortStatusText, gameHours, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -60,6 +60,7 @@ import { fuelCap, suppliesCap, vehicleStats } from "../sim/stats";
 import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
 import { goodName, localName, localRole, refusalText, siteName, vehicleTitle } from "../text/names";
 import { commandFailure } from "./format";
+import { seesAll } from "./see-all";
 import { vehicleHasPerk } from "../sim/progress";
 
 export type Tab = "people" | "market" | "buyParts" | "sellParts" | "trucks" | "contracts";
@@ -210,7 +211,7 @@ export class TownScreen {
     return el(
       "div",
       { class: "market" },
-      recipeLine(w, shopId),
+      seesAll() ? recipeLine(w, shopId) : null,
       el(
         "div",
         { class: "goods stocked" },
@@ -461,9 +462,9 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
 
 const PROFIT_TONE = { gain: "better", loss: "worse", even: "same" } as const;
 
-function goodsHead(withTheirs: boolean, withStock = false): DocumentFragment {
+function goodsHead(withTheirs: boolean, withStock = false): HTMLElement {
   const c = GOODS_COLUMNS;
-  const head = el(
+  return el(
     "div",
     { class: "goods-head row dim" },
     el("span", {}, c.good),
@@ -474,9 +475,6 @@ function goodsHead(withTheirs: boolean, withStock = false): DocumentFragment {
     el("span", { class: "end" }, c.held),
     el("span", { class: "end", title: PROFIT_HEAD_TITLE, "aria-label": PROFIT_HEAD_TITLE }, c.profit, coinEl()),
   );
-  const fragment = document.createDocumentFragment();
-  fragment.append(head, el("div", { class: "goods-note dim" }, CRATE_NOTE));
-  return fragment;
 }
 
 function suppliesHead(): HTMLElement {
@@ -548,9 +546,17 @@ function stockReason(stock: number): Msg {
   return stock === 0 ? t("trade.noGoodStock") : t("contract.noStock", { n: stock });
 }
 
+export function goodRoutesTitle(good: string): Msg | null {
+  return seesAll() ? goodRoutesTip(good) : null;
+}
+
+export function showsRelief(w: World, shopId: string, good: string): boolean {
+  return seesAll() && onRelief(w, shopId, good);
+}
+
 function stockedGoodName(w: World, shopId: string, g: string): HTMLElement {
-  const relief = onRelief(w, shopId, g) ? el("span", { class: "tag bad", title: t("trade.reliefTip") }, t("trade.relief")) : null;
-  return el("div", { class: "good-name", title: goodRoutesTip(g) }, createItemIcon(g), el("b", {}, goodName(g)), relief);
+  const relief = showsRelief(w, shopId, g) ? el("span", { class: "tag bad", title: t("trade.reliefTip") }, t("trade.relief")) : null;
+  return el("div", { class: "good-name", title: goodRoutesTitle(g) ?? undefined }, createItemIcon(g), el("b", {}, goodName(g)), relief);
 }
 
 function recipeChip(w: World, shopId: string, r: Recipe, event: "surge" | "breakdown" | null): HTMLElement {
@@ -577,7 +583,7 @@ function crateIcons(goods: Record<string, number>): HTMLElement[] {
 function newsWell(w: World): HTMLElement | null {
   const news = liveRoadNews(w);
   if (news.length === 0) return null;
-  return el("div", { class: "road-news" }, el("div", { class: "goods-head dim" }, t("news.head")), ...[...news].reverse().map((n) => newsRow(w, n)));
+  return el("div", { class: "road-news" }, ...[...news].reverse().map((n) => newsRow(w, n)));
 }
 
 const NEWS_VERB = { robbed: "news.robbed", destroyed: "news.destroyed", knockedOut: "news.knockedOut" } as const;

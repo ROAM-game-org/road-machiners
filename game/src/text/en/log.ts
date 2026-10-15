@@ -217,7 +217,6 @@ export const LOG = {
   'goods.held': 'Held',
   'goods.stock': 'Stock',
   'goods.profit': 'Profit/crate',
-  'goods.crateNote': m('Prices are per {mass} crate. One crate fills one cargo cell.', { mass: 'text' }),
   'goods.profitTitle': 'Per unit: sell price here minus your average cost. Salvaged and hauled goods count at their usual value.',
   'goods.unknown': '?',
   'goods.even': '0',

@@ -1,5 +1,4 @@
 
-import { CRATE_MASS } from '../data/goods';
 import { CONTRACTS } from '../data/market';
 import { partDef } from '../data/parts';
 import { isMet, type Contract } from '../sim/market';
@@ -38,7 +37,8 @@ import { Refused } from '../sim/world';
 import { aidWords, compass, lineText } from './dialogue';
 import { isOutpostSite, outpostId } from '../sim/highway';
 import { siteOf } from '../sim/market';
-import { damage, distanceText, fuelLiters, hp, kg, kph, moneyM, moneyMsg } from './units';
+import { damage, distanceText, fuelLiters, hp, kph, moneyM, moneyMsg } from './units';
+import { seesAll } from './see-all';
 
 export function jobLabel(world: World, v: Vehicle, job: Job): Msg {
   if (job.kind === 'refit') return refitLabel(world, v, job);
@@ -762,6 +762,7 @@ const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent,
   info: infoText,
   townPatch: () => line(t('log.townPatch'), 'good'),
   siteEvent: (_, e) => {
+    if (!seesAll()) return null;
     const params = { site: siteName(e.shop), good: goodLower(recipeOutput(e.shop, e.recipe)) };
     return line(e.kind === 'surge' ? t('log.siteEvent.surge', params) : t('log.siteEvent.breakdown', params), 'dim');
   },
@@ -839,8 +840,6 @@ export type SaleEstimate =
 export const GOODS_COLUMNS = {
   good: t('goods.good'), theirs: t('goods.theirs'), buy: t('goods.buy'), sell: t('goods.sell'), stock: t('goods.stock'), held: t('goods.held'), profit: t('goods.profit'),
 } as const;
-
-export const CRATE_NOTE = t('goods.crateNote', { mass: kg(CRATE_MASS) });
 
 export const PROFIT_HEAD_TITLE = t('goods.profitTitle');
 

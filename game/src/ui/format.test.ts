@@ -10,10 +10,10 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
+import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
 import { mountedParts } from "../sim/grid";
-import { fuelLiters, kg } from "./units";
-import { CRATE_MASS } from "../data/goods";
+import { fuelLiters } from "./units";
+import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { wreckVehicle } from "../sim/combat";
 import { partName, siteName, vehicleTitle } from "../text/names";
 import { t, type Msg } from "../text/msg";
@@ -676,11 +676,6 @@ describe("goods table words", () => {
     expect(Object.fromEntries(Object.entries(GOODS_COLUMNS).map(([k, v]) => [k, en(v)]))).toEqual({ good: "Good", theirs: "Theirs", buy: "Buy", sell: "Sell", stock: "Stock", held: "Held", profit: "Profit/crate" });
   });
 
-  it("says prices are per crate of the one crate mass", () => {
-    expect(en(CRATE_NOTE)).toBe(`Prices are per ${en(kg(CRATE_MASS))} crate. One crate fills one cargo cell.`);
-    expect(en(CRATE_NOTE)).toContain("50 kg");
-  });
-
   it("explains the profit head in a hover title without turns", () => {
     expect(en(PROFIT_HEAD_TITLE)).toContain("Per unit");
     expect(en(PROFIT_HEAD_TITLE)).toContain("average cost");
@@ -763,5 +758,21 @@ describe("the discovery line", () => {
     const line = eventText(emptyWorld(), { t: "discover", location: site })!;
 
     expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
+  });
+});
+
+describe("site event log lines", () => {
+  const surge: GameEvent = { t: "siteEvent", shop: "pump-station", kind: "surge", recipe: "pump" };
+
+  it("tell nothing while production is hidden", () => {
+    resetSeeAll();
+    expect(eventText(emptyWorld(), surge)).toBeNull();
+  });
+
+  it("tell a surge under see all", () => {
+    resetSeeAll();
+    toggleSeeAll();
+    expect(logEn(emptyWorld(), surge)?.text).toBe(`${en(siteName("pump-station"))} turns out extra fuel drums today.`);
+    resetSeeAll();
   });
 });
