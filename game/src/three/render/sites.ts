@@ -197,7 +197,7 @@ const WORK_MAST = 3.3;
 const LANTERN = { height: 1.15, post: 0.09, arm: 0.28, cap: 0.17, glass: 0.11, drop: 0.04 };
 const FIRE_PIT = { ring: 0.45, rim: 0.12, flame: 0.16 };
 const FILL = { height: 6, reach: 1.6 };
-const SCONCE = { every: 3, reach: 0.7, height: 2.3, throw: 2.5, gap: 1.5 };
+const SCONCE = { reach: 0.7, height: 2.3, throw: 2.5, gap: 6, outsideApart: (40 * Math.PI) / 180 };
 const WASH = { mast: 2.4, aim: 3.8, lift: 3 };
 const SET = REGION.settlement;
 
@@ -236,15 +236,15 @@ function insideAt(site: Site, p: Vec2): boolean {
   return insideCurtain(site, { x: site.pos.x + p.x, y: site.pos.y + p.z });
 }
 
-function wantsSconce(site: Site, kind: FortressKind, m: Mount): boolean {
-  if (kind === 'tower') return m.inside;
-  return kind === 'wall' && m.inside && insideAt(site, m.throwAt);
+function outermost(mounts: Mount[], centre: Vec2): Mount | undefined {
+  const outward = (m: Mount) => m.n.x * centre.x + m.n.z * centre.z;
+  return mounts.filter((m) => !m.inside).sort((a, b) => outward(b) - outward(a))[0];
 }
 
-function outermost(mounts: Mount[], centre: Vec2): Mount[] {
-  const outward = (m: Mount) => m.n.x * centre.x + m.n.z * centre.z;
-  const outside = mounts.filter((m) => !m.inside).sort((a, b) => outward(b) - outward(a));
-  return outside.slice(0, 1);
+function innerMount(site: Site, mounts: Mount[], centre: Vec2, kind: FortressKind): Mount | undefined {
+  const inward = (m: Mount) => -(m.n.x * centre.x + m.n.z * centre.z);
+  const inner = mounts.filter((m) => m.inside && (kind === 'tower' || insideAt(site, m.throwAt)));
+  return inner.sort((a, b) => inward(b) - inward(a))[0];
 }
 
 function hangSconce(b: SiteBuilder, m: Mount): void {
@@ -253,17 +253,30 @@ function hangSconce(b: SiteBuilder, m: Mount): void {
 
 const PIECE_DEPTH: Partial<Record<FortressKind, number>> = { wall: FORTRESS.wallDepth, tower: FORTRESS.towerSize };
 
-function sconceMounts(site: Site, piece: FortressPiece): Mount[] {
+type Placed = { piece: FortressPiece; centre: Vec2; mounts: Mount[] };
+
+function placed(site: Site, piece: FortressPiece): Placed | null {
   const depth = PIECE_DEPTH[piece.kind];
-  if (depth === undefined) return [];
+  if (depth === undefined) return null;
   const centre = { x: piece.pos.x - site.pos.x, z: piece.pos.y - site.pos.y };
-  const mounts = sconceNormals(piece).map((n) => sconceMount(site, centre, depth, n));
-  const lit = mounts.filter((m) => wantsSconce(site, piece.kind, m));
-  return piece.kind === 'tower' ? [...lit, ...outermost(mounts, centre)] : lit;
+  return { piece, centre, mounts: sconceNormals(piece).map((n) => sconceMount(site, centre, depth, n)) };
 }
 
-function spaced(kind: FortressKind, seen: { walls: number }): boolean {
-  return kind !== 'wall' || seen.walls++ % SCONCE.every === 0;
+function bearingGap(a: number, b: number): number {
+  const d = Math.abs(a - b) % (2 * Math.PI);
+  return Math.min(d, 2 * Math.PI - d);
+}
+
+function outsideTowers(site: Site, towers: Placed[]): Placed[] {
+  const gate = fortressGates(site)[0];
+  const origin = gate ? Math.atan2(gate.face.y - site.pos.y, gate.face.x - site.pos.x) : 0;
+  const bearing = (t: Placed) => Math.atan2(t.centre.z, t.centre.x);
+  const sweep = (t: Placed) => (bearing(t) - origin + 4 * Math.PI) % (2 * Math.PI);
+  const reach = (t: Placed) => Math.round(Math.hypot(t.centre.x, t.centre.z) * 100);
+  const ordered = [...towers].sort((p, q) => reach(q) - reach(p) || sweep(p) - sweep(q));
+  const chosen: Placed[] = [];
+  for (const t of ordered) if (chosen.every((c) => bearingGap(bearing(c), bearing(t)) >= SCONCE.outsideApart)) chosen.push(t);
+  return chosen;
 }
 
 function clearOf(hung: Vec2[], m: Mount): boolean {
@@ -271,15 +284,21 @@ function clearOf(hung: Vec2[], m: Mount): boolean {
 }
 
 function addSconces(b: SiteBuilder, site: Site): void {
-  const seen = { walls: 0 };
+  const all = fortressPieces(site).map((piece) => placed(site, piece)).filter((p): p is Placed => p !== null);
+  const towers = all.filter((p) => p.piece.kind === 'tower');
+  const walls = all.filter((p) => p.piece.kind === 'wall');
+  const outside = outsideTowers(site, towers);
+  if (towers.length > 0 && outside.length === 0) throw new Error(`Fort ${site.id} has towers but no outside lamp`);
+  for (const t of outside) {
+    const m = outermost(t.mounts, t.centre);
+    if (m) hangSconce(b, m);
+  }
   const hung: Vec2[] = [];
-  const pieces = fortressPieces(site).sort((p, q) => Number(q.kind === 'tower') - Number(p.kind === 'tower'));
-  for (const piece of pieces) {
-    for (const m of sconceMounts(site, piece)) {
-      if (!spaced(piece.kind, seen) || !clearOf(hung, m)) continue;
-      hangSconce(b, m);
-      hung.push(m.lamp);
-    }
+  for (const p of [...towers, ...walls]) {
+    const m = innerMount(site, p.mounts, p.centre, p.piece.kind);
+    if (!m || !clearOf(hung, m)) continue;
+    hangSconce(b, m);
+    hung.push(m.lamp);
   }
 }
 
