@@ -75,6 +75,7 @@ async function integrateAgain(ctx: Ctx, issue: number, labels: string[], approva
 
 async function harden(ctx: Ctx, issue: number, by: string, base: string): Promise<void> {
   forgetPosts(ctx, issue);
+  dropKeptApproval(ctx, issue);
   updateState(ctx.statePath, (state) => ({ ...state, approvedResolving: { ...state.approvedResolving, [String(issue)]: by } }));
   await ctx.github.comment(issue, `Approved by ${by} in the committee chat. Hardening runs now. Then the factory checks it merged with ${base} and merges it by itself, with no new post.`);
   await moveCard(ctx, issue, 'Hardening', 'approved');

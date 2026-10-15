@@ -60,7 +60,7 @@ function waitsInApproval(card: Card): boolean {
 function busy(state: FactoryState, issue: number): boolean {
   const key = String(issue);
   const owned = state.jobs.some((job) => job.issue === issue) || state.failures.some((failure) => failure.issue === issue);
-  return owned || key in state.pendingApprovals || key in state.held || Object.values(state.approvalPosts).includes(issue);
+  return owned || key in state.pendingApprovals || key in state.held;
 }
 
 export function readyToShip(state: FactoryState, card: Card): KeptApproval | null {

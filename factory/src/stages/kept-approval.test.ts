@@ -40,10 +40,13 @@ describe('a kept approval after a failed approve job or a restart', () => {
     expect(readyToShip(waiting(), card('Testing'))).toBeNull();
   });
 
-  it('never queues a build its checks did not pass, or a card with an open post that waits for a member', () => {
+  it('queues the approval again after a failed approve job on the approved post, once retry clears the failure', () => {
+    expect(readyToShip(waiting({ approvalPosts: { 90: 7 } }), card('Approval'))).toEqual(KEPT);
+  });
+
+  it('never queues a build its checks did not pass', () => {
     expect(readyToShip(waiting({ builds: { 7: 'eee5555' } }), card('Approval'))).toBeNull();
     expect(readyToShip(waiting({ builds: {} }), card('Approval'))).toBeNull();
-    expect(readyToShip(waiting({ approvalPosts: { 90: 7 } }), card('Approval'))).toBeNull();
     expect(readyToShip(waiting({ keptApprovals: {} }), card('Approval'))).toBeNull();
   });
 
