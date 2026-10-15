@@ -823,7 +823,10 @@ function rollWhim(world: World, vehicle: Vehicle, target: string): void {
   brain.whim = { kind, until: world.turn + NPC_BEHAVIOR.fight.whimTurns, angle };
 }
 
-export function inDanger(vehicle: Vehicle): boolean { return ['fight', 'flee'].includes(topGoal(vehicle)?.kind ?? ''); }
+export function inDanger(vehicle: Vehicle): boolean {
+  const top = topGoal(vehicle)?.kind;
+  return top === 'fight' || top === 'flee';
+}
 
 function fightTarget(vehicle: Vehicle): string | null {
   const top = topGoal(vehicle);
@@ -1044,7 +1047,9 @@ function siteSpot(world: World, vehicle: Vehicle, site: ReturnType<typeof getKno
   return { x: pad.x - Math.sin(angle) * side, y: pad.y + Math.cos(angle) * side };
 }
 
-function charCodes(text: string): number[] { return Array.from(text, (ch) => ch.charCodeAt(0)); }
+function charCodes(text: string): number[] {
+  return Array.from(text, (ch) => ch.charCodeAt(0));
+}
 
 type Resolver = (world: World, vehicle: Vehicle, activity: NpcActivity) => void;
 
