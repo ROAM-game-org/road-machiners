@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { drawsOwnBumpers } from '../../render/partLooks';
-import { baseGrid, itemCells } from '../../sim/grid';
+import { CHASSIS } from '../../data/chassis';
+import { PARTS } from '../../data/parts';
+import { wheelMounts } from '../../phys/body';
+import { bodyOf, cellRect, highestUnder } from '../../sim/body';
+import { makePart } from '../../sim/factory';
+import { baseGrid, itemCells, placementError } from '../../sim/grid';
 import { addVehicle, emptyWorld } from '../../sim/testkit';
-import type { GridItem, Vehicle } from '../../sim/types';
+import type { GridItem, Rot, Vehicle } from '../../sim/types';
 import { loadModels } from './models';
 import { hidesInside, VehicleView } from './vehicle';
 
@@ -58,5 +63,116 @@ describe('the hauler nose and tail', () => {
   it('shows the semi model\'s own chrome bumper and trailer doors, with no game bumper over them', () => {
     expect(drawsOwnBumpers('semi')).toBe(true);
     expect(drawsOwnBumpers('scout')).toBe(false);
+  });
+});
+
+function withCaltropsAt(chassisId: string, x: number, y: number): { v: Vehicle; caltrops: PartItem } {
+  const w = emptyWorld();
+  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const caltrops: PartItem = { id: 'i-caltrops', x, y, rot: 0, kind: 'part', part: makePart(w, 'caltrops', 0) };
+  return { v, caltrops };
+}
+
+type Placed = { defId: string; x: number; y: number; rot: Rot };
+
+function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: PartItem[] } {
+  const w = emptyWorld();
+  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const items = placed.map((p, i): PartItem => ({ id: `i-${p.defId}-${i}`, x: p.x, y: p.y, rot: p.rot, kind: 'part', part: makePart(w, p.defId, 0) }));
+  return { v, items };
+}
+
+const REPORTED_BUGGY: Placed[] = [
+  { defId: 'panniers', x: 1, y: 3, rot: 0 },
+  { defId: 'caltrops', x: 2, y: 3, rot: 0 },
+  { defId: 'mg', x: 1, y: 4, rot: 1 },
+  { defId: 'plowRam', x: 1, y: 7, rot: 0 },
+  { defId: 'plowRam', x: 1, y: 0, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 4, rot: 0 },
+  { defId: 'ceramicPlates', x: 0, y: 1, rot: 0 },
+  { defId: 'ceramicPlates', x: 5, y: 1, rot: 0 },
+  { defId: 'workhorseDiesel', x: 2, y: 1, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 6, rot: 0 },
+  { defId: 'ceramicTile', x: 0, y: 3, rot: 0 },
+  { defId: 'ceramicTile', x: 5, y: 3, rot: 0 },
+  { defId: 'panniers', x: 4, y: 7, rot: 0 },
+];
+
+const ALWAYS_DRAWN_KINDS = new Set(['weapon', 'armor', 'engine', 'core']);
+
+function hiddenSingleCellDefs(): string[] {
+  return Object.values(PARTS)
+    .filter((def) => def.w === 1 && def.h === 1 && !ALWAYS_DRAWN_KINDS.has(def.kind))
+    .map((def) => def.id);
+}
+
+function rimCells(chassisId: string): { x: number; y: number }[] {
+  const grid = baseGrid(chassisId);
+  return grid.cells.flatMap((row, y) => row.flatMap((cell, x) => (cell === 'F' || cell === 'B' ? [{ x, y }] : [])));
+}
+
+describe('parts on bare nose and tail cells', () => {
+  it('builds the buggy view with caltrops on its bare nose cell, and keeps an anchor for them', () => {
+    const { v, caltrops } = withCaltropsAt('buggy', 4, 0);
+    expect(baseGrid('buggy').cells[0][4]).toBe('F');
+    expect(placementError(baseGrid('buggy'), v.items, caltrops, null)).toBeNull();
+    v.items.push(caltrops);
+    const view = new VehicleView(v, true);
+    expect(view.hasPart(caltrops.part.id)).toBe(true);
+  });
+
+  it('builds the view for caltrops on every legal nose and tail cell of every chassis', () => {
+    for (const chassisId of Object.keys(CHASSIS)) {
+      for (const cell of rimCells(chassisId)) {
+        const { v, caltrops } = withCaltropsAt(chassisId, cell.x, cell.y);
+        if (placementError(baseGrid(chassisId), v.items, caltrops, null)) continue;
+        v.items.push(caltrops);
+        expect(() => new VehicleView(v, true), `${chassisId} ${cell.x},${cell.y}`).not.toThrow();
+      }
+    }
+  });
+
+  it('builds the reported buggy with panniers on its bare tail cell', () => {
+    const { v, items } = withParts('buggy', REPORTED_BUGGY);
+    const grid = baseGrid('buggy');
+    for (const item of items) {
+      expect(placementError(grid, v.items, item, null), `${item.part.defId} ${item.x},${item.y}`).toBeNull();
+      v.items.push(item);
+    }
+    const tailPanniers = items[items.length - 1];
+    expect(grid.cells[tailPanniers.y][tailPanniers.x]).toBe('B');
+    let view: VehicleView | undefined;
+    expect(() => { view = new VehicleView(v, true); }).not.toThrow();
+    expect(view!.hasPart(tailPanniers.part.id)).toBe(true);
+  });
+
+  it('builds the buggy view for every hidden 1x1 part kind on every legal nose and tail cell', () => {
+    const defs = hiddenSingleCellDefs();
+    expect(defs.length).toBeGreaterThan(0);
+    for (const defId of defs) {
+      for (const cell of rimCells('buggy')) {
+        const { v, items: [item] } = withParts('buggy', [{ defId, x: cell.x, y: cell.y, rot: 0 }]);
+        if (placementError(baseGrid('buggy'), v.items, item, null)) continue;
+        v.items.push(item);
+        let view: VehicleView | undefined;
+        expect(() => { view = new VehicleView(v, true); }, `${defId} ${cell.x},${cell.y}`).not.toThrow();
+        expect(view!.hasPart(item.part.id), `${defId} ${cell.x},${cell.y}`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps a hidden cab anchored on the highest model surface under its cells', () => {
+    const w = emptyWorld();
+    const v = addVehicle(w, 'raiders', 'buggy', [], { x: 30, y: 30 });
+    const cab = partOf(v, 'cab');
+    const view = new VehicleView(v, true);
+    view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);
+    const rect = cellRect('buggy', itemCells(cab));
+    const at = view.partPoint(cab.part.id);
+    expect(at.x).toBeCloseTo((rect.x0 + rect.x1) / 2);
+    expect(at.y).toBeCloseTo(highestUnder('buggy', rect));
+    expect(at.z).toBeCloseTo((rect.z0 + rect.z1) / 2);
   });
 });

@@ -51,6 +51,7 @@ import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
 import { noteEscape } from './escape';
 import { advanceWeather } from './weather';
+import { advanceRescues } from './rescue';
 import { advanceContracts, advanceShops, initializeShops, marketStream, shopNear } from './market';
 import { applyWear, carryHp } from './wear';
 import { advanceDust } from './detect';
@@ -376,6 +377,7 @@ export function endTurn(
     advancePatches(w);
     advanceAid(w);
     advanceStates(w);
+    advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
     resolveNpcActivities(w);
@@ -418,7 +420,7 @@ export function setWeaponOrder(
     if (!target || target.id === me.id)
       throw new Error(`Bad target ${order.targetId}`);
     if (!playerSees(w, target.pos))
-      throw new Error("You cannot see that target");
+      throw new Refused({ id: "unseen" });
     if (order.aim !== "body" && !findPart(target, order.aim))
       throw new Error(`Target has no part ${order.aim}`);
     me.weaponOrders[weaponId] = order;

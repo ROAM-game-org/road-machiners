@@ -762,6 +762,10 @@ function withPersonalities_51_52(world: SavedJson): SavedJson {
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(talking) };
 }
 
+function withEscortJobs_62_63(world: SavedJson): SavedJson {
+  return world;
+}
+
 export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   (world) => ({ ...world, player: { ...(world.player as SavedJson), townPatched: false } }),
   (world) => {
@@ -868,6 +872,9 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutCatchUp_58_59,
   withDutyLegs_59_60,
   withoutOldRun_60_61,
+  withSceneHubsAtSceneStart_61_62,
+  withEscortJobs_62_63,
+  withRescueContracts_63_64,
 ];
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -888,6 +895,10 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withRescueContracts_63_64(world: SavedJson): SavedJson {
+  return world;
 }
 
 function withoutOldRun_60_61(world: SavedJson): SavedJson {
@@ -971,6 +982,15 @@ function withChoiceFreeScenes_52_53(world: SavedJson): SavedJson {
   if (quests.world.intro_step !== 'walk') return started;
   const { intro_step: _walk, ...rest } = quests.world;
   return withQuests(started, { ...quests, world: rest });
+}
+
+const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[] = [
+  ['wagon_seven', 'start.hub', 'start'],
+  ['wagon_bench', 'bench.hub', 'bench.report'],
+];
+
+function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
+  return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };
