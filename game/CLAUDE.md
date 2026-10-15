@@ -42,7 +42,7 @@ Art and sound, in `docs/art/`:
 
 - [Art pipeline](docs/art/models.md): Blender models, the truck grid projection and part model rules.
 - [Landmarks](docs/art/landmarks.md): scale, materials and shapes of the world's places.
-- [Quest pictures](docs/art/quest-pictures.md): the style prompt and post-process for quest pictures.
+- [Quest art](docs/art/quest-art.md): the style prompt and post-process for quest pictures.
 - [Sound](docs/sound.md).
 
 Reference:
