@@ -42,9 +42,9 @@ Every site runs small recipes on a production clock of one game hour. A batch ta
 
 The fuel service draws one drum per 9 L units sold and the supplies service one crate of rations per 7 units, the crate's value over the anchor price. An opened crate serves the next sale. A shop out of drums or rations is rationing: it still sells at the anchor price, but only up to 40% of the tank or of full stores, so nobody is stranded and the shortage shows as a shorter range.
 
-An essential good (water, sorgut, rations and fuel drums) that a site uses and holds none of starts a slow import after a day and a half: one crate every four hours, until about a seventh of the target. Prices stay near their peak there, so it is never a bargain, and the shop marks the good Slow import.
+An essential good (water, sorgut, rations and fuel drums) that a site uses and holds none of starts a slow import after a day and a half: one crate every four hours, until about a seventh of the target. Prices stay near their peak there, so it is never a bargain. The market does not show it. The shop's price and its people do.
 
-Once a day a site can surge or break down: the Pump Station and Bowl's harvest can run at twice their pace for a day, and the pump, Dustwell's well and the Salvage Yard's crews can break down to a quarter for two days. A site that holds tools spends one crate and repairs the breakdown in about five hours. The shop's recipe line tags a surge or a breakdown, and a player parked there when it starts reads it in the log.
+Once a day a site can surge or break down: the Pump Station and Bowl's harvest can run at twice their pace for a day, and the pump, Dustwell's well and the Salvage Yard's crews can break down to a quarter for two days. A site that holds tools spends one crate and repairs the breakdown in about five hours. The market tab shows no recipe, surge or breakdown. A local at every economic site tells what it makes, what it brings in, which of those it runs short of today and whether its works are down.
 
 ## Shipments and road news
 
