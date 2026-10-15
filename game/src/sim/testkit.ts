@@ -78,14 +78,8 @@ export function stockOfKind(w: World, kind: PartKind): PartInstance {
 }
 
 export function editableTerrain(w: World): Terrain {
-  w.terrain = { ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] };
+  w.terrain = Object.freeze({ ...w.terrain, heights: [...w.terrain.heights], types: [...w.terrain.types] });
   return w.terrain;
-}
-
-export function lockTerrain(w: World): void {
-  Object.freeze(w.terrain.heights);
-  Object.freeze(w.terrain.types);
-  Object.freeze(w.terrain);
 }
 
 export const PLAIN_KIT: StartKit = {
