@@ -543,7 +543,7 @@ export function basicsRepairCost(world: World, truck: Vehicle = playerVehicle(wo
   return costOf(world, basicParts(world, truck));
 }
 
-function allParts(v: Vehicle): PartInstance[] {
+export function allParts(v: Vehicle): PartInstance[] {
   return v.items.flatMap((it) => (it.kind === "part" ? [it.part] : []));
 }
 
