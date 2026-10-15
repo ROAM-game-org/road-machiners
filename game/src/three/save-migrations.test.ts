@@ -65,6 +65,7 @@ import FORMAT_2_59 from './save-fixtures/format-2-59.json';
 import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
+import FORMAT_2_63 from './save-fixtures/format-2-63.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1361,5 +1362,20 @@ describe('save migration 62 to 63', () => {
     const roaming = { ...structuredClone(FORMAT_2_62), furyRoad: null };
 
     expect(MIGRATIONS[62](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 63 to 64', () => {
+  it('drops the quiet gap and lets every saved group come at once with plain gear', () => {
+    const { quietFrom: _quietFrom, ...run } = FORMAT_2_63.furyRoad;
+    const groups = FORMAT_2_63.furyRoad.groups.map((group) => ({ ...group, at: 0, money: 20000, elite: false }));
+
+    expect(MIGRATIONS[63](structuredClone(FORMAT_2_63))).toEqual({ ...FORMAT_2_63, furyRoad: { ...run, groups } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_63), furyRoad: null };
+
+    expect(MIGRATIONS[63](structuredClone(roaming))).toEqual(roaming);
   });
 });

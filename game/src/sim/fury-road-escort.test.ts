@@ -199,7 +199,7 @@ describe('where the trouble spawns', () => {
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
     me.pos = roadPoint(w.seed, 0, milestoneAt(0) + 150, LANES[2]);
-    w.turn = w.furyRoad!.quietFrom + FURY_ROAD.pacing.quiet;
+    w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
 
     const group = w.furyRoad!.groups[0];
@@ -210,15 +210,30 @@ describe('where the trouble spawns', () => {
     expect(dist(spawned[0].pos, me.pos)).toBeGreaterThan(100);
   });
 
-  it('counts an encounter only near the hauler', () => {
+  it('holds a group until the hauler reaches its place, however far ahead the player is', () => {
     const w = furyRoadWorld();
-    const truck = spawnOne(w);
     const me = playerVehicle(w);
-    me.pos = { x: truck.pos.x + 2, y: truck.pos.y };
-    haulerOf(w).pos = { x: truck.pos.x, y: truck.pos.y + FURY_ROAD.pacing.near + 20 };
-    w.furyRoad!.quietFrom = w.turn - FURY_ROAD.pacing.quiet - 5;
+    const group = w.furyRoad!.groups[0];
+    me.pos = roadPoint(w.seed, 0, group.at + 50, LANES[2]);
     advanceFuryRoad(w);
-    expect(w.furyRoad!.quietFrom).toBe(w.turn - FURY_ROAD.pacing.quiet - 5);
+    expect(group.spawned).toBe(false);
+
+    group.at = alongOf(w.seed, toRoad(0, haulerOf(w).pos));
+    advanceFuryRoad(w);
+    expect(group.spawned).toBe(true);
+  });
+
+  it('holds a group while the live trucks plus the group would pass the cap', () => {
+    const w = furyRoadWorld();
+    const run = w.furyRoad!;
+    const size = FURY_ROAD.maxAlive;
+    run.groups[0].templates = Array.from({ length: size }, () => 'buggy');
+    run.groups[0].at = 0;
+    run.groups[1].at = 0;
+    advanceFuryRoad(w);
+    expect(run.groups[0].spawned).toBe(true);
+    advanceFuryRoad(w);
+    expect(run.groups[1].spawned).toBe(false);
   });
 });
 

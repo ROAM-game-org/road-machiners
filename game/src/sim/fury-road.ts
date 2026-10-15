@@ -1,6 +1,6 @@
 import { FURY_ROAD } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
-import { NPCS } from '../data/npcs';
+import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
@@ -12,10 +12,12 @@ import { canUseSite, sitePads } from './sites';
 import { mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
-import { generateNpcLoadout } from './npc-loadout';
-import { nextRandom, randInt, type Rng } from './rng';
+import { generateNpcLoadout, type GearRules } from './npc-loadout';
+import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
-import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
+import { directStretch, payOf, toughness, type PlannedWave } from './fury-road-director';
+import { mountedParts } from './grid';
+import { setStartHp } from './wear';
 import { isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
@@ -40,24 +42,26 @@ export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
 const SIDES: readonly GroupSide[] = ['ahead', 'left', 'right'];
 
 export function stretchPlan(world: World, j: number): WaveGroup[] {
-  return planStretch(world.seed, j, groupSizes(enemyTrucks(world, j)));
+  return planStretch(world.seed, j, directStretch(world, j));
 }
 
-export function planStretch(seed: number, j: number, sizes: readonly number[]): WaveGroup[] {
-  const rng = stretchStream(seed, j, 'groups');
+export function planStretch(seed: number, j: number, waves: readonly PlannedWave[]): WaveGroup[] {
   const sides = stretchStream(seed, j, 'sides');
-  const wave = waveOf(j);
-  const weights = poolOf(j);
+  const level = waveOf(j).level;
   let last: GroupSide | null = null;
-  return sizes.map((size, i) => {
-    const from = drawSide(sides, last);
+  return waves.map((wave, i) => {
+    const drawn = drawSide(sides, last);
+    const from = FURY_ROAD.cards[wave.template].chase ? drawn : 'ahead';
     last = from;
     return {
       id: `g${j}-${i}`,
       stretch: j,
       from,
-      templates: Array.from({ length: size }, () => drawTemplate(rng, weights)),
-      level: wave.level,
+      at: wave.at,
+      templates: Array.from({ length: wave.size }, () => wave.template),
+      money: wave.money,
+      elite: wave.elite,
+      level,
       spawned: false,
       vehicles: [],
       wrecked: 0,
@@ -65,22 +69,6 @@ export function planStretch(seed: number, j: number, sizes: readonly number[]): 
       retryUntil: null,
     };
   });
-}
-
-function poolOf(j: number): Record<string, number> {
-  const tier = FURY_ROAD.pool.find((t) => j <= t.upTo);
-  if (!tier || Object.values(tier.weights).every((w) => w <= 0)) throw new Error(`Stretch ${j} has no NPC templates in its pool tier`);
-  return tier.weights;
-}
-
-function drawTemplate(rng: Rng, weights: Record<string, number>): string {
-  const entries = Object.entries(weights).filter(([, w]) => w > 0);
-  let roll = nextRandom(rng) * entries.reduce((sum, [, w]) => sum + w, 0);
-  for (const [id, w] of entries) {
-    roll -= w;
-    if (roll < 0) return id;
-  }
-  return entries[entries.length - 1][0];
 }
 
 function drawSide(rng: Rng, last: GroupSide | null): GroupSide {
@@ -112,7 +100,7 @@ export function startRun(world: World): void {
   const hauler = spawnHauler(world);
   const start = { ...outpostFacts(world, 0), paid: true };
   world.player.discovered.push(outpostId(0));
-  world.furyRoad = { window: 0, outposts: [start, outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn, waitingAt: 0, hauler: { id: hauler.id, alarmUntil: null } };
+  world.furyRoad = { window: 0, outposts: [start, outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, waitingAt: 0, hauler: { id: hauler.id, alarmUntil: null } };
 }
 
 export function runStart(seed: number, playerChassis: string): { player: Pose; hauler: Pose } {
@@ -171,7 +159,6 @@ export function advanceFuryRoad(world: World): void {
   retireWoken(world, run);
   huntConvoy(world, run);
   if (arrivedAtNext(world, run)) return completeStretch(world, run);
-  pace(world, run);
   spawnNext(world, run, haulerProgress(world, run));
 }
 
@@ -238,31 +225,26 @@ function huntsTarget(v: Vehicle, target: Vehicle): boolean {
   return top?.kind === 'fight' && top.targetId === target.id;
 }
 
-function encounterOn(world: World, run: FuryRoadRun): boolean {
-  const hauler = haulerOf(world);
-  return run.groups.some((g) => fighting(world, g).some((v) => dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near));
-}
-
-function pace(world: World, run: FuryRoadRun): void {
-  if (encounterOn(world, run)) run.quietFrom = world.turn;
-}
-
 function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
-  if (world.turn - run.quietFrom < FURY_ROAD.pacing.quiet) return;
   const group = run.groups.find((g) => !g.spawned);
-  if (!group || aliveCount(world, run) + group.templates.length > FURY_ROAD.maxAlive) return;
+  if (!group || progress < group.at || aliveCount(world, run) + group.templates.length > FURY_ROAD.maxAlive) return;
   spawnGroup(world, run, group, progress);
 }
 
+export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {
+  const minSpeed = FURY_ROAD.cards[template].chase ? FURY_ROAD.chaseSpeed : MIN_NPC_SPEED;
+  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed };
+}
+
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
-  const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
+  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money, group.elite)), cargo: {} } }));
   const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
   if (!spots) return retryLater(world, group);
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   loadouts.forEach(({ tpl, loadout }, i) => {
     const v = spawnAt(world, tpl, loadout, spots[i]);
+    if (!group.elite) for (const part of mountedParts(v, 'core')) setStartHp(part, toughness(group.stretch));
     getResources(world, v).fuel = fuelCap(v);
     v.heading = Math.atan2(hauler.pos.y - v.pos.y, hauler.pos.x - v.pos.x);
     group.vehicles.push(v.id);
@@ -363,7 +345,6 @@ export function waitForRoad(world: World): World {
     const run = runOf(w);
     if (run.waitingAt === run.window + 1) moveWindow(w);
     run.waitingAt = null;
-    run.quietFrom = w.turn;
     w.events.push({ t: 'roadOpened', stretch: run.window + 1 });
   });
 }
@@ -458,7 +439,6 @@ export function moveWindow(world: World): void {
   run.window = next;
   run.outposts = [...run.outposts.filter((o) => o.milestone === next), outpostFacts(world, next + 1)];
   run.groups = stretchPlan(world, next + 1);
-  run.quietFrom = world.turn;
   refreshVision(world);
 }
 

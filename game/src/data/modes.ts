@@ -26,13 +26,13 @@ export const WORLD_SETTINGS: Record<keyof WorldSettings, WorldSettingDef> = {
   enemyGearGrowth: { default: 1, min: 0, max: 2, step: 0.25, modes: ['furyRoad'] },
 };
 
-export type WaveGear = Omit<GearRules, 'money'>;
+export type WaveGear = Omit<GearRules, 'money' | 'armored' | 'armorFirst' | 'minSpeed'>;
 export type WavePlan = { level: GearLevel; gear: WaveGear };
-const EARLY_GEAR: WaveGear = { armored: true, gunFirst: true, gunTier: 1, paysFuel: false };
+const EARLY_GEAR: WaveGear = { gunFirst: true, gunTier: 1, paysFuel: false };
 const MIDDLE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 2 };
 const LATE_GEAR: WaveGear = { ...EARLY_GEAR, gunTier: 3 };
 
-export type PoolTier = { upTo: number; floor: number; weights: Record<string, number> };
+export type EnemyCard = { weight: number; from: number; floor: number; chase: boolean };
 export type Line = { first: number; step: number };
 
 export const FURY_ROAD = {
@@ -45,7 +45,7 @@ export const FURY_ROAD = {
     flat: { back: 6, half: 8, blend: 4 },
   },
   waves: [
-    { level: 'light', gear: { ...EARLY_GEAR, armored: false } },
+    { level: 'light', gear: EARLY_GEAR },
     { level: 'light', gear: EARLY_GEAR },
     { level: 'light', gear: MIDDLE_GEAR },
     { level: 'standard', gear: MIDDLE_GEAR },
@@ -54,23 +54,39 @@ export const FURY_ROAD = {
     { level: 'heavy', gear: LATE_GEAR },
     { level: 'loaded', gear: LATE_GEAR },
   ] as WavePlan[],
-  danger: { firstPercent: 45, risePercent: 10, truckPercent: 45, truckFloorPercent: 35, groupMax: 3, gearShare: 1 },
-  pool: [
-    { upTo: 2, floor: 20000, weights: { buggy: 4, courier: 2, scavenger: 2, roamer: 2, trader: 1 } },
-    { upTo: 5, floor: 20000, weights: { buggy: 3, courier: 1, scavenger: 2, roamer: 2, trader: 1, merc: 3, bowlFarmer: 1 } },
-    {
-      upTo: Number.MAX_SAFE_INTEGER,
-      floor: 45000,
-      weights: { buggy: 2, courier: 1, scavenger: 1, roamer: 1, trader: 1, gunwagon: 3, vulture: 2, merc: 3, bowlFarmer: 1, noseArmy: 2, convoyGuard: 2, convoy: 1 },
-    },
-  ] as PoolTier[],
+  director: {
+    budget: { first: 4, step: 2.5 } as Line,
+    truckShare: 19,
+    gearShare: 0.5,
+    elite: { from: 3, cost: 2, money: 2 },
+    waves: { first: 2, step: 0.5 } as Line,
+    wave: { min: 1, size: { first: 1.5, step: 0.25 } as Line, cap: 5 },
+    toughness: { first: 0.5, step: 0.05 } as Line,
+    spacing: 60,
+    jitter: 0.3,
+  },
+  cards: {
+    buggy: { weight: 4, from: 1, floor: 10000, chase: true },
+    courier: { weight: 2, from: 1, floor: 10000, chase: true },
+    scavenger: { weight: 2, from: 2, floor: 10000, chase: true },
+    roamer: { weight: 2, from: 1, floor: 10000, chase: true },
+    trader: { weight: 1, from: 2, floor: 10000, chase: true },
+    merc: { weight: 3, from: 2, floor: 10000, chase: true },
+    bowlFarmer: { weight: 1, from: 3, floor: 10000, chase: false },
+    gunwagon: { weight: 3, from: 6, floor: 45000, chase: false },
+    vulture: { weight: 2, from: 6, floor: 45000, chase: true },
+    noseArmy: { weight: 2, from: 6, floor: 45000, chase: false },
+    convoyGuard: { weight: 2, from: 6, floor: 45000, chase: true },
+    convoy: { weight: 1, from: 6, floor: 45000, chase: true },
+  } as Record<string, EnemyCard>,
+  chaseSpeed: 5.5,
   sides: { ahead: 22, flank: { along: 22, across: 22, step: 3 } },
-  pacing: { quiet: 20, near: 30 },
+  pacing: { near: 30 },
   spawnStagger: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
-  pay: { base: { first: 12000, step: 5000 } as Line },
-  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32 },
+  pay: { base: { first: 25000, step: 10000 } as Line },
+  hauler: { kinds: ['armor', 'engine', 'cargo'] as PartKind[], lookahead: 12, sideReach: 6, cruise: 4.5, hurry: 4.5, alarmTurns: 4, approach: 25, stallTurns: 12, craterDip: 0.1, laneLook: 32, repairMarkup: 4 },
   stockPerKind: { weapon: 5, engine: 3, armor: 6, cargo: 3, scanner: 1, store: 2, utility: 3 } as Partial<Record<PartKind, number>>,
   trucks: { offers: 3, pool: ['hauler', 'courier', 'van', 'longbed', 'carrier', 'tractor', 'jeep', 'convertible', 'bus', 'loader', 'niva', 'bukhanka', 'lincoln', 'buggy', 'wagon'] },
   goodsMarkup: 1.5,

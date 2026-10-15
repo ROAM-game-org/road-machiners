@@ -1,6 +1,6 @@
 import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
-import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_WHIM, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { PARTS, partDef, type PartKind } from '../data/parts';
 import { everyGunFires } from './armor';
@@ -9,7 +9,7 @@ import { freeCells, gridOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, ty
 import { addGoods, mountPart, stowPart } from './inventory';
 import { vehicleMass } from './mass';
 import { armorQuality, gearScorer } from './npc-gear-score';
-import { meetsSpeedFloor, npcMassRoom, speedShare, vehicleStats } from './stats';
+import { massRoomAbove, meetsSpeedFloor, npcMassRoom, speedShare, vehicleStats } from './stats';
 import { nextRandom, type Rng } from './rng';
 import type { GridItem, Vehicle, World } from './types';
 
@@ -126,16 +126,16 @@ function wearOf(rng: Rng, level: Level): number {
   return sampleWeighted(rng, level.wear);
 }
 
-export type GearRules = { armored: boolean; gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean };
+export type GearRules = { armored: boolean; armorFirst: boolean; gunFirst: boolean; gunTier: number; money: number | null; paysFuel: boolean; minSpeed: number };
 export const TOP_GUN_TIER = Math.max(...Object.values(PARTS).filter((d) => d.kind === 'weapon').map((d) => d.tier));
-export const OPEN_GEAR: GearRules = { armored: true, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true };
+export const OPEN_GEAR: GearRules = { armored: true, armorFirst: false, gunFirst: false, gunTier: TOP_GUN_TIER, money: null, paysFuel: true, minSpeed: MIN_NPC_SPEED };
 
 type Build = { world: World; budget: number; engineWear: number; keep: Load; keepShare: number; rules: GearRules };
 
 const NO_RESERVE: Load = { kg: 0, cells: 0 };
 
 function keepsHaul(b: Build, v: Vehicle): boolean {
-  return freeCells(v) >= b.keep.cells && npcMassRoom(v, b.keepShare) >= b.keep.kg;
+  return freeCells(v) >= b.keep.cells && massRoomAbove(v, b.keepShare, b.rules.minSpeed) >= b.keep.kg;
 }
 
 function equipmentCost(v: Vehicle): number {
@@ -146,7 +146,7 @@ function equipmentCost(v: Vehicle): number {
 }
 
 function fits(b: Build, v: Vehicle): boolean {
-  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0) && everyGunFires(v) && keepsHaul(b, v);
+  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && everyGunFires(v) && keepsHaul(b, v);
 }
 
 function copyOf(v: Vehicle): Vehicle {
@@ -205,7 +205,7 @@ function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) =
   for (const spot of spots) {
     const next = { ...v, items: [...v.items, { ...item, ...spot }] };
     if (!everyGunFires(next) || !keepsHaul(b, next)) continue;
-    if (best === null && !meetsSpeedFloor(next, 0)) return null;
+    if (best === null && !meetsSpeedFloor(next, 0, b.rules.minSpeed)) return null;
     const value = score(next);
     if (value > bestScore) [best, bestScore] = [next, value];
   }
@@ -236,14 +236,13 @@ type GearMove = (v: Vehicle) => Vehicle | null;
 
 function gearMoves(b: Build, score: (v: Vehicle) => number): GearMove[] {
   const moves: GearMove[] = gunsFor(b.rules).map((id) => (v: Vehicle) => withGun(b, score, v, id));
-  for (const id of b.rules.armored ? ARMOR : []) {
-    for (const sides of SIDE_GROUPS) {
-      moves.push((v) => withArmor(b, v, id, sides));
-      moves.push((v) => withBetterArmor(b, v, id, sides));
-    }
-  }
+  if (b.rules.armored) moves.push(...armorMoves(b));
   for (const id of ENGINES) moves.push((v) => withEngine(b, v, id));
   return moves;
+}
+
+function armorMoves(b: Build): GearMove[] {
+  return ARMOR.flatMap((id) => SIDE_GROUPS.flatMap((sides): GearMove[] => [(v) => withArmor(b, v, id, sides), (v) => withBetterArmor(b, v, id, sides)]));
 }
 
 function takeStep(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], score: (v: Vehicle) => number, now: number, mustAct = false): Vehicle | null {
@@ -271,19 +270,19 @@ function drawOffers(b: Build, rng: Rng, v: Vehicle, moves: GearMove[], gainOf: (
 
 function used(b: Build, v: Vehicle, next: Vehicle): number {
   const money = (equipmentCost(next) - equipmentCost(v)) / Math.max(1, b.budget - equipmentCost(v));
-  const mass = (vehicleMass(next) - vehicleMass(v)) / Math.max(1, massRoom(v));
+  const mass = (vehicleMass(next) - vehicleMass(v)) / Math.max(1, massRoom(b, v));
   return Math.max(money, mass, MIN_USED);
 }
 const MIN_USED = 1e-3;
 
-function massRoom(v: Vehicle): number {
-  return mountedItems(v, 'engine').length ? npcMassRoom(v, 0) : chassisDef(v.chassisId).ratedMass - vehicleMass(v);
+function massRoom(b: Build, v: Vehicle): number {
+  return mountedItems(v, 'engine').length ? massRoomAbove(v, 0, b.rules.minSpeed) : chassisDef(v.chassisId).ratedMass - vehicleMass(v);
 }
 
 function chooseEngine(b: Build, rng: Rng, p: LoadoutPriorities, bare: Vehicle): Vehicle {
   const offers = ENGINES.map((id) => withEngine(b, bare, id));
   const options = offers.filter((v): v is Vehicle => v !== null);
-  if (!options.length) throw new Error(`No engine keeps MIN_NPC_SPEED on ${bare.chassisId} at wear ${b.engineWear} within the gear money`);
+  if (!options.length) throw new Error(`No engine keeps the speed floor on ${bare.chassisId} at wear ${b.engineWear} within the gear money`);
   const fastest = options.reduce((a, c) => (vehicleStats(b.world, c).maxSpeed > vehicleStats(b.world, a).maxSpeed ? c : a));
   const score = gearScorer(b.world, p, fastest, b.rules.paysFuel);
   const engine = takeStep(b, rng, bare, ENGINES.map((id) => (v: Vehicle) => withEngine(b, v, id)), score, 0, true);
@@ -294,7 +293,7 @@ function chooseEngine(b: Build, rng: Rng, p: LoadoutPriorities, bare: Vehicle): 
 function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTemplate, chassisId: string | null, gear: GearLevel, rules: GearRules): Vehicle {
   const table = template.loadout;
   const level = GEAR_LEVELS[gear];
-  const chassis = chassisId ?? sampleWeighted(rng, table.chassis);
+  const chassis = chassisId ?? sampleWeighted(rng, fastEnough(template, rules.minSpeed));
   const bare = makeVehicle(probe, { faction: template.faction, chassisId: chassis, parts: [], spares: [], cargo: {}, pos: { x: 0, y: 0 }, heading: 0, brain: null });
   const keepShare = speedShare(table.priorities);
   const open: Build = { world: probe, budget: chassisDef(chassis).value + (rules.money ?? level.money), engineWear: wearOf(wearRng, level), keep: NO_RESERVE, keepShare, rules };
@@ -303,7 +302,14 @@ function chooseVehicle(probe: World, rng: Rng, wearRng: Rng, template: NpcTempla
   let v = rules.gunFirst ? chooseFirstGun(b, rng, table.priorities, powered) : powered;
   v = chooseOptionalPart(b, rng, v, table.cargoPart);
   v = chooseOptionalPart(b, rng, v, utilityPoolOf(template));
+  if (rules.armorFirst) v = pickWith(b, rng, armorMoves(b), gearScorer(b.world, table.priorities, powered, b.rules.paysFuel), v);
   return pickGear(b, rng, table.priorities, v, powered);
+}
+
+function fastEnough(template: NpcTemplate, minSpeed: number): Weighted<string>[] {
+  const fast = template.loadout.chassis.filter((entry) => chassisDef(entry.value).maxSpeed >= minSpeed);
+  if (!fast.length) throw new Error(`${template.id} has no chassis as fast as ${minSpeed}`);
+  return fast;
 }
 
 function chooseFirstGun(b: Build, rng: Rng, p: LoadoutPriorities, powered: Vehicle): Vehicle {
@@ -318,7 +324,10 @@ function chooseFirstGun(b: Build, rng: Rng, p: LoadoutPriorities, powered: Vehic
 
 function pickGear(b: Build, rng: Rng, p: LoadoutPriorities, v: Vehicle, powered: Vehicle): Vehicle {
   const score = gearScorer(b.world, p, powered, b.rules.paysFuel);
-  const moves = gearMoves(b, score);
+  return pickWith(b, rng, gearMoves(b, score), score, v);
+}
+
+function pickWith(b: Build, rng: Rng, moves: GearMove[], score: (v: Vehicle) => number, v: Vehicle): Vehicle {
   for (;;) {
     const next = takeStep(b, rng, v, moves, score, score(v));
     if (!next) return v;

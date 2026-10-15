@@ -181,7 +181,7 @@ function moneyEventKey(reason: MoneyReason): Move['key'] {
 function playTurn(world: World, archetype: Policy, options: BotOptions, mover: Mover): PlayedTurn {
   const orders = botOrders(buyCheapestRanks(world), archetype, options);
   const goals = topGoals(orders.world);
-  const next = orders.world.player.state === 'dead' ? orders.world : endTurn(orders.world, mover.step(orders.world));
+  const next = orders.world.player.state === 'dead' ? { ...orders.world, events: [] } : endTurn(orders.world, mover.step(orders.world));
   failOnStall(next, goals, options.tolerateStalls === true);
   failOnDryMajority(next);
   const events = [...orders.events, ...next.events];

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { startKit } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import { haulerOf, playerVehicle } from '../sim/damage';
-import { FURY_ROAD } from '../data/modes';
 import { betweenLevels, outpostPad, waitForRoad } from '../sim/fury-road';
 import { highwayHash } from '../sim/highway';
 import { furyRoadWorld, parkOnPad } from '../sim/testkit';
@@ -57,13 +56,14 @@ describe('a saved world by mode', () => {
 
   it('gives back the same run mid-stretch, with a group racing in, and awards nothing on load', () => {
     let world = furyRoadWorld(21);
-    for (let t = 0; t < FURY_ROAD.pacing.quiet + 2; t++) world = endTurn(world, () => {});
+    world.furyRoad!.groups[0].at = 0;
+    for (let t = 0; t < 2; t++) world = endTurn(world, () => {});
     expect(world.furyRoad!.groups[0].spawned).toBe(true);
 
     const loaded = loadWorld(saved(world), 'auto', TEST_MAP)!;
 
     expect(loaded).toEqual({ ...world, events: [], removed: [] });
-    expect(loaded.furyRoad?.quietFrom).toBe(world.furyRoad!.quietFrom);
+    expect(loaded.furyRoad?.groups[0]).toEqual(world.furyRoad!.groups[0]);
   });
 
   it('pays an outpost once across a save and a load between levels, and awards nothing on load', () => {

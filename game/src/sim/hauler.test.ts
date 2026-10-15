@@ -26,7 +26,7 @@ function openRoad(seed = 3): { w: World; hauler: Vehicle } {
 function groupTruck(w: World, across: number, along: number, speed: number, heading?: number): Vehicle {
   const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, along, across), heading ?? roadHeading(w.seed, along));
   v.speed = speed;
-  w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', templates: [], level: 'light', spawned: true, vehicles: [v.id], wrecked: 0, counted: [], retryUntil: null }];
+  w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: [v.id], wrecked: 0, counted: [], retryUntil: null }];
   return v;
 }
 
@@ -101,7 +101,7 @@ describe('the hauler driver', () => {
   it('keeps its lane when every lane is blocked, for the router to thread the gap', () => {
     const { w, hauler } = openRoad();
     const trucks = LANES.map((lane) => addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], roadPoint(w.seed, 0, N + 6, lane), 0));
-    w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', templates: [], level: 'light', spawned: true, vehicles: trucks.map((t) => t.id), wrecked: 0, counted: [], retryUntil: null }];
+    w.furyRoad!.groups = [{ id: 'g1-0', stretch: 1, from: 'ahead', at: 0, templates: [], money: 10000, elite: false, level: 'light', spawned: true, vehicles: trucks.map((t) => t.id), wrecked: 0, counted: [], retryUntil: null }];
     expect(chosenLane(w, hauler)).toBe(1);
   });
 

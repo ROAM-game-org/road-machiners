@@ -352,7 +352,7 @@ let widest: number | null = null;
 export function passageInflate(): number {
   widest ??= Math.max(
     chassisDef(START_KITS.furyRoad.chassis).radius,
-    ...FURY_ROAD.pool.flatMap((tier) => Object.keys(tier.weights)).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
+    ...Object.keys(FURY_ROAD.cards).flatMap((id) => NPCS[id].loadout.chassis.map((c) => chassisDef(c.value).radius)),
   );
   return widest + H.inflate;
 }

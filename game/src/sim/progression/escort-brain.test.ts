@@ -6,7 +6,9 @@ import type { Vehicle, World } from '../types';
 import { dist } from '../vec';
 import { refreshVision } from '../vision';
 import { endTurn } from '../world';
-import { asFighter, escortMove, hostilesSeen, lagBehind, leash, nearestToHauler } from './escort-brain';
+import { asFighter, escortFoe, escortMove as moveWith, hostilesSeen, lagBehind, leash, nearestToHauler } from './escort-brain';
+
+const escortMove = (w: World, me: Vehicle) => moveWith(w, me, escortFoe(w, me));
 
 function started(): World {
   return endTurn(furyRoadWorld(), () => {});

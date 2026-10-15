@@ -1,15 +1,18 @@
 import { NPCS } from '../../data/npcs';
+import { sustainedDamage } from '../../data/parts';
 import { PERSONALITY_IDS } from '../../data/personalities';
 import { RULES } from '../../data/rules';
 import { fightOrder, fightPoint } from '../ai';
 import { haulerOf, playerVehicle } from '../damage';
 import { isKnockedOut } from '../defeat';
+import { corePart } from '../grid';
 import { alongOf, toRoad } from '../highway';
-import { vehicleStats } from '../stats';
+import { inArc } from '../combat';
+import { vehicleStats, type MountedWeapon } from '../stats';
 import { followPace, followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
-import { dist } from '../vec';
-import { playerSees } from '../vision';
+import { bearing, dist, type Vec } from '../vec';
+import { hasLineOfFire, playerSees } from '../vision';
 import { hostileToPlayer } from '../world';
 
 const FIGHTER = NPCS.merc;
@@ -36,8 +39,16 @@ export function leash(world: World, me: Vehicle): number {
 
 export function fightMove(world: World, me: Vehicle, foe: Vehicle): MoveOrder {
   const fighter = asFighter(me);
-  const clearance = vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance;
-  return fightOrder(world, fighter, foe, fightPoint(world, fighter, foe, clearance));
+  const clearance = Math.max(vehicleStats(world, me).radius + vehicleStats(world, foe).radius + RULES.yieldDistance, STANDOFF * leash(world, me));
+  return fightOrder(world, fighter, foe, clearOf(foe, fightPoint(world, fighter, foe, clearance), me.pos, clearance));
+}
+
+const STANDOFF = 0.6;
+
+function clearOf(foe: Vehicle, spot: Vec, from: Vec, clearance: number): Vec {
+  if (dist(spot, foe.pos) >= clearance) return spot;
+  const away = bearing(foe.pos, dist(spot, foe.pos) > 0 ? spot : from);
+  return { x: foe.pos.x + Math.cos(away) * clearance, y: foe.pos.y + Math.sin(away) * clearance };
 }
 
 export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
@@ -51,9 +62,34 @@ export function lagBehind(world: World, me: Vehicle, hauler: Vehicle): number {
   return along(hauler) - along(me);
 }
 
-export function escortMove(world: World, me: Vehicle): MoveOrder {
-  const hauler = haulerOf(world);
-  const foe = nearestToHauler(world, hostilesSeen(world));
-  if (foe && lagBehind(world, me, hauler) <= leash(world, me)) return fightMove(world, me, foe);
-  return followMove(world, me, hauler);
+export function escortFoe(world: World, me: Vehicle): Vehicle | null {
+  if (lagBehind(world, me, haulerOf(world)) > leash(world, me)) return null;
+  return deadliest(world, me, hostilesSeen(world));
+}
+
+export function deadliest(world: World, me: Vehicle, foes: readonly Vehicle[]): Vehicle | null {
+  const focusId = Object.values(me.weaponOrders)[0]?.targetId;
+  const focus = foes.find((v) => v.id === focusId) ?? null;
+  const top = foes.reduce<Vehicle | null>((best, v) => (!best || killPriority(world, me, v) > killPriority(world, me, best) ? v : best), null);
+  if (!focus || !top) return top;
+  return killPriority(world, me, top) > SWITCH_GAIN * killPriority(world, me, focus) ? top : focus;
+}
+const SWITCH_GAIN = 1.5;
+
+export function killPriority(world: World, me: Vehicle, foe: Vehicle): number {
+  const guns = vehicleStats(world, foe).weapons.filter((mw) => mw.part.hp > 0);
+  const reach = Math.max(1, ...guns.map((mw) => mw.def.range));
+  const near = Math.min(dist(foe.pos, me.pos), dist(foe.pos, haulerOf(world).pos));
+  const damage = guns.reduce((sum, mw) => sum + sustainedDamage(mw.def), 0);
+  return (damage * Math.min(1, reach / Math.max(near, 1))) / Math.max(1, corePart(foe, 'cab').hp);
+}
+
+export function escortMove(world: World, me: Vehicle, foe: Vehicle | null): MoveOrder {
+  return foe ? fightMove(world, me, foe) : followMove(world, me, haulerOf(world));
+}
+
+export function gunTarget(world: World, me: Vehicle, weapon: MountedWeapon, focus: Vehicle, foes: readonly Vehicle[]): Vehicle | null {
+  const reaches = (foe: Vehicle) => dist(me.pos, foe.pos) <= weapon.def.range && inArc(me, weapon, foe) && hasLineOfFire(world, me.pos, foe.pos);
+  if (reaches(focus)) return focus;
+  return [...foes].sort((a, b) => dist(me.pos, a.pos) - dist(me.pos, b.pos)).find(reaches) ?? null;
 }

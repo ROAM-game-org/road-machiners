@@ -870,7 +870,18 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withoutOldRun_60_61,
   withSceneHubsAtSceneStart_61_62,
   withRunWait_62_63,
+  withPlannedGroups_63_64,
 ];
+
+const GROUP_MONEY_63_64 = 20000;
+
+function withPlannedGroups_63_64(world: SavedJson): SavedJson {
+  const run = world.furyRoad as SavedJson | null;
+  if (run === null) return world;
+  const { quietFrom: _quietFrom, ...rest } = run;
+  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, at: 0, money: GROUP_MONEY_63_64, elite: false }));
+  return { ...world, furyRoad: { ...rest, groups } };
+}
 
 function withRunWait_62_63(world: SavedJson): SavedJson {
   const run = world.furyRoad as SavedJson | null;

@@ -131,6 +131,7 @@ function worldAtWindow(seed: number, window: number): World {
   for (let milestone = 1; milestone <= window; milestone++) {
     parkOnPad(w, milestone);
     w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
+    w.furyRoad!.waitingAt = milestone;
     w.furyRoad!.groups = [];
     moveWindow(w);
   }

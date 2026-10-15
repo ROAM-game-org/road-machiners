@@ -9,9 +9,9 @@ import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
 import { refitLoadout } from '../npc-loadout';
-import { isStranded, vehicleStats } from '../stats';
+import { isStranded, vehicleStats, type MountedWeapon } from '../stats';
 import { tankLeaks } from '../supplies';
-import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder } from '../world';
+import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
 import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, outpostPad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
 import { RULES } from '../../data/rules';
@@ -19,14 +19,15 @@ import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
 import { storePart } from '../inventory';
 import { outpostBuyChassis, outpostBuyGood, outpostBuyPart, outpostBuySupply, outpostGoodPrice, outpostGoodRoom, outpostPartPrice, outpostRepairAll, outpostRepairBasics } from '../outposts';
-import type { PartInstance, Vehicle, World } from '../types';
+import type { PartInstance, Vehicle, WeaponOrder, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { isJunk } from '../wear';
 import { FURY_ROAD } from '../../data/modes';
-import { escortMove } from './escort-brain';
+import { escortFoe, escortMove, gunTarget, hostilesSeen } from './escort-brain';
+import { aimFor } from './aim';
 import { armorHauler } from './escort-gear';
 import { bestTruck, keepsPace, savesFor } from './escort-tactics';
-import { payOf } from '../fury-road-danger';
+import { payOf } from '../fury-road-director';
 import { gearBudget } from './gear';
 import { mountBought, Orders, type BotTurn } from './orders';
 
@@ -110,8 +111,29 @@ function drive(o: Orders, style: RoadStyle): void {
 function escort(o: Orders): void {
   const hauler = haulerOf(o.world);
   if (haulerAtPad(o.world, hauler)) return driveTo(o, beside(o.world, outpostPad(o.world, o.world.furyRoad!.window + 1), hauler));
-  const order = escortMove(o.world, o.me);
+  const foe = escortFoe(o.world, o.me);
+  const order = escortMove(o.world, o.me, foe);
   o.run((w) => setMoveOrder(w, order));
+  if (foe) focusFire(o, foe);
+}
+
+function focusFire(o: Orders, focus: Vehicle): void {
+  o.run((w) => setAutoFire(w, false));
+  const foes = hostilesSeen(o.world);
+  for (const weapon of vehicleStats(o.world, o.me).weapons) {
+    const order = gunOrder(o.world, weapon, gunTarget(o.world, o.me, weapon, focus, foes));
+    if (sameOrder(o.me.weaponOrders[weapon.part.id] ?? null, order)) continue;
+    o.run((w) => setWeaponOrder(w, weapon.part.id, order));
+  }
+}
+
+function gunOrder(world: World, weapon: MountedWeapon, foe: Vehicle | null): WeaponOrder | null {
+  return foe ? { targetId: foe.id, aim: aimFor(world, foe, weapon) } : null;
+}
+
+function sameOrder(a: WeaponOrder | null, b: WeaponOrder | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.targetId === b.targetId && a.aim === b.aim;
 }
 
 function haulerAtPad(world: World, hauler: Vehicle): boolean {

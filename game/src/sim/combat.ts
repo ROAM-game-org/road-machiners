@@ -74,13 +74,20 @@ export function inTruce(world: World, a: Vehicle, b: Vehicle): boolean {
 }
 
 export function isHostile(world: World, a: Vehicle, b: Vehicle): boolean {
-  if (!isFoe(world, a, b)) return false;
+  if (!isFoe(world, a, b) || bothInWaves(world, a, b)) return false;
   if (inFeud(world, a, b) || isLawPair(a, b)) return true;
   return hasLoot(a.faction === "raiders" ? b : a);
 }
 
 export function huntsForLoot(world: World, raider: Vehicle, target: Vehicle): boolean {
   return raider.faction === "raiders" && target.faction !== "raiders" && !inFeud(world, raider, target) && !isLawPair(raider, target);
+}
+
+function bothInWaves(world: World, a: Vehicle, b: Vehicle): boolean {
+  const groups = world.furyRoad?.groups;
+  if (!groups) return false;
+  const inWave = (v: Vehicle) => groups.some((g) => g.vehicles.includes(v.id));
+  return inWave(a) && inWave(b);
 }
 
 function isLawPair(a: Vehicle, b: Vehicle): boolean {

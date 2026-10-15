@@ -8,7 +8,6 @@ import { knockOutNpc } from '../sim/defeat';
 import { resolveDestroyed } from '../sim/combat';
 import { corePart } from '../sim/grid';
 import { getResources } from '../sim/resources';
-import { FURY_ROAD } from '../data/modes';
 import { furyRoadWorld } from '../sim/testkit';
 import { armorSpot, fillCargo, parkedAtOutpost, stockOfKind } from '../sim/testkit';
 import type { World } from '../sim/types';
@@ -65,7 +64,7 @@ describe('a saved outpost garage', () => {
 describe('a saved run with a knocked-out truck on the road', () => {
   it('gives back the downed truck and counts it once when it is shot to a wreck after the load', () => {
     const w = furyRoadWorld(21);
-    w.turn = w.furyRoad!.quietFrom + FURY_ROAD.pacing.quiet;
+    w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
     const group = w.furyRoad!.groups[0];
     const v = w.vehicles.find((x) => x.id === group.vehicles[0])!;
