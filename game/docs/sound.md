@@ -41,7 +41,7 @@ How it plays:
 2. The base plays at full level and full brightness for the whole fight. A real song does not get quieter or duller, and no fight in ROAM is a quiet one. Heat is a fading sum of event weights. It only chooses busier tails for now.
 3. Each event plays a stab: its accent, started early by the take's measured peak, so the loudest moment lands exactly when the shot lands or the crash happens. A stab whose event comes before its take's peak starts inside the take, with a short fade-in.
 4. A short tail of the same accent may follow on the beat grid, from the half-beat nearest the event. Calm tails are the stab alone. Hot tails add one hit.
-5. Heavy events, like a crash, a crit, a sighting or being hit, go to the lead line, centered, and always sound. Light events, your hits and misses, go to the secondary line: quieter, to one side, and only by chance.
+5. Heavy events, like a crash, a crit, a sighting or being hit, go to the lead line, centered, and always sound. Light events, your hits and misses, go to the secondary line: to one side, and only by chance. Every stab ducks the base under it so it is heard, the lead deeper than the secondary.
 6. A stab too soon after another on its line is dropped, so a burst makes one sound, not a pile.
 7. In a turn pause, the last lead phrase repeats once from a bar line, then only the base plays.
 8. Outside a battle, accents are ignored, so a crash in peacetime makes only its normal crash sound.

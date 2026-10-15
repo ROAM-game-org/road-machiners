@@ -14,8 +14,8 @@ const TUNING: DesignerTuning = {
   busyFactor: 0,
   stabGapSeconds: 0.3,
   lines: {
-    lead: { gain: 1, calm: ["x...x..."], hot: ["xxxxxxxx"] },
-    secondary: { gain: 0.5, calm: ["..x....."], hot: ["..x.x.x."] },
+    lead: { gain: 1, duck: 0.6, calm: ["x...x..."], hot: ["xxxxxxxx"] },
+    secondary: { gain: 0.5, duck: 0.75, calm: ["..x....."], hot: ["..x.x.x."] },
   },
 };
 const LEAD: AccentPlan = { line: "lead", weight: 0.5, bars: 1, chance: 1 };

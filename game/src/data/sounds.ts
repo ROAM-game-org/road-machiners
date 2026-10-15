@@ -231,12 +231,11 @@ export const MIX = {
     stabGapSeconds: 1.5,
     joinFadeSeconds: 0.015,
     offerAheadSeconds: 0.1,
-    duckGain: 0.6,
     duckAttackSeconds: 0.05,
     duckReleaseBeats: 2,
     lines: {
-      lead: { gain: 1, calm: ["x......."], hot: ["x...x...", "x.....x."] },
-      secondary: { gain: 0.7, calm: ["x......."], hot: ["x...x...", "x.....x."] },
+      lead: { gain: 1, duck: 0.6, calm: ["x......."], hot: ["x...x...", "x.....x."] },
+      secondary: { gain: 1, duck: 0.75, calm: ["x......."], hot: ["x...x...", "x.....x."] },
     },
     accents: {
       "accent-crash": { line: "lead", weight: 1, bars: 2, chance: 1 },

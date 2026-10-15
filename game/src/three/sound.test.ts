@@ -449,7 +449,7 @@ describe("SoundDirector accent timing", () => {
 
 describe("CombatScore", () => {
   type BaseId = "score-drums" | "score-bass" | "score-horns" | "score-trombone";
-  type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; ducks: number[] };
+  type Call = { id: BaseId; file: string; when: number; offset: number; gains: number[]; ducks: number[]; duckLevels: number[] };
   type Play = [string, { pan: number; gain: number }, number, { file: string; rate: number; from?: number }?];
   const fakePlayer = () => {
     const loops: Call[] = [];
@@ -460,7 +460,7 @@ describe("CombatScore", () => {
       play: (...args: Play) => { plays.push(args); },
       chooseWithPeak: (id: string) => ({ file: `${id}-1.ogg`, peak: 0.1 }),
       beatLoop: (id: BaseId, file: string, when: number, offset: number) => {
-        const call: Call = { id, file, when, offset, gains: [], ducks: [] };
+        const call: Call = { id, file, when, offset, gains: [], ducks: [], duckLevels: [] };
         loops.push(call);
         const duration = SOUNDS[id].beat!.bars * 4;
         return {
@@ -469,7 +469,10 @@ describe("CombatScore", () => {
           glide: () => {},
           once: () => {},
           stop: () => {},
-          duck: (t: number) => call.ducks.push(t),
+          duck: (t: number, level: number) => {
+            call.ducks.push(t);
+            call.duckLevels.push(level);
+          },
         };
       },
     } as unknown as SoundPlayer;
@@ -563,7 +566,7 @@ describe("CombatScore", () => {
     expect(loops[0].ducks[0]).toBeCloseTo(clock.now + plays[0][2] / 1000);
   });
 
-  it("plays light events on the secondary, to one side, without ducking the base", () => {
+  it("plays light events on the secondary, to one side, ducking the base less than the lead", () => {
     const { player, loops, plays, clock } = fakePlayer();
     const score = new CombatScore(player, () => 0);
     score.setCombat(true, 3);
@@ -571,7 +574,8 @@ describe("CombatScore", () => {
     run(score, clock, 6);
     expect(plays.length).toBeGreaterThan(0);
     expect(plays.every((p) => p[0] === "accent-hit" && p[1].pan === -s.secondaryPan)).toBe(true);
-    expect(loops[0].ducks).toEqual([]);
+    expect(loops[0].duckLevels).toHaveLength(plays.length);
+    expect(loops[0].duckLevels.every((l) => l === s.lines.secondary.duck && l > s.lines.lead.duck)).toBe(true);
   });
 
   it("keeps the base at full level however hot the fight gets", () => {

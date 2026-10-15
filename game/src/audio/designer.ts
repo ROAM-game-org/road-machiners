@@ -1,6 +1,3 @@
-// The combat score's two accent lines over the background base. Each event plays a stab: its accent timed so the
-// sound's loudest moment lands on the event. The rest of the accent's rhythm then follows as a tail on the beat
-// grid, counted from the slot nearest the event. The lead takes heavy events, the secondary light ones, quieter
 
 export type Grid = { start: number; beat: number; beatsPerBar: number };
 
@@ -10,6 +7,7 @@ export type AccentPlan = { line: LineId; weight: number; bars: number; chance: n
 
 export type LineTuning = {
   gain: number;
+  duck: number;
   calm: readonly string[];
   hot: readonly string[];
 };

@@ -118,7 +118,7 @@ export class CombatScore {
     const selection = file === undefined ? undefined : { file, rate: 1, ...(from > 0 ? { from } : {}) };
     this.player.play(h.cue as AccentCue, { pan: h.pan, gain: h.gain }, (start - now) * 1000, selection);
     const s = MIX.score;
-    if (h.line === "lead") base.loop.duck(start, s.duckGain, s.duckAttackSeconds, base.grid.beat * s.duckReleaseBeats);
+    base.loop.duck(start, s.lines[h.line].duck, s.duckAttackSeconds, base.grid.beat * s.duckReleaseBeats);
   }
 
   private base(id: BaseCue, start: number): Base {
