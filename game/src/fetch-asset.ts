@@ -38,6 +38,13 @@ export class AssetUnreachable extends Error {
   }
 }
 
+export class DownloadFailed extends AssetUnreachable {
+  constructor(label: string, url: string, attempts: number, cause: unknown) {
+    super(label, url, attempts, cause);
+    this.name = 'DownloadFailed';
+  }
+}
+
 type Attempt = { body: AssetBody } | { transient: unknown };
 
 async function attempt(label: string, url: string, init: RequestInit | undefined, net: AssetNet): Promise<Attempt> {
