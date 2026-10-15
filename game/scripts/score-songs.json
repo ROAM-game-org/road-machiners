@@ -20,8 +20,8 @@
   "bpm": 125,
   "bars": 87,
   "sections": [
-   { "role": "intro", "from": 4, "bars": 2 },
-   { "role": "verse", "from": 6, "bars": 16 },
+   { "role": "intro", "from": 6, "bars": 2 },
+   { "role": "verse", "from": 8, "bars": 14 },
    { "role": "wall", "from": 22, "bars": 8 },
    { "role": "stop", "from": 30, "bars": 4 },
    { "role": "verse", "from": 34, "bars": 16 },
@@ -38,8 +38,8 @@
   "bpm": 125,
   "bars": 103,
   "sections": [
-   { "role": "intro", "from": 4, "bars": 2 },
-   { "role": "verse", "from": 6, "bars": 6 },
+   { "role": "intro", "from": 5, "bars": 2 },
+   { "role": "verse", "from": 7, "bars": 6 },
    { "role": "wall", "from": 13, "bars": 16 },
    { "role": "stop", "from": 29, "bars": 4 },
    { "role": "verse", "from": 33, "bars": 8 },
