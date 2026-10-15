@@ -1,10 +1,11 @@
 
 
 import { GAME_VERSION } from '../config';
+import { DownloadFailed } from '../download';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
-import { t } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 
 let shown = false;
 let report: ((text: string) => void) | null = null;
@@ -96,9 +97,24 @@ function ignoreForeign(facts: ErrorFacts): void {
   report(FOREIGN_NOTE);
 }
 
+export function screenFor(err: unknown): 'webgl' | 'download' | 'crash' {
+  if (err instanceof WebGLUnavailable) return 'webgl';
+  if (err instanceof DownloadFailed) return 'download';
+  return 'crash';
+}
+
+export function downloadFailedText(err: DownloadFailed): { title: Msg; lines: Msg[]; detail: string; action: Msg } {
+  const cause = err.cause instanceof Error ? err.cause.message : String(err.cause);
+  return { title: t('download.title'), lines: [t('download.reload'), t('download.saves')], detail: `${err.url}\n${cause}`, action: t('download.action') };
+}
+
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
-  if (err instanceof WebGLUnavailable) showNoWebGL(err);
-  else onFault(err, facts);
+  const screen = screenFor(err);
+  if (screen === 'webgl') showNotice(noWebGLText(err as WebGLUnavailable, navigator.userAgent));
+  else if (screen === 'download') {
+    console.warn(err);
+    showNotice(downloadFailedText(err as DownloadFailed));
+  } else onFault(err, facts);
 }
 
 function onFault(err: unknown, facts: ErrorFacts | null): void {
@@ -129,10 +145,9 @@ function showCrash(err: unknown, facts: ErrorFacts | null): void {
   document.body.appendChild(box);
 }
 
-function showNoWebGL(err: WebGLUnavailable): void {
+function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; action?: Msg }): void {
   if (shown) return;
   shown = true;
-  const text = noWebGLText(err, navigator.userAgent);
   const box = document.createElement('div');
   box.className = 'crash-screen';
   const title = document.createElement('div');
@@ -144,6 +159,14 @@ function showNoWebGL(err: WebGLUnavailable): void {
     setText(row, line);
     box.append(row);
   }
+  let reload: HTMLButtonElement | null = null;
+  if (text.action) {
+    reload = document.createElement('button');
+    reload.className = 'crash-reload';
+    setText(reload, text.action);
+    reload.addEventListener('click', () => location.reload());
+    box.append(reload);
+  }
   if (text.detail) {
     const detail = document.createElement('div');
     detail.className = 'crash-hint';
@@ -151,4 +174,5 @@ function showNoWebGL(err: WebGLUnavailable): void {
     box.append(detail);
   }
   document.body.appendChild(box);
+  reload?.focus();
 }
