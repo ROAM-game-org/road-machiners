@@ -275,3 +275,22 @@ describe('a stretch with its scenes turned off', () => {
     }
   });
 });
+
+describe('every stretch lays out', () => {
+  const seeds = [...Array.from({ length: 60 }, (_, i) => i + 1), 15, 34, 38];
+  const stretches = Array.from({ length: 40 }, (_, i) => i + 1);
+
+  it('fits its scenes between arenas of the minimum length for stretches 1 to 40 on many seeds', () => {
+    for (const seed of seeds) {
+      for (const j of stretches) {
+        const layout = stretchLayout(seed, j);
+        expect(layout.scenes, `seed ${seed} stretch ${j}`).toHaveLength(scenesOf(j));
+        for (const arena of layout.arenas) expect(arena.to - arena.from, `seed ${seed} stretch ${j}`).toBeGreaterThanOrEqual(HAZARDS.arenaMin);
+        for (const [i, scene] of layout.scenes.entries()) {
+          expect(scene.from).toBeGreaterThanOrEqual(layout.arenas[i].to - 1e-6);
+          expect(scene.to).toBeLessThanOrEqual(layout.arenas[i + 1].from + 1e-6);
+        }
+      }
+    }
+  });
+});

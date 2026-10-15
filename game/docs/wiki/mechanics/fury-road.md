@@ -44,7 +44,7 @@ The player owns two trucks in a run: the gun truck, and the hauler, an 18-wheele
 
 ## Scenes
 
-A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes: 3 in stretches 1 and 2, then 4. The first and last 24 and 30 tiles by the outposts stay clear. Each scene is laid from a recipe with a cause, and always leaves a way through on the road:
+A stretch alternates open arenas of at least 36 tiles, where fights start, with hazard scenes: 3 in stretches 1 and 2, then 4. The first and last 24 and 30 tiles by the outposts stay clear. The stretch is the same length every time, so a draw of scenes whose spans leave less than 36 tiles for any arena is thrown away and drawn again, up to `maxTries` times. A stretch that never fits throws. Each scene is laid from a recipe with a cause, and always leaves a way through on the road:
 
 - Pileup: 3 to 6 car wrecks and burnt truck hulks over 1 or 2 lanes, slewed 20° to 80° off the road, with drums and junk spilled ahead.
 - Jackknife: a bus or hauler hulk across two lanes at 60° to 90°, with 1 or 2 cars rear-ended behind it.
@@ -124,7 +124,7 @@ Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler
 - Fight fails: 0 of 302 beaten stretches had a player shot and an encounter, short of the 95% asked for. The escort never fires. Hostile groups shoot only the hauler unless the gun truck shoots them or crashes into them, so a quiet gun truck is barely punished, and an armored hauler drives through. Every escort variant that fired, guarded the hauler, dueled a lone truck or ran from fights scored lower than the quiet one, from 7 to 15 of 20 against 16 to 18 of 20.
 - React fails: 1 of 2 stretches begun at 90% or better lost the hauler in under 10 turns. Damage, Variety, Choice and Rise pass: the hauler took damage on 243 of 316 stretches, the enemy mix changed on 8 or 9 of 9 transitions in every full run, 174 of 302 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 19 on stretches 1 to 3 to 65 on stretches 8 to 10.
 - Not sprintable fails: 3 of 10 sprinter seeds lost the run before stretch 10. The sprinter bot is unchanged from before the escort work, which gave the same 3 of 10.
-- The hauler can stall for good in physics, 15 to 17 tiles off the road with speed 0, and the recorder fails the run on a `stall` event. It raised a stall on 8 different seeds after the hauler-stall merge. Three runs ended on `Stretch N has no room for 4 scenes between arenas of 36 tiles`, at stretches 8, 11 and 20.
+- The hauler can stall for good in physics, 15 to 17 tiles off the road with speed 0, and the recorder fails the run on a `stall` event. It raised a stall on 8 different seeds after the hauler-stall merge.
 
 Bot constants and the batches behind them:
 
