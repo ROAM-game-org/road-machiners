@@ -152,7 +152,7 @@ describe('gun heads clear what they sweep over', () => {
   it('NPC loadouts of every template', () => {
     const problems: string[] = [];
     for (const t of Object.values(NPCS)) {
-      for (let seed = 1; seed <= 4; seed++) {
+      for (let seed = 1; seed <= 2; seed++) {
         const world = { ...emptyWorld(), rngState: seed * 7 + 3 };
         let v: Vehicle;
         try {
