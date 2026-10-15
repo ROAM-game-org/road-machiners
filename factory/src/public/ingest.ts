@@ -22,6 +22,21 @@ function integer(fields: Fields, name: string): number {
   return value;
 }
 
+function integerOrNull(fields: Fields, name: string): number | null {
+  return fields[name] === null ? null : integer(fields, name);
+}
+
+function flag(fields: Fields, name: string): boolean {
+  const value = fields[name];
+  if (value !== undefined && typeof value !== 'boolean') throw new BadEvent(`field "${name}" must be a boolean`);
+  return value === true;
+}
+
+function comment(base: Base, fields: Fields): PublicEvent {
+  const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone') };
+  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), ...reach };
+}
+
 const isWholeNumber = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 
 function plainObject(fields: Fields, name: string): Fields {
@@ -48,7 +63,7 @@ const KINDS: Record<PublicEvent['kind'], (base: Base, fields: Fields) => PublicE
   'reaction-count': (base, fields) => ({ ...base, kind: 'reaction-count', counts: counts(fields) }),
   reaction: (base, fields) => ({ ...base, kind: 'reaction', user: text(fields, 'user'), emoji: emoji(fields) }),
   forward: (base, fields) => ({ ...base, kind: 'forward', channelChat: text(fields, 'channelChat'), channelMessageId: integer(fields, 'channelMessageId') }),
-  comment: (base, fields) => ({ ...base, kind: 'comment', threadId: integer(fields, 'threadId'), author: text(fields, 'author'), text: text(fields, 'text'), at: text(fields, 'at') }),
+  comment,
 };
 
 function parseJson(raw: string): Fields {

@@ -20,7 +20,7 @@ Each job's containers run on a fixed set of CPUs. `FACTORY_CPU_LIGHT`, `FACTORY_
 - implement: implementation, ad hoc, change, verify, harden and release playtest jobs. The Testing job runs its preview checks here.
 - test: the merge job, which runs the full suite, the candidate, which checks the frame rate, and the post-only checks. A job of another pool runs each full suite here too: a hotfix's post checkpoint, the release playtest's suite and its fix checks. On the 3 implement CPUs beside the agents, a full suite ran past its time limit.
 
-On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the test pool's CPUs. The merge checks share them only with the other full suites and the post-only builds. Docker pins containers with `--cpuset-cpus`. A step run by hand is not pinned.
+On the 8-core host that is CPU 0, CPUs 1-3 and CPUs 4-7. Agents never take the test pool's CPUs. The merge checks share them only with the post-only builds, since one full suite runs at a time. Each full suite run takes the lock `$FACTORY_HOME/locks/full-suite`, and its `FACTORY_CHECKS_TIMEOUT_MINUTES` clock starts once it has the lock. Three suites at once on these 4 CPUs each ran past that limit, and one alone takes about 25 minutes. Docker pins containers with `--cpuset-cpus`. A step run by hand is not pinned.
 
 `FACTORY_VITEST_WORKERS_IMPLEMENT` and `FACTORY_VITEST_WORKERS_TEST` set how many workers the game's test runner starts in a container of each pool. The factory passes the count as `TEST_WORKERS`. Light containers get none and keep the game's rule of one worker per CPU.
 
@@ -174,6 +174,15 @@ The service also keeps one file per kept player report from the game form, under
 A daily cap, the disk cap or an address past its limit writes a line to `$FACTORY_HOME/error-reports/alert`. Hermes's incident watch prints it, and Hermes deletes the file once handled.
 
 A Hermes plugin that cannot write a player vote or comment to `$FACTORY_HOME/public-inbox` writes one line per day to `$FACTORY_HOME/public-alert`. The plugin still stops that update, so player text never reaches the Hermes agent, and the update itself is lost. Hermes's incident watch prints the file, and Hermes finds why the inbox write failed, usually a full disk or a wrong mode, then deletes the file.
+
+## Player chat delivery
+
+The bot reads the player chat only as far as Telegram delivers to it, so the chat needs this setup. The factory cannot check it, so check it by hand after a change to the chat or the bot.
+
+- The bot is an admin of the channel's discussion group, and of `FACTORY_PROPOSAL_CHAT` when that is another group. An admin bot gets every message and every reaction, whatever its privacy mode.
+- If the bot is not an admin, Telegram's privacy mode decides. With privacy on, the default, the bot gets only commands, @mentions of it and replies to its own messages, so a plain bug report or idea never arrives. Only the bot's owner can turn privacy off, with `/setprivacy` in BotFather, and the bot must then leave and rejoin each group. Making the bot an admin is the simpler fix.
+- The bot needs the right to send messages in the group, since it replies there.
+- To check, post a plain message with no mention in the discussion group and see that `factory public` lists it within two ticks.
 
 ## Deploying the factory
 

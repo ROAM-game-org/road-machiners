@@ -7,7 +7,7 @@ import { must } from '../exec';
 import { roundSession } from '../sessions';
 import { updateState } from '../state';
 import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type PlaytestState, type ReleaseState } from '../types';
-import { CACHED_SUITE, checkScript, checkUntilReal, runChecks, suiteEnv, testCacheMount } from './checks';
+import { CACHED_SUITE, checkScript, checkUntilReal, oneSuiteAtATime, runChecks, suiteEnv, testCacheMount } from './checks';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
@@ -57,7 +57,7 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
 }
 
 async function fullSuite(ctx: Ctx, dir: string): Promise<void> {
-  await ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg));
+  await oneSuiteAtATime(ctx, { stage: 'playtest', issue: null }, () => ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg)));
 }
 
 async function cloneAt(ctx: Ctx, dir: string, sha: string): Promise<boolean> {
@@ -185,7 +185,8 @@ async function checkFixes(ctx: Ctx, session: Session, sha: string): Promise<stri
   checkScope(sha);
   const log = releaseLog(ctx, 'playtest-checks');
   const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false))}`;
-  const check = (): Promise<string | null> => runChecks(ctx, { stage: 'playtest', issue: session.release.issue }, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg));
+  const at = { stage: 'playtest' as const, issue: session.release.issue };
+  const check = (): Promise<string | null> => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg)));
   return checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
 }
 

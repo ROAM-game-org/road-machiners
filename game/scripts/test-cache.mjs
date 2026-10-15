@@ -1,5 +1,3 @@
-// Runs the game tests and skips every test file whose imports, disk reads and global inputs already passed.
-// Usage: npm run test:cached -- --cache <dir> [test file filters]. Without --cache it runs every file and records nothing.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { createVitest } from 'vitest/node';

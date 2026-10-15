@@ -3,13 +3,18 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 log = logging.getLogger(__name__)
 
 PUBLIC_GROUP = -1
 PUBLIC_ALERT = "public-alert"
 UPDATE_KINDS = ("message", "message_reaction", "message_reaction_count")
+
+
+class Bot(NamedTuple):
+    id: int
+    username: str
 
 
 def update_kind(raw: dict) -> Optional[str]:
@@ -24,10 +29,14 @@ def update_chat(raw: dict) -> Optional[str]:
     return None if kind is None else str(raw[kind]["chat"]["id"])
 
 
+def public_chats(cfg) -> tuple:
+    return (cfg.discussion,) if cfg.proposal_chat == cfg.chat else (cfg.discussion, cfg.proposal_chat)
+
+
 def stops_hermes(raw: dict, cfg) -> bool:
     chat = update_chat(raw)
     if update_kind(raw) == "message":
-        return chat == cfg.discussion
+        return chat in public_chats(cfg)
     return chat in (cfg.discussion, cfg.proposal_chat)
 
 
@@ -79,16 +88,45 @@ def author_of(message: dict) -> str:
     return sender["username"]
 
 
-def comment_event(raw: dict, message: dict) -> Optional[dict]:
+def sender_of(message: dict) -> str:
+    return str(message.get("sender_chat", message["from"])["id"])
+
+
+def is_skipped(message: dict, text: Optional[str]) -> bool:
+    sender = message.get("from") or {}
+    if not text or not sender or sender.get("is_bot"):
+        return True
+    return "forward_origin" in message or "via_bot" in message or text.lstrip().startswith("/")
+
+
+def mentions(message: dict, bot: Bot) -> bool:
+    text = message.get("text") or message.get("caption") or ""
+    if bot.username and f"@{bot.username}".lower() in text.lower():
+        return True
+    entities = (message.get("entities") or []) + (message.get("caption_entities") or [])
+    return any(entity.get("type") == "text_mention" and entity.get("user", {}).get("id") == bot.id for entity in entities)
+
+
+def is_addressed(message: dict, bot: Optional[Bot]) -> bool:
+    if bot is None:
+        return False
+    replied = (message.get("reply_to_message") or {}).get("from") or {}
+    return replied.get("id") == bot.id or mentions(message, bot)
+
+
+def comment_event(raw: dict, message: dict, standalone: bool, bot: Optional[Bot]) -> Optional[dict]:
     text = message.get("text") or message.get("caption")
+    if is_skipped(message, text):
+        return None
     reply = message.get("reply_to_message")
     thread = reply["message_id"] if reply else message.get("message_thread_id")
-    if not text or thread is None:
+    if thread is None and not standalone:
         return None
     return {
         "updateId": raw["update_id"], "kind": "comment", "chat": str(message["chat"]["id"]),
         "messageId": message["message_id"], "threadId": thread, "author": author_of(message),
-        "text": text, "at": iso_date(message["date"]),
+        "sender": sender_of(message), "text": text, "at": iso_date(message["date"]),
+        "addressed": is_addressed(message, bot), "standalone": standalone,
     }
 
 
@@ -96,22 +134,22 @@ def is_channel_forward(message: dict) -> bool:
     return bool(message.get("is_automatic_forward")) and message.get("forward_origin", {}).get("type") == "channel"
 
 
-def message_event(raw: dict, cfg) -> Optional[dict]:
+def message_event(raw: dict, cfg, bot: Optional[Bot]) -> Optional[dict]:
     message = raw["message"]
     chat = str(message["chat"]["id"])
     if chat == cfg.discussion and is_channel_forward(message):
         return forward_event(raw, message)
     if chat in (cfg.discussion, cfg.proposal_chat):
-        return comment_event(raw, message)
+        return comment_event(raw, message, chat in public_chats(cfg), bot)
     return None
 
 
-def public_event(raw: dict, cfg) -> Optional[dict]:
+def public_event(raw: dict, cfg, bot: Optional[Bot] = None) -> Optional[dict]:
     kind = update_kind(raw)
     if kind is None or update_chat(raw) not in (cfg.discussion, cfg.proposal_chat):
         return None
     if kind == "message":
-        return message_event(raw, cfg)
+        return message_event(raw, cfg, bot)
     if kind == "message_reaction_count":
         return count_event(raw)
     return reaction_event(raw)
@@ -165,10 +203,10 @@ def watch_polling_conflicts(cfg) -> None:
         root.addHandler(ConflictRestartAlert(cfg))
 
 
-def handle_public_update(raw: dict, cfg) -> bool:
+def handle_public_update(raw: dict, cfg, bot: Optional[Bot] = None) -> bool:
     stop = stops_hermes(raw, cfg)
     try:
-        event = public_event(raw, cfg)
+        event = public_event(raw, cfg, bot)
         if event is not None:
             write_public_event(cfg.public_inbox, event)
     except Exception:
@@ -184,7 +222,8 @@ def make_public_handler(cfg):
     from telegram.ext import ApplicationHandlerStop
 
     async def on_update(update, context) -> None:
-        if handle_public_update(update.to_dict(), cfg):
+        bot = Bot(context.bot.id, context.bot.username or "")
+        if handle_public_update(update.to_dict(), cfg, bot):
             raise ApplicationHandlerStop
 
     return on_update
