@@ -1,5 +1,6 @@
 import { defaultSetup } from './settings';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { NPCS } from '../data/npcs';
 import { GOODS } from '../data/goods';
 import { startKit } from '../data/start';
 import { TEST_MAP } from '../test/map';
@@ -13,6 +14,7 @@ import { reusedWorld } from '../test/world-cache';
 import { newWorld } from './world';
 
 const UNITS = 8;
+const QUIET_ROAD = 1_000_000;
 
 function offer(rush: boolean): Extract<Contract, { kind: 'haul' }> {
   const turns = estimateTurns(siteOf('bowl').pos, siteOf('granary').pos);
@@ -30,6 +32,8 @@ describe('Bowl to Granary tools haul', () => {
     const pad = nearestPad(siteOf('bowl'), playerVehicle(world).pos);
     const haul = offer(rush);
     world = update(world, (d) => {
+      d.vehicles = d.vehicles.filter((v) => v.id === playerVehicle(d).id);
+      for (const id of Object.keys(NPCS)) d.spawnTimer[id] = QUIET_ROAD;
       playerVehicle(d).pos = { ...pad };
       shopState(d, 'bowl').contracts.push({ ...haul });
     });
