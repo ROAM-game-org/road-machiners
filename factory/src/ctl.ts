@@ -223,6 +223,7 @@ function queues(ctx: Ctx): void {
   console.log(`ship: ${state.pendingShip ?? 'none'}`);
   console.log(`change: ${changes.join(', ') || 'none'}`);
   console.log(`incident: ${state.pendingIncidents.map((issue) => `#${issue}`).join(', ') || 'none'}`);
+  console.log(`answer: ${state.pendingAnswers.map((id) => `player comment ${id}`).join(', ') || 'none'}`);
 }
 
 function formatMerges(merges: IssueMerge[] | null): string {

@@ -273,6 +273,11 @@ export class PublicStore {
     this.db.prepare('update comments set reply_id = ? where id = ?').run(replyId, id);
   }
 
+  comment(id: number): StoredComment | null {
+    const row = this.db.prepare('select * from comments where id = ?').get(id);
+    return row === undefined ? null : toComment(row);
+  }
+
   recentChat(limit: number): StoredComment[] {
     return this.db.prepare("select * from comments where source = 'telegram' and classified_at is not null order by id desc limit ?").all(limit).map(toComment);
   }

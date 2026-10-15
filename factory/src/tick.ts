@@ -32,7 +32,7 @@ type Due = Pick<FactoryConfig, 'releaseDays' | 'wasteReviewDays' | 'maxJobsPerCa
 
 const DAY_MS = 24 * 3_600_000;
 const MINUTE_MS = 60_000;
-const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'dev', 'waste', 'checks'];
+const NOT_CARD_LIMITED_STAGES: JobStage[] = ['approve', 'merge', 'catch-up', 'remove', 'ship', 'change', 'adhoc', 'incident', 'answer', 'dev', 'waste', 'checks'];
 const CARD_ORDER: Card['column'][] = ['Hardening', 'Testing', 'Implementation', 'Design', 'Triage'];
 
 function isDue(last: string | null, now: Date, everyMs: number): boolean {
@@ -49,6 +49,7 @@ function queued(state: FactoryState): JobPick[] {
     ...state.pendingRemovals.map((removal) => ({ stage: 'remove' as const, issue: removal.issue })),
     ...ship,
     ...state.pendingIncidents.map((issue) => ({ stage: 'incident' as const, issue })),
+    ...(state.pendingAnswers.length > 0 ? [{ stage: 'answer' as const, issue: null }] : []),
   ];
 }
 

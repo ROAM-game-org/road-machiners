@@ -1,10 +1,9 @@
-import { reportFailure } from '../fail';
+import { readLedger } from '../ledger';
+import { readState, updateState } from '../state';
 import { RELEASE_CANDIDATE_LABEL, VOTING_LABEL, type Column, type Ctx } from '../types';
 import { isolated } from './isolate';
-import type { PublicFilter } from './decision';
 import { textsFor, type ReplyText } from './reply-text';
 import type { IssueComment, PublicStore, StoredComment } from './store';
-import { excerpt, passageLabel, passageLink, type Ground, type Passage } from './wiki';
 
 const issueLink = (ctx: Ctx, issue: number): string => `#${issue}: https://github.com/${ctx.cfg.repo}/issues/${issue}`;
 
@@ -32,50 +31,55 @@ async function filingReply(ctx: Ctx, store: PublicStore, comment: StoredComment,
   return `${text.alreadyFiled(link)}\n${await issueStatus(ctx, comment.filedIssue, text)}`;
 }
 
-const ANSWER_CHARS = 600;
-
-const wikiAnswer = (ctx: Ctx, passage: Passage, text: ReplyText): string => `${text.fromWiki(passageLabel(passage))}\n${excerpt(passage.text, ANSWER_CHARS)}\n${passageLink(ctx.cfg.repo, passage)}`;
-
-async function answerText(ctx: Ctx, ground: Ground, comment: StoredComment, text: ReplyText): Promise<string | null> {
-  try {
-    const passage = await ground(comment.text);
-    return passage === null ? null : wikiAnswer(ctx, passage, text);
-  } catch (error) {
-    await reportFailure(ctx, 'public', comment.issue, `the wiki answer to player comment ${comment.id} failed, so it got no answer: ${error instanceof Error ? error.message : String(error)}`, null, []);
-    return null;
-  }
-}
-
-async function threadNote(ctx: Ctx, comment: IssueComment, text: ReplyText): Promise<string> {
+export async function threadNote(ctx: Ctx, comment: IssueComment, text: ReplyText): Promise<string> {
   const link = issueLink(ctx, comment.issue);
   return comment.linked ? text.aboutWork(link, await issueStatus(ctx, comment.issue, text)) : text.added(link);
 }
 
 const waitsForAddress = (comment: IssueComment): boolean => comment.kind === 'feedback' || (comment.linked && comment.kind === 'question');
 
-async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment, text: ReplyText): Promise<string | null> {
-  if (waitsForAddress(comment) && !comment.addressed) return null;
-  const note = await threadNote(ctx, comment, text);
-  const answer = comment.kind === 'question' ? await answerText(ctx, ground, comment, text) : null;
-  return answer === null ? note : `${answer}\n\n${note}`;
+export const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
+
+function asksBot(comment: StoredComment): boolean {
+  if (comment.kind !== 'question') return false;
+  if (isOnThread(comment)) return !waitsForAddress(comment) || comment.addressed;
+  return comment.addressed || comment.issue !== null;
 }
 
-const isOnThread = (comment: StoredComment): comment is IssueComment => comment.issue !== null && comment.relevance !== 'other';
-
-export async function replyText(ctx: Ctx, store: PublicStore, ground: Ground, comment: StoredComment): Promise<string | null> {
+export async function replyText(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<string | null> {
   if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter') return null;
   const text = textsFor(comment.language);
-  if (isOnThread(comment)) return onThreadReply(ctx, ground, comment, text);
-  if (comment.kind === 'bug' || comment.kind === 'feature') return filingReply(ctx, store, comment, text);
-  const asked = comment.addressed || comment.issue !== null;
-  return comment.kind === 'question' && asked ? answerText(ctx, ground, comment, text) : null;
+  if (isOnThread(comment)) return waitsForAddress(comment) && !comment.addressed ? null : threadNote(ctx, comment, text);
+  return comment.kind === 'bug' || comment.kind === 'feature' ? filingReply(ctx, store, comment, text) : null;
 }
 
-export async function sendReplies(ctx: Ctx, store: PublicStore, filter: PublicFilter): Promise<void> {
+const DAY_MS = 24 * 3_600_000;
+export const ANSWERS_PER_DAY = 40;
+
+function answerJobsLeft(ctx: Ctx): number {
+  const ended = readLedger(ctx.cfg.home, new Date(ctx.now().getTime() - DAY_MS)).filter((line) => line.kind === 'job' && line.stage === 'answer').length;
+  const state = readState(ctx.statePath);
+  const running = state.jobs.filter((job) => job.stage === 'answer').length;
+  return ANSWERS_PER_DAY - ended - running - state.pendingAnswers.length;
+}
+
+function queueAnswer(ctx: Ctx, comment: StoredComment): boolean {
+  if (!asksBot(comment)) return false;
+  if (answerJobsLeft(ctx) < 1) {
+    ctx.log('public', comment.issue, `player comment ${comment.id} gets no answer job, since ${ANSWERS_PER_DAY} ran or wait in the last 24 hours`);
+    return false;
+  }
+  updateState(ctx.statePath, (state) => ({ ...state, pendingAnswers: [...state.pendingAnswers, comment.id] }));
+  ctx.log('public', comment.issue, `player comment ${comment.id} waits for the answer job`);
+  return true;
+}
+
+export async function sendReplies(ctx: Ctx, store: PublicStore): Promise<void> {
   for (const comment of store.toReply()) {
     store.markReplied(comment.id, ctx.now());
+    if (queueAnswer(ctx, comment)) continue;
     await isolated(ctx, comment.issue, `the chat reply to player comment ${comment.id} failed and is not sent again`, async () => {
-      const text = await replyText(ctx, store, filter.ground, comment);
+      const text = await replyText(ctx, store, comment);
       if (text === null || comment.chat === null || comment.messageId === null) return;
       store.setReplyId(comment.id, await ctx.telegram.sendMessage(comment.chat, text, comment.messageId));
     });
