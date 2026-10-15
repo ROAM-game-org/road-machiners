@@ -260,8 +260,7 @@ export const SCORE_BLOCKS = {
     memoryHalfLifeBars: 16,
     memoryWeight: 0.08,
     stay: 6,
-    calmChangeBars: 4,
-    hotChangeBars: 2,
+    phraseBars: 8,
     next: {
       intro: { verse: 3, wall: 1 },
       verse: { verse: 4, wall: 3, stop: 1 },

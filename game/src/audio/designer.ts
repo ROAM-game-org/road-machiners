@@ -194,8 +194,7 @@ export type ArcTuning = {
   memoryHalfLifeBars: number;
   memoryWeight: number;
   stay: number;
-  calmChangeBars: number;
-  hotChangeBars: number;
+  phraseBars: number;
   next: Record<Role, Partial<Record<Role, number>>>;
   after: Partial<Record<RolePair, Partial<Record<Role, number>>>>;
   hot: Record<Role, number>;
@@ -204,7 +203,7 @@ export type ArcTuning = {
 
 export type Choice = { section: number; role: Role; from: number; chance: number };
 
-const WHOLE_SECTIONS = new Set<Role>(["intro", "stop", "solo"]);
+export const WHOLE_SECTIONS = new Set<Role>(["intro", "stop", "solo"]);
 
 export function blocksOf(sections: readonly Section[], blockBars: number): Block[] {
   return sections.flatMap((s, section) => {
@@ -256,7 +255,7 @@ export class BlockSequencer {
 
   private pick(current: Block, heat: number): Block {
     const goesOn = this.nextInSection(current);
-    if (goesOn && (WHOLE_SECTIONS.has(current.role) || !this.onChangeLine(current, heat))) {
+    if (goesOn && (WHOLE_SECTIONS.has(current.role) || !this.endsPhrase(current))) {
       this.weighed = [];
       return goesOn;
     }
@@ -265,9 +264,8 @@ export class BlockSequencer {
     return section === current.section ? (goesOn ?? this.firstOf(section)) : this.firstOf(section);
   }
 
-  private onChangeLine(current: Block, heat: number): boolean {
-    const every = heat >= this.tuning.hotHeat ? this.tuning.hotChangeBars : this.tuning.calmChangeBars;
-    return (current.bar + current.bars - this.firstOf(current.section).bar) % every === 0;
+  private endsPhrase(current: Block): boolean {
+    return (current.bar + current.bars - this.firstOf(current.section).bar) % this.tuning.phraseBars === 0;
   }
 
   private weigh(current: Block, heat: number): Choice[] {
