@@ -181,3 +181,110 @@ export class Fading {
     this.at = time;
   }
 }
+
+export type Trigger<E extends string> = { events: readonly E[]; count: number; withinBars: number } | { heat: number };
+
+export type PartRule<P extends string, E extends string> =
+  | { always: true }
+  | { enter: Trigger<E>; needs: P | null; stayBars: number; quietBars: number; quietOn: readonly E[] };
+
+export type BandRules<P extends string, E extends string> = {
+  parts: Record<P, PartRule<P, E>>;
+  cut: { on: readonly E[]; keep: readonly P[]; bars: number };
+  heatHalfLifeSeconds: number;
+  weights: Record<E, number>;
+};
+
+export type Change<P extends string> = { part: P; on: boolean; why: string };
+export type BarPlan<P extends string> = { bar: number; start: number; heat: number; sounding: P[]; changes: Change<P>[]; cutBy: string | null };
+
+type Heard<E extends string> = { kind: E; at: number };
+
+export class Conductor<P extends string, E extends string> {
+  private heard: Heard<E>[] = [];
+  private entered = new Map<P, number>();
+  private order: P[];
+
+  constructor(
+    private rules: BandRules<P, E>,
+    private start: number,
+    private barSeconds: number,
+  ) {
+    this.order = Object.keys(rules.parts) as P[];
+    for (const part of this.order) this.checkNeeds(part);
+  }
+
+  hear(kind: E, at: number): void {
+    this.heard.push({ kind, at });
+  }
+
+  barStart(bar: number): number {
+    return this.start + bar * this.barSeconds;
+  }
+
+  heatAt(t: number): number {
+    let heat = 0;
+    for (const h of this.heard) if (h.at <= t) heat += this.rules.weights[h.kind] * 0.5 ** ((t - h.at) / this.rules.heatHalfLifeSeconds);
+    return heat;
+  }
+
+  plan(bar: number): BarPlan<P> {
+    const t = this.barStart(bar);
+    const heat = this.heatAt(t);
+    const changes = this.order.map((part) => this.move(part, bar, t, heat)).filter((c) => c !== null);
+    const on = this.order.filter((p) => this.entered.has(p));
+    const cut = this.cutAt(t);
+    const sounding = cut ? on.filter((p) => this.rules.cut.keep.includes(p)) : on;
+    return { bar, start: t, heat, sounding, changes, cutBy: cut?.kind ?? null };
+  }
+
+  private move(part: P, bar: number, t: number, heat: number): Change<P> | null {
+    const change = this.decide(part, bar, t, heat);
+    if (change?.on) this.entered.set(part, bar);
+    else if (change) this.entered.delete(part);
+    return change;
+  }
+
+  private decide(part: P, bar: number, t: number, heat: number): Change<P> | null {
+    const rule = this.rules.parts[part];
+    const on = this.entered.has(part);
+    if ("always" in rule) return on ? null : { part, on: true, why: "always" };
+    return on ? this.leaving(part, rule, bar, t) : this.entering(part, rule, t, heat);
+  }
+
+  private entering(part: P, rule: Exclude<PartRule<P, E>, { always: true }>, t: number, heat: number): Change<P> | null {
+    if (rule.needs && !this.entered.has(rule.needs)) return null;
+    const why = this.triggered(rule.enter, t, heat);
+    return why ? { part, on: true, why } : null;
+  }
+
+  private leaving(part: P, rule: Exclude<PartRule<P, E>, { always: true }>, bar: number, t: number): Change<P> | null {
+    if (rule.needs && !this.entered.has(rule.needs)) return { part, on: false, why: `${rule.needs} left` };
+    if (bar - this.entered.get(part)! < rule.stayBars) return null;
+    const quiet = this.quietBars(rule.quietOn, t);
+    return quiet >= rule.quietBars ? { part, on: false, why: `quiet ${quiet} bars` } : null;
+  }
+
+  private triggered(trigger: Trigger<E>, t: number, heat: number): string | null {
+    if ("heat" in trigger) return heat >= trigger.heat ? `heat ${heat.toFixed(1)}` : null;
+    const since = t - trigger.withinBars * this.barSeconds;
+    const count = this.heard.filter((h) => h.at >= since && h.at < t && trigger.events.includes(h.kind)).length;
+    return count >= trigger.count ? `${count} in ${trigger.withinBars} bars` : null;
+  }
+
+  private quietBars(kinds: readonly E[], t: number): number {
+    const last = Math.max(...this.heard.filter((h) => h.at < t && kinds.includes(h.kind)).map((h) => h.at));
+    return last === -Infinity ? Infinity : Math.floor((t - last) / this.barSeconds);
+  }
+
+  private cutAt(t: number): Heard<E> | undefined {
+    const since = t - this.rules.cut.bars * this.barSeconds;
+    return this.heard.find((h) => h.at >= since && h.at < t && this.rules.cut.on.includes(h.kind));
+  }
+
+  private checkNeeds(part: P): void {
+    const rule = this.rules.parts[part];
+    if ("always" in rule || !rule.needs) return;
+    if (this.order.indexOf(rule.needs) >= this.order.indexOf(part)) throw new Error(`Part ${part} needs ${rule.needs}, which must come before it`);
+  }
+}

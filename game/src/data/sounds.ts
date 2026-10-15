@@ -1,4 +1,6 @@
 
+import type { BandRules } from "../audio/designer";
+
 export type Bus = "ui" | "sfx" | "ambient" | "music";
 
 export type CueDef = {
@@ -249,3 +251,22 @@ export const MIX = {
   anchors: { sfx: "cannon-fire" } as Partial<Record<Bus, CueId>>,
   tone: { low: 8, high: -17, spread: 10 },
 } as const;
+
+export const BAND_EVENTS = ["accent-sighted", "accent-struck", "accent-crit", "accent-crash", "accent-hit", "accent-miss"] as const;
+export type BandEvent = (typeof BAND_EVENTS)[number];
+export const BAND_PARTS = ["drums", "bass", "riff", "keys"] as const;
+export type BandPart = (typeof BAND_PARTS)[number];
+
+const SHOTS: readonly BandEvent[] = ["accent-hit", "accent-miss", "accent-crit", "accent-struck"];
+
+export const BAND: BandRules<BandPart, BandEvent> = {
+  parts: {
+    drums: { always: true },
+    bass: { always: true },
+    riff: { enter: { events: SHOTS, count: 2, withinBars: 2 }, needs: null, stayBars: 4, quietBars: 4, quietOn: SHOTS },
+    keys: { enter: { heat: MIX.score.hotHeat }, needs: "riff", stayBars: 4, quietBars: 8, quietOn: SHOTS },
+  },
+  cut: { on: ["accent-sighted"], keep: ["drums"], bars: 1 },
+  heatHalfLifeSeconds: MIX.score.heatHalfLifeSeconds,
+  weights: Object.fromEntries(BAND_EVENTS.map((e) => [e, MIX.score.accents[e].weight])) as Record<BandEvent, number>,
+};
