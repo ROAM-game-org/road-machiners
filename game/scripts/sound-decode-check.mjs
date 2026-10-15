@@ -1,57 +1,77 @@
-import { chromium } from 'playwright';
-import { gpuArgs } from './gpu.mjs';
+import { createServer, request } from 'node:http';
+import { chromium, firefox, webkit } from 'playwright';
 
-const arg = (name, fallback) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i < 0 ? fallback : (process.argv[i + 1] ?? fallback);
-};
-const url = arg('url', 'http://localhost:4173/');
-const breakArg = arg('break', 'all');
-const tag = arg('tag', 'run');
-const cpu = process.argv.includes('--cpu');
-const BOOT_KEY = `${process.env.SAVE_SCOPE ? `roam.save.${process.env.SAVE_SCOPE}` : 'roam.save'}.boot`;
-const NEW_GAME = JSON.stringify({ new: { mode: 'roaming', settings: { damage: 1, fuelUse: 1, supplyUse: 1, enemyGearGrowth: 1 } }, intro: true });
+const url = process.argv[2];
+if (!url) throw new Error('Usage: node scripts/sound-decode-check.mjs <dev-server-url>');
+const target = new URL(url);
+const upstreamHost = target.hostname === 'localhost' ? '::1' : target.hostname.replace(/^\[|\]$/g, '');
+const TRUNCATED_FILE = 'hit-metal-2.ogg';
+const TRUNCATED_BYTES = 4000;
+const FAULT_BYTES = 8033;
+const FAULT_COUNT = 2;
+const engines = { chromium, firefox, webkit };
 
-function askNewGameOnce({ key, request }) {
-  if (sessionStorage.getItem('bootTime.asked')) return;
-  sessionStorage.setItem('bootTime.asked', '1');
-  sessionStorage.setItem(key, request);
+function startProxy(truncateFirst) {
+  let served = 0;
+  const server = createServer((req, res) => {
+    const upstream = request({ host: upstreamHost, port: target.port, path: req.url, method: req.method, headers: { ...req.headers, host: target.host } }, (up) => {
+      const isSound = req.url.includes('/sfx/') && req.url.split('?')[0].endsWith('.ogg');
+      if (!isSound) {
+        res.writeHead(up.statusCode, up.headers);
+        up.pipe(res);
+        return;
+      }
+      const chunks = [];
+      up.on('data', (c) => chunks.push(c));
+      up.on('end', () => {
+        let body = Buffer.concat(chunks);
+        if (truncateFirst && req.url.includes(TRUNCATED_FILE) && served++ === 0) body = body.subarray(0, TRUNCATED_BYTES);
+        const headers = { 'content-type': 'audio/ogg', 'content-length': body.length, 'cache-control': 'max-age=3600' };
+        res.writeHead(200, headers);
+        res.end(body);
+      });
+    });
+    req.pipe(upstream);
+  });
+  return new Promise((resolve) => server.listen(0, () => resolve(server)));
 }
-function watchBoot() {
-  window.__STEPS__ = {};
-  new MutationObserver(() => {
-    for (const seg of document.querySelectorAll('[data-step]')) {
-      const state = ['running', 'done', 'failed'].find((s) => seg.classList.contains(s));
-      if (state) window.__STEPS__[seg.dataset.step] = state;
+
+async function run(engine, scenario) {
+  const server = await startProxy(scenario === 'cached-bad-copy');
+  const browser = await engines[engine].launch();
+  try {
+    const page = await (await browser.newContext()).newPage();
+    if (scenario === 'decoder-fault') {
+      await page.addInitScript(([bytes, count]) => {
+        const original = BaseAudioContext.prototype.decodeAudioData;
+        let faults = 0;
+        BaseAudioContext.prototype.decodeAudioData = function (data, ...rest) {
+          if (data.byteLength === bytes && faults < count) {
+            faults++;
+            return Promise.reject(new DOMException('injected decoder fault', 'EncodingError'));
+          }
+          return original.call(this, data, ...rest);
+        };
+      }, [FAULT_BYTES, FAULT_COUNT]);
     }
-  }).observe(document, { subtree: true, childList: true, attributes: true });
+    await page.goto(`http://localhost:${server.address().port}/sound-check.html`);
+    await page.waitForFunction(() => window.__SOUND_CHECK__, null, { timeout: 240000 });
+    return await page.evaluate(() => window.__SOUND_CHECK__);
+  } finally {
+    await browser.close();
+    server.close();
+  }
 }
 
-const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
-const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
-const errors = [];
-const lines = [];
-let broken = 0;
-page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (m) => lines.push(`${m.type()}: ${m.text()}`));
-await page.route('**/sfx/*.ogg', async (route) => {
-  const file = route.request().url().split('/').pop();
-  if (breakArg !== 'all' && !breakArg.split(',').includes(file)) return route.continue();
-  const res = await route.fetch();
-  const length = (await res.body()).length;
-  broken++;
-  await route.fulfill({ status: 200, contentType: 'audio/ogg', body: Buffer.alloc(length, 0xff) });
-});
-await page.addInitScript(watchBoot);
-await page.addInitScript(askNewGameOnce, { key: BOOT_KEY, request: NEW_GAME });
-await page.goto(url);
-await page.waitForTimeout(Number(arg('wait', '60000')));
-const state = await page.evaluate(() => ({ steps: window.__STEPS__, crash: document.body.innerText.includes('The game crashed') || !!document.querySelector('.crash-screen'), report: (document.body.textContent.match(/Sounds failed to decode: \d+ of \d+/g) ?? []), ready: performance.getEntriesByName('roam:ready').length > 0 }));
-await (await import('node:fs/promises')).mkdir('tmp/sound-decode', { recursive: true });
-await page.screenshot({ path: `tmp/sound-decode/${tag}.png` });
-await browser.close();
-const summary = lines.filter((l) => /failed to decode/.test(l));
-console.log(JSON.stringify({ broken, state, errors, summary: summary.slice(0, 6), summaryCount: summary.length }, null, 1));
-const ok = state.ready && !state.crash && errors.length === 0 && state.report.length === 1;
-console.log(ok ? 'PASS' : 'FAIL');
-process.exit(ok ? 0 : 1);
+const judge = (scenario, report) => report.checks.every((c) => c.real) && (scenario !== 'all-files' || report.failures.length === 0);
+
+let failed = false;
+for (const engine of Object.keys(engines)) {
+  for (const scenario of ['all-files', 'cached-bad-copy', 'decoder-fault']) {
+    const report = await run(engine, scenario);
+    const ok = judge(scenario, report);
+    failed ||= !ok;
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${engine} ${scenario} failed files ${report.failures.length}, ${report.checks.map((c) => `${c.file} ${c.real ? 'real' : 'stand-in'} ${c.duration.toFixed(3)}s peak ${c.peak.toFixed(3)}`).join(', ')}`);
+  }
+}
+process.exit(failed ? 1 : 0);

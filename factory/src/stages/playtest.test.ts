@@ -1,20 +1,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import type * as Os from 'node:os';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { stepScript } from '../activity';
 import { EMPTY_STATE, newPlaytest, readState, writeState } from '../state';
 import { testPoolPin } from '../cpus';
-import type { AgentRun, Issue, Pin, ReleaseState } from '../types';
+import type { AgentRun, Issue, Pin, ReleaseState, ShellKind } from '../types';
 import { CACHED_SUITE } from './checks';
 import { auditDir, playtest } from './playtest';
 import { logText } from './playtest-fixtures';
 import type { Finding, Review } from './playtest-review';
 import { ROOT, fake, reset, type Fake } from './test-fakes';
 
+vi.mock('node:os', async (original) => ({ ...(await original<typeof Os>()), availableParallelism: () => 8 }));
+
 const DAY = '2026-10-07';
 const SEED = 20261007;
 const BRANCH = `release/${DAY}`;
-const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], playtest: newPlaytest(DAY) };
+const RELEASE: ReleaseState = { issue: 11, branch: BRANCH, day: DAY, postId: null, candidateSha: null, removed: [], tasks: [], merges: [], playtest: newPlaytest(DAY) };
 const CLONE = join(ROOT, 'work', 'release-playtest');
 const HOME = join(CLONE, 'game', '.factory');
 
@@ -35,7 +38,7 @@ type Run = {
 };
 
 const harnessRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('progression:playthrough'));
-const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('[checks]'));
+const checkRuns = (run: Run) => run.shells.filter((shell) => shell.script.includes('mkdir -p tmp'));
 const SUITE = stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]);
 const CACHE_MOUNT = { [join(ROOT, 'test-cache')]: '/test-cache' };
 const POOLS = { cpuLight: 0.125, cpuImplement: 0.375, cpuTest: 0.5, vitestWorkersImplement: 2, vitestWorkersTest: 4 };
@@ -55,6 +58,7 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
   f.ctx.repo.fetchFromWork = async () => run.cloneHead;
   f.ctx.repo.isMerged = async (base: string) => (base === 'main' ? run.mainMerged : run.passedAncestor);
   f.ctx.repo.changedFiles = async () => run.changed;
+  f.ctx.repo.changedInWork = async () => run.changed;
   f.ctx.repo.push = async (commit: string, branch: string) => {
     f.calls.push(`push ${commit} ${branch}`);
     if (run.pushFails) {
@@ -64,10 +68,11 @@ function setup(state: Partial<ReleaseState> = {}, start = 'abc1234'): Run {
     run.releaseHead = commit;
   };
   f.ctx.github.candidates = async () => [{ number: 40, title: 'Old raider loop' } as Issue];
-  f.ctx.container.shell = async (clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}, _limit?: number, pin?: Pin) => {
+  f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, _log: string, env: Record<string, string> = {}, mounts: Record<string, string> = {}, _limit?: number, pin?: Pin) => {
+    if (kind !== 'checks') throw new Error(`playtest shells are checks, not ${kind}`);
     run.shells.push({ clone, script, env, mounts, ...(pin === undefined ? {} : { pin }) });
     if (script === SUITE) return;
-    if (script.includes('[checks]')) {
+    if (script.includes('mkdir -p tmp')) {
       if (run.checkFailures-- > 0) throw new Error('npm test failed');
       return;
     }
@@ -137,7 +142,7 @@ describe('playtest', () => {
 
   it('fails on a failing full suite before the first play, so it spends no play', async () => {
     const run = setup();
-    run.f.ctx.container.shell = async (clone: string, script: string) => {
+    run.f.ctx.container.shell = async (_kind: ShellKind, clone: string, script: string) => {
       run.shells.push({ clone, script, env: {}, mounts: {} });
       throw new Error('suite failed');
     };
@@ -239,7 +244,7 @@ describe('playtest', () => {
 
   it('fails before any check or push when the fixes touch a path an agent may not push', async () => {
     const run = setup();
-    run.f.diff = 'diff --git a/.github/workflows/x.yml b/.github/workflows/x.yml\n';
+    run.changed = ['.github/workflows/x.yml'];
     run.turns = [fixed('fix0001'), clean];
     await expect(playtest(run.f.ctx, 11)).rejects.toThrow('paths an agent may not push: .github/workflows/x.yml');
     expect(checkRuns(run)).toEqual([]);
@@ -290,8 +295,8 @@ describe('playtest', () => {
   it('blocks a clean verdict of a run that ended in an error', async () => {
     const run = setup();
     const shell = run.f.ctx.container.shell;
-    run.f.ctx.container.shell = async (clone: string, script: string, log: string) => {
-      await shell(clone, script, log);
+    run.f.ctx.container.shell = async (kind: ShellKind, clone: string, script: string, log: string) => {
+      await shell(kind, clone, script, log);
       if (script === SUITE) return;
       const sha = /--sha (\S+)/.exec(script)?.[1] ?? '';
       writeFileSync(join(clone, 'game', '.factory', 'playtest', 'log.jsonl'), logText({ end: { reason: 'error', message: 'the player truck stalled' } }, { seed: SEED, turns: 100, sha }));

@@ -5,7 +5,7 @@ import type { GameEvent, ShotRound } from "../sim/types";
 import { groundPoint, type V3 } from "../phys/frames";
 import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
-import { projectileOf } from "./render/projectiles";
+import { projectileOf, type Muzzle } from "./render/projectiles";
 import { bodyOf } from "../sim/body";
 import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
@@ -410,6 +410,71 @@ describe("playShotFx before a shooter's view exists", () => {
     } as unknown as CombatHost;
     playShotFx(host, new BreakCues(world.events));
     expect(launched.map((p) => p.delayMs)).toEqual([MOVE_MS]);
+  });
+});
+
+describe("playShotFx after the shooter's view is gone", () => {
+  type Kept = { muzzle: () => Muzzle; landed: () => void };
+  const M1: Muzzle = { pos: { x: 4, y: 2, z: 6 }, dir: { x: 1, y: 0, z: 0 } };
+
+  const emptyingShot = (views: Map<string, unknown>) => {
+    const world = emptyWorld();
+    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
+    if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
+    world.events = [
+      { t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id), round(target.id)] } as GameEvent,
+      { t: "empty", vehicle: shooter.id, weapon: mg.part.id } as GameEvent,
+    ];
+    const kept: Kept[] = [];
+    const sounds: { cue: string; at: V3 }[] = [];
+    const poses = posesOf(world, {}, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true);
+    const host = {
+      world,
+      views,
+      fx: { shot: (_s: unknown, muzzle: () => Muzzle, _p: unknown, _r: unknown, cues: { landed: () => void }) => kept.push({ muzzle, landed: cues.landed }), label: () => {} },
+      sound: { at: (cue: string, at: V3) => sounds.push({ cue, at }), accents: () => {} },
+      eventPoint: () => ORIGIN,
+      breakPart: () => {},
+      onBurst: () => {},
+      poses,
+      startMs: 0,
+      lineHooked: () => {},
+    } as unknown as CombatHost;
+    playShotFx(host, new BreakCues(world.events));
+    return { shooter: shooter.id, kept, sounds, poses };
+  };
+
+  it("plays the gun-empty cue once at the last muzzle when the view goes before the rounds land", () => {
+    const views = new Map<string, unknown>();
+    const { shooter, kept, sounds } = emptyingShot(views);
+    views.set(shooter, { covers: () => true, muzzle: () => M1 });
+    kept.forEach((k) => k.muzzle());
+    views.delete(shooter);
+    for (const k of kept) k.landed();
+    expect(sounds.filter((s) => s.cue === "gun-empty")).toEqual([{ cue: "gun-empty", at: M1.pos }]);
+  });
+
+  it("aims from the shooter's end pose when it never read the view", () => {
+    const { shooter, kept, poses } = emptyingShot(new Map());
+    const heading = poses.endHeading(shooter) ?? NaN;
+    const m = kept[0].muzzle();
+    expect(m.pos).toEqual(poses.end(shooter));
+    expect(m.dir.x).toBeCloseTo(Math.cos(heading), 9);
+    expect(m.dir.y).toBe(0);
+    expect(m.dir.z).toBeCloseTo(Math.sin(heading), 9);
+  });
+
+  it("reads the live muzzle on every call while the view exists", () => {
+    const views = new Map<string, unknown>();
+    const { shooter, kept } = emptyingShot(views);
+    const M2: Muzzle = { pos: { x: 9, y: 2, z: 1 }, dir: { x: 0, y: 0, z: 1 } };
+    let live = M1;
+    views.set(shooter, { covers: () => true, muzzle: () => live });
+    expect(kept[0].muzzle()).toEqual(M1);
+    live = M2;
+    expect(kept[0].muzzle()).toEqual(M2);
   });
 });
 

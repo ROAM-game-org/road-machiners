@@ -1,11 +1,11 @@
 
 
 import { GAME_VERSION } from '../config';
-import { AssetUnreachable } from '../fetch-asset';
+import { AssetUnreachable, DownloadFailed } from '../fetch-asset';
 import { noWebGLText, WebGLUnavailable } from './webgl';
 
 import { setText } from '../text/language';
-import { t } from '../text/msg';
+import { t, type Msg } from '../text/msg';
 
 let shown = false;
 let report: ((text: string) => void) | null = null;
@@ -100,14 +100,31 @@ function ignoreForeign(facts: ErrorFacts): void {
 function onError(err: unknown, facts: ErrorFacts | null = null): void {
   const kind = faultKind(err);
   if (kind === 'webgl') showNoWebGL(err as WebGLUnavailable);
+  else if (kind === 'lost') showLostFiles(err as DownloadFailed);
   else if (kind === 'unreachable') warnUnreachable(err as AssetUnreachable);
   else onFault(err, facts);
 }
 
-export function faultKind(err: unknown): 'webgl' | 'unreachable' | 'fault' {
+export function faultKind(err: unknown): 'webgl' | 'lost' | 'unreachable' | 'fault' {
   if (err instanceof WebGLUnavailable) return 'webgl';
+  if (err instanceof DownloadFailed) return 'lost';
   if (err instanceof AssetUnreachable) return 'unreachable';
   return 'fault';
+}
+
+export function downloadFailedText(err: DownloadFailed): { title: Msg; lines: Msg[]; detail: string; action: Msg } {
+  const cause = err.cause instanceof Error ? err.cause.message : String(err.cause);
+  return {
+    title: t('download.title'),
+    lines: [t('download.reload'), t('download.saves')],
+    detail: `${err.url}\n${cause}`,
+    action: t('download.action'),
+  };
+}
+
+function showLostFiles(err: DownloadFailed): void {
+  console.warn(err);
+  showNotice(downloadFailedText(err));
 }
 
 function warnUnreachable(err: AssetUnreachable): void {
@@ -143,9 +160,12 @@ function showCrash(err: unknown, facts: ErrorFacts | null): void {
 }
 
 function showNoWebGL(err: WebGLUnavailable): void {
+  showNotice(noWebGLText(err, navigator.userAgent));
+}
+
+function showNotice(text: { title: Msg; lines: Msg[]; detail: string | null; action?: Msg }): void {
   if (shown) return;
   shown = true;
-  const text = noWebGLText(err, navigator.userAgent);
   const box = document.createElement('div');
   box.className = 'crash-screen';
   const title = document.createElement('div');
@@ -163,5 +183,13 @@ function showNoWebGL(err: WebGLUnavailable): void {
     detail.textContent = text.detail;
     box.append(detail);
   }
+  const reload = text.action ? document.createElement('button') : null;
+  if (reload && text.action) {
+    reload.className = 'crash-reload';
+    setText(reload, text.action);
+    reload.addEventListener('click', () => location.reload());
+    box.append(reload);
+  }
   document.body.appendChild(box);
+  reload?.focus();
 }

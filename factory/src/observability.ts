@@ -137,10 +137,10 @@ export function reportScheduler(home: string, status: SchedulerData['status'], n
   for (const card of cards.filter((item) => !item.labels.includes(ADHOC_LABEL))) counts[card.column] = (counts[card.column] ?? 0) + 1;
   reportObservation(home, 'scheduler', { type: 'scheduler', status, report, counts }, now);
 }
-function readStatusFields(value: unknown): Record<string, unknown> | null {
+function readStatusFields(value: unknown, keys = 2): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null) return null;
   const fields = value as Record<string, unknown>;
-  if (fields.type !== 'factory_status' || Object.keys(fields).length !== 2) return null;
+  if (fields.type !== 'factory_status' || Object.keys(fields).length !== keys) return null;
   return fields;
 }
 function readReportedActivity(value: unknown): { activity: Activity } | null {
@@ -157,4 +157,20 @@ export function parseAgentStatus(line: string): { activity: Activity } | { miles
   const fields = readStatusFields(value);
   if (fields === null) return null;
   return readReportedActivity(fields.activity) ?? readReportedMilestone(fields.milestone);
+}
+type ScriptStatus = { activity: Activity } | { milestone: Milestone };
+export function scriptStatusRecord(status: ScriptStatus): string {
+  if ('milestone' in status && !MILESTONE_PATTERN.test(status.milestone)) throw new Error(`Invalid script milestone: ${status.milestone}`);
+  if ('activity' in status && !ACTIVITIES.includes(status.activity)) throw new Error(`Invalid script activity: ${status.activity}`);
+  return JSON.stringify({ type: 'factory_status', source: 'runner', ...status });
+}
+function readScriptFields(line: string): Record<string, unknown> | null {
+  let value: unknown;
+  try { value = JSON.parse(line); } catch { return null; }
+  const fields = readStatusFields(value, 3);
+  return fields?.source === 'runner' ? fields : null;
+}
+export function parseScriptStatus(line: string): ScriptStatus | null {
+  const fields = readScriptFields(line);
+  return fields === null ? null : readReportedActivity(fields.activity) ?? readReportedMilestone(fields.milestone);
 }

@@ -4,8 +4,9 @@ import { crossesRail } from './bridge';
 import { count, timed } from '../perf';
 import { canStepOut, connected, findCellsToward, nearestFreeCell, stampOverlay, startComponent, type Overlay } from './nav/astar';
 import type { Blocker } from './nav/buckets';
-import { CELL, CLEARANCE, blockerKey, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
+import { CELL, CLEARANCE, blockerKey, climbTaste, componentOf, dynamicBlockers, navLayer, nearCliff, offRoadTaste, staticSet, tasted, tasteKey, tasteOf, terrainNav, tileIndex, type NavLayer, type StaticSet, type Taste, type TerrainNav } from './nav/layer';
 import { keepsOffRoads } from './off-road';
+import { climbGrade } from './stats';
 import type { Vehicle, World } from './types';
 import { dist, segmentDist, type Vec } from './vec';
 
@@ -37,7 +38,13 @@ export function route(world: World, from: Vec, dest: Vec, radius: number, extra:
 
 function routeTaste(world: World, nav: TerrainNav, driver: Vehicle | undefined): Taste | null {
   const taste = tasteOf(world, driver);
-  return taste && driver && keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
+  const keeping = taste && driver && keepsOffRoads(world, driver) ? offRoadTaste(taste, nav) : taste;
+  return driver ? climbTaste(keeping, nav, climbLimit(world, driver)) : keeping;
+}
+
+function climbLimit(world: World, driver: Vehicle): number {
+  const step = REGION.navigation.climbStep;
+  return Math.floor(climbGrade(world, driver) / step + 1e-9) * step;
 }
 
 function insideMap(world: World, p: Vec, radius: number): Vec {

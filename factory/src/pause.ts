@@ -4,25 +4,46 @@ export const pauseFile = (home: string): string => `${home}/paused`;
 
 export class UsageLimitError extends Error {}
 
-export function pauseForUsageLimit(home: string, message: string): void {
-  try { writeFileSync(pauseFile(home), `Hermes: Claude weekly usage limit; ${message}\n`, { flag: 'wx' }); }
+export type PauseKind = 'usage-limit' | 'factory' | 'member';
+export type PauseRecord = { kind: PauseKind; note: string; by: string; at: string; pid?: number; resetsAt?: string };
+
+const KINDS: readonly string[] = ['usage-limit', 'factory', 'member'];
+
+const isText = (value: unknown): boolean => typeof value === 'string' && value !== '';
+const isProcessId = (value: unknown): boolean => Number.isInteger(value) && (value as number) > 0;
+const isTime = (value: unknown): boolean => isText(value) && !Number.isNaN(Date.parse(value as string));
+
+function requireField(record: Record<string, unknown>, field: string, valid: (value: unknown) => boolean, optional: boolean): void {
+  if (optional && record[field] === undefined) return;
+  if (!valid(record[field])) throw new Error(`The pause file has no valid ${field}: ${JSON.stringify(record[field])}.`);
+}
+
+export function parsePause(text: string): PauseRecord {
+  const value: unknown = JSON.parse(text);
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('The pause file is not a record.');
+  const record = value as Record<string, unknown>;
+  requireField(record, 'kind', (kind) => KINDS.includes(kind as string), false);
+  for (const field of ['note', 'by', 'at']) requireField(record, field, isText, false);
+  requireField(record, 'pid', isProcessId, true);
+  requireField(record, 'resetsAt', isTime, true);
+  return record as PauseRecord;
+}
+
+export function readPause(home: string): PauseRecord | null {
+  const path = pauseFile(home);
+  if (!existsSync(path)) return null;
+  return parsePause(readFileSync(path, 'utf8'));
+}
+
+export function writePause(home: string, record: PauseRecord, flag: 'w' | 'wx' = 'w'): void {
+  writeFileSync(pauseFile(home), `${JSON.stringify(record)}\n`, { flag });
+}
+
+export function pauseForUsageLimit(home: string, message: string, now: Date): void {
+  try { writePause(home, { kind: 'usage-limit', note: message, by: 'factory', at: now.toISOString() }, 'wx'); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
   }
-}
-
-export function pausedReason(home: string): string | null {
-  const path = pauseFile(home);
-  if (!existsSync(path)) return null;
-  return readFileSync(path, 'utf8').trim() || 'no reason given';
-}
-
-export function pausePid(text: string): number | null {
-  const line = text.split('\n').find((row) => row.startsWith('pid:'));
-  if (line === undefined) return null;
-  const pid = Number(line.slice('pid:'.length).trim());
-  if (!Number.isInteger(pid) || pid <= 0) throw new Error(`The pause file names no valid process in "${line}".`);
-  return pid;
 }
 
 export function pidAlive(pid: number): boolean {
@@ -36,11 +57,9 @@ export function pidAlive(pid: number): boolean {
   }
 }
 
-export function liftEndedPause(home: string, alive: (pid: number) => boolean = pidAlive): string | null {
-  const reason = pausedReason(home);
-  if (reason === null) return null;
-  const pid = pausePid(reason);
-  if (pid === null || alive(pid)) return null;
+export function liftEndedPause(home: string, alive: (pid: number) => boolean = pidAlive): PauseRecord | null {
+  const record = readPause(home);
+  if (record === null || record.pid === undefined || alive(record.pid)) return null;
   rmSync(pauseFile(home));
-  return reason;
+  return record;
 }

@@ -30,6 +30,14 @@ describe('the vendored Blender image skill', () => {
   });
 });
 
+describe('the ultrapack plugin of the image', () => {
+  it('fails the build without the up:expand and up:udocument skills the stage prompts invoke', () => {
+    const dockerfile = readFileSync(join(DOCKER, 'Dockerfile'), 'utf8');
+    const install = dockerfile.slice(dockerfile.indexOf('RUN claude plugin marketplace add'));
+    expect(install.slice(0, install.indexOf('\n\n'))).toMatch(/claude plugin install up@ultrapack \\\n && ls \S+\/skills\/expand\/SKILL\.md \S+\/skills\/udocument\/SKILL\.md/);
+  });
+});
+
 function runEntry(home: string, gameSkills: string): { code: number | null; out: string; err: string } {
   const bin = join(home, 'bin');
   mkdirSync(bin, { recursive: true });
@@ -105,7 +113,7 @@ function proxiedShell(script: string, env: Record<string, string>, mounts: Recor
   chmodSync(join(clone, 'game'), 0o777);
   const log = join(root, 'shell.log');
   const cfg = { image: smokeImage, home: root, gpu: false } as FactoryConfig;
-  return { clone, log, done: dockerContainer(realRun, cfg, null).shell(clone, script, log, env, mounts) };
+  return { clone, log, done: dockerContainer(realRun, cfg, null).shell('checks', clone, script, log, env, mounts) };
 }
 
 describe.skipIf(smokeImage === undefined || smokeCodexHome === undefined)('Codex in the real agent container', () => {

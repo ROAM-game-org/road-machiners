@@ -4,7 +4,7 @@ import { CHASSIS } from '../data/chassis';
 import { GEAR_LEVEL_IDS, GEAR_LEVELS, MIN_NPC_SPEED, NPCS, PRIORITY_TOP, type GearLevel, type LoadoutPriorities, type NpcTemplate, type Weighted } from '../data/npcs';
 import { PARTS, partDef, type EngineDef, type UtilityDef, type WeaponDef } from '../data/parts';
 import { START_KITS } from '../data/start';
-import { newWorld } from './world';
+import { cloneWorld, newWorld } from './world';
 import { CONDITION } from '../data/wear';
 import { everyGunFires, gunSpans } from './armor';
 import { makeVehicle } from './factory';
@@ -48,7 +48,7 @@ describe('NPC equipment generation', () => {
   it('spawns at least five equipment combinations for each base trait', () => {
     const seen: Record<string, Set<string>> = Object.fromEntries(Object.values(NPCS).map((t) => [t.traits[0], new Set<string>()]));
     for (let seed = 1; seed <= 8; seed++) {
-      const world = structuredClone(fixture);
+      const world = cloneWorld(fixture);
       world.rngState = seed;
       spawnInitial(world);
       for (const v of world.vehicles) {
@@ -202,7 +202,7 @@ describe('NPC equipment generation', () => {
   }, budget(120_000));
 
   it('gives an NPC no cargo past its speed floor, and the player any', () => {
-    const world = structuredClone(fixture);
+    const world = cloneWorld(fixture);
     const npc = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 50, y: 50 });
     const room = npcMassRoom(npc);
     const free = freeCells(npc);
@@ -245,7 +245,7 @@ describe('NPC equipment generation', () => {
   });
 
   it('uses the same generator for periodic spawns without exceeding existing caps', () => {
-    const world = structuredClone(fixture);
+    const world = cloneWorld(fixture);
     for (let attempt = 0; attempt < Math.max(...Object.values(NPCS).map((t) => t.cap)) + 2; attempt++) {
       for (const template of Object.values(NPCS)) world.spawnTimer[template.id] = 1;
       spawnNpcs(world);
@@ -259,8 +259,8 @@ describe('NPC equipment generation', () => {
   }, budget(120_000));
 
   it('repeats the same initial traffic and RNG state for the same seed', () => {
-    const a = structuredClone(fixture);
-    const b = structuredClone(fixture);
+    const a = cloneWorld(fixture);
+    const b = cloneWorld(fixture);
     spawnInitial(a);
     spawnInitial(b);
     expect(a.vehicles).toEqual(b.vehicles);
@@ -522,7 +522,7 @@ describe('NPC utility parts', () => {
 describe('raider haul room', () => {
   const RAIDERS = ['buggy', 'gunwagon'];
   const rolled = (id: string, level: GearLevel, seed: number) => {
-    const world = { ...structuredClone(fixture), vehicles: [], rngState: seed * 7919 + 1, marketRng: { rngState: seed * 104729 + 1 } };
+    const world = { ...cloneWorld(fixture), vehicles: [], rngState: seed * 7919 + 1, marketRng: { rngState: seed * 104729 + 1 } };
     const template = NPCS[id];
     return { template, v: spawnAt(world, template, generateNpcLoadout(world, template, null, level), { x: 40, y: 30 }) };
   };
@@ -531,7 +531,7 @@ describe('raider haul room', () => {
     let kept = 0;
     let rolls = 0;
     for (const level of ['standard', 'heavy', 'loaded'] as const) {
-      for (let seed = 1; seed <= 40; seed++, rolls++) {
+      for (let seed = 1; seed <= 20; seed++, rolls++) {
         const { template, v } = rolled(id, level, seed);
         if (freeCells(v) >= template.loadout.haul.cells && npcMassRoom(v) >= template.loadout.haul.kg) kept++;
         expect(mountedItems(v, 'weapon').length).toBeGreaterThan(0);

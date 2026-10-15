@@ -7,7 +7,7 @@ import { workDir } from './stages/common';
 import { readLedger } from './ledger';
 import { openStore } from './public/store';
 import { EMPTY_STATE, readState, writeState } from './state';
-import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type ReleaseState } from './types';
+import { TASK_FILE, type Card, type Column, type Ctx, type FactoryConfig, type FactoryState, type Job, type KeptApproval, type ReleaseState } from './types';
 
 const killed: string[] = [];
 vi.mock('./jobs', async (original) => ({ ...(await original<object>()), killJob: async (_run: unknown, pid: number, id: string) => { killed.push(`${pid} ${id}`); } }));
@@ -17,7 +17,7 @@ type Command = Parameters<typeof applyControl>[1];
 const ROOT = resolve('tmp/factory-control-test');
 const statePath = join(ROOT, 'state.json');
 const NOW = new Date('2026-09-29T10:00:00Z');
-const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
+const RELEASE: ReleaseState = { issue: 20, branch: 'release/2026-09-29', day: '2026-09-29', postId: 42, removed: [], tasks: [], merges: [{ issue: 5, title: 'horn', sha: 'a'.repeat(40), into: 'dev', reverted: [] }], candidateSha: null, playtest: { seed: 1, runs: 0, passed: null, blocked: null, notes: [] } };
 const JOB: Job = { id: 'verify-4-x', stage: 'verify', issue: 4, pid: 77, startedAt: '2026-09-29T09:00:00Z', log: 'l' };
 
 let calls: string[] = [];
@@ -25,6 +25,7 @@ let cards: Card[] = [];
 let branches: string[] = [];
 let moveFails = false;
 let editFails = false;
+let contained: string[] = [];
 
 const card = (issue: number, column: Column, labels: string[] = []): Card => ({ itemId: `i${issue}`, issue, column, labels });
 
@@ -61,6 +62,7 @@ function fakeCtx(): Ctx {
     },
     repo: {
       fetch: async () => { calls.push('fetch'); },
+      isMerged: async (older: string) => contained.includes(older),
       headHash: async (branch: string) => {
         if (!branches.includes(branch)) throw new Error(`unknown revision ${branch}`);
         return 'abc1234';
@@ -81,7 +83,7 @@ function busyCard(): void {
     pendingApprovals: { 4: 'Bob', 5: 'Bob' }, approvedResolving: { 4: 'Bob' },
     approvalPosts: { 42: 4, 43: 5 }, postCaptions: { 42: 'Post four', 43: 'Post five' },
     unroutedReplies: { 9: { issue: 4, postId: 42, text: 't', at: 'a' }, 10: { issue: 5, postId: 43, text: 't', at: 'a' } },
-    failures: [{ stage: 'checks', issue: 4, error: 'e', log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', log: null, at: 'a' }],
+    failures: [{ stage: 'checks', issue: 4, error: 'e', cause: 'error' as const, log: null, at: 'a' }, { stage: 'checks', issue: 5, error: 'e', cause: 'error' as const, log: null, at: 'a' }],
   });
 }
 
@@ -102,6 +104,7 @@ beforeEach(() => {
   branches = ['factory/issue-4', 'factory/issue-6'];
   moveFails = false;
   editFails = false;
+  contained = ['abc1111'];
   for (const issue of [4, 6]) stageArtifacts(issue, { task: true, approval: true });
   mkdirSync(join(ROOT, 'inbox'), { recursive: true });
   calls = [];
@@ -594,6 +597,12 @@ describe('ship, cut and remove', () => {
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('already queued');
   });
 
+  it('refuses a removal of an issue with no recorded merge in the release', async () => {
+    seed({ release: { ...RELEASE, merges: [] } });
+    await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5 }))).rejects.toThrow('Issue #5 is not in release');
+    expect(readState(statePath).pendingRemovals).toEqual([]);
+  });
+
   it('refuses a removal from Hermes', async () => {
     seed({ release: RELEASE });
     await expect(applyControl(fakeCtx(), command({ action: 'remove', issue: 5, by: 'hermes' }))).rejects.toThrow('--by <member>');
@@ -654,5 +663,32 @@ describe('merge-change', () => {
     await applyControl(fakeCtx(), command({ action: 'merge-change', id: 12, by: '11' }));
     expect(calls).toContain('mergePullRequest factory-change/12');
     expect(ctrlLines()[0]).toMatchObject({ action: 'merge-change', issue: null, by: 'Ann' });
+  });
+});
+
+describe('kept hotfix approvals', () => {
+  const KEPT: KeptApproval = { by: 'Bob', at: '2026-09-28T10:00:00Z', build: 'abc1111', checked: ['abc1111'], reason: 'main moved' };
+
+  it('keeps the approval when Hermes moves the card to verify for a fresh Testing run', async () => {
+    cards = [card(4, 'Approval', ['hotfix'])];
+    seed({ keptApprovals: { 4: KEPT }, pendingApprovals: { 4: 'Bob' } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'verify', by: 'hermes' }));
+    const state = readState(statePath);
+    expect(state.keptApprovals).toEqual({ 4: KEPT });
+    expect(state.pendingApprovals).toEqual({});
+  });
+
+  it('drops the approval with a reason when a move sends the card anywhere else', async () => {
+    cards = [card(4, 'Testing', ['hotfix'])];
+    seed({ keptApprovals: { 4: KEPT } });
+    await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));
+    expect(readState(statePath).keptApprovals).toEqual({});
+    expect(calls).toContain('comment 4 The approval by Bob of build abc1111 no longer holds: Ann moved the card to design: the gate failed on load The changed build needs a new approval, so it gets a new post.');
+  });
+
+  it('revokes the kept approval with drop approval, so the tick cannot queue it again', async () => {
+    seed({ keptApprovals: { 4: KEPT } });
+    await applyControl(fakeCtx(), command({ action: 'drop', queue: 'approval', id: 4, by: 'hermes' }));
+    expect(readState(statePath).keptApprovals).toEqual({});
   });
 });

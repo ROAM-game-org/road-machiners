@@ -6,14 +6,14 @@ function unavailable(label: string): Badge {
   return { schemaVersion: 1, label, message: 'unavailable', color: 'lightgrey', isError: true };
 }
 function releaseBadge(snapshot: Snapshot): Badge {
-  const github = snapshot.github.value;
-  if (github === null) return unavailable('next release');
-  return { schemaVersion: 1, label: 'next release', message: `${github.features.length} features`, color: 'e05d44' };
+  const features = snapshot.operations.value?.features ?? null;
+  if (features === null) return unavailable('next release');
+  return { schemaVersion: 1, label: 'next release', message: `${features.length} features`, color: 'e05d44' };
 }
 function buildingBadge(snapshot: Snapshot): Badge {
-  const github = snapshot.github.value;
-  if (github === null) return unavailable('building');
-  const active = github.cards.filter((card) => card.column !== 'Triage').length;
+  const cards = snapshot.github.value?.cards.value ?? null;
+  if (cards === null) return unavailable('building');
+  const active = cards.filter((card) => card.column !== 'Triage').length;
   return { schemaVersion: 1, label: 'building', message: `${active} features`, color: 'dfb317' };
 }
 

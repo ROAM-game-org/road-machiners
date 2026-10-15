@@ -7,7 +7,7 @@ digraph testing {
   subgraph cluster_session {
     label="Testing job"; fontname="Helvetica"; fontsize=12; color="#c7d2fe"; style=rounded;
     PM [label="Merge new branch\ncommits and the base"]; PT [label="Testing session\nplay, fix, capture,\nwrite the post"];
-    PC [label="Post checkpoint\ntypecheck, playtest, build"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
+    PC [label="Post checkpoint\nbuild, which typechecks\nhotfix: full checks"]; PP [label="Post to\ncommittee", fillcolor="#fde68a", color="#b45309"];
     PM -> PT -> PC -> PP [weight=100];
   }
   subgraph cluster_post {
@@ -19,6 +19,8 @@ digraph testing {
   XA [label="Approval\npatch reply", fillcolor="#f3f4f6", color="#6b7280"];
   XD [label="Design", fillcolor="#f3f4f6", color="#6b7280"];
   XS [label="factory-stuck", fillcolor="#f3f4f6", color="#6b7280"];
+  XK [label="Hotfix approve\nmain moved", fillcolor="#f3f4f6", color="#6b7280"];
+  XQ [label="Approval queued\nagain, no post", fillcolor="#f3f4f6", color="#6b7280"];
   edge [color="#dc2626", fontcolor="#dc2626", style=dashed, penwidth=1.3];
   PC -> PT [label="failure or stalled test:\nback into the same session"];
   PC -> PC [label="timeouts: rerun the files\nwith no pass, up to 3"];
@@ -26,6 +28,8 @@ digraph testing {
   PM -> PC [label="docs only: no session,\nthe checkpoint only builds"];
   XH -> QB;
   XA -> PM [label="the reply is the task"];
+  XK -> PM [label="approval kept:\nintegration round"];
+  PC -> XQ [label="kept approval\nstill holds"];
   PT -> XD [label="plan wrong"];
   PC -> XS [label="budget spent"];
 }
