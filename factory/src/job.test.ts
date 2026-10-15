@@ -65,7 +65,7 @@ describe('runJob', () => {
       github: {},
     } as unknown as Ctx;
     await runJob(ctx, 'change', 9);
-    expect(replies).toEqual(['-7 31']);
+    expect(replies).toEqual(['-7 31', '-7 undefined']);
     expect(readState(statePath).failures).toMatchObject([{ stage: 'change', issue: null, error: 'offline' }]);
   });
 

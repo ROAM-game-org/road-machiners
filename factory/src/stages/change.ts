@@ -36,9 +36,15 @@ export async function change(ctx: Ctx, id: number): Promise<void> {
   ctx.log('change', id, `opened ${url}`);
 }
 
-function answerOrigin(ctx: Ctx, request: ChangeRequest, text: string): Promise<number> {
+async function answerOrigin(ctx: Ctx, request: ChangeRequest, text: string): Promise<number> {
   const { chat, messageId } = request.origin ?? { chat: ctx.cfg.committeeChat, messageId: null };
-  return ctx.telegram.sendMessage(chat, text, messageId);
+  if (messageId === null) return ctx.telegram.sendMessage(chat, text);
+  try {
+    return await ctx.telegram.sendMessage(chat, text, messageId);
+  } catch (error) {
+    ctx.log('change', request.id, `could not reply on the member message, so the answer goes to the chat: ${error instanceof Error ? error.message : String(error)}`);
+    return ctx.telegram.sendMessage(chat, text);
+  }
 }
 
 export function pendingChange(ctx: Ctx, id: number): ChangeRequest | undefined {

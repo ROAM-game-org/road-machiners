@@ -60,6 +60,20 @@ describe('change', () => {
     expect(f.calls).toContain('message -7 31 Factory change 4 is ready for review: http://pr');
   });
 
+  it('still opens the change and posts its pull request when the member message is gone', async () => {
+    const f = fake();
+    writeState(f.ctx.statePath, { ...EMPTY_STATE, pendingChanges: [{ id: 4, text: 'x', by: 'ann', origin: { chat: '-7', messageId: 31 } }] });
+    f.files = ['factory/src/a.ts'];
+    const sends: string[] = [];
+    f.ctx.telegram.sendMessage = async (chat, text, replyTo) => {
+      if (replyTo) throw new Error('message to be replied not found');
+      sends.push(`${chat} ${text}`);
+      return 1;
+    };
+    await change(f.ctx, 4);
+    expect(sends).toEqual(['-7 Factory change 4 is ready for review: http://pr']);
+  });
+
   it('writes a legacy request as before and posts its pull request to the committee chat', async () => {
     const f = fake();
     pending(f);
