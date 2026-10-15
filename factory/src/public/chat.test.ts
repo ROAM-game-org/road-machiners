@@ -279,18 +279,23 @@ describe('public chat about known work', () => {
     expect(repliesTo(f, 197)[0]!.text).toContain('This is about #568');
   });
 
-  it('answers a question about known work from the wiki and adds it to that work, and keeps unaddressed feedback silent', async () => {
-    const question = 'When do the landmark directions come out?';
+  it('answers an addressed question about known work from the wiki and adds it to that work, and keeps unaddressed ones silent', async () => {
+    const question = '@roam_bot when do the landmark directions come out?';
     const remark = 'landmark directions sound great';
+    const between = 'do the landmark directions work at night?';
     const { f, tick } = known([
       { text: question, decision: { kind: 'question', relevance: 'other' }, about: LANDMARKS },
       { text: remark, decision: { kind: 'feedback', relevance: 'other' }, about: LANDMARKS },
+      { text: between, decision: { kind: 'question', relevance: 'other' }, about: LANDMARKS },
     ]);
-    post(f, { id: 50, text: question });
+    post(f, { id: 50, text: question, addressed: true });
     post(f, { id: 51, text: remark, sender: '49' });
+    post(f, { id: 57, text: between, sender: '51' });
     await tick();
     expect(f.comments.map((comment) => comment.issue)).toEqual([LANDMARKS]);
     expect(f.comments[0]!.body).toContain(remark);
+    expect(f.comments[0]!.body).toContain(between);
+    expect(repliesTo(f, 57)).toEqual([]);
     const [reply] = repliesTo(f, 50);
     expect(reply!.text).toMatch(/^The game wiki has no passage that answers this/);
     expect(reply!.text).toContain('This is about #564: https://github.com/o/r/issues/564, which the factory already has.\nIt is approved and being finished.\nI added your message to its player comments. It opens no new issue or vote.');

@@ -53,8 +53,10 @@ async function threadNote(ctx: Ctx, comment: IssueComment, text: ReplyText): Pro
   return comment.linked ? text.aboutWork(link, await issueStatus(ctx, comment.issue, text)) : text.added(link);
 }
 
+const waitsForAddress = (comment: IssueComment): boolean => comment.kind === 'feedback' || (comment.linked && comment.kind === 'question');
+
 async function onThreadReply(ctx: Ctx, ground: Ground, comment: IssueComment, text: ReplyText): Promise<string | null> {
-  if (comment.kind === 'feedback' && !comment.addressed) return null;
+  if (waitsForAddress(comment) && !comment.addressed) return null;
   const note = await threadNote(ctx, comment, text);
   return comment.kind === 'question' ? `${await answerText(ctx, ground, comment, text)}\n\n${note}` : note;
 }
