@@ -1,5 +1,4 @@
 
-import { failLoudOnShaderError } from "./shader-errors";
 import * as THREE from "three";
 import { CONFIG } from "../config";
 import { QUESTS, relanguageQuest } from "../sim/quests";
@@ -43,6 +42,7 @@ import { timed } from "../perf";
 import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
+import { failLoudOnShaderError } from "./shader-errors";
 import { Hud } from "../ui/hud";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
