@@ -451,28 +451,28 @@ def test_member_plain_chat_in_other_chat_passes(tmp_path):
     assert adapter.sent == []
 
 
-@pytest.mark.parametrize("text", ["Thanks.", "@roam_bot thanks!", "ok", "Got it 👍", "👍", "Спасибо!", "ок", "thank you very much"])
-def test_hook_keeps_a_bare_acknowledgment_from_hermes_so_it_gets_no_empty_reply(tmp_path, text):
+@pytest.mark.parametrize("text", ["Thanks.", "@roam_bot thanks!", "Thank you 🙏", "Спасибо!", "thank you very much"])
+def test_hook_keeps_a_bare_thanks_from_hermes_so_it_gets_no_empty_reply(tmp_path, text):
     result, adapter, inbox = dispatch(tmp_path, "1", text=text)
-    assert result == {"action": "skip", "reason": "factory-acknowledgment"}
+    assert result == {"action": "skip", "reason": "factory-thanks"}
     assert adapter.sent == []
     assert list(inbox.iterdir()) == []
 
 
-@pytest.mark.parametrize("text", ["thanks, why is #12 stuck?", "ok?", "ok, ship it", "thanks, now patch the fuel gauge", "спасибо, а когда релиз?"])
-def test_hook_hands_hermes_an_acknowledgment_that_asks_or_orders_something(tmp_path, text):
+@pytest.mark.parametrize("text", ["thanks, why is #12 stuck?", "thanks?", "ok", "sure", "👍", "да", "", "thanks, now patch the fuel gauge", "спасибо, а когда релиз?"])
+def test_hook_hands_hermes_a_confirmation_a_blank_message_or_a_thanks_that_asks_or_orders(tmp_path, text):
     result, adapter, _ = dispatch(tmp_path, "1", text=text)
     assert result is None
     assert adapter.sent == []
 
 
-def test_hook_hands_hermes_a_bare_acknowledgment_with_a_picture(tmp_path):
-    result, _, _ = dispatch(tmp_path, "1", text="ok", media=["/cache/a.png"])
+def test_hook_hands_hermes_a_bare_thanks_with_a_picture(tmp_path):
+    result, _, _ = dispatch(tmp_path, "1", text="thanks", media=["/cache/a.png"])
     assert result is None
 
 
 @pytest.mark.parametrize("text, kind", [("approve", "approve"), ("thanks", "reply")])
-def test_hook_still_handles_an_acknowledgment_word_on_an_approval_post(tmp_path, text, kind):
+def test_hook_still_handles_approve_and_thanks_on_an_approval_post(tmp_path, text, kind):
     (tmp_path / "state").mkdir()
     (tmp_path / "state" / "state.json").write_text('{"approvalPosts": {"55": 12}}')
     result, _, inbox = dispatch(tmp_path, "1", text=text, reply="55")
