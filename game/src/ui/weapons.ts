@@ -7,7 +7,7 @@ import type { Aim, PartInstance, UtilityOrder, Vehicle, World } from "../sim/typ
 import { playerSees } from "../sim/vision";
 import { workOf } from "../sim/states";
 import { actBlock, cutPlayerLine, reloadWeapon, setAutoFire, setUtilityOrder, setWeaponOrder } from "../sim/world";
-import { chargeOf, chargedParts, orderKindOf, useKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
+import { chargeOf, chargedParts, orderKindOf, utilityBlock, utilityOrderError, wornReload } from "../sim/utility";
 import { oilShort } from "../sim/hazards";
 import { bottomLeft, el, panel } from "./dom";
 import { meters } from "./units";
@@ -344,7 +344,7 @@ export class UtilityRow {
     const part = utilitySlots(w)[i];
     if (!part) return;
     if (playerVehicle(w).utilityOrders[part.id]) return this.clearOrder(w, part);
-    if (orderKindOf(part) === "self") return chargeOf(part).armed && useKindOf(partDef(part.defId)) === "claymore" ? this.disarm(w, part) : this.useSelf(w, part);
+    if (orderKindOf(part) === "self") return chargeOf(part).armed ? this.disarm(w, part) : this.useSelf(w, part);
     this.togglePick(w, part);
   }
 
