@@ -7,7 +7,7 @@ import { defaultSetup } from './settings';
 import type { QuestBundle } from '../data/quests';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
-import { newWorld } from './world';
+import { cloneWorld, newWorld } from './world';
 
 const QUESTS = compileBundle(withEnglishTwins(readQuestSources('src/test/quests')));
 const RUMORS = 'Heard any rumors?';
@@ -102,7 +102,7 @@ function inlineBundle(quest: string): QuestBundle {
 }
 
 function withoutLive(w: World): World {
-  const copy = structuredClone(w);
+  const copy = cloneWorld(w);
   copy.player.quests.live = null;
   return copy;
 }
