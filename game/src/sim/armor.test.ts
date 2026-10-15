@@ -69,9 +69,24 @@ describe('walkLane', () => {
     const worn = plated();
     worn.plate.wear = 3;
     const round = { damage: 100, pen: 20, blast: false, armorShare: 1 };
-    const freshHits = walkLane(fresh.w, fresh.v, 'front', 2, round);
-    const wornHits = walkLane(worn.w, worn.v, 'front', 2, round);
-    expect(wornHits[1].damage).toBeGreaterThan(freshHits[1].damage);
+    const behind = (hits: { amount: number }[]) => hits.slice(1).reduce((sum, h) => sum + h.amount, 0);
+    expect(behind(planLane(worn.v, 'front', 2, round))).toBeGreaterThan(behind(planLane(fresh.v, 'front', 2, round)));
+  });
+
+  it('never deals more than its damage over all the parts it passes, however high its pen', () => {
+    const { v } = plated();
+    for (const pen of [3, 8, 13, 20, 40, 100]) {
+      const hits = planLane(v, 'front', 2, { damage: 20, pen, blast: false, armorShare: 1 });
+      expect(hits.reduce((sum, h) => sum + h.amount, 0)).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it('leaves more of a high pen round to the parts behind than a low pen one', () => {
+    const { v } = plated();
+    const deep = planLane(v, 'front', 2, { damage: 20, pen: 20, blast: false, armorShare: 1 });
+    const shallow = planLane(v, 'front', 2, { damage: 20, pen: 8, blast: false, armorShare: 1 });
+    const behind = (hits: { amount: number }[]) => hits.slice(1).reduce((sum, h) => sum + h.amount, 0);
+    expect(behind(deep)).toBeGreaterThan(behind(shallow));
   });
 
   it('a strong round passes the plate and hits the part behind', () => {
@@ -99,13 +114,13 @@ describe('walkLane', () => {
     expect(hits[1].damage).toBeLessThan(hits[0].damage);
   });
 
-  it('armor scales damage down when pen is below it', () => {
-    const { w, v, plate } = plated();
-    const weak = walkLane(w, v, 'front', 2, { damage: 12, pen: 6, blast: false, armorShare: 1 })[0].damage;
-    plate.hp = maxHp(plate);
-    const full = walkLane(w, v, 'front', 2, { damage: 12, pen: 100, blast: false, armorShare: 1 })[0].damage;
-    expect(weak).toBeLessThan(full);
-    expect(full).toBe(12);
+  it('armor scales damage down when pen is below it, and a round of pen equal to it spends all its damage there', () => {
+    const { v, plate } = plated();
+    const armor = partDef(plate.defId).armor;
+    const weak = planLane(v, 'front', 2, { damage: 12, pen: armor / 2 + RULES.cellPen, blast: false, armorShare: 1 })[0].amount;
+    const full = planLane(v, 'front', 2, { damage: 12, pen: armor + RULES.cellPen, blast: false, armorShare: 1 })[0].amount;
+    expect(weak).toBeCloseTo(6);
+    expect(full).toBeCloseTo(12);
   });
 
   it('a broken part lets the round pass', () => {
@@ -135,7 +150,7 @@ describe('walkLane', () => {
     const me = w.vehicles[0];
     const cab = corePart(me, 'cab');
     const lane = mountedItems(me).find((it) => it.part.id === cab.id)!.y;
-    const hits = walkLane(w, me, 'right', lane, { damage: 10, pen: 100, blast: false, armorShare: 1 });
+    const hits = walkLane(w, me, 'right', lane, { damage: 40, pen: 8, blast: false, armorShare: 1 });
     const dealt = hits.find((h) => h.part === cab.id)!.damage;
     expect(dealt).toBeGreaterThan(0);
     expect(w.player.health).toBe(RULES.maxHealth - Math.round(dealt * RULES.cabHealthShare));
