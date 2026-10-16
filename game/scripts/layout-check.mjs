@@ -199,10 +199,27 @@ const closeStartMenu = (page) => page.evaluate(() => {
   }
 });
 
+const openQuestPage = (page) => page.evaluate(async () => {
+  const g = window.__ROAM__;
+  const q = await import('/src/sim/quests.ts');
+  const world = structuredClone(g.state);
+  q.openQuest(world, q.QUESTS, 'intro_arrival', 'start');
+  g.apply(world);
+});
+
+const closeQuestPage = (page) => page.evaluate(() => {
+  const g = window.__ROAM__;
+  const world = structuredClone(g.state);
+  world.player.quests.session = null;
+  world.player.quests.live = null;
+  g.apply(world);
+});
+
 const STATES = {
   menu: { setup: () => undefined },
   log: { setup: fillLog },
   inventory: { setup: openInventory, teardown: escape },
+  'quest-page': { setup: openQuestPage, teardown: closeQuestPage },
   shop: { setup: (page) => openTown(page, 'buyParts'), teardown: closeTown },
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },

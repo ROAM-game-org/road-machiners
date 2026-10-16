@@ -18,4 +18,8 @@ describe("truck condition css", () => {
   it("keeps aimable parts clickable", () => {
     expect(rule(".condition-part.aimable")).toContain("cursor: crosshair");
   });
+
+  it("fills the body silhouette with a mid tone, not the darkest cell color", () => {
+    expect(rule(".condition-chassis .outline-fill")).toContain("var(--cell-side)");
+  });
 });

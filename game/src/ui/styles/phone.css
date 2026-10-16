@@ -219,27 +219,34 @@
   width: auto;
   height: auto;
   max-height: none;
+}
+#ui.phone .modal.quest-screen.quest-page,
+#ui .modal.quest-screen.quest-page.stacked {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
 }
-#ui.phone .quest-page .quest-art {
+#ui.phone .quest-page .quest-art,
+#ui .quest-page.stacked .quest-art {
   box-sizing: border-box;
   height: 26dvh;
   padding: var(--space-4);
   border-right: 0;
 }
-#ui.phone .quest-page .quest-text {
+#ui.phone .quest-page .quest-text,
+#ui .quest-page.stacked .quest-text {
   max-width: none;
   padding: var(--space-5) var(--space-6);
 }
-#ui.phone .quest-page .quest-side {
+#ui.phone .quest-page .quest-side,
+#ui .quest-page.stacked .quest-side {
   max-height: 24dvh;
   padding: var(--space-4) var(--space-6);
   border-left: 0;
   border-top: 1px solid var(--surface-raised);
 }
-#ui.phone .quest-page .quest-side .close {
+#ui.phone .quest-page .quest-side .close,
+#ui .quest-page.stacked .quest-side .close {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
