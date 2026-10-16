@@ -80,7 +80,7 @@ She waits. The Keeper on the roof turns over in his sleep. # page
   -> menu
 + {not asked_hunters} [Who pays the hunters?]
   ~ asked_hunters = true
-  Hedda Vell. She runs Blackwell, and she posted it herself, in diesel. Whether I come back with the trailer or not, she doesn't care. # speaker: Ala
+  Hedda Vell. She runs Blackwell, and she posted it herself, in diesel. Whether I come back alive, she doesn't care. # speaker: Ala
   She says the name flatly, like a debt she has carried for years.
   -> menu
 + [That's enough.]

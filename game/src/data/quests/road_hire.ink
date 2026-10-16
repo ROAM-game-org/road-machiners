@@ -61,7 +61,7 @@ Fine. Ask what you want. I'll answer what I answer. # speaker: Ala
 
 = hub
 # checkpoint: start.hub
-Ala stacks her M's in front of her and waits. The bar goes on around you, loud and brown. # page # img: road_ala
+Ala stacks her M's in front of her and waits. # page # img: road_ala
 -> menu
 
 = menu

@@ -9,18 +9,18 @@ VAR pass_said = false
 The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost # img: road_hauler
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
-The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She was afraid, it says, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page
-The second says the people are on the road. The <term=keepers>Keepers</term> pass them north from fort to fort and feed them where they stop. The Warden will open Northgate's gate when they come. A hunter named Vale turned back with her one truck and holds the road behind them, and the slip quotes her. # page # img: road_walkers
+The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She sold the Yards bad water and knew it, it says. She was afraid, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page
+The second says the people are on the road. The <term=keepers>Keepers</term> pass them north from fort to fort and feed them where they stop. The Warden will open Northgate's gate when they come. A hunter named Vale, who hunted this truck for eight stretches and lost two trucks to it, turned back with her one truck and holds the road behind them. The slip quotes her. # page # img: road_walkers
 Any crew wants these families, they come through me first. # speaker: Vale
 The last line of the slip is short. Maya rides with them, days back, and there is not a gun among them. # page
 -> free_to_go
 
 = free_to_go
+There is a last slip, from the Keepers' own relay. Ala reads it out in the voice she uses for sums. # page
+The Keepers say your escort wears a Burnt Driver's burn. Keep the road clear for the families behind you. # speaker: Keepers' relay
 Ala folds the slips and puts them away. # page
 You're paid up, and by the deal you're free to go. I won't hold you. # speaker: Ala
 She doesn't say it as if she means it. She says it as if she's reading it.
-She has one more slip, from the Keepers' own relay. She reads it out in the voice she uses for sums. # page
-The Keepers say your escort wears a Burnt Driver's burn. Defend the families behind you. # speaker: Keepers' relay
 -> fire
 
 = fire
@@ -129,7 +129,7 @@ So. Are you riding on? # speaker: Ala
   She puts her hand flat on the step to steady herself.
   Then Tibor tells it wrong. Good. # speaker: Ala
 }
-{ hand_shook: You remember the eighth fort, your hand shaking against the scar, and you wait for her to bring it up. She doesn't. }
+{ hand_shook: You remember your hand shaking against the scar at the eighth fort, and you keep it flat on your knee now. }
 Later you sit up on the wall, facing south, where two hundred people are driving in the dark. No lights show on the road, and you look anyway. # page
 { ala_knows == "dead": Ala climbs up with one cup, sets it down between you, and says nothing about the dead man. }
 { ala_knows == "burnt": Ala climbs up with two cups. She sits a little way off. }

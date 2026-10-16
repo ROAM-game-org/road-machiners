@@ -61,7 +61,7 @@ VAR walked_out = false
 
 = hub
 # checkpoint: start.hub
-Ала складывает М столбиками перед собой и ждет. Вокруг живет своей жизнью бар, шумный и прокуренный. # page # img: road_ala
+Ала складывает М столбиками перед собой и ждет. # page # img: road_ala
 -> menu
 
 = menu

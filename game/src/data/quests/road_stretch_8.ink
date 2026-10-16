@@ -11,7 +11,7 @@ Dusk at the eighth fort, and the Keepers are counting the evening's trucks throu
 Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. Both of yours are still rolling. The scout is held together now with the yard's weld and most of the pay.
 An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
 I knew a man with a burn like that. # speaker: Bram
-He says it mildly, the way you'd mention the weather. Then he turns to the next truck and goes on counting. # page
+He says it mildly, the way you'd mention the weather. You know the ring he means. The Burnt Drivers' lieutenants wore it, and the Keepers kept the count of the starving winter. Then he turns to the next truck and goes on counting. # page
 Your hand has gone to your neck without asking you. It has started to shake against the scar, and Ala is watching it. # page
 -> hand
 
@@ -38,7 +38,7 @@ Ala watches it for a long moment. She doesn't look away, and she doesn't ask. Th
 She sits down on the hauler's step with a strip of paper from the fort's relay, folded small. She does not count the pay into your hand. It is the first time she hasn't. # page
 Hedda Vell has changed the reward. It pays for the crates burned now, not brought back. # speaker: Ala
 She reads it flat, line by line, the way she reads a sum. # page
-Her soldiers wouldn't fire on the Yards. They found it half empty, and the rest at the gate with my mother in front, and they went home. Blackwell has shut its gates. The forts have opened the road north to the sick, toll-free. # speaker: Ala
+Her soldiers wouldn't fire on the Yards. They found it half empty, and the rest standing at the Yards' own gate with my mother in front, and they went home. Blackwell has shut its gates. The forts have opened the road north to the sick, toll-free. # speaker: Ala
 The second slip is in her mother's hand, a few lines, hard as a nail. # page
 Don't come back. Keep going north. Maya asks for you every hour. # speaker: Sara
 The third slip is Northgate's, in a clerk's neat hand. # page
@@ -47,7 +47,7 @@ A boy has died at the Keepers' gate for want of what we keep. Come. Your niece w
 
 = loss
 # checkpoint: start.loss
-She folds the slips together and puts them in her coat. There is one more, and she holds it a moment before she reads it. The boy in the Warden's slip had a name. Teo, six, died on the verge outside the southern fort three days ago. His family had been turned back at the gate. The forts changed their minds the day after. # page
+She folds the slips together and puts them in her coat. The Warden's slip spoke of a boy, and she holds a moment before she says the rest. His name was Teo. He was six, and he died on the verge outside the southern fort three days ago. His family had been turned back at the gate, and the forts changed their minds the day after. # page
 She is waiting to see what you do with that.
 + [Tell her you're sorry.]
   ~ grief_said = "sorry"
