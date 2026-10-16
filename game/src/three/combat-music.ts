@@ -29,7 +29,7 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions): KitL
 
 export class CombatMusic {
   private kit: Kit | null = null;
-  private playing: Kit | null = null;
+  private playingTitle: string | null = null;
   private loading: Promise<void>;
   private current: BlockSession | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -55,7 +55,7 @@ export class CombatMusic {
   }
 
   get title(): string | null {
-    return (this.playing ?? this.kit)?.song.title ?? null;
+    return this.playingTitle ?? this.kit?.song.title ?? null;
   }
 
   get inCombat(): boolean {
@@ -90,7 +90,7 @@ export class CombatMusic {
     const tail = old.played.at(-1)!;
     for (const v of tail.voices) v.fadeOut(at + old.beatSeconds, old.beatSeconds / 2);
     this.voices.use(kit.buffers);
-    this.playing = kit;
+    this.playingTitle = kit.song.title;
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(at - SCORE_BLOCKS.startLeadSeconds);
   }
@@ -103,7 +103,7 @@ export class CombatMusic {
     const kit = this.kit;
     if (!kit) return;
     this.voices.use(kit.buffers);
-    this.playing = kit;
+    this.playingTitle = kit.song.title;
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(this.ctx.currentTime);
     this.timer ??= setInterval(() => this.tick(), TICK_MS);
@@ -111,6 +111,7 @@ export class CombatMusic {
 
   private stop(): void {
     this.current?.end(this.ctx.currentTime);
+    this.voices.release();
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
     this.loading = this.loadNext().catch(this.onError);

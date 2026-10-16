@@ -99,6 +99,7 @@ describe("CombatMusic", () => {
     const first = music.session!;
     pick = 1;
     music.setCombat(false);
+    expect(music.title).toBe(COMBAT_SONGS[names[0]].title);
     await music.ready();
     expect(music.session).toBe(first);
     music.setCombat(true);

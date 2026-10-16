@@ -27,6 +27,10 @@ export class BlockVoices implements BlockOutput {
     this.buffers = buffers;
   }
 
+  release(): void {
+    this.buffers = null;
+  }
+
   voice(part: Part, offset: number, when: number, length: number, fade: number, level: number): VoiceHandle {
     if (!this.buffers) throw new Error("Block voices play before a song kit is loaded");
     const buffer = this.buffers[part];
