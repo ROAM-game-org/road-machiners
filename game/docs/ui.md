@@ -265,6 +265,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - The quest page view fills most of the screen, up to `--quest-page-width` by `--quest-page-height`, in three columns: the picture, the text and the quest's numbers and facts. The picture column is about as wide as the window is tall, and it shrinks first on small screens. The text column stays at least `--quest-text-min` wide, and its text is centered and capped at `--quest-text-width`, so lines stay readable. The right column keeps `--quest-side-width`.
 - `.quest-frame` holds a quest page's picture, cropped to the column around its focus point. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
 - `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause.
+- `.standing` is the character screen's list of faction standing: one `.standing-row` per faction with its band word, and a `.tooltip.standing-tip` of `.tooltip-row` lines (base, deeds, earlier) on hover and focus. The HUD's driver card shows only the band tag of that driver toward the player.
 - `.num` is a number in the mono face. `.dim`, `.good` and `.bad` color a word.
 
 ## 13. How to build a screen
