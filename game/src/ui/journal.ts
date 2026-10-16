@@ -1,23 +1,41 @@
-
-import type { NoteId } from '../data/locals';
-import { noteBody, noteFrom, noteTitle, siteName } from '../text/names';
-import { t } from '../text/msg';
+import { noteBody, noteFrom, noteTitle, fullName, partName, siteName } from '../text/names';
+import { t, type Msg } from '../text/msg';
+import { leadOf } from '../sim/claims';
 import { clockOf } from '../sim/sun';
+import type { ClaimContract } from '../sim/salvage';
 import type { World } from '../sim/types';
 import { surveyClue, type SurveyContract, type SurveyPoint } from '../sim/survey';
 import { surveyClueText } from './format';
 import { createIcon } from './cards';
 import { el, panel } from './dom';
 import type { UiHost } from './host';
+import { compassText, distanceText } from './units';
 
-export type JournalEntry = { kind: 'note'; id: NoteId; day: number } | { kind: 'survey'; contract: SurveyContract; day: number };
+export type JournalEntry =
+  | { kind: 'note'; id: string; day: number; title: Msg; from: Msg; body: Msg }
+  | { kind: 'survey'; id: string; contract: SurveyContract; day: number };
+
+type Dated = { turn: number; order: number; entry: (day: number) => JournalEntry };
+
+function noteEntries(world: World): Dated[] {
+  return world.player.notes.map((n, k) => ({ turn: n.turn, order: k, entry: (day) => ({ kind: 'note', id: n.id, day, title: noteTitle(n.id), from: noteFrom(n.id), body: noteBody(n.id) }) }));
+}
+
+function leadEntries(world: World): Dated[] {
+  const claims = world.player.contracts.filter((c): c is ClaimContract => c.kind === 'claim');
+  return claims.flatMap((c) =>
+    c.leads.map((lead, k) => {
+      const { angle, distance } = leadOf(c.at, lead.from);
+      const body = t('journal.claimLead', { bearing: compassText(angle), distance: distanceText(distance) });
+      return { turn: lead.turn, order: k, entry: (day: number): JournalEntry => ({ kind: 'note', id: `${c.id}:${lead.driver}`, day, title: partName(c.defId), from: fullName(lead.driver), body }) };
+    }),
+  );
+}
 
 export function journalEntries(world: World): JournalEntry[] {
-  const surveys = world.player.contracts.flatMap((c): JournalEntry[] => (c.kind === 'survey' ? [{ kind: 'survey', contract: c, day: clockOf(c.deadline - c.window).day }] : []));
-  const notes = world.player.notes
-    .map((n, k) => ({ n, k }))
-    .sort((a, b) => b.n.turn - a.n.turn || b.k - a.k)
-    .map(({ n }): JournalEntry => ({ kind: 'note', id: n.id, day: clockOf(n.turn).day }));
+  const surveys = world.player.contracts.flatMap((c): JournalEntry[] => (c.kind === 'survey' ? [{ kind: 'survey', id: c.id, contract: c, day: clockOf(c.deadline - c.window).day }] : []));
+  const dated = [...noteEntries(world), ...leadEntries(world)];
+  const notes = dated.sort((a, b) => b.turn - a.turn || b.order - a.order).map((d) => d.entry(clockOf(d.turn).day));
   return [...surveys, ...notes];
 }
 
@@ -56,7 +74,7 @@ export class JournalScreen {
 }
 
 function entry(e: JournalEntry): HTMLElement {
-  return e.kind === 'survey' ? surveyEntry(e.contract, e.day) : noteEntry(e.id, e.day);
+  return e.kind === 'survey' ? surveyEntry(e.contract, e.day) : noteEntry(e);
 }
 
 function surveyEntry(c: SurveyContract, day: number): HTMLElement {
@@ -84,11 +102,11 @@ function placeTag(point: SurveyPoint): HTMLElement | null {
   return point.found ? el('span', { class: 'tag' }, t('journal.survey.found')) : null;
 }
 
-function noteEntry(id: NoteId, day: number): HTMLElement {
+function noteEntry(e: Extract<JournalEntry, { kind: 'note' }>): HTMLElement {
   return el(
     'div',
     { class: 'journal-note' },
-    el('div', { class: 'journal-head' }, el('b', {}, noteTitle(id)), el('span', { class: 'dim' }, t('journal.entryHead', { day, from: noteFrom(id) }))),
-    el('div', {}, noteBody(id)),
+    el('div', { class: 'journal-head' }, el('b', {}, e.title), el('span', { class: 'dim' }, t('journal.entryHead', { day: e.day, from: e.from }))),
+    el('div', {}, e.body),
   );
 }

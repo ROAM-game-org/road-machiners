@@ -45,6 +45,7 @@ describe('a search contract from the board to the pay', () => {
     const target = driver(w, { x: pad.x + 8, y: pad.y }, 'Mack Holt');
     w.turn = 200;
     remember(w, target, { kind: 'prices', shop: 'bowl', pressure: {} });
+    for (const shop of Object.values(w.shops)) shop.contracts = [];
     w.shops.bowl.contracts = [{
       id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: 'Mack Holt', template: 'trader',
       lead: { at: { ...siteOf('bowl').pos }, turn: 200 }, reward: searchReward(), deadline: 900, window: 600, tier: 1, delivered: false,

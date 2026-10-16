@@ -12,6 +12,7 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
+  claimRivalMark,
   escortStatusText,
   heldContractDue,
   contractSummary,
@@ -433,7 +434,6 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c), this.surveyProgress(c)),
           c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
@@ -639,7 +639,6 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (isNotable(e)) this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);

@@ -73,6 +73,7 @@ import FORMAT_2_70 from './save-fixtures/format-2-70.json';
 import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
+import FORMAT_2_75 from './save-fixtures/format-2-75.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1578,5 +1579,18 @@ describe('save migration 73 to 74', () => {
 describe('save migration 74 to 75', () => {
   it('keeps a save as it is, since survey contracts are a new variant no old save holds', () => {
     expect(MIGRATIONS[74](structuredClone(FORMAT_2_73))).toEqual(FORMAT_2_73);
+  });
+});
+
+describe('save migration 75 to 76', () => {
+  it('gives every posted and held claim no rival, no leads and a rival turn at its deadline, and leaves other contracts be', () => {
+    const next = MIGRATIONS[75](structuredClone(FORMAT_2_75)) as typeof FORMAT_2_75;
+    const [fetch, posted] = next.shops.bowl.contracts;
+    const [held, haul] = next.player.contracts;
+    expect(fetch).toEqual(FORMAT_2_75.shops.bowl.contracts[0]);
+    expect(posted).toEqual({ ...FORMAT_2_75.shops.bowl.contracts[1], rivalAt: 1400, rival: null, leads: [] });
+    expect(held).toEqual({ ...FORMAT_2_75.player.contracts[0], rivalAt: 1100, rival: null, leads: [] });
+    expect(haul).toEqual(FORMAT_2_75.player.contracts[1]);
+    expect(next.turn).toBe(530);
   });
 });

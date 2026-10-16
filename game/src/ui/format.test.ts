@@ -202,6 +202,38 @@ describe("contract text", () => {
     expect(en(contractSummary(fetch))).toBe("Bring MG turret to Bowl: working, rebuilt at most once");
   });
 
+  it("says where a claimed part lies from the posting shop, and in which territory", () => {
+    const orchard = REGION.locations.find((l) => l.id === "orchard")!;
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c4", shop: "bowl", kind: "claim", stockId: "armyTruck-1", at: { ...orchard.pos }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    const text = en(contractSummary(claim));
+    expect(text.startsWith("Recover MG turret from an army truck ")).toBe(true);
+    expect(text).toContain(" of Bowl, about ");
+    expect(text.endsWith(", in " + en(siteName("orchard")))).toBe(true);
+    expect(shop).toBeDefined();
+  });
+
+  it("names the wreck kind, a compass point and a rounded distance in the clue", () => {
+    const shop = REGION.towns.find((l) => l.id === "bowl")!;
+    const claim: Contract = { id: "c5", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: shop.pos.x + 300, y: shop.pos.y - 10 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [] };
+    expect(en(contractSummary(claim))).toBe("Recover MG turret from a dead tank east of Bowl, about 1.3 km out");
+  });
+
+  it("tells of a rival sent after a held claim, and of a claim lost to it, as notable lines", () => {
+    const w = emptyWorld();
+    const rival = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 40 });
+    rival.brain = npcBrain("scavenger", rival.pos, ["scavenger"]);
+    const claim: Contract = { id: "c6", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: 90, y: 40 }, partId: "p1", defId: "mg", reward: 100, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: rival.id, leads: [] };
+    w.player.contracts = [claim];
+    const sent = eventText(w, { t: "claimRival", contract: claim.id, vehicle: rival.id })!;
+    expect([en(sent.text), sent.cls]).toEqual(["Bowl sent Jed Cobb after the MG turret too", "bad"]);
+    expect(eventText(emptyWorld(), { t: "claimRival", contract: claim.id, vehicle: rival.id })).toBeNull();
+    const lost = eventText(w, { t: "contract", contract: claim, outcome: "lapsed", cause: "rival" })!;
+    expect(en(lost.text)).toBe("Contract lapsed: Jed Cobb brought the MG turret to Bowl first");
+    expect(isNotable({ t: "contract", contract: claim, outcome: "lapsed", cause: "rival" })).toBe(true);
+    expect(isNotable({ t: "contract", contract: claim, outcome: "lapsed" })).toBe(false);
+  });
+
   it("starts a rush haul's summary with Rush and leaves a standard haul plain", () => {
     const haul: Contract = { id: "c3", shop: "bowl", kind: "haul", good: "salt", units: 3, to: "nose", reward: 100, deadline: 100, window: 100, rush: false, tier: 1 };
     expect(en(contractSummary(haul)).startsWith("Haul 3")).toBe(true);

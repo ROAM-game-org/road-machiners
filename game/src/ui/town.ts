@@ -38,6 +38,7 @@ import {
 } from "../sim/economy";
 import { freeCells, goodsCount, MOUNT_CELLS, mountedParts } from "../sim/grid";
 import { canStowPart, cargoRoom, spareParts } from "../sim/inventory";
+import { fitsClaim } from "../sim/claims";
 import { acceptContract, deliverContract, fitsFetch, isMet, searchRefusal, shopAt, shopState, type Contract, type SearchRefusal, type ShopState } from "../sim/market";
 import { escortBlocked, escortFit } from "../sim/escort-job";
 import type { PartInstance, Vehicle, World } from "../sim/types";
@@ -45,7 +46,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconN
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { claimRivalMark, contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -375,6 +376,7 @@ const DELIVER_VERBS = {
   rescue: { now: "contract.claim", at: "contract.claimAt" },
   search: { now: "contract.claim", at: "contract.claimAt" },
   survey: { now: "contract.report", at: "contract.reportAt" },
+  claim: { now: "contract.deliver", at: "contract.deliverAt" },
 } as const;
 
 function escortRefusal(w: World, c: Contract): Msg | null {
@@ -401,6 +403,7 @@ function notReady(w: World, c: Contract): Msg {
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
   if (c.kind === "search") return t("contract.handOverFirst");
+  if (c.kind === "claim") return playerVehicle(w).items.some((it) => it.kind === "part" && it.part.id === c.partId) ? t("contract.unmountFirst") : t("contract.needsPart");
   if (c.kind === "rescue") return t("contract.notMet");
   return bountyPays(w);
 }
@@ -448,6 +451,7 @@ function stockCount(stock: PartInstance[], f: StockFilter): number {
 const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   haul: () => createIcon("cargo"),
   fetch: () => createIcon("parts"),
+  claim: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
   search: () => createBareItemIcon(PARCEL.id),
   survey: () => createIcon("scanner"),
@@ -514,15 +518,15 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
     CONTRACT_ICON[c.kind](),
     c.kind === "escort" && posted
       ? el("div", { class: "job-what" }, el("span", {}, contractSummary(c)), el("div", { class: "job-detail dim" }, ...escortDetail(w, c)))
-      : contractSummaryCell(c),
+      : contractSummaryCell(w, c),
     el("span", { class: "price good" }, PLUS, moneyEl(c.reward)),
     clock,
     action,
   );
 }
 
-function contractSummaryCell(c: Contract): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), surveyLine(c));
+function contractSummaryCell(w: World, c: Contract): HTMLElement {
+  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), surveyLine(c), claimRivalMark(w, c));
   const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
   return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }
@@ -542,6 +546,7 @@ function canDeliver(w: World, c: Contract): boolean {
   if (c.kind === "haul") return (goodsCount(me)[c.good] ?? 0) >= c.units;
   if (c.kind === "fetch")
     return spareParts(me).some((p) => fitsFetch(c, p)) || w.player.storage.some((p) => fitsFetch(c, p));
+  if (c.kind === "claim") return spareParts(me).some((p) => fitsClaim(c, p)) || w.player.storage.some((p) => fitsClaim(c, p));
   return isMet(c);
 }
 

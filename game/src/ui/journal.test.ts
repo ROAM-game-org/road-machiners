@@ -33,8 +33,8 @@ describe('journal entries', () => {
     w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
 
     expect(journalEntries(w)).toEqual([
-      { kind: 'survey', contract: survey, day: 2 },
-      { kind: 'note', id: 'wagonBowl', day: 1 },
+      { kind: 'survey', id: 'ct-s', contract: survey, day: 2 },
+      expect.objectContaining({ kind: 'note', id: 'wagonBowl', day: 1 }),
     ]);
   });
 
@@ -100,5 +100,19 @@ describe('journal survey brief', () => {
       expect(places[i].text()).toContain(resolve(surveyClueText(clue), 'en'));
       expect(places[i].text()).toContain(resolve(t(`contract.want.${clue.type}`), 'en'));
     });
+  });
+});
+
+describe('claim leads in the journal', () => {
+  it('lists what each driver said under the claimed part, newest first among the notes', () => {
+    const w = emptyWorld();
+    w.player.notes = [{ id: 'wagonBowl', turn: 10 }];
+    w.player.contracts = [{ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 900, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads: [{ turn: 20, from: { x: 100, y: 80 }, driver: 'Jed Cobb' }] }];
+
+    const entries = journalEntries(w).flatMap((e) => (e.kind === 'note' ? [e] : []));
+
+    expect(entries.map((e) => e.id)).toEqual(['ct-1:Jed Cobb', 'wagonBowl']);
+    expect(resolve(entries[0].body, 'en')).toBe('north of where we talked, about 100 m out');
+    expect(resolve(entries[0].from, 'en')).toBe('Jed Cobb');
   });
 });

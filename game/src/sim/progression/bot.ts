@@ -20,7 +20,7 @@ import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
-import { cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
@@ -31,7 +31,8 @@ import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
 import { fightOdds } from '../fight-odds';
 import { warnedOffTarget } from '../loot-warning';
-import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, takeFromTruck } from '../salvage';
+import { claimCandidates, claimClue, claimPartHeld } from '../claims';
+import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
@@ -558,9 +559,56 @@ function checkNextBoard(o: Orders): void {
   if (next) driveToSite(o, next);
 }
 
+type Claim = Extract<Contract, { kind: 'claim' }>;
+
+const isClaim = (c: Contract): c is Claim => c.kind === 'claim';
+
+function claimGoal(o: Orders): boolean {
+  const held = o.world.player.contracts.find(isClaim);
+  if (!held) return takeClaim(o);
+  if (claimPartHeld(o.world, held) !== 'player') return claimPartHeld(o.world, held) === 'stock' && searchClaim(o, held);
+  if (shopAt(o.world) === held.shop) o.run((w) => deliverContract(w, held.id), 'contracts');
+  else driveToSite(o, siteOf(held.shop));
+  return true;
+}
+
+function searchClaim(o: Orders, claim: Claim): boolean {
+  const next = nextCandidate(o.world, claim);
+  if (!next) return false;
+  if (!foundIn(o.world, next, claim)) visitStock(o, next);
+  else if (salvageInRange(o.me, next)) lootHere(o);
+  else driveTo(o, besideStop(o.world, next.pos, next.radius));
+  return true;
+}
+
+function foundIn(world: World, stock: SalvageStock, claim: Claim): boolean {
+  return world.player.scavenged.includes(stock.id) && stock.parts.some((p) => p.id === claim.partId);
+}
+
+function nextCandidate(world: World, claim: Claim): SalvageStock | null {
+  const stocks = claimCandidates(world, claim).map((id) => world.salvage.find((s) => s.id === id)!);
+  return stocks.find((s) => foundIn(world, s, claim)) ?? stocks.find((s) => !world.player.scavenged.includes(s.id)) ?? null;
+}
+
+function fitsAboard(o: Orders, claim: Claim): boolean {
+  const stock = o.world.salvage.find((s) => s.id === claim.stockId);
+  const part = stock && [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId);
+  return part !== undefined && canStowPart(o.me, part);
+}
+
+function takeClaim(o: Orders): boolean {
+  const shop = shopAt(o.world);
+  if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
+  const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: claimClue(c).point });
+  const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
+  if (best) o.run((w) => acceptContract(w, best.id));
+  return best !== undefined;
+}
+
 function scavengerGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
+  if (claimGoal(o)) return;
   if (!scavenge(o, false) && !trade(o) && !takeHaul(o)) checkNextBoard(o);
 }
 

@@ -7,7 +7,7 @@ import { isKnockedOut } from './defeat';
 import { cancelJob } from './jobs';
 import { defyThreat, finishGoal, topGoal } from './npc-activities';
 import { decide, firepower, lootTaken, perceiveDanger } from './npc-decisions';
-import { claimantOf, inLootReach, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
+import { claimantOf, inLootReach, isStockGoal, jobTarget, lootBlocker, lootClaimedBy, salvageInRange, salvagePlace } from './salvage';
 import { addState, boundTo, endState, lootWarningData, stateOf } from './states';
 import { inTowReach } from './tow';
 import type { GameEvent, GoalReason, NpcActivity, NpcState, StateEnding, Vehicle, World } from './types';
@@ -138,7 +138,7 @@ export function leaveLoot(world: World, v: Vehicle, targetId: string, reason: Go
 }
 
 function isLootGoalOn(goal: NpcActivity | null, targetId: string): boolean {
-  return (goal?.kind === 'loot' || goal?.kind === 'scavenge') && goal.targetId === targetId;
+  return isStockGoal(goal) && goal.targetId === targetId;
 }
 
 function logArgument(world: World, warner: Vehicle, looter: Vehicle, targetId: string, end: ArgumentEnd): void {
