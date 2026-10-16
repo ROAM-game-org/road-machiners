@@ -26,7 +26,7 @@ ID: R4
 repo: game
 rule: The boot survives the failure of any one asset, fetch or browser feature. It retries a dropped fetch, gives a failed asset a stand-in, reports it and goes on. Each error names its real cause.
 check: Boot with one sound, model or map fetch dropped, with one sound that never decodes, and with IndexedDB refused. The game must reach the menu each time. A network failure must not be reported as a decode failure.
-seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file.
+seen: Hotfixes #483, #482, #493 and #496 fixed sound and asset failures on release 2.61.0, after Safari, Firefox on Android and Android Chrome players could not start the game. Hotfix #519 fixed an iPhone Safari player whose browser refused IndexedDB. A wrong "failed to decode" message sent triage toward a corrupt file. Hotfix #733 versioned every public file URL by content hash after a cached map from the last dev build crashed the boot with an error that blamed `old-spots.json`.
 
 ID: R5
 repo: game
