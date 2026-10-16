@@ -6,6 +6,7 @@ import { LOCALES } from '../text/msg';
 import { resolve } from '../text/resolve';
 import { cueText, directionsText } from './directions-text';
 import { REGION } from '../data/region';
+import { siteName } from '../text/names';
 
 const STEPS: DirectionStep[] = [
   { do: 'join', octant: 'northWest', span: 'near' },
@@ -21,7 +22,7 @@ const STEPS: DirectionStep[] = [
   { do: 'arrive', site: 'orchard', area: true },
   { do: 'search', clue: { kind: 'site', id: 'bowl' }, rough: false },
   { do: 'search', clue: { kind: 'wreck' }, rough: true },
-  { do: 'askAgain', at: { kind: 'fork', nth: 3 } },
+  { do: 'askAgain' },
   { do: 'noRoad', octant: 'north', span: 'far' },
 ];
 
@@ -39,7 +40,7 @@ describe('directionsText', () => {
 
   it('joins the steps into one answer in order', () => {
     const text = resolve(directionsText(STEPS.slice(0, 3)), 'en');
-    expect(text).toBe('Cut north-west a short way to the road. Take the road to Nose, a long way. At Dustwell, turn left onto the road heading south, a fair way.');
+    expect(text).toBe("Cut north-west a short way to the road. Take the road to Nose. It's a long haul. At Dustwell, turn left onto the road heading south.");
   });
 
   it('renders a noRoad answer', () => {
@@ -55,8 +56,70 @@ describe('directionsText', () => {
   });
 
   it('names a cue of every kind', () => {
-    const cues: Cue[] = [{ kind: 'site', id: 'bowl' }, { kind: 'deck', id: 'broken-wing' }, { kind: 'prop', look: 'silo' }, { kind: 'fork', nth: 1 }, { kind: 'fork', nth: 4 }, { kind: 'none' }];
+    const cues: Cue[] = [{ kind: 'site', id: 'bowl' }, { kind: 'deck', id: 'broken-wing' }, { kind: 'prop', look: 'silo' }, { kind: 'fork', nth: 2 }, { kind: 'fork', nth: 3 }, { kind: 'none' }];
     for (const locale of LOCALES) for (const cue of cues) expect(resolve(cueText(cue, 'turn'), locale).length).toBeGreaterThan(0);
+  });
+
+  it('names the place once and leaves the span off a road leg', () => {
+    const steps: DirectionStep[] = [
+      { do: 'join', octant: 'northWest', span: 'fair' },
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'fair' },
+      { do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'to', site: 'glass-flats' }, span: 'near' },
+      { do: 'arrive', site: 'glass-flats', area: true },
+      { do: 'search', clue: { kind: 'site', id: 'glass-flats' }, rough: false },
+    ];
+    expect(resolve(directionsText(steps), 'en')).toBe('Cut north-west a fair way to the road. Take the road to Nose. At the second fork, turn left. The road takes you right in. You will know it by glass ground round a half-buried ship engine.');
+  });
+
+  it('follows the road without naming it when it leads to the place', () => {
+    const steps: DirectionStep[] = [{ do: 'follow', road: { kind: 'to', site: 'bowl' }, span: 'near' }, { do: 'arrive', site: 'bowl', area: false }];
+    expect(resolve(directionsText(steps), 'en')).toBe('Follow the road. The road takes you to the gate.');
+  });
+
+  it('warns once about a long road leg, and not after a long cut to the road', () => {
+    const road = (span: 'fair' | 'far') => ({ do: 'follow', road: { kind: 'to', site: 'nose' }, span }) as const;
+    expect(resolve(directionsText([road('far')]), 'en')).toBe("Take the road to Nose. It's a long haul.");
+    expect(resolve(directionsText([{ do: 'join', octant: 'east', span: 'far' }, road('far')]), 'en')).toBe('Cut east a long way to the road. Take the road to Nose.');
+  });
+
+  it('warns of a long haul once across successive long road legs', () => {
+    const steps: DirectionStep[] = [
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' },
+      { do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'heading', octant: 'north' }, span: 'far' },
+      { do: 'askAgain' },
+    ];
+    expect(resolve(directionsText(steps), 'en').match(/long haul/g)).toHaveLength(1);
+  });
+
+  it('says past the fork where a wreck leave point is counted', () => {
+    expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
+  });
+
+  it('asks again plainly', () => {
+    expect(resolve(directionsText([{ do: 'askAgain' }]), 'en')).toBe('Ask again on the way.');
+  });
+
+  it('refuses to count a fork past the third', () => {
+    expect(() => cueText({ kind: 'fork', nth: 4 }, 'turn')).toThrow();
+    expect(() => cueText({ kind: 'fork', nth: 1 }, 'leave')).toThrow();
+  });
+
+  it('holds no digit, number or unit and names the place once in every real answer, in every language', () => {
+    const w = emptyWorld();
+    for (const from of [{ x: 200, y: 300 }, { x: 60, y: 40 }, { x: 400, y: 150 }]) {
+      for (const site of [...REGION.towns, ...REGION.locations]) {
+        const steps = directionsTo(w, from, { kind: 'site', id: site.id });
+        for (const locale of LOCALES) {
+          const text = resolve(directionsText(steps), locale);
+          expect(text, `${locale} ${site.id}`).not.toMatch(/[0-9#]|number|номер|\d\s?(m|km|м|км)\b/);
+        }
+        const english = resolve(directionsText(steps), 'en');
+        const sign = steps.find((x) => x.do === 'search' && x.clue.kind === 'site');
+        const name = resolve(siteName(site.id), 'en');
+        const body = sign ? english.slice(0, english.indexOf('You will know')) : english;
+        expect(body.split(name).length - 1, `${site.id} ${english}`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
   it('refuses an empty list', () => {

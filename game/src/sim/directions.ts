@@ -8,7 +8,7 @@ import { isCliff, tileAt } from './terrain';
 import type { Cue, DirectionStep, DirectionTarget, TurnSide, World } from './types';
 import { angleDiff, dist, type Vec } from './vec';
 
-type Spoken = { at: number; side: TurnSide; cue: Cue; out: number };
+type Spoken = { at: number; side: TurnSide; cue: Cue | null; out: number };
 
 const CLEAR_STEP = 1;
 
@@ -110,6 +110,7 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
   let first = 0;
   let earlier: Vec[] = [];
   let forks = 0;
+  let legStart = graph.nodes[path.nodes[0]].pos;
   const last = path.nodes.length - 1;
   for (let i = 1; i < last; i++) {
     const node = path.nodes[i];
@@ -118,10 +119,11 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
     const side = decision(graph, node, path.edges[i - 1], path.edges[i]);
     if (side) {
       const leg = legLines(graph, path.edges.slice(first, i), path.nodes, first);
-      const cue = cueAt(world, { pos: graph.nodes[node].pos, leg, earlier, forks, junctionHere: true });
+      const cue = cueAt(world, { pos: graph.nodes[node].pos, legStart, leg, earlier, forks, junctionHere: true });
       spoken.push({ at: i, side, cue, out: path.edges[i] });
       legs.push(lengthOf(graph, path.edges.slice(first, i)));
       first = i;
+      legStart = graph.nodes[node].pos;
       earlier = [];
       forks = 0;
     } else if (junction) earlier.push(graph.nodes[node].pos);
@@ -129,7 +131,7 @@ function walkPath(world: World, graph: RoadGraph, path: RoadPath): { spoken: Spo
   legs.push(lengthOf(graph, path.edges.slice(first)));
   const pos = graph.nodes[path.nodes[last]].pos;
   const leg = legLines(graph, path.edges.slice(first), path.nodes, first);
-  return { spoken, legs, tail: { pos, leg, earlier, forks, junctionHere: false } };
+  return { spoken, legs, tail: { pos, legStart, leg, earlier, forks, junctionHere: false } };
 }
 
 function lengthOf(graph: RoadGraph, edges: readonly number[]): number {
@@ -140,9 +142,10 @@ function speakPath(world: World, graph: RoadGraph, path: RoadPath, target: Direc
   const { spoken, legs, tail } = walkPath(world, graph, path);
   const steps: DirectionStep[] = [];
   if (path.edges.length > 0) steps.push({ do: 'follow', road: roadName(graph, path.edges[0], path.nodes[0]), span: spanOf(legs[0]) });
-  const allowed = spoken.slice(0, DIRECTIONS.maxSteps);
-  allowed.forEach((s, j) => steps.push({ do: 'turn', side: s.side, at: s.cue, road: roadName(graph, s.out, path.nodes[s.at]), span: spanOf(legs[j + 1]) }));
-  if (spoken.length > allowed.length) return [...steps, { do: 'askAgain', at: allowed[allowed.length - 1].cue }];
+  const firstUnreliable = spoken.findIndex((s) => s.cue === null);
+  const allowed = spoken.slice(0, Math.min(DIRECTIONS.maxSteps, firstUnreliable < 0 ? spoken.length : firstUnreliable));
+  allowed.forEach((s, j) => steps.push({ do: 'turn', side: s.side, at: s.cue as Cue, road: roadName(graph, s.out, path.nodes[s.at]), span: spanOf(legs[j + 1]) }));
+  if (spoken.length > allowed.length) return [...steps, { do: 'askAgain' }];
   return [...steps, ...finish(world, target, tail, spot)];
 }
 
@@ -154,5 +157,7 @@ function finish(world: World, target: DirectionTarget, tail: CueSpot, spot: Vec 
   }
   if (!spot) throw new Error('A spot target needs its leave point');
   const aim = { x: spot.x - tail.pos.x, y: spot.y - tail.pos.y };
-  return [{ do: 'leave', at: cueAt(world, tail), octant: octantOf(aim), span: spanOf(Math.hypot(aim.x, aim.y)) }, wreckSearch()];
+  const at = cueAt(world, tail);
+  if (!at) return [{ do: 'askAgain' }];
+  return [{ do: 'leave', at, octant: octantOf(aim), span: spanOf(Math.hypot(aim.x, aim.y)) }, wreckSearch()];
 }

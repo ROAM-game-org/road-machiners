@@ -400,7 +400,7 @@ export type DirectionStep =
   | { do: 'leave'; at: Cue; octant: Octant; span: Span }
   | { do: 'straight'; octant: Octant; span: Span }
   | { do: 'search'; clue: { kind: 'site'; id: string } | { kind: 'wreck' }; rough: boolean }
-  | { do: 'askAgain'; at: Cue }
+  | { do: 'askAgain' }
   | { do: 'noRoad'; octant: Octant; span: Span };
 
 export type CallVar =

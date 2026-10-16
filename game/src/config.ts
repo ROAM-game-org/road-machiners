@@ -17,6 +17,8 @@ export const SFX_BYTES = __SFX_BYTES__;
 declare const __FEEDBACK_URL__: string;
 export const FEEDBACK_URL = __FEEDBACK_URL__;
 
+export const DOWNLOAD = { tries: 3, waitMs: [1000, 3000] };
+
 export const CONFIG = {
   startKit: 'arrival',
   seed: null as number | null,
