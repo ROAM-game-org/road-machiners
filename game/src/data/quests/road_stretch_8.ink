@@ -11,7 +11,7 @@ Dusk at the eighth fort, and the Keepers are counting the evening's trucks throu
 Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. Both of yours are still rolling. The scout is held together now with the yard's weld and most of the pay.
 An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
 I knew a man with a burn like that. # speaker: Bram
-He says it mildly, the way you'd mention the weather. You know the ring he means. The Burnt Drivers' lieutenants wore it, and the Keepers kept the count of the starving winter. Then he turns to the next truck and goes on counting. # page
+He says it mildly, the way you'd mention the weather. You know the ring he means. Every Burnt Driver who ever plugged into the wrong seat wore it, and the Keepers wrote down every one they saw. Then he turns to the next truck and goes on counting. # page
 Your hand has gone to your neck without asking you. It has started to shake against the scar, and Ala is watching it. # page
 -> hand
 

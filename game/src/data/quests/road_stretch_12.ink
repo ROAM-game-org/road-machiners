@@ -37,11 +37,11 @@ Before the tank line there was the pass, in the years when Magnus never lost. A 
 = ask
 # checkpoint: start.ask
 Ala has been watching your face for a long time. She doesn't know what she's looking at. # page # img: road_ala
-At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Now the Keepers say that burn is a Burnt Driver lieutenant's. My father was driving that convoy at the pass. Were you there when it was taken? # speaker: Ala
+At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Now the Keepers say that burn is a Burnt Driver's. My father was driving that convoy at the pass. Were you there when it was taken? # speaker: Ala
 + [I rode with the Burnt Drivers. Your father died to us.]
   ~ ala_knows = "burnt"
   -> burnt
-+ [Somebody dead.]
++ [A man I knew. He's dead.]
   ~ ala_knows = "dead"
   -> dead
 + [I led them. My name was Magnus.]
@@ -49,7 +49,7 @@ At the eighth fort, an old Keeper looked at your neck and said he knew a man wit
   -> magnus
 
 = burnt
-It comes out without the name. You rode with the Burnt Drivers, you tell her, and they took and killed on this road until the winter that ended them. Her father died to them.
+You say it straight, without the name. You rode with the Burnt Drivers, and they took and killed on this road until the winter that ended them. Her father was one of the ones they killed.
 { father_told:
   I told you how he died. I didn't tell you that I'd know the man if I met him. # speaker: Ala
 - else:
@@ -75,7 +75,7 @@ I won't ask whether you were at the pass. If you were, tell me before you leave,
   -> stay
 
 = dead
-Somebody dead, you say. The man the Keeper knew is dead, in a way. It is the truest lie you have.
+A man you knew, you say, and he's dead. The man the Keeper knew is dead, in a way. It is the truest lie you have.
 There are a lot of those on this road. # speaker: Ala
 But your hand did not shake at a stranger. She lets it lie, because the road is long and she has learned to leave things where they are.
 -> stay
@@ -122,7 +122,7 @@ So. Are you riding on? # speaker: Ala
 # checkpoint: start.close
 { ala_knows == "burnt":
   She looks at the scar again.
-  { pass_said: I'm paying the man in front of me, and I'll want the rest of it. # speaker: Ala }
+  { pass_said: I'm paying the man in front of me, and I'll want the rest of that story. # speaker: Ala }
   { not pass_said: I'm paying the man in front of me, whoever he rode with. # speaker: Ala }
 }
 { ala_knows == "dead": She doesn't ask who the dead man was. She has learned to leave things where they lie. }

@@ -68,7 +68,7 @@ Ala stacks her M's in front of her and waits. # page # img: road_ala
 + {not asked_pay} [What does it pay?]
   ~ asked_pay = true
   I drive the hauler. You ride ahead and take what comes. I pay by the stretch, fort to fort: {stretch_pay(1)} M's for the first, and {stretch_pay(2) - stretch_pay(1)} more for each stretch after that. # speaker: Ala
-  Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. You front the first stretch yourself, from what you have left. # speaker: Ala
+  Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. The first stretch's fuel comes out of what you have left. After that, the pay carries you. # speaker: Ala
   She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The M's are paid at the far gate.
   -> menu
 + {not asked_trailer} [What's in the trailer?]
