@@ -20,6 +20,7 @@ import { jag } from './vehicle';
 import { instancedModel, model, socket } from './models';
 import { NIGHT_POOLS } from './lightPools';
 import { FORT_MODELS } from '../../sim/fortress';
+import { OutpostGateViews } from './outpostGates';
 import { PartDebris } from './partDebris';
 import type { RenderScope } from './scope';
 import { TERRAIN_CHUNK } from './terrain';
@@ -45,7 +46,9 @@ export class ObstacleViews {
   private lit = new Set<string>();
   private clock = 0;
 
-  constructor(private readonly scope: RenderScope, private readonly terrain: Terrain) {
+  private gates: OutpostGateViews | null = null;
+
+  constructor(private readonly scope: RenderScope, private readonly terrain: Terrain, private readonly onGatesShut: () => void = () => {}) {
     this.flying = new DebrisSim(terrain);
     this.parts = new PartDebris(scope, terrain);
   }
@@ -118,6 +121,13 @@ export class ObstacleViews {
     this.flying.step(dt);
     this.parts.play(trucks, dt);
     this.pulse(dt);
+    this.slideGates(anim !== null, world, dt);
+  }
+
+  private slideGates(playing: boolean, world: World, dt: number): void {
+    if (!world.furyRoad) return;
+    this.gates ??= new OutpostGateViews(this.scope, this.terrain, world);
+    if (this.gates.frame(world, playing, dt)) this.onGatesShut();
   }
 
   private pulse(dt: number): void {
@@ -268,7 +278,7 @@ function buildProp(t: Terrain, o: Obstacle): THREE.Object3D {
   return g;
 }
 
-const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...FORT_MODELS.values()].map((f) => f.model));
+const FORT_PIECE_MODELS: ReadonlySet<string> = new Set([...[...FORT_MODELS.values()].map((f) => f.model), 'fort_outpost_shut']);
 
 function lightFortPiece(obj: THREE.Object3D): void {
   obj.traverse((o) => {

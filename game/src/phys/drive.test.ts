@@ -253,7 +253,7 @@ describe('physics turns', () => {
     const { w: after, d } = play(w, 8);
     freeDrive(d);
     expect(me(after).speed).toBeLessThan(0.05);
-    expect(dist(me(after).pos, { x: 40, y: 30 })).toBeLessThan(0.6);
+    expect(dist(me(after).pos, { x: 40, y: 30 })).toBeLessThan(0.1);
   });
 
   describe('mud driving', () => {

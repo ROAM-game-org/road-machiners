@@ -380,6 +380,7 @@ export const LOG = {
   'refusal.badLayout': m('{cause}. Items would fall off the grid or overlap.', { cause: 'text' }),
   'refusal.itemGone': 'That item is gone',
   'refusal.refitRunning': 'Finish the refit before changing inventory',
+  'refusal.gatesShut': 'The gates are shut',
   'refusal.twoInTheWay': 'More than one item is in the way',
   'refusal.refitItemMoved': 'An item needed for the refit has moved or disappeared',
   'refusal.builtInFixed': 'Built-in parts cannot be moved',
