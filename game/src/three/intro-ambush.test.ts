@@ -373,6 +373,7 @@ describe('the fall and the wake in Bowl', () => {
 
   it('takes the cargo the player spilled in the fight, then still has the driver towed to Bowl', () => {
     let w = ambushed();
+    w.rngState += 1;
     playerVehicle(w).order = { kind: 'brake' };
     let broken = false;
     let spills = 0;
