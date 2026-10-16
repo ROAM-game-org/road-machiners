@@ -531,7 +531,7 @@ export const OLD_WORLD: {
   settlements: {
     seedOffset: 7001,
     candidateStep: 4,
-    count: 14,
+    count: 24,
     spacing: 45,
     anchorGap: [12, 80],
     jitter: 0.5,
@@ -554,7 +554,7 @@ export const OLD_WORLD: {
     rise: 0.5,
     directions: 3,
     flatSlope: 0.15,
-    count: 10,
+    count: 17,
     spacing: 60,
     roadGap: 3,
     radius: [1, 1.4],
@@ -592,7 +592,7 @@ export const OLD_WORLD: {
     bankBack: 3,
   },
   highway: {
-    count: 4,
+    count: 5,
     spacing: 80,
     maxLength: 400,
     bridgeCost: 1.2,
@@ -849,7 +849,7 @@ export const ROADSIDE = {
     yawJitter: 0.5,
     oldRoadChance: 0.02,
     oldRoadSpacing: 22,
-    band: [80, 160] as RoadsideBand,
+    band: [104, 208] as RoadsideBand,
   },
   boards: {
     radius: 0.55,
@@ -860,7 +860,7 @@ export const ROADSIDE = {
     gap: 1.2,
     spread: 0.8,
     yawJitter: 0.2,
-    band: [15, 40] as RoadsideBand,
+    band: [20, 52] as RoadsideBand,
   },
   barrels: {
     radius: 0.15,
@@ -868,7 +868,7 @@ export const ROADSIDE = {
     houseChance: 0.4,
     houseLooks: ['ruin', 'shack', 'house'] as readonly string[],
     reach: [0.4, 1.4] as readonly [number, number],
-    band: [80, 160] as RoadsideBand,
+    band: [104, 208] as RoadsideBand,
   },
   heaps: {
     radius: 0.44,
@@ -877,7 +877,7 @@ export const ROADSIDE = {
     tankChance: 0.5,
     junkChance: 0.5,
     reach: [0.6, 1.6] as readonly [number, number],
-    band: [15, 40] as RoadsideBand,
+    band: [20, 52] as RoadsideBand,
   },
   trees: {
     radius: 0.3,
@@ -889,6 +889,6 @@ export const ROADSIDE = {
     fieldChance: 0.006,
     group: [1, 3] as readonly [number, number],
     groupSpread: 1.4,
-    band: [150, 300] as RoadsideBand,
+    band: [253, 507] as RoadsideBand,
   },
 };

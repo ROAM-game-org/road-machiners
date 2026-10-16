@@ -286,7 +286,7 @@ export const REGION = {
   roads: [
     scaleRoad([
       { x: 16, y: 94 },
-      { x: 21, y: 85 },
+      { x: 21.4, y: 85 },
       { x: 25, y: 73 },
       { x: 28, y: 64 },
       { x: 31, y: 54 },
@@ -298,7 +298,7 @@ export const REGION = {
       { x: 70, y: 18 },
       { x: 77, y: 24 },
       { x: 89, y: 26 },
-      { x: 96, y: 31 },
+      { x: 96.4, y: 31 },
       { x: 102, y: 35 },
     ]),
     scaleRoad([
@@ -313,7 +313,7 @@ export const REGION = {
       { x: 88, y: 84 },
       { x: 95, y: 78 },
       { x: 103, y: 70 },
-      { x: 105, y: 58 },
+      { x: 104.6, y: 58 },
       { x: 102, y: 35 },
     ], [9]),
     scaleRoad([
@@ -394,7 +394,7 @@ export const REGION = {
   ] as Vec[][],
   roadWidth: 6,
   obstacles: {
-    roadWrecks: 30,
+    roadWrecks: 39,
     roadWreckShoulder: [0.5, 0.85] as [number, number],
     roadClearance: 1.6,
     siteClearance: 8,
