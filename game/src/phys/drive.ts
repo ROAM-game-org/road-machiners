@@ -15,7 +15,7 @@ import { vehicleMass } from '../sim/mass';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
 import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
-import { routeBlockers } from '../sim/ai';
+import { routeBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance } from '../sim/clearance';
 import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
@@ -572,6 +572,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   };
   if (!order) return { ...base, dest: null, route: null, target: idleTarget(speed), stopAt: false };
   if (order.kind === 'brake') return { ...base, dest: null, route: null, target: 0, stopAt: false };
+  if (yieldsToTraffic(w, v)) return { ...base, dest: null, route: null, target: 0, stopAt: false };
   const blockers = routeBlockers(w, v);
   const stored = mem.route && dist(mem.route.dest, order.dest) < RULES.arriveRadius && mem.route.radius === s.radius ? continueRoute(w, v.pos, mem.route, order.dest, s.radius, blockers, v) : null;
   const path = v.direct ? null : stored ?? [...route(w, v.pos, order.dest, s.radius, blockers, v)];
