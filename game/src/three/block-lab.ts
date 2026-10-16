@@ -96,7 +96,6 @@ function flipCombat(): void {
   music.setCombat(!music.inCombat);
   if (!music.inCombat) return;
   session().cymbalGain = cymbalGain;
-  songTitle.textContent = music.title ?? "";
   nextTurn = ctx.currentTime + SCORE_BLOCKS.startLeadSeconds;
 }
 
@@ -335,7 +334,7 @@ const cymbalChoice = choice(
   gains.indexOf(SCORE_BLOCKS.cymbalGain),
 );
 const controlsPanel = panel(
-  el("div", { class: "score-lab-buttons" }, combatButton, denseButton),
+  el("div", { class: "score-lab-buttons" }, combatButton, denseButton, el("button", { onclick: () => music.nextSong() }, "Next song")),
   ...eventButtons,
   el("span", { class: "dim" }, "Auto fight"),
   autoChoice,
@@ -367,6 +366,8 @@ function statRows(): [string, string][] {
 }
 
 function syncStats(): void {
+  songTitle.textContent = music.title ?? "";
+  session().cymbalGain = cymbalGain;
   const rows = statRows();
   const key = rows.map((r) => r[1]).join("|");
   if (statsBox.dataset.key === key) return;

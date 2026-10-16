@@ -150,7 +150,7 @@ describe("engine sound assignment", () => {
         };
       },
     } as unknown as SoundPlayer;
-    const loops = new SoundLoops(player, { setCombat: () => {} });
+    const loops = new SoundLoops(player, { setCombat: () => {}, nextSong: () => {} });
     const glide = engineGlide(0, 10, 1, MIX, false)!;
 
     loops.drive(glide, "scout", { from: 0, to: 0 });
@@ -258,7 +258,8 @@ describe("next track", () => {
         return { glide: () => {}, once: () => {}, setGain: (g: number) => handle.gains.push(g), stop: (ms: number) => handle.stops.push(ms) };
       },
     } as unknown as SoundPlayer;
-    return { calm, quest, abandoned, loops: new SoundLoops(player, { setCombat: () => {} }) };
+    const songs: string[] = [];
+    return { calm, quest, abandoned, songs, loops: new SoundLoops(player, { setCombat: () => {}, nextSong: () => songs.push("next") }) };
   };
   const road = { stormShare: 1, inCombat: false, inQuest: false, place: null, paused: false } as const;
 
@@ -306,11 +307,27 @@ describe("next track", () => {
     expect(calm[files.length].file).toBe(cycle[0]);
   });
 
-  it("keeps the new track silent in combat", () => {
-    const { calm, loops } = fake();
+  it("moves combat to the next song and leaves the calm music alone", () => {
+    const { calm, songs, loops } = fake();
     loops.update({ ...road, inCombat: true });
     loops.nextTrack();
-    expect(calm[1].gains).toEqual([0]);
+    expect(songs).toEqual(["next"]);
+    expect(calm).toHaveLength(1);
+  });
+
+  it("changes the quest or ruin track that is playing", () => {
+    const { quest, abandoned, songs, loops } = fake();
+    loops.update({ ...road, inQuest: true, inCombat: true });
+    const quests = quest.length;
+    loops.nextTrack();
+    expect(quest).toHaveLength(quests + 1);
+    expect(quest.at(-1)!.gains).toEqual([1]);
+    loops.update({ ...road, place: "abandoned" });
+    const ruins = abandoned.length;
+    loops.nextTrack();
+    expect(abandoned).toHaveLength(ruins + 1);
+    expect(abandoned.at(-1)!.gains).toEqual([1]);
+    expect(songs).toEqual([]);
   });
 });
 

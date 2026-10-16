@@ -305,7 +305,7 @@ export class SoundLoops {
   private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private music: Pick<CombatMusic, "setCombat">) {
+  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
@@ -370,8 +370,17 @@ export class SoundLoops {
   }
 
   nextTrack(): void {
+    const l = this.last;
+    if (l?.combatGain && !l.questGain) return this.music.nextSong();
     const fade = MIX.music.fadeSeconds;
-    this.calm.next(fade);
-    this.calm.setGain(this.last?.calmGain ?? 0, fade);
+    const [playlist, key] = this.playingList(l);
+    playlist.next(fade);
+    playlist.setGain(l?.[key] ?? 0, fade);
+  }
+
+  private playingList(l: LoopLevels | null): [Playlist, "calmGain" | "questGain" | "abandonedGain"] {
+    if (l?.questGain) return [this.quest, "questGain"];
+    if (l?.abandonedGain) return [this.abandoned, "abandonedGain"];
+    return [this.calm, "calmGain"];
   }
 }

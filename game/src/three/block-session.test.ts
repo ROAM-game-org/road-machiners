@@ -107,6 +107,21 @@ describe("CombatMusic", () => {
     music.setCombat(false);
   });
 
+  it("switches a fight to the next song on the radio's next key, intro first", async () => {
+    const names = Object.keys(COMBAT_SONGS);
+    const music = new CombatMusic(fakeCtx(), {} as AudioNode, async (name) => kitOf(name), () => 0, (e) => { throw e; });
+    await music.ready();
+    music.setCombat(true);
+    const first = music.session!;
+    music.nextSong();
+    await music.ready();
+    expect(first.inCombat).toBe(false);
+    expect(music.session!.inCombat).toBe(true);
+    expect(music.session!.played[0].role).toBe("intro");
+    expect(music.title).toBe(COMBAT_SONGS[names[1]].title);
+    music.setCombat(false);
+  });
+
   it("boots and stays silent in combat when no song loads", async () => {
     const errors: unknown[] = [];
     const music = new CombatMusic(fakeCtx(), {} as AudioNode, async () => { throw new Error("no song"); }, () => 0, (e) => errors.push(e));

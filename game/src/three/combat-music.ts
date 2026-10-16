@@ -1,5 +1,5 @@
 import SONGS from "../data/combat-songs.json";
-import { soundsWith } from "../data/sounds";
+import { SCORE_BLOCKS, soundsWith } from "../data/sounds";
 import { loadBank, type BankOptions } from "../audio/bank";
 import { BlockSession, type BlockEvent, type BlockSong, type Fired } from "./block-session";
 import { BlockVoices, type KitBuffers } from "./block-voices";
@@ -29,6 +29,7 @@ export function bankKitLoader(ctx: BaseAudioContext, options: BankOptions): KitL
 
 export class CombatMusic {
   private kit: Kit | null = null;
+  private playing: Kit | null = null;
   private loading: Promise<void>;
   private current: BlockSession | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -54,7 +55,7 @@ export class CombatMusic {
   }
 
   get title(): string | null {
-    return this.kit?.song.title ?? null;
+    return (this.playing ?? this.kit)?.song.title ?? null;
   }
 
   get inCombat(): boolean {
@@ -71,6 +72,29 @@ export class CombatMusic {
     return this.current?.fire(kind, at) ?? null;
   }
 
+  nextSong(): void {
+    const names = Object.keys(COMBAT_SONGS);
+    const name = names[(names.indexOf(this.kit?.name ?? names[0]) + 1) % names.length];
+    this.loading = this.load(name)
+      .then((kit) => {
+        if (kit) this.switchTo(kit);
+      })
+      .catch(this.onError);
+  }
+
+  private switchTo(kit: Kit): void {
+    this.kit = kit;
+    const old = this.current;
+    if (!old?.inCombat) return;
+    const at = old.end(this.ctx.currentTime);
+    const tail = old.played.at(-1)!;
+    for (const v of tail.voices) v.fadeOut(at + old.beatSeconds, old.beatSeconds / 2);
+    this.voices.use(kit.buffers);
+    this.playing = kit;
+    this.current = new BlockSession(kit.song, this.voices, this.roll);
+    this.current.start(at - SCORE_BLOCKS.startLeadSeconds);
+  }
+
   tick(): void {
     this.current?.tick(this.ctx.currentTime);
   }
@@ -79,6 +103,7 @@ export class CombatMusic {
     const kit = this.kit;
     if (!kit) return;
     this.voices.use(kit.buffers);
+    this.playing = kit;
     this.current = new BlockSession(kit.song, this.voices, this.roll);
     this.current.start(this.ctx.currentTime);
     this.timer ??= setInterval(() => this.tick(), TICK_MS);
