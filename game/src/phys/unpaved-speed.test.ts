@@ -20,6 +20,7 @@ const TURNS = 14;
 function topSpeedAlong(offset: number): { speed: number; paved: boolean } {
   let w = furyRoadWorld(SEED);
   w.furyRoad!.groups = [];
+  w.obstacles = [];
   const me = playerVehicle(w);
   me.pos = roadPoint(SEED, 0, START, offset);
   me.heading = roadHeading(SEED, START);
