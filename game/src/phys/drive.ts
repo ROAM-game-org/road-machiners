@@ -18,6 +18,7 @@ import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
 import { routeBlockers, yieldsToTraffic } from '../sim/ai';
 import { clearanceFor, type Clearance, type Mover } from '../sim/clearance';
 import { combatFoesOf } from '../sim/combat';
+import { ropeClientOf } from '../sim/tow';
 import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
 import { deckSegments, groundAt, heightAt, tileAt, type DeckSegment, type Terrain } from '../sim/terrain';
@@ -735,7 +736,8 @@ function watchClearance(c: Car, at: Vec, heading: number, speed: number, dest: V
 }
 
 function avoidOf(w: World, v: Vehicle): Set<string> {
-  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...combatFoesOf(w, v)]);
+  const client = ropeClientOf(w, v.id);
+  return new Set([v.id, ...(v.brain?.ramTarget ? [v.brain.ramTarget] : []), ...(client ? [client] : []), ...combatFoesOf(w, v)]);
 }
 
 function moversNear(c: Car, from: Vec, reach: number, seconds: number): Mover[] {
