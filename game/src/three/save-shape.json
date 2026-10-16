@@ -2229,7 +2229,6 @@
     "arrival_rope": "boolean"
    },
    "intro_bowl": {
-    "asked_brought": "boolean",
     "asked_flats": "boolean",
     "asked_kiln": "boolean",
     "asked_next": "boolean",

@@ -31,9 +31,6 @@ describe('Hattie after the first fall', () => {
 
   it('opens the follow-ups only after their parent', () => {
     let w = at();
-    expect(offered(w)).not.toContain('Who brought me in?');
-    w = ask(w, 'What happened to me?');
-    expect(offered(w)).toContain('Who brought me in?');
     expect(offered(w).some((c) => c.startsWith('And '))).toBe(false);
     w = ask(w, 'What is out there?');
     expect(offered(w).filter((c) => c.startsWith('And '))).toHaveLength(4);
