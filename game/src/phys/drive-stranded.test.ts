@@ -44,7 +44,7 @@ describe('stranded trucks', () => {
 
   it('sets a truck lying on top of another truck down on free ground beside it', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 30 });
     const d = buildDrive(w);
     const under = d.world.getRigidBody(d.bodies[npc.id]).translation();
     const top = d.world.getRigidBody(d.bodies[w.vehicles[0].id]);
@@ -88,7 +88,7 @@ describe('oil patches', () => {
   function streakAhead(speed: number, spills: number, gap = 2): World {
     const w = ordered({ kind: 'through', dest: { x: 80, y: 30 } }, speed);
     const spill = spillOf();
-    const dropper = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 0, y: 30 });
+    const dropper = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 0, y: 30 });
     dropper.pos = { x: 30 + gap + dropClearance(dropper, spill.behind) + oilSlickLength(), y: 30 };
     for (let i = 0; i < spills; i++) spillOil(w, dropper, spill);
     w.vehicles = w.vehicles.filter((v) => v.id !== dropper.id);

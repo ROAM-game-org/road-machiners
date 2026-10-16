@@ -15,7 +15,7 @@ import { TEST_MAP } from '../test/map';
 
 function driver(w: World, faction: Faction, goal: NpcActivity['kind'] | null): Vehicle {
   const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
-  v.brain = npcBrain('test', { x: 60, y: 60 }, []);
+  v.brain = npcBrain('test', { x: 60, y: 60 }, faction === 'scrapjaw' || faction === 'kiln' ? ['raider'] : []);
   if (goal) v.brain.goals = [{ kind: goal, targetId: null, destination: { x: 60, y: 60 }, phase: 'travel', reason: 'tripToSite' }];
   return v;
 }
@@ -23,30 +23,30 @@ function driver(w: World, faction: Faction, goal: NpcActivity['kind'] | null): V
 describe('keepsOffRoads', () => {
   it('holds for a raider that retreats or flees', () => {
     const w = emptyWorld();
-    expect(keepsOffRoads(w, driver(w, 'raiders', 'retreat'))).toBe(true);
-    expect(keepsOffRoads(w, driver(w, 'raiders', 'flee'))).toBe(true);
+    expect(keepsOffRoads(w, driver(w, 'scrapjaw', 'retreat'))).toBe(true);
+    expect(keepsOffRoads(w, driver(w, 'scrapjaw', 'flee'))).toBe(true);
   });
 
   it('holds for a stranded raider whatever its goal', () => {
     const w = emptyWorld();
-    const dry = driver(w, 'raiders', 'sell');
+    const dry = driver(w, 'scrapjaw', 'sell');
     dry.resources!.fuel = 0;
-    const geared = driver(w, 'raiders', 'fight');
+    const geared = driver(w, 'scrapjaw', 'fight');
     corePart(geared, 'transmission').hp = 0;
-    const engineless = driver(w, 'raiders', null);
+    const engineless = driver(w, 'scrapjaw', null);
     mountedParts(engineless, 'engine')[0].hp = 0;
     expect([dry, geared, engineless].map((v) => keepsOffRoads(w, v))).toEqual([true, true, true]);
   });
 
   it('leaves a healthy raider not hunting on the roads', () => {
     const w = emptyWorld();
-    for (const goal of ['sell', 'fight', null] as const) expect(keepsOffRoads(w, driver(w, 'raiders', goal))).toBe(false);
+    for (const goal of ['sell', 'fight', null] as const) expect(keepsOffRoads(w, driver(w, 'scrapjaw', goal))).toBe(false);
   });
 
   it('sends a raider out on a raid, a patrol or an investigation off the roads', () => {
     const w = emptyWorld();
     for (const goal of ['raid', 'patrol', 'investigate'] as const) {
-      const v = driver(w, 'raiders', goal);
+      const v = driver(w, 'scrapjaw', goal);
       v.brain!.traits = ['raider'];
       expect(keepsOffRoads(w, v)).toBe(true);
     }
@@ -54,7 +54,7 @@ describe('keepsOffRoads', () => {
 
   it('leaves other factions and the player on the roads', () => {
     const w = emptyWorld();
-    const trader = driver(w, 'traders', 'travel');
+    const trader = driver(w, 'independent', 'travel');
     trader.resources!.fuel = 0;
     expect(keepsOffRoads(w, trader)).toBe(false);
     expect(keepsOffRoads(w, driver(w, 'nose', 'flee'))).toBe(false);
@@ -67,8 +67,8 @@ describe('the recorder world log', () => {
   it('tells which trucks keep off roads and which stand on a road', () => {
     const w = emptyWorld();
     w.turn = 20;
-    const runner = driver(w, 'raiders', 'flee');
-    const healthy = driver(w, 'raiders', 'sell');
+    const runner = driver(w, 'scrapjaw', 'flee');
+    const healthy = driver(w, 'scrapjaw', 'sell');
     const trucks = worldLine(w, [])!.trucks!;
     expect(trucks.find((t) => t.id === runner.id)).toMatchObject({ offRoad: true, onRoad: true });
     expect(trucks.find((t) => t.id === healthy.id)).toMatchObject({ offRoad: false, onRoad: true });
@@ -88,7 +88,7 @@ describe('raiders keeping off roads in the turn pipeline', () => {
   }
 
   function raider(w: World, pos: { x: number; y: number }): Vehicle {
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], pos, Math.PI / 2);
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], pos, Math.PI / 2);
     v.brain = npcBrain('buggy', pos, ['raider']);
     return v;
   }
@@ -131,7 +131,7 @@ describe('raiders keeping off roads in the turn pipeline', () => {
     let w = campRoad();
     const dry = raider(w, { x: 325, y: 300 });
     dry.resources!.fuel = 0;
-    const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 326, y: 250 }, Math.PI / 2);
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 326, y: 250 }, Math.PI / 2);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.resources!.fuel = 0;
     const patrol = raider(w, { x: 325, y: 220 });
