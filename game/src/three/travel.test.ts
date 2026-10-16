@@ -254,7 +254,7 @@ describe("automatic travel safety", () => {
     const world = makeSafeWorld();
     const enemy = structuredClone(playerVehicle(world));
     enemy.id = "enemy";
-    enemy.faction = "raiders";
+    enemy.faction = "scrapjaw";
     world.vehicles.push(enemy);
     expect(canTravel(world)).toBe(true);
   });

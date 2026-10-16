@@ -114,7 +114,7 @@ it.each([false, true])("a turn from the playback snapshot after a main-thread sy
 function fallingWorld() {
   const world = newWorld(1337, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
   const me = playerVehicle(world);
-  const raider = addVehicle(world, "raiders", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
+  const raider = addVehicle(world, "scrapjaw", "buggy", [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
   corePart(me, "cab").hp = 0;
   return world;

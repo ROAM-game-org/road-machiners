@@ -3,7 +3,7 @@ import type { PlanFrames } from "../phys/plan";
 import type { PreviewRequest, PreviewResponse } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { PAL } from "../render/palette";
-import { throttleFor } from "../sim/steering";
+import { driveMode, throttleFor } from "../sim/steering";
 import type { Vehicle, World } from "../sim/types";
 import type { Vec } from "../sim/vec";
 import { currentQuestLanguage } from "../sim/quests";
@@ -12,7 +12,7 @@ import { workerError } from "./travel";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export function throttleColor(me: Vehicle, p: Vec): number {
-  return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed)];
+  return PAL.throttle[throttleFor(Math.hypot(p.x - me.pos.x, p.y - me.pos.y), me.speed, driveMode(me))];
 }
 
 export function firstTurnColor(me: Vehicle): number {

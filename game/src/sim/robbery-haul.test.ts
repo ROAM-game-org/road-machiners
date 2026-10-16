@@ -15,10 +15,10 @@ function scene(preyGoods: Record<string, number>, fillRobber = 0) {
   forceOption('mugging', 'demand');
   forceOption('threatened', 'comply');
   const w = emptyWorld({ x: 200, y: 200 });
-  const robber = addVehicle(w, 'scavengers', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
+  const robber = addVehicle(w, 'independent', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
   robber.brain = npcBrain('scavenger', robber.pos, ['scavenger', 'scumbag']);
   if (fillRobber > 0) addGoods(w, robber, 'scrap', fillRobber);
-  const prey = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: 15, y: 10 });
+  const prey = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 15, y: 10 });
   prey.brain = npcBrain('trader', prey.pos, ['trader']);
   for (const [good, n] of Object.entries(preyGoods)) addGoods(w, prey, good, n);
   return { w, robber, prey };

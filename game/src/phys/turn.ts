@@ -28,7 +28,7 @@ export type PreparedTurn = {
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; questLanguage: QuestLanguage; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -74,7 +74,12 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
   }
 }
 
-function startTurnWorker(): void {
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  setQuestLanguage(request.questLanguage);
+  return computeTurn(request, terrain);
+}
+
+export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -97,7 +102,7 @@ function startTurnWorker(): void {
 function answer(request: WorkerRequest, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
-      const turn = computeTurn(request, terrain);
+      const turn = computeRequestedTurn(request, terrain);
       self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
@@ -115,7 +120,6 @@ function describeWorkerError(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-if (typeof self !== 'undefined' && !('document' in self)) startTurnWorker();
 
 const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
@@ -179,11 +183,20 @@ function applyDriven(w: World, r: TurnResult, v: Vehicle, frames: TurnResult['fr
   v.pos = s.pos;
   v.heading = s.heading;
   v.speed = Math.max(0, toTilesPerTurn(s.speed));
-  v.strandedTurns = s.upright && !isLifted(r.next, w, v) ? 0 : (v.strandedTurns ?? 0) + 1;
+  const free = s.upright && !isLifted(r.next, w, v) && !isHung(v, r.results[v.id], start, frames);
+  v.strandedTurns = free ? 0 : (v.strandedTurns ?? 0) + 1;
   if (v.strandedTurns >= RULES.stranded.turns) setDown(w, v);
   v.trail = trailOf(start, frames);
   burnFuel(w, v, pathLength(v.trail));
   settleOrder(w, v, r.results[v.id]);
+}
+
+function isHung(v: Vehicle, res: VehicleResult, start: Pose, frames: TurnResult['frames'][string]): boolean {
+  const last = frames.at(-1);
+  if (!last) throw new Error(`Driven vehicle ${v.id} has no frames`);
+  if (!v.order || v.order.kind === 'brake' || res.arrived || res.passed) return false;
+  if (dist(start, v.pos) >= RULES.stranded.still) return false;
+  return last.wheels.some((wheel) => !wheel.ground);
 }
 
 function settleOrder(w: World, v: Vehicle, res: VehicleResult): void {
@@ -237,3 +250,6 @@ function pathLength(trail: Pose[]): number {
   for (let i = 1; i < trail.length; i++) total += dist(trail[i - 1], trail[i]);
   return total;
 }
+
+const scope = globalThis as { document?: unknown; onmessage?: unknown };
+if (typeof self !== 'undefined' && scope.document === undefined && !scope.onmessage) startTurnWorker();

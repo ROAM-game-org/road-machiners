@@ -33,7 +33,7 @@ function road(): World {
 }
 
 function truck(w: World, chassisId: string, parts: string[]): Vehicle {
-  const v = addVehicle(w, 'scavengers', chassisId, parts, { x: 20, y: ROAD_Y }, 0);
+  const v = addVehicle(w, 'independent', chassisId, parts, { x: 20, y: ROAD_Y }, 0);
   v.order = { kind: 'stopAt', dest: { x: 400, y: ROAD_Y } };
   return v;
 }
@@ -87,7 +87,7 @@ describe('driven speed on an open road', () => {
     tower.pos = { x: 20, y: ROAD_Y };
     tower.heading = 0;
     const free = vehicleStats(w, tower).maxSpeed;
-    const client = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 17, y: ROAD_Y }, 0);
+    const client = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 17, y: ROAD_Y }, 0);
     client.brain = npcBrain('scavenger', client.pos, ['scavenger']);
     addState(w, 'tow', tower.id, client.id, { kind: 'tow', site: npcHomeSite(TEST_MAP, client)!.id, fee: 0, waived: 0, hitched: true });
     const towed = setMoveOrder(w, { kind: 'stopAt', dest: { x: 400, y: ROAD_Y } });

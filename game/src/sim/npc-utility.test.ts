@@ -19,7 +19,7 @@ const DAY = Array.from({ length: TIME.turnsPerDay }, (_, i) => i + 1).find((t) =
 
 function npcWith(defId: string): { w: World; npc: Vehicle; part: PartInstance } {
   const w = emptyWorld();
-  const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine', defId], { ...NPC_POS });
+  const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine', defId], { ...NPC_POS });
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   const part = mountedParts(npc).find((p) => p.defId === defId);
   if (!part) throw new Error(`${defId} did not mount`);
@@ -27,7 +27,7 @@ function npcWith(defId: string): { w: World; npc: Vehicle; part: PartInstance } 
 }
 
 function foeAt(w: World, npc: Vehicle, dx: number, heading = 0, speed = 3): Vehicle {
-  const foe = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: npc.pos.x + dx, y: npc.pos.y }, heading);
+  const foe = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: npc.pos.x + dx, y: npc.pos.y }, heading);
   foe.speed = speed;
   addState(w, 'feud', foe.id, npc.id, { kind: 'feud', robbery: false });
   return foe;
@@ -203,7 +203,7 @@ describe('NPC emitter', () => {
   it('holds the pulse with a faction mate in the radius', () => {
     const { w, npc, part } = npcWith('emitter');
     startCombat(w, foeAt(w, npc, 4), npc);
-    addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: npc.pos.x, y: npc.pos.y + 4 });
+    addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: npc.pos.x, y: npc.pos.y + 4 });
 
     assignUtilityOrders(w);
 
@@ -283,7 +283,7 @@ describe('who gets utility orders', () => {
     const me = w.vehicles[0];
     const part = makePart(w, 'sprout', 0);
     if (!mountPart(w, me, part)) throw new Error('No deck room for the sprout');
-    const foe = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
+    const foe = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
     startCombat(w, foe, me);
 
     assignUtilityOrders(w);

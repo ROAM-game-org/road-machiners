@@ -399,9 +399,9 @@ export class TurnPreparation {
       {
         kind: "turn",
         id,
+        questLanguage: currentQuestLanguage(),
         world: state,
         drive: saved,
-        questLanguage: currentQuestLanguage(),
         terrain: this.terrain === terrain ? null : terrain,
       } satisfies TurnRequest,
       [saved.snapshot.buffer as ArrayBuffer],

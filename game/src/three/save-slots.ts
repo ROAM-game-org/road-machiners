@@ -50,10 +50,6 @@ export function listSaves(slots: SaveSlots, count: number): SlotInfo[] {
   return infos.sort((a, b) => b.savedAt - a.savedAt);
 }
 
-export function newestSlot(slots: SaveSlots, count: number): SlotId | null {
-  return listSaves(slots, count)[0]?.slot ?? null;
-}
-
 export type RoadBoot = { slot: SlotId; reason: 'road' };
 export type BootRequest = SlotId | { new: WorldSetup; intro: boolean } | RoadBoot;
 

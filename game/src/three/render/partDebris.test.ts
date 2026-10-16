@@ -103,7 +103,7 @@ describe('prop debris', () => {
 describe('playBreak', () => {
   it('plays a part that the wreck lost in the same turn', () => {
     const turnStart = emptyWorld();
-    const npc = addVehicle(turnStart, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
+    const npc = addVehicle(turnStart, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 34, y: 30 });
     const gun = npc.items.find((it) => it.kind === 'part' && it.part.defId === 'mg')!;
     const world = cloneWorld(turnStart);
     const wreck = world.vehicles.find((v) => v.id === npc.id)!;

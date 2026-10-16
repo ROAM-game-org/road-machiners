@@ -9,7 +9,8 @@ import { hostileToPlayer, newWorld, threatToPlayer } from './world';
 function worldWithRaider() {
   const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
   const me = playerVehicle(w);
-  const raider = addVehicle(w, 'raiders', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
+  w.player.standing.scrapjaw = -100;
   raider.brain = npcBrain('raider', raider.pos, []);
   return { w, me, raider };
 }
