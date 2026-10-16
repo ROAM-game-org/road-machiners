@@ -7,13 +7,30 @@ import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { bodyOf } from "../sim/body";
-import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
 const smash = (prop: string, vehicle: string, step: number): Break => ({ prop, vehicle, step });
 const land = (vehicle: string, step: number): Landing => ({ vehicle, impact: 3, step });
 const none = { crashes: [], breaks: [], landings: [] };
+
+describe("scoreEventMs", () => {
+  const knockout: GameEvent = { t: "npcKnockout", by: "p" } as GameEvent;
+
+  it("puts a crash on its physics step, or at the move's end when it has none", () => {
+    const crashed = hit("a", "b");
+    const far = hit("a", "fence1");
+    const timed = collisionSteps([crashed, far], { ...none, crashes: [crash("a", "b", 30)] });
+    expect(scoreEventMs(crashed, timed, 60, 1500)).toBe(500);
+    expect(scoreEventMs(far, timed, 60, 1500)).toBe(1000);
+  });
+
+  it("leaves shots to their volleys and puts a knockout where the shots land", () => {
+    expect(scoreEventMs({ t: "shot" } as GameEvent, [], 60, 1500)).toBeNull();
+    expect(scoreEventMs(knockout, [], 60, 1500)).toBe(1500);
+  });
+});
 
 describe("collisionSteps", () => {
   it("matches a truck crash by pair in either order", () => {
