@@ -12,7 +12,7 @@ function passingRaider() {
   const w = emptyWorld({ x: 30, y: 30 });
   const me = w.vehicles[0];
   addGoods(w, me, 'parts', 5);
-  const raider = addVehicle(w, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 36, y: 30 });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 36, y: 30 });
   raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
   return { w, me, raider };
 }

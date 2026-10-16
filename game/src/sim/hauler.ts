@@ -5,7 +5,7 @@ import { haulerOf } from './damage';
 import { backOutSpot } from './back-out';
 import { footprint, halfLength, halfWidth } from './body';
 import { isDefeated } from './defeat';
-import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
+import { betweenLevels, inYard, yardSpots } from './outpost-gates';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
 import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
@@ -154,11 +154,15 @@ function isParked(hauler: Vehicle): boolean {
   return hauler.speed <= RULES.parkedSpeed;
 }
 
-function requireOnLaneOrPad(world: World, order: MoveOrder): void {
+function parkSpot(world: World): Vec {
+  const run = runOf(world);
+  return yardSpots(world, run.waitingAt ?? run.window + 1).hauler;
+}
+
+function requireOnLaneOrSpot(world: World, order: MoveOrder): void {
   if (order.kind === 'brake') return;
-  const pad = outpostPad(world, runOf(world).window + 1);
   if (order.kind === 'stopAt') {
-    if (dist(order.dest, pad) > 0) throw new Error('The hauler stops only at the outpost pad');
+    if (dist(order.dest, parkSpot(world)) > 0) throw new Error('The hauler stops only at its park spot in the outpost yard');
     return;
   }
   const across = acrossNow(world, order.dest);
@@ -172,10 +176,9 @@ function aimAlong(world: World, hauler: Vehicle, lane: number): number {
 }
 
 function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
-  const run = runOf(world);
-  if (betweenLevels(world)) return isParked(hauler) ? null : { kind: 'brake' };
-  const pad = outpostPad(world, run.window + 1);
-  if (dist(hauler.pos, pad) <= HAULER.approach) return { kind: 'stopAt', dest: pad };
+  const spot = parkSpot(world);
+  if (betweenLevels(world)) return isParked(hauler) && dist(hauler.pos, spot) <= RULES.arriveRadius ? null : { kind: 'stopAt', dest: spot };
+  if (dist(hauler.pos, spot) <= HAULER.approach) return { kind: 'stopAt', dest: spot };
   const lane = chosenLane(world, hauler);
   const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
   return { kind: 'through', dest, pace: haulerPace(world) };
@@ -193,11 +196,11 @@ function heldInPlace(hauler: Vehicle): boolean {
 
 function backingOut(world: World, hauler: Vehicle): boolean {
   const order = hauler.order;
-  return order?.kind === 'stopAt' && dist(order.dest, outpostPad(world, runOf(world).window + 1)) > 0 && !heldInPlace(hauler);
+  return order?.kind === 'stopAt' && dist(order.dest, parkSpot(world)) > 0 && !heldInPlace(hauler);
 }
 
 function parkedOrOnPad(world: World, hauler: Vehicle): boolean {
-  return betweenLevels(world) || onOutpostPad(world, hauler.pos, runOf(world).window + 1);
+  return betweenLevels(world) || inYard(world, hauler.pos, runOf(world).window + 1);
 }
 
 function wedged(hauler: Vehicle): boolean {
@@ -212,7 +215,7 @@ function recoveryOrder(world: World, hauler: Vehicle): MoveOrder | null {
 
 function laneOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const order = haulerOrder(world, hauler);
-  if (order) requireOnLaneOrPad(world, order);
+  if (order) requireOnLaneOrSpot(world, order);
   return order;
 }
 
@@ -245,8 +248,7 @@ export function resetHaulerWatch(): void {
 }
 
 function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
-  const run = runOf(world);
-  return isParked(hauler) && (betweenLevels(world) || onOutpostPad(world, hauler.pos, run.window + 1));
+  return betweenLevels(world) && (isParked(hauler) || inYard(world, hauler.pos, runOf(world).window + 1));
 }
 
 function stallExcused(world: World, hauler: Vehicle): boolean {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { atlasOf } from './atlas';
 import { playerVehicle } from './damage';
-import { waitForRoad } from './fury-road';
+import { driveOn } from './fury-road';
 import { highwayMap, windowShift } from './highway';
 import { playerFields, replay, replayBySession, RunStream, scopeOf, statesByHolder, truckFields, worldPos, type StreamLine } from './run-stream';
 import { addVehicle, emptyWorld, parkedAtOutpost, startCombat } from './testkit';
@@ -20,8 +20,8 @@ function ofKind(lines: StreamLine[], kind: string): StreamLine[] {
 function seeing(): { world: World; near: Vehicle; far: Vehicle } {
   const world = emptyWorld();
   world.turn = 3;
-  const near = addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 38, y: 30 });
-  const far = addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 110, y: 110 });
+  const near = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 30 });
+  const far = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 110, y: 110 });
   refreshVision(world);
   return { world, near, far };
 }
@@ -54,7 +54,7 @@ function expectRebuilt(lines: StreamLine[], world: World): void {
 describe('world positions', () => {
   it('keeps one truck at one world position across a window move', () => {
     const before = parkedAtOutpost();
-    const after = waitForRoad(before);
+    const after = driveOn(before);
     expect(playerVehicle(after).pos.y).toBe(playerVehicle(before).pos.y + windowShift(before.seed, 0).y);
     expect(worldPos(after, playerVehicle(after).pos)).toEqual(worldPos(before, playerVehicle(before).pos));
   });
@@ -65,7 +65,7 @@ describe('world positions', () => {
   });
 
   it('writes event positions in the world frame', () => {
-    const moved = waitForRoad(parkedAtOutpost());
+    const moved = driveOn(parkedAtOutpost());
     const pulse: GameEvent = { t: 'pulse', vehicle: playerVehicle(moved).id, pos: { x: 10, y: 400 }, hit: [] };
     const stream = new RunStream(CTX);
     stream.begin(moved, 'new');
@@ -116,7 +116,7 @@ describe('scope and keyframe', () => {
     const { world, near } = seeing();
     const stream = new RunStream(CTX);
     stream.begin(world, 'new');
-    const killer = addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 36, y: 30 });
+    const killer = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 36, y: 30 });
     refreshVision(world);
     const both = next(world);
     stream.step(both, []);
@@ -249,7 +249,7 @@ describe('player', () => {
 describe('replaying the stream', () => {
   it('rebuilds the logged fields of every truck in scope in a Roaming fight', () => {
     const { world } = seeing();
-    const foe = world.vehicles.find((v) => v.faction === 'raiders')!;
+    const foe = world.vehicles.find((v) => v.faction === 'scrapjaw')!;
     startCombat(world, foe, playerVehicle(world));
     const stream = new RunStream(CTX);
     const lines = stream.begin(world, 'new');
@@ -268,7 +268,7 @@ describe('replaying the stream', () => {
     const lines = stream.begin(start, 'new');
     let at = endTurn(start, () => {});
     lines.push(...stream.step(at, at.events));
-    const opened = waitForRoad(at);
+    const opened = driveOn(at);
     lines.push(...stream.step(opened, opened.events));
     lines.push(...new RunStream(CTX).begin(opened, 'slot1'));
     at = endTurn(opened, () => {});
@@ -282,7 +282,7 @@ describe('replaying the stream', () => {
     const start = parkedAtOutpost();
     const stream = new RunStream(CTX);
     const lines = stream.begin(start, 'new');
-    const opened = waitForRoad(start);
+    const opened = driveOn(start);
     lines.push(...stream.step(opened, opened.events));
     const me = playerVehicle(start).id;
     const entered = ofKind(lines, 'enter').find((l) => l.id === me)!;

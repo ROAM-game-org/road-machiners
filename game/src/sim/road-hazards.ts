@@ -1,10 +1,11 @@
 import { chassisDef } from '../data/chassis';
+import { FORTRESS } from '../data/fortress';
 import { FURY_ROAD, HAZARDS, HIGHWAY, type Range, type SceneKind } from '../data/modes';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { hulkBoxes } from './body';
-import { fromRoad, milestoneAt, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
+import { fromRoad, milestoneAt, outpostYardHalf, roadAt, roadHeading, roadPiece, stretchOf, stretchStream, type RoadPiece, type RoadPos } from './highway';
 import { boxDistance, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { hashRandom, nextRandom, randInt, randRange, type Rng } from './rng';
 import type { DeckSpec } from '../data/terrain';
@@ -492,7 +493,7 @@ function closureRoll(seed: number, window: number, k: number): number {
   return hashRandom(seed, CLOSURE_SALT, window, k);
 }
 
-function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => Local, reach: number): RoadPiece[] {
+function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => Local, reach: number, hole = 0): RoadPiece[] {
   const out: RoadPiece[] = [];
   let cursor = -reach + offset;
   for (let k = 0; cursor < reach; k++) {
@@ -500,34 +501,32 @@ function lineRow(seed: number, n: number, offset: number, kinds: (k: number) => 
     const [lo, hi] = rowSpan([{ ...p, a: 0, o: 0 }], ACROSS);
     const o = cursor - lo + H.pieceGap;
     cursor = o + hi;
+    if (o + hi > -hole && o + lo < hole) continue;
     out.push({ kind: p.kind, at: roadAt(seed, n, o), r: p.r, yaw: roadHeading(seed, n) + p.rel, group: 0, step: k, ...(p.hulk ? { hulk: p.hulk } : {}) });
   }
   return out;
-}
-
-export function northClosureAt(seed: number, window: number): number {
-  return milestoneAt(seed, window + 1) + H.closures.north.gap;
 }
 
 export function southClosureAt(seed: number, window: number): number {
   return milestoneAt(seed, window) - H.closures.south.behind;
 }
 
-function northClosure(seed: number, window: number): RoadPiece[] {
-  const N = H.closures.north;
-  const n = northClosureAt(seed, window);
+export function fortLineHole(): number {
+  return outpostYardHalf() + FORTRESS.wallDepth / 2 + H.closures.line.gap;
+}
+
+export function fortLine(seed: number, j: number): RoadPiece[] {
+  if (!Number.isInteger(j) || j < 1) throw new Error(`Milestone ${j} has no fort line`);
+  const L = H.closures.line;
+  const n = milestoneAt(seed, j);
+  const hole = fortLineHole();
   const barrier = (): Local => piece('barrier', 0, 0, Math.PI / 2);
-  const rows = Array.from({ length: N.rows }, (_, i) => lineRow(seed, n + i * N.rowGap, (i % 2) * 0.5, barrier, N.reach));
-  const ahead = n - N.trapsAhead;
-  const nests = Array.from({ length: N.sandbags }, (_, k) => {
-    const o = ((k + 0.5) / N.sandbags - 0.5) * 2 * ROAD.verge;
-    return roadPiece('sandbags', roadAt(seed, n - 1, o), radiusOf('sandbags'), roadHeading(seed, n));
+  const rows = Array.from({ length: L.rows }, (_, i) => lineRow(seed, n + i * L.rowGap, (i % 2) * 0.5, barrier, L.reach, hole));
+  const nests = Array.from({ length: L.sandbags }, (_, k) => {
+    const o = (k % 2 === 0 ? 1 : -1) * (hole + L.nestGap + Math.floor(k / 2) * L.nestStep);
+    return roadPiece('sandbags', roadAt(seed, n - 1, o), radiusOf('sandbags'), roadHeading(seed, n) + closureRoll(seed, j, k) * 0.2);
   });
-  const traps = Array.from({ length: N.traps }, (_, k) => {
-    const o = ((k + 0.5) / N.traps - 0.5) * 2 * ROAD.asphalt * 1.6;
-    return roadPiece('tankTrap', roadAt(seed, ahead, o), radiusOf('tankTrap'), closureRoll(seed, window, k) * Math.PI);
-  });
-  return [...rows.flat(), ...nests, ...traps];
+  return [...rows.flat(), ...nests];
 }
 
 function southClosure(seed: number, window: number): RoadPiece[] {
@@ -544,7 +543,7 @@ function southClosure(seed: number, window: number): RoadPiece[] {
 }
 
 export function closurePieces(seed: number, window: number): RoadPiece[] {
-  return [...northClosure(seed, window), ...southClosure(seed, window)];
+  return [...fortLine(seed, window + 1), ...(window >= 1 ? fortLine(seed, window) : southClosure(seed, window))];
 }
 
 export function highwayDecks(seed: number, window: number): DeckSpec[] {

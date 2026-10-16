@@ -30,7 +30,7 @@ function shot(shooter: string, target: string): GameEvent {
 function story(): StreamLine[] {
   let world = emptyWorld();
   world.turn = 3;
-  const foe = addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 38, y: 30 });
+  const foe = addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 30 });
   refreshVision(world);
   const stream = new RunStream(CTX);
   const lines = stream.begin(world, 'new');
@@ -92,7 +92,7 @@ describe('timeline', () => {
     const again = new RunStream(CTX);
     const world = emptyWorld();
     world.turn = 3;
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 38, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 38, y: 30 });
     refreshVision(world);
     const reload = [...lines, ...again.begin({ ...world, turn: 3 }, 'auto')];
     const came = timeline(reload, 'day').filter((l) => l.includes('came into view'));

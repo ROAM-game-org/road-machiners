@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { HIGHWAY } from '../data/modes';
 import { TERRAIN } from '../data/terrain';
 import { atlasOf } from './atlas';
-import { REGION } from '../data/region';
 import { fortressProps } from './fortress';
+import { FORTRESS, FORTRESS_STYLES } from '../data/fortress';
 import { deckAt } from './bridge';
-import { acrossOf, bendCells, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowShift, windowSpan } from './highway';
+import { acrossOf, bendCells, centerU, fromRoad, highwayAtlas, highwayMap, milestoneAt, nearestMilestone, outpostFort, outpostGateSpots, outpostYardHalf, roadAt, roadHeading, roadHeight, roadPoint, roadVector, stretchLength, stretchOf, toRoad, windowShift, windowSpan } from './highway';
 import { isBakedObstacle, mapObstacles } from './mapgen';
-import { northClosureAt, sceneAt, southClosureAt } from './road-hazards';
-import { canUseSite, sitePads } from './sites';
+import { sceneAt } from './road-hazards';
+import { sitePads } from './sites';
 import { CELL, componentOf, navLayer } from './nav/layer';
 import { groundAt, heightAt, isCliff, type BakedMap, type BakedProp } from './terrain';
 
@@ -107,8 +107,8 @@ describe('the stretch lengths', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       for (const k of [0, 1, 2, 5]) {
         const shift = windowShift(seed, k);
-        const pad = padOf(seed, k, k + 1);
-        const after = padOf(seed, k + 1, k + 1);
+        const pad = outpostFort(seed, k, k + 1).pos;
+        const after = outpostFort(seed, k + 1, k + 1).pos;
         expect(after.x, `seed ${seed} window ${k}`).toBeCloseTo(pad.x + shift.x, 6);
         expect(after.y, `seed ${seed} window ${k}`).toBeCloseTo(pad.y + shift.y, 6);
         expect(highwayAtlas(seed, k + 1).origin.y - highwayAtlas(seed, k).origin.y).toBe(-shift.y);
@@ -138,7 +138,7 @@ describe('a highway window', () => {
     expect(highwayMap(5, 0)).toEqual(highwayMap(5, 0));
   });
 
-  it('agrees with the next window in their overlap square, but for the two closures', () => {
+  it('agrees with the next window in their overlap square, but for the shut gates', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       for (const k of [0, 1, 2, 3, 4]) {
         const a = highwayMap(seed, k);
@@ -148,9 +148,8 @@ describe('a highway window', () => {
         const overlap = SIZE - stride;
         expect(a.terrain.heights.slice(0, (overlap + 1) * row), `seed ${seed} window ${k}`).toEqual(b.terrain.heights.slice(stride * row));
         expect(a.terrain.types.slice(0, overlap * SIZE), `seed ${seed} window ${k}`).toEqual(b.terrain.types.slice(stride * SIZE));
-        const open = (window: number) => (p: BakedProp) => [northClosureAt(seed, k), southClosureAt(seed, k + 1)].every((n) => Math.abs(toRoad(seed, window, p.pos).n - n) > 5);
-        const fromA = a.props.filter((p) => inBand(p, 0, overlap)).filter(open(k));
-        const fromB = b.props.filter((p) => inBand(p, stride, SIZE)).filter(open(k + 1));
+        const fromA = a.props.filter((p) => inBand(p, 0, overlap) && p.kind !== 'fortOutpostShut');
+        const fromB = b.props.filter((p) => inBand(p, stride, SIZE) && p.kind !== 'fortOutpostShut');
         expect(fromB.map((p) => propKey(p, -stride)).sort(), `seed ${seed} window ${k}`).toEqual(fromA.map((p) => propKey(p, 0)).sort());
       }
     }
@@ -279,14 +278,14 @@ describe('the highway road', () => {
     }
   });
 
-  it('lets the widest truck drive from the south milestone to the north outpost pad', () => {
+  it('lets the widest truck drive from the south milestone to the north outpost yard', () => {
     const radius = CHASSIS.hauler.radius;
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       for (const k of [0, 1, 2, 3]) {
         const map = highwayMap(seed, k);
         const layer = navLayer(map.terrain, mapObstacles(map), radius);
-        const from = padOf(seed, k, k);
-        const to = padOf(seed, k, k + 1);
+        const from = outpostFort(seed, k, k).pos;
+        const to = outpostFort(seed, k, k + 1).pos;
         const start = componentOf(layer, cellOf(from));
         expect(start, `seed ${seed} window ${k} start`).not.toBe(0);
         expect(componentOf(layer, cellOf(to)), `seed ${seed} window ${k}`).toBe(start);
@@ -295,52 +294,120 @@ describe('the highway road', () => {
   });
 });
 
-function padOf(seed: number, window: number, j: number) {
-  return sitePads(outpostFort(seed, window, j))[0];
-}
-
 function cellOf(p: { x: number; y: number }): number {
   const n = Math.ceil(SIZE / CELL);
   return Math.floor(p.y / CELL) * n + Math.floor(p.x / CELL);
 }
 
+const FORT_KINDS = new Set(['fortOutpostWall', 'fortOutpostTower', 'fortOutpostGate', 'fortOutpostShut']);
+
+function alongAcross(seed: number, window: number, j: number, p: { x: number; y: number }): { along: number; across: number } {
+  const at = toRoad(seed, window, p);
+  return { along: at.n - milestoneAt(seed, j), across: acrossOf(seed, at) };
+}
+
+function fortsOf(window: number): number[] {
+  return [window, window + 1].filter((j) => j >= 1);
+}
+
 describe('an outpost fort', () => {
-  const SALVAGE_YARD = REGION.locations.find((l) => l.id === 'salvage-yard')!;
-  const kinds = (props: { kind: string }[]) => props.map((p) => p.kind).sort();
+  const half = outpostYardHalf();
+  const outer = half + FORTRESS.wallDepth / 2;
 
-  it('is a Salvage Yard fort of baked props beside the road, with its gate facing the road', () => {
-    for (const seed of [1, 2, 3, 4]) {
-      for (const k of [0, 1]) {
-        const map = highwayMap(seed, k);
-        const fort = outpostFort(seed, k, k + 1);
-        const pieces = fortressProps(fort);
-        const keys = new Set(map.props.map((p) => propKey(p, 0)));
-
-        expect(kinds(pieces)).toEqual(kinds(fortressProps(SALVAGE_YARD)));
-        expect(pieces.every((p) => keys.has(propKey(p, 0)))).toBe(true);
-        const d = Math.abs(acrossOf(seed, toRoad(seed, k, fort.pos)));
-        expect(d).toBeCloseTo(FURY_ROAD.outpost.across, 0);
-        const gate = fort.gates![0];
-        expect(Math.abs(acrossOf(seed, toRoad(seed, k, gate)))).toBeLessThan(d);
+  it('stands across the road, centered on it, with its walls parallel and square to the heading (IV1)', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      for (const window of [0, 1, 2, 3]) {
+        for (const j of fortsOf(window)) {
+          const fort = outpostFort(seed, window, j);
+          const center = fromRoad(seed, window, milestoneAt(seed, j), 0);
+          expect(fort.look).toBe('outpost');
+          expect(Math.hypot(fort.pos.x - center.x, fort.pos.y - center.y)).toBeLessThan(0.05);
+          const heading = roadHeading(seed, milestoneAt(seed, j));
+          const walls = fortressProps(fort).filter((p) => p.kind === 'fortOutpostWall');
+          expect(walls.length).toBeGreaterThan(6);
+          for (const wall of walls) {
+            const off = ((wall.yaw - heading) % (Math.PI / 2) + Math.PI / 2) % (Math.PI / 2);
+            expect(Math.min(off, Math.PI / 2 - off), `seed ${seed} window ${window} fort ${j}`).toBeLessThan(0.01);
+          }
+        }
       }
     }
   });
 
-  it('has a flat concrete pad between its gate and the road, where the town rule lets a truck use it', () => {
-    for (const seed of [1, 2, 3, 4]) {
-      const map = highwayMap(seed, 0);
-      const fort = outpostFort(seed, 0, 1);
-      const pad = sitePads(fort)[0];
-      const d = Math.abs(acrossOf(seed, toRoad(seed, 0, pad)));
+  it('has a gate on the road axis in each of its south and north walls, six tiles wide (IV1)', () => {
+    for (const seed of [1, 2, 3]) {
+      for (const j of [1, 2]) {
+        const spots = outpostGateSpots(seed, j - 1, j);
+        const gates = fortressProps(outpostFort(seed, j - 1, j)).filter((p) => p.kind === 'fortOutpostGate');
+        expect(gates).toHaveLength(2);
+        for (const [side, sign] of [['south', -1], ['north', 1]] as const) {
+          const spot = alongAcross(seed, j - 1, j, spots[side].center);
+          expect(spot.along).toBeCloseTo(sign * half, 3);
+          expect(spot.across).toBeCloseTo(0, 3);
+          expect(spots[side].width).toBe(6);
+          const gate = gates.find((g) => Math.abs(alongAcross(seed, j - 1, j, g.pos).along - sign * half) < 0.5);
+          expect(gate, `seed ${seed} fort ${j} ${side}`).toBeDefined();
+        }
+      }
+    }
+    expect(FORTRESS_STYLES.outpost.gate.width).toBe(6);
+  });
 
-      expect(canUseSite(pad, fort)).toBe(true);
-      expect(typeAt(map, pad)).toBe('concrete');
-      expect(d).toBeGreaterThan(ROAD.asphalt + 2);
-      expect(d).toBeLessThan(FURY_ROAD.outpost.across);
-      const ground = heightAt(map.terrain, pad.x, pad.y);
-      for (const p of [fort.pos, fort.gates![0]]) expect(heightAt(map.terrain, p.x, p.y)).toBeCloseTo(ground, 0);
-      const between = { x: (pad.x + fort.gates![0].x) / 2, y: (pad.y + fort.gates![0].y) / 2 };
-      expect(typeAt(map, between)).toBe('concrete');
+  it('has no town pad, since the yard is the place a truck uses', () => {
+    expect(sitePads(outpostFort(3, 0, 1))).toEqual([]);
+  });
+
+  it('holds the widest truck at both park spots, inside its walls', () => {
+    expect(half - FORTRESS.wallDepth / 2 - Math.max(...Object.values(CHASSIS).map((c) => c.radius))).toBeGreaterThan(Math.abs(HIGHWAY.road.lanes[1]) + 3);
+  });
+
+  it('puts concrete outside the lanes and asphalt in them, on flat ground across the road (IV1)', () => {
+    for (const seed of [1, 2, 3]) {
+      const map = highwayMap(seed, 1);
+      for (const j of [1, 2]) {
+        const n = milestoneAt(seed, j);
+        for (const along of [-3, 0, 3]) {
+          expect(typeAt(map, roadPoint(seed, 1, n + along, 3))).toBe('asphalt');
+          expect(typeAt(map, roadPoint(seed, 1, n + along, 6.5))).toBe('concrete');
+          expect(typeAt(map, roadPoint(seed, 1, n + along, -6.5))).toBe('concrete');
+          const here = roadPoint(seed, 1, n + along, 0);
+          for (const across of [-7, 7]) {
+            const there = roadPoint(seed, 1, n + along, across);
+            expect(heightAt(map.terrain, there.x, there.y)).toBeCloseTo(heightAt(map.terrain, here.x, here.y), 1);
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps every loose prop out of the footprint and the gateways, and builds one fort and line in both windows that hold it (IV8)', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      for (const window of [0, 1, 2, 3]) {
+        const map = highwayMap(seed, window);
+        for (const j of fortsOf(window)) {
+          const loose = map.props.filter((p) => !FORT_KINDS.has(p.kind));
+          const inside = loose.filter((p) => {
+            const at = alongAcross(seed, window, j, p.pos);
+            return Math.abs(at.along) < outer + p.r && Math.abs(at.across) < outer + p.r;
+          });
+          expect(inside.map((p) => p.kind), `seed ${seed} window ${window} fort ${j}`).toEqual([]);
+        }
+      }
+      for (const j of [1, 2, 3]) {
+        const near = (window: number) => (p: BakedProp) => p.kind !== 'fortOutpostShut' && Math.abs(alongAcross(seed, window, j, p.pos).along) < 40;
+        const a = highwayMap(seed, j - 1).props.filter(near(j - 1));
+        const b = highwayMap(seed, j).props.filter(near(j));
+        expect(b.map((p) => propKey(p, -windowShift(seed, j - 1).y)).sort(), `seed ${seed} fort ${j}`).toEqual(a.map((p) => propKey(p, 0)).sort());
+      }
+    }
+  });
+
+  it('closes the north gate of the next fort and the south gate of the last one with a shut gate prop (IV3)', () => {
+    for (const window of [0, 1, 2]) {
+      const shut = highwayMap(3, window).props.filter((p) => p.kind === 'fortOutpostShut');
+      expect(shut).toHaveLength(window === 0 ? 1 : 2);
+      const north = outpostGateSpots(3, window, window + 1).north.center;
+      expect(shut.some((p) => Math.hypot(p.pos.x - north.x, p.pos.y - north.y) < 0.01)).toBe(true);
     }
   });
 
@@ -349,7 +416,7 @@ describe('an outpost fort', () => {
       const map = highwayMap(seed, 0);
       const layer = navLayer(map.terrain, mapObstacles(map), CHASSIS.hauler.radius);
       const road = roadPoint(seed, 0, milestoneAt(seed, 1) - 20, ROAD.lanes[0]);
-      expect(componentOf(layer, cellOf(padOf(seed, 0, 1))), `seed ${seed}`).toBe(componentOf(layer, cellOf(road)));
+      expect(componentOf(layer, cellOf(outpostFort(seed, 0, 1).pos)), `seed ${seed}`).toBe(componentOf(layer, cellOf(road)));
     }
   });
 });

@@ -16,6 +16,7 @@ import { newGame } from '../sim/new-game';
 import { DebugConsole, Noclip } from '../ui/console';
 import { BOOT_TEXT } from '../ui/boot-progress';
 import { BootScreen } from '../ui/boot-screen';
+import { fontsReady } from '../ui/fonts';
 import { uiRoot } from '../ui/dom';
 import { loadLanguage, relocalize } from '../text/language';
 import type { DevLocale } from '../text/msg';
@@ -165,6 +166,7 @@ async function recoverSounds(loaded: LoadedBank): Promise<void> {
   for (const report of reportFailures(loaded.failures, loaded.bank.size, recovered, soundOptions.support)) reportError(report);
 }
 const boot = BootScreen.adopt(() => void flushSaves().then(() => window.location.reload(), reportError));
+const uiFonts = fontsReady(language.current() === 'ru' ? 'ru' : 'en');
 const reporter = ERROR_REPORT_URL ? new ErrorReporter(ERROR_REPORT_URL, gameContext) : null;
 if (reporter) onReport((err) => void reporter.report(err));
 const surface = openWebGL(document.createElement('canvas'), GAME_GL);
@@ -217,6 +219,8 @@ const debugConsole = new DebugConsole(uiRoot(), game, mountPerfPanel(overlay), n
 keepRunningOnErrors((text) => debugConsole.error(text));
 onEveryError(() => game.holdSaves());
 bootStep('running');
+await uiFonts;
+boot.showText();
 if (loadedBank.failures.length) whenVisible(() => void recoverSounds(loadedBank).catch(reportError));
 gameContext.watch({ world: () => game.state, log: () => game.logTexts(), slots });
 performance.mark('roam:ready');

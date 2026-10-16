@@ -17,8 +17,8 @@ function started(): World {
 }
 
 function foeAt(w: World, dx: number, dy: number, from: Vehicle): Vehicle {
-  const foe = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: from.pos.x + dx, y: from.pos.y + dy });
-  foe.brain = npcBrain('merc', foe.pos, []);
+  const foe = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: from.pos.x + dx, y: from.pos.y + dy });
+  foe.brain = npcBrain('merc', foe.pos, ['raider']);
   return foe;
 }
 
@@ -121,7 +121,7 @@ describe('the escort stall', () => {
     const back = RULES.reverse.distance + RULES.minAimDistance;
     const behind = { x: me.pos.x - Math.cos(me.heading) * back, y: me.pos.y - Math.sin(me.heading) * back };
     for (const v of w.vehicles) if (v.id !== me.id) v.pos = { x: me.pos.x + 200, y: me.pos.y };
-    addVehicle(w, 'raiders', 'buggy', [], behind);
+    addVehicle(w, 'scrapjaw', 'buggy', [], behind);
     const stall = freshStall(me);
     const start = w.turn;
     const orders = [0, 1, 2].map((k) => heldTurn(w, me, stall, start + k));

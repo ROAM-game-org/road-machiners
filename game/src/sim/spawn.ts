@@ -1,5 +1,7 @@
 
 import { FIRST_NAMES, NPCS, OPPOSED_TRAITS, SPAWN, SURNAMES, type NpcTemplate, type TraitId } from "../data/npcs";
+import { SITE_FACTIONS, TOWN_TRADER_SHARE } from "../data/npc-behavior";
+import { isOutlaw } from "./relations";
 import { chassisDef } from "../data/chassis";
 import { footprint } from "./body";
 import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
@@ -14,7 +16,7 @@ import { isFortress, siteGates, siteUnder, type Site } from "./sites";
 import { modeRules } from "./settings";
 import { isLone } from "./pairs";
 import { startEscort } from "./tow";
-import type { Vehicle, World } from "./types";
+import type { NpcFactionId, Vehicle, World } from "./types";
 import { dist, type Vec } from "./vec";
 import { atlasOf } from "./atlas";
 
@@ -121,7 +123,7 @@ function spawnBeside(world: World, tpl: NpcTemplate, leader: Vehicle): Vehicle |
     const a = randRange(world, -Math.PI, Math.PI);
     const pos = { x: leader.pos.x + Math.cos(a) * d, y: leader.pos.y + Math.sin(a) * d };
     if (!isFree(world, pos, radius, null)) continue;
-    return spawnAt(world, tpl, loadout, pos);
+    return spawnAt(world, tpl, loadout, pos, allegianceFor(world, tpl, null, leader));
   }
   world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
   return null;
@@ -144,18 +146,52 @@ function spawnOne(world: World, tpl: NpcTemplate, pick: () => Site, respawn: boo
   const loadout = generateNpcLoadout(world, tpl);
   const radius = chassisDef(loadout.chassisId).radius;
   for (let i = 0; i < SPAWN.tries; i++) {
-    const pos = gateSpot(world, pick(), gate, radius);
+    const site = pick();
+    const pos = gateSpot(world, site, gate, radius);
     if (respawn && dist(pos, playerVehicle(world).pos) < SPAWN.minPlayerDist) continue;
     if (!isFree(world, pos, radius, null)) continue;
-    return spawnAt(world, tpl, loadout, pos);
+    return spawnAt(world, tpl, loadout, pos, allegianceFor(world, tpl, site, null));
   }
   world.events.push({ t: 'info', note: { id: 'spawnBlocked', template: tpl.id }, debug: true });
   return null;
 }
 
-export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec): Vehicle {
+export function allegianceFor(world: World, tpl: NpcTemplate, site: Site | null, leader: Vehicle | null): NpcFactionId {
+  const rule = tpl.allegiance;
+  if (rule.kind === 'town') return townFaction(world, site);
+  if (rule.kind === 'fixed') return rule.faction;
+  const given = rule.kind === 'site' ? siteFaction(site) : leaderFaction(leader);
+  return given ?? fallbackFaction(tpl);
+}
+
+function siteFaction(site: Site | null): NpcFactionId | undefined {
+  return site ? SITE_FACTIONS[site.id] : undefined;
+}
+
+function leaderFaction(leader: Vehicle | null): NpcFactionId | undefined {
+  return leader ? npcFaction(leader) : undefined;
+}
+
+export function fallbackFaction(tpl: NpcTemplate): NpcFactionId {
+  const rule = tpl.allegiance;
+  if (rule.kind === 'fixed') return rule.faction;
+  return rule.kind === 'town' ? 'independent' : rule.fallback;
+}
+
+function npcFaction(v: Vehicle): NpcFactionId {
+  if (v.faction === 'player') throw new Error(`${v.id} is the player's side and leads no NPC escort`);
+  return v.faction;
+}
+
+function townFaction(world: World, site: Site | null): NpcFactionId {
+  const town = siteFaction(site);
+  if (!town || isOutlaw(town)) return 'independent';
+  return chance(world, TOWN_TRADER_SHARE) ? town : 'independent';
+}
+
+export function spawnAt(world: World, tpl: NpcTemplate, loadout: NpcLoadout, pos: Vec, faction: NpcFactionId): Vehicle {
   const v = makeVehicle(world, {
-    faction: tpl.faction,
+    faction,
     ...loadout,
     pos,
     heading: randRange(world, -Math.PI, Math.PI),

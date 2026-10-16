@@ -10,7 +10,7 @@ import { getResources } from './resources';
 import { fuelCap, vehicleStats } from './stats';
 import { mountedParts } from './grid';
 import { NPCS } from '../data/npcs';
-import { betweenLevels, canWaitForRoad, furyRoadReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, waitForRoad, waveGear, waveOf } from './fury-road';
+import { betweenLevels, canDriveOn, furyRoadReadout, outpostFactsAt, reachedOutpostAt, spawnGroup, driveOn, waveGear, waveOf } from './fury-road';
 import { planHaulerOrder } from './hauler';
 import { endTurn } from './world';
 import { cardsOf } from './fury-road-director';
@@ -19,8 +19,8 @@ import { rollPartStockPerKind } from './market';
 import { alongOf, toRoad } from './highway';
 import { furyRoadStart, furyRoadWorld } from './testkit';
 import { RULES } from '../data/rules';
-import { PHYSICS } from '../data/physics';
-import { bodyOf } from './body';
+import { halfWidth } from './body';
+import { yardSpots } from './outpost-gates';
 import { dist } from './vec';
 import type { Vehicle } from './types';
 
@@ -48,7 +48,7 @@ describe('Fury Road start outpost', () => {
       expect(reachedOutpostAt(w)?.id).toBe('outpost-0');
       expect(reachedOutpostAt(w, haulerOf(w))?.id).toBe('outpost-0');
       expect(betweenLevels(w)).toBe(true);
-      expect(canWaitForRoad(w)).toBe(true);
+      expect(canDriveOn(w)).toBe(true);
     }
   });
 
@@ -60,7 +60,7 @@ describe('Fury Road start outpost', () => {
   });
 
   it('opens stretch 1 on the same window at the wait, with the hauler setting off for outpost 1', () => {
-    const w = waitForRoad(furyRoadStart(3));
+    const w = driveOn(furyRoadStart(3));
     expect(w.furyRoad!.window).toBe(0);
     expect(w.furyRoad!.waitingAt).toBeNull();
     expect(w.events).toContainEqual({ t: 'roadOpened', stretch: 1 });
@@ -87,14 +87,14 @@ describe('Fury Road hauler', () => {
     }
   });
 
-  it('starts the hauler ahead of the player truck with a clear gap between their bumpers', () => {
-    const halfLength = (chassisId: string): number => bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
+  it('starts the trucks side by side at their yard spots, clear of each other', () => {
     for (const seed of [1, 3, 99]) {
       const w = furyRoadStart(seed);
       const hauler = haulerOf(w);
       const me = playerVehicle(w);
-      const gap = dist(hauler.pos, me.pos) - halfLength(hauler.chassisId) - halfLength(me.chassisId);
-      expect(gap).toBeCloseTo(RULES.yieldDistance, 9);
+      expect(hauler.pos).toEqual(yardSpots(w, 0).hauler);
+      expect(me.pos).toEqual(yardSpots(w, 0).truck);
+      expect(dist(hauler.pos, me.pos) - halfWidth(hauler.chassisId) - halfWidth(me.chassisId)).toBeGreaterThan(RULES.yieldDistance / 2);
     }
   });
 

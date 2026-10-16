@@ -1,14 +1,16 @@
 import { beforeAll, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { RULES } from '../data/rules';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
 import { moveWindow } from '../sim/fury-road';
 import { setHeadless } from '../sim/fidelity';
-import { acrossOf, alongOf, outpostFort, roadPoint, toRoad } from '../sim/highway';
+import { acrossOf, alongOf, milestoneAt, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
-import { canUseSite } from '../sim/sites';
-import { furyRoadWorld, parkOnPad } from '../sim/testkit';
+import { inYard, wholeInYard, yardSpots } from '../sim/outpost-gates';
+import { furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
+import { dist } from '../sim/vec';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
 import { buildDrive, freeDrive, GROUND, initPhysics, type Drive, type TurnResult } from './drive';
@@ -23,7 +25,7 @@ const HAULER_CRUISE = FURY_ROAD.hauler.cruise;
 const CRATERS_PASSED = 140;
 
 function onPad(w: World): boolean {
-  return canUseSite(haulerOf(w).pos, outpostFort(w.seed, 0, 1));
+  return inYard(w, haulerOf(w).pos, 1);
 }
 
 type HaulerRun = { w: World; turns: number; stalls: number; widest: number };
@@ -139,7 +141,7 @@ it('keeps the hauler out of the craters of stretch 1 with the gun truck riding b
 function worldAtWindow(seed: number, window: number): World {
   const w = furyRoadWorld(seed);
   for (let milestone = 1; milestone <= window; milestone++) {
-    parkOnPad(w, milestone);
+    parkInYard(w, milestone);
     w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
     w.furyRoad!.waitingAt = milestone;
     w.furyRoad!.groups = [];
@@ -213,3 +215,40 @@ it('drives a semi free when it sits nose first against a checkpoint barrier', ()
   expect(stalls).toBe(0);
   expect(haulerOf(w).pos.y).toBeLessThan(WEDGE_POS.y - WEDGE_PAST);
 }, budget(300_000));
+
+function fromLane(seed: number, lane: number): { w: World; turns: number; stalls: number; won: boolean } {
+  let w = furyRoadWorld(seed);
+  w.furyRoad!.groups = [];
+  const hauler = haulerOf(w);
+  hauler.pos = roadPoint(seed, 0, milestoneAt(seed, 1) - 30, HIGHWAY.road.lanes[lane]);
+  hauler.heading = roadHeading(seed, milestoneAt(seed, 1) - 30);
+  playerVehicle(w).pos = { ...yardSpots(w, 1).truck };
+  let drive: Drive = buildDrive(w);
+  let stalls = 0;
+  let won = false;
+  let turns = 0;
+  const spot = yardSpots(w, 1).hauler;
+  for (; turns < TURNS; turns++) {
+    let result: TurnResult | null = null;
+    w = endTurn(w, physicsMove(drive, (next) => (result = next)));
+    stalls += w.events.filter((e) => e.t === 'stall').length;
+    won ||= w.events.some((e) => e.t === 'outpostReached');
+    freeDrive(drive);
+    drive = result!.next;
+    const parked = haulerOf(w).speed <= RULES.parkedSpeed && dist(haulerOf(w).pos, spot) <= RULES.arriveRadius * 2;
+    if (won && parked) break;
+  }
+  freeDrive(drive);
+  return { w, turns, stalls, won };
+}
+
+it.each([0, 1, 2, 3])('wins on entering the yard from lane %i, then parks whole in the yard at its spot with no stall (IV7)', (lane) => {
+  for (const seed of [1]) {
+    const { w, turns, stalls, won } = fromLane(seed, lane);
+    expect(won, `seed ${seed} lane ${lane}`).toBe(true);
+    expect(stalls, `seed ${seed} lane ${lane}`).toBe(0);
+    const hauler = haulerOf(w);
+    expect(dist(hauler.pos, yardSpots(w, 1).hauler), `seed ${seed} lane ${lane} after ${turns} turns`).toBeLessThanOrEqual(RULES.arriveRadius * 2);
+    expect(wholeInYard(w, hauler, 1)).toBe(true);
+  }
+}, budget(600_000));

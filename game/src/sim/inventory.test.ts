@@ -165,14 +165,14 @@ function mountedItemOf(v: Vehicle, defId: string): GridItem {
 describe('auto mounting on the deck', () => {
   it('places a turret where no tall part blocks it', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     expect(mountPart(w, v, makePart(w, 'mg', 0))).toBe(true);
     expect(spanDegrees(gunSpans(v, mountedItemOf(v, 'mg')))).toBe(270);
   });
 
   it('places a cargo box where it blinds no mounted gun', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'longbed', ['stockEngine', 'mg'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'longbed', ['stockEngine', 'mg'], { x: 40, y: 40 });
     const firing = (u: Vehicle) => gunSpans(u, mountedItemOf(u, 'mg'));
     const before = firing(v);
     expect(mountPart(w, v, makePart(w, 'trailerBox', 0))).toBe(true);
@@ -181,7 +181,7 @@ describe('auto mounting on the deck', () => {
 
   it('lets a gun and a cargo frame compete for the same deck cells', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     v.items.push({ id: 'i-rack', x: 2, y: 5, rot: 0, kind: 'part', part: makePart(w, 'rack', 0) });
     v.items.push({ id: 'i-mg', x: 4, y: 5, rot: 0, kind: 'part', part: makePart(w, 'mg', 0) });
     expect(mountedItems(v, 'cargo').map((it) => it.id)).toEqual(['i-rack']);
@@ -393,7 +393,7 @@ describe('cargo room in crates', () => {
 
   it('an NPC fits the fewer of its free cells and the crates its mass room holds', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 40 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     expect(cargoRoom(npc)).toBe(freeCells(npc));
     const crates = Math.min(freeCells(npc), Math.floor(npcMassRoom(npc) / CRATE_MASS));

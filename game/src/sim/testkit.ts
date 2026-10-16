@@ -27,7 +27,8 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { outpostPad, waitForRoad } from './fury-road';
+import { driveOn } from './fury-road';
+import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
@@ -37,9 +38,11 @@ export function furyRoadStart(seed = 3): World {
   return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
 }
 
+const OPEN_ROAD = 24;
+
 export function furyRoadWorld(seed = 3): World {
-  const w = waitForRoad(furyRoadStart(seed));
-  const n = milestoneAt(seed, 0);
+  const w = driveOn(furyRoadStart(seed));
+  const n = milestoneAt(seed, 0) + OPEN_ROAD;
   const gap = vehicleStats(w, haulerOf(w)).radius + vehicleStats(w, playerVehicle(w)).radius + RULES.yieldDistance;
   for (const [truck, lane, ahead] of [[playerVehicle(w), 2, 0], [haulerOf(w), 1, gap]] as const) {
     truck.pos = roadPoint(seed, 0, n + ahead, HIGHWAY.road.lanes[lane]);
@@ -52,27 +55,21 @@ export function furyRoadWorld(seed = 3): World {
   return w;
 }
 
-export function parkOnPad(w: World, milestone: number): void {
-  const pad = outpostPad(w, milestone);
+export function parkInYard(w: World, milestone: number): void {
+  const spots = yardSpots(w, milestone);
   const me = playerVehicle(w);
   const hauler = haulerOf(w);
-  me.pos = { ...pad };
+  me.pos = { ...spots.truck };
   me.speed = 0;
   me.order = null;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.pos = { ...spots.hauler };
   hauler.speed = 0;
   hauler.order = null;
 }
 
 export function parkedAtOutpost(seed = 3): World {
   const w = furyRoadWorld(seed);
-  const me = playerVehicle(w);
-  const hauler = haulerOf(w);
-  const pad = outpostPad(w, 1);
-  me.pos = pad;
-  me.speed = 0;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
-  hauler.speed = 0;
+  parkInYard(w, 1);
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
   return parked;

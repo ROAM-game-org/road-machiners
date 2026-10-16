@@ -89,7 +89,7 @@ Good lines to match:
 - patch: ремонт. To patch: подлатать.
 - search of a site: поиски. To search: обшарить.
 - parked: на стоянке. Pad: площадка. Garage storage: гараж.
-- wait for the road, the button that opens the next Chaos Highway stretch: ждать проезда.
+- drive on, the button that opens the next Chaos Highway stretch: ехать дальше. The fort yard: двор.
 - skill: умение. Perk: навык. XP: опыт.
 - HP of a part: прочность. Short form: прочн.
 - turn: ход. Never on the radio.

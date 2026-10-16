@@ -6,7 +6,7 @@ import { setHeadless } from '../sim/fidelity';
 import { moveWindow } from '../sim/fury-road';
 import { acrossOf, alongOf, roadHeading, roadPoint, toRoad } from '../sim/highway';
 import { stretchLayout } from '../sim/road-hazards';
-import { furyRoadWorld, parkOnPad } from '../sim/testkit';
+import { furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { budget } from '../test/budget';
@@ -30,7 +30,7 @@ function seedWithRoadblock(stretch: number): number {
 function worldAtWindow(seed: number, window: number): World {
   const w = furyRoadWorld(seed);
   for (let milestone = 1; milestone <= window; milestone++) {
-    parkOnPad(w, milestone);
+    parkInYard(w, milestone);
     w.furyRoad!.outposts.find((o) => o.milestone === milestone)!.paid = true;
     w.furyRoad!.waitingAt = milestone;
     w.furyRoad!.groups = [];

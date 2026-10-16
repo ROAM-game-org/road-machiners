@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
 import { laneCount, lanePoint, planBlast } from './armor';
-import { fireWeapons, inFeud, shotDamage, startFeuds } from './combat';
+import { fireWeapons, inFeud, shotDamage } from './combat';
+import { reportIncident } from './relations';
 import { gunFor } from './factory';
 import { mountedParts } from './grid';
 import { addState, stateOf, strayData } from './states';
@@ -13,11 +14,11 @@ function range(): { w: World; me: Vehicle; target: Vehicle; onLine: Vehicle; off
   const me = addVehicle(w, 'player', 'scout', ['shotgun', 'stockEngine'], { x: 30, y: 30 });
   me.id = w.vehicles[0].id;
   w.vehicles = [me, ...w.vehicles.slice(1, -1)];
-  const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
+  const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
   target.brain = npcBrain('buggy', target.pos, ['raider']);
-  const onLine = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 37, y: 30.3 }, Math.PI / 2);
+  const onLine = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 37, y: 30.3 }, Math.PI / 2);
   onLine.brain = npcBrain('trader', onLine.pos, ['trader']);
-  const offLine = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 36, y: 38 }, Math.PI / 2);
+  const offLine = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 36, y: 38 }, Math.PI / 2);
   offLine.brain = npcBrain('trader', offLine.pos, ['trader']);
   const gun = mountedParts(me, 'weapon')[0];
   me.weaponOrders[gun.id] = { targetId: target.id, aim: 'body' };
@@ -68,11 +69,11 @@ describe('stray fire', () => {
   it('a faction mate or deal partner of the shooter forgives its stray fire', () => {
     for (const side of ['mate', 'partner'] as const) {
       const w = emptyWorld();
-      const convoy = addVehicle(w, 'convoys', 'scout', ['shotgun', 'stockEngine'], { x: 30, y: 30 });
+      const convoy = addVehicle(w, 'bowl', 'scout', ['shotgun', 'stockEngine'], { x: 30, y: 30 });
       convoy.brain = npcBrain('convoy', convoy.pos, ['trader']);
-      const target = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
+      const target = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
       target.brain = npcBrain('buggy', target.pos, ['raider']);
-      const guard = addVehicle(w, side === 'mate' ? 'convoys' : 'mercs', 'hauler', ['stockEngine'], { x: 37, y: 30.3 }, Math.PI / 2);
+      const guard = addVehicle(w, side === 'mate' ? 'bowl' : 'independent', 'hauler', ['stockEngine'], { x: 37, y: 30.3 }, Math.PI / 2);
       guard.brain = npcBrain(side === 'mate' ? 'convoyGuard' : 'merc', guard.pos, ['trader']);
       if (side === 'partner') addState(w, 'escort', guard.id, convoy.id, { kind: 'escort', site: null, fee: 0 });
       convoy.weaponOrders[mountedParts(convoy, 'weapon')[0].id] = { targetId: target.id, aim: 'body' };
@@ -85,11 +86,11 @@ describe('stray fire', () => {
 
   it('a shooter that attacks a faction mate never feuds itself', () => {
     const w = emptyWorld();
-    const convoy = addVehicle(w, 'convoys', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const convoy = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
     convoy.brain = npcBrain('convoy', convoy.pos, ['trader']);
-    const guard = addVehicle(w, 'convoys', 'hauler', ['mg', 'stockEngine'], { x: 34, y: 30 });
+    const guard = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine'], { x: 34, y: 30 });
     guard.brain = npcBrain('convoyGuard', guard.pos, ['trader']);
-    startFeuds(w, convoy, guard);
+    reportIncident(w, { aggressor: convoy, victim: guard, deed: 'attacked', victimFights: true });
     expect(inFeud(w, guard, convoy)).toBe(true);
     expect(stateOf(w, 'feud', convoy.id, convoy.id)).toBeNull();
     expect(w.events.some((e) => e.t === 'hostile' && e.vehicle === e.against)).toBe(false);
@@ -99,7 +100,7 @@ describe('stray fire', () => {
     const { w, me, target } = range();
     const gun = mountedParts(target, 'weapon')[0];
     me.pos = { x: 42, y: 30.2 };
-    const aimed = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 41, y: 30 }, Math.PI / 2);
+    const aimed = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 41, y: 30 }, Math.PI / 2);
     target.weaponOrders = { [gun.id]: { targetId: aimed.id, aim: 'body' } };
     me.weaponOrders = {};
     let hurt = 0;
@@ -117,7 +118,7 @@ describe('stray fire', () => {
 describe('blasts', () => {
   it('reach the parts within the radius of the blast and no others', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     const face = lanePoint(v, 'front', Math.floor(laneCount(v, 'front') / 2));
     const round = { damage: 10, pen: 20, blast: true, armorShare: 1 };
     const near = planBlast(v, face, 1.5, round, null);
@@ -131,9 +132,9 @@ describe('blasts', () => {
     const me = addVehicle(w, 'player', 'hauler', ['stockEngine', 'cannon'], { x: 30, y: 30 });
     me.id = w.vehicles[0].id;
     w.vehicles = [me, ...w.vehicles.slice(1, -1)];
-    const target = addVehicle(w, 'raiders', 'wagon', ['stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
-    const beside = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 36, y: 30.8 }, Math.PI / 2);
-    const far = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 36, y: 34 }, Math.PI / 2);
+    const target = addVehicle(w, 'scrapjaw', 'wagon', ['stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
+    const beside = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 36, y: 30.8 }, Math.PI / 2);
+    const far = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 36, y: 34 }, Math.PI / 2);
     const gun = mountedParts(me, 'weapon')[0];
     me.weaponOrders[gun.id] = { targetId: target.id, aim: 'body' };
     const dealt = fire(w, me, 12);

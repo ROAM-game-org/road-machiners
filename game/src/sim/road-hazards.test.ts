@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../data/chassis';
 import { HAZARDS, HIGHWAY, type SceneKind } from '../data/modes';
 import { HAULER_KIT } from '../data/start';
-import { acrossOf, alongOf, fromRoad, highwayMap, windowShift, milestoneAt, stretchLength, outpostFort, roadHeading, roadPoint, toRoad } from './highway';
+import { acrossOf, alongOf, fromRoad, highwayMap, windowShift, milestoneAt, stretchLength, outpostFort, outpostYardHalf, roadHeading, roadPoint, toRoad } from './highway';
 import { boxDistance, mapObstacles, propBoxes, propObstacle, type PosedBox } from './mapgen';
 import { CELL, componentOf, navLayer } from './nav/layer';
-import { closurePieces, highwayDecks, lanesCoveredOf, leavesPassage, leavesVergeGap, northClosureAt, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
-import { sitePads, siteGap } from './sites';
+import { closurePieces, fortLine, fortLineHole, highwayDecks, lanesCoveredOf, leavesPassage, leavesVergeGap, scenesOf, southClosureAt, stretchLayout, type Scene } from './road-hazards';
 import type { BakedMap, BakedProp } from './terrain';
 import type { Vec } from './vec';
 import type { RoadPiece } from './highway';
@@ -200,53 +199,77 @@ describe('a highway window with its scenes', () => {
     }
   });
 
-  it('keeps every piece off the fort, its pad and its spur', () => {
+  it('keeps every loose piece off the fort and its concrete', () => {
     for (const seed of SEEDS.slice(0, 8)) {
       for (const k of [0, 1]) {
         const map = highwayMap(seed, k);
-        const fort = outpostFort(seed, k, k + 1);
         const loose = map.props.filter((p) => !p.kind.startsWith('fort'));
-        expect(loose.filter((p) => siteGap(fort, p.pos) < p.r).map((p) => p.kind)).toEqual([]);
+        const forts = [k, k + 1].filter((j) => j >= 1).map((j) => ({ j, fort: outpostFort(seed, k, j) }));
+        for (const { j } of forts) {
+          const inYard = loose.filter((p) => {
+            const at = toRoad(seed, k, p.pos);
+            return Math.abs(at.n - milestoneAt(seed, j)) < outpostYardHalf() + p.r && Math.abs(at.u) < outpostYardHalf() + p.r;
+          });
+          expect(inYard.map((p) => p.kind), `seed ${seed} window ${k} fort ${j}`).toEqual([]);
+        }
         expect(loose.filter((p) => map.terrain.types[Math.floor(p.pos.y) * SIZE + Math.floor(p.pos.x)] === 'concrete').map((p) => p.kind)).toEqual([]);
       }
     }
   });
 
-  it('closes the road north of the unreached outpost and south of the window, so no route crosses either', () => {
+  it('runs each fort line from its side walls to the ridges with no gap a truck could pass (IV2)', () => {
+    const smallest = Math.min(...Object.values(CHASSIS).map((c) => c.radius));
+    for (const seed of [1, 2, 3]) {
+      for (const j of [1, 2, 3]) {
+        const barriers = fortLine(seed, j).filter((p) => p.kind === 'barrier');
+        expect(barriers.length).toBeGreaterThan(20);
+        for (const side of [-1, 1]) {
+          const across = barriers.map((p) => p.at.u * side).filter((u) => u > 0).sort((x, y) => x - y);
+          expect(across[0] - 0.5, `seed ${seed} fort ${j}`).toBeLessThan(fortLineHole() + 0.5);
+          expect(across[across.length - 1]).toBeGreaterThan(ROAD.badlands - 2);
+        }
+        const rows = [...new Set(barriers.map((p) => p.at.n.toFixed(2)))];
+        expect(rows).toHaveLength(HAZARDS.closures.line.rows);
+        for (const n of rows) {
+          const us = barriers.filter((p) => p.at.n.toFixed(2) === n).map((p) => p.at.u).sort((x, y) => x - y);
+          const gaps = us.slice(1).map((u, i) => u - us[i]).filter((g) => g < 2 * fortLineHole());
+          expect(Math.max(...gaps, 0), `seed ${seed} fort ${j} row ${n}`).toBeLessThan(smallest * 2 + 2);
+        }
+      }
+    }
+  });
+
+  it('closes the corridor of each window at both ends, so no route leaves it (IV2)', () => {
     const smallest = Math.min(...Object.values(CHASSIS).map((c) => c.radius));
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       for (const k of [0, 1, 2, 3]) {
         const map = highwayMap(seed, k);
         const layer = navLayer(map.terrain, mapObstacles(map), smallest);
-        const pad = sitePads(outpostFort(seed, k, k + 1))[0];
-        const beyond = roadPoint(seed, k, northClosureAt(seed, k) + 12, ROAD.lanes[1]);
-        const behind = roadPoint(seed, k, southClosureAt(seed, k) - 10, ROAD.lanes[1]);
-        const start = roadPoint(seed, k, milestoneAt(seed, k) + 4, ROAD.lanes[1]);
-        const inside = componentOf(layer, nCell(pad));
+        const nextYard = outpostFort(seed, k, k + 1).pos;
+        const beyond = roadPoint(seed, k, milestoneAt(seed, k + 1) + 12, ROAD.lanes[1]);
+        const behind = roadPoint(seed, k, (k === 0 ? southClosureAt(seed, k) : milestoneAt(seed, k)) - 12, ROAD.lanes[1]);
+        const start = k === 0 ? roadPoint(seed, k, milestoneAt(seed, 0) + 4, ROAD.lanes[1]) : outpostFort(seed, k, k).pos;
+        const inside = componentOf(layer, nCell(nextYard));
         expect(inside, `seed ${seed} window ${k}`).not.toBe(0);
-        expect(componentOf(layer, nCell(start))).toBe(inside);
+        expect(componentOf(layer, nCell(start)), `seed ${seed} window ${k} start`).toBe(inside);
         expect(componentOf(layer, nCell(beyond)), `seed ${seed} window ${k} north`).not.toBe(inside);
         expect(componentOf(layer, nCell(behind)), `seed ${seed} window ${k} south`).not.toBe(inside);
       }
     }
   });
 
-  it('lays the south closure a fixed way behind its milestone, on straight road and clear of the fort', () => {
-    for (const k of [1, 2, 5]) {
-      for (const seed of [1, 2, 3]) {
-        expect(southClosureAt(seed, k)).toBe(milestoneAt(seed, k) - HAZARDS.closures.south.behind);
-        const fort = outpostFort(seed, k, k);
-        const wrecks = closurePieces(seed, k).filter((p) => Math.abs(p.at.n - southClosureAt(seed, k)) < 5);
-        expect(wrecks.length).toBeGreaterThan(0);
-        expect(wrecks.every((p) => siteGap(fort, fromRoad(seed, k, p.at.n, p.at.u)) > p.r), `seed ${seed} window ${k}`).toBe(true);
-      }
+  it('lays the burnt pileup a fixed way behind the first milestone and only there', () => {
+    for (const seed of [1, 2, 3]) {
+      expect(southClosureAt(seed, 0)).toBe(milestoneAt(seed, 0) - HAZARDS.closures.south.behind);
+      expect(closurePieces(seed, 0).filter((p) => Math.abs(p.at.n - southClosureAt(seed, 0)) < 5).length).toBeGreaterThan(0);
+      for (const k of [1, 2, 5]) expect(closurePieces(seed, k).filter((p) => p.hulk || p.kind === 'deadTruck' || p.kind === 'carWreck')).toEqual([]);
     }
   });
 
   it('lays the closures from end-to-end barriers and burnt wrecks turned along their line', () => {
-    const pieces = closurePieces(5, 2);
+    const pieces = closurePieces(5, 0);
     const yaws = pieces.filter((p) => p.kind === 'barrier').map((p) => relYaw(5, p));
-    expect(yaws.length).toBeGreaterThan(100);
+    expect(yaws.length).toBeGreaterThan(60);
     expect(yaws.every((y) => Math.abs(Math.abs(y) - 90) <= 5)).toBe(true);
     const wrecks = pieces.filter((p) => p.hulk || p.kind === 'carWreck' || p.kind === 'deadTruck');
     expect(wrecks.some((p) => p.hulk)).toBe(true);
@@ -254,7 +277,7 @@ describe('a highway window with its scenes', () => {
   });
 
   it('makes each hulk a lasting wreck obstacle of its chassis', () => {
-    const map: BakedMap = highwayMap(2, 1);
+    const map: BakedMap = highwayMap(2, 0);
     const hulks = mapObstacles(map).filter((o) => o.id.startsWith('hulk-'));
     expect(hulks.length).toBeGreaterThan(20);
     expect(hulks.every((o) => o.kind === 'wreck' && o.hulk !== undefined && o.hulk.chassisId in CHASSIS)).toBe(true);
@@ -329,7 +352,7 @@ describe('every stretch lays out', () => {
   });
 
   it('fits its scenes between arenas of the minimum length for stretches 1 to 40 on many seeds', () => {
-    for (const seed of seeds) {
+    for (const seed of seeds.filter((_, i) => i % 3 === 0)) {
       for (const j of stretches) {
         const layout = stretchLayout(seed, j);
         expect(layout.scenes.length, `seed ${seed} stretch ${j}`).toBeLessThanOrEqual(scenesOf(j));

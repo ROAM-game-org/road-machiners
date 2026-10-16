@@ -3,9 +3,10 @@ import { ECONOMY, GOODS } from '../data/goods';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { REPAIR } from '../data/wear';
 import { playerVehicle } from './damage';
-import { outpostPad, waitForRoad } from './fury-road';
+import { driveOn } from './fury-road';
+import { yardSpots } from './outpost-gates';
 import { milestoneAt, roadPoint } from './highway';
-import { furyRoadWorld, parkOnPad } from './testkit';
+import { furyRoadWorld, parkInYard } from './testkit';
 import { corePart, goodsCount, mountedParts } from './grid';
 import { startRepair } from './jobs';
 import { repairPlan } from './repair';
@@ -21,7 +22,7 @@ const still = () => {};
 
 function atOutpost(): World {
   const w = furyRoadWorld();
-  parkOnPad(w, 1);
+  parkInYard(w, 1);
   return endTurn(w, still);
 }
 
@@ -140,7 +141,7 @@ describe('outpost services', () => {
     let w = atOutpost();
     w.player.money = 10_000_000;
     const part = fittingStock(w);
-    w = waitForRoad(outpostBuyPart(w, part.id));
+    w = driveOn(outpostBuyPart(w, part.id));
     const me = playerVehicle(w);
     me.pos = roadPoint(w.seed, w.furyRoad!.window, milestoneAt(w.seed, 1) + 30, HIGHWAY.road.lanes[1]);
 
@@ -186,7 +187,7 @@ describe('outpost commands off the pad', () => {
   it.each(commands)('refuse to %s at an outpost not reached yet', (_name, command) => {
     const w = furyRoadWorld();
     const me = playerVehicle(w);
-    me.pos = outpostPad(w, 1);
+    me.pos = yardSpots(w, 1).truck;
     me.speed = 0;
     w.player.fuel -= 5;
 

@@ -32,7 +32,7 @@ function strandedAmbush(): { w: World; raider: Vehicle } {
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   addGoods(w, playerVehicle(w), 'scrap', 2);
   w.player.fuel = 0;
-  const raider = addVehicle(w, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
   forceOption('hostileSeen', 'fight');
   return { w, raider };
@@ -178,7 +178,7 @@ describe('plain surrender to a stranded player', () => {
 
   it('a second hostile in sight keeps the normal fight: no offer', () => {
     const { w: start, lawman } = strandedByLawman();
-    const other = addVehicle(start, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 34 });
+    const other = addVehicle(start, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 34 });
     other.brain = npcBrain('buggy', other.pos, ['raider']);
     const w = endTurn(start, testDrive);
     expect(w.player.call?.topic).not.toBe('giveUp');
@@ -199,11 +199,11 @@ describe('a stranded player not worth the trouble', () => {
 function npcAmbush(answer: 'accept' | 'refuse'): { w: World; raider: Vehicle; trader: Vehicle } {
   const w = emptyWorld({ x: 5, y: 5 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'mg'], { x: 60, y: 60 }, 0);
+  const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'mg'], { x: 60, y: 60 }, 0);
   trader.brain = npcBrain('trader', trader.pos, ['trader']);
   trader.resources!.fuel = 0;
   addGoods(w, trader, 'scrap', 3);
-  const raider = addVehicle(w, 'raiders', 'buggy', ['stockEngine', 'mg'], { x: 66, y: 60 }, Math.PI);
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 66, y: 60 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
   addState(w, 'feud', raider.id, trader.id, { kind: 'feud', robbery: true });
   forceOption('hostileSeen', 'fight');
@@ -241,7 +241,7 @@ describe('the player demands a beaten NPC give up', () => {
   function beaten(): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'mg', 'mg', 'mg'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'mg', 'mg', 'mg'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     addGoods(w, npc, 'scrap', 3);
     addState(w, 'feud', npc.id, w.player.vehicleId, { kind: 'feud', robbery: false });
@@ -351,7 +351,7 @@ describe('a beggar offers to stand down and be stripped', () => {
   function begging(): { w: World; npc: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'mg', 'mg', 'mg'], { x: 40, y: 30 }, Math.PI);
+    const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'mg', 'mg', 'mg'], { x: 40, y: 30 }, Math.PI);
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     addGoods(w, npc, 'scrap', 3);
     addState(w, 'feud', npc.id, w.player.vehicleId, { kind: 'feud', robbery: false });

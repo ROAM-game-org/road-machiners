@@ -1,3 +1,4 @@
+import { isOutlaw } from '../relations';
 import { TOPICS, type LineId } from '../../data/dialogue';
 import { SHOPS } from '../../data/market';
 import { inCombat } from '../combat';
@@ -60,7 +61,7 @@ function meet(o: Orders, search: SearchContract): void {
 
 function callable(world: World, v: Vehicle): boolean {
   const me = playerVehicle(world);
-  return v.brain !== null && v.faction !== 'raiders' && !isKnockedOut(v) && !inCombat(world, v) && !inCombat(world, me) && canVehicleSee(world, me, v.pos);
+  return v.brain !== null && !isOutlaw(v.faction) && !isKnockedOut(v) && !inCombat(world, v) && !inCombat(world, me) && canVehicleSee(world, me, v.pos);
 }
 
 function askToPullOver(o: Orders, target: Vehicle): void {

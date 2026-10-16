@@ -4,7 +4,7 @@ import { NPCS } from '../../data/npcs';
 import { partDef } from '../../data/parts';
 import { haulerOf, playerTrucks, playerVehicle } from '../damage';
 import { TERRAIN } from '../../data/terrain';
-import { alongOf, outpostFort, roadPoint, toRoad } from '../highway';
+import { alongOf, roadPoint, toRoad } from '../highway';
 import { ENGINE_HEAT } from '../../data/wear';
 import { canDouse, douseEngine } from '../engine-heat';
 import { inCombat } from '../combat';
@@ -13,8 +13,8 @@ import { isStranded, vehicleStats, type MountedWeapon } from '../stats';
 import { tankLeaks } from '../supplies';
 import { playerCanAct, setAutoFire, setAutoRepair, setMoveOrder, setWeaponOrder } from '../world';
 import { basicsRepairCost, chassisPrice, chassisSwapRefusal, repairCost, supplyRoom, type Supply } from '../economy';
-import { abandonRun, canAbandonRun, canWaitForRoad, nextOutpost, onOutpostPad, outpostPad, outpostTrucks, reachedOutpostAt, waitForRoad, type Outpost } from '../fury-road';
-import { isFree } from '../spawn';
+import { abandonRun, canAbandonRun, canDriveOn, driveOn, nextOutpost, outpostTrucks, reachedOutpostAt, type Outpost } from '../fury-road';
+import { inYard, yardSpots } from '../outpost-gates';
 import { RULES } from '../../data/rules';
 import { startRepair } from '../jobs';
 import { corePart, goodsCount, mountedParts } from '../grid';
@@ -33,7 +33,6 @@ import { mountBought, Orders, type BotTurn } from './orders';
 export type RoadStyle = 'escort' | 'sprinter';
 
 const PATCH_GOODS = 4;
-const PARKED_BESIDE = 2.2;
 const SAFE_HEAT = 1;
 const FIGHTER = 'merc';
 const HOP = TERRAIN.vision.radius;
@@ -51,7 +50,7 @@ function run(o: Orders, style: RoadStyle): void {
   if (o.me.job) return;
   const post = reachedOutpostAt(o.world);
   if (post) restock(o, post, style);
-  if (canWaitForRoad(o.world)) o.run(waitForRoad);
+  if (canDriveOn(o.world)) o.run(driveOn);
   if (!handleStranded(o)) drive(o, style);
 }
 
@@ -118,7 +117,7 @@ function coolEngine(o: Orders): void {
 function drive(o: Orders, style: RoadStyle): void {
   const next = nextOutpost(o.world);
   if (style === 'escort') return escort(o);
-  if (next) hopToward(o, next.pad);
+  if (next) hopToward(o, next.spots.truck);
   else if (o.me.order) o.run((w) => setMoveOrder(w, null));
 }
 
@@ -127,13 +126,14 @@ function escort(o: Orders): void {
   const foe = escortFoe(o.world, o.me);
   const stall = stallOf(o.world, o.me);
   const parking = !foe && haulerAtPad(o.world, hauler);
-  const order = parking ? unlessStuck(o.world, o.me, stall, () => parkBeside(o.world, hauler)) : escortMove(o.world, o.me, foe, stall);
+  const order = parking ? unlessStuck(o.world, o.me, stall, () => parkInYard(o.world)) : escortMove(o.world, o.me, foe, stall);
   if (!sameMove(o.me.order, order)) o.run((w) => setMoveOrder(w, order));
   if (foe) focusFire(o, foe);
 }
 
-function parkBeside(world: World, hauler: Vehicle): MoveOrder {
-  return { kind: 'stopAt', dest: beside(world, outpostPad(world, world.furyRoad!.window + 1), hauler) };
+function parkInYard(world: World): MoveOrder {
+  const run = world.furyRoad!;
+  return { kind: 'stopAt', dest: yardSpots(world, run.waitingAt ?? run.window + 1).truck };
 }
 
 function sameMove(a: MoveOrder | null, b: MoveOrder): boolean {
@@ -172,25 +172,10 @@ function sameOrder(a: WeaponOrder | null, b: WeaponOrder | null): boolean {
 
 function haulerAtPad(world: World, hauler: Vehicle): boolean {
   const run = world.furyRoad!;
-  const pad = outpostPad(world, run.window + 1);
-  const toPad = hauler.order?.kind === 'stopAt' && dist(hauler.order.dest, pad) === 0;
-  if (toPad || onOutpostPad(world, hauler.pos, run.window + 1)) return true;
-  return run.outposts.find((p) => p.milestone === run.window + 1)?.paid === true;
+  const spot = yardSpots(world, run.waitingAt ?? run.window + 1).hauler;
+  const toSpot = hauler.order?.kind === 'stopAt' && dist(hauler.order.dest, spot) === 0;
+  return toSpot || run.waitingAt !== null || inYard(world, hauler.pos, run.window + 1);
 }
-
-function beside(world: World, pad: Vec, hauler: Vehicle): Vec {
-  const run = world.furyRoad!;
-  const site = outpostFort(world.seed, run.window, run.window + 1);
-  const angle = Math.atan2(pad.y - site.pos.y, pad.x - site.pos.x);
-  const spot = (along: number, across: number) => ({ x: pad.x + Math.cos(angle) * along - Math.sin(angle) * across, y: pad.y + Math.sin(angle) * along + Math.cos(angle) * across });
-  const me = playerVehicle(world);
-  const radius = vehicleStats(world, me).radius;
-  const free = PAD_SPOTS.map(([along, across]) => spot(along, across)).filter((p) => onOutpostPad(world, p, run.window + 1) && isFree(world, p, radius, me.id));
-  const far = (p: Vec) => dist(p, hauler.pos);
-  return free.reduce<Vec | null>((best, p) => (!best || far(p) > far(best) ? p : best), null) ?? spot(0, PARKED_BESIDE);
-}
-
-const PAD_SPOTS: [number, number][] = [-2, -1, 0, 1, 2].flatMap((along) => [-3, -2, -1, 0, 1, 2, 3].map((across): [number, number] => [along, across]));
 
 function hopToward(o: Orders, pad: Vec): void {
   const now = o.me.order;

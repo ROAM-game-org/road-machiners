@@ -3,6 +3,8 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
+import { withFactions_70_71, withPlannedGroups_72_73, withRunWait_71_72 } from './save-steps-late';
+
 export type SavedJson = Record<string, unknown>;
 
 export const SAVE_MAJOR = 2;
@@ -878,29 +880,13 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withSearches_67_68,
-  withParcelSearches_68_69,
-  withRunWait_69_70,
-  withPlannedGroups_70_71,
+  withoutBearingCall_67_68,
+  withSearches_68_69,
+  withParcelSearches_69_70,
+  withFactions_70_71,
+  withRunWait_71_72,
+  withPlannedGroups_72_73,
 ];
-
-const GROUP_MONEY_70_71 = 20000;
-
-function withPlannedGroups_70_71(world: SavedJson): SavedJson {
-  const run = world.furyRoad as SavedJson | null;
-  if (run === null) return world;
-  const { quietFrom: _quietFrom, ...rest } = run;
-  const groups = (run.groups as SavedJson[]).map((group) => ({ ...group, at: 0, money: GROUP_MONEY_70_71, elite: false }));
-  return { ...world, furyRoad: { ...rest, groups } };
-}
-
-function withRunWait_69_70(world: SavedJson): SavedJson {
-  const run = world.furyRoad as SavedJson | null;
-  if (run === null) return world;
-  const next = (run.window as number) + 1;
-  const arrived = (run.outposts as SavedJson[]).some((post) => post.milestone === next && post.paid === true);
-  return { ...world, furyRoad: { ...run, waitingAt: arrived ? next : null } };
-}
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
   const anchored = (v: SavedJson): SavedJson => {
@@ -931,24 +917,24 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-function withSearches_67_68(world: SavedJson): SavedJson {
+function withSearches_68_69(world: SavedJson): SavedJson {
   return world;
 }
-const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
-function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+const withoutSearches_69_70 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_69_70(talked: Record<string, SavedJson>): Record<string, SavedJson> {
   return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
 }
-function withParcelSearches_68_69(world: SavedJson): SavedJson {
+function withParcelSearches_69_70(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_69_70(shop.contracts as SavedJson[]) }]));
   return {
     ...world,
     shops,
     player: {
       ...player,
-      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
-      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      contracts: withoutSearches_69_70(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_69_70(player.talked as Record<string, SavedJson>),
       call: call?.topic === 'found' ? null : call,
     },
   };
@@ -1054,6 +1040,15 @@ function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];
+
+function withoutBearingCall_67_68(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const said = (call?.line as SavedJson | undefined)?.line;
+  return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

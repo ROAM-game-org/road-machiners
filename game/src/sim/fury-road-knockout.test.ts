@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { advanceNpcKnockouts, checkKnockout, isKnockedOut, knockOutNpc } from './defeat';
-import { advanceFuryRoad, outpostPad, planStretch, waitForRoad } from './fury-road';
+import { advanceFuryRoad, driveOn, planStretch } from './fury-road';
 import { corePart } from './grid';
 import { downedListNear, downedHere } from './locations';
 import { topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canLootTruck, takeFromTruck } from './salvage';
-import { furyRoadWorld, parkOnPad } from './testkit';
+import { furyRoadWorld, parkInYard } from './testkit';
 import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
 import { endTurn } from './world';
 
@@ -49,8 +49,8 @@ function wreck(w: World, v: Vehicle): void {
 }
 
 function nextLevel(w: World): World {
-  parkOnPad(w, runOf(w).window + 1);
-  return waitForRoad(endTurn(w, still));
+  parkInYard(w, runOf(w).window + 1);
+  return driveOn(endTurn(w, still));
 }
 
 describe('a knocked-out Fury Road truck', () => {

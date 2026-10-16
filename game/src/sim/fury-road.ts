@@ -4,13 +4,14 @@ import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
-import { footprint, halfLength } from './body';
+import { footprint } from './body';
+import { FORTRESS } from '../data/fortress';
 import { makeVehicle } from './factory';
 import { groupPrey } from './combat';
 import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
-import { acrossOf, alongOf, highwayMap, milestoneAt, outpostFort, outpostId, outpostSite, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
-import { canUseSite, sitePads } from './sites';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostId, outpostSite, outpostYardHalf, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
+import { betweenLevels, gatesShut, inYard, yardSpots, yardSpotsAt, type YardSpots } from './outpost-gates';
 import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
@@ -20,7 +21,7 @@ import { modeRules } from './settings';
 import { directStretch, payOf, type PlannedWave } from './fury-road-director';
 import { mountedParts } from './grid';
 import { maxHp } from './wear';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
 import { fuelCap, isStranded, vehicleStats } from './stats';
@@ -31,10 +32,10 @@ import { dist, type Vec } from './vec';
 import { playerCommand } from './world';
 
 
-export type Outpost = OutpostFacts & { id: string; pad: Vec };
+export type Outpost = OutpostFacts & { id: string; spots: YardSpots };
 export type FuryRoadReadout = { stretch: number; toOutpost: number; outpostId: string };
 
-export { outpostId, haulerOf, playerTrucks };
+export { outpostId, haulerOf, playerTrucks, betweenLevels };
 
 export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
   if (!Number.isInteger(j) || j < 1) throw new Error(`Stretch ${j} has no wave`);
@@ -107,16 +108,14 @@ export function startRun(world: World): void {
   world.furyRoad = { window: from, outposts: [start, outpostFacts(world, from + 1)], groups: stretchPlan(world, from + 1), earned: 0, wrecks: 0, waitingAt: from, hauler: { id: hauler.id, alarmUntil: null } };
 }
 
-export function runStart(seed: number, playerChassis: string, from: number): { player: Pose; hauler: Pose } {
-  const pad = sitePads(outpostFort(seed, from, from))[0];
-  const heading = roadHeading(seed, milestoneAt(seed, from));
-  const half = (halfLength(HAULER_KIT.chassis) + halfLength(playerChassis) + RULES.yieldDistance) / 2;
-  const at = (ahead: number): Pose => ({ pos: { x: pad.x + Math.cos(heading) * ahead, y: pad.y + Math.sin(heading) * ahead }, heading });
-  return { player: at(-half), hauler: at(half) };
+export function runStart(seed: number, from: number): { player: Pose; hauler: Pose } {
+  const spots = yardSpotsAt(seed, from, from);
+  const heading = outpostSite(seed, from).heading;
+  return { player: { pos: spots.truck, heading }, hauler: { pos: spots.hauler, heading } };
 }
 
 export function spawnHauler(world: World, from: number): Vehicle {
-  const start = runStart(world.seed, playerVehicle(world).chassisId, from).hauler;
+  const start = runStart(world.seed, from).hauler;
   const v = makeVehicle(world, {
     faction: 'player',
     chassisId: HAULER_KIT.chassis,
@@ -138,12 +137,8 @@ function runOf(world: World): FuryRoadRun {
   return world.furyRoad;
 }
 
-export function outpostPad(world: World, milestone: number): Vec {
-  return sitePads(outpostFort(world.seed, runOf(world).window, milestone))[0];
-}
-
 function outpostOf(world: World, facts: OutpostFacts): Outpost {
-  return { ...facts, id: outpostId(facts.milestone), pad: outpostPad(world, facts.milestone) };
+  return { ...facts, id: outpostId(facts.milestone), spots: yardSpots(world, facts.milestone) };
 }
 
 export function outpostFactsAt(world: World, milestone: number): OutpostFacts {
@@ -265,7 +260,7 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   const me = playerVehicle(world);
   const hauler = haulerOf(world);
   loadouts.forEach(({ tpl, loadout }, i) => {
-    const v = spawnAt(world, tpl, loadout, spots[i]);
+    const v = spawnAt(world, tpl, loadout, spots[i], allegianceFor(world, tpl, null, null));
     getResources(world, v).fuel = fuelCap(v);
     v.heading = roadHeading(world.seed, alongOf(world.seed, toRoad(world.seed, run.window, v.pos)));
     group.vehicles.push(v.id);
@@ -331,9 +326,17 @@ function lineCandidate(progress: number, line: number): (step: number) => Candid
   };
 }
 
+function fortReach(radius: number): number {
+  return outpostYardHalf() + FORTRESS.wallDepth / 2 + radius + FURY_ROAD.spawnClear;
+}
+
+function spawnRange(world: World, run: FuryRoadRun, radius: number): { from: number; to: number } {
+  const reach = fortReach(radius);
+  return { from: milestoneAt(world.seed, run.window) + reach, to: milestoneAt(world.seed, run.window + 1) - reach };
+}
+
 function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[], hidden: (pos: Vec) => boolean): Vec | null {
-  const from = milestoneAt(world.seed, run.window);
-  const to = milestoneAt(world.seed, run.window + 1);
+  const { from, to } = spawnRange(world, run, radius);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
     if (!insideWindow(world, pos, radius) || !hidden(pos)) continue;
@@ -351,30 +354,17 @@ function retryLater(world: World, group: WaveGroup): void {
   else if (world.turn > group.retryUntil) throw new Error(`Fury Road group ${group.id} found no free lane spot for ${FURY_ROAD.spawnRetryTurns} turns`);
 }
 
-function parkedOnPad(world: World, milestone: number): boolean {
-  return playerTrucks(world).every((truck) => truck.speed <= RULES.parkedSpeed && onOutpostPad(world, truck.pos, milestone));
-}
-
-export function onOutpostPad(world: World, pos: Vec, milestone: number): boolean {
-  return canUseSite(pos, outpostFort(world.seed, runOf(world).window, milestone));
-}
-
 function arrivedAtNext(world: World, run: FuryRoadRun): boolean {
-  return playerTrucks(world).every((truck) => onOutpostPad(world, truck.pos, run.window + 1));
+  return playerTrucks(world).every((truck) => inYard(world, truck.pos, run.window + 1));
 }
 
-export function betweenLevels(world: World): boolean {
-  return world.furyRoad !== null && world.furyRoad.waitingAt !== null;
+export function canDriveOn(world: World): boolean {
+  return world.furyRoad !== null && world.player.state === 'active' && gatesShut(world);
 }
 
-export function canWaitForRoad(world: World): boolean {
-  const run = world.furyRoad;
-  return run !== null && world.player.state === 'active' && run.waitingAt !== null && parkedOnPad(world, run.waitingAt);
-}
-
-export function waitForRoad(world: World): World {
+export function driveOn(world: World): World {
   return playerCommand(world, (w) => {
-    if (!canWaitForRoad(w)) throw new Error('Only a player parked on the pad of a paid outpost can wait for the road');
+    if (!canDriveOn(w)) throw new Error('Drive on needs both trucks parked inside the yard of an outpost, with its gates shut');
     const run = runOf(w);
     if (run.waitingAt === run.window + 1) moveWindow(w);
     run.waitingAt = null;
@@ -453,7 +443,7 @@ const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K
 function requireMovable(world: World, run: FuryRoadRun): void {
   if (run.waitingAt !== run.window + 1) throw new Error(`The window moves only while the run waits at outpost ${run.window + 1}`);
   if (aliveCount(world, run) > 0) throw new Error('The window cannot move while a group truck is alive');
-  if (!parkedOnPad(world, run.window + 1)) throw new Error(`The window moves only with both trucks parked at outpost ${run.window + 1}`);
+  if (!gatesShut(world)) throw new Error(`The window moves only with both trucks parked inside outpost ${run.window + 1} and its gates shut`);
   if (world.salvage.length > 0 || Object.keys(world.shops).length > 0) throw new Error('A Fury Road window holds no salvage and no shops');
 }
 
@@ -530,7 +520,7 @@ export function haulerWedged(world: World): boolean {
 }
 
 function parkedForTheRoad(world: World, hauler: Vehicle): boolean {
-  return betweenLevels(world) || onOutpostPad(world, hauler.pos, runOf(world).window + 1);
+  return betweenLevels(world) || inYard(world, hauler.pos, runOf(world).window + 1);
 }
 
 export function abandonRun(world: World): World {
@@ -563,8 +553,8 @@ export function reachedOutpostAt(world: World, truck: Vehicle = playerVehicle(wo
 export function outpostNear(world: World, truck: Vehicle = playerVehicle(world)): Outpost | null {
   const run = world.furyRoad;
   if (!run) return null;
-  const facts = run.outposts.find((post) => post.paid && onOutpostPad(world, truck.pos, post.milestone));
-  return facts ? outpostOf(world, facts) : null;
+  const facts = factsOf(run, run.waitingAt ?? run.window + 1);
+  return facts.paid && inYard(world, truck.pos, facts.milestone) ? outpostOf(world, facts) : null;
 }
 
 export function furyRoadReadout(world: World): FuryRoadReadout | null {

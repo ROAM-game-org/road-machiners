@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { startKit } from '../data/start';
 import { haulerOf, playerTrucks, playerVehicle } from '../sim/damage';
-import { canWaitForRoad, onOutpostPad, stretchPlan, waitForRoad } from '../sim/fury-road';
+import { canDriveOn, stretchPlan, driveOn } from '../sim/fury-road';
+import { inYard } from '../sim/outpost-gates';
 import { highwayHash, mapAt } from '../sim/highway';
 import { isDriveObstacle, touchesObstacle } from '../sim/mapgen';
 import { defaultSetup } from '../sim/settings';
@@ -69,10 +70,10 @@ function expectWaitingAt(world: World, milestone: number): void {
   expect(world.furyRoad!.waitingAt).toBe(milestone);
   expect(world.vehicles).toEqual(playerTrucks(world));
   for (const truck of playerTrucks(world)) {
-    expect(onOutpostPad(world, truck.pos, milestone)).toBe(true);
+    expect(inYard(world, truck.pos, milestone)).toBe(true);
     expect(clearOfProps(world, truck)).toBe(true);
   }
-  expect(canWaitForRoad(world)).toBe(true);
+  expect(canDriveOn(world)).toBe(true);
   expect(world.furyRoad!.groups).toEqual(stretchPlan(world, milestone + 1));
 }
 
@@ -110,7 +111,7 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
   it('plays the stretch after the wait and awards nothing the save did not hold', () => {
     const { world } = rescued(MID_STRETCH);
 
-    const next = endTurn(waitForRoad(world), () => {});
+    const next = endTurn(driveOn(world), () => {});
 
     expect(next.player.money).toBe(world.player.money);
     expect(next.player.xp).toBe(world.player.xp);

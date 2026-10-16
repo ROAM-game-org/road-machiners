@@ -8,8 +8,8 @@ import type { TerrainTypeId } from './terrain';
 
 export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind };
 
-const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false };
-const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true };
+const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false, standing: true };
+const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true, standing: false };
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
   roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus' },
@@ -38,11 +38,11 @@ export type Line = { first: number; step: number };
 export const FURY_ROAD = {
   spawnOffsets: [-3, -1, 1, 3, -9, 9, -13, 13],
   outpost: {
-    look: 'salvage-yard',
-    radius: 6,
-    across: 19.5,
-    spur: { from: 3, half: 1.5 },
-    flat: { back: 6, half: 8, blend: 4 },
+    look: 'outpost',
+    radius: 12,
+    spots: { hauler: -1.5, truck: 1.5 },
+    gateMargin: 1.5,
+    leafInset: 0.4,
   },
   waves: [
     { level: 'light', gear: EARLY_GEAR },
@@ -86,6 +86,7 @@ export const FURY_ROAD = {
   rolling: { near: 6, ramp: 80, lead: 12 },
   sightMargin: 6,
   spawnStagger: 3,
+  spawnClear: 3,
   maxAlive: 8,
   spawnRetryTurns: 20,
   pay: { base: { first: 25000, step: 10000 } as Line },
@@ -100,7 +101,7 @@ export type BandRule = { kind: PropKind; count: [number, number]; r: [number, nu
 export type GroundBand = { below: number; type: TerrainTypeId };
 
 export const HIGHWAY = {
-  version: 5,
+  version: 6,
   size: 410,
   stretch: { min: 230, max: 310 },
   milestoneInset: 50,
@@ -190,7 +191,7 @@ export const HAZARDS = {
   placeTries: 12,
   maxTries: 60,
   closures: {
-    north: { gap: 16, reach: 30, rows: 2, rowGap: 1.4, sandbags: 4, traps: 10, trapsAhead: 2.5 },
+    line: { rows: 2, rowGap: 1.4, reach: 30, sandbags: 4, nestGap: 2.5, nestStep: 3.5, gap: 0.5 },
     south: { behind: 26, reach: 30, rows: 2, rowGap: 2, yaw: 15, hulkShare: 0.5 },
   },
 };
