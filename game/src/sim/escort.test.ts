@@ -8,7 +8,7 @@ import { goalHolds, thinkNpc, topGoal } from './npc-activities';
 import { optionChances, optionWeights } from './npc-decisions';
 import { GOAL_REACH, isTerritory, siteGap, siteGates, sitePads, type Site } from './sites';
 import { territoryEntries, territoryGrounds } from './territory';
-import { spawnNpcs } from './spawn';
+import { fallbackFaction, spawnNpcs } from './spawn';
 import { addState, advanceStates, endState, settleStates, stateOf } from './states';
 import { vehicleStats } from './stats';
 import { addVehicle, emptyWorld, forceOption, npcBrain, testDrive, rngStateForForcedRolls , startCombat } from './testkit';
@@ -22,7 +22,7 @@ import { endTurn } from './world';
 const BOWL = REGION.towns.find((t) => t.id === 'bowl')!;
 
 function createNpc(w: World, templateId: string, traits: TraitId[], chassis: string, parts: string[], pos: Vec): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, fallbackFaction(NPCS[templateId]), chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }
@@ -414,7 +414,7 @@ describe('hiring a merc', () => {
 
   it('a merc in combat with another truck cannot be hired', () => {
     const { w, trader, merc } = onTrip(166667);
-    startCombat(w, addVehicle(w, 'scavengers', 'scout', [], { x: 90, y: 90 }), merc);
+    startCombat(w, addVehicle(w, 'independent', 'scout', [], { x: 90, y: 90 }), merc);
     expect(optionWeights(w, trader, 'escortSeen', merc.id, null)).not.toHaveProperty('hire');
   });
 
@@ -521,7 +521,7 @@ describe('courier pairs', () => {
     const w = emptyWorld({ x: 300, y: 300 });
     const me = courierAt(w, { x: 52, y: 60 });
     const other = courierAt(w, { x: 60, y: 60 });
-    other.faction = 'raiders';
+    other.faction = 'scrapjaw';
     expect(optionWeights(w, me, 'idle', null, null)).not.toHaveProperty('escort');
   });
 

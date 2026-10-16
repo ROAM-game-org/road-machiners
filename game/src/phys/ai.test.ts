@@ -36,7 +36,7 @@ function turn(w: World, d: Drive): { w: World; d: Drive } {
 describe('NPC driving', () => {
   it('backs off a rock in its path and drives around it', () => {
     let w = emptyWorld({ x: 40, y: 30 });
-    const npc = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     npc.brain.goals = [{ kind: 'raid', targetId: null, destination: { x: 300, y: 30 }, reason: 'raid', phase: 'travel' }];
     w.obstacles = [{ id: 'rock', pos: { x: 31.4, y: 30 }, r: 0.8, kind: 'rock' }];
@@ -54,7 +54,7 @@ describe('NPC driving', () => {
 
   it('an NPC whose recovery ended turns around nose first toward a goal behind it', () => {
     let w = emptyWorld({ x: 60, y: 40 });
-    const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: 60, y: 30 });
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 60, y: 30 });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     npc.brain.goals = [{ kind: 'explore', targetId: null, destination: { x: 5, y: 30 }, reason: 'explore', phase: 'travel' }];
     npc.brain.recovery = 2;
@@ -74,7 +74,7 @@ describe('NPC driving', () => {
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
     const nose = REGION.towns[1];
-    const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     addGoods(w, npc, 'scrap', 1);
     npc.brain.goals = [{ kind: 'sell', targetId: nose.id, destination: { ...nose.pos }, phase: 'travel', reason: 'deliverCargo' }];
@@ -96,7 +96,7 @@ describe('NPC driving', () => {
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     const bowl = REGION.towns[0];
-    const npc = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
+    const npc = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: bowl.pos.x + bowl.radius + 2, y: bowl.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     const nose = REGION.towns[1];
     addGoods(w, npc, 'scrap', 1);
@@ -133,8 +133,8 @@ describe('NPC driving', () => {
       w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
       for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
       w.vehicles[0].pos = { x: 300, y: 200 };
-      const a = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 264.24, y: 165.07 }, (-48 * Math.PI) / 180);
-      const b = addVehicle(w, 'roamers', 'scout', ['mg', 'stockEngine'], { x: 283.01, y: 143.29 }, (129 * Math.PI) / 180);
+      const a = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 264.24, y: 165.07 }, (-48 * Math.PI) / 180);
+      const b = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 283.01, y: 143.29 }, (129 * Math.PI) / 180);
       a.id = 'v1062';
       b.id = 'v1081';
       a.speed = 6.46;

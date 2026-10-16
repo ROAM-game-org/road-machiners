@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { coreParts, mountedParts } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
-import { spawnAt } from './spawn';
+import { allegianceFor, spawnAt } from './spawn';
 import { isStranded } from './stats';
 import { emptyWorld } from './testkit';
 import { budget } from '../test/budget';
@@ -28,7 +28,7 @@ describe('NPC loadout tables', () => {
         for (let seed = 1; seed <= 2; seed++) {
           const world = emptyWorld();
           world.rngState = seed;
-          const v = spawnAt(world, tpl, generateNpcLoadout(world, tpl, value), { x: 40, y: 30 });
+          const v = spawnAt(world, tpl, generateNpcLoadout(world, tpl, value), { x: 40, y: 30 }, allegianceFor(world, tpl, null, null));
           const label = `${tpl.id} on ${value} seed ${seed}: ${describeLoadout(v)}`;
           expect(coreParts(v, 'transmission'), label).toHaveLength(1);
           expect(coreParts(v, 'cab'), label).toHaveLength(1);

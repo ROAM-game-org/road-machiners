@@ -11,7 +11,7 @@ const RUN_TIMEOUT = 360_000;
 
 function worldWithTrader(): World {
   const w = emptyWorld({ x: 30, y: 30 });
-  const npc = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+  const npc = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 });
   npc.brain = npcBrain('trader', npc.pos, NPCS.trader.traits);
   return w;
 }

@@ -163,7 +163,7 @@ describe('wear', () => {
 
   it('wears NPCs too', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     drive(npc, 1000);
     const before = totalHp(npc);
     applyWear(w);
@@ -359,7 +359,7 @@ describe('rough ground practice', () => {
   it('pays nothing while the player is towed', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const tower = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     addState(w, 'tow', tower.id, me.id, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true });
     setTerrainUnder(w, me, 6, 'hardpan');
     drive(me, 6);
@@ -369,7 +369,7 @@ describe('rough ground practice', () => {
 
   it('pays nothing for an NPC driving rough ground', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 50, y: 50 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 50, y: 50 });
     setTerrainUnder(w, npc, 6, 'scree');
     drive(npc, 6);
     applyWear(w);

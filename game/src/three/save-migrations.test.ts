@@ -69,6 +69,7 @@ import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import FORMAT_2_68 from './save-fixtures/format-2-68.json';
 import FORMAT_2_69 from './save-fixtures/format-2-69.json';
+import FORMAT_2_70 from './save-fixtures/format-2-70.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1459,5 +1460,44 @@ describe('save migration 69 to 70', () => {
     const save = structuredClone(FORMAT_2_69);
     save.player.call.topic = 'lastSeen';
     expect((MIGRATIONS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
+  });
+});
+
+describe('MIGRATIONS[70]', () => {
+  const next = MIGRATIONS[70](structuredClone(FORMAT_2_70)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
+  const factionOf = (id: string) => next.vehicles.find((v) => v.id === id)?.faction;
+
+  it('puts each raider in the camp nearest its home, whatever its position', () => {
+    expect(factionOf('v2')).toBe('scrapjaw');
+    expect(factionOf('v3')).toBe('kiln');
+  });
+
+  it('makes couriers Guidestar and road drivers independent', () => {
+    expect(factionOf('v4')).toBe('guidestar');
+    expect(['v5', 'v6', 'v11'].map(factionOf)).toEqual(['independent', 'independent', 'independent']);
+  });
+
+  it('gives a convoy its nearest town and its guard the convoy faction, and a lone guard its own nearest town', () => {
+    expect(factionOf('v7')).toBe('nose');
+    expect(factionOf('v8')).toBe('nose');
+    expect(factionOf('v9')).toBe('bowl');
+  });
+
+  it('keeps the player and town patrols, drops no truck and keeps every state', () => {
+    expect(factionOf('v1')).toBe('player');
+    expect(factionOf('v10')).toBe('bowl');
+    expect(next.vehicles).toHaveLength(FORMAT_2_70.vehicles.length);
+    expect(next.states).toEqual(FORMAT_2_70.states);
+  });
+
+  it('starts the player at the outside driver standing with no deeds', () => {
+    expect(next.player.standing).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 });
+    expect(next.player.deeds).toEqual([]);
+    expect(next.player.money).toBe(1200);
+  });
+
+  it('gives a memory of being wronged the attacked deed and keeps other memories', () => {
+    const memories = (next.vehicles as unknown as { id: string; brain: { memories: unknown[] } }[]).find((v) => v.id === 'v3')!.brain.memories;
+    expect(memories).toEqual([{ turn: 30, fact: { kind: 'wronged', by: 'v1', deed: 'attacked' } }, { turn: 31, fact: { kind: 'prices', shop: 'bowl', pressure: {} } }]);
   });
 });

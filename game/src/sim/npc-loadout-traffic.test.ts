@@ -4,7 +4,7 @@ import { cloneWorld } from './world';
 import { gunSpans } from './armor';
 import { mountedItems } from './grid';
 import { generateNpcLoadout } from './npc-loadout';
-import { spawnAt, spawnInitial, spawnNpcs } from './spawn';
+import { allegianceFor, spawnAt, spawnInitial, spawnNpcs } from './spawn';
 import { emptyWorld } from './testkit';
 import { budget } from '../test/budget';
 import { describeLoadout, fixture, useLoadoutFixture } from './npc-loadout-kit';
@@ -55,7 +55,7 @@ describe('NPC gun placement', () => {
       for (let seed = 1; seed <= 10; seed++) {
         const w = emptyWorld();
         w.rngState = seed * 7919;
-        const v = spawnAt(w, NPCS[id], generateNpcLoadout(w, NPCS[id]), { x: 40, y: 30 });
+        const v = spawnAt(w, NPCS[id], generateNpcLoadout(w, NPCS[id]), { x: 40, y: 30 }, allegianceFor(w, NPCS[id], null, null));
         for (const item of mountedItems(v, 'weapon')) {
           expect(gunSpans(v, item).length, `${id} seed ${seed} ${item.part.defId}`).toBeGreaterThan(0);
         }

@@ -155,6 +155,8 @@ export const TALK = {
   'line.tooLateForTalk': 'Too late for talk.',
   'line.tooMuch': 'Too much.',
   'line.thatCostsYou': m('That costs {price}. Then I talk.', { price: 'text' }),
+  'line.iKnowWhatYouDid': 'I know what you did. Find someone else to talk to.',
+  'line.notYourKind': 'Your name is no good with my people. Move along.',
   'line.helpMeFirst': 'Not for a stranger. Help me out first, then we talk.',
   'line.truceCost': m('{price}, and we forget it.', { price: 'text' }),
   'line.understood': 'Understood.',

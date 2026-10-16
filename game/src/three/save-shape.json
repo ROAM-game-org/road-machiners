@@ -1,5 +1,5 @@
 {
- "format": "2.70",
+ "format": "2.71",
  "shape": {
   "broken": [],
   "craters": [],
@@ -49,6 +49,7 @@
    "costBasis": {
     "scrap": "number"
    },
+   "deeds": [],
    "discovered": [],
    "encounters": {
     "next": "number",
@@ -90,6 +91,14 @@
    "repeats": {},
    "rumored": [],
    "scavenged": [],
+   "standing": {
+    "administrators": "number",
+    "bowl": "number",
+    "guidestar": "number",
+    "kiln": "number",
+    "nose": "number",
+    "scrapjaw": "number"
+   },
    "state": "string",
    "storage": [],
    "supplies": "number",

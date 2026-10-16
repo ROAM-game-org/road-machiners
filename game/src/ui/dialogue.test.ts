@@ -149,9 +149,9 @@ describe('a driver\'s own line', () => {
 describe('call error', () => {
   it('is null for a driver in sight and says why otherwise', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const near = addVehicle(w, 'traders', 'scout', [], { x: 32, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 32, y: 30 });
     near.brain = npcBrain('trader', { x: 32, y: 30 }, []);
-    const far = addVehicle(w, 'traders', 'scout', [], { x: 29, y: 29 });
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 29, y: 29 });
     far.brain = npcBrain('trader', { x: 29, y: 29 }, []);
     far.pos = { x: 500, y: 500 };
     expect(callError(w, near.id)).toBeNull();

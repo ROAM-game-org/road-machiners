@@ -1,6 +1,6 @@
 
 import type { LineId } from '../data/dialogue';
-import { FACTION_COLORS } from '../render/palette';
+import { paintOf } from '../render/palette';
 import { playerVehicle, vehicleById } from '../sim/damage';
 import { isKnockedOut } from '../sim/defeat';
 import { callVehicle, chooseOption, currentOptions, hangUp, honk } from '../sim/dialogue';
@@ -184,7 +184,7 @@ export class DialoguePanel {
     if (key === this.drawn) return;
     this.drawn = key;
     const npc = vehicleById(w, call.with);
-    this.root.style.borderLeftColor = `#${FACTION_COLORS[npc.faction].top.toString(16).padStart(6, '0')}`;
+    this.root.style.borderLeftColor = `#${paintOf(npc).top.toString(16).padStart(6, '0')}`;
     this.root.classList.remove('qt-done');
     const options = offered.map((o, i) =>
       el('button', { class: 'dialogue-option', onclick: () => this.choose(i) }, t('call.option', { n: i + 1, line: lineText(o.line, call.vars) })),
