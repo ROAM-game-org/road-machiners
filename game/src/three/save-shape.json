@@ -2165,6 +2165,7 @@
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
+   "scale_seen": "boolean",
    "towed_to_bowl": "boolean",
    "varga_truck_known": "boolean",
    "wagon_fate": "string",
@@ -2208,6 +2209,10 @@
     "ruben_senate": "boolean",
     "ruben_sun": "boolean",
     "ruben_water": "boolean"
+   },
+   "bowl_scale": {
+    "asked_pay": "boolean",
+    "asked_where": "boolean"
    },
    "first_fall": {},
    "intro_arrival": {
@@ -2365,6 +2370,9 @@
     "start",
     "start.hub"
    ],
+   "bowl_scale": [
+    "start"
+   ],
    "first_fall": [
     "start"
    ],
@@ -2493,6 +2501,18 @@
     "readsNotes": [],
     "writes": {},
     "notes": [],
+    "begins": []
+   }
+  },
+  "bowl_scale": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [
+     "orchardIron"
+    ],
     "begins": []
    }
   },

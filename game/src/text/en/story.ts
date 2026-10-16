@@ -8,6 +8,7 @@ export const STORY = {
   'quest.bowl_hattie.title': 'Talks with Hattie',
   'quest.bowl_jory.title': 'Talks with Jory Baptiste',
   'quest.bowl_ruben.title': 'Talks with Ruben',
+  'quest.bowl_scale.title': 'The scale at the Bowl gate',
   'quest.first_fall.title': 'The first fall',
   'quest.intro_arrival.title': 'Down from the rim',
   'quest.intro_bowl.title': 'Waking in Bowl',
@@ -116,6 +117,9 @@ export const STORY = {
   'journalNote.pipeCanal.title': 'Mirela\'s book in Bowl',
   'journalNote.pipeCanal.from': 'Mirela Duarte, Bowl lock house',
   'journalNote.pipeCanal.text': 'Every barrel Agnes loaded onto Bowl\'s trucks reached Mirela\'s trough, so Agnes\'s hose column is honest. The dial is the other half, and you read it. Mirela will read every number to the Senate and try to win back the canal families\' job of sharing out the trough.',
+  'journalNote.orchardIron.title': 'Iron at Old Orchard',
+  'journalNote.orchardIron.from': 'Mags Corrin, weigher at the Bowl gate yard',
+  'journalNote.orchardIron.text': 'Scavengers who sell at the Bowl gate yard strip the dead trucks by the roads before other drivers get to them. The rest of their iron comes from the old barns and Army sheds at Old Orchard, up the north road. A Bowl patrol keeps the Old Orchard gate.',
 
   'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
   'term.nose': 'The town up the north road, built around a wreck on a mountain. Its soldiers keep the order, and its workshop line builds the basin\'s engines and guns.',
