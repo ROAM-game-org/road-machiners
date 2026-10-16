@@ -16,7 +16,7 @@ import { endTurn } from './world';
 function duel(): { w: World; me: Vehicle; buggy: Vehicle } {
   const w = emptyWorld();
   const me = w.vehicles[0];
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
   buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
   return { w, me, buggy };
 }
@@ -128,7 +128,7 @@ describe('the smoke spread cause', () => {
 describe('the Sprout', () => {
   it('puts a cloud around the truck that already spoils this turn\'s shots, and starts its reload', () => {
     const { w, me, part } = playerWith('sprout');
-    const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI);
+    const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI);
     buggy.speed = 3;
     me.utilityOrders[part.id] = { kind: 'self' };
 

@@ -878,8 +878,10 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withSearches_67_68,
-  withParcelSearches_68_69,
+  withoutBearingCall_67_68,
+  withSearches_68_69,
+  withParcelSearches_69_70,
+  withFactions_70_71,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -889,6 +891,52 @@ function withProgressAnchor_65_66(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
   };
   return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
+
+type Point_70_71 = { x: number; y: number };
+
+const CAMPS_70_71: readonly (readonly [string, Point_70_71])[] = [['scrapjaw', { x: 110, y: 70 }], ['kiln', { x: 330, y: 380 }]];
+const TOWNS_70_71: readonly (readonly [string, Point_70_71])[] = [['bowl', { x: 80, y: 470 }], ['nose', { x: 510, y: 175 }]];
+const RENAMED_70_71: Record<string, string> = { couriers: 'guidestar', traders: 'independent', scavengers: 'independent', roamers: 'independent', vultures: 'independent', mercs: 'independent' };
+const START_STANDING_70_71 = { bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 };
+
+function nearest_70_71(places: readonly (readonly [string, Point_70_71])[], at: Point_70_71): string {
+  const gap = (p: Point_70_71) => Math.hypot(p.x - at.x, p.y - at.y);
+  return [...places].sort((a, b) => gap(a[1]) - gap(b[1]))[0][0];
+}
+
+function homeOf_70_71(v: SavedJson): Point_70_71 {
+  const brain = v.brain as SavedJson | null;
+  return (brain ? brain.home : v.pos) as Point_70_71;
+}
+
+function leaderOf_70_71(world: SavedJson, v: SavedJson): SavedJson | null {
+  const escort = (world.states as SavedJson[]).find((s) => s.kind === 'escort' && s.holder === v.id);
+  return escort ? (world.vehicles as SavedJson[]).find((x) => x.id === escort.other) ?? null : null;
+}
+
+function factionOf_70_71(world: SavedJson, v: SavedJson): string {
+  const old = v.faction as string;
+  if (old === 'raiders') return nearest_70_71(CAMPS_70_71, homeOf_70_71(v));
+  if (old !== 'convoys') return RENAMED_70_71[old] ?? old;
+  const leader = leaderOf_70_71(world, v);
+  return nearest_70_71(TOWNS_70_71, homeOf_70_71(leader?.faction === 'convoys' ? leader : v));
+}
+
+function withDeedMemories_70_71(v: SavedJson): SavedJson {
+  const brain = v.brain as SavedJson | null;
+  if (!brain?.memories) return v;
+  const memories = (brain.memories as SavedJson[]).map((m) => {
+    const fact = m.fact as SavedJson;
+    return fact.kind === 'wronged' && fact.deed === undefined ? { ...m, fact: { ...fact, deed: 'attacked' } } : m;
+  });
+  return { ...v, brain: { ...brain, memories } };
+}
+
+function withFactions_70_71(world: SavedJson): SavedJson {
+  const relabel = (v: SavedJson): SavedJson => ({ ...v, faction: factionOf_70_71(world, v) });
+  const player = { ...(world.player as SavedJson), standing: { ...START_STANDING_70_71 }, deeds: [] };
+  return { ...world, player, vehicles: (world.vehicles as SavedJson[]).map((v) => withDeedMemories_70_71(relabel(v))) };
 }
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
@@ -911,24 +959,24 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-function withSearches_67_68(world: SavedJson): SavedJson {
+function withSearches_68_69(world: SavedJson): SavedJson {
   return world;
 }
-const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
-function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+const withoutSearches_69_70 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_69_70(talked: Record<string, SavedJson>): Record<string, SavedJson> {
   return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
 }
-function withParcelSearches_68_69(world: SavedJson): SavedJson {
+function withParcelSearches_69_70(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_69_70(shop.contracts as SavedJson[]) }]));
   return {
     ...world,
     shops,
     player: {
       ...player,
-      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
-      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      contracts: withoutSearches_69_70(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_69_70(player.talked as Record<string, SavedJson>),
       call: call?.topic === 'found' ? null : call,
     },
   };
@@ -1034,6 +1082,15 @@ function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];
+
+function withoutBearingCall_67_68(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const said = (call?.line as SavedJson | undefined)?.line;
+  return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

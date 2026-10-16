@@ -5,7 +5,7 @@ import { inCombat, inCombatWithOther, inFeud, isHostile } from './combat';
 import { playerVehicle, vehicleById } from './damage';
 import { isKnockedOut } from './defeat';
 import { raiseEncounter } from './encounters';
-import { CONDITIONS, EFFECTS, helpedByPlayer, PREPARES } from './dialogue-rules';
+import { coldLine, CONDITIONS, EFFECTS, gateOpen, opensHelp, PREPARES } from './dialogue-rules';
 import type { Call, CallVars, GameEvent, Vehicle, World } from './types';
 import { dist } from './vec';
 import { npcTraits } from './npc-decisions';
@@ -22,6 +22,11 @@ export function talkOf(npc: Vehicle): Voice & { topics: TopicId[]; personality: 
   const voice = talks.find((t) => t.voice)?.voice;
   if (!voice) throw new Error(`${npc.id} has no trait with a voice`);
   return { ...voice, topics: [...new Set(talks.flatMap((t) => t.topics))], personality: personalityOf(npc) };
+}
+
+function greetingOf(world: World, npc: Vehicle): LineId {
+  const voice = talkOf(npc);
+  return coldLine(world, npc, voice.topics) ?? voice.greeting;
 }
 
 function personalityOf(npc: Vehicle): Personality {
@@ -54,7 +59,7 @@ function openCall(world: World): Call {
 
 function askable(world: World, npc: Vehicle): Topic[] {
   const feud = inFeud(world, npc, playerVehicle(world));
-  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && gateOf(npc, t) !== 'closed' && holds(world, npc, t.ask.when, {}));
+  return talkOf(npc).topics.map((id) => TOPICS[id]).filter((t) => t.ask && (!feud || t.ask.duringFeud) && gateOf(npc, t) !== 'closed' && gateOpen(world, npc, t.id) && holds(world, npc, t.ask.when, {}));
 }
 
 export function currentOptions(world: World): OfferedOption[] {
@@ -71,7 +76,7 @@ export function currentOptions(world: World): OfferedOption[] {
 export function currentLine(world: World): LineId {
   const call = openCall(world);
   if (isRefused(call)) return call.line.line;
-  if (!call.topic) return talkOf(vehicleById(world, call.with)).greeting;
+  if (!call.topic) return greetingOf(world, vehicleById(world, call.with));
   return TOPICS[call.topic].nodes[call.node].line;
 }
 
@@ -125,7 +130,7 @@ function requireRadio(world: World): void {
 }
 
 function answer(world: World, npc: Vehicle, refusal: LineId | null): void {
-  if (!refusal) return enter(world, begin(world, npc, talkOf(npc).greeting), null, HUB);
+  if (!refusal) return enter(world, begin(world, npc, greetingOf(world, npc)), null, HUB);
   const call = begin(world, npc, refusal);
   call.node = REFUSED;
 }
@@ -160,7 +165,7 @@ export function chooseOption(world: World, index: number): World {
 function askTopic(world: World, npc: Vehicle, call: Call, topic: Topic): void {
   if (isSettled(world, npc, topic)) return say(world, npc.id, talkOf(npc).repeatLine, {});
   const gate = gateOf(npc, topic);
-  if (gate === 'help' && !helpedByPlayer(world, npc)) return say(world, npc.id, 'helpMeFirst', {});
+  if (gate === 'help' && !opensHelp(world, npc)) return say(world, npc.id, 'helpMeFirst', {});
   enterTopic(world, npc, call, topic, gate === 'price' ? TOLL : topic.start);
 }
 
@@ -252,7 +257,7 @@ function raisedTopic(world: World, npc: Vehicle, me: Vehicle): Topic | null {
   const combat = inCombat(world, me);
   const wanted = talkOf(npc).topics
     .map((id) => TOPICS[id])
-    .filter((t) => t.raise && allowedNow(t.raise, feud, combat) && !isSettled(world, npc, t) && holds(world, npc, t.raise.when, {}))
+    .filter((t) => t.raise && allowedNow(t.raise, feud, combat) && !isSettled(world, npc, t) && gateOpen(world, npc, t.id) && holds(world, npc, t.raise.when, {}))
     .sort((a, b) => b.raise!.priority - a.raise!.priority);
   return wanted[0] ?? null;
 }

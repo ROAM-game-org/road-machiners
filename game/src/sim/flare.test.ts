@@ -34,7 +34,7 @@ function mounted(w: World, v: Vehicle, defId: string): PartInstance {
 function viewer(turn: number): { w: World; npc: Vehicle; east: Vec } {
   const w = emptyWorld({ x: 300, y: 300 });
   w.turn = turn;
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 100, y: 100 });
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 100, y: 100 });
   return { w, npc, east: { x: 115, y: 100 } };
 }
 
@@ -130,8 +130,8 @@ describe('the Flare cannon', () => {
 
   it('at night shows its launch to a truck 70 tiles off, and not to one 90 tiles off', () => {
     const { w, me, part } = launcher(night());
-    const near = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 170, y: 100 });
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 10, y: 100 });
+    const near = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 170, y: 100 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 100 });
     me.utilityOrders[part.id] = { kind: 'point', pos: { x: 100, y: 120 } };
 
     activateUtilities(w);
@@ -145,7 +145,7 @@ describe('the Flare cannon', () => {
 
   it('by day gives no contact', () => {
     const { w, me, part } = launcher(day());
-    const near = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 170, y: 100 });
+    const near = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 170, y: 100 });
     me.utilityOrders[part.id] = { kind: 'point', pos: { x: 100, y: 120 } };
 
     activateUtilities(w);
@@ -156,7 +156,7 @@ describe('the Flare cannon', () => {
   it('after its launch turn shows its light: a contact at the flare that holds the launcher', () => {
     const { w, me, part } = launcher(night());
     const pos = { x: 124, y: 100 };
-    const watcher = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 184, y: 100 });
+    const watcher = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 184, y: 100 });
     me.utilityOrders[part.id] = { kind: 'point', pos };
     activateUtilities(w);
 
@@ -171,7 +171,7 @@ describe('the Flare cannon', () => {
   it('reaches the player\'s contacts in the turn an NPC launches it', () => {
     const w = emptyWorld({ x: 100, y: 100 });
     w.turn = night() - 1;
-    const raider = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 170, y: 100 });
+    const raider = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 170, y: 100 });
     const part = mounted(w, raider, 'flareCannon');
     raider.utilityOrders[part.id] = { kind: 'point', pos: { x: 190, y: 100 } };
 
@@ -183,7 +183,7 @@ describe('the Flare cannon', () => {
 
   it('makes an NPC roll on the launch it saw', () => {
     const { w, me, part } = launcher(night());
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 170, y: 100 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 170, y: 100 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     forceOption('contactHeard', 'investigate');
     me.utilityOrders[part.id] = { kind: 'point', pos: { x: 100, y: 120 } };
