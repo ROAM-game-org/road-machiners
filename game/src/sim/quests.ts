@@ -37,7 +37,7 @@ import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
-import { canWaitForRoad } from './fury-road';
+import { canDriveOn } from './fury-road';
 import { payOf } from './fury-road-danger';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
@@ -286,7 +286,7 @@ export function openWreckScene(w: World, stockId: string): void {
 
 export function openRoadScene(w: World): void {
   if (!w.furyRoad || w.player.quests.session) return;
-  if (worldVar(w, ALA_HIRED) !== true || !canWaitForRoad(w)) return;
+  if (worldVar(w, ALA_HIRED) !== true || !canDriveOn(w)) return;
   const scene = ROAD_STORY[w.furyRoad.window + 1];
   if (!scene || worldVar(w, scene.gate) === true) return;
   setWorldVar(w, scene.gate, true);

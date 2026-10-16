@@ -81,7 +81,7 @@ Between levels nothing spawns. The paid next outpost is a garage, as a town gara
 
 Outposts buy nothing. Once the gates are shut the trucks cannot move, the outpost screen opens by itself when the leaves stop, and it has no Leave button and does not close on Escape. The next level starts only when the player presses Drive on. Then the shop is gone: the last outpost sells nothing, and driving back into its yard through the open north gate opens no shop.
 
-Parked on the pad of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
+Parked inside the shut gates of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
 
 The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`, and its tooltip reads "Stretch 3: 640 m to Outpost 3". Between levels it shows the next stretch at its full length.
 

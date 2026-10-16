@@ -3,13 +3,13 @@ import { ALA_HIRED, GAME_OPENED_QUESTS, GAME_WORLD_VARS, ROAD_STORY } from '../d
 import { UNITS } from '../data/units';
 import { startKit } from '../data/start';
 import { haulerOf, playerVehicle } from '../sim/damage';
-import { waitForRoad } from '../sim/fury-road';
+import { driveOn } from '../sim/fury-road';
 import { payOf } from '../sim/fury-road-danger';
 import { highwayMap } from '../sim/highway';
 import { newGame } from '../sim/new-game';
 import { QUEST_QUERIES, QUESTS, setWorldVar, worldVar } from '../sim/quests';
 import { defaultSetup } from '../sim/settings';
-import { finishQuest, furyRoadWorld, parkOnPad } from '../sim/testkit';
+import { finishQuest, furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { cloneWorld, endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -27,7 +27,7 @@ function hiredRun(): World {
 }
 
 function arriveAt(w: World, stretch: number): World {
-  parkOnPad(w, stretch);
+  parkInYard(w, stretch);
   return endTurn(w, still);
 }
 
@@ -89,13 +89,13 @@ describe('the scenes at parked outposts', () => {
   it('waits for the gun truck to park', () => {
     const w = hiredRun();
     const me = playerVehicle(w);
-    parkOnPad(w, 1);
+    parkInYard(w, 1);
     me.pos = { x: me.pos.x, y: me.pos.y + 60 };
     const paid = endTurn(w, still);
     expect(paid.furyRoad!.outposts[0].paid).toBe(true);
     expect(questOpen(paid)).toBeNull();
 
-    parkOnPad(paid, 1);
+    parkInYard(paid, 1);
     expect(questOpen(endTurn(paid, still))).toBe(GAME_OPENED_QUESTS.roadStretch1);
   });
 
@@ -111,7 +111,7 @@ describe('the scenes at parked outposts', () => {
         expect(JSON.stringify(withoutQuests(w))).toBe(before);
         gates.push(ROAD_STORY[stretch].gate);
       }
-      w = waitForRoad(w);
+      w = driveOn(w);
       expect(worldVar(w, ALA_HIRED)).toBe(true);
       for (const gate of gates) expect(worldVar(w, gate)).toBe(true);
     }
@@ -132,7 +132,7 @@ describe('the scenes at parked outposts', () => {
     const open = newGame(SEED, 'furyRoad', true, highwayMap(SEED, 0), defaultSetup('furyRoad'));
     w.player.quests = open.player.quests;
     expect(questOpen(w)).toBe(GAME_OPENED_QUESTS.roadHire);
-    parkOnPad(w, 1);
+    parkInYard(w, 1);
     const after = endTurn(w, still);
     expect(questOpen(after)).toBe(GAME_OPENED_QUESTS.roadHire);
     expect(haulerOf(after).id).not.toBe(playerVehicle(after).id);
