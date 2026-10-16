@@ -3,14 +3,12 @@ import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions,
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
 import { CONFIG, ERROR_REPORT_URL, SFX_BYTES } from '../config';
-import { download } from '../download';
 import { BANK, MIX, SOUNDS } from '../data/sounds';
 import { startKit } from '../data/start';
-import { MAPGEN } from '../data/terrain';
 import { PHYSICS } from '../data/physics';
 import { initPhysics } from '../phys/drive';
 import { perfSnapshot, resetPerf } from '../perf';
-import { decodeMap, type BakedMap } from '../sim/terrain';
+import { fetchMap } from './map-file';
 import type { World, WorldSetup } from '../sim/types';
 import { newGame } from '../sim/new-game';
 import { DebugConsole, Noclip } from '../ui/console';
@@ -44,10 +42,6 @@ function element(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`#${id} element missing from the page`);
   return el;
-}
-
-async function fetchMap(): Promise<BakedMap> {
-  return decodeMap(new Uint8Array(await download(MAPGEN.file)));
 }
 
 type Booted = { world: World; runId: string; loadedFrom: SlotId | null; fresh: boolean };
