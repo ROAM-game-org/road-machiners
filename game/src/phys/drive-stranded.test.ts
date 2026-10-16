@@ -58,7 +58,8 @@ describe('stranded trucks', () => {
     expect(dist(me.pos, hauler.pos)).toBeGreaterThan(chassisDef(me.chassisId).radius + chassisDef('hauler').radius);
   });
 
-  const hungRock: Obstacle = { id: 'rock3136', kind: 'rock', pos: { x: 479.7405, y: 517.5992 }, r: 1.2942 };
+  const hungRock: Obstacle = { id: 'rock2703', kind: 'rock', pos: { x: 280.3848, y: 22.1321 }, r: 1.2953 };
+  const besideRock = (dx: number, dy: number): Vec => ({ x: hungRock.pos.x + dx, y: hungRock.pos.y + dy });
 
   function hungOnRock(order: MoveOrder | null): World {
     const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
@@ -66,14 +67,14 @@ describe('stranded trucks', () => {
     w.states = [];
     w.obstacles = [hungRock];
     const truck = w.vehicles[0];
-    truck.pos = { x: 480.897, y: 518.094 };
+    truck.pos = besideRock(1.1565, 0.4948);
     truck.heading = -1.5101;
     truck.order = order;
     return w;
   }
 
   it('sets down a truck hung on a rock that tries to drive and does not move', () => {
-    const order: MoveOrder = { kind: 'stopAt', dest: { x: 485.107, y: 520.639 } };
+    const order: MoveOrder = { kind: 'stopAt', dest: besideRock(5.3665, 3.0398) };
     const w = hungOnRock(order);
     const { w: after, counts } = strandedRun(w, buildDrive(w), RULES.stranded.turns + 1);
     expect(counts).toEqual(expected);
