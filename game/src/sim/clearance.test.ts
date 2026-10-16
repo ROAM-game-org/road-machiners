@@ -60,3 +60,21 @@ describe('what a truck at a pose touches', () => {
     expect(c.touches(at, 0)).toBe(true);
   });
 });
+
+describe('a truck meeting a moving truck', () => {
+  const at = { x: 30, y: 30 };
+  const clearance = () => clearanceFor(emptyWorld(at), emptyWorld(at).vehicles[0], []);
+  const mover = (pos: { x: number; y: number }, vel: { x: number; y: number }) => ({ id: 'v9', pos, vel, r: 0.8 });
+
+  it('meets a truck that crosses ahead within the roll time', () => {
+    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, 1, [mover({ x: 34, y: 34 }, { x: 0, y: -4 })])).toBe(true);
+  });
+
+  it('does not meet a truck that is already past by then', () => {
+    expect(clearance().meetsMoving({ x: 34, y: 30 }, 0, 1, [mover({ x: 34, y: 34 }, { x: 0, y: 4 })])).toBe(false);
+  });
+
+  it('IV6: throws on a non-finite velocity', () => {
+    expect(() => clearance().meetsMoving({ x: 34, y: 30 }, 0, 1, [mover({ x: 34, y: 34 }, { x: Number.NaN, y: 0 })])).toThrow();
+  });
+});

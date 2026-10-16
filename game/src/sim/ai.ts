@@ -316,8 +316,17 @@ export function followsTraffic(world: World, v: Vehicle): boolean {
 export function yieldsToTraffic(world: World, v: Vehicle): boolean {
   if (v.brain || v.id !== world.player.vehicleId || v.direct) return false;
   const order = v.order;
-  if (!order || order.kind === "brake") return false;
-  return trafficStops(world, v, order.dest);
+  if (!order || order.kind === "brake" || inCombat(world, v)) return false;
+  return trafficStops(world, v, order.dest) || holdsForApproach(world, v);
+}
+
+function holdsForApproach(world: World, v: Vehicle): boolean {
+  if (v.speed >= RULES.parkedSpeed) return false;
+  return others(world, v).some((x) => {
+    if (x.speed < RULES.parkedSpeed || !followsTraffic(world, x)) return false;
+    const approaching = Math.cos(angleDiff(x.heading, bearing(x.pos, v.pos))) > 0;
+    return approaching && dist(v.pos, x.pos) - vehicleStats(world, v).radius - vehicleStats(world, x).radius < brakingReach(world, v, x);
+  });
 }
 
 export function routeBlockers(world: World, v: Vehicle): Blocker[] {
