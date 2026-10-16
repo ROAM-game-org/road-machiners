@@ -4,6 +4,7 @@ import { GOODS } from '../../data/goods';
 import { PARTS } from '../../data/parts';
 import { ITEM_TONES } from '../../render/palette';
 import { iconCatalog, itemTone, ICON_SECTIONS, ICON_WEAPON_PICKS, type IconEntry, type IconSection } from '../../render/partLooks';
+import { publicUrl } from '../../public-url';
 import { loadModels, type ModelName } from '../render/models';
 import {
   barrelReads,
@@ -98,7 +99,7 @@ async function modelBytes(catalog: readonly IconEntry[]): Promise<Map<ModelName,
   const out = new Map<ModelName, Uint8Array>();
   await Promise.all(
     names.map(async (name) => {
-      const res = await fetch(`${import.meta.env.BASE_URL}models/${name}.glb`);
+      const res = await fetch(publicUrl(`models/${name}.glb`));
       if (!res.ok) throw new Error(`Model ${name}.glb failed to load: HTTP ${res.status}`);
       out.set(name, new Uint8Array(await res.arrayBuffer()));
     }),

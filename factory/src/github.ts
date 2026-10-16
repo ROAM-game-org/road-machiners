@@ -18,7 +18,7 @@ const PROJECT_FIELDS = 'id field(name: "Status") { ... on ProjectV2SingleSelectF
 const ITEMS_QUERY = `query($project: ID!, $cursor: String) { node(id: $project) { ... on ProjectV2 {
   items(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id
     fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
-    content { ... on Issue { number repository { nameWithOwner } labels(first: 50) { nodes { name } } } } } } } } }`;
+    content { ... on Issue { number title repository { nameWithOwner } labels(first: 50) { nodes { name } } } } } } } } }`;
 
 const CANDIDATES_QUERY = `query($search: String!, $cursor: String) { search(type: ISSUE, query: $search, first: 100, after: $cursor) {
   pageInfo { hasNextPage endCursor } nodes { ... on Issue { number title body createdAt state author { login } labels(first: 50) { nodes { name } }
@@ -42,7 +42,7 @@ const SET_STATUS = `mutation($project: ID!, $item: ID!, $field: ID!, $option: St
 type ItemNode = {
   id: string;
   fieldValueByName: { name?: string } | null;
-  content: { number?: number; repository?: { nameWithOwner: string }; labels?: { nodes: { name: string }[] } } | null;
+  content: { number?: number; title?: string; repository?: { nameWithOwner: string }; labels?: { nodes: { name: string }[] } } | null;
 };
 
 type ItemsPage = {
@@ -299,8 +299,10 @@ function toCard(node: ItemNode, repo: string): Card | null {
   const content = node.content;
   const column = node.fieldValueByName?.name;
   if (!content || !column || !content.number || !inRepo(content, repo)) return null;
-  return { itemId: node.id, issue: content.number, column: column as Column, labels: labelsOf(content) };
+  return { itemId: node.id, issue: content.number, column: column as Column, labels: labelsOf(content), title: titleOf(content) };
 }
+
+const titleOf = (content: NonNullable<ItemNode['content']>): string => content.title ?? '';
 
 function inRepo(content: NonNullable<ItemNode['content']>, repo: string): boolean {
   return content.repository?.nameWithOwner === repo;

@@ -1,4 +1,5 @@
 import { AssetStatusError, AssetUnreachable, fetchAssetBody } from "../fetch-asset";
+import { publicUrl } from "../public-url";
 import { BANK, beatLoopSeconds, type Cue, type SoundFormat } from "../data/sounds";
 
 export type Bank = Map<string, AudioBuffer>;
@@ -232,7 +233,7 @@ async function decodeFile(job: Job, file: string, format: SoundFormat, cue: Cue,
   const expected = job.options.expectedBytes[name];
   if (expected === undefined) throw new Error(`Sound ${name} has no expected size`);
   const probe = probeOf(format, job, expected);
-  const { response, bytes } = await fetchSound(`${import.meta.env.BASE_URL}${format.dir}${name}`, attempt, probe);
+  const { response, bytes } = await fetchSound(publicUrl(`${format.dir}${name}`), attempt, probe);
   const facts = probe(response, bytes);
   if (bytes.length !== expected || !facts.signature) {
     throw new SoundFileFault("bytes", facts, new Error(`Sound ${name} arrived as ${bytes.length} of ${expected} bytes`));

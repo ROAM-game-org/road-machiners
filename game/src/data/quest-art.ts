@@ -1,3 +1,5 @@
+import { publicUrl } from '../public-url';
+
 export type QuestArt = { file: string; focusX: number };
 
 export const QUEST_ART: Record<string, QuestArt> = {
@@ -17,5 +19,5 @@ export function questArt(key: string): QuestArt {
 }
 
 export function questArtUrl(key: string): string {
-  return `${import.meta.env.BASE_URL}quest-art/${questArt(key).file}`;
+  return publicUrl(`quest-art/${questArt(key).file}`);
 }

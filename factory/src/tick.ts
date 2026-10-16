@@ -22,7 +22,7 @@ import { clearQueued, isQueued, orderKey, readState, updateState } from './state
 import { sweepTranscripts } from './transcript-archive';
 import { askedAt, clearAsked, isAnswered, recordAsked } from './questions';
 import { ADHOC_LABEL, AGENT_QUEUES, HOTFIX_LABEL, NEEDS_INFO_LABEL, QUEUE_OF, RELEASE_LABEL, RELEASE_TASK_LABEL, STUCK_LABEL, VOTING_LABEL } from './types';
-import type { Card, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
+import type { Card, Column, Ctx, FactoryConfig, FactoryState, Job, JobStage, PlaytestState, Queue, Run } from './types';
 
 export type JobPick = { stage: JobStage; issue: number | null };
 type Candidate = JobPick & { pastCardLimit: boolean };
@@ -414,10 +414,18 @@ export async function releaseAnswered(ctx: Ctx, cards: Card[]): Promise<Card[]> 
   return released;
 }
 
+const AWAITING_RELEASE: Column[] = ['Approval', 'Hardening', 'Merging'];
+
+function unreleasedIssues(state: FactoryState, cards: Card[]): number[] {
+  const onBoard = cards.filter((card) => AWAITING_RELEASE.includes(card.column)).map((card) => card.issue);
+  const merged = [...state.devMerges, ...(state.release?.merges ?? [])].map((merge) => merge.issue);
+  return [...onBoard, ...merged];
+}
+
 function cleanBuilds(ctx: Ctx, cards: Card[]): void {
   const state = readState(ctx.statePath);
   if (state.jobs.some((job) => job.stage === 'verify' || !AGENT_QUEUES.includes(QUEUE_OF[job.stage]))) return;
-  const keep = cards.filter((card) => card.column === 'Approval' || card.column === 'Hardening').map((card) => state.builds[String(card.issue)]).filter((name) => name !== undefined);
+  const keep = unreleasedIssues(state, cards).map((issue) => state.builds[String(issue)]).filter((name) => name !== undefined);
   removeStaleBuilds(ctx.cfg.webRoot, new Set(keep), (msg) => ctx.log('tick', null, msg));
 }
 

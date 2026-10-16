@@ -278,31 +278,33 @@
   {
     "label": "keep",
     "from": "chat, new standalone request",
-    "text": "Add boats so we can cross the big lake instead of driving around it.",
+    "text": "@roam_bot please file this idea: add boats so we can cross the big lake instead of driving around it.",
     "expect": "file",
     "source": "message",
     "work": [
       "#564 Landmark directions: Towns give directions by landmarks you can see.",
       "#568 Faction reputation: Towns remember what you did.",
       "#601 Add an exploration minimap and maps you can buy"
-    ]
+    ],
+    "addressed": true
   },
   {
     "label": "keep",
     "from": "chat, unrelated bug report",
-    "text": "My truck falls through the bridge near the farm since the last update.",
+    "text": "@roam_bot report this bug please: my truck falls through the bridge near the farm since the last update.",
     "expect": "file",
     "source": "message",
     "work": [
       "#564 Landmark directions: Towns give directions by landmarks you can see.",
       "#568 Faction reputation: Towns remember what you did.",
       "#601 Add an exploration minimap and maps you can buy"
-    ]
+    ],
+    "addressed": true
   },
   {
     "label": "keep",
     "from": "chat, unrelated bug under the #564 build post",
-    "text": "Unrelated, but the fuel gauge shows full when the tank is empty after loading a save.",
+    "text": "@roam_bot unrelated, but please file this: the fuel gauge shows full when the tank is empty after loading a save.",
     "expect": "file",
     "source": "comment",
     "parent": "Landmark directions",
@@ -310,6 +312,33 @@
     "work": [
       "#568 Faction reputation: Towns remember what you did.",
       "#601 Add an exploration minimap and maps you can buy"
-    ]
+    ],
+    "addressed": true
+  },
+  {
+    "label": "keep",
+    "from": "chat message 262, filed by mistake as #715",
+    "text": "Я попросил переделать это из туториала с типсами в квест",
+    "source": "message",
+    "context": "Tutorial tips: short hints that pop up on the first drive",
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "expect": "stay"
+  },
+  {
+    "label": "keep",
+    "from": "made up",
+    "text": "@roam_bot add a minimap maybe? would be cool",
+    "source": "message",
+    "addressed": true,
+    "work": [
+      "#564 Landmark directions: Towns give directions by landmarks you can see.",
+      "#568 Faction reputation: Towns remember what you did.",
+      "#601 Add an exploration minimap and maps you can buy"
+    ],
+    "expect": "stay"
   }
 ]
