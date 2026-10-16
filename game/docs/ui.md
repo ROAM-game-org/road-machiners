@@ -103,7 +103,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 
 Two zones may never cover each other. A new element that needs room takes it from its own zone.
 
-Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, New game and Options. Continue is off with no save, and focus starts on the first button that is on. New game opens the New game screen over it.
+Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, Load, New game and Options. A caption under Continue names the save it resumes with the Load row's pieces: slot, mode and game clock, or "Old or damaged save" in danger ink, with the real date in its tooltip. Continue and Load are off with no save, and focus starts on the first button that is on. Load opens the save list over the menu, and a pick there loads at once with no confirm. New game opens the New game screen over it.
 
 ### 4.3 The always-on budget
 

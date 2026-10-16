@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolve } from '../text/resolve';
-import { allSlots, listSaves, manualSlots, newestSlot, requestBoot, slotKey, slotLabel, takeBootRequest } from './save-slots';
+import { allSlots, listSaves, manualSlots, requestBoot, slotKey, slotLabel, takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
 
 function makeStorage(): Storage {
@@ -45,8 +45,8 @@ describe('save slots', () => {
       { slot: 'auto', savedAt: 0, turn: 40, mode: 'roaming' },
       { slot: 'slot2', savedAt: 0, turn: null, mode: null },
     ]);
-    expect(newestSlot(slots, 3)).toBe('day');
-    expect(newestSlot(makeSlots(), 3)).toBeNull();
+    expect(listSaves(slots, 3)[0].slot).toBe('day');
+    expect(listSaves(makeSlots(), 3)).toEqual([]);
   });
 
   it('removes the boot request when it is read', () => {

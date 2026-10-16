@@ -21,6 +21,8 @@
     "sfx:reimport": "vite-node scripts/sfx-reimport.mjs",
     "sfx:twins": "vite-node scripts/sfx-twins.mjs",
     "sfx:report": "vite-node scripts/sfx-report.mjs",
+    "blocks:sim": "vite-node scripts/blocks-sim.mjs",
+    "score:song": "node scripts/score-song-gen.mjs",
     "text:review": "vite-node scripts/text-review.mjs",
     "combat": "vite-node scripts/combat.mjs",
     "error:replay": "vite-node scripts/error-replay.mjs --",
