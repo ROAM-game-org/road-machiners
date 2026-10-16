@@ -211,7 +211,7 @@ describe('driver taste', () => {
   const to = siteGates(site('dustwell'))[0];
   const w = w1337;
   const me = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
-  const trader = (id: string): Vehicle => ({ ...me, id, faction: 'traders', brain });
+  const trader = (id: string): Vehicle => ({ ...me, id, faction: 'independent', brain });
   const apart = (p: Vec[], q: Vec[]) => Math.max(...p.map((x) => polylineDist(x, q)), ...q.map((x) => polylineDist(x, p)));
 
   it('sends drivers between the same towns along different ways', () => {
@@ -361,13 +361,13 @@ describe('routes prefer roads', () => {
       return w;
     }
     function loadedHauler(w: World): Vehicle {
-      const v = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], { x: 40, y: 40 });
+      const v = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], { x: 40, y: 40 });
       v.brain = npcBrain('trader', v.pos, ['trader']);
       addGoods(w, v, 'scrap', 122);
       return v;
     }
     function scout(w: World): Vehicle {
-      const v = addVehicle(w, 'traders', 'buggy', ['stockEngine'], { x: 40, y: 40 });
+      const v = addVehicle(w, 'independent', 'buggy', ['stockEngine'], { x: 40, y: 40 });
       v.brain = npcBrain('trader', v.pos, ['trader']);
       return v;
     }
@@ -434,7 +434,7 @@ describe('routes prefer roads', () => {
   });
 
   describe('hunting raiders', () => {
-    function driverOn(w: World, faction: 'raiders' | 'traders', traits: TraitId[], kind: NpcActivity['kind']): Vehicle {
+    function driverOn(w: World, faction: 'scrapjaw' | 'independent', traits: TraitId[], kind: NpcActivity['kind']): Vehicle {
       const v = addVehicle(w, faction, 'buggy', ['mg', 'stockEngine'], { x: 0, y: 0 });
       v.id = 'v7';
       v.brain = npcBrain('buggy', { x: 0, y: 0 }, traits);
@@ -442,7 +442,7 @@ describe('routes prefer roads', () => {
       return v;
     }
     function drivers(w: World) {
-      return { raider: driverOn(structuredClone(w), 'raiders', ['raider'], 'raid'), trader: driverOn(structuredClone(w), 'traders', ['trader'], 'trade') };
+      return { raider: driverOn(structuredClone(w), 'scrapjaw', ['raider'], 'raid'), trader: driverOn(structuredClone(w), 'independent', ['trader'], 'trade') };
     }
     const straightRoad = () => roadWorld([{ x: 40, y: 100 }, { x: 220, y: 100 }]);
     const onRoadLength = (w: World, from: Vec, pts: Vec[]) => roadShare(w, from, pts) * routeLength(from, pts);
@@ -500,7 +500,7 @@ describe('routes prefer roads', () => {
       expect(tasteKey(traderTaste)).toBe(String(traderTaste.seed));
       expect(tasteKey(huntingTaste)).toBe(`${traderTaste.seed}:off`);
       expect(trading).not.toEqual(hunting);
-      expect(route(w, a, b, 0.6, [], driverOn(structuredClone(w), 'raiders', ['raider'], 'sell'))).toEqual(trading);
+      expect(route(w, a, b, 0.6, [], driverOn(structuredClone(w), 'scrapjaw', ['raider'], 'sell'))).toEqual(trading);
     });
 
     it('plans off-road legs on the real map that a truck can drive straight', () => {

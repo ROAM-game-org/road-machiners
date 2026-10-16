@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -27,23 +27,62 @@ describe("throttle by click distance", () => {
   it("a close click brakes, a mid click holds, a far click accelerates", () => {
     const { s } = setup(4);
     const z = zoneEdges();
-    const at = (d: number) => zoneSpeed(s, 4, d);
+    const at = (d: number) => throughSpeed(s, 4, d, undefined, 'direct');
     expect(at(0.01)).toBeCloseTo(4 - s.brake, 1);
     expect(at(z.brakeEnd / 2)).toBeCloseTo(4 - s.brake / 2, 5);
     expect(at((z.brakeEnd + z.holdEnd) / 2)).toBe(4);
     expect(at(z.reach + 5)).toBe(Math.min(s.maxSpeed, 4 + s.accel));
-    expect(throttleFor(1, 4)).toBe("brake");
+    expect(throttleFor(1, 4, 'direct')).toBe("brake");
     expect(zoneSpeed(s, 0.5, 1)).toBeCloseTo(zoneSpeed(s, 0, 1), 5);
-    expect(throttleFor(5, 4)).toBe("hold");
-    expect(throttleFor(20, 4)).toBe("accelerate");
+    expect(throttleFor(5, 4, 'direct')).toBe("hold");
+    expect(throttleFor(20, 4, 'direct')).toBe("accelerate");
+  });
+});
+
+describe("route mode speed by distance", () => {
+  it("a far point speeds up and a point within this turn's travel holds speed", () => {
+    const { s } = setup(4);
+    expect(throughSpeed(s, 4, 20, undefined, "route")).toBe(Math.min(s.maxSpeed, 4 + s.accel));
+    expect(throughSpeed(s, 4, 2, undefined, "route")).toBe(4);
+    expect(throughSpeed(s, 4, 0.01, undefined, "route")).toBe(4);
+    const out = throughSpeed(s, 4, 4.5, undefined, "route");
+    expect(out).toBeGreaterThan(4);
+    expect(out).toBeLessThanOrEqual(Math.min(s.maxSpeed, 4 + s.accel));
+  });
+
+  it("from rest a close point starts gently and a far point starts at full acceleration", () => {
+    const { s } = setup(0);
+    expect(throughSpeed(s, 0, 0.5, undefined, "route")).toBe(1);
+    expect(throughSpeed(s, 0, 20, undefined, "route")).toBe(Math.min(s.maxSpeed, s.accel));
+  });
+
+  it("holds top speed above it and lets a pace win in both modes", () => {
+    const { s } = setup(0);
+    expect(throughSpeed(s, s.maxSpeed + 2, 30, undefined, "route")).toBe(s.maxSpeed);
+    expect(throughSpeed(s, 4, 20, 4.5, "route")).toBe(throughSpeed(s, 4, 20, 4.5, "direct"));
+  });
+
+  it("never brakes for a through point and shows accelerate only when out of reach", () => {
+    const { s } = setup(0);
+    for (const speed of [0, 1, 4, s.maxSpeed])
+      for (const d of [0.01, 1, 4, 10, 40]) {
+        expect(throughSpeed(s, speed, d, undefined, "route")).toBeGreaterThanOrEqual(Math.min(speed, s.maxSpeed));
+        expect(throttleFor(d, speed, "route")).toBe(d > speed ? "accelerate" : "hold");
+      }
+  });
+
+  it("rejects a non-finite distance or speed", () => {
+    const { s } = setup(0);
+    expect(() => throughSpeed(s, 4, Number.NaN, undefined, "route")).toThrow();
+    expect(() => throughSpeed(s, Number.NaN, 4, undefined, "route")).toThrow();
   });
 });
 
 describe("click orders", () => {
   it("at rest the red zone is one third of reach and green is two thirds", () => {
     const z = zoneEdges();
-    expect(throttleFor(z.reach / 3 - 0.01, 0)).toBe("brake");
-    expect(throttleFor(z.reach / 3 + 0.01, 0)).toBe("accelerate");
+    expect(throttleFor(z.reach / 3 - 0.01, 0, 'direct')).toBe("brake");
+    expect(throttleFor(z.reach / 3 + 0.01, 0, 'direct')).toBe("accelerate");
   });
 
   it("a nearby ground click remains a destination", () => {
@@ -78,19 +117,23 @@ describe("backing up", () => {
     expect(backsToDestination(player, RULES.throttleZones.reach + 1, 0)).toBe(false);
   });
 
-  it("an NPC backs up only while recovering", () => {
-    const npc = { faction: "raiders" as const, brain: npcBrain("buggy", { x: 0, y: 0 }, ["raider"]) };
+  it("an NPC backs up only while recovering, inside the cone and within reach", () => {
+    const npc = { faction: "scrapjaw" as const, brain: npcBrain("buggy", { x: 0, y: 0 }, ["raider"]) };
     expect(backsToDestination(npc, 5, 0)).toBe(false);
     npc.brain.recovery = 1;
-    expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(true);
+    expect(backsToDestination(npc, 5, 0)).toBe(true);
+    expect(backsToDestination(npc, 5, cone * 0.5)).toBe(true);
+    expect(backsToDestination(npc, 5, -cone * 0.5)).toBe(true);
+    expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(false);
+    expect(backsToDestination(npc, RULES.throttleZones.reach + 1, 0)).toBe(false);
   });
 });
 
 describe("parked blockers", () => {
   it("leaves a truck on a tow rope out of the tower's route", () => {
     const w = emptyWorld();
-    const tower = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 30, y: 30 });
-    const towed = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 32, y: 30 });
+    const tower = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 30, y: 30 });
+    const towed = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 32, y: 30 });
     addState(w, "tow", tower.id, towed.id, { kind: "tow", site: "bowl", fee: 0, waived: 0, hitched: true });
 
     expect(parkedVehicles(w, tower.id, getHitchedTowIds(w))).not.toContainEqual({ pos: towed.pos, r: chassisDef(towed.chassisId).radius });
@@ -106,7 +149,7 @@ describe("setting a stranded truck down", () => {
   it("moves the truck just clear of a truck under it", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const under = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...me.pos });
+    const under = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...me.pos });
     const gap = dist(setDownSpot(w, me), under.pos) - chassisDef(me.chassisId).radius - chassisDef("hauler").radius;
     expect(gap).toBeGreaterThan(0);
     expect(gap).toBeLessThan(1);

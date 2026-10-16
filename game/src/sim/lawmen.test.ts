@@ -43,23 +43,23 @@ describe('lawmen', () => {
   it('a lawman and a raider with nothing to take are hostile both ways', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const lawman = addLawman(w, { x: 10, y: 10 }, []);
-    const raider = addNpc(w, 'raiders', ['raider'], { x: 15, y: 10 }, []);
+    const raider = addNpc(w, 'scrapjaw', ['raider'], { x: 15, y: 10 }, []);
     expect(isHostile(w, lawman, raider)).toBe(true);
     expect(isHostile(w, raider, lawman)).toBe(true);
   });
 
   it('a trader and a raider with nothing to take stay at peace', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const trader = addNpc(w, 'traders', ['trader'], { x: 10, y: 10 }, []);
-    const raider = addNpc(w, 'raiders', ['raider'], { x: 15, y: 10 }, []);
+    const trader = addNpc(w, 'independent', ['trader'], { x: 10, y: 10 }, []);
+    const raider = addNpc(w, 'scrapjaw', ['raider'], { x: 15, y: 10 }, []);
     expect(isHostile(w, trader, raider)).toBe(false);
     expect(isHostile(w, raider, trader)).toBe(false);
   });
 
   it('a first shot at a trader makes a lawman in sight feud with the shooter', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const shooter = addNpc(w, 'scavengers', ['scavenger', 'scumbag'], { x: 10, y: 10 });
-    const trader = addNpc(w, 'traders', ['trader'], { x: 13, y: 10 });
+    const shooter = addNpc(w, 'independent', ['scavenger', 'scumbag'], { x: 10, y: 10 });
+    const trader = addNpc(w, 'independent', ['trader'], { x: 13, y: 10 });
     const lawman = addLawman(w, { x: 16, y: 14 });
     shoot(w, shooter, trader);
     expect(stateOf(w, 'feud', lawman.id, shooter.id)).not.toBeNull();
@@ -68,8 +68,8 @@ describe('lawmen', () => {
 
   it('a lawman out of sight of the shot stays out of it', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const shooter = addNpc(w, 'scavengers', ['scavenger', 'scumbag'], { x: 10, y: 10 });
-    const trader = addNpc(w, 'traders', ['trader'], { x: 13, y: 10 });
+    const shooter = addNpc(w, 'independent', ['scavenger', 'scumbag'], { x: 10, y: 10 });
+    const trader = addNpc(w, 'independent', ['trader'], { x: 13, y: 10 });
     const lawman = addLawman(w, { x: 80, y: 80 });
     shoot(w, shooter, trader);
     expect(stateOf(w, 'feud', lawman.id, shooter.id)).toBeNull();
@@ -77,8 +77,8 @@ describe('lawmen', () => {
 
   it('a second shot in an ongoing feud calls nobody', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const shooter = addNpc(w, 'scavengers', ['scavenger', 'scumbag'], { x: 10, y: 10 });
-    const trader = addNpc(w, 'traders', ['trader'], { x: 13, y: 10 });
+    const shooter = addNpc(w, 'independent', ['scavenger', 'scumbag'], { x: 10, y: 10 });
+    const trader = addNpc(w, 'independent', ['trader'], { x: 13, y: 10 });
     shoot(w, shooter, trader);
     const lawman = addLawman(w, { x: 16, y: 14 });
     for (const p of vehicleStats(w, shooter).weapons) Object.assign(p.part, gunFor(p.part.defId));
@@ -91,7 +91,7 @@ describe('lawmen', () => {
   it('a player first shot at a trader makes a lawman feud with the player', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addNpc(w, 'traders', ['trader'], { x: 33, y: 30 });
+    const trader = addNpc(w, 'independent', ['trader'], { x: 33, y: 30 });
     const lawman = addLawman(w, { x: 36, y: 34 });
     shoot(w, me, trader);
     expect(stateOf(w, 'feud', lawman.id, me.id)).not.toBeNull();
@@ -99,9 +99,9 @@ describe('lawmen', () => {
 
   it('a robbery start calls lawmen', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const robber = addNpc(w, 'scavengers', ['scavenger', 'scumbag'], { x: 10, y: 10 });
+    const robber = addNpc(w, 'independent', ['scavenger', 'scumbag'], { x: 10, y: 10 });
     robber.brain!.goals = [{ kind: 'scavenge', targetId: 'salvage-yard', destination: { x: 100, y: 100 }, phase: 'travel', reason: 'searchSite' }];
-    const prey = addVehicle(w, 'traders', 'scout', [], { x: 15, y: 10 });
+    const prey = addVehicle(w, 'independent', 'scout', [], { x: 15, y: 10 });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     if (addGoods(w, prey, 'scrap', 2) < 2) throw new Error('No room for prey goods');
     const lawman = addLawman(w, { x: 14, y: 16 });
@@ -114,7 +114,7 @@ describe('lawmen', () => {
   it('a raider attack on the player calls nobody', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addNpc(w, 'raiders', ['raider'], { x: 33, y: 30 });
+    const raider = addNpc(w, 'scrapjaw', ['raider'], { x: 33, y: 30 });
     const lawman = addLawman(w, { x: 36, y: 34 });
     noteAttack(w, raider, me, true);
     expect(stateOf(w, 'feud', lawman.id, raider.id)).toBeNull();
@@ -123,10 +123,10 @@ describe('lawmen', () => {
   it('a lawman picks a fight at a town gate as freely as away from towns', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const atGate = addLawman(w, outFromGate(NPC_BEHAVIOR.lawGateReach / 2));
-    const raider = addNpc(w, 'raiders', ['raider'], outFromGate(NPC_BEHAVIOR.lawGateReach / 2 + 3));
+    const raider = addNpc(w, 'scrapjaw', ['raider'], outFromGate(NPC_BEHAVIOR.lawGateReach / 2 + 3));
     const far = emptyWorld({ x: 200, y: 200 });
     const away = addLawman(far, { x: 10, y: 10 });
-    const farRaider = addNpc(far, 'raiders', ['raider'], { x: 13, y: 10 });
+    const farRaider = addNpc(far, 'scrapjaw', ['raider'], { x: 13, y: 10 });
     const fightAt = (world: World, v: Vehicle, other: Vehicle) => optionWeights(world, v, 'hostileSeen', other.id, null).fight;
     expect(fightAt(w, atGate, raider)).toBe(fightAt(far, away, farRaider));
   });

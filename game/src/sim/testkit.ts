@@ -26,7 +26,7 @@ import { openingStockOf } from './opening';
 import { haulerOf, playerVehicle } from './damage';
 import { stormDepth } from './weather';
 import { cloneWorld, endTurn, newWorld } from './world';
-import { outpostPad } from './fury-road';
+import { yardSpots } from './outpost-gates';
 import { addGoods } from './inventory';
 import { partDef, type PartKind } from '../data/parts';
 import { defaultSetup } from './settings';
@@ -36,27 +36,21 @@ export function furyRoadWorld(seed = 3): World {
   return newWorld(seed, startKit('furyRoad'), highwayMap(seed, 0), defaultSetup('furyRoad'));
 }
 
-export function parkOnPad(w: World, milestone: number): void {
-  const pad = outpostPad(w, milestone);
+export function parkInYard(w: World, milestone: number): void {
+  const spots = yardSpots(w, milestone);
   const me = playerVehicle(w);
   const hauler = haulerOf(w);
-  me.pos = { ...pad };
+  me.pos = { ...spots.truck };
   me.speed = 0;
   me.order = null;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
+  hauler.pos = { ...spots.hauler };
   hauler.speed = 0;
   hauler.order = null;
 }
 
 export function parkedAtOutpost(seed = 3): World {
   const w = furyRoadWorld(seed);
-  const me = playerVehicle(w);
-  const hauler = haulerOf(w);
-  const pad = outpostPad(w, 1);
-  me.pos = pad;
-  me.speed = 0;
-  hauler.pos = { x: pad.x + 2, y: pad.y };
-  hauler.speed = 0;
+  parkInYard(w, 1);
   const parked = endTurn(w, () => {});
   parked.player.money = 10_000_000;
   return parked;
