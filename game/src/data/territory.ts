@@ -340,7 +340,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
     },
   },
   orchard: {
-    seed: 4,
+    seed: 6,
     wreck: null,
     farm: {
       spine: { from: AT(-30, 0), to: AT(44, 0), band: 30 },
@@ -361,10 +361,10 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       ],
       buildings: [
         { look: 'farmhouse', table: 'landmark', turnJitter: 0.06, shift: 0.3, poses: [pose(12, 14, 4, ACROSS)] },
-        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 29, 3.7, ACROSS), pose(-6, 30.5, 2.2, ACROSS), pose(54.5, 31.5, 3.7, ALONG)] },
-        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(51, -27, 3.2, ALONG)] },
+        { look: 'barn', table: 'farmStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-12, 28, 3.7, ACROSS), pose(-6, 30.5, 2.2, ACROSS), pose(54.5, 31.5, 3.7, ALONG)] },
+        { look: 'quonset', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(25, -13, 3.2, ACROSS), pose(30, -19, 3.2, ACROSS), pose(34, -26, 3.2, ACROSS), pose(50.1, -26.7, 3.2, ALONG)] },
         { look: 'bunker', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(0, -10, 3.9, ALONG)] },
-        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68, 11, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
+        { look: 'guardPost', table: 'armyStores', turnJitter: 0.06, shift: 0.3, poses: [pose(-25.5, -6.5, 1.1, ALONG), pose(8, -28, 1.1, ACROSS), pose(13.5, -25, 1.1, ALONG), pose(68.2, 11.9, 1.1, ALONG), pose(-14.5, 12, 1.1, ALONG)] },
         {
           look: 'armyTruck',
           table: 'roadWreck',
@@ -408,14 +408,14 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
       blocks: [
         block(20.2, 26.2, 4.6, 16.5, 'across', 0.02),
         block(12.8, 21, 21, 32, 'along', -0.03),
-        block(-0.5, 8.2, 21, 31.5, 'along', 0.02),
+        block(-1.2, 7.5, 21.7, 32.2, 'along', 0.02),
         block(-7.5, 1.5, 10, 19.5, 'across', -0.02),
         block(-33, -16.5, 4.6, 7.6, 'along', 0.01),
         block(-29, -19.5, 28.5, 32.5, 'along', -0.02),
         block(8, 16.4, -5, -20, 'across', 0.02),
         block(33, 45, -4.6, -9, 'along', -0.02),
         block(44, 55, -4.6, -13.5, 'across', 0.05),
-        block(41, 56, -16.5, -22, 'along', 0.04),
+        block(40.1, 55.1, -16.15, -21.65, 'along', 0.04),
         block(-23.5, -12.3, -6.6, -22.3, 'across', -0.02),
         block(-8, 1.5, -23.5, -29.3, 'along', 0.06),
         block(40, 50.5, 14.3, 33.5, 'along', 0.03),

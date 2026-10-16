@@ -27,10 +27,13 @@ import { ICARUS_KEY } from '../sim/atlas';
 const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
 const t = fallenSun as never;
 
-let groundHeights: Float32Array | undefined;
+let groundDraft: MapDraft | undefined;
+function territoryDraft(): MapDraft {
+  groundDraft ??= groundForTerritories(MAPGEN.seed);
+  return groundDraft;
+}
 function territoryGround(): Float32Array {
-  groundHeights ??= groundForTerritories(MAPGEN.seed).heights;
-  return groundHeights;
+  return territoryDraft().heights;
 }
 beforeAll(() => void territoryGround(), budget(120_000));
 const rules = TERRITORIES['fallen-sun'].wreck!;
@@ -185,9 +188,7 @@ describe('the territory layer', () => {
 
   it('bakes the Fallen Sun props of the committed map, with no relief limit', () => {
     expect(TERRITORIES['fallen-sun'].relief).toBeNull();
-    const d = newDraft(REGION.size);
-    d.heights.set(territoryGround());
-    const drawn = territoryLayer(MAPGEN.seed, d).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
+    const drawn = territoryLayer(MAPGEN.seed, structuredClone(territoryDraft())).props.filter((p) => siteGap(fallenSun, p.pos) < 0);
     const committed = inside.filter((p) => siteGap(fallenSun, p.pos) < 0 && p.kind !== 'rock' && p.kind !== 'crag');
     expect(drawn.length).toBe(committed.length);
     drawn.forEach((p, i) => {

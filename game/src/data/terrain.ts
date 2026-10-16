@@ -80,6 +80,8 @@ function offsetFrom(origin: Vec, dx: number, dy: number): Vec {
   return { x: origin.x + dx, y: origin.y + dy };
 }
 
+export const CANYON_BRIDGE_GROUND = { id: 'canyon-bridge', pos: CANYON_BRIDGE_CENTER, from: { x: 498.5, y: 366.5 } as Vec, radius: 45 };
+
 const CANYON_BRIDGE: DeckSpec = {
   id: "canyon-bridge",
   line: [
@@ -120,6 +122,7 @@ export type Basin = {
   rim: number[];
   depth: number;
   floorRelief: { frequency: number; amplitude: number };
+  reliefFrom: Vec;
 };
 
 const FALLEN_SUN_BASIN: Basin = {
@@ -152,6 +155,7 @@ const FALLEN_SUN_BASIN: Basin = {
   rim: [1.0, 1.5, 5.0, 5.5, 5.5, 0, 0, 5.5, 5.5, 5.0, 4.5, 0, 2.0, 2.0, 0.5, 0, 0, 0, 0, 0, 0.5, 0],
   depth: -1.06,
   floorRelief: { frequency: 1 / 16, amplitude: 0.45 },
+  reliefFrom: { x: 320, y: 270 },
 };
 
 function fromFallenSun(p: Vec): Vec {
@@ -160,9 +164,9 @@ function fromFallenSun(p: Vec): Vec {
 
 export const TERRAIN = {
   octaves: [
-    { freq: 1 / (32 * MAP_SCALE), amp: 1.0, seedOffset: 0 },
-    { freq: 1 / (14 * MAP_SCALE), amp: 0.7, seedOffset: 1000 },
-    { freq: 1 / (5 * MAP_SCALE), amp: 0.38, seedOffset: 2000 },
+    { freq: 1 / (32 * 5), amp: 1.0, seedOffset: 0 },
+    { freq: 1 / (14 * 5), amp: 0.7, seedOffset: 1000 },
+    { freq: 1 / (5 * 5), amp: 0.38, seedOffset: 2000 },
     { freq: 1 / 7, amp: 0.14, seedOffset: 3000 },
   ],
   flattenMargin: 15,
@@ -770,7 +774,7 @@ export const NEW_WORLD: {
   pools: {
     minDepth: 0.05,
     maxTiles: 40,
-    toxicReach: 12,
+    toxicReach: 20,
   },
   scrub: {
     seedOffset: 8002,
@@ -844,7 +848,7 @@ export const ROADSIDE = {
   slopeShare: 0.6,
   edgeGap: 0.6,
   propGapSlack: 0.0001,
-  rowGuard: { turn: 0.03, line: 0.15 },
+  rowGuard: { turn: 0.05, line: 0.15 },
   groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
   signs: {
     radius: 0.25,

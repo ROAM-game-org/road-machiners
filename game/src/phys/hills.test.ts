@@ -69,8 +69,8 @@ it('a truck crosses Canyon Bridge on the deck, above the canyon', () => {
 }, budget(60_000));
 
 it('the Bowl crater exit leans the truck without rolling it onto its side', () => {
-  const start = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')).vehicles[0].pos;
   const bowl = REGION.towns.find((t) => t.id === 'bowl')!.pos;
+  const start = REGION.roads[0].find((p) => dist(p, bowl) > 100)!;
   const result = driveRoute(start, { x: bowl.x + 21, y: bowl.y - 38 });
   expect(result.remaining).toBeLessThan(3);
   expect(result.maxTilt).toBeLessThan(45);
