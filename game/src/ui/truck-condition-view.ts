@@ -1,3 +1,4 @@
+import { partDef } from "../data/parts";
 import { workMeterEl } from "./cards";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
@@ -12,6 +13,14 @@ import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
+
+export type PartLook = "cab" | "icon";
+
+export function partLook(defId: string): PartLook {
+  const def = partDef(defId);
+  if (def.kind !== "core") return "icon";
+  return def.role === "cab" ? "cab" : "icon";
+}
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
 export type PartWork = { partId: string; done: number };
@@ -59,9 +68,10 @@ export class TruckConditionView {
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
-      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
+      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
       this.outline[0].classList.add("outline-fill");
       this.outline[1].classList.add("outline-line");
+      this.outline[2].classList.add("outline-detail");
       this.body.prepend(...this.outline);
     }
     const parts = this.readout.update(vehicle);
@@ -88,9 +98,14 @@ export class TruckConditionView {
   private renderPart(part: ConditionPart, aim: ConditionAim | undefined, done: number | null): void {
     let node = this.nodes.get(part.id);
     if (!node) {
-      node = el("div", { class: "condition-part", "data-part-id": part.id }, tintedIcon(part.defId));
+      node = el("div", { class: "condition-part", "data-part-id": part.id });
       this.nodes.set(part.id, node);
       this.body.append(node);
+    }
+    const look = partLook(part.defId);
+    if (node.dataset.look !== look) {
+      node.dataset.look = look;
+      node.replaceChildren(tintedIcon(part.defId));
     }
     node.dataset.condition = part.state;
     node.classList.toggle("broken", part.broken);
