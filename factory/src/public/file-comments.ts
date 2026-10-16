@@ -46,11 +46,11 @@ async function fileOwnIssue(ctx: Ctx, store: PublicStore, comment: StoredComment
   });
 }
 
-const isReport = (comment: StoredComment): boolean => comment.kind === 'bug' || comment.kind === 'feature';
+const asksToFile = (comment: StoredComment): boolean => (comment.kind === 'bug' || comment.kind === 'feature') && comment.wantsFiling;
 
 async function fileOne(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<void> {
   if (comment.workIssue !== null && (await linkToWork(ctx, store, comment, comment.workIssue))) return;
-  if (isReport(comment)) return fileOwnIssue(ctx, store, comment);
+  if (asksToFile(comment)) return fileOwnIssue(ctx, store, comment);
   store.markFiling(comment.id, ctx.now());
 }
 
