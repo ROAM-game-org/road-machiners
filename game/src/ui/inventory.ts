@@ -10,7 +10,6 @@ import { reachedOutpostAt } from "../sim/fury-road";
 import { outpostRepairPart } from "../sim/outposts";
 import {
   freeCells,
-  goodsCount,
   gridOf,
   isMounted,
   placementError,
@@ -27,10 +26,10 @@ import {
   takeFromStorage,
   type RefitLayout,
 } from "../sim/inventory";
-import { cancelRefit, isParkedForWork, startRepair, startStrip, startWeld, stripYield } from "../sim/jobs";
+import { cancelRefit, startRepair, startStrip, startWeld, stripYield } from "../sim/jobs";
 import { vehicleHasPerk } from "../sim/progress";
 import { PERK_NUMBERS } from "../data/skills";
-import { repairPlan, type RepairPlan } from "../sim/repair";
+import { repairPlan } from "../sim/repair";
 import { shopAt } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeLoot, takeStores } from "../sim/locations";
@@ -44,9 +43,11 @@ import type {
   Vehicle,
   World,
 } from "../sim/types";
-import { el, isBrowserChord, panel } from "./dom";
+import { touchMode } from "./input-mode";
+import { disabledWith, el, isBrowserChord, panel } from "./dom";
 import type { UiHost } from "./host";
-import { baselinePart, conditionMeter, conditionRow, conditionTag, createIcon, diffStats, footprint as footprintEl, itemIconEl, partIconEl, partStats, statGrid, toneStyle } from "./cards";
+import { itemLookId } from "../render/partLooks";
+import { baselinePart, conditionMeter, jobDone, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
 import { vehicleMass } from "../sim/mass";
 import {
   blockerIds,
@@ -60,8 +61,10 @@ import {
   itemState,
   lootGoodItem,
   lootPartItem,
+  markWorking,
   refitItems,
   removalIds,
+  workMarkOf,
   storageItem,
   footprint,
   turnedIcon,
@@ -71,6 +74,9 @@ import { maxSpeedSteps } from "../sim/stats";
 import { getSearchAction, powerChip } from "./hud-readout";
 import {
   canFieldPatch,
+  patchBlocker,
+  stripBlocker,
+  weldBlocker,
   doubleClickCommand,
   dragStartOf,
   planAfterMove,
@@ -85,8 +91,9 @@ import {
 } from "./inventory-moves";
 import type { Refusal } from "../sim/types";
 import { bindAttr, setText, unbindAttr } from "../text/language";
-import { t, type Msg } from "../text/msg";
-import { chassisName, goodName, partName, siteName, vehicleTitle } from "../text/names";
+import { t, verbatim, type Msg } from "../text/msg";
+import { chassisName, goodName, partName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { Refused } from "../sim/world";
 import { commandFailure, parcelTitle } from "./format";
 
 const CELL_PX = 42;
@@ -137,7 +144,7 @@ export class InventoryView {
       this.select(null);
     });
     window.addEventListener("keydown", (e) => {
-      if (e.key.toLowerCase() !== "r" || e.repeat || isBrowserChord(e)) return;
+      if (e.key.toLowerCase() !== ROTATE_KEY.toLowerCase() || e.repeat || isBrowserChord(e)) return;
       if (this.drag) this.rotate();
       else this.rotateSelected();
     });
@@ -212,7 +219,7 @@ export class InventoryView {
     node.classList.toggle("selected", this.selectedItem === it.id);
     const click = () => this.clickItem(this.clicked("grid", it.id, it));
     node.addEventListener("click", (e) => {
-      if (core || e.detail === 0) click();
+      if (!fromButton(e) && (core || e.detail === 0)) click();
     });
     node.addEventListener("keydown", (e) => {
       if (e.key === "Enter") click();
@@ -238,14 +245,25 @@ export class InventoryView {
   }
 
   private gridItems(w: World, v: Vehicle): HTMLElement[] {
-    const moving = v.job?.kind === "refit" ? refitItems(w, v) : v.items.filter((it) => this.plan[it.id]);
+    const running = v.job?.kind === "refit";
+    const moving = running ? refitItems(w, v) : v.items.filter((it) => this.plan[it.id]);
     const staying = v.items.filter((it) => !moving.some((m) => m.id === it.id));
-    return [...staying.map((it) => this.itemEl(w, it)), ...moving.map((it) => this.refittingEl(w, v, it))];
+    const mark = workMarkOf(w, this.mine(w));
+    const withWork = (it: GridItem, node: HTMLElement): HTMLElement => (mark?.itemIds.has(it.id) ? markWorking(node, mark.done) : node);
+    return [
+      ...staying.map((it) => withWork(it, this.itemEl(w, it))),
+      ...moving.map((it) => withWork(it, running ? this.refittingEl(w, v, it) : this.plannedEl(w, it))),
+    ];
+  }
+
+  private plannedEl(w: World, item: GridItem): HTMLElement {
+    const node = this.itemEl(w, item);
+    node.classList.add("refitting");
+    return node;
   }
 
   private refittingEl(w: World, v: Vehicle, item: GridItem): HTMLElement {
     const node = this.itemEl(w, item);
-    node.classList.add("refitting");
     if (v.job?.kind === "refit") bindAttr(node, "title", t("inv.itemRefit", { item: itemName(item), n: v.job.turnsLeft }));
     return node;
   }
@@ -352,7 +370,14 @@ export class InventoryView {
     const me = this.mine(w);
     if (me.job?.kind === "refit") return [this.bannerEl(t("inv.refitLeft", { n: me.job.turnsLeft }), t("inv.cancelRefit"), () => this.run(cancelRefit), t("inv.cancelRefitTitle"))];
     if (Object.keys(this.plan).length === 0) return [];
-    return [this.bannerEl(t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) }), t("inv.cancelPlan"), () => this.cancelPlan())];
+    return [
+      el(
+        "div",
+        { class: "inv-refit" },
+        el("button", { class: "btn-s", onclick: () => this.run((world) => startRefit(world, this.plan, this.gridTruck ?? undefined)) }, t("inv.refitPlanned", { n: plannedRefitTurns(w, me, this.plan) })),
+        el("button", { class: "btn-s", onclick: () => this.cancelPlan() }, t("inv.cancelPlan")),
+      ),
+    ];
   }
 
   private bannerEl(text: Msg, label: Msg, onclick: () => void, title?: Msg): HTMLElement {
@@ -376,12 +401,18 @@ export class InventoryView {
     return !this.instant && atGarage(w, this.gridTruck ?? undefined) ? this.storageEl(w) : null;
   }
 
+  private loreParagraph(item: GridItem): HTMLElement {
+    return el("p", { class: "dim" }, itemLore(itemLookId(item)));
+  }
+
   private showItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       el("div", { class: "inv-actions" }, ...this.itemActions(w, item, mounted)),
       ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
+      this.loreParagraph(item),
     );
+    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   hintMounts(cells: readonly Cell[] | null): void {
@@ -411,18 +442,14 @@ export class InventoryView {
     if (!fieldPatchable(part)) return shopOnlyPatch(part);
     const plan = repairPlan(w, me, part.id);
     if (plan.needed === 0) return null;
-    const reason = patchBlocker(w, me, plan);
+    const reason = patchBlocker(w, me, part);
     return el(
       "button",
       {
         class: "inv-patch",
-        disabled: reason !== null,
-        title: reason ?? t("inv.patchYield", { parts: plan.parts, needed: plan.needed, hp: Math.round(plan.hp) }),
+        title: reason ? undefined : t("inv.patchYield", { parts: plan.parts, needed: plan.needed, hp: Math.round(plan.hp) }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        onclick: (e: Event) => {
-          e.stopPropagation();
-          this.run((world) => startRepair(world, part.id));
-        },
+        ...disabledWith(reason, () => this.run((world) => startRepair(world, part.id))),
       },
       t("inv.patchLabel", { turns: plan.turns, parts: plan.parts }),
     );
@@ -440,17 +467,16 @@ export class InventoryView {
   private garageButton(w: World, part: PartInstance, action: "repair" | "rebuild", title: Msg): HTMLElement | null {
     const cost = partRepairCost(w, part);
     if (cost === 0) return null;
+    const short = w.player.money < cost;
     return el(
       "button",
       {
         class: "inv-patch",
-        disabled: w.player.money < cost,
-        title: w.player.money < cost ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : title,
+        title: short ? undefined : title,
         onpointerdown: (e: Event) => e.stopPropagation(),
-        onclick: (e: Event) => {
-          e.stopPropagation();
-          this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id)));
-        },
+        ...disabledWith(short ? t("trade.needMore", { price: moneyMsg(cost - w.player.money) }) : null, () =>
+          this.run((world) => (this.atOutpost(world) ? outpostRepairPart(world, part.id, this.gridTruck ?? undefined) : repairPart(world, part.id))),
+        ),
       },
       pricedEl(t(`inv.verb.${action}`), cost),
     );
@@ -461,18 +487,12 @@ export class InventoryView {
     me: Vehicle,
     part: PartInstance,
   ): HTMLElement {
-    const reason = stripBlocker(w, me);
     return el(
       "button",
       {
         class: "inv-patch",
-        disabled: reason !== null,
-        title: reason ?? undefined,
         onpointerdown: (e: Event) => e.stopPropagation(),
-        onclick: (e: Event) => {
-          e.stopPropagation();
-          this.run((world) => startStrip(world, part.id));
-        },
+        ...disabledWith(stripBlocker(w, me), () => this.run((world) => startStrip(world, part.id))),
       },
       t("inv.stripLabel", { turns: STRIP.turns, parts: stripYield(me, part) }),
     );
@@ -494,13 +514,9 @@ export class InventoryView {
       "button",
       {
         class: "inv-patch",
-        disabled: reason !== null,
-        title: reason ?? t("inv.weldSpends", { scrap }),
+        title: reason ? undefined : t("inv.weldSpends", { scrap }),
         onpointerdown: (e: Event) => e.stopPropagation(),
-        onclick: (e: Event) => {
-          e.stopPropagation();
-          this.run((world) => startWeld(world));
-        },
+        ...disabledWith(reason, () => this.run((world) => startWeld(world))),
       },
       t("inv.weldLabel", { part: partName(PERK_NUMBERS.welder.part), turns }),
     );
@@ -623,11 +639,9 @@ export class InventoryView {
 
   private searchButton(w: World, stock: SalvageStock): HTMLElement {
     const action = getSearchAction(w, stock);
-    return el(
-      "button",
-      { class: "inv-search", disabled: !action.ready && action.combat === undefined, onclick: () => this.host.searchStock(stock.id) },
-      t("inv.searchMore"),
-    );
+    const blocked = !action.ready && action.combat === undefined;
+    const reason = blocked ? (action.hint ?? refusalText(w, { id: "salvageOutOfReach" })) : null;
+    return el("button", { class: "inv-search", ...disabledWith(reason, () => this.host.searchStock(stock.id)) }, t("inv.searchMore"));
   }
 
   private truckEl(w: World, truckId: string): HTMLElement {
@@ -648,14 +662,16 @@ export class InventoryView {
   private truckItemEl(w: World, target: Vehicle, it: GridItem, grid: HTMLElement, removing: boolean): HTMLElement {
     const mounted = it.kind === "part" && isMounted(target.chassisId, it);
     const node = itemBox(it, target.chassisId, mounted, this.cell);
-    node.classList.toggle("refitting", removing);
+    if (removing) markWorking(node, jobDone(playerVehicle(w).job!));
     this.markSelected(node, it);
     const select = () => this.clickItem(this.clicked("truck", it.id, it));
     node.addEventListener("keydown", (e) => {
       if (e.key === "Enter") select();
     });
     if (it.kind === "part" && partDef(it.part.defId).kind === "core") {
-      node.addEventListener("click", select);
+      node.addEventListener("click", (e) => {
+        if (!fromButton(e)) select();
+      });
       return node;
     }
     node.addEventListener("pointerdown", (e) => {
@@ -668,9 +684,11 @@ export class InventoryView {
 
   private showTruckItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
+      this.loreParagraph(item),
     );
+    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private startDrag(
@@ -960,7 +978,7 @@ export class InventoryView {
       }
       this.error = null;
     } catch (err) {
-      this.error = quiet ? null : commandFailure(this.host.world(), err);
+      this.error = quiet && !(err instanceof Refused) ? null : commandFailure(this.host.world(), err);
     }
     this.onChange();
   }
@@ -1021,7 +1039,7 @@ export class InventoryScreen {
       unbindAttr(button, "data-reason");
     } else {
       button.setAttribute("aria-disabled", "true");
-      bindAttr(button, "data-reason", t("inv.rotateNeedsItem"));
+      bindAttr(button, "data-reason", t(touchMode() ? "inv.rotateNeedsItem" : "inv.rotateNeedsItem.mouse"));
     }
   }
 
@@ -1031,12 +1049,13 @@ export class InventoryScreen {
     const rotate = el(
       "button",
       {
-        class: "btn-s touch-only",
+        class: "btn-s",
         onpointerdown: () => this.view.rotateHeld(),
         onclick: (e: Event) => {
           if ((e as MouseEvent).detail === 0) this.view.rotateHeld();
         },
       },
+      el("kbd", { class: "key no-touch" }, verbatim(ROTATE_KEY)),
       t("inv.rotate"),
     );
     this.view.holdChanged = () => this.markRotate(rotate);
@@ -1075,23 +1094,7 @@ function powerChipNode(w: World, me: Vehicle): HTMLElement {
   return el("span", { class: `chip${chip.over ? " bad" : ""}`, title: chip.detail, "aria-label": chip.detail }, createIcon("power"), chip.text);
 }
 
-function patchBlocker(w: World, me: Vehicle, plan: RepairPlan): Msg | null {
-  if (!isParkedForWork(w, me)) return t("inv.stopToPatch");
-  return plan.parts === 0 ? t("inv.noParts") : null;
-}
-
-function stripBlocker(w: World, me: Vehicle): Msg | null {
-  if (!isParkedForWork(w, me)) return t("inv.stopToStrip");
-  if (me.job) return t("inv.busy");
-  return null;
-}
-
-function weldBlocker(w: World, me: Vehicle): Msg | null {
-  if (!isParkedForWork(w, me)) return t("inv.stopToWeld");
-  if (me.job) return t("inv.busy");
-  const scrap = PERK_NUMBERS.welder.scrap;
-  return (goodsCount(me).scrap ?? 0) < scrap ? t("inv.needsScrap", { n: scrap }) : null;
-}
+const ROTATE_KEY = "R";
 
 function fieldPatchable(part: PartInstance): boolean {
   const def = partDef(part.defId);
@@ -1099,7 +1102,7 @@ function fieldPatchable(part: PartInstance): boolean {
 }
 
 function shopOnlyPatch(part: PartInstance): HTMLElement | null {
-  return part.hp < maxHp(part) ? el("button", { class: "inv-patch", disabled: true, title: t("inv.shopOnly") }, t("inv.verb.patch")) : null;
+  return part.hp < maxHp(part) ? el("button", { class: "inv-patch", ...disabledWith(t("inv.shopOnly"), () => {}) }, t("inv.verb.patch")) : null;
 }
 
 function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: boolean): HTMLElement[] {
@@ -1112,6 +1115,10 @@ function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: boolean
     statGrid(diffStats(partStats(w, part), base ? partStats(w, base) : null)),
     base ? el("p", { class: "dim" }, t("inv.against", { part: partName(base.defId) }), conditionTag(base)) : el("span"),
   ];
+}
+
+function fromButton(e: Event): boolean {
+  return (e.target as Element).closest("button") !== null;
 }
 
 function claimMark(shop: string): HTMLElement {

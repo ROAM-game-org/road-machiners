@@ -2229,6 +2229,7 @@
     "arrival_rope": "boolean"
    },
    "intro_bowl": {},
+   "intro_road": {},
    "nose_depot_leak": {
     "alarm": "number",
     "bunk_searched": "boolean",
@@ -2395,6 +2396,9 @@
    "intro_bowl": [
     "start"
    ],
+   "intro_road": [
+    "start"
+   ],
    "nose_depot_leak": [
     "start",
     "desk",
@@ -2549,6 +2553,16 @@
    }
   },
   "intro_bowl": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "intro_road": {
    "revision": 1,
    "links": {
     "reads": [],

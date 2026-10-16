@@ -5,14 +5,15 @@ import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, t
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
-import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
+import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
+import { workOf } from "../sim/states";
 import { GOODS, PARCEL } from "../data/goods";
 import { itemLookId, itemTone } from "../render/partLooks";
 import { hashStr } from "../render/noise";
 import { ITEM_TONES } from "../render/palette";
 import ICONS from "../data/item-icons.json";
 import { num, t, type Msg } from "../text/msg";
-import { chassisName, goodName, partName } from "../text/names";
+import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
 import { roundDamage } from "../sim/combat";
 import { el } from "./dom";
 import { conditionStatus, conditionTier, showsCondition, wearLabel } from "./format";
@@ -158,6 +159,15 @@ function itemIconLabel(id: string): Msg {
   return id in GOODS ? goodName(id) : partName(partDef(id).id);
 }
 
+export function itemLore(id: string): Msg {
+  if (id === PARCEL.id) return t("lore.parcel");
+  return id in GOODS ? goodLore(id) : partLore(partDef(id).id);
+}
+
+export function itemTip(id: string): Msg {
+  return t("item.tip", { name: itemIconLabel(id), lore: itemLore(id) });
+}
+
 export function chassisPortraitCell(chassisId: string): IconCell {
   const icons: Record<string, ManifestCell> = ICONS.chassis;
   const icon = icons[chassisId];
@@ -181,8 +191,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const SHEET_FILES: Record<Sheet, string> = { items: "items.svg", chassis: "chassis.png" };
 const SHEET_VERSION = hashStr(JSON.stringify(ICONS)).toString(36);
 
-function sheetIcon(cell: IconCell, cls: string, crop: Box): HTMLElement {
-  const icon = el("span", { class: cls, role: "img", "aria-label": cell.label, title: cell.label });
+function sheetIcon(cell: IconCell, cls: string, crop: Box, title: Msg | null): HTMLElement {
+  const icon = el("span", { class: cls, role: "img", "aria-label": cell.label, ...(title ? { title } : {}) });
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${crop.w} ${crop.h}`);
   svg.setAttribute("focusable", "false");
@@ -200,16 +210,24 @@ function sheetIcon(cell: IconCell, cls: string, crop: Box): HTMLElement {
   return icon;
 }
 
-export function createItemIcon(id: string): HTMLElement {
+function toneIcon(id: string, title: (cell: IconCell) => Msg): HTMLElement {
   const cell = itemIconCell(id);
-  const icon = sheetIcon(cell, "icon item-icon", cell.box);
+  const icon = sheetIcon(cell, "icon item-icon", cell.box, title(cell));
   icon.setAttribute("style", toneStyle(id));
   return icon;
 }
 
+export function createItemIcon(id: string): HTMLElement {
+  return toneIcon(id, (cell) => cell.label);
+}
+
+export function createItemTipIcon(id: string): HTMLElement {
+  return toneIcon(id, () => itemTip(id));
+}
+
 export function createBareItemIcon(id: string): HTMLElement {
   const cell = itemIconCell(id);
-  return sheetIcon(cell, "icon item-icon bare", cell.box);
+  return sheetIcon(cell, "icon item-icon bare", cell.box, cell.label);
 }
 
 export function toneStyle(id: string): string {
@@ -217,21 +235,21 @@ export function toneStyle(id: string): string {
 }
 
 export function partIconEl(part: PartInstance): HTMLElement {
-  return createItemIcon(part.defId);
+  return createItemTipIcon(part.defId);
 }
 
 export function itemIconEl(item: GridItem): HTMLElement {
-  return item.kind === "part" ? partIconEl(item.part) : createItemIcon(itemLookId(item));
+  return createItemTipIcon(itemLookId(item));
 }
 
 export function gridItemIcon(item: GridItem): HTMLElement {
   const cell = itemIconCell(itemLookId(item));
-  return sheetIcon(cell, "icon item-icon", cell.box);
+  return sheetIcon(cell, "icon item-icon", cell.box, null);
 }
 
 export function chassisPortrait(chassisId: string): HTMLElement {
   const cell = chassisPortraitCell(chassisId);
-  return sheetIcon(cell, "chassis-portrait", cell.box);
+  return sheetIcon(cell, "chassis-portrait", cell.box, cell.label);
 }
 
 export function statGrid(diffs: StatDiff[]): HTMLElement {
@@ -274,6 +292,19 @@ export function conditionMeter(part: PartInstance): HTMLElement {
     { class: `meter${broken ? " broken" : ""}`, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) },
     el("div", { style: `width:${(part.hp / max) * 100}%` }),
   );
+}
+
+export function jobDone(job: Job): number {
+  return job.total > 0 ? Math.min(1, Math.max(0, 1 - job.turnsLeft / job.total)) : 0;
+}
+
+export function repairingPart(w: World, v: Vehicle): { partId: string; done: number } | null {
+  const work = workOf(w, v);
+  return work?.from === "job" && work.job.kind === "repair" ? { partId: work.job.partId, done: jobDone(work.job) } : null;
+}
+
+export function workMeterEl(done: number): HTMLElement {
+  return el("div", { class: "meter s progress" }, el("div", { style: `width:${done * 100}%` }));
 }
 
 export function conditionTag(part: PartInstance): HTMLElement | null {
@@ -321,7 +352,7 @@ export function partCard(o: PartCardOptions): HTMLElement {
     el(
       "div",
       { class: "card-head" },
-      partIconEl(o.part),
+      createItemIcon(def.id),
       el("div", { class: "card-name" }, el("b", {}, partName(def.id))),
       footprint(def.w, def.h),
     ),
@@ -346,6 +377,7 @@ export function partDetail(world: World, part: PartInstance, base: PartInstance 
     ...(base ? [compareLine(base)] : []),
     el("div", { class: "part-hp" }, conditionMeter(part), hpText ? el("span", { class: "num dim" }, hpText) : null),
     ...(rest.length ? [statGrid(rest)] : []),
+    el("p", { class: "dim" }, partLore(part.defId)),
   ];
 }
 

@@ -246,6 +246,9 @@ export type Refusal =
   | { id: 'noSupplyRoom' }
   | { id: 'inCombat' }
   | { id: 'stopFirst' }
+  | { id: 'busy'; job: Job['kind'] }
+  | { id: 'atRepairCap' }
+  | { id: 'noParts' }
   | { id: 'utilityPassive'; part: string }
   | { id: 'utilityOrder'; part: string; order: 'point' | 'self' }
   | { id: 'utilityBlocked'; part: string; block: UtilityBlock };
