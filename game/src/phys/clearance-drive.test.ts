@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { chassisDef } from '../data/chassis';
 import { START_KITS } from '../data/start';
 import { isFree } from '../sim/spawn';
-import { emptyWorld } from '../sim/testkit';
+import { RULES } from '../data/rules';
+import { addVehicle, emptyWorld } from '../sim/testkit';
 import { defaultSetup } from '../sim/settings';
 import type { MoveOrder, World } from '../sim/types';
 import { bearing, dist, type Vec } from '../sim/vec';
@@ -112,5 +113,35 @@ describe('reproduced TEST_MAP trips', () => {
     expect(hard(t)).toEqual([]);
     expect(stalls(t)).toBe(false);
     expect(t.arrived).toBe(true);
+  });
+});
+
+describe('a truck on a route meets a moving truck', () => {
+  function crossing(): { hits: number[]; arrived: boolean } {
+    let w = emptyWorld();
+    w.vehicles[0].speed = 6;
+    const other = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 40, y: 42 }, -Math.PI / 2);
+    other.speed = 5;
+    other.order = { kind: 'through', dest: { x: 40, y: 10 }, pace: 5 };
+    w = setMoveOrder(w, { kind: 'stopAt', dest: { x: 60, y: 30 } });
+    let d: Drive = buildDrive(w);
+    const hits: number[] = [];
+    let arrived = false;
+    for (let i = 0; i < 10 && !arrived; i++) {
+      let res: TurnResult | null = null;
+      w = endTurn(w, physicsMove(d, (r) => (res = r)));
+      freeDrive(d);
+      d = res!.next;
+      hits.push(...res!.crashes.filter((c) => c.a === 'v1' && c.b === other.id).map((c) => c.impact));
+      arrived = !w.vehicles[0].order;
+    }
+    freeDrive(d);
+    return { hits, arrived };
+  }
+
+  it('slows for it and arrives with no damaging crash', () => {
+    const { hits, arrived } = crossing();
+    expect(hits.filter((impact) => impact >= RULES.collisionMinImpact)).toEqual([]);
+    expect(arrived).toBe(true);
   });
 });
