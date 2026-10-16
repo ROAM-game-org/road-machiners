@@ -1,7 +1,7 @@
 import { GEOLOGY, ROADSIDE, TERRAIN, type RoadsideBand } from '../data/terrain';
 import { REGION } from '../data/region';
 import { chance, hashRandom, randInt, randRange, type Rng } from '../sim/rng';
-import { TYPE_IDS, type BakedProp, type PropKind } from '../sim/terrain';
+import { TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { dist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { BUILT_SCRUB } from './newworld';
@@ -46,12 +46,6 @@ class Placer {
     return true;
   }
 
-  nearest(pos: Vec, kinds: readonly PropKind[], reach: number): number {
-    let best = Infinity;
-    for (const o of this.around(pos, reach)) if (kinds.includes(o.kind)) best = Math.min(best, dist(o.pos, pos));
-    return best;
-  }
-
   private fits(p: BakedProp, fit: Fit): boolean {
     const d = this.d;
     if (!clearGround(d.size, p.pos, p.r, fit.roadGap)) return false;
@@ -64,10 +58,9 @@ class Placer {
 
   private onBank(tile: number, fit: Fit): boolean {
     const flow = tileFlow(this.d, tile);
-    const wash = WASH;
     if (fit.ground === 'free') return true;
     if (fit.ground === 'bank') return isBank(this.d, tile);
-    return flow < wash;
+    return flow < WASH;
   }
 
   private around(pos: Vec, reach: number): BakedProp[] {
