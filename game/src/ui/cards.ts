@@ -5,7 +5,8 @@ import { partDef, type PartDef, type PartKind, type WeaponDef, type EngineDef, t
 import { playerVehicle } from "../sim/damage";
 import { baseGrid, cargoCellsGained, cellCount, mountedParts, type Cell } from "../sim/grid";
 import { maxHp, partValue, wornDef } from "../sim/wear";
-import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
+import type { GridItem, Job, PartInstance, Vehicle, World } from "../sim/types";
+import { workOf } from "../sim/states";
 import { GOODS, PARCEL } from "../data/goods";
 import { itemLookId, itemTone } from "../render/partLooks";
 import { hashStr } from "../render/noise";
@@ -291,6 +292,19 @@ export function conditionMeter(part: PartInstance): HTMLElement {
     { class: `meter${broken ? " broken" : ""}`, title: t("stat.condition", { hp: hp(part.hp), max: hp(max) }) },
     el("div", { style: `width:${(part.hp / max) * 100}%` }),
   );
+}
+
+export function jobDone(job: Job): number {
+  return job.total > 0 ? Math.min(1, Math.max(0, 1 - job.turnsLeft / job.total)) : 0;
+}
+
+export function repairingPart(w: World, v: Vehicle): { partId: string; done: number } | null {
+  const work = workOf(w, v);
+  return work?.from === "job" && work.job.kind === "repair" ? { partId: work.job.partId, done: jobDone(work.job) } : null;
+}
+
+export function workMeterEl(done: number): HTMLElement {
+  return el("div", { class: "meter s progress" }, el("div", { style: `width:${done * 100}%` }));
 }
 
 export function conditionTag(part: PartInstance): HTMLElement | null {

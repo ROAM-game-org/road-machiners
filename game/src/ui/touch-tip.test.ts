@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { registerTipSource, tipTextOf, type TipTarget } from "./touch-tip";
+import { disabledReasonAt, registerTipSource, tipTextOf, type ClosestTarget, type TipTarget } from "./touch-tip";
 
 function node(attrs: Record<string, string>, parent: TipTarget | null = null): TipTarget {
   return {
@@ -34,5 +34,21 @@ describe("tip text", () => {
 
   it("gives nothing for a bare element", () => {
     expect(tipTextOf(node({}))).toBeNull();
+  });
+});
+
+function clickable(attrs: Record<string, string>, disabled: ClosestTarget | null): ClosestTarget {
+  return { ...node(attrs), closest: () => disabled };
+}
+
+describe("a click on a disabled control", () => {
+  it("opens the reason of the nearest disabled control", () => {
+    const button = clickable({ "aria-disabled": "true", "data-reason": "Stop the truck first" }, null);
+    const label = clickable({}, button);
+    expect(disabledReasonAt(label)).toBe("Stop the truck first");
+  });
+
+  it("opens nothing for a control that works", () => {
+    expect(disabledReasonAt(clickable({ "data-reason": "unused" }, null))).toBeNull();
   });
 });

@@ -71,3 +71,9 @@
   white-space: nowrap;
   pointer-events: none;
 }
+.condition-part > .meter {
+  position: absolute;
+  left: var(--space-1);
+  right: var(--space-1);
+  bottom: var(--space-1);
+}

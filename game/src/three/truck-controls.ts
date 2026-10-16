@@ -1,5 +1,6 @@
 
 import type { Msg } from '../text/msg';
+import { refusalText } from '../text/names';
 import { readyAid, startAid } from "../sim/aid";
 import { handOverParcel, readyHandover } from "../sim/parcel";
 import { playerVehicle } from "../sim/damage";
@@ -131,8 +132,9 @@ export class TruckContext {
 
   searchStock(stockId: string, combat?: number): void {
     const w = this.host.world();
-    if (isBusy(playerVehicle(w))) return;
-    if (combat !== undefined) return;
+    const me = playerVehicle(w);
+    if (isBusy(me) && me.job) return this.host.note(refusalText(w, { id: 'busy', job: me.job.kind }));
+    if (combat !== undefined) return this.host.note(refusalText(w, { id: 'inCombat' }));
     if (canScavenge(w, stockId)) {
       this.host.apply(scavenge(w, stockId));
       this.host.pushEvents();

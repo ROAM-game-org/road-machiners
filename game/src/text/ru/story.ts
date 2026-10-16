@@ -13,6 +13,7 @@ export const STORY: Translation<typeof EN> = {
   'quest.first_fall.title': 'Первое падение',
   'quest.intro_arrival.title': 'Спуск с края',
   'quest.intro_bowl.title': 'Пробуждение в Чаше',
+  'quest.intro_road.title': 'Дорога дальше',
   'quest.nose_depot_leak.title': 'Пропажа топлива со склада',
   'quest.nose_edda.title': 'Разговоры с Эддой Мосс',
   'quest.nose_ibo.title': 'Разговоры со Старым Ибо',

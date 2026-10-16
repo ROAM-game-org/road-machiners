@@ -143,7 +143,7 @@ export class Game {
   private readonly zones = new ZonesView();
   private readonly contacts = new ContactsView();
   private readonly clouds = new CloudViews();
-  private readonly utilityAim = new UtilityAim({ world: () => this.world, apply: (next) => this.apply(next), note: (text) => this.hud.note(this.world, text, "bad") });
+  private readonly utilityAim = new UtilityAim({ world: () => this.world, apply: (next) => this.apply(next), note: (text) => this.hud.refuse(text) });
   private readonly soundRing = new SoundRingView();
   private readonly beaconPulse = new BeaconPulseView();
   private readonly path: PathView;
@@ -283,7 +283,7 @@ export class Game {
       playing: () => this.anim !== null,
       apply: (next) => this.apply(next),
       pushEvents: () => this.hud.pushEvents(this.world),
-      note: (text) => this.hud.note(this.world, text, "bad"),
+      note: (text) => this.hud.refuse(text),
       openTrade: (id) => this.screens.trade.openWith(id),
       openTown: () => this.screens.town.open(),
       openOutpost: () => this.screens.outpost.open(),
@@ -732,7 +732,7 @@ export class Game {
       this.apply(next());
     } catch (err) {
       if (!(err instanceof Refused)) throw err;
-      this.hud.note(this.world, refusalText(this.world, err.refusal), "bad");
+      this.hud.refuse(refusalText(this.world, err.refusal));
     }
   }
 
