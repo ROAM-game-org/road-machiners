@@ -372,12 +372,32 @@ export type NpcState = {
   data: StateData;
 };
 
+export type Octant = 'east' | 'southEast' | 'south' | 'southWest' | 'west' | 'northWest' | 'north' | 'northEast';
+export type Span = 'near' | 'fair' | 'far';
+export type Cue =
+  | { kind: 'site'; id: string }
+  | { kind: 'deck'; id: string }
+  | { kind: 'prop'; look: LandmarkLook }
+  | { kind: 'fork'; nth: number }
+  | { kind: 'none' };
+export type RoadName = { kind: 'to'; site: string } | { kind: 'heading'; octant: Octant };
+export type TurnSide = 'left' | 'right' | 'keepLeft' | 'keepRight';
+export type DirectionTarget = { kind: 'site'; id: string } | { kind: 'spot'; pos: Vec; clue: 'wreck' };
+export type DirectionStep =
+  | { do: 'join'; octant: Octant; span: Span }
+  | { do: 'follow'; road: RoadName; span: Span }
+  | { do: 'turn'; side: TurnSide; at: Cue; road: RoadName; span: Span }
+  | { do: 'arrive'; site: string; area: boolean }
+  | { do: 'leave'; at: Cue; octant: Octant; span: Span }
+  | { do: 'straight'; octant: Octant; span: Span }
+  | { do: 'search'; clue: { kind: 'site'; id: string } | { kind: 'wreck' }; rough: boolean }
+  | { do: 'askAgain'; at: Cue }
+  | { do: 'noRoad'; octant: Octant; span: Span };
+
 export type CallVar =
   | { kind: "town"; id: string }
   | { kind: "site"; id: string }
   | { kind: "money"; amount: number }
-  | { kind: "distance"; tiles: number }
-  | { kind: "bearing"; rad: number }
   | { kind: "count"; n: number; unit: UnitId }
   | { kind: "deal"; deal: PatchDeal; patcher: "player" | "npc"; price: number; parts: number; turns: number }
   | { kind: "haul"; goods: Record<string, number>; parts: string[] }
@@ -386,7 +406,8 @@ export type CallVar =
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
   | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
   | { kind: "answer"; option: string }
-  | { kind: "line"; line: LineId };
+  | { kind: "line"; line: LineId }
+  | { kind: "directions"; steps: DirectionStep[] };
 export type CallVars = Record<string, CallVar>;
 
 export type Repeat = { count: number; turn: number };

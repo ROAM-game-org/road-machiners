@@ -13,21 +13,16 @@ import { fullName, goodLower, lineKey, partName, refusalText, siteName, unitCoun
 import { schemaOf } from '../text/resolve';
 import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
+import { directionsText } from './directions-text';
 import { renderLine } from './quest-text';
-import { agoText, fuelLiters, meters, moneyM } from './units';
+import { agoText, distanceText, fuelLiters, moneyM } from './units';
 
 const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
-const METERS_PER_KM = 1000;
 
 export function compass(rad: number): Msg {
   const step = (2 * Math.PI) / COMPASS.length;
   const i = Math.round(rad / step);
   return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
-}
-
-function distanceText(tiles: number): Msg {
-  const m = meters(tiles);
-  return m >= METERS_PER_KM ? t('call.km', { km: m / METERS_PER_KM }) : t('call.m', { m });
 }
 
 const money = (amount: number): Msg => t('call.money', { amount: moneyM(amount) });
@@ -79,8 +74,6 @@ const VAR_TEXT: VarText = {
   town: (v) => siteName(v.id),
   site: (v) => siteName(v.id),
   money: (v) => money(v.amount),
-  distance: (v) => distanceText(v.tiles),
-  bearing: (v) => compass(v.rad),
   count: (v) => unitCount(v.unit, v.n),
   deal: dealText,
   prices: pricesText,
@@ -89,6 +82,7 @@ const VAR_TEXT: VarText = {
   tip: tipText,
   sighting: sightingText,
   line: (v) => lineText(v.line, {}),
+  directions: (v) => directionsText(v.steps),
   answer: () => { throw new Error('A rolled answer is never shown in a line'); },
 };
 

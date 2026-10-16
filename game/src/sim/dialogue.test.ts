@@ -26,6 +26,7 @@ import { addState, aidData, endState, stateOf } from './states';
 import { addVehicle, emptyWorld, forceOption, npcBrain, practiceOf, rngStateForForcedRolls, startCombat, testDrive } from './testkit';
 import type { TraitId } from '../data/npcs';
 import type { SalvageStock, Vehicle, World } from './types';
+import { directionsTo } from './directions';
 import { dist } from './vec';
 import { refreshVision } from './vision';
 import { autoRuns, endTurn, setMoveOrder } from './world';
@@ -173,12 +174,17 @@ describe('directions', () => {
   it('names the known town nearest the player and marks it discovered', () => {
     const { w, npc } = withNpc('trader', 'traders');
     w.player.discovered = [];
+    playerVehicle(w).pos = { x: 100, y: 450 };
+    npc.pos = { x: 106, y: 450 };
+    refreshVision(w);
     const me = playerVehicle(w).pos;
     const nearest = REGION.towns.filter((t) => ['bowl', 'nose'].includes(t.id)).sort((a, b) => dist(me, a.pos) - dist(me, b.pos))[0];
     let next = callVehicle(w, npc.id);
     next = chooseOption(next, optionIndex(next, en(TOPICS.directions.ask!.say)));
     expect(next.player.call?.vars.town).toEqual({ kind: 'town', id: nearest.id });
-    expect(next.player.call?.vars.distance).toEqual({ kind: 'distance', tiles: dist(me, nearest.pos) });
+    expect(next.player.call?.vars.way).toEqual({ kind: 'directions', steps: directionsTo(w, me, { kind: 'site', id: nearest.id }) });
+    expect(next.player.call?.line.line).toBe('townWay');
+    expect(next.player.call?.vars.way).toMatchObject({ steps: expect.arrayContaining([{ do: 'arrive', site: nearest.id, area: false }]) });
     next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
     expect(next.player.call).toBeNull();
     expect(next.player.discovered).toContain(nearest.id);
@@ -796,7 +802,7 @@ describe('rumor mill', () => {
     next = chooseOption(next, optionIndex(next, askText));
     next = chooseOption(next, optionIndex(next, 'Where?'));
     expect(next.player.call?.node).toBe('wreck');
-    expect(next.player.call?.vars).toEqual({ bearing: { kind: 'bearing', rad: 0 }, distance: { kind: 'distance', tiles: dist(me, { x: 50, y: 30 }) } });
+    expect(next.player.call?.vars).toEqual({ way: { kind: 'directions', steps: directionsTo(w, me, { kind: 'spot', pos: { x: 50, y: 30 }, clue: 'wreck' }) } });
     next = chooseOption(next, optionIndex(next, 'Thanks. Over and out.'));
     expect(next.player.rumored).toEqual(['wreck7']);
   });

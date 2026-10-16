@@ -68,6 +68,7 @@ import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
 import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import FORMAT_2_68 from './save-fixtures/format-2-68.json';
+import FORMAT_2_69 from './save-fixtures/format-2-69.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1405,14 +1406,41 @@ describe('MIGRATIONS[66]', () => {
   });
 });
 
-describe('save migration 67 to 68', () => {
-  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
-    expect(MIGRATIONS[67](structuredClone(FORMAT_2_67))).toEqual(FORMAT_2_67);
+describe('MIGRATIONS[67]', () => {
+  const callOf = (world: unknown) => (world as { player: { call: unknown } }).player.call;
+  const saying = (line: string) => {
+    const world = structuredClone(FORMAT_2_67) as { player: { call: { line: { line: string } } } };
+    world.player.call.line.line = line;
+    return world;
+  };
+
+  it('hangs up a call on the old town bearing line and keeps every other field', () => {
+    const next = MIGRATIONS[67](structuredClone(FORMAT_2_67));
+    expect(callOf(next)).toBeNull();
+    expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_67, player: { ...FORMAT_2_67.player, call: null } });
+  });
+
+  it('hangs up a call on the old site and wreck bearing lines', () => {
+    expect(callOf(MIGRATIONS[67](saying('siteBearing')))).toBeNull();
+    expect(callOf(MIGRATIONS[67](saying('aWreckNobodyPicked')))).toBeNull();
+  });
+
+  it('keeps a call on another line and a save with no call as they are', () => {
+    const other = saying('heardYou');
+    expect(MIGRATIONS[67](structuredClone(other))).toEqual(other);
+    const none = { turn: 3, player: { call: null } };
+    expect(MIGRATIONS[67](structuredClone(none))).toEqual(none);
   });
 });
 
 describe('save migration 68 to 69', () => {
-  const migrated = () => MIGRATIONS[68](structuredClone(FORMAT_2_68)) as typeof FORMAT_2_68;
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[68](structuredClone(FORMAT_2_68))).toEqual(FORMAT_2_68);
+  });
+});
+
+describe('save migration 69 to 70', () => {
+  const migrated = () => MIGRATIONS[69](structuredClone(FORMAT_2_69)) as typeof FORMAT_2_69;
 
   it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
     const w = migrated();
@@ -1428,8 +1456,8 @@ describe('save migration 68 to 69', () => {
   });
 
   it('keeps a call on another topic', () => {
-    const save = structuredClone(FORMAT_2_68);
+    const save = structuredClone(FORMAT_2_69);
     save.player.call.topic = 'lastSeen';
-    expect((MIGRATIONS[68](save) as typeof FORMAT_2_68).player.call).toEqual(save.player.call);
+    expect((MIGRATIONS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
   });
 });

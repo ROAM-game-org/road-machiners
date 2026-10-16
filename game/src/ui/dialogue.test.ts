@@ -42,7 +42,7 @@ describe('aid words', () => {
 });
 
 const PREPARE_VARS: Record<PrepareId, string[]> = {
-  nearestTown: ['town', 'bearing', 'distance'],
+  nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
   patchTerms: ['deal'],
   truceAnswer: ['answer', 'haul'],
@@ -51,7 +51,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   warnAnswer: ['answer'],
   npcTowTerms: ['site', 'fee'],
   lastTownPrices: ['town', 'prices'],
-  nearestRumor: ['site', 'bearing', 'distance'],
+  nearestRumor: ['site', 'way'],
   tradeTip: ['tip'],
   trucePrice: ['price'],
   aidWanted: ['aid', 'price'],
@@ -63,17 +63,16 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
   courierNeed: ['aid', 'price'],
-  taleNews: ['site', 'bearing', 'distance', 'tip'],
-  tipTerms: ['price', 'bearing', 'distance'],
-  courierNews: ['site', 'bearing', 'distance', 'tip'],
+  taleNews: ['site', 'way', 'tip'],
+  tipTerms: ['price', 'way'],
+  courierNews: ['site', 'way', 'tip'],
   courierFavorTerms: ['price'],
 };
 
 const SAMPLE: Record<string, CallVar> = {
   town: { kind: 'town', id: 'bowl' },
   site: { kind: 'site', id: 'granary' },
-  bearing: { kind: 'bearing', rad: 1 },
-  distance: { kind: 'distance', tiles: 300 },
+  way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },
   deal: { kind: 'deal', deal: 'paid', patcher: 'npc', price: 80, parts: 2, turns: 3 },
@@ -117,7 +116,7 @@ describe('every radio line', () => {
   });
 
   it('throws for a line missing a value it names', () => {
-    expect(() => lineText('townBearing', {})).toThrow(/town/);
+    expect(() => lineText('townWay', {})).toThrow(/town/);
   });
 });
 
