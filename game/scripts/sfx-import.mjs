@@ -1,5 +1,3 @@
-// Imports source files as variants of one catalog cue.
-// Usage: npm run sfx:import -- <cue> <file...>
 import { MIX, SOUNDS } from '../src/data/sounds.ts';
 import { cueOf, importFile, syncTwins } from './sfx-lib.mjs';
 

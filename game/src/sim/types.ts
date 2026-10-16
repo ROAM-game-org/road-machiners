@@ -57,6 +57,14 @@ export type GridItem =
       rot: Rot;
       kind: "good";
       good: string;
+    }
+  | {
+      id: string;
+      x: number;
+      y: number;
+      rot: Rot;
+      kind: "parcel";
+      contract: string;
     };
 
 export type Aim = "body" | string;
@@ -208,6 +216,7 @@ export type Refusal =
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
+  | { id: 'parcelKept' }
   | { id: 'salvageOutOfReach' }
   | { id: 'salvagePartGone' }
   | { id: 'builtInStays' }
@@ -300,7 +309,9 @@ export type Track = { at: Vec; turn: number; sighted: boolean; seenSince: number
 export type MemoryFact =
   | { kind: 'prices'; shop: string; pressure: Record<string, number> }
   | { kind: 'stripped'; stock: string }
-  | { kind: 'wronged'; by: string };
+  | { kind: 'wronged'; by: string }
+  | { kind: 'sighting'; vehicle: string; at: Vec; heading: number };
+export type SightingFact = Extract<MemoryFact, { kind: 'sighting' }>;
 export type Memory = { turn: number; fact: MemoryFact };
 
 export type Vehicle = {
@@ -339,7 +350,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire';
+export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -378,6 +389,7 @@ export type CallVar =
   | { kind: "aid"; fuel: number; supplies: number }
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
+  | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
   | { kind: "answer"; option: string }
   | { kind: "line"; line: LineId };
 export type CallVars = Record<string, CallVar>;

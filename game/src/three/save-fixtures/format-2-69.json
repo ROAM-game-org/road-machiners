@@ -1,0 +1,46 @@
+{
+ "turn": 700,
+ "shops": {
+  "bowl": {
+   "contracts": [
+    {
+     "id": "ct3",
+     "shop": "bowl",
+     "kind": "bounty",
+     "template": "buggy",
+     "reward": 11000,
+     "deadline": 1500,
+     "window": 800,
+     "tier": 1,
+     "fulfilled": false
+    }
+   ]
+  },
+  "nose": {
+   "contracts": []
+  }
+ },
+ "player": {
+  "contracts": [
+   {
+    "id": "ct4",
+    "shop": "nose",
+    "kind": "fetch",
+    "defId": "mg",
+    "reward": 9000,
+    "deadline": 1300,
+    "window": 700,
+    "tier": 1
+   }
+  ],
+  "talked": {
+   "v7": {
+    "directions": "done"
+   },
+   "v3": {
+    "lastSeen": "done"
+   }
+  },
+  "call": null
+ }
+}

@@ -66,6 +66,9 @@ import FORMAT_2_60 from './save-fixtures/format-2-60.json';
 import FORMAT_2_61 from './save-fixtures/format-2-61.json';
 import FORMAT_2_62 from './save-fixtures/format-2-62.json';
 import FORMAT_2_64 from './save-fixtures/format-2-64.json';
+import FORMAT_2_67 from './save-fixtures/format-2-67.json';
+import FORMAT_2_68 from './save-fixtures/format-2-68.json';
+import FORMAT_2_69 from './save-fixtures/format-2-69.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1403,14 +1406,43 @@ describe('MIGRATIONS[66]', () => {
   });
 });
 
-describe('MIGRATIONS[67]', () => {
+describe('save migration 67 to 68', () => {
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[67](structuredClone(FORMAT_2_67))).toEqual(FORMAT_2_67);
+  });
+});
+
+describe('save migration 68 to 69', () => {
+  const migrated = () => MIGRATIONS[68](structuredClone(FORMAT_2_68)) as typeof FORMAT_2_68;
+
+  it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
+    const w = migrated();
+    expect(w.player.contracts.map((c) => c.id)).toEqual(['ct4']);
+    expect(w.shops.bowl.contracts.map((c) => c.id)).toEqual(['ct3']);
+    expect(w.shops.nose.contracts).toEqual([]);
+  });
+
+  it('ends a call on the removed found topic and forgets that topic', () => {
+    const w = migrated();
+    expect(w.player.call).toBeNull();
+    expect(w.player.talked).toEqual({ v7: { directions: 'done' }, v3: { lastSeen: 'done' } });
+  });
+
+  it('keeps a call on another topic', () => {
+    const save = structuredClone(FORMAT_2_68);
+    save.player.call.topic = 'lastSeen';
+    expect((MIGRATIONS[68](save) as typeof FORMAT_2_68).player.call).toEqual(save.player.call);
+  });
+});
+
+describe('save migration 69 to 70', () => {
   it('keeps a save as it is, since crews, hires and the muster goal only widen unions', () => {
-    const before = structuredClone(FORMAT_2_64);
+    const before = structuredClone(FORMAT_2_69);
 
-    const next = MIGRATIONS[67](before);
+    const next = MIGRATIONS[69](before);
 
-    expect(next).toEqual(FORMAT_2_64);
-    expect(before).toEqual(FORMAT_2_64);
+    expect(next).toEqual(FORMAT_2_69);
+    expect(before).toEqual(FORMAT_2_69);
   });
 
   it('keeps saved escorts, tow promises and feuds with their kinds and data', () => {
@@ -1419,8 +1451,8 @@ describe('MIGRATIONS[67]', () => {
       { id: 's2', kind: 'towPromise', holder: 'v4', other: 'v1', turnsLeft: null, born: 12, data: { kind: 'towPromise', site: 'bowl', fee: 900 } },
       { id: 's3', kind: 'feud', holder: 'v5', other: 'v1', turnsLeft: 7, born: 30, data: { kind: 'feud', robbery: true } },
     ];
-    const world = { ...structuredClone(FORMAT_2_64), states };
+    const world = { ...structuredClone(FORMAT_2_69), states };
 
-    expect(MIGRATIONS[67](structuredClone(world))).toEqual(world);
+    expect(MIGRATIONS[69](structuredClone(world))).toEqual(world);
   });
 });

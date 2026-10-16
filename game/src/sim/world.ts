@@ -43,6 +43,7 @@ import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
+import { readyHandover } from './parcel';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, type CarriedQuestVars } from './quests';
@@ -291,8 +292,12 @@ export function autoRuns(world: World): boolean {
   const p = world.player;
   if (p.call || p.quests.live) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
-  if (readyAid(world)) return false;
+  if (readyDeal(world)) return false;
   return waitsOnBeacon(world);
+}
+
+function readyDeal(world: World): boolean {
+  return readyAid(world) !== null || readyHandover(world) !== null;
 }
 
 export function isAtRest(v: Vehicle): boolean {

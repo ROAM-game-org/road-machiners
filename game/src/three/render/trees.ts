@@ -1,6 +1,3 @@
-// Dead trees drawn as one instanced model per terrain chunk, like map rocks. A grove holds hundreds of trees, so
-// one view each would cost a draw call per tree. A broken tree's instance hides, and it shows again when the tree
-// grows back. Only the trees baked into the map are drawn here.
 
 import * as THREE from 'three';
 import { PHYSICS } from '../../data/physics';
@@ -79,7 +76,10 @@ export function posed(base: number, pose: PropPose): THREE.Group {
 
 function byChunk(trees: readonly Landmark[]): Map<string, Landmark[]> {
   const out = new Map<string, Landmark[]>();
+  const ids = new Set<string>();
   for (const o of trees) {
+    if (ids.has(o.id)) throw new Error(`Dead tree ${o.id} is listed twice`);
+    ids.add(o.id);
     if (o.look !== 'deadTree') throw new Error(`Landmark ${o.id} is a ${o.look}, not a dead tree`);
     const key = `${Math.floor(o.pos.x / TERRAIN_CHUNK)},${Math.floor(o.pos.y / TERRAIN_CHUNK)}`;
     const list = out.get(key);

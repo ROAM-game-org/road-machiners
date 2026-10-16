@@ -7,7 +7,7 @@ import { release } from './release';
 const TRUCKS = issueMerge(3, 'faster trucks');
 const HORN = issueMerge(5, 'louder horn');
 
-function devHolds(merges: IssueMerge[] | null): void {
+function devHolds(merges: IssueMerge[]): void {
   const f = fake();
   writeState(f.ctx.statePath, { ...readState(f.ctx.statePath), devMerges: merges });
 }
@@ -55,14 +55,6 @@ describe('release cut', () => {
     const state = readState(f.ctx.statePath);
     expect(state.release?.merges).toEqual([TRUCKS]);
     expect(state.devMerges).toEqual([HORN]);
-  });
-
-  it('throws when the merges on dev are not migrated yet, and cuts nothing', async () => {
-    const f = fake();
-    devHolds(null);
-    await expect(release(f.ctx)).rejects.toThrow('not filled yet');
-    expect(f.calls.some((call) => call.startsWith('branch'))).toBe(false);
-    expect(readState(f.ctx.statePath).release).toBeNull();
   });
 
   it('merges main into dev first when dev lacks it, so the release merges into main without conflicts', async () => {

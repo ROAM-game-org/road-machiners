@@ -1,6 +1,6 @@
 
 import { chassisDef } from '../data/chassis';
-import { CRATE_MASS, GOODS } from '../data/goods';
+import { CRATE_MASS, GOODS, PARCEL } from '../data/goods';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
 import type { GridItem, Vehicle } from './types';
@@ -19,6 +19,7 @@ export function loadFactor(v: Vehicle, extraMass = 0): number {
 }
 
 export function itemMass(it: GridItem): number {
+  if (it.kind === 'parcel') return PARCEL.mass;
   return it.kind === 'part' ? partDef(it.part.defId).mass : goodMass(it.good);
 }
 

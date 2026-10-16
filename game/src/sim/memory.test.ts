@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MEMORY } from '../data/npcs';
-import { forgetOld, recall, remember, subjectOf } from './memory';
+import { forgetOld, recall, remember, rememberSightings, sightingOf, subjectOf } from './memory';
 import { noteAttack } from './combat';
 import { yieldTo } from './parley';
 import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
@@ -94,6 +94,54 @@ describe('driver memory', () => {
     v.brain!.memories[0].turn -= MEMORY.turns.prices;
     w = endTurn(w, testDrive);
     expect(w.vehicles.find((x) => x.id === v.id)!.brain!.memories.map((m) => subjectOf(m.fact))).toEqual(['prices:nose']);
+  });
+
+  it('records where and when a driver saw another driver', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    other.heading = 1.5;
+    w.turn = 9;
+    rememberSightings(w, watcher, [other]);
+    expect(sightingOf(watcher, other.id)).toEqual({ turn: 9, fact: { kind: 'sighting', vehicle: other.id, at: { x: 64, y: 60 }, heading: 1.5 } });
+  });
+
+  it('skips a truck with no driver', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const wreck = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    rememberSightings(w, watcher, [wreck]);
+    expect(watcher.brain!.memories).toEqual([]);
+  });
+
+  it('replaces an older sighting of the same truck with the newer one', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    rememberSightings(w, watcher, [other]);
+    w.turn = 4;
+    other.pos = { x: 70, y: 61 };
+    rememberSightings(w, watcher, [other]);
+    expect(recall(watcher, 'sighting')).toHaveLength(1);
+    expect(sightingOf(watcher, other.id)).toMatchObject({ turn: 4, fact: { at: { x: 70, y: 61 } } });
+  });
+
+  it('forgets a sighting after a day', () => {
+    const w = emptyWorld();
+    const watcher = driver(w);
+    const other = addVehicle(w, 'traders', 'hauler', [], { x: 64, y: 60 });
+    other.brain = npcBrain('trader', other.pos, ['trader']);
+    rememberSightings(w, watcher, [other]);
+    w.turn += MEMORY.turns.sighting;
+    forgetOld(w);
+    expect(sightingOf(watcher, other.id)).toBeNull();
+  });
+
+  it('answers null for a truck never seen', () => {
+    const w = emptyWorld();
+    expect(sightingOf(driver(w), 'ghost')).toBeNull();
   });
 
   it('remembers the truck that attacked it', () => {

@@ -49,6 +49,7 @@ import { driverName, factionName, refusalText, setupText, templateName, vehicleT
 export type ContextTarget =
   | { kind: 'aid'; id: string }
   | { kind: 'trade'; id: string }
+  | { kind: 'parcel'; id: string }
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }

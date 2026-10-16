@@ -5,7 +5,7 @@ import { LOCALES, type Msg } from '../text/msg';
 import { lineKey } from '../text/names';
 import { resolve, schemaOf } from '../text/resolve';
 import { emptyWorld, addVehicle, npcBrain } from '../sim/testkit';
-import { aidWords, callError, haulText, lineText, tipText } from './dialogue';
+import { aidWords, callError, haulText, lineText, sightingText, tipText } from './dialogue';
 
 const en = (msg: Msg): string => resolve(msg, 'en');
 
@@ -62,6 +62,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   lootWarningTerms: ['warnLine', 'answer'],
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
+  lastSighting: ['sighting'],
   courierNeed: ['aid', 'price'],
   taleNews: ['site', 'bearing', 'distance', 'tip'],
   tipTerms: ['price', 'bearing', 'distance'],
@@ -82,6 +83,7 @@ const SAMPLE: Record<string, CallVar> = {
   aid: { kind: 'aid', fuel: 2, supplies: 3 },
   warnLine: { kind: 'line', line: 'thatsMyPick' },
   haul: { kind: 'haul', goods: { scrap: 2 }, parts: ['mg'] },
+  sighting: { kind: 'sighting', driver: 'Jed Cobb', seen: { bearing: 0.8, tiles: 300, turns: 80, heading: 3.1 } },
 };
 
 const named = (line: LineId): string[] => Object.keys(schemaOf(lineKey(line)));
@@ -157,5 +159,17 @@ describe('call error', () => {
     expect(callError(w, near.id)).toBeNull();
     expect(callError(w, far.id)).not.toBeNull();
     expect(callError(w, 'nobody')).not.toBeNull();
+  });
+});
+
+describe('sighting words', () => {
+  it('tells the age, place and heading of what the driver saw', () => {
+    const seen = { bearing: 0, tiles: 300, turns: 60, heading: Math.PI / 2 };
+    const words = en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen }));
+    expect(words).toMatch(/^Jed Cobb\? Saw that truck about 3 hours ago, .* east of you, heading south\.$/);
+  });
+
+  it('says they never crossed paths when nothing was seen', () => {
+    expect(en(sightingText({ kind: 'sighting', driver: 'Jed Cobb', seen: null }))).toBe('Jed Cobb? Never crossed paths.');
   });
 });

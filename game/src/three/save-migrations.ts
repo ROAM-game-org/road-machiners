@@ -878,10 +878,12 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withCrewsAndHires_67_68,
+  withSearches_67_68,
+  withParcelSearches_68_69,
+  withCrewsAndHires_69_70,
 ];
 
-function withCrewsAndHires_67_68(world: SavedJson): SavedJson {
+function withCrewsAndHires_69_70(world: SavedJson): SavedJson {
   return world;
 }
 
@@ -912,6 +914,29 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withSearches_67_68(world: SavedJson): SavedJson {
+  return world;
+}
+const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+  return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
+}
+function withParcelSearches_68_69(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      call: call?.topic === 'found' ? null : call,
+    },
+  };
 }
 
 function withRescueContracts_63_64(world: SavedJson): SavedJson {

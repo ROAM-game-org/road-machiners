@@ -154,6 +154,7 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | plea | 20 | false |
 | patch | 40 | true |
 | trade | 20 | true |
+| handover | 20 | true |
 | revenge | 2000 | false |
 | escort |  | true |
 | strayFire | 60 | false |
