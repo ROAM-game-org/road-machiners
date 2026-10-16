@@ -20,7 +20,7 @@ function withDrive(order: MoveOrder, check: (world: World, drive: Drive) => void
 
 function previewInWorker(world: World, drive: Drive) {
   const { terrain, ...state } = structuredClone(world);
-  return computePreview({ world: state, drive: captureDrive(drive), meId: world.player.vehicleId }, terrain);
+  return computePreview({ world: state, drive: captureDrive(drive), questLanguage: 'en', meId: world.player.vehicleId }, terrain);
 }
 
 it.each<MoveOrder>([

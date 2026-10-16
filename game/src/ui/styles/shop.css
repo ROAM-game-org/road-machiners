@@ -365,6 +365,9 @@
   border-left: 4px solid var(--line);
   line-height: 1.4;
 }
+.journal-place {
+  margin-top: var(--space-4);
+}
 .journal-note .journal-head {
   display: flex;
   justify-content: space-between;
@@ -1088,6 +1091,15 @@
 .job > .icon {
   width: var(--icon-l);
   height: var(--icon-l);
+}
+.job .claim-rival {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.job .claim-rival > .icon {
+  width: var(--icon-m);
+  height: var(--icon-m);
 }
 /* A note in place of an action wraps, so it never squeezes the contract summary. */
 .job > .dim {

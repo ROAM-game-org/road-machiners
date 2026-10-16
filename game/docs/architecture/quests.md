@@ -33,7 +33,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `session` is the open quest: its id, last checkpoint and the seed of ink's random numbers. One quest is open at a time.
 - `live` holds ink's own state and the lines and choices on view. Saves skip it, and load rebuilds it from the session with `restoreQuest()`.
 
-`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view.
+`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view. The turn and preview workers are separate module instances, so every task carries the quest language in force and the worker sets it before the turn runs. A turn that lands after a language switch is relanguaged on commit.
 
 ## Game functions
 
@@ -117,7 +117,7 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. It sets that variable as it opens the scene, so saves keep it and `src/sim/types.ts` stays as it is.
 - The scene offers no choice, since every choice would lead to the same outcome. Its pages run behind Next buttons, and the session ends as it opens. A save made while the pages show does not show them again on load.
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
-- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival is one of them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
+- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival and `bowl_scale` are among them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 
 ## The ambush and the wake in Bowl
 
@@ -131,6 +131,14 @@ The world variable `intro_step` runs the second half of the arrival. Its values 
 - `intro_bowl.ink` is a page scene with Hattie at the well house. It offers no choice and plays once.
 - At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
 - A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
+
+## The weigher at the Bowl gate yard
+
+`bowl_scale.ink` is a page scene the game opens by itself. It shows a new driver that the Bowl gate yard buys scrap and parts: the player watches a scavenger sell crates on the yard's beam scale, then the weigher Mags Corrin looks into the player's bed. The scene names no price and sells nothing. The sale goes through the town's Market like every sale.
+
+- `greetAtScale()` in `src/sim/intro.ts` runs each turn right after `advanceIntro()`. It calls `openScaleScene()` in `src/sim/quests.ts` when the player is active and not in combat, no quest is open, the truck is parked on a pad of `SCALE_TOWN` (Bowl), it holds a crate of a good in `SALVAGE_GOODS` (scrap or parts) and `xpBySource.profit` is 0, so the player has never sold at a profit.
+- `openScaleScene()` sets the world variable `scale_seen` as it opens the scene, so it plays once per game. A player woken on the Bowl bench with an empty bed meets it on a later visit with salvage. A player who first sold at a profit elsewhere never meets it.
+- Asking where scavengers find iron writes the note `orchardIron`: dead trucks by the roads, and the barns and Army sheds at Old Orchard.
 
 ## The Archon's tanker
 

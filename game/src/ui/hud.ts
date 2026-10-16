@@ -12,9 +12,13 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
+  claimRivalMark,
   escortStatusText,
   heldContractDue,
   contractSummary,
+  surveyProgress,
+  isNotable,
+  nextSurveyClue,
   eventText,
   formatNpcPass,
   workLabel,
@@ -24,6 +28,7 @@ import {
   formatNpcTraits,
   formatVehicleState,
   type LogLine,
+  clock,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -34,6 +39,7 @@ import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
+import { playerGuard } from "../sim/hire";
 import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
@@ -42,6 +48,7 @@ import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
 
@@ -52,6 +59,7 @@ export type ContextTarget =
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
+  | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
   | { kind: 'empty' }
   | { kind: 'outpost' };
@@ -411,8 +419,14 @@ export class Hud {
     );
   }
 
+  private surveyProgress(c: Contract): HTMLElement | null {
+    if (c.kind !== "survey" || isMet(c)) return null;
+    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
+  }
+
   private renderContracts(w: World): void {
-    if (w.player.contracts.length === 0) {
+    const guard = playerGuard(w);
+    if (w.player.contracts.length === 0 && guard === null) {
       this.contracts.style.display = "none";
       return;
     }
@@ -423,10 +437,10 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c)),
           c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
+      ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
 
@@ -629,7 +643,6 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover" || e.t === "standing") this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
@@ -701,6 +714,15 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
+  return el(
+    "div",
+    { class: "contract-line" },
+    el("span", {}, t("hud.guard", { name: driverName(merc) })),
+    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+  );
 }
 
 function escortLine(w: World, c: EscortContract): HTMLElement {

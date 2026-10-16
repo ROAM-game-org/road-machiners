@@ -20,7 +20,7 @@ import { offeredSurrenderBy, type ThreatAnswer } from '../parley';
 import { hashRandom } from '../rng';
 import { affordableBuyCount, basicsRepairCost, buyGood, buyStockPart, buySupply, canRebuild, driveRepairCost, partRepairCost, partTradePrice, getLotTradePrice, getTradePrice, repairBasics, repairCost, repairDrive, repairPart, sellGood, sellPart, supplyRoom } from '../economy';
 import { corePart, findSpot, freeCells, goodsCount, gridOf, isMounted, itemCells, MOUNT_CELLS, mountedItems, mountedParts, type Spot } from '../grid';
-import { cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
+import { canStowPart, cargoMassRoom, cargoRoom, getLayoutError, stowSpot, storePart } from '../inventory';
 import { itemMass } from '../mass';
 import { acceptContract, deliverContract, estimateTurns, shopAt, shopState, siteOf, type Contract } from '../market';
 import { escortBlocked, heldEscort, type EscortContract } from '../escort-job';
@@ -31,10 +31,12 @@ import { topGoal } from '../npc-activities';
 import { firepower, getUpkeepReserve, isWeak, judgeDanger, getKnownSite, strengthRatio, tripFuelCost } from '../npc-decisions';
 import { fightOdds } from '../fight-odds';
 import { warnedOffTarget } from '../loot-warning';
-import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, takeFromTruck } from '../salvage';
+import { claimCandidates, claimClue, claimPartHeld } from '../claims';
+import { canLootTruck, canReachSalvage, hasSalvage, salvageInRange, lootBlocker, takeError, takeFromTruck } from '../salvage';
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
+import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
 import { towData } from '../states';
@@ -45,11 +47,12 @@ import { reachedOutpostAt } from '../fury-road';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
 import { searcherGoal, takeSearch } from './searcher';
+import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 import { isAlly, isOutlaw } from '../relations';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'climber' | 'markov' | 'escort' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'climber', 'markov', 'escort', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
 type RoadPolicy = 'escort' | 'sprinter';
@@ -66,6 +69,7 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
   hauler: CARGO_GEAR,
   searcher: CARGO_GEAR,
+  surveyor: CARGO_GEAR,
   robber: CARGO_GEAR,
   convoyRobber: CARGO_GEAR,
 };
@@ -412,7 +416,7 @@ function fuelForWay(world: World, tiles: number): number {
   return tiles * vehicleStats(world, me).fuelPerTile * heatAt(world, me.pos) * NPC_UPKEEP.fuelReserve;
 }
 
-export function fuelReaches(world: World, site: Site, from?: { pos: Vec; fuel: number }): boolean {
+export function fuelReaches(world: World, site: Pick<Site, 'pos'>, from?: { pos: Vec; fuel: number }): boolean {
   const full = fuelCap(playerVehicle(world));
   let at = from ?? { pos: playerVehicle(world).pos, fuel: world.player.fuel };
   for (let step = 0; step <= SHOP_SITES.length; step++) {
@@ -480,12 +484,23 @@ function repairAtGarage(o: Orders): void {
   for (const part of garageFixes(o)) if (affordsRepair(o, part)) o.run((w) => repairPart(w, part.id), 'repairs');
 }
 
-const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
+const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
 
 function traderGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
   if (!trade(o) && !takeHaul(o) && !scavenge(o, false)) checkNextBoard(o);
+}
+
+const SURVEY_MOVES: SurveyorMoves = {
+  driveToSite,
+  driveBeside: (o, center, radius) => driveTo(o, besideStop(o.world, center, radius)),
+  fuelReaches: (o, pos) => fuelReaches(o.world, { pos }),
+  drivable: (o, to) => drivable(o.world, o.me.pos, to, vehicleStats(o.world, o.me).radius),
+};
+
+function surveyorGoal(o: Orders): void {
+  if (!surveyGoal(o, SURVEY_MOVES) && !trade(o) && !scavenge(o, false)) checkNextBoard(o);
 }
 
 function haulerGoal(o: Orders): void {
@@ -544,9 +559,56 @@ function checkNextBoard(o: Orders): void {
   if (next) driveToSite(o, next);
 }
 
+type Claim = Extract<Contract, { kind: 'claim' }>;
+
+const isClaim = (c: Contract): c is Claim => c.kind === 'claim';
+
+function claimGoal(o: Orders): boolean {
+  const held = o.world.player.contracts.find(isClaim);
+  if (!held) return takeClaim(o);
+  if (claimPartHeld(o.world, held) !== 'player') return claimPartHeld(o.world, held) === 'stock' && searchClaim(o, held);
+  if (shopAt(o.world) === held.shop) o.run((w) => deliverContract(w, held.id), 'contracts');
+  else driveToSite(o, siteOf(held.shop));
+  return true;
+}
+
+function searchClaim(o: Orders, claim: Claim): boolean {
+  const next = nextCandidate(o.world, claim);
+  if (!next) return false;
+  if (!foundIn(o.world, next, claim)) visitStock(o, next);
+  else if (salvageInRange(o.me, next)) lootHere(o);
+  else driveTo(o, besideStop(o.world, next.pos, next.radius));
+  return true;
+}
+
+function foundIn(world: World, stock: SalvageStock, claim: Claim): boolean {
+  return world.player.scavenged.includes(stock.id) && stock.parts.some((p) => p.id === claim.partId);
+}
+
+function nextCandidate(world: World, claim: Claim): SalvageStock | null {
+  const stocks = claimCandidates(world, claim).map((id) => world.salvage.find((s) => s.id === id)!);
+  return stocks.find((s) => foundIn(world, s, claim)) ?? stocks.find((s) => !world.player.scavenged.includes(s.id)) ?? null;
+}
+
+function fitsAboard(o: Orders, claim: Claim): boolean {
+  const stock = o.world.salvage.find((s) => s.id === claim.stockId);
+  const part = stock && [...stock.parts, ...stock.hidden.parts].find((p) => p.id === claim.partId);
+  return part !== undefined && canStowPart(o.me, part);
+}
+
+function takeClaim(o: Orders): boolean {
+  const shop = shopAt(o.world);
+  if (!shop || o.world.player.contracts.length >= CONTRACTS.maxActive) return false;
+  const reaches = (c: Claim) => c.deadline > o.world.turn && fitsAboard(o, c) && fuelReaches(o.world, { ...siteOf(c.shop), pos: claimClue(c).point });
+  const best = shopState(o.world, shop).contracts.filter(isClaim).filter(reaches).sort((a, b) => b.reward - a.reward)[0];
+  if (best) o.run((w) => acceptContract(w, best.id));
+  return best !== undefined;
+}
+
 function scavengerGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
+  if (claimGoal(o)) return;
   if (!scavenge(o, false) && !trade(o) && !takeHaul(o)) checkNextBoard(o);
 }
 

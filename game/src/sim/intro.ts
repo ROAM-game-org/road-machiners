@@ -1,21 +1,22 @@
 import { FARM_TOWER_ID } from '../data/arrival';
-import { AMBUSH, WAKE_TOWN } from '../data/intro';
+import { AMBUSH, SALVAGE_GOODS, SCALE_TOWN, WAKE_TOWN } from '../data/intro';
 import { chassisDef } from '../data/chassis';
 import { START_KITS } from '../data/start';
 import { atlasOf } from './atlas';
 import { makePart } from './factory';
-import { addStockPart, shopState } from './market';
+import { addStockPart, shopAt, shopState } from './market';
 import { AMBUSH_RAIDER, GAME_OPENED_QUESTS, TOWED_TO_BOWL, type IntroStep } from '../data/quests';
 import { NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { playerVehicle } from './damage';
 import { isDefeated } from './defeat';
-import { mountedParts } from './grid';
+import { goodsCount, mountedParts } from './grid';
+import { inCombat } from './combat';
 import { fightCornered } from './npc-activities';
 import { addState } from './states';
 import { generateNpcLoadout } from './npc-loadout';
 import { getKnownSite } from './npc-decisions';
-import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
+import { introStep, openQuest, openScaleScene, QUESTS, setIntroStep, setWorldVar, worldVar } from './quests';
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
@@ -55,6 +56,23 @@ function keepHunting(w: World): void {
 
 function inHuntRange(w: World, raider: Vehicle, me: Vehicle): boolean {
   return dist(raider.pos, me.pos) <= sightRadius(w, me) * AMBUSH.huntSight;
+}
+
+export function greetAtScale(w: World): void {
+  if (newSellerAtScale(w) && freeToTalk(w)) openScaleScene(w);
+}
+
+function newSellerAtScale(w: World): boolean {
+  return w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)) && shopAt(w) === SCALE_TOWN;
+}
+
+function freeToTalk(w: World): boolean {
+  return w.player.state === 'active' && !w.player.quests.session && !w.player.call && !inCombat(w, playerVehicle(w));
+}
+
+function carriesSalvage(v: Vehicle): boolean {
+  const held = goodsCount(v);
+  return SALVAGE_GOODS.some((good) => (held[good] ?? 0) > 0);
 }
 
 export function wakeInTown(w: World, foes: readonly string[] | null): void {

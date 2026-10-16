@@ -34,7 +34,7 @@ import { repairPlan, type RepairPlan } from "../sim/repair";
 import { shopAt } from "../sim/market";
 import { atGarage } from "../sim/garage";
 import { needsSearch, takeAllLoot, takeLoot, takeStores } from "../sim/locations";
-import { canLootTruck, hasStores, hiddenUnits, takeFromTruck } from "../sim/salvage";
+import { canLootTruck, claimedPartIn, claimOn, hasStores, hiddenUnits, takeFromTruck } from "../sim/salvage";
 import { gaveUp, isKnockedOut } from "../sim/defeat";
 import { REGION } from "../data/region";
 import type {
@@ -533,8 +533,10 @@ export class InventoryView {
     );
   }
 
-  private lootPartChips(stock: SalvageStock): HTMLElement[] {
+  private lootPartChips(w: World, stock: SalvageStock): HTMLElement[] {
     const chips: HTMLElement[] = [];
+    const claim = claimOn(w, stock);
+    const claimed = claimedPartIn(w, stock);
     for (const p of stock.parts) {
       const d = partDef(p.defId);
       const chip = el(
@@ -542,6 +544,7 @@ export class InventoryView {
         { class: "inv-chip", "data-hold": "", style: toneStyle(p.defId) },
         partIconEl(p),
         el("span", {}, partName(d.id)),
+        claim && p.id === claimed ? claimMark(claim.shop) : null,
         conditionTag(p),
         footprintEl(d.w, d.h),
         conditionMeter(p),
@@ -592,7 +595,7 @@ export class InventoryView {
     if (!stock) throw new Error(`Unknown salvage ${stockId}`);
     const site = REGION.locations.find((l) => l.id === stockId);
     const chips = [
-      ...this.lootPartChips(stock),
+      ...this.lootPartChips(w, stock),
       ...this.lootGoodChips(stock),
       ...this.lootStoresButton(stock),
     ];
@@ -1109,4 +1112,11 @@ function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: boolean
     statGrid(diffStats(partStats(w, part), base ? partStats(w, base) : null)),
     base ? el("p", { class: "dim" }, t("inv.against", { part: partName(base.defId) }), conditionTag(base)) : el("span"),
   ];
+}
+
+function claimMark(shop: string): HTMLElement {
+  const mark = createIcon("parts");
+  mark.classList.add("claim-mark");
+  bindAttr(mark, "title", t("loot.claimed", { shop: siteName(shop) }));
+  return mark;
 }

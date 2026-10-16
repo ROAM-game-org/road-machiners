@@ -859,7 +859,7 @@ describe('search contracts', () => {
     const { w, target } = worldWithTarget();
     w.turn = 100;
     for (let i = 0; i < 40; i++) {
-      const c = rollContract(w, bowlSpot, [], [], [], [], [], [{ vehicle: target, seenTurn: 90 }]);
+      const c = rollContract(w, bowlSpot, [], [], [], [], [], [], [{ vehicle: target, seenTurn: 90 }]);
       expect(c).toMatchObject({ kind: 'search', target: target.id, driver: target.brain!.driver, template: 'trader', delivered: false, tier: 1, reward: searchReward(), lead: { at: bowl.pos, turn: 90 } });
       expect(c!.window).toBeGreaterThanOrEqual(CONTRACTS.search.durationTurns[0]);
       expect(c!.window).toBeLessThanOrEqual(CONTRACTS.search.durationTurns[1]);
