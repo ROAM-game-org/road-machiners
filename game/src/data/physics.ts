@@ -62,6 +62,8 @@ export const PHYSICS = {
     stallSpeed: 0.3,
     pushSpeed: 1,
     stallSeconds: 0.5,
+    turnSample: 0.5,
+    backLook: 1,
     clearMargin: 0.05,
     clearStep: 0.5,
     clearEvery: 6,

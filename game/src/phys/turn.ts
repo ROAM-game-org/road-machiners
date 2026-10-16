@@ -3,6 +3,8 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
+import { setQuestLanguage } from '../sim/quests';
+import type { QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
@@ -28,7 +30,7 @@ export type PreparedTurn = {
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null; questLanguage: QuestLanguage };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; questLanguage: QuestLanguage; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -72,7 +74,12 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
   }
 }
 
-function startTurnWorker(): void {
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  setQuestLanguage(request.questLanguage);
+  return computeTurn(request, terrain);
+}
+
+export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -113,7 +120,6 @@ function describeWorkerError(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-if (typeof self !== 'undefined' && !('document' in self)) startTurnWorker();
 
 const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
@@ -244,3 +250,6 @@ function pathLength(trail: Pose[]): number {
   for (let i = 1; i < trail.length; i++) total += dist(trail[i - 1], trail[i]);
   return total;
 }
+
+const scope = globalThis as { document?: unknown; onmessage?: unknown };
+if (typeof self !== 'undefined' && scope.document === undefined && !scope.onmessage) startTurnWorker();

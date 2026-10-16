@@ -50,7 +50,7 @@ describe('the hunter against one strong raider', () => {
   it('leaves it alone', () => {
     const start = emptyWorld({ x: 100, y: 100 });
     for (const id of Object.keys(NPCS)) start.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['autocannon', 'ram', 'ram', 'ram'], { x: 118, y: 100 });
+    const raider = addVehicle(start, 'scrapjaw', 'jeep', ['autocannon', 'mg', 'ram', 'ram'], { x: 118, y: 100 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     const w = endTurn(start, () => {});
     expect(playerSees(w, raider.pos)).toBe(true);

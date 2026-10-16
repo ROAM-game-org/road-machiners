@@ -19,11 +19,7 @@ function runOf(world: World): FuryRoadRun {
 }
 
 export function betweenLevels(world: World): boolean {
-  const run = world.furyRoad;
-  if (run === null) return false;
-  const next = run.outposts.find((o) => o.milestone === run.window + 1);
-  if (!next) throw new Error(`The run holds no outpost ${run.window + 1} in window ${run.window}`);
-  return next.paid;
+  return world.furyRoad !== null && world.furyRoad.waitingAt !== null;
 }
 
 type YardFrame = { along: number; across: number };
@@ -54,9 +50,12 @@ export function wholeInYard(world: World, truck: Vehicle, j: number): boolean {
 }
 
 export function yardSpots(world: World, j: number): YardSpots {
-  const run = runOf(world);
-  const center = outpostFort(world.seed, run.window, j).pos;
-  const { heading } = outpostSite(world.seed, j);
+  return yardSpotsAt(world.seed, runOf(world).window, j);
+}
+
+export function yardSpotsAt(seed: number, window: number, j: number): YardSpots {
+  const center = outpostFort(seed, window, j).pos;
+  const { heading } = outpostSite(seed, j);
   const across = { x: -Math.sin(heading), y: Math.cos(heading) };
   const at = (offset: number): Vec => ({ x: center.x + across.x * offset, y: center.y + across.y * offset });
   return { hauler: at(SPOTS.hauler), truck: at(SPOTS.truck) };
@@ -64,13 +63,16 @@ export function yardSpots(world: World, j: number): YardSpots {
 
 export function gatesShut(world: World): boolean {
   const run = world.furyRoad;
-  if (run === null || !betweenLevels(world)) return false;
-  return playerTrucks(world).every((truck) => truck.speed <= RULES.parkedSpeed && wholeInYard(world, truck, run.window + 1));
+  if (run === null || run.waitingAt === null) return false;
+  const post = run.waitingAt;
+  return playerTrucks(world).every((truck) => truck.speed <= RULES.parkedSpeed && wholeInYard(world, truck, post));
 }
 
 export function outpostGates(world: World): GateState[] {
   const run = runOf(world);
   const shut = gatesShut(world);
+  const shutHere = shut && run.waitingAt === run.window;
+  const shutNext = shut && run.waitingAt === run.window + 1;
   const gate = (j: number, side: GateSide, closed: boolean, movable: boolean): GateState => ({
     id: `${outpostId(j)}-${side}`,
     milestone: j,
@@ -79,7 +81,7 @@ export function outpostGates(world: World): GateState[] {
     closed,
     movable,
   });
-  const last = run.window >= 1 ? [gate(run.window, 'south', true, false), gate(run.window, 'north', false, true)] : [];
+  const last = [gate(run.window, 'south', true, false), gate(run.window, 'north', shutHere, true)];
   const next = run.window + 1;
-  return [...last, gate(next, 'south', shut, true), gate(next, 'north', true, false)];
+  return [...last, gate(next, 'south', shutNext, true), gate(next, 'north', true, false)];
 }

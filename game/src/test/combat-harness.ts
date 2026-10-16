@@ -431,7 +431,7 @@ function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: 
 function countSpread(w: World, c: Count): void {
   if (w.terrain.atlas.kind !== 'highway') return;
   const trucks = [...inFight(w, c.ids.a), ...inFight(w, c.ids.b)];
-  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.terrain.atlas.window, v.pos))));
+  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.seed, w.terrain.atlas.window, v.pos))));
 }
 
 function keepArenaFight(w: World, ids: Ids): void {

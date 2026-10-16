@@ -3,7 +3,7 @@ import { CHASSIS } from '../data/chassis';
 import { FURY_ROAD } from '../data/modes';
 import { haulerOf, playerVehicle } from './damage';
 import { canDriveOn, driveOn, outpostNear, reachedOutpostAt, spawnGroup, waveOf } from './fury-road';
-import { milestoneAt, outpostFort, outpostGateSpots, outpostYardHalf, roadPoint, toRoad } from './highway';
+import { milestoneAt, outpostFort, outpostGateSpots, outpostYardHalf, roadPoint, toRoad, windowShift } from './highway';
 import { gatesShut, inYard, outpostGates, wholeInYard, yardSpots, type GateState } from './outpost-gates';
 import { outpostBuyPart } from './outposts';
 import { furyRoadWorld, parkInYard } from './testkit';
@@ -35,8 +35,8 @@ function table(gates: GateState[]): string[] {
 describe('the outpost gates', () => {
   it('follow the table for windows 0, 1 and 2, before and after the shut (IV3)', () => {
     const w0 = furyRoadWorld();
-    expect(table(outpostGates(w0))).toEqual(['1s:open:moves', '1n:closed:static']);
-    expect(table(outpostGates(arrive(w0)))).toEqual(['1s:closed:moves', '1n:closed:static']);
+    expect(table(outpostGates(w0))).toEqual(['0s:closed:static', '0n:open:moves', '1s:open:moves', '1n:closed:static']);
+    expect(table(outpostGates(arrive(w0)))).toEqual(['0s:closed:static', '0n:open:moves', '1s:closed:moves', '1n:closed:static']);
 
     const w1 = toWindow(3, 1);
     expect(table(outpostGates(w1))).toEqual(['1s:closed:static', '1n:open:moves', '2s:open:moves', '2n:closed:static']);
@@ -52,11 +52,11 @@ describe('the outpost gates', () => {
     for (const g of outpostGates(w)) expect(g.spot).toEqual(outpostGateSpots(w.seed, 1, g.milestone)[g.side]);
   });
 
-  it('throw with no run, and the yard spots throw for milestone 0 (PC7)', () => {
+  it('throw with no run, and the yard spots throw before milestone 0 (PC7)', () => {
     const roaming = furyRoadWorld();
     roaming.furyRoad = null;
     expect(() => outpostGates(roaming)).toThrow(/No Fury Road run/);
-    expect(() => yardSpots(furyRoadWorld(), 0)).toThrow(/no outpost/);
+    expect(() => yardSpots(furyRoadWorld(), -1)).toThrow(/no outpost/);
   });
 });
 
@@ -95,7 +95,7 @@ describe('shutting the gates (IV4)', () => {
     expect(gatesShut(w)).toBe(true);
 
     const outside = structuredClone(w);
-    playerVehicle(outside).pos = roadPoint(outside.seed, 0, milestoneAt(1) - 20, 1);
+    playerVehicle(outside).pos = roadPoint(outside.seed, 0, milestoneAt(outside.seed, 1) - 20, 1);
     expect(gatesShut(outside)).toBe(false);
 
     const rolling = structuredClone(w);
@@ -103,7 +103,7 @@ describe('shutting the gates (IV4)', () => {
     expect(gatesShut(rolling)).toBe(false);
 
     const hauler = structuredClone(w);
-    haulerOf(hauler).pos = roadPoint(hauler.seed, 0, milestoneAt(1) - 20, 1);
+    haulerOf(hauler).pos = roadPoint(hauler.seed, 0, milestoneAt(hauler.seed, 1) - 20, 1);
     expect(gatesShut(hauler)).toBe(false);
 
     const gateLine = structuredClone(w);
@@ -182,9 +182,9 @@ describe('driving on (IV9)', () => {
       const trucks = [playerVehicle(after), haulerOf(after)];
       trucks.forEach((t, i) => {
         expect(t.pos.x).toBeCloseTo(before[i].x, 6);
-        expect(t.pos.y - before[i].y).toBeCloseTo(310, 6);
+        expect(t.pos.y - before[i].y).toBeCloseTo(windowShift(seed, 0).y, 6);
         expect(inYard(after, t.pos, runOf(after).window)).toBe(true);
-        expect(toRoad(runOf(after).window, t.pos).n).toBeCloseTo(milestoneAt(1), 0);
+        expect(toRoad(after.seed, runOf(after).window, t.pos).n).toBeCloseTo(milestoneAt(after.seed, 1), 0);
       });
     }
   });
@@ -203,9 +203,9 @@ describe('group spawns around the forts (IV8)', () => {
       for (const window of [0, 1]) {
         const w = toWindow(seed, window);
         const run = runOf(w);
-        const forts = [window, window + 1].filter((j) => j >= 1).map((j) => outpostFort(seed, window, j));
+        const forts = [window, window + 1].map((j) => outpostFort(seed, window, j));
         for (const from of ['ahead', 'left', 'right'] as const) {
-          for (const progress of [milestoneAt(window) + 5, milestoneAt(window) + 60, milestoneAt(window) + 150, milestoneAt(window) + 250, milestoneAt(window + 1) - 30, milestoneAt(window + 1) - 5, milestoneAt(window + 1)]) {
+          for (const progress of [milestoneAt(seed, window) + 5, milestoneAt(seed, window) + 60, milestoneAt(seed, window) + 150, milestoneAt(seed, window) + 250, milestoneAt(seed, window + 1) - 30, milestoneAt(seed, window + 1) - 5, milestoneAt(seed, window + 1)]) {
             w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || v.id === run.hauler.id);
             const group = { ...run.groups[0], stretch: window + 1, from, templates: ['buggy'], level: waveOf(window + 1).level, spawned: false, vehicles: [], retryUntil: null };
             run.groups = [group];

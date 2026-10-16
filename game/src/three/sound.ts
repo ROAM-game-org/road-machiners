@@ -1,9 +1,7 @@
 
-import { BEATS_PER_BAR, engineFileFor, engineStrainFileFor, hornSoundFor, MIX, scorePhaseOf, SOUNDS, type CueId } from "../data/sounds";
-import { Fading, SoundDesigner, type Grid, type Hit, type Offer } from "../audio/designer";
+import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SOUNDS, type CueId } from "../data/sounds";
 import { shuffled, spatial } from "../audio/pick";
 import type {
-  BeatLoopHandle,
   Glide,
   LoopHandle,
   Placement,
@@ -17,6 +15,8 @@ import type { Vec } from "../sim/vec";
 import { atlasOf } from "../sim/atlas";
 import type { Terrain } from "../sim/terrain";
 import type { CameraRig } from "./render/camera";
+import type { BlockEvent } from "./block-session";
+import type { CombatMusic } from "./combat-music";
 
 const CENTER: Placement = { pan: 0, gain: 1 };
 const LOG_SIZE = 100;
@@ -36,117 +36,33 @@ export function stingOf(events: GameEvent[], playerId: string): CueId | null {
   );
 }
 
-export type AccentCue = Extract<CueId, `accent-${string}`>;
-const BASE_CUES = ["score-drums", "score-bass", "score-horns", "score-trombone"] as const;
-type BaseCue = (typeof BASE_CUES)[number];
-type Base = { loop: BeatLoopHandle; grid: Grid };
+export type ScorePick = { kind: BlockEvent; round: number | null };
 
-const START_LEAD_SECONDS = 0.1;
-const ACCENT_LEAD_SECONDS = 0.02;
-const LOOKAHEAD_SECONDS = 0.15;
-
-
-export type AccentResult = { cue: AccentCue; offer: Offer["result"]; heat: number };
-
-export class CombatScore {
-  private bases: Base[];
-  private active: Base | null = null;
-  private designer: SoundDesigner | null = null;
-  private heat = new Fading(MIX.score.heatHalfLifeSeconds);
-  private lastBar = -Infinity;
-  private paused = false;
-
-  constructor(
-    private player: Pick<SoundPlayer, "beatLoop" | "now" | "play" | "chooseWithPeak">,
-    private roll: () => number,
-  ) {
-    const start = player.now() + START_LEAD_SECONDS;
-    this.bases = BASE_CUES.map((id) => this.base(id, start));
-  }
-
-  setCombat(on: boolean, fadeSeconds: number): void {
-    if (on === (this.active !== null)) return;
-    this.active?.loop.setGain(0, fadeSeconds);
-    this.active = on ? this.bases[Math.floor(this.roll() * this.bases.length)] : null;
-    this.designer = null;
-    if (!this.active) return;
-    const now = this.player.now();
-    this.designer = new SoundDesigner(this.active.grid, MIX.score, this.roll, now + ACCENT_LEAD_SECONDS);
-    this.lastBar = this.barAt(this.active, now);
-    this.setIntensity(this.active, now, fadeSeconds);
-  }
-
-  setPaused(paused: boolean): void {
-    this.paused = paused;
-  }
-
-  tick(): void {
-    const base = this.active;
-    if (!base || !this.designer) return;
-    const now = this.player.now();
-    const hits = this.designer.step(now + ACCENT_LEAD_SECONDS, now + LOOKAHEAD_SECONDS, this.paused, this.heat.read(now));
-    for (const h of hits) this.sound(base, h, now);
-    const bar = this.barAt(base, now);
-    if (bar <= this.lastBar) return;
-    this.lastBar = bar;
-    this.setIntensity(base, now, base.grid.beat * base.grid.beatsPerBar);
-  }
-
-  accent(cue: AccentCue, delayMs: number): AccentResult | null {
-    const base = this.active;
-    if (!base || !this.designer) return null;
-    const now = this.player.now();
-    const plan = MIX.score.accents[cue];
-    this.heat.add(now, plan.weight);
-    const take = this.player.chooseWithPeak(cue);
-    const offer = this.designer.offer(cue, plan, now + delayMs / 1000, take.peak, this.heat.read(now));
-    if (offer.stab) this.sound(base, offer.stab, now, take.file);
-    return { cue, offer: offer.result, heat: this.heat.read(now) };
-  }
-
-  private sound(base: Base, h: Hit, now: number, file?: string): void {
-    const start = now + Math.max(ACCENT_LEAD_SECONDS, h.time - now);
-    this.player.play(h.cue as AccentCue, { pan: h.pan, gain: h.gain }, (start - now) * 1000, file === undefined ? undefined : { file, rate: 1 });
-    const s = MIX.score;
-    if (h.line === "lead") base.loop.duck(start, s.duckGain, s.duckAttackSeconds, base.grid.beat * s.duckReleaseBeats);
-  }
-
-  private setIntensity(base: Base, now: number, rampSeconds: number): void {
-    const s = MIX.score;
-    const t = Math.min(1, this.heat.read(now) / s.fullHeat);
-    base.loop.setGain(s.quietGain + (1 - s.quietGain) * t, rampSeconds);
-    base.loop.setTone(s.quietCutoffHz * (s.openCutoffHz / s.quietCutoffHz) ** t, rampSeconds);
-  }
-
-  private barAt(base: Base, time: number): number {
-    return Math.floor((time - base.grid.start) / (base.grid.beat * base.grid.beatsPerBar));
-  }
-
-  private base(id: BaseCue, start: number): Base {
-    const files = SOUNDS[id].files;
-    const beat = SOUNDS[id].beat;
-    if (files.length !== 1) throw new Error(`Score base ${id} needs exactly one file, has ${files.length}`);
-    if (!beat) throw new Error(`Score base ${id} needs a beat`);
-    const loop = this.player.beatLoop(id, files[0], start, scorePhaseOf(files[0]));
-    return { loop, grid: { start, beat: loop.duration / (beat.bars * BEATS_PER_BAR), beatsPerBar: BEATS_PER_BAR } };
-  }
+export function scoreEventOf(e: GameEvent, playerId: string): ScorePick | null {
+  if (e.t === "collision") return [e.a, e.b].includes(playerId) ? { kind: "crash", round: null } : null;
+  if (e.t === "shot") return volleyEvent(e.rounds, e.shooter === playerId, e.target === playerId);
+  return knockoutOf(e, playerId);
 }
 
-export function accentOf(e: GameEvent, playerId: string): AccentCue | null {
-  if (e.t === "collision") return [e.a, e.b].includes(playerId) ? "accent-crash" : null;
-  if (e.t === "shot") return volleyAccent(e.rounds, e.shooter === playerId, e.target === playerId);
-  return null;
+function knockoutOf(e: GameEvent, playerId: string): ScorePick | null {
+  const knocked = (e.t === "npcKnockout" || e.t === "destroyed") && e.by === playerId;
+  return knocked ? { kind: "knockout", round: null } : null;
 }
 
-function volleyAccent(rounds: ShotRound[], mine: boolean, atPlayer: boolean): AccentCue | null {
+const strikes = (r: ShotRound) => r.hit || r.hits.length > 0;
+
+function volleyEvent(rounds: ShotRound[], mine: boolean, atPlayer: boolean): ScorePick | null {
   if (!mine && !atPlayer) return null;
-  if (rounds.some((r) => r.crit)) return "accent-crit";
-  return plainAccent(rounds.some((r) => r.hit || r.hits.length > 0), mine);
+  const crit = rounds.findIndex((r) => r.crit);
+  if (crit >= 0) return { kind: "crit", round: crit };
+  const struck = rounds.findIndex(strikes);
+  const kind = plainEvent(struck >= 0, mine);
+  return kind ? { kind, round: Math.max(0, struck) } : null;
 }
 
-function plainAccent(struck: boolean, mine: boolean): AccentCue | null {
-  if (mine) return struck ? "accent-hit" : "accent-miss";
-  return struck ? "accent-struck" : null;
+function plainEvent(struck: boolean, mine: boolean): BlockEvent | null {
+  if (mine) return struck ? "hit" : "miss";
+  return struck ? "struck" : null;
 }
 
 export type CombatSigns = { sighted: boolean };
@@ -168,21 +84,42 @@ export class SoundDirector {
   constructor(
     private player: Pick<SoundPlayer, "play">,
     private rig: Pick<CameraRig, "focus" | "screenOf">,
-    private score: Pick<CombatScore, "accent">,
+    private music: Pick<CombatMusic, "fire">,
+    private now: () => number,
   ) {}
 
-  accent(cue: AccentCue, delayMs: number): void {
-    const r = this.score.accent(cue, delayMs);
-    if (!r) return;
-    this.record(`${cue} ${r.offer} heat${r.heat.toFixed(1)}`);
+  private due: { kind: BlockEvent; atMs: number }[] = [];
+
+  scoreEvent(kind: BlockEvent, delayMs: number): void {
+    const f = this.music.fire(kind, this.now() + delayMs / 1000);
+    if (f) this.record(`score ${kind} heat${f.heat.toFixed(1)} surprise${f.surprise.toFixed(1)}${f.lanes ? " lanes" : ""}`);
   }
 
-  accents(events: GameEvent[], playerId: string, delayOf: (e: GameEvent) => number | null): void {
+  timeScoreEvents(events: GameEvent[], playerId: string, atOf: (e: GameEvent) => number | null): void {
     for (const e of events) {
-      const cue = accentOf(e, playerId);
-      const delay = cue && delayOf(e);
-      if (cue && delay !== null) this.accent(cue, delay);
+      const pick = scoreEventOf(e, playerId);
+      const atMs = pick && atOf(e);
+      if (pick && atMs !== null) this.queueScoreEvent(pick.kind, atMs);
     }
+  }
+
+  queueScoreEvent(kind: BlockEvent, atMs: number): void {
+    this.due.push({ kind, atMs });
+  }
+
+  playDueScoreEvents(elapsedMs: number, speed: number): void {
+    if (!Number.isFinite(speed) || speed <= 0) throw new Error(`Playback speed ${speed} is not a positive number`);
+    const aheadMs = SCORE_BLOCKS.eventLeadSeconds * 1000;
+    this.due = this.due.filter((d) => {
+      const delay = Math.max(0, (d.atMs - elapsedMs) / speed);
+      if (delay > aheadMs) return true;
+      this.scoreEvent(d.kind, delay);
+      return false;
+    });
+  }
+
+  clearScoreEvents(): void {
+    this.due = [];
   }
 
   at(cue: CueId, p: V3, delayMs: number): void {
@@ -242,7 +179,6 @@ export type LoopLevels = {
   abandonedGain: number;
   combatGain: number;
   musicCutoffHz: number;
-  paused: boolean;
 };
 
 function musicOf(s: LoopState): "calm" | "quest" | "combat" | NonNullable<MusicPlace> {
@@ -264,7 +200,6 @@ export function loopLevels(s: LoopState, mix: typeof MIX): LoopLevels {
     abandonedGain: Number(music === "abandoned"),
     combatGain: Number(music === "combat"),
     musicCutoffHz: s.paused && music !== "quest" ? mix.music.pauseCutoffHz : mix.music.openCutoffHz,
-    paused: s.paused,
   };
 }
 
@@ -343,7 +278,7 @@ class Playlist {
   private track = 0;
   private handle: LoopHandle;
 
-  constructor(private player: SoundPlayer, private cue: "music-calm" | "music-quest" | "music-abandoned") {
+  constructor(private player: Pick<SoundPlayer, "loop">, private cue: "music-calm" | "music-quest" | "music-abandoned") {
     this.files = shuffled(SOUNDS[cue].files, Math.random);
     this.handle = player.loop(cue, { pan: 0, gain: 0 }, this.files[0]);
   }
@@ -362,7 +297,7 @@ class Playlist {
 export class SoundLoops {
   private engine: { healthy: LoopHandle; strained: LoopHandle } | null = null;
   private engineChassis: string | null = null;
-  private player: SoundPlayer;
+  private player: Pick<SoundPlayer, "loop" | "setBusTone">;
   private wind: LoopHandle;
   private calm: Playlist;
   private quest: Playlist;
@@ -370,7 +305,7 @@ export class SoundLoops {
   private places: [LoopHandle, "townGain" | "outpostGain"][];
   private last: LoopLevels | null = null;
 
-  constructor(player: SoundPlayer, private score: Pick<CombatScore, "setCombat" | "setPaused" | "tick">) {
+  constructor(player: Pick<SoundPlayer, "loop" | "setBusTone">, private music: Pick<CombatMusic, "setCombat" | "nextSong">) {
     this.player = player;
     const silent = { pan: 0, gain: 0 };
     this.wind = player.loop("wind", silent);
@@ -412,15 +347,13 @@ export class SoundLoops {
     if (was?.windGain !== l.windGain)
       this.wind.setGain(l.windGain, MIX.wind.fadeSeconds);
     this.updateMusic(l, was);
-    this.score.tick();
   }
 
   private updateMusic(l: LoopLevels, was: LoopLevels | null): void {
     this.updatePlaylists(l, was);
     this.updatePlaces(l, was);
     if (was?.musicCutoffHz !== l.musicCutoffHz) this.player.setBusTone("music", l.musicCutoffHz, MIX.music.toneSeconds);
-    this.score.setPaused(l.paused);
-    if (was?.combatGain !== l.combatGain) this.score.setCombat(l.combatGain > 0, MIX.music.fadeSeconds);
+    if (was?.combatGain !== l.combatGain) this.music.setCombat(l.combatGain > 0);
   }
 
   private updatePlaylists(l: LoopLevels, was: LoopLevels | null): void {
@@ -437,8 +370,17 @@ export class SoundLoops {
   }
 
   nextTrack(): void {
+    const l = this.last;
+    if (l?.combatGain && !l.questGain) return this.music.nextSong();
     const fade = MIX.music.fadeSeconds;
-    this.calm.next(fade);
-    this.calm.setGain(this.last?.calmGain ?? 0, fade);
+    const [playlist, key] = this.playingList(l);
+    playlist.next(fade);
+    playlist.setGain(l?.[key] ?? 0, fade);
+  }
+
+  private playingList(l: LoopLevels | null): [Playlist, "calmGain" | "questGain" | "abandonedGain"] {
+    if (l?.questGain) return [this.quest, "questGain"];
+    if (l?.abandonedGain) return [this.abandoned, "abandonedGain"];
+    return [this.calm, "calmGain"];
   }
 }

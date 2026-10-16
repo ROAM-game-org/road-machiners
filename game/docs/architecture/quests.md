@@ -1,6 +1,6 @@
 # Quests
 
-Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md), run by inkjs. They serve town talk and full text quests. Each local is one quest, named in `LOCALS` in `src/data/locals.ts`. A local lives at a place with a shop, and its People tab lists them. Radio calls keep their own engine in `src/sim/dialogue.ts`, and share only the text markup and the handoff below. [Writing quests](../quest-authoring.md) walks through adding and changing a quest.
+Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md), run by inkjs. They serve town talk and full text quests. Each local is one quest, named in `LOCALS` in `src/data/locals.ts`. A local lives at a place with a shop, and its People tab lists them. Radio calls keep their own engine in `src/sim/dialogue.ts`, and share only the text markup and the handoff below. [Writing quests](../writing/quests.md) walks through adding and changing a quest.
 
 ## Radio handoff
 
@@ -60,7 +60,7 @@ Tags at the very top of a quest file, before `INCLUDE world.ink`, describe the w
 
 - Inline markup is `<b>`, `<i>`, `<shake>`, `<pop>`, `<now>`, `<color=rust>` and `<term=bowl>`, closed by `</name>`. Square brackets would break ink choices, so markup uses angle brackets.
 - `<now>` shows its text at once, and the rest of the line reveals after it. `<pause>` stands alone with no closing tag and holds back the rest of the line by `questPauseMs` in `src/config.ts`. A pause with no text after it fails the check.
-- `<term=<id>>` underlines a word with dots, and hovering or focusing it opens its tip from `term.<id>` in the text catalog. An id not in `TERM_IDS` in `src/data/locals.ts` fails the check. `TermTip` in `src/ui/quest-text.ts` draws the one tip. [Term tips](../quest-authoring.md#term-tips) has the writing rules.
+- `<term=<id>>` underlines a word with dots, and hovering or focusing it opens its tip from `term.<id>` in the text catalog. An id not in `TERM_IDS` in `src/data/locals.ts` fails the check. `TermTip` in `src/ui/quest-text.ts` draws the one tip. [Term tips](../writing/quests.md#term-tips) has the writing rules.
 - A line tag sets how the line reveals: `# reveal: all`, `word` or `char`, and `# speed: slow`, `normal` or `fast`. Speech reveals word by word and narration fades in a paragraph at a time. So talk lines, radio lines and page lines with `# speaker:` reveal by words, and other page lines reveal whole. A line's own `# reveal:` tag overrides that, for a few dramatic narration lines. `# speaker: <name>` puts the name before the line. `# work_offer` shows the town's best offer under the line.
 - `# row` and `# head` make a line a table row, its cells split by `;`. Lines in a row form one table, for ledgers, logs and price boards.
 - `# place: <name>` names where the page is and heads it until another place. `# page` starts a new page, behind a Next button. A page tag on the first line of a pick's output starts no new page, so a load opens on it directly.
@@ -186,7 +186,7 @@ Dustwell is a stall with no board of work. Its locals never call `has_work()`, `
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.
 ## Language
 
-- Each quest has a Russian twin in `src/data/quests/ru/<quest>.ink`. It is the same script with Russian words, and it includes the shared `world.ink`. [Russian copy](../russian-style.md) says what a twin keeps and what it translates.
+- Each quest has a Russian twin in `src/data/quests/ru/<quest>.ink`. It is the same script with Russian words, and it includes the shared `world.ink`. [Russian copy](../writing/russian.md) says what a twin keeps and what it translates.
 - The build compiles both twins into one bundle entry. The quest's variables, checkpoints and view are shared, and `text.en` and `text.ru` each hold a story, stats and facts. A quest with no twin, a twin with no quest, or a twin whose variables, checkpoints, view, stat names or fact names differ fails the build.
 - `setQuestLanguage()` in `src/sim/quests.ts` picks the twin the runner plays. `src/three/main.ts` sets it at boot and on every language switch. The pseudo locale plays English.
 - The live state records its language. A pick on a quest live in another language throws. On a switch, `relanguageQuest()` reopens the open quest at its last checkpoint in the new language, as a load does, and keeps its variables. An ended quest on view closes.

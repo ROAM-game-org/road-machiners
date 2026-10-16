@@ -103,7 +103,7 @@ The screen has fixed zones. Each zone has one job, and an element never moves be
 
 Two zones may never cover each other. A new element that needs room takes it from its own zone.
 
-Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, New game and Options. Continue is off with no save, and focus starts on the first button that is on. New game opens the New game screen over it.
+Before boot builds a world, the start menu fills the screen alone, with no zones. It shows the game title in the boot screen's title style over one column of large buttons: Continue, Load, New game and Options. A caption under Continue names the save it resumes with the Load row's pieces: slot, mode and game clock, or "Old or damaged save" in danger ink, with the real date in its tooltip. Continue and Load are off with no save, and focus starts on the first button that is on. Load opens the save list over the menu, and a pick there loads at once with no confirm. New game opens the New game screen over it.
 
 ### 4.3 The always-on budget
 
@@ -262,7 +262,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.selected` is the one look of a chosen item: accent border and accent wash. A pressed `button.on` uses it too. No screen draws its own selected look. Drawn hardware, like a switch or a truck instrument, keeps its metal and takes the accent edge only.
 - `[aria-disabled="true"]` dims a control that cannot be used now. It keeps hover and focus, so its tooltip can say why.
 - `.tooltip` is a note that opens over its anchor. Words use the UI face and numbers use `.num`. It also gives the reason for a disabled control, as one short fact like "Need 12 M more".
-- `.qt-term` is a word in quest text with a term tip: a dotted underline, and the `.term-tip` tooltip on hover and focus. A term tip is story text, so it keeps the in-character voice of P10, not the chrome voice of other tooltips. It is reference, never needed to choose. [Term tips](quest-authoring.md#term-tips) has the writing rules.
+- `.qt-term` is a word in quest text with a term tip: a dotted underline, and the `.term-tip` tooltip on hover and focus. A term tip is story text, so it keeps the in-character voice of P10, not the chrome voice of other tooltips. It is reference, never needed to choose. [Term tips](writing/quests.md#term-tips) has the writing rules.
 - The quest page view fills most of the screen, up to `--quest-page-width` by `--quest-page-height`, in three columns: the picture, the text and the quest's numbers and facts. The picture column is about as wide as the window is tall, and it shrinks first on small screens. The text column stays at least `--quest-text-min` wide, and its text is centered and capped at `--quest-text-width`, so lines stay readable. The right column keeps `--quest-side-width`.
 - `.quest-frame` holds a quest page's picture, cropped to the column around its focus point. The picture zooms in by 8% over 40 seconds and holds there. Reduced motion turns the zoom off.
 - `.tooltip-row` is one line of a tooltip breakdown: the label on the left in the UI face and the value on the right in mono, like Base and then each cause.

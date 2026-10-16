@@ -707,7 +707,7 @@ describe('the hunter', () => {
     const me = playerVehicle(w);
     const ahead = { x: me.pos.x + 12, y: me.pos.y };
     me.order = { kind: 'stopAt', dest: { x: me.pos.x + 60, y: me.pos.y } };
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], ahead);
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['autocannon', 'heavyDiesel'], ahead);
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
     expect([hostileToPlayer(w, raider), playerSees(w, raider.pos)]).toEqual([true, true]);
 

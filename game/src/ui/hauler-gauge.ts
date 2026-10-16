@@ -1,16 +1,9 @@
 import { haulerOf } from "../sim/damage";
-import { mountedParts } from "../sim/grid";
-import type { Vehicle, World } from "../sim/types";
-import { maxHp } from "../sim/wear";
+import { haulerShare } from "../sim/hauler-gauge";
+import type { World } from "../sim/types";
 import { t } from "../text/msg";
 import { chassisPortrait } from "./cards";
 import { el } from "./dom";
-
-export function haulerCondition(hauler: Vehicle): number {
-  const parts = mountedParts(hauler);
-  const max = parts.reduce((sum, p) => sum + maxHp(p), 0);
-  return max === 0 ? 0 : parts.reduce((sum, p) => sum + p.hp, 0) / max;
-}
 
 export class HaulerGauge {
   readonly root = el("div", { class: "hauler-gauge" });
@@ -21,7 +14,7 @@ export class HaulerGauge {
       return;
     }
     const hauler = haulerOf(w);
-    const share = haulerCondition(hauler);
+    const share = haulerShare(hauler);
     this.root.style.display = "";
     this.root.replaceChildren(
       chassisPortrait(hauler.chassisId),

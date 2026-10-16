@@ -400,7 +400,7 @@ export type DirectionStep =
   | { do: 'leave'; at: Cue; octant: Octant; span: Span }
   | { do: 'straight'; octant: Octant; span: Span }
   | { do: 'search'; clue: { kind: 'site'; id: string } | { kind: 'wreck' }; rough: boolean }
-  | { do: 'askAgain'; at: Cue }
+  | { do: 'askAgain' }
   | { do: 'noRoad'; octant: Octant; span: Span };
 
 export type CallVar =
@@ -581,7 +581,10 @@ export type WaveGroup = {
   id: string;
   stretch: number;
   from: GroupSide;
+  at: number;
   templates: string[];
+  money: number;
+  elite: boolean;
   level: GearLevel;
   spawned: boolean;
   vehicles: string[];
@@ -590,7 +593,7 @@ export type WaveGroup = {
   retryUntil: number | null;
 };
 export type GroupSide = 'ahead' | 'left' | 'right';
-export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; quietFrom: number; hauler: HaulerFacts };
+export type FuryRoadRun = { window: number; outposts: OutpostFacts[]; groups: WaveGroup[]; earned: number; wrecks: number; waitingAt: number | null; hauler: HaulerFacts };
 export type WorldSettings = { damage: number; fuelUse: number; supplyUse: number; enemyGearGrowth: number };
 export type WorldSetup = { mode: GameModeId; settings: WorldSettings };
 

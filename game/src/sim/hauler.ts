@@ -2,9 +2,12 @@ import { chassisDef } from '../data/chassis';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf } from './damage';
+import { backOutSpot } from './back-out';
+import { footprint, halfLength, halfWidth } from './body';
 import { isDefeated } from './defeat';
 import { betweenLevels, inYard, yardSpots } from './outpost-gates';
-import { acrossOf, alongOf, roadPoint, toRoad, windowSpan } from './highway';
+import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
+import { craterDip, windowCraters } from './road-hazards';
 import { CLEARANCE, dynamicBlockers, staticSet } from './nav/layer';
 import { isStranded } from './stats';
 import type { MoveOrder, Vehicle, World } from './types';
@@ -14,6 +17,7 @@ const HAULER = FURY_ROAD.hauler;
 const LANES: readonly number[] = HIGHWAY.road.lanes;
 const BEHIND = 2;
 const WINDOW_EDGE = 2;
+const CRATER_STEP = 1;
 
 export type SideThreat = 'left' | 'right' | 'both' | null;
 
@@ -23,7 +27,7 @@ function runOf(world: World) {
 }
 
 function roadPos(world: World, pos: Vec) {
-  return toRoad(runOf(world).window, pos);
+  return toRoad(world.seed, runOf(world).window, pos);
 }
 
 function alongNow(world: World, v: Vehicle): number {
@@ -36,7 +40,7 @@ function acrossNow(world: World, pos: Vec): number {
 
 function lanePoint(world: World, along: number, lane: number): Vec {
   const run = runOf(world);
-  const edge = windowSpan(run.window).to - WINDOW_EDGE;
+  const edge = windowSpan(world.seed, run.window).to - WINDOW_EDGE;
   return roadPoint(world.seed, run.window, Math.min(along, edge), LANES[lane]);
 }
 
@@ -72,17 +76,38 @@ function inReachOfLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   return [...solid, ...wrecks].some((o) => segmentDist(o.pos, a, b) < o.r + reach);
 }
 
+function solidEnd(world: World, hauler: Vehicle, lane: number): number | null {
+  const along = alongNow(world, hauler);
+  let end: number | null = null;
+  for (let n = Math.floor(along); n <= along + HAULER.laneLook; n += CRATER_STEP) {
+    if (inReachOfLane(world, hauler, lanePoint(world, n, lane), lanePoint(world, n + CRATER_STEP, lane))) end = n + CRATER_STEP;
+  }
+  return end === null ? null : Math.max(end, along + HAULER.lookahead);
+}
+
 function truckInLane(world: World, hauler: Vehicle, a: Vec, b: Vec): boolean {
   const radius = chassisDef(hauler.chassisId).radius;
   const pace = haulerPace(world);
   return otherRunTrucks(world, hauler).some((t) => t.speed < pace && segmentDist(t.pos, a, b) < chassisDef(t.chassisId).radius + radius);
 }
 
+function crateredLane(world: World, hauler: Vehicle, lane: number): boolean {
+  const craters = windowCraters(world.seed, runOf(world).window);
+  const radius = chassisDef(hauler.chassisId).radius;
+  const along = alongNow(world, hauler);
+  for (let n = along - BEHIND; n <= along + HAULER.laneLook; n += CRATER_STEP) {
+    for (const offset of [LANES[lane] - radius, LANES[lane], LANES[lane] + radius]) {
+      if (craterDip(craters, roadAt(world.seed, n, offset)) >= HAULER.craterDip) return true;
+    }
+  }
+  return false;
+}
+
 export function laneClear(world: World, hauler: Vehicle, lane: number): boolean {
   const along = alongNow(world, hauler);
   const a = lanePoint(world, along - BEHIND, lane);
   const b = lanePoint(world, along + HAULER.lookahead, lane);
-  return !inReachOfLane(world, hauler, a, b) && !truckInLane(world, hauler, a, b);
+  return !inReachOfLane(world, hauler, a, b) && !truckInLane(world, hauler, a, b) && !crateredLane(world, hauler, lane);
 }
 
 function nearestClearLane(world: World, hauler: Vehicle, from: number): number | null {
@@ -130,7 +155,8 @@ function isParked(hauler: Vehicle): boolean {
 }
 
 function parkSpot(world: World): Vec {
-  return yardSpots(world, runOf(world).window + 1).hauler;
+  const run = runOf(world);
+  return yardSpots(world, run.waitingAt ?? run.window + 1).hauler;
 }
 
 function requireOnLaneOrSpot(world: World, order: MoveOrder): void {
@@ -143,21 +169,60 @@ function requireOnLaneOrSpot(world: World, order: MoveOrder): void {
   if (!LANES.some((center) => Math.abs(center - across) < 0.05)) throw new Error(`The hauler aims off the lane centers, at across ${across.toFixed(2)}`);
 }
 
+function aimAlong(world: World, hauler: Vehicle, lane: number): number {
+  const along = alongNow(world, hauler);
+  if (laneClear(world, hauler, lane)) return along + HAULER.lookahead;
+  return solidEnd(world, hauler, lane) ?? along + HAULER.lookahead;
+}
+
 function haulerOrder(world: World, hauler: Vehicle): MoveOrder | null {
   const spot = parkSpot(world);
   if (betweenLevels(world)) return isParked(hauler) && dist(hauler.pos, spot) <= RULES.arriveRadius ? null : { kind: 'stopAt', dest: spot };
   if (dist(hauler.pos, spot) <= HAULER.approach) return { kind: 'stopAt', dest: spot };
   const lane = chosenLane(world, hauler);
-  const dest = lanePoint(world, alongNow(world, hauler) + HAULER.lookahead, lane);
+  const dest = lanePoint(world, aimAlong(world, hauler, lane), lane);
   return { kind: 'through', dest, pace: haulerPace(world) };
+}
+
+function movedLastTurn(hauler: Vehicle): number {
+  let total = 0;
+  for (let i = 1; i < hauler.trail.length; i++) total += dist(hauler.trail[i - 1], hauler.trail[i]);
+  return total;
+}
+
+function heldInPlace(hauler: Vehicle): boolean {
+  return hauler.trail.length > 1 && movedLastTurn(hauler) < RULES.arriveRadius / 2;
+}
+
+function backingOut(world: World, hauler: Vehicle): boolean {
+  const order = hauler.order;
+  return order?.kind === 'stopAt' && dist(order.dest, parkSpot(world)) > 0 && !heldInPlace(hauler);
+}
+
+function parkedOrOnPad(world: World, hauler: Vehicle): boolean {
+  return betweenLevels(world) || inYard(world, hauler.pos, runOf(world).window + 1);
+}
+
+function wedged(hauler: Vehicle): boolean {
+  return (hauler.order?.kind === 'through' || hauler.order?.kind === 'stopAt') && heldInPlace(hauler);
+}
+
+function recoveryOrder(world: World, hauler: Vehicle): MoveOrder | null {
+  if (parkedOrOnPad(world, hauler)) return null;
+  if (backingOut(world, hauler)) return hauler.order;
+  return wedged(hauler) ? { kind: 'stopAt', dest: backOutSpot(world, hauler) } : null;
+}
+
+function laneOrder(world: World, hauler: Vehicle): MoveOrder | null {
+  const order = haulerOrder(world, hauler);
+  if (order) requireOnLaneOrSpot(world, order);
+  return order;
 }
 
 export function planHaulerOrder(world: World): void {
   if (!world.furyRoad || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
-  const order = haulerOrder(world, hauler);
-  if (order) requireOnLaneOrSpot(world, order);
-  hauler.order = order;
+  hauler.order = recoveryOrder(world, hauler) ?? laneOrder(world, hauler);
   hauler.direct = false;
 }
 
@@ -186,13 +251,30 @@ function parkedAtOutpost(world: World, hauler: Vehicle): boolean {
   return betweenLevels(world) && (isParked(hauler) || inYard(world, hauler.pos, runOf(world).window + 1));
 }
 
+function stallExcused(world: World, hauler: Vehicle): boolean {
+  return isStranded(world, hauler) || parkedAtOutpost(world, hauler) || pinnedByFoe(world, hauler);
+}
+
+function pinnedByFoe(world: World, hauler: Vehicle): boolean {
+  const foes = runOf(world).groups.flatMap((g) => g.vehicles);
+  return world.vehicles.some((v) => foes.includes(v.id) && !isDefeated(v) && blocksNose(hauler, v));
+}
+
+function blocksNose(hauler: Vehicle, foe: Vehicle): boolean {
+  const dx = foe.pos.x - hauler.pos.x;
+  const dy = foe.pos.y - hauler.pos.y;
+  const ahead = dx * Math.cos(hauler.heading) + dy * Math.sin(hauler.heading);
+  const side = Math.abs(-dx * Math.sin(hauler.heading) + dy * Math.cos(hauler.heading));
+  const reach = footprint(foe.chassisId) + RULES.yieldDistance;
+  return ahead > 0 && ahead <= halfLength(hauler.chassisId) + reach && side <= halfWidth(hauler.chassisId) + reach;
+}
+
 export function watchHaulerStall(world: World): void {
   if (!world.furyRoad || world.player.state !== 'active') return;
   const hauler = haulerOf(world);
   const along = alongNow(world, hauler);
   const anchor = anchors.get(hauler.id);
-  const excused = isStranded(world, hauler) || parkedAtOutpost(world, hauler);
-  if (!anchor || excused || world.turn < anchor.turn || Math.abs(along - anchor.along) >= 1) {
+  if (!anchor || stallExcused(world, hauler) || world.turn < anchor.turn || Math.abs(along - anchor.along) >= 1) {
     anchors.set(hauler.id, { turn: world.turn, along });
     return;
   }

@@ -30,7 +30,7 @@ function farthestAcross(seed: number, side: number): number {
     freeDrive(drive);
     drive = next!;
     w.player.call = null;
-    farthest = Math.max(farthest, Math.abs(acrossOf(seed, toRoad(0, playerVehicle(w).pos))));
+    farthest = Math.max(farthest, Math.abs(acrossOf(seed, toRoad(seed, 0, playerVehicle(w).pos))));
   }
   freeDrive(drive);
   return farthest;
