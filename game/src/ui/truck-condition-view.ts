@@ -13,7 +13,7 @@ import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
-export const CONDITION_SIDE_INSET = -1;
+export const CONDITION_SIDE_INSET = 0;
 
 export type PartLook = "cab" | "icon";
 
