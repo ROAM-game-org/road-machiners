@@ -128,6 +128,17 @@ export function hiddenUnits(stock: SalvageStock): number {
   return parts.length + Object.values(goods).reduce((sum, count) => sum + count, 0) + Number(fuel > 0) + Number(supplies > 0);
 }
 
+export function stockProp(stock: SalvageStock): string {
+  if (stock.pile) throw new Error(`Pile ${stock.id} has no prop`);
+  return oldSpotOf(stock)?.propId ?? stock.id;
+}
+
+export function lootableProps(salvage: readonly SalvageStock[]): Set<string> {
+  const props = new Set<string>();
+  for (const stock of salvage) if (!stock.pile && hasSalvage(stock)) props.add(stockProp(stock));
+  return props;
+}
+
 export type Found = { goods: Record<string, number>; parts: string[]; fuel: number; supplies: number };
 
 export function revealTurn(world: World, stock: SalvageStock, p: number): Found {

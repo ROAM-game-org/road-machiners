@@ -12,6 +12,7 @@ import { addState, boundTo, endState, lootWarningData, stateOf } from './states'
 import { inTowReach } from './tow';
 import type { GameEvent, GoalReason, NpcActivity, NpcState, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
+import { noteDeed } from './relations';
 
 export type WarnAnswer = DecisionOptions['warnedOff'];
 type Refusal = DecisionOptions['warnRefused'];
@@ -168,7 +169,10 @@ export function warnedOffTarget(world: World, v: Vehicle, targetId: string): Npc
 
 export function breakLootWarning(world: World, me: Vehicle, targetId: string): void {
   const s = warnedOffTarget(world, me, targetId);
-  if (s) endState(world, s, 'broken');
+  if (!s) return;
+  endState(world, s, 'broken');
+  const warner = world.vehicles.find((v) => v.id === s.holder);
+  if (warner) noteDeed(world, me, warner, 'stole', canVehicleSee(world, warner, me.pos));
 }
 
 export function lootsBesidePlayer(world: World, npc: Vehicle): boolean {

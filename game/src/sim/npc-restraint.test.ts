@@ -10,7 +10,7 @@ import { addGoods } from './inventory';
 import { advanceJobs } from './jobs';
 import { resolveNpcActivities, thinkNpc, topGoal } from './npc-activities';
 import { getKnownSite } from './npc-decisions';
-import { spawnInitial } from './spawn';
+import { fallbackFaction, spawnInitial } from './spawn';
 import { inShade, sunAt } from './sun';
 import { straightClear } from './path';
 import { vehicleStats } from './stats';
@@ -24,13 +24,13 @@ const TRAITS_OF: Record<string, TraitId[]> = { scavenger: ['scavenger'], buggy: 
 
 function createNpc(templateId = 'scavenger') {
   const world = emptyWorld({ x: 200, y: 200 });
-  const npc = addVehicle(world, NPCS[templateId].faction, 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+  const npc = addVehicle(world, fallbackFaction(NPCS[templateId]), 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
   npc.brain = npcBrain(templateId, npc.pos, TRAITS_OF[templateId]);
   return { world, npc };
 }
 
 function loadedTrader(world: World, pos: { x: number; y: number }, parts = ['mg', 'stockEngine']): Vehicle {
-  const trader = addVehicle(world, 'traders', 'scout', parts, pos);
+  const trader = addVehicle(world, 'independent', 'scout', parts, pos);
   trader.brain = npcBrain('trader', trader.pos, TRAITS_OF.trader);
   addGoods(world, trader, 'scrap', 2);
   return trader;
@@ -54,7 +54,7 @@ describe('NPC restraint', () => {
       const world = emptyWorld();
       world.rngState = seed;
       spawnInitial(world);
-      return world.vehicles.filter((v) => v.faction === 'raiders');
+      return world.vehicles.filter((v) => v.faction === 'scrapjaw');
     });
     expect(raiders.some((npc) => Object.entries(goodsCount(npc)).some(([good, count]) => good !== 'parts' && count > 0))).toBe(true);
     expect(raiders.some((npc) => (goodsCount(npc).parts ?? 0) > 0)).toBe(true);
@@ -63,7 +63,7 @@ describe('NPC restraint', () => {
   it('mostly keeps civilian work and never opens fire at an uninvolved hostile', () => {
     const { world, npc } = createNpc();
     npc.brain!.goals = [{ ...scavengeGoal }];
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
     const kept = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       assignAutoOrders(x);
@@ -86,7 +86,7 @@ describe('NPC restraint', () => {
 
   it('mostly sets on an isolated manageable target, and robs it or fights it', () => {
     const { world, npc } = createNpc('buggy');
-    const prey = addVehicle(world, 'traders', 'scout', ['stockEngine'], { x: 33, y: 30 });
+    const prey = addVehicle(world, 'independent', 'scout', ['stockEngine'], { x: 33, y: 30 });
     prey.brain = npcBrain('trader', prey.pos, ['trader']);
     addGoods(world, prey, 'electronics', 3);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
@@ -104,7 +104,7 @@ describe('NPC restraint', () => {
     const { world, npc } = createNpc('buggy');
     const gate = siteGates(REGION.towns[0])[0];
     npc.pos = { x: gate.x + 3, y: gate.y };
-    const prey = addVehicle(world, 'traders', 'scout', [], gate);
+    const prey = addVehicle(world, 'independent', 'scout', [], gate);
     prey.brain = npcBrain('trader', prey.pos, TRAITS_OF.trader);
     addGoods(world, prey, 'scrap', 1);
     const fought = shareOfSeeds(world, npc.id, (x, me) => {
@@ -220,7 +220,7 @@ describe('NPC field repairs', () => {
     const { world, npc } = createNpc();
     addGoods(world, npc, 'parts', 2);
     corePart(npc, 'cab').hp = 1;
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
     const answered = shareOfSeeds(world, npc.id, (x, me) => {
       planNpcOrders(x);
       resolveNpcActivities(x);
@@ -239,7 +239,7 @@ describe('NPC field repairs', () => {
     planNpcOrders(world);
     resolveNpcActivities(world);
     expect(npc.job?.kind).toBe('repair');
-    addVehicle(world, 'raiders', 'buggy', ['mg'], { x: 33, y: 30 });
+    addVehicle(world, 'scrapjaw', 'buggy', ['mg'], { x: 33, y: 30 });
 
     const turn = (seed: number) => {
       const start = cloneWorld(world);

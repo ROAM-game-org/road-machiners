@@ -26,12 +26,27 @@
           if (!boot || boot.dataset.adopted) return window.removeEventListener('error', failed, true);
           if (!(e.target instanceof HTMLScriptElement) && !(e instanceof ErrorEvent)) return;
           var text = 'The game failed to load. Check your connection and reload the page.';
+          boot.dataset.fonts = 'ready';
           boot.classList.add('failed');
           boot.setAttribute('aria-busy', 'false');
           boot.querySelector('.boot-stage').textContent = text;
           boot.querySelector('[role=progressbar]').setAttribute('aria-valuetext', text);
         }
         window.addEventListener('error', failed, true);
+        var boot = document.getElementById('boot');
+        function show() {
+          boot.dataset.fonts = 'ready';
+        }
+        var mono = ["400 14px 'IBM Plex Mono'", "700 14px 'IBM Plex Mono'"];
+        var english = ["400 14px 'Barlow Semi Condensed'", "700 14px 'Barlow Semi Condensed'"].concat(mono);
+        var russian = ["400 14px 'Fira Sans Condensed'", "700 14px 'Fira Sans Condensed'"].concat(mono);
+        var stored = null;
+        try { stored = localStorage.getItem('roam.lang'); } catch (e) {}
+        var faces = stored === 'ru' ? russian : english;
+        var sample = stored === 'ru' ? 'Дорожные машинисты 0123456789' : 'Road Machiners 0123456789';
+        if (!document.fonts || !document.fonts.load) return show();
+        setTimeout(show, 2500);
+        Promise.all(faces.map(function (face) { return document.fonts.load(face, sample); })).then(show, show);
       })();
     </script>
     <div id="game"></div>

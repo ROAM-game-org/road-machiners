@@ -18,6 +18,10 @@ export const NOTE_IDS = [
 
 export type NoteId = (typeof NOTE_IDS)[number];
 
+export function isNoteId(id: string): id is NoteId {
+  return (NOTE_IDS as readonly string[]).includes(id);
+}
+
 export const GAME_NOTES = { wagonRoad: 'wagonRoad' } as const satisfies Record<string, NoteId>;
 
 export type LocalId = 'ruben' | 'hattie' | 'dag' | 'kovac' | 'lena' | 'ibo' | 'edda' | 'jory' | 'sefa' | 'agnes';
