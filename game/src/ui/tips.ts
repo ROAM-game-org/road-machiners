@@ -169,6 +169,12 @@ const TIPS: readonly Tip[] = [
     done: () => false,
   },
   {
+    id: "sell",
+    seenWhenOver: true,
+    when: carriesWhatShopBuys,
+    done: soldAtProfit,
+  },
+  {
     id: "salvage",
     after: "drive",
     when: (w) =>
@@ -176,12 +182,6 @@ const TIPS: readonly Tip[] = [
       !inCombat(w, playerVehicle(w)) &&
       dist(playerVehicle(w).pos, departureFrom(w)) >= SALVAGE_TIP_DISTANCE,
     done: searchedBeyondOpening,
-  },
-  {
-    id: "sell",
-    seenWhenOver: true,
-    when: carriesWhatShopBuys,
-    done: soldAtProfit,
   },
   {
     id: "aim",

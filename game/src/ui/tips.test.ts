@@ -206,6 +206,14 @@ describe("sell tip", () => {
     expect(tipToShow(w, false, seen, null)).toBeNull();
   });
 
+  it("wins over the salvage tip for a player who has not searched beyond the opening", () => {
+    const w = atBowl();
+    playerVehicle(w).speed = 0;
+    addGoods(w, playerVehicle(w), "scrap", 1);
+    const unsearched = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones"]);
+    expect(tipToShow(w, false, unsearched, null)).toBe("sell");
+  });
+
   it("ignores goods the shop does not list and pads without cargo", () => {
     const w = atBowl();
     playerVehicle(w).speed = 0;
