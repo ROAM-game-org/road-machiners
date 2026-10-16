@@ -32,7 +32,7 @@ type Breakdown = 'fuel' | 'repair' | 'tow';
 function scene(breakdown: Breakdown, offset = 30): { w: World; npc: Vehicle } {
   const w = emptyWorld(sitePads(bowl)[0]);
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  w.shops.bowl.contracts = [];
+  for (const shop of Object.values(w.shops)) shop.contracts = [];
   const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: bowl.pos.x + offset, y: bowl.pos.y }, Math.PI);
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   npc.resources!.fuel = breakdown === 'fuel' ? 0 : fuelCap(npc);
@@ -48,7 +48,7 @@ const none: ReadonlySet<string> = new Set();
 
 function posted(w: World): Rescue {
   const clients = rescueClients(w, SHOP);
-  const c = rollContract(w, SHOP, [], [], [], [], clients);
+  const c = rollContract(w, SHOP, [], [], [], [], [], clients);
   if (c?.kind !== 'rescue') throw new Error('No rescue was posted');
   w.shops.bowl.contracts = [c];
   return c;

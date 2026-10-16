@@ -12,9 +12,13 @@ import { isAutoPatch } from "../sim/jobs";
 import { bottomLeft, disabledWith, el, isBrowserChord, panel, rightDock, topCenter, topLeft, topRight, uiRoot } from "./dom";
 import { LogPanel } from "./log";
 import {
+  claimRivalMark,
   escortStatusText,
   heldContractDue,
   contractSummary,
+  surveyProgress,
+  isNotable,
+  nextSurveyClue,
   eventText,
   formatNpcPass,
   workLabel,
@@ -24,16 +28,18 @@ import {
   formatNpcTraits,
   formatVehicleState,
   type LogLine,
+  clock,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
-import { createIcon, createSpeedDial } from "./cards";
+import { createIcon, createSpeedDial, repairingPart } from "./cards";
 import { aimMarks, TURN_PLAYING, type AimState } from "./weapons";
 import { token } from "./tokens";
 import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
+import { playerGuard } from "../sim/hire";
 import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
@@ -42,6 +48,7 @@ import { HaulerGauge } from "./hauler-gauge";
 import { type ConditionAim, TruckConditionView } from "./truck-condition-view";
 import { bindAttr, setText } from "../text/language";
 import { list, num, SPACE, t, type Msg } from "../text/msg";
+import { isMet, type Contract } from "../sim/market";
 import { driverName, factionName, refusalText, setupText, templateName, vehicleTitle } from "../text/names";
 import { stanceToward } from "../sim/relations";
 
@@ -52,6 +59,7 @@ export type ContextTarget =
   | { kind: 'shop' }
   | { kind: 'downed'; id: string }
   | { kind: 'stock'; id: string }
+  | { kind: 'survey'; id: string; contractId: string }
   | { kind: 'loot'; id: string }
   | { kind: 'empty' }
   | { kind: 'outpost' };
@@ -300,8 +308,9 @@ export class Hud {
     return this.infoColumn;
   }
 
-  private toast(text: Msg): void {
+  private toast(text: Msg, refusal = false): void {
     setText(this.toastBox, text);
+    this.toastBox.classList.toggle("bad", refusal);
     this.toastBox.style.display = "";
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(
@@ -411,8 +420,14 @@ export class Hud {
     );
   }
 
+  private surveyProgress(c: Contract): HTMLElement | null {
+    if (c.kind !== "survey" || isMet(c)) return null;
+    return el("span", { class: "dim" }, SPACE, surveyProgress(c), el("span", { class: "contract-clue" }, nextSurveyClue(c)));
+  }
+
   private renderContracts(w: World): void {
-    if (w.player.contracts.length === 0) {
+    const guard = playerGuard(w);
+    if (w.player.contracts.length === 0 && guard === null) {
       this.contracts.style.display = "none";
       return;
     }
@@ -423,10 +438,10 @@ export class Hud {
         el(
           "div",
           { class: "contract-line" },
-          el("span", {}, contractSummary(c)),
           c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
+      ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
 
@@ -498,7 +513,7 @@ export class Hud {
   renderTop(w: World): void {
     const readout = getHudReadout(w);
     const busy = this.actions.isBusy();
-    this.condition.render(playerVehicle(w));
+    this.condition.render(playerVehicle(w), undefined, repairingPart(w, playerVehicle(w)));
     this.haulerGauge.render(w);
     this.renderContracts(w);
     this.tips.update(w, this.actions.autoTravel());
@@ -629,7 +644,6 @@ export class Hud {
       const line = eventText(w, e);
       if (!line) continue;
       lines.push(line);
-      if (e.t === "skillUp" || e.t === "discover" || e.t === "standing") this.toast(line.text);
     }
     this.log.add(w.turn, lines);
     this.radio.hear(w);
@@ -637,6 +651,10 @@ export class Hud {
 
   logTexts(): string[] {
     return this.log.texts;
+  }
+
+  refuse(text: Msg): void {
+    this.toast(text, true);
   }
 
   note(w: World, text: Msg, cls: string): void {
@@ -701,6 +719,15 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
+  return el(
+    "div",
+    { class: "contract-line" },
+    el("span", {}, t("hud.guard", { name: driverName(merc) })),
+    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+  );
 }
 
 function escortLine(w: World, c: EscortContract): HTMLElement {

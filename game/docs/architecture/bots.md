@@ -22,6 +22,7 @@ The playtest bots drive the player truck through the real turn pipeline, so econ
 - `climber` plays the trader until it mounts three guns, then plays a hunter.
 - `markov` plays a random one of trader, scavenger, hunter and fastTrader, and holds each choice for `--markov-turns` turns.
 - `searcher` takes a search job whenever a board it reads offers one, and otherwise drives from board to board. It asks drivers in sight where they last saw the target, drives to a fresh lead and waits there, tours the shops outward from a stale lead, calls the target when it sees it, waits for the pull-over, hands the parcel over and claims the pay. `npm run progression:report` adds a search effort section for it.
+- `surveyor` takes the best paying survey contract on a board it reads and searches for each place from its told clue alone, as a player would: it drives to the clue point, checks every unseen building or hulk of the told kind in the clue region within gray vision range, and sweeps a ring around the clue point when none shows. It reads a place's position only once the place is found, then surveys it, returns and reports.
 - `robber` and `convoyRobber` belong to the income harness, not to the recorder. They demand cargo from traders, and `convoyRobber` also takes on convoys.
 
 ## Hunter

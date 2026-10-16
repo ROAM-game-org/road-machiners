@@ -1,4 +1,5 @@
 import { partDef } from "../data/parts";
+import { workMeterEl } from "./cards";
 import { baseGrid } from "../sim/grid";
 import type { Vehicle } from "../sim/types";
 import { bindAttr } from "../text/language";
@@ -24,6 +25,7 @@ export function partLook(defId: string): PartLook {
 }
 
 type ConditionPart = ReturnType<TruckConditionReadout["update"]>[number];
+export type PartWork = { partId: string; done: number };
 export type ConditionAim = { marks: ReadonlyMap<string, number[]>; pick: (partId: string) => void };
 
 export class TruckConditionView {
@@ -59,7 +61,7 @@ export class TruckConditionView {
     return { width: this.cols * cell + outline, height: (this.rows + 2 * PLAN_PAD) * cell + outline };
   }
 
-  render(vehicle: Vehicle, aim?: ConditionAim): void {
+  render(vehicle: Vehicle, aim?: ConditionAim, working?: PartWork | null): void {
     const grid = baseGrid(vehicle.chassisId);
     this.cols = grid.w;
     this.rows = grid.h;
@@ -82,7 +84,7 @@ export class TruckConditionView {
       node.remove();
       this.nodes.delete(id);
     }
-    for (const part of parts) this.renderPart(part, aim);
+    for (const part of parts) this.renderPart(part, aim, doneOf(working, part.id));
     this.renderMounts(parts, vehicle.chassisId);
     this.tiles = parts;
     this.showTip();
@@ -122,7 +124,7 @@ export class TruckConditionView {
     this.tip.style.top = `${part.y === 0 ? (part.y + part.h) * CELL + 2 : part.y * CELL - 22}px`;
   }
 
-  private renderPart(part: ConditionPart, aim?: ConditionAim): void {
+  private renderPart(part: ConditionPart, aim: ConditionAim | undefined, done: number | null): void {
     let node = this.nodes.get(part.id);
     if (!node) {
       node = el("div", { class: "condition-part", "data-part-id": part.id });
@@ -137,6 +139,7 @@ export class TruckConditionView {
     node.dataset.condition = part.state;
     node.classList.toggle("broken", part.broken);
     markAim(node, part.id, aim);
+    markWork(node, done);
     bindAttr(node, "aria-label", conditionLabel(part));
     registerTipSource(node, () => el("div", { class: "tooltip-row" }, ...tipRows(this.tiles.find((p) => p.id === part.id) ?? part)));
     node.onmouseenter = () => {
@@ -173,6 +176,15 @@ function tipRows(part: ConditionPart): HTMLElement[] {
 
 function boxStyle(x: number, y: number, w: number, h: number): string {
   return `left:${x * CELL}px;top:${y * CELL}px;width:${w * CELL}px;height:${h * CELL}px`;
+}
+
+function doneOf(working: PartWork | null | undefined, partId: string): number | null {
+  return working?.partId === partId ? working.done : null;
+}
+
+function markWork(node: HTMLElement, done: number | null): void {
+  node.querySelector(":scope > .meter")?.remove();
+  if (done !== null) node.append(workMeterEl(done));
 }
 
 function markAim(node: HTMLElement, partId: string, aim?: ConditionAim): void {

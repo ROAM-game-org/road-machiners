@@ -6,9 +6,10 @@ import { gunBlockers, gunSpans, type FireSpan } from "../sim/armor";
 import { facingOf, itemCells, itemSize, type Cell, type Grid } from "../sim/grid";
 import type { GridItem, PartInstance, RefitJob, RefitMove, Rot, Vehicle, World } from "../sim/types";
 import { playerVehicle } from "../sim/damage";
+import { workOf } from "../sim/states";
 import { el } from "./dom";
 import { truckOutline } from "./plans";
-import { conditionMeter, gridItemIcon, toneStyle } from "./cards";
+import { conditionMeter, gridItemIcon, itemTip, jobDone, toneStyle, workMeterEl } from "./cards";
 import { kg } from "./units";
 import { byId, t, type Msg } from "../text/msg";
 import { goodName, partName } from "../text/names";
@@ -76,7 +77,7 @@ export function itemBox(it: GridItem, chassisId: string, mounted: boolean, cell:
   const icon = turnedIcon(it, cell);
   const node = el(
     "div",
-    { class: itemClass(it, mounted), "data-hold": "", "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemName(it), tabindex: 0, role: "button", "aria-label": itemName(it) },
+    { class: itemClass(it, mounted), "data-hold": "", "data-item-id": it.id, style: `${pos(x, y, size.w, size.h, cell)};${toneStyle(id)}`, title: itemTip(id), tabindex: 0, role: "button", "aria-label": itemName(it) },
     icon,
     el("span", { class: "inv-item-name" }, itemLabel(it).short),
   );
@@ -194,4 +195,22 @@ function spanPath(cx: number, cy: number, r: number, span: FireSpan): string {
 export function clearFan(grid: HTMLElement): void {
   grid.querySelector(".inv-fan")?.remove();
   for (const node of grid.querySelectorAll(".blocking")) node.classList.remove("blocking");
+}
+
+export type WorkMark = { itemIds: ReadonlySet<string>; done: number };
+
+export function workMarkOf(w: World, v: Vehicle): WorkMark | null {
+  const work = workOf(w, v);
+  if (work?.from !== "job") return null;
+  const job = work.job;
+  if (job.kind === "refit") return { itemIds: new Set(refitItems(w, v).map((it) => it.id)), done: jobDone(job) };
+  if (job.kind !== "repair" && job.kind !== "strip") return null;
+  const ids = v.items.filter((it) => it.kind === "part" && it.part.id === job.partId).map((it) => it.id);
+  return { itemIds: new Set(ids), done: jobDone(job) };
+}
+
+export function markWorking(node: HTMLElement, done: number): HTMLElement {
+  node.classList.add("working");
+  node.append(workMeterEl(done));
+  return node;
 }

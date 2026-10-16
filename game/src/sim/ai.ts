@@ -11,7 +11,8 @@ import { parkedVehicles } from "./steering";
 import { fieldBlockers } from "./hazards";
 import { isStranded, vehicleStats, type MountedWeapon } from "./stats";
 import { traderWaits } from "./escort-job";
-import { escortsOf, followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
+import { followersOf } from "./companies";
+import { followPace, getHitchedTowIds, isOnRope, ropeClientOf } from "./tow";
 import { ramImpact, ramValue } from "./crash-contact";
 import { ramsReadily } from "./npc-decisions";
 import type { MoveOrder, NpcActivity, Vehicle, World } from "./types";
@@ -123,7 +124,7 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
 
 function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
-  return escortsOf(world, v.id).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
+  return followersOf(world, v.id).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
 }
 
 function waitsForGuard(world: World, v: Vehicle, guard: Vehicle): boolean {
@@ -289,7 +290,8 @@ export function exposure(world: World, shooter: Vehicle, at: Vehicle, v: Vehicle
 }
 
 function inReach(shooter: Vehicle, mw: MountedWeapon, target: Vehicle): boolean {
-  return dist(shooter.pos, target.pos) <= mw.def.range && inArc(shooter, mw, target);
+  const gap = dist(shooter.pos, target.pos);
+  return gap > 0 && gap <= mw.def.range && inArc(shooter, mw, target);
 }
 
 function gunShare(weapons: MountedWeapon[], bears: (mw: MountedWeapon) => boolean): number {

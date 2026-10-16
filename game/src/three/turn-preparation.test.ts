@@ -9,6 +9,7 @@ import {
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { computeTurn } from "../phys/turn";
 import { restoreDrive } from "../phys/drive";
+import { setQuestLanguage } from "../sim/quests";
 import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
 import type { World } from "../sim/types";
@@ -227,10 +228,20 @@ it("steps a turn the same from the worker's bytes as from a restored and re-capt
   const first = captureDrive(drive);
   const restored = restoreDrive(first);
   const again = captureDrive(restored);
-  const a = computeTurn({ world: state, drive: first }, terrain);
-  const b = computeTurn({ world: state, drive: again }, terrain);
+  const a = computeTurn({ world: state, drive: first, questLanguage: 'en' }, terrain);
+  const b = computeTurn({ world: state, drive: again, questLanguage: 'en' }, terrain);
   restored.world.free();
   const last = (t: typeof a) => t.world.vehicles.find((v) => v.id === world.player.vehicleId)!;
   expect(last(b).pos).toEqual(last(a).pos);
   expect(last(b).speed).toEqual(last(a).speed);
+});
+
+it("tells the worker the language quests play in", () => {
+  setQuestLanguage("ru");
+  try {
+    new TurnPreparation().prepare(world, drive);
+    expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
+  } finally {
+    setQuestLanguage("en");
+  }
 });

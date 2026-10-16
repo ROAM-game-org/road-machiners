@@ -99,3 +99,10 @@
   border: 1px solid var(--cell-plan-line);
   background: var(--cell-side);
 }
+
+.condition-part > .meter {
+  position: absolute;
+  left: var(--space-1);
+  right: var(--space-1);
+  bottom: var(--space-1);
+}

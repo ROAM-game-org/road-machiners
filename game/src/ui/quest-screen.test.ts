@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
-import { askOf, loadArt } from './quest-screen';
+import { askOf, loadArt, questPageStacks } from './quest-screen';
 import { QUEST_ART } from '../data/quest-art';
 
 vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
@@ -46,6 +46,24 @@ describe('askOf', () => {
     expect(askOf(null, hattie, null)).toBeNull();
     expect(askOf(hattie, live('bowl_ruben', 'Sit.'), 'Hi')).toBeNull();
     expect(askOf(hattie, live('bowl_hattie', 'Back.'), null)).toBeNull();
+  });
+});
+
+describe('questPageStacks', () => {
+  const FRAME = 3;
+
+  it('keeps three columns while the picture column holds its minimum', () => {
+    expect(questPageStacks(1280, FRAME)).toBe(false);
+    expect(questPageStacks(1197, FRAME)).toBe(false);
+  });
+
+  it('stacks the page below that width', () => {
+    expect(questPageStacks(1196, FRAME)).toBe(true);
+    expect(questPageStacks(1000, FRAME)).toBe(true);
+  });
+
+  it('answers stack for a zero width, which the screen ignores to keep its last layout', () => {
+    expect(questPageStacks(0, FRAME)).toBe(true);
   });
 });
 

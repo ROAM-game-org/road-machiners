@@ -87,6 +87,11 @@
   border: 1px solid var(--line-soft);
 }
 
+/* A told survey clue, on its own line under the contract it belongs to. */
+.contract-clue {
+  display: block;
+}
+
 /* An outlined word that sorts a row, in the color of its text. */
 .tag {
   padding: 0 var(--space-3);
@@ -167,6 +172,10 @@
   color: var(--ink);
   font: var(--text-dense) var(--font-ui);
   white-space: nowrap;
+}
+
+#ui[data-pinned-tip] [data-reason]::after {
+  display: none;
 }
 
 /* A line of a tooltip breakdown: the label on the left in the UI face, the value on the right in mono. */

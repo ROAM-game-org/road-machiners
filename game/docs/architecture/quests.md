@@ -33,7 +33,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `session` is the open quest: its id, last checkpoint and the seed of ink's random numbers. One quest is open at a time.
 - `live` holds ink's own state and the lines and choices on view. Saves skip it, and load rebuilds it from the session with `restoreQuest()`.
 
-`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view.
+`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view. The turn and preview workers are separate module instances, so every task carries the quest language in force and the worker sets it before the turn runs. A turn that lands after a language switch is relanguaged on commit.
 
 ## Game functions
 
@@ -117,20 +117,28 @@ The world variable `depot_thief` keeps the outcome. Kovac greets by it and Ibo t
 - `openFirstFall()` skips when another quest session is open or when the world variable `first_knockout_seen` is true. It sets that variable as it opens the scene, so saves keep it and `src/sim/types.ts` stays as it is.
 - The scene offers no choice, since every choice would lead to the same outcome. Its pages run behind Next buttons, and the session ends as it opens. A save made while the pages show does not show them again on load.
 - While a quest is on view, `autoRuns()` is false. The knocked-out turns wait until the scene closes.
-- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival is one of them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
+- `GAME_OPENED_QUESTS` in `src/data/quests.ts` names the quests the game opens. The arrival and `bowl_scale` are among them. The voice test counts it as a way in next to locals, radio calls and `begin()`.
 
 ## The ambush and the wake in Bowl
 
 The world variable `intro_step` runs the second half of the arrival. Its values are `off`, `drive`, `patched`, `ambush` and `done`. `src/sim/intro.ts` sets every one of them.
 
 - `introStep()` and `setIntroStep()` in `src/sim/quests.ts` read and write it, next to `openFirstFall()`.
-- `advanceIntro()` runs each turn after `spawnNpcs()`. At `patched`, with the player active, driving and outside a site, it spawns one raider and sets `ambush`. While the truck stays parked it waits. No road runs from the farm toward Bowl, so the ambush does not need one.
+- `advanceIntro()` runs each turn after `spawnNpcs()`. At `patched`, with the player active, driving and outside a site, it spawns one raider and sets `ambush`, once `openingOver()` in `src/sim/opening.ts` is true: the opening wreck step is done, or the truck is `OPENING.leaveDistance` from the wreck. While the truck stays parked, or the cage from the wreck is not mounted yet, it waits. No road runs from the farm toward Bowl, so the ambush does not need one.
 - The raider is the `buggy` template with the gear and chassis in `AMBUSH` in `src/data/intro.ts`. It spawns out of the player's sight, ahead of the player's heading, on ground that is not a cliff or a site, so a driver going on meets it head on. Each turn of the ambush the raider's track is set to the player's real position, so it never stops at an old sighting. It gets a robbery feud and a fight goal on the player, the same as a raider that chose to rob. It also gets the `brave` trait, so it does not flee from a pickup with a machine gun. It carries no cargo, so it has room to rob.
 - The raider drives and fights by the normal rules. It may radio a demand, and the player may refuse.
 - A knockout plays the first fall as usual. When the knockout ends, `wakeInTown()` runs if the foes were not empty and the step is `ambush`. It parks the truck on a Bowl pad, sets `done`, sets the world variable `towed_to_bowl` and opens `intro_bowl`. Only a player towed in this way can ask Hattie about the tow man and the stripped truck. A player who tells her the truck came from the Varga farm sets the world variable `varga_truck_known`, so later talk in the Bowl can know whose pickup the stranger drives. The wake also puts each part of the arrival kit into the Bowl shop when the player lost it and the shop does not sell one, at the kit's wear. A robbed player can always buy back the engine, the machine gun and the panniers with the money the raider left.
 - `intro_bowl.ink` is a page scene with Hattie at the well house. It offers no choice and plays once.
-- At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and it opens no scene.
+- At `ambush`, `advanceIntro()` sets `done` when no raider that is up still hunts the player. That covers a win and an escape, and `endAmbush()` opens `intro_road` once, a page scene with no choice that points to the town in the haze and the open land. A knockout never opens it.
 - A load at any step changes no variable. The step is saved, so a load never spawns a second raider.
+
+## The weigher at the Bowl gate yard
+
+`bowl_scale.ink` is a page scene the game opens by itself. It shows a new driver that the Bowl gate yard buys scrap and parts: the player watches a scavenger sell crates on the yard's beam scale, then the weigher Mags Corrin looks into the player's bed. The scene names no price and sells nothing. The sale goes through the town's Market like every sale.
+
+- `greetAtScale()` in `src/sim/intro.ts` runs each turn right after `advanceIntro()`. It calls `openScaleScene()` in `src/sim/quests.ts` when the player is active and not in combat, no quest is open, the truck is parked on a pad of `SCALE_TOWN` (Bowl), it holds a crate of a good in `SALVAGE_GOODS` (scrap or parts) and `xpBySource.profit` is 0, so the player has never sold at a profit.
+- `openScaleScene()` sets the world variable `scale_seen` as it opens the scene, so it plays once per game. A player woken on the Bowl bench with an empty bed meets it on a later visit with salvage. A player who first sold at a profit elsewhere never meets it.
+- Asking where scavengers find iron writes the note `orchardIron`: dead trucks by the roads, and the barns and Army sheds at Old Orchard.
 
 ## The Archon's tanker
 

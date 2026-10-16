@@ -30,6 +30,15 @@ export function tipTextOf(target: TipTarget | null): TipContent | null {
   return null;
 }
 
+export interface ClosestTarget extends TipTarget {
+  closest(selector: string): ClosestTarget | null;
+}
+
+export function disabledReasonAt(target: ClosestTarget): TipContent | null {
+  const disabled = target.closest('[aria-disabled="true"]');
+  return disabled ? tipTextOf(disabled) : null;
+}
+
 interface Press {
   id: number;
   x: number;
@@ -45,11 +54,13 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
   const close = (): void => {
     shown?.remove();
     shown = null;
+    root.removeAttribute("data-pinned-tip");
   };
   const open = (content: TipContent, x: number, y: number): void => {
     close();
     shown = el("div", { class: "tooltip touch-tip", role: "tooltip" }, typeof content === "string" ? verbatim(content) : content);
     root.append(shown);
+    root.setAttribute("data-pinned-tip", "");
     placeTip(shown, x, y);
   };
   const end = (): void => {
@@ -57,8 +68,8 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
     press = null;
   };
   root.addEventListener("pointerdown", (e) => {
-    if (e.pointerType !== "touch") return;
     close();
+    if (e.pointerType !== "touch") return;
     end();
     const target = e.target as Element;
     const timer = setTimeout(() => {
@@ -81,8 +92,16 @@ export function installTouchTips(root: HTMLElement, touch: () => boolean): void 
     const content = tipTextOf(disabled);
     if (content !== null) open(content, x, y);
   });
+  root.addEventListener("click", (e) => {
+    if (touch()) return;
+    const content = disabledReasonAt(e.target as Element);
+    if (content === null) return;
+    const spot = e.detail === 0 ? (e.target as Element).getBoundingClientRect() : null;
+    open(content, spot ? spot.left + spot.width / 2 : e.clientX, spot ? spot.top + spot.height / 2 : e.clientY);
+  });
   root.addEventListener("pointercancel", end);
   root.addEventListener("scroll", close, true);
+  document.addEventListener("keydown", close);
 }
 
 function placeTip(tip: HTMLElement, x: number, y: number): void {

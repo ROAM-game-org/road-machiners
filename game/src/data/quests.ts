@@ -19,9 +19,10 @@ export const QUEST_LANGUAGES: readonly QuestLanguage[] = ['en', 'ru'];
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['talk', 'page'];
 export const MONEY_STAT = 'money';
 
-export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introWake: 'intro_bowl', wagonSeven: 'wagon_seven' } as const;
+export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introWake: 'intro_bowl', introRoad: 'intro_road', wagonSeven: 'wagon_seven', scale: 'bowl_scale' } as const;
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';
+export const SCALE_SEEN = 'scale_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';
 export const AMBUSH_RAIDER = 'ambush_raider';
 
@@ -34,6 +35,7 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [AMBUSH_RAIDER]: { gates: null },
   [FIRST_FALL_SEEN]: { gates: GAME_OPENED_QUESTS.firstFall },
   [WAGON_SEEN]: { gates: GAME_OPENED_QUESTS.wagonSeven },
+  [SCALE_SEEN]: { gates: GAME_OPENED_QUESTS.scale },
 };
 export const INTRO_STEPS = ['off', 'drive', 'patched', 'ambush', 'done'] as const;
 export type IntroStep = (typeof INTRO_STEPS)[number];

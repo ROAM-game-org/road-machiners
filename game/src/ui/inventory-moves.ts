@@ -1,5 +1,10 @@
 
 import { Refused } from '../sim/world';
+import { PERK_NUMBERS } from "../data/skills";
+import { goodsCount } from "../sim/grid";
+import { isBusy, isParkedForWork, repairBlocker } from "../sim/jobs";
+import { refusalText } from "../text/names";
+import { t, type Msg } from "../text/msg";
 import { partDef } from "../data/parts";
 import { playerVehicle, truckFor } from "../sim/damage";
 import { instantMoveItem } from "../sim/cheats";
@@ -8,7 +13,7 @@ import { installSpot, moveItem, planItemMove, storePart, stowSpot, takeFromStora
 import { takeFromTruck } from "../sim/salvage";
 import { takeLoot } from "../sim/locations";
 import { atGarage } from "../sim/garage";
-import type { GridItem, Vehicle, World } from "../sim/types";
+import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 
 export const HOLD_TO_DRAG_MS = 300;
 
@@ -109,4 +114,26 @@ function isAtStart(v: Vehicle, itemId: string, to: Spot): boolean {
   const start = v.items.find((it) => it.id === itemId);
   if (!start) throw new Error(`No item ${itemId}`);
   return start.x === to.x && start.y === to.y && start.rot === to.rot;
+}
+
+export function patchBlocker(w: World, me: Vehicle, part: PartInstance): Msg | null {
+  const refusal = repairBlocker(w, me, part.id);
+  return refusal && refusalText(w, refusal);
+}
+
+function busyText(w: World, me: Vehicle): Msg | null {
+  return me.job && isBusy(me) ? refusalText(w, { id: "busy", job: me.job.kind }) : null;
+}
+
+export function stripBlocker(w: World, me: Vehicle): Msg | null {
+  if (!isParkedForWork(w, me)) return t("inv.stopToStrip");
+  return busyText(w, me);
+}
+
+export function weldBlocker(w: World, me: Vehicle): Msg | null {
+  if (!isParkedForWork(w, me)) return t("inv.stopToWeld");
+  const busy = busyText(w, me);
+  if (busy) return busy;
+  const scrap = PERK_NUMBERS.welder.scrap;
+  return (goodsCount(me).scrap ?? 0) < scrap ? t("inv.needsScrap", { n: scrap }) : null;
 }

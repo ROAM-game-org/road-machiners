@@ -5,14 +5,17 @@ import { playerVehicle } from "../sim/damage";
 import { addVehicle } from "../sim/testkit";
 import { newWorld } from "../sim/world";
 import type { PartInstance } from "../sim/types";
-import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, partStats, statValue, toneStyle } from "./cards";
+import { baselinePart, chassisPortraitCell, chassisStats, compareBase, dialShare, diffStats, headlineStat, itemIconCell, itemLore, itemTip, jobDone, repairingPart, partStats, statValue, toneStyle } from "./cards";
+import { addGoods } from "../sim/inventory";
+import { startRepair } from "../sim/jobs";
+import { workMarkOf } from "./inventory-draw";
 import ICONS from "../data/item-icons.json";
 import { CHASSIS } from "../data/chassis";
 import { GOODS } from "../data/goods";
 import { PARTS } from "../data/parts";
 import { BODY_PARTS } from "../render/partLooks";
 import { TEST_MAP } from "../test/map";
-import type { Msg } from "../text/msg";
+import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
 import { chassisName, goodName, partName } from "../text/names";
 import { defaultSetup, parseSetup } from "../sim/settings";
@@ -211,5 +214,55 @@ describe("stat values", () => {
   it("keeps degrees and multipliers tight to the number", () => {
     const stats = partStats(world, part("stockEngine"));
     expect(en(statValue(stats.find((s) => s.icon === "heat")!))).toMatch(/^[\d.]+×$/);
+  });
+});
+
+describe("the item tip", () => {
+  it("opens with the name and ends with the lore, for a part, a good and the parcel", () => {
+    for (const id of ["mg", "salt", "parcel"]) {
+      const [name, lore] = en(itemTip(id)).split("\n");
+      expect(name, id).toBe(en(id === "parcel" ? t("item.parcel") : id in GOODS ? goodName(id) : partName(id)));
+      expect(lore, id).toBe(en(itemLore(id)));
+      expect(lore.length, id).toBeGreaterThan(20);
+    }
+  });
+
+  it("has lore for every part and good", () => {
+    for (const id of [...Object.keys(PARTS), ...Object.keys(GOODS)]) expect(en(itemLore(id)).length, id).toBeGreaterThan(20);
+  });
+});
+
+describe("the mark on a part under work", () => {
+  function wornWorld() {
+    const w = emptyWorld({ x: 30, y: 30 });
+    const me = w.vehicles[0];
+    me.speed = 0;
+    const cage = mountedParts(me).find((p) => partDef(p.defId).kind === "armor")!;
+    cage.hp = 1;
+    addGoods(w, me, "parts", 20);
+    return { w, cage };
+  }
+
+  it("marks nothing while no job runs", () => {
+    const { w } = wornWorld();
+    expect(workMarkOf(w, w.vehicles[0])).toBeNull();
+    expect(repairingPart(w, w.vehicles[0])).toBeNull();
+  });
+
+  it("marks the item and the part of a running repair, and fills with the turns done", () => {
+    const { w, cage } = wornWorld();
+    const next = startRepair(w, cage.id);
+    const me = next.vehicles[0];
+    const item = me.items.find((it) => it.kind === "part" && it.part.id === cage.id)!;
+    expect(workMarkOf(next, me)).toEqual({ itemIds: new Set([item.id]), done: 0 });
+    expect(repairingPart(next, me)).toEqual({ partId: cage.id, done: 0 });
+    if (me.job) me.job.turnsLeft = 0;
+    expect(repairingPart(next, me)?.done).toBe(1);
+  });
+
+  it("clamps the share of a job to the range of a bar", () => {
+    expect(jobDone({ kind: "weld", turnsLeft: 5, total: 4 })).toBe(0);
+    expect(jobDone({ kind: "weld", turnsLeft: 0, total: 0 })).toBe(0);
+    expect(jobDone({ kind: "weld", turnsLeft: 1, total: 4 })).toBe(0.75);
   });
 });
