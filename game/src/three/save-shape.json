@@ -2348,6 +2348,7 @@
    },
    "road_stretch_1": {},
    "road_stretch_12": {
+    "pass_said": "boolean",
     "stay_said": "string"
    },
    "road_stretch_4": {
