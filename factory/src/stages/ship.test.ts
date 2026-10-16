@@ -66,7 +66,7 @@ describe('ship', () => {
     expect(readState(f.ctx.statePath).release).not.toBeNull();
   });
 
-  it('closes the tracking issue, clears the release and the rc build, and tells the committee', async () => {
+  it('closes the tracking issue, clears the release, the rc build and the builds of the shipped features, and tells the committee', async () => {
     const f = shippable();
     await ship(f.ctx, 11, 'Ann');
     expect(f.calls).toContain('close completed');
@@ -75,7 +75,7 @@ describe('ship', () => {
     const state = readState(f.ctx.statePath);
     expect(state.release).toBeNull();
     expect(state.lastRelease).toBe('2026-09-29T10:00:00.000Z');
-    expect(state.builds).toEqual({ '3': 'aaa1111' });
+    expect(state.builds).toEqual({});
   });
 
   it('closes each shipped issue and drops its release-candidate label, after the itch push, but not a removed one', async () => {

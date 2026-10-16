@@ -58,7 +58,7 @@ A card job whose process dies within its time limit resumes once. This covers a 
 
 Every tick, after it checks the running jobs:
 
-- It deletes each folder in the web root except `dev`, `concepts` and the builds of cards in Approval or Hardening. It skips this while a verify, checks or branch job runs, since those deploy builds before they record them.
+- It deletes each folder in the web root except `dev`, `concepts` and the builds of cards in Approval, Hardening or Merging, or merged and listed in `devMerges` or `release.merges`. A feature's build stays until its release ships. Ship drops the builds of the features it shipped, and a hotfix drops its build when it reaches `main`. It skips this while a verify, checks or branch job runs, since those deploy builds before they record them.
 - It deletes the clones in `$FACTORY_HOME/work` of finished work: issues whose card is Done or off the board, `check-issue-*`, `merge-queue`, `dev-build`, `release-main`, `incident-*` not queued, `change-*` of the retired change job, `release-playtest`, `release-baseline`, and `release-candidate` with no release open. The playtest audit in `$FACTORY_HOME/playtest/` stays. A clone that stays loses its `node_modules`. A running or interrupted job keeps its clones. Folders with other names stay, and the tick log names them.
 - It deletes job logs older than `FACTORY_LOG_DAYS`, except `tick.log`, `update.log` and the logs that `failures` names.
 - It deletes archived agent transcripts older than `FACTORY_TRANSCRIPT_DAYS`.
