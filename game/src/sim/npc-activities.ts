@@ -5,7 +5,8 @@ import { SHOPS } from '../data/market';
 import { onEscortWanted } from './escort-job';
 import { REGION } from '../data/region';
 import { RULES } from '../data/rules';
-import { callLawmen, inCombat, inCombatWith, isHostile, startFeuds, turnPartHits } from './combat';
+import { inCombat, inCombatWith, isHostile, turnPartHits } from './combat';
+import { reportIncident } from './relations';
 import { affordableBuyCount, buyFuel, cargoSaleValue, sellAtCamp, sellVehicleCargo, tradeGoods } from './economy';
 import { corePart } from './grid';
 import { addGoods, cargoRoom } from './inventory';
@@ -32,13 +33,13 @@ import { onStrangerSeen } from './encounters';
 import { vehicleById } from './damage';
 import { answersHoldUp, demandsFirst, judgeStrandedFoe, plead, warnedOff } from './parley';
 import { heldByLooter } from './loot-warning';
-import { addState, endState, stateOf, statesHeld } from './states';
+import { addState, declareFeud, endState, stateOf, statesHeld } from './states';
 import { isStranded, suppliesCap, vehicleStats } from './stats';
 import type { Contact, GoalReason, Job, NpcActivity, NpcBrain, NpcState, RefitJob, SalvageStock, Track, Vehicle, World } from './types';
 import { canUseSite, GOAL_REACH, isTerritory, nearestPad, parkedOn, type Site } from './sites';
 import { spotGoal, territoryOfStock, tripGoal } from './territory';
 import { OLD_PLACES } from '../data/salvage';
-import { clamp, dist, pointsAway, type Vec } from './vec';
+import { clamp, dist, leadsAwayBy, pointsAway, type Vec } from './vec';
 import { heatAt } from './sun';
 import { canVehicleSee } from './vision';
 import { isWatching, startWatch, watchOver } from './watch-posts';
@@ -724,8 +725,7 @@ function onGrievances(world: World, vehicle: Vehicle): void {
     if (!canVehicleSee(world, vehicle, other.pos)) continue;
     endState(world, s, 'fulfilled');
     if (decide(world, vehicle, 'crashed', other.id, null) !== 'retaliate') continue;
-    startFeuds(world, other, vehicle);
-    vehicle.brain!.attackers[other.id] = false;
+    reportIncident(world, { aggressor: other, victim: vehicle, deed: 'attacked', victimFights: true });
   }
 }
 
@@ -744,7 +744,8 @@ function hurtingFoe(world: World, vehicle: Vehicle): Vehicle | null {
 }
 
 export function defyThreat(world: World, vehicle: Vehicle, threatener: Vehicle, answer: Exclude<DecisionOptions['threatened'], 'comply'>, reason: GoalReason = answer === 'fightBack' ? 'refuseThreat' : 'escapeThreat'): void {
-  startFeuds(world, threatener, vehicle);
+  if (reason === 'calledOut') declareFeud(world, vehicle, threatener.id);
+  else reportIncident(world, { aggressor: threatener, victim: vehicle, deed: 'robbed', victimFights: true });
   if (answer === 'fightBack') interrupt(world, vehicle, fightGoal(world, vehicle, threatener, reason));
   else interrupt(world, vehicle, fleeFrom(world, vehicle, npcProfile(vehicle), threatener.id, threatener.pos, reason));
 }
@@ -757,7 +758,7 @@ function onPreySeen(world: World, vehicle: Vehicle): void {
     if (react(world, vehicle, 'preySeen', target.id) !== 'rob') continue;
     addState(world, 'feud', vehicle.id, target.id, { kind: 'feud', robbery: true });
     world.events.push({ t: 'hostile', vehicle: vehicle.id, against: target.id });
-    callLawmen(world, vehicle, target);
+    reportIncident(world, { aggressor: vehicle, victim: target, deed: 'robbed', victimFights: false });
     interrupt(world, vehicle, fightGoal(world, vehicle, target, 'robCargo'));
     return;
   }
@@ -854,8 +855,12 @@ function steerInvestigate(_world: World, _vehicle: Vehicle, goal: NpcActivity, _
 
 function steerFlee(world: World, vehicle: Vehicle, profile: NpcProfile, contacts: Contact[], goal: NpcActivity): void {
   const threat = fleeThreat(world, vehicle, contacts, goal);
-  if (threat) goal.destination = fleeDestination(world, vehicle, profile, threat);
+  if (threat && !keepsFleePoint(vehicle, goal, threat)) goal.destination = fleeDestination(world, vehicle, profile, threat);
   if (threat || vehicle.brain!.hurt > 0) goal.perceived = world.turn;
+}
+
+function keepsFleePoint(vehicle: Vehicle, goal: NpcActivity, threat: Vec): boolean {
+  return goal.destination !== null && leadsAwayBy(vehicle.pos, goal.destination, threat, NPC_BEHAVIOR.fleeKeepAngle);
 }
 
 function fleeThreat(world: World, vehicle: Vehicle, contacts: Contact[], goal: NpcActivity): Vec | undefined {

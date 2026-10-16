@@ -5,13 +5,14 @@ import { joinCompany } from './companies';
 import { judgeDanger } from './npc-decisions';
 import { makePeace } from './parley';
 import { fightSide, perceivedGroup, spokesman } from './sides';
+import { allegianceFor } from './spawn';
 import { addState } from './states';
 import { addVehicle, emptyWorld, npcBrain, startCombat } from './testkit';
 import type { Vehicle, World } from './types';
 import { refreshVision } from './vision';
 
 function npc(w: World, templateId: string, traits: TraitId[], x: number, y = 40): Vehicle {
-  const v = addVehicle(w, NPCS[templateId].faction, 'scout', ['mg', 'stockEngine'], { x, y });
+  const v = addVehicle(w, allegianceFor(w, NPCS[templateId], null, null), 'scout', ['mg', 'stockEngine'], { x, y });
   v.brain = npcBrain(templateId, { x, y }, traits);
   return v;
 }

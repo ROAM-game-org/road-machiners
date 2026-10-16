@@ -3,6 +3,8 @@ import { CORES_2_1, CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { GOAL_REASONS_2_19, LINES_2_19, WARN_LINES_2_19 } from './save-text-2-19';
 import { LAYOUTS_2_34 } from './save-layouts-2-34';
 
+import { withFactions_70_71, withPlannedGroups_73_74, withRunWait_72_73 } from './save-steps-late';
+
 export type SavedJson = Record<string, unknown>;
 
 export const SAVE_MAJOR = 2;
@@ -878,12 +880,17 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withEncounters_64_65,
   withProgressAnchor_65_66,
   (world) => world,
-  withSearches_67_68,
-  withParcelSearches_68_69,
-  withCrewsAndHires_69_70,
+  withoutBearingCall_67_68,
+  withSearches_68_69,
+  withParcelSearches_69_70,
+  withFactions_70_71,
+  withCountableDirections_71_72,
+  withRunWait_72_73,
+  withPlannedGroups_73_74,
+  withCrewsAndHires_74_75,
 ];
 
-function withCrewsAndHires_69_70(world: SavedJson): SavedJson {
+function withCrewsAndHires_74_75(world: SavedJson): SavedJson {
   return world;
 }
 
@@ -916,24 +923,24 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
   return { ...world, vehicles };
 }
 
-function withSearches_67_68(world: SavedJson): SavedJson {
+function withSearches_68_69(world: SavedJson): SavedJson {
   return world;
 }
-const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
-function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+const withoutSearches_69_70 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_69_70(talked: Record<string, SavedJson>): Record<string, SavedJson> {
   return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
 }
-function withParcelSearches_68_69(world: SavedJson): SavedJson {
+function withParcelSearches_69_70(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
-  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_69_70(shop.contracts as SavedJson[]) }]));
   return {
     ...world,
     shops,
     player: {
       ...player,
-      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
-      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      contracts: withoutSearches_69_70(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_69_70(player.talked as Record<string, SavedJson>),
       call: call?.topic === 'found' ? null : call,
     },
   };
@@ -1035,10 +1042,52 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
+const MAX_COUNT_71_72 = 3;
+
+function countedPast_71_72(step: SavedJson): boolean {
+  const at = step.at as SavedJson | undefined;
+  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_71_72;
+}
+
+function countableSteps_71_72(steps: SavedJson[]): SavedJson[] {
+  const cut = steps.findIndex(countedPast_71_72);
+  const kept = cut < 0 ? steps : [...steps.slice(0, cut), { do: 'askAgain' }];
+  return kept.map((step) => {
+    if (step.do !== 'askAgain') return step;
+    const { at: _at, ...plain } = step;
+    return plain;
+  });
+}
+
+function countableVars_71_72(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_71_72(value.steps as SavedJson[]) } : value];
+  }));
+}
+
+function withCountableDirections_71_72(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: countableVars_71_72(call.vars as SavedJson), line: { ...line, vars: countableVars_71_72(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
+}
+
 function withEncounters_64_65(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   if (player.encounters !== undefined) return world;
   return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
+}
+
+const BEARING_LINES_67_68: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked', 'rolledPastSite'];
+
+function withoutBearingCall_67_68(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const said = (call?.line as SavedJson | undefined)?.line;
+  return typeof said === 'string' && BEARING_LINES_67_68.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

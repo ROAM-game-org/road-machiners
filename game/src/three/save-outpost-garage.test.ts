@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { playerVehicle } from '../sim/damage';
 import { mountedParts } from '../sim/grid';
-import { storePart, takeFromStorage } from '../sim/inventory';
+import { takeFromStorage } from '../sim/inventory';
 import { outpostBuyChassis, outpostBuyPart } from '../sim/outposts';
 import { advanceFuryRoad, outpostTrucks } from '../sim/fury-road';
 import { knockOutNpc } from '../sim/defeat';
 import { resolveDestroyed } from '../sim/combat';
 import { corePart } from '../sim/grid';
 import { getResources } from '../sim/resources';
-import { FURY_ROAD } from '../data/modes';
 import { furyRoadWorld } from '../sim/testkit';
-import { fillCargo, parkedAtOutpost, stockOfKind } from '../sim/testkit';
+import { armorSpot, fillCargo, parkedAtOutpost, stockOfKind } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -44,30 +43,28 @@ describe('a saved outpost garage', () => {
     const loaded = expectSameAndNoAward(bought);
 
     expect(loaded.player.storage.map((p) => p.id)).toEqual([armor.id]);
-    expect(loaded.furyRoad!.outposts[0].stock.map((p) => p.id)).not.toContain(armor.id);
-    const fitted = playerVehicle(loaded).items.filter((it) => it.kind === 'part' && mountedParts(playerVehicle(loaded), 'armor').some((p) => p.id === it.part.id));
-    const cleared = fitted.reduce((x, it) => storePart(x, it.id), loaded);
-    const after = takeFromStorage(cleared, armor.id, { x: fitted[0].x, y: fitted[0].y, rot: fitted[0].rot });
+    expect(loaded.furyRoad!.outposts[1].stock.map((p) => p.id)).not.toContain(armor.id);
+    const after = takeFromStorage(loaded, armor.id, armorSpot(loaded, armor));
     expect(mountedParts(playerVehicle(after), 'armor').map((p) => p.id)).toContain(armor.id);
     expect(playerVehicle(after).job).toBeNull();
   });
 
   it('keeps the swapped truck and the outpost offer less the sold truck across a load', () => {
     const w = parkedAtOutpost(21);
-    const offer = outpostTrucks(w, w.furyRoad!.outposts[0]);
+    const offer = outpostTrucks(w, w.furyRoad!.outposts[1]);
     const swapped = outpostBuyChassis(w, offer[0]);
 
     const loaded = expectSameAndNoAward(swapped);
 
     expect(playerVehicle(loaded).chassisId).toBe(offer[0]);
-    expect(outpostTrucks(loaded, loaded.furyRoad!.outposts[0])).toEqual(offer.slice(1));
+    expect(outpostTrucks(loaded, loaded.furyRoad!.outposts[1])).toEqual(offer.slice(1));
   });
 });
 
 describe('a saved run with a knocked-out truck on the road', () => {
   it('gives back the downed truck and counts it once when it is shot to a wreck after the load', () => {
     const w = furyRoadWorld(21);
-    w.turn = w.furyRoad!.quietFrom + FURY_ROAD.pacing.quiet;
+    w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
     const group = w.furyRoad!.groups[0];
     const v = w.vehicles.find((x) => x.id === group.vehicles[0])!;

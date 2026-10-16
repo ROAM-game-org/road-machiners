@@ -9,6 +9,7 @@ import { playerVehicle } from '../sim/damage';
 import { guardFee, hireGuard, playerGuard } from '../sim/hire';
 import { placeBase } from '../sim/npc-activities';
 import { defaultSetup } from '../sim/settings';
+import { allegianceFor } from '../sim/spawn';
 import { addVehicle, npcBrain } from '../sim/testkit';
 import type { Vehicle, World } from '../sim/types';
 import { refreshVision } from '../sim/vision';
@@ -26,7 +27,7 @@ function quietWorld(): World {
 }
 
 function npc(w: World, templateId: string, x: number, y: number): Vehicle {
-  const v = addVehicle(w, NPCS[templateId].faction, 'scout', ['mg', 'stockEngine'], { x, y });
+  const v = addVehicle(w, allegianceFor(w, NPCS[templateId], null, null), 'scout', ['mg', 'stockEngine'], { x, y });
   v.brain = npcBrain(templateId, templateId === 'buggy' ? KILN.pos : v.pos, NPCS[templateId].traits);
   return v;
 }

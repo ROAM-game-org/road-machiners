@@ -2,6 +2,7 @@ import { SPAWN } from '../data/npcs';
 import { combatFoesOf, isHostile } from './combat';
 import { companyOf } from './companies';
 import { isDefeated } from './defeat';
+import { isAlly } from './relations';
 import type { Vehicle, World } from './types';
 import { dist } from './vec';
 import { canVehicleSee } from './vision';
@@ -14,8 +15,8 @@ function tiesOf(w: World, member: Vehicle): Ties {
   return { member, company: new Set(mates.map((v) => v.id)), foes: new Set(combatFoesOf(w, member)), mates };
 }
 
-function mateNearby(member: Vehicle, v: Vehicle): boolean {
-  return v.faction === member.faction && dist(v.pos, member.pos) <= SPAWN.neighborHelp;
+function mateNearby(w: World, member: Vehicle, v: Vehicle): boolean {
+  return dist(v.pos, member.pos) <= SPAWN.neighborHelp && isAlly(w, v, member);
 }
 
 function coBelligerent(w: World, ties: Ties, v: Vehicle): boolean {
@@ -24,7 +25,7 @@ function coBelligerent(w: World, ties: Ties, v: Vehicle): boolean {
 }
 
 function tied(w: World, ties: Ties, v: Vehicle): boolean {
-  return ties.company.has(v.id) || mateNearby(ties.member, v) || coBelligerent(w, ties, v);
+  return ties.company.has(v.id) || mateNearby(w, ties.member, v) || coBelligerent(w, ties, v);
 }
 
 function others(w: World, v: Vehicle, keep: (x: Vehicle) => boolean): Vehicle[] {
@@ -52,7 +53,7 @@ function sidesWithInSight(w: World, ties: Ties, x: Vehicle): boolean {
 
 export function fightSide(w: World, v: Vehicle): Vehicle[] {
   const ties = tiesOf(w, v);
-  const mates = (x: Vehicle) => v.brain !== null && x.brain !== null && mateNearby(v, x);
+  const mates = (x: Vehicle) => v.brain !== null && x.brain !== null && mateNearby(w, v, x);
   return [v, ...others(w, v, (x) => mates(x) || sidesWithInSight(w, ties, x))];
 }
 

@@ -24,6 +24,7 @@ import { canVehicleSee } from './vision';
 import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
 import { fightSide, spokesman } from './sides';
+import { reportIncident } from './relations';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
@@ -59,7 +60,7 @@ export function yieldTo(world: World, loser: Vehicle, winner: Vehicle, haul: Gri
   if (!modeRules(world).looting) throw new Error(`${loser.id} cannot hand over cargo where nothing is looted`);
   const stock = haul.length > 0 ? dropHaul(world, loser, haul) : null;
   cede(world, loser, winner, stock, 'takeHandedCargo');
-  if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id });
+  if (loser.brain) remember(world, loser, { kind: 'wronged', by: winner.id, deed: 'robbed' });
   creditYield(world, loser, winner);
 }
 
@@ -210,8 +211,9 @@ export function answersThreat(world: World, npc: Vehicle): ThreatAnswer {
 
 export function settleThreat(world: World, npc: Vehicle, answer: ThreatAnswer): void {
   const me = playerVehicle(world);
-  if (answer === 'comply') yieldTo(world, npc, me);
-  else defyThreat(world, npc, me, answer);
+  if (answer !== 'comply') return defyThreat(world, npc, me, answer);
+  reportIncident(world, { aggressor: me, victim: npc, deed: 'robbed', victimFights: false });
+  yieldTo(world, npc, me);
 }
 
 export function defendClaim(world: World, claimant: Vehicle, trespasser: Vehicle): void {

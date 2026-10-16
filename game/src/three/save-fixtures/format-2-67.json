@@ -1,48 +1,17 @@
 {
-  "turn": 600,
+  "turn": 3,
   "player": {
-    "contracts": [
-      {
-        "id": "ct1",
-        "shop": "bowl",
-        "kind": "search",
-        "target": "v7",
-        "driver": "Jed Cobb",
-        "template": "trader",
-        "lead": {
-          "at": {
-            "x": 40,
-            "y": 52
-          },
-          "turn": 560
-        },
-        "reward": 3700,
-        "deadline": 900,
-        "window": 400,
-        "tier": 1,
-        "found": false
-      }
-    ]
-  },
-  "vehicles": [
-    {
-      "id": "v3",
-      "brain": {
-        "memories": [
-          {
-            "turn": 590,
-            "fact": {
-              "kind": "sighting",
-              "vehicle": "v7",
-              "at": {
-                "x": 41,
-                "y": 50
-              },
-              "heading": 1.2
-            }
-          }
-        ]
-      }
+    "money": 1200,
+    "call": {
+      "with": "npc-1",
+      "topic": "directions",
+      "node": "answer",
+      "vars": {
+        "town": { "kind": "town", "id": "bowl" },
+        "bearing": { "kind": "bearing", "rad": 1 },
+        "distance": { "kind": "distance", "tiles": 300 }
+      },
+      "line": { "line": "townBearing", "vars": {} }
     }
-  ]
+  }
 }

@@ -22,7 +22,7 @@ import { maxHp } from '../sim/wear';
 import { CONDITION } from '../data/wear';
 import { generateNpcLoadout, type NpcLoadout } from '../sim/npc-loadout';
 import { placeBase, topGoal } from '../sim/npc-activities';
-import { spawnAt } from '../sim/spawn';
+import { allegianceFor, spawnAt } from '../sim/spawn';
 import { addState, endState, stateOf } from '../sim/states';
 import { vehicleStats } from '../sim/stats';
 import type { Obstacle, Vehicle, World } from '../sim/types';
@@ -299,7 +299,7 @@ function holdBack(w: World, id: string): Vehicle {
 function placeBystander(w: World, fight: Fight, ground: Ground): string {
   const reach = (fight.arena ?? fight.gap) - LINE_SPACING;
   const tpl = NPCS[fight.bystander!] ?? missing('bystander template', fight.bystander!);
-  const v = spawnAt(w, tpl, sideLoadout(w, { kind: 'npc', template: tpl.id, level: null }), along(ground, 0, reach));
+  const v = spawnAt(w, tpl, sideLoadout(w, { kind: 'npc', template: tpl.id, level: null }), along(ground, 0, reach), allegianceFor(w, tpl, null, null));
   v.heading = Math.atan2(ground.axis.y, ground.axis.x) + Math.PI / 2;
   return v.id;
 }
@@ -317,7 +317,7 @@ function park(player: Vehicle, at: Vec): void {
 function placeSide(w: World, trucks: Truck[], ground: Ground, forward: number, turn: number): string[] {
   return trucks.map((t, i) => {
     const pos = along(ground, forward, (i - (trucks.length - 1) / 2) * LINE_SPACING);
-    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos);
+    const v = spawnAt(w, NPCS[t.driver], sideLoadout(w, t.gear), pos, allegianceFor(w, NPCS[t.driver], null, null));
     if (t.gear.kind === 'outfit') outfit(w, v, t.gear.outfit);
     if (t.wear !== null) rebuildAt(w, v, t.wear);
     v.heading = Math.atan2(ground.axis.y, ground.axis.x) + turn;
@@ -488,7 +488,7 @@ function playTurn(w: World, d: Drive, c: Count, arena: boolean): { w: World; d: 
 function countSpread(w: World, c: Count): void {
   if (w.terrain.atlas.kind !== 'highway') return;
   const trucks = [...inFight(w, c.ids.a), ...inFight(w, c.ids.b)];
-  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.terrain.atlas.window, v.pos))));
+  for (const v of trucks) c.spread = Math.max(c.spread, Math.abs(acrossOf(w.seed, toRoad(w.seed, w.terrain.atlas.window, v.pos))));
 }
 
 function keepArenaFight(w: World, ids: Ids): void {

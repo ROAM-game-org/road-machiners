@@ -17,7 +17,7 @@ const SCRAPJAW = REGION.locations.find((site) => site.id === 'scrapjaw')!;
 const near = (dx: number, dy = 0): Vec => ({ x: KILN.pos.x + KILN.radius + 4 + dx, y: KILN.pos.y + dy });
 
 function raider(w: World, pos: Vec, home: Vec = KILN.pos, parts = ['mg', 'stockEngine']): Vehicle {
-  const v = addVehicle(w, 'raiders', 'buggy', parts, pos);
+  const v = addVehicle(w, 'scrapjaw', 'buggy', parts, pos);
   v.brain = npcBrain('buggy', home, NPCS.buggy.traits);
   return v;
 }
@@ -68,7 +68,7 @@ describe('mustering a crew', () => {
   it('never lets a raider wronged by the asker join, and names the grudge', () => {
     const w = camp();
     const [leader, candidate] = [raider(w, near(0)), raider(w, near(3))];
-    remember(w, candidate, { kind: 'wronged', by: leader.id });
+    remember(w, candidate, { kind: 'wronged', by: leader.id, deed: 'attacked' });
 
     expect(optionWeights(w, candidate, 'crewAsked', leader.id, null)).not.toHaveProperty('join');
     expect(askToJoin(w, leader, candidate)).toBe('decline');
@@ -78,9 +78,10 @@ describe('mustering a crew', () => {
   it('weighs a leader the candidate rates stronger up', () => {
     const w = camp();
     const weak = raider(w, near(0), KILN.pos, ['stockEngine']);
-    const strong = addVehicle(w, 'raiders', 'wagon', ['tankGun', 'stockEngine'], near(3));
+    const strong = addVehicle(w, 'scrapjaw', 'wagon', ['tankGun', 'plates', 'stockEngine'], near(3));
     strong.brain = npcBrain('buggy', KILN.pos, NPCS.buggy.traits);
-    const candidate = raider(w, near(6));
+    const candidate = addVehicle(w, 'scrapjaw', 'scout', ['stockEngine'], near(6));
+    candidate.brain = npcBrain('buggy', KILN.pos, NPCS.buggy.traits);
 
     const fromStrong = optionWeights(w, candidate, 'crewAsked', strong.id, null).join!;
     const fromWeak = optionWeights(w, candidate, 'crewAsked', weak.id, null).join!;
@@ -165,7 +166,7 @@ describe('a crew on the hunt', () => {
   it('joins the fight its leader picks when the member chooses to', () => {
     const w = camp();
     const { leader, a } = crewOfTwo(w);
-    const prey = addVehicle(w, 'traders', 'scout', ['stockEngine'], near(10, 4));
+    const prey = addVehicle(w, 'bowl', 'scout', ['stockEngine'], near(10, 4));
     placeBase(w, leader, { kind: 'fight', targetId: prey.id, destination: { ...prey.pos }, phase: 'travel', reason: 'robCargo' });
     forceOption('crewCalled', 'fight');
 
@@ -178,7 +179,7 @@ describe('a crew on the hunt', () => {
   it('lets a member run from a fight it rates lost, and it leaves the crew', () => {
     const w = camp();
     const { leader, a } = crewOfTwo(w);
-    const prey = addVehicle(w, 'traders', 'scout', ['stockEngine'], near(10, 4));
+    const prey = addVehicle(w, 'bowl', 'scout', ['stockEngine'], near(10, 4));
     placeBase(w, leader, { kind: 'fight', targetId: prey.id, destination: { ...prey.pos }, phase: 'travel', reason: 'robCargo' });
     forceOption('crewCalled', 'flee');
 
@@ -192,7 +193,7 @@ describe('a crew on the hunt', () => {
   it('holds a member back from a hostile that attacks nobody in the crew while the leader is in sight', () => {
     const w = camp();
     const { a } = crewOfTwo(w);
-    const prey = addVehicle(w, 'traders', 'scout', ['stockEngine'], near(10, 4));
+    const prey = addVehicle(w, 'bowl', 'scout', ['stockEngine'], near(10, 4));
     const held = optionWeights(w, a, 'hostileSeen', prey.id, 0.5).fight;
     a.brain!.attackers[prey.id] = true;
     const attacked = optionWeights(w, a, 'hostileSeen', prey.id, 0.5).fight;

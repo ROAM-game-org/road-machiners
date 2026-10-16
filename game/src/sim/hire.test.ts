@@ -21,7 +21,7 @@ const en = (line: LineId): string => entryText('en', lineKey(line));
 
 function mercWorld(): { w: World; merc: Vehicle } {
   const w = emptyWorld({ x: 40, y: 40 });
-  const merc = addVehicle(w, 'mercs', 'scout', ['mg', 'stockEngine'], { x: 46, y: 40 });
+  const merc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 46, y: 40 });
   merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
   refreshVision(w);
   return { w, merc };
@@ -101,7 +101,7 @@ describe('hiring on the radio', () => {
   it('offers no hire on Chaos Highway', () => {
     const w = furyRoadWorld();
     const me = playerVehicle(w);
-    const merc = addVehicle(w, 'mercs', 'scout', ['mg', 'stockEngine'], { x: me.pos.x + 5, y: me.pos.y });
+    const merc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: me.pos.x + 5, y: me.pos.y });
     merc.brain = npcBrain('merc', merc.pos, NPCS.merc.traits);
     refreshVision(w);
     expect(canHireGuard(w, merc)).toBe(false);
@@ -168,7 +168,7 @@ describe('the end of a hire', () => {
 
 describe('a guard on duty', () => {
   function raiderAt(w: World, x: number): Vehicle {
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x, y: 46 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x, y: 46 });
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     return raider;
   }
@@ -182,7 +182,7 @@ describe('a guard on duty', () => {
 
   it('stays out of a fight the player starts on a peaceful trader', () => {
     const { w, merc } = hired();
-    const trader = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 50, y: 44 });
+    const trader = addVehicle(w, 'bowl', 'scout', ['stockEngine'], { x: 50, y: 44 });
     trader.brain = npcBrain('trader', trader.pos, NPCS.trader.traits);
     noteAttack(w, playerVehicle(w), trader, true);
     expect(inFeud(w, merc, trader)).toBe(false);

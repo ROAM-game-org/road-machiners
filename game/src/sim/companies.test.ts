@@ -18,7 +18,7 @@ const escort = { kind: 'escort', site: null, fee: 0 } as const;
 describe('companies', () => {
   it('lets a truck hold one following state and refuses a second', () => {
     const w = emptyWorld();
-    const [a, b, c] = [npc(w, 'merc', 'mercs', 40), npc(w, 'trader', 'traders', 44), npc(w, 'trader', 'traders', 48)];
+    const [a, b, c] = [npc(w, 'merc', 'independent', 40), npc(w, 'trader', 'bowl', 44), npc(w, 'trader', 'bowl', 48)];
     joinCompany(w, a, b, 'escort', escort);
 
     expect(() => joinCompany(w, a, c, 'escort', escort)).toThrow(/already follows/);
@@ -27,7 +27,7 @@ describe('companies', () => {
 
   it('refuses a loop of following states', () => {
     const w = emptyWorld();
-    const [a, b] = [npc(w, 'merc', 'mercs', 40), npc(w, 'trader', 'traders', 44)];
+    const [a, b] = [npc(w, 'merc', 'independent', 40), npc(w, 'trader', 'bowl', 44)];
     joinCompany(w, a, b, 'escort', escort);
 
     expect(() => joinCompany(w, b, a, 'escort', escort)).toThrow(/loop/);
@@ -37,8 +37,8 @@ describe('companies', () => {
   it('roots the trader, player and merc tree at the trader', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = npc(w, 'trader', 'traders', 44);
-    const merc = npc(w, 'merc', 'mercs', 48);
+    const trader = npc(w, 'trader', 'bowl', 44);
+    const merc = npc(w, 'merc', 'independent', 48);
     joinCompany(w, me, trader, 'escort', escort);
     joinCompany(w, merc, me, 'hire', { kind: 'hire', fee: 100 });
 
@@ -51,8 +51,8 @@ describe('companies', () => {
 
   it('ranks followers by birth and then id', () => {
     const w = emptyWorld();
-    const leader = npc(w, 'trader', 'traders', 44);
-    const [x, y] = [npc(w, 'merc', 'mercs', 40), npc(w, 'merc', 'mercs', 48)];
+    const leader = npc(w, 'trader', 'bowl', 44);
+    const [x, y] = [npc(w, 'merc', 'independent', 40), npc(w, 'merc', 'independent', 48)];
     w.turn = 5;
     joinCompany(w, y, leader, 'escort', escort);
     w.turn = 3;
@@ -63,7 +63,7 @@ describe('companies', () => {
 
   it('refreshes after a state starts or ends and after a clone', () => {
     const w = emptyWorld();
-    const [a, b] = [npc(w, 'merc', 'mercs', 40), npc(w, 'trader', 'traders', 44)];
+    const [a, b] = [npc(w, 'merc', 'independent', 40), npc(w, 'trader', 'bowl', 44)];
     expect(followersOf(w, b.id)).toEqual([]);
     const s = joinCompany(w, a, b, 'escort', escort);
     expect(followersOf(w, b.id).map((v) => v.id)).toEqual([a.id]);
@@ -77,7 +77,7 @@ describe('companies', () => {
 
   it('throws at load on a saved truck with two following states', () => {
     const w = emptyWorld();
-    const [a, b, c] = [npc(w, 'merc', 'mercs', 40), npc(w, 'trader', 'traders', 44), npc(w, 'trader', 'traders', 48)];
+    const [a, b, c] = [npc(w, 'merc', 'independent', 40), npc(w, 'trader', 'bowl', 44), npc(w, 'trader', 'bowl', 48)];
     addState(w, 'escort', a.id, b.id, escort);
     addState(w, 'escort', a.id, c.id, escort);
 

@@ -119,9 +119,9 @@ export type PropPose =
   | { model: 'hulk'; chassisId: string; pos: Vec; yaw: number; scale: PropScale };
 export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number };
 
-type FortLook = Extract<PropKind, `fort${string}`>;
+type FortLook = Exclude<Extract<PropKind, `fort${string}`>, 'fortOutpostShut'>;
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
-type PropModel = 'rock' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | FortModel;
+type PropModel = 'rock' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | FortModel;
 
 const M = PHYSICS.metersPerTile;
 const TURN = Math.PI * 2;
@@ -181,6 +181,7 @@ const LANDMARK_MODELS: Record<Exclude<LandmarkLook, FortLook>, PropModel> = {
   habitat: 'habitat_cylinder',
   wingShard: 'wing_shard',
   powerCell: 'power_cell',
+  fortOutpostShut: 'fort_outpost_shut',
 };
 const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   crag: 1,

@@ -8,7 +8,7 @@ import { refreshVision } from './vision';
 describe('a goal left stale under an interruption', () => {
   it('is dropped in the same think when the interruption ends, before it gives an order', () => {
     const w = emptyWorld({ x: 120, y: 120 });
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 40 });
     raider.brain = npcBrain('buggy', raider.pos, NPCS.buggy.traits);
     const lawman = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 48, y: 40 });
     lawman.brain = npcBrain('bowlFarmer', lawman.pos, NPCS.bowlFarmer.traits);

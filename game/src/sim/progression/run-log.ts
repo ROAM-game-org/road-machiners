@@ -4,8 +4,10 @@ import { haulerOf, playerVehicle } from '../damage';
 import { outpostPartPrice, haulerTakes } from '../outposts';
 import { dist } from '../vec';
 import { isJunk } from '../wear';
+import { repairCost } from '../economy';
 import { gearPlans } from './gear';
-import { enemyTrucks, expectedGear, gearMoneyOf } from '../fury-road-danger';
+import { stretchBudget } from '../fury-road-director';
+import { milestoneAt } from '../highway';
 import { bodyCondition } from '../npc-decisions';
 import { mountedParts } from '../grid';
 import type { GameEvent, Vehicle, WaveGroup, World } from '../types';
@@ -22,12 +24,13 @@ export type StretchStats = {
   fights: number;
   enemies: Enemy[];
 };
+export type PlanLine = { at: number; template: string; size: number; money: number; elite: boolean };
 export type OutpostChoice = { useful: number; affordable: number; total: number; money: number };
 export type RunLine =
-  | { t: 'group'; turn: number; stretch: number; from: string; trucks: (KitLine & { id: string; template: string })[] }
+  | { t: 'group'; turn: number; stretch: number; from: string; elite: boolean; money: number; trucks: (KitLine & { id: string; template: string })[] }
   | { t: 'stretch'; turn: number; stretch: number; stats: StretchStats; choice: OutpostChoice }
-  | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number }
-  | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; haulerKit: KitLine; paid: number; expectedGear: number; enemyGear: number; enemyTrucks: number }
+  | { t: 'outpost'; turn: number; stretch: number; pay: number; wrecks: number; condition: number; damageTaken: number; money: number; repairs: number; haulerRepairs: number }
+  | { t: 'leave'; turn: number; stretch: number; money: number; condition: number; kit: KitLine; haulerKit: KitLine; paid: number; budget: number; plan: PlanLine[] }
   | { t: 'beaten'; turn: number; stretch: number; id: string; template: string }
   | { t: 'lost'; turn: number; stretch: number; cause: string; money: number; kit: KitLine; stretchDamageBy: { id: string; template: string; damage: number }[]; stats: StretchStats };
 
@@ -94,7 +97,7 @@ export class RunLog {
       ...this.spawned(before, world),
       ...this.beaten(before, world, stretch),
       ...events.flatMap((e): RunLine[] => (e.t === 'outpostReached' ? [this.outpost(world, e.milestone, e.pay, e.wrecks), this.stretchLine(world, e.milestone)] : [])),
-      ...(run.window > before.furyRoad.window ? [this.leave(world, stretch)] : []),
+      ...(events.some((e) => e.t === 'roadOpened') ? [this.leave(world, stretch)] : []),
       ...events.flatMap((e): RunLine[] => (e.t === 'runLost' ? [this.lost(world, e.stretch, e.cause)] : [])).slice(0, 1),
     ];
   }
@@ -156,7 +159,7 @@ export class RunLog {
       return { id, template: v.brain.templateId, ...kitOf(v) };
     });
     for (const truck of trucks) this.tally.enemies.push({ chassis: truck.chassis, guns: truck.guns, armor: truck.armor });
-    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, trucks };
+    return { t: 'group', turn: world.turn, stretch: g.stretch, from: g.from, elite: g.elite, money: Math.round(g.money / 100), trucks };
   }
 
   private beaten(before: World, world: World, stretch: number): RunLine[] {
@@ -167,7 +170,9 @@ export class RunLog {
 
   private outpost(world: World, stretch: number, pay: number, wrecks: number): RunLine {
     const damageTaken = Math.round([...this.damage.values()].reduce((sum, d) => sum + d, 0));
-    return { t: 'outpost', turn: world.turn, stretch, pay: Math.round(pay / 100), wrecks, condition: conditionOf(world), damageTaken };
+    const repairs = Math.round(repairCost(world, playerVehicle(world)) / 100);
+    const haulerRepairs = Math.round(repairCost(world, haulerOf(world)) / 100);
+    return { t: 'outpost', turn: world.turn, stretch, pay: Math.round(pay / 100), wrecks, condition: conditionOf(world), damageTaken, money: Math.round(world.player.money / 100), repairs, haulerRepairs };
   }
 
   private leave(world: World, stretch: number): RunLine {
@@ -181,9 +186,8 @@ export class RunLog {
       kit: kitOf(playerVehicle(world)),
       haulerKit: kitOf(haulerOf(world)),
       paid: Math.round(world.furyRoad!.earned / 100),
-      expectedGear: Math.round(expectedGear(world, stretch) / 100),
-      enemyGear: Math.round(gearMoneyOf(world, stretch) / 100),
-      enemyTrucks: enemyTrucks(world, stretch),
+      budget: stretchBudget(world, stretch).budget,
+      plan: world.furyRoad!.groups.map((g) => ({ at: Math.round(g.at - milestoneAt(world.seed, stretch - 1)), template: g.templates[0], size: g.templates.length, money: Math.round(g.money / 100), elite: g.elite })),
     };
   }
 

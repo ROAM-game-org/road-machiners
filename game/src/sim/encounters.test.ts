@@ -37,7 +37,7 @@ function scene(traits: TraitId[], parts: string[] = ['stockEngine'], x = 36): { 
   const w = emptyWorld({ x: 30, y: 30 });
   w.player.discovered = [...REGION.towns, ...REGION.locations].map((s) => s.id);
   w.salvage = [];
-  const npc = addVehicle(w, 'traders', 'scout', parts, { x, y: 30 });
+  const npc = addVehicle(w, 'independent', 'scout', parts, { x, y: 30 });
   npc.brain = npcBrain(traits[0], npc.pos, traits);
   refreshVision(w);
   return { w, npc };
@@ -84,7 +84,7 @@ describe('the roll', () => {
 
   it('does not roll while the player is in combat', () => {
     const { w, npc } = talesWorld();
-    startCombat(w, addVehicle(w, 'raiders', 'scout', [], { x: 50, y: 50 }), playerVehicle(w));
+    startCombat(w, addVehicle(w, 'scrapjaw', 'scout', [], { x: 50, y: 50 }), playerVehicle(w));
     onStrangerSeen(w, npc);
     expect(w.player.encounters.pending).toBeNull();
   });
@@ -101,7 +101,7 @@ describe('the roll', () => {
 
   it('does not roll while another encounter is pending', () => {
     const { w, npc } = talesWorld();
-    const other = addVehicle(w, 'traders', 'scout', [], { x: 36, y: 34 });
+    const other = addVehicle(w, 'independent', 'scout', [], { x: 36, y: 34 });
     other.brain = npcBrain('trader', other.pos, ['trader']);
     knowTip(w, other);
     refreshVision(w);
@@ -356,7 +356,7 @@ describe('the challenge', () => {
     expect(encounterAvailable(law.w, law.npc, 'challenge')).toBe(false);
     const wronged = scene(['scavenger'], ['stockEngine', 'mg']);
     expect(encounterAvailable(wronged.w, wronged.npc, 'challenge')).toBe(true);
-    remember(wronged.w, wronged.npc, { kind: 'wronged', by: wronged.w.player.vehicleId });
+    remember(wronged.w, wronged.npc, { kind: 'wronged', by: wronged.w.player.vehicleId, deed: 'attacked' });
     expect(encounterAvailable(wronged.w, wronged.npc, 'challenge')).toBe(false);
   });
 });
