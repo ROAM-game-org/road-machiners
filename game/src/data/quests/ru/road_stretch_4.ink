@@ -7,75 +7,75 @@ VAR asked_hunters = false
 
 === start ===
 # checkpoint: start
-The fourth fort has a water cistern on its roof and a Keeper asleep beside it. # place: The fourth outpost
-Two trucks came out of the badlands this morning. You dealt with the first in the open, and it was quick. The second waited behind a rockfall with its gun on the hauler's cab. You never decided anything. You put your bumper into its front wheel at full speed, and it spun into the rocks. When the dust settled, the gun was pointing at the sky and the driver was not moving.
-Ala climbs down from the hauler and counts the stretch's pay into your hand out loud, quickly, without her usual care. Her eyes keep going to your bumper. # page
+На крыше четвертого форта стоит цистерна с водой, и рядом спит Хранитель. # place: Четвертый пост
+Сегодня утром из пустошей вылетели два грузовика. С первым вы разобрались на открытом месте, и это было быстро. Второй ждал за обвалом скалы, наставив пушку на кабину тягача. Вы ничего не решали. На полной скорости вы впечатали бампер в его переднее колесо, и он юзом улетел в камни. Когда пыль осела, пушка смотрела в небо, а водитель не шевелился.
+Ала спускается из кабины тягача и вслух отсчитывает плату за перегон вам в руку, торопливо, без привычной тщательности. Глаза её то и дело косятся на ваш бампер. # page
 -> death_machine
 
 = death_machine
 # checkpoint: start.death_machine
-Four stretches, and every time you go at them like you're angry at the road. How the hell are you such a death machine? # speaker: Ala
-She isn't joking. She's measuring what she bought.
-+ [Thirty years of this road.]
+Четыре перегона, и каждый раз ты прешь на них так, словно злишься на саму дорогу. Откуда в тебе столько повадок машины смерти? # speaker: Ала
+Она не шутит. Она оценивает то, что купила.
++ [Тридцать лет на этой дороге.]
   ~ death_answer = "road"
   -> road
-+ [What Tibor told you: I rode with Magnus.]
++ [То, что тебе сказал Тибор: довелось ходить с Магнусом.]
   ~ death_answer = "magnus"
   -> magnus
-+ [Say nothing.]
++ [Промолчать.]
   ~ death_answer = "silent"
   -> silent
 
 = road
-Thirty years of this road teaches you things, you tell her. Where a driver looks before he fires. How a truck leans before it turns.
-That's not an answer. That's a calendar. # speaker: Ala
+Тридцать лет на этой дороге кое-чему учат, говорите вы ей. Куда водитель смотрит перед выстрелом. Как грузовик кренится перед поворотом.
+Это не ответ. Это календарь. # speaker: Ала
 { ring_told == "told":
-  She taps the back of her own neck, where yours is burned.
-  A man who pulls his own plug didn't learn that from a calendar. # speaker: Ala
+  Она хлопает себя по шее сзади — там, где у вас ожог.
+  Человек, который сам выдернул штекер, научился этому не по календарю. # speaker: Ала
 }
 -> hub_intro
 
 = magnus
-Tibor told me that one. Every bar on this road has three men who rode with Magnus. # speaker: Ala
-You have said that sentence in a lot of bars. You say it as flatly as a road sign.
-She lets it sit. She doesn't say whether she believes it. She looks at your hands for a while, and then at your neck.
+Эту байку мне Тибор заливал. В каждом баре на этой дороге найдутся трое, кто ходил с Магнусом. # speaker: Ала
+Эту фразу вам доводилось произносить во многих барах. Вы говорите её сухо, словно дорожный знак.
+Она выдерживает паузу. Верит она или нет, по ней не видно. Некоторое время она смотрит на ваши руки, затем на шею.
 -> hub_intro
 
 = silent
-You say nothing. A good truck can sit in silence, and so can a good driver.
-Ala looks at you for a while. Then she nods slowly, as if silence were an answer of a kind. It is.
+Вы молчите. Хороший грузовик умеет стоять молча, и хороший водитель — тоже.
+Ала некоторое время смотрит на вас. Затем медленно кивает, словно молчание — тоже своего рода ответ. Так оно и есть.
 -> hub_intro
 
 = hub_intro
-She sits down on the hauler's step. # page
-Ask, if you're going to. I'll answer what I answer. # speaker: Ala
+Она садится на подножку тягача. # page
+Спрашивай, если собираешься. Я отвечу что сочту нужным. # speaker: Ала
 -> hub
 
 = hub
 # checkpoint: start.hub
-She waits. The Keeper on the roof turns over in his sleep. # page
+Она ждет. Хранитель на крыше поворачивается во сне на другой бок. # page
 -> menu
 
 = menu
-+ {not asked_trailer} [What's in the trailer?]
++ {not asked_trailer} [Что в прицепе?]
   ~ asked_trailer = true
-  Pump parts and valves. Sealed casks, some of them fuel. And books, my father's well crews kept them. Where we're going, nobody has any of it. # speaker: Ala
-  She says it like a list she has learned, and she stops before she says what is written in the books.
-  My father packed it himself. He lets nobody else pack. # speaker: Ala
+  Детали для насосов и клапаны. Запечатанные бочки, в некоторых топливо. И книги — их вели бригады моего отца на скважинах. Там, куда мы едем, ничего этого нет ни у кого. # speaker: Ала
+  Она чеканит это как заученный список и замолкает раньше, чем успевает сказать, что записано в книгах.
+  Отец сам всё укладывал. Он никому другому грузить не дает. # speaker: Ала
   -> menu
-+ {not asked_north} [Where are we going?]
++ {not asked_north} [Куда мы едем?]
   ~ asked_north = true
-  <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. Its gate opens only to people who wrote ahead. I wrote. # speaker: Ala
-  Its water goes south in <term=blackwell>Blackwell</term>'s tankers. That's the <term=covenant>covenant</term>, and twenty years of it. The books are what I'm taking north. Blackwell wants them kept south. # speaker: Ala
+  В <term=northgate>Северные Ворота</term>. Долина на краю дороги, с источником. Ворота открывают только тем, кто прислал весточку заранее. Я написала. # speaker: Ала
+  Их вода уходит на юг в цистернах <term=blackwell>Блэквуда</term>. Это <term=covenant>договор о воде</term>, двадцать лет кряду. Книги — вот что я везу на север. Блэквуд хочет, чтобы они остались на юге. # speaker: Ала
   -> menu
-+ {not asked_hunters} [Who set the reward?]
++ {not asked_hunters} [Кто назначил награду?]
   ~ asked_hunters = true
-  Hedda Vell. She runs Blackwell, and she posted it herself. She wants the trailer back sealed. Whether I come back with it, she doesn't care. # speaker: Ala
-  She says the name flatly, like a debt she has carried for years.
+  Хедда Вэлл. Она правит в Блэквуде и сама её объявила. Ей нужен прицеп с целой пломбой. А вернусь ли я с ним живой, ей плевать. # speaker: Ала
+  Она произносит это имя сухо, словно долг, который тащила на себе годами.
   -> menu
-+ [That's enough.]
-  You know more than you did, and the road is no safer for it.
-  Ala gets up. # page
-  Dawn, then. # speaker: Ala
-  You go and look at your bumper. It is folded in on the right, and the yard here has a welder who works at night.
++ [Хватит.]
+  Вы узнали больше прежнего, но безопаснее дорога от этого не стала.
+  Ала поднимается. # page
+  Тогда на рассвете. # speaker: Ала
+  Вы идете взглянуть на свой бампер. Справа он загнут внутрь, а на здешней площадке есть сварщик, который работает по ночам.
   -> END

@@ -7,90 +7,90 @@ VAR grief_said = "none"
 
 === start ===
 # checkpoint: start
-Dusk at the eighth fort, and the Keepers are counting the evening's trucks through the gate. # place: The eighth outpost
-Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. You drove at all of them. Ala drove straight through the middle of what was left. The scout is held together now with the yard's weld and most of the pay.
-An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
-I knew a man with a burn like that. # speaker: Old gatekeeper
-He says it mildly, the way you'd mention the weather. Then he turns to the next truck and goes on counting. # page
-Your hand has gone to your neck without asking you. It's shaking against the scar. You take it away, and it goes on shaking without you.
-Ala saw. She was watching your hand the whole time. # page
+Сумерки в восьмом форте. Хранители считают вечерние грузовики у ворот. # place: Восьмой пост
+Сегодня из пустошей вылетали по три, по четыре машины разом, и на некоторых была армейская краска со старых складов. Вы шли в лоб на каждую. Ала пробивалась прямо сквозь то, что от них оставалось. Разведчик теперь держится на сварке со стоянки форта и на большей части платы.
+У ворот с доской для счета стоит старый Хранитель — видно, что он считает грузовики уже лет тридцать. Он считает тягач. Считает вашего разведчика. Затем прекращает счет и смотрит вам на шею, где низко сидит воротник. # page
+Знал я одного с таким же ожогом. # speaker: Старый привратник
+Он говорит это буднично, словно поминает погоду. Затем поворачивается к следующему грузовику и продолжает считать. # page
+Ваша рука сама собой тянется к шее. Пальцы дрожат на шраме. Вы отнимаете руку, но дрожь не унимается.
+Ала видела. Она всё это время смотрела на вашу руку. # page
 -> news
 
 = news
 # checkpoint: start.news
-She sits down on the hauler's step with a strip of paper from the fort's relay, folded small. She does not count the pay into your hand. It is the first time she hasn't.
-Hedda Vell had my father shot in the refinery yard. In front of the crews. It happened while we were at the fourth fort. # speaker: Ala
-Her voice is level. It stays level, which is worse. # page
+Она садится на подножку тягача с мелко сложенным листком из радиопункта форта. Плату вам в руку она не отсчитывает. Такое происходит впервые.
+Хедда Вэлл велела расстрелять моего отца во дворе завода. На глазах у рабочих бригад. Это случилось, пока мы были у четвертого форта. # speaker: Ала
+Голос её звучит ровно. И оттого, что он не срывается, только хуже. # page
 -> loss
 
 = loss
 # checkpoint: start.loss
-She folds the paper once more and puts it in her coat. She is waiting to see what you do with that.
-+ [Tell her you're sorry.]
+Она складывает листок ещё раз и убирает в пальто. Она ждет, что вы на это скажете.
++ [Сказать, что вам жаль.]
   ~ grief_said = "sorry"
-  You say it. She takes it the way she takes a coin, and checks it.
-  Don't. Not yet. # speaker: Ala
+  Вы говорите это. Она принимает эти слова, словно монету, и проверяет на фальшь.
+  Не надо. Пока не надо. # speaker: Ала
   -> why
-+ [Ask what she needs.]
++ [Спросить, что ей нужно.]
   ~ grief_said = "ask"
-  Nothing you carry, she says. It is the first time she has refused you something kindly.
+  Ничем из того, что у тебя с собой, говорит она. Впервые она отказывает вам по-доброму.
   -> why
-+ [Say nothing.]
++ [Промолчать.]
   ~ grief_said = "silent"
-  You don't say you're sorry. It would not help her, and she'd hold it against you.
+  Вы не говорите, что вам жаль. Ей это не поможет, а на вас она затаит обиду.
   -> why
 
 = why
-Eight stretches, and every time you drove at the worst of them. Nobody does that for the pay. So why do you do this? # speaker: Ala
+Восемь перегонов, и каждый раз ты прешь прямо на самых опасных. За плату так никто не делает. Зачем тебе это? # speaker: Ала
 -> hub
 
 = hub
 # checkpoint: start.hub
-She waits. At the gate the tally goes on. # page
+Она ждет. У ворот продолжается счет. # page
 -> menu
 
 = menu
-+ {not asked_hunters} [Why do so many hunt the truck?]
++ {not asked_hunters} [Почему за грузовиком столько охотников?]
   ~ asked_hunters = true
-  Because of what Blackwell paid, and because of what the bar says. Last night in the fort bar, with a drink in me, I said where I'm going. By morning every driver on the road knew. # speaker: Ala
-  She doesn't smile. She's too tired to.
+  Из-за награды Блэквуда и из-за барных сплетен. Вчера вечером в баре форта я выпила и сболтнула, куда еду. К утру знал каждый водитель на дороге. # speaker: Ала
+  Она не улыбается. Сил на улыбку не осталось.
   -> menu
-+ {not asked_run} [Why don't you leave the truck and run?]
++ {not asked_run} [Почему не бросить грузовик и не сбежать?]
   ~ asked_run = true
-  Run where? The crews are shut in Blackwell's yard, and the families who got out are waiting at the Keepers' southern fort. Northgate will take one crew, if the crew proves it's worth taking. The books in the trailer are the proof: they show what the crews can build and run. # speaker: Ala
-  Without them they're Blackwell's children and nothing else. I carry two hundred people, and I'm the one truck Northgate agreed to open for. They don't know it yet. # speaker: Ala
+  Куда бежать? Рабочие заперты во дворе Блэквуда, а семьи, которым удалось выбраться, ждут в южном форте Хранителей. Северные Ворота примут одну бригаду, если она докажет, что чего-то стоит. Книги в прицепе — вот доказательство: там записано, что бригады умеют строить и обслуживать. # speaker: Ала
+  Без них они дети Блэквуда, и больше никто. За мной две сотни людей, и я единственный грузовик, ради которого Северные Ворота согласились открыться. Сами они об этом пока не знают. # speaker: Ала
   -> menu
-+ [I thought this road would finish me.]
++ [Думалось, эта дорога станет для меня последней.]
   ~ why_answer = "finish"
   -> finish
-+ [The pay.]
++ [Из-за платы.]
   ~ why_answer = "pay"
   -> for_pay
-+ [Say nothing.]
++ [Промолчать.]
   ~ why_answer = "silent"
   -> silent
 
 = finish
-Out it comes, flat, and it's true. That was the plan: a road long enough, enough trucks, and sooner or later one of them would be the one. It never is.
-Ala looks at you for a time. Her face doesn't change.
-That's honest. It's also a terrible reason to hire a man. # speaker: Ala
-She almost smiles, and doesn't.
+Слова звучат сухо, и это правда. В этом и был расчет: дорога подлиннее, машин побольше, и рано или поздно какая-нибудь из них станет той самой. Но всё никак не становится.
+Ала некоторое время смотрит на вас. Лицо её не меняется.
+Честно. И в то же время худшая из причин нанимать человека. # speaker: Ала
+Она почти улыбается, но сдерживается.
 -> close
 
 = for_pay
-The pay, you tell her, as if the pay were a reason.
-Nobody drives into army trucks for the pay. # speaker: Ala
-She says it without any heat. She's seen through it, and she lets you keep it.
+Из-за платы, говорите вы ей, словно плата может быть причиной.
+Никто не таранит армейские грузовики ради платы. # speaker: Ала
+Она говорит это без злости. Она видит вас насквозь и оставляет эту отговорку вам.
 -> close
 
 = silent
-You say nothing. The gate goes on counting.
-She nods slowly, as if she'd put a price on the silence. Maybe she has.
+Вы молчите. У ворот продолжается счет.
+Она медленно кивает, словно назначила молчанию цену. Может, так оно и есть.
 -> close
 
 = close
 # checkpoint: start.close
-Ala gets up and brushes off her coat. She walks to the hauler and stands with her hand on the door for a moment, longer than it takes to open. # page
-Tomorrow. # speaker: Ala
-You go and check the gun pins, both of them. Your hand is steady again by the second. # page
+Ала встает и отряхивает пальто. Она идет к тягачу и на миг замирает, положив руку на дверь, — дольше, чем нужно, чтобы её открыть. # page
+Завтра. # speaker: Ала
+Вы идете проверять стопорные штифты пушки, оба. На втором рука уже не дрожит. # page
 -> END
