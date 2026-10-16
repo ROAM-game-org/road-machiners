@@ -375,7 +375,7 @@ describe('unprompted aid offer', () => {
     const { w, npc } = needyScene();
     const me = playerVehicle(w);
     expect(aidHolds(w, npc, me)).toBe(true);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 24, y: 30 });
+    const raider = addVehicle(w, 'independent', 'buggy', ['mg'], { x: 24, y: 30 });
     const fight = addState(w, 'combat', raider.id, me.id, { kind: 'none' });
     expect(aidHolds(w, npc, me)).toBe(false);
     w.states = w.states.filter((s) => s.id !== fight.id);

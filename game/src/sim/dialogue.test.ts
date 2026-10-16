@@ -1054,7 +1054,7 @@ describe('fuel and supply aid', () => {
   it('a player in combat with a third truck cannot ask for aid until the fight is gone', () => {
     const { w, npc } = aidWorld();
     lowPlayer(w);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    const raider = addVehicle(w, 'independent', 'buggy', ['mg'], { x: 5, y: 5 });
     const fight = addState(w, 'combat', raider.id, w.player.vehicleId, { kind: 'none' });
     expect(texts(callVehicle(w, npc.id))).not.toContain(askText);
     w.states = w.states.filter((s) => s.id !== fight.id);
@@ -1064,7 +1064,7 @@ describe('fuel and supply aid', () => {
   it('a player in combat with a third truck cannot be offered aid until the fight is gone', () => {
     const { w, npc } = aidWorld();
     npc.resources!.fuel = 0;
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    const raider = addVehicle(w, 'independent', 'buggy', ['mg'], { x: 5, y: 5 });
     const fight = addState(w, 'combat', raider.id, w.player.vehicleId, { kind: 'none' });
     expect(texts(callVehicle(w, npc.id))).not.toContain(offerText);
     w.states = w.states.filter((s) => s.id !== fight.id);
@@ -1082,7 +1082,7 @@ describe('fuel and supply aid', () => {
     next = chooseOption(next, optionIndex(next, 'Thanks. I will wait.'));
     const deal = stateOf(next, 'aid', npc.id, next.player.vehicleId)!;
     expect(checkAid(next, deal)).toBeNull();
-    const raider = addVehicle(next, 'raiders', 'buggy', ['mg'], { x: 5, y: 5 });
+    const raider = addVehicle(next, 'independent', 'buggy', ['mg'], { x: 5, y: 5 });
     addState(next, 'combat', raider.id, next.player.vehicleId, { kind: 'none' });
     expect(checkAid(next, deal)).toBe('broken');
   });
