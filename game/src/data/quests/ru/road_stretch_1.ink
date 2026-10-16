@@ -5,7 +5,7 @@ INCLUDE world.ink
 # checkpoint: start
 The first fort north is a wall, a gate and a yard full of trucks waiting to be counted. # place: The first outpost
 A truck came for the hauler out of the badlands this morning, and it never got back up. You went at it straight, and when it stopped moving you sat with your hands on the wheel and waited to feel something. What came was closer to disappointment than to anything else. You don't look at that too long.
-The fort's clerk pays the stretch across his counter, and Ala counts it into your hand out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
+The fort's clerk pays Ala the stretch's fee across his counter, and she counts your share into your hand out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
 -> tougher
 
 = tougher

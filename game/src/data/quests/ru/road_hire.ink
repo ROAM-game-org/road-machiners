@@ -62,7 +62,7 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
 + {not asked_pay} [What does it pay?]
   ~ asked_pay = true
   I drive the hauler. You ride ahead and take what comes. I pay by the stretch, fort to fort: {stretch_pay(1)} M's for the first, and {stretch_pay(2) - stretch_pay(1)} more for each stretch after that. # speaker: Ala
-  Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. # speaker: Ala
+  Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. You front the first stretch yourself, from what you have left. # speaker: Ala
   She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The money is paid at the far gate.
   -> menu
 + {not asked_trailer} [What's in the trailer?]
@@ -81,11 +81,13 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   <term=blackwell>Blackwell</term> wants that truck. The refinery posted a reward in diesel. Whoever brings the trailer back sealed gets it, and nobody there cares if the woman driving it comes back alive or dead. Every scavenger and out-of-work gun from here to the first ridge has heard. # speaker: Tibor
   Ala doesn't correct him. She turns her cuff over so the wax doesn't show.
   -> menu
-+ {not walked_out} [Walk out.]
++ {not walked_out} [Hold out for more.]
   ~ walked_out = true
-  You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. The yard sold it to you for the last of your coins. You have no truck, no pay and no other road. You stand there a while with the water running down your collar.
+  You tell her it isn't enough, and you stand up as if you meant it.
+  Then go. # speaker: Ala
+  She doesn't look up. You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. The yard sold it to you for the last of your coins. You have no truck, no pay and no other road. You stand there a while with the water running down your collar.
   When you come back in, nobody has moved. Ala is still counting. Tibor is still smiling.
-  I'd have thought less of you if you hadn't tried. Sit down. # speaker: Ala
+  I'd have thought less of you if you hadn't tried. The offer is the offer. Sit down. # speaker: Ala
   -> menu
 + [Sign on.]
   ~ ala_hired = true

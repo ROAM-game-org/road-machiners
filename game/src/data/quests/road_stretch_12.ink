@@ -9,7 +9,7 @@ The twelfth fort keeps a lamp burning on every wall all night. # place: The twel
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, coin by coin, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
 The first says Hedda Vell has called off the reward on the truck. Ala reads on. The hunters were promised diesel and nobody has told them to stop, and the bar talk says the trailer carries Blackwell's secret. They will keep coming. # page
-The second says the well crews broke out of Blackwell's yard and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, are on the open road north, a day behind us, and not a gun among them. # page
+The second says the well crews, who were shut in Blackwell's yard, broke out and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, are on the open road north, a day behind us, and not a gun among them. # page
 The hunters are all around us. The people are a day behind us, and they have no gun. # speaker: Ala
 She folds the slips and waits. # page
 -> fire
@@ -19,7 +19,7 @@ She folds the slips and waits. # page
 You don't answer. You look at the lamp on the wall, and the lamp makes you think of fire, and then of other fire. # page
 A tank line, years ago: a row of dead army trucks left in the dust where the army left them. Every truck still had its link seat, fitted to the man who drove it and died in it. Plug into a seat that wasn't yours, and it burned you. You took the first one anyway, because you were Magnus, and Magnus took what he wanted. # page
 The seat took hold of your neck and began to cook the socket out of you. You heard yourself scream.
-The boys followed because you had gone first. Each took a seat that was not his either. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
+The boys followed. They had not heard you scream yet, and by the time they did, each was already strapped into a seat that was not his either. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
 Magnus! The plug! Magnus! # speaker: Burnt Driver
 You tore the plug out of your own seat with both hands. That left the ring in your neck. You didn't go back for the boy. You walked out into the badlands, and you have been walking away ever since. # page
 -> ask
@@ -44,7 +44,7 @@ The Burnt Drivers took a Blackwell water convoy, sixteen years ago. They killed 
 She says it as a plain fact.
 I won't ask whether you were there. If you were, tell me before you leave, not after. # speaker: Ala
 { ring_told == "told":
-  And you pulled a plug out of a burning seat. That's the same fire. # speaker: Ala
+  You told me about a burning seat. I can add. # speaker: Ala
 - else:
   So that's what the scar is. # speaker: Ala
 }
@@ -53,7 +53,7 @@ I won't ask whether you were there. If you were, tell me before you leave, not a
 = dead
 Somebody dead, you say. The man the Keeper knew is dead, in a way. It is the truest lie you have.
 There are a lot of those on this road. # speaker: Ala
-But dead men don't make your hand shake. She lets it lie, because the road is long and she has learned to leave things where they are.
+But your hand did not shake at a stranger. She lets it lie, because the road is long and she has learned to leave things where they are.
 -> stay
 
 = magnus
@@ -67,7 +67,7 @@ She looks at the scar. She looks at your hands. She does not say what she thinks
 = stay
 # checkpoint: start.stay
 Out on the dark road, two hundred people in old trucks are coming north behind her. You are one gun on one good tire. Against what hunts them, that is nothing. It is what there is. # page
-So. Where do you go from here? # speaker: Ala
+So. Are you riding on? # speaker: Ala
 -> say
 
 = say
@@ -76,7 +76,7 @@ So. Where do you go from here? # speaker: Ala
   You say it flat, the way you say everything. She nods once.
   I thought so. # speaker: Ala
   -> close
-+ [Because of the people behind us.]
++ [I'm staying for the people behind us.]
   ~ stay_said = "people"
   You can't say more than that, and you don't try. Her hands are steadier than they were.
   Then we're both fools. # speaker: Ala
@@ -86,15 +86,11 @@ So. Where do you go from here? # speaker: Ala
   A pause, and then something that is nearly a laugh.
   Same pay. # speaker: Ala
   -> close
-+ [Leave.]
++ [Say you ought to leave.]
   ~ stay_said = "left"
-  -> walk_off
-
-= walk_off
-You walk to the gate. The Keeper on the wall counts you out, one man, and for the first time in years it sounds like a number. You stand in the road with the lamps behind you and the dark ahead, and your feet will not take you either way.
-You think about a boy in a burning seat. You think about two hundred people on a road with nobody ahead of them.
-In the end you turn around. Ala is still on the step. She says nothing, and she doesn't have to. # page
--> close
+  You tell her you ought to go. It is the nearest you can come to the truth that is not the truth.
+  Ought to. Not the same as will. # speaker: Ala
+  -> close
 
 = close
 # checkpoint: start.close
