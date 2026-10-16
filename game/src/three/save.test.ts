@@ -267,7 +267,7 @@ describe('game save', () => {
   it('keeps a part-done survey with its found places, a survey job in progress and a survey offer on a board across a reload, and awards nothing', () => {
     const slots = makeSlots();
     const [a, b, c, d] = surveySites(TEST_MAP);
-    const world = emptyWorld({ x: c.pos.x + 4, y: c.pos.y });
+    const world = emptyWorld({ x: c.pos.x + 2, y: c.pos.y });
     const survey: Contract = {
       id: 'ct-s',
       shop: 'bowl',
