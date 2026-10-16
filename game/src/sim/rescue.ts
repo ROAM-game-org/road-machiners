@@ -7,6 +7,7 @@ import { contractReward, estimateTurns, finishContract, haulWindow, isExpired, s
 import { needsPatch } from './patch';
 import { route } from './path';
 import { nextRandom, randInt, randRange } from './rng';
+import { isRaider } from './relations';
 import { nearestPad } from './sites';
 import { aidData } from './states';
 import { hasWorkingEngine, isStranded, isWorking, vehicleStats } from './stats';
@@ -34,7 +35,7 @@ function isHelped(world: World, v: Vehicle): boolean {
 }
 
 export function isRescueCandidate(world: World, v: Vehicle, named: ReadonlySet<string>): boolean {
-  if (!v.brain || v.faction === 'raiders' || named.has(v.id)) return false;
+  if (!v.brain || isRaider(v) || named.has(v.id)) return false;
   return isStranded(world, v) && !isKnockedOut(v) && !isHelped(world, v);
 }
 

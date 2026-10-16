@@ -26,6 +26,7 @@ import { bearing, dist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { playerCommand, update } from './world';
 import { atlasOf } from './atlas';
+import { bandAtLeast, bandToward, isAlly, isRaider } from './relations';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -87,9 +88,10 @@ function isPlayer(world: World, v: Vehicle): boolean {
 }
 
 function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
-  const raider = (v: Vehicle) => v.faction === 'raiders';
-  if (raider(tower)) return raider(client);
-  return !raider(client) || isPlayer(world, tower);
+  if (isPlayer(world, tower)) return true;
+  if (isRaider(tower) !== isRaider(client)) return false;
+  if (isPlayer(world, client)) return bandToward(world, tower, client) !== 'hostile';
+  return bandAtLeast(bandToward(world, tower, client), 'neutral') && bandAtLeast(bandToward(world, client, tower), 'neutral');
 }
 
 function canTow(world: World, tower: Vehicle, client: Vehicle): boolean {
@@ -486,7 +488,7 @@ export function unguardedLeader(world: World, guard: Vehicle): Vehicle | null {
   const tpl = NPCS[guard.brain!.templateId];
   if (!tpl || tpl.spawn.kind !== 'escort') throw new Error(`${guard.id} has no escort template`);
   const place = tpl.spawn;
-  const free = world.vehicles.filter((v) => v.brain?.templateId === place.of && v.faction === guard.faction && !isDefeated(v) && escortsOf(world, v.id).length === 0);
+  const free = world.vehicles.filter((v) => v.brain?.templateId === place.of && isAlly(world, guard, v) && !isDefeated(v) && escortsOf(world, v.id).length === 0);
   return free.sort((a, b) => dist(guard.pos, a.pos) - dist(guard.pos, b.pos))[0] ?? null;
 }
 

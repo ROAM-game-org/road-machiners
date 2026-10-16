@@ -614,7 +614,7 @@
   overflow: hidden;
 }
 .skill-table {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   scrollbar-width: thin;
@@ -699,6 +699,53 @@
   gap: var(--space-1);
   font-size: var(--text-dense);
   text-align: left;
+}
+
+.standing {
+  margin-top: var(--space-6);
+  font-size: var(--text-dense);
+}
+.standing h4 {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-label);
+  font-size: var(--text-caption);
+  font-weight: normal;
+  cursor: help;
+}
+.standing-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-7);
+}
+.standing-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--ink-title);
+  cursor: help;
+}
+.standing-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--hud-gap));
+  z-index: var(--z-popup);
+  width: max-content;
+  cursor: default;
+}
+.standing-row:hover > .standing-tip,
+.standing-row:focus > .standing-tip {
+  display: block;
+}
+.standing-tip .base {
+  color: var(--ink-muted);
+}
+.standing-tip .up > .num {
+  color: var(--good);
+}
+.standing-tip .down > .num {
+  color: var(--danger-ink);
 }
 #ui button.perk {
   padding: var(--space-2) var(--space-4);

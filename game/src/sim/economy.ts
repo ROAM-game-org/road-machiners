@@ -26,6 +26,7 @@ import { cloneWorld, playerCommand, Refused } from "./world";
 import { tankLeaks } from "./supplies";
 import { fuelCap, isStranded, isWorking, suppliesCap } from "./stats";
 import { modeRules } from './settings';
+import { isOutlaw } from "./relations";
 
 export type Supply = "fuel" | "supplies";
 
@@ -180,7 +181,7 @@ function requireCampService(vehicle: Vehicle, campId: string): void {
   const camp = REGION.locations.find((l) => l.id === campId);
   if (camp?.kind !== "camp" || !canUseSite(vehicle.pos, camp))
     throw new Error("Not at a gate of the requested camp");
-  if (vehicle.faction !== "raiders")
+  if (!isOutlaw(vehicle.faction))
     throw new Error("Only raiders use camp services");
   if (vehicle.speed > RULES.parkedSpeed)
     throw new Error("Stop before using camp services");
@@ -224,7 +225,7 @@ export function serviceAtStall(
   retainedParts: number,
 ): void {
   if (shopDef(shopId).kind !== "stall") throw new Error(`${shopId} is no stall`);
-  if (vehicle.faction === "raiders") throw new Error("Only non-raiders use stall services");
+  if (isOutlaw(vehicle.faction)) throw new Error("Only non-raiders use stall services");
   sellVehicleCargo(world, vehicle, shopId, retainedParts);
   refuelAndRepair(world, vehicle);
 }
