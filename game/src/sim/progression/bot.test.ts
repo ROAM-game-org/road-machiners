@@ -12,7 +12,10 @@ import { playerVehicle, vehicleById } from '../damage';
 import { makePart, makeVehicle } from '../factory';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { addGoods, mountPart, removeAllGoods, stowPart } from '../inventory';
-import { searchReward, siteOf } from '../market';
+import { searchReward, siteOf, type Contract } from '../market';
+import { surveyClue, surveySites } from '../survey';
+import { cluePoint } from './surveyor';
+import { TEST_MAP } from '../../test/map';
 import { refreshVision } from '../vision';
 import { playerSees } from '../vision';
 import { nearestPad, nearestTown, siteGates, sitePads } from '../sites';
@@ -927,6 +930,47 @@ describe('the hunter', () => {
     w.shops.bowl.contracts = [{ id: 'ct-haul', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 20000, deadline: 5000, window: 600, rush: false, tier: 2 }];
 
     expect(botOrders(w, 'hauler').world.player.contracts.map((c) => c.id)).toEqual(['ct-haul']);
+  });
+
+  it('has a surveyor search from the clue, never the place, until it finds it', () => {
+    const site = surveySites(TEST_MAP)[0];
+    const w = parkedAt('bowl');
+    const survey: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    w.player.contracts = [survey];
+    const clue = cluePoint(w, surveyClue(survey, survey.points[0]));
+    const heading = (world: World) => {
+      const order = playerVehicle(world).order;
+      return order && order.kind !== 'brake' ? order.dest : null;
+    };
+
+    const searching = botOrders(w, 'surveyor').world;
+    expect(dist(heading(searching)!, clue)).toBeLessThan(10);
+
+    (w.player.contracts[0] as Extract<Contract, { kind: 'survey' }>).points[0].found = true;
+    const found = botOrders(w, 'surveyor').world;
+    expect(dist(heading(found)!, site.pos)).toBeLessThan(10);
+  });
+
+  it('has a surveyor take a survey on the board it is parked at, survey in reach of a site and report it done at the shop', () => {
+    const site = surveySites(TEST_MAP)[0];
+    const w = parkedAt('bowl');
+    const offer: Contract = { id: 'ct-survey', shop: 'bowl', kind: 'survey', points: [{ site: site.id, found: false, done: false }], reward: 20000, deadline: 5000, window: 600, tier: 1 };
+    w.shops.bowl.contracts = [offer];
+    const taken = botOrders(w, 'surveyor').world;
+    expect(taken.player.contracts.map((c) => c.id)).toEqual(['ct-survey']);
+
+    const mine = taken.player.contracts[0];
+    if (mine.kind === 'survey') mine.points[0].found = true;
+    taken.vehicles[0].pos = { x: site.pos.x + 1, y: site.pos.y };
+    taken.vehicles[0].speed = 0;
+    expect(playerVehicle(botOrders(taken, 'surveyor').world).job?.kind).toBe('survey');
+
+    const held = taken.player.contracts[0];
+    if (held.kind === 'survey') held.points[0].done = true;
+    taken.vehicles[0].pos = { ...sitePads(siteOf('bowl'))[0] };
+    const paid = botOrders(taken, 'surveyor').world;
+    expect(paid.player.contracts).toEqual([]);
+    expect(paid.player.money).toBe(taken.player.money + 20000);
   });
 
   it('has a climber buy a gun toward hunting while still earning by trade', () => {

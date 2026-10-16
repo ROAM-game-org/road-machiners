@@ -887,6 +887,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withCountableDirections_71_72,
   withRunWait_72_73,
   withPlannedGroups_73_74,
+  (world) => world,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {

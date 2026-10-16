@@ -103,6 +103,19 @@ export const CONTRACTS = {
     xpPerEffort: 0.0045,
   },
 
+  survey: {
+    roadGap: 20,
+    siteGap: 40,
+    range: 180,
+    spread: 90,
+    count: [1, 3] as [number, number],
+    surveyTurns: 10,
+    searchTurns: 20,
+    clue: { range: 180, roundTiles: 25, band: 40, nearby: 40, layRing: 30, rise: 2, hollow: -1.3 },
+    rewardFactor: 15,
+    knowledgeRange: 12,
+    xpPerEffort: 0.003,
+  },
   escort: {
     xpPerEffort: 0.003,
   },

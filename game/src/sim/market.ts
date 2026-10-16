@@ -11,6 +11,7 @@ import { sampleWeighted } from './npc-loadout';
 import { playerVehicle } from './damage';
 import { findSpot, freeCells, goodsCount, gridOf } from './grid';
 import { addGoods, removeGoods, spareParts, stowParcel, type ParcelItem } from './inventory';
+import { cancelJob } from './jobs';
 import { practice } from './progress';
 import { chance, randInt, type Rng } from './rng';
 import { canUseSite, type Site } from './sites';
@@ -21,6 +22,7 @@ import { playerCommand, Refused } from './world';
 import { escortShare, pruneEscortOffers, settleEscortJob, takeEscortJob } from './escort-job';
 import type { GameEvent, PartInstance, Vehicle, World } from './types';
 import { isJunk, partValue } from './wear';
+import { freeSurveySites, isSurveyMet, liveSurveySites, rollSurvey, type SurveyPoint, type SurveySite } from './survey';
 import { rescueClients, rescueOfferValid, rollRescue, type RescueNeed } from './rescue';
 import { dist, type Vec } from './vec';
 import { isOutlaw, noteContractDeed } from './relations';
@@ -165,7 +167,8 @@ export type Contract =
   | { id: string; shop: string; kind: 'escort'; client: string; to: string; reward: number; deadline: number; window: number; tier: Tier; threat: Threat; span: number; together: number; seen: { x: number; y: number; turn: number } | null; apart: number; stuck: number; holdUntil: number | null }
   | { id: string; shop: string; kind: 'bounty'; template: string; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean }
   | { id: string; shop: string; kind: 'rescue'; client: string; driver: string; need: RescueNeed; area: Vec; reward: number; deadline: number; window: number; tier: Tier; fulfilled: boolean }
-  | { id: string; shop: string; kind: 'search'; target: string; driver: string; template: string; lead: { at: Vec; turn: number }; reward: number; deadline: number; window: number; tier: Tier; delivered: boolean };
+  | { id: string; shop: string; kind: 'search'; target: string; driver: string; template: string; lead: { at: Vec; turn: number }; reward: number; deadline: number; window: number; tier: Tier; delivered: boolean }
+  | { id: string; shop: string; kind: 'survey'; points: SurveyPoint[]; reward: number; deadline: number; window: number; tier: Tier };
 
 export type SearchContract = Extract<Contract, { kind: 'search' }>;
 
@@ -230,6 +233,7 @@ type RollInput = {
   raiders: Vehicle[];
   clients: Vehicle[];
   sought: { vehicle: Vehicle; seenTurn: number }[];
+  surveys: SurveySite[];
 };
 
 function pick<T>(world: World, list: T[]): T {
@@ -245,6 +249,7 @@ function possibleKinds(input: RollInput): BoardKind[] {
   if (input.raiders.length > 0) kinds.push('bounty');
   if (input.clients.length > 0) kinds.push('rescue');
   if (input.sought.length > 0) kinds.push('search');
+  if (input.surveys.length > 0) kinds.push('survey');
   return kinds;
 }
 
@@ -295,7 +300,11 @@ function rollRescueOffer(world: World, input: RollInput, id: string): Contract {
   return rollRescue(world, input.shop, input.clients, id);
 }
 
-const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty, rescue: rollRescueOffer, search: rollSearch };
+function rollSurveyContract(world: World, input: RollInput, id: string): Contract {
+  return rollSurvey(world, input.shop, input.surveys, id);
+}
+
+const ROLLS = { haul: rollHaul, fetch: rollFetch, bounty: rollBounty, rescue: rollRescueOffer, search: rollSearch, survey: rollSurveyContract };
 
 export function rollContract(
   world: World,
@@ -306,8 +315,9 @@ export function rollContract(
   raiders: Vehicle[],
   clients: Vehicle[] = [],
   sought: RollInput['sought'] = [],
+  surveys: SurveySite[] = [],
 ): Contract | null {
-  const input = { shop, places, goods, partDefIds, raiders, clients, sought };
+  const input = { shop, places, goods, partDefIds, raiders, clients, sought, surveys };
   const kinds = possibleKinds(input);
   if (kinds.length === 0) return null;
   const kind = pick(world, kinds);
@@ -462,11 +472,20 @@ function fillBoard(world: World, shopId: string, state: ShopState): void {
   while (state.contracts.length < def.contractSlots) {
     const postedTemplates = new Set(state.contracts.filter((c) => c.kind === 'bounty').map((c) => c.template));
     const raiders = world.vehicles.filter((v) => isOutlaw(v.faction) && v.brain && !postedTemplates.has(v.brain.templateId));
-    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders, clients, searchCandidates(world, shopId, state));
+    const surveys = freeSurveySites(world, shopPos(shopId));
+    const contract = rollContract(world, { id: shopId, pos: shopPos(shopId) }, places, def.goods, partDefIds, raiders, clients, searchCandidates(world, shopId, state), surveys);
     if (!contract) return;
+    requireFreeSites(world, contract);
     if (contract.kind === 'rescue') clients.splice(clients.findIndex((v) => v.id === contract.client), 1);
     state.contracts.push(contract);
   }
+}
+
+function requireFreeSites(world: World, c: Contract): void {
+  if (c.kind !== 'survey') return;
+  const live = liveSurveySites(world);
+  const taken = c.points.find((p) => live.has(p.site));
+  if (taken) throw new Error(`Survey site ${taken.site} is already named by a live contract`);
 }
 
 const MARKET_SALT = 0x6d61726b;
@@ -575,7 +594,7 @@ export function deliverContract(world: World, contractId: string): World {
   });
 }
 
-function handInMet(world: World, c: Extract<Contract, { kind: 'bounty' | 'rescue' | 'search' }>): void {
+function handInMet(world: World, c: Extract<Contract, { kind: 'bounty' | 'rescue' | 'search' | 'survey' }>): void {
   requireParkedAt(world, c.shop);
   if (!isMet(c)) throw new Error(`The ${c.kind} is not met yet`);
 }
@@ -610,8 +629,10 @@ export function contractXp(c: Contract): number {
 }
 
 export function finishContract(world: World, c: Contract, outcome: 'done' | 'failed' | 'lapsed' | 'released'): void {
-  if (outcome !== 'done' && isMet(c)) throw new Error(`A fulfilled ${c.kind} cannot be ${outcome}`);
+  if (outcome !== 'done' && isMet(c)) throw new Error(`A met ${c.kind} cannot be ${outcome}`);
   world.player.contracts = world.player.contracts.filter((x) => x.id !== c.id);
+  const me = playerVehicle(world);
+  if (me.job?.kind === 'survey' && me.job.contractId === c.id) cancelJob(world, me);
   world.events.push({ t: 'contract', contract: { ...c }, outcome });
   if (outcome === 'done') payContract(world, c, c.reward);
   if (outcome === 'released') payContract(world, c, c.kind === 'escort' ? Math.round(c.reward * escortShare(c)) : 0);
@@ -639,6 +660,7 @@ function chargeHaulPenalty(world: World, c: Extract<Contract, { kind: 'haul' }>)
 }
 
 export function isMet(c: Contract): boolean {
+  if (c.kind === 'survey') return isSurveyMet(c);
   return ((c.kind === 'bounty' || c.kind === 'rescue') && c.fulfilled) || (c.kind === 'search' && c.delivered);
 }
 

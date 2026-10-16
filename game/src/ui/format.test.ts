@@ -10,6 +10,9 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
+import { isNotable, nextSurveyClue, surveyClueText, surveyProgress } from "./format";
+import { surveyClue, surveySites } from "../sim/survey";
+import { TEST_MAP } from "../test/map";
 import { contractDue, heldContractDue, workLabel, contractSummary, contractWindow, rescueWhere, eventText, jobLabel, roundLabel, vehicleName, wearLabel, conditionTier, conditionStatus, showsCondition, CRATE_NOTE, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, estimateText, estimateTitle, lotTitle } from "./format";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters, kg } from "./units";
@@ -764,5 +767,71 @@ describe("the discovery line", () => {
     const line = eventText(emptyWorld(), { t: "discover", location: site })!;
 
     expect(resolve(line.text, "en")).toBe(`Discovered ${resolve(siteName(site), "en")}`);
+  });
+});
+
+describe("survey contract text", () => {
+  const [first, second] = surveySites(TEST_MAP);
+  const survey = (done: boolean[]): Extract<Contract, { kind: "survey" }> => ({
+    id: "c3", shop: "bowl", kind: "survey", reward: 3000, deadline: 100, window: 100, tier: 1,
+    points: [first, second].slice(0, done.length).map((site, i) => ({ site: site.id, found: done[i], done: done[i] })),
+  });
+
+  it("names the kinds of place to survey", () => {
+    expect(en(contractSummary(survey([false, false])))).toMatch(/^Survey /);
+    expect(en(contractSummary(survey([false])))).toContain(en(t(`contract.place.${first.type}`)));
+  });
+
+  it("reads a met survey as ready to report", () => {
+    const met = survey([true, true]);
+    expect(en(contractSummary(met))).toBe("Survey done, report at Bowl");
+    expect(en(heldContractDue(met))).toBe("Ready");
+  });
+
+  it("counts the sites done and tells the clue of the first place left", () => {
+    const c = survey([true, false]);
+    expect(en(surveyProgress(c))).toBe("1 of 2 surveyed");
+    expect(en(nextSurveyClue(c)!)).toBe(en(surveyClueText(surveyClue(c, c.points[1]))));
+    expect(nextSurveyClue(survey([true, true]))).toBeNull();
+  });
+
+  it("tells a clue as a named place, a compass word, a distance in hundreds of meters and the lay", () => {
+    const clue = { type: "homestead", landmark: "pump-station", rad: -Math.PI / 4, tiles: 100, lay: "hollow" } as const;
+    expect(en(surveyClueText(clue))).toBe("Lies north-east of Pump Station, about 400 m out, in a hollow");
+    expect(en(surveyClueText({ ...clue, lay: "rise", rad: Math.PI, tiles: 275 }))).toBe("Lies west of Pump Station, about 1.1 km out, on high ground");
+    expect(en(surveyClueText({ ...clue, lay: "flat", rad: Math.PI / 2, tiles: 25 }))).toBe("Lies south of Pump Station, about 100 m out, on flat ground");
+  });
+
+  it("tells the same clue wherever the truck is", () => {
+    const c = survey([false, false]);
+    const w = emptyWorld();
+    const told = en(nextSurveyClue(c)!);
+    for (const pos of [first.pos, second.pos, { x: 30, y: 30 }]) {
+      w.vehicles[0].pos = { ...pos };
+      expect(en(nextSurveyClue(c)!)).toBe(told);
+    }
+    expect(told).not.toMatch(/^(east|west|north|south)/);
+  });
+
+  it("raises a found place and a met survey to a toast, and keeps a surveyed site to the log", () => {
+    const c = survey([true, false]);
+    expect(isNotable({ t: "contract", contract: c, outcome: "found", site: first.id })).toBe(true);
+    expect(isNotable({ t: "contract", contract: survey([true, true]), outcome: "fulfilled" })).toBe(true);
+    expect(isNotable({ t: "contract", contract: c, outcome: "surveyed" })).toBe(false);
+    expect(isNotable({ t: "contract", contract: c, outcome: "accepted" })).toBe(false);
+  });
+
+  it("logs a found place by its kind and the shop that asked", () => {
+    const c = survey([false, false]);
+    const found = eventText(emptyWorld(), { t: "contract", contract: c, outcome: "found", site: first.id })!;
+    expect(en(found.text)).toBe(`This is the ${en(t(`contract.place.${first.type}`))} Bowl asked about.`);
+    expect(found.cls).toBe("good");
+  });
+
+  it("logs a surveyed site and a met survey", () => {
+    const c = survey([true, false]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: c, outcome: "surveyed" })!.text)).toBe("Site surveyed, 1 of 2");
+    const met = survey([true, true]);
+    expect(en(eventText(emptyWorld(), { t: "contract", contract: met, outcome: "fulfilled" })!.text)).toContain("report at Bowl");
   });
 });

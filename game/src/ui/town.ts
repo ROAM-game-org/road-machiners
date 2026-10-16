@@ -45,7 +45,7 @@ import { compareBase, createBareItemIcon, createIcon, createItemIcon, type IconN
 import { PartRows, type PartRow } from "./part-rows";
 import { caption, keepFocus, priceEl, priceHead, priceSpan, reasonButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, supplyRow, truckCards, type PriceHint } from "./shop-rows";
 import { el, panel, type Child } from "./dom";
-import { contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
+import { contractSummary, contractWindow, CRATE_NOTE, escortLeaves, escortStatusText, estimateText, estimateTitle, GOODS_COLUMNS, heldContractDue, lotTitle, nextSurveyClue, PROFIT_HEAD_TITLE, rescueWhere, saleEstimate, vehicleName, type SaleEstimate } from "./format";
 import { InventoryView, truckChips } from "./inventory";
 import { QUESTS, startQuest } from "../sim/quests";
 import { localsAt } from "../sim/dialogue-rules";
@@ -357,9 +357,9 @@ export class TownScreen {
   private deliverCell(w: World, shopId: string, c: Contract): HTMLElement {
     if (c.kind === "escort") return el("span", { class: "dim" }, escortStatusText(w, c));
     const destination = c.kind === "haul" ? c.to : c.shop;
-    const claim = c.kind === "bounty" || c.kind === "rescue" || c.kind === "search";
-    if (destination !== shopId) return el("span", { class: "dim" }, t(claim ? "contract.claimAt" : "contract.deliverAt", { site: siteName(destination) }));
-    return this.button(t(claim ? "contract.claim" : "contract.deliver"), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
+    const verb = DELIVER_VERBS[c.kind];
+    if (destination !== shopId) return el("span", { class: "dim" }, t(verb.at, { site: siteName(destination) }));
+    return this.button(t(verb.now), (x) => deliverContract(x, c.id), canDeliver(w, c) ? null : notReady(w, c));
   }
 }
 
@@ -367,6 +367,15 @@ function searchRefusalText(w: World, refusal: SearchRefusal | null): Msg | null 
   if (refusal === null) return null;
   return refusal === "oneSearch" ? t("contract.oneSearch") : refusalText(w, { id: refusal });
 }
+
+const DELIVER_VERBS = {
+  haul: { now: "contract.deliver", at: "contract.deliverAt" },
+  fetch: { now: "contract.deliver", at: "contract.deliverAt" },
+  bounty: { now: "contract.claim", at: "contract.claimAt" },
+  rescue: { now: "contract.claim", at: "contract.claimAt" },
+  search: { now: "contract.claim", at: "contract.claimAt" },
+  survey: { now: "contract.report", at: "contract.reportAt" },
+} as const;
 
 function escortRefusal(w: World, c: Contract): Msg | null {
   if (c.kind !== "escort") return null;
@@ -388,6 +397,7 @@ function escortDetail(w: World, c: Extract<Contract, { kind: "escort" }>): Child
 }
 
 function notReady(w: World, c: Contract): Msg {
+  if (c.kind === "survey") return t("contract.notSurveyed");
   if (c.kind === "haul") return t("contract.needMore", { n: c.units - (goodsCount(playerVehicle(w))[c.good] ?? 0), good: goodName(c.good) });
   if (c.kind === "fetch") return t("contract.needsPart");
   if (c.kind === "search") return t("contract.handOverFirst");
@@ -440,6 +450,7 @@ const CONTRACT_ICON: Record<Contract["kind"], () => HTMLElement> = {
   fetch: () => createIcon("parts"),
   bounty: () => createBareItemIcon("cannon"),
   search: () => createBareItemIcon(PARCEL.id),
+  survey: () => createIcon("scanner"),
   escort: () => createIcon("truck"),
   rescue: () => createIcon("truck"),
 };
@@ -481,6 +492,11 @@ function profitCell(e: SaleEstimate): HTMLElement {
   return el("div", { class: "profit", title: estimateTitle(e) }, caption(GOODS_COLUMNS.profit, true), el("span", { class: `num ${tone}` }, estimateText(e)));
 }
 
+function surveyLine(c: Contract): HTMLElement | null {
+  const clue = c.kind === "survey" ? nextSurveyClue(c) : null;
+  return clue ? el("span", { class: "dim contract-clue" }, clue) : null;
+}
+
 function escortClock(w: World, c: Extract<Contract, { kind: "escort" }>, posted: boolean): HTMLElement {
   if (posted) return el("span", { class: "price", title: t("contract.leavesTitle", { n: Math.max(0, c.deadline - w.turn) }) }, createIcon("clock"), escortLeaves(c));
   const status = escortStatusText(w, c);
@@ -506,7 +522,7 @@ function contractRow(w: World, c: Contract, action: HTMLElement, posted = false)
 }
 
 function contractSummaryCell(c: Contract): HTMLElement {
-  if (c.kind !== "rescue") return el("span", {}, contractSummary(c));
+  if (c.kind !== "rescue") return el("span", {}, contractSummary(c), surveyLine(c));
   const need = el("span", { class: "tag", title: t("contract.rescueAlt") }, t(`contract.need.${c.need}`));
   return el("span", {}, need, SPACE, contractSummary(c), c.fulfilled ? null : el("div", { class: "dim" }, rescueWhere(c)));
 }

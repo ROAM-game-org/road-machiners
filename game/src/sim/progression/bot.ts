@@ -35,6 +35,7 @@ import { canLootTruck, canReachSalvage, hasSalvage, lootBlocker, takeError, take
 import { startSearch } from '../search';
 import { territoryEntries } from '../territory';
 import { canUseSite, isTerritory, nearestPad, reachedSite, nearestTown, siteGates, sitePads, townAt, type Site } from '../sites';
+import { drivable } from '../path';
 import { fuelCap, hasWorkingEngine, isStranded, isWorking, suppliesCap, vehicleStats } from '../stats';
 import { escortsOf, inTowReach, playerTow, setBeacon } from '../tow';
 import { towData } from '../states';
@@ -45,11 +46,12 @@ import { reachedOutpostAt } from '../fury-road';
 import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
 import { searcherGoal, takeSearch } from './searcher';
+import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 import { isAlly, isOutlaw } from '../relations';
 
-export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'climber' | 'markov' | 'escort' | 'sprinter';
-export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'climber', 'markov', 'escort', 'sprinter'];
+export type Archetype = 'trader' | 'scavenger' | 'hunter' | 'fastTrader' | 'hauler' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
+export const ARCHETYPES: readonly Archetype[] = ['trader', 'scavenger', 'hunter', 'fastTrader', 'hauler', 'searcher', 'surveyor', 'climber', 'markov', 'escort', 'sprinter'];
 export type Policy = Archetype | 'robber' | 'convoyRobber';
 export const POLICIES: readonly Policy[] = [...ARCHETYPES, 'robber', 'convoyRobber'];
 type RoadPolicy = 'escort' | 'sprinter';
@@ -66,6 +68,7 @@ const GEAR_STYLES: Record<Goal, UpgradeStyle> = {
   fastTrader: { skip: ['armor'], chassis: 'speed', job: 'courier' },
   hauler: CARGO_GEAR,
   searcher: CARGO_GEAR,
+  surveyor: CARGO_GEAR,
   robber: CARGO_GEAR,
   convoyRobber: CARGO_GEAR,
 };
@@ -412,7 +415,7 @@ function fuelForWay(world: World, tiles: number): number {
   return tiles * vehicleStats(world, me).fuelPerTile * heatAt(world, me.pos) * NPC_UPKEEP.fuelReserve;
 }
 
-export function fuelReaches(world: World, site: Site, from?: { pos: Vec; fuel: number }): boolean {
+export function fuelReaches(world: World, site: Pick<Site, 'pos'>, from?: { pos: Vec; fuel: number }): boolean {
   const full = fuelCap(playerVehicle(world));
   let at = from ?? { pos: playerVehicle(world).pos, fuel: world.player.fuel };
   for (let step = 0; step <= SHOP_SITES.length; step++) {
@@ -480,12 +483,23 @@ function repairAtGarage(o: Orders): void {
   for (const part of garageFixes(o)) if (affordsRepair(o, part)) o.run((w) => repairPart(w, part.id), 'repairs');
 }
 
-const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
+const GOALS: Record<Goal, (o: Orders) => void> = { trader: traderGoal, scavenger: scavengerGoal, hunter: hunterGoal, fastTrader: traderGoal, hauler: haulerGoal, searcher: (o) => searcherGoal(o, checkNextBoard), surveyor: surveyorGoal, robber: (o) => robberGoal(o, false), convoyRobber: (o) => robberGoal(o, true) };
 
 function traderGoal(o: Orders): void {
   const held = heldHaul(o.world);
   if (held) return carryHaul(o, held);
   if (!trade(o) && !takeHaul(o) && !scavenge(o, false)) checkNextBoard(o);
+}
+
+const SURVEY_MOVES: SurveyorMoves = {
+  driveToSite,
+  driveBeside: (o, center, radius) => driveTo(o, besideStop(o.world, center, radius)),
+  fuelReaches: (o, pos) => fuelReaches(o.world, { pos }),
+  drivable: (o, to) => drivable(o.world, o.me.pos, to, vehicleStats(o.world, o.me).radius),
+};
+
+function surveyorGoal(o: Orders): void {
+  if (!surveyGoal(o, SURVEY_MOVES) && !trade(o) && !scavenge(o, false)) checkNextBoard(o);
 }
 
 function haulerGoal(o: Orders): void {

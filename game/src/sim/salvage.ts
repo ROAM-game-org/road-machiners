@@ -770,7 +770,7 @@ export function placeSpot(map: BakedMap, layer: NavLayer, p: OldPlace): Obstacle
   return order.find((o) => offRoad(o) && reachable(layer, o)) ?? null;
 }
 
-function propHash(map: BakedMap, o: Obstacle): number {
+export function propHash(map: BakedMap, o: Obstacle): number {
   return hashRandom(map.seed, OLD_PLACES.seedOffset, Math.round(o.pos.x * 16), Math.round(o.pos.y * 16), 1);
 }
 

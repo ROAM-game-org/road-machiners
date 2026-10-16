@@ -321,6 +321,8 @@ export const TALK: Translation<typeof EN> = {
   'radio.search.0': '{shop, case, at} лежит посылка {target, case, dat}. Кто-нибудь едет в ту сторону?',
   'radio.search.1': 'Посылка {target, case, dat} ждет {shop, case, at}. Отвези — заплатят.',
   'radio.bounty.0': '{shop} {shop, gender, m {назначил} f {назначила} n {назначило} pl {назначили}} цену за {target, case, acc}. Говорят, бизнес, а не убийство.',
+  'radio.survey.0': '{shop, case, at} нужны глаза в дальних краях. Платят честно, а вот дорога — нет.',
+  'radio.survey.1': '{shop, case, at} висит заказ на разведку. Захватите запаску и хорошую карту.',
   'radio.bounty.1': 'На доске {shop, case, at} листовка на {target, case, acc}. Я просто читаю, мужики.',
   'radio.rescue.0': 'Тягач застрял {place}. {shop, case, at} платят тем, кто оживит.',
   'radio.rescue.1': 'Водила встал {place}. {shop, case, at} ждут буксир или топливо.',

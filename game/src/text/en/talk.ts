@@ -320,6 +320,8 @@ export const TALK = {
   'radio.search.0': m('{shop} has a parcel for {target}. Anyone heading their way?', { shop: 'text', target: 'text' }),
   'radio.search.1': m('A parcel at {shop} waits on {target}. Carry it over, get paid.', { shop: 'text', target: 'text' }),
   'radio.bounty.0': m('{shop} put a price on {target}. Business, not murder, they say.', { shop: 'text', target: 'text' }),
+  'radio.survey.0': m('{shop} wants eyes on the far country. Pay is fair, the road is not.', { shop: 'text' }),
+  'radio.survey.1': m('Survey work posted at {shop}. Bring a spare tire and a good map.', { shop: 'text' }),
   'radio.bounty.1': m('Paper up at {shop} for {target}. I just read the board, boys.', { shop: 'text', target: 'text' }),
   'radio.rescue.0': m('Rig stuck {place}. {shop} pays whoever gets it moving.', { shop: 'text', place: 'text' }),
   'radio.rescue.1': m('{shop} board: a driver stranded {place}. Fuel, patch or tow.', { shop: 'text', place: 'text' }),

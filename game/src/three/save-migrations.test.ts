@@ -1574,3 +1574,9 @@ describe('save migration 73 to 74', () => {
     expect(MIGRATIONS[73](structuredClone(roaming))).toEqual(roaming);
   });
 });
+
+describe('save migration 74 to 75', () => {
+  it('keeps a save as it is, since survey contracts are a new variant no old save holds', () => {
+    expect(MIGRATIONS[74](structuredClone(FORMAT_2_73))).toEqual(FORMAT_2_73);
+  });
+});
