@@ -28,6 +28,7 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
+  SCALE_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
@@ -72,6 +73,16 @@ export function setQuestLanguage(lang: QuestLanguage): void {
 
 export function currentQuestLanguage(): QuestLanguage {
   return questLanguage;
+}
+
+export function inQuestLanguage<T>(lang: QuestLanguage, run: () => T): T {
+  const before = questLanguage;
+  questLanguage = lang;
+  try {
+    return run();
+  } finally {
+    questLanguage = before;
+  }
 }
 
 function textOf(quest: CompiledQuest): QuestText {
@@ -293,6 +304,13 @@ export function openRoadScene(w: World): void {
   openQuest(w, QUESTS, scene.quest, 'start');
 }
 
+export function openScaleScene(w: World): void {
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
+  setWorldVar(w, SCALE_SEEN, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
+}
+
 export function introStep(w: World): IntroStep {
   const step = worldVar(w, INTRO_STEP);
   const known = INTRO_STEPS.find((s) => s === step);
@@ -331,7 +349,8 @@ function liveIn(state: QuestState, session: QuestSession): QuestLive {
 }
 
 export function relanguageQuest(world: World, bundle: QuestBundle): World {
-  if (world.player.quests.live?.lang === questLanguage) return world;
+  const { live, session } = world.player.quests;
+  if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
     restoreQuest(w, bundle);

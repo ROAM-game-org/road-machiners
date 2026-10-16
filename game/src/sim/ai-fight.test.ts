@@ -35,6 +35,17 @@ function inReachAfter(w: World, v: Vehicle, target: Vehicle, p: Vec): boolean {
 const CLEAR = 3;
 
 describe('fight driving', () => {
+  it('scores fight points for a truck shut down by a pulse while its foe drives onto its spot', () => {
+    const w = emptyWorld({ x: 40, y: 30 });
+    const v = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 20, y: 20 }, 'buggy');
+    v.shutDown = { from: w.turn, until: w.turn + 5 };
+    const foe = fighter(w, 'buggy', ['mg', 'stockEngine'], { x: 18, y: 20 }, 'buggy');
+    foe.speed = 2;
+    expect(leadOf(foe)).toEqual(v.pos);
+    expect(vehicleStats(w, v).maxSpeed).toBe(0);
+    expect(() => fightPoint(w, v, foe, CLEAR)).not.toThrow();
+  });
+
   it('closes in on a target that cannot shoot back, where its rounds land more often', () => {
     const w = emptyWorld({ x: 40, y: 30 });
     const me = w.vehicles[0];

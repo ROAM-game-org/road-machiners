@@ -8,7 +8,7 @@ import { hasLoot } from './grid';
 import { chance } from './rng';
 import { boundTo, declareFeud, stateOf } from './states';
 import { isStranded } from './stats';
-import { escortsOf } from './tow';
+import { followersOf } from './companies';
 import { remember } from './memory';
 import { modeRules } from './settings';
 import { clockOf } from './sun';
@@ -166,7 +166,7 @@ export function witnessesOf(world: World, i: Incident): Vehicle[] {
 }
 
 function escortsWhoSee(world: World, i: Incident): Vehicle[] {
-  return escortsOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && judges(v) && canVehicleSee(world, v, i.aggressor.pos));
+  return followersOf(world, i.victim.id).filter((v) => v.id !== i.aggressor.id && judges(v) && canVehicleSee(world, v, i.aggressor.pos));
 }
 
 export function reportIncident(world: World, i: Incident): Vehicle[] {

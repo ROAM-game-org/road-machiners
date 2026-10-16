@@ -5,7 +5,7 @@ import { engineFileFor, engineStrainFileFor, hornSoundFor, MIX, SCORE_BLOCKS, SO
 import type { Glide, SoundPlayer } from "../audio/player";
 import { REGION } from "../data/region";
 import { OUTPOSTS, siteGates } from "../sim/sites";
-import { CombatWatch, engineGlide, EngineStrain, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
+import { engineGlide, EngineStrain, loopLevels, musicPlaceAt, scoreEventOf, SoundDirector, SoundLoops, stingOf, strainGlides } from "./sound";
 import type { BlockEvent } from "./block-session";
 import type { CameraRig } from "./render/camera";
 import { TEST_MAP } from '../test/map';
@@ -386,24 +386,6 @@ describe("engineGlide", () => {
     expect(over.rateTo).toBe(normal.rateTo);
     expect(over.gainFrom).toBeCloseTo(normal.gainFrom * e.overdriveGain);
     expect(over.gainTo).toBeCloseTo(normal.gainTo * e.overdriveGain);
-  });
-});
-
-describe("CombatWatch", () => {
-  it("flags a hostile when it comes into sight after a whole turn out of it", () => {
-    const watch = new CombatWatch();
-    expect(watch.observe(1, ["a"]).sighted).toBe(true);
-    expect(watch.observe(1, ["a"]).sighted).toBe(false);
-    expect(watch.observe(2, []).sighted).toBe(false);
-    expect(watch.observe(4, ["a"]).sighted).toBe(true);
-  });
-  it("ignores sight flicker inside a turn and into the next", () => {
-    const watch = new CombatWatch();
-    watch.observe(1, ["a"]);
-    watch.observe(1, []);
-    expect(watch.observe(1, ["a"]).sighted).toBe(false);
-    watch.observe(2, []);
-    expect(watch.observe(2, ["a"]).sighted).toBe(false);
   });
 });
 

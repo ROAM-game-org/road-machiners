@@ -1,3 +1,5 @@
+import { publicUrl } from '../public-url';
+
 export type QuestArt = { file: string; focusX: number };
 
 export const QUEST_ART: Record<string, QuestArt> = {
@@ -14,6 +16,7 @@ export const QUEST_ART: Record<string, QuestArt> = {
   road_gate: { file: 'road_gate.webp', focusX: 20 },
   road_tankline: { file: 'road_tankline.webp', focusX: 20 },
   road_walkers: { file: 'road_walkers.webp', focusX: 47 },
+  bowl_scale: { file: 'bowl_scale.webp', focusX: 45 },
 };
 
 export function questArt(key: string): QuestArt {
@@ -23,5 +26,5 @@ export function questArt(key: string): QuestArt {
 }
 
 export function questArtUrl(key: string): string {
-  return `${import.meta.env.BASE_URL}quest-art/${questArt(key).file}`;
+  return publicUrl(`quest-art/${questArt(key).file}`);
 }

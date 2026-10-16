@@ -167,3 +167,36 @@ describe('loot colors on props', () => {
     expect(() => views.sync([], [stock('ghost', true)], [])).toThrow(/ghost/);
   });
 });
+
+describe('roadside props broken at load', () => {
+  const SIZE = 64;
+  const S = PHYSICS.metersPerTile;
+  const sign: Obstacle = { id: 'roadSign-7', pos: { x: 20, y: 20 }, r: 0.25, kind: 'landmark', look: 'roadSign', yaw: 0.3 };
+
+  function meshesAt(root: THREE.Group): number {
+    root.updateMatrixWorld(true);
+    let found = 0;
+    const at = new THREE.Vector3();
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      o.getWorldPosition(at);
+      if (Math.abs(at.x / S - sign.pos.x) < 4 && Math.abs(at.z / S - sign.pos.y) < 4) found++;
+    });
+    return found;
+  }
+
+  it('topples a sign broken at load, then stands it again once it has grown back', () => {
+    const root = new THREE.Group();
+    const views = new ObstacleViews(new RenderScope(root, SIZE, new SightLimit(SIZE), true, true), flatTerrain(SIZE));
+    views.sync([], [], [{ obstacle: sign, turn: 0 }]);
+    const toppled = meshesAt(root);
+    expect(toppled).toBeGreaterThan(0);
+
+    views.sync([sign], [], []);
+    const standing = meshesAt(root);
+    expect(standing).toBeGreaterThan(0);
+
+    views.sync([sign], [], []);
+    expect(meshesAt(root)).toBe(standing);
+  });
+});

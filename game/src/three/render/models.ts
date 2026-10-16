@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fetchAsset } from '../../fetch-asset';
+import { publicUrl } from '../../public-url';
 import { PAL } from '../../render/palette';
 import { WEAPON_POOLS } from '../../render/partLooks';
 
@@ -27,6 +28,11 @@ const NAMES = [
   'wmount_riser',
   'wreck',
   'rock',
+  'rock_slab',
+  'rock_split',
+  'road_sign',
+  'route_sign',
+  'barrel',
   'pebbles',
   'scrub',
   'desert_stones',
@@ -308,8 +314,7 @@ function checkWeaponSockets(): void {
 }
 
 function fetchModel(name: ModelName): Promise<ArrayBuffer> {
-  const url = `${import.meta.env.BASE_URL}models/${name}.glb`;
-  return fetchAsset('Model', url);
+  return fetchAsset('Model', publicUrl(`models/${name}.glb`));
 }
 
 function source(name: ModelName): THREE.Object3D {

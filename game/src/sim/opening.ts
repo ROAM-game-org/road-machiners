@@ -1,11 +1,13 @@
 
 import { RULES } from '../data/rules';
-import type { Opening, StartKit } from '../data/start';
+import { OPENING, type Opening, type StartKit } from '../data/start';
 import { makePart } from './factory';
-import { mountedParts } from './grid';
-import { emptyHidden } from './salvage';
+import { playerVehicle } from './damage';
+import { goodsCount, isMounted, mountedParts } from './grid';
+import { engineNeedsPatch } from './repair';
+import { canReachSalvage, emptyHidden, hasSalvage } from './salvage';
 import type { Obstacle, SalvageStock, Vehicle, World } from './types';
-import type { Vec } from './vec';
+import { dist, type Vec } from './vec';
 import { setStartHp } from './wear';
 
 export const OPENING_WRECK_ID = 'opening-wreck';
@@ -56,3 +58,43 @@ function applyCondition(v: Vehicle, condition: Record<string, number>): void {
 export function openingStockOf(world: World): SalvageStock | null {
   return world.salvage.find((s) => s.id === OPENING_WRECK_ID) ?? null;
 }
+
+export type OpeningStep = 'wreck' | 'search' | 'loot' | 'patch' | 'install';
+export type OpeningState = { stock: SalvageStock | null; step: OpeningStep | null };
+
+export const cageMounted = (w: World): boolean => mountedParts(playerVehicle(w)).some((p) => p.defId === 'cage');
+
+const holdsLooseCage = (w: World): boolean => {
+  const me = playerVehicle(w);
+  return me.items.some((it) => it.kind === 'part' && it.part.defId === 'cage' && !isMounted(me.chassisId, it));
+};
+
+export function openingStep(w: World): OpeningStep | null {
+  return openingState(w).step;
+}
+
+export function openingState(w: World): OpeningState {
+  const stock = openingStockOf(w);
+  if (!stock) return { stock, step: null };
+  return { stock, step: w.player.scavenged.includes(stock.id) ? stepAfterSearch(w, stock) : stepBeforeSearch(w, stock) };
+}
+
+export function openingOver(w: World): boolean {
+  const { stock, step } = openingState(w);
+  return step === null || (stock !== null && dist(playerVehicle(w).pos, stock.pos) >= OPENING.leaveDistance);
+}
+
+function stepBeforeSearch(w: World, stock: SalvageStock): OpeningStep | null {
+  if (!hasSalvage(stock)) return null;
+  return canReachSalvage(playerVehicle(w), stock) ? 'search' : 'wreck';
+}
+
+function stepAfterSearch(w: World, stock: SalvageStock): OpeningStep | null {
+  if (hasSalvage(stock) && canReachSalvage(playerVehicle(w), stock)) return 'loot';
+  if (patchDue(w)) return 'patch';
+  return installDue(w) ? 'install' : null;
+}
+
+const patchDue = (w: World): boolean => engineNeedsPatch(w, playerVehicle(w)) && (goodsCount(playerVehicle(w)).parts ?? 0) > 0;
+
+const installDue = (w: World): boolean => holdsLooseCage(w) && !cageMounted(w);

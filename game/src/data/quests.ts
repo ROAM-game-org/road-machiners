@@ -23,7 +23,9 @@ export const GAME_OPENED_QUESTS = {
   firstFall: 'first_fall',
   arrival: 'intro_arrival',
   introWake: 'intro_bowl',
+  introRoad: 'intro_road',
   wagonSeven: 'wagon_seven',
+  scale: 'bowl_scale',
   roadHire: 'road_hire',
   roadStretch1: 'road_stretch_1',
   roadStretch4: 'road_stretch_4',
@@ -39,6 +41,7 @@ export const ROAD_STORY: Record<number, { quest: string; gate: string }> = {
 };
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';
+export const SCALE_SEEN = 'scale_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';
 export const AMBUSH_RAIDER = 'ambush_raider';
 
@@ -51,6 +54,7 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [AMBUSH_RAIDER]: { gates: null },
   [FIRST_FALL_SEEN]: { gates: GAME_OPENED_QUESTS.firstFall },
   [WAGON_SEEN]: { gates: GAME_OPENED_QUESTS.wagonSeven },
+  [SCALE_SEEN]: { gates: GAME_OPENED_QUESTS.scale },
   [ALA_HIRED]: { gates: null },
   ...Object.fromEntries(Object.values(ROAD_STORY).map((scene) => [scene.gate, { gates: scene.quest }])),
 };

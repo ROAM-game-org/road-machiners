@@ -70,7 +70,7 @@ Details: [turns, driving and combat](wiki/mechanics/turns.md).
 
 ## Combat
 
-Fights are rare and decide a lot. Combat starts with a hostile act, not with a hostile in sight, and ends when the two trucks part, make a truce or one is knocked out. Choosing the fight, the loadout and the position beats having the biggest gun. Guns have roles: chippers strip armor, damagers wreck what lies behind it and precision guns hit without being hit, so every fight needs a plan. A round walks the truck's grid part by part, so the layout is the armor. Chances are shown with their causes, and the enemy's state can be heard and seen. Beating a truck pays nothing by itself; the loot is on the truck.
+Fights are rare and decide a lot. Combat starts with a hostile act, not with a hostile in sight, and ends when the two sides part, make a truce or one is knocked out. Choosing the fight, the loadout and the position beats having the biggest gun. Guns have roles: chippers strip armor, damagers wreck what lies behind it and precision guns hit without being hit, so every fight needs a plan. A round walks the truck's grid part by part, so the layout is the armor. Chances are shown with their causes, and the enemy's state can be heard and seen. Beating a truck pays nothing by itself; the loot is on the truck.
 
 Details: [turns, driving and combat](wiki/mechanics/turns.md), [combat reference](wiki/combat.md).
 

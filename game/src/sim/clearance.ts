@@ -8,7 +8,9 @@ import { dist, type Vec } from './vec';
 
 export type Footprint = { offsets: number[]; r: number };
 
-export type Clearance = { touches(at: Vec, heading: number): boolean };
+export type Mover = { id: string; pos: Vec; vel: Vec; r: number };
+
+export type Clearance = { touches(at: Vec, heading: number): boolean; meetsMoving(at: Vec, heading: number, seconds: number, movers: Mover[]): boolean };
 
 const footprints = new Map<string, Footprint>();
 
@@ -39,6 +41,18 @@ export function clearanceFor(world: World, v: Vehicle, extra: Blocker[]): Cleara
       for (const o of offsets) {
         const c = { x: at.x + cos * o, y: at.y + sin * o };
         if (nearCliff(nav, c.x, c.y, r) || hitsAny(solid.alongSegment(c, c, reach), c, reach) || hitsAny(moving, c, reach)) return true;
+      }
+      return false;
+    },
+    meetsMoving(at, heading, seconds, movers) {
+      const cos = Math.cos(heading);
+      const sin = Math.sin(heading);
+      for (const m of movers) {
+        if (![m.pos.x, m.pos.y, m.vel.x, m.vel.y].every(Number.isFinite)) throw new Error(`Mover ${m.id} has a non-finite position or velocity`);
+        const there = { x: m.pos.x + m.vel.x * seconds, y: m.pos.y + m.vel.y * seconds };
+        for (const o of offsets) {
+          if (dist(there, { x: at.x + cos * o, y: at.y + sin * o }) < m.r + reach + PHYSICS.driver.moverSpread * seconds) return true;
+        }
       }
       return false;
     },

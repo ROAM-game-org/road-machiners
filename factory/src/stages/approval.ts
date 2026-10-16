@@ -15,14 +15,14 @@ async function requireApproval(ctx: Ctx, issue: number): Promise<void> {
   if (card?.column !== 'Approval') throw new Error(`Issue #${issue} is not in Approval, it is in ${card?.column ?? 'no column'}`);
 }
 
-function forgetPosts(ctx: Ctx, issue: number): void {
+function forgetPosts(ctx: Ctx, issue: number, keepBuild = false): void {
   const closed = Object.entries(readState(ctx.statePath).approvalPosts).filter(([, number]) => number === issue).map(([post]) => Number(post));
   updateState(ctx.statePath, (state) => {
     const approvalPosts = Object.fromEntries(Object.entries(state.approvalPosts).filter(([, number]) => number !== issue));
     const pendingApprovals = { ...state.pendingApprovals };
     delete pendingApprovals[String(issue)];
     const builds = { ...state.builds };
-    delete builds[String(issue)];
+    if (!keepBuild) delete builds[String(issue)];
     const approvedResolving = { ...state.approvedResolving };
     delete approvedResolving[String(issue)];
     const postOnly = state.postOnly.filter((n) => n !== issue);
@@ -75,7 +75,7 @@ async function integrateAgain(ctx: Ctx, issue: number, labels: string[], approva
 }
 
 async function harden(ctx: Ctx, issue: number, by: string, base: string): Promise<void> {
-  forgetPosts(ctx, issue);
+  forgetPosts(ctx, issue, true);
   dropKeptApproval(ctx, issue);
   updateState(ctx.statePath, (state) => ({ ...state, approvedResolving: { ...state.approvedResolving, [String(issue)]: by } }));
   await ctx.github.comment(issue, `Approved by ${by} in the committee chat. Hardening runs now. Then the factory checks it merged with ${base} and merges it by itself, with no new post.`);
@@ -85,7 +85,7 @@ async function harden(ctx: Ctx, issue: number, by: string, base: string): Promis
 
 export async function closeMerged(ctx: Ctx, issue: number, labels: string[], message: string | null, merge: CardFacts): Promise<void> {
   await moveCard(ctx, issue, 'Done', 'merged', cardFlow(labels), merge);
-  forgetPosts(ctx, issue);
+  forgetPosts(ctx, issue, merge.into !== HOTFIX_BASE);
   dropKeptApproval(ctx, issue);
   rmSync(workDir(ctx, issue), { recursive: true, force: true });
   rmSync(`${ctx.cfg.home}/work/check-issue-${issue}`, { recursive: true, force: true });

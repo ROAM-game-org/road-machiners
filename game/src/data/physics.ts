@@ -65,6 +65,7 @@ export const PHYSICS = {
     turnSample: 0.5,
     backLook: 1,
     clearMargin: 0.05,
+    moverSpread: 0.6,
     clearStep: 0.5,
     clearEvery: 6,
     clearCrawl: 3,

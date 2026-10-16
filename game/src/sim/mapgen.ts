@@ -7,7 +7,7 @@ import { BREAKABLE } from '../data/rules';
 import { STORY_WRECKS } from '../data/salvage';
 import { PROP_KINDS, type BakedMap, type BakedProp, type PropKind, type Terrain } from './terrain';
 import { siteGap } from './sites';
-import { TERRAIN } from '../data/terrain';
+import { ROCK_LOOKS, TERRAIN } from '../data/terrain';
 import { randInt, randRange } from './rng';
 import { hulkBoxes } from './body';
 import { chassisDef } from '../data/chassis';
@@ -121,7 +121,8 @@ export type ShapeBox = { x0: number; x1: number; y0: number; y1: number; z0: num
 
 type FortLook = Exclude<Extract<PropKind, `fort${string}`>, 'fortOutpostShut'>;
 type Landmark = Extract<Obstacle, { kind: 'landmark' }>;
-type PropModel = 'rock' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | FortModel;
+type RockModel = (typeof ROCK_LOOKS)[number]['model'];
+type PropModel = RockModel | 'road_sign' | 'route_sign' | 'barrel' | 'wreck' | 'building' | 'crag' | 'ruin_house' | 'silo' | 'water_tower' | 'gas_station' | 'bridge_broken' | 'power_pole' | 'billboard' | 'tank_hulk' | 'shack' | 'fence' | 'junk' | 'hull_chunk' | 'crates' | 'reactor' | 'dead_tree' | 'bunker' | 'sandbags' | 'farmhouse' | 'barn' | 'quonset' | 'guard_post' | 'army_truck' | 'barrier' | 'drums' | 'woodpile' | 'ship_wing' | 'ship_bow' | 'ship_cage' | 'ship_hub' | 'hull_shell' | 'hull_drum' | 'hull_shard' | 'hull_tower' | 'hull_gantry' | 'rim_rock' | 'escape_pod' | 'habitat_cylinder' | 'wing_shard' | 'power_cell' | 'tank_trap' | 'nose_rise' | 'nose_crag' | 'engine_nozzle' | 'engine_frame' | 'watchtower' | 'ruin_compound' | 'glass_spire' | 'scrap_wall' | 'hull_bay' | 'cargo_pod' | 'engine_section' | 'fort_outpost_shut' | FortModel;
 
 const M = PHYSICS.metersPerTile;
 const TURN = Math.PI * 2;
@@ -182,6 +183,9 @@ const LANDMARK_MODELS: Record<Exclude<LandmarkLook, FortLook>, PropModel> = {
   wingShard: 'wing_shard',
   powerCell: 'power_cell',
   fortOutpostShut: 'fort_outpost_shut',
+  roadSign: 'road_sign',
+  routeSign: 'route_sign',
+  barrel: 'barrel',
 };
 const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   crag: 1,
@@ -230,6 +234,9 @@ const MODEL_RADIUS: Partial<Record<PropModel, number>> = {
   ruin_compound: 9.8,
   glass_spire: 5,
   scrap_wall: 3.8,
+  road_sign: 1,
+  route_sign: 2.2,
+  barrel: 0.6,
 };
 const WRECK_RADIUS = 0.7;
 const BUILDING_FILL = 0.78;
@@ -238,10 +245,25 @@ const SHAPE_BOXES = new Map<string, readonly ShapeBox[]>(Object.entries(SHAPES).
 export function propPose(o: Obstacle): PropPose {
   const pos = { ...o.pos };
   if (o.kind === 'landmark') return landmarkPose(o);
-  if (o.kind === 'rock') return { model: 'rock', pos, yaw: -idHash(o.id) * TURN, scale: even(o.r * M) };
+  if (o.kind === 'rock') return { model: rockModel(o.id), pos, yaw: -idHash(o.id) * TURN, scale: even(o.r * M) };
   if (o.kind === 'wreck') return wreckPose(o, pos);
   if (o.kind === 'building') return { model: 'building', pos, yaw: idHash(o.id) * Math.PI, scale: buildingScale(o) };
   throw new Error(`Obstacle ${o.id} of kind ${o.kind} has no prop model`);
+}
+
+export function rockModel(id: string): RockModel {
+  const total = ROCK_LOOKS.reduce((sum, look) => sum + look.weight, 0);
+  if (!(total > 0)) throw new Error('ROCK_LOOKS weights must sum to more than zero');
+  let pick = rockPick(id) * total;
+  for (const look of ROCK_LOOKS) {
+    pick -= look.weight;
+    if (pick < 0) return look.model;
+  }
+  return ROCK_LOOKS[ROCK_LOOKS.length - 1].model;
+}
+
+function rockPick(id: string): number {
+  return idHash(`${id}:shape`);
 }
 
 function wreckPose(o: Exclude<Obstacle, Landmark>, pos: Vec): PropPose {
