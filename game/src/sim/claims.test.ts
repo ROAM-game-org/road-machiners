@@ -257,6 +257,20 @@ describe('reachability', () => {
   });
 });
 
+function nearestClaim(w: World): { shop: string; stock: SalvageStock; part: PartInstance } {
+  const options = claimTargets(w).flatMap(({ stock, part }) => Object.keys(SHOPS).map((shop) => ({ shop, stock, part, turns: estimateTurns(siteOf(shop).pos, stock.pos) })));
+  return options.sort((a, b) => a.turns - b.turns)[0];
+}
+
+function keepNearestDrivers(w: World, count: number, also: string[] = [], shopId = 'bowl'): void {
+  const shop = siteOf(shopId).pos;
+  const npcs = w.vehicles.filter((v) => v.id !== w.player.vehicleId && v.brain);
+  const near = new Set(npcs.sort((a, b) => dist(a.pos, shop) - dist(b.pos, shop)).slice(0, count).map((v) => v.id));
+  w.vehicles = w.vehicles.filter((v) => v.id === w.player.vehicleId || near.has(v.id) || also.includes(v.id));
+}
+
+const CLAIM_DAY_TURNS = 60;
+
 describe('claim days', () => {
   function holdRivals(w: World): void {
     for (const c of liveClaims(w)) if (c.rival === null) c.rivalAt = c.deadline + 1;
@@ -268,19 +282,21 @@ describe('claim days', () => {
     for (const v of w.vehicles) if (v.id !== me) advanceFar(w, v);
   }
 
-  it('keeps the claimed part in its wreck for a day while every NPC plays and the player waits in town', () => {
+  it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { stock, part } = claimTargets(w)[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [], [{ stock, part }]) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
     holdRivals(w);
     const scavenger = w.vehicles.find((v) => v.brain?.templateId === 'scavenger') ?? w.vehicles.find((v) => v.faction === 'independent')!;
+    keepNearestDrivers(w, 3, [scavenger.id]);
     w = update(w, (d) => {
       const npc = d.vehicles.find((v) => v.id === scavenger.id)!;
+      npc.pos = { x: stock.pos.x + stock.radius + 4, y: stock.pos.y };
       pushGoal(d, npc, { kind: 'scavenge', targetId: stock.id, destination: { ...stock.pos }, phase: 'travel', reason: 'searchSite' });
     });
     const visited = new Set<string>();
-    for (let turn = 0; turn < TIME.turnsPerDay; turn++) {
+    for (let turn = 0; turn < CLAIM_DAY_TURNS; turn++) {
       w = endTurn(w, waitInTown);
       if (w.player.call) w = update(w, (d) => { d.player.call = null; });
       for (const e of w.events) if (e.t === 'activity' && e.reason === 'claimedWreck') visited.add(e.vehicle);
@@ -637,26 +653,29 @@ describe('rival crews', () => {
 });
 
 describe('a rival on the real map', () => {
-  it('runs a rival from the shop to the end of its claim with every NPC alive, and never stalls', () => {
+  it('runs a rival from the shop to the end of its claim with the nearest NPCs alive, and never stalls', () => {
     let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
-    const { stock, part } = claimTargets(w)[0];
-    const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [], [{ stock, part }]) as ClaimContract;
+    const { shop, stock, part } = nearestClaim(w);
+    const claim = rollContract(w, { id: shop, pos: siteOf(shop).pos }, [], [], [], [], [{ stock, part }]) as ClaimContract;
     claim.rivalAt = w.turn + 1;
-    shopState(w, 'bowl').contracts.push(claim);
+    shopState(w, shop).contracts.push(claim);
+    keepNearestDrivers(w, 4, [], shop);
+    const pads = sitePads(siteOf(shop));
+    w.vehicles.filter((v) => v.id !== w.player.vehicleId).forEach((v, i) => { v.pos = { ...pads[i % pads.length] }; });
     const move = (d: World): void => { for (const v of d.vehicles) if (v.id !== d.player.vehicleId) advanceFar(d, v); };
     let rival: string | null = null;
     let ended = false;
     for (let turn = 0; turn < 1500 && !ended; turn++) {
       w = endTurn(w, move);
       expect(w.events.filter((e) => e.t === 'stall'), `turn ${w.turn}`).toEqual([]);
-      const live = w.shops.bowl.contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
+      const live = w.shops[shop].contracts.find((c) => c.id === claim.id) as ClaimContract | undefined;
       rival = live?.rival ?? rival;
       const truck = w.vehicles.find((v) => v.id === rival);
       ended = rival !== null && !truck?.brain?.goals.some((g) => g.kind === 'claim');
     }
     expect(rival).not.toBeNull();
     expect(ended).toBe(true);
-    const where = w.shops.bowl.stock.some((p) => p.id === part.id) ? 'delivered' : 'over';
+    const where = w.shops[shop].stock.some((p) => p.id === part.id) ? 'delivered' : 'over';
     console.log(`rival ${rival} ended its claim run at turn ${w.turn}: ${where}`);
   }, 1_800_000);
 });

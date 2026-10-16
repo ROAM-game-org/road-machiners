@@ -759,8 +759,9 @@ describe('the hunter', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const me = playerVehicle(w);
     addGoods(w, me, 'electronics', 2);
-    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'wagon', ['cannon', 'mg', 'shotgun', 'heavyDiesel'], { x: me.pos.x + 40, y: me.pos.y });
     raider.brain = npcBrain('gunwagon', raider.pos, ['raider']);
+    expect(judgeDanger(w, me, raider) * (1 - NPC_BEHAVIOR.dangerSpread)).toBeGreaterThan(1);
     w.player.contacts = [{ vehicleId: raider.id, center: { ...raider.pos }, radius: 5, sources: ['sound'], loudness: 1 }];
     const run = { kind: 'stopAt' as const, dest: { x: 1, y: me.pos.y } };
     me.order = run;
