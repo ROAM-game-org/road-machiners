@@ -244,7 +244,7 @@ describe("jobLabel of site business", () => {
 describe("jobLabel", () => {
   function downedBuggy() {
     const w = emptyWorld();
-    const buggy = addVehicle(w, "raiders", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 });
+    const buggy = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 });
     buggy.brain = npcBrain("buggy", buggy.pos, ["raider"]);
     const gun = buggy.items.find((it) => it.kind === "part" && it.part.defId === "mg");
     if (gun?.kind !== "part") throw new Error("Expected a gun");
@@ -270,7 +270,7 @@ describe("jobLabel", () => {
 
 describe("roundLabel", () => {
   const w = emptyWorld();
-  const v = addVehicle(w, "raiders", "buggy", ["mg"], { x: 10, y: 10 });
+  const v = addVehicle(w, "scrapjaw", "buggy", ["mg"], { x: 10, y: 10 });
   const idOf = (kind: string) => mountedParts(v).find((p) => partDef(p.defId).kind === kind || (partDef(p.defId) as { role?: string }).role === kind)!.id;
   
   it("names each damaged part short with its damage", () => {
@@ -299,7 +299,7 @@ describe("harpoon log", () => {
     const me = w.vehicles[0];
     const harpoon = makePart(w, "harpoon", 0);
     if (!mountPart(w, me, harpoon)) throw new Error("No deck room for the harpoon");
-    const trader = addVehicle(w, "traders", "hauler", ["stockEngine"], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: 33, y: 30 });
     const engine = mountedParts(trader, "engine")[0];
     const shot: GameEvent = { t: "shot", shooter: me.id, weapon: harpoon.id, target: trader.id, aim: "body", chance: 0.4, damageChance: 0.3, side: "left", rounds };
     return { w, me, harpoon, trader, engine, shot };
@@ -331,7 +331,7 @@ describe("emitter pulse log", () => {
   it("names the trucks the player's pulse shuts down", () => {
     const w = emptyWorld();
     const me = w.player.vehicleId;
-    const trader = addVehicle(w, "traders", "hauler", [], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", [], { x: 33, y: 30 });
 
     expect(logEn(w, { t: "pulse", vehicle: me, pos: { x: 30, y: 30 }, hit: [trader.id] })).toEqual({ text: `Your emitter pulse shuts down ${en(vehicleName(w, trader.id))}`, cls: "good" });
     expect(logEn(w, { t: "pulse", vehicle: me, pos: { x: 30, y: 30 }, hit: [] })).toEqual({ text: "Your emitter pulse catches nobody", cls: "dim" });
@@ -340,7 +340,7 @@ describe("emitter pulse log", () => {
   it("tells the player its truck is shut down and for how long", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addVehicle(w, "raiders", "hauler", [], { x: 33, y: 30 });
+    const raider = addVehicle(w, "scrapjaw", "hauler", [], { x: 33, y: 30 });
     me.shutDown = { from: w.turn + 1, until: w.turn + 2 };
 
     expect(logEn(w, { t: "pulse", vehicle: raider.id, pos: { x: 33, y: 30 }, hit: [me.id] })).toEqual({ text: `${en(vehicleName(w, raider.id))}'s emitter pulse shuts your truck down for 2 turns`, cls: "bad" });
@@ -348,8 +348,8 @@ describe("emitter pulse log", () => {
 
   it("logs nothing for a pulse between other trucks", () => {
     const w = emptyWorld();
-    const raider = addVehicle(w, "raiders", "hauler", [], { x: 33, y: 30 });
-    const trader = addVehicle(w, "traders", "hauler", [], { x: 35, y: 30 });
+    const raider = addVehicle(w, "scrapjaw", "hauler", [], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", [], { x: 35, y: 30 });
 
     expect(logEn(w, { t: "pulse", vehicle: raider.id, pos: { x: 33, y: 30 }, hit: [trader.id] })).toBeNull();
   });
@@ -358,7 +358,7 @@ describe("emitter pulse log", () => {
 describe("claymore log", () => {
   it("names the truck the player's claymore ram blasts and the damage it took", () => {
     const w = emptyWorld();
-    const trader = addVehicle(w, "traders", "hauler", ["stockEngine"], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: 33, y: 30 });
     const engine = mountedParts(trader, "engine")[0];
     const hits = [{ part: engine.id, damage: 20 }];
 
@@ -367,7 +367,7 @@ describe("claymore log", () => {
 
   it("tells the player a claymore ram blasted its truck", () => {
     const w = emptyWorld();
-    const raider = addVehicle(w, "raiders", "hauler", [], { x: 33, y: 30 });
+    const raider = addVehicle(w, "scrapjaw", "hauler", [], { x: 33, y: 30 });
     const engine = mountedParts(w.vehicles[0], "engine")[0];
     const hits = [{ part: engine.id, damage: 20 }];
 
@@ -376,10 +376,10 @@ describe("claymore log", () => {
 
   it("logs a seen blast between other trucks and nothing for one out of sight", () => {
     const w = emptyWorld();
-    const raider = addVehicle(w, "raiders", "hauler", [], { x: 33, y: 30 });
-    const trader = addVehicle(w, "traders", "hauler", [], { x: 35, y: 30 });
-    const far = addVehicle(w, "raiders", "hauler", [], { x: 200, y: 200 });
-    const farTrader = addVehicle(w, "traders", "hauler", [], { x: 202, y: 200 });
+    const raider = addVehicle(w, "scrapjaw", "hauler", [], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", [], { x: 35, y: 30 });
+    const far = addVehicle(w, "scrapjaw", "hauler", [], { x: 200, y: 200 });
+    const farTrader = addVehicle(w, "independent", "hauler", [], { x: 202, y: 200 });
 
     expect(logEn(w, { t: "claymore", vehicle: raider.id, part: "ram", other: trader.id, pos: { x: 34, y: 30 }, hits: [], selfHits: [] })).toMatchObject({ text: `${en(vehicleName(w, raider.id))}'s claymore ram blasts ${en(vehicleName(w, trader.id))}`, cls: "dim" });
     expect(logEn(w, { t: "claymore", vehicle: far.id, part: "ram", other: farTrader.id, pos: { x: 201, y: 200 }, hits: [], selfHits: [] })).toBeNull();
@@ -403,7 +403,7 @@ describe("caltrops log", () => {
 
   it("names a seen truck that drives into the player's caltrops, with its wheel damage", () => {
     const w = emptyWorld();
-    const trader = addVehicle(w, "traders", "hauler", [], { x: 33, y: 30 });
+    const trader = addVehicle(w, "independent", "hauler", [], { x: 33, y: 30 });
 
     const line = logEn(w, { t: "caltrops", vehicle: trader.id, field: "g1", source: w.player.vehicleId, hits: wheelHits(trader) });
 
@@ -419,7 +419,7 @@ describe("caltrops log", () => {
 
   it("logs nothing for a truck out of sight", () => {
     const w = emptyWorld();
-    const trader = addVehicle(w, "traders", "hauler", [], { x: 200, y: 200 });
+    const trader = addVehicle(w, "independent", "hauler", [], { x: 200, y: 200 });
 
     expect(logEn(w, { t: "caltrops", vehicle: trader.id, field: "g1", source: trader.id, hits: [] })).toBeNull();
   });
@@ -452,7 +452,7 @@ describe("cargo spill log", () => {
 
   it("names the NPC whose cargo spilled", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "traders", "hauler", ["rack"], { x: 40, y: 30 });
+    const npc = addVehicle(w, "independent", "hauler", ["rack"], { x: 40, y: 30 });
     const line = logEn(w, { t: "cargoSpilled", vehicle: npc.id, part: mountedParts(npc, "cargo")[0].id, pile: "spill-2", units: 1 });
     expect(line).toEqual({ text: `${en(vehicleName(w, npc.id))}: cargo spilled on the ground`, cls: "good" });
   });
@@ -461,7 +461,7 @@ describe("cargo spill log", () => {
 describe("patch log", () => {
   it("says a broken patch is off, naming the driver", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "scavengers", "scout", ["stockEngine"], { x: 40, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 30 });
     const line = eventText(w, { t: "patch", patcher: w.player.vehicleId, client: npc.id, outcome: "broken" });
     expect(en(line?.text)).toBe(`The patch with ${en(vehicleName(w, npc.id))} is off.`);
     expect(line?.cls).toBe("dim");
@@ -472,8 +472,8 @@ describe("shot log", () => {
   it("names stray fire that hits the player in a shot between other trucks", () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addVehicle(w, "raiders", "buggy", ["mg"], { x: 40, y: 40 });
-    const trader = addVehicle(w, "traders", "hauler", ["stockEngine"], { x: 44, y: 40 });
+    const raider = addVehicle(w, "scrapjaw", "buggy", ["mg"], { x: 40, y: 40 });
+    const trader = addVehicle(w, "independent", "hauler", ["stockEngine"], { x: 44, y: 40 });
     const cab = mountedParts(me).find((p) => (partDef(p.defId) as { role?: string }).role === "cab")!;
     const e: GameEvent = {
       t: "shot", shooter: raider.id, weapon: mountedParts(raider, "weapon")[0].id, target: trader.id, aim: "body", chance: 0.5, damageChance: 0.5, side: "front",
@@ -487,7 +487,7 @@ describe("shot log", () => {
   function duel() {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addVehicle(w, "raiders", "buggy", ["mg", "steelPlate"], { x: 40, y: 40 });
+    const raider = addVehicle(w, "scrapjaw", "buggy", ["mg", "steelPlate"], { x: 40, y: 40 });
     const parts = mountedParts(raider);
     const cab = parts.find((p) => (partDef(p.defId) as { role?: string }).role === "cab")!;
     const armor = parts.find((p) => partDef(p.defId).kind === "armor");
@@ -552,7 +552,7 @@ describe("empty gun log", () => {
 describe("NPC names in the log", () => {
   it("names an NPC by profession and driver, also after it was removed, and the player as You", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "roamers", "buggy", ["mg", "stockEngine"], { x: 20, y: 20 });
+    const npc = addVehicle(w, "independent", "buggy", ["mg", "stockEngine"], { x: 20, y: 20 });
     npc.brain = { ...npcBrain("roamer", npc.pos, ["roamer"]), driver: "Silas Kane" };
     const offer: GameEvent = { t: "towOffer", by: npc.id, town: REGION.towns[0].id, fee: 40 };
     expect(en(eventText(w, offer)?.text)).toMatch(/^Roamer Silas Kane offers to tow you to /);
@@ -576,7 +576,7 @@ describe("money text", () => {
 describe("tow text", () => {
   it("reads the currency as M's in money lines and one-unit fees", () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 34, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "money", amount: 12000, reason: { kind: "contract" } })!.text)).toBe("+120 M's: contract");
     expect(en(eventText(w, { t: "money", amount: -4000, reason: { kind: "failedHaul" } })!.text)).toBe("\u221240 M's: failed haul contract");
@@ -584,7 +584,7 @@ describe("tow text", () => {
   });
   it("says free for a fee of 0 and keeps the price otherwise", () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 34, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     const town = REGION.towns[0].id;
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 0 })?.text)).toMatch(/ for free\.$/);
     expect(en(eventText(w, { t: "towOffer", by: npc.id, town, fee: 4000 })?.text)).toMatch(/ for 40 M's\.$/);
@@ -592,7 +592,7 @@ describe("tow text", () => {
     expect([en(free.text), free.cls]).toEqual([expect.stringMatching(/tows you into town for free\.$/), ""]);
     const paid = eventText(w, { t: "towDone", by: npc.id, client: w.player.vehicleId, fee: 4067 })!;
     expect([en(paid.text), paid.cls]).toEqual([expect.stringMatching(/takes 41 M's\.$/), "bad"]);
-    const other = addVehicle(w, "roamers", "buggy", ["stockEngine"], { x: 50, y: 30 });
+    const other = addVehicle(w, "independent", "buggy", ["stockEngine"], { x: 50, y: 30 });
     expect(en(eventText(w, { t: "towDone", by: npc.id, client: other.id, fee: 0 })?.text)).toMatch(/ in for free\.$/);
   });
 });
@@ -600,7 +600,7 @@ describe("tow text", () => {
 describe("aid handover text", () => {
   it("labels the work for both trucks and logs its start", () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const npc = addVehicle(w, "traders", "scout", ["stockEngine"], { x: 34, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 34, y: 30 });
     npc.brain = npcBrain("trader", npc.pos, ["trader"]);
     addState(w, "aid", npc.id, w.player.vehicleId, { kind: "aid", giver: "player", fuel: 5, supplies: 0, price: 0, free: true, agreed: true, started: false, work: 1, workLeft: 1 });
     const next = startAid(w, npc.id);
@@ -698,7 +698,7 @@ describe("goods table words", () => {
 describe("wake-up log", () => {
   it("says an NPC regains consciousness, so the line does not read as cut off", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "scavengers", "scout", ["stockEngine"], { x: 40, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 40, y: 30 });
     const line = eventText(w, { t: "npcWake", vehicle: npc.id });
     expect(en(line?.text)).toBe(`${en(vehicleName(w, npc.id))} regains consciousness`);
     expect(line?.cls).toBe("dim");
@@ -720,8 +720,8 @@ describe("Fury Road log lines", () => {
 describe("loot argument log", () => {
   it("tells how an argument between two drivers the player sees ended", () => {
     const w = emptyWorld();
-    const warner = addVehicle(w, "raiders", "scout", ["stockEngine"], { x: 32, y: 30 });
-    const looter = addVehicle(w, "scavengers", "scout", ["stockEngine"], { x: 33, y: 30 });
+    const warner = addVehicle(w, "scrapjaw", "scout", ["stockEngine"], { x: 32, y: 30 });
+    const looter = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 33, y: 30 });
     const [a, b] = [en(vehicleName(w, warner.id)), en(vehicleName(w, looter.id))];
     const argument = (end: "yielded" | "backedOff" | "fight", place: "wreck" | "truck" = "wreck"): GameEvent => ({ t: "lootArgument", warner: warner.id, looter: looter.id, place, end });
     const said = (event: GameEvent) => {
@@ -735,8 +735,8 @@ describe("loot argument log", () => {
 
   it("logs nothing when the player notices neither driver", () => {
     const w = emptyWorld();
-    const warner = addVehicle(w, "raiders", "scout", ["stockEngine"], { x: 230, y: 230 });
-    const looter = addVehicle(w, "scavengers", "scout", ["stockEngine"], { x: 231, y: 230 });
+    const warner = addVehicle(w, "scrapjaw", "scout", ["stockEngine"], { x: 230, y: 230 });
+    const looter = addVehicle(w, "independent", "scout", ["stockEngine"], { x: 231, y: 230 });
     expect(eventText(w, { t: "lootArgument", warner: warner.id, looter: looter.id, place: "pile", end: "yielded" })).toBeNull();
   });
 });

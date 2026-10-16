@@ -226,7 +226,11 @@ function gunDragOf(draw: number, capacity: number): number {
 }
 
 export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
-  const needed = neededLoadFactor(v, share);
+  return massRoomAbove(v, share, MIN_NPC_SPEED);
+}
+
+export function massRoomAbove(v: Vehicle, share: number, floorSpeed: number): number {
+  const needed = neededLoadFactor(v, share, floorSpeed);
   if (loadFactor(v) < needed) return 0;
   let low = 0;
   let high = chassisDef(v.chassisId).ratedMass;
@@ -239,16 +243,16 @@ export function npcMassRoom(v: Vehicle, share = templateSpeedShare(v)): number {
   return low;
 }
 
-export function meetsSpeedFloor(v: Vehicle, share: number): boolean {
-  return loadFactor(v) >= neededLoadFactor(v, share);
+export function meetsSpeedFloor(v: Vehicle, share: number, floorSpeed = MIN_NPC_SPEED): boolean {
+  return loadFactor(v) >= neededLoadFactor(v, share, floorSpeed);
 }
 
-function neededLoadFactor(v: Vehicle, share: number): number {
+function neededLoadFactor(v: Vehicle, share: number, floorSpeed: number): number {
   const engine = mountedParts(v, 'engine')[0];
   if (!engine) return share;
   const e = wornDef<EngineDef>(engine);
   const unloaded = chassisDef(v.chassisId).maxSpeed + e.speedBonus;
-  const floor = unloaded > 0 ? MIN_NPC_SPEED / unloaded : Infinity;
+  const floor = unloaded > 0 ? floorSpeed / unloaded : Infinity;
   return Math.max(share, floor) / gunDrag(v, e.capacity);
 }
 

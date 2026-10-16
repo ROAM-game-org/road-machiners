@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { FURY_ROAD, HIGHWAY } from '../data/modes';
-import { assignAutoOrders, noteCollision } from './combat';
+import { assignAutoOrders, inCombat, noteCollision } from './combat';
 import { damagePart } from './damage';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { isDefeated } from './defeat';
-import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, moveWindow, outpostPad, spawnGroup, turnedOnPlayer, waitForRoad, waveOf } from './fury-road';
-import { alongOf, milestoneAt, outpostFort, roadPoint, toRoad } from './highway';
+import { advanceFuryRoad, betweenLevels, canAbandonRun, canDriveOn, driveOn, haulerWedged, moveWindow, spawnGroup, turnedOnPlayer, waveOf } from './fury-road';
+import { inYard, yardSpots } from './outpost-gates';
+import { chassisDef } from '../data/chassis';
+import { alongOf, milestoneAt, roadPoint, toRoad } from './highway';
 import { topGoal } from './npc-activities';
-import { corePart } from './grid';
-import { canUseSite } from './sites';
+import { corePart, mountedParts } from './grid';
+import { maxHp } from './wear';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn, hostileToPlayer } from './world';
@@ -18,12 +20,13 @@ const still = () => {};
 const LANES = HIGHWAY.road.lanes;
 
 function onPad(w: World, truck: Vehicle): boolean {
-  return canUseSite(truck.pos, outpostFort(w.seed, w.furyRoad!.window, w.furyRoad!.window + 1));
+  return inYard(w, truck.pos, w.furyRoad!.window + 1);
 }
 
-function park(w: World, truck: Vehicle, shift: number): void {
-  const pad = outpostPad(w, w.furyRoad!.window + 1);
-  truck.pos = { x: pad.x + shift, y: pad.y };
+function park(w: World, truck: Vehicle, spot: 'hauler' | 'truck' | 'away'): void {
+  const spots = yardSpots(w, w.furyRoad!.window + 1);
+  const at = spot === 'away' ? { x: spots.truck.x, y: spots.truck.y + 40 } : spots[spot];
+  truck.pos = { ...at };
   truck.speed = 0;
   truck.order = null;
 }
@@ -32,7 +35,7 @@ function spawnOne(w: World, template = 'buggy'): Vehicle {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], stretch: 1, from: 'ahead' as const, templates: [template], level: waveOf(1).level };
   run.groups = [group];
-  spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, haulerOf(w).pos)));
+  spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));
   return w.vehicles.find((v) => v.id === group.vehicles[0])!;
 }
 
@@ -45,41 +48,80 @@ function nearBoth(w: World, truck: Vehicle): void {
 }
 
 describe('winning a stretch', () => {
-  it('needs the hauler on the pad, and the player alone does not win', () => {
+  it('needs both trucks in the yard, and keeps the groups on the road while only one is there', () => {
     const alone = furyRoadWorld();
-    park(alone, playerVehicle(alone), 0);
+    park(alone, playerVehicle(alone), 'truck');
     advanceFuryRoad(alone);
-    expect(alone.furyRoad!.outposts[0].paid).toBe(false);
+    expect(alone.furyRoad!.outposts[1].paid).toBe(false);
 
     const hauled = furyRoadWorld();
-    park(hauled, haulerOf(hauled), 0);
+    const truck = spawnOne(hauled);
+    park(hauled, haulerOf(hauled), 'hauler');
     advanceFuryRoad(hauled);
-    expect(hauled.furyRoad!.outposts[0].paid).toBe(true);
+    expect(hauled.furyRoad!.outposts[1].paid).toBe(false);
+    expect(hauled.vehicles.some((v) => v.id === truck.id)).toBe(true);
+
+    park(hauled, playerVehicle(hauled), 'truck');
+    advanceFuryRoad(hauled);
+    expect(hauled.furyRoad!.outposts[1].paid).toBe(true);
     expect(betweenLevels(hauled)).toBe(true);
+    expect(hauled.vehicles.some((v) => v.id === truck.id)).toBe(false);
   });
 
-  it('seats the parked semi and the player truck on the pad together on three seeds', () => {
+  it('seats the parked semi and the player truck in the yard together on three seeds', () => {
     for (const seed of [1, 2, 3]) {
       const w = furyRoadWorld(seed);
-      park(w, haulerOf(w), 0);
-      park(w, playerVehicle(w), 2);
+      park(w, haulerOf(w), 'hauler');
+      park(w, playerVehicle(w), 'truck');
       expect(playerTrucks(w).every((t) => onPad(w, t)), `seed ${seed}`).toBe(true);
     }
   });
 });
 
 describe('who a group truck shoots', () => {
-  it('fires only at the hauler while the player leaves it alone', () => {
+  it('fires at the gun truck in its sights and hunts it before the hauler', () => {
     const w = furyRoadWorld();
     const truck = spawnOne(w);
     nearBoth(w, truck);
+    const hauler = haulerOf(w);
+    const me = playerVehicle(w);
+    me.pos = { x: (truck.pos.x + hauler.pos.x) / 2, y: (truck.pos.y + hauler.pos.y) / 2 };
     assignAutoOrders(w);
-
     const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
     expect(targets.length).toBeGreaterThan(0);
-    expect(new Set(targets)).toEqual(new Set([haulerOf(w).id]));
+    expect(new Set(targets)).toEqual(new Set([me.id]));
     expect(hostileToPlayer(w, truck)).toBe(true);
-    expect(turnedOnPlayer(w, truck)).toBe(false);
+    advanceFuryRoad(w);
+    expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: me.id });
+  });
+
+  it('fires at the hauler when it is the nearer player truck', () => {
+    const w = furyRoadWorld();
+    const truck = spawnOne(w);
+    nearBoth(w, truck);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    truck.pos = { x: hauler.pos.x + 2, y: hauler.pos.y - 6 };
+    me.pos = { x: hauler.pos.x + 2, y: hauler.pos.y + 14 };
+    assignAutoOrders(w);
+    const targets = Object.values(truck.weaponOrders).map((o) => o.targetId);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(new Set(targets)).toEqual(new Set([hauler.id]));
+  });
+
+  it('a shot at the gun truck puts it in combat while it never fired', () => {
+    const w = furyRoadWorld();
+    const truck = spawnOne(w);
+    nearBoth(w, truck);
+    const me = playerVehicle(w);
+    const hauler = haulerOf(w);
+    me.pos = { x: (truck.pos.x + hauler.pos.x) / 2, y: (truck.pos.y + hauler.pos.y) / 2 };
+    w.player.autoFire = false;
+    expect(inCombat(w, me)).toBe(false);
+    let now = w;
+    for (let i = 0; i < 6 && !inCombat(now, playerVehicle(now)); i++) now = endTurn(now, still);
+    expect(inCombat(now, playerVehicle(now))).toBe(true);
+    expect(now.events.some((e) => e.t === 'shot' && e.shooter === playerVehicle(now).id)).toBe(false);
   });
 
   it('turns on the player once the player shoots it, then goes back to the hauler when the player leaves its sight', () => {
@@ -95,7 +137,7 @@ describe('who a group truck shoots', () => {
     assignAutoOrders(w);
     expect(Object.values(truck.weaponOrders).some((o) => o.targetId === me.id)).toBe(true);
 
-    me.pos = roadPoint(w.seed, 0, alongOf(w.seed, toRoad(0, me.pos)) - 400, LANES[2]);
+    me.pos = roadPoint(w.seed, 0, alongOf(w.seed, toRoad(w.seed, 0, me.pos)) - 400, LANES[2]);
     delete truck.brain!.attackers[me.id];
     advanceFuryRoad(w);
     expect(topGoal(truck)).toMatchObject({ kind: 'fight', targetId: haulerOf(w).id });
@@ -106,7 +148,7 @@ describe('who a group truck shoots', () => {
     const truck = spawnOne(w);
     nearBoth(w, truck);
     truck.brain!.attackers[w.player.vehicleId] = false;
-    playerVehicle(w).pos = roadPoint(w.seed, 0, milestoneAt(0) - 30, LANES[2]);
+    playerVehicle(w).pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) - 30, LANES[2]);
     const after = endTurn(w, still);
     const same = after.vehicles.find((v) => v.id === truck.id)!;
     expect(same).toBeDefined();
@@ -125,6 +167,16 @@ describe('losing the run', () => {
     expect(after.player.state).toBe('dead');
     expect(after.events).toContainEqual({ t: 'runLost', stretch: 1, cause: 'haulerLost' });
     expect(isDefeated(haulerOf(after))).toBe(false);
+  });
+
+  it('keeps the run going while the hauler cab holds, however hurt its other parts are', () => {
+    const w = furyRoadWorld();
+    const cab = corePart(haulerOf(w), 'cab');
+    for (const part of mountedParts(haulerOf(w)).filter((p) => p.id !== cab.id)) part.hp = Math.min(part.hp, 1);
+    expect(cab.hp).toBe(maxHp(cab));
+    const after = endTurn(w, still);
+    expect(after.player.state).toBe('active');
+    expect(after.events.some((e) => e.t === 'runLost')).toBe(false);
   });
 
   it('ends the run with wrecked when the player truck is beaten, as before', () => {
@@ -158,6 +210,38 @@ describe('losing the run', () => {
     haulerOf(w).resources!.fuel = 0;
     expect(canAbandonRun(w)).toBe(true);
   });
+
+  it('lets a stopped hauler with a prop inside its radius end the run, and not one with the prop just outside or still moving', () => {
+    const w = furyRoadWorld();
+    const hauler = haulerOf(w);
+    const radius = chassisDef(hauler.chassisId).radius;
+    const trap = { id: 'trap-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius + 0.1, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number];
+    w.obstacles = [...w.obstacles, trap];
+    hauler.speed = 0;
+    expect(haulerWedged(w)).toBe(false);
+    expect(canAbandonRun(w)).toBe(false);
+    trap.pos = { x: hauler.pos.x + radius / 2, y: hauler.pos.y };
+    expect(haulerWedged(w)).toBe(true);
+    expect(canAbandonRun(w)).toBe(true);
+    hauler.speed = 3;
+    expect(canAbandonRun(w)).toBe(false);
+  });
+
+  it('never counts a hauler parked on the next pad or between levels as wedged, walls or not', () => {
+    const w = furyRoadWorld();
+    const hauler = haulerOf(w);
+    const radius = chassisDef(hauler.chassisId).radius;
+    hauler.speed = 0;
+    w.obstacles = [...w.obstacles, { id: 'trap-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius / 2, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number]];
+    w.furyRoad!.waitingAt = 0;
+    expect(betweenLevels(w)).toBe(true);
+    expect(haulerWedged(w)).toBe(false);
+    w.furyRoad!.waitingAt = null;
+    expect(haulerWedged(w)).toBe(true);
+    hauler.pos = { ...yardSpots(w, 1).hauler };
+    w.obstacles = [...w.obstacles, { id: 'wall-test', kind: 'landmark', look: 'tankTrap', pos: { x: hauler.pos.x + radius / 2, y: hauler.pos.y }, r: 0.25 } as World['obstacles'][number]];
+    expect(haulerWedged(w)).toBe(false);
+  });
 });
 
 describe('where the trouble spawns', () => {
@@ -165,57 +249,72 @@ describe('where the trouble spawns', () => {
     const w = furyRoadWorld();
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
-    me.pos = roadPoint(w.seed, 0, milestoneAt(0) + 150, LANES[2]);
-    w.turn = w.furyRoad!.quietFrom + FURY_ROAD.pacing.quiet;
+    me.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) + 180, LANES[2]);
+    w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
 
     const group = w.furyRoad!.groups[0];
     expect(group.spawned).toBe(true);
     const spawned = w.vehicles.filter((v) => group.vehicles.includes(v.id));
-    const alongHauler = alongOf(w.seed, toRoad(0, hauler.pos));
-    for (const v of spawned) expect(Math.abs(alongOf(w.seed, toRoad(0, v.pos)) - alongHauler)).toBeLessThan(FURY_ROAD.sides.ahead + 40);
+    const alongHauler = alongOf(w.seed, toRoad(w.seed, 0, hauler.pos));
+    for (const v of spawned) expect(Math.abs(alongOf(w.seed, toRoad(w.seed, 0, v.pos)) - alongHauler)).toBeLessThan(FURY_ROAD.sides.ahead + 40);
     expect(dist(spawned[0].pos, me.pos)).toBeGreaterThan(100);
   });
 
-  it('counts an encounter only near the hauler', () => {
+  it('holds a group until the hauler reaches its place, however far ahead the player is', () => {
     const w = furyRoadWorld();
-    const truck = spawnOne(w);
     const me = playerVehicle(w);
-    me.pos = { x: truck.pos.x + 2, y: truck.pos.y };
-    haulerOf(w).pos = { x: truck.pos.x, y: truck.pos.y + FURY_ROAD.pacing.near + 20 };
-    w.furyRoad!.quietFrom = w.turn - FURY_ROAD.pacing.quiet - 5;
+    const group = w.furyRoad!.groups[0];
+    me.pos = roadPoint(w.seed, 0, group.at + 50, LANES[2]);
     advanceFuryRoad(w);
-    expect(w.furyRoad!.quietFrom).toBe(w.turn - FURY_ROAD.pacing.quiet - 5);
+    expect(group.spawned).toBe(false);
+
+    group.at = alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos));
+    advanceFuryRoad(w);
+    expect(group.spawned).toBe(true);
+  });
+
+  it('holds a group while the live trucks plus the group would pass the cap', () => {
+    const w = furyRoadWorld();
+    const run = w.furyRoad!;
+    const size = FURY_ROAD.maxAlive;
+    run.groups[0].templates = Array.from({ length: size }, () => 'buggy');
+    run.groups[0].at = 0;
+    run.groups[1].at = 0;
+    advanceFuryRoad(w);
+    expect(run.groups[0].spawned).toBe(true);
+    advanceFuryRoad(w);
+    expect(run.groups[1].spawned).toBe(false);
   });
 });
 
-describe('waiting for the road', () => {
-  it('needs both trucks parked on the paid pad, and the window move keeps both', () => {
+describe('driving on from the outpost', () => {
+  it('needs both trucks parked in the yard of the paid outpost, and the window move keeps both', () => {
     const w = furyRoadWorld();
-    park(w, haulerOf(w), 0);
-    park(w, playerVehicle(w), 2);
+    park(w, haulerOf(w), 'hauler');
+    park(w, playerVehicle(w), 'truck');
     let after = endTurn(w, still);
-    expect(canWaitForRoad(after)).toBe(true);
+    expect(canDriveOn(after)).toBe(true);
 
-    park(after, playerVehicle(after), 40);
-    expect(canWaitForRoad(after)).toBe(false);
-    expect(() => waitForRoad(after)).toThrow(/wait/);
+    park(after, playerVehicle(after), 'away');
+    expect(canDriveOn(after)).toBe(false);
+    expect(() => driveOn(after)).toThrow(/Drive on/);
 
-    park(after, playerVehicle(after), 2);
-    after = waitForRoad(after);
+    park(after, playerVehicle(after), 'truck');
+    after = driveOn(after);
     expect(after.furyRoad!.window).toBe(1);
     expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId, haulerOf(after).id]);
     expect(playerTrucks(after).every((t) => t.order === null && t.trail.length === 0)).toBe(true);
     expect(dist(haulerOf(after).pos, playerVehicle(after).pos)).toBeLessThan(10);
-    expect(() => moveWindow(after)).toThrow(/paid/);
+    expect(() => moveWindow(after)).toThrow(/waits at outpost 2/);
   });
 
-  it('refuses the wait while the hauler is off the pad', () => {
+  it('refuses to drive on while the hauler is outside the yard', () => {
     const w = furyRoadWorld();
-    park(w, haulerOf(w), 0);
-    park(w, playerVehicle(w), 2);
+    park(w, haulerOf(w), 'hauler');
+    park(w, playerVehicle(w), 'truck');
     const after = endTurn(w, still);
-    haulerOf(after).pos = roadPoint(after.seed, 1, milestoneAt(1) + 30, LANES[1]);
-    expect(canWaitForRoad(after)).toBe(false);
+    haulerOf(after).pos = roadPoint(after.seed, 1, milestoneAt(after.seed, 1) + 30, LANES[1]);
+    expect(canDriveOn(after)).toBe(false);
   });
 });

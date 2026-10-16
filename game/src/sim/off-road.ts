@@ -6,9 +6,10 @@ import { huntsOffRoad } from './hunt-style';
 import { topGoal } from './npc-activities';
 import { isStranded } from './stats';
 import type { Vehicle, World } from './types';
+import { isRaider } from './relations';
 
 export function keepsOffRoads(world: World, v: Vehicle): boolean {
-  if (!v.brain || v.faction !== 'raiders') return false;
+  if (!v.brain || !isRaider(v)) return false;
   return hides(world, v) || huntsOffRoad(v.brain);
 }
 

@@ -1,4 +1,3 @@
-// Every gun on a deck spot stands on the model, or on a riser post whose foot stands on the model, inside the gun's footprint.
 
 import { describe, expect, it } from 'vitest';
 import { CHASSIS } from '../../data/chassis';

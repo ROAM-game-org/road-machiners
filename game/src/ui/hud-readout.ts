@@ -230,9 +230,11 @@ export function getRescueReadout(w: World): RescueReadout | null {
     const data = towData(state);
     return { kind: "towed", tower: vehicleName(w, state.holder), town: siteName(data.site), fee: data.fee };
   }
-  if (p.beacon || isStranded(w, playerVehicle(w)))
-    return { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) };
-  return null;
+  return showsStranded(w) ? { kind: "stranded", beacon: p.beacon, reason: strandedReason(w), canEnd: canAbandonRun(w) } : null;
+}
+
+function showsStranded(w: World): boolean {
+  return w.player.beacon || isStranded(w, playerVehicle(w)) || canAbandonRun(w);
 }
 
 function strandedReason(w: World): Msg | null {

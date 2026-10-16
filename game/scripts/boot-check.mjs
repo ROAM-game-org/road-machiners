@@ -181,6 +181,7 @@ async function startMenu(browser, viewport) {
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
   expect(await page.evaluate(() => document.getElementById('boot').hidden), `${viewport.name}: #boot is hidden while the start menu waits`);
   expect((await continueOff()) === 'true', `${viewport.name}: Continue is off with no save`);
+  expect((await page.getByRole('button', { name: 'Load', exact: true }).getAttribute('aria-disabled')) === 'true', `${viewport.name}: Load is off with no save`);
   await shot(page, `.playtest/boot-${viewport.name}-start-menu.png`);
   await page.getByRole('button', { name: 'New game' }).click();
   await page.getByRole('button', { name: 'Start', exact: true }).click();
@@ -190,7 +191,11 @@ async function startMenu(browser, viewport) {
   await page.reload();
   await page.waitForSelector('#ui .start-menu', { state: 'visible', timeout: BOOT_LIMIT_MS });
   expect((await continueOff()) === null, `${viewport.name}: Continue is on with a save`);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  expect((await page.locator('#start-save').textContent()).includes('Autosave'), `${viewport.name}: the caption names the save Continue resumes`);
+  await page.getByRole('button', { name: 'Load', exact: true }).click();
+  expect((await page.locator('.save-panel .save-row[data-slot="auto"]').count()) === 1, `${viewport.name}: Load lists the autosave`);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await cleared(page);
   expect(stages(await bootLog(page)).includes('Loading your save'), `${viewport.name}: Continue reads "Loading your save"`);
   expect(errors.length === 0, `${viewport.name}: the start menu has no page errors ${errors.join('; ')}`);

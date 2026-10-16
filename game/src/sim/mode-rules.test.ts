@@ -24,7 +24,7 @@ function worldIn(mode: GameModeId): World {
 }
 
 function raider(w: World, parts = ['mg', 'stockEngine']): Vehicle {
-  const v = addVehicle(w, 'raiders', 'wagon', parts, { x: 86, y: 80 }, Math.PI);
+  const v = addVehicle(w, 'scrapjaw', 'wagon', parts, { x: 86, y: 80 }, Math.PI);
   v.brain = npcBrain('buggy', v.pos, ['raider']);
   return v;
 }
