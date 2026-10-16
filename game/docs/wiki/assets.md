@@ -159,16 +159,12 @@ A weapon is assembled from a mount, a receiver, a barrel and an optional extra. 
 | music-outpost | music | true | 1 | 1 | 1 |
 | music-abandoned | music | true | 0.7 | 1 | 3 |
 | music-quest | music | true | 0.8 | 1 | 3 |
-| score-drums | music | true | 0.9 | 1 | 1 |
-| score-bass | music | true | 0.8 | 1 | 1 |
-| score-horns | music | true | 0.8 | 1 | 1 |
-| score-trombone | music | true | 0.8 | 1 | 1 |
-| accent-sighted | music | false | 0.85 | 3 | 2 |
-| accent-struck | music | false | 0.85 | 3 | 2 |
-| accent-miss | music | false | 0.75 | 3 | 2 |
-| accent-hit | music | false | 1.3 | 3 | 2 |
-| accent-crit | music | false | 0.95 | 3 | 2 |
-| accent-crash | music | false | 1 | 3 | 2 |
+| song-dust | music | false | 1 | 1 | 1 |
+| song-dust-guitars | music | false | 1 | 1 | 1 |
+| song-dust-cymbals | music | false | 1 | 1 | 1 |
+| song-dusk | music | false | 1 | 1 | 1 |
+| song-dusk-guitars | music | false | 1 | 1 | 1 |
+| song-dusk-cymbals | music | false | 1 | 1 | 1 |
 <!-- /wiki:sounds -->
 
 ## Numbers
