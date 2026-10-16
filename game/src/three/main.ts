@@ -35,7 +35,7 @@ import { Game } from './game';
 import { clearGame, hasRepair, loadSave, newMapFor, SAVE_KEY, SaveError, savedRunId, storedSave, writeSave } from './save';
 import { openSaves } from './save-db';
 import { RunLog } from './run-log';
-import { allSlots, jumpToQuest, newestSlot, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
+import { allSlots, jumpToQuest, listSaves, questJumpOf, requestBoot, takeBootRequest, type BootRequest, type QuestJump, type SlotId } from './save-slots';
 import { GAME_GL, openWebGL } from './webgl';
 import { rescueSave } from './save-rescue';
 import { loadModels } from './render/models';
@@ -64,9 +64,9 @@ async function bootWorld(): Promise<Booted> {
 }
 
 async function startSlot(): Promise<SlotId | null> {
-  const newest = newestSlot(slots, CONFIG.saveSlots);
-  if (urlPlay()) return newest;
-  return boot.aside(() => chooseStart(newest, newGameActions));
+  const saves = listSaves(slots, CONFIG.saveSlots);
+  if (urlPlay()) return saves[0]?.slot ?? null;
+  return boot.aside(() => chooseStart(saves, newGameActions));
 }
 
 async function bootRequested(request: Exclude<BootRequest, SlotId>): Promise<Booted> {
