@@ -230,8 +230,8 @@ describe('the Patcher crane on refits', () => {
 
   it('counts two cranes once, for NPCs as for the player', () => {
     const w = emptyWorld();
-    const one = addVehicle(w, 'traders', 'hauler', ['patcherCrane'], { x: 40, y: 30 });
-    const two = addVehicle(w, 'traders', 'hauler', ['patcherCrane', 'patcherCrane'], { x: 50, y: 30 });
+    const one = addVehicle(w, 'independent', 'hauler', ['patcherCrane'], { x: 40, y: 30 });
+    const two = addVehicle(w, 'independent', 'hauler', ['patcherCrane', 'patcherCrane'], { x: 50, y: 30 });
 
     expect(two.items.filter((it) => it.kind === 'part' && it.part.defId === 'patcherCrane')).toHaveLength(2);
     expect(refitTurns(w, one, REPLACE)).toBe(7);

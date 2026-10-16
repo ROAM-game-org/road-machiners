@@ -10,7 +10,7 @@ const both = (msg: Msg): Record<Locale, string> => ({ en: resolve(msg, 'en'), ru
 
 function scene() {
   const w = emptyWorld();
-  const npc = addVehicle(w, 'roamers', 'buggy', ['mg', 'stockEngine'], { x: 5, y: 5 });
+  const npc = addVehicle(w, 'independent', 'buggy', ['mg', 'stockEngine'], { x: 5, y: 5 });
   npc.brain = { ...npcBrain('roamer', npc.pos, ['roamer']), driver: 'Ada Volkov' };
   return { w, npc };
 }
@@ -28,7 +28,7 @@ describe('truck titles', () => {
 
   it('reads a truck without a driver as its chassis', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'roamers', 'buggy', [], { x: 5, y: 5 });
+    const v = addVehicle(w, 'independent', 'buggy', [], { x: 5, y: 5 });
     expect(both(vehicleTitle(w, v)).en).toBe('Buggy');
   });
 

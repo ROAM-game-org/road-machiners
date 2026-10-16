@@ -34,3 +34,5 @@ export const CONFIG = {
   questLineMs: 300,
   questPauseMs: 700,
 };
+
+export const OUTPOST_GATE = { slideSeconds: 2.5 };
