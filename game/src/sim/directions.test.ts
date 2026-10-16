@@ -9,7 +9,7 @@ import { emptyWorld, furyRoadWorld } from './testkit';
 import type { DirectionStep, DirectionTarget, Obstacle, World } from './types';
 import { dist, type Vec } from './vec';
 
-const OFF_ROAD: Vec = { x: 200, y: 300 };
+const OFF_ROAD: Vec = { x: 260, y: 420 };
 const SITES = [...REGION.towns, ...REGION.locations];
 
 function site(id: string): Vec {
