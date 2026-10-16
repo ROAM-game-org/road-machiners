@@ -38,7 +38,7 @@ function ravineWithMouth(wall: number): (i: number, j: number) => number {
 }
 
 function closedPit(i: number, j: number): number {
-  const out = Math.max(Math.abs(i - 40), Math.abs(j - 40)) - 6;
+  const out = Math.hypot(i - 40, j - 40) - 6;
   return Math.min(TOP, Math.max(0, out * WALL));
 }
 
