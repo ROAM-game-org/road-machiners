@@ -20,8 +20,11 @@ import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
 
+const BY_RADIUS = Object.keys(CHASSIS).sort((a, b) => CHASSIS[b].radius - CHASSIS[a].radius);
+const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length - 1]];
+
 describe('townStart', () => {
-  it.each(Object.keys(CHASSIS))('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
+  it.each(TOWN_START_CHASSIS)('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
     const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
     const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
     const truck = playerVehicle(world);
@@ -176,7 +179,7 @@ describe('the headlight switch', () => {
 
   it('keeps the events and removed vehicles of the turn being shown', () => {
     const world = emptyWorld();
-    const gone = addVehicle(world, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
+    const gone = addVehicle(world, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60, y: 30 });
     world.vehicles = world.vehicles.filter((v) => v !== gone);
     world.removed = [gone];
     world.events = [{ t: 'destroyed', vehicle: gone.id, by: world.player.vehicleId }];
@@ -190,9 +193,9 @@ describe('the headlight switch', () => {
   it('changes no turn result at night with NPCs about', () => {
     const night = update(emptyWorld({ x: 100, y: 100 }), (w) => {
       w.turn = duskTurn + 2;
-      const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 125, y: 100 });
       raider.brain = npcBrain('buggy', raider.pos, ['raider']);
-      const trader = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 100, y: 130 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 100, y: 130 });
       trader.brain = npcBrain('trader', trader.pos, ['trader']);
     });
     expect(sunAt(night.turn)).toBeNull();

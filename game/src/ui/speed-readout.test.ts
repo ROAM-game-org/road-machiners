@@ -142,7 +142,7 @@ describe('power chip', () => {
 
   it('flags an overload with the excess', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'hauler', ['stockEngine'], { x: 40, y: 40 });
+    const v = addVehicle(w, 'scrapjaw', 'hauler', ['stockEngine'], { x: 40, y: 40 });
     for (let i = 0; i < 16; i++) mountPart(w, v, makePart(w, 'mg', 0));
     const c = words(powerChip(maxSpeedSteps(w, v), v));
     expect(gunDraw(v)).toBeGreaterThan(workingEngineCapacity(v)!);
