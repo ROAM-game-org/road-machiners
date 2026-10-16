@@ -249,7 +249,7 @@ describe('where the trouble spawns', () => {
     const w = furyRoadWorld();
     const hauler = haulerOf(w);
     const me = playerVehicle(w);
-    me.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) + 150, LANES[2]);
+    me.pos = roadPoint(w.seed, 0, milestoneAt(w.seed, 0) + 180, LANES[2]);
     w.furyRoad!.groups[0].at = 0;
     advanceFuryRoad(w);
 
