@@ -87,7 +87,7 @@ describe('game save', () => {
   it('gives the same lootable props after a save and load', () => {
     const slots = makeSlots();
     const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    const npc = addVehicle(world, 'raiders', 'buggy', [], { x: 10, y: 10 });
+    const npc = addVehicle(world, 'scrapjaw', 'buggy', [], { x: 10, y: 10 });
     wreckVehicle(world, npc);
     const emptied = world.salvage.find((s) => !s.pile && s.id !== `wreck-${npc.id}`)!;
     emptied.goods = {};

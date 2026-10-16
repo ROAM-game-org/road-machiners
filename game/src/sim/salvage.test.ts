@@ -12,6 +12,7 @@ import { partDef } from '../data/parts';
 import { chassisDef } from '../data/chassis';
 import { BREAKABLE, RULES } from '../data/rules';
 import { takeAllLoot, takeLoot, takeStores, canScavenge, scavenge } from './locations';
+import { defaultSetup } from './settings';
 import {
   breakProp, canTakeAny, claimPile, claimantOf, clearPiles, collectSalvage, dropHaul, looseCargo, hasSalvage, initializeSalvage, isLootTarget, isRoadWreck, lootBlockedError, lootBlocker,
   lootClaimedBy, looterOf, removeStocks, renewSalvage, rollStock, salvageInRange, salvagePlace, salvageUnits, stockOldSpots, oldSpotOf, oldSpotPicks, oldStockId,
@@ -1013,7 +1014,7 @@ describe('lootable props', () => {
     const road = w.salvage.find((s) => isRoadWreck(s));
     const old = w.salvage.find((s) => oldSpotOf(s));
     if (!road || !old) throw new Error('No road wreck or old spot');
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     addGoods(w, npc, 'scrap', 3);
     const pile = dropHaul(w, npc, looseCargo(npc));
     const props = lootableProps(w.salvage);
@@ -1035,7 +1036,7 @@ describe('lootable props', () => {
 
   it('keeps a kill wreck while it holds parts and drops it once stripped', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'raiders', 'buggy', [], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 10, y: 10 });
     wreckVehicle(w, npc);
     const id = `wreck-${npc.id}`;
     expect(w.obstacles.some((o) => o.id === id)).toBe(true);
@@ -1046,7 +1047,7 @@ describe('lootable props', () => {
 
   it('throws for a pile', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 10, y: 10 });
     addGoods(w, npc, 'scrap', 3);
     expect(() => stockProp(dropHaul(w, npc, looseCargo(npc)))).toThrow(/has no prop/);
   });
