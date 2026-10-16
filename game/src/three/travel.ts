@@ -336,7 +336,7 @@ export class TurnPreparation {
   } | null = null;
 
   private createWorker(): Worker {
-    const worker = new Worker(new URL("../phys/turn.ts", import.meta.url), {
+    const worker = new Worker(new URL("../phys/turn-worker.ts", import.meta.url), {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<TurnResponse>) => {
