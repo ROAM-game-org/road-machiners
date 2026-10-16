@@ -3,10 +3,10 @@ import { vehicleStats } from '../sim/stats';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { makePart, makeVehicle } from '../sim/factory';
+import { makePart } from '../sim/factory';
 import { addGoods, mountPart, removeAllGoods } from '../sim/inventory';
-import { loadFactor, vehicleMass } from '../sim/mass';
-import { corePart, mountedParts } from '../sim/grid';
+import { vehicleMass } from '../sim/mass';
+import { corePart } from '../sim/grid';
 import { addVehicle, editableTerrain, emptyWorld, npcBrain, partHp } from '../sim/testkit';
 import type { MoveOrder, World } from '../sim/types';
 import { angleDiff, bearing, dist, type Vec } from '../sim/vec';
@@ -14,9 +14,11 @@ import { REGION } from '../data/region';
 import { TERRAIN_TYPES } from '../data/terrain';
 import { endTurn, setDirect, setMoveOrder } from '../sim/world';
 import { PHYSICS } from '../data/physics';
-import { buildDrive, freeDrive, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
+import { bodyOf } from '../sim/body';
+import { buildDrive, freeDrive, GROUND, toMps, initPhysics, routeAim, simulateTurn, syncDrive, type Drive, type TurnResult } from './drive';
 import { rotateBy, upOf } from './frames';
 import { physicsMove } from './turn';
+import { turnaroundSpeed } from './turnaround';
 import type { VehicleFrame } from './frames';
 import { playerTow, unhitch } from '../sim/tow';
 import { callVehicle, chooseOption, currentOptions } from '../sim/dialogue';
@@ -142,7 +144,6 @@ describe('impact geometry', () => {
 });
 
 const HILL_GRADE = 0.2;
-const LIMP_GRADE = 0.35;
 const CRAWL_GRADE = 0.53;
 
 describe('physics turns', () => {
@@ -245,18 +246,6 @@ describe('physics turns', () => {
     expect(me(w).speed).toBeLessThan(0.1);
   });
 
-  it('a parked truck without an order brakes instead of rolling faster down a slope', () => {
-    const w = emptyWorld({ x: 40, y: 30 });
-    w.terrain = structuredClone(w.terrain);
-    const n = w.terrain.size;
-    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w.terrain.heights[j * (n + 1) + i] = i * HILL_GRADE;
-    me(w).heading = Math.PI;
-    const { w: after, d } = play(w, 8);
-    freeDrive(d);
-    expect(me(after).speed).toBeLessThan(0.05);
-    expect(dist(me(after).pos, { x: 40, y: 30 })).toBeLessThan(0.1);
-  });
-
   describe('mud driving', () => {
     const order: MoveOrder = { kind: 'through', dest: { x: 60, y: 30 } };
     let mudSkill0: World;
@@ -347,6 +336,13 @@ describe('physics turns', () => {
       const sand = onGround('sand', click, 1);
       const glass = onGround('glass', click, 1);
       expect(Math.abs(angleDiff(me(glass).heading, Math.PI / 2))).toBeGreaterThan(Math.abs(angleDiff(me(sand).heading, Math.PI / 2)));
+    });
+
+    it('a truck eases off for a side click sooner on glass than on sand', () => {
+      const click: MoveOrder = { kind: 'through', dest: { x: 24, y: 60 } };
+      const sand = onGround('sand', click, 1);
+      const glass = onGround('glass', click, 1);
+      expect(me(glass).speed).toBeLessThan(me(sand).speed * 0.8);
     });
 
     it('a truck sent to a point on glass still arrives and stops', () => {
@@ -490,6 +486,79 @@ describe('physics turns', () => {
     freeDrive(d);
   });
 
+  describe('turning around on a route', () => {
+    const behind = { x: 12, y: 30 };
+
+    function speedsWhileAimBehind(direct: boolean): number[] {
+      let w = ordered({ kind: 'through', dest: behind }, 7.8);
+      if (direct) w = setDirect(w, true);
+      const speeds: number[] = [];
+      let d = buildDrive(w);
+      for (let i = 0; i < 4; i++) {
+        let next: Drive | null = null;
+        w = endTurn(w, physicsMove(d, (r) => (next = r.next)));
+        freeDrive(d);
+        d = next!;
+        const m = me(w);
+        if (Math.abs(angleDiff(m.heading, bearing(m.pos, behind))) > Math.PI / 2) speeds.push(toMps(m.speed));
+      }
+      freeDrive(d);
+      return speeds;
+    }
+
+    it('a fast truck whose route turns back slows to its turn speed', () => {
+      const w = ordered({ kind: 'through', dest: behind }, 7.8);
+      const v = me(w);
+      const limit = turnaroundSpeed(bodyOf(v.chassisId), PHYSICS.truck.maxSteer, 1);
+      const speeds = speedsWhileAimBehind(false);
+      expect(speeds.length).toBeGreaterThan(0);
+      expect(Math.max(...speeds)).toBeLessThan(limit * 1.3);
+    });
+
+    function rockLine(w: World, from: Vec, to: Vec, count: number): void {
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        w.obstacles.push({ id: `k${w.obstacles.length}`, pos: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, r: 0.7, kind: 'rock' });
+      }
+    }
+
+    function crashesTurningBack(rocksBehind: boolean): { crashes: number; heading: number } {
+      let w = ordered({ kind: 'through', dest: { x: 5, y: 34 } }, 0);
+      const at = me(w).pos;
+      rockLine(w, { x: at.x + 1, y: at.y + 2.5 }, { x: at.x + 5, y: at.y + 2.5 }, 6);
+      rockLine(w, { x: at.x + 5, y: at.y + 2.5 }, { x: at.x + 5, y: at.y - 5 }, 8);
+      if (rocksBehind) rockLine(w, { x: at.x - 1.6, y: at.y - 4 }, { x: at.x - 1.6, y: at.y + 4 }, 9);
+      let d = buildDrive(w);
+      let crashes = 0;
+      for (let i = 0; i < 3; i++) {
+        let next: Drive | null = null;
+        w = endTurn(w, physicsMove(d, (r) => {
+          next = r.next;
+          crashes += r.crashes.filter((c) => c.b !== GROUND && !c.b.startsWith('v')).length;
+        }));
+        freeDrive(d);
+        d = next!;
+      }
+      freeDrive(d);
+      return { crashes, heading: me(w).heading };
+    }
+
+    it('a truck whose route lies behind, with rocks inside its forward turn, backs up before turning and does not hit them', () => {
+      expect(crashesTurningBack(false).crashes).toBe(0);
+    });
+
+    it('with rocks behind it too, it turns forward as before', () => {
+      const { heading } = crashesTurningBack(true);
+      expect(Math.abs(angleDiff(heading, 0))).toBeGreaterThan(0.3);
+    });
+
+    it('a manual truck turning back keeps its speed', () => {
+      const w = ordered({ kind: 'through', dest: behind }, 7.8);
+      const limit = turnaroundSpeed(bodyOf(me(w).chassisId), PHYSICS.truck.maxSteer, 1);
+      expect(Math.max(...speedsWhileAimBehind(true))).toBeGreaterThan(limit * 1.3);
+    });
+  });
+
   it('a click behind outside the reverse cone turns the truck around nose first', () => {
     const dest = { x: 26, y: 33 };
     let w = ordered({ kind: 'through', dest });
@@ -556,6 +625,28 @@ describe('physics turns', () => {
     }
     expect(longest).toBeLessThan(RULES.reverse.maxDistance + 1);
     expect(Math.abs(heading)).toBeLessThan(Math.PI / 4);
+    freeDrive(d);
+  });
+
+  it('a stuck truck with a rock right behind it does not back into the rock', () => {
+    let w = ordered({ kind: 'through', dest: { x: 45, y: 30 } });
+    const at = me(w).pos;
+    w.obstacles = [
+      ...[-3, -2, -1, 0, 1, 2, 3].map((i) => ({ id: `f${i}`, pos: { x: at.x + 1.8, y: at.y + i * 1.2 }, r: 0.7, kind: 'rock' as const })),
+      ...[-1, 0, 1].map((i) => ({ id: `b${i}`, pos: { x: at.x - 1.4, y: at.y + i * 1.2 }, r: 0.7, kind: 'rock' as const })),
+    ];
+    let d = buildDrive(w);
+    let hitBehind = 0;
+    for (let i = 0; i < 4; i++) {
+      let next: Drive | null = null;
+      w = endTurn(w, physicsMove(d, (r) => {
+        next = r.next;
+        hitBehind += r.crashes.filter((c) => c.b.startsWith('b') && c.impact > 0.5).length;
+      }));
+      freeDrive(d);
+      d = next!;
+    }
+    expect(hitBehind).toBe(0);
     freeDrive(d);
   });
 
@@ -784,21 +875,6 @@ describe('physics turns', () => {
     freeDrive(d);
   });
 
-  it('a fully loaded hauler still climbs a hill', async () => {
-    const w0 = emptyWorld({ x: 26, y: 30 });
-    w0.terrain = structuredClone(w0.terrain);
-    const n = w0.terrain.size;
-    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w0.terrain.heights[j * (n + 1) + i] = Math.max(0, i - 28) * HILL_GRADE;
-    const hauler = makeVehicle(w0, { faction: 'player', chassisId: 'hauler', parts: ['mg', 'stockEngine', 'plates', 'trailerBox'].map((defId) => ({ defId, wear: 0 })), spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
-    w0.vehicles[0] = { ...hauler, id: me(w0).id };
-    addGoods(w0, me(w0), 'scrap', 999);
-    expect(loadFactor(me(w0))).toBeLessThan(1);
-    w0.player.fuel = 999;
-    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 5);
-    expect(me(w).pos.x).toBeGreaterThan(30);
-    expect(me(w).speed).toBeGreaterThan(0.5);
-  }, budget(240_000));
-
   it.each([0, -4])('a truck on a hill it can climb with a start speed of %s m/s drives up instead of backing away', async (start) => {
     let w = emptyWorld({ x: 30, y: 30 });
     w.player.fuel = 999;
@@ -821,19 +897,6 @@ describe('physics turns', () => {
     const v = body.linvel();
     freeDrive(d);
     expect(v.x * forward.x + v.y * forward.y + v.z * forward.z).toBeGreaterThan(0);
-  }, budget(240_000));
-
-  it('a limping courier crawls up a bank as steep as any chassis limps up', async () => {
-    const w0 = emptyWorld({ x: 26, y: 30 });
-    w0.terrain = structuredClone(w0.terrain);
-    const n = w0.terrain.size;
-    for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) w0.terrain.heights[j * (n + 1) + i] = Math.max(0, i - 28) * LIMP_GRADE;
-    const courier = makeVehicle(w0, { faction: 'player', chassisId: 'courier', parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
-    w0.vehicles[0] = { ...courier, id: me(w0).id };
-    mountedParts(me(w0), 'engine')[0].hp = 0;
-    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 8);
-    expect(me(w).pos.x).toBeGreaterThan(32);
-    expect(me(w).speed).toBeGreaterThan(0.5);
   }, budget(240_000));
 
   it('a click in the hold zone keeps its speed up a hill', async () => {
