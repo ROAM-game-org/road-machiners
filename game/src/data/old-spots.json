@@ -1,5 +1,5 @@
 {
- "mapHash": "d3abd9b3",
+ "mapHash": "6c1da382",
  "picks": [
   {
    "propId": "ruin-5",
@@ -54,6 +54,15 @@
     "y": 248.31118774414062
    },
    "reach": 1.2289211900902746
+  },
+  {
+   "propId": "house-116",
+   "type": "lookout",
+   "pos": {
+    "x": 216,
+    "y": 453
+   },
+   "reach": 1.1849383929270565
   },
   {
    "propId": "house-122",

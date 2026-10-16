@@ -1,5 +1,5 @@
 {
- "mapHash": "d3abd9b3",
+ "mapHash": "6c1da382",
  "sites": [
   {
    "id": "survey-ruin-21",
@@ -449,6 +449,46 @@
     {
      "landmark": "glass-flats",
      "tiles": 200
+    }
+   ]
+  },
+  {
+   "id": "survey-house-116",
+   "type": "lookout",
+   "pos": {
+    "x": 216,
+    "y": 453
+   },
+   "props": [
+    {
+     "pos": {
+      "x": 216,
+      "y": 453
+     },
+     "reach": 1.1849383929270565
+    }
+   ],
+   "lay": "rise",
+   "clues": [
+    {
+     "landmark": "orchard",
+     "tiles": 100
+    },
+    {
+     "landmark": "pump-station",
+     "tiles": 125
+    },
+    {
+     "landmark": "bowl",
+     "tiles": 200
+    },
+    {
+     "landmark": "kiln",
+     "tiles": 225
+    },
+    {
+     "landmark": "fallen-sun",
+     "tiles": 225
     }
    ]
   },
