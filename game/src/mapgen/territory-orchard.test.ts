@@ -394,8 +394,16 @@ describe('the orchard farm', () => {
 
   it('throws on a building whose ring cannot level its ground', () => {
     const moved = structuredClone(rules);
-    moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3].at = onOrchardRoad(51, -33);
-    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/levels its ground into a cliff/);
+    const pose = moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3];
+    pose.at = onOrchardRoad(30, -25);
+    const draft = groundDraft();
+    const spot = { x: orchard.pos.x + pose.at.x, y: orchard.pos.y + pose.at.y };
+    const w = draft.size + 1;
+    const SLOPE = 0.35;
+    const REACH = 16;
+    for (let j = Math.floor(spot.y - REACH); j <= spot.y + REACH; j++)
+      for (let i = Math.floor(spot.x - REACH); i <= spot.x + REACH; i++) draft.heights[j * w + i] += SLOPE * (i - spot.x);
+    expect(() => fillFarm(draft, orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/levels its ground into a cliff/);
   });
 
   it('throws on a building off the outline', () => {
