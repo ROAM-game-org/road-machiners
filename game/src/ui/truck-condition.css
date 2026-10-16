@@ -7,10 +7,12 @@
   position: relative;
 }
 .condition-chassis .outline-fill {
+  --plan-fill: var(--cell-side);
   --plan-line: none;
 }
 .condition-chassis .outline-line {
   z-index: var(--z-outline);
+  --plan-line: var(--cell-plan-line);
   --plan-fill: none;
   filter: drop-shadow(0 0 1px var(--shade-strong));
 }
@@ -24,23 +26,6 @@
   --tint-glass: var(--bevel-light-strong);
   --tint-outer: 1px;
   --tint-inner: 0px;
-}
-.condition-part[data-look="tire"] {
-  border: 0;
-  background: none;
-}
-.condition-tire {
-  position: absolute;
-  top: var(--space-1);
-  bottom: var(--space-1);
-  left: 25%;
-  width: 50%;
-  box-sizing: border-box;
-  border: 1px solid var(--shade);
-  border-radius: var(--radius-s);
-  background:
-    repeating-linear-gradient(to bottom, var(--tint-line) 0 1px, transparent 1px 25%),
-    var(--tone);
 }
 .condition-part[data-look="cab"]::after {
   content: "";
@@ -68,9 +53,6 @@
   cursor: crosshair;
 }
 .condition-part.aimable:hover {
-  border-color: var(--ink-bright);
-}
-.condition-part.aimable:hover .condition-tire {
   border-color: var(--ink-bright);
 }
 .condition-aim {

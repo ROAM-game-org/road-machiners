@@ -14,12 +14,11 @@ import "./truck-condition.css";
 const CELL = 30;
 export const CONDITION_SIDE_INSET = 0.5;
 
-export type PartLook = "tire" | "cab" | "icon";
+export type PartLook = "cab" | "icon";
 
 export function partLook(defId: string): PartLook {
   const def = partDef(defId);
   if (def.kind !== "core") return "icon";
-  if (def.role === "wheel") return "tire";
   return def.role === "cab" ? "cab" : "icon";
 }
 
@@ -104,7 +103,7 @@ export class TruckConditionView {
     const look = partLook(part.defId);
     if (node.dataset.look !== look) {
       node.dataset.look = look;
-      node.replaceChildren(look === "tire" ? el("span", { class: "condition-tire" }) : tintedIcon(part.defId));
+      node.replaceChildren(tintedIcon(part.defId));
     }
     node.dataset.condition = part.state;
     node.classList.toggle("broken", part.broken);
@@ -125,9 +124,8 @@ export class TruckConditionView {
   }
 
   private flashDamage(node: HTMLElement): void {
-    const target = node.querySelector<HTMLElement>(".condition-tire") ?? node;
-    for (const animation of target.getAnimations()) animation.cancel();
-    target.animate(
+    for (const animation of node.getAnimations()) animation.cancel();
+    node.animate(
       [
         { background: token("--alarm"), offset: 0 },
         { background: token("--alarm"), offset: 0.65 },

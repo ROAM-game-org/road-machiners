@@ -19,8 +19,7 @@ describe("truck condition css", () => {
     expect(rule(".condition-part.aimable")).toContain("cursor: crosshair");
   });
 
-  it("draws a wheel as a tire in its condition tone, with no tile behind it", () => {
-    expect(rule('.condition-part[data-look="tire"]')).toContain("background: none");
-    expect(rule(".condition-tire")).toContain("var(--tone)");
+  it("fills the body silhouette with a mid tone, not the darkest cell color", () => {
+    expect(rule(".condition-chassis .outline-fill")).toContain("var(--cell-side)");
   });
 });

@@ -23,7 +23,7 @@ describe("planBox", () => {
   it("runs the condition body edge through the middle of every wheel", () => {
     for (const id of Object.keys(CHASSIS)) {
       const [x, , w] = planBox(id, 1, CONDITION_SIDE_INSET);
-      const wheels = chassisDef(id).core.filter((c) => partLook(c.defId) === "tire");
+      const wheels = chassisDef(id).core.filter((c) => c.defId.startsWith("wheel"));
       expect(wheels.length).toBeGreaterThan(0);
       for (const wheel of wheels) {
         const center = wheel.x + 0.5;
@@ -34,9 +34,9 @@ describe("planBox", () => {
 });
 
 describe("partLook", () => {
-  it("draws core wheels as tires, cabs with glass and every other part as its icon", () => {
+  it("draws cabs with glass and every other part as its icon", () => {
     for (const def of Object.values(PARTS)) {
-      const expected = def.kind === "core" && def.role === "wheel" ? "tire" : def.kind === "core" && def.role === "cab" ? "cab" : "icon";
+      const expected = def.kind === "core" && def.role === "cab" ? "cab" : "icon";
       expect(partLook(def.id)).toBe(expected);
     }
   });
