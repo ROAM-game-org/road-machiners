@@ -243,6 +243,3 @@ function pathLength(trail: Pose[]): number {
   for (let i = 1; i < trail.length; i++) total += dist(trail[i - 1], trail[i]);
   return total;
 }
-
-const scope = globalThis as { document?: unknown; onmessage?: unknown };
-if (typeof self !== 'undefined' && scope.document === undefined && !scope.onmessage) startTurnWorker();
