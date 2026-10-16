@@ -71,6 +71,16 @@ export function currentQuestLanguage(): QuestLanguage {
   return questLanguage;
 }
 
+export function inQuestLanguage<T>(lang: QuestLanguage, run: () => T): T {
+  const before = questLanguage;
+  questLanguage = lang;
+  try {
+    return run();
+  } finally {
+    questLanguage = before;
+  }
+}
+
 function textOf(quest: CompiledQuest): QuestText {
   return quest.text[questLanguage];
 }

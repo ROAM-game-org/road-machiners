@@ -3,8 +3,8 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
+import { inQuestLanguage } from '../sim/quests';
 import { QUEST_LANGUAGES, type QuestLanguage } from '../data/quests';
-import { setQuestLanguage } from '../sim/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
@@ -22,13 +22,14 @@ import { headingOf, toMap } from './frames';
 import { planTurns, type PlanFrames } from './plan';
 
 export type TurnState = Omit<World, 'terrain'>;
-export type TurnTask = { world: TurnState; drive: DriveSnapshot; questLanguage: QuestLanguage };
+export type WorldTask = { world: TurnState; drive: DriveSnapshot };
+export type TurnTask = WorldTask & { questLanguage: QuestLanguage };
 export type PreparedTurn = {
   world: TurnState;
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; questLanguage: QuestLanguage; terrain: World['terrain'] | null };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -41,13 +42,16 @@ function freezeTerrain(terrain: World['terrain']): void {
   Object.freeze(terrain);
 }
 
-function useQuestLanguage(lang: QuestLanguage): void {
+function requireQuestLanguage(lang: QuestLanguage): void {
   if (!QUEST_LANGUAGES.includes(lang)) throw new Error(`Turn task has no quest language ${lang}`);
-  setQuestLanguage(lang);
 }
 
 export function computePreview(task: PreviewTask, terrain: World['terrain']): PlanFrames {
-  useQuestLanguage(task.questLanguage);
+  requireQuestLanguage(task.questLanguage);
+  return inQuestLanguage(task.questLanguage, () => previewIn(task, terrain));
+}
+
+function previewIn(task: PreviewTask, terrain: World['terrain']): PlanFrames {
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   try {
@@ -58,12 +62,15 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
 }
 
 export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
-  setQuestLanguage(request.questLanguage);
   return computeTurn(request, terrain);
 }
 
 export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
-  useQuestLanguage(task.questLanguage);
+  return inQuestLanguage(task.questLanguage, () => computeTurnIn(task, terrain));
+}
+
+function computeTurnIn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
+  requireQuestLanguage(task.questLanguage);
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
   let result: TurnResult | null = null;

@@ -9,9 +9,9 @@ import {
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { computeTurn } from "../phys/turn";
 import { restoreDrive } from "../phys/drive";
-import { setQuestLanguage } from "../sim/quests";
 import { emptyWorld } from "../sim/testkit";
 import { setMoveOrder } from "../sim/world";
+import { currentQuestLanguage, setQuestLanguage } from "../sim/quests";
 import type { World } from "../sim/types";
 import { reportError } from "./crash";
 import { TurnPreparation } from "./travel";
@@ -57,6 +57,7 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
+  setQuestLanguage("en");
   vi.useRealTimers();
   freeDrive(drive);
   vi.unstubAllGlobals();
@@ -72,6 +73,28 @@ it("prepares once and exposes a result only when ready for the same world", () =
   worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
   expect(turns.take(world)).toBe(reply);
   expect(turns.take(world)).toBeNull();
+});
+
+it("posts every turn request in the current quest language", () => {
+  setQuestLanguage("ru");
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  expect(TestWorker.latest.requests[0].questLanguage).toBe(currentQuestLanguage());
+  expect(TestWorker.latest.requests[0].questLanguage).toBe("ru");
+});
+
+it("computes a prepared turn again after a language switch", () => {
+  const turns = new TurnPreparation();
+  turns.prepare(world, drive);
+  const worker = TestWorker.latest;
+  setQuestLanguage("ru");
+  worker.respond({ id: worker.requests[0].id, turn: reply, perf: {} });
+  expect(turns.take(world)).toBeNull();
+  turns.prepare(world, drive);
+  expect(worker.requests).toHaveLength(2);
+  expect(worker.requests[1].questLanguage).toBe("ru");
+  worker.respond({ id: worker.requests[1].id, turn: reply, perf: {} });
+  expect(turns.take(world)).toBe(reply);
 });
 
 it("discards a stale result after replanning and sends stable terrain only once", () => {
