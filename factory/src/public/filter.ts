@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Classify, Decision, DecisionIntent, DecisionKind, FilterConfig, FilterInput, PublicFilter, Relevance } from './decision';
+import { TransientFilterError, type Classify, type Decision, type DecisionIntent, type DecisionKind, type FilterConfig, type FilterInput, type PublicFilter, type Relevance } from './decision';
 import type { PublicRoute } from './store';
 
 const ENDPOINT = 'https://api.openai.com/v1/decisions';
@@ -108,14 +108,26 @@ type Answer = { type?: unknown; name?: unknown; choice?: unknown; probabilities?
 
 type Question = { type: string; name: string; instructions: string; choices: { value: string; description: string }[] };
 
+const isTransientStatus = (status: number): boolean => status === 408 || status === 429 || status >= 500;
+
+async function post(cfg: FilterConfig, fetch: typeof globalThis.fetch, input: string, questions: Question[]): Promise<Response> {
+  try {
+    return await fetch(ENDPOINT, {
+      method: 'POST',
+      signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
+      headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: cfg.filterModel, input, questions }),
+    });
+  } catch (error) {
+    throw new TransientFilterError(`The filter call did not complete: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function ask(cfg: FilterConfig, fetch: typeof globalThis.fetch, input: string, questions: Question[]): Promise<Answer[]> {
-  const response = await fetch(ENDPOINT, {
-    method: 'POST',
-    signal: AbortSignal.timeout(cfg.filterTimeoutSeconds * 1000),
-    headers: { authorization: `Bearer ${cfg.openaiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.filterModel, input, questions }),
-  });
-  if (response.status !== 200) throw new Error(`The filter call failed with status ${response.status}.`);
+  const response = await post(cfg, fetch, input, questions);
+  const failed = `The filter call failed with status ${response.status}.`;
+  if (isTransientStatus(response.status)) throw new TransientFilterError(failed);
+  if (response.status !== 200) throw new Error(failed);
   return answersOf(await response.json());
 }
 

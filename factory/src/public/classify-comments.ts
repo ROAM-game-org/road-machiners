@@ -1,5 +1,5 @@
 import type { Card, Column, Ctx } from '../types';
-import type { Classify, Decision, FilterInput, PublicFilter } from './decision';
+import { TransientFilterError, type Classify, type Decision, type FilterInput, type PublicFilter } from './decision';
 import { isolated } from './isolate';
 import type { Judged, KnownWork, PublicStore, StoredComment } from './store';
 import { rankByWords } from './wiki';
@@ -34,7 +34,20 @@ export async function classifyComments(ctx: Ctx, store: PublicStore, filter: Pub
       ctx.log('public', comment.issue, `player comment ${comment.id} is over the hourly limit of its sender, so it stays rejected`);
       continue;
     }
-    await isolated(ctx, comment.issue, `the filter failed on player comment ${comment.id}, so it stays rejected`, () => classifyOne(ctx, store, filter.classify, comment, board));
+    await isolated(ctx, comment.issue, `the filter failed on player comment ${comment.id}, so it stays rejected`, () => classifyOrRetry(ctx, store, filter.classify, comment, board));
+  }
+}
+
+const FILTER_ATTEMPTS = 3;
+
+async function classifyOrRetry(ctx: Ctx, store: PublicStore, classify: Classify, comment: StoredComment, board: KnownWork[]): Promise<void> {
+  try {
+    await classifyOne(ctx, store, classify, comment, board);
+  } catch (error) {
+    if (!(error instanceof TransientFilterError) || comment.filterAttempts + 1 >= FILTER_ATTEMPTS) throw error;
+    store.classifyLater(comment.id);
+    if (comment.source === 'telegram' && comment.sender !== null) store.returnHit(`telegram:${comment.sender}`, ctx.now(), ctx.cfg.reportIpPerHour);
+    ctx.log('public', comment.issue, `the filter failed for now on player comment ${comment.id}, so the next tick tries it again: ${error.message}`);
   }
 }
 

@@ -10,3 +10,5 @@ export type FilterInput = { source: 'comment' | 'message' | 'report'; text: stri
 export type FilterConfig = Pick<FactoryConfig, 'openaiKey' | 'filterModel' | 'filterTimeoutSeconds' | 'filterSincereMin'>;
 export type Classify = (input: FilterInput) => Promise<Decision>;
 export type PublicFilter = { classify: Classify };
+
+export class TransientFilterError extends Error {}

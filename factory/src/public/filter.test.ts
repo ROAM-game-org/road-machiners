@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TransientFilterError } from './decision';
 import { filterWith } from './filter';
 
 const CFG = { openaiKey: 'sk-secret-key', filterModel: 'test-model', filterTimeoutSeconds: 30, filterSincereMin: 0.8 };
@@ -74,6 +75,13 @@ describe('filterWith', () => {
   it('ends a call that takes longer than the timeout', async () => {
     const hang: typeof globalThis.fetch = (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason)));
     await expect(filterWith({ ...CFG, filterTimeoutSeconds: 0.05 }, hang)(COMMENT)).rejects.toThrow();
+  });
+
+  it('throws a transient error on 429, 5xx and a failed connection, and a plain one on other statuses', async () => {
+    for (const status of [429, 500, 529]) await expect(filterWith(CFG, fake(status, {}).fetch)(COMMENT)).rejects.toBeInstanceOf(TransientFilterError);
+    const down: typeof globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+    await expect(filterWith(CFG, down)(COMMENT)).rejects.toBeInstanceOf(TransientFilterError);
+    await expect(filterWith(CFG, fake(400, {}).fetch)(COMMENT)).rejects.not.toBeInstanceOf(TransientFilterError);
   });
 
   it('throws on a non-200 with the status and never the key', async () => {
