@@ -13,11 +13,11 @@ import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
 import { playerVehicle } from "../sim/damage";
+import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
 import { playerSees } from "../sim/vision";
-import { currentQuestLanguage } from "../sim/quests";
 import { autoRuns, hostileToPlayer, playerCanAct } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 

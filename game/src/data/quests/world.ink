@@ -12,6 +12,7 @@ VAR wagon_read = false
 VAR wagon_watched = false
 VAR wagon_pin = "none"
 VAR wagon_fate = "none"
+VAR scale_seen = false
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

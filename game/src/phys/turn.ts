@@ -51,6 +51,11 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
   }
 }
 
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  setQuestLanguage(request.questLanguage);
+  return computeTurn(request, terrain);
+}
+
 export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
   freezeTerrain(terrain);
   const drive = restoreDrive(task.drive);
@@ -65,11 +70,6 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
     freeDrive(drive);
     if (result) freeDrive((result as TurnResult).next);
   }
-}
-
-export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
-  setQuestLanguage(request.questLanguage);
-  return computeTurn(request, terrain);
 }
 
 export function startTurnWorker(): void {

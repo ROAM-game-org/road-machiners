@@ -23,7 +23,7 @@ import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
 import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
-import { advanceIntro, wakeInTown } from './intro';
+import { advanceIntro, greetAtScale, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
 import { findSurveySites } from './survey';
@@ -409,6 +409,7 @@ export function endTurn(
     advanceFuryRoad(w);
     spawnNpcs(w);
     advanceIntro(w);
+    greetAtScale(w);
     advanceShops(w);
     practiceContacts(w, refreshVision(w));
     noteEscape(w);

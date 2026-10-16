@@ -26,6 +26,7 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
+  SCALE_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
@@ -272,6 +273,13 @@ export function openWreckScene(w: World, stockId: string): void {
   if (questVar(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, WAGON_SEEN) === true) return;
   setWorldVar(w, WAGON_SEEN, true);
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
+}
+
+export function openScaleScene(w: World): void {
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
+  setWorldVar(w, SCALE_SEEN, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
 }
 
 export function introStep(w: World): IntroStep {
