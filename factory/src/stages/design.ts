@@ -23,7 +23,7 @@ export async function runStage(ctx: Ctx, issue: number): Promise<void> {
   if (reason !== null) return refuse(ctx, issue, reason);
   requirePlan(home, TASK_FILE(issue));
   await guardAndPush(ctx, issue, base, 'design');
-  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'));
+  await postDesign(ctx, issue, readFileSync(`${home}/${TASK_FILE(issue)}`, 'utf8'), readOutput(home, 'summary.md'));
   await moveCard(ctx, issue, 'Implementation', 'planned');
 }
 
@@ -67,7 +67,14 @@ function planText(task: string): string {
   return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
 }
 
-async function postDesign(ctx: Ctx, issue: number, taskFile: string): Promise<void> {
+const SUMMARY_CHARS = 3000;
+
+function summaryPart(summary: string | null): string {
+  const text = summary?.trim() ?? '';
+  return text === '' ? '' : `**Planned change**\n\n${text.slice(0, SUMMARY_CHARS)}\n\n`;
+}
+
+async function postDesign(ctx: Ctx, issue: number, taskFile: string, summary: string | null): Promise<void> {
   const body = fitComment(taskFile, 'the factory work clone');
-  await ctx.github.comment(issue, `<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
+  await ctx.github.comment(issue, `${summaryPart(summary)}<details>\n<summary>Design and plan</summary>\n\n${body}\n\n</details>`);
 }

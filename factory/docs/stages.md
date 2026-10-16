@@ -37,6 +37,7 @@ Design runs Opus, or Sonnet with `design-sonnet`, at `FACTORY_DESIGN_EFFORT`. It
 - Before the agent starts, the factory merges GitHub's issue branch and the latest base into the work clone, as [process.md](process.md#branches) says. The agent cannot fetch. It never asks the author about branches or the network, and work it cannot find is an assumption.
 - `.factory/questions.json`, a JSON array of questions, sends the card back to Triage with the questions, as unclear triage does.
 - `.factory/wont-do.md` closes the issue as wont-do.
+- `.factory/summary.md` is a short plain-words summary of the planned change: a short story for a storyline, the new behavior and each meaningful change for a feature or a fix, with no code. The design comment shows it above the collapsed task file, as a plan and never as built work. With no summary the comment holds the task file alone.
 - A revision reads the issue comments under "## Committee feedback". Comments under "## Committee question" are context only.
 - A card labeled `bug` or `hotfix` gets `prompts/design-bug.md`. Before up:udesign, the agent runs `up:expand handsoff` on the bug once, through its plan step only, and writes a `## Bug expansion` section with the reproduction, expected against actual, the constraints and the verification hypotheses. A revision or a retry keeps the section. Design is the first stage of every bug path, since a hotfix skips triage, and triage never touches code.
 

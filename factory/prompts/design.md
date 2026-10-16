@@ -104,6 +104,14 @@ That file is only for a game design fork or a major save bump.
 A gap in the request is not a fork. Pick the most sensible reading and write it into the task file as an assumption.
 Then stop.
 
+When the task file is done, write a short summary in plain words to `.factory/summary.md`.
+It is for the committee, players and later agents, who read it without opening the task file.
+Write it like a note to colleagues about what this change is about.
+For a storyline, tell it as a short story from beginning to end, with the setting, the people, what they want, the conflict and where it ends or is left open.
+For a feature or a fix, describe what the player will see and do, and every meaningful change of behavior.
+No code, file names or implementation details.
+It is a plan, so say what the change will do, never that it was built or tested.
+
 Git ignores the task file. Never commit it and never force-add it.
 The next stages read it from this clone.
 Commit nothing in this stage.

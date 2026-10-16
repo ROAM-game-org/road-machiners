@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readCommittee } from './committee';
+import { reportFailure } from './fail';
 import { holdCard, releaseHold } from './hold';
 import { killJob } from './jobs';
 import { appendLedger, recordJob } from './ledger';
@@ -157,14 +158,22 @@ function requireLeavable(ctx: Ctx, card: Card): void {
   if (missing !== undefined) throw new Error(`No caption is recorded for post ${missing}`);
 }
 
+async function editPost(ctx: Ctx, issue: number, id: string, text: string, isText: boolean): Promise<void> {
+  try {
+    if (isText) await ctx.telegram.editText(ctx.cfg.committeeChat, Number(id), text);
+    else await ctx.telegram.editCaption(ctx.cfg.committeeChat, Number(id), text);
+  } catch (error) {
+    await reportFailure(ctx, 'control', issue, `post ${id} is closed, but its edit to the new status failed: ${error instanceof Error ? error.message : String(error)}`, null, []);
+  }
+}
+
 async function closePosts(ctx: Ctx, issue: number, status: string): Promise<void> {
   const before = readState(ctx.statePath);
   for (const id of cardPosts(before, issue)) {
     const next = withStatus(before.postCaptions[id], status);
-    if (before.textPosts.includes(id)) await ctx.telegram.editText(ctx.cfg.committeeChat, Number(id), next);
-    else await ctx.telegram.editCaption(ctx.cfg.committeeChat, Number(id), next);
     updateState(ctx.statePath, (state) => ({ ...state, postCaptions: { ...state.postCaptions, [id]: next }, approvalPosts: omitKey(state.approvalPosts, id) }));
     dropReplyMedia(ctx.cfg.home, [Number(id)]);
+    await editPost(ctx, issue, id, next, before.textPosts.includes(id));
   }
 }
 
