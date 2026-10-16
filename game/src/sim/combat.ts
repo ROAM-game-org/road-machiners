@@ -962,12 +962,18 @@ function clearOldWrecks(world: World): void {
 function canNpcEngage(world: World, v: Vehicle, target: Vehicle): boolean {
   if (!v.brain) return true;
   if (target.id in v.brain.attackers && !robs(world, v, target)) return true;
+  if (fleesFrom(v, target) && !robs(world, v, target) && fightsAgainst(world, target, v)) return true;
   return opensFireOn(v.brain.goals, target);
 }
 
 function robs(world: World, v: Vehicle, target: Vehicle): boolean {
   const feud = stateOf(world, "feud", v.id, target.id);
   return feud !== null && feudData(feud).robbery;
+}
+
+function fleesFrom(v: Vehicle, target: Vehicle): boolean {
+  const top = v.brain?.goals[v.brain.goals.length - 1];
+  return top?.kind === 'flee' && top.targetId === target.id;
 }
 
 function opensFireOn(goals: NpcActivity[], target: Vehicle): boolean {
