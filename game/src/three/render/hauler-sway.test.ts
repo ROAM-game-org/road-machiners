@@ -27,7 +27,7 @@ function haulerStart(seed: number, turns: number): { frames: VehicleFrame[]; wid
     freeDrive(drive);
     drive = result!.next;
     frames.push(...result!.frames[haulerOf(w).id]);
-    widest = Math.max(widest, Math.abs(acrossOf(seed, toRoad(0, haulerOf(w).pos)) + 1));
+    widest = Math.max(widest, Math.abs(acrossOf(seed, toRoad(seed, 0, haulerOf(w).pos)) + 1));
   }
   freeDrive(drive);
   return { frames, widest, chassisId: haulerOf(w).chassisId };

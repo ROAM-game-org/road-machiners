@@ -1,22 +1,26 @@
-import { FURY_ROAD, HIGHWAY } from '../data/modes';
+import { FURY_ROAD } from '../data/modes';
 import { GARAGE_STOCK } from '../data/market';
-import { NPCS } from '../data/npcs';
+import { MIN_NPC_SPEED, NPCS } from '../data/npcs';
 import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { HAULER_KIT } from '../data/start';
+import { footprint } from './body';
 import { FORTRESS } from '../data/fortress';
 import { makeVehicle } from './factory';
-import { isDefeated } from './defeat';
+import { groupPrey } from './combat';
+import { isDefeated, knockOutNpc } from './defeat';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
-import { acrossOf, alongOf, highwayMap, milestoneAt, outpostId, outpostSite, outpostYardHalf, roadHeading, roadPoint, stretchStream, toRoad, WINDOW_SHIFT } from './highway';
-import { betweenLevels, gatesShut, inYard, yardSpots, type YardSpots } from './outpost-gates';
-import { mapObstacles } from './mapgen';
+import { acrossOf, alongOf, highwayMap, milestoneAt, outpostId, outpostSite, outpostYardHalf, roadHeading, roadPoint, stretchStream, toRoad, windowShift } from './highway';
+import { betweenLevels, gatesShut, inYard, yardSpots, yardSpotsAt, type YardSpots } from './outpost-gates';
+import { isDriveObstacle, mapObstacles } from './mapgen';
 import { rollPartStockPerKind } from './market';
 import { fightCornered, topGoal } from './npc-activities';
-import { generateNpcLoadout } from './npc-loadout';
-import { nextRandom, randInt, type Rng } from './rng';
+import { generateNpcLoadout, type GearRules } from './npc-loadout';
+import { randInt, type Rng } from './rng';
 import { modeRules } from './settings';
-import { enemyTrucks, gearMoneyOf, groupSizes, payOf } from './fury-road-danger';
+import { directStretch, payOf, type PlannedWave } from './fury-road-director';
+import { mountedParts } from './grid';
+import { maxHp } from './wear';
 import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, markHostile, settleStates } from './states';
 import { getResources } from './resources';
@@ -41,24 +45,26 @@ export function waveOf(j: number): (typeof FURY_ROAD.waves)[number] {
 const SIDES: readonly GroupSide[] = ['ahead', 'left', 'right'];
 
 export function stretchPlan(world: World, j: number): WaveGroup[] {
-  return planStretch(world.seed, j, groupSizes(enemyTrucks(world, j)));
+  return planStretch(world.seed, j, directStretch(world, j));
 }
 
-export function planStretch(seed: number, j: number, sizes: readonly number[]): WaveGroup[] {
-  const rng = stretchStream(seed, j, 'groups');
+export function planStretch(seed: number, j: number, waves: readonly PlannedWave[]): WaveGroup[] {
   const sides = stretchStream(seed, j, 'sides');
-  const wave = waveOf(j);
-  const weights = poolOf(j);
+  const level = waveOf(j).level;
   let last: GroupSide | null = null;
-  return sizes.map((size, i) => {
-    const from = drawSide(sides, last);
+  return waves.map((wave, i) => {
+    const drawn = drawSide(sides, last);
+    const from = FURY_ROAD.cards[wave.template].chase ? drawn : 'ahead';
     last = from;
     return {
       id: `g${j}-${i}`,
       stretch: j,
       from,
-      templates: Array.from({ length: size }, () => drawTemplate(rng, weights)),
-      level: wave.level,
+      at: wave.at,
+      templates: Array.from({ length: wave.size }, () => wave.template),
+      money: wave.money,
+      elite: wave.elite,
+      level,
       spawned: false,
       vehicles: [],
       wrecked: 0,
@@ -66,22 +72,6 @@ export function planStretch(seed: number, j: number, sizes: readonly number[]): 
       retryUntil: null,
     };
   });
-}
-
-function poolOf(j: number): Record<string, number> {
-  const tier = FURY_ROAD.pool.find((t) => j <= t.upTo);
-  if (!tier || Object.values(tier.weights).every((w) => w <= 0)) throw new Error(`Stretch ${j} has no NPC templates in its pool tier`);
-  return tier.weights;
-}
-
-function drawTemplate(rng: Rng, weights: Record<string, number>): string {
-  const entries = Object.entries(weights).filter(([, w]) => w > 0);
-  let roll = nextRandom(rng) * entries.reduce((sum, [, w]) => sum + w, 0);
-  for (const [id, w] of entries) {
-    roll -= w;
-    if (roll < 0) return id;
-  }
-  return entries[entries.length - 1][0];
 }
 
 function drawSide(rng: Rng, last: GroupSide | null): GroupSide {
@@ -106,22 +96,34 @@ export function outpostTrucks(world: World, post: OutpostFacts): string[] {
   return truckOffers(world.seed, post.milestone).filter((id) => !post.trucksSold.includes(id));
 }
 
+export type Pose = { pos: Vec; heading: number };
+
 export function startRun(world: World): void {
-  if (world.terrain.atlas.kind !== 'highway' || world.terrain.atlas.window !== 0) throw new Error(`A Fury Road run starts on highway window 0, not map ${world.mapHash}`);
-  const hauler = spawnHauler(world);
-  world.furyRoad = { window: 0, outposts: [outpostFacts(world, 1)], groups: stretchPlan(world, 1), earned: 0, wrecks: 0, quietFrom: world.turn, hauler: { id: hauler.id, alarmUntil: null } };
+  const atlas = world.terrain.atlas;
+  if (atlas.kind !== 'highway') throw new Error(`A Fury Road run starts on a highway, not map ${world.mapHash}`);
+  const from = atlas.window;
+  const hauler = spawnHauler(world, from);
+  const start = { ...outpostFacts(world, from), paid: true };
+  world.player.discovered.push(outpostId(from));
+  world.furyRoad = { window: from, outposts: [start, outpostFacts(world, from + 1)], groups: stretchPlan(world, from + 1), earned: 0, wrecks: 0, waitingAt: from, hauler: { id: hauler.id, alarmUntil: null } };
 }
 
-export function spawnHauler(world: World): Vehicle {
-  const n = milestoneAt(0);
+export function runStart(seed: number, from: number): { player: Pose; hauler: Pose } {
+  const spots = yardSpotsAt(seed, from, from);
+  const heading = outpostSite(seed, from).heading;
+  return { player: { pos: spots.truck, heading }, hauler: { pos: spots.hauler, heading } };
+}
+
+export function spawnHauler(world: World, from: number): Vehicle {
+  const start = runStart(world.seed, from).hauler;
   const v = makeVehicle(world, {
     faction: 'player',
     chassisId: HAULER_KIT.chassis,
     parts: HAULER_KIT.parts.map((defId) => ({ defId, wear: HAULER_KIT.wear })),
     spares: [],
     cargo: {},
-    pos: roadPoint(world.seed, 0, n, HIGHWAY.road.lanes[HIGHWAY.haulerLane]),
-    heading: roadHeading(world.seed, n),
+    pos: start.pos,
+    heading: start.heading,
     brain: null,
     driver: 'own',
   });
@@ -152,20 +154,20 @@ function factsOf(run: FuryRoadRun, milestone: number): OutpostFacts {
 export function advanceFuryRoad(world: World): void {
   const run = world.furyRoad;
   if (!run || world.player.state !== 'active' || betweenLevels(world)) return;
+  breakHurt(world, run);
   countBeaten(world, run);
   retireWoken(world, run);
   huntConvoy(world, run);
   if (arrivedAtNext(world, run)) return completeStretch(world, run);
-  pace(world, run);
   spawnNext(world, run, haulerProgress(world, run));
 }
 
 function playerProgress(world: World, run: FuryRoadRun): number {
-  return alongOf(world.seed, toRoad(run.window, playerVehicle(world).pos));
+  return alongOf(world.seed, toRoad(world.seed, run.window, playerVehicle(world).pos));
 }
 
 function haulerProgress(world: World, run: FuryRoadRun): number {
-  return alongOf(world.seed, toRoad(run.window, haulerOf(world).pos));
+  return alongOf(world.seed, toRoad(world.seed, run.window, haulerOf(world).pos));
 }
 
 function countBeaten(world: World, run: FuryRoadRun): void {
@@ -176,6 +178,19 @@ function countBeaten(world: World, run: FuryRoadRun): void {
     group.counted.push(e.vehicle);
     group.wrecked++;
   }
+}
+
+function breakHurt(world: World, run: FuryRoadRun): void {
+  for (const group of run.groups) {
+    for (const v of fighting(world, group)) if (hurtShare(v) >= FURY_ROAD.nerve) knockOutNpc(world, v);
+  }
+}
+
+export function hurtShare(v: Vehicle): number {
+  const parts = mountedParts(v);
+  const full = parts.reduce((sum, part) => sum + maxHp(part), 0);
+  const now = parts.reduce((sum, part) => sum + part.hp, 0);
+  return full > 0 ? 1 - now / full : 0;
 }
 
 function retireWoken(world: World, run: FuryRoadRun): void {
@@ -203,7 +218,7 @@ function huntConvoy(world: World, run: FuryRoadRun): void {
     for (const v of fighting(world, group)) {
       declareFeud(world, v, hauler.id);
       markHostile(world, v, me.id);
-      const target = turnedOnPlayer(world, v) ? me : hauler;
+      const target = groupPrey(world, v);
       if (huntsTarget(v, target)) refreshTrack(world, v, target.id, interceptPoint(world, run, v, target));
       else fightCornered(world, v, target);
     }
@@ -214,7 +229,7 @@ export function interceptPoint(world: World, run: FuryRoadRun, hunter: Vehicle, 
   const hunterSpeed = vehicleStats(world, hunter).maxSpeed;
   if (me.speed === 0 || hunterSpeed === 0) return me.pos;
   const lead = Math.min((me.speed * dist(hunter.pos, me.pos)) / hunterSpeed, FURY_ROAD.pacing.near);
-  const ahead = toRoad(run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
+  const ahead = toRoad(world.seed, run.window, { x: me.pos.x + Math.cos(me.heading) * lead, y: me.pos.y + Math.sin(me.heading) * lead });
   return roadPoint(world.seed, run.window, alongOf(world.seed, ahead), withinFlanks(acrossOf(world.seed, ahead)));
 }
 
@@ -223,26 +238,20 @@ function huntsTarget(v: Vehicle, target: Vehicle): boolean {
   return top?.kind === 'fight' && top.targetId === target.id;
 }
 
-function encounterOn(world: World, run: FuryRoadRun): boolean {
-  const hauler = haulerOf(world);
-  return run.groups.some((g) => fighting(world, g).some((v) => dist(v.pos, hauler.pos) <= FURY_ROAD.pacing.near));
-}
-
-function pace(world: World, run: FuryRoadRun): void {
-  if (encounterOn(world, run)) run.quietFrom = world.turn;
-}
-
 function spawnNext(world: World, run: FuryRoadRun, progress: number): void {
-  if (world.turn - run.quietFrom < FURY_ROAD.pacing.quiet) return;
   const group = run.groups.find((g) => !g.spawned);
-  if (!group || aliveCount(world, run) + group.templates.length > FURY_ROAD.maxAlive) return;
+  if (!group || progress < group.at || aliveCount(world, run) + group.templates.length > FURY_ROAD.maxAlive) return;
   spawnGroup(world, run, group, progress);
 }
 
+export function waveGear(template: string, stretch: number, money: number, elite: boolean): GearRules {
+  const minSpeed = FURY_ROAD.cards[template].chase ? FURY_ROAD.chaseSpeed : MIN_NPC_SPEED;
+  return { ...waveOf(stretch).gear, armored: elite, armorFirst: elite, money, minSpeed };
+}
+
 export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, progress: number): void {
-  const gear = { ...waveOf(group.stretch).gear, money: gearMoneyOf(world, group.stretch) };
-  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, gear), cargo: {} } }));
-  const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => chassisDef(l.loadout.chassisId).radius));
+  const loadouts = group.templates.map((id) => ({ tpl: NPCS[id], loadout: { ...generateNpcLoadout(world, NPCS[id], null, group.level, waveGear(id, group.stretch, group.money, group.elite)), cargo: {} } }));
+  const spots = groupSpots(world, run, group.from, progress, loadouts.map((l) => footprint(l.loadout.chassisId)));
   if (spots === 'seen') {
     group.retryUntil = null;
     return;
@@ -253,15 +262,14 @@ export function spawnGroup(world: World, run: FuryRoadRun, group: WaveGroup, pro
   loadouts.forEach(({ tpl, loadout }, i) => {
     const v = spawnAt(world, tpl, loadout, spots[i], allegianceFor(world, tpl, null, null));
     getResources(world, v).fuel = fuelCap(v);
-    v.heading = Math.atan2(hauler.pos.y - v.pos.y, hauler.pos.x - v.pos.x);
+    v.heading = roadHeading(world.seed, alongOf(world.seed, toRoad(world.seed, run.window, v.pos)));
     group.vehicles.push(v.id);
     declareFeud(world, v, hauler.id);
     markHostile(world, v, me.id);
-    fightCornered(world, v, hauler);
+    fightCornered(world, v, groupPrey(world, v));
   });
   group.spawned = true;
   group.retryUntil = null;
-  run.quietFrom = world.turn;
 }
 
 type Candidate = { along: number; across: number };
@@ -290,7 +298,7 @@ function outOfSight(world: World): (pos: Vec) => boolean {
 }
 
 function haulerAcross(world: World, run: FuryRoadRun): number {
-  return acrossOf(world.seed, toRoad(run.window, haulerOf(world).pos));
+  return acrossOf(world.seed, toRoad(world.seed, run.window, haulerOf(world).pos));
 }
 
 function withinFlanks(across: number): number {
@@ -322,13 +330,13 @@ function fortReach(radius: number): number {
   return outpostYardHalf() + FORTRESS.wallDepth / 2 + radius + FURY_ROAD.spawnClear;
 }
 
-function spawnRange(run: FuryRoadRun, radius: number): { from: number; to: number } {
+function spawnRange(world: World, run: FuryRoadRun, radius: number): { from: number; to: number } {
   const reach = fortReach(radius);
-  return { from: milestoneAt(run.window) + (run.window >= 1 ? reach : 0), to: milestoneAt(run.window + 1) - reach };
+  return { from: milestoneAt(world.seed, run.window) + reach, to: milestoneAt(world.seed, run.window + 1) - reach };
 }
 
 function freeSpot(world: World, run: FuryRoadRun, candidates: Candidate[], radius: number, taken: Vec[], hidden: (pos: Vec) => boolean): Vec | null {
-  const { from, to } = spawnRange(run, radius);
+  const { from, to } = spawnRange(world, run, radius);
   for (const c of candidates) {
     const pos = roadPoint(world.seed, run.window, Math.min(Math.max(c.along, from), to), c.across);
     if (!insideWindow(world, pos, radius) || !hidden(pos)) continue;
@@ -347,7 +355,7 @@ function retryLater(world: World, group: WaveGroup): void {
 }
 
 function arrivedAtNext(world: World, run: FuryRoadRun): boolean {
-  return inYard(world, haulerOf(world).pos, run.window + 1);
+  return playerTrucks(world).every((truck) => inYard(world, truck.pos, run.window + 1));
 }
 
 export function canDriveOn(world: World): boolean {
@@ -356,9 +364,11 @@ export function canDriveOn(world: World): boolean {
 
 export function driveOn(world: World): World {
   return playerCommand(world, (w) => {
-    if (!canDriveOn(w)) throw new Error('Drive on needs both trucks parked inside the yard of a paid outpost, with its gates shut');
-    moveWindow(w);
-    w.events.push({ t: 'roadOpened', stretch: runOf(w).window + 1 });
+    if (!canDriveOn(w)) throw new Error('Drive on needs both trucks parked inside the yard of an outpost, with its gates shut');
+    const run = runOf(w);
+    if (run.waitingAt === run.window + 1) moveWindow(w);
+    run.waitingAt = null;
+    w.events.push({ t: 'roadOpened', stretch: run.window + 1 });
   });
 }
 
@@ -370,6 +380,7 @@ function completeStretch(world: World, run: FuryRoadRun): void {
   world.player.money += pay;
   world.events.push({ t: 'money', amount: pay, reason: { kind: 'outpost' } });
   post.paid = true;
+  run.waitingAt = j;
   run.earned += pay;
   run.wrecks += wrecks;
   removeVehicles(world, run.groups.flatMap((g) => g.vehicles));
@@ -430,7 +441,7 @@ const DROPPED: { [K in keyof World as (typeof WINDOW_MOVE)[K] extends 'drop' ? K
 };
 
 function requireMovable(world: World, run: FuryRoadRun): void {
-  if (!factsOf(run, run.window + 1).paid) throw new Error(`The window moves only once outpost ${run.window + 1} is paid`);
+  if (run.waitingAt !== run.window + 1) throw new Error(`The window moves only while the run waits at outpost ${run.window + 1}`);
   if (aliveCount(world, run) > 0) throw new Error('The window cannot move while a group truck is alive');
   if (!gatesShut(world)) throw new Error(`The window moves only with both trucks parked inside outpost ${run.window + 1} and its gates shut`);
   if (world.salvage.length > 0 || Object.keys(world.shops).length > 0) throw new Error('A Fury Road window holds no salvage and no shops');
@@ -441,34 +452,34 @@ export function moveWindow(world: World): void {
   requireMovable(world, run);
   const next = run.window + 1;
   const map = highwayMap(world.seed, next);
+  const shift = windowShift(world.seed, run.window);
   for (const key of Object.keys(DROPPED) as (keyof typeof DROPPED)[]) (world as Record<string, unknown>)[key] = DROPPED[key]();
-  shiftVehicles(world);
-  shiftPlayer(world);
-  shiftStorms(world);
+  shiftVehicles(world, shift);
+  shiftPlayer(world, shift);
+  shiftStorms(world, shift);
   world.terrain = map.terrain;
   world.mapHash = map.hash;
   world.obstacles = mapObstacles(map);
   run.window = next;
   run.outposts = [...run.outposts.filter((o) => o.milestone === next), outpostFacts(world, next + 1)];
   run.groups = stretchPlan(world, next + 1);
-  run.quietFrom = world.turn;
   refreshVision(world);
 }
 
-function shifted(p: Vec): Vec {
-  return { x: p.x + WINDOW_SHIFT.x, y: p.y + WINDOW_SHIFT.y };
+function shifted(p: Vec, shift: Vec): Vec {
+  return { x: p.x + shift.x, y: p.y + shift.y };
 }
 
-function shiftStorms(world: World): void {
-  for (const storm of world.weather) if (storm.kind === 'storm') storm.pos = shifted(storm.pos);
+function shiftStorms(world: World, shift: Vec): void {
+  for (const storm of world.weather) if (storm.kind === 'storm') storm.pos = shifted(storm.pos, shift);
 }
 
-function shiftVehicles(world: World): void {
+function shiftVehicles(world: World, shift: Vec): void {
   const kept = playerTrucks(world);
   world.removed.push(...world.vehicles.filter((v) => !kept.includes(v)));
   world.vehicles = kept;
   for (const truck of kept) {
-    truck.pos = shifted(truck.pos);
+    truck.pos = shifted(truck.pos, shift);
     truck.order = null;
     truck.trail = [];
     truck.weaponOrders = {};
@@ -476,11 +487,11 @@ function shiftVehicles(world: World): void {
   }
 }
 
-function shiftPlayer(world: World): void {
+function shiftPlayer(world: World, shift: Vec): void {
   const p = world.player;
   const size = world.size;
   const explored = new Uint8Array(size * size);
-  const { x: sx, y: sy } = WINDOW_SHIFT;
+  const { x: sx, y: sy } = shift;
   const fromX = Math.max(0, -sx);
   const toX = Math.min(size, size - sx);
   for (let y = Math.max(0, -sy); y < Math.min(size, size - sy); y++) explored.set(p.explored.subarray(y * size + fromX, y * size + toX), (y + sy) * size + fromX + sx);
@@ -497,7 +508,19 @@ export function endRun(world: World, cause: RunLossCause): void {
 }
 
 export function canAbandonRun(world: World): boolean {
-  return world.furyRoad !== null && !modeRules(world).rescue && world.player.state === 'active' && playerTrucks(world).some((truck) => isStranded(world, truck));
+  if (world.furyRoad === null || modeRules(world).rescue || world.player.state !== 'active') return false;
+  return playerTrucks(world).some((truck) => isStranded(world, truck)) || haulerWedged(world);
+}
+
+export function haulerWedged(world: World): boolean {
+  const hauler = haulerOf(world);
+  if (hauler.speed > RULES.parkedSpeed || parkedForTheRoad(world, hauler)) return false;
+  const radius = chassisDef(hauler.chassisId).radius;
+  return world.obstacles.some((o) => isDriveObstacle(o) && dist(o.pos, hauler.pos) < radius);
+}
+
+function parkedForTheRoad(world: World, hauler: Vehicle): boolean {
+  return betweenLevels(world) || inYard(world, hauler.pos, runOf(world).window + 1);
 }
 
 export function abandonRun(world: World): World {
@@ -512,8 +535,8 @@ export function runEarnings(world: World): { pay: number; wrecks: number; reache
   return {
     pay: run.earned,
     wrecks: run.wrecks + run.groups.reduce((n, g) => n + g.wrecked, 0),
-    reached: run.window + (betweenLevels(world) ? 1 : 0),
-    north: Math.max(0, playerProgress(world, run) - milestoneAt(0)),
+    reached: run.window + (run.waitingAt === run.window + 1 ? 1 : 0),
+    north: Math.max(0, playerProgress(world, run) - milestoneAt(world.seed, 0)),
   };
 }
 
@@ -530,14 +553,14 @@ export function reachedOutpostAt(world: World, truck: Vehicle = playerVehicle(wo
 export function outpostNear(world: World, truck: Vehicle = playerVehicle(world)): Outpost | null {
   const run = world.furyRoad;
   if (!run) return null;
-  const facts = factsOf(run, run.window + 1);
+  const facts = factsOf(run, run.waitingAt ?? run.window + 1);
   return facts.paid && inYard(world, truck.pos, facts.milestone) ? outpostOf(world, facts) : null;
 }
 
 export function furyRoadReadout(world: World): FuryRoadReadout | null {
   const run = world.furyRoad;
   if (!run) return null;
-  if (betweenLevels(world)) return fullStretch(world, run.window + 2);
+  if (run.waitingAt !== null) return fullStretch(world, run.waitingAt + 1);
   const j = run.window + 1;
   return { stretch: j, toOutpost: Math.max(0, outpostSite(world.seed, j).n - haulerProgress(world, run)), outpostId: outpostId(j) };
 }

@@ -5,7 +5,7 @@ import { NPC_BEHAVIOR } from '../data/npcs';
 import { isHostile, noteCollision } from './combat';
 import { getMobilityCondition, isStranded, vehicleStats } from './stats';
 import { angleDiff, bearing, dist, type Vec } from './vec';
-import { laneCount, passShare, planCrashLane, planLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
+import { laneCount, passShare, planCrashLane, ramMult, sideToward, type PartHit, type Round, type Side } from './armor';
 import { partDef, sustainedDamage } from '../data/parts';
 import { isJunk, maxHp, restorePart } from './wear';
 import { damagePart, isOwnedTruck } from './damage';
@@ -120,7 +120,7 @@ function applyContactDamage(world: World, vehicle: Vehicle, contact: CrashContac
 function strikeLane(world: World, vehicle: Vehicle, side: Side, lane: number, round: Round, hits: Map<string, number>, ground: boolean): void {
   const copy = structuredClone(vehicle);
   const draft = { ...world, player: scratchPlayer(world, vehicle), events: [] };
-  for (const hit of (ground ? planLane : planCrashLane)(copy, side, lane, round)) {
+  for (const hit of planCrashLane(copy, side, lane, round, ground ? 1 : undefined)) {
     hits.set(hit.part.id, (hits.get(hit.part.id) ?? 0) + damagePart(draft, copy, hit.part, hit.amount));
   }
 }

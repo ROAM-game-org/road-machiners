@@ -72,7 +72,7 @@ export function computeRequestedTurn(request: TurnRequest, terrain: World['terra
   return computeTurn(request, terrain);
 }
 
-function startTurnWorker(): void {
+export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -113,7 +113,6 @@ function describeWorkerError(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-if (typeof self !== 'undefined' && !('document' in self)) startTurnWorker();
 
 const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
@@ -244,3 +243,6 @@ function pathLength(trail: Pose[]): number {
   for (let i = 1; i < trail.length; i++) total += dist(trail[i - 1], trail[i]);
   return total;
 }
+
+const scope = globalThis as { document?: unknown; onmessage?: unknown };
+if (typeof self !== 'undefined' && scope.document === undefined && !scope.onmessage) startTurnWorker();

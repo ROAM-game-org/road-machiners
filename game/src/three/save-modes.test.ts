@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { startKit } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import { haulerOf, playerVehicle } from '../sim/damage';
-import { FURY_ROAD } from '../data/modes';
 import { betweenLevels, driveOn } from '../sim/fury-road';
 import { gatesShut } from '../sim/outpost-gates';
 import { highwayHash } from '../sim/highway';
@@ -11,7 +10,7 @@ import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
 import { changeMapIfMoved, loadWorld, mapFor, SaveError, SaveHold, SAVE_KEY, writeSave, type Run } from './save';
-import type { RunLog } from './run-log';
+import { RunLog } from './run-log';
 import { takeBootRequest } from './save-slots';
 import { memoryBackend, SaveSlots } from './save-db';
 
@@ -58,13 +57,14 @@ describe('a saved world by mode', () => {
 
   it('gives back the same run mid-stretch, with a group racing in, and awards nothing on load', () => {
     let world = furyRoadWorld(21);
-    for (let t = 0; t < FURY_ROAD.pacing.quiet + 2; t++) world = endTurn(world, () => {});
+    world.furyRoad!.groups[0].at = 0;
+    for (let t = 0; t < 2; t++) world = endTurn(world, () => {});
     expect(world.furyRoad!.groups[0].spawned).toBe(true);
 
     const loaded = loadWorld(saved(world), 'auto', TEST_MAP)!;
 
     expect(loaded).toEqual({ ...world, events: [], removed: [] });
-    expect(loaded.furyRoad?.quietFrom).toBe(world.furyRoad!.quietFrom);
+    expect(loaded.furyRoad?.groups[0]).toEqual(world.furyRoad!.groups[0]);
   });
 
   it('pays an outpost once across a save and a load between levels, and awards nothing on load', () => {
@@ -116,8 +116,10 @@ describe('the map of a saved world', () => {
 
 describe('the window swap in the game', () => {
   function runOn(world: World): Run {
-    const log = { flush: () => Promise.resolve() } as unknown as RunLog;
-    return { slots: new SaveSlots(memoryBackend(), new Map()), runId: 'run-1', log, mapHash: world.mapHash };
+    const backend = memoryBackend();
+    const log = new RunLog(backend, 'run-1', 'test', (err) => { throw err; });
+    log.begin(world, null);
+    return { slots: new SaveSlots(backend, new Map()), runId: 'run-1', log, mapHash: world.mapHash };
   }
 
   it('asks for a boot of the autosave only when the map has moved', async () => {
@@ -136,6 +138,8 @@ describe('the window swap in the game', () => {
     const moved = driveOn(paid);
     expect(changeMapIfMoved(run, moved, new SaveHold(), storage, reload)).toBe(true);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    const logged = await run.slots.backend.readLog('run-1');
+    expect(logged.some((r) => r.kind === 'event' && r.t === 'roadOpened' && r.turn === moved.turn)).toBe(true);
     expect(takeBootRequest(storage, SAVE_KEY)).toEqual({ slot: 'auto', reason: 'road' });
     expect(loadWorld(run.slots, 'auto', TEST_MAP)?.furyRoad?.window).toBe(1);
   });

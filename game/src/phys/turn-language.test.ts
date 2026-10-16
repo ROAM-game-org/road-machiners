@@ -17,7 +17,7 @@ afterEach(() => setQuestLanguage('en'));
 function knockoutTurn(questLanguage: QuestLanguage) {
   const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
   const me = playerVehicle(world);
-  const raider = addVehicle(world, 'raiders', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
+  const raider = addVehicle(world, 'independent', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
   corePart(me, 'cab').hp = 0;
   const drive = buildDrive(world);

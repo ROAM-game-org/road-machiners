@@ -289,7 +289,7 @@ function roadHoles(t: Terrain): RoadHole[] {
   const key = t.atlas;
   if (key.kind !== 'highway') return [];
   const inset = HIGHWAY.road.paint.holeInset;
-  return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
+  return windowCraters(key.seed, key.window).map((c) => ({ pos: fromRoad(key.seed, key.window, c.at.n, c.at.u), radius: Math.max(inset, c.radius - inset) }));
 }
 
 function padUniforms(atlas: Atlas, pixel: number) {

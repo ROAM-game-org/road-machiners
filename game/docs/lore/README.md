@@ -1,19 +1,19 @@
 # Lore
 
-The world of ROAM. Everything here answers to [Theme](theme.md).
+The world of ROAM. Everything here answers to [Theme](../theme.md).
 
-- [World facts](lore/world.md): the timeline, technology, population and what lies beyond the basin.
-- [Peoples](lore/peoples.md): towns, groups and faiths, and how each copes with the world.
-- [Characters](lore/characters.md): named people.
-- [Rumors](lore/rumors.md): what people say.
-- [Stories](lore/stories.md): seeds for events and jobs.
-- [Story game](lore/story-game.md): a turn-based game that generates history and stories with agents.
+- [World facts](world.md): the timeline, technology, population and what lies beyond the basin.
+- [Peoples](peoples.md): towns, groups and faiths, and how each copes with the world.
+- [Characters](characters.md): named people.
+- [Rumors](rumors.md): what people say.
+- [Stories](stories.md): seeds for events and jobs.
+- [Story game](story-game.md): a turn-based game that generates history and stories with agents.
 
 ## Icarus
 
 Icarus was a fertile farming basin before the collapse. Orchards, fields, canals, irrigation gates, farm roads, and market towns shaped the land. It was not a spaceflight center. The name Icarus came after the crash. Its old name has not been chosen.
 
-A huge spaceship broke apart while descending through the atmosphere. Its largest hull section lies in the central crater and is called the Fallen Sun. Engines, cargo sections, and escape pods fell across the basin, leaving a trail of wrecks and impact scars. No one in the basin agrees whether the crash happened before, during, or after the wider collapse. It happened in the middle of the Chaos, as [World facts](lore/world.md) records.
+A huge spaceship broke apart while descending through the atmosphere. Its largest hull section lies in the central crater and is called the Fallen Sun. Engines, cargo sections, and escape pods fell across the basin, leaving a trail of wrecks and impact scars. No one in the basin agrees whether the crash happened before, during, or after the wider collapse. It happened in the middle of the Chaos, as [World facts](world.md) records.
 
 People still live and trade here. Farmers protect the canals that still work and the remaining seed stores. Salvagers recover metal and machinery from the wrecks. Truckers carry food, water, fuel, and parts between settlements. An irrigation gate can matter as much as a cargo hold.
 
@@ -29,10 +29,10 @@ Each of these needs one true answer, written here once it is chosen. The game wi
 - Whether Nose's wreck is part of the Fallen Sun's ship or a second ship.
 - What lies in the Fallen Sun's crater, and what the green glow does to people.
 - Why the Old Army left Old Orchard.
-- What the Given were. Many basin people descend from these pod survivors, as [Peoples](lore/peoples.md) records. Whether they were sleeping passengers or people the ship grew, and why they woke remembering nothing, is open.
+- What the Given were. Many basin people descend from these pod survivors, as [Peoples](peoples.md) records. Whether they were sleeping passengers or people the ship grew, and why they woke remembering nothing, is open.
 - What the basin was called before.
 
-Chosen answers live in the hidden truths of [Timeline](lore/timeline.md). The fused glass of the Glass Flats is answered there.
+Chosen answers live in the hidden truths of [Timeline](timeline.md). The fused glass of the Glass Flats is answered there.
 
 ### Mood references
 
@@ -70,7 +70,7 @@ Jill Jane, "J.J.", runs Waste Of Time Radio from a mast nobody has found. Her br
 - She is dry and gallows-funny. She calls listeners "road machiners" or "boys" and signs off with "Waste some time."
 - She reports raids as business and never judges how anyone lives. She does frown on killing.
 - She stays in character. She never says turns, quests, XP, levels, HP, keys, clicks, the player or the game. She never states a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine.
-- Hints are road wisdom someone in the wasteland would say, like "Noon sun cooks an engine. Park in shade." Each matches a real rule in the [mechanics pages](wiki/mechanics/). A hint never says what to do next or how a control works.
+- Hints are road wisdom someone in the wasteland would say, like "Noon sun cooks an engine. Park in shade." Each matches a real rule in the [mechanics pages](../wiki/mechanics/). A hint never says what to do next or how a control works.
 - She names only places the listener has found. Anywhere else is a basin direction like "up north" or "in the southwest basin". She never quotes prices. The Rumor mill and Market ears perks keep that work.
 - A line fits the three-line screen: 90 characters at most once its names are filled in.
 
@@ -88,7 +88,7 @@ Bowl and Nose have locals the player talks to in town. `src/data/locals.ts` hold
 - Sefa is blunt and dry. She speaks for the families off the Burnt Convoy, who live at the Salvage Yard now. She takes what the road is done with and leaves the water.
 - Ines is level and open. She reads the count aloud to anyone who stops and says plainly what she does not know.
 - The six older locals also talk about the gun law, the swivel and its pins, Pierce paper, the Kiln fee, the tenants, Green Pit and the Glass Flats, each in their own voice. Ruben, Hattie and Dag disagree with Kovac, Lena and Ibo on who is to blame.
-- A rumor from [Rumors](lore/rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
+- A rumor from [Rumors](rumors.md) reaches the journal as a note that records what the speaker said, never the truth. A biased speaker says so in character, and two locals may contradict each other, as Sefa and Ibo do on the old Burnt Convoy stretch.
 - Locals point to the people of other jobs by name and place only: Agnes Ondra at Dustwell, Odile Marsh at the Granary, Mara Kessel at the Salvage Yard, Constance Pierce at the Pierce office in Nose, Tamsin Roe the courier, Lusa Fenwick and Pim Arslan the lens cutter. They never speak for them.
 - Locals may be wrong, biased or out of date. Two of them may contradict each other. No line settles the crash date, the basin's old name or what the Fallen Sun was.
 - Lines stay in character, as J.J.'s do. They never say turns, quests, XP, levels, HP, markers, waypoints, the map, clicks, the player or the game. They never state a game stat as a number, like damage, HP or a rule value. Ordinary numbers people say are fine, like "a decade of service" or "two cans".

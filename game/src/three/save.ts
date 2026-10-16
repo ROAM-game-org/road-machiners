@@ -344,6 +344,7 @@ export function changeMapIfMoved(run: Run, world: World, hold: SaveHold, session
   if (world.mapHash === run.mapHash) return false;
   if (hold.held) throw new Error(`The map moved to ${world.mapHash} while saves are held, so a reboot would lose the turn`);
   if (!world.events.some((e) => e.t === 'roadOpened')) throw new Error(`The map moved to ${world.mapHash} with no road opened`);
+  run.log.note(world);
   writeSave(run.slots, 'auto', world, run.runId, Date.now());
   run.mapHash = world.mapHash;
   requestBoot(session, SAVE_KEY, { slot: 'auto', reason: 'road' });

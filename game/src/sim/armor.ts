@@ -1,13 +1,13 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { bodyOf } from './body';
+import { bodyOf, cellCenter, cellRect, halfLength, halfWidth, type CellRect } from './body';
 
 import { partDef, type PartDef, type WeaponDef } from '../data/parts';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, mountedParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
-import { angleDiff, bearing, type Vec } from './vec';
+import { angleDiff, bearing, dist, type Vec } from './vec';
 
 export type Side = 'front' | 'rear' | 'left' | 'right';
 export type PartHit = { part: string; damage: number };
@@ -105,14 +105,73 @@ export function lanePoint(v: Vehicle, side: Side, lane: number): Vec {
   return toMap(v, laneFace(v, side, lane));
 }
 
-export function blastLanes(v: Vehicle, p: Vec, radius: number): { side: Side; lanes: number[] } {
-  const side = sideToward(v, p);
+type BlastCell = { part: PartInstance; center: Local; rect: CellRect };
+
+export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): { part: PartInstance; amount: number }[] {
+  checkRound(round);
+  if (dist(v.pos, p) > radius + Math.hypot(halfLength(v.chassisId), halfWidth(v.chassisId))) return [];
   const at = toLocal(v, p);
-  const lanes = Array.from({ length: laneCount(v, side) }, (_, i) => i).filter((lane) => {
-    const face = laneFace(v, side, lane);
-    return Math.hypot(at.fwd - face.fwd, at.right - face.right) <= radius;
-  });
-  return { side, lanes };
+  const cells = blastCells(v);
+  const nearest = new Map<string, BlastCell>();
+  for (const c of cells) {
+    const best = nearest.get(c.part.id);
+    if (!best || gap(at, c.center) < gap(at, best.center)) nearest.set(c.part.id, c);
+  }
+  return [...nearest.values()]
+    .filter((c) => c.part.id !== skip && gap(at, c.center) <= radius)
+    .map((c) => ({ part: c.part, amount: blastAmount(c, shields(cells, at, c), round, 1 - gap(at, c.center) / radius) }));
+}
+
+function blastCells(v: Vehicle): BlastCell[] {
+  return mountedItems(v).filter((it) => it.part.hp > 0).flatMap((it) => itemCells(it).map((cell) => {
+    const center = cellCenter(v.chassisId, cell.x, cell.y);
+    return { part: it.part, center: { fwd: center.x, right: center.z }, rect: cellRect(v.chassisId, [cell]) };
+  }));
+}
+
+function gap(a: Local, b: Local): number {
+  return Math.hypot(a.fwd - b.fwd, a.right - b.right);
+}
+
+function shields(cells: BlastCell[], from: Local, target: BlastCell): PartInstance[] {
+  const entries = new Map<PartInstance, number>();
+  for (const c of cells) {
+    if (c.part.id === target.part.id) continue;
+    const t = segmentEntry(from, target.center, c.rect);
+    if (t !== null && t < (entries.get(c.part) ?? Infinity)) entries.set(c.part, t);
+  }
+  return [...entries.entries()].sort((a, b) => a[1] - b[1]).map(([part]) => part);
+}
+
+function segmentEntry(a: Local, b: Local, r: CellRect): number | null {
+  let lo = 0;
+  let hi = 1;
+  for (const [start, delta, min, max] of [[a.fwd, b.fwd - a.fwd, r.x0, r.x1], [a.right, b.right - a.right, r.z0, r.z1]]) {
+    if (delta === 0) {
+      if (start < min || start > max) return null;
+      continue;
+    }
+    const t0 = (min - start) / delta;
+    const t1 = (max - start) / delta;
+    lo = Math.max(lo, Math.min(t0, t1));
+    hi = Math.min(hi, Math.max(t0, t1));
+    if (lo > hi) return null;
+  }
+  return lo;
+}
+
+function blastAmount(target: BlastCell, between: PartInstance[], round: Round, near: number): number {
+  const left = { pen: round.pen, damage: round.damage * near };
+  for (const part of between) {
+    left.pen -= RULES.cellPen;
+    if (left.pen <= 0) return 0;
+    spendRound(part, left, round);
+    if (left.pen <= 0) return 0;
+  }
+  left.pen -= RULES.cellPen;
+  if (left.pen <= 0) return 0;
+  const def = wornDef(target.part);
+  return left.damage * shareOf(def, round) * Math.min(1, left.pen / armorAgainst(def, round.blast));
 }
 
 export function laneCount(v: Vehicle, side: Side): number {
@@ -160,11 +219,11 @@ export function walkLane(world: World, v: Vehicle, side: Side, lane: number, rou
 }
 
 export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1);
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, spendRound);
 }
 
-export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, RULES.crashFalloff);
+export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round, falloff = RULES.crashFalloff): { part: PartInstance; amount: number }[] {
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, hitPart);
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
@@ -174,7 +233,7 @@ export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: P
   return (side, round) => {
     let lanes = sides.get(side);
     if (!lanes) sides.set(side, (lanes = Array.from({ length: laneCount(v, side) }, (_, lane) => laneOwners(g, owner, side, lane))));
-    return lanes.map((cells) => walkCells(cells, round, 1));
+    return lanes.map((cells) => walkCells(cells, round, 1, spendRound));
   };
 }
 
@@ -184,7 +243,9 @@ function laneOwners(g: Grid, owner: Map<number, PartInstance>, side: Side, lane:
   return laneCells(g, side, lane).map((c) => (g.cells[c.y][c.x] === null && c.y < g.deadFrom ? null : { part: owner.get(cellKey(c.x, c.y)) }));
 }
 
-function walkCells(cells: LaneCell[], round: Round, falloff: number): { part: PartInstance; amount: number }[] {
+type Spend = (part: PartInstance, left: { pen: number; damage: number }, round: Round) => { part: PartInstance; amount: number };
+
+function walkCells(cells: LaneCell[], round: Round, falloff: number, spend: Spend): { part: PartInstance; amount: number }[] {
   checkRound(round);
   const hits: { part: PartInstance; amount: number }[] = [];
   const struck = new Set<string>();
@@ -197,9 +258,19 @@ function walkCells(cells: LaneCell[], round: Round, falloff: number): { part: Pa
     const part = cell.part;
     if (!takesHit(part, left.pen, struck)) continue;
     struck.add(part.id);
-    hits.push(hitPart(part, left, round));
+    hits.push(spend(part, left, round));
   }
   return hits;
+}
+
+function spendRound(part: PartInstance, left: { pen: number; damage: number }, round: Round): { part: PartInstance; amount: number } {
+  const def = wornDef(part);
+  const armor = armorAgainst(def, round.blast);
+  const absorbed = Math.min(1, (armor + RULES.cellPen) / (left.pen + RULES.cellPen));
+  const amount = left.damage * shareOf(def, round) * absorbed * Math.min(1, left.pen / armor);
+  left.damage *= 1 - absorbed;
+  left.pen -= armor;
+  return { part, amount };
 }
 
 export function heldPart(v: Vehicle, side: Side, lane: number): PartInstance | null {

@@ -1,6 +1,3 @@
-// Truck body in meters. The collider is the boxes of the chassis base model, and the wheel mounts are data per look.
-// The grid is logical and knows no meters. cellRect() projects it over the model and is the only place that converts
-// between cells and meters.
 
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
@@ -33,6 +30,18 @@ export function bodyOf(chassisId: string): Body {
   const body = buildBody(chassisId);
   bodies.set(chassisId, body);
   return body;
+}
+
+export function halfLength(chassisId: string): number {
+  return bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
+}
+
+export function halfWidth(chassisId: string): number {
+  return bodyOf(chassisId).half.z / PHYSICS.metersPerTile;
+}
+
+export function footprint(chassisId: string): number {
+  return Math.max(chassisDef(chassisId).radius, halfLength(chassisId));
 }
 
 function buildBody(chassisId: string): Body {

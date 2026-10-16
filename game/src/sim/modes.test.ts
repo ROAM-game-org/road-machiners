@@ -99,9 +99,9 @@ describe('a new world by mode', () => {
   it('gives the Fury Road player the Fury Road kit with no opening', () => {
     const world = furyRoadWorld(7);
 
-    expect(world.player.money).toBe(20000);
+    expect(world.player.money).toBe(8000);
     expect(world.player.autoRepair).toBe(true);
-    expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(4);
+    expect(world.vehicles[0].items.filter((it) => it.kind === 'good' && it.good === 'parts')).toHaveLength(1);
   });
 });
 

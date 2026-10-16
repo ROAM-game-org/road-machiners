@@ -66,7 +66,7 @@ function playTurns(w: World, id: string, turns: number): { w: World; backed: num
 
 describe('NPC driving', () => {
   it('backs off a rock in its path and drives around it', () => {
-    let w = emptyWorld({ x: 40, y: 30 });
+    let w = emptyWorld({ x: 40, y: 5 });
     const npc = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
     npc.brain.goals = [{ kind: 'raid', targetId: null, destination: { x: 300, y: 30 }, reason: 'raid', phase: 'travel' }];
