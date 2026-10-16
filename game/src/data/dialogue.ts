@@ -9,7 +9,7 @@ export type ConditionId =
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
   | 'accepts' | 'refuses' | 'complies' | 'resists' | 'runs' | 'claimsPlayerLoot' | 'holdsOn' | 'canTowNpc' | 'towedByPlayer' | 'noTrade' | 'npcCalm'
   | 'knowsLastTown' | 'hearsRumor' | 'rumorOfSite' | 'rumorOfWreck' | 'canPayTruce'
-  | 'npcLow' | 'playerLow' | 'noAid' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
+  | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby'
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk'
   | 'offersTale' | 'offersTip' | 'callsOut' | 'newsOfSite' | 'newsOfWreck' | 'newsOfTip' | 'seeksSomeone' | 'sawSought' | 'missedSought' | 'hasParcelFor' | 'noHandover'
   | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue';
@@ -62,7 +62,7 @@ export const LINE_IDS = [
   'youHeardMeLeave', 'youKnowHowThen', 'youLookDryI', 'youSaidThat', 'youWantToPick', 'yourCallLastChance',
   'yourEngineSoundsRough', 'yourFuneral', 'yourLoadIsInThe', 'yourTruckIsFinished', 'yourTruckLooksDead',
   'warnTerms', 'thisOneIsSpokenFor', 'thatsMyPick', 'offMyLootNow', 'leaveThatSalvageBe', 'imTakingThatOne', 'sawThisOneFirst', 'mineGoPickAnother', 'weAreTakingThisOne', 'backAwayFromThat', 'thatsMineWalkAway', 'findYourOwn', 'makeMe', 'keepYourScrapsThen', 'thoughtSo', 'thenWeSettleIt', 'bringIt', 'nothingHereICanCarry', 'waitHereForMe', 'waitingHere', 'letsMove', 'movingOutNow',
-  'gotAStoryFrom', 'goOnThen', 'rolledPastSite', 'notNow', 'iKnowAWreck', 'niceRigLetsSee', 'notLookingForTrouble', 'lookAtMyGunsAgain', 'letsGo',
+  'gotAStoryFrom', 'goOnThen', 'notNow', 'iKnowAWreck', 'niceRigLetsSee', 'notLookingForTrouble', 'lookAtMyGunsAgain', 'letsGo',
   'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
   'courierShortOfFuel', 'atTheTownPrice', 'youKeptMeRolling', 'courierSquareTip', 'youLeftMeDry', 'youShotMeUp', 'letsCallItEven', 'toldYouIOweYou',
 ] as const;
@@ -778,7 +778,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   offerAid: {
     id: 'offerAid',
     once: false,
-    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'npcCalm', 'npcLow', 'npcOffRope'], duringFeud: false },
+    ask: { say: 'runningLowICan', when: ['noAid', 'atPeace', 'aidHolds', 'npcLow', 'npcOffRope'], duringFeud: false },
     raise: null,
     prepare: 'aidWanted',
     hangUp: [],
@@ -797,7 +797,7 @@ export const TOPICS: Record<TopicId, Topic> = {
   askAid: {
     id: 'askAid',
     once: true,
-    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'npcCalm', 'playerLow'], duringFeud: false },
+    ask: { say: 'iAmRunningDry', when: ['noAid', 'atPeace', 'aidHolds', 'playerLow'], duringFeud: false },
     raise: null,
     prepare: 'aidAnswer',
     hangUp: ['settleRefused'],
@@ -852,7 +852,7 @@ export const TOPICS: Record<TopicId, Topic> = {
           { say: 'notNow', when: [], effects: ['declineEncounter'], go: END },
         ],
       },
-      site: { line: 'rolledPastSite', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
+      site: { line: 'siteWay', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
       tip: { line: 'tipTold', options: [{ say: 'thanksOverAndOut', when: [], effects: ['endEncounter'], go: END }] },
     },
   },

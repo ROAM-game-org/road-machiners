@@ -1,20 +1,20 @@
 # Writing quests
 
-This guide covers how to add a quest, change one safely and keep all quests healthy. Quests are ink scripts in `src/data/quests/`. [Quests](architecture/quests.md) is the reference for every tag, game function and save rule, and this guide links there instead of repeating it. The ink language itself is in [Writing with ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md).
+This guide covers how to add a quest, change one safely and keep all quests healthy. Quests are ink scripts in `src/data/quests/`. [Quests](../architecture/quests.md) is the reference for every tag, game function and save rule, and this guide links there instead of repeating it. The ink language itself is in [Writing with ink](https://github.com/inkle/ink/blob/master/Documentation/WritingWithInk.md).
 
 ## Making a quest
 
 A quest is built in three steps: play out the story behind it, write it, then playtest it with a fresh agent until every criterion scores 5 out of 5.
 
-1. Build the situation with the [Story game](lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
-2. Write the quest from the log with this guide and [Writing dialogue](dialogue-writing.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
+1. Build the situation with the [Story game](../lore/story-game.md). Run a smaller pass at the quest's place and time. Agents play the people of the quest, and the earlier history stays fixed. Give the pass one question, like who drains the pump. The log gives you the factions, what each one wants, the hidden truth and the scenes. Nobody wrote that plot, so it has real twists and failures. Move new names and facts into the lore pages.
+2. Write the quest from the log with this guide and [Writing dialogue](dialogue.md). Each player in the story game becomes a person the player can meet, and the hidden truth becomes what the player can find out.
 3. Playtest it with Codex. Run it in the background, with a log:
 
    ```
    npm run quest:playtest -- pump_agnes --situation "You drive a truck, and you just rolled into a water outpost where a woman is at work." --out tmp/playtest-pump.md > tmp/playtest.log 2>&1 &
    ```
 
-   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](quest-playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default. `--lang ru --prompt docs/quest-playtest-prompt-ru.md` plays the Russian twins with a native Russian reader, who marks every line that reads as a translation with «ПЕРЕВОД:». In Russian the player is agy in place of Codex, since agy reads Russian better, and `--model` then names an agy model. Write its situation and `--then` lines in Russian.
+   The situation is one or two sentences about what the player sees on arrival. Tell it nothing else, so it plays like a player. The script shows Codex one screen at a time, as the player sees it, and Codex answers with a comment and one choice. It never runs commands or reads the source. The comments follow the rubric in [the playtest prompt](playtest-prompt.md): clarity, voice, choices, pull, consistency and prose. When the story ends, Codex may start over once on a different road. Then it gives three best things, up to five worst problems, a score from 1 to 5 for each criterion by the scale in the prompt, and what would make every criterion a 5. The run's score is the lowest of the six. The notes file holds every screen, comment and pick. `--screens` caps the screens, 40 by default. `--lang ru --prompt docs/writing/playtest-prompt-ru.md` plays the Russian twins with a native Russian reader, who marks every line that reads as a translation with «ПЕРЕВОД:». In Russian the player is agy in place of Codex, since agy reads Russian better, and `--model` then names an agy model. Write its situation and `--then` lines in Russian.
 
    A new game has every skill at 0, so every check fails. Give each run the skills of a driver who would arrive at this place with `--skill <skill>=<level>`, which may repeat. Run at least three times, with a different driver each time and one short line in the situation about how they play, like "You like machines, and you want to see things for yourself." Runs with the same situation and skills pick the same road.
 
@@ -30,7 +30,7 @@ A run that hits a load error or a broken runner does not count. Fix the error an
 
 ## The loop
 
-1. Edit or add a `.ink` file in `src/data/quests/`, and have agy make the same change in its Russian twin in `src/data/quests/ru/`, as [Russian copy](russian-style.md) says.
+1. Edit or add a `.ink` file in `src/data/quests/`, and have agy make the same change in its Russian twin in `src/data/quests/ru/`, as [Russian copy](russian.md) says.
 2. Play it in the terminal: `npm run quest -- <quest>`, and `--lang ru` plays the twin. `npm run quest -- list` prints every quest id. It compiles fresh from the sources, so no build is needed. `--picks 1,2,1` plays fixed choices, `--checkpoint <name>` starts elsewhere, `--set name=value` sets a variable first, and `--skill social=2` sets a skill. `--play tmp/run.json` keeps a game in a file: each call with `--pick 2` makes one choice and shows only the next screen. A new file starts a new game. Under each screen, both views print the tip of every marked term, like `[hover Bowl: ...]`, so a playtest agent reads the tips a player can hover.
 3. Run `npm run quests:check`. It fails on compile errors, broken tags, dead ends, sections never reached, effects that a load would repeat and a twin that plays out differently from its English quest. It names the picks that lead to each problem.
 4. Run `npm run quests:build` to write `src/data/quests.json`. The game reads only this bundle, and a test fails when it is stale.
@@ -84,11 +84,11 @@ INCLUDE world.ink
 - Give each scene a `# place:` on its first line. The heading stays until another place.
 - Put `# page` on the first line of a hub that follows an outcome. The outcome then shows on its own page with Next, and the hub opens fresh.
 - Write documents as tables with `# head` and `# row` lines, cells split by `;`. Use them for ledgers, logs and price boards.
-- `# img: <key>` shows a picture. Make it by [Quest art](quest-art.md), which writes it to `public/quest-art/`, and add the key to `QUEST_ART` in `src/data/quest-art.ts`. `focusX` is the percent across the picture that the narrow art column keeps in view. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
+- `# img: <key>` shows a picture. Make it by [Quest art](../art/quest-art.md), which writes it to `public/quest-art/`, and add the key to `QUEST_ART` in `src/data/quest-art.ts`. `focusX` is the percent across the picture that the narrow art column keeps in view. Put the same tag on the same line of the Russian twin. Repeat the tag on the first line of a checkpoint whose page should show it after a load.
 - A paid choice carries `# cost: <M>` inside its brackets. The runner charges it on the pick and greys the choice out when the player holds less.
-- A choice that can fail carries `# check: <skill> <level>` inside its brackets, and the ink after it branches on `passed()`. The window shows the skill and level next to the choice. [Skill checks in talk](dialogue-writing.md#skill-checks-in-talk) has the writing rules.
+- A choice that can fail carries `# check: <skill> <level>` inside its brackets, and the ink after it branches on `passed()`. The window shows the skill and level next to the choice. [Skill checks in talk](dialogue.md#skill-checks-in-talk) has the writing rules.
 
-[Quests](architecture/quests.md#top-tags) lists every tag and its exact rules.
+[Quests](../architecture/quests.md#top-tags) lists every tag and its exact rules.
 
 ## Quest design
 
@@ -106,10 +106,10 @@ Age of Decadence is the model. Its designer held every quest to three rules: no 
 
 ## Writing rules
 
-[Writing dialogue](dialogue-writing.md) holds the house style for narration and talk, and every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
+[Writing dialogue](dialogue.md) holds the house style for narration and talk, and every rule for speech: voices, answers, player questions, dodges, skill checks in talk and sentence style. These rules cover the rest.
 
 - Show, do not tell. Give the player what their character sees and let them draw the conclusion. Write "Pell's name is on every line of the ledger" and never "the ledger points at Pell". A fact in the right column records an observation, never a verdict. Narration never states the answer to a clue the player is meant to work out. The character may still judge and guess, like "Somebody paid him lately".
-- Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue-writing.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
+- Narration in page scenes uses full, concrete sentences. They run through the character's head, as [Writing dialogue](dialogue.md#a-voice-not-a-camera) asks, and every line makes sense to a player who has read only the screens before it. Detail of sight, sound, heat and touch goes where the scene turns. Vary sentence length. A page of three-word sentences reads as a telegram, not a scene.
 - Stay in character. Text never talks about game systems: turns, quests, XP, levels, HP, the map or the player. The words keep their everyday meaning, so "the road turns" and "an old map" are fine. Ordinary numbers are fine. The voice test in `src/test/out-of-character.ts` checks the game phrases.
 - `<b>` is only for a name or a sum in a written document, like a ledger row. A page carries one or two highlights at most: `<shake>`, `<pop>` or `<color>`, for a physical event or a word the scene introduces.
 - Speech reveals word by word and narration fades in a paragraph at a time, with no tag needed. Give a narration line `# reveal: word` or `char`, `<pause>` or `<now>` only where its timing is the point, like the first link in the intro.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpuMs, overCpuLimit } from './cpu-limits';
+import { cpuLimitsOn, cpuMs, overCpuLimit } from './cpu-limits';
 
 describe('CPU time limits', () => {
   it('passes work at or under the limit', () => {
@@ -12,5 +12,10 @@ describe('CPU time limits', () => {
 
   it('counts user and system time in milliseconds', () => {
     expect(cpuMs({ user: 1_500_000, system: 500_000 })).toBe(2000);
+  });
+
+  it('applies only on GitHub Actions, which sets CI to true', () => {
+    expect(cpuLimitsOn({ CI: 'true' })).toBe(true);
+    expect(cpuLimitsOn({})).toBe(false);
   });
 });

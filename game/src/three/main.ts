@@ -2,7 +2,7 @@
 import { formatSupport, loadBank, recoverBank, reportFailures, type BankOptions, type LoadedBank } from '../audio/bank';
 import { Mixer } from '../audio/mixer';
 import { SoundPlayer } from '../audio/player';
-import { CONFIG, ERROR_REPORT_URL, SFX_BYTES } from '../config';
+import { CONFIG, ERROR_REPORT_URL, GAME_VERSION, SFX_BYTES } from '../config';
 import { BANK, BOOT_SOUNDS, MIX, SOUNDS } from '../data/sounds';
 import { bankKitLoader, CombatMusic } from './combat-music';
 import { startKit } from '../data/start';
@@ -195,7 +195,7 @@ const newGameActions: NewGameActions = {
 };
 bootStep('loading the save');
 const { world, runId, loadedFrom, fresh } = await bootWorld();
-const log = new RunLog(slots.backend, runId, (err) => slots.onError(err));
+const log = new RunLog(slots.backend, runId, GAME_VERSION, (err) => slots.onError(err));
 log.begin(world, loadedFrom);
 bootStep('building the ground');
 await boot.track('ground', () => groundTexture(world));

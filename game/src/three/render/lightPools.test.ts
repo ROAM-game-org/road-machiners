@@ -4,10 +4,10 @@ import { REGION } from '../../data/region';
 import { fortressFootprint, fortressOutline, fortressPieces } from '../../sim/fortress';
 import { isFortress, type Site } from '../../sim/sites';
 import { pointInPolygon, type Vec } from '../../sim/vec';
-import { POOLS, bakePools, poolSide, poolTextureSize, samplePools, type PoolLamp } from './lightPools';
+import { POOLS, bakePools, poolGrid, poolSide, samplePools, type PoolLamp } from './lightPools';
 
 const SITES: Site[] = [...REGION.towns, ...REGION.locations].filter(isFortress);
-const SIZE = poolTextureSize(REGION.size, REGION.size * POOLS.texelsPerTile);
+const GRID = poolGrid(REGION.size, POOLS.maxSide);
 const HANG = 0.7;
 
 type Face = { site: Site; face: Vec; n: Vec; inside: boolean };
@@ -30,7 +30,7 @@ const solidsOf = (site: Site) => fortressPieces(site).map((piece) => fortressFoo
 const open = (f: Face) => poolSide(f.site, solidsOf(f.site), pushed(f)) !== 'solid';
 const FACES = SITES.flatMap(wallFaces).filter(open);
 const lampAt = (f: Face): PoolLamp => ({ site: f.site, x: f.face.x + f.n.x * HANG, z: f.face.y + f.n.y * HANG, inside: f.inside });
-const seen = (data: Uint8Array, f: Face) => samplePools(data, SIZE, pushed(f));
+const seen = (data: Uint8Array, f: Face) => samplePools(data, GRID, pushed(f));
 
 describe('night light pools (IV1, IV4)', () => {
   it('finds wall faces on both sides of every fortress curtain', () => {
@@ -41,18 +41,34 @@ describe('night light pools (IV1, IV4)', () => {
   });
 
   it('keeps outer lamp light off every inner wall face, and lights the outer faces (IV1)', () => {
-    const data = bakePools(FACES.filter((f) => !f.inside).map(lampAt), SIZE);
+    const data = bakePools(FACES.filter((f) => !f.inside).map(lampAt), GRID);
     for (const f of FACES.filter((f) => f.inside)) expect(seen(data, f), `${f.site.id} ${f.face.x.toFixed(1)},${f.face.y.toFixed(1)}`).toBe(0);
     for (const f of FACES.filter((f) => !f.inside)) expect(seen(data, f), f.site.id).toBeGreaterThan(0.2);
   });
 
   it('keeps inner lamp light off every outer wall face, and lights the inner faces (IV1)', () => {
-    const data = bakePools(FACES.filter((f) => f.inside).map(lampAt), SIZE);
+    const data = bakePools(FACES.filter((f) => f.inside).map(lampAt), GRID);
     for (const f of FACES.filter((f) => !f.inside)) expect(seen(data, f), `${f.site.id} ${f.face.x.toFixed(1)},${f.face.y.toFixed(1)}`).toBe(0);
     for (const f of FACES.filter((f) => f.inside)) expect(seen(data, f), f.site.id).toBeGreaterThan(0.2);
   });
 
+  it('caps the Icarus and highway grids at the WebGL2 floor (IV2)', () => {
+    expect(poolGrid(REGION.size, 2048)).toEqual({ side: 2048, perTile: 2048 / REGION.size });
+    expect(poolGrid(410, 2048)).toEqual({ side: 1640, perTile: 4 });
+  });
+
+  it('peaks at the lamp and stays dark a radius away (IV3)', () => {
+    const grid = poolGrid(8, 2048);
+    const site = SITES[0];
+    const lamp: PoolLamp = { site: { ...site, pos: { x: 4, y: 4 } }, x: 4, z: 4, inside: true };
+    const data = bakePools([lamp], grid);
+    const at = (dx: number) => samplePools(data, grid, { x: 4 + dx, y: 4 });
+    expect(at(0)).toBeGreaterThan(at(0.5));
+    expect(at(0.5)).toBeGreaterThan(at(1.2));
+    expect(at(POOLS.radius + 0.5)).toBe(0);
+  });
+
   it('refuses a pool texture larger than the renderer allows (IV4)', () => {
-    expect(() => poolTextureSize(REGION.size, REGION.size * POOLS.texelsPerTile - 1)).toThrow(/renderer allows/);
+    expect(() => poolGrid(REGION.size, 2047)).toThrow(/renderer allows/);
   });
 });

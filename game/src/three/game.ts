@@ -830,7 +830,8 @@ export class Game {
   }
 
   private beginTurn(prepared: PreparedTurn, now: number, elapsed: number): void {
-    const { world, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
+    const { world: played, playback, towed } = this.travel.beginPlayback(this.world, prepared, now, elapsed, this.frames);
+    const world = relanguageQuest(played, QUESTS);
     if (this.saves.changeMapIfMoved(world)) return;
     this.world = world;
     this.saves.logWorld(world);

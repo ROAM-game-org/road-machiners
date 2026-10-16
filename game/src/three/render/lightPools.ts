@@ -7,17 +7,19 @@ import { pointInPolygon, type Vec } from '../../sim/vec';
 
 const S = PHYSICS.metersPerTile;
 
-export const POOLS = { texelsPerTile: 4, radius: 1.8, gain: 0.5, push: 0.5, margin: 2 };
+export const POOLS = { texelsPerTile: 4, maxSide: 2048, radius: 1.8, gain: 0.5, push: 0.5, margin: 2 };
 const HALO = { size: 1.6, texels: 64 };
 
 export type PoolLamp = { site: Site; x: number; z: number; inside: boolean };
 type Side = 'inside' | 'outside' | 'solid';
 type Region = { site: Site; i0: number; j0: number; i1: number; j1: number; sides: Side[] };
 
-export function poolTextureSize(worldSize: number, maxTextureSize: number): number {
-  const size = worldSize * POOLS.texelsPerTile;
-  if (size > maxTextureSize) throw new Error(`Night pool texture needs ${size} texels, the renderer allows ${maxTextureSize}`);
-  return size;
+export type PoolGrid = { side: number; perTile: number };
+
+export function poolGrid(worldSize: number, maxTextureSize: number): PoolGrid {
+  const side = Math.min(worldSize * POOLS.texelsPerTile, POOLS.maxSide);
+  if (side > maxTextureSize) throw new Error(`Night pool texture needs ${side} texels, the renderer allows ${maxTextureSize}`);
+  return { side, perTile: side / worldSize };
 }
 
 export function poolSide(site: Site, solids: Vec[][], p: Vec): Side {
@@ -25,18 +27,18 @@ export function poolSide(site: Site, solids: Vec[][], p: Vec): Side {
   return pointInPolygon(p, fortressOutline(site)) ? 'inside' : 'outside';
 }
 
-function texelCentre(i: number): number {
-  return (i + 0.5) / POOLS.texelsPerTile;
+function texelCentre(grid: PoolGrid, i: number): number {
+  return (i + 0.5) / grid.perTile;
 }
 
-function siteRegion(site: Site, size: number): Region {
+function siteRegion(site: Site, grid: PoolGrid): Region {
   const reach = site.radius + POOLS.radius + POOLS.margin;
-  const lo = (v: number) => Math.max(0, Math.floor((v - reach) * POOLS.texelsPerTile));
-  const hi = (v: number) => Math.min(size - 1, Math.ceil((v + reach) * POOLS.texelsPerTile));
+  const lo = (v: number) => Math.max(0, Math.floor((v - reach) * grid.perTile));
+  const hi = (v: number) => Math.min(grid.side - 1, Math.ceil((v + reach) * grid.perTile));
   const region = { site, i0: lo(site.pos.x), j0: lo(site.pos.y), i1: hi(site.pos.x), j1: hi(site.pos.y), sides: [] as Side[] };
   const solids = fortressPieces(site).map((piece) => fortressFootprint(site, piece));
   for (let j = region.j0; j <= region.j1; j++)
-    for (let i = region.i0; i <= region.i1; i++) region.sides.push(poolSide(site, solids, { x: texelCentre(i), y: texelCentre(j) }));
+    for (let i = region.i0; i <= region.i1; i++) region.sides.push(poolSide(site, solids, { x: texelCentre(grid, i), y: texelCentre(grid, j) }));
   return region;
 }
 
@@ -49,35 +51,35 @@ export function poolFalloff(d: number): number {
   return (1 - t * t) ** 2;
 }
 
-function addLamp(light: Float32Array, size: number, region: Region, lamp: PoolLamp): void {
+function addLamp(light: Float32Array, grid: PoolGrid, region: Region, lamp: PoolLamp): void {
   const side: Side = lamp.inside ? 'inside' : 'outside';
-  const span = Math.ceil(POOLS.radius * POOLS.texelsPerTile);
-  const ci = Math.floor(lamp.x * POOLS.texelsPerTile);
-  const cj = Math.floor(lamp.z * POOLS.texelsPerTile);
+  const span = Math.ceil(POOLS.radius * grid.perTile);
+  const ci = Math.floor(lamp.x * grid.perTile);
+  const cj = Math.floor(lamp.z * grid.perTile);
   for (let j = Math.max(region.j0, cj - span); j <= Math.min(region.j1, cj + span); j++)
     for (let i = Math.max(region.i0, ci - span); i <= Math.min(region.i1, ci + span); i++) {
       if (sideAt(region, i, j) !== side) continue;
-      light[j * size + i] += poolFalloff(Math.hypot(texelCentre(i) - lamp.x, texelCentre(j) - lamp.z));
+      light[j * grid.side + i] += poolFalloff(Math.hypot(texelCentre(grid, i) - lamp.x, texelCentre(grid, j) - lamp.z));
     }
 }
 
-export function bakePools(lamps: PoolLamp[], size: number): Uint8Array {
-  const light = new Float32Array(size * size);
+export function bakePools(lamps: PoolLamp[], grid: PoolGrid): Uint8Array {
+  const light = new Float32Array(grid.side * grid.side);
   const regions = new Map<Site, Region>();
   for (const lamp of lamps) {
     let region = regions.get(lamp.site);
-    if (!region) regions.set(lamp.site, (region = siteRegion(lamp.site, size)));
-    addLamp(light, size, region, lamp);
+    if (!region) regions.set(lamp.site, (region = siteRegion(lamp.site, grid)));
+    addLamp(light, grid, region, lamp);
   }
   return Uint8Array.from(light, (v) => Math.round(Math.min(1, v) * 255));
 }
 
-export function samplePools(data: Uint8Array, size: number, p: Vec): number {
-  const u = p.x * POOLS.texelsPerTile - 0.5;
-  const v = p.y * POOLS.texelsPerTile - 0.5;
+export function samplePools(data: Uint8Array, grid: PoolGrid, p: Vec): number {
+  const u = p.x * grid.perTile - 0.5;
+  const v = p.y * grid.perTile - 0.5;
   const i = Math.floor(u);
   const j = Math.floor(v);
-  const at = (a: number, b: number) => data[b * size + a] / 255;
+  const at = (a: number, b: number) => data[b * grid.side + a] / 255;
   const fu = u - i;
   const fv = v - j;
   return (at(i, j) * (1 - fu) + at(i + 1, j) * fu) * (1 - fv) + (at(i, j + 1) * (1 - fu) + at(i + 1, j + 1) * fu) * fv;
@@ -127,8 +129,8 @@ export class NightPools {
   readonly haloMaterial = new THREE.SpriteMaterial({ map: haloTexture(), color: PAL.lamp.amber, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
 
   bake(lamps: PoolLamp[], worldSize: number, maxTextureSize: number): void {
-    const size = poolTextureSize(worldSize, maxTextureSize);
-    const texture = new THREE.DataTexture(bakePools(lamps, size), size, size, THREE.RedFormat, THREE.UnsignedByteType);
+    const grid = poolGrid(worldSize, maxTextureSize);
+    const texture = new THREE.DataTexture(bakePools(lamps, grid), grid.side, grid.side, THREE.RedFormat, THREE.UnsignedByteType);
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
     texture.needsUpdate = true;

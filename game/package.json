@@ -33,6 +33,7 @@
     "progression:record": "vite-node scripts/progression-record.mjs",
     "progression:playthrough": "vite-node scripts/progression-playthrough.mjs",
     "progression:report": "vite-node scripts/progression-report.mjs",
+    "run:timeline": "vite-node scripts/run-timeline.mjs --",
     "search:effort": "vite-node scripts/search-effort.mjs",
     "progression:watch": "vite-node scripts/progression-watch.mjs",
     "progression:analyze": "vite-node scripts/progression-analyze.mjs",

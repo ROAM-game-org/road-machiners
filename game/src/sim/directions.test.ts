@@ -110,8 +110,21 @@ describe('directionsTo', () => {
 
   it('stops after the allowed turns with askAgain', () => {
     const steps = directionsTo(w, site('scrapjaw'), to('glass-flats'));
-    expect(steps.filter((s) => s.do === 'turn')).toHaveLength(DIRECTIONS.maxSteps);
+    expect(steps.filter((s) => s.do === 'turn').length).toBeLessThanOrEqual(DIRECTIONS.maxSteps);
     expect(steps[steps.length - 1].do).toBe('askAgain');
+  });
+
+  it('never counts a fork above the third, and reports how many answers ask again', () => {
+    const asks = { answers: 0, askAgain: 0 };
+    for (const from of [OFF_ROAD, site('bowl'), site('nose'), site('scrapjaw'), { x: 300, y: 300 }]) {
+      for (const s of SITES) {
+        const steps = directionsTo(w, from, to(s.id));
+        asks.answers++;
+        if (steps.some((x) => x.do === 'askAgain')) asks.askAgain++;
+        for (const step of steps) if (step.do === 'turn' && step.at.kind === 'fork') expect(step.at.nth).toBeLessThanOrEqual(DIRECTIONS.maxCount);
+      }
+    }
+    console.log('ask again counts', JSON.stringify(asks));
   });
 
   it('holds no coordinates, meters or bearings in a step', () => {
@@ -146,26 +159,58 @@ describe('cues', () => {
   it('names a prop standing at the node', () => {
     const world = emptyWorld();
     world.obstacles = [tower('t1', { x: 72, y: 12 })];
-    expect(cueAt(world, { pos: { x: 70, y: 10 }, leg, earlier: [], forks: 1, junctionHere: true })).toEqual({ kind: 'prop', look: 'waterTower' });
+    expect(cueAt(world, { pos: { x: 70, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier: [], forks: 1, junctionHere: true })).toEqual({ kind: 'prop', look: 'waterTower' });
   });
 
   it('never names a look whose twin stands on the same leg', () => {
     const world = emptyWorld();
     world.obstacles = [tower('t1', { x: 30, y: 12 }), tower('t2', { x: 72, y: 12 })];
-    expect(cueAt(world, { pos: { x: 70, y: 10 }, leg, earlier: [{ x: 30, y: 10 }], forks: 2, junctionHere: true })).toEqual({ kind: 'fork', nth: 2 });
+    expect(cueAt(world, { pos: { x: 70, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier: [{ x: 30, y: 10 }], forks: 2, junctionHere: true })).toEqual({ kind: 'fork', nth: 2 });
   });
 
   it('says the next turn at the first junction and counts forks after that', () => {
     const world = emptyWorld();
-    expect(cueAt(world, { pos: quiet, leg, earlier: [], forks: 1, junctionHere: true })).toEqual({ kind: 'none' });
-    expect(cueAt(world, { pos: quiet, leg, earlier: [], forks: 3, junctionHere: true })).toEqual({ kind: 'fork', nth: 3 });
+    expect(cueAt(world, { pos: quiet, legStart: { x: -100, y: 10 }, leg, earlier: [], forks: 1, junctionHere: true })).toEqual({ kind: 'none' });
+    expect(cueAt(world, { pos: quiet, legStart: { x: -100, y: 10 }, leg, earlier: [], forks: 3, junctionHere: true })).toEqual({ kind: 'fork', nth: 3 });
+  });
+
+  it('counts the second and third fork when the forks are well apart', () => {
+    const world = emptyWorld();
+    const spot = (earlier: Vec[], forks: number) => ({ pos: { x: 200, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier, forks, junctionHere: true });
+    expect(cueAt(world, spot([{ x: 60, y: 10 }], 2))).toEqual({ kind: 'fork', nth: 2 });
+    expect(cueAt(world, spot([{ x: 60, y: 10 }, { x: 130, y: 10 }], 3))).toEqual({ kind: 'fork', nth: 3 });
+  });
+
+  it('gives no cue for a fourth fork', () => {
+    const world = emptyWorld();
+    const earlier = [{ x: 40, y: 10 }, { x: 80, y: 10 }, { x: 120, y: 10 }];
+    expect(cueAt(world, { pos: { x: 160, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier, forks: 4, junctionHere: true })).toBeNull();
+  });
+
+  it('gives no cue when two junctions sit closer than a driver can tell apart', () => {
+    const world = emptyWorld();
+    expect(cueAt(world, { pos: { x: 70, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier: [{ x: 60, y: 10 }], forks: 2, junctionHere: true })).toBeNull();
+  });
+
+  it('gives no cue for the next fork when it is next to the leg start', () => {
+    const world = emptyWorld();
+    expect(cueAt(world, { pos: { x: 70, y: 10 }, legStart: { x: 60, y: 10 }, leg, earlier: [], forks: 1, junctionHere: true })).toBeNull();
+  });
+
+  it('counts forks passed before a leave point, and keeps it plain with one or none', () => {
+    const world = emptyWorld();
+    const at = (earlier: Vec[], forks: number) => ({ pos: { x: 200, y: 10 }, legStart: { x: -20, y: 10 }, leg, earlier, forks, junctionHere: false });
+    expect(cueAt(world, at([], 0))).toEqual({ kind: 'none' });
+    expect(cueAt(world, at([{ x: 90, y: 10 }], 1))).toEqual({ kind: 'none' });
+    expect(cueAt(world, at([{ x: 60, y: 10 }, { x: 130, y: 10 }], 2))).toEqual({ kind: 'fork', nth: 2 });
+    expect(cueAt(world, at([{ x: 180, y: 10 }, { x: 190, y: 10 }], 2))).toBeNull();
   });
 
   it('prefers a site to a prop', () => {
     const world = emptyWorld();
     const bowl = REGION.towns[0];
     world.obstacles = [tower('t1', { x: bowl.pos.x + bowl.radius, y: bowl.pos.y })];
-    const cue = cueAt(world, { pos: { x: bowl.pos.x + bowl.radius, y: bowl.pos.y }, leg: [], earlier: [], forks: 1, junctionHere: true });
+    const cue = cueAt(world, { pos: { x: bowl.pos.x + bowl.radius, y: bowl.pos.y }, legStart: { x: bowl.pos.x - 200, y: bowl.pos.y }, leg: [], earlier: [], forks: 1, junctionHere: true });
     expect(cue).toEqual({ kind: 'site', id: bowl.id });
   });
 });

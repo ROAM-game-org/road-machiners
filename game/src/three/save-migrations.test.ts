@@ -70,6 +70,9 @@ import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import FORMAT_2_68 from './save-fixtures/format-2-68.json';
 import FORMAT_2_69 from './save-fixtures/format-2-69.json';
 import FORMAT_2_70 from './save-fixtures/format-2-70.json';
+import FORMAT_2_71 from './save-fixtures/format-2-71.json';
+import FORMAT_2_72 from './save-fixtures/format-2-72.json';
+import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1499,5 +1502,75 @@ describe('MIGRATIONS[70]', () => {
   it('gives a memory of being wronged the attacked deed and keeps other memories', () => {
     const memories = (next.vehicles as unknown as { id: string; brain: { memories: unknown[] } }[]).find((v) => v.id === 'v3')!.brain.memories;
     expect(memories).toEqual([{ turn: 30, fact: { kind: 'wronged', by: 'v1', deed: 'attacked' } }, { turn: 31, fact: { kind: 'prices', shop: 'bowl', pressure: {} } }]);
+  });
+});
+
+describe('MIGRATIONS[71]', () => {
+  type Saved = { player: { money: number; call: { vars: { way: { steps: { do: string; at?: unknown }[] } }; line: { vars: { way: { steps: { do: string; at?: unknown }[] } } } } } };
+  const next = () => MIGRATIONS[71](structuredClone(FORMAT_2_71)) as unknown as Saved;
+
+  it('cuts the steps at a fork counted past the third and asks again, in both copies of the call', () => {
+    const { call } = next().player;
+    for (const way of [call.vars.way, call.line.vars.way]) {
+      expect(way.steps.map((s) => s.do)).toEqual(['follow', 'turn', 'askAgain']);
+    }
+  });
+
+  it('removes the cue from every askAgain', () => {
+    const only = structuredClone(FORMAT_2_71) as unknown as Saved;
+    only.player.call.vars.way.steps = [{ do: 'askAgain', at: { kind: 'fork', nth: 3 } }];
+    only.player.call.line.vars.way.steps = [{ do: 'askAgain', at: { kind: 'none' } }];
+    const { call } = (MIGRATIONS[71](only as never) as unknown as Saved).player;
+    expect(call.vars.way.steps).toEqual([{ do: 'askAgain' }]);
+    expect(call.line.vars.way.steps).toEqual([{ do: 'askAgain' }]);
+  });
+
+  it('keeps the rest of the world and a save with no call as they are', () => {
+    const { player, ...rest } = next() as unknown as { player: { money: number; call: object }; turn: number };
+    expect(rest).toEqual({ turn: 3 });
+    expect(player.money).toBe(1200);
+    const none = { turn: 3, player: { call: null } };
+    expect(MIGRATIONS[71](structuredClone(none))).toEqual(none);
+  });
+
+  it('keeps the steps of a call whose forks are all countable', () => {
+    const fine = structuredClone(FORMAT_2_71) as unknown as Saved;
+    fine.player.call.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
+    fine.player.call.line.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
+    expect(MIGRATIONS[71](structuredClone(fine) as never)).toEqual(fine);
+  });
+});
+
+describe('save migration 72 to 73', () => {
+  it('has a run parked at its paid next outpost wait there for the road', () => {
+    expect(MIGRATIONS[72](structuredClone(FORMAT_2_72))).toEqual({ ...FORMAT_2_72, furyRoad: { ...FORMAT_2_72.furyRoad, waitingAt: 2 } });
+  });
+
+  it('has a run on the road wait nowhere', () => {
+    const run = { ...structuredClone(FORMAT_2_72.furyRoad), outposts: [FORMAT_2_72.furyRoad.outposts[0], { ...FORMAT_2_72.furyRoad.outposts[1], paid: false }] };
+    const world = { ...structuredClone(FORMAT_2_72), furyRoad: run };
+
+    expect(MIGRATIONS[72](structuredClone(world))).toEqual({ ...world, furyRoad: { ...run, waitingAt: null } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_72), furyRoad: null };
+
+    expect(MIGRATIONS[72](structuredClone(roaming))).toEqual(roaming);
+  });
+});
+
+describe('save migration 73 to 74', () => {
+  it('drops the quiet gap and lets every saved group come at once with plain gear', () => {
+    const { quietFrom: _quietFrom, ...run } = FORMAT_2_73.furyRoad;
+    const groups = FORMAT_2_73.furyRoad.groups.map((group) => ({ ...group, at: 0, money: 20000, elite: false }));
+
+    expect(MIGRATIONS[73](structuredClone(FORMAT_2_73))).toEqual({ ...FORMAT_2_73, furyRoad: { ...run, groups } });
+  });
+
+  it('keeps a world with no run as it is', () => {
+    const roaming = { ...structuredClone(FORMAT_2_73), furyRoad: null };
+
+    expect(MIGRATIONS[73](structuredClone(roaming))).toEqual(roaming);
   });
 });

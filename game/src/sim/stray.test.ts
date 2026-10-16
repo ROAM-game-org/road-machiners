@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { blastLanes, laneCount, lanePoint } from './armor';
+import { laneCount, lanePoint, planBlast } from './armor';
 import { fireWeapons, inFeud, shotDamage } from './combat';
 import { reportIncident } from './relations';
 import { gunFor } from './factory';
@@ -116,17 +116,15 @@ describe('stray fire', () => {
 });
 
 describe('blasts', () => {
-  it('reach the lanes whose face centers lie within the radius and no others', () => {
+  it('reach the parts within the radius of the blast and no others', () => {
     const w = emptyWorld();
     const v = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 40 });
-    const lanes = laneCount(v, 'front');
-    const mid = Math.floor(lanes / 2);
-    const face = lanePoint(v, 'front', mid);
-    const near = blastLanes(v, { x: face.x + 0.05, y: face.y }, 0.5);
-    expect(near.side).toBe('front');
-    expect(near.lanes).toContain(mid);
-    expect(near.lanes.length).toBeLessThan(lanes);
-    expect(blastLanes(v, { x: face.x + 3, y: face.y }, 2.5).lanes).toEqual([]);
+    const face = lanePoint(v, 'front', Math.floor(laneCount(v, 'front') / 2));
+    const round = { damage: 10, pen: 20, blast: true, armorShare: 1 };
+    const near = planBlast(v, face, 1.5, round, null);
+    expect(near.length).toBeGreaterThan(0);
+    expect(near.length).toBeLessThan(mountedParts(v).length);
+    expect(planBlast(v, { x: face.x + 30, y: face.y }, 2.5, round, null)).toEqual([]);
   });
 
   it('a cannon round splashes a truck beside where it lands', () => {

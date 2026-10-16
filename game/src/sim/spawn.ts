@@ -3,6 +3,7 @@ import { FIRST_NAMES, NPCS, OPPOSED_TRAITS, SPAWN, SURNAMES, type NpcTemplate, t
 import { SITE_FACTIONS, TOWN_TRADER_SHARE } from "../data/npc-behavior";
 import { isOutlaw } from "./relations";
 import { chassisDef } from "../data/chassis";
+import { footprint } from "./body";
 import { PERSONALITY_IDS, type PersonalityId } from "../data/personalities";
 import { REGION } from "../data/region";
 import { playerVehicle } from "./damage";
@@ -276,6 +277,6 @@ export function isFree(world: World, pos: Vec, radius: number, ignoreId: string 
   const margin = 0.3;
   if (world.obstacles.filter(isDriveObstacle).some((o) => touchesObstacle(o, world.terrain, pos, radius, margin))) return false;
   return world.vehicles.every(
-    (v) => v.id === ignoreId || dist(v.pos, pos) >= chassisDef(v.chassisId).radius + radius + margin,
+    (v) => v.id === ignoreId || dist(v.pos, pos) >= footprint(v.chassisId) + radius + margin,
   );
 }

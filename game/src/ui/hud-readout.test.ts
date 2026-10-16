@@ -413,6 +413,14 @@ function rescue(w: World) {
 }
 
 describe("rescue readout", () => {
+  it("offers to end a run when only the hauler is stranded and the gun truck can drive", () => {
+    const w = furyRoadWorld();
+    expect(getRescueReadout(w)).toBeNull();
+    const hauler = w.vehicles.find((v) => v.id === w.furyRoad!.hauler.id)!;
+    hauler.resources!.fuel = 0;
+    expect(getRescueReadout(w)).toMatchObject({ kind: "stranded", canEnd: true });
+  });
+
   it("shows negative money as a negative amount with a warning", () => {
     const w = emptyWorld();
     w.player.money = -120050;
@@ -667,7 +675,7 @@ describe("Fury Road readouts", () => {
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);
 
-    w.furyRoad!.outposts[0].paid = true;
+    w.furyRoad!.outposts[1].paid = true;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: true, target: { kind: "outpost" } });
     playerVehicle(w).speed = 2;
     expect(actions(w)).toContainEqual({ label: "Enter Outpost 1", ready: false, target: { kind: "outpost" } });

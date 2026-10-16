@@ -61,7 +61,7 @@ All of them run in `npm test` and `npm run typecheck`. Together the text tests t
 - `src/text/fixtures.test.ts`: an old save migrates, and every goal, call, contract and truck title it holds reads in both languages.
 - `src/sim/text-free.test.ts`: a seeded world played for 120 turns holds no phrase in its events, goals or call.
 - `npm run layout`, below, checks the real DOM. `npm run playtest` picks Russian by keyboard alone through Menu → Options → Language, checks the HUD and the log, checks that the choice outlives a reload, and picks English back by mouse. It fails on any language control outside the Options panel.
-- `npm run text:review` is not a check. It writes the review sheet for reading Russian in context, as [Russian copy](../russian-style.md) describes.
+- `npm run text:review` is not a check. It writes the review sheet for reading Russian in context, as [Russian copy](../writing/russian.md) describes.
 
 ### The allowlist
 
@@ -95,4 +95,4 @@ Each of these stays as it is, with a follow-up where one makes sense.
 
 ## Russian copy
 
-[Russian copy](../russian-style.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it.
+[Russian copy](../writing/russian.md) holds the style rules, bad and good examples and the glossary. agy writes all Russian text by it.
