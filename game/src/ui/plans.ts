@@ -15,8 +15,16 @@ function loadSheets(): void {
 }
 
 export function truckOutline(chassisId: string, cell: number): HTMLElement {
+  return planBox(chassisId, cell, `plan-${chassisId}`);
+}
+
+export function chassisTop(chassisId: string, cell: number): HTMLElement {
+  return planBox(chassisId, cell, `top-${chassisId}`);
+}
+
+function planBox(chassisId: string, cell: number, symbolId: string): HTMLElement {
   const grid = baseGrid(chassisId);
-  const box = el("div", { class: "truck-outline", "aria-hidden": "true" }, useSvg(`plan-${chassisId}`, true));
+  const box = el("div", { class: "truck-outline", "aria-hidden": "true" }, useSvg(symbolId, true));
   const [x, y, w, h] = [1 - PLAN_PAD, -PLAN_PAD, grid.w - 2 + 2 * PLAN_PAD, grid.h + 2 * PLAN_PAD].map((v) => v * cell);
   box.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
   return box;

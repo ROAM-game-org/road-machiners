@@ -22,4 +22,10 @@ describe("truck condition css", () => {
   it("fills the body silhouette with a mid tone, not the darkest cell color", () => {
     expect(rule(".condition-chassis .outline-fill")).toContain("var(--cell-side)");
   });
+
+  it("shades the body with dark and light faces, not one flat fill", () => {
+    const fill = rule(".condition-chassis .outline-fill");
+    expect(fill).toMatch(/--plan-shadow: var\(--/);
+    expect(fill).toMatch(/--plan-light: var\(--/);
+  });
 });
