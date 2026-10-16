@@ -107,9 +107,24 @@ describe('reproduced TEST_MAP trips', () => {
     return drive(setMoveOrder(w, { kind, dest }), 20);
   }
 
+  const START_FROM_ROCK = { x: 9.2, y: 1.8 };
+  const DEST_FROM_ROCK = { x: 2.3, y: -11.1 };
+
+  function rockBesideOpenGround(): { id: string; start: Vec; dest: Vec } {
+    const w = base();
+    const radius = chassisDef(w.vehicles[0].chassisId).radius;
+    for (const o of w.obstacles) {
+      if (o.kind !== 'rock' || o.r < 1) continue;
+      const start = { x: o.pos.x + START_FROM_ROCK.x, y: o.pos.y + START_FROM_ROCK.y };
+      const dest = { x: o.pos.x + DEST_FROM_ROCK.x, y: o.pos.y + DEST_FROM_ROCK.y };
+      if (isFree(w, start, radius, null) && isFree(w, dest, radius, null)) return { id: o.id, start, dest };
+    }
+    throw new Error('No rock stands beside open ground');
+  }
+
   it.each([Math.PI / 2, -Math.PI / 2])('IV3: a rock beside the start, truck turned %d, reaches its waypoint with no damaging crash', (turn) => {
-    const dest = { x: 292.9, y: 177.7 };
-    const t = trip('rock2572', { x: 299.8, y: 190.6 }, dest, turn, 'stopAt', 3);
+    const place = rockBesideOpenGround();
+    const t = trip(place.id, place.start, place.dest, turn, 'stopAt', 3);
     expect(hard(t)).toEqual([]);
     expect(stalls(t)).toBe(false);
     expect(t.arrived).toBe(true);

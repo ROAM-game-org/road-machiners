@@ -373,7 +373,7 @@ export const TERRITORIES: Record<string, TerritoryRules> = {
           poses: [
             ...[-27, -22, -17].map((s) => pose(s, 16, 1.1, ALONG)),
             { at: AT(8, 20.5), r: 1.1, turn: ALONG, shoulder: true },
-            { at: AT(60.5, 28), r: 1.1, turn: ALONG, shoulder: true },
+            { at: AT(60.5, 29), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-7,-9.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(-20, -1.5), r: 1.1, turn: ALONG, shoulder: true },
             { at: AT(16, 1.5), r: 1.1, turn: Math.PI, shoulder: true },

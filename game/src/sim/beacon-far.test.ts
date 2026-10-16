@@ -42,7 +42,7 @@ describe('a beacon at the emptiest point of Icarus', () => {
     playerVehicle(w).pos = { ...pos };
     playerVehicle(w).trail = [];
     w.player.money = 0;
-    playerVehicle(w).fuel = 0;
+    w.player.fuel = 0;
     w = setBeacon(w, true);
     for (let i = 0; i < RESCUE_TURNS && playerTow(w) === null; i++) w = endTurn(w, testDrive);
     expect(playerTow(w)).not.toBeNull();

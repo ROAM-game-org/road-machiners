@@ -239,7 +239,8 @@ describe('following the steps', () => {
   it('gets near each wreck spot off the road', () => {
     const net = roadNetworkOf(w);
     const spots = [0, 3, 6, 9, 12].map((k) => {
-      const p = net.edges[k * 3].points[Math.floor(net.edges[k * 3].points.length / 2)];
+      const edge = net.edges[Math.min(k * 3, net.edges.length - 1)];
+      const p = edge.points[Math.floor(edge.points.length / 2)];
       return { x: p.x + 25, y: p.y + 25 };
     });
     for (const spot of spots) {

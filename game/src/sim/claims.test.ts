@@ -33,7 +33,7 @@ import { TIME } from '../data/time';
 let real: World;
 
 beforeAll(() => {
-  real = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), false);
+  real = newWorld(2, START_KITS.standard, TEST_MAP, defaultSetup("roaming"), false);
 });
 
 function claimFor(stock: SalvageStock, part: PartInstance, over: Partial<ClaimContract> = {}): ClaimContract {
@@ -283,7 +283,7 @@ describe('claim days', () => {
   }
 
   it('keeps the claimed part in its wreck while the nearest NPCs play and the player waits in town', () => {
-    let w = newWorld(1, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
+    let w = newWorld(2, START_KITS.standard, TEST_MAP, defaultSetup('roaming'), true);
     const { stock, part } = claimTargets(w)[0];
     const claim = rollContract(w, { id: 'bowl', pos: siteOf('bowl').pos }, [], [], [], [], [{ stock, part }]) as ClaimContract;
     shopState(w, 'bowl').contracts.push(claim);
