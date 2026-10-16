@@ -42,6 +42,7 @@ import { timed } from "../perf";
 import { HitCard } from "../ui/hitCard";
 import type { UiHost } from "../ui/host";
 import { ModalScreens } from "./screens";
+import { failLoudOnShaderError } from "./shader-errors";
 import { Hud } from "../ui/hud";
 import type { RadioPanel } from "../ui/radio";
 import { aimActions, HoverHold, InspectPin, SLOT_KEYS, toggleBodyAim, vehicleMarks, WeaponPanel, weaponsForClick } from "../ui/weapons";
@@ -222,6 +223,7 @@ export class Game {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     enableSunShadows(this.renderer);
+    failLoudOnShaderError(this.renderer);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);

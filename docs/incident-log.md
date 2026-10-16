@@ -65,3 +65,9 @@ repo: factory
 rule: The factory writes to GitHub as an App, and as little as it can. It never reacts or votes, never comments progress, and never repeats a write on each tick.
 check: For each new GitHub write, count how often it runs per card and per tick. A write that can repeat before the board catches up, a comment that only reports progress, and any reaction are repeats.
 seen: GitHub suspended the bot account on 2026-10-14. Hermes thumbs-upped at least 27 issues to pass the vote gate. 866 of 1,780 bot comments from Oct 3 to Oct 8 were "finished after N min" notes. Intake re-added cards with a comment on each tick, 19 extra times in one day. About 355 issues and PRs were hidden, and the factory moved to a new org. Commits e6b21614, 04708b06 and e66c407b moved the factory to a GitHub App, stopped the re-adds and made the gh wrapper refuse reactions.
+
+ID: R11
+repo: game
+rule: Every WebGL program fits the WebGL 2 floors in its worst case on every map, with every light pool full: 16 fragment texture units, 221 fragment uniform vectors, the D3D11 limit, and 15 varyings.
+check: The playtest's night phase emulates a 16-unit GPU and fails when a program does not link or the ground is missing at night in Roaming or Chaos Highway. A new ground texture, shadowed light or light pool counts the ground's texture units and uniform vectors at the night peak.
+seen: Issue #593. From 2026-10-11 the Chaos Highway ground needed 17 texture units at night, 8 of its own, the highway wear, the sun's shadow, 3 site shadows and 4 beam shadows. On 16-unit GPUs, such as Chrome and Edge on Windows, Macs and most phones, its program failed to link when another lit truck came into reach, and the ground vanished while trucks and props still drew. A first fix brightened the moon, which was not the cause.
