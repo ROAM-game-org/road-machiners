@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, recordAsked } from '../questions';
@@ -61,8 +62,7 @@ export function resetOutputs(home: string): void {
 }
 
 export function readOutput(home: string, name: string): string | null {
-  const path = `${home}/${OUT_DIR}/${name}`;
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  return readAgentOutput(home, name);
 }
 
 export async function writeIssueInput(ctx: Ctx, issue: number, home: string): Promise<void> {
