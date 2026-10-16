@@ -511,24 +511,20 @@ describe('move and merge preconditions and write order', () => {
     expect(ctrlLines()).toEqual([]);
   });
 
-  it('a post edit failure leaves the board and state on the new position, and a repeat finishes', async () => {
+  it('a post edit failure still closes the post in state, finishes the move and reports the failed edit once', async () => {
     busyCard();
     editFails = true;
-    await expect(applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }))).rejects.toThrow('telegram down');
-    const half = readState(statePath);
-    expect(calls).toContain('move 4 Design');
-    expect(half.approvalPosts).toEqual({ 42: 4, 43: 5 });
-    expect(half.postOnly).toEqual([5]);
-    expect(half.pendingApprovals).toEqual({ 5: 'Bob' });
-    expect(calls.some((call) => call.startsWith('removeLabel'))).toBe(false);
-    expect(ctrlLines()).toEqual([]);
-    editFails = false;
     await applyControl(fakeCtx(), command({ action: 'move', issue: 4, to: 'design' }));
     const state = readState(statePath);
+    expect(calls).toContain('move 4 Design');
     expect(state.approvalPosts).toEqual({ 43: 5 });
-    expect(calls.filter((call) => call.startsWith('editCaption'))).toHaveLength(1);
+    expect(state.postCaptions[42]).toBe('Post four\n\n↪️ Moved to design by Ann: the gate failed on load');
+    expect(state.postOnly).toEqual([5]);
+    expect(state.pendingApprovals).toEqual({ 5: 'Bob' });
     expect(calls.filter((call) => call.startsWith('removeLabel'))).toHaveLength(2);
     expect(ctrlLines()).toHaveLength(1);
+    expect(state.failures.filter((failure) => failure.issue === 4 && failure.error.includes('telegram down'))).toHaveLength(1);
+    expect(cardDrift(card(4, 'Design'), state)).toEqual([]);
   });
 
   it('keeps a hold through a move, and drops it with a move to done', async () => {

@@ -670,13 +670,24 @@ describe('tick', () => {
     expect(args(h)).toEqual([['design', '8']]);
   });
 
-  it('deletes builds outside Approval, keeping dev', async () => {
+  it('deletes builds of cards that left work unmerged, keeping dev', async () => {
     const h = harness(null, false, [card(8, 'Approval'), card(9, 'Done')]);
     const web = h.ctx.cfg.webRoot;
     for (const name of ['dev', 'aaa1111', 'bbb2222', 'ccc3333']) mkdirSync(join(web, name), { recursive: true });
     writeState(h.ctx.statePath, state({ builds: { '8': 'aaa1111', '9': 'bbb2222' } }));
     await tick(h.ctx, '/code', h.deps);
     expect(['dev', 'aaa1111', 'bbb2222', 'ccc3333'].filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'aaa1111']);
+  });
+
+  it('keeps the build of a card from approval until its release ships', async () => {
+    const h = harness(null, false, [card(8, 'Hardening'), card(9, 'Merging'), card(10, 'Done'), card(11, 'Done'), card(12, 'Done')]);
+    const web = h.ctx.cfg.webRoot;
+    const names = ['dev', 'h8', 'm9', 'd10', 'r11', 'old12'];
+    for (const name of names) mkdirSync(join(web, name), { recursive: true });
+    const merge = (issue: number) => ({ issue, title: 't', sha: 'a'.repeat(40), into: 'dev', reverted: [] });
+    writeState(h.ctx.statePath, state({ devMerges: [merge(10)], release: { ...RELEASE, merges: [merge(11)] }, builds: { '8': 'h8', '9': 'm9', '10': 'd10', '11': 'r11', '12': 'old12' } }));
+    await tick(h.ctx, '/code', h.deps);
+    expect(names.filter((name) => existsSync(join(web, name)))).toEqual(['dev', 'h8', 'm9', 'd10', 'r11']);
   });
 
   it('keeps the rc build while the tracking card waits in Approval', async () => {
