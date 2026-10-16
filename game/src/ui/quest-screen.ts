@@ -14,11 +14,18 @@ import { choiceButtons, drawLines, lastTagged, pagesOf, paragraphsOf, type Drawn
 import { renderLine, TermTip, type Reveal } from './quest-text';
 import { MONEY_STAT } from '../data/quests';
 import { UNITS } from '../data/units';
+import { token } from './tokens';
 
 const KEY_DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
 export function askOf(shown: QuestLive | null, live: QuestLive, ask: string | null): string | null {
   return shown?.quest === live.quest ? ask : null;
+}
+
+export function questPageStacks(width: number, frame: number): boolean {
+  const gutters = parseFloat(token('--space-10')) * 2;
+  const columns = parseFloat(token('--quest-text-min')) + parseFloat(token('--quest-side-width'));
+  return width - gutters - frame - columns < parseFloat(token('--quest-art-min'));
 }
 
 function moneyChange(cents: number): Msg {
@@ -124,6 +131,15 @@ export class QuestScreen {
     this.root.style.display = 'none';
     this.root.addEventListener('click', (e) => this.onClick(e));
     window.addEventListener('keydown', (e) => this.onKey(e), true);
+    window.addEventListener('resize', () => this.restack());
+  }
+
+  private restack(): void {
+    const width = window.innerWidth;
+    if (!(width > 0)) return;
+    const style = getComputedStyle(this.root);
+    const frame = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+    this.root.classList.toggle('stacked', this.root.classList.contains('quest-page') && questPageStacks(width, frame));
   }
 
   isOpen(): boolean {
@@ -191,6 +207,7 @@ export class QuestScreen {
     this.root.style.display = '';
     this.root.classList.remove('qt-done');
     this.root.classList.toggle('quest-page', view.view === 'page');
+    this.restack();
     const endMs = view.view === 'page' ? this.drawPage(w, view) : this.drawTalk(w, view);
     this.revealEnd = performance.now() + endMs;
   }
