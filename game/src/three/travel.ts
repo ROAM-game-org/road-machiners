@@ -12,13 +12,13 @@ import type { VehicleFrame, WheelFrame } from "../phys/frames";
 import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
+import { inCombat } from "../sim/combat";
 import { playerVehicle } from "../sim/damage";
+import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
-import { playerSees } from "../sim/vision";
-import { currentQuestLanguage } from "../sim/quests";
-import { autoRuns, hostileToPlayer, playerCanAct } from "../sim/world";
+import { autoRuns, playerCanAct } from "../sim/world";
 import { WorkerLoad, workerFailure } from "./worker-load";
 
 export type LiveVision = {
@@ -56,10 +56,15 @@ function stopsVehicle(event: GameEvent, id: string): boolean {
   }
 }
 
-function interruptsTravel(event: GameEvent, id: string): boolean {
+function crashedIntoTruck(event: Extract<GameEvent, { t: "collision" }>, id: string, world: World): boolean {
+  const other = event.a === id ? event.b : event.b === id ? event.a : null;
+  return other !== null && world.vehicles.some((v) => v.id === other);
+}
+
+function interruptsTravel(event: GameEvent, id: string, world: World): boolean {
   switch (event.t) {
     case "collision":
-      return [event.a, event.b].includes(id);
+      return crashedIntoTruck(event, id, world);
     case "shot":
       return [event.shooter, event.target].includes(id);
     default:
@@ -90,13 +95,8 @@ function startWheels(v: Vehicle, shown: Record<string, VehicleFrame>): WheelFram
 export function canTravel(world: World): boolean {
   const me = playerVehicle(world);
   if (!playerCanAct(world) || me.direct) return false;
-  if (
-    world.vehicles.some(
-      (v) => hostileToPlayer(world, v) && playerSees(world, v.pos),
-    )
-  )
-    return false;
-  return !world.events.some((event) => interruptsTravel(event, me.id));
+  if (inCombat(world, me)) return false;
+  return !world.events.some((event) => interruptsTravel(event, me.id, world));
 }
 
 export class Travel {
@@ -184,11 +184,11 @@ export class Travel {
     if (!safe || !hasWaypoint) this.automatic = false;
   }
 
-  updateWorld(world: World, visibleHostile: boolean): void {
+  updateWorld(world: World, sighted: boolean): void {
     if (this.autoPress && !autoRuns(world)) this.dropPress();
     const order = playerVehicle(world).order;
     this.update(
-      canTravel(world) && !visibleHostile,
+      canTravel(world) && !sighted,
       order !== null && order.kind !== "brake",
     );
   }

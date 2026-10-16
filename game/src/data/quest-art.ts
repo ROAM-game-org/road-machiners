@@ -7,6 +7,7 @@ export const QUEST_ART: Record<string, QuestArt> = {
   cab_link: { file: 'cab_link.webp', focusX: 62 },
   fall_cab: { file: 'fall_cab.webp', focusX: 60 },
   bowl_yard: { file: 'bowl_yard.webp', focusX: 60 },
+  bowl_scale: { file: 'bowl_scale.webp', focusX: 45 },
 };
 
 export function questArt(key: string): QuestArt {

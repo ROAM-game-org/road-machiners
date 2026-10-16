@@ -157,6 +157,7 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.beaconOff': 'Маяк выкл.',
   'hud.beaconTitle': 'Вызвать буксир по рации.',
   'hud.contracts': 'Контракты',
+  'hud.guard': 'Охрана: {name}',
   'hud.contractLine': '{what} — {due}',
   'hud.lightsOn': 'Фары',
   'hud.lightsOff': 'Фары выкл.',

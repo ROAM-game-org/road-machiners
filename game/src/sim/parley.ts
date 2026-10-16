@@ -1,5 +1,4 @@
 
-import { SPAWN } from '../data/npcs';
 import { isHostile } from './combat';
 import { isKnockedOut, standDown } from './defeat';
 import { RULES } from '../data/rules';
@@ -24,18 +23,15 @@ import type { Aim, GoalReason, GridItem, Plea, SalvageStock, Vehicle, World } fr
 import { canVehicleSee } from './vision';
 import { dist } from './vec';
 import { isIntroAmbusher } from './quests';
-import { isAlly, reportIncident } from './relations';
+import { fightSide, spokesman } from './sides';
+import { reportIncident } from './relations';
 
 export type ThreatAnswer = DecisionOptions['threatened'];
 
-function sideOf(world: World, v: Vehicle): Vehicle[] {
-  if (!v.brain) return [v];
-  return world.vehicles.filter((x) => x.id === v.id || (x.brain && dist(x.pos, v.pos) <= SPAWN.neighborHelp && isAlly(world, x, v)));
-}
-
 export function makePeace(world: World, a: Vehicle, b: Vehicle): void {
-  for (const p of sideOf(world, a)) {
-    for (const q of sideOf(world, b)) {
+  const theirs = fightSide(world, b);
+  for (const p of fightSide(world, a)) {
+    for (const q of theirs) {
       if (p.id === q.id) continue;
       endBetween(world, 'feud', p, q);
       endBetween(world, 'combat', p, q);
@@ -126,11 +122,14 @@ export function demandsFirst(world: World, robber: Vehicle, targetId: string): b
 export function answersPlea(world: World, answerer: Vehicle, pleader: Vehicle, plea: Plea): PleaAnswer {
   if (isIntroAmbusher(world, answerer.id)) return 'no';
   const danger = perceiveDanger(world, answerer, pleader);
-  if (plea === 'truce') {
-    if (holdsUp(world, answerer, pleader, danger)) return 'demand';
-    return decide(world, answerer, 'truceOffered', pleader.id, danger) === 'accept' ? 'yes' : 'no';
-  }
-  return decide(world, answerer, 'mercyBegged', pleader.id, danger) === 'spare' ? 'yes' : 'no';
+  if (plea === 'truce' && holdsUp(world, answerer, pleader, danger)) return 'demand';
+  const voice = spokesman(world, answerer);
+  return voicedAnswer(world, voice, pleader, plea, voice === answerer ? danger : perceiveDanger(world, voice, pleader));
+}
+
+function voicedAnswer(world: World, voice: Vehicle, pleader: Vehicle, plea: Plea, danger: number): PleaAnswer {
+  if (plea === 'truce') return decide(world, voice, 'truceOffered', pleader.id, danger) === 'accept' ? 'yes' : 'no';
+  return decide(world, voice, 'mercyBegged', pleader.id, danger) === 'spare' ? 'yes' : 'no';
 }
 
 export function answersHoldUp(world: World, prey: Vehicle, robber: Vehicle, answer: ThreatAnswer): void {

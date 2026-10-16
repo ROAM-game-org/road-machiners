@@ -6,7 +6,7 @@ import { ECONOMY } from '../data/goods';
 import { ESCORT_JOB, GOOD_SOURCES, SHOPS, type ShopDef } from '../data/market';
 import { routeThreat } from './escort-job';
 import {
-  DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
+  CREW, DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, NPC_UPKEEP, RESCUE_OPTIONS, SPAWN, STATE_WEIGHTS, TRAITS, YIELD_OPTIONS,
   type DecisionId, type DecisionOptions, type Trait, type TraitId, type TraitWeights, type Weighted, type WeightChange,
 } from '../data/npcs';
 import { REGION } from '../data/region';
@@ -40,6 +40,9 @@ import { addState, boundTo, endState, givesWord, isRobberyFeud, robbing, stateOf
 import { isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite, unguardedLeader } from './tow';
 import { leaderToJoin } from './pairs';
+import { ownSide, perceivedGroup } from './sides';
+import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
+import { followersOf } from './companies';
 import type { Contact, GoalReason, NpcActivity, PassReason, SalvageStock, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
 import { icarusAtlas } from './atlas';
@@ -121,17 +124,10 @@ export function firepower(world: World, vehicle: Vehicle): number {
   return vehicleStats(world, vehicle).weapons.filter((weapon) => weapon.part.hp > 0).reduce((sum, weapon) => sum + weapon.def.round.damage * weapon.def.rounds, 0);
 }
 
-function localGroup(world: World, observer: Vehicle, member: Vehicle): Vehicle[] {
-  return world.vehicles.filter((v) => !isDefeated(v) && (v.id === member.id || (v.id !== observer.id && dist(v.pos, member.pos) <= SPAWN.neighborHelp
-    && isAlly(world, v, member) && canVehicleSee(world, observer, v.pos))));
-}
-
-function ownGroup(world: World, vehicle: Vehicle): Vehicle[] {
-  return [vehicle, ...localGroup(world, vehicle, vehicle).filter((v) => v.id !== vehicle.id && !isHostile(world, vehicle, v))];
-}
-
 export function fightOddsAgainst(world: World, vehicle: Vehicle, other: Vehicle): FightOdds {
-  return fightOdds(world, ownGroup(world, vehicle), localGroup(world, vehicle, other));
+  const ours = ownSide(world, vehicle);
+  const mine = new Set(ours.map((v) => v.id));
+  return fightOdds(world, ours, perceivedGroup(world, vehicle, other).filter((v) => !mine.has(v.id)));
 }
 
 export function strengthRatio(odds: FightOdds): number {
@@ -640,6 +636,8 @@ const AVAILABLE: Record<OptionName, Availability> = {
   explore: canDrive,
   haul: canHaul,
   escort: canEscort,
+  muster: (world, vehicle) => canMuster(world, vehicle),
+  join: (world, vehicle, decision, subject) => canJoin(world, vehicle, subjectOf(world, decision, subject)),
   go: always,
   post: canPostEscort,
   paid: dealAvailable('paid'),
@@ -705,7 +703,7 @@ function fleeAttackedFactor(world: World, vehicle: Vehicle, decision: DecisionId
   return hit * weakFlee(world, vehicle) * threatFlee(world, vehicle, decision, subject, danger);
 }
 
-const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, parley: fleeSeenFactor };
+const FLEE_FACTORS: Partial<Record<DecisionId, SituationFactor>> = { hostileSeen: fleeSeenFactor, contactHeard: fleeHeardFactor, attacked: fleeAttackedFactor, threatened: fleeSeenFactor, parley: fleeSeenFactor, crewCalled: fleeSeenFactor };
 
 function fleeFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null, danger: number | null): number {
   const factor = FLEE_FACTORS[decision];
@@ -755,7 +753,11 @@ function fightFactor(world: World, vehicle: Vehicle, decision: DecisionId, subje
   const eager = !isBusy(vehicle) && danger !== null && isManageable(vehicle, danger);
   const lootOnly = decision === 'hostileSeen' && huntsForLoot(world, vehicle, target);
   const appeal = lootOnly ? appealOf(world, vehicle, target, huntCurve(vehicle)) : 1;
-  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+  return (eager ? NPC_BEHAVIOR.manageableFight : 1) * appeal * crewHold(world, vehicle, decision, target) * guardFactor(vehicle, target, NPC_BEHAVIOR.fightNearGuards);
+}
+
+function crewHold(world: World, vehicle: Vehicle, decision: DecisionId, target: Vehicle): number {
+  return decision === 'hostileSeen' && heldBackByCrew(world, vehicle, target) ? CREW.initiative : 1;
 }
 
 function fightBackFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _subject: string | null, danger: number | null): number {
@@ -830,12 +832,7 @@ function complyFactor(world: World, vehicle: Vehicle, _decision: DecisionId, _su
 }
 
 function guardedNow(world: World, vehicle: Vehicle): boolean {
-  return world.states.some((s) => s.kind === 'escort' && s.other === vehicle.id && seesAwake(world, vehicle, s.holder));
-}
-
-function seesAwake(world: World, vehicle: Vehicle, otherId: string): boolean {
-  const other = world.vehicles.find((v) => v.id === otherId);
-  return !!other && !isDefeated(other) && canVehicleSee(world, vehicle, other.pos);
+  return followersOf(world, vehicle.id).some((other) => !isDefeated(other) && canVehicleSee(world, vehicle, other.pos));
 }
 
 function towFactor(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): number {
@@ -887,6 +884,8 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   explore: neutral,
   haul: neutral,
   escort: neutral,
+  muster: neutral,
+  join: (world, vehicle, decision, subject) => joinFactor(world, vehicle, subjectOf(world, decision, subject)),
   go: neutral,
   post: postFactor,
   paid: neutral,
@@ -1004,6 +1003,8 @@ const DECISION_KINDS: Record<DecisionId, 'venture' | 'response'> = {
   escortWanted: 'venture',
   needySeen: 'venture',
   strangerSeen: 'venture',
+  crewAsked: 'response',
+  crewCalled: 'response',
 };
 
 export function keepsWord(world: World, vehicle: Vehicle, decision: DecisionId, subject: string | null): boolean {

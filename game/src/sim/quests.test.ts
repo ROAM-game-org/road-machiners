@@ -210,6 +210,13 @@ describe('quest language', () => {
     expect(questView(switched, bundle).choices).toEqual(questView(w, bundle).choices);
     expect(inRussian(() => relanguageQuest(switched, bundle))).toBe(switched);
   });
+
+  it('keeps the lines of an ended quest when the language changes', () => {
+    const ended = play(world(), 'sample_bowl', 'start', [LEAVE]);
+    expect(ended.player.quests.session).toBeNull();
+    expect(inRussian(() => relanguageQuest(ended, bundle))).toBe(ended);
+    expect(ended.player.quests.live).not.toBeNull();
+  });
 });
 
 describe('leaveQuest', () => {

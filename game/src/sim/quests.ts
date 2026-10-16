@@ -26,6 +26,7 @@ import {
   type QuestVarDecl,
   type QuestViewKind,
   WAGON_SEEN,
+  SCALE_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
 import { isNoteId, type NoteId } from '../data/locals';
@@ -274,6 +275,13 @@ export function openWreckScene(w: World, stockId: string): void {
   openQuest(w, QUESTS, GAME_OPENED_QUESTS.wagonSeven, 'start');
 }
 
+export function openScaleScene(w: World): void {
+  if (w.player.quests.session) return;
+  if (questVar(w, QUESTS, GAME_OPENED_QUESTS.scale, SCALE_SEEN) === true) return;
+  setWorldVar(w, SCALE_SEEN, true);
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.scale, 'start');
+}
+
 export function introStep(w: World): IntroStep {
   const step = worldVar(w, INTRO_STEP);
   const known = INTRO_STEPS.find((s) => s === step);
@@ -312,7 +320,8 @@ function liveIn(state: QuestState, session: QuestSession): QuestLive {
 }
 
 export function relanguageQuest(world: World, bundle: QuestBundle): World {
-  if (world.player.quests.live?.lang === questLanguage) return world;
+  const { live, session } = world.player.quests;
+  if (!session || live?.lang === questLanguage) return world;
   return update(world, (w) => {
     w.player.quests.live = null;
     restoreQuest(w, bundle);

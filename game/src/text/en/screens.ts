@@ -156,6 +156,7 @@ export const SCREENS = {
   'hud.beaconOff': 'Beacon off',
   'hud.beaconTitle': 'Call for a tow by radio.',
   'hud.contracts': 'Contracts',
+  'hud.guard': m('Guard {name}', { name: 'text' }),
   'hud.contractLine': m('{what} — {due}', { what: 'text', due: 'text' }),
   'hud.lightsOn': 'Lights',
   'hud.lightsOff': 'Lights off',

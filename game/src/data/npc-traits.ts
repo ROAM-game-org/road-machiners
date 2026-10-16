@@ -38,7 +38,7 @@ export const TRAITS: Record<TraitId, Trait> = {
   raider: {
     towns: ['bowl', 'nose'], bases: ['scrapjaw', 'kiln'], markets: ['scrapjaw', 'kiln', 'salvage-yard'], salvageSites: [], travelSites: [], haulSites: [], contactReactRadius: 20, boldness: 1, fuelMargin: 1, robs: 'offDuty', tradeStake: BASE_TRADE_STAKE,
     weights: {
-      idle: { raid: { add: 9 }, patrol: { add: 6 } }, contactHeard: { investigate: { add: 10.8 } }, hostileSeen: { fight: { add: 7.2 } }, strandedSeen: { tow: { add: 9 } },
+      idle: { raid: { add: 9 }, patrol: { add: 6 }, muster: { add: 12 } }, contactHeard: { investigate: { add: 10.8 } }, hostileSeen: { fight: { add: 7.2 } }, strandedSeen: { tow: { add: 9 } },
       crashed: { retaliate: { add: 3 } }, parley: { truce: { mul: 0.3 }, beg: { mul: 0.3 } }, truceOffered: { refuse: { add: 2 } },
       mercyBegged: { finish: { add: 2 } }, threatened: { comply: { mul: 0.2 }, fightBack: { add: 2 } }, warnedOff: { comply: { mul: 0.2 }, fightBack: { add: 2 } },
       lootContested: { warn: { add: 4 }, fight: { add: 1 } }, warnRefused: { fight: { add: 2 } },
@@ -51,7 +51,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { flee: { mul: 3 }, fight: { mul: 0.5 } }, attacked: { flee: { mul: 3 }, fightBack: { mul: 0.3 } },
       parley: { truce: { mul: 2 }, beg: { mul: 3 } }, threatened: { flee: { mul: 3 }, comply: { add: 1 } }, warnedOff: { comply: { add: 1 } },
       lootContested: { leave: { mul: 3 } }, warnRefused: { leave: { mul: 3 } },
-      escortSeen: { hire: { mul: 3 } }, escortWanted: { post: { mul: 3 } }, fightWhim: { veer: { mul: 3 } },
+      escortSeen: { hire: { mul: 3 } }, escortWanted: { post: { mul: 3 } }, fightWhim: { veer: { mul: 3 } }, crewAsked: { join: { mul: 0.5 } }, crewCalled: { flee: { mul: 3 } },
     },
   },
   lawman: {
@@ -108,7 +108,7 @@ export const TRAITS: Record<TraitId, Trait> = {
       hostileSeen: { flee: { mul: 0.05 } }, contactHeard: { flee: { mul: 0.05 } }, attacked: { flee: { mul: 0.05 } },
       parley: { truce: { mul: 0.05 }, beg: { mul: 0.05 } }, threatened: { flee: { mul: 0.05 }, comply: { mul: 0.05 } }, warnedOff: { comply: { mul: 0.05 } },
       lootContested: { warn: { mul: 2 }, leave: { mul: 0.5 }, fight: { mul: 3 } }, warnRefused: { fight: { mul: 3 } },
-      fightWhim: { rush: { mul: 3 } },
+      fightWhim: { rush: { mul: 3 } }, crewAsked: { join: { mul: 2 } }, crewCalled: { flee: { mul: 0.05 } },
     },
   },
 };

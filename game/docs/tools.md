@@ -74,6 +74,10 @@ An A/B test checks a balance change before it goes into `src/data/`.
 - A scripted driver, `stand`, `orbit`, `charge` or `kite`, steers the player truck alone on side a. It tests one way of driving.
 - `--arena <tiles>` rings the fight with rocks that many tiles out, 10 at most so the ring fits in sight. The arena resumes hostility after a truce or surrender, so survivors fight until a knockout or the turn limit. An arena allows 400 turns by default, open ground 40. `--turns` overrides it.
 - `--map fury-road[:<seed>]` fights on window 0 of the Chaos Highway of that seed with its rules, the sides lined up along the road just short of a scene. The report adds `across`, the farthest any fighting truck got from the centerline. A Chaos Highway truck is a scripted driver with the kit, as `orbit:furyRoad`. `--map` and `--arena` do not mix.
+- `--crew a|b` joins that side's trucks into a raider crew led by its first truck. Only the leader starts with a feud, so the members join by their own crew call.
+- `--guard` makes the merc that rides beside a scripted player on side a, as `stand+merc`, the player's hired guard. It starts with no feud.
+- `--late b:20` holds side b's last truck out until turn 20, then brings it in. `--bystander trader` parks a neutral truck of that template at the edge.
+- The report adds, per side, the trucks still in the fight, knocked out and fled at the end, and what became of the bystander: calm, fought or out.
 - `--gap <tiles>` sets the starting distance and `--orbit <tiles>` the scripted orbit radius. The defaults are 8 and 6.
 - `--set RULES.leadError=3` changes one balance number for the run, so a tuning idea is measured before any code changes. It may repeat.
 - `--trace` prints every turn. `--out <dir>` sets the output, `tmp/combat/` by default. It writes `fights.json` and `report.md` with outcomes, hit rates and damage per pair of lineups, and names the side that fled.
