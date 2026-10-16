@@ -545,7 +545,7 @@ describe('what blocks a repair', () => {
 
   it('names combat before anything else', () => {
     const { w, me, cage } = readyToPatch();
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 35, y: 30 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 35, y: 30 });
     addState(w, 'feud', raider.id, me.id, { kind: 'feud', robbery: false });
     startCombat(w, raider, me);
     me.speed = 5;
