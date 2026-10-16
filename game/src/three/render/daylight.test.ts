@@ -49,22 +49,36 @@ describe('beamOrder', () => {
 });
 
 describe('VehicleLights', () => {
-  it('casts shadows from only the four nearest beams, and reassigns them as trucks move', () => {
+  it('casts shadows from only the three nearest beams, and reassigns them as trucks move', () => {
     const scene = new THREE.Scene();
     const lights = new VehicleLights(scene);
     const xs = [60, 10, 50, 20, 40, 30];
     lights.update(true, 1, origin, xs.map((x) => litAt(x)));
     const shadowed = () => spots(scene).filter((b) => b.castShadow);
-    expect(shadowed()).toHaveLength(4);
+    expect(shadowed()).toHaveLength(3);
     expect(shadowed().every((b) => b.shadow.autoUpdate)).toBe(true);
     const nearNoses = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
     const nose = bodyOf('scout').half.x;
-    expect(nearNoses).toEqual([10, 20, 30, 40].map((x) => Math.round(x + nose)));
+    expect(nearNoses).toEqual([10, 20, 30].map((x) => Math.round(x + nose)));
 
     lights.update(true, 1, { x: 60, y: 0, z: 0 }, xs.map((x) => litAt(x)));
-    expect(shadowed()).toHaveLength(4);
+    expect(shadowed()).toHaveLength(3);
     const moved = shadowed().map((b) => Math.round(b.position.x)).sort((a, b) => a - b);
-    expect(moved).toEqual([60, 50, 40, 30].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
+    expect(moved).toEqual([60, 50, 40].sort((a, b) => a - b).map((x) => Math.round(x + nose)));
+  });
+
+  it('holds at most three shadowed and nine plain beams however many trucks are lit', () => {
+    const scene = new THREE.Scene();
+    const lights = new VehicleLights(scene);
+    const crowd = Array.from({ length: 40 }, (_, i) => litAt(i * 3));
+    lights.update(true, 1, origin, crowd);
+    expect(spots(scene).filter((b) => b.castShadow)).toHaveLength(3);
+    expect(spots(scene).filter((b) => !b.castShadow)).toHaveLength(9);
+    const nose = bodyOf('scout').half.x;
+    const lit = spots(scene).map((b) => Math.round(b.position.x - nose)).sort((a, b) => a - b);
+    expect(lit).toEqual(Array.from({ length: 12 }, (_, i) => i * 3));
+    lights.update(false, 1, origin, crowd);
+    expect(spots(scene)).toHaveLength(12);
   });
 
   it('zeroes idle beams and stops their shadow passes', () => {
@@ -85,7 +99,7 @@ describe('VehicleLights', () => {
     const maps = spots(scene)
       .filter((b) => b.castShadow)
       .map((b) => vi.spyOn(b.shadow, 'dispose'));
-    expect(maps).toHaveLength(4);
+    expect(maps).toHaveLength(3);
     lights.update(false, 1, origin, []);
     expect(spots(scene)).toHaveLength(0);
     expect(maps.every((d) => d.mock.calls.length === 1)).toBe(true);
