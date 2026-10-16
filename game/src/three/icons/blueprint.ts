@@ -165,7 +165,10 @@ export function calmed(bp: Blueprint, calm: Calm): Blueprint {
 
 export function blueprintPlanSvg(bp: Blueprint, stroke: number): string {
   const shape = shapePath(bp.shape);
-  return `<path d="${shape}" style="fill:var(--plan-fill);stroke:var(--plan-line);stroke-width:${stroke}px;vector-effect:non-scaling-stroke" fill-rule="evenodd" stroke-linejoin="miter" stroke-miterlimit="3"/>`;
+  const detail = `<path d="${linesPath(bp.lines)}" style="fill:none;stroke:var(--plan-detail);stroke-width:${stroke}px;vector-effect:non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const glass = `<path d="${loopsPath(bp.glass)}" style="fill:var(--plan-glass)" fill-rule="evenodd"/>`;
+  const outline = `<path d="${shape}" style="fill:var(--plan-fill);stroke:var(--plan-line);stroke-width:${stroke}px;vector-effect:non-scaling-stroke" fill-rule="evenodd" stroke-linejoin="miter" stroke-miterlimit="3"/>`;
+  return outline + glass + detail;
 }
 
 function num(v: number): string {

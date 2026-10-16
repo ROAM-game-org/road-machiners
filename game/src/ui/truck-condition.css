@@ -9,6 +9,15 @@
 .condition-chassis .outline-fill {
   --plan-fill: var(--cell-side);
   --plan-line: none;
+  --plan-detail: none;
+  --plan-glass: none;
+}
+.condition-chassis .outline-detail {
+  z-index: var(--z-badge);
+  --plan-line: none;
+  --plan-fill: none;
+  --plan-detail: var(--plan-detail-faint);
+  --plan-glass: var(--plan-glass-faint);
 }
 .condition-chassis .outline-line {
   z-index: var(--z-outline);
@@ -18,6 +27,7 @@
 }
 .condition-part {
   position: absolute;
+  z-index: var(--z-outline);
   box-sizing: border-box;
   border: 1px solid var(--shade);
   background: var(--tone) padding-box;
@@ -80,4 +90,12 @@
   font-family: var(--font-ui);
   white-space: nowrap;
   pointer-events: none;
+}
+
+.condition-mount {
+  position: absolute;
+  z-index: var(--z-outline);
+  box-sizing: border-box;
+  border: 1px solid var(--cell-plan-line);
+  background: var(--cell-side);
 }

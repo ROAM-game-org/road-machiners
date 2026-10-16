@@ -111,6 +111,8 @@
   --cell-line: #58656b;
   --cell-ink: #a0adb2;
   --cell-plan-line: #b9c6ca;
+  --plan-detail-faint: rgba(185, 198, 202, 0.3);
+  --plan-glass-faint: rgba(185, 198, 202, 0.12);
   --cell-plain: #303d44;
   --cell-deck: #483e36;
   --cell-bay: #3b4a3c;
