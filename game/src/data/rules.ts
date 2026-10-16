@@ -99,7 +99,7 @@ export const CHEATS = {
 };
 
 export const BREAKABLE = {
-  kinds: ['fence', 'junk', 'deadTree'] as readonly LandmarkLook[],
+  kinds: ['fence', 'junk', 'deadTree', 'roadSign', 'routeSign', 'barrel'] as readonly LandmarkLook[],
   breakSpeed: 3,
   slowdown: 0.3,
   damage: 2,

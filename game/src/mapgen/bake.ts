@@ -14,6 +14,7 @@ import { dist, polylineDist, type Vec } from '../sim/vec';
 import { BUILT_CANAL, BUILT_GLASS, BUILT_PAD, BUILT_DIRTY_WATER, BUILT_SCRUB, BUILT_TOXIC, BUILT_TRACK, newWorldLayer } from './newworld';
 import { BUILT_FIELD, BUILT_OLD_ROAD, oldWorldLayer, tilesWithin } from './oldworld';
 import { fortressLayer } from './fortress';
+import { roadsideLayer } from './roadside';
 import { territoryLayer } from './territory';
 import { cornerNeighbors, geologyLayer, pondDepths, type Neighbors } from './geology';
 
@@ -22,7 +23,8 @@ export function bakeMap(seed: number): MapDraft {
   d = timed('territories', () => territoryLayer(seed, d));
   d = timed('ground', () => groundLayer(seed, d));
   d = timed('rocks', () => rockLayer(seed, d));
-  return timed('fortresses', () => fortressLayer(d));
+  d = timed('fortresses', () => fortressLayer(d));
+  return timed('roadside', () => roadsideLayer(seed, d));
 }
 
 export function groundForTerritories(seed: number): MapDraft {

@@ -819,3 +819,70 @@ export const NEW_WORLD: {
     placeTries: 8,
   },
 };
+
+export const ROCK_LOOKS = [
+  { model: 'rock', weight: 0.5 },
+  { model: 'rock_slab', weight: 0.3 },
+  { model: 'rock_split', weight: 0.2 },
+] as const;
+
+export type RoadsideBand = readonly [number, number];
+
+export const ROADSIDE = {
+  seedOffset: 7401,
+  slopeShare: 0.6,
+  edgeGap: 0.6,
+  groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
+  signs: {
+    radius: 0.25,
+    step: 10,
+    chance: 0.75,
+    spacing: 16,
+    gap: 0.5,
+    spread: 1.2,
+    yawJitter: 0.5,
+    oldRoadChance: 0.02,
+    oldRoadSpacing: 22,
+    band: [80, 160] as RoadsideBand,
+  },
+  boards: {
+    radius: 0.55,
+    along: [11, 22] as readonly [number, number],
+    chance: 0.5,
+    step: 40,
+    stepChance: 0.6,
+    gap: 1.2,
+    spread: 0.8,
+    yawJitter: 0.2,
+    band: [15, 40] as RoadsideBand,
+  },
+  barrels: {
+    radius: 0.15,
+    wreckChance: 0.3,
+    houseChance: 0.4,
+    houseLooks: ['ruin', 'shack', 'house'] as readonly string[],
+    reach: [0.4, 1.4] as readonly [number, number],
+    band: [80, 160] as RoadsideBand,
+  },
+  heaps: {
+    radius: 0.44,
+    tries: 4,
+    campChance: 0.6,
+    tankChance: 0.5,
+    junkChance: 0.5,
+    reach: [0.6, 1.6] as readonly [number, number],
+    band: [15, 40] as RoadsideBand,
+  },
+  trees: {
+    radius: 0.3,
+    washBank: 0.5,
+    washChance: 0.004,
+    yardChance: 0.5,
+    yardLooks: ['ruin', 'house'] as readonly string[],
+    yardReach: [1, 2.2] as readonly [number, number],
+    fieldChance: 0.006,
+    group: [1, 3] as readonly [number, number],
+    groupSpread: 1.4,
+    band: [150, 300] as RoadsideBand,
+  },
+};
