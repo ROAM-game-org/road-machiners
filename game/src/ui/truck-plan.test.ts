@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHASSIS, chassisDef } from "../data/chassis";
+import { CHASSIS } from "../data/chassis";
 import { PARTS } from "../data/parts";
 import { PLAN_PAD } from "../render/partLooks";
 import { baseGrid } from "../sim/grid";
@@ -16,19 +16,16 @@ describe("planBox", () => {
   });
 
   it("refuses an inset that leaves no body", () => {
-    expect(() => planBox("scout", 30, -0.1)).toThrow(/side inset/);
+    expect(() => planBox("scout", 30, -1.1)).toThrow(/side inset/);
     expect(() => planBox("scout", 30, (baseGrid("scout").w - 2) / 2)).toThrow(/side inset/);
   });
 
-  it("runs the condition body edge through the middle of every wheel", () => {
+  it("lets the condition body cover every part cell, wheels and guns included", () => {
     for (const id of Object.keys(CHASSIS)) {
+      const grid = baseGrid(id);
       const [x, , w] = planBox(id, 1, CONDITION_SIDE_INSET);
-      const wheels = chassisDef(id).core.filter((c) => c.defId.startsWith("wheel"));
-      expect(wheels.length).toBeGreaterThan(0);
-      for (const wheel of wheels) {
-        const center = wheel.x + 0.5;
-        expect([x + PLAN_PAD, x + w - PLAN_PAD]).toContain(center);
-      }
+      expect(x + PLAN_PAD).toBe(0);
+      expect(x + w - PLAN_PAD).toBe(grid.w);
     }
   });
 });

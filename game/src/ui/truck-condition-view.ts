@@ -6,15 +6,14 @@ import { bindAttr } from "../text/language";
 import { t, verbatim } from "../text/msg";
 import { el } from "./dom";
 import { conditionLabel, TruckConditionReadout } from "./hud-readout";
-import { planBox, tintedIcon, truckOutline } from "./plans";
+import { tintedIcon, truckOutline } from "./plans";
 import { PLAN_PAD } from "../render/partLooks";
 import { token } from "./tokens";
 import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
-const MOUNT_GROW = 8;
-export const CONDITION_SIDE_INSET = 0.5;
+export const CONDITION_SIDE_INSET = -1;
 
 export type PartLook = "cab" | "icon";
 
@@ -36,7 +35,6 @@ export class TruckConditionView {
   private body = el("div", { class: "condition-chassis" });
   private readout = new TruckConditionReadout();
   private nodes = new Map<string, HTMLElement>();
-  private mounts = new Map<string, HTMLElement>();
   private tip = el("div", { class: "condition-tip tooltip" });
   private hoverId: string | null = null;
   private tiles: ConditionPart[] = [];
@@ -85,34 +83,8 @@ export class TruckConditionView {
       this.nodes.delete(id);
     }
     for (const part of parts) this.renderPart(part, aim, doneOf(working, part.id));
-    this.renderMounts(parts, vehicle.chassisId);
     this.tiles = parts;
     this.showTip();
-  }
-
-  private renderMounts(parts: ConditionPart[], chassisId: string): void {
-    const [left, , width] = planBox(chassisId, 1, CONDITION_SIDE_INSET);
-    const right = left + width;
-    const straddling = parts.filter((part) => {
-      const def = partDef(part.defId);
-      if (def.kind === "core" && def.role === "wheel") return false;
-      return [left, right].some((edge) => part.x < edge && edge < part.x + part.w);
-    });
-    const ids = new Set(straddling.map((part) => part.id));
-    for (const [id, pad] of this.mounts) {
-      if (ids.has(id)) continue;
-      pad.remove();
-      this.mounts.delete(id);
-    }
-    for (const part of straddling) {
-      let pad = this.mounts.get(part.id);
-      if (!pad) {
-        pad = el("div", { class: "condition-mount", "aria-hidden": "true" });
-        this.mounts.set(part.id, pad);
-        this.outline[1].after(pad);
-      }
-      pad.style.cssText = `${boxStyle(part.x, part.y, part.w, part.h)};transform:scale(${1 + MOUNT_GROW / (part.w * CELL)}, ${1 + MOUNT_GROW / (part.h * CELL)})`;
-    }
   }
 
   private showTip(): void {

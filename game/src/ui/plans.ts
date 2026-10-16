@@ -16,7 +16,7 @@ function loadSheets(): void {
 
 export function planBox(chassisId: string, cell: number, sideInset = 0): [number, number, number, number] {
   const grid = baseGrid(chassisId);
-  if (sideInset < 0 || 2 * sideInset >= grid.w - 2) throw new Error(`Plan of ${chassisId}: side inset ${sideInset} leaves no body`);
+  if (sideInset < -1 || 2 * sideInset >= grid.w - 2) throw new Error(`Plan of ${chassisId}: side inset ${sideInset} leaves no body`);
   return [1 - PLAN_PAD + sideInset, -PLAN_PAD, grid.w - 2 + 2 * PLAN_PAD - 2 * sideInset, grid.h + 2 * PLAN_PAD].map((v) => v * cell) as [
     number,
     number,

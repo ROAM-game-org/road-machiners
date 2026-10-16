@@ -92,14 +92,6 @@
   pointer-events: none;
 }
 
-.condition-mount {
-  position: absolute;
-  z-index: var(--z-outline);
-  box-sizing: border-box;
-  border: 1px solid var(--cell-plan-line);
-  background: var(--cell-side);
-}
-
 .condition-part > .meter {
   position: absolute;
   left: var(--space-1);
