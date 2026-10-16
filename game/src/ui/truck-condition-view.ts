@@ -13,7 +13,6 @@ import { registerTipSource } from "./touch-tip";
 import "./truck-condition.css";
 
 const CELL = 30;
-export const CONDITION_SIDE_INSET = 0;
 
 export type PartLook = "cab" | "icon";
 
@@ -69,7 +68,7 @@ export class TruckConditionView {
     if (this.chassisId !== vehicle.chassisId) {
       this.chassisId = vehicle.chassisId;
       for (const old of this.outline) old.remove();
-      this.outline = [truckOutline(vehicle.chassisId, CELL, CONDITION_SIDE_INSET), truckOutline(vehicle.chassisId, CELL, CONDITION_SIDE_INSET), truckOutline(vehicle.chassisId, CELL, CONDITION_SIDE_INSET)];
+      this.outline = [truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL), truckOutline(vehicle.chassisId, CELL)];
       this.outline[0].classList.add("outline-fill");
       this.outline[1].classList.add("outline-line");
       this.outline[2].classList.add("outline-detail");
