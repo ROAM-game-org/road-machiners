@@ -15,7 +15,7 @@ import { takeAllLoot, takeLoot, takeStores, canScavenge, scavenge } from './loca
 import {
   breakProp, canTakeAny, claimPile, claimantOf, clearPiles, collectSalvage, dropHaul, looseCargo, hasSalvage, initializeSalvage, isLootTarget, isRoadWreck, lootBlockedError, lootBlocker,
   lootClaimedBy, looterOf, removeStocks, renewSalvage, rollStock, salvageInRange, salvagePlace, salvageUnits, stockOldSpots, oldSpotOf, oldSpotPicks, oldStockId,
-  emptyHidden,
+  emptyHidden, lootableProps, stockProp,
 } from './salvage';
 import { FIELD_SPARE_WEAR, OLD_TABLES } from '../data/salvage';
 import { chance, randInt } from './rng';
@@ -1000,3 +1000,54 @@ function rollWithoutRare(w: World, table: LootTable): SalvageStock {
   const hidden = { goods, parts, fuel: randInt(w, ...table.fuel), supplies: randInt(w, ...table.supplies) };
   return { id: 's', pos: { x: 0, y: 0 }, radius: 1, goods: {}, parts: [], fuel: 0, supplies: 0, hidden };
 }
+
+describe('lootable props', () => {
+  async function realWorld(): Promise<World> {
+    const { newWorld } = await import('./world');
+    const { startKit } = await import('../data/start');
+    return newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+  }
+
+  it('names a standing prop for every stock that holds loot, and no pile', async () => {
+    const w = await realWorld();
+    const road = w.salvage.find((s) => isRoadWreck(s));
+    const old = w.salvage.find((s) => oldSpotOf(s));
+    if (!road || !old) throw new Error('No road wreck or old spot');
+    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    addGoods(w, npc, 'scrap', 3);
+    const pile = dropHaul(w, npc, looseCargo(npc));
+    const props = lootableProps(w.salvage);
+    expect(w.salvage.length).toBeLessThan(1000);
+    expect(props.has(road.id)).toBe(true);
+    expect(props.has(oldSpotOf(old)!.propId)).toBe(true);
+    expect(props.has(old.id)).toBe(false);
+    expect(props.has(pile.id)).toBe(false);
+    const standing = new Set(w.obstacles.map((o) => o.id));
+    for (const id of props) expect(standing.has(id)).toBe(true);
+  }, 30_000);
+
+  it('drops a stock once it is emptied', async () => {
+    const w = await realWorld();
+    const road = w.salvage.find((s) => isRoadWreck(s))!;
+    emptyStock(road);
+    expect(lootableProps(w.salvage).has(road.id)).toBe(false);
+  }, 30_000);
+
+  it('keeps a kill wreck while it holds parts and drops it once stripped', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'raiders', 'buggy', [], { x: 10, y: 10 });
+    wreckVehicle(w, npc);
+    const id = `wreck-${npc.id}`;
+    expect(w.obstacles.some((o) => o.id === id)).toBe(true);
+    expect(lootableProps(w.salvage).has(id)).toBe(true);
+    emptyStock(stockOf(w, id));
+    expect(lootableProps(w.salvage).has(id)).toBe(false);
+  });
+
+  it('throws for a pile', () => {
+    const w = emptyWorld();
+    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 10, y: 10 });
+    addGoods(w, npc, 'scrap', 3);
+    expect(() => stockProp(dropHaul(w, npc, looseCargo(npc)))).toThrow(/has no prop/);
+  });
+});

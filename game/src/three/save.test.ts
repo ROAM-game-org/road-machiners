@@ -18,6 +18,8 @@ import { CHASSIS } from '../data/chassis';
 import { CRATE_MASS } from '../data/goods';
 import { addGoods } from '../sim/inventory';
 import { goodsCount } from '../sim/grid';
+import { dropHaul, looseCargo, lootableProps } from '../sim/salvage';
+import { wreckVehicle } from '../sim/combat';
 import { itemMass, vehicleMass } from '../sim/mass';
 import { clearGame, clearSlot, hasSave, loadSave, loadWorld, packExplored, SaveError, unpackExplored, saveKey, saveInTown, isDayStart, saveOf, savedRunId, saveWorld, SaveHold, writeSave } from './save';
 import { memoryBackend, SaveSlots } from './save-db';
@@ -81,6 +83,26 @@ describe('game save', () => {
     clearSlot(slots, 'auto');
     expect(hasSave(slots, SLOTS)).toBe(false);
   });
+
+  it('gives the same lootable props after a save and load', () => {
+    const slots = makeSlots();
+    const world = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
+    const npc = addVehicle(world, 'raiders', 'buggy', [], { x: 10, y: 10 });
+    wreckVehicle(world, npc);
+    const emptied = world.salvage.find((s) => !s.pile && s.id !== `wreck-${npc.id}`)!;
+    emptied.goods = {};
+    emptied.parts = [];
+    emptied.fuel = 0;
+    emptied.supplies = 0;
+    emptied.hidden = { goods: {}, parts: [], fuel: 0, supplies: 0 };
+    addGoods(world, world.vehicles[0], 'scrap', 3);
+    dropHaul(world, world.vehicles[0], looseCargo(world.vehicles[0]));
+    const before = lootableProps(world.salvage);
+    expect(before.has(emptied.id)).toBe(false);
+    expect(before.has(`wreck-${npc.id}`)).toBe(true);
+    writeSave(slots, 'auto', world, RUN, 1000);
+    expect(lootableProps(loadWorld(slots, 'auto', TEST_MAP)!.salvage)).toEqual(before);
+  }, 30_000);
 
   it('clears the save and the seen tips for a new game, and keeps sound settings', () => {
     const slots = makeSlots();

@@ -7,9 +7,10 @@ import { PHYSICS } from '../../data/physics';
 import { propPose, propReach, type PropPose } from '../../sim/mapgen';
 import { propBase } from '../../sim/bridge';
 import { bodyOf } from '../../sim/body';
+import { LOOT_LOOK, lootColor } from '../../render/lootLook';
 import { baseModel, grayed, HULK_TILT, HULK_TONE, WEAR_LOOK_STEPS } from '../../render/partLooks';
 import { heightAt, type Terrain } from '../../sim/terrain';
-import { hasSalvage, salvageUnits } from '../../sim/salvage';
+import { hasSalvage, lootableProps, salvageUnits } from '../../sim/salvage';
 import type { BrokenProp, Obstacle, SalvageStock, World } from '../../sim/types';
 import { dist } from '../../sim/vec';
 import type { V3, VehicleFrame } from '../../phys/frames';
@@ -30,6 +31,8 @@ const CRATES_RADIUS = 1.5;
 const PILE_FULL_UNITS = 20;
 const PILE_MIN_SIZE = 0.5;
 
+type LootSwatch = { material: THREE.MeshLambertMaterial; plain: number; loot: number };
+
 export class ObstacleViews {
   private readonly byId = new Map<string, THREE.Object3D>();
   private fixed: Fixed | null = null;
@@ -39,6 +42,8 @@ export class ObstacleViews {
   readonly parts: PartDebris;
   private obstacles: readonly Obstacle[] = [];
   private readonly glows = new Map<string, Glow>();
+  private readonly swatches = new Map<string, LootSwatch[]>();
+  private lit = new Set<string>();
   private clock = 0;
 
   private gates: OutpostGateViews | null = null;
@@ -64,7 +69,26 @@ export class ObstacleViews {
       disposeTree(obj);
       this.byId.delete(id);
       this.glows.delete(id);
+      this.swatches.delete(id);
+      this.lit.delete(id);
     }
+    this.syncLoot(salvage);
+  }
+
+  private syncLoot(salvage: SalvageStock[]): void {
+    const want = lootableProps(salvage);
+    for (const id of want) {
+      if (this.lit.has(id)) continue;
+      const swatches = this.swatches.get(id);
+      if (!swatches) throw new Error(`Lootable prop ${id} has no view`);
+      paintSwatches(swatches, 'loot');
+    }
+    for (const id of this.lit) {
+      if (want.has(id)) continue;
+      const swatches = this.swatches.get(id);
+      if (swatches) paintSwatches(swatches, 'plain');
+    }
+    this.lit = want;
   }
 
   private addFixed(obstacles: Obstacle[], broken: readonly BrokenProp[]): Fixed {
@@ -84,6 +108,7 @@ export class ObstacleViews {
       m.updateMatrix();
       m.matrixAutoUpdate = false;
     });
+    this.swatches.set(o.id, (obj.userData.lootSwatches as LootSwatch[] | undefined) ?? lootSwatches(obj));
     this.scope.add(obj, o.pos, viewReach(o));
     this.byId.set(o.id, obj);
     if (obj.userData.glow) this.glows.set(o.id, obj.userData.glow as Glow);
@@ -134,6 +159,8 @@ export class ObstacleViews {
     this.scope.remove(standing);
     disposeTree(standing);
     this.byId.delete(id);
+    this.swatches.delete(id);
+    this.lit.delete(id);
   }
 
   private syncDebris(broken: readonly BrokenProp[]): void {
@@ -182,6 +209,7 @@ export class ObstacleViews {
     obj.position.set(stock.pos.x * S, heightAt(this.terrain, stock.pos.x, stock.pos.y) * S, stock.pos.y * S);
     obj.rotation.y = hashStr(stock.id) * Math.PI * 2;
     obj.traverse((o) => (o.matrixAutoUpdate = false));
+    paintSwatches(lootSwatches(obj), 'loot');
     const pile = { obj, units: 0 };
     this.scope.add(obj, stock.pos, CRATES_RADIUS / S);
     this.piles.set(stock.id, pile);
@@ -263,7 +291,7 @@ export type HulkPose = Extract<PropPose, { model: 'hulk' }>;
 export function buildHulk(t: Terrain, o: Obstacle, pose: HulkPose): THREE.Group {
   const g = posed(propBase(t, o), pose);
   const obj = model(baseModel(pose.chassisId));
-  char(obj);
+  g.userData.lootSwatches = char(obj);
   jag(obj, o.id, WEAR_LOOK_STEPS);
   obj.position.y = bodyOf(pose.chassisId).half.y;
   obj.rotation.set((hashStr(`${o.id}:roll`) * 2 - 1) * HULK_TILT, 0, (hashStr(`${o.id}:pitch`) * 2 - 1) * HULK_TILT);
@@ -271,14 +299,33 @@ export function buildHulk(t: Terrain, o: Obstacle, pose: HulkPose): THREE.Group 
   return g;
 }
 
-function char(obj: THREE.Object3D): void {
+function char(obj: THREE.Object3D): LootSwatch[] {
+  const swatches: LootSwatch[] = [];
   obj.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const mat = o.material;
     if (!(mat instanceof THREE.MeshLambertMaterial)) throw new Error(`Hulk mesh ${o.name} has material ${mat.type}, expected one Lambert material`);
-    mat.color.setHex(grayed(mat.color.getHex(), 1)).multiplyScalar(HULK_TONE);
+    const paint = mat.color.getHex();
+    const plain = new THREE.Color(grayed(paint, 1)).multiplyScalar(HULK_TONE).getHex();
+    const loot = new THREE.Color(grayed(paint, 1 - LOOT_LOOK.hulkPaint)).multiplyScalar(HULK_TONE).getHex();
+    mat.color.setHex(plain);
     mat.emissive.setHex(0x000000);
+    swatches.push({ material: mat, plain, loot });
   });
+  return swatches;
+}
+
+function lootSwatches(obj: THREE.Object3D): LootSwatch[] {
+  const swatches: LootSwatch[] = [];
+  eachMaterial(obj, (material) => {
+    const plain = material.color.getHex();
+    swatches.push({ material, plain, loot: lootColor(plain) });
+  });
+  return swatches;
+}
+
+function paintSwatches(swatches: LootSwatch[], state: 'plain' | 'loot'): void {
+  for (const swatch of swatches) swatch.material.color.setHex(swatch[state]);
 }
 
 function lightCore(reactor: THREE.Object3D, g: THREE.Group): void {
