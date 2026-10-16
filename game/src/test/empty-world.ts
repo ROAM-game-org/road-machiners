@@ -30,6 +30,7 @@ export function buildEmptyTemplate(): EmptyTemplate {
   const { terrain: _terrain, ...template } = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
   const exploredTiles = [...template.player.explored.keys()].filter((tile) => template.player.explored[tile] === 1);
   template.obstacles = [];
+  for (const shop of Object.values(template.shops)) shop.contracts = shop.contracts.filter((c) => c.kind !== 'claim');
   template.vehicles = template.vehicles.filter((v) => v.faction === 'player');
   template.states = [];
   template.rngState = -1655809527;
