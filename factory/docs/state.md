@@ -25,7 +25,7 @@ One card position spans several stores. A position is consistent when every stor
 
 ## Card positions
 
-The board column is the position. Only a Testing card has a second one, `post`. Each position lists the column, the state fields, the artifacts it needs and the job the tick runs next. `factory card N` prints a card's position and names each store that disagrees. `factory move N <position>` puts a card in the position and clears the state of the old one.
+The board column is the position. Only a Testing card has a second one, `post`. Each position lists the column, the state fields, the artifacts it needs and the job the tick runs next. `factory card N` prints a card's position and names each store that disagrees. `factory move N <position>` puts a card in the position and clears the state of the old one. It closes the card's open committee posts in state before it edits them to the new status, so a failed edit is reported and leaves no open post behind.
 
 - `triage`: column Triage. Next job: triage.
 - `design`: column Design. Next job: design.
