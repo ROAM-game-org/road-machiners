@@ -78,11 +78,11 @@ describe('a new world by mode', () => {
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [1105414378, -1377109622, 836395902, 1936023925],
-      nextId: 1213,
+      streams: [-1233435508, 710220979, 836395902, 1936023925],
+      nextId: 1126,
       counts: [23, 3780, 111, 7],
-      npcs: [['buggy', 119.94, 84.79], ['buggy', 320.72, 387.67], ['buggy', 322.57, 387.83]],
-      bowlStock: ['grenadeLauncher', 'ceramicTile', 'pneumobolter', 'sniperCannon', 'patcherCrane', 'patcherCrane', 'caltrops', 'autocannon', 'turbine'],
+      npcs: [['buggy', 114.67, 75.78], ['buggy', 315.64, 389.94], ['buggy', 121.74, 81.19]],
+      bowlStock: ['patcherCrane', 'heavyMg', 'patcherCrane', 'pneumobolter', 'heavyDiesel', 'supplyLocker', 'slugCannon', 'flareCannon', 'rocketRack', 'reinforcedCage'],
     });
   });
 
@@ -111,7 +111,7 @@ describe('a world and its map', () => {
   });
 
   it('refuses a Fury Road world on Icarus', () => {
-    expect(() => newWorld(7, startKit('furyRoad'), TEST_MAP, defaultSetup('furyRoad'))).toThrow(/highway window 0/);
+    expect(() => newWorld(7, startKit('furyRoad'), TEST_MAP, defaultSetup('furyRoad'))).toThrow(/starts on a highway/);
   });
 });
 

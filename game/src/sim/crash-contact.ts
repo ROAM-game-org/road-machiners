@@ -279,5 +279,7 @@ export function computeClosingSpeed(relative: Vec, normal: Vec): number {
 }
 
 function scratchPlayer(world: World, ...hurt: Vehicle[]): World['player'] {
-  return hurt.some((v) => isOwnedTruck(world, v)) ? structuredClone(world.player) : world.player;
+  if (!hurt.some((v) => isOwnedTruck(world, v))) return world.player;
+  const { explored, visible, ...rest } = world.player;
+  return { ...structuredClone(rest), explored, visible };
 }
