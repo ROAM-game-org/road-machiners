@@ -3,6 +3,8 @@ import { RULES } from '../data/rules';
 import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { endTurn } from '../sim/world';
+import { setQuestLanguage } from '../sim/quests';
+import type { QuestLanguage } from '../data/quests';
 import { perfSnapshot, resetPerf, timed, type PerfStat } from '../perf';
 import { playerVehicle } from '../sim/damage';
 import { advanceFar } from '../sim/far';
@@ -26,7 +28,7 @@ export type PreparedTurn = {
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; questLanguage: QuestLanguage; terrain: World['terrain'] | null };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -65,6 +67,11 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
   }
 }
 
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  setQuestLanguage(request.questLanguage);
+  return computeTurn(request, terrain);
+}
+
 function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
@@ -88,7 +95,7 @@ function startTurnWorker(): void {
 function answer(request: WorkerRequest, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
-      const turn = computeTurn(request, terrain);
+      const turn = computeRequestedTurn(request, terrain);
       self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
