@@ -11,7 +11,7 @@ export const RULES = {
   npcRecoveryTurns: 2,
   unstick: { turns: 20, reach: 6, driveTurns: 3 },
   stranded: { turns: 3, step: 0.25, still: 0.1 },
-  reverse: { cone: 20, distance: 1 },
+  reverse: { cone: 20, distance: 1, maxDistance: 6 },
   meetStep: 0.3,
   arriveRadius: 0.5,
   throttleZones: { reach: 10, brake: 0.25, hold: 0.5, accelerate: 0.25 },

@@ -601,7 +601,7 @@ describe('physics turns', () => {
     freeDrive(d);
   });
 
-  it('a truck blocked in front backs out about a tile, then turns nose first toward a far point behind', () => {
+  it('a truck blocked in front backs out until its way is clear and no farther than the reverse limit, then turns nose first toward a far point behind', () => {
     const dest = { x: 5, y: 40 };
     let w = ordered({ kind: 'through', dest });
     const at = me(w).pos;
@@ -623,7 +623,7 @@ describe('physics turns', () => {
       run = backing ? run + dist(before, m.pos) : 0;
       longest = Math.max(longest, run);
     }
-    expect(longest).toBeLessThan(RULES.reverse.distance + 1);
+    expect(longest).toBeLessThan(RULES.reverse.maxDistance + 1);
     expect(Math.abs(heading)).toBeLessThan(Math.PI / 4);
     freeDrive(d);
   });
