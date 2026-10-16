@@ -31,7 +31,7 @@ function smooth(t: number): number {
 }
 
 export function stampShare(site: StampSite, p: Vec): number {
-  const gap = site.edge(p);
+  const gap = Math.max(0, site.edge(p) - MAPGEN.groundHold);
   return gap >= MAPGEN.groundFeather ? 0 : 1 - smooth(gap / MAPGEN.groundFeather);
 }
 

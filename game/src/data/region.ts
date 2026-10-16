@@ -28,8 +28,21 @@ const BEND = {
   wavelength: 45,
 };
 
+const OLD_ORCHARD_AT: Vec = { x: 114, y: 284 };
+
+function besideOrchard(x: number, y: number): Vec {
+  return { x: ORCHARD_POS.x + x * 5 - OLD_ORCHARD_AT.x + 0.4, y: ORCHARD_POS.y + y * 5 - OLD_ORCHARD_AT.y };
+}
+
+const PINNED = new WeakMap<Vec, Vec>();
+
+function pinnedTo(layout: Vec, at: Vec): Vec {
+  PINNED.set(layout, at);
+  return layout;
+}
+
 function scaleRoad(points: Vec[], straight: number[] = []): Vec[] {
-  const scaled = points.map(scalePoint);
+  const scaled = points.map((p) => PINNED.get(p) ?? scalePoint(p));
   const out: Vec[] = [scaled[0]];
   for (let i = 1; i < scaled.length; i++) out.push(...(straight.includes(i - 1) ? [scaled[i]] : bend(scaled[i - 1], scaled[i])));
   return out;
@@ -294,8 +307,8 @@ export const REGION = {
       { x: 16, y: 94 },
       { x: 20.36277, y: 84.67443 },
       { x: 25, y: 73 },
-      { x: 28, y: 64 },
-      { x: 31, y: 54 },
+      pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
+      pinnedTo({ x: 31, y: 54 }, besideOrchard(31, 54)),
       { x: 37, y: 32 },
       { x: 43, y: 30 },
       { x: 50, y: 36 },
@@ -323,7 +336,7 @@ export const REGION = {
       { x: 102, y: 35 },
     ], [0, 9, 11]),
     scaleRoad([
-      { x: 28, y: 64 },
+      pinnedTo({ x: 28, y: 64 }, besideOrchard(28, 64)),
       { x: 36, y: 61 },
       { x: 43, y: 54 },
       { x: 50, y: 49 },
@@ -358,7 +371,7 @@ export const REGION = {
       { x: 97, y: 62 },
       { x: 103, y: 70 },
     ]),
-    [scalePoint({ x: 28, y: 64 }), edgePoint(scalePoint({ x: 28, y: 64 }), { x: ORCHARD_POS.x + ORCHARD_SOUTH.x, y: ORCHARD_POS.y + ORCHARD_SOUTH.y }, ORCHARD_POS, ORCHARD_OUTLINE)],
+    [besideOrchard(28, 64), edgePoint(besideOrchard(28, 64), { x: ORCHARD_POS.x + ORCHARD_SOUTH.x, y: ORCHARD_POS.y + ORCHARD_SOUTH.y }, ORCHARD_POS, ORCHARD_OUTLINE)],
     scaleRoad([{ x: 37, y: 32 }, { x: 33.8, y: 32 }], [0]),
     scaleRoad([{ x: 50, y: 36 }, { x: 50, y: 32.8 }], [0]),
     scaleRoad([{ x: 73, y: 92 }, { x: 71.8, y: 89 }], [0]),

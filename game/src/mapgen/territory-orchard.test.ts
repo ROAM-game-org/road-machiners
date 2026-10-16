@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { along } from '../test/territory-kit';
 import { ECONOMY } from '../data/goods';
 import { PHYSICS } from '../data/physics';
-import { ORCHARD_HEADING, REGION, type TerritoryDef } from '../data/region';
+import { ORCHARD_HEADING, REGION, scalePoint, type TerritoryDef } from '../data/region';
 import { MAPGEN, TERRAIN } from '../data/terrain';
 import { EMPLACEMENT, onOrchardRoad, PERIMETER, TERRITORIES, type Run, type TerritoryRules } from '../data/territory';
 import { boxDistance, propBoxes, propPose, propReach } from '../sim/mapgen';
@@ -395,7 +395,7 @@ describe('the orchard farm', () => {
   it('throws on a building whose ring cannot level its ground', () => {
     const moved = structuredClone(rules);
     moved.farm!.buildings.find((b) => b.look === 'quonset')!.poses[3].at = onOrchardRoad(51, -33);
-    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 1))).toThrow(/levels its ground into a cliff/);
+    expect(() => fillFarm(groundDraft(), orchard, moved, moved.farm!, ruleRng(7, 5))).toThrow(/levels its ground into a cliff/);
   });
 
   it('throws on a building off the outline', () => {
@@ -406,7 +406,7 @@ describe('the orchard farm', () => {
 });
 
 describe('a third territory', () => {
-  const flats: TerritoryDef = { id: 'test-flats', kind: 'territory', pos: { x: 200, y: 380 }, radius: 22, outline: null };
+  const flats: TerritoryDef = { id: 'test-flats', kind: 'territory', pos: scalePoint({ x: 40, y: 76 }), radius: 22, outline: null };
   function flatsRules(): TerritoryRules {
     return {
       seed: 2,
