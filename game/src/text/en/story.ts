@@ -127,6 +127,8 @@ export const STORY = {
   'term.northgate': 'A valley at the north end of the road with a mountain spring. Few southerners have seen it, and its gates stay shut to strangers.',
   'term.burnt_drivers': 'The raiders who followed a man called Magnus a generation ago. The forts say the gang starved in one winter, and every driver of it was hunted down.',
   'term.covenant': 'The water deal between Northgate and Blackwell. Northgate\'s water goes south in Blackwell\'s tankers, season after season, for Blackwell\'s diesel.',
+  'term.the_yards': 'An old truck stop south of Blackwell where salvagers live among the dead pumps. Their crews strip wrecks all along the north road.',
+  'term.black_water': 'The sickness of poisoned ground near the refinery. Children get it first, and it burns them with fever.',
   'term.bowl': 'A farm town cut in terraces down the inside of an old crater. Canals carry the water to the fields, and the well house sells it by the bucket.',
   'term.nose': 'The town up the north road, built around a wreck on a mountain. Its soldiers keep the order, and its workshop line builds the basin\'s engines and guns.',
   'term.pierce': 'The outfit that bets on trucks coming home. It insures a truck only with a gun on it, and pays the family when the truck does not come back.',

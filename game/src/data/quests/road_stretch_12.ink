@@ -8,10 +8,18 @@ VAR stay_said = "none"
 The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost # img: road_hauler
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
-The first says Hedda Vell has called off the reward on the truck. Ala reads on. The hunters were promised diesel and nobody has told them to stop, and the bar talk says the trailer carries Blackwell's secret. They will keep coming. # page
-The second says the well crews, who were shut in Blackwell's yard, broke out and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, left the southern forts at dawn and are on the open road north, a day behind us, and not a gun among them. # page
-The hunters are all around us. The people are a day behind us, and they have no gun. # speaker: Ala
-She folds the slips and waits. # page
+The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She was afraid, it says, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page
+The second says the people are on the road. The <term=keepers>Keepers</term> pass them north from fort to fort and feed them where they stop. The Warden will open Northgate's gate when they come. A hunter named Vale turned back with her one truck and holds the road behind them, and the slip quotes her. # page
+Any crew wants these families, they come through me first. # speaker: Vale
+The last line of the slip is short. Maya rides with them, days back, and there is not a gun among them. # page
+-> free_to_go
+
+= free_to_go
+Ala folds the slips and puts them away. # page
+You're paid up, and by the deal you're free to go. I won't hold you. # speaker: Ala
+She doesn't say it as if she means it. She says it as if she's reading it.
+She has one more slip, from the Keepers' own relay. She reads it out in the voice she uses for sums. # page
+Your escort wears a Burnt Driver lieutenant's burn. Defend the families behind you. # speaker: Keepers' relay
 -> fire
 
 = fire
@@ -22,27 +30,32 @@ The seat took hold of your neck and began to cook the socket out of you. You hea
 Your drivers followed you into the other seats, one truck after another, because Magnus had gone first and Magnus was never wrong. By the time you screamed, each was already plugged into a seat that was not his. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
 Magnus! The plug! Magnus! # speaker: Burnt Driver
 You tore the plug out of your own seat with both hands. That left the ring in your neck. You didn't go back for the boy. You walked out into the badlands, and you have been walking away ever since. # page
+Then the pass, another year. A line of tankers slowed for the bend, and the first cab had a linked man in it, who looked up at the ridge. You gave the order. Afterward you walked down the line, and not one of the cabs had a living man in it. # page
 -> ask
 
 = ask
 # checkpoint: start.ask
 Ala has been watching your face for a long time. She doesn't know what she's looking at. # page # img: road_ala
-At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Who was that man? # speaker: Ala
-+ [A man I rode with. A Burnt Driver.]
+At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Now the Keepers say that burn is a Burnt Driver lieutenant's. My father was on that convoy at the pass. Were you? # speaker: Ala
++ [I rode with the Burnt Drivers. Your father died to us.]
   ~ ala_knows = "burnt"
   -> burnt
 + [Somebody dead.]
   ~ ala_knows = "dead"
   -> dead
-+ [Me. My name was Magnus.]
++ [I led them. My name was Magnus.]
   ~ ala_knows = "magnus"
   -> magnus
 
 = burnt
-It comes out without the name. You rode with the Burnt Drivers, you tell her, and they ended at the tank line, in one winter.
-The Burnt Drivers took a Blackwell water convoy, sixteen years ago. They killed everyone who was with it. I was eighteen, at the gate, when the news came. # speaker: Ala
+It comes out without the name. You rode with the Burnt Drivers, you tell her, and they took and killed on this road until the winter that ended them. Her father died to them.
+{ father_told:
+  I told you how he died. I didn't tell you that I'd know the man if I met him. # speaker: Ala
+- else:
+  Sixteen years. I was eighteen, at the Yards, when the news came. # speaker: Ala
+}
 She says it as a plain fact.
-I won't ask whether you were there. If you were, tell me before you leave, not after. # speaker: Ala
+I won't ask whether you were at the pass. If you were, tell me before you leave, not after. # speaker: Ala
 { ring_told == "told":
   You told me about a burning seat. I can add. # speaker: Ala
 - else:
@@ -61,12 +74,13 @@ You say it, and it sits between you on the step.
 Ala doesn't move for a long time.
 Magnus burned in his seat at the tank line. Tibor tells it every night, and the barmen of six forts. # speaker: Ala
 Yes, you say. They tell it very well.
-She looks at the scar. She looks at your hands. She does not say what she thinks.
+She looks at the scar. She looks at your hands. She does not ask about the pass, and you do not say it, and you both know the road has only one.
 -> stay
 
 = stay
 # checkpoint: start.stay
-Out on the dark road, two hundred people in old trucks are coming north behind her. You are one gun on one good tire. Against what hunts them, that is nothing. It is what there is. # page
+She should send you away. You can see her know it, and you can see her do the sum. # page
+Out on the road, days behind, a girl with a fever is riding north among two hundred people with no gun. You are one gun on one good tire. Against what hunts them, that is nothing. It is what there is. # page
 So. Are you riding on? # speaker: Ala
 -> say
 
@@ -76,9 +90,9 @@ So. Are you riding on? # speaker: Ala
   You say it flat, the way you say everything. She nods once.
   I thought so. # speaker: Ala
   -> close
-+ [I'm riding on, for the people behind us.]
++ {promised} [Until Maya drinks from the spring.]
   ~ stay_said = "people"
-  You can't say more than that, and you don't try. Her hands are steadier than they were.
+  You said it once, at the fourth fort, and you say it again. Her hands are steadier than they were.
   Then we're both fools. # speaker: Ala
   -> close
 + [Same pay, then.]
@@ -103,6 +117,7 @@ So. Are you riding on? # speaker: Ala
   She puts her hand flat on the step to steady herself.
   Then Tibor tells it wrong. Good. # speaker: Ala
 }
+{ hand_shook: She remembers the eighth fort, your hand shaking against the scar, and she says nothing about it. }
 Later you sit up on the wall, facing south, where two hundred people are driving in the dark. No lights show on the road, and you look anyway. # page
 { ala_knows == "dead": Ala climbs up with one cup, sets it down between you, and says nothing about the dead man. }
 { ala_knows == "burnt": Ala climbs up with two cups. She sits a little way off. }

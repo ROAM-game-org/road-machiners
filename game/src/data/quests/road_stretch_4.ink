@@ -8,17 +8,20 @@ VAR asked_hunters = false
 === start ===
 # checkpoint: start
 The fourth fort has a water cistern on its roof and a Keeper asleep beside it. # place: The fourth outpost # img: road_hauler
-Two trucks came out of the badlands this morning. You dealt with the first in the open, and it was quick. The second waited behind a rockfall with its gun on the hauler's cab. You never decided anything. You put your bumper into its front wheel at full speed, and it spun into the rocks. When the dust settled, the gun was pointing at the sky and the driver was not moving.
-Ala climbs down from the hauler and counts the stretch's pay into your hand out loud, quickly, without her usual care. Her eyes keep going to your bumper. # page
+The hunters came two at a time on the way up, and both trucks got through. The hauler's cab still has its glass.
+Ala climbs down from the hauler and counts the stretch's pay into your hand out loud, quickly, without her usual care. Her eyes keep going to your scout. # page
 -> death_machine
 
 = death_machine
 # checkpoint: start.death_machine
-Four stretches, and every time you go at them like you're angry at the road. How the hell are you such a death machine? # speaker: Ala
+Four stretches, and you're always the one still rolling when it's over. How the hell are you such a death machine? # speaker: Ala # img: road_ala
 She isn't joking. She's measuring what she bought.
 + [Thirty years of this road.]
   ~ death_answer = "road"
   -> road
++ [I rode with hard men. Did things I'm still running from.]
+  ~ death_answer = "hard_men"
+  -> hard_men
 + [What Tibor told you: I rode with Magnus.]
   ~ death_answer = "magnus"
   -> magnus
@@ -35,6 +38,13 @@ That's not an answer. That's a calendar. # speaker: Ala
 }
 -> hub_intro
 
+= hard_men
+It comes out before you have weighed it. Hard men, you say, and things you did beside them, and you are still running, and that is the whole of it.
+Running from what? # speaker: Ala
+You look at the road. She lets the road be the answer, and she doesn't ask twice.
+{ father_told: Her hand has gone to her cuff. She doesn't turn it over. }
+-> hub_intro
+
 = magnus
 Tibor told me that one. Every bar on this road has three men who rode with Magnus. # speaker: Ala
 You have said that sentence in a lot of bars. You say it as flatly as a road sign.
@@ -47,7 +57,7 @@ Ala looks at you for a while. Then she nods slowly, as if silence were an answer
 -> hub_intro
 
 = hub_intro
-She sits down on the hauler's step. # page
+She sits down on the hauler's step. # page # img: road_hauler
 Ask, if you're going to. I'll answer what I answer. # speaker: Ala
 -> hub
 
@@ -59,23 +69,44 @@ She waits. The Keeper on the roof turns over in his sleep. # page
 = menu
 + {not asked_trailer} [What's in the trailer?]
   ~ asked_trailer = true
-  Pump parts and valves. Sealed casks, some of them fuel. And books, my father's well crews kept them. Where we're going, nobody has any of it. # speaker: Ala
-  She says it like a list she has learned, and she stops before she says what is written in the books.
-  My father packed it himself. He lets nobody else pack. # speaker: Ala
+  Books. A dead doctor's journals from the valley, forty years of them. My mother hid them three years. Then the Commandant read the name on the cover, and now they're sealed in her wax. # speaker: Ala
+  She says it like a list she has learned, and she stops before she says what is written in them.
+  The bar says it's a cure. It's paper. # speaker: Ala
   -> menu
 + {not asked_north} [Where are we going?]
   ~ asked_north = true
-  <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. Its gate opens only to people who wrote ahead. I wrote. # speaker: Ala
-  Its water goes south in <term=blackwell>Blackwell</term>'s tankers. That's the <term=covenant>covenant</term>, and twenty years of it. The books are what I'm taking north. Blackwell wants them kept south. # speaker: Ala
+  <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. The Warden's relay says turn back. It said so at the first fort, and at the second, and it says it politely. # speaker: Ala
+  I'm not turning back. # speaker: Ala
   -> menu
-+ {not asked_hunters} [Who set the reward?]
++ {not asked_hunters} [Who pays the hunters?]
   ~ asked_hunters = true
-  Hedda Vell. She runs Blackwell, and she posted it herself. She wants the trailer back sealed. Whether I come back with it, she doesn't care. # speaker: Ala
+  Hedda Vell. She runs Blackwell, and she posted it herself, in diesel. Whether I come back with the trailer or not, she doesn't care. # speaker: Ala
   She says the name flatly, like a debt she has carried for years.
   -> menu
 + [That's enough.]
   You know more than you did, and the road is no safer for it.
-  Ala gets up. # page
-  Dawn, then. # speaker: Ala
-  You go and look at your bumper. It is folded in on the right, and the yard here has a welder who works at night.
-  -> END
+  -> maya
+
+= maya
+# checkpoint: start.maya
+Ala doesn't get up. She looks at the cistern, and then at her hands. # page # img: road_ala
+Maya's fever came back on the third night. Sara's slip said she shakes, and she asks for me every hour, and then she asks what the valley looks like. I don't know what to tell her. I've never seen it. # speaker: Ala
+She waits. She isn't asking for anything. That is how you know she wants it.
+-> promise
+
+= promise
++ [I'll get you there.]
+  ~ promised = true
+  You hear yourself say it. It isn't a thing you say. You've never said it to anyone, and you know exactly how heavy it is.
+  Ala looks at you for a long time. She nods once, and doesn't thank you, because a debt like that can't be thanked.
+  -> close
++ [Say nothing.]
+  You say nothing. It is the safest thing a man like you can say.
+  She nods, as if she'd expected it, and that is somehow worse.
+  -> close
+
+= close
+Ala gets up. # page
+Dawn, then. # speaker: Ala
+You go and check the gun pins, both of them. A loose pin will swing your own gun into your cab. The yard here has a welder who works at night, and you leave him a few M's for the scout's weld.
+-> END

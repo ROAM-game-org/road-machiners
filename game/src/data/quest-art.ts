@@ -10,7 +10,7 @@ export const QUEST_ART: Record<string, QuestArt> = {
   road_bar: { file: 'road_bar.webp', focusX: 55 },
   road_ala: { file: 'road_ala.webp', focusX: 55 },
   road_geezer: { file: 'road_geezer.webp', focusX: 30 },
-  road_hauler: { file: 'road_hauler.webp', focusX: 50 },
+  road_hauler: { file: 'road_hauler.webp', focusX: 40 },
   road_gate: { file: 'road_gate.webp', focusX: 20 },
   road_tankline: { file: 'road_tankline.webp', focusX: 20 },
 };

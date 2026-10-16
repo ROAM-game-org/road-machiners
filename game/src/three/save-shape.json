@@ -2173,11 +2173,14 @@
    "ambush_raider": "string",
    "death_answer": "string",
    "depot_thief": "string",
+   "father_told": "boolean",
    "first_knockout_seen": "boolean",
    "geezer_pitch": "string",
+   "hand_shook": "boolean",
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
+   "promised": "boolean",
    "ring_told": "string",
    "road_seen_1": "boolean",
    "road_seen_12": "boolean",
@@ -2474,7 +2477,8 @@
    "road_stretch_4": [
     "start",
     "start.death_machine",
-    "start.hub"
+    "start.hub",
+    "start.maya"
    ],
    "road_stretch_8": [
     "start",
@@ -2771,10 +2775,14 @@
    "revision": 1,
    "links": {
     "reads": [
+     "father_told",
      "geezer_pitch"
     ],
     "readsNotes": [],
     "writes": {
+     "father_told": [
+      true
+     ],
      "ring_told": [
       "dodged",
       "silent",
@@ -2790,6 +2798,9 @@
    "links": {
     "reads": [
      "ala_knows",
+     "father_told",
+     "hand_shook",
+     "promised",
      "ring_told"
     ],
     "readsNotes": [],
@@ -2808,14 +2819,19 @@
    "revision": 1,
    "links": {
     "reads": [
+     "father_told",
      "ring_told"
     ],
     "readsNotes": [],
     "writes": {
      "death_answer": [
+      "hard_men",
       "magnus",
       "road",
       "silent"
+     ],
+     "promised": [
+      true
      ]
     },
     "notes": [],
@@ -2825,12 +2841,21 @@
   "road_stretch_8": {
    "revision": 1,
    "links": {
-    "reads": [],
+    "reads": [
+     "father_told",
+     "hand_shook",
+     "promised"
+    ],
     "readsNotes": [],
     "writes": {
+     "hand_shook": [
+      false,
+      true
+     ],
      "why_answer": [
       "finish",
       "pay",
+      "promised",
       "silent"
      ]
     },

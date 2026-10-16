@@ -22,6 +22,9 @@ VAR ring_told = "none"
 VAR death_answer = "none"
 VAR why_answer = "none"
 VAR ala_knows = "none"
+VAR father_told = false
+VAR promised = false
+VAR hand_shook = false
 
 EXTERNAL money()
 EXTERNAL give_money(amount)

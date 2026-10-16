@@ -12,6 +12,7 @@ import { defaultSetup } from '../sim/settings';
 import { finishQuest, furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { cloneWorld, endTurn, newWorld } from '../sim/world';
+import { readQuestSources } from '../test/quest-compile';
 import { TEST_MAP } from '../test/map';
 import { restartsWithStory } from '../ui/death';
 import { loadWorld, saveOf, writeSave } from './save';
@@ -153,5 +154,26 @@ describe('the road story data', () => {
       expect(GAME_WORLD_VARS[gate].gates).toBe(quest);
     }
     expect(QUESTS.quests[GAME_OPENED_QUESTS.roadHire].checkpoints).toContain('start');
+  });
+});
+
+describe('the openings of the road scenes', () => {
+  const FIGHT_ACTS = ['your bumper', 'rammed', 'went at it', 'drove at', 'drove straight', 'went at'];
+
+  function opening(source: string): string {
+    const lines = source.split('\n');
+    const from = lines.findIndex((line) => line.startsWith('=== start ==='));
+    const body = lines.slice(from + 1);
+    const end = body.findIndex((line) => line.startsWith('->') || line.startsWith('+'));
+    return body.slice(0, end).join('\n').toLowerCase();
+  }
+
+  it('state no act of the player in a fight', () => {
+    const sources = readQuestSources('src/data/quests');
+    for (const { quest } of Object.values(ROAD_STORY)) {
+      const text = opening(sources[`${quest}.ink`]);
+      expect(text.length, quest).toBeGreaterThan(100);
+      for (const act of FIGHT_ACTS) expect(text, `${quest}: ${act}`).not.toContain(act);
+    }
   });
 });
