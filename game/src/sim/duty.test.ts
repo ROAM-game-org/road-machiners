@@ -14,6 +14,7 @@ import { addVehicle, emptyWorld, finishBusiness, npcBrain } from './testkit';
 import { escortFee, startEscort } from './tow';
 import type { GameEvent, NpcActivity, Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
+import { fallbackFaction } from './spawn';
 
 const BOWL = REGION.towns.find((t) => t.id === 'bowl')!;
 const NOSE = REGION.towns.find((t) => t.id === 'nose')!;
@@ -23,7 +24,7 @@ const LEG_TURNS = 300;
 const LEG_START = { x: 40, y: 40 };
 
 function createNpc(w: World, templateId: string, traits: TraitId[], parts: string[], pos: Vec, chassis = 'scout'): Vehicle {
-  const npc = addVehicle(w, NPCS[templateId].faction, chassis, parts, pos);
+  const npc = addVehicle(w, fallbackFaction(NPCS[templateId]), chassis, parts, pos);
   npc.brain = npcBrain(templateId, pos, traits);
   return npc;
 }

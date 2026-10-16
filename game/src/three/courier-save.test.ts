@@ -19,7 +19,7 @@ function helpedWorld(): { w: World; npcId: string } {
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   const me = playerVehicle(w);
-  const npc = addVehicle(w, 'couriers', 'scout', ['stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
+  const npc = addVehicle(w, 'guidestar', 'scout', ['stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
   npc.brain = npcBrain('courier', npc.pos, ['courier']);
   npc.resources!.money = 30000;
   w.player.discovered = [];

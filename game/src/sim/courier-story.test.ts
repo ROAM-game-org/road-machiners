@@ -37,7 +37,7 @@ function courierWorld(): { w: World; npc: Vehicle } {
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   w.player.discovered = [...REGION.towns, ...REGION.locations].map((s) => s.id);
   w.salvage = [];
-  const npc = addVehicle(w, 'couriers', 'scout', ['stockEngine'], { x: 36, y: 30 });
+  const npc = addVehicle(w, 'guidestar', 'scout', ['stockEngine'], { x: 36, y: 30 });
   npc.brain = npcBrain('courier', npc.pos, ['courier']);
   npc.resources!.fuel = 1;
   npc.resources!.supplies = suppliesCap(npc);
@@ -225,7 +225,7 @@ describe('the courier story, a wrong done to the courier', () => {
     const { w, npc } = askedWorld();
     quiet(w);
     const next = meetAgain(handOver(pick(w, 'No charge.'), npc.id), npc.id, GAP);
-    remember(next, find(next, npc.id), { kind: 'wronged', by: next.player.vehicleId });
+    remember(next, find(next, npc.id), { kind: 'wronged', by: next.player.vehicleId, deed: 'attacked' });
     return { w: next, npc };
   }
 
@@ -261,7 +261,7 @@ describe('the courier story, a wrong done to the courier', () => {
 
   it('rolls no courier call toward a truck that wronged the courier', () => {
     const { w, npc } = courierWorld();
-    remember(w, npc, { kind: 'wronged', by: w.player.vehicleId });
+    remember(w, npc, { kind: 'wronged', by: w.player.vehicleId, deed: 'attacked' });
     expect(encounterAvailable(w, npc, 'courier')).toBe(false);
   });
 });
