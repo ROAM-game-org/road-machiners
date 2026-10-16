@@ -70,9 +70,12 @@ import { advanceJobs, startAutoRepair } from './jobs';
 import { advanceEngineHeat } from './engine-heat';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
+import { startPose } from './start-pose';
 import { clamp, dist, type Vec } from './vec';
 import { startStanding } from "../data/npc-behavior";
 import { driftStanding } from "./relations";
+
+export { startPose };
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -222,28 +225,6 @@ export function startOf(seed: number, setup: WorldSetup): { pos: Vec; heading: n
 
 function wearCoreParts(world: World, truck: Vehicle, wear: number): void {
   for (const item of truck.items) if (item.kind === "part" && partDef(item.part.defId).kind === "core") item.part = makePart(world, item.part.defId, wear);
-}
-
-export function startPose(): { pos: Vec; heading: number } {
-  const { road, distance, offset } = REGION.playerStart;
-  const points = REGION.roads[road];
-  let left = distance;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const length = dist(a, b);
-    if (left > length) {
-      left -= length;
-      continue;
-    }
-    const along = Math.atan2(b.y - a.y, b.x - a.x);
-    const t = left / length;
-    return {
-      pos: { x: a.x + (b.x - a.x) * t - Math.sin(along) * offset, y: a.y + (b.y - a.y) * t + Math.cos(along) * offset },
-      heading: along - Math.PI / 2,
-    };
-  }
-  throw new Error(`Player start lies ${distance} tiles along road ${road}, past its end`);
 }
 
 export function townStart(): { pos: Vec; heading: number } {

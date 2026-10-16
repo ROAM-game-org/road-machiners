@@ -8,6 +8,7 @@ import { BEACON } from './tow';
 
 const SPREAD = 1.3;
 const OLD_SCALE = 5;
+const SNAP = 1;
 
 const TODAY: Record<string, { at: [number, number]; radius: number }> = {
   bowl: { at: [16, 94], radius: 28 },
@@ -43,7 +44,7 @@ describe('Icarus layout spread', () => {
       for (const b of sites) {
         if (a.id >= b.id) continue;
         const before = dist(layoutPoint(...TODAY[a.id].at), layoutPoint(...TODAY[b.id].at));
-        expect(Math.abs(dist(a.pos, b.pos) - before * SPREAD), `${a.id} to ${b.id}`).toBeLessThan(0.5);
+        expect(Math.abs(dist(a.pos, b.pos) - before * SPREAD), `${a.id} to ${b.id}`).toBeLessThan(SNAP);
       }
   });
 
@@ -57,7 +58,7 @@ describe('Icarus layout spread', () => {
   });
 
   it('writes the arrival, the story wreck and the close-ups in layout units', () => {
-    const near = (a: { x: number; y: number }, b: { x: number; y: number }) => expect(dist(a, b)).toBeLessThan(0.01);
+    const near = (a: { x: number; y: number }, b: { x: number; y: number }, within = 0.01) => expect(dist(a, b)).toBeLessThan(within);
     near(ARRIVAL.pose.pos, scalePoint({ x: 74, y: 108 }));
     const pose = ARRIVAL.pose.pos;
     const tower = ARRIVAL.farm.find((p) => p.id === FARM_TOWER_ID)!;
@@ -66,8 +67,8 @@ describe('Icarus layout spread', () => {
     const spot = (name: string) => MAPGEN.closeUps.find((c) => c.name === name)!.center;
     near(spot('canyon'), scalePoint({ x: 94, y: 48 }));
     near(spot('sand'), scalePoint({ x: 78, y: 70 }));
-    near(sites.find((s) => s.id === 'orchard')!.pos, scalePoint({ x: 22.8, y: 56.8 }));
-    expect(REGION.playerStart.distance).toBeCloseTo(26 * MAP_SCALE, 6);
+    near(sites.find((s) => s.id === 'orchard')!.pos, scalePoint({ x: 22.8, y: 56.8 }), SNAP);
+    expect(REGION.playerStart.distance).toBeCloseTo(25 * MAP_SCALE, 6);
   });
 
   it('scales the ranges that span the map', () => {

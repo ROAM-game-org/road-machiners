@@ -5,6 +5,7 @@ import { TYPE_IDS, type BakedProp } from '../sim/terrain';
 import { dist, type Vec } from '../sim/vec';
 import { tileSteepness, type MapDraft } from './bake';
 import { BUILT_SCRUB } from './newworld';
+import { onReservedGround } from './start-ground';
 import { BUILT_FIELD, BUILT_NONE, BUILT_OLD_ROAD, RoadLine, clearGround, facing, offset, prop, roadJunctions, ruleRng, sideOf, stations, tileCenter, tileOf, tilesWithin } from './oldworld';
 
 const R = ROADSIDE;
@@ -50,7 +51,7 @@ class Placer {
 
   private fits(p: BakedProp, fit: Fit): boolean {
     const d = this.d;
-    if (!clearGround(d.size, p.pos, p.r, fit.roadGap)) return false;
+    if (!clearGround(d.size, p.pos, p.r, fit.roadGap) || onReservedGround(p.pos, p.r)) return false;
     const tiles = [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)];
     if (tiles.some((k) => !OPEN_BUILT.includes(d.built[k]) || !this.allowed.has(d.types[k]))) return false;
     if (tileSteepness(d.heights, d.size, tiles[0]) > SLOPE_LIMIT) return false;

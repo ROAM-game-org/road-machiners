@@ -12,7 +12,7 @@ export type SiteLocationDef = {
   turn?: number;
   gates?: readonly Vec[];
 };
-export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null };
+export type TerritoryDef = { id: string; kind: "territory"; pos: Vec; radius: number; outline: Vec[] | null; groundFrom?: Vec };
 export type LocationDef = SiteLocationDef | TerritoryDef;
 export type SiteEdge = "fence" | "wrecks";
 export const MAP_SCALE = 6.5;
@@ -149,7 +149,7 @@ function edgePoint(from: Vec, to: Vec, centre: Vec, outline: readonly Vec[]): Ve
   return { x: from.x + d.x * t, y: from.y + d.y * t };
 }
 
-export const GLASS_FLATS_POS = scalePoint({ x: 81, y: 75.6 });
+export const GLASS_FLATS_POS = onTile(scalePoint({ x: 81, y: 75.6 }));
 const GLASS_FLATS_OUTLINE: Vec[] = [
   [0, 71],
   [11.25, 61],
@@ -229,7 +229,7 @@ export const REGION = {
     { id: "nose", pos: scalePoint({ x: 102, y: 35 }), radius: 32 },
   ] as TownDef[],
   locations: [
-    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE },
+    { id: "orchard", kind: "territory", pos: ORCHARD_POS, radius: boundingRadius(ORCHARD_OUTLINE), outline: ORCHARD_OUTLINE, groundFrom: { x: 114, y: 284 } },
     {
       id: "dustwell",
       kind: "oasis",
@@ -248,6 +248,7 @@ export const REGION = {
       pos: GLASS_FLATS_POS,
       radius: boundingRadius(GLASS_FLATS_OUTLINE),
       outline: GLASS_FLATS_OUTLINE,
+      groundFrom: { x: 405, y: 378 },
     },
     {
       id: "green-pit",
@@ -267,6 +268,7 @@ export const REGION = {
       pos: FALLEN_SUN_POS,
       radius: boundingRadius(FALLEN_SUN_OUTLINE),
       outline: FALLEN_SUN_OUTLINE,
+      groundFrom: { x: 320, y: 270 },
     },
     {
       id: "salvage-yard",
@@ -428,5 +430,5 @@ export const REGION = {
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
   },
-  playerStart: { road: 0, distance: 26 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: 25 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
 };

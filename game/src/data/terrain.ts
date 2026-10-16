@@ -676,6 +676,7 @@ const SITE_SURROUND = 20;
 
 export const MAPGEN = {
   seed: 1337,
+  groundFeather: 40,
   file: 'maps/icarus.bin',
   heightScale: 1000,
   overviewPxPerTile: 2,
