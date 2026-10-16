@@ -63,7 +63,7 @@ export function greetAtScale(w: World): void {
 }
 
 function newSellerAtScale(w: World): boolean {
-  return shopAt(w) === SCALE_TOWN && w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w));
+  return w.player.xpBySource.profit === 0 && carriesSalvage(playerVehicle(w)) && shopAt(w) === SCALE_TOWN;
 }
 
 function freeToTalk(w: World): boolean {
