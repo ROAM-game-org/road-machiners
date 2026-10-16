@@ -9,7 +9,7 @@ VAR pass_said = false
 The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost # img: road_hauler
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
-The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She sold the Yards bad water and knew it, it says. She was afraid, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page
+The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She sold the Yards bad water and knew it, it says. She was afraid, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming, and the bar still says the trailer holds the cure. # page
 The second says the people are on the road. The <term=keepers>Keepers</term> pass them north from fort to fort and feed them where they stop. The Warden will open Northgate's gate when they come. A hunter named Vale, who hunted this truck for eight stretches and lost two trucks to it, turned back with her one truck and holds the road behind them. The slip quotes her. # page # img: road_walkers
 Any crew wants these families, they come through me first. # speaker: Vale
 The last line of the slip is short. Maya rides with them, days back, and there is not a gun among them. # page
@@ -37,7 +37,7 @@ Before the tank line there was the pass, in the years when Magnus never lost. A 
 = ask
 # checkpoint: start.ask
 Ala has been watching your face for a long time. She doesn't know what she's looking at. # page # img: road_ala
-At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Now the Keepers say that burn is a Burnt Driver lieutenant's. My father was on that convoy at the pass. Were you? # speaker: Ala
+At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Now the Keepers say that burn is a Burnt Driver lieutenant's. My father was driving that convoy at the pass. Were you there when it was taken? # speaker: Ala
 + [I rode with the Burnt Drivers. Your father died to us.]
   ~ ala_knows = "burnt"
   -> burnt
@@ -58,7 +58,7 @@ It comes out without the name. You rode with the Burnt Drivers, you tell her, an
 She says it as a plain fact.
 I won't ask whether you were at the pass. If you were, tell me before you leave, not after. # speaker: Ala
 { ring_told == "told":
-  You told me about a burning seat. I can add. # speaker: Ala
+  You told me about a burning seat, and now this. It adds up. # speaker: Ala
 - else:
   So that's what the scar is. # speaker: Ala
 }
@@ -115,6 +115,7 @@ So. Are you riding on? # speaker: Ala
   ~ stay_said = "left"
   You tell her you ought to go. It is true. It just isn't the reason.
   Ought to. Not the same as will. # speaker: Ala
+  She leaves the gate of the yard standing open behind her, in case. You don't use it.
   -> close
 
 = close

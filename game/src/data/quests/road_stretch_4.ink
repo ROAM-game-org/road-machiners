@@ -69,9 +69,9 @@ She waits. The Keeper on the roof turns over in his sleep. # page
 = menu
 + {not asked_trailer} [What's in the trailer?]
   ~ asked_trailer = true
-  Books. A dead doctor's journals from the valley, forty years of them. My mother hid them three years. Then the Commandant read the name on the cover, and now they're sealed in her wax. # speaker: Ala
+  Books. A dead doctor's journals from the valley, forty years of them. Ilse Marten's, who doctored the whole valley. My mother hid them three years. Then the Commandant read the name on the cover, and now they're sealed in her wax. # speaker: Ala
   She says it like a list she has learned, and she stops before she says what is written in them.
-  The bar says it's a cure. It's paper. # speaker: Ala
+  The bar says it's a cure. It's paper. It's what the valley will trade water for, Maya's first and then the Yards'. # speaker: Ala
   -> menu
 + {not asked_north} [Where are we going?]
   ~ asked_north = true
