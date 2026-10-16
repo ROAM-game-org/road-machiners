@@ -38,19 +38,19 @@ She tips her head at you. Go on, then, she says. Nobody ever sat on my bench and
   <term=bowl>Bowl</term>. Farm town, if you can call it a town. Terraces down the inside of a crater, canals between them, and my well house at the bottom where the water ends up. # speaker: Hattie
   Everybody comes down here sooner or later, because everybody drinks. # speaker: Hattie
   -> questions
-+ {not asked_what} [What happened to me?]
++ {towed_to_bowl and not asked_what} [What happened to me?]
   ~ asked_what = true
   I wasn't there, so take this for what it cost you. Somebody burned your engine out on the road, took what was worth taking and left you breathing. Out in the open that counts as manners. # speaker: Hattie
   The tow man hung you on his chain and brought you here. After that it was my bench and my water. # speaker: Hattie
   -> questions
-+ {asked_what and not asked_brought} [Who brought me in?]
++ {towed_to_bowl and asked_what and not asked_brought} [Who brought me in?]
   ~ asked_brought = true
   A big man, slow-spoken, in a <term=pierce>Pierce</term> coat gone white at the seams. He didn't give a name and he didn't take a coin. The brass tag on your chain is his, or was somebody's before him. # speaker: Hattie
   He left it on you. I'd keep it on, if I were you. Men who leave things behind usually mean to come back for them. # speaker: Hattie
   -> questions
 + {not asked_next} [What do I do now?]
   ~ asked_next = true
-  Eat. Then walk down to the yard by the gate and see what they'll take for an engine. After that, drive. # speaker: Hattie
+  {towed_to_bowl:Eat. Then walk down to the yard by the gate and see what they'll take for an engine. After that, drive.|Water the truck, if you haven't. Then walk down to the yard by the gate and see what they'll take for what you carry. After that, drive.} # speaker: Hattie
   She looks you over, the dust, the neck, the empty hands.
   You've the look of a Machiner. A driver linked to a truck can make a living on any road. Haul for a town, work for a yard, and the M's come in. Whether you want to be one is your business. I only sell the water. # speaker: Hattie
   -> questions
@@ -81,5 +81,28 @@ She tips her head at you. Go on, then, she says. Nobody ever sat on my bench and
   And if you do end up stranded, somebody will tow you for a fee, and a yard will patch you for scrap if you're broke. It's cheaper than walking. # speaker: Hattie
   -> questions
 + [I'll go.]
-  Mind your slate. I don't forget a bowl of grain. # speaker: Hattie
+  {towed_to_bowl:Mind your slate. I don't forget a bowl of grain.|Come back when you've M's for a bucket.} # speaker: Hattie
   -> END
+
+=== meet ===
+# checkpoint: meet
+You leave the truck on the pad and walk in for water, because the tank is not the only thing in you that's dry. A bucket is coming up a well on a creaking rope. # place: Bowl # img: bowl_yard
+Past the well house run canals full of slow brown water. Past them, fields climb the slope in steps, green with crops. Green. You'd forgotten the color.
+A broad woman with flour on her forearms sits on a bench under a roof of woven reeds, and watches you come the whole way. # page
+Hattie, they call me, and that's the well, and that's the bench, and the water costs, so don't look at the bucket like it owes you. # speaker: Hattie
+She wipes her hands on her apron. Her eyes go over your dust, your boots, the pickup out on the pad.
+Water, grain, a word or two on the roads. That's what I sell. The word costs less than the grain, and I hear it twice as well. # speaker: Hattie
+-> start.ask
+
+=== again ===
+# checkpoint: again
+Somewhere close, a bucket is coming up a well on a creaking rope. You know that sound now. # place: Bowl # img: bowl_yard
+You're lying on the bench under the reed roof. Past the shade run the canals, and the green steps of the fields. Your pickup stands crooked at the edge of the yard with its hood propped open. A tow chain that isn't yours hangs coiled off the bumper, with a brass tag on it. # page
+The bed is empty. Somebody went through the engine and left the bolts where they fell.
+Hattie sets a cup of water on the bench beside you and sits down at the other end of it. # page
+Back on my bench, and not on your own wheels this time. You get around, I'll give you that. # speaker: Hattie
+She nods at the chain on your bumper.
+A tow man brought you in at first light and asked me one thing. He asked after a Varga woman. There's a Ruth Varga up on the third terrace who buys her water here every morning. Whether she's his Varga, he didn't stay to find out. # speaker: Hattie
+Whatever they pulled out of your engine, the yard by the gate sells new, if you have the M's. I'll put the grain on your slate. # speaker: Hattie
+The water is cold and tastes of stone. A bowl of hot grain comes after it. # page
+-> start.ask

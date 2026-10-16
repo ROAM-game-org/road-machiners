@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { chooseQuestOption, QUESTS, questView, restoreQuest, startQuest } from '../sim/quests';
+import { chooseQuestOption, QUESTS, questView, restoreQuest, setWorldVar, startQuest } from '../sim/quests';
 import { emptyWorld } from '../sim/testkit';
 import type { World } from '../sim/types';
 
-const at = (): World => startQuest(emptyWorld({ x: 10, y: 10 }), QUESTS, 'intro_bowl', 'start.ask');
+const at = (): World => {
+  const w = emptyWorld({ x: 10, y: 10 });
+  setWorldVar(w, 'towed_to_bowl', true);
+  return startQuest(w, QUESTS, 'intro_bowl', 'start.ask');
+};
 const offered = (w: World) => questView(w, QUESTS).choices;
 
 function ask(w: World, text: string): World {

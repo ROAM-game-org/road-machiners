@@ -24,6 +24,8 @@ export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';
 export const SCALE_SEEN = 'scale_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';
+export const HATTIE_MET = 'hattie_met';
+export type WellCheckpoint = 'start' | 'meet' | 'again';
 export const AMBUSH_RAIDER = 'ambush_raider';
 
 export const INTRO_STEP = 'intro_step';
@@ -33,6 +35,7 @@ export const GAME_WORLD_VARS: Record<string, GameWorldVar> = {
   [INTRO_STEP]: { gates: null },
   [TOWED_TO_BOWL]: { gates: null },
   [AMBUSH_RAIDER]: { gates: null },
+  [HATTIE_MET]: { gates: GAME_OPENED_QUESTS.introWake },
   [FIRST_FALL_SEEN]: { gates: GAME_OPENED_QUESTS.firstFall },
   [WAGON_SEEN]: { gates: GAME_OPENED_QUESTS.wagonSeven },
   [SCALE_SEEN]: { gates: GAME_OPENED_QUESTS.scale },
