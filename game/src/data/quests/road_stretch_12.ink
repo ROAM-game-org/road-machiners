@@ -8,7 +8,7 @@ VAR stay_said = "none"
 The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost # img: road_hauler
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
-The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She was afraid, it says, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page
+The first says Hedda Vell shut Blackwell's gates and sent every fort her confession. She was afraid, it says, and that was all the truth she had left. There is no word on the reward. The hunters are owed diesel by a town that won't open to them, and nobody has told them to stop. They will keep coming. # page # img: road_walkers
 The second says the people are on the road. The <term=keepers>Keepers</term> pass them north from fort to fort and feed them where they stop. The Warden will open Northgate's gate when they come. A hunter named Vale turned back with her one truck and holds the road behind them, and the slip quotes her. # page
 Any crew wants these families, they come through me first. # speaker: Vale
 The last line of the slip is short. Maya rides with them, days back, and there is not a gun among them. # page
