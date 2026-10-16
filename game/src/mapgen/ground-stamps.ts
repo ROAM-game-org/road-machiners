@@ -1,4 +1,5 @@
-import { STAMP_SITES, stampShare } from '../sim/ground-stamps';
+import { STAMP_SITES, stampShare, type StampSite } from '../sim/ground-stamps';
+import type { Vec } from '../sim/vec';
 import type { MapDraft } from './bake';
 
 const FILES = import.meta.glob<string>('./ground-stamps.bin', { query: '?url&inline', import: 'default', eager: true });
@@ -51,26 +52,33 @@ export function decodeStamps(bytes: Uint8Array): GroundStamp[] {
   return out;
 }
 
+function blend(d: MapDraft, stamp: GroundStamp, k: number, q: number, share: number): void {
+  d.heights[k] += (stamp.heights[q] - d.heights[k]) * share;
+  d.sand[k] += (stamp.sand[q] / SAND_UNIT - d.sand[k]) * share;
+  d.flow[k] += (stamp.flow[q] / FLOW_UNIT - d.flow[k]) * share;
+  if (share >= 0.5) d.slumped[k] = stamp.slumped[q];
+}
+
+function onMap(d: MapDraft, at: Vec): boolean {
+  return at.x >= 0 && at.y >= 0 && at.x <= d.size && at.y <= d.size;
+}
+
+function stampSite(d: MapDraft, site: StampSite, stamp: GroundStamp): void {
+  const row = d.size + 1;
+  for (let j = 0; j < stamp.h; j++)
+    for (let i = 0; i < stamp.w; i++) {
+      const at = { x: stamp.x0 + i + site.shift.x, y: stamp.y0 + j + site.shift.y };
+      const share = onMap(d, at) ? stampShare(site, at) : 0;
+      if (share > 0) blend(d, stamp, at.y * row + at.x, j * stamp.w + i, share);
+    }
+}
+
 export function stampTerritoryGround(d: MapDraft): MapDraft {
   const stamps = decodeStamps(readFile());
-  const row = d.size + 1;
   for (const site of STAMP_SITES) {
     const stamp = stamps.find((s) => s.id === site.id);
     if (!stamp) throw new Error(`${site.id} has no ground stamp`);
-    const { x: dx, y: dy } = site.shift;
-    for (let j = 0; j < stamp.h; j++)
-      for (let i = 0; i < stamp.w; i++) {
-        const x = stamp.x0 + i + dx;
-        const y = stamp.y0 + j + dy;
-        if (x < 0 || y < 0 || x > d.size || y > d.size) continue;
-        const share = stampShare(site, { x, y });
-        if (share === 0) continue;
-        const [k, q] = [y * row + x, j * stamp.w + i];
-        d.heights[k] += (stamp.heights[q] - d.heights[k]) * share;
-        d.sand[k] += (stamp.sand[q] / SAND_UNIT - d.sand[k]) * share;
-        d.flow[k] += (stamp.flow[q] / FLOW_UNIT - d.flow[k]) * share;
-        if (share >= 0.5) d.slumped[k] = stamp.slumped[q];
-      }
+    stampSite(d, site, stamp);
   }
   return d;
 }

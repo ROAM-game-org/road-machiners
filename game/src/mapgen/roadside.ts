@@ -52,12 +52,23 @@ class Placer {
   private fits(p: BakedProp, fit: Fit): boolean {
     const d = this.d;
     if (!clearGround(d.size, p.pos, p.r, fit.roadGap) || onReservedGround(p.pos, p.r)) return false;
-    const tiles = [tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)];
-    if (tiles.some((k) => !OPEN_BUILT.includes(d.built[k]) || !this.allowed.has(d.types[k]))) return false;
-    if (tileSteepness(d.heights, d.size, tiles[0]) > SLOPE_LIMIT) return false;
-    if (!this.onBank(tiles[0], fit)) return false;
-    if (!this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP + R.propGapSlack)) return false;
-    return !this.formsRow(p);
+    return this.groundFits([tileOf(d.size, p.pos), ...tilesWithin(d.size, p.pos, p.r)], fit) && this.clearOfProps(p) && !this.formsRow(p);
+  }
+
+  private groundFits(tiles: readonly number[], fit: Fit): boolean {
+    return this.openGround(tiles) && !this.tooSteep(tiles[0]) && this.onBank(tiles[0], fit);
+  }
+
+  private openGround(tiles: readonly number[]): boolean {
+    return tiles.every((k) => OPEN_BUILT.includes(this.d.built[k]) && this.allowed.has(this.d.types[k]));
+  }
+
+  private tooSteep(tile: number): boolean {
+    return tileSteepness(this.d.heights, this.d.size, tile) > SLOPE_LIMIT;
+  }
+
+  private clearOfProps(p: BakedProp): boolean {
+    return this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP + R.propGapSlack);
   }
 
   private formsRow(p: BakedProp): boolean {
