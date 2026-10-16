@@ -11,6 +11,7 @@ export type BlockSong = {
   barTimes: number[];
   barPower: { ss: number; gg: number; sg: number }[];
   barEntry: number[];
+  guitarWall: number;
   sections: Section[];
   end: number;
 };
@@ -237,8 +238,27 @@ export class BlockSession {
   private lean(spot: Spot, length: number): VoiceHandle {
     const bars = this.phraseEndBar(spot.bar) - spot.bar;
     const plain = this.levelOf(spot.bar, bars, false);
-    const leaned = this.levelOf(spot.bar, bars, true);
-    return this.out.lean(this.barTime(spot.bar), spot.at, length, leaned / plain, leaned);
+    const source = this.guitarSource(spot.bar, bars);
+    const leaned = source === spot.bar ? this.levelOf(spot.bar, bars, true) : this.borrowedLevel(spot.bar, source, bars);
+    return this.out.lean(this.barTime(source), spot.at, length, leaned / plain, leaned);
+  }
+
+  private guitarSource(bar: number, bars: number): number {
+    const section = this.sectionOf(bar);
+    if (section.role !== "verse" || this.guitarShare(bar, bars) > -SCORE_BLOCKS.guitarAbsentDb) return bar;
+    return this.song.guitarWall + ((bar - section.from) % SCORE_BLOCKS.arc.phraseBars);
+  }
+
+  private guitarShare(bar: number, bars: number): number {
+    const span = this.song.barPower.slice(bar - 1, bar - 1 + bars);
+    return 10 * Math.log10(span.reduce((s, p) => s + p.gg, 0) / span.reduce((s, p) => s + p.ss, 0));
+  }
+
+  private borrowedLevel(bar: number, source: number, bars: number): number {
+    const mean = (from: number, key: "ss" | "gg") => this.song.barPower.slice(from - 1, from - 1 + bars).reduce((s, p) => s + p[key], 0) / bars;
+    const plain = mean(bar, "ss");
+    const heard = plain + SCORE_BLOCKS.guitarPush ** 2 * mean(source, "gg");
+    return Math.sqrt(Math.min(plain, this.targetPower) / heard);
   }
 
   private cymbals(spot: Spot, length: number): VoiceHandle {

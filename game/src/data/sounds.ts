@@ -245,6 +245,7 @@ export const SCORE_BLOCKS = {
   },
   songGain: 0.6,
   guitarPush: 0.8,
+  guitarAbsentDb: 20,
   cymbalGain: 1,
   cymbalGains: [0.5, 1, 2],
   heatHalfLifeSeconds: 2.5,

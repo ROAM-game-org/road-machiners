@@ -42,7 +42,7 @@ How it plays:
 
 1. The player entering combat, as the HUD combat readout shows it, starts the song. A hostile that only sits or drives by in sight does not. The song was picked at random when the last fight ended, and it stays for the whole fight. Its intro hits at once, since it is the combat cue.
 2. Score events are your hits, misses and crits, hits on you, your crashes, your knockouts and an enemy coming into sight. Each adds its weight to heat, a fading sum. At each phrase end the next section is drawn from a table that weighs the section before and the one before that, how hot the fight was since the last choice, and how long each section has played. Hot fights lean to walls and solos, calm fights to verses.
-3. Each event also adds surprise, its weight divided by how often that kind came lately. When surprise crosses its line, the guitar lane leans on the song's guitar stem from the next bar, and the cymbal lane opens from the next beat. Both hold to the phrase end.
+3. Each event also adds surprise, its weight divided by how often that kind came lately. When surprise crosses its line, the guitar lane leans on the song's guitar stem from the next bar, and the cymbal lane opens from the next beat. Both hold to the phrase end. A verse whose own guitars sit more than `guitarAbsentDb` under it takes them from the map's guitar wall instead, at the same bar of the phrase, so the lane is heard in quiet verses too. Stops keep their own silence.
 4. Crashes and sightings nudge the next choice toward a wall, and knockouts toward a stop.
 5. Combat ending plays the song's last hit on the next beat.
 6. A jump between sections fades over 30 ms. When the target bar starts with a rest, the old block rings on until the new one sounds, so no jump drops into silence.
@@ -57,7 +57,7 @@ To test the score without ears, run `npm run blocks:sim -- --song dusk hit@8 den
 
 ### Combat songs
 
-The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, its sections by bar and its last hit. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
+The songs are generated whole in the ElevenLabs music UI and split locally with Demucs. `scripts/score-songs.json` holds each song's map: its source file, tempo, bar count, the guitar stem that feeds the guitar lane, the wall that lends verses its guitars, its sections by bar and its last hit. Pick the guitar wall by ear: lay its guitars over a verse and check the chords agree. To add or change a song, put the source wav in `tmp/score-songs/`, edit the map and run:
 
 ```bash
 uv run --with librosa --with soundfile --with demucs --with torchcodec python -I scripts/score-blocks-prep.py scripts/score-songs.json tmp/score-songs public/sfx src/data/combat-songs.json

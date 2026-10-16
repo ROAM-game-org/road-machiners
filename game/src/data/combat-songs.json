@@ -627,6 +627,7 @@
    0.0,
    0.0
   ],
+  "guitarWall": 17,
   "sections": [
    {
     "role": "intro",
@@ -1401,6 +1402,7 @@
    0.0,
    0.0
   ],
+  "guitarWall": 41,
   "sections": [
    {
     "role": "intro",

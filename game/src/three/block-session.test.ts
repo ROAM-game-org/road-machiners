@@ -13,8 +13,9 @@ const SONG: BlockSong = {
   bpm: 120,
   length: BAR_SECONDS * BARS,
   barTimes: Array.from({ length: BARS + 1 }, (_, i) => i * BAR_SECONDS),
-  barPower: Array.from({ length: BARS }, () => ({ ss: 1, gg: 0.1, sg: 0.1 })),
+  barPower: Array.from({ length: BARS }, (_, i) => ({ ss: 1, gg: i >= 4 ? 1e-4 : 0.1, sg: 0 })),
   barEntry: [0, 0, 0, 0, 0.3, 0, 0, 0],
+  guitarWall: 1,
   sections: [
     { role: "intro", from: 1, bars: 2 },
     { role: "verse", from: 5, bars: 2 },
@@ -67,6 +68,16 @@ describe("BlockSession", () => {
     expect(cymbals.when).toBeCloseTo(verseAt + beat);
     expect(cymbals.offset).toBeCloseTo(SONG.barTimes[4] + beat - SONG.cymbals.start);
     expect(cymbals.level).toBe(SONG.cymbals.gain * SCORE_BLOCKS.cymbalGain);
+  });
+
+  it("leans a verse with no guitars of its own on the guitar wall's matching bar", () => {
+    const { session, voices, verseAt } = playIntoVerse();
+    session.fire("knockout", verseAt + 0.1);
+    session.tick(verseAt + 0.1);
+    const guitars = voices.find((v) => v.part === "guitars")!;
+    expect(guitars.when).toBeCloseTo(verseAt + BAR_SECONDS);
+    expect(guitars.offset).toBe(SONG.barTimes[SONG.guitarWall]);
+    expect(guitars.level).toBeLessThan(1);
   });
 });
 
