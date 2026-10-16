@@ -634,6 +634,17 @@ describe('pile claims', () => {
     });
   });
 
+  it('two robbers handed cargo in one turn each claim their own pile', () => {
+    const { w, robber, victim } = handover('npc');
+    const second = npcAt(w, 'scavengers', ['raider'], 35);
+    addGoods(w, victim, 'scrap', 3);
+    yieldTo(w, victim, second);
+    const piles = w.salvage.filter((s) => s.pile);
+    expect(new Set(piles.map((s) => s.id)).size).toBe(2);
+    expect(piles.map((s) => s.pile!.claim?.by).sort()).toEqual([robber.id, second.id].sort());
+    expect(piles.reduce((sum, s) => sum + (s.goods.scrap ?? 0), 0)).toBe(5);
+  });
+
   it('a player winner makes no claim', () => {
     expect(handover('player').pile.pile!.claim).toBeUndefined();
   });
