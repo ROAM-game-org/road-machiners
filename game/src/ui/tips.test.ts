@@ -3,16 +3,14 @@ import { openQuest, QUESTS } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 import { describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
-import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, openingStopPoint, startCombat, testDrive } from "../sim/testkit";
+import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, openingStopPoint, testDrive } from "../sim/testkit";
 import { vehicleStats } from "../sim/stats";
 import { refreshVision } from "../sim/vision";
 import { cloneWorld, endTurn, newWorld, setMoveOrder, startPose } from "../sim/world";
 import { startKit } from "../data/start";
 import { CONDITION } from "../data/wear";
 import { findSpot, gridOf, isMounted, MOUNT_CELLS, mountedParts, type Spot } from "../sim/grid";
-import { addGoods, moveItem } from "../sim/inventory";
-import { siteOf } from "../sim/market";
-import { sitePads } from "../sim/sites";
+import { moveItem } from "../sim/inventory";
 import { startRepair } from "../sim/jobs";
 import { takeAllLoot } from "../sim/locations";
 import { OPENING_WRECK_ID } from "../sim/opening";
@@ -96,7 +94,7 @@ describe("driving tips", () => {
 describe("horn tip", () => {
   it("shows once an NPC is in sight and keeps a shown tip in place", () => {
     const w = emptyWorld();
-    const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual", "salvage"]);
+    const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual"]);
     expect(tipToShow(w, false, seen, null)).toBeNull();
 
     const npc = addVehicle(w, "scavengers", "scout", [], { x: 32, y: 30 });
@@ -118,7 +116,7 @@ describe("horn tip", () => {
 });
 
 describe("aim tip", () => {
-  const driving = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual", "salvage"]);
+  const driving = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual"]);
 
   function withRaider() {
     const w = emptyWorld();
@@ -152,83 +150,8 @@ describe("aim tip", () => {
   });
 });
 
-describe("salvage tip", () => {
-  const driven = new Set<TipId>(["waypoint", "drive"]);
-  const awayFrom = (w: World, d: number) => {
-    const spawn = startPose().pos;
-    playerVehicle(w).pos = { x: spawn.x + d, y: spawn.y };
-  };
-
-  it("waits until the truck is 20 tiles from the start and the driving tip is seen", () => {
-    const w = emptyWorld();
-    awayFrom(w, 15);
-    expect(tipToShow(w, false, driven, null)).not.toBe("salvage");
-    awayFrom(w, 25);
-    expect(tipToShow(w, false, driven, null)).toBe("salvage");
-    expect(tipToShow(w, false, new Set(["waypoint"]), null)).not.toBe("salvage");
-  });
-
-  it("stays away during combat", () => {
-    const w = emptyWorld();
-    awayFrom(w, 25);
-    const npc = addVehicle(w, "raiders", "scout", [], { x: 60, y: 30 });
-    startCombat(w, npc, playerVehicle(w));
-    expect(tipToShow(w, false, driven, null)).not.toBe("salvage");
-  });
-
-  it("is done by searching any stock but the opening wreck", () => {
-    const w = emptyWorld();
-    w.player.scavenged = [OPENING_WRECK_ID];
-    expect(doneTips(w, new Set())).not.toContain("salvage");
-    w.player.scavenged = [OPENING_WRECK_ID, "road-wreck-1"];
-    expect(doneTips(w, new Set())).toContain("salvage");
-  });
-
-  it("waits for the opening to end", () => {
-    const w = newWorld(1, startKit("standard"), TEST_MAP, defaultSetup("roaming"));
-    const spawn = startPose().pos;
-    playerVehicle(w).pos = { x: spawn.x + 25, y: spawn.y };
-    expect(openingStep(w)).not.toBeNull();
-    expect(tipToShow(w, false, new Set(["waypoint", "drive"]), null)).not.toBe("salvage");
-  });
-});
-
-describe("sell tip", () => {
-  const seen = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "salvage", "honk", "farewell"]);
-  const atBowl = () => emptyWorld(sitePads(siteOf("bowl"))[0]);
-
-  it("shows at a shop pad while the truck holds a good the shop lists", () => {
-    const w = atBowl();
-    playerVehicle(w).speed = 0;
-    addGoods(w, playerVehicle(w), "scrap", 1);
-    expect(tipToShow(w, false, seen, null)).toBe("sell");
-    playerVehicle(w).speed = 5;
-    expect(tipToShow(w, false, seen, null)).toBeNull();
-  });
-
-  it("ignores goods the shop does not list and pads without cargo", () => {
-    const w = atBowl();
-    playerVehicle(w).speed = 0;
-    playerVehicle(w).items = playerVehicle(w).items.filter((it) => it.kind !== "good");
-    expect(tipToShow(w, false, seen, null)).toBeNull();
-  });
-
-  it("never shows off a pad", () => {
-    const w = emptyWorld();
-    addGoods(w, playerVehicle(w), "scrap", 1);
-    expect(tipToShow(w, false, seen, null)).toBeNull();
-  });
-
-  it("is done by a profitable sale", () => {
-    const w = atBowl();
-    expect(doneTips(w, new Set())).not.toContain("sell");
-    w.player.xpBySource.profit = 1;
-    expect(doneTips(w, new Set())).toContain("sell");
-  });
-});
-
 describe("farewell tip", () => {
-  const allButFarewell: TipId[] = ["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "salvage", "honk"];
+  const allButFarewell: TipId[] = ["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "honk"];
 
   it("shows once the player drives well past where traders first show up", () => {
     const w = emptyWorld();
@@ -371,11 +294,9 @@ describe("tips in a Fury Road run", () => {
     addVehicle(w, "raiders", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
     refreshVision(w);
     const seen = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "aim"]);
-    playerVehicle(w).pos = { x: playerVehicle(w).pos.x + 25, y: playerVehicle(w).pos.y };
 
     expect(openingStep(w)).toBeNull();
     expect(tipToShow(w, false, seen, null)).not.toBe("honk");
-    expect(tipToShow(w, false, seen, null)).not.toBe("salvage");
   });
 });
 

@@ -70,8 +70,6 @@ export const UI = {
   'hint.loot': 'Click Take all that fits.',
   'hint.patch': '[I], click the engine, click Patch, then [Space].',
   'hint.install': '[I], drag the Rebar cage to a free cell at the truck\'s edge, then [Space].',
-  'hint.salvage': 'Search wrecks and ruins for salvage, and sell it in town.',
-  'hint.sell': 'Enter and sell the salvage you carry.',
   'mode.roaming': 'Roaming',
   'mode.roaming.description': 'The open wasteland. Drive, trade, scavenge and fight as you like.',
   'setting.damage': 'Damage',

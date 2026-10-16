@@ -3,10 +3,7 @@ import { touchMode } from "./input-mode";
 import { isKnockedOut } from "../sim/defeat";
 import { playerVehicle } from "../sim/damage";
 import { goodsCount, isMounted, mountedParts } from "../sim/grid";
-import { OPENING_WRECK_ID, openingStockOf } from "../sim/opening";
-import { inCombat } from "../sim/combat";
-import { shopAt } from "../sim/market";
-import { shopDef } from "../data/market";
+import { openingStockOf } from "../sim/opening";
 import { RULES } from "../data/rules";
 import { engineNeedsPatch } from "../sim/repair";
 import { canReachSalvage, hasSalvage } from "../sim/salvage";
@@ -23,7 +20,7 @@ const TIPS_KEY = "roam.tips";
 const TIPS_OFF_KEY = "roam.tipsOff";
 
 export type OpeningStep = "wreck" | "search" | "loot" | "patch" | "install";
-export type TipId = OpeningStep | "waypoint" | "drive" | "autoStop" | "stop" | "stopAt" | "manual" | "zones" | "salvage" | "sell" | "aim" | "honk" | "farewell";
+export type TipId = OpeningStep | "waypoint" | "drive" | "autoStop" | "stop" | "stopAt" | "manual" | "zones" | "aim" | "honk" | "farewell";
 
 type Tip = {
   id: TipId;
@@ -35,7 +32,6 @@ type Tip = {
 };
 
 const FAREWELL_DISTANCE = 80;
-const SALVAGE_TIP_DISTANCE = 20;
 const TIP_PAUSE_AFTER_QUEST_MS = 3000;
 const spawn = startPose().pos;
 const departureFrom = (w: World): Vec => openingStockOf(w)?.pos ?? spawn;
@@ -45,17 +41,6 @@ const npcInSight = (w: World): boolean =>
 
 const hostileInSight = (w: World): boolean =>
   w.vehicles.some((v) => v.brain && !isKnockedOut(v) && hostileToPlayer(w, v) && playerSees(w, v.pos));
-
-const searchedBeyondOpening = (w: World): boolean => w.player.scavenged.some((id) => id !== OPENING_WRECK_ID);
-
-const carriesWhatShopBuys = (w: World): boolean => {
-  const shop = shopAt(w);
-  if (shop === null) return false;
-  const held = goodsCount(playerVehicle(w));
-  return shopDef(shop).goods.some((good) => (held[good] ?? 0) > 0);
-};
-
-const soldAtProfit = (w: World): boolean => w.player.xpBySource.profit > 0;
 
 const moving = (w: World): boolean => playerVehicle(w).speed > RULES.parkedSpeed;
 
@@ -167,21 +152,6 @@ const TIPS: readonly Tip[] = [
     id: "zones",
     when: (w) => playerVehicle(w).direct,
     done: () => false,
-  },
-  {
-    id: "salvage",
-    after: "drive",
-    when: (w) =>
-      modeRules(w).looting &&
-      !inCombat(w, playerVehicle(w)) &&
-      dist(playerVehicle(w).pos, departureFrom(w)) >= SALVAGE_TIP_DISTANCE,
-    done: searchedBeyondOpening,
-  },
-  {
-    id: "sell",
-    seenWhenOver: true,
-    when: carriesWhatShopBuys,
-    done: soldAtProfit,
   },
   {
     id: "aim",
