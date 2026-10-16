@@ -11,7 +11,7 @@ import type { SalvageStock, World } from "../sim/types";
 import { vehicleStats } from "../sim/stats";
 import { playerSees } from "../sim/vision";
 import { dist, type Vec } from "../sim/vec";
-import { playerCanAct, hostileToPlayer, startPose } from "../sim/world";
+import { playerCanAct, startPose, threatToPlayer } from "../sim/world";
 import { t } from "../text/msg";
 import { modeRules } from "../sim/settings";
 import { el, panel } from "./dom";
@@ -40,7 +40,7 @@ const npcInSight = (w: World): boolean =>
   w.vehicles.some((v) => v.brain && !isKnockedOut(v) && playerSees(w, v.pos));
 
 const hostileInSight = (w: World): boolean =>
-  w.vehicles.some((v) => v.brain && !isKnockedOut(v) && hostileToPlayer(w, v) && playerSees(w, v.pos));
+  w.vehicles.some((v) => threatToPlayer(w, v) && playerSees(w, v.pos));
 
 const moving = (w: World): boolean => playerVehicle(w).speed > RULES.parkedSpeed;
 

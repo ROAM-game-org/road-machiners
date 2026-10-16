@@ -33,7 +33,7 @@ import { TERRAIN } from "../data/terrain";
 import { isTowed, setBeacon, unhitch } from "../sim/tow";
 import { inCombat } from "../sim/combat";
 import { engineOverheating } from "../sim/engine-heat";
-import { Refused, hostileToPlayer, playerCanAct, setMoveOrder } from "../sim/world";
+import { Refused, hostileToPlayer, playerCanAct, setMoveOrder, threatToPlayer } from "../sim/world";
 import { refusalText } from "../text/names";
 import { TruckContext, TruckControls } from "./truck-controls";
 import { PAL } from "../render/palette";
@@ -85,7 +85,7 @@ import { GameMenu } from "../ui/game-menu";
 import { confirmedEndRun, DeathScreen } from "../ui/death";
 import { MIX } from "../data/sounds";
 import type { CombatMusic } from "./combat-music";
-import { CombatWatch, computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
+import { computeEngineGlide, EngineStrain, musicPlaceAt, SoundDirector, SoundLoops, stingOf } from "./sound";
 import type { SoundPlayer } from "../audio/player";
 import { isBrowserChord, uiRoot } from "../ui/dom";
 import { touchMode, watchInputMode } from "../ui/input-mode";
@@ -95,6 +95,7 @@ import { touchTapAction } from "./touch-tap";
 import { PickRing } from "./render/pick-ring";
 import { RescueAreaView } from "./render/rescue-area";
 import { PointerPicker } from "./pointer";
+import { HostileSighting } from "./hostile-sighting";
 import { Travel, type Playback, type LiveVision } from "./travel";
 import { PlayClock } from "./play-clock";
 
@@ -153,7 +154,8 @@ export class Game {
   readonly sound: SoundDirector;
   private panelOpen = false;
   readonly loops: SoundLoops;
-  private readonly combatWatch = new CombatWatch();
+  private readonly hostileSighting = new HostileSighting();
+  private sightingToSound = false;
   private readonly engineStrain = new EngineStrain();
   private readonly views = new Map<string, VehicleView>();
   private readonly radioLights = new RadioLights();
@@ -799,11 +801,11 @@ export class Game {
   }
 
   private updateTravel(): void {
-    const danger = this.world.vehicles.some(
-      (v) => hostileToPlayer(this.world, v) && this.isVehicleVisible(v),
-    );
-    this.follow.noteDanger(danger);
-    this.travel.updateWorld(this.world, danger);
+    const threats = this.world.vehicles.filter((v) => threatToPlayer(this.world, v) && this.isVehicleVisible(v)).map((v) => v.id);
+    const { sighted } = this.hostileSighting.observe(this.world.turn, threats);
+    this.sightingToSound ||= sighted;
+    this.follow.noteDanger(threats.length > 0);
+    this.travel.updateWorld(this.world, sighted);
   }
 
   holdSaves(): void {
@@ -955,9 +957,9 @@ export class Game {
   private updateLoops(): void {
     const me = playerVehicle(this.world);
     const at = this.frames[me.id] ? toMap(this.frames[me.id].pos) : me.pos;
-    const signs = this.combatWatch.observe(this.world.turn, this.world.vehicles.filter((v) => hostileToPlayer(this.world, v) && this.isVehicleVisible(v)).map((v) => v.id));
     this.loops.update({ stormShare: stormShare(me), inCombat: inCombat(this.world, me), inQuest: this.screens.quest.isOpen(), place: musicPlaceAt(this.world.terrain, at), paused: !this.anim && performance.now() - this.idleSince > MIX.music.pauseDelayMs });
-    if (signs.sighted) this.sound.scoreEvent("sighted", 0);
+    if (this.sightingToSound) this.sound.scoreEvent("sighted", 0);
+    this.sightingToSound = false;
   }
 
   private playPanelSounds(): void {

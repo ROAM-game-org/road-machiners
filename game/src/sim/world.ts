@@ -23,7 +23,7 @@ import { assignUtilityOrders } from './npc-utility';
 import { applyGodMode, freezeDriving, freezeFire } from './cheats';
 import { assignAutoOrders, dropMagazine, fireWeapons, isHostile, noteEngagements, resolveDestroyed, settleAims } from './combat';
 import { cutLine } from './harpoon';
-import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout } from './defeat';
+import { advanceKnockout, advanceNpcKnockouts, checkDeath, checkKnockout, isKnockedOut } from './defeat';
 import { advanceIntro, greetAtScale, wakeInTown } from './intro';
 import { healPlayer } from './health';
 import { discoverSites } from './locations';
@@ -509,6 +509,10 @@ export function setAutoFire(world: World, on: boolean): World {
 
 export function hostileToPlayer(world: World, v: Vehicle): boolean {
   return isHostile(world, playerVehicle(world), v);
+}
+
+export function threatToPlayer(world: World, v: Vehicle): boolean {
+  return v.id !== world.player.vehicleId && v.brain !== null && !isKnockedOut(v) && hostileToPlayer(world, v);
 }
 
 export type CarriedPart = { defId: string; wear: number; hp: number; rebuilt: boolean };

@@ -33,7 +33,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `session` is the open quest: its id, last checkpoint and the seed of ink's random numbers. One quest is open at a time.
 - `live` holds ink's own state and the lines and choices on view. Saves skip it, and load rebuilds it from the session with `restoreQuest()`.
 
-`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view.
+`src/sim/quests.ts` owns the runner. `startQuest()` and `chooseQuestOption()` are commands through `update()`, so a failed pick leaves the world unchanged. `questView()` gives the view kind, the lines with their tags, the choices with their costs and locks, the stats, the facts on view and whether the quest ended. A quest at its end closes its session and keeps its last lines on view. The turn and preview workers are separate module instances, so every task carries the quest language in force and the worker sets it before the turn runs. A turn that lands after a language switch is relanguaged on commit.
 
 ## Game functions
 
