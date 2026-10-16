@@ -882,6 +882,7 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSearches_68_69,
   withParcelSearches_69_70,
   withFactions_70_71,
+  withCountableDirections_71_72,
 ];
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
@@ -1076,6 +1077,39 @@ const PAGE_HUB_CHECKPOINTS_61_62: readonly (readonly [string, string, string])[]
 
 function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
+}
+
+const MAX_COUNT_71_72 = 3;
+
+function countedPast_71_72(step: SavedJson): boolean {
+  const at = step.at as SavedJson | undefined;
+  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_71_72;
+}
+
+function countableSteps_71_72(steps: SavedJson[]): SavedJson[] {
+  const cut = steps.findIndex(countedPast_71_72);
+  const kept = cut < 0 ? steps : [...steps.slice(0, cut), { do: 'askAgain' }];
+  return kept.map((step) => {
+    if (step.do !== 'askAgain') return step;
+    const { at: _at, ...plain } = step;
+    return plain;
+  });
+}
+
+function countableVars_71_72(vars: SavedJson): SavedJson {
+  return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
+    const value = v as SavedJson;
+    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_71_72(value.steps as SavedJson[]) } : value];
+  }));
+}
+
+function withCountableDirections_71_72(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  if (!call) return world;
+  const line = call.line as SavedJson;
+  const next = { ...call, vars: countableVars_71_72(call.vars as SavedJson), line: { ...line, vars: countableVars_71_72(line.vars as SavedJson) } };
+  return { ...world, player: { ...player, call: next } };
 }
 
 function withEncounters_64_65(world: SavedJson): SavedJson {

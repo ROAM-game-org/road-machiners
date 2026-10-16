@@ -186,8 +186,10 @@ describe('game save', () => {
     const loaded = loadWorld(slots, 'auto', TEST_MAP)!;
 
     expect(loaded.player.call).toEqual(opened.player.call);
-    const said = (w: World) => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), 'en');
-    expect(said(loaded)).toBe(said(opened));
+    const said = (w: World, locale: 'en' | 'ru') => resolve(lineText(w.player.call!.line.line, w.player.call!.line.vars.way ? w.player.call!.line.vars : w.player.call!.vars), locale);
+    expect(said(loaded, 'en')).toBe(said(opened, 'en'));
+    expect(said(loaded, 'ru')).toBe(said(opened, 'ru'));
+    expect(said(loaded, 'en')).not.toMatch(/number|\d/);
     expect(loaded.player.xp).toBe(opened.player.xp);
     expect(loaded.player.money).toBe(opened.player.money);
     expect(loaded.events.filter((e) => e.t === 'discover' || e.t === 'money')).toEqual([]);
