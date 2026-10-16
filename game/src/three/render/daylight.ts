@@ -238,7 +238,8 @@ const BEAM_RANGE = 70;
 const BEAM_ANGLE = 42 * DEG;
 const BEAM_PENUMBRA = 0.6;
 const BEAM_HEIGHT = 4;
-const SHADOW_BEAMS = 4;
+const SHADOW_BEAMS = 3;
+const PLAIN_BEAMS = 9;
 const BEAM_SHADOW_MAP = 1024;
 const BEAM_SHADOW_BIAS = 0.3;
 const BEAM_AIM = { ahead: 30, down: 6 };
@@ -295,13 +296,14 @@ export class VehicleLights {
 
   update(night: boolean, beam: number, truck: V3, lit: LitVehicle[]): void {
     const order = beamOrder(lit, truck);
+    const plainBeams = order.slice(SHADOW_BEAMS, SHADOW_BEAMS + PLAIN_BEAMS);
     if (!night) {
       this.removeGlow();
       this.trim(this.shadowed, Math.min(order.length, SHADOW_BEAMS));
-      this.trim(this.plain, Math.max(0, order.length - SHADOW_BEAMS));
+      this.trim(this.plain, plainBeams.length);
     }
     this.aim(this.shadowed, order.slice(0, SHADOW_BEAMS), true, beam);
-    this.aim(this.plain, order.slice(SHADOW_BEAMS), false, beam);
+    this.aim(this.plain, plainBeams, false, beam);
     if (!night) return;
     if (!this.glow) {
       this.glow = new THREE.PointLight(PAL.truckGlow, GLOW_INTENSITY, GLOW_RANGE, GLOW_DECAY);

@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { gpuArgs, isSoftware, rendererOf } from './gpu.mjs';
+import { emulateWebGL2Floor } from './gpu-floor.mjs';
+import { checkHighwayNightInSoftware, checkNightGround, NIGHT_TURNS } from './night-ground.mjs';
 import { playUrl } from './game-url.mjs';
 
 const arg = (name, fallback) => {
@@ -18,6 +20,7 @@ const TURN_LIMIT_MS = timeoutsOff ? 0 : cpu ? 60000 : 10000;
 const CRASH_ATTEMPTS = 3;
 const attempt = Number(process.env.PLAYTEST_ATTEMPT ?? '1');
 const BOOT_LIMIT_MS = timeoutsOff ? 0 : 30000;
+const HIGHWAY_BOOT_LIMIT_MS = 300000;
 
 mkdirSync('.playtest', { recursive: true });
 const browser = await chromium.launch({ args: cpu ? [] : gpuArgs() });
@@ -45,6 +48,7 @@ page.on('crash', () => { crashed = true; });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+await emulateWebGL2Floor(page);
 await page.goto(playUrl(url));
 await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
 await page.waitForTimeout(1000);
@@ -195,6 +199,14 @@ const blank = await page.evaluate(() => {
   return !c || c.width === 0;
 });
 
+const nightProblems = await checkNightGround(page, {
+  mode: 'roaming',
+  shot: '.playtest/night-roaming.png',
+  bootLimitMs: BOOT_LIMIT_MS,
+  turnLimitMs: TURN_LIMIT_MS,
+  nightTurns: cpu ? 0 : NIGHT_TURNS,
+});
+
 const reload = async () => {
   await page.reload();
   await page.waitForFunction(() => window.__ROAM__, null, { timeout: BOOT_LIMIT_MS });
@@ -206,8 +218,9 @@ const english = await reload();
 if (english.lang !== 'en' || CYRILLIC.test(english.menu) || english.hud.some((label) => CYRILLIC.test(label)) || (await pressedLanguage()) !== 'en') languageProblems.push(`English did not stay after a reload: ${JSON.stringify(english)}`);
 await checkNoStrayControl('after the reload');
 await browser.close();
+nightProblems.push(...(await checkHighwayNightInSoftware(url, { shot: '.playtest/night-highway.png', bootLimitMs: timeoutsOff ? 0 : HIGHWAY_BOOT_LIMIT_MS })));
 
-const problems = [...errors, ...hitProblems, ...languageProblems];
+const problems = [...errors, ...hitProblems, ...languageProblems, ...nightProblems];
 if (state.crashed) problems.push('crash screen shown');
 if (state.turn !== turns + 1) problems.push(`expected turn ${turns + 1}, got ${state.turn}`);
 if (blank) problems.push('no WebGL canvas');
