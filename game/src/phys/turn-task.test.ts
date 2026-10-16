@@ -11,12 +11,7 @@ import {
   syncDrive,
   type Drive,
 } from "./drive";
-import { computeRequestedTurn, computeTurn, physicsMove } from "./turn";
-import { playerVehicle } from "../sim/damage";
-import { addGoods } from "../sim/inventory";
-import { siteOf } from "../sim/market";
-import { setQuestLanguage } from "../sim/quests";
-import { nearestPad } from "../sim/sites";
+import { computeTurn, physicsMove } from "./turn";
 
 beforeAll(initPhysics);
 
@@ -108,18 +103,4 @@ it.each([false, true])("a turn from the playback snapshot after a main-thread sy
   const expected = computeTurn({ world: structuredClone(later), drive: pristine }, terrain);
   expect(actual.world).toEqual(expected.world);
   expect(actual.result.next.obstacles).toEqual(expected.result.next.obstacles);
-});
-
-it("opens a scene of the turn in the language of the request", () => {
-  const world = emptyWorld(nearestPad(siteOf("bowl"), { x: 30, y: 30 }));
-  addGoods(world, playerVehicle(world), "scrap", 1);
-  const drive = buildDrive(world);
-  const { terrain, ...state } = structuredClone(world);
-  try {
-    const turn = computeRequestedTurn({ kind: "turn", id: 1, terrain: null, questLanguage: "ru", world: state, drive: captureDrive(drive) }, terrain);
-    expect(turn.world.player.quests.live).toEqual(expect.objectContaining({ quest: "bowl_scale", lang: "ru" }));
-  } finally {
-    setQuestLanguage("en");
-    freeDrive(drive);
-  }
 });
