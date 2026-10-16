@@ -5,7 +5,7 @@ import { corePart, mountedParts } from "../sim/grid";
 import { knockOutNpc } from "../sim/defeat";
 import { STATE_TURNS } from "../data/npcs";
 import { addVehicle, emptyWorld, furyRoadWorld, npcBrain, spotWorld, startCombat } from "../sim/testkit";
-import { outpostPad } from "../sim/fury-road";
+import { yardSpots } from "../sim/outpost-gates";
 import { maxHealthOf } from "../sim/health";
 import { suppliesCap } from "../sim/stats";
 import { maxHp } from "../sim/wear";
@@ -645,7 +645,7 @@ describe('overdrive switch', () => {
 describe("Fury Road readouts", () => {
   const parkAt = (w: World, milestone: number) => {
     const me = playerVehicle(w);
-    me.pos = outpostPad(w, milestone);
+    me.pos = { ...yardSpots(w, milestone).truck };
     me.speed = 0;
   };
 
@@ -662,7 +662,7 @@ describe("Fury Road readouts", () => {
     expect(getHudReadout(w).resources.some((r) => r.id === "run")).toBe(false);
   });
 
-  it("offers to enter a reached outpost only while parked on its pad", () => {
+  it("offers to enter a reached outpost only while parked in its yard", () => {
     const w = furyRoadWorld();
     parkAt(w, 1);
     expect(actions(w).some((a) => a.target.kind === "outpost")).toBe(false);

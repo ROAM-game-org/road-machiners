@@ -42,7 +42,7 @@ import type { Call, GoalReason, GridItem, NpcState, PartInstance, SalvageStock, 
 import { dist, pointsAway, type Vec } from '../vec';
 import { canVehicleSee, playerExplored, playerSees } from '../vision';
 import { reachedOutpostAt } from '../fury-road';
-import { outpostFort } from '../highway';
+import { inYard } from '../outpost-gates';
 import { runnerOrders } from './runner';
 import { searcherGoal, takeSearch } from './searcher';
 import { BIGGEST_PART_CELLS, driveTo, driveToSite, mountBought, Orders, rearm, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
@@ -139,7 +139,7 @@ export function parkedOnPurpose(world: World): boolean {
 
 function waitsOnPad(world: World): boolean {
   const run = world.furyRoad;
-  return run !== null && canUseSite(playerVehicle(world).pos, outpostFort(world.seed, run.window, run.window + 1));
+  return run !== null && inYard(world, playerVehicle(world).pos, run.window + 1);
 }
 
 function climberGoal(world: World): Goal {
