@@ -90,7 +90,7 @@ describe('brake hold', () => {
 
   it('lets a rammed parked truck be shoved', () => {
     const w = emptyWorld({ x: 40, y: 30 });
-    const rammer = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine', 'ram'], { x: 34, y: 30 });
+    const rammer = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine', 'ram'], { x: 34, y: 30 });
     rammer.speed = 4;
     const drive = buildDrive(w);
     let cur = w;
