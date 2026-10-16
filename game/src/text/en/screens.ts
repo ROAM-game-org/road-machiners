@@ -569,6 +569,7 @@ export const SCREENS = {
   'item.cargo': m('Crate, {mass}', { mass: 'text' }),
   'item.builtIn': 'Built in',
   'item.parcel': 'Parcel',
+  'item.tip': m('{name}\n{lore}', { name: 'text', lore: 'text' }),
   'item.parcelFor': m('Parcel for {who}', { who: 'text' }),
   'item.mounted': 'Mounted',
   'item.spare': 'Spare',

@@ -570,6 +570,7 @@ export const SCREENS: Translation<typeof EN> = {
   'item.cargo': 'Ящик, {mass}',
   'item.builtIn': 'Часть шасси',
   'item.parcel': 'Посылка',
+  'item.tip': '{name}\n{lore}',
   'item.parcelFor': 'Посылка для {who, case, gen}',
   'item.mounted': 'На креплении',
   'item.spare': 'В запасе',

@@ -15,6 +15,9 @@ const ids = <T>(record: Record<string, T>): string[] => Object.keys(record);
 
 const REQUIRED: [string, string[]][] = [
   ['part', ids(PARTS).map((id) => `part.${id}`)],
+  ['part lore', ids(PARTS).map((id) => `lore.part.${id}`)],
+  ['good lore', ids(GOODS).map((id) => `lore.good.${id}`)],
+  ['parcel lore', ['lore.parcel']],
   ['chassis', ids(CHASSIS).map((id) => `chassis.${id}`)],
   ['good', ids(GOODS).flatMap((id) => [`good.${id}`, `good.${id}.lower`, `good.${id}.subject`, `good.${id}.short`])],
   ['NPC template', ids(NPCS).flatMap((id) => [`npc.${id}`, `npc.${id}.profession`])],
@@ -38,6 +41,11 @@ describe('every runtime id', () => {
 
   it('marks only listed first names as female', () => {
     expect([...FEMALE_NAMES].filter((n) => !FIRST_NAMES.includes(n))).toEqual([]);
+  });
+
+  it('has no lore beyond the parts, goods and parcel', () => {
+    const listed = new Set(REQUIRED.filter(([kind]) => kind.endsWith('lore')).flatMap(([, keys]) => keys));
+    expect(Object.keys(EN).filter((key) => key.startsWith('lore.') && !listed.has(key))).toEqual([]);
   });
 
   it('has no broadcast variant beyond the counts in the data', () => {

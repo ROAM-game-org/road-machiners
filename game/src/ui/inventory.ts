@@ -46,7 +46,8 @@ import type {
 } from "../sim/types";
 import { el, isBrowserChord, panel } from "./dom";
 import type { UiHost } from "./host";
-import { baselinePart, conditionMeter, conditionRow, conditionTag, createIcon, diffStats, footprint as footprintEl, itemIconEl, partIconEl, partStats, statGrid, toneStyle } from "./cards";
+import { itemLookId } from "../render/partLooks";
+import { baselinePart, conditionMeter, conditionRow, conditionTag, createIcon, createItemIcon, diffStats, footprint as footprintEl, itemIconEl, itemLore, partIconEl, partStats, statGrid, toneStyle } from "./cards";
 import { vehicleMass } from "../sim/mass";
 import {
   blockerIds,
@@ -376,12 +377,18 @@ export class InventoryView {
     return !this.instant && atGarage(w, this.gridTruck ?? undefined) ? this.storageEl(w) : null;
   }
 
+  private loreParagraph(item: GridItem): HTMLElement {
+    return el("p", { class: "dim" }, itemLore(itemLookId(item)));
+  }
+
   private showItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       el("div", { class: "inv-actions" }, ...this.itemActions(w, item, mounted)),
       ...(item.kind === "part" ? partDetails(w, this.mine(w), item.part, mounted) : []),
+      this.loreParagraph(item),
     );
+    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   hintMounts(cells: readonly Cell[] | null): void {
@@ -668,9 +675,11 @@ export class InventoryView {
 
   private showTruckItem(w: World, item: GridItem, mounted: boolean): void {
     this.inspection.replaceChildren(
-      el("div", { class: "card-head" }, itemIconEl(item), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
+      el("div", { class: "card-head" }, createItemIcon(itemLookId(item)), el("div", { class: "card-name" }, el("b", {}, this.itemTitle(w, item)), el("span", { class: "dim" }, itemState(item, mounted)))),
       ...(item.kind === "part" ? partDetails(w, playerVehicle(w), item.part, false) : []),
+      this.loreParagraph(item),
     );
+    this.inspection.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
 
   private startDrag(
