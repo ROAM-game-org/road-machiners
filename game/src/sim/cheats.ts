@@ -19,7 +19,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { grantXp, isPerkId, pickedFromPair } from './progress';
 import { isTerritory, nearestPad, type Site } from './sites';
 import { territoryEntries } from './territory';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { declareFeud, settleStates } from './states';
 import { isTowed } from './tow';
 import { clockOf } from './sun';
@@ -352,7 +352,7 @@ function spawnInDraft(w: World, tpl: NpcTemplate, hostile: boolean): void {
   const circle = frontFirst(me.pos, me.heading, CHEATS.spawnDistance, CHEATS.spawnAngles);
   const spot = firstFree(w, circle, radius, null) ?? freeSpotNear(w, me.pos, radius, null);
   if (!spot) throw new CheatError(`No free spot to spawn ${tpl.id}`);
-  const v = spawnAt(w, tpl, loadout, spot);
+  const v = spawnAt(w, tpl, loadout, spot, allegianceFor(w, tpl, null, null));
   if (hostile) declareFeud(w, v, w.player.vehicleId);
 }
 

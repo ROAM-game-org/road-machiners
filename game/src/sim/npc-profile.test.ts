@@ -7,7 +7,7 @@ import { addVehicle, emptyWorld, npcBrain } from './testkit';
 describe('NPC traits', () => {
   it('unions the sites of two traits, takes the widest contact radius and multiplies boldness and fuel margin', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger', 'raider']);
     const profile = npcProfile(npc);
     expect(profile.towns).toEqual(['bowl', 'nose']);
@@ -35,7 +35,7 @@ describe('NPC traits', () => {
 
   it('throws on an unknown trait or a brain without traits', () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['pirate' as TraitId]);
     expect(() => npcTraits(npc)).toThrow(/pirate/);
     expect(() => profileOf(['pirate' as TraitId])).toThrow(/pirate/);
