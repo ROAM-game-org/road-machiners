@@ -65,9 +65,7 @@ export class SaveList {
 
   close(): void {
     if (this.root === null) return;
-    this.root.remove();
-    this.root = null;
-    window.removeEventListener("keydown", this.onKey, true);
+    this.dismiss();
     this.onClose();
   }
 
