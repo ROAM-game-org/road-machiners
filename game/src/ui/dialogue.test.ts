@@ -62,6 +62,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   demandHaul: ['haul'],
   surrenderHaul: ['haul'],
   lastSighting: ['sighting'],
+  claimWreckBearing: ['bearing', 'distance'],
   courierNeed: ['aid', 'price'],
   taleNews: ['site', 'way', 'tip'],
   tipTerms: ['price', 'way'],
@@ -72,6 +73,8 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
 const SAMPLE: Record<string, CallVar> = {
   town: { kind: 'town', id: 'bowl' },
   site: { kind: 'site', id: 'granary' },
+  bearing: { kind: 'bearing', rad: 1 },
+  distance: { kind: 'distance', tiles: 12 },
   way: { kind: 'directions', steps: [{ do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' }, { do: 'arrive', site: 'nose', area: false }] },
   fee: { kind: 'money', amount: 1200 },
   price: { kind: 'money', amount: 45 },

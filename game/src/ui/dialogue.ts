@@ -15,15 +15,7 @@ import { modeRules } from '../sim/settings';
 import { el, isBrowserChord, panel, topCenter } from './dom';
 import { directionsText } from './directions-text';
 import { renderLine } from './quest-text';
-import { agoText, distanceText, fuelLiters, moneyM } from './units';
-
-const COMPASS = ['east', 'southEast', 'south', 'southWest', 'west', 'northWest', 'north', 'northEast'] as const;
-
-export function compass(rad: number): Msg {
-  const step = (2 * Math.PI) / COMPASS.length;
-  const i = Math.round(rad / step);
-  return t(`compass.${COMPASS[((i % COMPASS.length) + COMPASS.length) % COMPASS.length]}`);
-}
+import { agoText, compassText, distanceText, fuelLiters, moneyM } from './units';
 
 const money = (amount: number): Msg => t('call.money', { amount: moneyM(amount) });
 
@@ -56,7 +48,7 @@ export function sightingText(v: Extract<CallVar, { kind: 'sighting' }>): Msg {
   const driver = fullName(v.driver);
   if (!v.seen) return t('sighting.none', { driver });
   const { bearing, tiles, turns, heading } = v.seen;
-  return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compass(bearing), heading: compass(heading) });
+  return t('sighting.seen', { driver, ago: agoText(turns), distance: distanceText(tiles), bearing: compassText(bearing), heading: compassText(heading) });
 }
 
 export function haulText(v: Extract<CallVar, { kind: 'haul' }>): Msg {
@@ -74,6 +66,8 @@ const VAR_TEXT: VarText = {
   town: (v) => siteName(v.id),
   site: (v) => siteName(v.id),
   money: (v) => money(v.amount),
+  distance: (v) => distanceText(v.tiles),
+  bearing: (v) => compassText(v.rad),
   count: (v) => unitCount(v.unit, v.n),
   deal: dealText,
   prices: pricesText,

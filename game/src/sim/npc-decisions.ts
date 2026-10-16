@@ -32,7 +32,7 @@ import { getResources } from './resources';
 import { skillEffect } from './progress';
 import { randRange } from './rng';
 import { recall, remember } from './memory';
-import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
+import { backedOff, canReachSalvage, canTakeAny, canTakeFromTruck, CANNOT_HOLD, CLAIMED, claimOnly, hasCargo, hasSalvage, holdsClaim, jobTarget, lootBlocker, STRIPPED } from './salvage';
 import { passesUpLoot } from './loot-warning';
 import { canUseSite, isTerritory, siteGap, siteGates, siteUnder, type Site } from './sites';
 import { territoryAt, territoryGrounds } from './territory';
@@ -182,7 +182,7 @@ export function npcSenses(world: World, vehicle: Vehicle): { seen: Vehicle[]; co
   return { seen, contacts: useful.sort((a, b) => dist(vehicle.pos, a.center) - dist(vehicle.pos, b.center)) };
 }
 
-const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'haul'];
+const WORK: readonly NpcActivity['kind'][] = ['scavenge', 'sell', 'trade', 'resupply', 'loot', 'repair', 'travel', 'haul', 'claim'];
 
 function isBusy(vehicle: Vehicle): boolean {
   const kind = topGoal(vehicle)?.kind;
@@ -295,7 +295,7 @@ function knownUnfit(vehicle: Vehicle, targetId: string): boolean {
 export function noteStripped(world: World, vehicle: Vehicle, stockId: string | null): void {
   const stock = world.salvage.find((s) => s.id === stockId);
   if (!stock) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: no such stock`);
-  if (hasSalvage(stock)) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: it still holds salvage`);
+  if (hasSalvage(stock) && !claimOnly(world, vehicle, stock)) throw new Error(`${vehicle.id} cannot note ${stockId} as stripped: it still holds salvage`);
   remember(world, vehicle, { kind: 'stripped', stock: stock.id });
 }
 
@@ -344,6 +344,7 @@ export function stockLootInvalid(world: World, vehicle: Vehicle, goal: NpcActivi
   if (!stock) return 'lootGone';
   if (!canReachSalvage(vehicle, stock)) return !hasCargoRoom(vehicle) ? CANNOT_HOLD : null;
   if (!hasSalvage(stock)) return STRIPPED;
+  if (claimOnly(world, vehicle, stock)) return CLAIMED;
   return canTakeAny(world, vehicle, stock) ? null : CANNOT_HOLD;
 }
 

@@ -145,6 +145,7 @@ export const MAIN_SKILL: Record<Archetype, SkillId | null> = {
   fastTrader: 'driving',
   hauler: 'social',
   searcher: 'social',
+  surveyor: 'social',
   climber: 'social',
   markov: null,
   escort: null,
