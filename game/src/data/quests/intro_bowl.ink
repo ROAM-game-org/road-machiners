@@ -58,9 +58,9 @@ She tips her head at you. Go on, then, she says. Nobody ever sat on my bench and
   ~ asked_region = true
   Roads, mostly. Towns on the roads, and the people who live off the people on the roads. Pick one and I'll tell you what I've heard. # speaker: Hattie
   -> questions
-+ {asked_region and not asked_nose} [And <term=nose>Nose</term>?]
++ {asked_region and not asked_nose} [And Nose?]
   ~ asked_nose = true
-  Up the north road. Soldiers, a workshop and a wall. They build the engines and the guns for half the basin, and they like a stranger better once he's bought one. # speaker: Hattie
+  Up the north road, to <term=nose>Nose</term>. Soldiers, a workshop and a wall. They build the engines and the guns for half the basin, and they like a stranger better once he's bought one. # speaker: Hattie
   -> questions
 + {asked_region and not asked_yard} [And the yards?]
   ~ asked_yard = true
