@@ -78,11 +78,11 @@ describe('a new world by mode', () => {
 
     expect(world.furyRoad).toBeNull();
     expect(fingerprint(world)).toEqual({
-      streams: [-1233435508, 710220979, 836395902, 1936023925],
-      nextId: 1126,
-      counts: [23, 3780, 111, 7],
-      npcs: [['buggy', 114.67, 75.78], ['buggy', 315.64, 389.94], ['buggy', 121.74, 81.19]],
-      bowlStock: ['patcherCrane', 'heavyMg', 'patcherCrane', 'pneumobolter', 'heavyDiesel', 'supplyLocker', 'slugCannon', 'flareCannon', 'rocketRack', 'reinforcedCage'],
+      streams: [1451180060, -1945004095, 836395902, 1936023925],
+      nextId: 1188,
+      counts: [23, 6178, 128, 7],
+      npcs: [['buggy', 417.82, 508.75], ['buggy', 152.35, 102.05], ['buggy', 413.95, 503.23]],
+      bowlStock: ['smokeMortar', 'plowRam', 'caltrops', 'sniperCannon', 'ceramicPlates', 'caltrops', 'patcherCrane', 'ceramicTile', 'plates', 'flechette', 'amRifle'],
     });
   });
 
