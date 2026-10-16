@@ -51,14 +51,14 @@ function stepText(step: DirectionStep, next: DirectionStep | undefined, target: 
   }
 }
 
-function offRoadSpan(step: DirectionStep | undefined): Span | null {
-  return step && (step.do === 'join' || step.do === 'leave' || step.do === 'straight') ? step.span : null;
+function spanOfStep(step: DirectionStep | undefined): Span | null {
+  return step && 'span' in step ? step.span : null;
 }
 
 export function directionsText(steps: readonly DirectionStep[]): Msg {
   if (steps.length === 0) throw new Error('Directions with no step are never spoken');
   const arrival = steps.find((s) => s.do === 'arrive');
   const target = arrival?.do === 'arrive' ? arrival.site : null;
-  const sentences = steps.flatMap((step, i) => stepText(step, steps[i + 1], target, offRoadSpan(steps[i - 1])));
+  const sentences = steps.flatMap((step, i) => stepText(step, steps[i + 1], target, spanOfStep(steps[i - 1])));
   return concat(sentences.flatMap((s, i) => (i === 0 ? [s] : [SPACE, s])));
 }

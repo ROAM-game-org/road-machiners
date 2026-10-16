@@ -82,6 +82,15 @@ describe('directionsText', () => {
     expect(resolve(directionsText([{ do: 'join', octant: 'east', span: 'far' }, road('far')]), 'en')).toBe('Cut east a long way to the road. Take the road to Nose.');
   });
 
+  it('warns of a long haul once across successive long road legs', () => {
+    const steps: DirectionStep[] = [
+      { do: 'follow', road: { kind: 'to', site: 'nose' }, span: 'far' },
+      { do: 'turn', side: 'left', at: { kind: 'fork', nth: 2 }, road: { kind: 'heading', octant: 'north' }, span: 'far' },
+      { do: 'askAgain' },
+    ];
+    expect(resolve(directionsText(steps), 'en').match(/long haul/g)).toHaveLength(1);
+  });
+
   it('says past the fork where a wreck leave point is counted', () => {
     expect(resolve(directionsText([{ do: 'leave', at: { kind: 'fork', nth: 2 }, octant: 'east', span: 'near' }]), 'en')).toBe('Past the second fork, where the road runs closest, leave the road and head east, a short way.');
   });
