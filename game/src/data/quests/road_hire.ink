@@ -11,7 +11,7 @@ VAR walked_out = false
 # checkpoint: start
 The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost
 You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
-Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for every coin you had left. # page
+Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for nearly every coin you had left. # page
 At the next table, a woman counts brass coins out of a roll, each stamped with an M, the money of this road. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers.
 Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
 Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor
@@ -81,7 +81,7 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   <term=blackwell>Blackwell</term> wants that truck. The refinery posted a reward in diesel. Whoever brings the trailer back sealed gets it, and nobody there cares if the woman driving it comes back alive or dead. Every scavenger and out-of-work gun from here to the first ridge has heard. # speaker: Tibor
   Ala doesn't correct him. She turns her cuff over so the wax doesn't show.
   -> menu
-+ {not walked_out} [Hold out for more.]
++ {asked_pay and not walked_out} [Hold out for more.]
   ~ walked_out = true
   You tell her it isn't enough, and you stand up as if you meant it.
   Then go. # speaker: Ala
