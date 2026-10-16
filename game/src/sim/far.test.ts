@@ -91,7 +91,7 @@ describe('far NPC travel', () => {
 
   it('keeps the speed of a far vehicle whose through point lies within this turn', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30, y: 30 + LIVE + 20 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30, y: 30 + LIVE + 20 });
     far.speed = 4;
     far.order = { kind: 'through', dest: { x: 30, y: 30 + LIVE + 22 } };
     advanceFar(w, far);
