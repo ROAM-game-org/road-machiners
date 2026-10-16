@@ -89,6 +89,15 @@ describe('far NPC travel', () => {
     freeDrive(d);
   });
 
+  it('keeps the speed of a far vehicle whose through point lies within this turn', () => {
+    const w = emptyWorld();
+    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30, y: 30 + LIVE + 20 });
+    far.speed = 4;
+    far.order = { kind: 'through', dest: { x: 30, y: 30 + LIVE + 22 } };
+    advanceFar(w, far);
+    expect(far.speed).toBeCloseTo(4, 5);
+  });
+
   it('stops a far vehicle at the map edge when its goal lies beyond it', () => {
     const w = emptyWorld();
     const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 4 });

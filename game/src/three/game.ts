@@ -1210,13 +1210,15 @@ export class Game {
     const s = vehicleStats(this.world, me);
     const sel = s.weapons.filter((m) => m.part.id === this.selected);
     this.weaponRange.set(this.world.terrain, me.pos, me.heading, sel);
-    this.zones.update(
-      this.world.terrain,
-      me.pos,
-      me.heading,
-      me.speed,
-      Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
-    );
+    if (!me.direct) this.zones.hideBands();
+    else
+      this.zones.update(
+        this.world.terrain,
+        me.pos,
+        me.heading,
+        me.speed,
+        Math.max(MIN_ZONE_HALF_ANGLE, maxTurn(s, me.speed) / 2),
+      );
     const hover = this.hoverGround;
     const color = hover ? throttleColor(me, hover) : PAL.plan;
     this.zones.hover(this.world.terrain, hover, color);

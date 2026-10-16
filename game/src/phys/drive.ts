@@ -10,7 +10,7 @@ import { playerVehicle } from '../sim/damage';
 import { vehicleMass } from '../sim/mass';
 import { groundSpeed, vehicleStats, type VehicleStats } from '../sim/stats';
 import { continueRoute, keepRoute, route, type KeptRoute } from '../sim/path';
-import { backsToDestination, throughSpeed } from '../sim/steering';
+import { backsToDestination, driveMode, throughSpeed } from '../sim/steering';
 import { routeBlockers } from '../sim/ai';
 import { atlasOf } from '../sim/atlas';
 import { propBase, railOffset, type Deck } from '../sim/bridge';
@@ -637,7 +637,7 @@ function planTurn(w: World, v: Vehicle, full: VehicleStats, body: RAPIER.RigidBo
   mem.route = path ? { ...keepRoute(w, order.dest, path, blockers, v), radius: s.radius } : null;
   const drive = (next: number) => toMps(engine ? next : speed);
   if (order.kind === 'stopAt') return { ...base, dest: stopPoint(path, order.dest), route: path, target: drive(Math.min(s.maxSpeed, speed + s.accel)), stopAt: true };
-  const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace);
+  const next = throughSpeed(s, speed, dist(v.pos, order.dest), order.pace, driveMode(v));
   return { ...base, dest: order.dest, route: path, target: drive(next), stopAt: false };
 }
 

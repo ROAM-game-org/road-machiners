@@ -2,7 +2,7 @@ import { RULES } from "../data/rules";
 import { describe, expect, it } from "vitest";
 import { vehicleStats } from "./stats";
 import { chassisDef } from "../data/chassis";
-import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, zoneEdges, zoneSpeed } from "./steering";
+import { backsToDestination, clickOrder, parkedVehicles, setDownSpot, throttleFor, throughSpeed, zoneEdges, zoneSpeed } from "./steering";
 import { DEG, dist } from "./vec";
 import { addVehicle, emptyWorld, npcBrain } from "./testkit";
 import { addState } from "./states";
@@ -27,23 +27,62 @@ describe("throttle by click distance", () => {
   it("a close click brakes, a mid click holds, a far click accelerates", () => {
     const { s } = setup(4);
     const z = zoneEdges();
-    const at = (d: number) => zoneSpeed(s, 4, d);
+    const at = (d: number) => throughSpeed(s, 4, d, undefined, 'direct');
     expect(at(0.01)).toBeCloseTo(4 - s.brake, 1);
     expect(at(z.brakeEnd / 2)).toBeCloseTo(4 - s.brake / 2, 5);
     expect(at((z.brakeEnd + z.holdEnd) / 2)).toBe(4);
     expect(at(z.reach + 5)).toBe(Math.min(s.maxSpeed, 4 + s.accel));
-    expect(throttleFor(1, 4)).toBe("brake");
+    expect(throttleFor(1, 4, 'direct')).toBe("brake");
     expect(zoneSpeed(s, 0.5, 1)).toBeCloseTo(zoneSpeed(s, 0, 1), 5);
-    expect(throttleFor(5, 4)).toBe("hold");
-    expect(throttleFor(20, 4)).toBe("accelerate");
+    expect(throttleFor(5, 4, 'direct')).toBe("hold");
+    expect(throttleFor(20, 4, 'direct')).toBe("accelerate");
+  });
+});
+
+describe("route mode speed by distance", () => {
+  it("a far point speeds up and a point within this turn's travel holds speed", () => {
+    const { s } = setup(4);
+    expect(throughSpeed(s, 4, 20, undefined, "route")).toBe(Math.min(s.maxSpeed, 4 + s.accel));
+    expect(throughSpeed(s, 4, 2, undefined, "route")).toBe(4);
+    expect(throughSpeed(s, 4, 0.01, undefined, "route")).toBe(4);
+    const out = throughSpeed(s, 4, 4.5, undefined, "route");
+    expect(out).toBeGreaterThan(4);
+    expect(out).toBeLessThanOrEqual(Math.min(s.maxSpeed, 4 + s.accel));
+  });
+
+  it("from rest a close point starts gently and a far point starts at full acceleration", () => {
+    const { s } = setup(0);
+    expect(throughSpeed(s, 0, 0.5, undefined, "route")).toBe(1);
+    expect(throughSpeed(s, 0, 20, undefined, "route")).toBe(Math.min(s.maxSpeed, s.accel));
+  });
+
+  it("holds top speed above it and lets a pace win in both modes", () => {
+    const { s } = setup(0);
+    expect(throughSpeed(s, s.maxSpeed + 2, 30, undefined, "route")).toBe(s.maxSpeed);
+    expect(throughSpeed(s, 4, 20, 4.5, "route")).toBe(throughSpeed(s, 4, 20, 4.5, "direct"));
+  });
+
+  it("never brakes for a through point and shows accelerate only when out of reach", () => {
+    const { s } = setup(0);
+    for (const speed of [0, 1, 4, s.maxSpeed])
+      for (const d of [0.01, 1, 4, 10, 40]) {
+        expect(throughSpeed(s, speed, d, undefined, "route")).toBeGreaterThanOrEqual(Math.min(speed, s.maxSpeed));
+        expect(throttleFor(d, speed, "route")).toBe(d > speed ? "accelerate" : "hold");
+      }
+  });
+
+  it("rejects a non-finite distance or speed", () => {
+    const { s } = setup(0);
+    expect(() => throughSpeed(s, 4, Number.NaN, undefined, "route")).toThrow();
+    expect(() => throughSpeed(s, Number.NaN, 4, undefined, "route")).toThrow();
   });
 });
 
 describe("click orders", () => {
   it("at rest the red zone is one third of reach and green is two thirds", () => {
     const z = zoneEdges();
-    expect(throttleFor(z.reach / 3 - 0.01, 0)).toBe("brake");
-    expect(throttleFor(z.reach / 3 + 0.01, 0)).toBe("accelerate");
+    expect(throttleFor(z.reach / 3 - 0.01, 0, 'direct')).toBe("brake");
+    expect(throttleFor(z.reach / 3 + 0.01, 0, 'direct')).toBe("accelerate");
   });
 
   it("a nearby ground click remains a destination", () => {
