@@ -20,7 +20,7 @@ Ala folds the slips and puts them away. # page
 You're paid up, and by the deal you're free to go. I won't hold you. # speaker: Ala
 She doesn't say it as if she means it. She says it as if she's reading it.
 She has one more slip, from the Keepers' own relay. She reads it out in the voice she uses for sums. # page
-The Keepers say your escort wears a Burnt Driver lieutenant's burn. Defend the families behind you. # speaker: Keepers' relay
+The Keepers say your escort wears a Burnt Driver's burn. Defend the families behind you. # speaker: Keepers' relay
 -> fire
 
 = fire
@@ -31,7 +31,7 @@ The seat took hold of your neck and began to cook the socket out of you. You hea
 Your drivers followed you into the other seats, one truck after another, because Magnus had gone first and Magnus was never wrong. By the time you screamed, each was already plugged into a seat that was not his. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
 Magnus! The plug! Magnus! # speaker: Burnt Driver
 You tore the plug out of your own seat with both hands. That left the ring in your neck. You didn't go back for the boy. You walked out into the badlands, and you have been walking away ever since. # page
-Then the pass, another year. A line of tankers slowed for the bend, and the first cab had a linked man in it, who looked up at the ridge. You gave the order. Afterward you walked down the line, and not one of the cabs had a living man in it. # page
+Before the tank line there was the pass, in the years when Magnus never lost. A line of tankers slowed for the bend, and the first cab had a linked man in it, who looked up at the ridge. You gave the order. Afterward you walked down the line, and not one of the cabs had a living man in it. # page
 -> ask
 
 = ask
@@ -129,7 +129,7 @@ So. Are you riding on? # speaker: Ala
   She puts her hand flat on the step to steady herself.
   Then Tibor tells it wrong. Good. # speaker: Ala
 }
-{ hand_shook: She remembers the eighth fort, your hand shaking against the scar, and she says nothing about it. }
+{ hand_shook: You remember the eighth fort, your hand shaking against the scar, and you wait for her to bring it up. She doesn't. }
 Later you sit up on the wall, facing south, where two hundred people are driving in the dark. No lights show on the road, and you look anyway. # page
 { ala_knows == "dead": Ala climbs up with one cup, sets it down between you, and says nothing about the dead man. }
 { ala_knows == "burnt": Ala climbs up with two cups. She sits a little way off. }

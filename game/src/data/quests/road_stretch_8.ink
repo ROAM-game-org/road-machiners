@@ -42,12 +42,12 @@ Her soldiers wouldn't fire on the Yards. They found it half empty, and the rest 
 The second slip is in her mother's hand, a few lines, hard as a nail. # page
 Don't come back. Keep going north. Maya asks for you every hour. # speaker: Sara
 The third slip is Northgate's, in a clerk's neat hand. # page
-Come. Your niece will drink our water. # speaker: Warden's relay
+A boy has died at the Keepers' gate for want of what we keep. Come. Your niece will drink our water. # speaker: Warden's relay
 -> loss
 
 = loss
 # checkpoint: start.loss
-She folds the slips together and puts them in her coat. There is one more, and she holds it a moment before she reads it. A boy named Teo, six, died on the verge outside the southern fort three days ago. His family had been turned back at the gate. The forts changed their minds the day after. # page
+She folds the slips together and puts them in her coat. There is one more, and she holds it a moment before she reads it. The boy in the Warden's slip had a name. Teo, six, died on the verge outside the southern fort three days ago. His family had been turned back at the gate. The forts changed their minds the day after. # page
 She is waiting to see what you do with that.
 + [Tell her you're sorry.]
   ~ grief_said = "sorry"

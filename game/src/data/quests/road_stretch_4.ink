@@ -75,7 +75,7 @@ She waits. The Keeper on the roof turns over in his sleep. # page
   -> menu
 + {not asked_north} [Where are we going?]
   ~ asked_north = true
-  <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. The Warden's relay says turn back. It said so at the first fort, and at the second, and it says it politely. # speaker: Ala
+  <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. Its Warden writes to every fort I pass, through the relay, and he writes politely: turn back. # speaker: Ala
   I'm not turning back. # speaker: Ala
   -> menu
 + {not asked_hunters} [Who pays the hunters?]

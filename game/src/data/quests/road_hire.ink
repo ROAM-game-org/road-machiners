@@ -79,7 +79,7 @@ Ala stacks her M's in front of her and waits. The bar goes on around you, loud a
 + {not asked_north} [Why north?]
   ~ asked_north = true
   Somebody's waiting on it. No more questions than that. # speaker: Ala
-  She says it like something she has said many times, and it sounds like a dodge. The crack in it is a name she doesn't say.
+  She says it like something she has said many times, and it sounds like a dodge.
   Tibor suddenly finds something interesting in his hands. He sold you the job, not the road.
   -> menu
 + {not asked_who} [Who's coming for the truck?]
