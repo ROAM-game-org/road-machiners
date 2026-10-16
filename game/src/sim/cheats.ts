@@ -325,11 +325,10 @@ export function randomKit(world: World, level: number | null): World {
   const choices = kitChoices();
   return update(world, (w) => {
     const gear = gearLevelOf(level ?? randInt(w, 1, GEAR_LEVEL_IDS.length));
-    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
     const old = playerVehicle(w);
+    const { chassisId, loadout } = rollArmedKit(w, choices, gear);
     const spot = freeSpotNear(w, old.pos, chassisDef(chassisId).radius, old.id);
     if (!spot) throw new CheatError(`No free spot for a ${chassisId} here`);
-    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
     const truck = makeVehicle(w, { faction: 'player', chassisId, parts: loadout.parts, spares: [], cargo: {}, pos: spot, heading: old.heading, brain: null });
     truck.id = old.id;
     w.vehicles = w.vehicles.map((v) => (v.id === old.id ? truck : v));
@@ -337,6 +336,15 @@ export function randomKit(world: World, level: number | null): World {
     w.player.supplies = Math.min(w.player.supplies, suppliesCap(truck));
     refreshVision(w);
   });
+}
+
+function rollArmedKit(w: World, choices: { tpl: NpcTemplate; chassisId: string }[], gear: GearLevel): { chassisId: string; loadout: ReturnType<typeof generateNpcLoadout> } {
+  for (let attempt = 0; attempt < CHEATS.armedKitTries; attempt++) {
+    const { tpl, chassisId } = choices[randInt(w, 0, choices.length - 1)];
+    const loadout = generateNpcLoadout(w, tpl, chassisId, gear);
+    if (loadout.parts.some((part) => PARTS[part.defId].kind === 'weapon')) return { chassisId, loadout };
+  }
+  throw new CheatError(`No random kit of gear ${gear} carries a gun`);
 }
 
 function gearLevelOf(level: number): GearLevel {
