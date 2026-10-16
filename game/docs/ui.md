@@ -254,6 +254,7 @@ Use a shared piece before writing a new rule. A screen may add its own layout to
 - `.row` is a list line with a faint line under it. `.tile` is a boxed list item edged in its `--tone`.
 - `.skill-level` is a row of small pips that fill from the left for a level out of a few: a skill rank, and an escort offer's danger (`.skill-level.threat`, three pips, with the level in its tooltip).
 - `.chip` is a small boxed value. `.tag` is an outlined word in the color of its text.
+- `.contract-clue` is a told survey clue on its own line under the contract it belongs to.
 - `.drawer-tabs` is the tab row of the phone layout: one icon `.btn-l` per drawer with an `aria-label`, `.selected` on the open one and `.marked` for the danger edge of attention. Its drawer is the panel of its zone, set to scroll inside.
 - `.key` is a keyboard key or a mouse button, drawn as a keycap, as in the help panel.
 - `.amount .coin` is money from `moneyEl()`: the coin, sized in em by the text around it, then the number. The coin colors are the `--coin-*` tokens.

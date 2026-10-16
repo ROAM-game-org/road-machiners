@@ -4,6 +4,8 @@ import { atlasOf, atlasSites } from '../sim/atlas';
 import { TIME } from '../data/time';
 import type { Contract } from '../sim/market';
 import { siteOf } from '../sim/market';
+import { claimClue } from '../sim/claims';
+import { claimLookText } from './format';
 import { robbing } from '../sim/states';
 import { clockOf } from '../sim/sun';
 import type { GameEvent, Vehicle, WeatherEvent, World } from '../sim/types';
@@ -205,9 +207,11 @@ function contractVars(world: World, c: BoardContract): Slots {
   const shop = siteName(siteOf(c.shop).id);
   if (c.kind === 'rescue') return { shop, place: t(`radio.basin.${basinOf(world, c.area)}`) };
   if (c.kind === 'haul') return { shop, good: goodLower(c.good), to: siteName(siteOf(c.to).id) };
+  if (c.kind === 'claim') return { shop, part: partName(c.defId), wreck: claimLookText(claimClue(c).look) };
   if (c.kind === 'fetch') return { shop, part: partName(c.defId) };
   if (c.kind === 'search') return { shop, target: fullName(c.driver) };
-  return { shop, target: templateName(c.template) };
+  if (c.kind === 'bounty') return { shop, target: templateName(c.template) };
+  return { shop };
 }
 
 function vehicleIn(world: World, id: string): Vehicle | undefined {

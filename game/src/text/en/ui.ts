@@ -115,6 +115,8 @@ export const UI = {
   'trade.filter.utility': 'Utilities',
   'trade.theyCantPay': 'They can\'t pay that',
   'contract.claim': 'Claim',
+  'contract.report': 'Report',
+  'contract.reportAt': m('Report at {site}', { site: 'text' }),
   'contract.claimAt': m('Claim at {site}', { site: 'text' }),
   'contract.notMet': 'Not met yet',
   'contract.oneSearch': 'Already searching for someone',

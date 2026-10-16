@@ -319,6 +319,10 @@
   width: var(--icon-l);
   height: var(--icon-l);
 }
+.inv-chip > .claim-mark {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
 .inv-item > .meter,
 .inv-chip > .meter {
   position: absolute;

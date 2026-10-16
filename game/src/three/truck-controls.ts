@@ -8,6 +8,7 @@ import { canDouse, douseEngine } from "../sim/engine-heat";
 import { isBusy } from "../sim/jobs";
 import { canOverdrive, inOverdrive } from "../sim/stats";
 import { canLoot, canScavenge, scavenge } from "../sim/locations";
+import { startSurvey } from "../sim/survey";
 import { shopAt } from "../sim/market";
 import { reachedOutpostAt } from "../sim/fury-road";
 import type { World } from "../sim/types";
@@ -109,6 +110,7 @@ export class TruckContext {
       outpost: () => reachedOutpostAt(h.world()) && h.openOutpost(),
       downed: () => 'id' in target && h.openDowned(target.id),
       stock: () => 'id' in target && this.searchStock(target.id, action.combat),
+      survey: () => target.kind === 'survey' && this.surveySite(target.contractId, target.id, action.combat),
       loot: () => 'id' in target && this.lootStock(target.id),
       empty: () => undefined,
     };
@@ -137,6 +139,13 @@ export class TruckContext {
       this.host.apply(scavenge(w, stockId));
       this.host.pushEvents();
     }
+  }
+
+  private surveySite(contractId: string, site: string, combat?: number): void {
+    const w = this.host.world();
+    if (isBusy(playerVehicle(w)) || combat !== undefined) return;
+    this.host.apply(startSurvey(w, contractId, site));
+    this.host.pushEvents();
   }
 
   private lootStock(stockId: string): void {

@@ -149,12 +149,12 @@ function foesSeen(world: World, me: Vehicle): SeenFoe[] {
     .map((v) => ({ id: v.id, who: `${v.brain?.templateId ?? v.faction}/${v.chassisId}`, dist: Math.round(dist(v.pos, me.pos)), odds: Math.round(100 * fightOddsAgainst(world, me, v).win), speed: Math.round(vehicleStats(world, v).maxSpeed * 10) / 10 }));
 }
 
-const OWN = new Set(['money', 'contract', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
+const OWN = new Set(['money', 'contract', 'claimRival', 'claimLead', 'death', 'knockout', 'wake', 'skillUp', 'supply', 'townPatch', 'scrapPatch', 'searched', 'discover', 'outpostReached', 'roadOpened', 'runLost']);
 const QUIET = new Set(['practice', 'activity', 'arrived', 'spawn', 'despawn', 'info', 'weather']);
 
 export function touchesPlayer(e: GameEvent, me: string): boolean {
   if (QUIET.has(e.t)) return false;
-  if (OWN.has(e.t)) return true;
+  if (OWN.has(e.t) || (e.t === 'shopMoney' && e.kind === 'claimReward')) return true;
   return JSON.stringify(e).includes(`"${me}"`);
 }
 
@@ -163,11 +163,15 @@ function truck(world: World, id: string): string {
   return v ? `${id}:${v.brain?.templateId ?? 'player'}/${v.chassisId}` : id;
 }
 
+function contractLine(e: Extract<GameEvent, { t: 'contract' }>): string {
+  return `contract ${e.outcome} ${e.contract.kind}${e.cause ? ` ${e.cause}` : ''}`;
+}
+
 export function describe(world: World, e: GameEvent): string {
   if (e.t === 'say') return `say ${e.speaker}: ${e.line}`;
   if (e.t === 'shot') return `shot ${truck(world, e.shooter)}>${truck(world, e.target)} ${e.weapon} hits ${e.rounds.filter((r) => r.hit).length}/${e.rounds.length}`;
   if (e.t === 'money') return `money ${e.amount} ${e.reason.kind}`;
-  if (e.t === 'contract') return `contract ${e.outcome} ${e.contract.kind}`;
+  if (e.t === 'contract') return contractLine(e);
   if (e.t === 'stateEnded') return `stateEnded ${e.state.kind}:${e.state.holder}>${e.state.other} ${e.ending}`;
   const { t, ...rest } = e;
   return `${t} ${JSON.stringify(rest)}`;

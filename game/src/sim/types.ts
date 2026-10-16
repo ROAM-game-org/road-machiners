@@ -136,6 +136,7 @@ export type Job =
   | { kind: "search"; stockId: string; turnsLeft: number; total: number }
   | { kind: "strip"; partId: string; turnsLeft: number; total: number }
   | { kind: "weld"; turnsLeft: number; total: number }
+  | { kind: "survey"; contractId: string; site: string; turnsLeft: number; total: number }
   | { kind: "business"; siteId: string; deal: BusinessDeal; turnsLeft: number; total: number }
   | RefitJob;
 
@@ -179,7 +180,7 @@ export type WeatherEvent =
 
 export type GoalReason =
   | 'arrived' | 'calledOut' | 'avoidCostlyFight' | 'bringAid' | 'buyCargo' | 'cannotAffordCargo' | 'cannotDrive' | 'cargoFullLoad'
-  | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
+  | 'cargoFullLoot' | 'cargoFullSalvage' | 'choseNew' | 'claimedWreck' | 'claimOver' | 'claimRun' | 'collectSalvage' | 'combatStopsLooting' | 'combatStopsRepair'
   | 'combatStopsSearch' | 'contactGone' | 'damagedThreatened' | 'defendLoot' | 'deliverCargo' | 'droppedTow'
   | 'escapeAttacker' | 'escapeThreat' | 'explore' | 'exploredSpot' | 'fightBack' | 'fightHostile' | 'finishedRepairs'
   | 'finishedService' | 'fitAgain' | 'followLeader' | 'foundNothing' | 'heardHostile' | 'helpStranded'
@@ -265,7 +266,7 @@ export type DriverResources = {
 export type NpcActivity = {
   kind:
     | 'scavenge' | 'prowl' | 'sell' | 'trade' | 'resupply' | 'raid' | 'fight' | 'flee' | 'wait' | 'investigate' | 'tow' | 'loot' | 'repair' | 'patch'
-    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow';
+    | 'meet' | 'retreat' | 'rearm' | 'patrol' | 'travel' | 'explore' | 'haul' | 'follow' | 'claim';
   targetId: string | null;
   destination: Vec | null;
   phase: "travel" | "act";
@@ -278,6 +279,8 @@ export type NpcActivity = {
   until?: number;
   watchUntil?: number;
   leg?: { from: Vec; turn: number };
+  claim?: string;
+  left?: string[];
   posted?: true;
 };
 
@@ -417,6 +420,8 @@ export type CallVar =
   | { kind: "prices"; town: string; goods: { good: string; buy: number; sell: number }[] }
   | { kind: "tip"; tip: { shop: string; good: string; dear: boolean } | null }
   | { kind: "sighting"; driver: string; seen: { bearing: number; tiles: number; turns: number; heading: number } | null }
+  | { kind: "bearing"; rad: number }
+  | { kind: "distance"; tiles: number }
   | { kind: "answer"; option: string }
   | { kind: "line"; line: LineId }
   | { kind: "directions"; steps: DirectionStep[] };
@@ -502,7 +507,7 @@ export type VehicleHits = { vehicle: string; hits: PartHit[] };
 
 export type PassReason = 'nothing' | 'busy' | 'outgunned' | 'poorLoad' | 'chance';
 
-export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay';
+export type ShopMoneyKind = 'fuel' | 'supplies' | 'repair' | 'cargoBuy' | 'cargoSale' | 'partSale' | 'campSale' | 'patrolPay' | 'dispatchPay' | 'claimReward';
 
 export type EscortEnd = 'arrived' | 'strayed' | 'hostile' | 'knockedOut' | 'stuck' | 'apartAtArrival' | 'lost';
 
@@ -527,7 +532,10 @@ export type GameEvent =
   | { t: 'practice'; source: XpSource; amount: number; difficulty: number | null; target: string; xp: number }
   | { t: 'skillUp'; skill: SkillId; level: number }
   | { t: 'money'; amount: number; reason: MoneyReason }
-  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart' }
+  | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'surveyed' | 'fulfilled' | 'done' | 'failed' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
+  | { t: 'contract'; contract: Contract; outcome: 'found'; site: string; cause?: undefined }
+  | { t: 'claimRival'; contract: string; vehicle: string }
+  | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
   | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }
   | { t: 'note'; id: NoteId }
