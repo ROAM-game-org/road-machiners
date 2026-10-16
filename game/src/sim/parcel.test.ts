@@ -27,7 +27,7 @@ function withParcel(w: World): ParcelItem {
 function robberScene(): { w: World; robber: Vehicle } {
   forceOption('preySeen', 'rob');
   const w = emptyWorld({ x: 15, y: 10 });
-  const robber = addVehicle(w, 'scavengers', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
+  const robber = addVehicle(w, 'independent', 'wagon', ['heavyMg', 'mg', 'stockEngine'], { x: 10, y: 10 });
   robber.brain = npcBrain('scavenger', robber.pos, ['scavenger', 'scumbag']);
   addGoods(w, playerVehicle(w), 'scrap', 2);
   withParcel(w);
@@ -94,9 +94,9 @@ describe('the parcel cargo item', () => {
 
 function meetingScene(): { w: World; target: Vehicle; other: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const target = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 33, y: 30 });
+  const target = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 33, y: 30 });
   target.brain = npcBrain('trader', target.pos, ['trader']);
-  const other = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30, y: 33 });
+  const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30, y: 33 });
   other.brain = npcBrain('trader', other.pos, ['trader']);
   w.player.contracts.push({
     id: 'ct-search', shop: 'bowl', kind: 'search', target: target.id, driver: target.brain.driver, template: 'trader',
@@ -139,7 +139,7 @@ describe('handing the parcel over', () => {
 
   it('breaks the meeting when the target gets into a fight, and leaves the parcel undelivered', () => {
     const { w, target } = meetingScene();
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 36 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 36 });
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     askHandover(w, target);
     startCombat(w, raider, target);
