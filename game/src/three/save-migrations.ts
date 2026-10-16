@@ -875,9 +875,23 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withSceneHubsAtSceneStart_61_62,
   withEscortJobs_62_63,
   withRescueContracts_63_64,
-  withoutBearingCall_64_65,
-  withCountableDirections_65_66,
+  withEncounters_64_65,
+  withProgressAnchor_65_66,
+  (world) => world,
+  withSearches_67_68,
+  withParcelSearches_68_69,
+  withoutBearingCall_69_70,
+  withCountableDirections_70_71,
 ];
+
+function withProgressAnchor_65_66(world: SavedJson): SavedJson {
+  const anchored = (v: SavedJson): SavedJson => {
+    const brain = v.brain as SavedJson | null;
+    if (!brain?.progress) return v;
+    return { ...v, brain: { ...brain, progress: { ...(brain.progress as SavedJson), at: { ...(v.pos as SavedJson) } } } };
+  };
+  return { ...world, vehicles: (world.vehicles as SavedJson[]).map(anchored) };
+}
 
 const LAWMEN_59_60: readonly string[] = ['bowlFarmer', 'noseArmy'];
 const SHOPS_59_60: readonly string[] = ['bowl', 'nose', 'salvage-yard', 'granary', 'pump-station', 'dustwell', 'green-pit'];
@@ -897,6 +911,29 @@ function withDutyLegs_59_60(world: SavedJson): SavedJson {
     return { ...v, brain: { ...brain, goals } };
   });
   return { ...world, vehicles };
+}
+
+function withSearches_67_68(world: SavedJson): SavedJson {
+  return world;
+}
+const withoutSearches_68_69 = (contracts: SavedJson[]): SavedJson[] => contracts.filter((c) => c.kind !== 'search');
+function withoutFoundTalk_68_69(talked: Record<string, SavedJson>): Record<string, SavedJson> {
+  return Object.fromEntries(Object.entries(talked).map(([npc, topics]) => [npc, Object.fromEntries(Object.entries(topics).filter(([topic]) => topic !== 'found'))]));
+}
+function withParcelSearches_68_69(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  const call = player.call as SavedJson | null;
+  const shops = Object.fromEntries(Object.entries(world.shops as Record<string, SavedJson>).map(([id, shop]) => [id, { ...shop, contracts: withoutSearches_68_69(shop.contracts as SavedJson[]) }]));
+  return {
+    ...world,
+    shops,
+    player: {
+      ...player,
+      contracts: withoutSearches_68_69(player.contracts as SavedJson[]),
+      talked: withoutFoundTalk_68_69(player.talked as Record<string, SavedJson>),
+      call: call?.topic === 'found' ? null : call,
+    },
+  };
 }
 
 function withRescueContracts_63_64(world: SavedJson): SavedJson {
@@ -995,24 +1032,24 @@ function withSceneHubsAtSceneStart_61_62(world: SavedJson): SavedJson {
   return PAGE_HUB_CHECKPOINTS_61_62.reduce((w, [quest, from, to]) => moveQuestCheckpoint(w, quest, from, to), world);
 }
 
-const BEARING_LINES_64_65: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked'];
+const BEARING_LINES_69_70: readonly string[] = ['townBearing', 'siteBearing', 'aWreckNobodyPicked'];
 
-function withoutBearingCall_64_65(world: SavedJson): SavedJson {
+function withoutBearingCall_69_70(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   const said = (call?.line as SavedJson | undefined)?.line;
-  return typeof said === 'string' && BEARING_LINES_64_65.includes(said) ? { ...world, player: { ...player, call: null } } : world;
+  return typeof said === 'string' && BEARING_LINES_69_70.includes(said) ? { ...world, player: { ...player, call: null } } : world;
 }
 
-const MAX_COUNT_65_66 = 3;
+const MAX_COUNT_70_71 = 3;
 
-function countedPast_65_66(step: SavedJson): boolean {
+function countedPast_70_71(step: SavedJson): boolean {
   const at = step.at as SavedJson | undefined;
-  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_65_66;
+  return (step.do === 'turn' || step.do === 'leave') && at?.kind === 'fork' && (at.nth as number) > MAX_COUNT_70_71;
 }
 
-function countableSteps_65_66(steps: SavedJson[]): SavedJson[] {
-  const cut = steps.findIndex(countedPast_65_66);
+function countableSteps_70_71(steps: SavedJson[]): SavedJson[] {
+  const cut = steps.findIndex(countedPast_70_71);
   const kept = cut < 0 ? steps : [...steps.slice(0, cut), { do: 'askAgain' }];
   return kept.map((step) => {
     if (step.do !== 'askAgain') return step;
@@ -1021,20 +1058,26 @@ function countableSteps_65_66(steps: SavedJson[]): SavedJson[] {
   });
 }
 
-function countableVars_65_66(vars: SavedJson): SavedJson {
+function countableVars_70_71(vars: SavedJson): SavedJson {
   return Object.fromEntries(Object.entries(vars).map(([name, v]) => {
     const value = v as SavedJson;
-    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_65_66(value.steps as SavedJson[]) } : value];
+    return [name, value.kind === 'directions' ? { ...value, steps: countableSteps_70_71(value.steps as SavedJson[]) } : value];
   }));
 }
 
-function withCountableDirections_65_66(world: SavedJson): SavedJson {
+function withCountableDirections_70_71(world: SavedJson): SavedJson {
   const player = world.player as SavedJson;
   const call = player.call as SavedJson | null;
   if (!call) return world;
   const line = call.line as SavedJson;
-  const next = { ...call, vars: countableVars_65_66(call.vars as SavedJson), line: { ...line, vars: countableVars_65_66(line.vars as SavedJson) } };
+  const next = { ...call, vars: countableVars_70_71(call.vars as SavedJson), line: { ...line, vars: countableVars_70_71(line.vars as SavedJson) } };
   return { ...world, player: { ...player, call: next } };
+}
+
+function withEncounters_64_65(world: SavedJson): SavedJson {
+  const player = world.player as SavedJson;
+  if (player.encounters !== undefined) return world;
+  return { ...world, player: { ...player, encounters: { next: 0, pending: null, story: null } } };
 }
 
 type SavedQuests = { world: SavedJson; local: Record<string, SavedJson>; session: { quest: string; checkpoint: string; seed: number } | null };

@@ -10,7 +10,7 @@ import { chooseQuestOption, QUEST_QUERIES, leaveQuest, questProblems, questView,
 import { defaultSetup } from './settings';
 import { compileBundle, readQuestSources, withEnglishTwins } from '../test/quest-compile';
 import type { World } from './types';
-import { newWorld } from './world';
+import { cloneWorld, newWorld } from './world';
 
 type QuestBundle = QUEST_DATA.QuestBundle;
 
@@ -107,7 +107,7 @@ function inlineBundle(quest: string): QuestBundle {
 }
 
 function withoutLive(w: World): World {
-  const copy = structuredClone(w);
+  const copy = cloneWorld(w);
   copy.player.quests.live = null;
   return copy;
 }

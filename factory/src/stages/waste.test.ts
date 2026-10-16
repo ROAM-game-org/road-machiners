@@ -9,7 +9,7 @@ import { parseBrief, reviewPendingPath, runStage } from './waste';
 
 const HOME = resolve('tmp/factory-waste-test');
 const NOW = new Date('2026-10-10T09:00:00Z');
-const BRIEF = 'BOTTLENECK: Cards waited 204 min for the verify queue.\nCHANGE:\nSet FACTORY_VERIFY_WORKERS to 2 in factory/settings.env.';
+const BRIEF = JSON.stringify({ bottleneck: 'Cards waited 204 min for the verify queue.', change: 'Set FACTORY_VERIFY_WORKERS to 2 in factory/settings.env.' });
 
 const CHANGE_ID = 1791571868706;
 
@@ -32,7 +32,7 @@ function fakeCtx(brief: string | null, faults: Faults = {}): { ctx: Ctx; seen: S
         const issue = `${run.clone}/${run.dir}/.factory/issues/issue-7.md`;
         seen.inputs = [existsSync(issue) ? readFileSync(issue, 'utf8') : '', readFileSync(`${run.clone}/${run.dir}/.factory/earlier-reviews.md`, 'utf8')];
         if (faults.agent) throw new Error('The agent exited with code 1');
-        if (brief !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/brief.md`, brief);
+        if (brief !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/brief.json`, brief);
       },
     },
     github: {
@@ -111,7 +111,7 @@ describe('waste review', () => {
   });
 
   it('hands a review with no waste to Hermes too, since the numbers may still jump', async () => {
-    const { ctx, seen } = fakeCtx('BOTTLENECK: none\n');
+    const { ctx, seen } = fakeCtx(JSON.stringify({ bottleneck: 'none', change: '' }));
     await runStage(ctx);
     expect(seen.issues[0].body).toContain('## Proposed change\n\nNo change proposed.');
     expect(existsSync(reviewPendingPath(HOME))).toBe(true);
@@ -119,7 +119,7 @@ describe('waste review', () => {
 
   it('fails loud when the agent wrote no brief, and keeps the period for the retry', async () => {
     const { ctx, seen } = fakeCtx(null);
-    await expect(runStage(ctx)).rejects.toThrow('wrote no .factory/brief.md');
+    await expect(runStage(ctx)).rejects.toThrow('wrote no .factory/brief.json');
     expect(readState(ctx.statePath).lastWasteReview).toBe('2026-10-03T09:00:00Z');
     expect(seen.issues).toEqual([]);
   });
@@ -204,8 +204,14 @@ describe('parseBrief', () => {
   });
 
   it('refuses a brief in the wrong shape', () => {
-    expect(() => parseBrief('The queue is slow.')).toThrow('must start with');
-    expect(() => parseBrief('BOTTLENECK: slow\nfix it')).toThrow('second line must be "CHANGE:"');
-    expect(() => parseBrief('BOTTLENECK: slow\nCHANGE:\n  ')).toThrow('empty change');
+    expect(() => parseBrief(null)).toThrow('wrote no .factory/brief.json');
+    expect(() => parseBrief('"slow"')).toThrow('not an object');
+    expect(() => parseBrief('{"bottleneck":"","change":"x"}')).toThrow('non-empty bottleneck');
+    expect(() => parseBrief('{"bottleneck":"slow"}')).toThrow('non-empty change');
+    expect(() => parseBrief('{"bottleneck":"slow","change":"  "}')).toThrow('non-empty change');
+  });
+
+  it('reads no change when nothing wasted', () => {
+    expect(parseBrief('{"bottleneck":"none","change":""}')).toEqual({ bottleneck: 'none', change: null });
   });
 });

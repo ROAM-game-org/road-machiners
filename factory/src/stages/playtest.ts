@@ -1,13 +1,15 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { phaseLine, stepScript } from '../activity';
+import { agentOutputPath } from '../agent-output';
 import { testPoolPin } from '../cpus';
 import { checkScope } from '../deploy';
 import { must } from '../exec';
 import { roundSession } from '../sessions';
 import { updateState } from '../state';
 import { BUG_LABEL, GAME_DIR, OUT_DIR, type AgentSession, type Ctx, type PlaytestState, type ReleaseState } from '../types';
-import { CACHED_SUITE, checkScript, checkUntilReal, oneSuiteAtATime, runChecks, suiteEnv, testCacheMount } from './checks';
+import { type CheckOutcome, checkScript, checkUntilReal, runChecks } from './checks';
+import { remoteSuite } from './remote-suite';
 import { guardDiff } from '../diff-guard';
 import { agentHome, fillPrompt, playtestCommand, readOutput, resetOutputs } from './common';
 import { mergeResolving } from './merge-resolve';
@@ -24,7 +26,12 @@ export type RunMeta = {
 };
 
 type Baseline = { branch: string; sha: string; kind: string };
-type Session = { release: ReleaseState; dir: string; home: string; start: string; baseline: Baseline; log: string; bugs: Map<string, number>; agent: (prompt: string) => Promise<void> };
+type Session = {
+  release: ReleaseState; dir: string; home: string; start: string; baseline: Baseline; log: string; bugs: Map<string, number>; agent: (prompt: string) => Promise<void>;
+  startSuite: Promise<string | null> | null;
+};
+
+export const SUITE_BRANCH = 'factory/suite-playtest';
 type Ending = { outcome: 'clean' | 'blocked'; reason: string; head: string };
 type Next = { sha: string; prompt: string };
 type Step = Next | { end: Ending };
@@ -38,7 +45,6 @@ export async function playtest(ctx: Ctx, issue: number): Promise<void> {
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone(release.branch, release.branch, dir);
   if (!(await cloneAt(ctx, dir, start))) return;
-  await fullSuite(ctx, dir);
   const session = await openSession(ctx, release, dir, start, baseline);
   const { plays, end } = await rounds(ctx, session);
   if (end.outcome === 'blocked') return block(ctx, session, plays, end);
@@ -56,12 +62,14 @@ async function requirePlayable(ctx: Ctx, issue: number): Promise<ReleaseState> {
   return release;
 }
 
-async function fullSuite(ctx: Ctx, dir: string): Promise<void> {
-  await oneSuiteAtATime(ctx, { stage: 'playtest', issue: null }, () => ctx.container.shell(dir, stepScript('Release full suite', [['npm ci', 'npm ci'], ['tests', CACHED_SUITE]]), releaseLog(ctx, 'playtest'), suiteEnv(ctx.cfg), testCacheMount(ctx), undefined, testPoolPin(ctx.cfg)));
+function suiteOn(ctx: Ctx, release: ReleaseState, sha: string): Promise<string | null> {
+  const suite = remoteSuite(ctx, { stage: 'playtest', issue: release.issue }, sha);
+  suite.catch(() => undefined);
+  return suite;
 }
 
 async function cloneAt(ctx: Ctx, dir: string, sha: string): Promise<boolean> {
-  const head = must(await ctx.run('git', ['-C', dir, 'rev-parse', 'HEAD']), 'git rev-parse in the playtest clone').trim();
+  const head = must(await ctx.run('git', ['-C', dir, 'rev-parse', 'HEAD'], { activity: 'git' }), 'git rev-parse in the playtest clone').trim();
   if (head.startsWith(sha)) return true;
   ctx.log('playtest', null, `the clone is at ${head.slice(0, sha.length)}, not the release head ${sha}, since the release moved. Nothing played.`);
   return false;
@@ -78,7 +86,7 @@ async function openSession(ctx: Ctx, release: ReleaseState, dir: string, start: 
     await ctx.container.agent({ clone: dir, dir: GAME_DIR, model: ctx.cfg.designModel, prompt, log, session: agentSession });
     agentSession = { ...agentSession, resume: true };
   };
-  return { release, dir, home, start, baseline, log, bugs: new Map(), agent };
+  return { release, dir, home, start, baseline, log, bugs: new Map(), agent, startSuite: suiteOn(ctx, release, start) };
 }
 
 async function baselineOf(ctx: Ctx, release: ReleaseState): Promise<Baseline> {
@@ -118,12 +126,25 @@ async function playRound(ctx: Ctx, session: Session, next: Next, play: number): 
 async function afterRound(ctx: Ctx, session: Session, round: Round): Promise<Step> {
   const { outcome, sha, head, play } = round;
   if (outcome.outcome === 'blocked') return { end: { outcome: 'blocked', reason: outcome.reason, head: sha } };
+  const startFailure = await startSuiteFailure(session);
+  if (startFailure !== null) return checksFailed(ctx, session, session.start, startFailure, play);
   if (outcome.outcome === 'replay') return { sha: head, prompt: replayPrompt(ctx, session, head, play + 1) };
   if (sha === session.start) return { end: { outcome: 'clean', reason: outcome.reason, head: sha } };
   const failure = await checkFixes(ctx, session, sha);
   if (failure === null) return { end: { outcome: 'clean', reason: outcome.reason, head: sha } };
-  ctx.log('playtest', session.release.issue, `the factory checks failed on the fixes at ${sha}\n${failure}`);
-  if (play === ctx.cfg.playtestRuns) return { end: { outcome: 'blocked', reason: `The factory checks failed on the fixes at ${sha}, and no play is left. The log is ${releaseLog(ctx, 'playtest-checks')}.`, head: sha } };
+  return checksFailed(ctx, session, sha, failure, play);
+}
+
+async function startSuiteFailure(session: Session): Promise<string | null> {
+  if (session.startSuite === null) return null;
+  const failure = await session.startSuite;
+  session.startSuite = null;
+  return failure;
+}
+
+async function checksFailed(ctx: Ctx, session: Session, sha: string, failure: string, play: number): Promise<Step> {
+  ctx.log('playtest', session.release.issue, `the factory checks failed at ${sha}\n${failure}`);
+  if (play === ctx.cfg.playtestRuns) return { end: { outcome: 'blocked', reason: `The factory checks failed at ${sha}, and no play is left. The log is ${releaseLog(ctx, 'playtest-checks')}.`, head: sha } };
   return fixChecks(ctx, session, sha, failure, play + 1);
 }
 
@@ -152,7 +173,7 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
   const dir = join(ctx.cfg.home, 'work', 'release-baseline');
   rmSync(dir, { recursive: true, force: true });
   await ctx.repo.prepareWorkClone(baseline.branch, baseline.branch, dir);
-  must(await ctx.run('git', ['-C', dir, 'checkout', '--quiet', '--detach', baseline.sha]), 'git checkout of the playtest baseline');
+  must(await ctx.run('git', ['-C', dir, 'checkout', '--quiet', '--detach', baseline.sha], { activity: 'git' }), 'git checkout of the playtest baseline');
   await harness(ctx, session, dir, baseline.sha, 'Playing the baseline seed');
   const log = join(agentHome(dir, GAME_DIR), LOG);
   const facts = readFacts(ctx, session.release, log, baseline.sha);
@@ -164,7 +185,7 @@ async function playBaseline(ctx: Ctx, session: Session): Promise<void> {
 async function harness(ctx: Ctx, session: Session, dir: string, sha: string, phase: string): Promise<void> {
   const { seed } = session.release.playtest;
   const play = `npm run progression:playthrough -- --seed ${seed} --turns ${ctx.cfg.playtestTurns} --sha ${sha} --out ${LOG}`;
-  await ctx.container.shell(dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
+  await ctx.container.shell('checks', dir, stepScript(phase, [['npm ci', 'npm ci'], ['playtest', play]]), session.log);
 }
 
 function readFacts(ctx: Ctx, release: ReleaseState, path: string, sha: string): LogFacts {
@@ -179,15 +200,18 @@ async function cloneHead(ctx: Ctx, session: Session): Promise<string> {
 }
 
 async function checkFixes(ctx: Ctx, session: Session, sha: string): Promise<string | null> {
-  const dirty = must(await ctx.run('git', ['-C', session.dir, 'status', '--porcelain']), 'git status in the playtest clone').trim();
+  const dirty = must(await ctx.run('git', ['-C', session.dir, 'status', '--porcelain'], { activity: 'git' }), 'git status in the playtest clone').trim();
   if (dirty !== '') return `The clone has changes that are not committed, so the checks cannot run on the reviewed commit ${sha}. Commit them or remove them:\n${dirty}`;
-  guardDiff(await ctx.repo.diff(session.start, sha));
+  guardDiff({ files: await ctx.repo.changedFiles(session.start, sha), diff: await ctx.repo.diff(session.start, sha) });
   checkScope(sha);
+  await ctx.repo.replaceBranch(sha, SUITE_BRANCH);
+  const suite = suiteOn(ctx, session.release, sha);
   const log = releaseLog(ctx, 'playtest-checks');
-  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false))}`;
+  const script = `${phaseLine('Checking the playtest fixes')}\n${checkScript(playtestCommand(ctx.cfg, false), '')}`;
   const at = { stage: 'playtest' as const, issue: session.release.issue };
-  const check = (): Promise<string | null> => oneSuiteAtATime(ctx, at, () => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg)));
-  return checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
+  const check = (): Promise<CheckOutcome> => runChecks(ctx, at, session.dir, script, log, { BUILD_SCOPE: sha }, testPoolPin(ctx.cfg));
+  const failure = await checkUntilReal(check, (run) => ctx.log('playtest', session.release.issue, `the checks only timed out, run ${run}, running them again`));
+  return failure ?? await suite;
 }
 
 function countPlay(ctx: Ctx): { run: number } {
@@ -222,7 +246,7 @@ async function land(ctx: Ctx, session: Session): Promise<boolean> {
   } catch (error) {
     await ctx.repo.fetch();
     if ((await ctx.repo.headHash(release.branch)) === session.start) throw error;
-    await mergeResolving(ctx, 'playtest', [{ branch: commit, into: release.branch, message: `Merge the release playtest fixes into ${release.branch}` }]);
+    await mergeResolving(ctx, 'playtest', [{ branch: commit, into: release.branch, message: `Merge the release playtest fixes into ${release.branch}`, issue: null }]);
     return false;
   }
 }
@@ -291,8 +315,8 @@ function keepAudit(ctx: Ctx, release: ReleaseState, home: string, meta: RunMeta)
   const dir = auditDir(ctx, release, meta.run);
   mkdirSync(dir, { recursive: true });
   for (const name of ['playtest/log.jsonl', 'playtest/baseline.jsonl', 'playtest-facts.json', 'playtest-baseline-facts.json', 'playtest.json', 'playtest.md']) {
-    const from = join(home, OUT_DIR, name);
-    if (existsSync(from)) copyFileSync(from, join(dir, name.replace('playtest/', '')));
+    const from = agentOutputPath(home, name);
+    if (from !== null) copyFileSync(from, join(dir, name.replace('playtest/', '')));
   }
   writeFileSync(join(dir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`);
 }

@@ -37,10 +37,12 @@ import { noteHurt, resolveNpcActivities } from './npc-activities';
 import { watchStalls } from './npc-watchdog';
 import { advanceStates } from './states';
 import { forgetOld } from './memory';
+import { lapseEncounter } from './encounters';
 import { checkBeacon, dropStrandedTowers, followTower, isTowed, playerTow } from './tow';
 import { endCallIfOut, raiseCalls } from './dialogue';
 import { advancePatches } from './patch';
 import { advanceAid, readyAid } from './aid';
+import { readyHandover } from './parcel';
 import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Vehicle, WeaponOrder, World, WorldSettings, WorldSetup, XpSource } from './types';
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, type CarriedQuestVars } from './quests';
@@ -107,6 +109,7 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
       perks: [],
       marked: [],
       rumored: [],
+      encounters: { next: 0, pending: null, story: null },
       notes: [],
       health: startHealth(kit),
       fuel: kit.fuel,
@@ -288,8 +291,12 @@ export function autoRuns(world: World): boolean {
   const p = world.player;
   if (p.call || p.quests.live) return false;
   if (p.state === 'knockedOut' || isTowed(world)) return true;
-  if (readyAid(world)) return false;
+  if (readyDeal(world)) return false;
   return waitsOnBeacon(world);
+}
+
+function readyDeal(world: World): boolean {
+  return readyAid(world) !== null || readyHandover(world) !== null;
 }
 
 export function isAtRest(v: Vehicle): boolean {
@@ -382,6 +389,7 @@ export function endTurn(
     advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
+    lapseEncounter(w);
     resolveNpcActivities(w);
     noteEngagements(w);
     discoverSites(w);

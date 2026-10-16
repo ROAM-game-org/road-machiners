@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { DOWNLOAD } from "../config";
+import { AssetUnreachable } from "../fetch-asset";
 import { reportError } from "./crash";
-import { WorkerLoad, workerFailure } from "./worker-load";
+import { WORKER_LOAD_ATTEMPTS, WORKER_RETRY_DELAYS_MS, WorkerLoad, workerFailure } from "./worker-load";
 
 vi.mock("./crash", () => ({ reportError: vi.fn() }));
 
@@ -19,10 +19,27 @@ it("leaves an error with a message to the caller", () => {
 it("waits the download back-off in order, then gives up once", () => {
   const waits: number[] = [];
   const load = new WorkerLoad("turn worker", (ms) => waits.push(ms));
-  for (let i = 0; i < DOWNLOAD.tries; i++) expect(load.failed(silent, vi.fn())).toBe(true);
-  expect(waits).toEqual(DOWNLOAD.waitMs);
+  for (let i = 0; i < WORKER_LOAD_ATTEMPTS; i++) expect(load.failed(silent, vi.fn())).toBe(true);
+  expect(waits).toEqual([...WORKER_RETRY_DELAYS_MS]);
   expect(load.gaveUp).toBe(true);
   expect(reportError).toHaveBeenCalledOnce();
+  const err = vi.mocked(reportError).mock.calls[0][0] as AssetUnreachable;
+  expect(err.name).toBe("DownloadFailed");
+  expect(err).toBeInstanceOf(AssetUnreachable);
+  expect(err.attempts).toBe(6);
+  expect(err.message).toContain("turn worker");
+});
+
+it("keeps the shipped back-off", () => {
+  expect(WORKER_RETRY_DELAYS_MS).toEqual([500, 1000, 2000, 4000, 4000]);
+  expect(WORKER_LOAD_ATTEMPTS).toBe(6);
+});
+
+it("names the script url of a silent failure", () => {
+  const load = new WorkerLoad("turn worker", vi.fn());
+  const event = { message: "", filename: "turn.js", lineno: 3 } as ErrorEvent;
+  for (let i = 0; i < WORKER_LOAD_ATTEMPTS; i++) load.failed(event, vi.fn());
+  expect((vi.mocked(reportError).mock.calls[0][0] as AssetUnreachable).url).toBe("turn.js");
 });
 
 it("counts again from zero after an answer", () => {
@@ -32,7 +49,7 @@ it("counts again from zero after an answer", () => {
   load.failed(silent, vi.fn());
   load.loaded();
   load.failed(silent, vi.fn());
-  expect(waits).toEqual([...DOWNLOAD.waitMs, DOWNLOAD.waitMs[0]]);
+  expect(waits).toEqual([500, 1000, 500]);
 });
 
 it("names the script location of a failed load", () => {

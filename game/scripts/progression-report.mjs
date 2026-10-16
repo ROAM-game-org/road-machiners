@@ -11,6 +11,7 @@ import { UNITS } from '../src/data/units.ts';
 import { parseRun, replay, targetMisses, WORTH_KEYS } from '../src/sim/progression/replay.ts';
 import { LEDGER_KEYS } from '../src/sim/progression/orders.ts';
 import { fightTotals, ledgerTotals, TIERS, tierDays, wageByTier } from '../src/sim/progression/record.ts';
+import { measuredRewardTurns, searchEffort } from '../src/sim/progression/turn-log.ts';
 
 const dirs = process.argv.slice(2).filter((a) => a !== '--');
 if (dirs.length > 2) throw new Error('Pass one dir to report on, or two to compare');
@@ -122,7 +123,8 @@ function gainPerTurn(run) {
 async function readRun(path) {
   const run = parseRun(await readValues(path), path);
   const curve = replay(run.trace, run.turns);
-  return { ...run, curve, misses: targetMisses(curve, run.archetype, run.turns) };
+  const search = run.archetype === 'searcher' ? searchEffort(await readValues(path.replace(/\.jsonl$/, '.turns.jsonl'))) : null;
+  return { ...run, curve, search, misses: targetMisses(curve, run.archetype, run.turns) };
 }
 
 async function readValues(path) {
@@ -138,6 +140,21 @@ function printArchetype(archetype, group) {
   printEndings(group);
   printSkills(group);
   printEconomy(group);
+  if (archetype === 'searcher') printSearchEffort(group);
+}
+
+function printSearchEffort(group) {
+  const all = group.map((r) => r.search);
+  const sum = (key) => all.reduce((n, s) => n + s[key], 0);
+  const efforts = all.flatMap((s) => s.efforts);
+  const effort = median(efforts);
+  const cost = all.reduce((n, s) => n + s.runningCost * s.turns, 0) / sum('turns');
+  console.log('\nSearch effort');
+  console.log(`searches ${sum('accepted')}: claimed ${sum('claimed')}, failed ${sum('failed')}, lapsed ${sum('lapsed')}, open at the end ${sum('open')}`);
+  console.log(`turns from accept to claim: median ${effort}, each ${efforts.join(', ')}`);
+  console.log(`turns searching per paid search, failures included: ${(sum('searchTurns') / Math.max(1, sum('claimed'))).toFixed(0)}`);
+  console.log(`running cost a turn: ${inM(3)(cost)} M`);
+  console.log(`rewardTurns from the median: ${efforts.length > 0 ? measuredRewardTurns(effort, cost) : 'no claimed search'}`);
 }
 
 function printEndings(group) {

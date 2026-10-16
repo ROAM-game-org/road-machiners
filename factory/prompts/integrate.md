@@ -11,9 +11,9 @@ The approval still holds for the same behavior on newer main.
 Your task is to bring main in and keep both: the fix as the committee approved it, and every change main gained.
 You do not build anything new in this round.
 
-Read CLAUDE.md first.
-Follow it.
-Run `npm ci` before anything else. The factory removes installed packages from clones between stages, and the commit hook needs them.
+{{gameDocs}}
+
+Run `npm ci` right after the docs step, before any code, test or check. The factory removes installed packages from clones between stages, and the commit hook needs them.
 
 {{baseNote}}
 If `.factory/merge-conflicts.md` exists, that merge stopped on conflicts in the files it lists.
@@ -26,6 +26,7 @@ Then check that the merged result still does what build {{approvedBuild}} did.
 Compare `git diff {{approvedBuild}} HEAD` with what main gained, and play the fix end to end with the progression recorder, as `CLAUDE.md` says.
 Run the tests near the merged files with `npx vitest run <files>`, and `npm run typecheck`.
 Fix what the merge broke, in this session, and commit each fix.
+{{fixDocs}}
 Keep each fix mechanical: it restores the approved behavior on top of main's changes.
 
 The approval stops holding when the merge needs a product choice, or when the fix can no longer play the way the committee approved it.
@@ -45,6 +46,6 @@ That file is only for a game design fork or a major save bump.
 
 Never push.
 
-When you end, the factory runs the full suite, `npm run typecheck`, `{{playtest}}` against the dev server and the build in a fresh clone of your branch.
+When you end, the factory runs the full suite on GitHub Actions, and `{{playtest}}` against the dev server and the build in a fresh clone of your branch.
 If they fail, the failure comes back to you in this conversation. Fix it, commit, and end again.
 The hotfix ships only on the commit those checks pass.

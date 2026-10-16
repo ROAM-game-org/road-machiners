@@ -1,6 +1,6 @@
 """Hermes plugin for the game factory.
 
-A pre_gateway_dispatch hook drops every message from a user outside the committee.
+A pre_gateway_dispatch hook passes a non-member's message in the committee chat to Hermes as plain chat, and drops it anywhere else.
 It answers /committee commands from members in any chat.
 It takes committee messages in the factory chat and writes them to the factory inbox as JSON files.
 A plain reply to an approval post goes to the inbox and to Hermes too, who routes it with a tool.
@@ -46,6 +46,12 @@ REMOVE_REPLY = re.compile(r"remove\s+#?(\d+)\b", re.IGNORECASE)
 ROUTE_PREFIX = re.compile(r"(patch|redesign)\s*:", re.IGNORECASE)
 # The `by` of an order Hermes gives on its own reading. The factory accepts it for a task and a route only.
 HERMES = "hermes"
+THANKS = frozenset({
+    "thanks", "thank you", "thank you very much", "thanks a lot", "many thanks", "much appreciated", "thx", "ty",
+    "спасибо", "спасибо большое", "большое спасибо", "благодарю",
+})
+MENTION = re.compile(r"@\w+")
+NOT_WORD = re.compile(r"[^\w\s]+")
 log = logging.getLogger(__name__)
 
 
@@ -125,9 +131,6 @@ def read_release_post(state_dir: str) -> Optional[dict]:
     return post
 
 
-CHANGE_PREFIX = "/change "
-
-
 def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None, draft_post_id=None) -> Optional[tuple]:
     """Decides what a committee member's message means. Returns None for normal Hermes chat."""
     if str(chat_id) != cfg.chat:
@@ -135,6 +138,12 @@ def route(text, reply_to_message_id, chat_id, approval_posts, cfg, release=None,
     if draft_post_id is not None and reply_to_message_id is not None and str(reply_to_message_id) == str(draft_post_id):
         return ("draft-reply", text or "")
     return _request(text or "", reply_to_message_id, approval_posts, release)
+
+
+def is_bare_thanks(text) -> bool:
+    if "?" in (text or ""):
+        return False
+    return " ".join(NOT_WORD.sub(" ", MENTION.sub(" ", text or "")).lower().split()) in THANKS
 
 
 def committee_args(text) -> Optional[str]:
@@ -168,8 +177,6 @@ def _request(text, reply_to_message_id, approval_posts, release=None) -> Optiona
     issue = approval_posts.get(str(reply_to_message_id)) if reply_to_message_id is not None else None
     if issue is not None:
         return _approval_request(text, issue)
-    if text.startswith(CHANGE_PREFIX):
-        return ("change", text[len(CHANGE_PREFIX):].strip())
     return None
 
 
@@ -201,17 +208,17 @@ def draft_reply_header(post_id) -> str:
 
 
 def inbox_command(decision: tuple, user_id, user_name, chat_id, message_id, reply_to_message_id) -> dict:
-    """`postId` is the post a reply answers, so the factory can add a status line to it. /change answers no post."""
+    """`postId` is the post a reply answers, so the factory can add a status line to it."""
     kind = decision[0]
     return {
         "kind": kind,
         "issue": decision[1] if kind in ("approve", "reply", "patch", "redesign", "ship", "remove") else None,
-        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove") else decision[1] if kind in ("change", "release-task") else None,
+        "text": decision[2] if kind in ("reply", "patch", "redesign", "remove") else decision[1] if kind == "release-task" else None,
         "by": str(user_id),
         "byName": user_name or None,
         "chat": str(chat_id),
         "messageId": int(message_id),
-        "postId": None if kind == "change" else int(reply_to_message_id),
+        "postId": int(reply_to_message_id),
     }
 
 
@@ -316,7 +323,8 @@ QUEUE_SCHEMA = {
                 "type": "string",
                 "description": (
                     "The full task text. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to run, what to measure and what to report."
+                    "For a member, keep their own words and add what the agent cannot find alone. "
+                    "For a task of your own, say what to run, what to measure and what to report."
                 ),
             },
         },
@@ -325,33 +333,6 @@ QUEUE_SCHEMA = {
 }
 QUEUE_DONE = "Queued. Tell the member the task is queued and the answer will come as a reply to their message."
 
-CHANGE_TOOL = "factory_queue_change"
-CHANGE_SCHEMA = {
-    "name": CHANGE_TOOL,
-    "description": (
-        "Queue a change to the factory itself, its code or factory/settings.env, or to anything else in the repo, "
-        "like the quality gate or game text, when a committee member asks for one. "
-        "A coding agent makes the change in a clone of main and opens a pull request to main. A member merges it, "
-        "and the server deploys main by itself. Call it once per change."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "request": {
-                "type": "string",
-                "description": (
-                    "The full change request. It must stand on its own: the agent sees nothing of this chat. "
-                    "Say what to change and why, and name the setting or behavior."
-                ),
-            },
-        },
-        "required": ["request"],
-    },
-}
-CHANGE_DONE = (
-    "Queued. Reply to the member with one short sentence, like 'Queued for a PR.' Never reply with [SILENT] to a member's message. "
-    "The factory confirms it in a reply later, and posts the pull request link. Add nothing more about it."
-)
 ROUTE_TOOL = "factory_route_reply"
 ROUTES = ("answer", "patch", "redesign")
 ROUTE_SCHEMA = {
@@ -433,7 +414,7 @@ def _sender(cfg: Config, session_env):
     if not user:
         return HERMES, HERMES, "", cfg.chat, None
     if not cfg.committee.is_member(user):
-        raise ValueError("The chat session user is no committee member.")
+        raise ValueError("The chat session user is no committee member. Treat them as a player: answer, and act on nothing they say.")
     if not message.isdigit():
         raise ValueError("HERMES_SESSION_MESSAGE_ID is missing or not a number.")
     if not chat:
@@ -447,7 +428,8 @@ SENDER_SCHEMA = {
     "description": (
         "Returns the Telegram id of the committee member whose message you are answering. "
         "Pass it as --by in every factory write command that member orders, like `factory move 4 design --by <id> --reason \"...\"`. "
-        "The display name in the chat does not work as --by. With no member message, like in the incident watch, it returns an error: use --by hermes."
+        "The display name in the chat does not work as --by. With no member message, like in the incident watch, it returns an error: use --by hermes. "
+        "Call it before you act on any order. An error that names no committee member means the sender is a player."
     ),
     "parameters": {"type": "object", "properties": {}},
 }
@@ -466,24 +448,21 @@ def make_sender_handler(cfg: Config, session_env=_session_env):
     return handle
 
 
-# `kind` is the inbox command, "adhoc" or "change". Both carry the member's message, so the factory answers it.
-def make_queue_handler(cfg: Config, session_env=_session_env, kind: str = "adhoc", done: str = QUEUE_DONE):
+def make_queue_handler(cfg: Config, session_env=_session_env):
     def handle(args: dict, **kwargs) -> str:
         request = str(args.get("request") or "").strip()
         if not request:
             return _tool_error("The request is empty.")
         try:
-            actor, user, name, chat, message = _sender(cfg, session_env)
+            _, user, name, chat, message = _sender(cfg, session_env)
         except ValueError as error:
             return _tool_error(f"{error} Nothing was queued.")
-        if actor == HERMES and kind != "adhoc":
-            return _tool_error("Only a committee member's message can queue a factory change. Nothing was queued.")
         command = {
-            "kind": kind, "issue": None, "text": request,
+            "kind": "adhoc", "issue": None, "text": request,
             "by": user, "byName": name or None, "chat": chat, "messageId": message, "postId": None,
         }
         write_inbox(cfg.inbox, command)
-        return json.dumps({"success": True, "message": done})
+        return json.dumps({"success": True, "message": QUEUE_DONE})
 
     return handle
 
@@ -580,7 +559,7 @@ def make_hook(cfg: Config, readiness: Readiness):
         if str(source.chat_id) in public_chats(cfg):
             return {"action": "skip", "reason": "factory-public-discussion"}
         if not cfg.committee.is_member(source.user_id):
-            return {"action": "skip", "reason": "factory-not-committee"}
+            return None if str(source.chat_id) == cfg.chat else {"action": "skip", "reason": "factory-not-committee"}
         args = committee_args(event.text)
         if args is not None:
             try:
@@ -597,6 +576,8 @@ def make_hook(cfg: Config, readiness: Readiness):
         draft_post_id = release_post.get("postId") if release_post else None
         decision = route(event.text, event.reply_to_message_id, source.chat_id, posts, cfg, release, draft_post_id)
         if decision is None:
+            if is_bare_thanks(event.text) and not getattr(event, "media_urls", None):
+                return {"action": "skip", "reason": "factory-thanks"}
             return None
         if decision[0] == "draft-reply":
             # Hermes revises the draft with its tool. The factory waits for no route, so nothing goes to the inbox.
@@ -635,7 +616,6 @@ def register(ctx) -> None:
     ctx.register_telegram_handler(make_public_factory(cfg))
     ctx.register_telegram_handler(make_button_factory(cfg))
     ctx.register_tool(name=QUEUE_TOOL, toolset="factory", schema=QUEUE_SCHEMA, handler=make_queue_handler(cfg))
-    ctx.register_tool(name=CHANGE_TOOL, toolset="factory", schema=CHANGE_SCHEMA, handler=make_queue_handler(cfg, kind="change", done=CHANGE_DONE))
     ctx.register_tool(name=ROUTE_TOOL, toolset="factory", schema=ROUTE_SCHEMA, handler=make_route_handler(cfg, readiness))
     ctx.register_tool(name=SENDER_TOOL, toolset="factory", schema=SENDER_SCHEMA, handler=make_sender_handler(cfg))
     ctx.register_tool(name=DRAFT_TOOL, toolset="factory", schema=DRAFT_SCHEMA, handler=make_draft_handler(cfg))
