@@ -67,11 +67,31 @@ async function openCall(page, node) {
       npc = w.vehicles.find((v) => v.brain && v.brain.templateId === 'trader');
     }
     const next = structuredClone(w);
+    const way = node === 'directions' ? await longestDirections(w) : null;
     const deal = { deal: { kind: 'deal', deal: 'ownParts', patcher: 'player', price: 1250, parts: 3, turns: 4 } };
     next.player.call = node === 'hub'
       ? { with: npc.id, topic: null, node: 'hub', vars: {}, line: { line: 'whatDoYouWant', vars: {} } }
+      : node === 'directions'
+      ? { with: npc.id, topic: 'directions', node: 'answer', vars: way.vars, line: { line: way.line, vars: way.vars } }
       : { with: npc.id, topic: 'patchRequest', node: 'terms', vars: deal, line: { line: 'dealTerms', vars: deal } };
     g.apply(next);
+    async function longestDirections(world) {
+      const { directionsTo } = await import('/src/sim/directions.ts');
+      const { REGION } = await import('/src/data/region.ts');
+      const sites = [...REGION.towns, ...REGION.locations];
+      let best = null;
+      for (let x = 30; x < 600; x += 140) {
+        for (let y = 40; y < 560; y += 130) {
+          for (const site of sites) {
+            const steps = directionsTo(world, { x, y }, { kind: 'site', id: site.id });
+            const length = steps.reduce((sum, step) => sum + (step.do === 'turn' ? 2 : 1), 0);
+            if (!best || length > best.length) best = { length, site, steps };
+          }
+        }
+      }
+      const town = REGION.towns.some((t) => t.id === best.site.id) ? 'town' : 'site';
+      return { line: town === 'town' ? 'townWay' : 'siteWay', vars: { [town]: { kind: town, id: best.site.id }, way: { kind: 'directions', steps: best.steps } } };
+    }
   }, node);
 }
 
@@ -160,10 +180,18 @@ const openStartMenu = (page) => page.evaluate(async () => {
     node.style.display = 'none';
   }
   const { chooseStart } = await import('/src/ui/save-screen.ts');
-  void chooseStart('auto', { requestBoot: () => {}, reload: () => {}, confirm: () => false });
+  const saves = [{ slot: 'slot2', savedAt: 900, turn: 120, mode: 'roaming' }, { slot: 'auto', savedAt: 500, turn: 40, mode: 'furyRoad' }];
+  void chooseStart(saves, { requestBoot: () => {}, reload: () => {}, confirm: () => false });
 });
 
+const openStartLoad = async (page) => {
+  await openStartMenu(page);
+  await page.locator('.start-menu .btn-l').nth(1).click();
+  await page.evaluate(() => { document.querySelector('.start-menu .start-buttons').style.visibility = 'hidden'; });
+};
+
 const closeStartMenu = (page) => page.evaluate(() => {
+  document.querySelector('#ui .save-panel')?.remove();
   document.querySelector('#ui .start-menu')?.remove();
   for (const node of document.querySelectorAll('#ui > [data-layout-display]')) {
     node.style.display = node.dataset.layoutDisplay;
@@ -196,12 +224,14 @@ const STATES = {
   trade: { setup: (page) => openTown(page, 'market'), teardown: closeTown },
   garage: { setup: (page) => openTown(page, 'trucks'), teardown: closeTown },
   'call-hub': { setup: (page) => openCall(page, 'hub'), teardown: hangUp },
+  'call-directions': { setup: (page) => openCall(page, 'directions'), teardown: hangUp },
   'call-deal': { setup: (page) => openCall(page, 'deal'), teardown: hangUp },
   help: { setup: openHelp, teardown: closeHelp },
   character: { setup: (page) => key(page, 'KeyC'), teardown: escape },
   saves: { setup: openSaves, teardown: escape },
   options: { setup: openOptions, teardown: escape },
   'start-menu': { setup: openStartMenu, teardown: closeStartMenu },
+  'start-load': { setup: openStartLoad, teardown: closeStartMenu },
   inspect: { setup: (page) => inspectNpc(page, true), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
   'inspect-unarmed': { setup: (page) => inspectNpc(page, false), teardown: clearInspect, viewports: INSPECT_VIEWPORTS },
 };

@@ -2,7 +2,7 @@
 
 Values, prices, shops, contracts, the effort model, hidden salvage, fuel and supplies. The principles behind them are in [DESIGN.md](../../DESIGN.md).
 
-Prices are in M's, the basin's currency ([lore](../../lore.md#ms)). One M is the price of 5 L of fuel at any town or stall, and every price reads against it. The sim and data keep money as whole cents, 100 to an M, so every price, fee and balance is exact to a cent. The UI shows whole M and rounds any part of an M away from zero, so a price, fee or debt never reads smaller than it is: 1.50 M reads 2, and a debt of 12.50 M reads 13. A balance rounds up too, so a balance and a price can read the same whole M while the balance is a few cents short.
+Prices are in M's, the basin's currency ([lore](../../lore/README.md#ms)). One M is the price of 5 L of fuel at any town or stall, and every price reads against it. The sim and data keep money as whole cents, 100 to an M, so every price, fee and balance is exact to a cent. The UI shows whole M and rounds any part of an M away from zero, so a price, fee or debt never reads smaller than it is: 1.50 M reads 2, and a debt of 12.50 M reads 13. A balance rounds up too, so a balance and a price can read the same whole M while the balance is a few cents short.
 
 - Fair price: every town garage and stall sells 5 L of fuel for 1 M with no spread. The scrap patch charges the same 1 M per 5 L it spares, and aid is priced the same.
 - Roadside: a truck selling fuel adds the spread and the road spread, so 5 L costs 1.50 M at Trade 0.
@@ -47,6 +47,7 @@ Salvage lies hidden until a search turns it up. Territory loot spots and road wr
 - The daily restock adds to the hidden loot only, and a table's highs cap hidden and revealed together.
 - Wrecks of destroyed trucks and ground piles lie in the open, so their loot starts revealed.
 - A road wreck counts as looted once nothing is hidden or revealed.
+- An object that holds loot, hidden or revealed, shows its colors a little richer, and it goes plain once emptied.
 - Saves keep the hidden loot, the revealed loot and a search in progress, so nothing rerolls.
 
 Fuel and supplies limit range. Fuel burns per tile by chassis, times heat. Below 20% of tank capacity, the truck's top speed is halved. The truck crawls when fuel runs out. Supplies burn per turn, times heat. A full load lasts about 920 daytime turns. Without supplies the character loses health down to 30. Nothing refills supplies for free: every shop sells fuel and supplies at the same prices.

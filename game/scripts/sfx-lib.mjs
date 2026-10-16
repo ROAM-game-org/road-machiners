@@ -75,14 +75,8 @@ function shapeFilters(src, cue) {
   if (cue.beat) return fitBeat(src, beatLoopSeconds(cue.beat));
   if (cue.loop) return [];
   const trim = `silenceremove=start_periods=1:start_threshold=${SILENCE_DB}dB:start_silence=${KEEP_S}`;
-  const edges = cue.setup === 'stinger' ? STINGER_EDGES : [FADE_IN_S, FADE_OUT_S];
-  const cap = cue.setup === 'stinger' ? [`atrim=end=${STINGER_MAX_S}`, STINGER_TONE] : [];
-  return [trim, 'areverse', trim, 'areverse', ...cap, 'areverse', `afade=t=in:d=${edges[1]}`, 'areverse', `afade=t=in:d=${edges[0]}`];
+  return [trim, 'areverse', trim, `afade=t=in:d=${FADE_OUT_S}`, 'areverse', `afade=t=in:d=${FADE_IN_S}`];
 }
-
-const STINGER_MAX_S = 1.5;
-const STINGER_TONE = 'lowpass=f=5000,treble=g=-4:f=3000';
-const STINGER_EDGES = [0.02, 0.6];
 
 const MAX_FIT = 0.01;
 

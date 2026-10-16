@@ -20,7 +20,7 @@ import { canVehicleSee } from "./vision";
 import { bodyHitChance, inArc } from "./combat";
 import { passShare, sideToward } from "./armor";
 import { chance } from "./rng";
-import { runsDown } from "./hunters";
+import { rollingOrder, runsDown } from "./hunters";
 
 function planners(world: World): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && !isOnRope(world, v.id) && !isKnockedOut(v));
@@ -123,17 +123,23 @@ function orderPoint(world: World, v: Vehicle, activity: NpcActivity): Vec | null
 
 function waitsForEscort(world: World, v: Vehicle, activity: NpcActivity): boolean {
   if (activity.kind === "fight" || activity.kind === "flee" || activity.kind === "resupply") return false;
-  return escortsOf(world, v.id).some((e) => {
-    if (!e.brain) return traderWaits(world, v, e);
-    const gap = dist(e.pos, v.pos);
-    if (isStranded(world, e) || isOnRope(world, e.id)) return false;
-    const limit = NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
-    return topGoal(e)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= limit;
-  });
+  return escortsOf(world, v.id).some((e) => (e.brain ? waitsForGuard(world, v, e) : traderWaits(world, v, e)));
+}
+
+function waitsForGuard(world: World, v: Vehicle, guard: Vehicle): boolean {
+  if (isStranded(world, guard) || isOnRope(world, guard.id)) return false;
+  const gap = dist(guard.pos, v.pos);
+  return topGoal(guard)?.kind === "follow" && gap > NPC_BEHAVIOR.escortWaitGap && gap <= waitLimit(v);
+}
+
+function waitLimit(v: Vehicle): number {
+  return NPCS[v.brain!.templateId]?.pairs ? NPC_BEHAVIOR.pairWaitLimit : NPC_BEHAVIOR.escortCatchUpGap;
 }
 
 function driveOrder(world: World, v: Vehicle, activity: NpcActivity, dest: Vec): MoveOrder {
   if (v.brain!.ramTarget) return { kind: "through", dest };
+  const rolling = rollingOrder(world, v);
+  if (rolling) return rolling;
   const foe = foeInSight(world, v, activity);
   if (foe) return fightOrder(world, v, foe, dest);
   if (runsDown(world, v)) return { kind: "through", dest };
@@ -159,7 +165,7 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     b.ramTarget = target.id;
     return leadOf(target);
   }
-  if (b.whim?.kind === "halt") return null;
+  if (haltsOnWhim(world, v)) return null;
   const lead = leadOf(seen);
   const clearance = vehicleStats(world, v).radius + vehicleStats(world, target).radius + RULES.yieldDistance;
   if (b.whim?.kind === "veer") {
@@ -167,6 +173,10 @@ function computeFightGoal(world: World, v: Vehicle, target: Vehicle, seen: Vehic
     return { x: lead.x + Math.cos(b.whim.angle) * range, y: lead.y + Math.sin(b.whim.angle) * range };
   }
   return fightPoint(world, v, seen, clearance);
+}
+
+function haltsOnWhim(world: World, v: Vehicle): boolean {
+  return v.brain!.whim?.kind === "halt" && !runsDown(world, v);
 }
 
 export function perceivedTarget(world: World, v: Vehicle, target: Vehicle): Vehicle {

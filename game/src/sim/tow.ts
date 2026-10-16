@@ -26,6 +26,7 @@ import { bearing, dist, type Vec } from './vec';
 import { canVehicleSee } from './vision';
 import { playerCommand, update } from './world';
 import { atlasOf } from './atlas';
+import { bandAtLeast, bandToward, isAlly, isRaider } from './relations';
 
 export function inTowReach(tower: Vehicle, towed: Vehicle): boolean {
   const radii = chassisDef(tower.chassisId).radius + chassisDef(towed.chassisId).radius;
@@ -87,9 +88,10 @@ function isPlayer(world: World, v: Vehicle): boolean {
 }
 
 function towAllowed(world: World, tower: Vehicle, client: Vehicle): boolean {
-  const raider = (v: Vehicle) => v.faction === 'raiders';
-  if (raider(tower)) return raider(client);
-  return !raider(client) || isPlayer(world, tower);
+  if (isPlayer(world, tower)) return true;
+  if (isRaider(tower) !== isRaider(client)) return false;
+  if (isPlayer(world, client)) return bandToward(world, tower, client) !== 'hostile';
+  return bandAtLeast(bandToward(world, tower, client), 'neutral') && bandAtLeast(bandToward(world, client, tower), 'neutral');
 }
 
 function canTow(world: World, tower: Vehicle, client: Vehicle): boolean {
@@ -461,15 +463,19 @@ export function steerFollow(world: World, vehicle: Vehicle, goal: NpcActivity): 
   const leader = vehicleById(world, goal.targetId!);
   const rank = escortsOf(world, leader.id).findIndex((e) => e.id === vehicle.id);
   if (rank < 0) throw new Error(`${vehicle.id} follows ${leader.id} without escorting it`);
+  const fresh = followSpot(world, vehicle, leader, rank);
+  const gap = dist(vehicle.pos, leader.pos);
+  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && goal.destination !== null && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
+  if (!holds) goal.destination = fresh;
+}
+
+export function followSpot(world: World, vehicle: Vehicle, leader: Vehicle, rank: number): Vec {
   const radii = vehicleStats(world, leader).radius + vehicleStats(world, vehicle).radius;
   const side = (rank % 2 === 0 ? 1 : -1) * (radii + NPC_BEHAVIOR.followGap);
   const back = radii * (1 + 2 * Math.floor(rank / 2)) - leader.speed;
   const fx = Math.cos(leader.heading);
   const fy = Math.sin(leader.heading);
-  const fresh = { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
-  const gap = dist(vehicle.pos, leader.pos);
-  const holds = gap > NPC_BEHAVIOR.escortCatchUpGap && goal.destination !== null && dist(fresh, goal.destination) <= NPC_BEHAVIOR.followReaimShare * gap;
-  if (!holds) goal.destination = fresh;
+  return { x: leader.pos.x - fx * back - fy * side, y: leader.pos.y - fy * back + fx * side };
 }
 
 export function followPace(follower: Vehicle, leader: Vehicle, spot: Vec): number {
@@ -486,7 +492,7 @@ export function unguardedLeader(world: World, guard: Vehicle): Vehicle | null {
   const tpl = NPCS[guard.brain!.templateId];
   if (!tpl || tpl.spawn.kind !== 'escort') throw new Error(`${guard.id} has no escort template`);
   const place = tpl.spawn;
-  const free = world.vehicles.filter((v) => v.brain?.templateId === place.of && v.faction === guard.faction && !isDefeated(v) && escortsOf(world, v.id).length === 0);
+  const free = world.vehicles.filter((v) => v.brain?.templateId === place.of && isAlly(world, guard, v) && !isDefeated(v) && escortsOf(world, v.id).length === 0);
   return free.sort((a, b) => dist(guard.pos, a.pos) - dist(guard.pos, b.pos))[0] ?? null;
 }
 

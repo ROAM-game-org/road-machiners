@@ -6,7 +6,7 @@ import { cloneWorld } from './world';
 import { freeCells, mountedParts } from './grid';
 import { loadFactor } from './mass';
 import { generateNpcLoadout } from './npc-loadout';
-import { spawnAt } from './spawn';
+import { allegianceFor, spawnAt } from './spawn';
 import { gunDrag, npcMassRoom } from './stats';
 import { wornDef } from './wear';
 import { addGoods } from './inventory';
@@ -38,12 +38,12 @@ describe('NPC speed floor and wear odds', () => {
 
   it('gives an NPC no cargo past its speed floor, and the player any', () => {
     const world = cloneWorld(fixture);
-    const npc = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 50, y: 50 });
+    const npc = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 50, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
     const room = npcMassRoom(npc);
     const free = freeCells(npc);
     const added = addGoods(world, npc, 'tools', 1000);
     expect(added).toBe(Math.min(free, Math.floor(room / CRATE_MASS)));
-    const player = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 60, y: 50 });
+    const player = spawnAt(world, NPCS.gunwagon, { ...generateNpcLoadout(world, NPCS.gunwagon, null, 'loaded'), cargo: {}, spares: [] }, { x: 60, y: 50 }, allegianceFor(world, NPCS.gunwagon, null, null));
     player.brain = null;
     const playerFree = freeCells(player);
     expect(addGoods(world, player, 'tools', 1000)).toBe(playerFree);

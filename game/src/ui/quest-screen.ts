@@ -77,7 +77,7 @@ class QuestArtStage {
   }
 }
 
-function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean): HTMLImageElement {
+export function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean = () => true): HTMLImageElement {
   const focus = `${questArt(key).focusX}% 50%`;
   const img = document.createElement('img');
   img.decoding = 'sync';
@@ -85,7 +85,7 @@ function loadArt(key: string, isHeld: (img: HTMLImageElement) => boolean): HTMLI
   img.style.objectPosition = focus;
   img.style.transformOrigin = focus;
   img.onerror = () => {
-    throw new Error(`Quest art ${key} failed to load from ${img.src}`);
+    img.style.visibility = 'hidden';
   };
   void showArt(img, key, isHeld);
   return img;
@@ -103,9 +103,7 @@ async function showArt(img: HTMLImageElement, key: string, isHeld: (img: HTMLIma
   }
   if (!isHeld(img)) return;
   img.src = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
-  await img.decode().catch((e: unknown) => {
-    if (img.hasAttribute('src')) throw e;
-  });
+  await img.decode().catch(() => undefined);
 }
 
 export class QuestScreen {

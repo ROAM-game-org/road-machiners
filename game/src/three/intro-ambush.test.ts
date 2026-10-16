@@ -24,7 +24,7 @@ import { NPC_BEHAVIOR } from '../data/npc-behavior';
 import { hasCargo } from '../sim/salvage';
 import { defaultSetup } from '../sim/settings';
 import { canUseSite } from '../sim/sites';
-import { spawnAt } from '../sim/spawn';
+import { allegianceFor, spawnAt } from '../sim/spawn';
 import { editableTerrain, emptyWorld, finishQuest, testDrive } from '../sim/testkit';
 import { trackOf } from '../sim/tracks';
 import type { Vehicle, World } from '../sim/types';
@@ -59,7 +59,7 @@ function patchedWorld(): World {
   return w;
 }
 
-const raidersIn = (w: World): Vehicle[] => w.vehicles.filter((v) => v.faction === 'raiders');
+const raidersIn = (w: World): Vehicle[] => w.vehicles.filter((v) => v.faction === 'scrapjaw');
 
 function ambushed(): World {
   return endTurn(patchedWorld(), testDrive);
@@ -225,7 +225,7 @@ describe('the ambush', () => {
     const w = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
     const me = playerVehicle(w);
     const wins = Array.from({ length: 12 }, () => {
-      const raider = spawnAt(w, NPCS[AMBUSH.template], generateNpcLoadout(w, NPCS[AMBUSH.template], AMBUSH.chassis, AMBUSH.gear), { x: me.pos.x + 25, y: me.pos.y });
+      const raider = spawnAt(w, NPCS[AMBUSH.template], generateNpcLoadout(w, NPCS[AMBUSH.template], AMBUSH.chassis, AMBUSH.gear), { x: me.pos.x + 25, y: me.pos.y }, allegianceFor(w, NPCS[AMBUSH.template], null, null));
       return fightOdds(w, [me], [raider]).win;
     });
     expect(wins.reduce((a, b) => a + b, 0) / wins.length).toBeLessThan(0.4);
@@ -462,7 +462,7 @@ describe('the hunt range', () => {
   it('leaves other raiders\' fights to the ordinary rules', () => {
     let w = ambushed();
     const me = playerVehicle(w);
-    const other = spawnAt(w, NPCS[AMBUSH.template], generateNpcLoadout(w, NPCS[AMBUSH.template], AMBUSH.chassis, AMBUSH.gear), { x: me.pos.x - 60, y: me.pos.y });
+    const other = spawnAt(w, NPCS[AMBUSH.template], generateNpcLoadout(w, NPCS[AMBUSH.template], AMBUSH.chassis, AMBUSH.gear), { x: me.pos.x - 60, y: me.pos.y }, allegianceFor(w, NPCS[AMBUSH.template], null, null));
     fightCornered(w, other, me, 'robCargo');
     for (let i = 0; i < NPC_BEHAVIOR.fightSearchTurns + 2; i++) {
       placePlayerAt(w, 0.5);

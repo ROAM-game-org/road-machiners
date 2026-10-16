@@ -1,6 +1,3 @@
-// Render-only motion of a truck body and its loose parts. Driving physics never reads it.
-// The body leans on a spring toward a tilt set by the truck's acceleration. It lifts its nose when the truck speeds up,
-// dips it on braking and leans out of turns. A running engine shakes it a little while a turn plays.
 
 import * as THREE from 'three';
 import type { VehicleFrame } from '../../phys/frames';

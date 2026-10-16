@@ -38,12 +38,12 @@ function ravineWithMouth(wall: number): (i: number, j: number) => number {
 }
 
 function closedPit(i: number, j: number): number {
-  const out = Math.max(Math.abs(i - 40), Math.abs(j - 40)) - 6;
+  const out = Math.hypot(i - 40, j - 40) - 6;
   return Math.min(TOP, Math.max(0, out * WALL));
 }
 
 function trucker(w: World, build: 'hauler' | 'scout'): Vehicle {
-  const npc = build === 'hauler' ? addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], START) : addVehicle(w, 'traders', 'buggy', ['stockEngine'], START);
+  const npc = build === 'hauler' ? addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine', 'plates', 'trailerBox'], START) : addVehicle(w, 'independent', 'buggy', ['stockEngine'], START);
   npc.brain = npcBrain('trader', START, ['trader']);
   npc.brain.goals = [{ kind: 'explore', targetId: null, destination: { ...GOAL }, reason: 'explore', phase: 'travel' }];
   if (build === 'hauler') addGoods(w, npc, 'scrap', 122);

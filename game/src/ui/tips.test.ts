@@ -98,7 +98,7 @@ describe("horn tip", () => {
     const seen = new Set<TipId>(["waypoint", "drive", "stop", "stopAt", "manual"]);
     expect(tipToShow(w, false, seen, null)).toBeNull();
 
-    const npc = addVehicle(w, "scavengers", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("scavenger", npc.pos, ["scavenger"]);
     refreshVision(w);
     expect(tipToShow(w, false, seen, null)).toBe("honk");
@@ -109,7 +109,7 @@ describe("horn tip", () => {
 
   it("ignores an NPC out of sight", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "scavengers", "scout", [], { x: 58, y: 58 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 58, y: 58 });
     npc.brain = npcBrain("scavenger", npc.pos, ["scavenger"]);
     refreshVision(w);
     expect(tipToShow(w, false, new Set(["waypoint"]), null)).toBeNull();
@@ -121,7 +121,7 @@ describe("aim tip", () => {
 
   function withRaider() {
     const w = emptyWorld();
-    const npc = addVehicle(w, "raiders", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "scrapjaw", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("raider", npc.pos, ["raider"]);
     refreshVision(w);
     return { w, npc };
@@ -134,7 +134,7 @@ describe("aim tip", () => {
 
   it("stays away from a neutral", () => {
     const w = emptyWorld();
-    const npc = addVehicle(w, "traders", "scout", [], { x: 32, y: 30 });
+    const npc = addVehicle(w, "independent", "scout", [], { x: 32, y: 30 });
     npc.brain = npcBrain("trader", npc.pos, ["trader"]);
     refreshVision(w);
     expect(tipToShow(w, false, driving, null)).toBe("honk");
@@ -357,7 +357,7 @@ describe("opening tips", () => {
 describe("tips in a Fury Road run", () => {
   it("runs no opening and offers no horn", () => {
     const w = furyRoadWorld(3);
-    addVehicle(w, "raiders", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
+    addVehicle(w, "scrapjaw", "wagon", ["mg"], { x: playerVehicle(w).pos.x + 4, y: playerVehicle(w).pos.y }).brain = npcBrain("buggy", playerVehicle(w).pos, ["raider"]);
     refreshVision(w);
     const seen = new Set<TipId>(["waypoint", "drive", "autoStop", "stop", "stopAt", "manual", "zones", "aim"]);
 

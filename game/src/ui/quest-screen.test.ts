@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuestLive } from '../sim/types';
 import { lastTagged, pagesOf, paragraphsOf } from './quest-lines';
-import { askOf, questPageStacks } from './quest-screen';
+import { askOf, loadArt, questPageStacks } from './quest-screen';
+import { QUEST_ART } from '../data/quest-art';
+
+vi.mock('../fetch-asset', async (orig) => ({ ...(await orig<typeof import('../fetch-asset')>()), fetchAsset: async () => new ArrayBuffer(1) }));
 
 const live = (quest: string, text: string): QuestLive => ({ quest, lang: 'en', ink: '{}', lines: [{ text, tags: [] }], choices: ['Goodbye.'], costs: [null], checks: [null] });
 const line = (text: string, ...tags: string[]) => ({ text, tags });
@@ -61,5 +64,52 @@ describe('questPageStacks', () => {
 
   it('answers stack for a zero width, which the screen ignores to keep its last layout', () => {
     expect(questPageStacks(0, FRAME)).toBe(true);
+  });
+});
+
+describe('loadArt', () => {
+  const key = Object.keys(QUEST_ART)[0]!;
+  const fakeImage = (decode: () => Promise<void>) => {
+    const attrs = new Map<string, string>();
+    return {
+      style: {} as Record<string, string>,
+      onerror: null as null | (() => void),
+      decode,
+      setAttribute: (n: string, v: string) => attrs.set(n, v),
+      hasAttribute: (n: string) => attrs.has(n),
+      removeAttribute: (n: string) => attrs.delete(n),
+      set src(v: string) {
+        attrs.set('src', v);
+      },
+      get src() {
+        return attrs.get('src') ?? '';
+      },
+    };
+  };
+  let img: ReturnType<typeof fakeImage>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    img = fakeImage(() => Promise.resolve());
+    vi.stubGlobal('document', { createElement: () => img });
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:art', revokeObjectURL: () => undefined });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('leaves the picture blank without throwing when it fails to show', async () => {
+    loadArt(key);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(() => img.onerror?.()).not.toThrow();
+    expect(img.style.visibility).toBe('hidden');
+  });
+
+  it('swallows a decode failure', async () => {
+    img = fakeImage(() => Promise.reject(new Error('EncodingError')));
+    loadArt(key);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(img.hasAttribute('src')).toBe(true);
   });
 });

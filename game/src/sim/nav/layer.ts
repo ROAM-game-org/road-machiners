@@ -51,7 +51,7 @@ export type NavLayer = TerrainNav & {
   coarse: CoarseGrid;
 };
 
-export type StaticSet = { key: string; solidKey: string; solid: Blocker[]; costly: Blocker[]; buckets: ObstacleBuckets };
+export type StaticSet = { key: string; solidKey: string; solid: Blocker[]; costly: Blocker[]; buckets: ObstacleBuckets; solidBuckets: ObstacleBuckets };
 
 export function isTransientWreck(o: Obstacle): boolean {
   return o.kind === 'wreck' && o.id.startsWith('wreck');
@@ -178,6 +178,7 @@ function buildStaticSet(obstacles: Obstacle[], terrain: Terrain): StaticSet {
     solid,
     costly: all.filter((_, i) => breakable[i]),
     buckets: new ObstacleBuckets(all, terrain.size),
+    solidBuckets: new ObstacleBuckets(solid, terrain.size),
   };
 }
 

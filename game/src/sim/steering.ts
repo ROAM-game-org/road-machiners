@@ -15,8 +15,8 @@ export function backsToDestination(
   distance: number,
   rearAngle: number,
 ): boolean {
-  if ((vehicle.brain?.recovery ?? 0) > 0) return true;
-  return vehicle.faction === "player" && distance < RULES.throttleZones.reach && Math.abs(rearAngle) < RULES.reverse.cone * DEG;
+  const hasReason = vehicle.faction === "player" || (vehicle.brain?.recovery ?? 0) > 0;
+  return hasReason && distance < RULES.throttleZones.reach && Math.abs(rearAngle) < RULES.reverse.cone * DEG;
 }
 
 export type Throttle = "brake" | "hold" | "accelerate";
@@ -40,7 +40,14 @@ export function zoneEdges(): ZoneEdges {
   };
 }
 
-export function throttleFor(d: number, speed: number): Throttle {
+export type DriveMode = "route" | "direct";
+
+export function driveMode(v: Pick<Vehicle, "direct">): DriveMode {
+  return v.direct ? "direct" : "route";
+}
+
+export function throttleFor(d: number, speed: number, mode: DriveMode): Throttle {
+  if (mode === "route") return d > speed ? "accelerate" : "hold";
   const z = zoneEdges();
   if (speed === 0) return d < z.restBrakeEnd ? "brake" : "accelerate";
   if (d < z.brakeEnd) return "brake";
@@ -48,9 +55,14 @@ export function throttleFor(d: number, speed: number): Throttle {
   return "accelerate";
 }
 
-export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: number | undefined): number {
-  if (pace === undefined) return zoneSpeed(s, speed, d);
-  return clamp(pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
+export function throughSpeed(s: VehicleStats, speed: number, d: number, pace: number | undefined, mode: DriveMode): number {
+  if (pace !== undefined) return clamp(pace, Math.max(0, speed - s.brake), Math.min(s.maxSpeed, speed + s.accel));
+  return mode === "direct" ? zoneSpeed(s, speed, d) : routeSpeed(s, speed, d);
+}
+
+function routeSpeed(s: VehicleStats, speed: number, d: number): number {
+  if (!Number.isFinite(d) || !Number.isFinite(speed)) throw new Error(`Route speed needs finite distance and speed, got ${d} and ${speed}`);
+  return clamp(2 * d - speed, Math.min(speed, s.maxSpeed), Math.min(s.maxSpeed, speed + s.accel));
 }
 
 export function zoneSpeed(s: VehicleStats, speed: number, d: number): number {

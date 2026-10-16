@@ -56,3 +56,4 @@
   #boot.leaving { transition: none; }
 }
 #boot .boot-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; }
+#boot:not([data-fonts]) :is(.boot-title, .boot-stage, .boot-steps) { visibility: hidden; }

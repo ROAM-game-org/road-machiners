@@ -18,6 +18,7 @@ import { fuelCap, suppliesCap } from './stats';
 import type { GoalReason, NpcState, StateData, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerCommand } from './world';
+import { noteDeed } from './relations';
 
 export type AidAmounts = { fuel: number; supplies: number };
 type AidTerms = Omit<Extract<StateData, { kind: 'aid' }>, 'kind' | 'agreed' | 'started' | 'work' | 'workLeft'>;
@@ -114,12 +115,12 @@ export function checkAid(world: World, s: NpcState): StateEnding | null {
   const npc = world.vehicles.find((v) => v.id === s.holder);
   const me = world.vehicles.find((v) => v.id === s.other);
   if (!npc || !me) return null;
-  if (callsOff(world, npc, me)) return 'broken';
+  if (!aidHolds(world, npc, me)) return 'broken';
   return handoverDone(s) ? 'fulfilled' : null;
 }
 
-function callsOff(world: World, npc: Vehicle, me: Vehicle): boolean {
-  return inFeud(world, npc, me) || inCombat(world, npc) || inCombat(world, me);
+export function aidHolds(world: World, npc: Vehicle, me: Vehicle): boolean {
+  return !inFeud(world, npc, me) && !inCombat(world, npc) && !inCombat(world, me);
 }
 
 function handoverDone(s: NpcState): boolean {
@@ -179,7 +180,12 @@ export function settleAid(world: World, s: NpcState): void {
   const paid = Math.min(data.price, aidPrice(world, npc, moved));
   if (paid > 0) transfer(world, npc, me, paid);
   world.events.push({ t: 'aid', giver: giver.id, receiver: receiver.id, ...moved, paid });
-  if (data.free && data.giver === 'player' && hasAid(moved)) practice(world, 'aid', aidValue(moved), null, npc.id);
+  if (data.free && hasAid(moved)) creditGift(world, data.giver === 'player', giver, receiver, moved);
+}
+
+function creditGift(world: World, byPlayer: boolean, giver: Vehicle, receiver: Vehicle, moved: AidAmounts): void {
+  if (byPlayer) practice(world, 'aid', aidValue(moved), null, receiver.id);
+  noteDeed(world, giver, receiver, 'aided', true);
 }
 
 function givable(world: World, giver: Vehicle, kind: Supply): number {
@@ -194,18 +200,18 @@ function moveSupply(world: World, giver: Vehicle, receiver: Vehicle, kind: Suppl
   return n;
 }
 
-function mayHelp(world: World, npc: Vehicle): boolean {
-  return !inDanger(npc) && !inCombat(world, npc) && talkOf(npc).topics.includes('aidOffer');
+function mayHelp(npc: Vehicle): boolean {
+  return !inDanger(npc) && talkOf(npc).topics.includes('aidOffer');
 }
 
 function looksNeedy(world: World, me: Vehicle): boolean {
-  return isLow(world, me) && looksPoor(me) && !inCombat(world, me);
+  return isLow(world, me) && looksPoor(me);
 }
 
 function mayOfferAid(world: World, npc: Vehicle): boolean {
   const me = playerVehicle(world);
-  if (playerAid(world) !== null || !mayHelp(world, npc)) return false;
-  return canVehicleSee(world, npc, me.pos) && !isHostile(world, npc, me) && looksNeedy(world, me);
+  if (playerAid(world) !== null || !mayHelp(npc)) return false;
+  return aidHolds(world, npc, me) && canVehicleSee(world, npc, me.pos) && !isHostile(world, npc, me) && looksNeedy(world, me);
 }
 
 export function onNeedySeen(world: World, npc: Vehicle): void {

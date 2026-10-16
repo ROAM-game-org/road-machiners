@@ -20,7 +20,7 @@ import { introStep, openQuest, QUESTS, setIntroStep, setWorldVar, worldVar } fro
 import { engineNeedsPatch } from './repair';
 import { drivable } from './path';
 import { nearestPad, siteUnder } from './sites';
-import { isFree, spawnAt } from './spawn';
+import { allegianceFor, isFree, spawnAt } from './spawn';
 import { chooseOn } from './tracks';
 import type { Vehicle, World } from './types';
 import { dist, type Vec } from './vec';
@@ -108,7 +108,7 @@ function launchAmbush(w: World): void {
   const loadout = generateNpcLoadout(w, template, AMBUSH.chassis, AMBUSH.gear);
   const spot = ambushSpot(w, me, chassisDef(loadout.chassisId).radius);
   if (!spot) return;
-  const raider = spawnAt(w, template, { ...loadout, cargo: {} }, spot);
+  const raider = spawnAt(w, template, { ...loadout, cargo: {} }, spot, allegianceFor(w, template, null, null));
   const brain = raider.brain;
   if (!brain) throw new Error(`Ambush raider ${raider.id} has no brain`);
   brain.traits = [...new Set([...brain.traits, ...AMBUSH.addedTraits])];
