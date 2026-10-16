@@ -747,7 +747,7 @@ describe('physics turns', () => {
     addGoods(w0, me(w0), 'scrap', 999);
     expect(loadFactor(me(w0))).toBeLessThan(1);
     w0.player.fuel = 999;
-    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 8);
+    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 5);
     expect(me(w).pos.x).toBeGreaterThan(30);
     expect(me(w).speed).toBeGreaterThan(0.5);
   }, budget(240_000));
@@ -784,7 +784,7 @@ describe('physics turns', () => {
     const courier = makeVehicle(w0, { faction: 'player', chassisId: 'courier', parts: [{ defId: 'stockEngine', wear: 0 }], spares: [], cargo: {}, pos: { x: 26, y: 30 }, heading: 0, brain: null });
     w0.vehicles[0] = { ...courier, id: me(w0).id };
     mountedParts(me(w0), 'engine')[0].hp = 0;
-    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 12);
+    const { w } = await playYielding(setMoveOrder(w0, { kind: 'through', dest: { x: 58, y: 30 } }), 8);
     expect(me(w).pos.x).toBeGreaterThan(32);
     expect(me(w).speed).toBeGreaterThan(0.5);
   }, budget(240_000));

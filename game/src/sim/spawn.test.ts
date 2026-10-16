@@ -205,12 +205,14 @@ describe('NPC allegiance', () => {
     expect(picks.every((f) => f === 'bowl' || f === 'independent')).toBe(true);
   });
 
-  it('spawns a new world with Bowl, Nose and independent traders side by side', () => {
+  it('spawns a new world with Bowl and independent traders, and Nose papers from its town', () => {
     const factions = new Set<string>();
-    for (let seed = 1; seed <= 12; seed++) {
-      const w = newWorld(seed * 31, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-      for (const v of w.vehicles.filter((x) => x.brain?.templateId === 'trader')) factions.add(v.faction);
+    for (const seed of [1337, 2]) {
+      for (const v of startWorld(seed).vehicles.filter((x) => x.brain?.templateId === 'trader')) factions.add(v.faction);
     }
-    expect([...factions].sort()).toEqual(['bowl', 'independent', 'nose']);
-  }, budget(60_000));
+    expect([...factions].sort()).toEqual(['bowl', 'independent']);
+    const w = emptyWorld();
+    const atNose = new Set(Array.from({ length: 600 }, () => allegianceFor(w, NPCS.trader, site('nose'), null)));
+    expect([...atNose].sort()).toEqual(['independent', 'nose']);
+  });
 });

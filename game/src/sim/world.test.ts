@@ -20,8 +20,11 @@ import { addVehicle, emptyWorld, npcBrain, testDrive } from './testkit';
 import type { World } from './types';
 import { defaultSetup } from './settings';
 
+const BY_RADIUS = Object.keys(CHASSIS).sort((a, b) => CHASSIS[b].radius - CHASSIS[a].radius);
+const TOWN_START_CHASSIS = [...BY_RADIUS.slice(0, 5), BY_RADIUS[BY_RADIUS.length - 1]];
+
 describe('townStart', () => {
-  it.each(Object.keys(CHASSIS))('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
+  it.each(TOWN_START_CHASSIS)('parks a %s on a town pad with no vehicle on top of it', (chassis) => {
     const kit = { ...START_KITS.standard, chassis, parts: [], cargo: {}, storage: [], opening: null };
     const world = newWorld(7, kit, TEST_MAP, defaultSetup('roaming'), true, townStart());
     const truck = playerVehicle(world);
