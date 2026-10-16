@@ -11,6 +11,7 @@ import { generateNpcLoadout } from './npc-loadout';
 import { cargoRoom, removeGoods } from './inventory';
 import { CRATE_MASS } from '../data/goods';
 import { emptyWorld, npcBrain } from './testkit';
+import { fallbackFaction } from './spawn';
 import { budget } from '../test/budget';
 import { describeLoadout, fixture, gearCost, loadoutOf, useLoadoutFixture } from './npc-loadout-kit';
 
@@ -21,7 +22,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = loadoutOf(world, template);
-      const v = makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       expect(mountedParts(v, 'engine')).toHaveLength(1);
       for (const item of v.items) expect(placementError(gridOf(v), v.items, item, item.id)).toBeNull();
       const loose = v.items.filter((item) => item.kind === 'part' && !isMounted(v.chassisId, item));
@@ -37,7 +38,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = loadoutOf(world, NPCS.trader);
-      const v = makeVehicle(world, { ...loadout, faction: NPCS.trader.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(NPCS.trader), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       const crates = Object.values(loadout.cargo).reduce((sum, n) => sum + n, 0);
       expect(crates).toBeGreaterThan(0);
       const goodsMass = v.items.filter((it) => it.kind === 'good').reduce((sum, it) => sum + itemMass(it), 0);
@@ -50,7 +51,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const world = { ...fixture, rngState: seed, marketRng: { rngState: seed * 7919 + 1 } };
       const loadout = loadoutOf(world, NPCS.trader, chassisId);
-      const v = makeVehicle(world, { ...loadout, faction: NPCS.trader.faction, brain: npcBrain('trader', { x: 50, y: 50 }, ['trader']), pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(NPCS.trader), brain: npcBrain('trader', { x: 50, y: 50 }, ['trader']), pos: { x: 50, y: 50 }, heading: 0 });
       for (const [good, n] of Object.entries(goodsCount(v))) if (good !== 'parts') removeGoods(v, good, n);
       expect(cargoRoom(v), `seed ${seed} ${loadout.level} ${describeLoadout(v)}`).toBeGreaterThan(0);
     }
@@ -60,7 +61,7 @@ describe('NPC equipment generation', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = loadoutOf(world, template);
-      const v = makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+      const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
       expect(everyGunFires(v), describeLoadout(v)).toBe(true);
     }
   });

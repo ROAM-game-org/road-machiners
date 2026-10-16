@@ -18,6 +18,7 @@ import { fuelCap, suppliesCap } from './stats';
 import type { GoalReason, NpcState, StateData, StateEnding, Vehicle, World } from './types';
 import { canVehicleSee } from './vision';
 import { playerCommand } from './world';
+import { noteDeed } from './relations';
 
 export type AidAmounts = { fuel: number; supplies: number };
 type AidTerms = Omit<Extract<StateData, { kind: 'aid' }>, 'kind' | 'agreed' | 'started' | 'work' | 'workLeft'>;
@@ -179,7 +180,12 @@ export function settleAid(world: World, s: NpcState): void {
   const paid = Math.min(data.price, aidPrice(world, npc, moved));
   if (paid > 0) transfer(world, npc, me, paid);
   world.events.push({ t: 'aid', giver: giver.id, receiver: receiver.id, ...moved, paid });
-  if (data.free && data.giver === 'player' && hasAid(moved)) practice(world, 'aid', aidValue(moved), null, npc.id);
+  if (data.free && hasAid(moved)) creditGift(world, data.giver === 'player', giver, receiver, moved);
+}
+
+function creditGift(world: World, byPlayer: boolean, giver: Vehicle, receiver: Vehicle, moved: AidAmounts): void {
+  if (byPlayer) practice(world, 'aid', aidValue(moved), null, receiver.id);
+  noteDeed(world, giver, receiver, 'aided', true);
 }
 
 function givable(world: World, giver: Vehicle, kind: Supply): number {

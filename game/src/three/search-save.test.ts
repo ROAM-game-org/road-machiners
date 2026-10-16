@@ -23,11 +23,11 @@ function search(id: string, target: string, delivered: boolean): Contract {
 describe('a search in a save', () => {
   it('loads back with its lead, its parcel, its delivered flag, the handover and the sightings, and raises no events or pay', () => {
     const w: World = newWorld(1337, startKit('standard'), TEST_MAP, defaultSetup('roaming'));
-    const witness = addVehicle(w, 'traders', 'scout', [], { x: 60, y: 60 });
+    const witness = addVehicle(w, 'independent', 'scout', [], { x: 60, y: 60 });
     witness.brain = npcBrain('trader', witness.pos, ['trader']);
     w.turn = 30;
     remember(w, witness, { kind: 'sighting', vehicle: 'v77', at: { x: 41, y: 50 }, heading: 1.25 });
-    const target = addVehicle(w, 'traders', 'scout', [], { x: 64, y: 60 });
+    const target = addVehicle(w, 'independent', 'scout', [], { x: 64, y: 60 });
     target.brain = npcBrain('trader', target.pos, ['trader']);
     w.player.contracts = [search('ct-open', target.id, false), search('ct-met', 'v78', true)];
     if (!stowParcel(playerVehicle(w), { id: 'i-parcel', x: 0, y: 0, rot: 0, kind: 'parcel', contract: 'ct-open' })) throw new Error('No room for the parcel');

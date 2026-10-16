@@ -4,11 +4,11 @@ import { assignAutoOrders, noteCollision } from './combat';
 import { damagePart } from './damage';
 import { haulerOf, playerTrucks, playerVehicle } from './damage';
 import { isDefeated } from './defeat';
-import { advanceFuryRoad, betweenLevels, canAbandonRun, canWaitForRoad, moveWindow, outpostPad, spawnGroup, turnedOnPlayer, waitForRoad, waveOf } from './fury-road';
-import { alongOf, milestoneAt, outpostFort, roadPoint, toRoad } from './highway';
+import { advanceFuryRoad, betweenLevels, canAbandonRun, canDriveOn, driveOn, moveWindow, spawnGroup, turnedOnPlayer, waveOf } from './fury-road';
+import { inYard, yardSpots } from './outpost-gates';
+import { alongOf, milestoneAt, roadPoint, toRoad } from './highway';
 import { topGoal } from './npc-activities';
 import { corePart } from './grid';
-import { canUseSite } from './sites';
 import { furyRoadWorld } from './testkit';
 import type { Vehicle, World } from './types';
 import { endTurn, hostileToPlayer } from './world';
@@ -18,12 +18,13 @@ const still = () => {};
 const LANES = HIGHWAY.road.lanes;
 
 function onPad(w: World, truck: Vehicle): boolean {
-  return canUseSite(truck.pos, outpostFort(w.seed, w.furyRoad!.window, w.furyRoad!.window + 1));
+  return inYard(w, truck.pos, w.furyRoad!.window + 1);
 }
 
-function park(w: World, truck: Vehicle, shift: number): void {
-  const pad = outpostPad(w, w.furyRoad!.window + 1);
-  truck.pos = { x: pad.x + shift, y: pad.y };
+function park(w: World, truck: Vehicle, spot: 'hauler' | 'truck' | 'away'): void {
+  const spots = yardSpots(w, w.furyRoad!.window + 1);
+  const at = spot === 'away' ? { x: spots.truck.x, y: spots.truck.y + 40 } : spots[spot];
+  truck.pos = { ...at };
   truck.speed = 0;
   truck.order = null;
 }
@@ -45,24 +46,24 @@ function nearBoth(w: World, truck: Vehicle): void {
 }
 
 describe('winning a stretch', () => {
-  it('needs the hauler on the pad, and the player alone does not win', () => {
+  it('needs the hauler in the yard, and the player alone does not win', () => {
     const alone = furyRoadWorld();
-    park(alone, playerVehicle(alone), 0);
+    park(alone, playerVehicle(alone), 'truck');
     advanceFuryRoad(alone);
     expect(alone.furyRoad!.outposts[0].paid).toBe(false);
 
     const hauled = furyRoadWorld();
-    park(hauled, haulerOf(hauled), 0);
+    park(hauled, haulerOf(hauled), 'hauler');
     advanceFuryRoad(hauled);
     expect(hauled.furyRoad!.outposts[0].paid).toBe(true);
     expect(betweenLevels(hauled)).toBe(true);
   });
 
-  it('seats the parked semi and the player truck on the pad together on three seeds', () => {
+  it('seats the parked semi and the player truck in the yard together on three seeds', () => {
     for (const seed of [1, 2, 3]) {
       const w = furyRoadWorld(seed);
-      park(w, haulerOf(w), 0);
-      park(w, playerVehicle(w), 2);
+      park(w, haulerOf(w), 'hauler');
+      park(w, playerVehicle(w), 'truck');
       expect(playerTrucks(w).every((t) => onPad(w, t)), `seed ${seed}`).toBe(true);
     }
   });
@@ -189,20 +190,20 @@ describe('where the trouble spawns', () => {
   });
 });
 
-describe('waiting for the road', () => {
-  it('needs both trucks parked on the paid pad, and the window move keeps both', () => {
+describe('driving on from the outpost', () => {
+  it('needs both trucks parked in the yard of the paid outpost, and the window move keeps both', () => {
     const w = furyRoadWorld();
-    park(w, haulerOf(w), 0);
-    park(w, playerVehicle(w), 2);
+    park(w, haulerOf(w), 'hauler');
+    park(w, playerVehicle(w), 'truck');
     let after = endTurn(w, still);
-    expect(canWaitForRoad(after)).toBe(true);
+    expect(canDriveOn(after)).toBe(true);
 
-    park(after, playerVehicle(after), 40);
-    expect(canWaitForRoad(after)).toBe(false);
-    expect(() => waitForRoad(after)).toThrow(/wait/);
+    park(after, playerVehicle(after), 'away');
+    expect(canDriveOn(after)).toBe(false);
+    expect(() => driveOn(after)).toThrow(/Drive on/);
 
-    park(after, playerVehicle(after), 2);
-    after = waitForRoad(after);
+    park(after, playerVehicle(after), 'truck');
+    after = driveOn(after);
     expect(after.furyRoad!.window).toBe(1);
     expect(after.vehicles.map((v) => v.id)).toEqual([after.player.vehicleId, haulerOf(after).id]);
     expect(playerTrucks(after).every((t) => t.order === null && t.trail.length === 0)).toBe(true);
@@ -210,12 +211,12 @@ describe('waiting for the road', () => {
     expect(() => moveWindow(after)).toThrow(/paid/);
   });
 
-  it('refuses the wait while the hauler is off the pad', () => {
+  it('refuses to drive on while the hauler is outside the yard', () => {
     const w = furyRoadWorld();
-    park(w, haulerOf(w), 0);
-    park(w, playerVehicle(w), 2);
+    park(w, haulerOf(w), 'hauler');
+    park(w, playerVehicle(w), 'truck');
     const after = endTurn(w, still);
     haulerOf(after).pos = roadPoint(after.seed, 1, milestoneAt(1) + 30, LANES[1]);
-    expect(canWaitForRoad(after)).toBe(false);
+    expect(canDriveOn(after)).toBe(false);
   });
 });

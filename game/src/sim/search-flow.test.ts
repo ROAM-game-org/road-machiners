@@ -20,7 +20,7 @@ const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
 const en = (line: LineId): string => entryText('en', lineKey(line));
 
 function driver(w: World, pos: { x: number; y: number }, name: string): Vehicle {
-  const v = addVehicle(w, 'traders', 'scout', ['stockEngine'], pos);
+  const v = addVehicle(w, 'independent', 'scout', ['stockEngine'], pos);
   v.brain = npcBrain('trader', v.pos, ['trader']);
   v.brain.driver = name;
   return v;

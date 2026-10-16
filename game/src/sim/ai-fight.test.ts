@@ -17,7 +17,7 @@ import type { Vehicle, World } from './types';
 import { angleDiff, bearing, type Vec } from './vec';
 
 function fighter(w: World, templateId: string, parts: string[], pos: Vec, chassis = 'hauler'): Vehicle {
-  const v = addVehicle(w, 'raiders', chassis, parts, pos, 0);
+  const v = addVehicle(w, 'scrapjaw', chassis, parts, pos, 0);
   v.brain = npcBrain(templateId, pos, ['raider']);
   return v;
 }

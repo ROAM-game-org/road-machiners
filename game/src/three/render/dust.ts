@@ -21,9 +21,11 @@ export const DUST_LOOK = {
   spread: 0.5,
   spreadGrowth: 3,
   size: 1.8,
+  birthSize: 0.5,
+  buildTurns: 3,
   sizeGrowth: 2.5,
   opacity: 0.4,
-  fadeIn: 0.5,
+  fadeIn: 2,
   wobble: 0.8,
   wobbleSeconds: 3.5,
   glideSeconds: 1.2,
@@ -45,10 +47,29 @@ export function fitToTruck(center: { x: number; z: number }, truck: { x: number;
   return Math.min(1, Math.max(0, room / reach));
 }
 
-function reachAt(life: number): number {
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+export function plumeShape(age: number): { life: number; span: number; size: number; wobble: number; scatter: number; fade: number } {
+  if (!Number.isFinite(age) || age < 0) throw new Error(`plume age must be a finite number of turns, got ${age}`);
+  const life = Math.min(1, age / DETECT.dust.lifetime);
+  const build = smoothstep(Math.min(1, age / DUST_LOOK.buildTurns));
   const span = DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life;
-  const size = DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * LARGEST_BREATHE;
-  return ((span / 2 + DUST_LOOK.wobble) * Math.SQRT2 + size / 2) * S;
+  const grown = DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life);
+  return {
+    life,
+    span,
+    size: DUST_LOOK.birthSize + (grown - DUST_LOOK.birthSize) * build,
+    wobble: DUST_LOOK.wobble * build,
+    scatter: span * 0.4 * build,
+    fade: smoothstep(Math.min(1, age / DUST_LOOK.fadeIn)) * (1 - life),
+  };
+}
+
+function reachAt(age: number): number {
+  const shape = plumeShape(age);
+  return ((shape.span / 2 + shape.wobble) * Math.SQRT2 + (shape.size * LARGEST_BREATHE) / 2) * S;
 }
 
 export class DustCloudsView {
@@ -92,41 +113,39 @@ export class DustCloudsView {
     const source = this.vehicles.get(c.source);
     const truck = views.get(c.source)?.center() ?? null;
     if (!source || !truck) return 1;
-    const life = Math.min(1, (c.age + glide) / DETECT.dust.lifetime);
     const center = { x: (c.pos.x + c.vel.x * glide) * S, z: (c.pos.y + c.vel.y * glide) * S };
-    return fitToTruck(center, truck, bodyOf(source.chassisId).half.x, reachAt(life));
+    return fitToTruck(center, truck, bodyOf(source.chassisId).half.x, reachAt(c.age + glide));
   }
 
   private place(terrain: Terrain, c: DustCloud, puffs: number, glide: number, seconds: number, fit: number): void {
     const age = c.age + glide;
     const x = c.pos.x + c.vel.x * glide;
     const y = c.pos.y + c.vel.y * glide;
-    const life = Math.min(1, age / DETECT.dust.lifetime);
-    const fade = Math.min(1, age / DUST_LOOK.fadeIn) * (1 - life);
+    const shape = plumeShape(age);
     const cx = x * S;
     const cy = (heightAt(terrain, x, y) + age * DETECT.dust.riseHeight) * S;
     const cz = y * S;
     if (fit <= 0) return;
     const tint = this.tintOf(terrain.types[tileAt(terrain, c.pos)]);
     const seed = hashId(c.id);
-    const span = (DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life) * fit;
+    const span = shape.span * fit;
     const t = seconds / DUST_LOOK.wobbleSeconds;
     for (let i = 0; i < puffs; i++) {
       const k = seed + i * 17;
-      const wx = (valueNoise(k * 0.13 + t, 1.7) - 0.5) * 2 * DUST_LOOK.wobble * fit;
-      const wz = (valueNoise(4.3, k * 0.13 + t) - 0.5) * 2 * DUST_LOOK.wobble * fit;
+      const wx = (valueNoise(k * 0.13 + t, 1.7) - 0.5) * 2 * shape.wobble * fit;
+      const wz = (valueNoise(4.3, k * 0.13 + t) - 0.5) * 2 * shape.wobble * fit;
       const breathe = 0.75 + 0.5 * valueNoise(k * 0.29 + t * 1.3, 8.1);
       this.cards.push({
         x: cx + ((hash2(k, 3) - 0.5) * span + wx) * S,
-        y: cy + hash2(k, 7) * span * 0.4 * S,
+        y: cy + hash2(k, 7) * shape.scatter * fit * S,
         z: cz + ((hash2(k, 11) - 0.5) * span + wz) * S,
-        size: DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life) * breathe * fit * S,
+        size: shape.size * breathe * fit * S,
         spin: hash2(k, 19) * DUST_LOOK.spinRange,
         shape: Math.min(CARD_SHAPES - 1, Math.floor(hash2(k, 23) * CARD_SHAPES)),
         r: tint.r,
         g: tint.g,
         b: tint.b,
-        alpha: DUST_LOOK.opacity * fade * (0.6 + 0.8 * hash2(k, 13)),
+        alpha: DUST_LOOK.opacity * shape.fade * (0.6 + 0.8 * hash2(k, 13)),
         sx: 0,
         sy: 0,
         sz: 0,
