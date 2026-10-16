@@ -34,9 +34,9 @@ const CHAT_KIND = {
   instructions: 'What is it? Read it with the thread or the message it replies to.',
   choices: [
     { value: 'bug', description: 'Something is broken. "The truck falls through the bridge."' },
-    { value: 'feature', description: 'An explicit ask for something new or changed that the thread or the replied message is not already about. "Add a minimap and maps to buy."' },
+    { value: 'feature', description: 'An explicit ask for something new or changed that the thread or the replied message is not already about. "Add a minimap and maps to buy." A report of what someone already asked for, did or said is not a feature.' },
     { value: 'question', description: 'A question about the game or how to take part. "How do I repair the engine?" "How do I vote?"' },
-    { value: 'feedback', description: 'Praise, a complaint, or an explanation or opinion of how something already proposed or built should work. "Fights feel great now." "The new music is too loud." Replying to a landmark directions build: "I meant the directions should name places, like turn left at the old water tower."' },
+    { value: 'feedback', description: 'Praise, a complaint, or an explanation or opinion of how something already proposed or built should work. "Fights feel great now." "The new music is too loud." Replying to a landmark directions build: "I meant the directions should name places, like turn left at the old water tower." "I asked them to turn the tutorial tips into a quest."' },
     { value: 'chatter', description: 'Asks, reports and wishes nothing: greetings, thanks, talk between players. "Hi all." "Thanks!" "Anyone online?"' },
   ],
 };
@@ -51,6 +51,18 @@ const LANGUAGE = {
     { value: 'other', description: 'Any other language.' },
   ],
 };
+
+const FILING = {
+  type: 'choice',
+  name: 'filing',
+  instructions: 'The player wrote to the bot. Does the player explicitly ask the bot to file, report, record or pass on this bug or idea?',
+  choices: [
+    { value: 'yes', description: 'An explicit ask to file it. "@bot please file this bug: the truck falls through the bridge." "Record this idea: add a minimap."' },
+    { value: 'no', description: 'Anything else: a question, a remark, a wish said in passing, talk about work. "@bot add a minimap?" "@bot I asked them to make it a quest."' },
+  ],
+};
+
+const FILINGS = FILING.choices.map((choice) => choice.value);
 
 const NO_WORK = 'none';
 
@@ -131,7 +143,8 @@ function chatQuestions(input: FilterInput): Question[] {
   const route = input.source === 'comment' ? [ROUTE] : [];
   const relevance = hasParent(input) ? [RELEVANCE] : [];
   const work = knownWork(input).length > 0 ? [workQuestion(knownWork(input))] : [];
-  return [INTENT, CHAT_KIND, ...route, ...relevance, ...work, LANGUAGE];
+  const filing = input.addressed ? [FILING] : [];
+  return [INTENT, CHAT_KIND, ...route, ...relevance, ...work, ...filing, LANGUAGE];
 }
 
 function questionsFor(input: FilterInput): Question[] {
@@ -150,9 +163,13 @@ function workOf(input: FilterInput, answers: Answer[]): { work?: number } {
   return picked === NO_WORK ? {} : { work: Number(picked) - 1 };
 }
 
-function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'work' | 'language'> {
+function filingOf(input: FilterInput, answers: Answer[]): boolean {
+  return input.addressed === true && choice(answers, 'filing', FILINGS) === 'yes';
+}
+
+function chatJudgement(input: FilterInput, answers: Answer[]): Pick<Decision, 'work' | 'language' | 'filing'> {
   if (input.source === 'report') return {};
-  return { ...workOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
+  return { ...workOf(input, answers), filing: filingOf(input, answers), language: choice(answers, 'language', LANGUAGES) === 'ru' ? 'ru' : 'en' };
 }
 
 function answersOf(body: unknown): Answer[] {

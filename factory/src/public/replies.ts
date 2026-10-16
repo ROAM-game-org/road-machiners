@@ -46,11 +46,13 @@ function asksBot(comment: StoredComment): boolean {
   return comment.addressed || comment.issue !== null;
 }
 
+const asksToFile = (comment: StoredComment): boolean => (comment.kind === 'bug' || comment.kind === 'feature') && comment.wantsFiling;
+
 export async function replyText(ctx: Ctx, store: PublicStore, comment: StoredComment): Promise<string | null> {
   if (comment.kind === null || comment.kind === 'rejected' || comment.kind === 'chatter') return null;
   const text = textsFor(comment.language);
   if (isOnThread(comment)) return waitsForAddress(comment) && !comment.addressed ? null : threadNote(ctx, comment, text);
-  return comment.kind === 'bug' || comment.kind === 'feature' ? filingReply(ctx, store, comment, text) : null;
+  return asksToFile(comment) ? filingReply(ctx, store, comment, text) : null;
 }
 
 const DAY_MS = 24 * 3_600_000;

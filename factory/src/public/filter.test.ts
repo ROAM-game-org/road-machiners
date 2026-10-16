@@ -27,7 +27,7 @@ const bodyOf = (sent: Sent[]) => JSON.parse(String(sent[0].init.body));
 describe('filterWith', () => {
   it('asks a comment intent, kind and route in one Decisions call with the game brief', async () => {
     const { fetch, sent } = fake(200, answers(intent(0.97, 0.02, 0.01), pick('kind', 'bug'), pick('route', 'patch'), pick('language', 'en')));
-    expect(await filterWith(CFG, fetch)(COMMENT)).toEqual({ verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'bug', route: 'patch', relevance: 'parent', language: 'en' });
+    expect(await filterWith(CFG, fetch)(COMMENT)).toEqual({ verdict: 'accept', intent: 'sincere', sincere: 0.97, kind: 'bug', route: 'patch', relevance: 'parent', language: 'en', filing: false });
     expect(sent).toHaveLength(1);
     expect(sent[0].url).toBe('https://api.openai.com/v1/decisions');
     expect((sent[0].init.headers as Record<string, string>).authorization).toBe('Bearer sk-secret-key');
@@ -117,5 +117,17 @@ describe('filterWith', () => {
     const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('language', 'en')));
     await filterWith(CFG, fetch)({ source: 'message', text: 'Add boats', work: [] });
     expect(bodyOf(sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'language']);
+  });
+
+  it('asks a message to the bot whether it asks to file, and files only on yes', async () => {
+    const at = (picked: string) => {
+      const { fetch, sent } = fake(200, answers(intent(0.95, 0.03, 0.02), pick('kind', 'feature'), pick('filing', picked), pick('language', 'en')));
+      return { sent, decision: filterWith(CFG, fetch)({ source: 'message', text: '@bot please file this idea: add boats', addressed: true }) };
+    };
+    const yes = at('yes');
+    expect(await yes.decision).toMatchObject({ kind: 'feature', filing: true });
+    expect(bodyOf(yes.sent).questions.map((question: { name: string }) => question.name)).toEqual(['intent', 'kind', 'filing', 'language']);
+    expect(await at('no').decision).toMatchObject({ filing: false });
+    await expect(at('maybe').decision).rejects.toThrow('bad filing');
   });
 });
