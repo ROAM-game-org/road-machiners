@@ -1,40 +1,218 @@
 {
-  "turn": 3,
-  "player": {
-    "money": 1200,
-    "call": {
-      "with": "npc-1",
-      "topic": "directions",
-      "node": "answer",
-      "vars": {
-        "town": { "kind": "town", "id": "glass-flats" },
-        "way": {
-          "kind": "directions",
-          "steps": [
-            { "do": "follow", "road": { "kind": "to", "site": "nose" }, "span": "fair" },
-            { "do": "turn", "side": "left", "at": { "kind": "fork", "nth": 2 }, "road": { "kind": "heading", "octant": "north" }, "span": "near" },
-            { "do": "turn", "side": "right", "at": { "kind": "fork", "nth": 5 }, "road": { "kind": "to", "site": "glass-flats" }, "span": "near" },
-            { "do": "arrive", "site": "glass-flats", "area": true },
-            { "do": "askAgain", "at": { "kind": "fork", "nth": 3 } }
-          ]
-        }
-      },
-      "line": {
-        "line": "townWay",
-        "vars": {
-          "town": { "kind": "town", "id": "glass-flats" },
-          "way": {
-            "kind": "directions",
-            "steps": [
-              { "do": "follow", "road": { "kind": "to", "site": "nose" }, "span": "fair" },
-              { "do": "turn", "side": "left", "at": { "kind": "fork", "nth": 2 }, "road": { "kind": "heading", "octant": "north" }, "span": "near" },
-              { "do": "turn", "side": "right", "at": { "kind": "fork", "nth": 5 }, "road": { "kind": "to", "site": "glass-flats" }, "span": "near" },
-              { "do": "arrive", "site": "glass-flats", "area": true },
-              { "do": "askAgain", "at": { "kind": "fork", "nth": 3 } }
-            ]
-          }
-        }
-      }
+ "turn": 40,
+ "player": {
+  "vehicleId": "v1",
+  "money": 1200
+ },
+ "vehicles": [
+  {
+   "id": "v1",
+   "faction": "player",
+   "pos": {
+    "x": 200,
+    "y": 200
+   },
+   "brain": null
+  },
+  {
+   "id": "v2",
+   "faction": "raiders",
+   "pos": {
+    "x": 300,
+    "y": 300
+   },
+   "brain": {
+    "templateId": "buggy",
+    "home": {
+     "x": 118,
+     "y": 76
     }
+   }
+  },
+  {
+   "id": "v3",
+   "faction": "raiders",
+   "pos": {
+    "x": 120,
+    "y": 90
+   },
+   "brain": {
+    "templateId": "gunwagon",
+    "home": {
+     "x": 325,
+     "y": 372
+    },
+    "memories": [
+     {
+      "turn": 30,
+      "fact": {
+       "kind": "wronged",
+       "by": "v1"
+      }
+     },
+     {
+      "turn": 31,
+      "fact": {
+       "kind": "prices",
+       "shop": "bowl",
+       "pressure": {}
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "v4",
+   "faction": "couriers",
+   "pos": {
+    "x": 90,
+    "y": 460
+   },
+   "brain": {
+    "templateId": "courier",
+    "home": {
+     "x": 82,
+     "y": 466
+    }
+   }
+  },
+  {
+   "id": "v5",
+   "faction": "traders",
+   "pos": {
+    "x": 500,
+    "y": 180
+   },
+   "brain": {
+    "templateId": "trader",
+    "home": {
+     "x": 505,
+     "y": 178
+    }
+   }
+  },
+  {
+   "id": "v6",
+   "faction": "scavengers",
+   "pos": {
+    "x": 250,
+    "y": 250
+   },
+   "brain": {
+    "templateId": "scavenger",
+    "home": {
+     "x": 250,
+     "y": 250
+    }
+   }
+  },
+  {
+   "id": "v7",
+   "faction": "convoys",
+   "pos": {
+    "x": 300,
+    "y": 200
+   },
+   "brain": {
+    "templateId": "convoy",
+    "home": {
+     "x": 508,
+     "y": 170
+    }
+   }
+  },
+  {
+   "id": "v8",
+   "faction": "convoys",
+   "pos": {
+    "x": 302,
+    "y": 202
+   },
+   "brain": {
+    "templateId": "convoyGuard",
+    "home": {
+     "x": 90,
+     "y": 450
+    }
+   }
+  },
+  {
+   "id": "v9",
+   "faction": "convoys",
+   "pos": {
+    "x": 85,
+    "y": 465
+   },
+   "brain": {
+    "templateId": "convoyGuard",
+    "home": {
+     "x": 85,
+     "y": 465
+    }
+   }
+  },
+  {
+   "id": "v10",
+   "faction": "bowl",
+   "pos": {
+    "x": 84,
+    "y": 468
+   },
+   "brain": {
+    "templateId": "bowlFarmer",
+    "home": {
+     "x": 84,
+     "y": 468
+    }
+   }
+  },
+  {
+   "id": "v11",
+   "faction": "mercs",
+   "pos": {
+    "x": 500,
+    "y": 170
+   },
+   "brain": {
+    "templateId": "merc",
+    "home": {
+     "x": 500,
+     "y": 170
+    }
+   }
   }
+ ],
+ "states": [
+  {
+   "id": "s1",
+   "kind": "feud",
+   "holder": "v2",
+   "other": "v1",
+   "turnsLeft": 20,
+   "data": {
+    "kind": "feud",
+    "robbery": true
+   }
+  },
+  {
+   "id": "s2",
+   "kind": "truce",
+   "holder": "v10",
+   "other": "v1",
+   "turnsLeft": 30,
+   "data": {
+    "kind": "none"
+   }
+  },
+  {
+   "id": "s3",
+   "kind": "escort",
+   "holder": "v8",
+   "other": "v7",
+   "turnsLeft": null,
+   "data": {
+    "kind": "none"
+   }
+  }
+ ]
 }

@@ -1,7 +1,9 @@
 
-import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
+import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -127,7 +129,7 @@ function discoverNewsSite(world: World, call: Call): void {
 
 function markNewsWreck(world: World, npc: Vehicle, call: Call): void {
   const rumor = heardRumor(world, npc);
-  if (call.vars.site === undefined && call.vars.bearing !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
+  if (call.vars.site === undefined && call.vars.way !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
 }
 
 function angerCourier(world: World, npc: Vehicle): void {
@@ -241,6 +243,25 @@ export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
 }
 
+export function opensHelp(world: World, npc: Vehicle): boolean {
+  return helpedByPlayer(world, npc) || bandAtLeast(stanceToward(world, npc), 'friendly');
+}
+
+export function talksTo(world: World, npc: Vehicle): boolean {
+  return bandAtLeast(stanceToward(world, npc), 'neutral');
+}
+
+export function gateOpen(world: World, npc: Vehicle, topic: TopicId): boolean {
+  const gate = TOPIC_GATES[topic];
+  if (gate === 'service') return talksTo(world, npc);
+  return gate !== 'rescue' || stanceToward(world, npc) !== 'hostile';
+}
+
+export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[]): LineId | null {
+  if (talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
+  return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
+}
+
 export const CONDITIONS: Record<ConditionId, Condition> = {
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
   knowsTown: (_world, npc) => knownTowns(npc).length > 0,
@@ -313,7 +334,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   callsOut: (world, npc) => pendingFor(world, npc, 'challenge'),
   asksCourierAid: (world, npc) => pendingFor(world, npc, 'courier'),
   newsOfSite: (_world, _npc, vars) => vars.site !== undefined,
-  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.bearing !== undefined,
+  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.way !== undefined,
   newsOfTip: (_world, _npc, vars) => vars.tip !== undefined,
   courierThanksDue: (world, npc) => storyBeatDue(world, npc) === 'courierThanks',
   courierSquareDue: (world, npc) => storyBeatDue(world, npc) === 'courierSquare',
@@ -662,10 +683,6 @@ export function takeTownWork(world: World): void {
   const offer = townWork(world);
   if (!offer) throw new Error('The board offers no work to take');
   takeContract(world, offer.id);
-}
-
-export function isNoteId(id: string): id is NoteId {
-  return (NOTE_IDS as readonly string[]).includes(id);
 }
 
 export function learnNote(world: World, id: NoteId): void {

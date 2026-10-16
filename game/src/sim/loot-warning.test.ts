@@ -25,7 +25,7 @@ function quietWorld(): World {
 }
 
 function driver(w: World, x: number, y: number, traits: TraitId[] = ['scavenger']): Vehicle {
-  const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'mg'], { x, y });
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg'], { x, y });
   npc.brain = npcBrain('scavenger', npc.pos, traits);
   npc.speed = 0;
   return npc;

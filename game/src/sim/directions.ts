@@ -14,7 +14,7 @@ const CLEAR_STEP = 1;
 
 export function directionsTo(world: World, from: Vec, target: DirectionTarget): DirectionStep[] {
   if (!Number.isFinite(from.x) || !Number.isFinite(from.y)) throw new Error('Directions need a finite start');
-  const aim = targetPos(world, target);
+  const aim = targetPos(target);
   const rough = { octant: octantOf({ x: aim.x - from.x, y: aim.y - from.y }), span: spanOf(dist(from, aim)) };
   if (target.kind === 'spot' && dist(from, aim) <= DIRECTIONS.directReach && clearLine(world, from, aim)) {
     return [{ do: 'straight', ...rough }, wreckSearch()];
@@ -32,7 +32,7 @@ export function directionsTo(world: World, from: Vec, target: DirectionTarget): 
   return [...head, ...speakPath(world, graph, path, target, leave ? aim : null)];
 }
 
-function targetPos(world: World, target: DirectionTarget): Vec {
+function targetPos(target: DirectionTarget): Vec {
   if (target.kind === 'spot') return target.pos;
   const site = [...REGION.towns, ...REGION.locations].find((s) => s.id === target.id);
   if (!site) throw new Error(`Directions to unknown site ${target.id}`);

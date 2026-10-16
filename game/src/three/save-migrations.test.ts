@@ -70,6 +70,7 @@ import FORMAT_2_67 from './save-fixtures/format-2-67.json';
 import FORMAT_2_68 from './save-fixtures/format-2-68.json';
 import FORMAT_2_69 from './save-fixtures/format-2-69.json';
 import FORMAT_2_70 from './save-fixtures/format-2-70.json';
+import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1407,14 +1408,41 @@ describe('MIGRATIONS[66]', () => {
   });
 });
 
-describe('save migration 67 to 68', () => {
-  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
-    expect(MIGRATIONS[67](structuredClone(FORMAT_2_67))).toEqual(FORMAT_2_67);
+describe('MIGRATIONS[67]', () => {
+  const callOf = (world: unknown) => (world as { player: { call: unknown } }).player.call;
+  const saying = (line: string) => {
+    const world = structuredClone(FORMAT_2_67) as { player: { call: { line: { line: string } } } };
+    world.player.call.line.line = line;
+    return world;
+  };
+
+  it('hangs up a call on the old town bearing line and keeps every other field', () => {
+    const next = MIGRATIONS[67](structuredClone(FORMAT_2_67));
+    expect(callOf(next)).toBeNull();
+    expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_67, player: { ...FORMAT_2_67.player, call: null } });
+  });
+
+  it('hangs up a call on the old site and wreck bearing lines', () => {
+    expect(callOf(MIGRATIONS[67](saying('siteBearing')))).toBeNull();
+    expect(callOf(MIGRATIONS[67](saying('aWreckNobodyPicked')))).toBeNull();
+  });
+
+  it('keeps a call on another line and a save with no call as they are', () => {
+    const other = saying('heardYou');
+    expect(MIGRATIONS[67](structuredClone(other))).toEqual(other);
+    const none = { turn: 3, player: { call: null } };
+    expect(MIGRATIONS[67](structuredClone(none))).toEqual(none);
   });
 });
 
 describe('save migration 68 to 69', () => {
-  const migrated = () => MIGRATIONS[68](structuredClone(FORMAT_2_68)) as typeof FORMAT_2_68;
+  it('keeps a held search and a driver sighting as they are, since both only add union members', () => {
+    expect(MIGRATIONS[68](structuredClone(FORMAT_2_68))).toEqual(FORMAT_2_68);
+  });
+});
+
+describe('save migration 69 to 70', () => {
+  const migrated = () => MIGRATIONS[69](structuredClone(FORMAT_2_69)) as typeof FORMAT_2_69;
 
   it('drops every radio-era search, since none carries a parcel, and keeps the other contracts', () => {
     const w = migrated();
@@ -1430,42 +1458,54 @@ describe('save migration 68 to 69', () => {
   });
 
   it('keeps a call on another topic', () => {
-    const save = structuredClone(FORMAT_2_68);
+    const save = structuredClone(FORMAT_2_69);
     save.player.call.topic = 'lastSeen';
-    expect((MIGRATIONS[68](save) as typeof FORMAT_2_68).player.call).toEqual(save.player.call);
-  });
-});
-
-describe('MIGRATIONS[69]', () => {
-  const callOf = (world: unknown) => (world as { player: { call: unknown } }).player.call;
-  const saying = (line: string) => {
-    const world = structuredClone(FORMAT_2_69) as { player: { call: { line: { line: string } } } };
-    world.player.call.line.line = line;
-    return world;
-  };
-
-  it('hangs up a call on the old town bearing line and keeps every other field', () => {
-    const next = MIGRATIONS[69](structuredClone(FORMAT_2_69));
-    expect(callOf(next)).toBeNull();
-    expect({ ...next, player: { ...(next.player as object), call: null } }).toEqual({ ...FORMAT_2_69, player: { ...FORMAT_2_69.player, call: null } });
-  });
-
-  it('hangs up a call on the old site and wreck bearing lines', () => {
-    expect(callOf(MIGRATIONS[69](saying('siteBearing')))).toBeNull();
-    expect(callOf(MIGRATIONS[69](saying('aWreckNobodyPicked')))).toBeNull();
-  });
-
-  it('keeps a call on another line and a save with no call as they are', () => {
-    const other = saying('heardYou');
-    expect(MIGRATIONS[69](structuredClone(other))).toEqual(other);
-    const none = { turn: 3, player: { call: null } };
-    expect(MIGRATIONS[69](structuredClone(none))).toEqual(none);
+    expect((MIGRATIONS[69](save) as typeof FORMAT_2_69).player.call).toEqual(save.player.call);
   });
 });
 
 describe('MIGRATIONS[70]', () => {
+  const next = MIGRATIONS[70](structuredClone(FORMAT_2_70)) as { player: Record<string, unknown>; vehicles: { id: string; faction: string }[]; states: unknown[] };
+  const factionOf = (id: string) => next.vehicles.find((v) => v.id === id)?.faction;
+
+  it('puts each raider in the camp nearest its home, whatever its position', () => {
+    expect(factionOf('v2')).toBe('scrapjaw');
+    expect(factionOf('v3')).toBe('kiln');
+  });
+
+  it('makes couriers Guidestar and road drivers independent', () => {
+    expect(factionOf('v4')).toBe('guidestar');
+    expect(['v5', 'v6', 'v11'].map(factionOf)).toEqual(['independent', 'independent', 'independent']);
+  });
+
+  it('gives a convoy its nearest town and its guard the convoy faction, and a lone guard its own nearest town', () => {
+    expect(factionOf('v7')).toBe('nose');
+    expect(factionOf('v8')).toBe('nose');
+    expect(factionOf('v9')).toBe('bowl');
+  });
+
+  it('keeps the player and town patrols, drops no truck and keeps every state', () => {
+    expect(factionOf('v1')).toBe('player');
+    expect(factionOf('v10')).toBe('bowl');
+    expect(next.vehicles).toHaveLength(FORMAT_2_70.vehicles.length);
+    expect(next.states).toEqual(FORMAT_2_70.states);
+  });
+
+  it('starts the player at the outside driver standing with no deeds', () => {
+    expect(next.player.standing).toEqual({ bowl: 5, nose: 5, guidestar: 10, administrators: 10, scrapjaw: -30, kiln: -30 });
+    expect(next.player.deeds).toEqual([]);
+    expect(next.player.money).toBe(1200);
+  });
+
+  it('gives a memory of being wronged the attacked deed and keeps other memories', () => {
+    const memories = (next.vehicles as unknown as { id: string; brain: { memories: unknown[] } }[]).find((v) => v.id === 'v3')!.brain.memories;
+    expect(memories).toEqual([{ turn: 30, fact: { kind: 'wronged', by: 'v1', deed: 'attacked' } }, { turn: 31, fact: { kind: 'prices', shop: 'bowl', pressure: {} } }]);
+  });
+});
+
+describe('MIGRATIONS[71]', () => {
   type Saved = { player: { money: number; call: { vars: { way: { steps: { do: string; at?: unknown }[] } }; line: { vars: { way: { steps: { do: string; at?: unknown }[] } } } } } };
-  const next = () => MIGRATIONS[70](structuredClone(FORMAT_2_70)) as unknown as Saved;
+  const next = () => MIGRATIONS[71](structuredClone(FORMAT_2_71)) as unknown as Saved;
 
   it('cuts the steps at a fork counted past the third and asks again, in both copies of the call', () => {
     const { call } = next().player;
@@ -1475,10 +1515,10 @@ describe('MIGRATIONS[70]', () => {
   });
 
   it('removes the cue from every askAgain', () => {
-    const only = structuredClone(FORMAT_2_70) as unknown as Saved;
+    const only = structuredClone(FORMAT_2_71) as unknown as Saved;
     only.player.call.vars.way.steps = [{ do: 'askAgain', at: { kind: 'fork', nth: 3 } }];
     only.player.call.line.vars.way.steps = [{ do: 'askAgain', at: { kind: 'none' } }];
-    const { call } = (MIGRATIONS[70](only as never) as unknown as Saved).player;
+    const { call } = (MIGRATIONS[71](only as never) as unknown as Saved).player;
     expect(call.vars.way.steps).toEqual([{ do: 'askAgain' }]);
     expect(call.line.vars.way.steps).toEqual([{ do: 'askAgain' }]);
   });
@@ -1488,13 +1528,13 @@ describe('MIGRATIONS[70]', () => {
     expect(rest).toEqual({ turn: 3 });
     expect(player.money).toBe(1200);
     const none = { turn: 3, player: { call: null } };
-    expect(MIGRATIONS[70](structuredClone(none))).toEqual(none);
+    expect(MIGRATIONS[71](structuredClone(none))).toEqual(none);
   });
 
   it('keeps the steps of a call whose forks are all countable', () => {
-    const fine = structuredClone(FORMAT_2_70) as unknown as Saved;
+    const fine = structuredClone(FORMAT_2_71) as unknown as Saved;
     fine.player.call.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
     fine.player.call.line.vars.way.steps = [{ do: 'turn', at: { kind: 'fork', nth: 3 } }];
-    expect(MIGRATIONS[70](structuredClone(fine) as never)).toEqual(fine);
+    expect(MIGRATIONS[71](structuredClone(fine) as never)).toEqual(fine);
   });
 });
