@@ -31,7 +31,7 @@ function fake(calls: string[][], projectJson: string): Run {
     if (text.includes('projectV2(number')) return ok(projectJson);
     if (text.includes('items(first')) {
       const items = { pageInfo: { hasNextPage: false, endCursor: '' }, nodes: [
-        { id: 'I7', fieldValueByName: { name: 'Design' }, content: { number: 7, repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } },
+        { id: 'I7', fieldValueByName: { name: 'Design' }, content: { number: 7, title: 'Winch', repository: { nameWithOwner: 'o/r' }, labels: { nodes: [{ name: 'bug' }] } } },
         { id: 'I8', fieldValueByName: { name: 'Done' }, content: { number: 8, repository: { nameWithOwner: 'x/y' }, labels: { nodes: [] } } },
         { id: 'I9', fieldValueByName: null, content: { number: 9, repository: { nameWithOwner: 'o/r' }, labels: { nodes: [] } } },
       ] };
@@ -142,7 +142,7 @@ describe('ghClient', () => {
 
   it('lists cards of this repo with a status', async () => {
     const cards = await ghClient(fake([], project(ALL)), CFG).cards();
-    expect(cards).toEqual([{ itemId: 'I7', issue: 7, column: 'Design', labels: ['bug'] }]);
+    expect(cards).toEqual([{ itemId: 'I7', issue: 7, column: 'Design', labels: ['bug'], title: 'Winch' }]);
   });
 
   it('move sets the status option of the item', async () => {

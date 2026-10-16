@@ -54,6 +54,25 @@ function fakeCtx(agent: (run: AgentRun) => void): Ctx {
 
 const PLAN = '# Task\n\n## Plan\n- step one\n\n## Verify\n';
 
+describe('design post', () => {
+  const planned = (summary: string | null) => fakeCtx((run) => {
+    mkdirSync(`${run.clone}/${run.dir}/.factory-tasks`, { recursive: true });
+    writeFileSync(`${run.clone}/${run.dir}/${TASK_FILE(7)}`, PLAN);
+    if (summary !== null) writeFileSync(`${run.clone}/${run.dir}/.factory/summary.md`, summary);
+  });
+  const designComment = () => calls.find((call) => call.startsWith('comment 7 ') && call.includes('<summary>Design and plan</summary>'));
+
+  it('puts the plain summary above the collapsed design notes', async () => {
+    await runStage(planned('Towns will give directions by landmarks you can see from the road.\n'), 7);
+    expect(designComment()).toBe(`comment 7 **Planned change**\n\nTowns will give directions by landmarks you can see from the road.\n\n<details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+
+  it('posts the collapsed design notes alone when the agent wrote no summary', async () => {
+    await runStage(planned(null), 7);
+    expect(designComment()).toBe(`comment 7 <details>\n<summary>Design and plan</summary>\n\n${PLAN}\n\n</details>`);
+  });
+});
+
 describe('design stage with a bundle', () => {
   const bundled = (): void => writeState(`${home}/state.json`, { ...readState(`${home}/state.json`), bundles: { '7': [9] } });
 
