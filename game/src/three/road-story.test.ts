@@ -4,7 +4,7 @@ import { UNITS } from '../data/units';
 import { startKit } from '../data/start';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { driveOn } from '../sim/fury-road';
-import { payOf } from '../sim/fury-road-danger';
+import { payOf } from '../sim/fury-road-director';
 import { highwayMap } from '../sim/highway';
 import { newGame } from '../sim/new-game';
 import { QUEST_QUERIES, QUESTS, setWorldVar, worldVar } from '../sim/quests';

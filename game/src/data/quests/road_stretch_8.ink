@@ -7,7 +7,7 @@ VAR grief_said = "none"
 
 === start ===
 # checkpoint: start
-Dusk at the eighth fort, and the Keepers are counting the evening's trucks through the gate. # place: The eighth outpost
+Dusk at the eighth fort, and the Keepers are counting the evening's trucks through the gate. # place: The eighth outpost # img: road_gate
 Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. You drove at all of them. Ala drove straight through the middle of what was left. The scout is held together now with the yard's weld and most of the pay.
 An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
 I knew a man with a burn like that. # speaker: Old gatekeeper

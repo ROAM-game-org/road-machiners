@@ -7,7 +7,7 @@ VAR asked_hunters = false
 
 === start ===
 # checkpoint: start
-The fourth fort has a water cistern on its roof and a Keeper asleep beside it. # place: The fourth outpost
+The fourth fort has a water cistern on its roof and a Keeper asleep beside it. # place: The fourth outpost # img: road_hauler
 Two trucks came out of the badlands this morning. You dealt with the first in the open, and it was quick. The second waited behind a rockfall with its gun on the hauler's cab. You never decided anything. You put your bumper into its front wheel at full speed, and it spun into the rocks. When the dust settled, the gun was pointing at the sky and the driver was not moving.
 Ala climbs down from the hauler and counts the stretch's pay into your hand out loud, quickly, without her usual care. Her eyes keep going to your bumper. # page
 -> death_machine

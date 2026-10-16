@@ -5,7 +5,7 @@ VAR stay_said = "none"
 
 === start ===
 # checkpoint: start
-The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost
+The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost # img: road_hauler
 This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
 Ala counts the stretch's pay into your hand out loud, {stretch_pay(12)} M's, one disc at a time, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
 The first says Hedda Vell has called off the reward on the truck. Ala reads on. The hunters were promised diesel and nobody has told them to stop, and the bar talk says the trailer carries Blackwell's secret. They will keep coming. # page
@@ -16,7 +16,7 @@ She folds the slips and waits. # page
 
 = fire
 # checkpoint: start.fire
-You don't answer. You look at the lamp on the wall, and the lamp makes you think of fire, and then of other fire. # page
+You don't answer. You look at the lamp on the wall, and the lamp makes you think of fire, and then of other fire. # page # img: road_tankline
 A tank line, years ago: a row of dead army trucks left in the dust where the army left them. Every truck still had its link seat, fitted to the man who drove it and died in it. Plug into a seat that wasn't yours, and it burned you. You took the first one anyway, because you were Magnus, and Magnus took what he wanted. # page
 The seat took hold of your neck and began to cook the socket out of you. You heard yourself scream.
 Your drivers followed you into the other seats, one truck after another, because Magnus had gone first and Magnus was never wrong. By the time you screamed, each was already plugged into a seat that was not his. In the next truck, close enough to hear through both hulls, sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
@@ -26,7 +26,7 @@ You tore the plug out of your own seat with both hands. That left the ring in yo
 
 = ask
 # checkpoint: start.ask
-Ala has been watching your face for a long time. She doesn't know what she's looking at. # page
+Ala has been watching your face for a long time. She doesn't know what she's looking at. # page # img: road_ala
 At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Who was that man? # speaker: Ala
 + [A man I rode with. A Burnt Driver.]
   ~ ala_knows = "burnt"

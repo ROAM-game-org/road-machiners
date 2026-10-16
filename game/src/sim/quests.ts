@@ -38,7 +38,7 @@ import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
 import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canDriveOn } from './fury-road';
-import { payOf } from './fury-road-danger';
+import { payOf } from './fury-road-director';
 import { hashRandom } from './rng';
 import { storyStock } from './salvage';
 import type { QuestCheck, QuestLine, QuestLive, QuestSession, QuestState, QuestVars, SkillId, World } from './types';

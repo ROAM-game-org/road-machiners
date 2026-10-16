@@ -9,13 +9,13 @@ VAR walked_out = false
 
 === start ===
 # checkpoint: start
-The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost
+The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost # img: road_bar
 You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
 Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for nearly all the M's you had left. # page
-At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers.
+At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers. # img: road_ala
 Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
-Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor
-The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # page
+Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor # img: road_geezer
+The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # page # img: road_hauler
 That's what he drives? A toy like that won't last a stretch, fort to fort. # speaker: Ala
 -> pitch
 
@@ -44,7 +44,7 @@ You shrug your shirt closed, and your collar slips. The ring of old burn around 
 # checkpoint: start.both
 { geezer_pitch == "link": It's the burn she's been reading, you can tell. The bullets are only a bonus. }
 { geezer_pitch == "bullets": It's the bullets she's been counting, you can tell. The burn is a question she hasn't asked yet. }
-So you've been burned and shot, and you still drive a toy. Why? # speaker: Ala # page
+So you've been burned and shot, and you still drive a toy. Why? # speaker: Ala # page # img: road_geezer
 She isn't being cruel. She's pricing you.
 Fair question. Two weeks ago, on the road north of here, you drove a truck three times the size of this one. A shell came through the engine bay, and there was one white second. Then you were lying in a ditch, watching your cab burn while the link in your neck still hummed, as if the truck were calling you back in. # page
 You should have been dead in that ditch, and you've been sore about it since.
@@ -55,7 +55,7 @@ Fine. Ask what you want. I'll answer what I answer. # speaker: Ala
 
 = hub
 # checkpoint: start.hub
-Ala stacks her M's in front of her and waits. The bar goes on around you, loud and brown. # page
+Ala stacks her M's in front of her and waits. The bar goes on around you, loud and brown. # page # img: road_ala
 -> menu
 
 = menu
