@@ -1,6 +1,7 @@
 
 import RAPIER from '@dimforge/rapier3d-compat';
 import { chassisDef } from '../data/chassis';
+import { freeOnThrow, restoreWorld } from './snapshot';
 import { PERF } from '../data/perf';
 import { PHYSICS } from '../data/physics';
 import { BREAKABLE, CRATER, RULES } from '../data/rules';
@@ -72,7 +73,7 @@ export function captureDrive(drive: Drive): DriveSnapshot {
 
 export function restoreDrive(saved: DriveSnapshot): Drive {
   const { snapshot, ...handles } = saved;
-  return { ...structuredClone(handles), world: RAPIER.World.restoreSnapshot(snapshot) };
+  return { ...structuredClone(handles), world: restoreWorld(snapshot) };
 }
 
 export async function initPhysics(): Promise<void> {
@@ -246,7 +247,7 @@ function placeBody(body: RAPIER.RigidBody, w: World, v: Vehicle): void {
 }
 
 export function simulateTurn(d: Drive, w: World): TurnResult {
-  return run(d, w, TURN_STEPS);
+  return runFreed(d, w, TURN_STEPS);
 }
 
 function noteOwner(owner: Map<number, string>, body: RAPIER.RigidBody, vehicleId: string): void {
@@ -255,10 +256,14 @@ function noteOwner(owner: Map<number, string>, body: RAPIER.RigidBody, vehicleId
 
 type Car = { v: Vehicle; s: VehicleStats; b: Body; body: RAPIER.RigidBody; ctl: RAPIER.DynamicRayCastVehicleController; mem: Memory; plan: Plan; result: VehicleResult; grip: number; topShare: number; oil: Circle[]; kicked: boolean; world: RAPIER.World };
 
-function run(d: Drive, w: World, steps: number): TurnResult {
-  const world = RAPIER.World.restoreSnapshot(d.world.takeSnapshot());
-  world.timestep = DT;
+function runFreed(d: Drive, w: World, steps: number): TurnResult {
+  const world = restoreWorld(d.world.takeSnapshot());
   const events = new RAPIER.EventQueue(true);
+  return freeOnThrow(world, events, () => run(d, w, steps, world, events));
+}
+
+function run(d: Drive, w: World, steps: number, world: RAPIER.World, events: RAPIER.EventQueue): TurnResult {
+  world.timestep = DT;
   const memory: Record<string, Memory> = structuredClone(d.memory);
   const oil = oilPatches(w);
   const cars: Car[] = w.vehicles.filter((v) => d.bodies[v.id] !== undefined).map((v) => {
@@ -292,7 +297,6 @@ function run(d: Drive, w: World, steps: number): TurnResult {
     for (const c of cars) frames[c.v.id].push(frameOf(c.ctl, c.body, before.get(c.v.id)!.velocity));
   }
   for (const c of cars) world.removeVehicleController(c.ctl);
-  events.free();
   const results = Object.fromEntries(cars.map((c) => [c.v.id, c.result]));
   const obstacles = Object.fromEntries(Object.entries(d.obstacles).filter(([id]) => !contacts.isBroken(id)));
   return { next: { world, bodies: { ...d.bodies }, obstacles, craters: { ...d.craters }, memory, terrain: d.terrain, decks: d.decks }, frames, crashes: contacts.crashes, breaks: contacts.breaks, landings: landings.all(), tears: lines.tears, results };

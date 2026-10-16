@@ -284,5 +284,8 @@ describe('the hauler driver', () => {
     expect(stalls()).toEqual([]);
     foe.defeat = { phase: 'retreat', turns: 0, unseen: 0, foes: [], gaveUp: true };
     expect(stalls()).toHaveLength(1);
+    delete foe.defeat;
+    foe.pos = roadPoint(w.seed, 0, N, LANES[1] + 4);
+    expect(stalls()).toHaveLength(1);
   });
 });

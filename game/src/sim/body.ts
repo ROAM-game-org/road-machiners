@@ -36,6 +36,10 @@ export function halfLength(chassisId: string): number {
   return bodyOf(chassisId).half.x / PHYSICS.metersPerTile;
 }
 
+export function halfWidth(chassisId: string): number {
+  return bodyOf(chassisId).half.z / PHYSICS.metersPerTile;
+}
+
 export function footprint(chassisId: string): number {
   return Math.max(chassisDef(chassisId).radius, halfLength(chassisId));
 }

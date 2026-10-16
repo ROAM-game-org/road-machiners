@@ -3,7 +3,7 @@ import { FURY_ROAD, HIGHWAY } from '../data/modes';
 import { RULES } from '../data/rules';
 import { haulerOf } from './damage';
 import { backOutSpot } from './back-out';
-import { halfLength } from './body';
+import { footprint, halfLength, halfWidth } from './body';
 import { isDefeated } from './defeat';
 import { betweenLevels, onOutpostPad, outpostPad } from './fury-road';
 import { acrossOf, alongOf, roadAt, roadPoint, toRoad, windowSpan } from './highway';
@@ -254,9 +254,17 @@ function stallExcused(world: World, hauler: Vehicle): boolean {
 }
 
 function pinnedByFoe(world: World, hauler: Vehicle): boolean {
-  const reach = halfLength(hauler.chassisId) + RULES.yieldDistance;
   const foes = runOf(world).groups.flatMap((g) => g.vehicles);
-  return world.vehicles.some((v) => foes.includes(v.id) && !isDefeated(v) && dist(v.pos, hauler.pos) <= reach + halfLength(v.chassisId));
+  return world.vehicles.some((v) => foes.includes(v.id) && !isDefeated(v) && blocksNose(hauler, v));
+}
+
+function blocksNose(hauler: Vehicle, foe: Vehicle): boolean {
+  const dx = foe.pos.x - hauler.pos.x;
+  const dy = foe.pos.y - hauler.pos.y;
+  const ahead = dx * Math.cos(hauler.heading) + dy * Math.sin(hauler.heading);
+  const side = Math.abs(-dx * Math.sin(hauler.heading) + dy * Math.cos(hauler.heading));
+  const reach = footprint(foe.chassisId) + RULES.yieldDistance;
+  return ahead > 0 && ahead <= halfLength(hauler.chassisId) + reach && side <= halfWidth(hauler.chassisId) + reach;
 }
 
 export function watchHaulerStall(world: World): void {
