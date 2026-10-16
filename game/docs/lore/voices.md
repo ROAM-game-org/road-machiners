@@ -300,7 +300,7 @@ Ala talks of money, stretches, fuel and the next fort. She compares things to lo
 
 Her sentences are short and level. She counts out loud, and she says a sum before she says anything else.
 
-She wants a driver who asks no questions and does the job. She steers around her father until the eighth stretch, and around what is in the trailer until the fourth.
+She wants a driver who asks no questions and does the job. She steers around Maya until the first stretch, around her father until he asks or the eighth stretch, and around what is in the trailer until the fourth.
 
 She notices the truck first, then the scars. A man's gear tells her what he costs.
 
@@ -314,9 +314,9 @@ The narration runs through the head of a man who checks pins and avoids the past
 
 Its sentences run short. It answers a question with the smallest true thing and goes back to the road.
 
-It checks every gun pin before it speaks. It avoids the Burnt Drivers, the tank line, his age, and why he took the job. When the past comes up, the narration looks at something else.
+It checks every gun pin before it speaks. It avoids the Burnt Drivers, the tank line, the pass, his age, and why he took the job. When the past comes up, the narration looks at something else.
 
-He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive.
+He wants a ride that ends it. By the end of the road, he wants the people behind her to arrive, and one girl to drink.
 
 Sample: "Both pins are bright. Somebody cared about this truck, or somebody was afraid. Mostly the same thing."
 
@@ -332,8 +332,20 @@ He notices the truck outside the window and the money in the room.
 
 Sample: "Rode with Magnus, they say. Scars to prove it. I don't sell lies, only men whose lies are cheap."
 
-### The old gatekeeper
+### Vale, hunter
+
+A minor speaker, a hunter for hire who leads a small crew. She names the price and the threat in one breath, and she never says a thing twice.
+
+Sample: "That scout's got one driver. One."
+
+### Bram, old gatekeeper
 
 A minor speaker with one job: a Keeper at a gate who has counted trucks for thirty years and remembers a burn. He says one thing and no more, and he has no quirk.
 
 Sample: "I knew a man with a burn like that."
+
+### Sara, Ala's mother
+
+A minor speaker, heard only in relay slips that Ala reads aloud. Her slips are short, hard and kind. She never asks for anything for herself.
+
+Sample: "Don't come back. Keep going north. Maya asks for you every hour."

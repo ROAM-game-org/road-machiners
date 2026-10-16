@@ -1,6 +1,10 @@
 # Chaos Highway story game
 
-The evidence for [Chaos Highway](chaos-highway.md): a story game run for issue 703 with seven separate players on the small model and 65 Fate rolls from a recorded seed. It follows the [Story game](story-game.md) rules in two passes. Pass A, the Magnus years, ran four 6-year turns. Pass B, the run, played the hiring and the ends of stretches 1, 4, 8 and 12.
+The evidence for [Chaos Highway](chaos-highway.md). It holds two runs and their combination. The first run comes first below, and the [second run](#second-run-pass-c) and [Combining the runs](#combining-the-runs) follow it.
+
+# First run
+
+A story game run for issue 703 with seven separate players on the small model and 65 Fate rolls from a recorded seed. It follows the [Story game](story-game.md) rules in two passes. Pass A, the Magnus years, ran four 6-year turns. Pass B, the run, played the hiring and the ends of stretches 1, 4, 8 and 12.
 
 # Setup
 
@@ -313,3 +317,349 @@ roll 63 B4-keepers: dice [0, 1, 1, 1] sum +3
 roll 64 B4-hedda: dice [1, -1, -1, 0] sum -1
 roll 65 B4-crews: dice [-1, 0, 0, -1] sum -2
 ```
+
+# Second run (pass C)
+
+The committee found the first run's stakes too low and asked for a rerun. Pass A of the first run stayed fixed. Seven new haiku players ran the road again with 57 Fate rolls from a recorded seed, and their raw sheets, rolls and truths are below.
+
+## Setup
+
+Why: the committee read the first run (`../issue-703-story/`) and found Ala's motive too weak and the stakes too low ("some worker dispute", "the truck carries just records"). It asked to rerun the board game and combine the best of both runs. The story must stay a personal struggle of Ala and her people, with greater meaning and high stakes only as a backdrop, never a save-the-world plot.
+
+Game master: the design agent. Players: seven separate subagents on the small model (haiku), each started once and continued every turn. They never see the first run, the anchors or each other's sheets.
+Rules: docs/lore/story-game.md, with the smaller-pass rules. Dice: 4dF from `roll.py`, python `Random(7032)`, every roll in `rolls.log`.
+
+### What stays fixed from the first run
+
+Pass A of the first run (the Magnus years, Y-28 to Y-10) is fixed history here, because the committee did not question it: Magnus and the Burnt Drivers, the linked war trucks at the tank line whose seats burn the wrong driver, the Keepers under Commandant Orsolya Dane, the water covenant between Blackwell and Northgate on Blackwell's terms, the winter that broke the gang, the burned body sold as Magnus, and the hidden truths T1 to T4. Blackwell's wells are failing. Hedda Vell has run Blackwell since her father died in the gap.
+
+Pass B of the first run (the run itself) is NOT fixed. Rook Halloran, the well crews, the well books, Mina and the bounty's cause are open again, so play can answer them differently.
+
+### Place, scale and turns
+
+The same unnamed highway in the late Chaos. Turns:
+
+- C0, the season before the run (about three months before Y0). Sets up why the truck leaves.
+- C1, Y0, the hiring night at the Keepers' southern fort.
+- C2, the end of stretch 1. C3, the end of stretch 4. C4, the end of stretch 8. C5, the end of stretch 12.
+
+Death rule, scaled to the short turns: a leader over 75 dies on +3 or more, once per turn. Nobody under 75 rolls.
+
+### Anchors (from the member, fixed)
+
+A1 to A8 of the first run's setup stand unchanged: Geezer, in his fifties, linked, scarred, a daredevil who takes the hardest jobs to be killed, who says he rode with Magnus and was Magnus; the truck that blew up under him two weeks before; Ala, a linked driver of a mammoth hauler going north, a bounty on her truck, pays by the stretch, no questions; the barman's sale, her doubt, his scars, he signs on; the beats at stretches 1, 4 and 8; his later turn to stay for her purpose.
+
+Added for this run, from the committee:
+
+- A9 The stakes for Ala and her people are high and personal: they lose something they cannot get back if the truck does not arrive.
+- A10 The whole road wants the truck. A bounty alone does not explain "literally everyone after it", so play must give a reason the road itself wants what she carries.
+- A11 No save-the-world plot. The big stakes stay in the background of a personal story.
+
+### Issues
+
+- Current: Blackwell's last good well is thinning, and every truck on the road burns Blackwell's diesel.
+- Current: The water covenant. Northgate's water goes south in Blackwell tankers on Blackwell's terms.
+- Impending (from C0): Something that the road wants is being loaded onto the oldest hauler in the south.
+
+### Questions play must answer
+
+- Q5 What does Ala carry, and why does the whole road want it?
+- Q6 Who is Ala doing this for by name, and what does she lose if she turns back?
+- Q7 Who put the bounty on the truck, and why does the hunt not stop?
+- Q8 What news of the people behind the truck, or of the place ahead, can reach a fort on the road, so the story pays off without the run ever ending?
+
+### Game master truths decided before play
+
+- T1 to T4 from the first run.
+- TC1 The mine that blew up Geezer's last truck, two weeks before the hiring, was laid on the north road by a hunters' crew for somebody else's truck.
+
+### Players
+
+- p-ala: Ala, the hauler driver.
+- p-geezer: Geezer, the escort.
+- p-kin: Ala's people, a small southern community. The player names them and defines what they load onto the truck, in a private note.
+- p-hunt: the hunters, guns for hire between the forts. The player names their boss.
+- p-south: Blackwell, Oilmistress Hedda Vell, 41.
+- p-forts: the Keepers, Commandant Orsolya Dane, 72.
+- p-north: Northgate, Warden Lio Marten, 79.
+
+## Board before the run
+
+Every player starts each turn with 3 fate points.
+
+### Ala (p-ala)
+- A linked driver of the oldest mammoth hauler in the south.
+- High concept: Linked driver of an eighteen-wheeler nobody else can drive. Way: Escape.
+- Trouble: Can't turn back.
+- Aspects: Pays by the stretch, no questions; the player names a second aspect about the person she does this for.
+- Skills: Drive +3, Will +2, Know-how +2, Notice +1, Talk 0, Fight -1.
+- Ala, 34. Goal: get the truck north. Fear: arriving too late. Habit: counts money out loud before she pays.
+
+### Geezer (p-geezer)
+- A hired linked driver in his fifties, deep link scars at the neck, old bullet scars.
+- High concept: Daredevil who takes the jobs nobody else will. Way: Escape.
+- Trouble: Wants the ride that kills him.
+- Aspects: Says he rode with Magnus; Nobody at the forts knows his face.
+- Skills: Drive +3, Fight +2, Notice +2, Will +1, Know-how 0, Talk -1.
+- Geezer, 54. Goal: find the job that ends it. Fear: being recognized. Habit: checks every gun pin before he speaks.
+- Private (his own sheet only): he was Magnus.
+
+### Ala's people (p-kin)
+- A small community in the south, in Blackwell's shadow. Ala is one of theirs. The player names them.
+- High concept: defined by the player. Way: Fear.
+- Trouble: Their time is running out (the player says why).
+- Aspects: What they load onto the hauler (the player defines it, privately).
+- Skills: Know-how +2, People +1, Supplies +1, Influence 0, Arms -1.
+- Leader: named by the player, in their fifties. Goal: a future for their people. Fear and habit: the player's.
+
+### The hunters (p-hunt)
+- Drivers, scavengers and mercs who chase bounties between the forts.
+- High concept: Guns for hire between the forts. Way: Oppose.
+- Trouble: No fort feeds them.
+- Aspects: Every bar on the road talks to them; Old Burnt Driver bounty money built their trade.
+- Skills: Arms +3, People +2, Supplies +1, Influence +1, Know-how 0.
+- Leader: named by the player, in their forties. Goal: take the big one. Fear: coming back with nothing. Habit: splits every take evenly.
+
+### Blackwell (p-south)
+- The refinery town at the road's south end.
+- High concept: Refinery town that runs on fuel and fear. Way: Control.
+- Trouble: Its wells are failing.
+- Aspects: Every truck on the road burns its diesel; Buys whoever is for sale; The water covenant.
+- Skills: Arms +3, Influence +2, Supplies +2, People +1, Know-how 0.
+- Oilmistress Hedda Vell, 41. Goal: keep Blackwell alive as the last clean well thins. Fear: the town walking away from her. Habit: never lets a debt go unpaid, in either direction.
+
+### The Keepers (p-forts)
+- The people who hold the walled forts along the highway.
+- High concept: Wardens of the old highway's waypoints. Way: Control.
+- Trouble: Each fort feeds itself and nobody feeds the road.
+- Aspects: Old army toll ledgers; The north road pact (with Northgate); They starved the Burnt Drivers.
+- Skills: Supplies +3, Know-how +2, People +2, Influence +1, Arms 0.
+- Commandant Orsolya Dane, 72. Goal: keep the road open and tolled. Fear: a fort falling and the chain breaking. Habit: counts every truck through the gate.
+
+### Northgate (p-north)
+- A shut valley with a pure mountain spring at the road's north end.
+- High concept: The valley at the road's north end. Way: Fear.
+- Trouble: Gates shut to anyone who comes up the road.
+- Aspects: Winters that kill the careless; The water covenant; The clerk who stayed (a Blackwell clerk, Wren Sallow, who lives in the valley).
+- Skills: Know-how +3, Supplies +2, People +2, Influence +1, Arms 0.
+- Warden Lio Marten, 79. Goal: keep the valley alive. Fear: southerners coming up the road in force. Habit: sends nothing south without a guard.
+
+## Board after the run
+
+- Ala, 34. Escape. Aspects: Pays by the stretch, no questions; Maya waits for the water; Ala knows he's running from something; Ala knows he was a Burnt Driver. Goal: get the journals to the spring and Maya to the gate.
+- Geezer, 54. Escape, turning. Aspects: Says he rode with Magnus; Geezer knows whose father died at the pass (private); Geezer promised to get Maya's water north; Geezer stays for Maya's water. Was Magnus (private).
+- The Wayfarers, Sara, 59. Fear, turned to letting go. Aspects: The Yards shelter the sick; Maya is on the road behind the hauler. Consequence: Hedda knows Sara broke her word.
+- The Strays, Vale. Oppose, turned. One truck left. Aspect: Vale holds the road behind.
+- Blackwell, Hedda Vell, 41. Control, broken. Aspects: Hedda wants the journals burned; A bounty with nobody left to pay it. Consequence: Blackwell's soldiers refused her. Gates shut.
+- The Keepers, Orsolya Dane, 72. Control, turned to defending. Aspects: Orsolya has read Ilse Marten's journals; The families walk under Keeper protection; The Keepers think the escort was a Burnt Driver.
+- Northgate, Lio Marten, 79. Fear, overcome. Aspects: The covenant suspended; The gate will open for the walkers. Wren Sallow home.
+
+## Game master truths
+
+- T1 to T4 from the first run stand.
+- TC1 (before play) The mine that blew up Geezer's last truck was laid by a hunters' crew for somebody else.
+- TC2 (C0) The journals are Doctor Ilse Marten's, forty years of notes showing that southern children with the black-water sickness got well on the spring. Northgate's elders hid it so the south would not come up the road. Keeper rider Piet Arno carried them south, died of fever at the Yards, and Sara hid them.
+- TC3 (C0) Ala's father Jon, a linked tanker driver, died in Blackwell's first water convoy, taken at the pass by the Burnt Drivers with no survivors. Magnus led that ambush.
+- TC4 (C0) Maya, 12, is Ala's dead sister's daughter, raised by Sara at the Yards. She drank the cheap black-well water Blackwell sold the Yards this spring.
+- TC5 (C1) Lio believed the seal was stolen and wanted the journals back unread, the gate shut.
+- TC6 (C1) The crates hold no cure. The spring is the cure. The journals are the proof.
+- TC7 (C2) Geezer knows Ala's father died in the ambush he led.
+- TC8 (C3) Hedda wants the journals burned, because proof read aloud ends the covenant.
+- TC9 (C4) Ala believes her father died running water to Northgate. The convoy was carrying Northgate water south for Blackwell.
+- TC10 (C5) Ala knows Geezer was a Burnt Driver and that her father died to them, not that he was Magnus or led the pass.
+- TC11 (C5) The bounty has nobody left to pay it, and the crews keep coming.
+
+## Log
+
+Dice: 4dF from roll.py (python Random(7032)), every roll in rolls.log. Players are haiku subagents, one agent per player, continued each turn.
+Agent ids: p-kin acd372b7a5eb046c0, p-ala ab37d47424eb6bf90, p-geezer abfd23589efc24b3f, p-hunt a31487a654a679d08, p-south a7ceced273a85dd8e, p-forts a188e5e6f5f8b3927, p-north ae9346116455ea746.
+
+### Turn C0, the season before the run
+
+Event: Blackwell's fourth well came up black sludge; the refinery cut rations; diesel rose at every fort. In a yard in Blackwell's shadow the oldest mammoth hauler in the south is fitted to drive again, and only Ala can drive it. Geezer's job up the north road ends in a mine.
+
+Private answers:
+- p-kin: the Wayfarers, about 80 salvagers at the Yards, an old truck stop 15 km south of Blackwell. The refinery's runoff has poisoned their ground and water (copper and lead); 18 months of clean water stored; two children already sick. Leader Sara, 59, Ala's mother, who runs the Yards. Ala's father, a linked driver, was killed by the Burnt Drivers sixteen years ago. The load: the sealed journals of Northgate's old spring doctor, records of every person who drank the spring and who lived through the plagues, smuggled out by a Keeper rider who is now dead and hidden at the Yards for three years. Worthless anywhere but Northgate, where the Wayfarers mean to trade them for shelter.
+- p-ala: she does it for Maya, 12, the one child who did not flinch when they put the link into Ala's skull. Maya drank the black water and her fever will not break without Northgate's clean water. If Ala turns back, Maya dies waiting.
+
+Actions:
+- Wayfarers (Sara): create an advantage, Know-how +2, invoke high concept +2. Roll 0 -> 4 vs Fair. SUCCEED: aspect "The hauler is road-ready" (1 free invocation). "We finish her this week. Prices only go up."
+- Ala: create an advantage, Know-how +2. Roll +2 -> 4 vs Fair. SUCCEED: she finds seven crates under burlap stamped with Northgate's water seal, and they are not water. Aspect "Ala knows the crates are not water".
+- Geezer: overcome, Notice +2, invoke "Nobody at the forts knows his face" +2. Roll 0 -> 4 vs Fair. SUCCEED: he walks out of the mine blast unnoticed. Game master: the salvage crew that gives him a ride south is a Wayfarer crew come to strip his wreck, and they talk the whole way about their old hauler. Aspect "Rode south with the Yards' salvage crew". They drop him at the Keepers' southern fort.
+- The hunters: they name themselves the Strays, leader Vale (woman, forties). Create an advantage, People +2, invoke "Every bar on the road talks to them" +2. Roll +1 -> 5 vs Fair. SUCCEED WITH STYLE: aspect "The Strays know the hauler goes north". Extra: the mechanic says the Keepers watch the yard and that the crates carry a Northgate seal. Bar talk starts: "something out of Northgate is going back north".
+- Blackwell (Hedda): overcome, Influence +2, invoke "Buys whoever is for sale" +2. Roll -2 -> 2, vs the Wayfarers' secrecy, People +1, roll -3 -> -2. SUCCEED WITH STYLE (4 over): she learns the driver (Ala), the yard (the Wayfarers under Sara) and the direction (north). Extra: a mechanic tells her of seven crates under Northgate's seal. Message to the Yards: "Haulers that move without Blackwell's say-so move without fuel." Aspect "Hedda knows whose hauler it is".
+- The Keepers (Orsolya): create an advantage, People +2, invoke trouble +2. Roll +1 -> 5 vs Fair. SUCCEED WITH STYLE: aspect "The south fort knows the Strays by name". Extra: her ledgers show that a Keeper rider, Piet Arno, made a last unlogged run down from Northgate three years ago and died of fever at the southern fort; his saddlebags were never found. Orsolya now guesses where they went.
+- Northgate (Lio): create an advantage, People +2, invoke "The clerk who stayed" +2. Roll 0 -> 4 vs Fair. SUCCEED: Wren Sallow rides south on a tanker to count Blackwell's real diesel. Aspect "Wren counting in Blackwell". Message to Blackwell: "Before Northgate sells another drop, Wren counts what you're honestly paying."
+
+Hidden truths fixed this turn (game master):
+- TC2 The journals are Doctor Ilse Marten's, Lio's mother, the valley's doctor for forty years. They record every child who drank the spring and every child of the south who came up sick with the black-water sickness, the metal sickness of refinery ground, and got well on the spring within a season. Northgate's elders hid the record so the south would not come up the road for the water. Piet Arno, a Keeper rider who loved a Northgate woman, carried them south to sell, fell sick and died at the Yards; Sara hid them. If the road learns what the journals prove, every family on poisoned ground will want the spring, the covenant is over, and Blackwell's tankers and Northgate's gate both mean something new. That is the backdrop. For the Wayfarers it is one thing: the only price they hold for a place in the valley.
+- TC3 Ala's father, Jon, a linked tanker driver, died in Blackwell's first water convoy, which the Burnt Drivers took at the pass sixteen years ago with no survivors. Magnus led that ambush.
+- TC4 Maya, 12, is Ala's sister's daughter. Her mother is dead. She lives with Sara at the Yards. She drank from the new black well water that Blackwell sold cheap to the Yards this spring.
+
+### Turn C1, Y0: the hiring night at the Keepers' southern fort
+
+Event: the hauler stands on the southern fort's pad. Tibor the barman sells Ala a hired linked driver called Geezer. The Strays drink at the next tables.
+
+- Wayfarers (Sara): create an advantage, People +1, invoke trouble +2. Roll -1 -> 2 vs Fair. TIE, lesser aim: no rider gets out of the Yards in time, but Sara's word reaches Hedda by radio: if the hauler does not reach Northgate, every fort hears how Blackwell sold poisoned water to children. Aspect "Sara knows what Blackwell sold" on Blackwell. Message to Ala: "At the gate, tell them about Maya."
+- Ala: create an advantage, Know-how +2. Roll -2 -> 0 vs Fair. FAIL at a cost, but the hiring stands by anchor A6 and Geezer's roll. The cost: she has nothing to pay up front, so the deal is by the stretch only, paid at each far gate, and she says in a full bar, "I know who you rode with. I don't care," so every table hears the Magnus claim tied to her truck.
+- Geezer: create an advantage, Notice +2, invoke "Says he rode with Magnus" +2. Roll +2 -> 6 vs Fair. SUCCEED WITH STYLE: hired. He checks his gun pin and stares the Strays down. Aspect "Ala's escort". Extra: aspect "The Strays think twice about the scout" (free invocation).
+- The Strays (Vale): create an advantage, People +2, free invoke +2. Roll 0 -> 4, vs Ala's Will +2, roll -4 -> -2. SUCCEED WITH STYLE (6 over): Vale sits down uninvited and Ala, tired and frightened, says too much: a sick girl at the Yards, and that the crates are what the valley will pay for. Vale puts it together wrong and loud: Northgate water heals the black-water sickness, and the crates are the proof or the cure. Aspect "The road says the hauler carries the cure" on the world. Extra: Vale turns down the job of riding with Ala. A cure is worth more taken than escorted.
+- Blackwell (Hedda) attacks: stand the hauler down at the gate. Supplies +2, invoke "Every truck burns its diesel" +2. Roll +1 -> 5. The Keepers defend, Know-how +2, invoke ledgers +2, roll -1 -> 3. Hedda SUCCEEDS by 2: for one night the hauler is held and searched under Blackwell's word.
+- Northgate (Lio) attacks: have the Keepers send the hauler and its driver to the valley for questioning, under the north road pact. People +2, invoke trouble +2. Roll +1 -> 5 vs the Keepers' 3. SUCCEEDS by 2. Lio believes the seal was stolen from his mother's grave.
+- The Keepers (Orsolya) are caught between the two. She does both, in order: the search Hedda demanded, in her own office, and then the pact. Ala opens the crates in front of her. Orsolya reads the name on the journals, Ilse Marten, the valley's old doctor and Lio's mother, and puts her own fresh wax on the seal. She tolls the hauler north under Northgate's summons at dawn. Aspect "Orsolya has read Ilse Marten's journals". Message to Northgate: the hauler comes to you, under my wax.
+- Compel on Hedda's habit (never lets a debt go unpaid), offered by the game master for anchor A5: ACCEPTED, +1 fate point. The Yards owe Blackwell for the spring's water. Hedda posts a bounty in diesel, paid at Blackwell: the seven crates brought back unopened, the hauler and its driver in whatever state. Aspect "Diesel on Ala's truck".
+
+Hidden truths fixed this turn:
+- TC5 Lio believes his mother's journals were stolen to sell the valley's secret. He wants them back unread, and the gate kept shut. He has not decided what to do with the driver. Northgate's welcome is not certain.
+- TC6 What the road believes is wrong in its shape and right in its heart. The crates hold no cure. They hold forty years of a doctor's notes that show the spring water makes the black-water sick well within a season. The cure is the spring itself, and it cannot be carried off in a crate.
+
+### Turn C2, the end of stretch 1, at the first fort north
+
+Fixed event: a freelance hunters' truck came out of the badlands at the hauler on the first stretch. Geezer drove straight at it, and it did not get up.
+
+- Ala: create an advantage, Know-how +2. Roll +1 -> 3 vs Fair. SUCCEED: counting his first pay into his hand, she tells Geezer what she carries and why: the doctor's journals, the bounty, the summons, and Maya, her dead sister's girl, burning with the black-water fever at the Yards. She tells him he is tougher than he looks (anchor A7). Aspect "Geezer knows about Maya". Message to Lio: the journals are Ilse's; she comes to trade them for the cure for one dying girl, and asks safe passage.
+- Geezer: create an advantage, Notice +2, free invoke +2, vs Ala's Will +2. Roll +1 -> 5 against +1 -> 3. SUCCEED: he tells her the salvagers said her father died on the road sixteen years ago, and reads her face. She tells him plainly how: Jon, a linked tanker driver, in Blackwell's first water convoy, taken at the pass by the Burnt Drivers with nobody left alive. She does not know who Geezer was. Private aspect "Geezer knows whose father died at the pass". He says only: "I waited for that fight to take me. But I'm still here."
+- Wayfarers (Sara): create an advantage, People +1, free invoke +2. Roll +1 -> 4 vs Fair. SUCCEED: she opens the Yards to the sick families camped at the gate. Aspect "The Yards shelter the sick". The Yards are now about two hundred people, and the stored water that was eighteen months for eighty is about six months for all of them.
+- Blackwell (Hedda): create an advantage, Influence +2, invoke both aspects +4. Roll -1 -> 5, vs Sara's People +1, roll 0 -> 1. SUCCEED WITH STYLE: Sara takes Hedda's deal to keep the newcomers alive: Blackwell sells the Yards clean water and fuel again, and Sara keeps quiet about the black well. Aspect "The Yards drink by Hedda's leave" (2 free invocations). The bounty stands.
+- The Strays (Vale): overcome, People +2, invoke "Every bar on the road talks to them" +2. Roll 0 -> 4 vs Fair. SUCCEED: her message catches Ala at the first fort: "That freelancer was just the first. You need more guns." The Strays roll north after the hauler.
+- The Keepers (Orsolya): defend, Supplies +3, invoke trouble +2. Roll 0 -> 5 vs Fair. SUCCEED WITH STYLE: the sick families at the southern fort get two days of shelter and are sent back south. Extra: north of the southern fort the forts toll trucks through but turn back walkers and families with no papers. Aspect "The road shut to the walking sick". Message to Northgate: why did you hide the cure? Tell me or I close the route.
+- Northgate (Lio): create an advantage, Know-how +3, invoke trouble +2. Roll +2 -> 7 vs Fair. SUCCEED WITH STYLE, bent by the fixed road: the hauler is twelve forts and more away, so he cannot take the crates. He readies the valley to shut. Aspect "The valley readies to shut". Extra: the Keepers take his offer: covenant water for the forts, if the forts turn the families back. Message to Ala: "You turn back now, before the gates close."
+
+Hidden truth fixed this turn:
+- TC7 Geezer now knows that Ala's father died in the ambush he led. Ala does not know Geezer was a Burnt Driver.
+
+### Turn C3, the end of stretch 4, at the fourth fort
+
+Fixed event: stretches two to four brought hired guns, two trucks at a time. Geezer drove into every fight as if it were the last. On the fourth stretch he went straight at a truck that had its gun on Ala's cab.
+
+- Ala: create an advantage, Will +2. Roll +3 -> 5, vs Geezer's Will +1, roll +2 -> 3. SUCCEED: she asks how the hell he is such a death machine, and whether he means to live or to take her with him (anchor A7). He gives her more than he meant to: "I rode with hard men. Did things I'm still running from. I don't fear death. That's what makes me useful to you." Aspect "Ala knows he's running from something".
+- Geezer: create an advantage, Notice +2. Roll -2 -> 0 vs Fair. FAIL at a cost: he asks about the journey and about Maya's fever (anchor A7), and Ala tells him: the fever, the shaking, the girl asking for her aunt every hour. The cost: before he can stop himself he tells Ala he will get her there. Aspect "Geezer promised to get Maya's water north" (a burden: a man who wants to die has made a promise).
+- Wayfarers (Sara): create an advantage, People +1, invoke trouble +2. Roll 0 -> 3 vs Fair +2 for Hedda's hold, 4. FAIL at a cost: Wren Sallow carries Sara's message north ("Don't come back. Keep going north. Maya asks for you every hour."), but Hedda learns that Sara broke her word. Consequence on the Wayfarers (moderate) "Hedda knows Sara broke her word".
+- The Strays (Vale): create an advantage, Influence +1, invoke "The Strays know the hauler goes north" +2. Roll -2 -> 1, vs Ala's Will +2, roll +2 -> 4. FAIL: Ala says no to "hire us or we hunt you". Vale radios Blackwell where the hauler is. Aspect "The Strays hunt the hauler".
+- Blackwell (Hedda) attacks: buy Wren. Supplies +2, invoke "Buys whoever is for sale" +2. Roll +1 -> 5, vs Wren (Northgate's People +2), roll 0 -> 2. SUCCEED WITH STYLE: Wren takes fuel to carry Sara's message north and, in the bargain, tells Hedda the truth: the crates hold no cure, only a dead doctor's notes, and the cure is the spring itself. Extra: Hedda sees what the notes would do to Blackwell: once they are read aloud, every poisoned family on the road walks north and the covenant is dead. She raises the bounty. She wants the journals burned, not returned. Aspect "Hedda wants the journals burned".
+- The Keepers (Orsolya): overcome, Know-how +2, invoke the north road pact +2. Roll +3 -> 7 vs Fair. SUCCEED WITH STYLE: she kneels at the dead boy's grave on the verge and has his name found: Teo. Extra: she breaks her side of Lio's bargain. The forts let the walking families through north, toll-free, one fort at a time. Aspect "The forts let the families walk north". Message to Northgate: "A boy is dead at my gate. Tell me what the cure actually is."
+- Northgate (Lio): overcome his own fear, People +2, invoke "The clerk who stayed" +2. Roll 0 -> 4 vs Great +4. TIE, lesser aim: he will trade with Ala, the journals for the spring's water for one girl and for the Yards, carried south in Northgate's own tankers on Northgate's terms. The gate stays shut to the walkers. Message to Ala: "Come to the valley. Your niece will drink our water." Message to Wren: "Come home." Death roll at 79: +2, lives.
+
+Hidden truth fixed this turn:
+- TC8 Hedda now wants the journals burned. Proof read aloud is what ends the covenant. A rumor alone does not, so the bounty no longer asks for the crates back. It asks for them burned, and the hauler with them.
+
+### Turn C4, the end of stretch 8, at the eighth fort
+
+Fixed event: stretches five to eight brought three and four trucks at a time, the Strays among them. At the eighth fort's gate an old Keeper, Bram, looked at the back of Geezer's neck and said, "I knew a man with a burn like that."
+
+- Compel on Geezer's fear (his hand shakes in front of Ala): REFUSED, he pays a point and keeps his hand still.
+- Ala: create an advantage, Will +2. Roll 0 -> 2 vs Fair. TIE, the aim at a minor cost: she asks him seriously why he is doing this (anchor A7), and answers his question (why so many hunt the truck, why she won't leave it and run) with her mission: two hundred sick people walking north behind the hauler, Maya's water, and her father, who "died on this road because he wouldn't leave his people". The cost: she believes the journals are the cure, and says so. Aspect "Geezer knows why she won't run".
+- Geezer: create an advantage, Notice +2. Roll 0 -> 2 vs Fair. TIE, a lesser answer: he hears her out, and to her "why are you doing this" he gives only "I promised." He does not say the rest. She hears that her father was a hero to her, and he knows how her father died.
+- The Keepers (Orsolya) vs Geezer's secret: Know-how +2, invoke "They starved the Burnt Drivers" +2. Roll 0 -> 4, vs Geezer's Will +1, roll -1, invoke "Nobody at the forts knows his face" +2 -> 2. Keepers SUCCEED: Bram's ledger of the starving winter shows the same burn on the Burnt Drivers' lieutenants. Orsolya concludes, wrongly, that the escort is a Burnt Driver nobody counted. Aspect "The Keepers think the escort was a Burnt Driver". Message to Northgate: "I don't trade girls. Speak plain." Message to Blackwell: "Why burn journals about a cure? What are you afraid of?"
+- Wayfarers (Sara): create an advantage, People +1, invoke trouble +2. Roll +2 -> 5 vs Fair. SUCCEED WITH STYLE: those strong enough to walk go north under the forts' new toll-free passage; the weak stay with her and ration. Maya walks north with them. Extra: Sara's message to Northgate goes with the walkers: "We're sending my granddaughter north. Take her in." Aspect "Maya is on the road behind the hauler".
+- Blackwell (Hedda) attacks the Yards: Arms +3, invoke habit and way +4. Roll -4 -> 3, vs the Yards' People +1, roll +3 -> 4. FAIL at a serious cost: her soldiers find the Yards half empty and the rest at the gate under Sara, and they will not fire on sick children. They burn the empty sheds and ride home. Sara lives. Consequence on Blackwell (moderate) "Blackwell's soldiers refused her".
+- The Strays (Vale): defend, People +2. Roll -1 -> 1 vs Fair. FAIL at a cost: Vale's offer reaches Ala ("We're done hunting. Let us help you, no pay."), but the other crews hear she turned, and they turn on the Strays. Two Stray trucks are taken. Vale's own truck follows the hauler north alone.
+- Northgate (Lio) vs the Keepers: People +2, roll +2 -> 4, vs the Keepers' Influence +1, roll +3 -> 4. TIE: the covenant is suspended. No water goes south and no tankers come north. Lio keeps the gate shut and says the journals will stay in the valley. Death roll at 79: -3, lives.
+
+Hidden truth fixed this turn:
+- TC9 Ala believes her father died a hero, running water to Northgate. The convoy was Blackwell's first covenant water run going south. He was a Blackwell hired driver. Ala tells it the way her mother told it to her.
+
+### Turn C5, the end of stretch 12, the redemption turn
+
+Fixed event: the twelfth stretch nearly killed them both. The pay is settled, and by the deal Geezer is free to go. The Keepers tell Ala that her escort's burn is the burn of the Burnt Drivers' lieutenants.
+
+- Ala attacks: is he the man who took her father's convoy? Will +2. Roll -3 -> -1, vs Geezer's Will +1, roll 0 -> 1. FAIL at a cost: she does not get the name or the pass. She stands there unable to send him away, because Maya is on the road behind her and she needs his gun. Message to Lio: "You invited me, and the gate is shut. My niece is days behind. What are you afraid of?"
+- Geezer: overcome, Will +1, invoke "Geezer promised to get Maya's water north" +2. Roll 0 -> 3 vs Fair. SUCCEED (anchor A8): "The Keeper was right. I rode with the Burnt Drivers. We took and killed on that road. Your father died to us. And I'm staying with your truck until your people reach Northgate." He does not say he was Magnus, or that he led the ambush at the pass. Aspect "Geezer stays for Maya's water". "I've been running from what I was. I'm done running."
+- Wayfarers (Sara): overcome, People +1, invoke trouble +2. Roll +3 -> 6 vs Fair. SUCCEED WITH STYLE: she lets go. Her last message reaches Ala: "Keep going. Don't come back for me. You're the road's daughter now." She stays at the Yards with the weak and does not touch the radio again.
+- The Strays (Vale): defend, Arms +3, invoke +2. Roll +1 -> 6, vs the other crews' Arms +3, roll +1 -> 4. SUCCEED: Vale turns her last truck south and holds the road between the hunters and the walking families. "Any crew wants these families, they come through me first." Aspect "Vale holds the road behind".
+- Blackwell (Hedda): overcome, Influence +2, invoke her fear +2. Roll -1 -> 3 vs Fair. SUCCEED: she sends a confession to every fort ("I was afraid. That was the only truth I had left.") and shuts the refinery gates. She does not call the bounty off, and nobody is left to pay it. The crews already in the badlands are owed diesel and keep coming on their own account. Aspect on the world "A bounty with nobody left to pay it".
+- The Keepers (Orsolya): defend, Know-how +2, invoke "They starved the Burnt Drivers" +2. Roll 0 -> 4 vs Fair. SUCCEED: the walking families go north under Keeper protection, fort by fort, as long as the stores hold. Her relay to Ala: "Your escort carries a Burnt Driver from Magnus's war. Defend the families behind you." Aspect "The families walk under Keeper protection".
+- Northgate (Lio): overcome his fear fully, People +2. Roll +2 -> 4 vs Great +4. TIE, the full aim at a minor cost: the gate will open for Maya and the walking families when they arrive, and the valley will share its winter. The cost: the stores will not hold a winter for all of them, so the Keepers must feed the walkers on the road until spring. Relay to the families: "The valley's gates will open when you arrive. Come to the spring." Death roll at 79: +1, lives.
+
+Hidden truths fixed this turn:
+- TC10 Ala knows Geezer was a Burnt Driver and that her father died to the Burnt Drivers. She does not know he was Magnus, or that he led the ambush at the pass. Nobody alive knows.
+- TC11 The hunt does not end because the bounty never ends: Hedda shut her gates without calling it off, and the crews in the badlands are owed diesel by a town that will not open its gates.
+
+### Answers of the second run
+
+- Q5: the hauler carries the forty-year journals of Ilse Marten, Northgate's old doctor and the Warden's mother, smuggled south three years ago by a dying Keeper rider and hidden at the Yards. They show that the south's children with the black-water sickness got well on the spring within a season. The road believes the truck carries "the cure", which is wrong in its shape and right in its heart: the cure is the spring, and the journals are the proof. Proof read aloud ends the covenant, and every poisoned family on the road would walk north.
+- Q6: Ala does it for Maya, 12, her dead sister's girl, who drank Blackwell's cheap black-well water and has a fever that will not break. Her people are the Wayfarers, salvagers at the Yards, whose ground the refinery poisoned. Her mother Sara runs them. If Ala turns back, Maya dies waiting, and the Yards have nothing to trade for a place in the valley. Her father Jon died sixteen years ago in the convoy the Burnt Drivers took at the pass.
+- Q7: Oilmistress Hedda Vell of Blackwell posted the bounty, first for the crates brought back and then for them burned. She shut her gates without calling it off, so the bounty has nobody left to pay it and the crews keep coming on their own account.
+- Q8: news comes down the relay to every fort: Northgate's gate will open for the walking families, the Keepers feed them on the road, Vale's one truck holds the road behind them, and Maya rides among them. The hauler never has to arrive for the story to land. The people behind it are what arrives, one counted fort at a time.
+
+## Lines the players gave their characters
+
+- Sara, C0: "We finish her this week. Prices only go up. We move now while we still can afford to."
+- Sara, C2: "The walls come down. Bring them in."
+- Sara, C4: "Some of you will die on that road. Some of you will die here if you stay. I won't lie. Choose."
+- Sara, C4, to Maya: "You're strong enough. Go north."
+- Sara, C5: "Keep going. Don't come back for me. You're the road's daughter now."
+- Ala, C0: "The link tells me when the truck lies."
+- Ala, C1: "I know who you rode with. I don't care. I just need someone who knows how to survive this road."
+- Ala, C2: "I can't hide what we're carrying now. Might as well make it mean something."
+- Ala, C3: "You drive straight at them like you want to die. I need to know if you're trying to survive, or if you're just taking me with you."
+- Ala, C4: "I won't leave the truck because two hundred people are walking behind it."
+- Ala, C5: "My father was on that convoy. Were you?"
+- Geezer, C0: "Truck's gone. Need diesel and a radio headed south, that's all."
+- Geezer, C1: "I've been hunted before. Won't be the last."
+- Geezer, C2: "I waited for that fight to take me. But I'm still here."
+- Geezer, C3: "I rode with hard men. Did things I'm still running from. I don't fear death. That's what makes me useful to you."
+- Geezer, C3: "Fear doesn't keep you alive on the road. It gets you killed."
+- Geezer, C4: "Every fort brings more hunters. You're running out of time."
+- Geezer, C5: "I've been running from what I was. I'm done running."
+- Vale, C0: "Mammoth that size doesn't move for nothing."
+- Vale, C1: "That scout's got one driver. One."
+- Vale, C3: "I don't chase ghosts. You say yes or we're hunting you like everyone else."
+- Vale, C4: "We burned a truck trying to burn a cure. That's not how the Strays work."
+- Vale, C5: "Any crew wants these families, they come through me first."
+- Hedda, C1: "Northgate breaks the covenant and expects me not to notice?"
+- Hedda, C3: "That cure comes through Blackwell or Blackwell stops being a refinery. It becomes a grave."
+- Hedda, C5: "A refinery that runs on fear doesn't run once the fear is gone. I was afraid. That was the only truth I had left."
+- Orsolya, C1: "Water goes south, always has. So tell me why Northgate is running it north, and tell me true."
+- Orsolya, C2: "Order keeps us alive. Chaos kills us."
+- Orsolya, C3: "I keep the road open. I don't count the bodies it costs."
+- Orsolya, C5: "The chain is breaking. I'm not stopping it anymore. I'm just standing."
+- Bram, C4: "That mark is sixteen years old." / "Same mark. On his lieutenants."
+- Lio, C1: "My mother's hand was on that seal."
+- Lio, C2: "We are going to have to choose what Northgate dies for."
+- Lio, C3: "My mother wanted someone to read it one day. It's today."
+- Lio, C4: "They'll burn when the valley burns, not before."
+- Lio, C5: "Small doesn't keep you safe. It just makes you cold."
+
+# Combining the runs
+
+### Where both runs agree (kept, now twice generated)
+
+- The Keepers under Orsolya Dane toll and count every truck, and Orsolya opens the trailer in her office and puts fresh Keeper wax on its seal (B0, C1).
+- Hedda Vell of Blackwell sets the diesel bounty on the truck (B0, C1). The bounty outlives the will to pay it, so the hunters never stop (B3, C5).
+- Two hundred people come up the road behind the hauler, with no escort of their own (B4, C3 to C5).
+- An old Keeper at a gate says "I knew a man with a burn like that", and the Keepers conclude, wrongly, that the escort is a Burnt Driver nobody counted (B3, C4).
+- Geezer stays on the road for the people behind the hauler, and Ala learns only that he was a Burnt Driver, never that he was Magnus (B4, C5).
+
+### Taken from the first run
+
+- Tibor the barman, the bar of the southern outpost, and Ala counting money out loud.
+- The ring scar question at stretch 1, and Geezer's one true sentence about pulling the plug from a burning seat (B1).
+- "Thirty years of this road" as one answer to "how are you such a death machine" (B2).
+- "I thought this road would finish me" as one answer at stretch 8 (B3).
+- The tank line flashback at stretch 12, with the dying Burnt Driver calling him Magnus.
+
+### Taken from the second run (the stakes the committee asked for)
+
+- The cargo: Ilse Marten's journals, forty years of a valley doctor's notes showing that southern children with the black-water sickness got well on the spring. It replaces the well books. The road believes the truck carries "the cure", which explains why the whole road hunts it (A10). The cure is the spring itself, so the big stakes stay in the background: if the notes are read aloud, the covenant is over and every poisoned family walks north (A11).
+- Ala's people: the Wayfarers, salvagers at the Yards south of Blackwell, whose ground the refinery runoff poisoned, led by her mother Sara. They replace Rook Halloran and the well crews.
+- Ala's personal stake: Maya, 12, her dead sister's girl, with the black-water fever. The valley's water is what breaks it (A9).
+- Ala's father Jon died sixteen years ago in the convoy the Burnt Drivers took at the pass. Geezer led that ambush. This replaces the first run's loose tie ("I was eighteen, at the gate") with a personal debt that drives his redemption.
+- Geezer's promise to get Maya's water north (C3) and "I promised" as an answer at stretch 8 (C4). "I rode with hard men. Did things I'm still running from" as an answer at stretch 4 (C3).
+- Geezer's ride south with the Yards' salvage crew who stripped his wreck (C0), so he has heard of Ala before Tibor sells him.
+- Vale of the Strays, the hunter who sits down at Ala's table on the hiring night, hunts the truck, turns, and holds the road behind the walking families with her one truck (C1 to C5).
+- Bram, the old gatekeeper, gets a name (C4).
+- The news that reaches the twelfth fort: Hedda shut her gates and sent a confession to every fort without calling off the bounty; the Warden will open Northgate's gate for the walkers; the Keepers feed them on the road; Vale holds the road behind them; and Maya rides among them (C4, C5). This answers Hermes's note that Northgate had no payoff: the people behind the truck are what arrives, one counted fort at a time.
+
+### Dropped from the first run
+
+- Rook Halloran's execution, Mina Ostrander, the well crews and the well books: replaced by the Wayfarers and the journals.
+- Northgate's one-crew promise and Wren Sallow as Warden: Lio lives in the second run, and Wren comes home as his counsel.
+- The Keepers shutting the road to Blackwell's tankers: replaced by Northgate suspending the covenant (C4).
+
+### Game master adaptations
+
+- The run is endless, so the hauler never reaches Northgate on screen. The second run gives the payoff by relay: the gate's answer and the walkers' progress reach each fort. No scene shows the gate.
+- Ala pays Geezer by the stretch and he keeps both trucks fitted from that pay, which matches the one wallet (as in the first run).
+- In play Ala told Geezer about Maya at stretch 1 and the full mission at stretch 8. The scenes keep that order. If the player never asks about her father at stretch 1, she tells it at stretch 8, so the fact lives in two places.
+- Scene openings state only what is true in every run that reaches the pad: hunters came, and both trucks got through. The fights in the log (a ram at stretch 4) stay in the log.
