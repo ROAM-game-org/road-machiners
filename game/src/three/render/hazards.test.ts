@@ -95,7 +95,7 @@ describe('fieldShown', () => {
 
   it('waits for the end of movement when the dropper has left the world', () => {
     const world = emptyWorld();
-    const npc = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 30, y: 30 });
     npc.trail = Array.from({ length: 11 }, (_, i) => ({ x: 20 + i, y: 30, heading: 0 }));
     const before = cloneWorld(world);
     dropField(world, npc, 'caltrops', { radius: 1.25, turns: 5, behind: 1 });
@@ -279,7 +279,7 @@ describe('HazardViews', () => {
   it('draws smoke, oil, caltrops, flares and pulses without a ground band', () => {
     const world = emptyWorld();
     const me = world.vehicles[0];
-    const npc = addVehicle(world, 'raiders', 'buggy', ['stockEngine'], { x: 33, y: 30 });
+    const npc = addVehicle(world, 'scrapjaw', 'buggy', ['stockEngine'], { x: 33, y: 30 });
     world.smoke.push({ id: 's1', source: me.id, pos: { x: 30, y: 30 }, r: 4, turnsLeft: 5 });
     world.fields.push({ id: 'g1', kind: 'oil', source: me.id, pos: { x: 27, y: 30 }, r: 0.9, turnsLeft: 5, hit: [] });
     world.fields.push({ id: 'g2', kind: 'caltrops', source: me.id, pos: { x: 25, y: 32 }, r: 1.25, turnsLeft: 5, hit: [] });

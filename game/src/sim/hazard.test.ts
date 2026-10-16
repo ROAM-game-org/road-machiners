@@ -50,7 +50,7 @@ describe('the reactor hazard', () => {
 
   it('hurts an NPC truck by the same rule, and spares its parts', () => {
     const w = worldAt(outsidePos);
-    const npc = addVehicle(w, 'scavengers', 'scout', [], core);
+    const npc = addVehicle(w, 'independent', 'scout', [], core);
     npc.resources = { money: 0, fuel: 10, supplies: 10, health: 100 };
     const hp = npc.items.map((i) => (i.kind === 'part' ? i.part.hp : 0));
     applyHazards(w);

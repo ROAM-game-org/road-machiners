@@ -33,7 +33,7 @@ function scene(breakdown: Breakdown, offset = 30): { w: World; npc: Vehicle } {
   const w = emptyWorld(sitePads(bowl)[0]);
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   w.shops.bowl.contracts = [];
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: bowl.pos.x + offset, y: bowl.pos.y }, Math.PI);
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: bowl.pos.x + offset, y: bowl.pos.y }, Math.PI);
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   npc.resources!.fuel = breakdown === 'fuel' ? 0 : fuelCap(npc);
   npc.resources!.money = 5000;
@@ -108,12 +108,13 @@ describe('posting a rescue', () => {
     expect(isRescueCandidate(w, npc, none)).toBe(true);
     expect(isRescueCandidate(w, npc, new Set([npc.id]))).toBe(false);
     const raider = scene('fuel').npc;
-    raider.faction = 'raiders';
+    raider.faction = 'scrapjaw';
+    raider.brain!.traits = ['raider'];
     expect(isRescueCandidate(w, raider, none)).toBe(false);
     npc.defeat = { phase: 'out', turns: 0, unseen: 0, foes: [], gaveUp: true };
     expect(isRescueCandidate(w, npc, none)).toBe(false);
     npc.defeat = undefined;
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: npc.pos.x + 5, y: npc.pos.y });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: npc.pos.x + 5, y: npc.pos.y });
     addState(w, 'tow', tower.id, npc.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
     expect(isRescueCandidate(w, npc, none)).toBe(false);
     const far = scene('fuel', CONTRACTS.rescue.range + 40);
@@ -301,7 +302,7 @@ describe('endings that pay nothing', () => {
 
   it('lapses when another truck takes the client on its rope', () => {
     endsWith((w, npc) => {
-      const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: npc.pos.x + 5, y: npc.pos.y });
+      const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: npc.pos.x + 5, y: npc.pos.y });
       addState(w, 'tow', tower.id, npc.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
     }, 'lapsed');
   });

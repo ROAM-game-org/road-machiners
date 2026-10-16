@@ -44,9 +44,9 @@ function pathLength(trail: Pose[]): number {
 
 function mixedWorld(): World {
   const w = emptyWorld();
-  const near = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 40, y: 30 });
+  const near = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 40, y: 30 });
   near.order = { kind: 'through', dest: { x: 50, y: 34 } };
-  const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30 + LIVE + 40, y: 80 });
+  const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30 + LIVE + 40, y: 80 });
   far.order = { kind: 'stopAt', dest: { x: 30 + LIVE + 60, y: 90 } };
   return w;
 }
@@ -54,8 +54,8 @@ function mixedWorld(): World {
 describe('far NPC travel', () => {
   it('counts the player and vehicles inside sight plus the live margin as near', () => {
     const w = emptyWorld();
-    const inside = addVehicle(w, 'traders', 'scout', [], { x: 30 + LIVE - 0.5, y: 30 });
-    const outside = addVehicle(w, 'traders', 'scout', [], { x: 30 + LIVE + 0.5, y: 30 });
+    const inside = addVehicle(w, 'independent', 'scout', [], { x: 30 + LIVE - 0.5, y: 30 });
+    const outside = addVehicle(w, 'independent', 'scout', [], { x: 30 + LIVE + 0.5, y: 30 });
     expect(isNear(w, w.vehicles[0])).toBe(true);
     expect(isNear(w, inside)).toBe(true);
     expect(isNear(w, outside)).toBe(false);
@@ -100,7 +100,7 @@ describe('far NPC travel', () => {
 
   it('stops a far vehicle at the map edge when its goal lies beyond it', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 4 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 4 });
     far.speed = 2;
     far.order = { kind: 'through', dest: { x: 120, y: -17 } };
     const radius = vehicleStats(w, far).radius;
@@ -113,7 +113,7 @@ describe('far NPC travel', () => {
 
   it('moves a far vehicle no farther than its speed allows and burns fuel for that distance at the heat where it ends (IV4)', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     far.speed = 2;
     far.order = { kind: 'through', dest: { x: 200, y: 120 } };
     const s = vehicleStats(w, far);
@@ -134,7 +134,7 @@ describe('far NPC travel', () => {
 
   it('crawls without fuel and burns nothing below empty', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     far.resources!.fuel = 0;
     far.order = { kind: 'through', dest: { x: 200, y: 120 } };
     advanceFar(w, far);
@@ -177,7 +177,7 @@ describe('far NPC travel', () => {
 
   it('a brake order or no order slows a far vehicle where it stands', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     far.speed = 5;
     far.order = { kind: 'brake' };
     const s = vehicleStats(w, far);
@@ -191,7 +191,7 @@ describe('far NPC travel', () => {
 
   it('reaches a distant site over turns and reports arrival', () => {
     let w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     const site = { x: 150, y: 140 };
     npc.order = { kind: 'stopAt', dest: site };
     let d = buildDrive(w);
@@ -213,7 +213,7 @@ describe('far NPC travel', () => {
 
   it('a far NPC keeps its goal stack across a turn and still drives by it', () => {
     let w = emptyWorld();
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine'], { x: 30 + LIVE + 40, y: 80 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30 + LIVE + 40, y: 80 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     const goals = [
       { kind: 'raid' as const, targetId: null, destination: { x: 30 + LIVE + 70, y: 80 }, phase: 'travel' as const, reason: 'tripToSite' as const },
@@ -233,7 +233,7 @@ describe('far NPC travel', () => {
   it('stores the route and reuses it while the destination holds', () => {
     const w = emptyWorld();
     w.obstacles = [{ id: 'rock1', pos: { x: 135, y: 120 }, r: 3, kind: 'rock' }];
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
     far.order = { kind: 'stopAt', dest: { x: 150, y: 120 } };
     advanceFar(w, far);
@@ -253,7 +253,7 @@ describe('far NPC travel', () => {
     const w = emptyWorld();
     const t = editableTerrain(w);
     for (let i = 0; i < t.types.length; i++) t.types[i] = Math.abs(Math.floor(i / t.size) + 0.5 - 120) < 3 ? 'road' : 'hardpan';
-    const far = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 120, y: 120 });
     far.brain = npcBrain('raider', { x: 0, y: 0 }, ['raider']);
     far.brain.goals = [{ kind: 'sell', targetId: null, destination: null, phase: 'travel', reason: 'patrolTown' }];
     far.order = { kind: 'stopAt', dest: { x: 180, y: 120 } };
@@ -274,7 +274,7 @@ describe('far NPC travel', () => {
 
   it('throws on a kept far route without its road style', () => {
     const w = emptyWorld();
-    const far = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const far = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     far.brain = npcBrain('trader', { x: 0, y: 0 }, ['trader']);
     far.order = { kind: 'stopAt', dest: { x: 150, y: 120 } };
     far.brain.farRoute = { dest: { x: 150, y: 120 }, points: [{ x: 150, y: 120 }] } as NonNullable<typeof far.brain.farRoute>;
@@ -283,7 +283,7 @@ describe('far NPC travel', () => {
 
   it('adds a body at the sim pose when a far vehicle crosses into range', () => {
     let w = emptyWorld();
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30 + LIVE + 6, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30 + LIVE + 6, y: 30 });
     npc.order = { kind: 'through', dest: { x: 20, y: 30 } };
     npc.speed = 4;
     npc.heading = Math.PI;
@@ -324,14 +324,14 @@ describe('far NPC travel', () => {
 describe('far travel contact', () => {
   function far() {
     const w = emptyWorld();
-    const mover = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const mover = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     mover.speed = 4;
     return { w, mover };
   }
 
   it('holds just short of a faster truck in the way and keeps its speed', () => {
     const { w, mover } = far();
-    const ahead = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 122.5, y: 120 });
+    const ahead = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 122.5, y: 120 });
     ahead.speed = 2 * vehicleStats(w, mover).maxSpeed;
     mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
     advanceFar(w, mover);
@@ -344,7 +344,7 @@ describe('far travel contact', () => {
 
   it('overtakes a slower truck in the way', () => {
     const { w, mover } = far();
-    const slow = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 124, y: 120 });
+    const slow = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 124, y: 120 });
     slow.speed = 1;
     mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
     const contact = vehicleStats(w, mover).radius + vehicleStats(w, slow).radius;
@@ -358,7 +358,7 @@ describe('far travel contact', () => {
 
   it('arrives next to a truck parked on its stop point', () => {
     const { w, mover } = far();
-    addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 123, y: 120 });
+    addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 123, y: 120 });
     mover.order = { kind: 'stopAt', dest: { x: 123, y: 120 } };
     advanceFar(w, mover);
     advanceFar(w, mover);
@@ -368,7 +368,7 @@ describe('far travel contact', () => {
 
   it('drives through the position of a truck hitched to its tow rope', () => {
     const { w, mover } = far();
-    const towed = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 121, y: 120 });
+    const towed = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 121, y: 120 });
     addState(w, 'tow', mover.id, towed.id, { kind: 'tow', site: 'bowl', fee: 0, waived: 0, hitched: true });
     const dest = { x: 200, y: 120 };
     mover.brain = npcBrain('trader', mover.pos, ['trader']);
@@ -382,7 +382,7 @@ describe('far travel contact', () => {
 
   it('lets two trucks on the same point drive apart', () => {
     const { w, mover } = far();
-    addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
     mover.order = { kind: 'through', dest: { x: 200, y: 120 } };
     advanceFar(w, mover);
     expect(mover.pos.x).toBeGreaterThan(121);
@@ -398,7 +398,7 @@ describe('far NPCs and breakable props', () => {
     const w = emptyWorld();
     const x = 30 + LIVE + 50;
     w.obstacles = fenceLine(x, 80);
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: x - 10, y: 80 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: x - 10, y: 80 });
     npc.order = { kind: 'stopAt', dest: { x: x + 10, y: 80 } };
 
     for (let i = 0; i < 12 && npc.order; i++) advanceFar(w, npc);
@@ -414,7 +414,7 @@ describe('far NPCs and breakable props', () => {
     const x = 30 + LIVE + 50;
     const fence: Obstacle = { id: 'fence-0', pos: { x, y: 80 }, r: 0.5, kind: 'landmark', look: 'fence', yaw: 0 };
     w.obstacles = [fence];
-    const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: x - 10, y: 82 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: x - 10, y: 82 });
     npc.order = { kind: 'stopAt', dest: { x: x + 10, y: 82 } };
 
     for (let i = 0; i < 12 && npc.order; i++) advanceFar(w, npc);
@@ -427,9 +427,9 @@ describe('far NPCs and breakable props', () => {
 describe('far tower and its rope', () => {
   function boxedTower() {
     const w = emptyWorld();
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 120, y: 120 });
-    const client = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 118, y: 120 });
-    for (const pos of [{ x: 122, y: 120 }, { x: 120, y: 122 }, { x: 120, y: 118 }]) addVehicle(w, 'traders', 'scout', ['stockEngine'], pos);
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 120, y: 120 });
+    const client = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 118, y: 120 });
+    for (const pos of [{ x: 122, y: 120 }, { x: 120, y: 122 }, { x: 120, y: 118 }]) addVehicle(w, 'independent', 'scout', ['stockEngine'], pos);
     addState(w, 'tow', tower.id, client.id, { kind: 'tow', site: REGION.towns[0].id, fee: 0, waived: 0, hitched: true });
     tower.order = { kind: 'stopAt', dest: { x: 60, y: 120 } };
     return { w, tower, client };
@@ -444,7 +444,7 @@ describe('far tower and its rope', () => {
 
   it('still counts a parked truck on another tower rope as a blocker', () => {
     const { w, tower, client } = boxedTower();
-    const other = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 200, y: 200 });
+    const other = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 200, y: 200 });
     w.states = w.states.map((s) => (s.kind === 'tow' ? { ...s, holder: other.id } : s));
     advanceFar(w, tower);
     expect(dist(tower.pos, { x: 120, y: 120 })).toBeLessThan(dist(client.pos, { x: 120, y: 120 }) - 1);
