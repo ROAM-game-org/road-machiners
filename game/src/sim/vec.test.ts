@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pointInPolygon, polygonEdgeDist } from './vec';
+import { DEG, leadsAwayBy, pointInPolygon, polygonEdgeDist } from './vec';
 
 const SQUARE = [
   { x: 0, y: 0 },
@@ -26,5 +26,22 @@ describe('polygons', () => {
     const reversed = [...SQUARE].reverse();
     expect(pointInPolygon({ x: 5, y: 5 }, reversed)).toBe(true);
     expect(pointInPolygon({ x: 15, y: 5 }, reversed)).toBe(false);
+  });
+});
+
+describe('leads away by', () => {
+  const from = { x: 0, y: 0 };
+  const threat = { x: 10, y: 0 };
+  const toward = (degrees: number) => ({ x: Math.cos(degrees * DEG) * 5, y: Math.sin(degrees * DEG) * 5 });
+
+  it('is true from the angle on and false inside it', () => {
+    expect(leadsAwayBy(from, toward(60), threat, 45)).toBe(true);
+    expect(leadsAwayBy(from, toward(-60), threat, 45)).toBe(true);
+    expect(leadsAwayBy(from, toward(30), threat, 45)).toBe(false);
+    expect(leadsAwayBy(from, toward(0), threat, 45)).toBe(false);
+  });
+
+  it('is true straight away from the threat', () => {
+    expect(leadsAwayBy(from, toward(180), threat, 45)).toBe(true);
   });
 });
