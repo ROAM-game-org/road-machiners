@@ -13,15 +13,15 @@ The bar of the last fort before the empty road smells of diesel and wet wool. # 
 You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
 Two weeks ago you drove a truck up the north road that is now a black patch beside a crater. Somebody had buried a mine for somebody else's wheels, and yours were first. A crew of salvagers came out from <term=the_yards>the Yards</term> to strip what was left, and they gave you a ride south on top of the scrap. They talked the whole way about an old hauler and the woman who drives it. # page
 The fort's yard sold you a scout, the smallest thing on four wheels, for nearly all the M's you had left.
-At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers. # img: road_ala
+At the next table, a woman counts M's out of a roll, brass discs each stamped with an M. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers. # img: road_ala # page
 Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
 Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor # img: road_geezer
 The bar has talked of nothing else since noon. The trailer on the pad carries the cure, they say, for the <term=black_water>black-water sickness</term>, and every man with a gun and a debt has put down his cup to think about that. # page # img: road_hauler
 A woman with a hunter's hands sits down at Ala's table without being asked. She doesn't look at Ala. She looks out of the window at your scout.
 That scout's got one driver. One. # speaker: Vale
 Out. # speaker: Ala
-She says it with two fingers lifted, as if shooing a fly. The hunter goes, slowly, and takes her time over the door. # page
-The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # img: road_hauler
+She says it with two fingers lifted, as if shooing a fly. The hunter goes, slowly, and takes her time over the door.
+The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # img: road_hauler # page
 That's what he drives? A toy like that won't last a stretch, fort to fort. # speaker: Ala
 -> pitch
 
