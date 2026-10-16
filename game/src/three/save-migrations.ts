@@ -889,7 +889,12 @@ export const MIGRATIONS: readonly ((world: SavedJson) => SavedJson)[] = [
   withPlannedGroups_73_74,
   (world) => world,
   withClaimRivals_75_76,
+  withCrewsAndHires_76_77,
 ];
+
+function withCrewsAndHires_76_77(world: SavedJson): SavedJson {
+  return world;
+}
 
 function withProgressAnchor_65_66(world: SavedJson): SavedJson {
   const anchored = (v: SavedJson): SavedJson => {

@@ -1,4 +1,5 @@
 
+import { settleCrews } from './crews';
 import { CHASSIS } from '../data/chassis';
 import { GOODS } from '../data/goods';
 import { partDef } from '../data/parts';
@@ -388,6 +389,7 @@ export function endTurn(
     fitAllStores(w);
     applyGodMode(w);
     resolveDestroyed(w);
+    settleCrews(w);
     noteHaulerHits(w);
     dropStrandedTowers(w);
     advanceContracts(w);

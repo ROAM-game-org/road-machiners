@@ -1,4 +1,5 @@
 
+import { canHireGuard, dismissGuard, guardFee, guardTaken, hireGuard, isPlayerGuard } from './hire';
 import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
 import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
 import { bandAtLeast, personalTerm, stanceToward } from './relations';
@@ -265,6 +266,11 @@ export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[])
 
 export const CONDITIONS: Record<ConditionId, Condition> = {
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  mercForHire: (world, npc) => world.player.talked[npc.id]?.hireGuard !== 'refused' && canHireGuard(world, npc),
+  takesGuard: (_world, _npc, vars) => answerOf(vars) === 'take',
+  refusesGuard: (_world, _npc, vars) => answerOf(vars) === 'decline',
+  canPayGuard: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
+  guardOfMine: (world, npc) => isPlayerGuard(world, npc),
   knowsTown: (_world, npc) => knownTowns(npc).length > 0,
   offersPaidTow: (world, npc) => {
     const tow = offerBy(world, npc);
@@ -473,6 +479,11 @@ export const EFFECTS: Record<EffectId, Effect> = {
     if (rumor.site) discoverSite(world, rumor.site);
     else world.player.rumored.push(rumor.id);
   },
+  hireGuard: (world, npc, call) => hireGuard(world, npc, namedPrice(call)),
+  dismissGuard: (world, npc) => {
+    if (!isPlayerGuard(world, npc)) throw new Error(`${npc.id} guards no one the player can dismiss`);
+    dismissGuard(world);
+  },
   payTruce: (world, npc, call) => {
     const price = call.vars.price;
     if (price?.kind !== 'money') throw new Error('payTruce needs a price');
@@ -641,6 +652,10 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   },
   tradeTip: (_world, npc) => ({ tip: { kind: 'tip', tip: tradeTip(npc) } }),
   trucePrice: (_world, npc) => ({ price: { kind: 'money', amount: trucePrice(npc) } }),
+  guardOffer: (world, npc) => ({
+    answer: { kind: 'answer', option: guardTaken(world, npc) ? 'take' : 'decline' },
+    price: { kind: 'money', amount: guardFee(world, npc) },
+  }),
   courierNeed: (world, npc) => {
     const wanted = wantedAid(world, npc, true);
     return { aid: aidVar(wanted), price: { kind: 'money', amount: aidPrice(world, npc, wanted) } };

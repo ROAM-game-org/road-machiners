@@ -74,6 +74,7 @@ import FORMAT_2_71 from './save-fixtures/format-2-71.json';
 import FORMAT_2_72 from './save-fixtures/format-2-72.json';
 import FORMAT_2_73 from './save-fixtures/format-2-73.json';
 import FORMAT_2_75 from './save-fixtures/format-2-75.json';
+import FORMAT_2_74 from './save-fixtures/format-2-74.json';
 import { CORES_2_2, LAYOUTS_2_2 } from './save-layouts-2-2';
 import { searchStream } from '../sim/search';
 import { packExplored } from './save';
@@ -1592,5 +1593,27 @@ describe('save migration 75 to 76', () => {
     expect(held).toEqual({ ...FORMAT_2_75.player.contracts[0], rivalAt: 1100, rival: null, leads: [] });
     expect(haul).toEqual(FORMAT_2_75.player.contracts[1]);
     expect(next.turn).toBe(530);
+  });
+});
+
+describe('save migration 76 to 77', () => {
+  it('keeps a save as it is, since crews, hires and the muster goal only widen unions', () => {
+    const before = structuredClone(FORMAT_2_74);
+
+    const next = MIGRATIONS[76](before);
+
+    expect(next).toEqual(FORMAT_2_74);
+    expect(before).toEqual(FORMAT_2_74);
+  });
+
+  it('keeps saved escorts, tow promises and feuds with their kinds and data', () => {
+    const states = [
+      { id: 's1', kind: 'escort', holder: 'v2', other: 'v3', turnsLeft: null, born: 10, data: { kind: 'escort', site: 'nose', fee: 4000 } },
+      { id: 's2', kind: 'towPromise', holder: 'v4', other: 'v1', turnsLeft: null, born: 12, data: { kind: 'towPromise', site: 'bowl', fee: 900 } },
+      { id: 's3', kind: 'feud', holder: 'v5', other: 'v1', turnsLeft: 7, born: 30, data: { kind: 'feud', robbery: true } },
+    ];
+    const world = { ...structuredClone(FORMAT_2_74), states };
+
+    expect(MIGRATIONS[76](structuredClone(world))).toEqual(world);
   });
 });

@@ -28,6 +28,7 @@ import {
   formatNpcTraits,
   formatVehicleState,
   type LogLine,
+  clock,
 } from "./format";
 import { FeedbackForm, type FeedbackKind } from "./game-menu";
 import { getHudReadout, getRescueReadout, overdriveSwitch, type RescueReadout, type TipLine } from "./hud-readout";
@@ -38,6 +39,7 @@ import { createSwitch, keyCorner } from "./switch";
 import { Tips, type TipSwitch } from "./tips";
 import { moneyEl } from "./units";
 import { playerVehicle } from "../sim/damage";
+import { playerGuard } from "../sim/hire";
 import { affordableRanks, pendingPerkPairs } from "../sim/progress";
 import { douseBlock, type DouseBlock } from "../sim/engine-heat";
 import { ENGINE_HEAT } from "../data/wear";
@@ -423,7 +425,8 @@ export class Hud {
   }
 
   private renderContracts(w: World): void {
-    if (w.player.contracts.length === 0) {
+    const guard = playerGuard(w);
+    if (w.player.contracts.length === 0 && guard === null) {
       this.contracts.style.display = "none";
       return;
     }
@@ -437,6 +440,7 @@ export class Hud {
           c.kind === "escort" ? escortLine(w, c) : el("span", { class: "num" }, heldContractDue(c)),
         ),
       ),
+      ...(guard ? [guardLine(w, guard.merc, guard.turnsLeft)] : []),
     );
   }
 
@@ -710,6 +714,15 @@ function quietLines(w: World, v: Vehicle): Msg[] {
 function shownWork(action: ContextAction | null, work: Work | null): Work | null {
   const blocks = work?.from === "job" && !isAutoPatch(work.job);
   return action && !action.hint && !blocks ? null : work;
+}
+
+function guardLine(w: World, merc: Vehicle, turnsLeft: number): HTMLElement {
+  return el(
+    "div",
+    { class: "contract-line" },
+    el("span", {}, t("hud.guard", { name: driverName(merc) })),
+    el("span", { class: "num" }, t("contract.leaves", { when: clock(w.turn + turnsLeft).full })),
+  );
 }
 
 function escortLine(w: World, c: EscortContract): HTMLElement {

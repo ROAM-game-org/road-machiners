@@ -3,7 +3,7 @@ import { DETECT } from './detect';
 import type { TraitId } from './npcs';
 
 export type TopicId = 'directions' | 'tow' | 'towFree' | 'askTow' | 'patch' | 'patchRequest' | 'demand' | 'surrender' | 'giveUp' | 'claim' | 'trade' | 'truce' | 'mercy' | 'rob' | 'warnOff' | 'truceOffer' | 'mercyPlea' | 'offerTow' | 'releaseTow' | 'offerPatch' | 'offerPatchWorn' | 'marketNews' | 'rumor' | 'tips' | 'buyTruce' | 'offerAid' | 'askAid' | 'aidOffer' | 'yieldDemand' | 'spillClaim' | 'lootWarning' | 'armyWagon' | 'escortHold' | 'escortGo'
-  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck';
+  | 'tale' | 'salvageTip' | 'challenge' | 'courierShort' | 'courierThanks' | 'courierSquare' | 'courierCold' | 'courierGrudge' | 'courierFavor' | 'lastSeen' | 'parcel' | 'claimWreck' | 'hireGuard' | 'dismissGuard';
 export type ConditionId =
   | 'knowsTown' | 'offersPaidTow' | 'offersFreeTow' | 'canTowPlayer' | 'playerNeedsPatch' | 'npcNeedsPatch' | 'npcWorn' | 'npcOffRope' | 'hasDeal' | 'noDeal' | 'demandsCargo' | 'demandsSurrender' | 'demandsGiveUp' | 'guardsClaim'
   | 'atOdds' | 'atPeace' | 'noPlayerPlea' | 'demandsToll' | 'npcHasCargo' | 'offersTruce' | 'begsMercy'
@@ -12,6 +12,7 @@ export type ConditionId =
   | 'npcLow' | 'playerLow' | 'noAid' | 'aidHolds' | 'aidGiven' | 'aidRefused' | 'offersAid' | 'npcBeaten' | 'notOfferedYield' | 'claimsSpill' | 'heardWagonNearby' | 'nearClaimWreck' | 'rivalAsked' | 'noRivalAsked'
   | 'escortFollowed' | 'escortHeld' | 'warnsPlayerOff' | 'yieldsLoot' | 'fightsForLoot' | 'hasHaul' | 'noHaul' | 'canPayTalk'
   | 'offersTale' | 'offersTip' | 'callsOut' | 'newsOfSite' | 'newsOfWreck' | 'newsOfTip' | 'seeksSomeone' | 'sawSought' | 'missedSought' | 'hasParcelFor' | 'noHandover'
+  | 'mercForHire' | 'takesGuard' | 'refusesGuard' | 'canPayGuard' | 'guardOfMine'
   | 'asksCourierAid' | 'courierThanksDue' | 'courierSquareDue' | 'courierColdDue' | 'courierGrudgeDue' | 'courierFavorDue';
 export type EffectId =
   | 'revealTown' | 'settleDone' | 'settleRefused' | 'acceptTow' | 'refuseTow' | 'askTow' | 'agreePatch' | 'handOver' | 'surrender' | 'giveUp' | 'backOffClaim' | 'defyClaim'
@@ -19,9 +20,9 @@ export type EffectId =
   | 'revealRumor' | 'payTruce' | 'giveAidPaid' | 'giveAidFree' | 'takeAid' | 'acceptAidOffer' | 'refuseAidOffer' | 'yieldToPlayer' | 'askStandDown' | 'standDownPlea' | 'abandonSpill' | 'noteWagonRoad' | 'noteClaimLead'
   | 'leaveLootWarning' | 'refuseLootWarning' | 'fightLootWarning' | 'hangUpLootWarning' | 'payTalk' | 'holdEscort' | 'releaseHold'
   | 'tellTale' | 'buyTip' | 'declineEncounter' | 'endEncounter' | 'backDown' | 'answerChallenge' | 'acceptChallenge'
-  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead';
+  | 'courierFree' | 'courierPaid' | 'courierRefuse' | 'courierThank' | 'courierSquareUp' | 'courierColdShoulder' | 'courierCallEven' | 'courierFight' | 'courierEnd' | 'courierPayFavor' | 'noteLead' | 'startHandover' | 'noteClaimLead' | 'hireGuard' | 'dismissGuard';
 export type PrepareId = 'nearestTown' | 'towOffer' | 'patchTerms' | 'truceAnswer' | 'mercyAnswer' | 'threatAnswer' | 'warnAnswer' | 'npcTowTerms' | 'lastTownPrices' | 'nearestRumor' | 'tradeTip' | 'trucePrice' | 'aidWanted' | 'aidAnswer' | 'aidOffered' | 'yieldAnswer' | 'lootWarningTerms' | 'demandHaul' | 'surrenderHaul'
-  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'claimWreckBearing';
+  | 'taleNews' | 'tipTerms' | 'courierNeed' | 'courierNews' | 'courierFavorTerms' | 'lastSighting' | 'guardOffer' | 'claimWreckBearing';
 
 export type DialogueOption = { say: LineId; when: ConditionId[]; effects: EffectId[]; go: string };
 export type DialogueNode = { line: LineId; options: DialogueOption[] };
@@ -65,6 +66,7 @@ export const LINE_IDS = [
   'gotAStoryFrom', 'goOnThen', 'notNow', 'iKnowAWreck', 'niceRigLetsSee', 'notLookingForTrouble', 'lookAtMyGunsAgain', 'letsGo',
   'lookingForSomebody', 'sightingTold', 'gotParcelForYou', 'parcelPullOver',
   'courierShortOfFuel', 'atTheTownPrice', 'youKeptMeRolling', 'courierSquareTip', 'youLeftMeDry', 'youShotMeUp', 'letsCallItEven', 'toldYouIOweYou',
+  'rideGuardForMe', 'dependsWhoAsks', 'whatsYourRate', 'guardDayRate', 'onYourTailNow', 'notRidingForYou', 'thatsAllRideOff', 'moneyStaysWithMe',
 ] as const;
 export type LineId = (typeof LINE_IDS)[number];
 
@@ -72,6 +74,11 @@ export const HUB = 'hub';
 export const END = 'end';
 export const REFUSED = 'callRefused';
 export const TOLL = 'toll';
+
+function ackTopic(id: TopicId, ask: { say: LineId; when: ConditionId[] }, ack: { line: LineId; say: LineId; effect: EffectId }): Topic {
+  const options = [{ say: ack.say, when: [], effects: [ack.effect], go: END }];
+  return { id, once: false, ask: { ...ask, duringFeud: false }, raise: null, prepare: null, hangUp: [], start: 'ack', nodes: { ack: { line: ack.line, options } } };
+}
 
 function tollNode(go: string): DialogueNode {
   return {
@@ -151,36 +158,36 @@ export const TOPICS: Record<TopicId, Topic> = {
       },
     },
   },
-  escortHold: {
-    id: 'escortHold',
+  escortHold: ackTopic('escortHold', { say: 'waitHereForMe', when: ['escortFollowed'] }, { line: 'waitingHere', say: 'thanksOverAndOut', effect: 'holdEscort' }),
+  escortGo: ackTopic('escortGo', { say: 'letsMove', when: ['escortHeld'] }, { line: 'movingOutNow', say: 'thanksOverAndOut', effect: 'releaseHold' }),
+  hireGuard: {
+    id: 'hireGuard',
     once: false,
-    ask: { say: 'waitHereForMe', when: ['escortFollowed'], duringFeud: false },
+    ask: { say: 'rideGuardForMe', when: ['mercForHire', 'atPeace', 'npcCalm'], duringFeud: false },
     raise: null,
-    prepare: null,
+    prepare: 'guardOffer',
     hangUp: [],
-    start: 'ack',
+    start: 'check',
     nodes: {
-      ack: {
-        line: 'waitingHere',
-        options: [{ say: 'thanksOverAndOut', when: [], effects: ['holdEscort'], go: END }],
+      check: {
+        line: 'dependsWhoAsks',
+        options: [
+          { say: 'whatsYourRate', when: ['takesGuard'], effects: [], go: 'terms' },
+          { say: 'whatsYourRate', when: ['refusesGuard'], effects: ['settleRefused'], go: 'refuse' },
+        ],
       },
+      terms: {
+        line: 'guardDayRate',
+        options: [
+          { say: 'dealSendingIt', when: ['canPayGuard'], effects: ['hireGuard'], go: 'hired' },
+          { say: 'tooMuch', when: [], effects: [], go: HUB },
+        ],
+      },
+      hired: { line: 'onYourTailNow', options: [{ say: 'overAndOut', when: [], effects: [], go: END }] },
+      refuse: { line: 'notRidingForYou', options: [{ say: 'understood', when: [], effects: [], go: HUB }] },
     },
   },
-  escortGo: {
-    id: 'escortGo',
-    once: false,
-    ask: { say: 'letsMove', when: ['escortHeld'], duringFeud: false },
-    raise: null,
-    prepare: null,
-    hangUp: [],
-    start: 'ack',
-    nodes: {
-      ack: {
-        line: 'movingOutNow',
-        options: [{ say: 'thanksOverAndOut', when: [], effects: ['releaseHold'], go: END }],
-      },
-    },
-  },
+  dismissGuard: ackTopic('dismissGuard', { say: 'thatsAllRideOff', when: ['guardOfMine'] }, { line: 'moneyStaysWithMe', say: 'overAndOut', effect: 'dismissGuard' }),
   askTow: {
     id: 'askTow',
     once: false,
@@ -1076,5 +1083,5 @@ export const TRAIT_TALK: Record<TraitId, TraitTalk> = {
   vulture: { voice: { greeting: 'keepItShort', repeatLine: 'alreadySaid', refusal: 'nothingForYou', warnOff: 'mineGoPickAnother', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'rumor', 'armyWagon', 'claimWreck', 'tips', 'tow', 'towFree', 'patchRequest', 'trade', 'salvageTip', ...CHALLENGE, ...PARLEY] },
   supplier: { voice: { greeting: 'listening', repeatLine: 'weCoveredThat', refusal: 'keepOffThisChannel', warnOff: 'weAreTakingThisOne', honksBack: true }, topics: ['directions', 'lastSeen', 'parcel', 'marketNews', 'rumor', 'armyWagon', 'tips', 'tow', 'towFree', 'askTow', 'askAid', 'aidOffer', 'trade', ...TALES, ...PARLEY] },
   guard: { voice: { greeting: 'stateYourBusiness', repeatLine: 'heardYou', refusal: 'moveAlong', warnOff: 'backAwayFromThat', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...PARLEY] },
-  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', ...CHALLENGE, ...PARLEY] },
+  merc: { voice: { greeting: 'talk', repeatLine: 'youSaidThat', refusal: 'notInterested', warnOff: 'thatsMineWalkAway', honksBack: false }, topics: ['directions', 'lastSeen', 'parcel', 'hireGuard', 'dismissGuard', ...CHALLENGE, ...PARLEY] },
 };
