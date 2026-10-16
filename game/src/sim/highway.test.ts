@@ -130,6 +130,10 @@ describe('the stretch lengths', () => {
 });
 
 describe('a highway window', () => {
+  it('keeps its map hash', () => {
+    expect(highwayMap(1, 0).hash).toBe('highway:6:1:0');
+  });
+
   it('builds the same land every time, in any order', () => {
     const later = [3, 1, 2].map((w) => highwayMap(5, w));
     const first = [1, 2, 3].map((w) => highwayMap(5, w));
