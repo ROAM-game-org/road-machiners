@@ -49,7 +49,7 @@ it("counts again from zero after an answer", () => {
   load.failed(silent, vi.fn());
   load.loaded();
   load.failed(silent, vi.fn());
-  expect(waits).toEqual([WORKER_RETRY_DELAYS_MS[0], WORKER_RETRY_DELAYS_MS[1], WORKER_RETRY_DELAYS_MS[0]]);
+  expect(waits).toEqual([500, 1000, 500]);
 });
 
 it("names the script location of a failed load", () => {
