@@ -1,6 +1,6 @@
 import type { CardStep } from '../card-events';
 import type { JobOutcome } from '../ledger';
-import type { Column, JobStage } from '../types';
+import type { Column, JobStage, LedgerJobStage } from '../types';
 
 export type DeliveryStage = 'triage' | 'design' | 'implementation' | 'preview' | 'approval' | 'harden' | 'merge';
 export type Gate = 'triage' | 'design' | 'committee';
@@ -30,9 +30,18 @@ const COLUMN_STAGES: Record<Column, { stage: DeliveryStage | null; steps: Partia
   Merging: { stage: 'merge', steps: {} },
   Done: { stage: null, steps: {} },
 };
+const STAGE_WORK: Record<DeliveryStage, { jobs: JobStage[]; waitsOn: 'workers' | 'committee' }> = {
+  triage: { jobs: ['triage'], waitsOn: 'workers' },
+  design: { jobs: ['design'], waitsOn: 'workers' },
+  implementation: { jobs: ['implement'], waitsOn: 'workers' },
+  preview: { jobs: ['verify', 'checks'], waitsOn: 'workers' },
+  approval: { jobs: ['approve'], waitsOn: 'committee' },
+  harden: { jobs: ['harden', 'checks'], waitsOn: 'workers' },
+  merge: { jobs: ['merge', 'catch-up'], waitsOn: 'workers' },
+};
 const RETRY_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'harden', 'checks'];
-const AGENT_STAGES: JobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'waste'];
-const PRIVATE_STAGES: JobStage[] = ['change', 'adhoc'];
+const AGENT_STAGES: LedgerJobStage[] = ['triage', 'design', 'implement', 'verify', 'change', 'adhoc', 'incident', 'waste'];
+const PRIVATE_STAGES: LedgerJobStage[] = ['change', 'adhoc'];
 const OUTCOMES: Record<JobOutcome, { wasted: boolean; retried: boolean }> = {
   done: { wasted: false, retried: false }, held: { wasted: false, retried: false }, stopped: { wasted: true, retried: false },
   failed: { wasted: true, retried: true }, died: { wasted: true, retried: true }, timeout: { wasted: true, retried: true },
@@ -50,6 +59,8 @@ function gateRows(): Cell[][] {
 export function vocabularyTables(): VocabularyTable[] {
   return [
     { name: 'delivery_stages', columns: ['stage', 'ord'], rows: DELIVERY_STAGES.map((stage, order) => [stage, order]) },
+    { name: 'stage_waits', columns: ['stage', 'waits_on'], rows: DELIVERY_STAGES.map((stage) => [stage, STAGE_WORK[stage].waitsOn]) },
+    { name: 'stage_jobs', columns: ['stage', 'job_stage'], rows: DELIVERY_STAGES.flatMap((stage) => STAGE_WORK[stage].jobs.map((job) => [stage, job])) },
     { name: 'loop_steps', columns: ['step', 'ord'], rows: LOOP_STEPS.map((step, order) => [step, order]) },
     { name: 'gate_steps', columns: ['gate', 'ord', 'step', 'decision'], rows: gateRows() },
     { name: 'column_stages', columns: ['col', 'step', 'stage'], rows: columnStageRows() },

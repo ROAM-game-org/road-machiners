@@ -105,18 +105,18 @@ The pool holds every NPC template, so a group mixes every kind of vehicle and dr
 
 A group comes from ahead, the left or the right, never from the side of the group before it. It never comes from behind, since group trucks have no boost and could not catch a faster player.
 
-- ahead: 22 tiles ahead of the hauler, on the hauler's line across the road;
-- left or right: 22 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road. A truck as fast as the hauler reaches the road before the hauler passes.
+- ahead: 36 tiles ahead of the hauler, on the hauler's line across the road;
+- left or right: 30 tiles ahead and 22 tiles across, in the badlands, with more trucks 3 tiles apart along the road. A truck as fast as the hauler reaches the road before the hauler passes.
 
-An ahead truck stands within 13 tiles of the player's line, and never farther out than the flank spawns. Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A group with no free spot tries again each turn and fails loudly after 20 turns.
+An ahead truck stands within 13 tiles of the player's line, and never farther out than the flank spawns. Spawn spots and the encounter test measure from the hauler and never from behind it, so a player who drives ahead leaves the hauler alone with the groups. Every spot is inside the window and between its two milestones. No more than 8 group trucks are on the road at once, and a group waits until it fits. A spot must lie more than the gun truck's sight radius, without the night factor, plus 6 tiles from the gun truck, so a group never appears in sight and shows first as a dust or engine contact. A group whose free spots are all in sight waits for the next turn with no failure clock. A group with no free spot at all tries again each turn and fails loudly after 20 turns. Spawning a group starts the quiet clock.
 
-Encounters are paced in time. An encounter is on while a group truck that is not beaten is within 30 tiles of the hauler. The next group spawns after 20 quiet turns, about 20 seconds of driving, and a level's first group 20 turns after the level starts. Groups spawn in plan order, where the player is, so a fight may meet a scene.
+Encounters are paced in time. An encounter is on while a group truck that is not beaten is within 30 tiles of the hauler. The next group spawns after 20 quiet turns since the last spawn or encounter, about 20 seconds of driving, and a level's first group 20 turns after the level starts. Groups spawn in plan order, where the player is, so a fight may meet a scene.
 
 Group trucks spawn with full tanks and no cargo. Each holds a feud on the hauler and hunts it every turn until the level ends, and holds a feud on the player too, so the player's guns see it as hostile. It fires on the hauler only. It fires on the gun truck, and hunts it, while the gun truck is in its attackers: after the gun truck shot it, or crashed into it so that it took damage. It drops the gun truck again when the gun truck leaves its sight, and goes back to the hauler. A hunter drives to where its target will be when it gets there, at most 30 tiles ahead of it and never past the flank spawns. A group truck that turns to flee is brought back to the fight on the next turn. A group truck always drives at its own speed and never overdrives. Out of sight of the player, it drives at full speed toward its hunting point and never slows to stop there. A truck with no gun rams.
 
 ## Balance evidence
 
-`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each, with the numbers in this page, gave:
+`npm run escort:report` reads the escort and sprinter recorder logs. The last 10-seed batch, 1600 turns each, gave the numbers below. They predate the spawn lines of 36 and 30 tiles and the sight rule, and no batch has run since:
 
 - Measured gear share of pay on both trucks: median 0.31 over 69 outposts, which is the 0.3 `gearShare` the danger uses.
 - Fight 66 of 72 beaten stretches had a player shot and an encounter, short of the 95% asked for. Damage 53 of 82 stretches hurt the hauler. Variety, Choice and Rise pass: the enemy mix changed on 8 or 9 of 9 transitions, 45 of 72 outposts offered a useful part to afford and more useful parts than the money buys, and the mean hauler damage rose from 5 on stretches 1 to 3 to 121 on stretches 8 to 10.

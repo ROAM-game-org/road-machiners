@@ -1,6 +1,3 @@
-// Drives through Old Orchard on the committed map, played through the real physics turn pipeline: a scavenger from the
-// south entry to the north-west pocket's barn, and the player's truck up the old highway to that barn and up the dozer
-// track to the ridge shelf's crate stack. src/sim/territory-reach.test.ts proves the routes exist; this proves trucks
 
 import { defaultSetup } from '../sim/settings';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -19,6 +16,7 @@ import type { MoveOrder, SalvageStock, Vehicle, World } from '../sim/types';
 import { dist, type Vec } from '../sim/vec';
 import { endTurn, newWorld, setMoveOrder } from '../sim/world';
 import { TEST_MAP } from '../test/map';
+import { reusedWorld } from '../test/world-cache';
 import { buildDrive, freeDrive, initPhysics, type Drive } from './drive';
 import { physicsMove } from './turn';
 
@@ -38,7 +36,7 @@ const BARN_LEG_TURNS = 26;
 const SHELF_LEG_TURNS = 15;
 
 function orchardWorld(): World {
-  const w = newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+  const w = reusedWorld('orchard', () => newWorld(1337, PLAIN_KIT, TEST_MAP, defaultSetup('roaming')));
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
   return w;
@@ -124,11 +122,11 @@ describe('driving through Old Orchard', () => {
   it('the player drives up the old highway to the north pocket barn and back', async () => {
     const w = orchardWorld();
     const me = player(w);
-    me.pos = at(-30, 0);
+    me.pos = at(-12, 0);
     me.heading = UP_ROAD;
     const yard = at(60, 32);
     const up = [at(0, 0), at(30, 0), at(46, 0), at(52, 6), at(60, 6.6), at(61, 22)];
-    const legs = [...up, yard, ...up.slice().reverse(), at(-30, 0)].map(stopAt);
+    const legs = [...up, yard, ...up.slice().reverse(), at(-12, 0)].map(stopAt);
     await driveLegs(w, legs, BARN_LEG_TURNS, (x, leg) => {
       if (leg === up.length) expect(dist(player(x).pos, yard)).toBeLessThan(RULES.arriveRadius + 1);
     });

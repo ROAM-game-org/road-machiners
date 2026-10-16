@@ -2,7 +2,7 @@
 import { MIX, SOUNDS, type Bus, type Cue } from "../data/sounds";
 import { devEl as el } from "../ui/dom";
 import { SFX_BYTES } from "../config";
-import { loadBank, recoverBank, type Bank, type DecodeFailure } from "./bank";
+import { formatSupport, loadBank, recoverBank, type Bank, type DecodeFailure } from "./bank";
 import { Mixer } from "./mixer";
 
 const BUSES: Bus[] = ["ui", "sfx", "ambient", "music"];
@@ -13,10 +13,10 @@ const root = document.getElementById("board");
 if (!root) throw new Error("#board element missing from sound.html");
 const mixer = new Mixer(MIX);
 mixer.unlockOn(window);
-const options = { expectedBytes: SFX_BYTES, opusSupport: new Audio().canPlayType("audio/ogg; codecs=opus") };
+const options = { expectedBytes: SFX_BYTES, support: formatSupport() };
 const loaded = await loadBank(mixer.ctx, sounds, options);
 const { bank, failures, unreachable } = loaded;
-const recovered = await recoverBank(mixer.ctx, loaded, options);
+const recovered = await recoverBank(mixer.ctx, loaded, sounds, options);
 let playing: AudioBufferSourceNode | null = null;
 const rejected = new Set<string>();
 
@@ -69,7 +69,7 @@ function rejectButton(file: string): HTMLElement {
 function failureLine(f: DecodeFailure): string {
   const e = f.evidence;
   const outcome = recovered.has(f.file) ? "decoded later" : "stand-in";
-  return `${f.file} failed to decode as ${f.kind}, ${outcome}: ${f.error}, got ${e.receivedBytes ?? "no"} of ${e.expectedBytes} bytes, HTTP ${e.status ?? "none"}, context ${e.contextState}`;
+  return `${f.file} failed to decode as ${f.kind}, ${outcome}: ${f.errors.join(", ")}, got ${e.receivedBytes ?? "no"} of ${e.expectedBytes} bytes, HTTP ${e.status ?? "none"}, context ${e.contextState}`;
 }
 
 const copyButton = el("button", { onclick: () => void navigator.clipboard.writeText([...rejected].sort().join(" ")) }, "copy 0 rejects");

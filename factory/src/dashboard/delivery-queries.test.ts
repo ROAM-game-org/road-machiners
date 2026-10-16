@@ -1,16 +1,16 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { CardFlow, CardStep } from '../card-events';
-import type { JobOutcome, LedgerLine } from '../ledger';
+import type { CardFacts, CardFlow, CardStep } from '../card-events';
+import type { JobOutcome, JobPart, LedgerLine, PartKind } from '../ledger';
 import type { Column, JobStage } from '../types';
 import { AnalyticsRunner, type Analytics, type PanelName } from './analytics';
 
 const HOUR = 3_600_000;
 const NOW = new Date('2026-10-10T00:00:00Z');
-const PANELS: PanelName[] = ['delivery_coverage', 'lead', 'dwell', 'loops', 'rejections', 'delivery_retries'];
+const PANELS: PanelName[] = ['delivery_coverage', 'lead', 'dwell', 'loops', 'rejections', 'delivery_retries', 'issue_to_dev', 'flow_stages', 'flow_moves'];
 const at = (hoursAgo: number): string => new Date(NOW.getTime() - hoursAgo * HOUR).toISOString();
-const card = (issue: number, hoursAgo: number, step: CardStep, to: Column, flow?: CardFlow): LedgerLine => ({ kind: 'card', issue, step, to, at: at(hoursAgo), ...(flow ? { flow } : {}) });
+const card = (issue: number, hoursAgo: number, step: CardStep, to: Column, flow?: CardFlow, facts: CardFacts = {}): LedgerLine => ({ kind: 'card', issue, step, to, at: at(hoursAgo), ...(flow ? { flow } : {}), ...facts });
 const job = (issue: number, stage: JobStage, outcome: JobOutcome, hoursAgo: number): LedgerLine => ({ kind: 'job', id: `${stage}-${hoursAgo}`, stage, issue, startedAt: at(hoursAgo + 1), endedAt: at(hoursAgo), outcome, agents: [] });
 
 function straight(issue: number, start: number): LedgerLine[] {
@@ -39,7 +39,7 @@ const loop = (result: Analytics, step: string) => result.loops.ranges![7].find((
 const gate = (result: Analytics, name: string) => result.rejections.ranges![7].find((row) => row.gate === name)!;
 
 describe('delivery queries', () => {
-  it('measures calendar time in each stage and the lead time of a straight-through feature', async () => {
+  it('measures calendar time in each stage of a straight-through feature and leaves no card open', async () => {
     const result = await run(straight(1, 60));
     expect(result.delivery_coverage.ranges![7]).toEqual([{ since: at(60), issues: 1, excluded: 0, legacy: 0, looped: 0 }]);
     expect(result.dwell.ranges![7].map((row) => [row.stage, row.count, row.mean_ms! / HOUR])).toEqual([
@@ -169,6 +169,61 @@ describe('delivery queries', () => {
     expect(stage(result, 'design').median_ms).toBe(10 * HOUR);
     const uneven = [card(1, 30, 'entered', 'Triage'), card(1, 28, 'accepted', 'Design'), card(2, 30, 'entered', 'Triage'), card(2, 26, 'accepted', 'Design')];
     expect(stage(await run(uneven), 'triage').median_ms).toBe(3 * HOUR);
+  });
+
+  it('measures the time from the open date to the first merge, per range, and leaves flow cards out', async () => {
+    const lines = [
+      card(1, 100, 'entered', 'Triage', undefined, { opened: at(100) }), card(1, 10, 'merged', 'Done', undefined, { into: 'dev', sha: 'a' }), card(1, 2, 'merged', 'Done', undefined, { into: 'dev', sha: 'b' }),
+      card(2, 50, 'entered', 'Triage', undefined, { opened: at(50) }), card(2, 20, 'merged', 'Done'),
+      card(3, 50, 'entered', 'Design', 'hotfix', { opened: at(50) }), card(3, 30, 'merged', 'Done', 'hotfix'),
+      card(4, 30, 'entered', 'Triage'), card(4, 5, 'merged', 'Done'),
+      card(5, 340, 'entered', 'Triage', undefined, { opened: at(340) }), card(5, 240, 'merged', 'Done'),
+      card(6, 1000, 'entered', 'Triage', undefined, { opened: at(1000) }), card(6, 900, 'merged', 'Done'),
+    ];
+    const result = await run(lines);
+    expect(result.issue_to_dev.ranges![7]).toEqual([{ issues: 2, mean_ms: 60 * HOUR, median_ms: 60 * HOUR, fastest_ms: 30 * HOUR, slowest_ms: 90 * HOUR, missing_open: 1 }]);
+    expect(result.issue_to_dev.ranges![30]).toMatchObject([{ issues: 3, fastest_ms: 30 * HOUR, slowest_ms: 100 * HOUR, missing_open: 1 }]);
+    expect(result.issue_to_dev.ranges![1]).toMatchObject([{ issues: 2, mean_ms: 60 * HOUR, missing_open: 1 }]);
+  });
+
+  it('returns no ages and no missing dates when nothing merged', async () => {
+    const result = await run([card(1, 5, 'entered', 'Triage', undefined, { opened: at(5) })]);
+    expect(result.issue_to_dev.ranges![7]).toEqual([{ issues: 0, mean_ms: null, median_ms: null, fastest_ms: null, slowest_ms: null, missing_open: 0 }]);
+  });
+
+  it('splits each stage visit into waiting, agent, checks, build and factory time from the job parts, with a merge job counted on the cards of its batch', async () => {
+    const part = (kind: PartKind, from: number, to: number): JobPart => ({ kind, startedAt: at(from), endedAt: at(to) });
+    const timed = (id: string, stage: JobStage, issue: number | null, from: number, to: number, parts?: JobPart[], batch?: number[]): LedgerLine => ({ kind: 'job', id, stage, issue, startedAt: at(from), endedAt: at(to), outcome: 'done', agents: [], ...(parts ? { parts } : {}), ...(batch ? { batch } : {}) });
+    const lines = [
+      ...straight(1, 60), timed('d', 'design', 1, 51, 50, [part('agent', 51, 50.2)]), timed('v', 'verify', 1, 42, 40.5, [part('agent', 42, 41), part('checks', 41, 40.5)]),
+      timed('h', 'harden', 1, 14, 13), timed('m1', 'merge', null, 12, 11.5, [part('checks', 11.9, 11.6)], [1]), timed('m2', 'merge', null, 20, 19, [], []),
+      card(2, 32, 'hardened', 'Approval'), card(2, 31, 'merged', 'Done'), timed('m3', 'merge', null, 31.5, 30.5, []),
+    ];
+    const result = await run(lines);
+    const rows = result.flow_stages.ranges![7];
+    expect(rows.map((row) => [row.stage, row.waits_on, row.visits, row.unknown_visits, ...[row.wait_ms, row.agent_ms, row.checks_ms, row.build_ms, row.factory_ms].map((ms) => ms / HOUR)])).toEqual([
+      ['triage', 'workers', 1, 0, 2, 0, 0, 0, 0], ['design', 'workers', 1, 0, 9, 0.8, 0, 0, 0.2], ['implementation', 'workers', 1, 0, 5, 0, 0, 0, 0],
+      ['preview', 'workers', 1, 0, 1.5, 1, 0.5, 0, 0], ['approval', 'committee', 1, 0, 24, 0, 0, 0, 0], ['harden', 'workers', 0, 1, 0, 0, 0, 0, 0],
+      ['merge', 'workers', 1, 1, 0.5, 0, 0.3, 0, 0.2],
+    ]);
+    const total = (row: (typeof rows)[number]): number => row.wait_ms + row.agent_ms + row.checks_ms + row.build_ms + row.factory_ms;
+    for (const row of rows.filter((row) => row.unknown_visits === 0)) expect(total(row)).toBeCloseTo(stage(result, row.stage).count * stage(result, row.stage).mean_ms!);
+    expect(stage(result, 'merge').count).toBe(2);
+    expect(result.flow_moves.ranges![7].map((row) => `${row.from_stage} ${row.to_stage} ${row.moves}`).sort()).toEqual([
+      'approval harden 1', 'design implementation 1', 'harden merge 1', 'implementation preview 1', 'merge done 2', 'preview approval 1', 'triage design 1',
+    ]);
+  });
+
+  it('counts moves back and skips by the stages they join, and leaves open visits out', async () => {
+    const lines = [
+      card(2, 50, 'entered', 'Triage'), card(2, 49, 'accepted', 'Design'), card(2, 40, 'planned', 'Implementation'), card(2, 35, 'built', 'Testing'),
+      card(2, 33, 'posted', 'Approval'), card(2, 30, 'redesign', 'Design'), card(2, 20, 'planned', 'Implementation'),
+    ];
+    const result = await run(lines);
+    expect(result.flow_moves.ranges![7].map((row) => `${row.from_stage} ${row.to_stage} ${row.moves}`).sort()).toEqual([
+      'approval design 1', 'design implementation 2', 'implementation preview 1', 'preview approval 1', 'triage design 1',
+    ]);
+    expect(result.flow_stages.ranges![7].find((row) => row.stage === 'implementation')).toMatchObject({ visits: 1, wait_ms: 5 * HOUR });
   });
 
   it('publishes aggregates only, with no issue numbers', async () => {

@@ -1,4 +1,3 @@
-// Route planning (src/sim/path.ts) driven through the real physics turn pipeline.
 
 import { beforeAll, expect, it } from 'vitest';
 import { START_KITS } from '../data/start';
@@ -36,6 +35,7 @@ it('the player drives from Bowl to Nose without a serious hit on a static obstac
   w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
   w.player.fuel = 100;
   const me = w.player.vehicleId;
+  Object.assign(w.vehicles[0], { pos: { x: 209.3, y: 276.8 }, heading: -Math.PI / 4, speed: 7 });
   let staticDamage = 0;
   w = play(w, w.size, (world) => {
     world.vehicles = world.vehicles.filter((v) => v.faction === 'player');

@@ -12,9 +12,10 @@ import { playerVehicle, vehicleById } from '../damage';
 import { makePart, makeVehicle } from '../factory';
 import { freeCells, goodsCount, mountedParts } from '../grid';
 import { addGoods, mountPart, removeAllGoods, stowPart } from '../inventory';
-import { siteOf } from '../market';
+import { searchReward, siteOf } from '../market';
+import { refreshVision } from '../vision';
 import { playerSees } from '../vision';
-import { nearestPad, nearestTown, siteGates } from '../sites';
+import { nearestPad, nearestTown, siteGates, sitePads } from '../sites';
 import { fuelCap, isStranded, suppliesCap, vehicleStats } from '../stats';
 import { dist, pointsAway, type Vec } from '../vec';
 import { addVehicle, emptyWorld, forceOption, npcBrain, rngStateForForcedRolls, startCombat, testDrive } from '../testkit';
@@ -1396,5 +1397,31 @@ describe('haulMarginAt', () => {
     const w = robberWorld();
     expect(haulMarginAt(w, 66667, 20)).toBeGreaterThan(haulMarginAt(w, 6667, 20));
     expect(haulMarginAt(w, 66667, 20)).toBeGreaterThan(haulMarginAt(w, 66667, 2));
+  });
+});
+
+describe('the searcher bot', () => {
+  it('takes a search, hands the parcel to its target and claims the pay', () => {
+    const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
+    const pad = sitePads(bowl)[0];
+    let w = emptyWorld(pad);
+    const target = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: pad.x + 10, y: pad.y });
+    target.brain = npcBrain('trader', target.pos, ['trader']);
+    w.shops.bowl.contracts = [{
+      id: 'ct-s', shop: 'bowl', kind: 'search', target: target.id, driver: target.brain.driver, template: 'trader',
+      lead: { at: { ...siteOf('bowl').pos }, turn: 0 }, reward: searchReward(), deadline: 900, window: 600, tier: 1, delivered: false,
+    }];
+    refreshVision(w);
+    const seen: GameEvent[] = [];
+    for (let i = 0; i < 80 && !seen.some((e) => e.t === 'contract' && e.outcome === 'done'); i++) {
+      const turn = botOrders(w, 'searcher');
+      seen.push(...turn.events);
+      w = endTurn(turn.world, testDrive);
+      seen.push(...w.events);
+    }
+    const outcomes = seen.flatMap((e) => (e.t === 'contract' && e.contract.id === 'ct-s' ? [e.outcome] : []));
+    expect([...new Set(outcomes)]).toEqual(['accepted', 'fulfilled', 'done']);
+    expect(seen).toContainEqual({ t: 'money', amount: searchReward(), reason: { kind: 'contract' } });
+    expect(playerVehicle(w).items.some((it) => it.kind === 'parcel')).toBe(false);
   });
 });

@@ -85,7 +85,7 @@ function playerReportsOf(home: string, issue: number): Mounted {
 
 export type ReportDeps = {
   cfg: Pick<FactoryConfig, 'home' | 'errorDailyIssues' | 'errorDiskMb' | 'errorUnzippedMb'>;
-  github: Pick<GitHub, 'createIssue' | 'comment' | 'reopen' | 'findByFingerprint' | 'errorIssue'>;
+  github: Pick<GitHub, 'createIssue' | 'comment' | 'reopen' | 'errorIssue'>;
   now: () => Date;
 };
 
@@ -111,11 +111,9 @@ export class ErrorReports {
     const fingerprint = fingerprintOf(report.error, frames);
     this.keep(fingerprint, published.sha, body);
     const seen = updateStore(home, (store) => record(store, fingerprint, published.sha));
-    if (seen.issue !== null && !seen.newCommit) return;
-    const found = seen.issue === null ? await this.deps.github.findByFingerprint(fingerprint) : await this.deps.github.errorIssue(seen.issue);
-    if (!found) return this.open(report, frames, fingerprint);
-    updateStore(home, (store) => { store.known[fingerprint].issue = found.number; });
-    await this.seenAgain(found, report, published);
+    if (seen.issue === null) return this.open(report, frames, fingerprint);
+    if (!seen.newCommit) return;
+    await this.seenAgain(await this.deps.github.errorIssue(seen.issue), report, published);
   }
 
   private keep(fingerprint: string, sha: string, body: Buffer): void {

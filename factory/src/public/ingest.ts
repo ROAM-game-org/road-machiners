@@ -26,15 +26,29 @@ function integerOrNull(fields: Fields, name: string): number | null {
   return fields[name] === null ? null : integer(fields, name);
 }
 
+function optionalText(fields: Fields, name: string): string | null {
+  const value = fields[name];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') throw new BadEvent(`field "${name}" must be a string or null`);
+  return value;
+}
+
 function flag(fields: Fields, name: string): boolean {
   const value = fields[name];
   if (value !== undefined && typeof value !== 'boolean') throw new BadEvent(`field "${name}" must be a boolean`);
   return value === true;
 }
 
+function images(fields: Fields): string[] {
+  const value = fields.images;
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) throw new BadEvent('field "images" must be a list of strings');
+  return value;
+}
+
 function comment(base: Base, fields: Fields): PublicEvent {
   const reach = { addressed: flag(fields, 'addressed'), standalone: flag(fields, 'standalone') };
-  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), ...reach };
+  return { ...base, kind: 'comment', threadId: integerOrNull(fields, 'threadId'), author: text(fields, 'author'), sender: text(fields, 'sender'), text: text(fields, 'text'), at: text(fields, 'at'), context: optionalText(fields, 'context'), images: images(fields), ...reach };
 }
 
 const isWholeNumber = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;

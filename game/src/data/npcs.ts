@@ -600,7 +600,7 @@ export type TraitWeights = { [D in DecisionId]?: Partial<Record<DecisionOptions[
 export const STATE_WEIGHTS: Record<StateKindId, TraitWeights> = {
   feud: { hostileSeen: { fight: { add: 4 } } },
   backedOff: { preySeen: { rob: { mul: 0.005 } } },
-  tow: {}, patch: {}, trade: {}, aid: {}, combat: {}, lootWarning: {},
+  tow: {}, patch: {}, trade: {}, handover: {}, aid: {}, combat: {}, lootWarning: {},
   truce: {},
   grievance: {},
   strayFire: {},
@@ -630,6 +630,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
   tow: null,
   patch: 40,
   trade: 20,
+  handover: 20,
   aid: 20,
   truce: 60,
   grievance: 5,

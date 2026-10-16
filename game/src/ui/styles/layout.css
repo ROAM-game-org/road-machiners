@@ -1,8 +1,8 @@
 .top-left {
   position: absolute;
   z-index: var(--z-hud);
-  left: var(--hud-inset);
-  top: var(--hud-inset);
+  left: var(--safe-left);
+  top: var(--safe-top);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
@@ -13,8 +13,8 @@
 /* The weapons keep the bottom line, and the instruments go above them only when the two do not fit side by side. */
 .bottom-left {
   position: absolute;
-  left: var(--hud-inset);
-  bottom: var(--hud-inset);
+  left: var(--safe-left);
+  bottom: var(--safe-bottom);
   display: flex;
   flex-direction: row-reverse;
   flex-wrap: wrap-reverse;
@@ -71,8 +71,8 @@
 }
 .top-right {
   position: absolute;
-  right: var(--hud-inset);
-  top: var(--hud-inset);
+  right: var(--safe-right);
+  top: var(--safe-top);
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
