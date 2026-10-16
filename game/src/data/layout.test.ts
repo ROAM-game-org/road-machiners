@@ -52,7 +52,7 @@ describe('Icarus layout spread', () => {
   });
 
   it('keeps the canyon bridge deck its length', () => {
-    const [from, to] = TERRAIN.decks[0].line;
+    const [from, to] = TERRAIN.features.decks[0].line;
     expect(dist(from.at, to.at)).toBeCloseTo(dist(layoutPoint(97.9, 75.1), layoutPoint(101.5, 71.5)), 3);
   });
 

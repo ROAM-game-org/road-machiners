@@ -70,7 +70,11 @@ export type DeckSpec = {
 
 export type DeckLook = 'ship_flap' | 'ship_wing_deck';
 
-const CANYON_BRIDGE_CENTER = scalePoint({ x: 99.7, y: 73.3 });
+const CANYON_BRIDGE_CENTER = onTileMiddle(scalePoint({ x: 99.7, y: 73.3 }));
+
+function onTileMiddle(p: Vec): Vec {
+  return { x: Math.floor(p.x) + 0.5, y: Math.floor(p.y) + 0.5 };
+}
 
 function offsetFrom(origin: Vec, dx: number, dy: number): Vec {
   return { x: origin.x + dx, y: origin.y + dy };
