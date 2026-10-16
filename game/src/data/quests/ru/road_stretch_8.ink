@@ -6,78 +6,72 @@ VAR asked_run = false
 
 === start ===
 # checkpoint: start
-Сумерки в восьмом форте. Хранители считают вечерние грузовики у ворот. # place: Восьмой пост
-Сегодня из пустошей вылетали по три, по четыре машины разом, и на некоторых была еще свежая армейская краска. Вы шли в лоб на каждую. Ала пробивалась прямо сквозь то, что от них оставалось.
-У ворот с доской для счета стоит старый Хранитель — видно, что он считает грузовики уже лет тридцать. Он считает тягач. Считает ваш скаут. Потом бросает счет и смотрит на ваш воротник. # page
-Знал я одного с таким же ожогом. # speaker: Старый привратник
-Он говорит это буднично, словно поминает погоду. Потом поворачивается к следующему грузовику и продолжает считать. # page
-Ваша рука сама собой тянется к шее. Пальцы дрожат на шраме. Вы отнимаете руку, но дрожь не унимается.
-Ала всё видела. Она всё это время смотрела на вашу руку. { ring_told == "told": Она знает, чего стоил этот шрам. Про разъем она не говорит ни слова. } # page
+Dusk at the eighth fort, and the Keepers are counting the evening's trucks through the gate. # place: The eighth outpost
+Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. You drove at all of them. Ala drove straight through the middle of what was left.
+An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
+I knew a man with a burn like that. # speaker: Old gatekeeper
+He says it mildly, the way you'd mention the weather. Then he turns to the next truck and goes on counting. # page
+Your hand has gone to your neck without asking you. It's shaking against the scar. You take it away, and it goes on shaking without you.
+Ala saw. She was watching your hand the whole time. # page
 -> news
 
 = news
 # checkpoint: start.news
-Она садится на подножку тягача с мелко сложенным листком из радиопункта форта. Плату она не считает.
-Хедда Вэлл расстреляла моего отца во дворе завода. На глазах у рабочих бригад. Это случилось, когда мы были у четвертого форта. # speaker: Ала
-Голос ее звучит ровно. И оттого, что он не дрожит, только хуже.
-Вы не говорите, что вам жаль. Это было бы лишней монетой, которую ей пришлось бы считать. # page
-Она еще раз складывает листок и убирает во внутренний карман. # page
-Ты со мной уже восемь перегонов, и деньги тебе не нужны. Зачем ты тогда это делаешь? # speaker: Ала
+She sits down on the hauler's step with a strip of paper from the fort's relay, folded small. She does not count the pay. It is the first time she hasn't.
+Hedda Vell had my father shot in the refinery yard. In front of the crews. It happened while we were at the fourth fort. # speaker: Ala
+Her voice is level. It stays level, which is worse.
+You don't say you're sorry. It would not help her, and she'd hold it against you. # page
+She folds the paper once more and puts it in her coat. # page
+Eight stretches, and every time you drove at the worst of them. Nobody does that for the pay. So why do you do this? # speaker: Ala
 -> hub
 
 = hub
 # checkpoint: start.hub
-Она ждет. Никто ничего не считает. За ее спиной у ворот беззвучно продолжается счет. # page
+She waits. At the gate the tally goes on. # page
 -> menu
 
 = menu
-+ {not asked_hunters} [Почему за грузовиком столько охотников?]
++ {not asked_hunters} [Why do so many hunt the truck?]
   ~ asked_hunters = true
-  Из-за награды Блэквуда и из-за барных сплетен. Вчера вечером в баре форта я выпила лишнего и сболтнула, куда еду. К утру знал каждый водитель на дороге. # speaker: Ала
-  Она не улыбается. Сил на улыбку не осталось.
+  Because of what Blackwell paid, and because of what the bar says. Last night in the fort bar, with a drink in me, I said where I'm going. By morning every driver on the road knew. # speaker: Ala
+  She doesn't smile. She's too tired to.
   -> menu
-+ {not asked_run} [Почему не бросить грузовик и не сбежать?]
++ {not asked_run} [Why don't you leave the truck and run?]
   ~ asked_run = true
-  Куда бежать? Рабочие заперты во дворе в Блэквуде, а семьи ждут в последнем форте к югу отсюда. Северные Ворота примут одну бригаду, один грузовик, и этот грузовик — я. Без книг из прицепа их туда не пустят. # speaker: Ала
-  Без них они так и останутся собственностью Блэквуда, и больше никем. За мной две сотни людей. Только им об этом знать пока рано. # speaker: Ала
+  Run where? The crews are shut in Blackwell's yard, and their families are at the last fort south of here. Northgate will take one crew, if the crew proves it's worth taking. The books in the trailer are the proof: they show what the crews can build and run. # speaker: Ala
+  Without them they're Blackwell's children and nothing else. I carry two hundred people, and I'm the one truck Northgate agreed to open for. They don't know it yet. # speaker: Ala
   -> menu
-+ [Ответить ей.]
-  -> why
-
-= why
-# checkpoint: start.why
-Она спросила вас, и она всё еще ждет ответа. Ни ворота, ни доска для счета, ни бесстрастный голос старого Хранителя за вас не ответят. # page
-+ [Думалось, эта дорога станет для меня последней.]
++ [I thought this road would finish me.]
   ~ why_answer = "finish"
   -> finish
-+ [Из-за платы.]
++ [The pay.]
   ~ why_answer = "pay"
   -> for_pay
-+ [Промолчать.]
++ [Say nothing.]
   ~ why_answer = "silent"
   -> silent
 
 = finish
-Слова звучат сухо, и это правда. В этом и был расчет: дорога подлиннее, машин побольше, и рано или поздно какая-нибудь из них окажется той самой. Но всё никак не оказывается.
-Ала некоторое время смотрит на вас. Лицо ее остается неподвижным.
-Честно. Выходит, тебе на этой дороге платят меньше всех. # speaker: Ала
-Она почти улыбается, но сдерживается.
+Out it comes, flat, and it's true. That was the plan: a road long enough, enough trucks, and sooner or later one of them would be the one. It never is.
+Ala looks at you for a time. Her face doesn't change.
+That's honest. It's also a terrible reason to hire a man. # speaker: Ala
+She almost smiles, and doesn't.
 -> close
 
 = for_pay
-Из-за платы, говорите вы ей — словно плата может быть причиной.
-Ты ее даже не пересчитываешь. Ни разу. # speaker: Ала
-Она говорит это без злости. Она видит вас насквозь и оставляет эту отговорку вам.
+The pay, you tell her, as if the pay were a reason.
+Nobody drives into army trucks for the pay. # speaker: Ala
+She says it without any heat. She's seen through it, and she lets you keep it.
 -> close
 
 = silent
-Вы молчите. У ворот продолжается счет.
-Она медленно кивает, словно назначила молчанию цену. Может, так оно и есть.
+You say nothing. The gate goes on counting.
+She nods slowly, as if she'd put a price on the silence. Maybe she has.
 -> close
 
 = close
 # checkpoint: start.close
-Ала встает и отряхивает пальто. Она идет к тягачу и на миг замирает, положив руку на дверную ручку, — дольше, чем нужно, чтобы открыть дверь. # page
-Тогда до завтра. Плата та же. # speaker: Ала
-Вот и всё. Вы идете проверять штифты и понимаете, что это нужно было вам самому. # page
+Ala gets up and brushes off her coat. She walks to the hauler and stands with her hand on the door for a moment, longer than it takes to open. # page
+Tomorrow. # speaker: Ala
+You go and check the gun pins, both of them. Your hand is steady again by the second. # page
 -> END

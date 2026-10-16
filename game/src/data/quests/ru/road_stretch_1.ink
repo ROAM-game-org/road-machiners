@@ -3,54 +3,56 @@ INCLUDE world.ink
 
 === start ===
 # checkpoint: start
-Первый форт на севере — это стена, ворота и двор, забитый грузовиками в ожидании подсчета. # place: Первый пост
-Грузовик, который вылетел на нее утром из пустошей, больше не встал. Вы пошли на него в лоб, как идете на всё подряд, а когда он замер, сидели, сжимая руль, и ждали, что шевельнется внутри хоть что-то. Но пришло только чувство, похожее на досаду, и больше ничего. Долго об этом вы не думаете.
-У Алы открыта дверь тягача, один сапог стоит на подножке. Она отсчитывает плату вам в руку, медяками, вслух, и каждая цифра звучит ровно. # page
+The first fort north is a wall, a gate and a yard full of trucks waiting to be counted. # place: The first outpost
+A truck came for the hauler out of the badlands this morning, and it never got back up. You went at it straight, and when it stopped moving you sat with your hands on the wheel and waited to feel something. What came was closer to disappointment than to anything else. You don't look at that too long.
+Ala counts the stretch's pay out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
 -> tougher
 
 = tougher
 # checkpoint: start.tougher
-{ geezer_pitch == "link": Ала: С такой глубокой сцепкой — и ты впечатываешь бампер в вооруженный грузовик так, будто он тебе денег должен. # speaker: Ала }
-{ geezer_pitch == "bullets": Ала: Шесть дыр в теле, а ты прешь прямо на ствол. Пересчитай, мол, еще раз. # speaker: Ала }
-{ geezer_pitch == "none": Ала: Прешь прямо на пушку. # speaker: Ала }
-Ты крепче, чем кажешься. # speaker: Ала
-Она роняет последнюю монету вам в ладонь и сжимает ваши пальцы. И не отпускает. # page
-Благодаря тебе я жива. Так что спрошу один раз. Кольцевой шрам. Что у тебя со сцепкой? # speaker: Ала
+{ geezer_pitch == "link": A linked driver, and you put your bumper into a gun truck like it owed you money. # speaker: Ala }
+{ geezer_pitch == "bullets": Six holes in you, and you still drive straight at the muzzle. # speaker: Ala }
+{ geezer_pitch == "none": You drove straight at a gun. # speaker: Ala }
+You're tougher than you look. # speaker: Ala
+She closes her fist over the last coin and does not look away. # page
+You saved my life. So I'm asking once. The ring scar on your neck. What happened to your link? # speaker: Ala
 -> ask
 
 = ask
-Она ждет. За ее спиной у ворот продолжается счет Хранителей, машина за машиной, бесстрастным голосом.
-+ [Кресло горело. Пришлось выдернуть разъем своими руками.]
+She waits. Behind her the Keepers count trucks through the gate, one by one, in a flat voice.
++ [A seat was burning. I pulled the plug out myself.]
   ~ ring_told = "told"
   -> told
-+ [Старая рана.]
++ [Old wound.]
   ~ ring_told = "dodged"
   -> dodged
-+ [Промолчать.]
++ [Say nothing.]
   ~ ring_told = "silent"
   -> silent
 
 = told
-Столько вы не говорили живой душе уже много лет. Вы слышите, как эти слова звучат из ваших уст — сухо и ровно.
-Ала слушает, не отводя взгляда. Она не говорит, что ей жаль.
-Кресло, разъем, и всё своими руками. Ладно. Сойдет за ответ. # speaker: Ала
-Она отпускает вашу руку. -> close
+That fire is years older than the truck that burned two weeks ago. You haven't told it to anyone, and it comes out flat, as if somebody else said it.
+Ala takes it in without looking away. She doesn't say she's sorry.
+A burning seat, and you tore the plug out yourself. Not much of a story. It'll do. # speaker: Ala
+A link seat is fitted to the man who sits in it. The wrong man in one burns, and you were the wrong man. You don't say that part.
+-> close
 
 = dodged
-Старая, значит. # speaker: Ала
-Она примеривается к этому слову, будто крутит в пальцах фальшивую монету.
-Я сказала — один раз. Значит, один раз. # speaker: Ала
-Она отпускает вашу руку. -> close
+Old, yes. # speaker: Ala
+She turns the word over like a coin she isn't sure about.
+I said once. I meant once. # speaker: Ala
+-> close
 
 = silent
-Вы смотрите на ворота, потом на свои сапоги. Хранители впускают и считают очередной грузовик.
-Она выжидает столько, сколько уходит на один подсчет. Потом еще на один.
-Ладно. # speaker: Ала
-Она отпускает вашу руку — не то чтобы с отказом, но и не с милостью. -> close
+You look at the gate, and then at your own boots. The Keepers count another truck in.
+She waits the length of one count. Then another.
+Fine. # speaker: Ala
+It is not quite a refusal and not quite a favor.
+-> close
 
 = close
 # checkpoint: start.close
-За стойкой бара в этом форте всё еще висят старые объявления с выцветшими бурыми чернилами и лицами на них. Вы смотрите на них по привычке, словно проверяете штифты, а бармен смотрит на вас так же, как на всех остальных, — прикидывая, сколько с вас удастся содрать. # page
-Вашего лица он не знает. Вы всё равно платите за кружку.
-Ала дважды вслух пересчитывает топливо на второй перегон. Вы идете проверять штифты. # page
+That evening the fort bar is full of drivers and smoke. Old bounty notices hang behind it, ink gone brown, with faces drawn on them, men the forts once wanted dead. You look them over out of habit, the way you check your gun pins. # page
+The barman looks at you the way he looks at everyone, for what you might spend. He doesn't know your face. You pay for a cup anyway.
+Across the room Ala is working out the next stretch's fuel on the back of a notice. She does it twice. # page
 -> END

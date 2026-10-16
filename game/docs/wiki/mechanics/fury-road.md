@@ -4,7 +4,7 @@ An endless highway combat run north, with outposts as milestones, picked at New 
 
 ## Mode rules
 
-Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its start kit and the map a new world of it is laid on, `icarus` or `highway`. `src/sim/settings.ts` is the only reader: `modeRules()` for a world, and `modeRulesOf()` and `modeMap()` for a setup with no world yet. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Chaos Highway sets only `run` and `npcKnockouts`:
+Each mode is a row of `GAME_MODES` in `src/data/modes.ts`: its rule flags, its start kit, the map a new world of it is laid on, `icarus` or `highway`, and the quest a new game with the intro on opens when the kit has no arrival, `opening`. `src/sim/settings.ts` is the only reader: `modeRules()` for a world, and `modeRulesOf()`, `modeMap()` and `modeOpening()` for a setup with no world yet. Each gate reads one flag, and no code outside the mode table and the mode picker tests a mode's id. Roaming sets every flag on but `run`. Chaos Highway sets only `run` and `npcKnockouts`:
 
 - `traffic`: no starting traffic, no spawn timers and no shops.
 - `looting`: no salvage at start or on renewal, no old-world loot spots, no salvage on a wreck, no story wrecks, no cargo handovers, and spilled or dumped cargo is gone.
@@ -79,6 +79,8 @@ Between levels nothing spawns, even if the player drives off the pad and back. A
 
 Outposts buy nothing. The next level starts only when the player, parked on the pad, presses Wait for the road on the outpost screen.
 
+Parked on the pad of a paid outpost 1, 4, 8 or 12 with both trucks, a hired run plays the story scene of that outpost once. It is a page in the quest window that pays nothing and changes no rule of the run. [The road story](../../architecture/quests.md#the-road-story) has the rules.
+
 The run has no end. The HUD's run readout shows the stretch and the distance to its outpost, like `3: 640 m`, and its tooltip reads "Stretch 3: 640 m to Outpost 3". Between levels it shows the next stretch at its full length.
 
 ## Hostile groups
@@ -132,3 +134,5 @@ A carried-over Chaos Highway save starts a fresh run at stretch 1 with its truck
 ## Start
 
 The run starts at milestone 0, the gun truck in the inner right lane and the hauler level with it in the inner left lane, heading north toward the top right of the screen. The Chaos Highway kit is a scout with one MG, a stock engine, a Rebar cage on the front and another on the back, a full tank, base supplies, 4 parts for field patching and 200 M's. It is the same every run.
+
+A new game with the intro on opens the hiring scene `road_hire` at once, before the first turn: the driver is hired by the hauler's driver Ala at the Keepers' southern outpost. Signing on is the scene's only end. A new game with the intro skipped has no story for the run.

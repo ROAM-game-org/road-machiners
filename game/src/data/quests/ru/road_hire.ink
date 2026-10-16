@@ -4,77 +4,92 @@ INCLUDE world.ink
 VAR asked_pay = false
 VAR asked_north = false
 VAR asked_who = false
+VAR tried_more = false
+VAR walked_out = false
 
 === start ===
 # checkpoint: start
-В баре последнего форта перед пустой дорогой пахнет дизелем и мокрой шерстью. # place: Южный пост
-Вы сидите спиной к стене — так вы сидите уже тридцать лет. <term=keepers>Хранители</term> считают каждый грузовик у ворот и каждого человека в дверях бара, но вас пока никто не посчитал. Рядом с рукой остывает кружка с чем-то бурым.
-Две недели назад вы вели грузовик, от которого на дороге осталось только черное пятно, и в форт вас пустили лишь потому, что вы не потеряли сапоги. # page
-За соседним столом женщина отсчитывает медяки из свертка. Каждую сумму она цедит под нос, ровно и сухо, словно снимает показания со счетчика. На коленях ее пальто выцвело. К манжете присохла размазанная пальцем капля красного сургуча, а час назад она спустилась из башни коменданта, и писарь провожал ее с поклонами. Наемным водителям никто не кланяется.
-Бармен Тибор придвинул стул и сел напротив нее. Людьми он торгует так же, как другие — запасными мостами.
-Ходил с Магнусом — или говорит, что ходил. Из <term=burnt_drivers>Обожженных</term>, если память тебе не изменяет. Шрамы в подтверждение, и берется за работу, к которой другие и близко не подойдут. # speaker: Тибор
-Женщина смотрит в окно, а не на вас. На площадке под фонарем стоит ваш скаут: одна пушка на креплении, ростом с собаку. За ним всё остальное окно заслоняет тягач, и пломба на двери прицепа — того же красного цвета, что и сургуч на ее манжете. # page
-На этом он ездит? Оно и одного перегона не протянет. # speaker: Ала
+The bar of the last fort before the empty road smells of diesel and wet wool. # place: The southern outpost
+You sit with your back to the wall, which is how you've sat for thirty years. The <term=keepers>Keepers</term> who hold this fort write down every truck through the gate and every man through the bar door. You're in their book as a name and a night's rent, nothing more.
+Two weeks ago you drove a truck that is now a black patch on the road. You walked here, and the fort's yard sold you a scout, the smallest thing on four wheels, for every coin you had left. # page
+At the next table, a woman counts brass coins out of a roll, each stamped with an M, the money of this road. She says every sum under her breath, flat and even, the way you'd read a gauge. Her coat has gone pale at the knees. A smear of red wax is still stuck to her cuff, and an hour ago she came down from the Commandant's tower with a clerk bowing her out. Nobody bows to hired drivers.
+Tibor, the barman, has pulled up a chair across from her. He sells men the way other men sell spare axles.
+Rode with Magnus, they say, and the scars say so too. The <term=burnt_drivers>Burnt Drivers</term>, if you're old enough to remember. He takes the jobs nobody else will touch. # speaker: Tibor
+The woman looks out of the window instead of at you. Your scout sits on the pad under the lamp with one gun on its mount, small as a dog. Behind it the hauler fills the rest of the window, a mammoth eighteen-wheeler, and the seal on its trailer door is the same red as the wax on her cuff. # page
+That's what he drives? A toy like that won't last a stretch, fort to fort. # speaker: Ala
 -> pitch
 
 = pitch
-Тибор разводит руками: твой ход, мол. Ала по-прежнему на вас не смотрит. Ей нужен довод, и вы решаете, что показать первым делом.
-+ [Показать шрам от сцепки.]
+Tibor spreads his hands. Your move, he means. She wants a reason to hire you, and you have two. A burn like yours proves you are a real linked driver, one who can feel a truck as a part of his own body. The bullet scars prove you have been shot at and kept driving. Which one does she hear first?
++ [Show her the link burn on your neck.]
   ~ geezer_pitch = "link"
   -> link_scar
-+ [Показать пулевые шрамы.]
++ [Show her the bullet scars.]
   ~ geezer_pitch = "bullets"
   -> bullet_scars
 
 = link_scar
-Вы отворачиваете воротник и наклоняете голову. В основании черепа кольцо толстой бледной кожи стянуло старый ожог размером с разъем, и жилы на шее перекосило. Большинству водителей ставят аккуратный контакт. Этот словно врезал тот, кто вас ненавидел.
-Ала долго разглядывает шрам. Губы ее сжимаются, и это не жалость.
-В сцепке. И глубже, чем у меня. # speaker: Ала
-Вы расстегиваете и рубаху, потому что она всё ещё хмурится. -> both
+You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it, and the truck answers like an arm. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal. A link seat is fitted to the man who sits in it, and it burns anyone else.
+When she bent over the coins you saw her own socket under her hair, small and clean. She looks at yours a good while. Her mouth tightens, and it isn't pity.
+Linked. Deeper than I am. # speaker: Ala
+She makes you show the rest. You open your shirt, and she counts the bullet holes. -> both
 
 = bullet_scars
-Вы задираете рукав, потом распахиваете рубаху. Ребра, плечо, предплечье. Кто-то однажды начал их считать, но вы его оборвали.
-Ала считает за вас. Ее губы шевелятся на каждом.
-Шесть. # speaker: Ала
-Напоследок вы отгибаете воротник, раз уж она всё ещё хмурится. Кольцевой шрам в основании черепа наконец заставляет ее отвести взгляд от окна. -> both
+You push up a sleeve, then open your shirt. Ribs, shoulder, forearm. Somebody started counting the holes once, and you stopped.
+Ala counts them for you. Her lips move on every one.
+Six. # speaker: Ala
+She wants more. You turn your collar down and show her the other thing, the ring of old burn around the socket at the base of your skull, where a seat's cable plugs in. She looks at it a good while. -> both
 
 = both
 # checkpoint: start.both
-Сцепка и свинец — теперь на столе всё, чего бы оно ни стоило. # page
-Значит, тебя жгли, в тебя стреляли, а ты до сих пор водишь игрушку. Почему? # speaker: Ала
-Она не издевается. Она приценивается.
-Справедливо. Две недели назад на дороге к северу отсюда вы вели грузовик втрое больше этого. Снаряд пробил моторный отсек, и на секунду всё побелело. Потом вы уже лежали в канаве и смотрели, как горит кабина, а сцепка в шее всё ещё гудела, будто грузовик звал вас обратно. # page
-В той канаве должен был остаться труп, и с тех пор вам от этого не по себе. Сюда вы пришли пешком на том, что осталось от сапог.
-Примерно это вы ей и говорите, почти теми же словами. Грузовик взорвался. Вы — нет. Маленький быстрее, и маленький грузовик замечает беду раньше, чем беда заметит его.
-Ала слушает, подперев кулаком подбородок. Тибор пытается сделать вид, будто так всё и задумывал. # page
-Ладно. Спрашивай что хочешь. Я отвечу что сочту нужным. # speaker: Ала
+{ geezer_pitch == "link": She came for the burn, you can tell, and the bullets are only a bonus. }
+{ geezer_pitch == "bullets": She came for the bullets, you can tell, and the burn is a question she hasn't asked yet. }
+So you've been burned and shot, and you still drive a toy. Why? # speaker: Ala # page
+She isn't being cruel. She's pricing you.
+Fair question. Two weeks ago, on the road north of here, you drove a truck three times the size of this one. A shell came through the engine bay, and there was one white second. Then you were lying in a ditch, watching your cab burn while the link in your neck still hummed, as if the truck were calling you back in. # page
+You should have been dead in that ditch, and you've been sore about it since.
+You tell her so, in about that many words. The truck blew up. You didn't. The scout was what the yard had left, and a small truck is quick, and sees trouble before trouble sees it.
+Ala listens with her chin on her fist. Tibor tries to look like he planned all this. # page
+Fine. Ask what you want. I'll answer what I answer. # speaker: Ala
 -> hub
 
 = hub
 # checkpoint: start.hub
-Ала прижимает ладонью сверток с медяками и ждет. Вокруг гудит бар, шумный и бурый. # page
+Ala stacks her coins in front of her and waits. The bar goes on around you, loud and brown. # page
 -> menu
 
 = menu
-+ {not asked_pay} [Сколько платишь?]
++ {not asked_pay} [What does it pay?]
   ~ asked_pay = true
-  По перегонам, от форта к форту. {stretch_pay(1)} М за первый и еще на {stretch_pay(2) - stretch_pay(1)} М больше за каждый следующий. Из этих денег держишь на ходу мою машину и свою. Куда уходят деньги, я не спрашиваю. # speaker: Ала
-  Она сдвигает монеты пальцем через стол, выстраивая ровный ряд. Ей уже приходилось так делать.
+  I drive the hauler. You ride ahead and take what comes. I pay by the stretch, fort to fort: {stretch_pay(1)} M's for the first, and {stretch_pay(2) - stretch_pay(1)} more for each stretch after that. # speaker: Ala
+  Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. # speaker: Ala
+  She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The money is paid at the far gate.
   -> menu
-+ {not asked_north} [Почему на север?]
++ {asked_pay and not tried_more} [Ask for more.]
+  ~ tried_more = true
+  That's the offer. A man who asks for more before he's driven a stretch is a man who plans to leave. # speaker: Ala
+  She has the grace not to smile. You've learned the price is fixed, and that she would have thought less of you if you hadn't asked.
+  -> menu
++ {not asked_north} [Why north?]
   ~ asked_north = true
-  Без вопросов. Таково условие. # speaker: Ала
-  Она произносит это как заученную фразу, и звучит это чистой воды уверткой. Она даже не скрывает этого.
-  Тибор разглядывает свои руки. В этом форте никто не скажет вам, что там дальше по дороге, и каждый знает, что вы не спрашивали.
+  No questions about that. That's the price of the job. # speaker: Ala
+  She says it like something she has said many times, and it sounds exactly like a dodge. She doesn't try to hide that it's one.
+  Tibor suddenly finds something interesting in his hands. He sold you the job, not the road.
   -> menu
-+ {not asked_who} [Кто охотится за грузовиком?]
++ {not asked_who} [Who's coming for the truck?]
   ~ asked_who = true
-  За этот грузовик обещан дизель <term=blackwell>Блэквуда</term>. Кто вернет прицеп с целой пломбой, получит плату на заводе, а живым вернется водитель или мертвым — им без разницы. Каждый мусорщик и каждый безработный стрелок отсюда до первого хребта уже в курсе. # speaker: Тибор
-  Ала не спорит. Она смотрит на сургуч на манжете, потом убирает руку со стола.
+  <term=blackwell>Blackwell</term> wants that truck. The refinery posted a reward in diesel. Whoever brings the trailer back sealed gets it, and nobody there cares if the woman driving it comes back alive or dead. Every scavenger and out-of-work gun from here to the first ridge has heard. # speaker: Tibor
+  Ala doesn't correct him. She turns her cuff over so the wax doesn't show.
   -> menu
-+ [Ударить по рукам.]
++ {not walked_out} [Walk out.]
+  ~ walked_out = true
+  You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. The yard sold it to you for the last of your coins. You have no truck, no pay and no other road. You stand there a while with the water running down your collar.
+  When you come back in, nobody has moved. Ala is still counting. Tibor is still smiling.
+  I'd have thought less of you if you hadn't tried. Sit down. # speaker: Ala
+  -> menu
++ [Sign on.]
   ~ ala_hired = true
-  Вы кладете ладонь на стол, и Ала на секунду накрывает ее своей — так здесь заключают сделки. Тибор откуда-то забирает свою долю и исчезает раньше, чем вы успеваете разнять руки.
-  Первый перегон на рассвете. Плату пересчитаешь, когда получишь. # speaker: Ала
-  Она выходит к тягачу. Вы идете к своему скауту и перед сном проверяете оба штифта на пушке — блестящий и стертый.
+  You put your hand flat on the table, and Ala puts hers over it for a second, which is how deals are done here. She slides Tibor his finder's fee without looking, and he is gone before the two of you have let go.
+  First stretch at dawn. You're paid at the next fort's gate. # speaker: Ala
+  She goes out to the hauler. You go out to your scout and check the two pins that lock the gun mount, one bright and new, one old and worn. A loose pin will swing your own gun into your cab, and you never trust the old one. Then you sleep.
   -> END

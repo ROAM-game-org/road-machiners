@@ -123,7 +123,7 @@ export const STORY = {
   'journalNote.pipeCanal.text': 'Every barrel Agnes loaded onto Bowl\'s trucks reached Mirela\'s trough, so Agnes\'s hose column is honest. The dial is the other half, and you read it. Mirela will read every number to the Senate and try to win back the canal families\' job of sharing out the trough.',
 
   'term.keepers': 'The wardens of the old highway forts. They took the empty army forts, toll every truck that passes and count each one through the gate.',
-  'term.blackwell': 'The refinery town at the south end of the road. Most of the diesel on the highway comes from its wells, and it pays in fuel, not coin.',
+  'term.blackwell': 'The refinery town at the south end of the road. Its wells and its refinery make most of the highway\'s diesel, and it pays in fuel, not coin.',
   'term.northgate': 'A valley at the north end of the road with a mountain spring. Few southerners have seen it, and its gates stay shut to strangers.',
   'term.burnt_drivers': 'The raiders who followed a man called Magnus a generation ago. The forts say the gang starved in one winter, and every driver of it was hunted down.',
   'term.covenant': 'The water deal between Northgate and Blackwell. Northgate\'s water goes south in Blackwell\'s tankers, season after season, for Blackwell\'s diesel.',

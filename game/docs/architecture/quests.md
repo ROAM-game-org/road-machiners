@@ -43,6 +43,7 @@ Quests are scripts written in [ink](https://github.com/inkle/ink/blob/master/Doc
 - `begin(quest)` opens another quest at its `start` once this one ends. It must come right before `-> END`, or the pick throws. Kovac starts the depot quest this way.
 - `note(id)` writes a journal note and `has_note(id)` reads one. `found(site)` reads whether a town or location is found, and `searched(wreck)` whether a story wreck is searched. Each throws on an id the game does not know.
 - `has_work()`, `has_offers()` and `board_full()` read the board of the town the truck is parked at, and `take_work()` takes its best offer as the Contracts tab does. They throw away from a town. The offer is the best-paying open contract the truck can take, from `townWork()` in `src/sim/dialogue-rules.ts`. `has_offers()` tells a board with open contracts the truck cannot take from an empty one.
+- `stretch_pay(stretch)` gives the Chaos Highway pay of a stretch in whole M, from `payOf()` in `src/sim/fury-road-danger.ts`. It throws on a stretch under 1 or a non-integer. The road story quotes the pay with it.
 - `skill(id)` reads the player's level in a skill: driving, perception, machining, toughness or social. It throws on any other id. The veteran check world holds every skill at the top level, so a skill check is walked both ways. Use it for what a skill lets the player see or say for free, like an extra line in a document.
 - `passed()` tells whether the player meets the `# check` of the choice just picked. A choice that can fail carries the check, and the ink after the pick branches on `passed()`. It throws when the picked choice has no check, and on a load, which picks nothing.
 - Game state such as money is read through a query, never copied into an ink variable.
@@ -176,6 +177,17 @@ Dustwell is a stall with no board of work. Its locals never call `has_work()`, `
 - The pickup is the scout with the opening condition of the standard start: a nearly dead engine, a worn cab and an opening wreck that holds 3 parts and a cage. The engine has no misfire rule. Low engine HP is what the rules give, and parts that wear down can fail. The opening tips teach driving, search, loot and patch.
 - The world variable `intro_step` is `off`, `drive`, `patched`, `ambush` or `done`. The quest sets no variable. `advanceIntro()` in `src/sim/intro.ts` runs once each turn. It sets `drive` on the first turn after the scene, and `patched` once the engine needs no patch. A skipped intro builds the same farm, so it runs these steps the same way. The ambush and the wake in Bowl follow from `patched`.
 - Sim code reads and writes a world variable through `worldVar()` and `setWorldVar()` in `src/sim/quests.ts`, and the intro step through `introStep()` and `setIntroStep()`. `setWorldVar()` throws on an unknown name, a wrong type or an open quest session, since the next pick would undo the write.
+## The road story
+
+Five page quests tell the story of Geezer and Ala on Chaos Highway. The player is Geezer, who drives the gun truck, and Ala drives the hauler. The canon is in [Chaos Highway](../lore/chaos-highway.md). The scenes pay nothing and change no run rule: a test checks that money, the run and the trucks are equal before and after each scene.
+
+- `road_hire` is the hiring at the Keepers' southern outpost. `newGame()` opens it for a mode whose `opening` names it, when the intro is on and the kit has no arrival. Its only end, Sign on, sets the world variable `ala_hired`. The picks set `geezer_pitch`.
+- `ROAD_STORY` in `src/data/quests.ts` maps stretches 1, 4, 8 and 12 to a quest and a gate world variable, `road_seen_<n>`. Each gate is in `GAME_WORLD_VARS` and gates its quest. The scenes set `ring_told`, `death_answer`, `why_answer` and `ala_knows` for the later ones.
+- `openRoadScene()` in `src/sim/quests.ts` runs each turn after `advanceFuryRoad()`. It returns unless a run exists, no quest is open, `ala_hired` is true, `canWaitForRoad()` holds and the stretch ahead has a `ROAD_STORY` entry with an unset gate. Then it sets the gate and opens the quest at `start`, so a scene opens once per run and a save or a window move never opens it again. A run with the intro off never sets `ala_hired`, and a `newWorld()` world never plays the hiring, so neither meets a scene.
+- No line before `road_stretch_12` says that Geezer was Magnus. The name first shows in that scene's flashback, and the player may confess it.
+- Restart run on the death screen carries the story: `restartsWithStory()` in `src/ui/death.ts` sends the intro when the dead run was hired.
+- The scenes ship without quest art.
+
 ## Language
 
 - Each quest has a Russian twin in `src/data/quests/ru/<quest>.ink`. It is the same script with Russian words, and it includes the shared `world.ink`. [Russian copy](../russian-style.md) says what a twin keeps and what it translates.

@@ -2159,12 +2159,21 @@
  },
  "quests": {
   "world": {
+   "ala_hired": "boolean",
+   "ala_knows": "string",
    "ambush_raider": "string",
+   "death_answer": "string",
    "depot_thief": "string",
    "first_knockout_seen": "boolean",
+   "geezer_pitch": "string",
    "intro_step": "string",
    "marr_regard": "string",
    "pipe_fate": "string",
+   "ring_told": "string",
+   "road_seen_1": "boolean",
+   "road_seen_12": "boolean",
+   "road_seen_4": "boolean",
+   "road_seen_8": "boolean",
    "towed_to_bowl": "boolean",
    "varga_truck_known": "boolean",
    "wagon_fate": "string",
@@ -2172,7 +2181,8 @@
    "wagon_read": "boolean",
    "wagon_saw": "boolean",
    "wagon_seen": "boolean",
-   "wagon_watched": "boolean"
+   "wagon_watched": "boolean",
+   "why_answer": "string"
   },
   "local": {
    "bowl_dag": {
@@ -2317,6 +2327,22 @@
     "walked_out": "boolean"
    },
    "radio_wagon_driver": {},
+   "road_hire": {
+    "asked_north": "boolean",
+    "asked_pay": "boolean",
+    "asked_who": "boolean"
+   },
+   "road_stretch_1": {},
+   "road_stretch_12": {},
+   "road_stretch_4": {
+    "asked_hunters": "boolean",
+    "asked_north": "boolean",
+    "asked_trailer": "boolean"
+   },
+   "road_stretch_8": {
+    "asked_hunters": "boolean",
+    "asked_run": "boolean"
+   },
    "wagon_bench": {
     "fee": "number",
     "halves_fit": "boolean",
@@ -2413,6 +2439,34 @@
    "radio_wagon_driver": [
     "start",
     "start.ask"
+   ],
+   "road_hire": [
+    "start",
+    "start.both",
+    "start.hub"
+   ],
+   "road_stretch_1": [
+    "start",
+    "start.tougher",
+    "start.close"
+   ],
+   "road_stretch_12": [
+    "start",
+    "start.fire",
+    "start.ask",
+    "start.stay"
+   ],
+   "road_stretch_4": [
+    "start",
+    "start.death_machine",
+    "start.hub"
+   ],
+   "road_stretch_8": [
+    "start",
+    "start.news",
+    "start.hub",
+    "start.why",
+    "start.close"
    ],
    "wagon_bench": [
     "start",
@@ -2674,6 +2728,94 @@
      "wagonNose"
     ],
     "writes": {},
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_hire": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {
+     "ala_hired": [
+      true
+     ],
+     "geezer_pitch": [
+      "bullets",
+      "link"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_1": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "geezer_pitch"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "ring_told": [
+      "dodged",
+      "silent",
+      "told"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_12": {
+   "revision": 1,
+   "links": {
+    "reads": [],
+    "readsNotes": [],
+    "writes": {
+     "ala_knows": [
+      "burnt",
+      "dead",
+      "magnus"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_4": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "ring_told"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "death_answer": [
+      "magnus",
+      "road",
+      "silent"
+     ]
+    },
+    "notes": [],
+    "begins": []
+   }
+  },
+  "road_stretch_8": {
+   "revision": 1,
+   "links": {
+    "reads": [
+     "ring_told"
+    ],
+    "readsNotes": [],
+    "writes": {
+     "why_answer": [
+      "finish",
+      "pay",
+      "silent"
+     ]
+    },
     "notes": [],
     "begins": []
    }

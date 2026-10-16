@@ -1,66 +1,106 @@
 # view: page
 INCLUDE world.ink
 
+VAR stay_said = "none"
+
 === start ===
 # checkpoint: start
-В двенадцатом форте на каждой стене горит по фонарю, и уже много лет никто их не гасит. # place: Двенадцатый пост
-Этот перегон едва не доконал вас обоих. Левый борт тягача ободран до самой рамы, а ваш скаут держится на одном честном слове и единственном уцелевшем колесе. Выжить вы не рассчитывали. Впрочем, как и всегда.
-Ала приносит листок радиограммы туда, где вы сидите на бампере скаута. Хозяйка завода отменила награду, написано там. Но охотники не перестали нападать. # page
-Второй листок она зачитывает вслух, бесстрастным голосом. Две сотни людей на старых грузовиках выехали из фортов позади нас, в одном дне пути, и защитить их некому. Хранители выставили их за ворота сегодня утром. # page
-Затем она отсчитывает вам плату, медяк за медяком, и руки ее заметно дрожат. Сумма сошлась до последней монеты. # page
-Никто тебя не держит. Уговор был по перегонам, и дальше этого я тебе ничего не должна. Никто тебя не осудит. # speaker: Ала
-Она не просит вас остаться. Она лишь дает понять, что дверь открыта. # page
+The twelfth fort keeps a lamp burning on every wall all night. # place: The twelfth outpost
+This stretch nearly killed you both. The hauler's left side is stripped to the frame, and your scout is running on one good tire. You didn't expect to live through it. You never do.
+Ala counts the stretch's pay out loud, {stretch_pay(12)} M's, coin by coin, and her hands are not steady. Then she brings the fort's relay slips to where you sit on the scout's bumper. # page
+The first says Hedda Vell has called off the reward on the truck. Ala reads on. The hunters were promised diesel and nobody has told them to stop, and the bar talk says the trailer carries Blackwell's secret. They will keep coming. # page
+The second says the crews broke out of Blackwell's yard and reached the southern forts, and the Keepers passed them through toll-free. Two hundred people in old trucks, families and all, are on the open road north, a day behind us, and not a gun among them. # page
+You know what's behind us. I won't say it for you. # speaker: Ala
+She folds the slips and waits. # page
 -> fire
 
 = fire
 # checkpoint: start.fire
-Вы не отвечаете. Вы смотрите на фонарь на стене, и фонарь заставляет вас вспомнить об огне, а затем — о другом огне. # page
-Танковая линия, много лет назад. Череда брошенных армейских машин в пыли, и каждое кресло подключено к нервам мертвеца. Вы заняли место в первой из них, потому что вы были Магнусом, а Магнус брал всё, что хотел. # page
-Оно жгло. Никто не предупредил, что оно станет жечь следующего, кто в него сядет. Кресло вцепилось вам в шею и принялось вываривать из вас сцепку, и вы услышали, как из груди вырвался крик — звук, какого вы не издавали ни при чьей чужой смерти.
-Рядом в соседнем грузовике горел мальчишка, один из ваших, самый молодой, ему и двадцати не было. Он кричал, а потом стал звать по имени. # page
-Магнус! Разъем! Магнус! # speaker: Обожженный
-Вы обеими руками вырвали разъем из своего кресла, и от него на шее осталось кольцо. За мальчишкой вы не вернулись. Вы ушли в пустоши и больше ни за кем никогда не возвращались. # page
+You don't answer. You look at the lamp on the wall, and the lamp makes you think of fire, and then of other fire. # page
+A tank line, years ago: a row of dead army trucks left in the dust where the army left them. Every truck still had its link seat, fitted to the man who drove it and died in it. Plug into a seat that wasn't yours, and it burned you. You took the first one anyway, because you were Magnus, and Magnus took what he wanted. # page
+The seat took hold of your neck and began to cook the socket out of you. You heard yourself scream.
+The boys followed you in, each into a seat that was not his either. In the next truck sat the youngest, barely twenty, burning, one of your own. He was screaming too, and then he was saying a name. # page
+Magnus! The plug! Magnus! # speaker: Burnt Driver
+You tore the plug out of your own seat with both hands. That left the ring in your neck. You didn't go back for the boy. You walked out into the badlands, and you have been walking away ever since. # page
 -> ask
 
 = ask
 # checkpoint: start.ask
-Ала уже долго вглядывается в ваше лицо. Она не понимает, что видит перед собой. # page
-Тот человек у ворот. Который знал кого-то с таким же ожогом, как у тебя. Кто это был? # speaker: Ала
-+ [Я ходил с Обожженными.]
+Ala has been watching your face for a long time. She doesn't know what she's looking at. # page
+At the eighth fort, an old Keeper looked at your neck and said he knew a man with a burn like that. Who was that man? # speaker: Ala
++ [A man I rode with. A Burnt Driver.]
   ~ ala_knows = "burnt"
   -> burnt
-+ [Один покойник.]
++ [Somebody dead.]
   ~ ala_knows = "dead"
   -> dead
-+ [Магнус. Я был Магнусом.]
++ [Me. My name was Magnus.]
   ~ ala_knows = "magnus"
   -> magnus
 
 = burnt
-Слова срываются без имени. Обожженные, говорите вы ей, и танковая линия, и та зима.
-Обожженные шестнадцать лет назад захватили первый конвой Блэквуда с водой. Перебили всех, кто с ним шел. Мне было восемнадцать, я была у ворот, когда пришла весть. # speaker: Ала
-Она говорит это как о простом факте. Она не спрашивает, были ли вы там.
-И разъем из горящего кресла вырван своими руками. Значит, тот самый человек. Или та самая дорога. # speaker: Ала
+It comes out without the name. You rode with the Burnt Drivers, you tell her, and they ended at the tank line, in one winter.
+The Burnt Drivers took the first Blackwell water convoy, sixteen years ago. They killed everyone who was with it. I was eighteen, at the gate, when the news came. # speaker: Ala
+She says it as a plain fact. She doesn't ask whether you were there.
+{ ring_told == "told":
+  And you pulled a plug out of a burning seat. That's the same fire. # speaker: Ala
+- else:
+  So that's what the scar is. # speaker: Ala
+}
 -> stay
 
 = dead
-Один покойник, говорите вы. И это даже правда.
-На этой дороге таких хватает. # speaker: Ала
-Но от мертвецов руки не дрожат. Она оставляет это при вас, потому что дорога длинная, а она научилась оставлять прошлое там, где оно лежит.
+Somebody dead, you say. The man the Keeper knew is dead, in a way. It is the truest lie you have.
+There are a lot of those on this road. # speaker: Ala
+But dead men don't make your hand shake. She lets it lie, because the road is long and she has learned to leave things where they are.
 -> stay
 
 = magnus
-Имя вырывается прежде, чем вы успеваете решить, и повисает между вами в воздухе, словно упавший инструмент.
-Ала не шевелится. Проходит много времени — пожалуй, хватило бы на три подсчета у ворот.
-Магнус сгорел на танковой линии. Тибор рассказывает об этом каждый вечер, как и бармены в шести фортах. # speaker: Ала
-Да, говорите вы. Рассказывают они складно.
-Она смотрит на шрам. Смотрит на ваши руки. Она не говорит, что думает, и на этот раз ничего не считает.
+You say it, and it sits between you on the step.
+Ala doesn't move for a long time.
+Magnus burned in his seat at the tank line. Tibor tells it every night, and the barmen of six forts. # speaker: Ala
+Yes, you say. They tell it very well.
+She looks at the scar. She looks at your hands. She does not say what she thinks.
 -> stay
 
 = stay
 # checkpoint: start.stay
-Там, на дороге, в темноте, две сотни людей на старых машинах идут за ней на север. Причины вы назвать не можете. Вы искали ее весь перегон, и всё, что у вас есть, — ощущение, словно натянутый ремень безопасности. # page
-Вы говорите ей, что остаетесь. Больше сказать об этом вам нечего, а большего она и не просит. Она кивает один раз.
-Плата та же. # speaker: Ала
-Она вслух отсчитывает плату за тринадцатый перегон, {stretch_pay(13)} М, а потом пересчитывает еще раз. Вы идете проверять штифты. # page
+Out on the dark road, two hundred people in old trucks are coming north behind her. You are one gun on one good tire. Against what is coming up behind them, that is nothing. It is what there is. # page
+So. Where do you go from here? # speaker: Ala
+-> say
+
+= say
++ [I'm staying.]
+  ~ stay_said = "plain"
+  You say it flat, the way you say everything. She nods once.
+  I thought so. # speaker: Ala
+  -> close
++ [Because of the people behind us.]
+  ~ stay_said = "people"
+  You can't say more than that, and you don't try. Her hands are steadier than they were.
+  Then we're both fools. # speaker: Ala
+  -> close
++ [Same pay, then.]
+  ~ stay_said = "pay"
+  A pause, and then something that is nearly a laugh.
+  Same pay. # speaker: Ala
+  -> close
++ [Leave.]
+  ~ stay_said = "left"
+  -> walk_off
+
+= walk_off
+You walk to the gate. The Keeper on the wall counts you out, one man, and for the first time in years it sounds like a number. You stand in the road with the lamps behind you and the dark ahead, and your feet will not take you either way.
+You think about a boy in a burning seat. You think about two hundred people on a road with nobody ahead of them.
+In the end you turn around. Ala is still on the step. She says nothing, and she doesn't have to. # page
+-> close
+
+= close
+# checkpoint: start.close
+{ ala_knows == "burnt": She looks at the scar again. I'm paying the man in front of me, whoever he rode with. # speaker: Ala }
+{ ala_knows == "dead": She doesn't ask who the dead man was. She has learned to leave things where they lie. }
+{ ala_knows == "magnus": She puts her hand flat on the step, as if it were moving. Then Tibor tells it wrong. Good. # speaker: Ala }
+Later you sit up on the wall, facing south, where two hundred people are driving in the dark. No lights show on the road, and you look anyway. # page
+Ala climbs up with two cups. She sits a little way off.
+The next stretch pays {stretch_pay(13)} M's. Drink first. # speaker: Ala
 -> END
