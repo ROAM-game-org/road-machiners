@@ -319,13 +319,38 @@ describe('the fall and the wake in Bowl', () => {
     expect(introStep(next)).toBe('done');
   });
 
-  it('ends quietly with no Bowl scene when the player wins', () => {
+  it('opens the closing scene, not the Bowl scene, when the player wins', () => {
     const w = ambushed();
     knockOutNpc(w, raidersIn(w)[0]);
     const next = endTurn(w, testDrive);
     expect(introStep(next)).toBe('done');
-    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live?.quest).toBe('intro_road');
     expect(next.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
+  });
+
+  it('plays the closing scene once, and a load before or after it opens nothing more', () => {
+    const w = ambushed();
+    knockOutNpc(w, raidersIn(w)[0]);
+    const scene = endTurn(w, testDrive);
+    expectNothingAwarded(savedAndLoaded(scene), scene);
+    let next = closeScene(scene);
+    expect(next.player.quests.live).toBeNull();
+    for (let i = 0; i < 3; i++) next = endTurn(next, testDrive);
+    expect(next.player.quests.live).toBeNull();
+    const loaded = savedAndLoaded(next);
+    expectNothingAwarded(loaded, next);
+    expect(endTurn(loaded, testDrive).player.quests.live).toBeNull();
+  });
+
+  it('keeps the closing scene out of the knockout road, which has its own scenes', () => {
+    const w = ambushed();
+    knockedOutBy(w);
+    let next = runUntilAwake(closeScene(w));
+    expect(next.player.quests.live?.quest).toBe('intro_bowl');
+    next = closeScene(next);
+    for (let i = 0; i < 3; i++) next = endTurn(next, testDrive);
+    expect(next.player.quests.session).toBeNull();
+    expect(next.player.quests.live).toBeNull();
   });
 
   it('sends the raider back after the player when its fight ends any other way', () => {
@@ -404,7 +429,7 @@ describe('the hunt range', () => {
     expect(raider).toBeDefined();
     expect(fightOn(raider, w.player.vehicleId)).toBeUndefined();
     expect(w.player.quests.world[TOWED_TO_BOWL]).toBeUndefined();
-    expect(w.player.quests.session).toBeNull();
+    expect(w.player.quests.live?.quest).toBe('intro_road');
   });
 
   it('keeps the forced fight while the player stays in range', () => {

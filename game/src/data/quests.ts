@@ -19,7 +19,7 @@ export const QUEST_LANGUAGES: readonly QuestLanguage[] = ['en', 'ru'];
 export const QUEST_VIEWS: readonly QuestViewKind[] = ['talk', 'page'];
 export const MONEY_STAT = 'money';
 
-export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introWake: 'intro_bowl', wagonSeven: 'wagon_seven' } as const;
+export const GAME_OPENED_QUESTS = { firstFall: 'first_fall', arrival: 'intro_arrival', introWake: 'intro_bowl', introRoad: 'intro_road', wagonSeven: 'wagon_seven' } as const;
 export const FIRST_FALL_SEEN = 'first_knockout_seen';
 export const WAGON_SEEN = 'wagon_seen';
 export const TOWED_TO_BOWL = 'towed_to_bowl';

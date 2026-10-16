@@ -40,13 +40,18 @@ function settleAfterPatch(w: World, step: IntroStep): void {
   else if (step === 'ambush') keepHunting(w);
 }
 
+function endAmbush(w: World): void {
+  setIntroStep(w, 'done');
+  openQuest(w, QUESTS, GAME_OPENED_QUESTS.introRoad, 'start');
+}
+
 function keepHunting(w: World): void {
   const raider = w.vehicles.find((v) => v.id === worldVar(w, AMBUSH_RAIDER));
-  if (!raider || isDefeated(raider)) return setIntroStep(w, 'done');
+  if (!raider || isDefeated(raider)) return endAmbush(w);
   const me = playerVehicle(w);
   const fight = raider.brain!.goals.find((g) => g.kind === 'fight' && g.targetId === me.id);
   if (!inHuntRange(w, raider, me)) {
-    if (!fight) setIntroStep(w, 'done');
+    if (!fight) endAmbush(w);
     return;
   }
   if (!fight) return fightCornered(w, raider, me, 'robCargo');
