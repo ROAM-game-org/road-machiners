@@ -1,19 +1,20 @@
 
 import type { GameModeId, MapKind, ModeRules, WorldSettings } from '../sim/types';
+import { GAME_OPENED_QUESTS } from './quests';
 import type { GearRules } from '../sim/npc-loadout';
 import type { GearLevel } from './npcs';
 import type { PartKind } from './parts';
 import type { PropKind } from '../sim/terrain';
 import type { TerrainTypeId } from './terrain';
 
-export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind };
+export type GameMode = { rules: ModeRules; kit: string | null; map: MapKind; opening: string | null };
 
 const OPEN_WORLD: ModeRules = { traffic: true, looting: true, npcKnockouts: true, playerKnockouts: true, yielding: true, radio: true, rescue: true, roadWrecks: true, run: false };
 const RUN: ModeRules = { traffic: false, looting: false, npcKnockouts: true, playerKnockouts: false, yielding: false, radio: false, rescue: false, roadWrecks: false, run: true };
 
 export const GAME_MODES: Record<GameModeId, GameMode> = {
-  roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus' },
-  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway' },
+  roaming: { rules: OPEN_WORLD, kit: null, map: 'icarus', opening: null },
+  furyRoad: { rules: RUN, kit: 'furyRoad', map: 'highway', opening: GAME_OPENED_QUESTS.roadHire },
 };
 
 export type WorldSettingDef = { default: number; min: number; max: number; step: number; modes: readonly GameModeId[] };
