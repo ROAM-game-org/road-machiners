@@ -221,12 +221,8 @@ export function planLane(v: Vehicle, side: Side, lane: number, round: Round): { 
   return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, spendRound);
 }
 
-export function planGroundLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, 1, hitPart);
-}
-
-export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round): { part: PartInstance; amount: number }[] {
-  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, RULES.crashFalloff, hitPart);
+export function planCrashLane(v: Vehicle, side: Side, lane: number, round: Round, falloff = RULES.crashFalloff): { part: PartInstance; amount: number }[] {
+  return walkCells(laneOwners(gridOf(v), cellOwners(v), side, lane), round, falloff, hitPart);
 }
 
 export function sidePlanner(v: Vehicle): (side: Side, round: Round) => { part: PartInstance; amount: number }[][] {
