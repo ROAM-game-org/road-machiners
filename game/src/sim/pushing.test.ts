@@ -49,7 +49,7 @@ describe('pushing a truck without a working engine', () => {
 
   it('pushes a far NPC along its route at limp speed without fuel', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 30, y: 150 });
+    const v = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 30, y: 150 });
     removeEngines(v);
     v.order = { kind: 'stopAt', dest: { x: 45, y: 150 } };
     expect(isNear(w, v)).toBe(false);
@@ -62,7 +62,7 @@ describe('pushing a truck without a working engine', () => {
 
   it('an engine at 0 HP is silent while moving', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
     v.speed = RULES.limpSpeed;
     expect(soundRange(w, v)).toBeGreaterThan(0);
     mountedParts(v, 'engine')[0].hp = 0;
@@ -102,7 +102,7 @@ describe('isStranded', () => {
 
   it('reads NPC fuel from the NPC', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 40, y: 30 });
+    const v = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 40, y: 30 });
     expect(isStranded(w, v)).toBe(false);
     v.resources!.fuel = 0;
     expect(isStranded(w, v)).toBe(true);

@@ -47,7 +47,7 @@ describe('a scavenger bound for an old-world loot spot', () => {
     w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
     forceOption('salvageSeen', 'keep');
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], freeNear(w, nearestRoadPoint(pick.pos)));
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     const stockId = oldStockId(pick);
     const stock = w.salvage.find((s) => s.id === stockId)!;

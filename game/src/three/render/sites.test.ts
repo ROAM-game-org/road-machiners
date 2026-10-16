@@ -16,7 +16,7 @@ import { heightAt, type Terrain } from '../../sim/terrain';
 import { TEST_MAP } from '../../test/map';
 import { ICARUS_DECKS } from '../../sim/bridge';
 import { ICARUS_KEY } from '../../sim/atlas';
-import { highwayMap } from '../../sim/highway';
+import { highwayMap, outpostFort } from '../../sim/highway';
 import { GATE_APRON_MARGIN, groundHits, SITE_LIGHT_POOL } from './siteLights';
 
 const FILES = import.meta.glob<string>('/public/models/*.glb', { query: '?inline', import: 'default', eager: true });
@@ -598,14 +598,34 @@ describe('deck models', () => {
 });
 
 describe('a Fury Road outpost fort', () => {
-  it('builds the Salvage Yard interior inside its own curtain beside the highway', () => {
-    const map = highwayMap(3, 0);
-    const { root } = buildSites(map.terrain);
-    const fort = root.getObjectByName('landmark-outpost-1');
-    const yard = sites.getObjectByName('landmark-salvage-yard')!;
+  const map = highwayMap(3, 1);
+  const built = buildSites(map.terrain);
 
-    expect(fort).toBeDefined();
-    expect(fort!.children.length).toBe(yard.children.length);
+  it('builds the road fort interior inside its own curtain, with one gate light per gate and a work light (IV1)', () => {
+    for (const j of [1, 2]) {
+      const fort = built.root.getObjectByName(`landmark-outpost-${j}`);
+      expect(fort).toBeDefined();
+      expect(fort!.children.length).toBeGreaterThan(10);
+      const site = outpostFort(3, 1, j);
+      const lights = built.lights.filter((l) => l.siteId === site.id);
+      expect(lights.filter((l) => l.kind === 'gate')).toHaveLength(2);
+      expect(lights.filter((l) => l.kind !== 'gate').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps every lane and both park spots clear of furniture', () => {
+    const S = PHYSICS.metersPerTile;
+    for (const j of [1, 2]) {
+      const site = outpostFort(3, 1, j);
+      const fort = built.root.getObjectByName(`landmark-${j === 1 ? 'outpost-1' : 'outpost-2'}`)!;
+      fort.updateMatrixWorld(true);
+      for (const child of fort.children) {
+        if (!child.name.startsWith('outpost-')) continue;
+        const box = new Box3().setFromObject(child);
+        const across = (v: number) => v / S - site.pos.x;
+        expect(Math.min(Math.abs(across(box.min.x)), Math.abs(across(box.max.x))), `${j} ${child.name}`).toBeGreaterThan(5);
+      }
+    }
   });
 });
 

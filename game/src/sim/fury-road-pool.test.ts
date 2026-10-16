@@ -21,7 +21,7 @@ function loneGroup(template: string): World {
   const run = w.furyRoad!;
   const group = { ...run.groups[0], from: 'ahead' as const, templates: [template], level: waveOf(6).level };
   run.groups = [group];
-  spawnGroup(w, run, group, alongOf(w.seed, toRoad(0, haulerOf(w).pos)));
+  spawnGroup(w, run, group, alongOf(w.seed, toRoad(w.seed, 0, haulerOf(w).pos)));
   return w;
 }
 

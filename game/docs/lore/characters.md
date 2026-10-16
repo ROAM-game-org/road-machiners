@@ -1,6 +1,6 @@
 # Characters
 
-Named people of Icarus. Their groups are in [Peoples](peoples.md). J.J. of Waste Of Time Radio is in [Lore](../lore.md).
+Named people of Icarus. Their groups are in [Peoples](peoples.md). J.J. of Waste Of Time Radio is in [Lore](README.md).
 
 Each person gets a sheet, then their story, then their line. The sheet is built on the Fate Core character sheet, without the dice parts, plus the goal, fear and habit of the [Story game](story-game.md). A quest writer reads it to know what the person does in a scene.
 

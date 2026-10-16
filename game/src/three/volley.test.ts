@@ -7,13 +7,30 @@ import { FLARE_LOOK, SHELL } from "./render/hazards";
 import { BreakCues, type PartBreak, type ShotLike } from "./breakCues";
 import { projectileOf, type Muzzle } from "./render/projectiles";
 import { bodyOf } from "../sim/body";
-import { CollisionCues, collisionSteps, fireSteps, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
+import { CollisionCues, collisionSteps, fireSteps, scoreEventMs, planShot, playCrashes, playShotFx, playUtilitySounds, playVolley, posesOf, spreadOver, type CombatHost, type Gun, type PlannedRound, type Shot, type TurnPoses, type VolleyHost } from "./volley";
 
 const hit = (a: string, b: string): GameEvent => ({ t: "collision", a, b, hitsA: [], hitsB: [] });
 const crash = (a: string, b: string, step: number) => ({ a, b, impact: 5, step }) as Crash;
 const smash = (prop: string, vehicle: string, step: number): Break => ({ prop, vehicle, step });
 const land = (vehicle: string, step: number): Landing => ({ vehicle, impact: 3, step });
 const none = { crashes: [], breaks: [], landings: [] };
+
+describe("scoreEventMs", () => {
+  const knockout: GameEvent = { t: "npcKnockout", by: "p" } as GameEvent;
+
+  it("puts a crash on its physics step, or at the move's end when it has none", () => {
+    const crashed = hit("a", "b");
+    const far = hit("a", "fence1");
+    const timed = collisionSteps([crashed, far], { ...none, crashes: [crash("a", "b", 30)] });
+    expect(scoreEventMs(crashed, timed, 60, 1500)).toBe(500);
+    expect(scoreEventMs(far, timed, 60, 1500)).toBe(1000);
+  });
+
+  it("leaves shots to their volleys and puts a knockout where the shots land", () => {
+    expect(scoreEventMs({ t: "shot" } as GameEvent, [], 60, 1500)).toBeNull();
+    expect(scoreEventMs(knockout, [], 60, 1500)).toBe(1500);
+  });
+});
 
 describe("collisionSteps", () => {
   it("matches a truck crash by pair in either order", () => {
@@ -190,7 +207,7 @@ describe("playVolley sounds", () => {
 
 describe("playVolley breaks", () => {
   const rd = (hits: { part: string; damage: number }[]): ShotRound => ({ hit: hits.length > 0, crit: false, offset: 0, struck: hits.length ? "t" : null, hits, blast: [], burst: null });
-  const GUN = (() => { const w = emptyWorld(); const v = addVehicle(w, "raiders", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0); const it = v.items.find((i) => i.kind === "part" && i.part.defId === "mg"); return it && it.kind === "part" ? it.part.id : ""; })();
+  const GUN = (() => { const w = emptyWorld(); const v = addVehicle(w, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0); const it = v.items.find((i) => i.kind === "part" && i.part.defId === "mg"); return it && it.kind === "part" ? it.part.id : ""; })();
   const event = { t: "shot", shooter: "s", weapon: "mg", target: "t", aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [rd([]), rd([{ part: GUN, damage: 2 }]), rd([{ part: GUN, damage: 3 }])] } as ShotLike;
   const partOff: GameEvent = { t: "partDisabled", vehicle: "t", part: GUN };
 
@@ -199,7 +216,7 @@ describe("playVolley breaks", () => {
     const sounds: string[] = [];
     const broken: PartBreak[] = [];
     const world = emptyWorld();
-    const target = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 33, y: 30 }, 0);
     target.id = "t";
     const host = {
       world,
@@ -390,8 +407,8 @@ describe("planShot against the end of the move", () => {
 describe("playShotFx before a shooter's view exists", () => {
   it("fires the shooter's rounds as the move ends instead of failing the turn", () => {
     const world = emptyWorld();
-    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
-    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
     world.events = [{ t: "shot", shooter: shooter.id, weapon: mg.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: [round(target.id)] } as GameEvent];
@@ -400,7 +417,7 @@ describe("playShotFx before a shooter's view exists", () => {
       world,
       views: new Map(),
       fx: { shot: (_s: unknown, _m: unknown, plan: { delayMs: number }) => launched.push(plan), label: () => {} },
-      sound: { at: () => {}, accents: () => {} },
+      sound: { at: () => {}, queueScoreEvent: () => {} },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -419,8 +436,8 @@ describe("playShotFx after the shooter's view is gone", () => {
 
   const emptyingShot = (views: Map<string, unknown>) => {
     const world = emptyWorld();
-    const shooter = addVehicle(world, "raiders", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
-    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const shooter = addVehicle(world, "scrapjaw", "buggy", ["mg", "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const mg = shooter.items.find((i) => i.kind === "part" && i.part.defId === "mg");
     if (!mg || mg.kind !== "part") throw new Error("test truck has no mg");
     world.events = [
@@ -481,10 +498,11 @@ describe("playShotFx after the shooter's view is gone", () => {
 describe("playShotFx through the move", () => {
   const parked = (x: number) => Array.from({ length: STEPS }, () => ({ pos: { x, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: ORIGIN, wheels: [] }));
 
+  const queued: [string, number][] = [];
   const fire = (weapon: string, rounds: (target: string) => ShotRound[], more: (target: string) => GameEvent[] = () => []) => {
     const world = emptyWorld();
-    const shooter = addVehicle(world, "raiders", "buggy", [weapon, "stockEngine"], { x: 30, y: 30 }, 0);
-    const target = addVehicle(world, "raiders", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
+    const shooter = addVehicle(world, "scrapjaw", "buggy", [weapon, "stockEngine"], { x: 30, y: 30 }, 0);
+    const target = addVehicle(world, "scrapjaw", "buggy", ["stockEngine"], { x: 36, y: 30 }, 0);
     const gunPart = shooter.items.find((i) => i.kind === "part" && i.part.defId === weapon);
     if (!gunPart || gunPart.kind !== "part") throw new Error(`test truck has no ${weapon}`);
     world.events = [{ t: "shot", shooter: shooter.id, weapon: gunPart.part.id, target: target.id, aim: "center", chance: 1, damageChance: 1, side: "front", rounds: rounds(target.id) } as GameEvent, ...more(target.id)];
@@ -495,7 +513,7 @@ describe("playShotFx through the move", () => {
       world,
       views: new Map([[shooter.id, { covers: () => true }]]),
       fx: { shot: (_s: unknown, _m: unknown, plan: PlannedRound, _r: unknown, cues: { landed: () => void }) => (launched.push(plan), cues.landed()), label: () => {} },
-      sound: { at: () => {}, accents: () => {} },
+      sound: { at: () => {}, queueScoreEvent: (kind: string, atMs: number) => queued.push([kind, atMs]) },
       eventPoint: () => ORIGIN,
       breakPart: () => {},
       onBurst: () => {},
@@ -503,11 +521,20 @@ describe("playShotFx through the move", () => {
       poses: posesOf(world, frames, { moveMs: MOVE_MS, stepMs: STEP_MS, gunHeight: 1.6 }, () => true),
       startMs: 0,
     } as unknown as CombatHost;
+    world.player.vehicleId = shooter.id;
+    queued.length = 0;
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     playShotFx(host, new BreakCues(world.events));
     vi.restoreAllMocks();
     return { launched, hooked, gunId: gunPart.part.id };
   };
+
+  it("queues the volley's score event at the landing of the round that earns it", () => {
+    const { launched } = fire("mg", () => [round(null), round("t")]);
+    expect(queued).toHaveLength(1);
+    expect(queued[0][0]).toBe("hit");
+    expect(queued[0][1]).toBe(launched[1].delayMs + launched[1].flightMs);
+  });
 
   it("fires every round into a truck that dies during the move but lands the killing one as the move ends", () => {
     const { launched } = fire("mg", (t) => [round(t), round(t), round(t)], (t) => [{ t: "destroyed", vehicle: t } as GameEvent]);

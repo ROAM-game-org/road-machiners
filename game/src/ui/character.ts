@@ -6,8 +6,10 @@ import { createIcon, type IconName } from './cards';
 import { disabledWith, el, panel } from './dom';
 import type { UiHost } from './host';
 import { hp } from './units';
-import { num, t } from '../text/msg';
-import { perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
+import { num, t, type Msg } from '../text/msg';
+import { factionName, perkName, perkRule, refusalText, skillGrows, skillName } from '../text/names';
+import { standingBands, standingParts, type StandingRow } from '../sim/relations';
+import { modeRules } from '../sim/settings';
 
 export class CharacterScreen {
   private root = panel('modal dialog');
@@ -53,6 +55,7 @@ export class CharacterScreen {
         ),
         ...SKILL_IDS.map((id) => this.row(world, id)),
       ),
+      ...(modeRules(world).standing ? [standingGroup(world)] : []),
     );
   }
 
@@ -99,6 +102,33 @@ export class CharacterScreen {
     }, el('b', {}, perkName(id)), el('span', {}, perkRule(id)));
     return el('div', { class: 'perk-cell perk-choice' }, ...pair.perks.map(button));
   }
+}
+
+function standingGroup(world: World): HTMLElement {
+  return el('div', { class: 'standing' },
+    el('h4', { title: t('character.standingTitle') }, t('character.standing')),
+    el('div', { class: 'standing-rows' }, ...standingBands(world).map((row) => standingRow(world, row))));
+}
+
+function standingRow(world: World, row: StandingRow): HTMLElement {
+  const parts = standingParts(world, row);
+  const tip = el('span', { class: 'tooltip standing-tip', role: 'tooltip' },
+    tipRow(t('character.standingBase'), parts.base, 'base'),
+    tipRow(t('character.standingDeeds'), parts.deeds, stepTone(parts.deeds)),
+    tipRow(t('character.standingEarlier'), parts.earlier, stepTone(parts.earlier)));
+  return el('div', { class: 'standing-row', tabindex: 0 },
+    el('span', {}, factionName(row.faction)),
+    el('span', { class: `tag ${row.band === 'hostile' ? 'bad' : 'dim'}` }, t(`band.${row.band}`)),
+    tip);
+}
+
+function tipRow(label: Msg, value: number, tone: string): HTMLElement {
+  return el('div', { class: `tooltip-row ${tone}`.trim() }, el('span', {}, label), el('span', { class: 'num' }, num(value, 'int')));
+}
+
+function stepTone(step: number): string {
+  if (step === 0) return '';
+  return step > 0 ? 'up' : 'down';
 }
 
 const SKILL_ICON: Record<SkillId, IconName> = {

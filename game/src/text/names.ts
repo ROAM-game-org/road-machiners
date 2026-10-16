@@ -20,6 +20,9 @@ export const siteName = (id: string): Msg => {
   const outpost = OUTPOST_ID.exec(id);
   return outpost ? outpostName(Number(outpost[1])) : byId(`site.${id}`);
 };
+export const siteSign = (id: string): Msg => byId(`way.sign.${id}`);
+export const propName = (look: string): Msg => byId(`way.prop.${look}`);
+export const compassName = (octant: string): Msg => byId(`compass.${octant}`);
 export const terrainName = (id: string): Msg => byId(`terrain.${id}`);
 export const templateName = (id: string): Msg => byId(`npc.${id}`);
 export const professionName = (id: string): Msg => byId(`npc.${id}.profession`);

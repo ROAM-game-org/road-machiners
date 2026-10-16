@@ -1,7 +1,9 @@
 
-import type { ConditionId, EffectId, PrepareId, TopicId } from '../data/dialogue';
+import { COLD_LINES, TOPIC_GATES, type ConditionId, type EffectId, type LineId, type PrepareId, type TopicId } from '../data/dialogue';
+import { REFUSE_KNOWN_AT } from '../data/npc-behavior';
+import { bandAtLeast, personalTerm, stanceToward } from './relations';
 import { CONTRACTS } from '../data/market';
-import { GAME_NOTES, LOCALS, NOTE_IDS, type LocalDef, type NoteId } from '../data/locals';
+import { GAME_NOTES, isNoteId, LOCALS, type LocalDef, type NoteId } from '../data/locals';
 import { TRADE_TIP } from '../data/npcs';
 import { PERK_NUMBERS } from '../data/skills';
 import { WAGON_SEVEN } from '../data/salvage';
@@ -26,11 +28,12 @@ import { agreePatch, canFixItself, canTakeWornPatch, needsPatch, patchTerms } fr
 import { decide, isWeak, npcProfile, wantsLoot } from './npc-decisions';
 import { isStranded } from './stats';
 import { addState, aidData, declareFeud, stateOf, towData } from './states';
-import { agreeAid, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
+import { agreeAid, aidHolds, aidPrice, canSpareFor, hasAid, isLow, playerAid, refuseAid, spareAid, wantedAid, type AidAmounts } from './aid';
 import { spread, startTrade, tradeWith, transfer } from './economy';
 import { acceptOffer, canTowNpc, isTowing, hitchNpc, isOnRope, npcTowTerms, playerTow, playerTowing, refuseOffer, releaseNpc, strandedPlayerAt } from './tow';
-import type { Call, CallVar, CallVars, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
-import { bearing, dist } from './vec';
+import type { Call, CallVar, CallVars, DirectionTarget, GridItem, MemoryFact, NpcState, Plea, TopicOutcome, Vehicle, World } from './types';
+import { bearing, dist, type Vec } from './vec';
+import { directionsTo } from './directions';
 
 function demandsOnTop(world: World, npc: Vehicle): boolean {
   const top = topGoal(npc);
@@ -112,8 +115,8 @@ function closeCall(world: World, npc: Vehicle, call: Call): void {
 
 function rumorVars(world: World, rumor: Rumor): CallVars {
   const me = playerVehicle(world).pos;
-  const where: CallVars = { bearing: { kind: 'bearing', rad: bearing(me, rumor.pos) }, distance: { kind: 'distance', tiles: dist(me, rumor.pos) } };
-  return rumor.site ? { site: { kind: 'site', id: rumor.id }, ...where } : where;
+  if (rumor.site) return { site: { kind: 'site', id: rumor.id }, way: wayVar(world, me, { kind: 'site', id: rumor.id }) };
+  return { way: wayVar(world, me, { kind: 'spot', pos: rumor.pos, clue: 'wreck' }) };
 }
 
 function discoverNewsSite(world: World, call: Call): void {
@@ -126,7 +129,7 @@ function discoverNewsSite(world: World, call: Call): void {
 
 function markNewsWreck(world: World, npc: Vehicle, call: Call): void {
   const rumor = heardRumor(world, npc);
-  if (call.vars.site === undefined && call.vars.bearing !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
+  if (call.vars.site === undefined && call.vars.way !== undefined && rumor && !rumor.site) world.player.rumored.push(rumor.id);
 }
 
 function angerCourier(world: World, npc: Vehicle): void {
@@ -240,6 +243,25 @@ export function helpedByPlayer(world: World, npc: Vehicle): boolean {
   return HELP_TOPICS.some((topic) => talked?.[topic] === 'done' || talked?.[topic] === 'agreed');
 }
 
+export function opensHelp(world: World, npc: Vehicle): boolean {
+  return helpedByPlayer(world, npc) || bandAtLeast(stanceToward(world, npc), 'friendly');
+}
+
+export function talksTo(world: World, npc: Vehicle): boolean {
+  return bandAtLeast(stanceToward(world, npc), 'neutral');
+}
+
+export function gateOpen(world: World, npc: Vehicle, topic: TopicId): boolean {
+  const gate = TOPIC_GATES[topic];
+  if (gate === 'service') return talksTo(world, npc);
+  return gate !== 'rescue' || stanceToward(world, npc) !== 'hostile';
+}
+
+export function coldLine(world: World, npc: Vehicle, topics: readonly TopicId[]): LineId | null {
+  if (talksTo(world, npc) || !topics.some((id) => TOPIC_GATES[id] === 'service')) return null;
+  return personalTerm(npc, world.player.vehicleId) <= REFUSE_KNOWN_AT ? COLD_LINES.known : COLD_LINES.kind;
+}
+
 export const CONDITIONS: Record<ConditionId, Condition> = {
   canPayTalk: (world, _npc, vars) => world.player.money >= namedPrice({ vars }),
   knowsTown: (_world, npc) => knownTowns(npc).length > 0,
@@ -304,6 +326,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   npcLow: (world, npc) => hasAid(wantedAid(world, npc)),
   playerLow: (world) => isLow(world, playerVehicle(world)),
   noAid: (world) => playerAid(world) === null,
+  aidHolds: (world, npc) => aidHolds(world, npc, playerVehicle(world)),
   aidGiven: (_world, _npc, vars) => answerOf(vars) === 'give',
   aidRefused: (_world, _npc, vars) => answerOf(vars) === 'refuse',
   offersAid: (world, npc) => pendingAid(world, npc) !== null,
@@ -312,7 +335,7 @@ export const CONDITIONS: Record<ConditionId, Condition> = {
   callsOut: (world, npc) => pendingFor(world, npc, 'challenge'),
   asksCourierAid: (world, npc) => pendingFor(world, npc, 'courier'),
   newsOfSite: (_world, _npc, vars) => vars.site !== undefined,
-  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.bearing !== undefined,
+  newsOfWreck: (_world, _npc, vars) => vars.site === undefined && vars.way !== undefined,
   newsOfTip: (_world, _npc, vars) => vars.tip !== undefined,
   courierThanksDue: (world, npc) => storyBeatDue(world, npc) === 'courierThanks',
   courierSquareDue: (world, npc) => storyBeatDue(world, npc) === 'courierSquare',
@@ -624,15 +647,14 @@ export const PREPARES: Record<PrepareId, Prepare> = {
   aidAnswer,
   aidOffered: (world, npc) => ({ aid: aidVar(aidData(requirePendingAid(world, npc))) }),
   nearestTown: (world, npc) => {
-    const me = playerVehicle(world).pos;
     const town = nearestKnownTown(world, npc);
-    return {
-      town: { kind: 'town', id: town.id },
-      bearing: { kind: 'bearing', rad: bearing(me, town.pos) },
-      distance: { kind: 'distance', tiles: dist(me, town.pos) },
-    };
+    return { town: { kind: 'town', id: town.id }, way: wayVar(world, playerVehicle(world).pos, { kind: 'site', id: town.id }) };
   },
 };
+
+function wayVar(world: World, from: Vec, target: DirectionTarget): CallVar {
+  return { kind: 'directions', steps: directionsTo(world, from, target) };
+}
 
 export function localsAt(town: string): LocalDef[] {
   return Object.values(LOCALS).filter((l) => l.town === town);
@@ -662,10 +684,6 @@ export function takeTownWork(world: World): void {
   const offer = townWork(world);
   if (!offer) throw new Error('The board offers no work to take');
   takeContract(world, offer.id);
-}
-
-export function isNoteId(id: string): id is NoteId {
-  return (NOTE_IDS as readonly string[]).includes(id);
 }
 
 export function learnNote(world: World, id: NoteId): void {

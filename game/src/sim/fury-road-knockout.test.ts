@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { FURY_ROAD } from '../data/modes';
 import { resolveDestroyed } from './combat';
 import { playerVehicle } from './damage';
 import { advanceNpcKnockouts, checkKnockout, isKnockedOut, knockOutNpc } from './defeat';
-import { advanceFuryRoad, outpostPad, planStretch, waitForRoad } from './fury-road';
+import { advanceFuryRoad, driveOn, planStretch } from './fury-road';
 import { corePart } from './grid';
 import { downedListNear, downedHere } from './locations';
 import { topGoal } from './npc-activities';
 import { getResources } from './resources';
 import { canLootTruck, takeFromTruck } from './salvage';
-import { furyRoadWorld, parkOnPad } from './testkit';
+import { furyRoadWorld, parkInYard } from './testkit';
 import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
 import { endTurn } from './world';
 
@@ -21,7 +20,7 @@ function runOf(w: World): FuryRoadRun {
 }
 
 function spawnGroup(w: World, i = 0): WaveGroup {
-  w.turn = runOf(w).quietFrom + FURY_ROAD.pacing.quiet;
+  runOf(w).groups[i].at = 0;
   advanceFuryRoad(w);
   const group = runOf(w).groups[i];
   if (!group.spawned) throw new Error(`Group ${i} did not spawn`);
@@ -50,8 +49,8 @@ function wreck(w: World, v: Vehicle): void {
 }
 
 function nextLevel(w: World): World {
-  parkOnPad(w, runOf(w).window + 1);
-  return waitForRoad(endTurn(w, still));
+  parkInYard(w, runOf(w).window + 1);
+  return driveOn(endTurn(w, still));
 }
 
 describe('a knocked-out Fury Road truck', () => {
@@ -105,20 +104,21 @@ describe('a knocked-out Fury Road truck', () => {
     expect(topGoal(v)?.kind).not.toBe('fight');
   });
 
-  it('holds no encounter on, so the next group comes after the quiet', () => {
+  it('does not hold the next group back, which comes once the hauler reaches its place', () => {
     let w = furyRoadWorld(4);
     w = nextLevel(w);
-    runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, [1, 1]);
+    const waves = [0, 1e6].map((at) => ({ at, template: 'buggy', size: 1, money: 10000, elite: false }));
+    runOf(w).groups = planStretch(w.seed, runOf(w).window + 1, waves);
     const first = spawnGroup(w);
     for (const v of trucksOf(w, first)) {
       beside(w, v);
       knockOut(w, v);
     }
-    const from = w.turn;
-    while (w.turn < from + FURY_ROAD.pacing.quiet + 1 && !runOf(w).groups[1].spawned) {
-      w.turn++;
-      advanceFuryRoad(w);
-    }
+    advanceFuryRoad(w);
+    expect(runOf(w).groups[1].spawned).toBe(false);
+
+    runOf(w).groups[1].at = 0;
+    advanceFuryRoad(w);
 
     expect(runOf(w).groups[1].spawned).toBe(true);
   });
