@@ -25,6 +25,11 @@ export const PHYSICS = {
     brakeForce: 60,
     maxSteer: 0.6,
     steerRate: 3,
+    holdSpeed: 0.5,
+    holdSpin: 0.3,
+    holdGrip: 1,
+    holdReturn: 0.25,
+    holdSlip: 0.1,
   },
   cell: { across: 0.484, along: 0.65 },
   bodies: {

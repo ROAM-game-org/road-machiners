@@ -1,10 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { partDef } from '../data/parts';
 import { RULES } from '../data/rules';
-import { addVehicle, emptyWorld } from '../sim/testkit';
-import type { MoveOrder, World } from '../sim/types';
+import { addVehicle, emptyWorld, PLAIN_KIT } from '../sim/testkit';
+import { TEST_MAP } from '../test/map';
+import { defaultSetup } from '../sim/settings';
+import type { MoveOrder, Obstacle, World } from '../sim/types';
 import { angleDiff, DEG, dist, type Vec } from '../sim/vec';
-import { endTurn, setDirect } from '../sim/world';
+import { endTurn, newWorld, setDirect } from '../sim/world';
 import { PHYSICS } from '../data/physics';
 import { chassisDef } from '../data/chassis';
 import { bodyOf } from '../sim/body';
@@ -54,6 +56,46 @@ describe('stranded trucks', () => {
     const me = after.vehicles[0];
     const hauler = after.vehicles.find((v) => v.id === npc.id)!;
     expect(dist(me.pos, hauler.pos)).toBeGreaterThan(chassisDef(me.chassisId).radius + chassisDef('hauler').radius);
+  });
+
+  const hungRock: Obstacle = { id: 'rock3136', kind: 'rock', pos: { x: 479.7405, y: 517.5992 }, r: 1.2942 };
+
+  function hungOnRock(order: MoveOrder | null): World {
+    const w = newWorld(1, PLAIN_KIT, TEST_MAP, defaultSetup('roaming'));
+    w.vehicles = w.vehicles.filter((v) => v.faction === 'player');
+    w.states = [];
+    w.obstacles = [hungRock];
+    const truck = w.vehicles[0];
+    truck.pos = { x: 480.897, y: 518.094 };
+    truck.heading = -1.5101;
+    truck.order = order;
+    return w;
+  }
+
+  it('sets down a truck hung on a rock that tries to drive and does not move', () => {
+    const order: MoveOrder = { kind: 'stopAt', dest: { x: 485.107, y: 520.639 } };
+    const w = hungOnRock(order);
+    const { w: after, counts } = strandedRun(w, buildDrive(w), RULES.stranded.turns + 1);
+    expect(counts).toEqual(expected);
+    const me = after.vehicles[0];
+    expect(dist(me.pos, hungRock.pos)).toBeGreaterThan(dist(w.vehicles[0].pos, hungRock.pos));
+    const setDownAt = { ...me.pos };
+    me.order = order;
+    const { w: freed, counts: freedCounts } = strandedRun(after, buildDrive(after), 3);
+    expect(freedCounts).toEqual([0, 0, 0]);
+    expect(dist(freed.vehicles[0].pos, setDownAt)).toBeGreaterThan(3);
+  });
+
+  it('does not set down a truck parked against a rock', () => {
+    const w = hungOnRock(null);
+    expect(strandedRun(w, buildDrive(w), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
+  });
+
+  it('does not set down a truck that drives into a boulder on flat ground with every wheel down', () => {
+    const w = emptyWorld();
+    w.obstacles = [{ id: 'boulder', kind: 'rock', pos: { x: 34, y: 30 }, r: 2.5 }];
+    w.vehicles[0].order = { kind: 'through', dest: { x: 80, y: 30 } };
+    expect(strandedRun(w, buildDrive(w), RULES.stranded.turns + 1).counts).toEqual([0, 0, 0, 0]);
   });
 });
 
