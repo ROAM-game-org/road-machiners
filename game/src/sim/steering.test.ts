@@ -117,11 +117,15 @@ describe("backing up", () => {
     expect(backsToDestination(player, RULES.throttleZones.reach + 1, 0)).toBe(false);
   });
 
-  it("an NPC backs up only while recovering", () => {
+  it("an NPC backs up only while recovering, inside the cone and within reach", () => {
     const npc = { faction: "scrapjaw" as const, brain: npcBrain("buggy", { x: 0, y: 0 }, ["raider"]) };
     expect(backsToDestination(npc, 5, 0)).toBe(false);
     npc.brain.recovery = 1;
-    expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(true);
+    expect(backsToDestination(npc, 5, 0)).toBe(true);
+    expect(backsToDestination(npc, 5, cone * 0.5)).toBe(true);
+    expect(backsToDestination(npc, 5, -cone * 0.5)).toBe(true);
+    expect(backsToDestination(npc, 5, Math.PI / 2)).toBe(false);
+    expect(backsToDestination(npc, RULES.throttleZones.reach + 1, 0)).toBe(false);
   });
 });
 
