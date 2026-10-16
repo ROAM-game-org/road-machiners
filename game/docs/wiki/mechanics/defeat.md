@@ -33,7 +33,7 @@ A player who opens a town with E for the first time on a visit gets the engine, 
 
 A player at a town who is stranded or at or below 20% fuel, and whose money plus everything the town would buy cannot pay for the fix, gets patched with scrap. A low tank alone gets fuel, and a holed tank is patched to 40% with it. Mounted parts count as things to sell. The engine, transmission, wheels and tank rise to 40% of their max HP. A junk engine goes back to its last wear step first. A tank at or below 20% gets topped up to 40% of its room. A truck with no engine gets nothing.
 
-A stranded player can switch on an emergency beacon. Every vehicle within 250 tiles hears it, through hills. Traders and scavengers come as if they saw the truck, and one of them answers. Raiders hear it too, so a stripped truck calls safely and a truck with cargo draws raiders. Turns run on their own while the beacon calls and no offer is open. The beacon switches off when the truck can drive again or gets towed.
+A stranded player can switch on an emergency beacon. Every vehicle within 325 tiles hears it, through hills. Traders and scavengers come as if they saw the truck, and one of them answers. Raiders hear it too, so a stripped truck calls safely and a truck with cargo draws raiders. Turns run on their own while the beacon calls and no offer is open. The beacon switches off when the truck can drive again or gets towed.
 
 A tap of Space stops turns that run on their own, while knocked out, towed or on the beacon, and the next tap starts them again. Holding Space fast-forwards them, and they run on at normal speed after release.
 

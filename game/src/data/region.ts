@@ -424,5 +424,5 @@ export const REGION = {
     wreckSegment: 1.1,
     gatePoleHeight: 5.5,
   },
-  playerStart: { road: 0, distance: 25 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
+  playerStart: { road: 0, distance: 26 * MAP_SCALE, offset: 45, wreck: { ahead: 6, side: 5 } },
 };

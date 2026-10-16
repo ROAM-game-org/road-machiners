@@ -67,7 +67,7 @@ describe('Icarus layout spread', () => {
     near(spot('canyon'), scalePoint({ x: 94, y: 48 }));
     near(spot('sand'), scalePoint({ x: 78, y: 70 }));
     near(sites.find((s) => s.id === 'orchard')!.pos, scalePoint({ x: 22.8, y: 56.8 }));
-    expect(REGION.playerStart.distance).toBeCloseTo(25 * MAP_SCALE, 6);
+    expect(REGION.playerStart.distance).toBeCloseTo(26 * MAP_SCALE, 6);
   });
 
   it('scales the ranges that span the map', () => {
