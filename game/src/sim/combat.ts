@@ -8,7 +8,7 @@ import { RULES } from '../data/rules';
 import { chassisDef } from '../data/chassis';
 import { PHYSICS } from '../data/physics';
 import { heldPart, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spansHold, walkLane, type FireSpan, type PartHit, type Round, type Side } from './armor';
-import { damagePart, wholeDamage } from './damage';
+import { damagePart, haulerOf, playerVehicle, wholeDamage } from './damage';
 import { bodyOf } from './body';
 import { rollCabKnock } from "./cab-knock";
 import { corePart, hasLoot, itemSize, mountedItems, mountedParts } from './grid';
@@ -34,7 +34,6 @@ import { isShutDown } from './utility';
 import { attachLine } from './harpoon';
 import { angleDiff, bearing, clamp, dist, DEG, type Vec } from './vec';
 import { damageScale, modeRules } from './settings';
-import { haulerOf, playerVehicle } from './damage';
 
 export type FireBlock =
   | "disabled"

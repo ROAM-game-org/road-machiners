@@ -100,6 +100,13 @@ describe('rescueSave on a Chaos Highway run from an older highway', () => {
     expect(loadWorld(slots, 'auto', TEST_MAP)).toEqual({ ...world, events: [], removed: [] });
   });
 
+  it('reads the wait of a run saved before the run kept one from the outpost it paid', () => {
+    const { waitingAt: _waitingAt, ...run } = PAID.world.furyRoad;
+    const { world } = rescued({ ...PAID, world: { ...PAID.world, furyRoad: run } } as Fixture);
+
+    expectWaitingAt(world, PAID.world.furyRoad.waitingAt);
+  });
+
   it('plays the stretch after the wait and awards nothing the save did not hold', () => {
     const { world } = rescued(MID_STRETCH);
 

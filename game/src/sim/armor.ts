@@ -1,13 +1,13 @@
 import { RULES } from '../data/rules';
 import { PHYSICS } from '../data/physics';
-import { bodyOf, cellCenter, cellRect, type CellRect } from './body';
+import { bodyOf, cellCenter, cellRect, halfLength, halfWidth, type CellRect } from './body';
 
 import { partDef, type PartDef, type WeaponDef } from '../data/parts';
 import { wornDef } from './wear';
 import { damagePart } from './damage';
 import { cellKey, facingOf, gridOf, itemCells, isMounted, itemSize, mountedItems, mountedParts, sideOf, type Grid, type SideLetter } from './grid';
 import type { GridItem, PartInstance, Vehicle, World } from './types';
-import { angleDiff, bearing, type Vec } from './vec';
+import { angleDiff, bearing, dist, type Vec } from './vec';
 
 export type Side = 'front' | 'rear' | 'left' | 'right';
 export type PartHit = { part: string; damage: number };
@@ -109,6 +109,7 @@ type BlastCell = { part: PartInstance; center: Local; rect: CellRect };
 
 export function planBlast(v: Vehicle, p: Vec, radius: number, round: Round, skip: string | null): { part: PartInstance; amount: number }[] {
   checkRound(round);
+  if (dist(v.pos, p) > radius + Math.hypot(halfLength(v.chassisId), halfWidth(v.chassisId))) return [];
   const at = toLocal(v, p);
   const cells = blastCells(v);
   const nearest = new Map<string, BlastCell>();

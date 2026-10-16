@@ -46,7 +46,8 @@ function setOrder(world: World, { v, activity, goal }: Plan): void {
   noteStuck(world, v, goal);
   const stops = goal !== null && trafficStops(world, v, goal);
   noteStall(world, v, stops && activity.kind !== "fight" && activity.kind !== "flee");
-  v.order = nextOrder(world, v, activity, goal, stops);  v.direct = false;
+  v.order = nextOrder(world, v, activity, goal, stops);
+  v.direct = false;
 }
 
 function noteStuck(world: World, v: Vehicle, goal: Vec | null): void {

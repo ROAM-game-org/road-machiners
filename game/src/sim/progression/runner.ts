@@ -64,7 +64,8 @@ function givesUpOnRun(o: Orders): boolean {
     return false;
   }
   if (playerTrucks(o.world).some((truck) => isStranded(o.world, truck))) return true;
-  const since = WEDGED.get(key) ?? o.world.turn;
+  const known = WEDGED.get(key);
+  const since = known !== undefined && known <= o.world.turn ? known : o.world.turn;
   WEDGED.set(key, since);
   return o.world.turn - since >= FURY_ROAD.hauler.stallTurns;
 }
@@ -144,7 +145,7 @@ const STALLS = new Map<string, Stall>();
 function stallOf(world: World, me: Vehicle): Stall {
   const key = `${world.seed}:${me.id}`;
   const known = STALLS.get(key);
-  if (known) return known;
+  if (known && known.turn <= world.turn) return known;
   const fresh: Stall = { turn: -1, at: { ...me.pos }, stalled: 0, recovery: 0, goal: null };
   STALLS.set(key, fresh);
   return fresh;

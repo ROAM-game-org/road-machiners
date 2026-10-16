@@ -106,8 +106,13 @@ function windowOf(value: unknown): number | null {
 }
 
 function carriedRun(run: Json, { window, earned, wrecks }: RunTotals, hauler: Json): CarriedRun {
-  const from = run.waitingAt === window + 1 ? window + 1 : window;
+  const from = waitsAtNext(run, window) ? window + 1 : window;
   return { from, earned, wrecks, trucksSold: soldAt(run, from), hauler: haulerTruckOf(hauler) };
+}
+
+function waitsAtNext(run: Json, window: number): boolean {
+  if (run.waitingAt !== undefined) return run.waitingAt === window + 1;
+  return listOf(run.outposts).map(objectOf).some((o) => o !== null && o.milestone === window + 1 && o.paid === true);
 }
 
 function haulerTruckOf(hauler: Json): CarriedRun['hauler'] {
