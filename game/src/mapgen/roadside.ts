@@ -29,6 +29,7 @@ type Fit = { ground: 'dry' | 'bank' | 'free'; roadGap: number };
 class Placer {
   readonly counts: Record<Group, number> = { signs: 0, boards: 0, barrels: 0, heaps: 0, trees: 0 };
   private readonly buckets = new Map<number, BakedProp[]>();
+  private readonly added = new Map<string, BakedProp[]>();
   private readonly allowed: ReadonlySet<number>;
   private readonly widest: number;
 
@@ -42,6 +43,7 @@ class Placer {
     if (!this.fits(p, fit)) return false;
     this.d.props.push(p);
     this.index(p);
+    this.added.set(p.kind, [...(this.added.get(p.kind) ?? []), p]);
     this.counts[group]++;
     return true;
   }
@@ -53,7 +55,13 @@ class Placer {
     if (tiles.some((k) => !OPEN_BUILT.includes(d.built[k]) || !this.allowed.has(d.types[k]))) return false;
     if (tileSteepness(d.heights, d.size, tiles[0]) > SLOPE_LIMIT) return false;
     if (!this.onBank(tiles[0], fit)) return false;
-    return this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP);
+    if (!this.around(p.pos, p.r + GAP + this.widest).every((o) => dist(o.pos, p.pos) >= o.r + p.r + GAP + R.propGapSlack)) return false;
+    return !this.formsRow(p);
+  }
+
+  private formsRow(p: BakedProp): boolean {
+    const alike = (this.added.get(p.kind) ?? []).filter((o) => turnGap(o.yaw, p.yaw) <= R.rowGuard.turn);
+    return alike.some((a, i) => alike.slice(i + 1).some((b) => turnGap(a.yaw, b.yaw) <= R.rowGuard.turn && lineGap(a.pos, b.pos, p.pos) <= R.rowGuard.line));
   }
 
   private onBank(tile: number, fit: Fit): boolean {
@@ -78,6 +86,15 @@ class Placer {
     if (list) list.push(p);
     else this.buckets.set(k, [p]);
   }
+}
+
+function turnGap(a: number, b: number): number {
+  const d = (2 * (a - b)) % TURN;
+  return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) / 2;
+}
+
+function lineGap(a: Vec, b: Vec, c: Vec): number {
+  return Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / dist(a, b);
 }
 
 function key(x: number, y: number): number {

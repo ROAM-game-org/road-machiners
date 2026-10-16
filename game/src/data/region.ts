@@ -85,7 +85,11 @@ const FALLEN_SUN_OUTLINE: Vec[] = [
   { x: -37.7, y: 26.4 },
   { x: -43.5, y: 11.6 },
 ];
-const ORCHARD_POS = scalePoint({ x: 22.8, y: 56.8 });
+const ORCHARD_POS = onTile(scalePoint({ x: 22.8, y: 56.8 }));
+
+function onTile(p: Vec): Vec {
+  return { x: Math.round(p.x), y: Math.round(p.y) };
+}
 const ORCHARD_SCREEN_ANGLE = (25 * Math.PI) / 180;
 const ORCHARD_SIN_ELEVATION = 0.5;
 export const ORCHARD_HEADING = Math.atan2(

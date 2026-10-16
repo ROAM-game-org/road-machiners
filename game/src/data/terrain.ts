@@ -842,6 +842,8 @@ export const ROADSIDE = {
   seedOffset: 7401,
   slopeShare: 0.6,
   edgeGap: 0.6,
+  propGapSlack: 0.0001,
+  rowGuard: { turn: 0.03, line: 0.15 },
   groundTypes: ['hardpan', 'sand', 'scrub', 'gravel', 'ash', 'saltCrust'] as readonly TerrainTypeId[],
   signs: {
     radius: 0.25,
