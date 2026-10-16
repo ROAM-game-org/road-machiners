@@ -81,7 +81,10 @@ function letterAt(g: Grid, x: number, y: number): Cell | null {
 }
 
 function coversOnly(g: Grid, item: GridItem & { kind: 'part' }, letter: Cell): boolean {
-  const { w, h } = itemSize(item);
+  const d = partDef(item.part.defId);
+  const turned = item.rot % 2 === 1;
+  const w = turned ? d.h : d.w;
+  const h = turned ? d.w : d.h;
   for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (letterAt(g, item.x + dx, item.y + dy) !== letter) return false;
   return true;
 }
