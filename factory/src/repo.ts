@@ -282,9 +282,8 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
       return tracked;
     },
     fetchFromWork: headFromWork,
-    async push(commit, branch) {
-      await pushAll(new Map([[branch, commit]]));
-    },
+    push: (commit, branch) => pushAll(new Map([[branch, commit]])),
+    replaceBranch: async (commit, branch) => void (await git(['push', '--force', 'origin', `${commit}:refs/heads/${branch}`])),
     async catchUpBase(dir, base) {
       await gitIn(dir, ['fetch', '--quiet', 'origin']);
       const open = await openMergeOf(dir, base);
@@ -323,6 +322,7 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
     async changedFiles(base, branch) {
       return nulSeparated(await git(['diff', '--name-only', '--no-renames', '-z', `${await ref(base)}...${await ref(branch)}`]));
     },
+    changedInWork: async (dir, from) => nulSeparated(await gitIn(dir, ['diff', '--name-only', '--no-renames', '-z', `${from}...HEAD`])),
     async hasNewCommits(base, branch) {
       return Number((await git(['rev-list', '--count', `${await ref(base)}..${await ref(branch)}`])).trim()) > 0;
     },
@@ -332,10 +332,6 @@ export function hostRepo(observedRun: Run, cfg: FactoryConfig, jobId: string | n
         const { heads, started } = await mergeSteps(steps, resolutions);
         if (await pushUnlessMoved(heads, started)) return;
       }
-    },
-    async legacyMerges(from, to) {
-      const records = (await git(['log', '-z', '--first-parent', '--merges', '--format=%H%x1f%s', `${await ref(to)}..${await ref(from)}`])).split('\0').filter(Boolean);
-      return records.map((record) => { const [sha, subject] = record.split('\x1f'); return { sha, subject }; });
     },
   });
 }

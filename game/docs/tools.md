@@ -21,8 +21,11 @@ These commands drive headless Chromium. All but `boot:time` and `perf` need the 
 
 ## Tests
 
-- `TEST_TIMEOUTS=off` removes every time limit from `npm test`, `npm run playtest`, `boot:check` and `layout`. The factory sets it on its shared server, where a slow test is load and not a hang.
+- `TEST_TIMEOUTS=off` removes every clock time limit from `npm test` and `npm run playtest`. The factory sets it on its shared server, where a slow test is load, not a hang, and the full suite on GitHub Actions sets it too. There the stall watch and the job time limit stop a hung run.
+- Every test run limits CPU time, on every machine and with `TEST_TIMEOUTS=off` too. A test may use 30 s of CPU time and a test file 90 s, imports and hooks included. `src/test/cpu-limits.ts` holds the limits, and no test can raise them. CPU time is the work the processor did for the test, so load on the machine barely changes it. A GitHub runner is up to about 1.6 times slower than a fast laptop, and the limits leave room for that. A test over a limit fails. Make it cheaper: build a world once and clone it, and use smaller samples that keep the same rule.
+- `TEST_SUITE_MINUTES` stops a `test:cached` run that runs longer and fails it with its slowest finished files. The full suite on GitHub Actions sets 20.
 - `TEST_WORKERS=<n>` sets how many workers Vitest runs at once. The default is one per CPU, up to 6. The value must be a whole number of 1 or more.
+- The full suite keeps its run time down by sharing setup between tests. A Vitest global setup builds the empty test world once per run and `emptyWorld()` copies it. Tests that need a full start world call `standardWorld(seed)` or `reusedWorld(key, build)` from `src/test/world-cache.ts`, which build it once per file and hand out copies. Copy worlds with `cloneWorld`, never `structuredClone`, so a frozen terrain stays shared and its nav layers are not rebuilt each turn. `editableTerrain()` returns a frozen terrain object whose `heights` and `types` arrays a test can still edit in place.
 - `npm run test:cached -- --cache <dir> [test files]` is in [CLAUDE.md](../CLAUDE.md).
 
 ## Progression bots

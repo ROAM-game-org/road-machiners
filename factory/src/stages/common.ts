@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readAgentOutput } from '../agent-output';
 import { fetchMedia, mediaSection } from '../media';
 import { CommitteeDecisionError, guardDiff } from '../diff-guard';
 import { askedAt, isAnswered, recordAsked } from '../questions';
@@ -26,7 +27,15 @@ const TESTED_DOCS = `${GAME_DIR}/docs/wiki/`;
 
 export async function docsOnly(ctx: Ctx, issue: number, base: string): Promise<boolean> {
   const files = await ctx.repo.changedFiles(base, BRANCH(issue));
-  return files.length > 0 && files.every((file) => file.endsWith('.md') && !file.startsWith(TESTED_DOCS));
+  return files.length > 0 && files.every(isUntestedDoc);
+}
+
+function isUntestedDoc(file: string): boolean {
+  return file.endsWith('.md') && !file.startsWith(TESTED_DOCS);
+}
+
+export function isGameSource(file: string): boolean {
+  return file.startsWith(`${GAME_DIR}/`) && !isUntestedDoc(file);
 }
 
 export async function baseBranchOf(ctx: Ctx, issue: number): Promise<string> {
@@ -53,8 +62,7 @@ export function resetOutputs(home: string): void {
 }
 
 export function readOutput(home: string, name: string): string | null {
-  const path = `${home}/${OUT_DIR}/${name}`;
-  return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  return readAgentOutput(home, name);
 }
 
 export async function writeIssueInput(ctx: Ctx, issue: number, home: string): Promise<void> {
@@ -73,9 +81,12 @@ export function playtestCommand(cfg: FactoryConfig, fpsGate: boolean): string {
   return fpsGate ? 'npm run playtest' : 'npm run playtest -- --no-fps-gate';
 }
 
+export function promptFile(name: string): string {
+  return readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').trim();
+}
+
 export function fillPrompt(name: string, vars: Record<string, string>): string {
-  const path = fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url));
-  let text = readFileSync(path, 'utf8');
+  let text = readFileSync(fileURLToPath(new URL(`../../prompts/${name}.md`, import.meta.url)), 'utf8').replaceAll('{{gameDocs}}', promptFile('game-docs')).replaceAll('{{fixDocs}}', promptFile('fix-docs'));
   for (const [key, value] of Object.entries(vars)) text = text.replaceAll(`{{${key}}}`, value);
   const left = text.match(/\{\{[^}]*\}\}/);
   if (left) throw new Error(`Prompt ${name} has an unfilled ${left[0]}`);

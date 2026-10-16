@@ -11,7 +11,10 @@ import { dist } from './vec';
 import { endTurn, newWorld } from './world';
 import { TEST_MAP } from '../test/map';
 import { budget } from '../test/budget';
+import { reusedWorld } from '../test/world-cache';
 import { defaultSetup } from './settings';
+
+const startWorld = (seed: number) => reusedWorld(`start ${seed}`, () => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')));
 
 const NEUTRAL_SITES = [...REGION.towns, ...REGION.locations.filter((l) => l.kind !== 'camp')];
 const nearestSite = (pos: { x: number; y: number }) =>
@@ -19,7 +22,7 @@ const nearestSite = (pos: { x: number; y: number }) =>
 
 describe('NPC spawns', () => {
   it('names each driver from the pools and keeps the name through turns', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    const w = startWorld(1337);
     const npcs = w.vehicles.filter((v) => v.brain);
     for (const v of npcs) {
       const [first, last] = v.brain!.driver.split(' ');
@@ -32,18 +35,48 @@ describe('NPC spawns', () => {
   }, budget(15_000));
 
   it('places the first drivers by the world seed', () => {
-    const spots = (seed: number) => newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming')).vehicles.filter((v) => v.brain).map((v) => v.pos);
+    const spots = (seed: number) => startWorld(seed).vehicles.filter((v) => v.brain).map((v) => v.pos);
     expect(spots(1337)).toEqual(spots(1337));
     expect(spots(1337)).not.toEqual(spots(42));
   }, budget(15_000));
+
+  it('starts traders at the gate of the town the start road leaves', () => {
+    const w = startWorld(2);
+    const town = REGION.towns.find((t) => t.id === SPAWN.startTraffic.town)!;
+    const player = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
+    const gate = siteGates(town).reduce((a, b) => (dist(player.pos, a) <= dist(player.pos, b) ? a : b));
+    const atGate = w.vehicles.filter((v) => v.brain?.templateId === 'trader' && dist(v.pos, gate) <= SPAWN.gateSpread + 3);
+    expect(atGate.length).toBeGreaterThanOrEqual(SPAWN.startTraffic.templates.length);
+  }, budget(15_000));
+
+  it('starts each driver with its template wallet', () => {
+    const w = startWorld(1337);
+    const wallets = (templateId: string) => w.vehicles.filter((v) => v.brain?.templateId === templateId).map((v) => v.resources!.money);
+    for (const id of ['trader', 'convoy', 'scavenger']) {
+      expect(wallets(id).length).toBeGreaterThan(0);
+      for (const money of wallets(id)) expect(money).toBe(NPCS[id].money);
+    }
+    expect(NPCS.trader.money).toBeGreaterThan(NPCS.scavenger.money);
+  }, 15_000);
+
+  it('starts a pair of couriers with one following the other on every seed', () => {
+    for (const seed of [1, 42, 1337]) {
+      const w = startWorld(seed);
+      const couriers = w.vehicles.filter((v) => v.brain?.templateId === 'courier');
+      expect(couriers).toHaveLength(2);
+      const ids = couriers.map((c) => c.id);
+      const states = w.states.filter((s) => s.kind === 'escort' && ids.includes(s.holder));
+      expect(states.map((s) => [s.holder, s.other])).toEqual([[couriers[1].id, couriers[0].id]]);
+    }
+  }, budget(30_000));
 
   it('starts the whole roster on every seed, with the dealt neutral drivers spread evenly over the sites', () => {
     const guards = SPAWN.initial.filter((id) => id === 'convoy').map(() => 'convoyGuard');
     const partners = SPAWN.initial.filter((id) => NPCS[id].pairs);
     const roster = [...SPAWN.initial, ...SPAWN.startTraffic.templates, ...guards, ...partners].sort();
     const neutralSites = REGION.towns.length + REGION.locations.filter((l) => l.kind !== 'camp' && l.kind !== 'territory').length;
-    for (let seed = 1; seed <= 20; seed++) {
-      const world = newWorld(seed * 7919, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+    for (const seed of [1, 2, 42, 1337, 7919, 15838, 23757, 31676]) {
+      const world = startWorld(seed);
       const npcs = world.vehicles.filter((v) => v.brain);
       const followers = new Set(world.states.filter((s) => s.kind === 'escort').map((s) => s.holder));
       expect(npcs.map((v) => v.brain!.templateId).sort()).toEqual(roster);
@@ -60,36 +93,6 @@ describe('NPC spawns', () => {
       }
     }
   }, budget(60_000));
-
-  it('starts traders at the gate of the town the start road leaves', () => {
-    const w = newWorld(2, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    const town = REGION.towns.find((t) => t.id === SPAWN.startTraffic.town)!;
-    const player = w.vehicles.find((v) => v.id === w.player.vehicleId)!;
-    const gate = siteGates(town).reduce((a, b) => (dist(player.pos, a) <= dist(player.pos, b) ? a : b));
-    const atGate = w.vehicles.filter((v) => v.brain?.templateId === 'trader' && dist(v.pos, gate) <= SPAWN.gateSpread + 3);
-    expect(atGate.length).toBeGreaterThanOrEqual(SPAWN.startTraffic.templates.length);
-  }, budget(15_000));
-
-  it('starts each driver with its template wallet', () => {
-    const w = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-    const wallets = (templateId: string) => w.vehicles.filter((v) => v.brain?.templateId === templateId).map((v) => v.resources!.money);
-    for (const id of ['trader', 'convoy', 'scavenger']) {
-      expect(wallets(id).length).toBeGreaterThan(0);
-      for (const money of wallets(id)) expect(money).toBe(NPCS[id].money);
-    }
-    expect(NPCS.trader.money).toBeGreaterThan(NPCS.scavenger.money);
-  }, 15_000);
-
-  it('starts a pair of couriers with one following the other on every seed', () => {
-    for (const seed of [1, 42, 1337]) {
-      const w = newWorld(seed, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
-      const couriers = w.vehicles.filter((v) => v.brain?.templateId === 'courier');
-      expect(couriers).toHaveLength(2);
-      const ids = couriers.map((c) => c.id);
-      const states = w.states.filter((s) => s.kind === 'escort' && ids.includes(s.holder));
-      expect(states.map((s) => [s.holder, s.other])).toEqual([[couriers[1].id, couriers[0].id]]);
-    }
-  }, budget(30_000));
 
   describe('courier respawns', () => {
     const couriersOf = (w: ReturnType<typeof emptyWorld>) => w.vehicles.filter((v) => v.brain?.templateId === 'courier');
@@ -138,7 +141,7 @@ describe('NPC spawns', () => {
   it('never respawns a driver close to the player', () => {
     const bowl = REGION.towns.find((t) => t.id === 'bowl')!;
     const w = emptyWorld(sitePads(bowl)[0]);
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 60; i++) {
       w.spawnTimer.trader = 1;
       spawnNpcs(w);
       const spawned = w.vehicles.filter((v) => v.brain);
@@ -149,7 +152,7 @@ describe('NPC spawns', () => {
 });
 
 describe('free spots', () => {
-  const world = newWorld(1337, START_KITS.standard, TEST_MAP, defaultSetup('roaming'));
+  const world = startWorld(1337);
   world.vehicles = world.vehicles.filter((v) => v.faction === 'player');
   const fallenSun = REGION.locations.find((l) => l.id === 'fallen-sun')!;
   const cage = territoryPieces(fallenSun as never).find((p) => p.look === 'shipCage')!;

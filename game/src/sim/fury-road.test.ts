@@ -22,7 +22,7 @@ import { addState, stateOf } from './states';
 import { furyRoadWorld } from './testkit';
 import type { FuryRoadRun, Vehicle, WaveGroup, World } from './types';
 import { heightAt } from './terrain';
-import { endTurn, newWorld } from './world';
+import { cloneWorld, endTurn, newWorld } from './world';
 
 function runOf(w: World): FuryRoadRun {
   if (!w.furyRoad) throw new Error('No run');
@@ -599,7 +599,7 @@ describe('arriving at an outpost', () => {
     const group = spawnFirst(w);
     for (const v of w.vehicles) if (group.vehicles.includes(v.id)) v.pos = { x: v.pos.x + 100, y: v.pos.y };
     w.states = w.states.filter((s) => s.kind !== 'combat');
-    const passing = structuredClone(w);
+    const passing = cloneWorld(w);
     moveTo(passing, milestoneAt(passing.seed, 1) - 10);
 
     const after = arrive(w);
