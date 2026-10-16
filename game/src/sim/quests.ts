@@ -30,13 +30,13 @@ import {
   WAGON_SEEN,
 } from '../data/quests';
 import BUNDLE from '../data/quests.json';
-import type { NoteId } from '../data/locals';
+import { isNoteId, type NoteId } from '../data/locals';
 import { REGION } from '../data/region';
 import { WAGON_SEVEN } from '../data/salvage';
 import { SKILL_IDS } from '../data/skills';
 import { UNITS } from '../data/units';
 import { skillLevel } from './progress';
-import { boardFull, holdsNote, isNoteId, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
+import { boardFull, holdsNote, learnNote, takeTownWork, townOffers, townWork } from './dialogue-rules';
 import { canWaitForRoad } from './fury-road';
 import { payOf } from './fury-road-danger';
 import { hashRandom } from './rng';

@@ -53,8 +53,8 @@ const dent = [{ part: 'cab', damage: 5 }];
 describe('crashes between trucks at peace', () => {
   it('start no feud, and each damaged NPC holds a grievance', () => {
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'scavengers', ['scavenger'], 36);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'independent', ['scavenger'], 36);
     noteCollision(w, a, b, dent, dent);
     expect(isHostile(w, a, b)).toBe(false);
     expect(stateOf(w, 'grievance', a.id, b.id)).not.toBeNull();
@@ -65,8 +65,8 @@ describe('crashes between trucks at peace', () => {
   it('a forgiven crash ends the grievance and leaves the two at peace', () => {
     forceOption('crashed', 'forgive');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'scavengers', ['scavenger'], 36);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'independent', ['scavenger'], 36);
     noteCollision(w, a, b, [], dent);
     thinkNpc(w, b);
     expect(stateOf(w, 'grievance', b.id, a.id)).toBeNull();
@@ -76,8 +76,8 @@ describe('crashes between trucks at peace', () => {
   it('a retaliating driver starts a feud and treats the other truck as an attacker', () => {
     forceOption('crashed', 'retaliate');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 36);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 36);
     addState(w, 'truce', b.id, a.id, { kind: 'none' });
     noteCollision(w, a, b, [], dent);
     thinkNpc(w, b);
@@ -87,8 +87,8 @@ describe('crashes between trucks at peace', () => {
 
   it('a crash between hostiles is an attack, not a grievance', () => {
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'scavengers', ['scavenger'], 36);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'independent', ['scavenger'], 36);
     feud(w, a, b);
     noteCollision(w, a, b, [], dent);
     expect(stateOf(w, 'grievance', b.id, a.id)).toBeNull();
@@ -97,7 +97,7 @@ describe('crashes between trucks at peace', () => {
 
   it('the player never holds a grievance', () => {
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
+    const a = npcAt(w, 'independent', ['trader'], 34);
     const me = playerVehicle(w);
     noteCollision(w, a, me, [], dent);
     expect(w.states.filter((s) => s.kind === 'grievance')).toEqual([]);
@@ -107,9 +107,9 @@ describe('crashes between trucks at peace', () => {
 describe('peace', () => {
   it('ends feuds both ways between the sides, holds truces and drops aim at the other side', () => {
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const mate = npcAt(w, 'traders', ['trader'], 34, 33);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'bowl', ['trader'], 34);
+    const mate = npcAt(w, 'bowl', ['trader'], 34, 33);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     feud(w, mate, b);
     b.weaponOrders = { gun: { targetId: a.id, aim: 'body' } };
@@ -125,8 +125,8 @@ describe('NPC pleas to NPCs', () => {
   it('an accepted truce makes peace at once', () => {
     forceOption('truceOffered', 'accept');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     plead(w, a, b, 'truce');
     expect(isHostile(w, a, b)).toBe(false);
@@ -136,8 +136,8 @@ describe('NPC pleas to NPCs', () => {
   it('a refused truce keeps the feud', () => {
     forceOption('truceOffered', 'refuse');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     plead(w, a, b, 'truce');
     expect(isHostile(w, a, b)).toBe(true);
@@ -146,11 +146,11 @@ describe('NPC pleas to NPCs', () => {
 
   function holdUp(): { w: World; a: Vehicle; b: Vehicle } {
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
+    const a = npcAt(w, 'independent', ['trader'], 34);
     addGoods(w, a, 'scrap', 2);
-    const b = npcAt(w, 'scavengers', ['scavenger', 'scumbag'], 40);
-    npcAt(w, 'scavengers', ['scavenger'], 40, 28);
-    npcAt(w, 'scavengers', ['scavenger'], 40, 32);
+    const b = npcAt(w, 'independent', ['scavenger', 'scumbag'], 40);
+    npcAt(w, 'independent', ['scavenger'], 40, 28);
+    npcAt(w, 'independent', ['scavenger'], 40, 32);
     addState(w, 'feud', b.id, a.id, { kind: 'feud', robbery: true });
     addState(w, 'feud', a.id, b.id, { kind: 'feud', robbery: false });
     return { w, a, b };
@@ -187,8 +187,8 @@ describe('NPC pleas to NPCs', () => {
   it('an accepted plea leaves no wait, so a driver whose truce breaks can plead again', () => {
     forceOption('truceOffered', 'accept');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     plead(w, a, b, 'truce');
     expect(stateOf(w, 'plea', a.id, b.id)).toBeNull();
@@ -197,9 +197,9 @@ describe('NPC pleas to NPCs', () => {
   it('spared mercy costs the beggar its cargo, and the winner goes to take it', () => {
     forceOption('mercyBegged', 'spare');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
+    const a = npcAt(w, 'independent', ['trader'], 34);
     addGoods(w, a, 'scrap', 2);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     plead(w, a, b, 'mercy');
     expect(hasCargo(a)).toBe(false);
@@ -211,8 +211,8 @@ describe('NPC pleas to NPCs', () => {
     forceOption('parley', 'truce');
     forceOption('truceOffered', 'accept');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     a.brain!.hurt = 5;
     a.lastHitBy = b.id;
@@ -225,9 +225,9 @@ describe('NPC pleas to NPCs', () => {
     forceOption('parley', 'truce');
     forceOption('truceOffered', 'accept');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
-    const gone = npcAt(w, 'raiders', ['raider'], 200, 200);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
+    const gone = npcAt(w, 'scrapjaw', ['raider'], 200, 200);
     feud(w, a, b);
     feud(w, a, gone);
     pushGoal(w, a, { kind: 'flee', targetId: gone.id, destination: { x: 10, y: 10 }, phase: 'travel', reason: 'damagedThreatened', perceived: w.turn - NPC_BEHAVIOR.fleeCalmTurns - 1 });
@@ -241,8 +241,8 @@ describe('NPC pleas to NPCs', () => {
   it('an unhurt driver does not plead', () => {
     forceOption('parley', 'truce');
     const w = quietWorld();
-    const a = npcAt(w, 'traders', ['trader'], 34);
-    const b = npcAt(w, 'raiders', ['raider'], 40);
+    const a = npcAt(w, 'independent', ['trader'], 34);
+    const b = npcAt(w, 'scrapjaw', ['raider'], 40);
     feud(w, a, b);
     a.lastHitBy = b.id;
     thinkNpc(w, a);
@@ -253,7 +253,7 @@ describe('NPC pleas to NPCs', () => {
 describe('NPC pleas to the player', () => {
   function pleading(plea: 'truce' | 'mercy'): { w: World; npc: Vehicle } {
     const w = quietWorld();
-    const npc = npcAt(w, 'traders', ['trader'], 36);
+    const npc = npcAt(w, 'independent', ['trader'], 36);
     addGoods(w, npc, 'scrap', 2);
     feud(w, npc, playerVehicle(w));
     plead(w, npc, playerVehicle(w), plea);
@@ -288,7 +288,7 @@ describe('NPC pleas to the player', () => {
 
   it('a pleading foe calls even while it flees another truck', () => {
     const w = quietWorld();
-    const npc = npcAt(w, 'traders', ['trader'], 36);
+    const npc = npcAt(w, 'independent', ['trader'], 36);
     feud(w, npc, playerVehicle(w));
     npc.brain!.goals.push({ kind: 'flee', targetId: 'someone-else', destination: { x: 60, y: 30 }, reason: 'escapeAttacker', phase: 'travel' });
     plead(w, npc, playerVehicle(w), 'mercy');
@@ -314,7 +314,7 @@ describe('NPC pleas to the player', () => {
 describe('player pleas', () => {
   function atWar(): { w: World; npc: Vehicle } {
     const w = quietWorld();
-    const npc = npcAt(w, 'scavengers', ['scavenger'], 36);
+    const npc = npcAt(w, 'independent', ['scavenger'], 36);
     feud(w, npc, playerVehicle(w));
     return { w, npc };
   }
@@ -372,7 +372,7 @@ describe('player robbery', () => {
 
   function loaded(): { w: World; npc: Vehicle } {
     const w = quietWorld();
-    const npc = npcAt(w, 'traders', ['trader'], 36);
+    const npc = npcAt(w, 'independent', ['trader'], 36);
     addGoods(w, npc, 'scrap', 2);
     return { w, npc };
   }
@@ -409,7 +409,7 @@ describe('player robbery', () => {
   it('is not offered to a driver without cargo, and only once per driver', () => {
     forceOption('threatened', 'comply');
     const { w: start, npc } = loaded();
-    const empty = npcAt(start, 'traders', ['trader'], 36, 33);
+    const empty = npcAt(start, 'independent', ['trader'], 36, 33);
     expect(currentOptions(callVehicle(start, empty.id)).map((o) => en(o.line))).not.toContain(DEMAND);
     let w = pick(callVehicle(start, npc.id), DEMAND);
     w = hangUp(w);
@@ -426,7 +426,7 @@ describe('warning a looter off', () => {
     const w = quietWorld();
     const wreck = { id: 'wreck901', pos: { x: 30.5, y: 30 }, radius: 1, goods: { scrap: 6 }, parts: [], hidden: emptyHidden() };
     w.salvage.push(wreck);
-    const npc = addVehicle(w, 'scavengers', 'scout', ['stockEngine', 'mg'], { x: 31.5, y: 30 });
+    const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg'], { x: 31.5, y: 30 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
     npc.speed = 0;
     npc.brain.goals = [{ kind: 'scavenge', targetId: wreck.id, destination: { ...wreck.pos }, phase: 'act', reason: 'lootDowned' }];
@@ -485,7 +485,7 @@ describe('bounty talk', () => {
 
   function beggar(perks: World['player']['perks']): { w: World; npc: Vehicle } {
     const w = quietWorld();
-    const npc = npcAt(w, 'raiders', ['raider'], 36);
+    const npc = npcAt(w, 'scrapjaw', ['raider'], 36);
     feud(w, npc, playerVehicle(w));
     w.player.perks = perks;
     w.player.contracts = [{ ...bounty }];
@@ -544,7 +544,7 @@ describe('bounty talk', () => {
 
   it('pays nothing when the player gives up', () => {
     const w = quietWorld();
-    const npc = npcAt(w, 'raiders', ['raider'], 36);
+    const npc = npcAt(w, 'scrapjaw', ['raider'], 36);
     w.player.perks = ['bountyTalk'];
     w.player.contracts = [{ ...bounty }];
     yieldTo(w, playerVehicle(w), npc);
@@ -555,8 +555,8 @@ describe('bounty talk', () => {
 describe('pile claims', () => {
   function handover(winnerKind: 'npc' | 'player') {
     const w = quietWorld();
-    const robber = npcAt(w, 'scavengers', ['raider'], 36);
-    const victim = addVehicle(w, 'scavengers', 'scout', ['mg'], { x: 37, y: 30 });
+    const robber = npcAt(w, 'independent', ['raider'], 36);
+    const victim = addVehicle(w, 'independent', 'scout', ['mg'], { x: 37, y: 30 });
     victim.brain = npcBrain('trader', victim.pos, ['raider']);
     addGoods(w, victim, 'scrap', 2);
     refreshVision(w);
@@ -580,8 +580,8 @@ describe('pile claims', () => {
 
     function setup(loser: 'npc' | 'player') {
       const w = quietWorld();
-      const robber = npcAt(w, 'scavengers', ['raider'], 36);
-      const victim = loser === 'player' ? playerVehicle(w) : addVehicle(w, 'scavengers', 'scout', ['mg'], { x: 37, y: 30 });
+      const robber = npcAt(w, 'independent', ['raider'], 36);
+      const victim = loser === 'player' ? playerVehicle(w) : addVehicle(w, 'independent', 'scout', ['mg'], { x: 37, y: 30 });
       if (loser === 'npc') victim.brain = npcBrain('trader', victim.pos, ['raider']);
       addGoods(w, victim, 'scrap', 2);
       pushGoal(w, robber, { kind: 'fight', targetId: victim.id, destination: null, phase: 'travel', reason: 'strandedRobbery' });
@@ -616,9 +616,10 @@ describe('pile claims', () => {
       expectsLoot(w, robber, victim);
     });
 
-    it('peace also ends the fights of a faction mate of either side', () => {
+    it('peace also ends the fights of an ally of either side', () => {
       const { w, robber, victim } = setup('npc');
-      const mate = npcAt(w, 'scavengers', ['raider'], 38);
+      robber.faction = 'scrapjaw';
+      const mate = npcAt(w, 'scrapjaw', ['raider'], 38);
       fightBetween(w, mate, victim);
       makePeace(w, robber, victim);
       expect(fights(w, mate, victim)).toEqual([]);
@@ -626,11 +627,22 @@ describe('pile claims', () => {
 
     it('a fight with a third truck stays', () => {
       const { w, robber, victim } = setup('npc');
-      const other = addVehicle(w, 'raiders', 'scout', ['mg'], { x: 20, y: 20 });
+      const other = addVehicle(w, 'scrapjaw', 'scout', ['mg'], { x: 20, y: 20 });
       fightBetween(w, robber, other);
       yieldTo(w, victim, robber);
       expect(fights(w, robber, other)).toHaveLength(2);
     });
+  });
+
+  it('two robbers handed cargo in one turn each claim their own pile', () => {
+    const { w, robber, victim } = handover('npc');
+    const second = npcAt(w, 'independent', ['raider'], 35);
+    addGoods(w, victim, 'scrap', 3);
+    yieldTo(w, victim, second);
+    const piles = w.salvage.filter((s) => s.pile);
+    expect(new Set(piles.map((s) => s.id)).size).toBe(2);
+    expect(piles.map((s) => s.pile!.claim?.by).sort()).toEqual([robber.id, second.id].sort());
+    expect(piles.reduce((sum, s) => sum + (s.goods.scrap ?? 0), 0)).toBe(5);
   });
 
   it('a player winner makes no claim', () => {
@@ -654,7 +666,7 @@ describe('pile claims', () => {
 
   it('a backed-off driver does not see the pile', () => {
     const { w, pile } = handover('npc');
-    const other = npcAt(w, 'scavengers', [], 34);
+    const other = npcAt(w, 'independent', [], 34);
     expect(visibleSalvage(w, other)).toContain(pile);
     pile.pile!.claim!.warned.push(other.id);
     expect(visibleSalvage(w, other)).not.toContain(pile);
@@ -664,14 +676,14 @@ describe('pile claims', () => {
 describe('warning off a trespasser', () => {
   function trespass(armed = true) {
     const w = quietWorld();
-    const claimant = npcAt(w, 'scavengers', ['raider'], 30);
-    const victim = addVehicle(w, 'scavengers', 'scout', ['mg'], { x: 40, y: 34 });
+    const claimant = npcAt(w, 'independent', ['raider'], 30);
+    const victim = addVehicle(w, 'independent', 'scout', ['mg'], { x: 40, y: 34 });
     victim.brain = npcBrain('trader', victim.pos, ['raider']);
     addGoods(w, victim, 'scrap', 2);
     yieldTo(w, victim, claimant);
     if (!armed) claimant.items = claimant.items.filter((item) => item.kind !== 'part' || !/mg/.test(item.part.defId));
     const pile = w.salvage.find((s) => s.pile)!;
-    const trespasser = npcAt(w, 'scavengers', ['scavenger'], pile.pos.x + 1, pile.pos.y);
+    const trespasser = npcAt(w, 'independent', ['scavenger'], pile.pos.x + 1, pile.pos.y);
     pushGoal(w, trespasser, { kind: 'loot', targetId: pile.id, destination: { ...pile.pos }, phase: 'travel', reason: 'tripToSite' });
     refreshVision(w);
     return { w, claimant, trespasser, pile };
@@ -725,8 +737,8 @@ describe('warning off a trespasser', () => {
 describe('the player at a claimed pile', () => {
   function claimedNearPlayer() {
     const w = quietWorld();
-    const claimant = npcAt(w, 'scavengers', ['raider'], 30, 38);
-    const victim = addVehicle(w, 'scavengers', 'scout', ['mg'], { x: 31, y: 31 });
+    const claimant = npcAt(w, 'independent', ['raider'], 30, 38);
+    const victim = addVehicle(w, 'independent', 'scout', ['mg'], { x: 31, y: 31 });
     victim.brain = npcBrain('trader', victim.pos, ['raider']);
     addGoods(w, victim, 'scrap', 2);
     yieldTo(w, victim, claimant);
@@ -747,7 +759,7 @@ describe('the player at a claimed pile', () => {
 
   it('the player who handed the pile over gets no warning call, but taking it back is a refusal', () => {
     const w = quietWorld();
-    const claimant = npcAt(w, 'scavengers', ['raider'], 30, 38);
+    const claimant = npcAt(w, 'independent', ['raider'], 30, 38);
     addGoods(w, me(w), 'scrap', 2);
     yieldTo(w, me(w), claimant);
     const pile = w.salvage.find((s) => s.pile)!;

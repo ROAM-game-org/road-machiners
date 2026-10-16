@@ -68,7 +68,7 @@ describe('the hauler nose and tail', () => {
 
 function withCaltropsAt(chassisId: string, x: number, y: number): { v: Vehicle; caltrops: PartItem } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const v = addVehicle(w, 'scrapjaw', chassisId, [], { x: 30, y: 30 });
   const caltrops: PartItem = { id: 'i-caltrops', x, y, rot: 0, kind: 'part', part: makePart(w, 'caltrops', 0) };
   return { v, caltrops };
 }
@@ -77,7 +77,7 @@ type Placed = { defId: string; x: number; y: number; rot: Rot };
 
 function withParts(chassisId: string, placed: Placed[]): { v: Vehicle; items: PartItem[] } {
   const w = emptyWorld();
-  const v = addVehicle(w, 'raiders', chassisId, [], { x: 30, y: 30 });
+  const v = addVehicle(w, 'scrapjaw', chassisId, [], { x: 30, y: 30 });
   const items = placed.map((p, i): PartItem => ({ id: `i-${p.defId}-${i}`, x: p.x, y: p.y, rot: p.rot, kind: 'part', part: makePart(w, p.defId, 0) }));
   return { v, items };
 }
@@ -165,7 +165,7 @@ describe('parts on bare nose and tail cells', () => {
 
   it('keeps a hidden cab anchored on the highest model surface under its cells', () => {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', [], { x: 30, y: 30 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', [], { x: 30, y: 30 });
     const cab = partOf(v, 'cab');
     const view = new VehicleView(v, true);
     view.pose({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0, w: 1 }, acc: { x: 0, y: 0, z: 0 }, wheels: wheelMounts(bodyOf(v.chassisId)).map(() => ({ suspension: 0, steer: 0, spin: 0, ground: true })) }, 0.016);

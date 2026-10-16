@@ -13,8 +13,9 @@ export const FORT_PROPS = {
   compound: { wall: 'fortCompoundWall', tower: 'fortCompoundTower', gate: 'fortCompoundGate' },
   ring: { wall: 'fortRingWall', gate: 'fortRingGate' },
   yard: { wall: 'fortYardWall', tower: 'fortYardTower', gate: 'fortYardGate' },
+  outpost: { wall: 'fortOutpostWall', tower: 'fortOutpostTower', gate: 'fortOutpostGate' },
 } as const satisfies Record<FortressStyle, Partial<Record<FortressKind, PropKind>>>;
-const FORT_STYLE_NAMES = { pumpworks: 'pumpworks', cistern: 'cistern', shipMetal: 'ship', scrap: 'scrap', patchwork: 'patchwork', compound: 'compound', ring: 'ring', yard: 'yard' } as const satisfies Record<FortressStyle, string>;
+const FORT_STYLE_NAMES = { pumpworks: 'pumpworks', cistern: 'cistern', shipMetal: 'ship', scrap: 'scrap', patchwork: 'patchwork', compound: 'compound', ring: 'ring', yard: 'yard', outpost: 'outpost' } as const satisfies Record<FortressStyle, string>;
 export type FortModel = { [S in FortressStyle]: `fort_${(typeof FORT_STYLE_NAMES)[S]}_${keyof (typeof FORT_PROPS)[S] & string}` }[FortressStyle];
 
 export const FORT_MODELS: ReadonlyMap<PropKind, { model: FortModel; piece: FortressKind }> = new Map(

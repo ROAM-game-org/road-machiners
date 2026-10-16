@@ -28,7 +28,7 @@ function outside(d: number): Vec {
 
 function raider(): { w: World; v: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
-  const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
+  const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
   v.brain = npcBrain('buggy', v.pos, NPCS.buggy.traits);
   return { w, v };
 }
@@ -150,7 +150,7 @@ describe('the lie-up for fresh gear', () => {
     serveAtCamp(w, v);
     const first = topGoal(v)!.destination!;
     v.pos = { ...first };
-    const other = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
+    const other = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine', 'plates'], outside(20));
     other.brain = npcBrain('buggy', other.pos, NPCS.buggy.traits);
     crippleGear(other);
     getResources(w, other).money = 0;
@@ -208,7 +208,7 @@ describe('the lie-up for fresh gear', () => {
   it('lies up a stranded-for-good trader at a town instead of refitting it at once', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     const pad = sitePads(REGION.towns[0])[0];
-    const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine'], pad);
+    const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], pad);
     trader.brain = npcBrain('trader', pad, NPCS.trader.traits);
     for (const engine of mountedParts(trader, 'engine')) { engine.wear = 5; engine.hp = 0; }
     getResources(w, trader).money = 0;
@@ -226,7 +226,7 @@ describe('the lie-up for fresh gear', () => {
 describe('a defeated raider', () => {
   function retreating(): { w: World; v: Vehicle } {
     const w = emptyWorld();
-    const v = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
+    const v = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 150, y: 150 });
     v.brain = npcBrain('buggy', v.pos, ['raider']);
     strip(v);
     return { w, v };

@@ -49,8 +49,12 @@ function hasGatePerRoad(site: Site): boolean {
   return !('kind' in site) || site.radius >= REGION.sites.multiGateRadius;
 }
 
+export function isRoadFort(site: Site): boolean {
+  return FORTRESS_SITES[siteLook(site)]?.roadFort === true;
+}
+
 export function sitePads(site: Site): Vec[] {
-  if (isTerritory(site)) return [];
+  if (isTerritory(site) || isRoadFort(site)) return [];
   if (givenGates(site)) return padsOf(site);
   let pads = PADS.get(site.id);
   if (!pads) {

@@ -9,7 +9,7 @@ import type { DustCloud, Vehicle, World } from '../../sim/types';
 import { cloneWorld } from '../../sim/world';
 import type { VehicleView } from './vehicle';
 import type { Card, FxCards } from './particles/cards';
-import { DUST_LOOK, DustCloudsView, puffsPerCloud } from './dust';
+import { DUST_LOOK, DustCloudsView, plumeShape, puffsPerCloud } from './dust';
 
 const S = PHYSICS.metersPerTile;
 
@@ -114,8 +114,9 @@ describe('DustCloudsView fit', () => {
   const byLength = Object.keys(CHASSIS).sort((a, b) => bodyOf(a).half.x - bodyOf(b).half.x);
   const ends = [byLength[0], byLength[byLength.length - 1]];
 
-  it.each(ends.flatMap((id) => [0.3, 1].map((tiles) => [id, tiles] as const)))('keeps every card of %s clear of the truck at %s tiles', (id, tiles) => {
+  it.each(ends.flatMap((id) => [0, 1, 3].flatMap((age) => [0.3, 1].map((tiles) => [id, tiles, age] as const))))('keeps every card of %s clear of the truck at %s tiles at cloud age %s', (id, tiles, age) => {
     const { world, me } = drove(id);
+    world.dustClouds[0].age = age;
     const half = bodyOf(id).half.x;
     for (const heading of [0, Math.PI / 2]) {
       me.heading = heading;
@@ -136,5 +137,62 @@ describe('DustCloudsView fit', () => {
     expect(largest(3)).toBeGreaterThanOrEqual(largest(1));
     expect(largest(8)).toBeGreaterThanOrEqual(largest(3));
     expect(largest(8)).toBe(largest(null));
+  });
+});
+
+describe('plumeShape', () => {
+  const oldSize = (life: number) => DUST_LOOK.size * (1 + (DUST_LOOK.sizeGrowth - 1) * life);
+
+  it('starts small and faint at a typical reveal age', () => {
+    const shape = plumeShape(0.6);
+    expect(shape.size).toBeLessThanOrEqual(DUST_LOOK.birthSize + 0.2 * (oldSize(0.6 / DETECT.dust.lifetime) - DUST_LOOK.birthSize));
+    expect(shape.fade * DUST_LOOK.opacity * 1.4).toBeLessThanOrEqual(0.3 * DUST_LOOK.opacity * 1.4);
+    expect(plumeShape(0).size).toBe(DUST_LOOK.birthSize);
+    expect(plumeShape(0).scatter).toBe(0);
+  });
+
+  it.each([3, 5, 7.9])('matches the old curves at age %s once built', (age) => {
+    const life = age / DETECT.dust.lifetime;
+    const shape = plumeShape(age);
+    expect(shape.size).toBeCloseTo(oldSize(life), 9);
+    expect(shape.span).toBeCloseTo(DUST_LOOK.spread + DUST_LOOK.spreadGrowth * life, 9);
+    expect(shape.wobble).toBe(DUST_LOOK.wobble);
+    expect(shape.fade).toBeCloseTo(1 - life, 9);
+  });
+
+  it('refuses a bad age', () => {
+    expect(() => plumeShape(NaN)).toThrow();
+    expect(() => plumeShape(-1)).toThrow();
+  });
+});
+
+describe('DustCloudsView build-up over time', () => {
+  it('grows smoothly across turn seams for the first turns', () => {
+    const view = new DustCloudsView();
+    const stepMs = 1000 / 30;
+    const glideMs = DUST_LOOK.glideSeconds * 1000;
+    const limit = 0.05 * plumeShape(DUST_LOOK.buildTurns).size * S;
+    let previous = 0;
+    let previousScatter = 0;
+    let previousAlpha = 0;
+    for (let turn = 0; turn < DUST_LOOK.buildTurns; turn++) {
+      for (let ms = 0; ms < glideMs; ms += stepMs) {
+        const world = worldOf([cloud('a', 'npc', turn)], ['a']);
+        world.turn = turn + 1;
+        view.update(world, flatTerrain(32), turn * glideMs + ms);
+        const cards = drawn(view);
+        const largest = Math.max(...cards.map((c) => c.size / 1.25));
+        const scatter = Math.max(...cards.map((c) => c.y)) - Math.min(...cards.map((c) => c.y));
+        const alpha = Math.max(...cards.map((c) => c.alpha));
+        if (turn > 0 || ms > 0) {
+          expect(Math.abs(largest - previous)).toBeLessThanOrEqual(limit);
+          expect(scatter).toBeGreaterThanOrEqual(previousScatter - 1e-6);
+          if (turn < 1) expect(alpha).toBeGreaterThanOrEqual(previousAlpha - 1e-6);
+        }
+        previous = largest;
+        previousScatter = scatter;
+        previousAlpha = alpha;
+      }
+    }
   });
 });

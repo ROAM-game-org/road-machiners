@@ -10,7 +10,7 @@ import type { World } from './types';
 afterEach(() => setHeadless(false));
 
 function rockBetween(w: World, at: Vec) {
-  const watcher = addVehicle(w, 'raiders', 'buggy', [], at);
+  const watcher = addVehicle(w, 'scrapjaw', 'buggy', [], at);
   w.obstacles = [{ id: 'rock', pos: { x: at.x + 4, y: at.y }, r: 1.2, kind: 'rock' }];
   return { watcher, spot: { x: at.x + 8, y: at.y } };
 }

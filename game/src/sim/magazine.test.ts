@@ -8,7 +8,7 @@ import type { World } from './types';
 function duel() {
   const w = emptyWorld();
   const me = w.vehicles[0];
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 33, y: 30 }, Math.PI);
   buggy.brain = npcBrain('buggy', buggy.pos, ['raider']);
   const mg = vehicleStats(w, me).weapons[0];
   me.weaponOrders[mg.part.id] = { targetId: buggy.id, aim: 'body' };
@@ -63,7 +63,7 @@ describe('magazines', () => {
 
   it('turns spent cooling down do not count toward a reload', () => {
     const w = emptyWorld();
-    const t = addVehicle(w, 'raiders', 'hauler', ['cannon', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
+    const t = addVehicle(w, 'scrapjaw', 'hauler', ['cannon', 'stockEngine'], { x: 35, y: 30 }, Math.PI);
     const gun = vehicleStats(w, t).weapons[0];
     gun.part.gun = { cooldown: 2, ammo: 1, reloadWork: 0 };
     t.weaponOrders = {};

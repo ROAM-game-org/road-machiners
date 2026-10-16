@@ -116,7 +116,7 @@ export class Labels {
         setText(el, t('map.rumor'));
         this.rumors.set(stock.id, el);
       }
-      place(el, world, stock.pos, rig, limit, true);
+      place(el, world, stock.pos, rig, limit, playerExplored(world, stock.pos));
     }
   }
 }

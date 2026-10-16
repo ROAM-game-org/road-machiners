@@ -17,8 +17,8 @@ const SIDE: Record<string, Side> = { F: 'front', B: 'rear', L: 'left', R: 'right
 
 function setup(): { w: World; user: Vehicle; other: Vehicle; claymore: PartInstance; side: Side } {
   const w = emptyWorld();
-  const user = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
-  const other = addVehicle(w, 'traders', 'hauler', ['stockEngine'], { x: 43, y: 30 });
+  const user = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'claymoreRam'], { x: 40, y: 30 });
+  const other = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 43, y: 30 });
   const claymore = mountedParts(user).find((p) => p.defId === 'claymoreRam');
   if (!claymore) throw new Error('The claymore ram did not mount');
   const letter = sideOf(user, claymore);
@@ -125,7 +125,7 @@ describe('disarming a claymore ram by order', () => {
     delete user.shutDown;
     claymore.hp = 0;
     expect(utilityOrderError(w, user, claymore.id, order)).toMatchObject({ block: 'disabled' });
-    const sprout = addVehicle(w, 'traders', 'hauler', ['stockEngine', 'sprout'], { x: 10, y: 10 });
+    const sprout = addVehicle(w, 'independent', 'hauler', ['stockEngine', 'sprout'], { x: 10, y: 10 });
     const smoke = mountedParts(sprout).find((p) => p.defId === 'sprout');
     expect(() => utilityOrderError(w, sprout, smoke!.id, order)).toThrow();
   });

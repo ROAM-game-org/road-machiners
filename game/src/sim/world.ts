@@ -47,9 +47,10 @@ import type { GridItem, MoveOrder, PartInstance, Refusal, Rot, UtilityOrder, Veh
 import { defaultSetup, modeMap, modeRules, modeRulesOf, parseSetup, repairSetup } from './settings';
 import { QUESTS, openRoadScene, type CarriedQuestVars } from './quests';
 import { repairQuests, type SavedRevisions } from './quest-repair';
-import { isNoteId } from './dialogue-rules';
+import { isNoteId } from '../data/locals';
 import { highwayStart } from './highway';
 import { advanceFuryRoad, startRun } from './fury-road';
+import { gatesShut } from './outpost-gates';
 import { noteHaulerHits, planHaulerOrder, watchHaulerStall } from './hauler';
 import { canOverdrive, vehicleStats } from './stats';
 import { playerSees, practiceContacts, refreshVision } from './vision';
@@ -68,6 +69,8 @@ import { advanceEngineHeat } from './engine-heat';
 import { nearestPad } from './sites';
 import { openingObstacles, setUpOpening } from './opening';
 import { clamp, dist, type Vec } from './vec';
+import { startStanding } from "../data/npc-behavior";
+import { driftStanding } from "./relations";
 
 export function seedStreams(seed: number): Pick<World, 'seed' | 'rngState' | 'marketRng' | 'nameRng' | 'searchRng'> {
   if (!Number.isInteger(seed)) throw new Error(`Seed must be an integer, got ${seed}`);
@@ -94,6 +97,8 @@ export function newWorld(seed: number, kit: StartKit, map: BakedMap, setup: Worl
     player: {
       vehicleId: "",
       money: kit.money,
+      standing: startStanding(),
+      deeds: [],
       xp: 0,
       ranks: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
       xpToday: { driving: 0, perception: 0, machining: 0, toughness: 0, social: 0 },
@@ -322,6 +327,7 @@ export function playerCommand(world: World, fn: (draft: World) => void): World {
 
 export function setMoveOrder(world: World, order: MoveOrder | null): World {
   return playerCommand(world, (w) => {
+    if (gatesShut(w)) throw new Refused({ id: 'gatesShut' });
     playerVehicle(w).order =
       order && order.kind !== "brake"
         ? {
@@ -389,6 +395,7 @@ export function endTurn(
     advanceRescues(w);
     checkBeacon(w);
     forgetOld(w);
+    driftStanding(w);
     lapseEncounter(w);
     resolveNpcActivities(w);
     noteEngagements(w);

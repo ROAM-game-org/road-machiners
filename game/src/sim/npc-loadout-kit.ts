@@ -6,6 +6,7 @@ import TRUCK_SHAPES from '../data/truck-shapes.json';
 import { mountedParts } from './grid';
 import { makeVehicle } from './factory';
 import { generateNpcLoadout } from './npc-loadout';
+import { fallbackFaction } from './spawn';
 import { emptyWorld } from './testkit';
 import type { Vehicle, World } from './types';
 
@@ -50,5 +51,5 @@ export const gearCost = (parts: { defId: string }[]) => parts.reduce((sum, p) =>
 export function rolled(template: NpcTemplate, level: GearLevel | null, seed: number): Vehicle {
   const world = { ...fixture, rngState: seed, marketRng: { rngState: seed * 104729 + 1 } };
   const loadout = loadoutOf(world, template, null, level);
-  return makeVehicle(world, { ...loadout, faction: template.faction, brain: null, pos: { x: 50, y: 50 }, heading: 0 });
+  return makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
 }
