@@ -28,7 +28,7 @@ describe('a fuelless majority of NPCs', () => {
     const off = (site: { pos: Vec; radius: number }, dy: number): Vec => ({ x: site.pos.x + site.radius + 6, y: site.pos.y + dy });
     const broke: Vehicle[] = [];
     const spawn = (chassis: string, parts: string[], brainId: string, traits: string[], pos: Vec, healthy: boolean) => {
-      const v = addVehicle(w, healthy ? 'traders' : 'scavengers', chassis, parts, pos);
+      const v = addVehicle(w, healthy ? 'independent' : 'independent', chassis, parts, pos);
       v.brain = npcBrain(brainId, pos, traits as TraitId[]);
       const r = getResources(w, v);
       r.money = healthy ? 5000 : 0;
@@ -41,7 +41,7 @@ describe('a fuelless majority of NPCs', () => {
     spawn('hauler', ['stockEngine'], 'trader', NPCS.trader.traits, off(bowl, -4), false);
     spawn('hauler', ['stockEngine'], 'trader', NPCS.trader.traits, off(bowl, 8), false);
     const raider = spawn('buggy', ['stockEngine'], 'buggy', ['raider'], off(camp, 0), false);
-    raider.faction = 'raiders';
+    raider.faction = 'scrapjaw';
     spawn('scout', ['stockEngine'], 'scavenger', NPCS.scavenger.traits, off(bowl, -8), true);
     spawn('hauler', ['stockEngine'], 'trader', NPCS.trader.traits, off(bowl, 12), true);
 
@@ -75,8 +75,8 @@ describe('a broke driver with a holed tank', () => {
   }
 
   it.each([
-    ['a trader at the Bowl', bowl, 'traders', 'hauler', 'trader', NPCS.trader.traits as string[]],
-    ['a raider at Scrapjaw', camp, 'raiders', 'buggy', 'buggy', ['raider']],
+    ['a trader at the Bowl', bowl, 'independent', 'hauler', 'trader', NPCS.trader.traits as string[]],
+    ['a raider at Scrapjaw', camp, 'scrapjaw', 'buggy', 'buggy', ['raider']],
   ] as const)('%s gets the tank patched and keeps its fuel', (_name, site, faction, chassis, brainId, traits) => {
     const d = holed(site, faction, chassis, brainId, [...traits]);
     const v = d.run(3);

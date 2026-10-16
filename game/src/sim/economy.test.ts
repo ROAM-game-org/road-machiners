@@ -762,7 +762,7 @@ describe("debt", () => {
 
   it("an NPC in debt gets no fuel, supplies or repairs in town", () => {
     const w = startAtBowl();
-    const npc = addVehicle(w, "traders", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
+    const npc = addVehicle(w, "independent", "hauler", ["stockEngine"], { ...sitePads(bowl)[0] });
     npc.resources!.money = -1667;
     npc.resources!.fuel = 1;
     npc.resources!.supplies = 1;

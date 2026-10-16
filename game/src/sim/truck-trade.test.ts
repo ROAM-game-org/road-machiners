@@ -21,7 +21,7 @@ import { endTurn, update } from './world';
 function withTrader(x: number): { w: World; npc: Vehicle } {
   const w = emptyWorld({ x: 30, y: 30 });
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  const npc = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
+  const npc = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x, y: 30 }, Math.PI);
   npc.brain = npcBrain('trader', npc.pos, ['trader']);
   return { w, npc };
 }
@@ -202,8 +202,8 @@ describe('trades', () => {
 describe('trade reach', () => {
   it('tells which driver the player can trade with and keeps reach apart from parking', () => {
     const w = emptyWorld({ x: 30, y: 30 });
-    const far = addVehicle(w, 'traders', 'scout', [], { x: 90, y: 30 });
-    const near = addVehicle(w, 'traders', 'scout', [], { x: 34, y: 30 });
+    const far = addVehicle(w, 'independent', 'scout', [], { x: 90, y: 30 });
+    const near = addVehicle(w, 'independent', 'scout', [], { x: 34, y: 30 });
     const a = addState(w, 'trade', far.id, w.player.vehicleId, { kind: 'none' });
     const b = addState(w, 'trade', near.id, w.player.vehicleId, { kind: 'none' });
     expect(playerTrades(w)).toHaveLength(2);
