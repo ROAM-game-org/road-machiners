@@ -1,5 +1,5 @@
 import { defaultSetup } from '../sim/settings';
-import { openQuest, QUESTS } from "../sim/quests";
+import { openQuest, QUESTS, setIntroStep } from "../sim/quests";
 import { GAME_OPENED_QUESTS } from "../data/quests";
 import { describe, expect, it } from "vitest";
 import { playerVehicle } from "../sim/damage";
@@ -18,7 +18,7 @@ import { startSearch } from "../sim/search";
 import type { World } from "../sim/types";
 import { TEST_MAP } from "../test/map";
 import { openingStep } from "../sim/opening";
-import { clearTips, doneTips, setTipsOff, tipsOff, tipToShow, type TipId } from "./tips";
+import { clearTips, doneTips, readSeen, setTipsOff, tipsOff, tipToShow, TipTurns, type TipId } from "./tips";
 
 describe("driving tips", () => {
   it("walks the player from a waypoint to Space, stopping, stop waypoints and manual mode", () => {
@@ -163,11 +163,57 @@ describe("farewell tip", () => {
     expect(tipToShow(w, false, new Set(allButFarewell), null)).toBe("farewell");
   });
 
+  it("stays away from a start with the arrival story, which ends in a scene of its own", () => {
+    const w = emptyWorld();
+    const spawn = startPose().pos;
+    playerVehicle(w).pos = { x: spawn.x + 80, y: spawn.y };
+    setIntroStep(w, "drive");
+    expect(tipToShow(w, false, new Set(allButFarewell), null)).toBeNull();
+  });
+
+  it("is still a known id in a stored list", () => {
+    const storage = { getItem: () => JSON.stringify(["farewell"]), setItem: () => {}, removeItem: () => {} } as unknown as Storage;
+    expect(readSeen(storage).has("farewell")).toBe(true);
+  });
+
   it("waits for the horn tip", () => {
     const w = emptyWorld();
     const spawn = startPose().pos;
     playerVehicle(w).pos = { x: spawn.x + 80, y: spawn.y };
     expect(tipToShow(w, false, new Set(allButFarewell.filter((id) => id !== "honk")), null)).toBeNull();
+  });
+});
+
+describe("zones tip", () => {
+  const manual = (turn: number) => {
+    const w = emptyWorld();
+    playerVehicle(w).direct = true;
+    w.turn = turn;
+    return w;
+  };
+
+  it("ends after two turns played in manual mode while it showed", () => {
+    const turns = new TipTurns();
+    expect(turns.count(manual(5), "zones")).toBeNull();
+    expect(turns.count(manual(6), "zones")).toBeNull();
+    expect(turns.count(manual(7), "zones")).toBe("zones");
+  });
+
+  it("counts no turn played with manual mode off or while the tip is hidden", () => {
+    const turns = new TipTurns();
+    turns.count(manual(1), "zones");
+    const off = manual(2);
+    playerVehicle(off).direct = false;
+    expect(turns.count(off, "zones")).toBeNull();
+    expect(turns.count(manual(3), null)).toBeNull();
+    expect(turns.count(manual(4), "zones")).toBeNull();
+    expect(turns.count(manual(5), "zones")).toBe("zones");
+  });
+
+  it("counts nothing for a tip that has no turn count", () => {
+    const turns = new TipTurns();
+    turns.count(manual(1), "manual");
+    expect(turns.count(manual(9), "manual")).toBeNull();
   });
 });
 
@@ -282,6 +328,25 @@ describe("opening tips", () => {
     expect(openingStep(w)).toBe("install");
     w = untilIdle(moveItem(w, cage(w).id, cageSpot(w, true)));
     expect(openingStep(w)).toBeNull();
+  });
+
+  it("shows the stop tip over the wreck tip while the truck rolls on an order that will not stop", () => {
+    const w = opening();
+    const me = playerVehicle(w);
+    me.speed = 2;
+    me.order = { kind: "through", dest: { x: me.pos.x + 80, y: me.pos.y } };
+    expect(tipToShow(w, false, new Set(), "wreck")).toBe("stop");
+    expect(tipToShow(w, false, new Set<TipId>(["stop"]), "wreck")).toBe("wreck");
+  });
+
+  it("keeps the wreck tip on a stop order, which stops by itself, and ends the stop tip at the brake", () => {
+    const w = opening();
+    const me = playerVehicle(w);
+    me.speed = 2;
+    me.order = { kind: "stopAt", dest: openingStopPoint(w) };
+    expect(tipToShow(w, false, new Set(), null)).toBe("wreck");
+    me.order = { kind: "brake" };
+    expect(doneTips(w, new Set())).toContain("stop");
   });
 
   it("has no opening step in a game without the opening wreck, like an old save", () => {
