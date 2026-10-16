@@ -315,14 +315,12 @@ export function collisionSteps(events: GameEvent[], result: Steps): TimedCollisi
   return timed;
 }
 
-export function crashMs(timed: TimedCollision[], e: GameEvent, endStep: number): number | null {
-  const hit = timed.find((t) => t.event === e);
-  return hit ? ((hit.step ?? endStep) / PHYSICS.stepsPerSecond) * 1000 : null;
-}
-
 export function scoreEventMs(e: GameEvent, timed: TimedCollision[], endStep: number, impactMs: number): number | null {
   if (e.t === "shot") return null;
-  if (e.t === "collision") return crashMs(timed, e, endStep);
+  if (e.t === "collision") {
+    const hit = timed.find((t) => t.event === e);
+    return hit ? ((hit.step ?? endStep) / PHYSICS.stepsPerSecond) * 1000 : null;
+  }
   return impactMs;
 }
 
