@@ -218,7 +218,7 @@ export class InventoryView {
     node.classList.toggle("selected", this.selectedItem === it.id);
     const click = () => this.clickItem(this.clicked("grid", it.id, it));
     node.addEventListener("click", (e) => {
-      if (core || e.detail === 0) click();
+      if (!fromButton(e) && (core || e.detail === 0)) click();
     });
     node.addEventListener("keydown", (e) => {
       if (e.key === "Enter") click();
@@ -659,7 +659,9 @@ export class InventoryView {
       if (e.key === "Enter") select();
     });
     if (it.kind === "part" && partDef(it.part.defId).kind === "core") {
-      node.addEventListener("click", select);
+      node.addEventListener("click", (e) => {
+        if (!fromButton(e)) select();
+      });
       return node;
     }
     node.addEventListener("pointerdown", (e) => {
@@ -1101,4 +1103,8 @@ function partDetails(w: World, me: Vehicle, part: PartInstance, mounted: boolean
     statGrid(diffStats(partStats(w, part), base ? partStats(w, base) : null)),
     base ? el("p", { class: "dim" }, t("inv.against", { part: partName(base.defId) }), conditionTag(base)) : el("span"),
   ];
+}
+
+function fromButton(e: Event): boolean {
+  return (e.target as Element).closest("button") !== null;
 }
