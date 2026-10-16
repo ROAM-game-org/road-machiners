@@ -1,9 +1,9 @@
 import { chassisDef } from '../data/chassis';
 import { CRATE_MASS, GOODS } from '../data/goods';
-import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_DRAWS, GEAR_LEVELS, GEAR_LEVEL_IDS, GEAR_SCORE, GEAR_WHIM, MIN_NPC_SPEED, NPC_UPKEEP, PRIORITY_TOP, type CargoRoll, type GearLevel, type Load, type LoadoutPriorities, type NpcLoadoutTable, type NpcTemplate, type Weighted } from '../data/npcs';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { PARTS, partDef, type PartKind } from '../data/parts';
-import { everyGunFires } from './armor';
+import { openArcShares } from './armor';
 import { makePart, makeVehicle, newId, type PartSpec } from './factory';
 import { freeCells, gridOf, mountedItems, MOUNT_CELLS, mountSpots, plateSide, type SideLetter } from './grid';
 import { addGoods, mountPart, stowPart } from './inventory';
@@ -146,7 +146,7 @@ function equipmentCost(v: Vehicle): number {
 }
 
 function fits(b: Build, v: Vehicle): boolean {
-  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && everyGunFires(v) && keepsHaul(b, v);
+  return equipmentCost(v) <= b.budget && vehicleMass(v) <= chassisDef(v.chassisId).ratedMass && meetsSpeedFloor(v, 0, b.rules.minSpeed) && everyGunBears(v) && keepsHaul(b, v);
 }
 
 function copyOf(v: Vehicle): Vehicle {
@@ -194,6 +194,10 @@ function withGun(b: Build, score: (v: Vehicle) => number, v: Vehicle, defId: str
   return bestGunSpot(b, v, item, score);
 }
 
+function everyGunBears(v: Vehicle): boolean {
+  return openArcShares(v).every((share) => share >= GEAR_SCORE.minOpenArcShare);
+}
+
 function affords(b: Build, v: Vehicle, def: { value: number; mass: number }): boolean {
   return equipmentCost(v) + def.value <= b.budget && vehicleMass(v) + def.mass <= chassisDef(v.chassisId).ratedMass;
 }
@@ -204,7 +208,7 @@ function bestGunSpot(b: Build, v: Vehicle, item: PartItem, score: (v: Vehicle) =
   let bestScore = -Infinity;
   for (const spot of spots) {
     const next = { ...v, items: [...v.items, { ...item, ...spot }] };
-    if (!everyGunFires(next) || !keepsHaul(b, next)) continue;
+    if (!everyGunBears(next) || !keepsHaul(b, next)) continue;
     if (best === null && !meetsSpeedFloor(next, 0, b.rules.minSpeed)) return null;
     const value = score(next);
     if (value > bestScore) [best, bestScore] = [next, value];

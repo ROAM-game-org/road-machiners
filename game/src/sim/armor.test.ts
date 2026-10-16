@@ -1,7 +1,7 @@
 import { partDef, type WeaponDef } from '../data/parts';
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../data/rules';
-import { aimWithin, everyGunFires, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
+import { aimWithin, openArcShares, gunBlockers, gunLayoutScore, gunSpans, laneCount, lanePoint, partLane, planBlast, planLane, sideToward, spanDegrees, spanSides, spansHold, walkLane, type FireSpan } from './armor';
 import { fireBlock, inArc, resolveDestroyed } from './combat';
 import { cellCenter } from './body';
 import { makePart } from './factory';
@@ -463,15 +463,16 @@ describe('gun layout', () => {
     expect(gunLayoutScore(boxed)).toBeLessThan(gunLayoutScore(racked));
   });
 
-  it('a narrow-arc gun boxed in by the cab and a cargo box cannot fire while it faces them, and can once turned to a side or the rear', () => {
+  it('reads the open share of a gun arc: low facing the cab and a box, full once turned away', () => {
     const w = emptyWorld();
     const box = { defId: 'trailerBox', x: 1, y: 3 };
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 2, y: 5 }, box]))).toBe(false);
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 2, y: 5, rot: 2 }, box]))).toBe(true);
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 3, y: 8, rot: 2 }]))).toBe(true);
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 3, y: 5, rot: 1 }]))).toBe(true);
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 3, y: 5, rot: 3 }]))).toBe(true);
-    expect(everyGunFires(truckWith(w, 'longbed', [{ defId: 'shotgun', x: 2, y: 1 }]))).toBe(true);
+    const share = (gun: { defId: string; x: number; y: number; rot?: Rot }, extra: { defId: string; x: number; y: number }[] = []) => {
+      const v = truckWith(w, 'longbed', [gun, ...extra]);
+      return openArcShares(v)[0];
+    };
+    expect(share({ defId: 'shotgun', x: 2, y: 5 }, [box])).toBeLessThan(0.5);
+    expect(share({ defId: 'shotgun', x: 2, y: 5, rot: 2 }, [box])).toBe(1);
+    expect(share({ defId: 'shotgun', x: 3, y: 8, rot: 2 })).toBe(1);
   });
 
 });

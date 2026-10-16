@@ -26,6 +26,7 @@ export const NPC_BEHAVIOR = {
   patrolSpacing: 4,
   followGap: RULES.yieldDistance + 1,
   fleeCondition: 0.3,
+  fleeKeepAngle: 45,
   fight: { angles: 16, rings: [0.25, 0.5, 0.75, 1], arcWeight: 2, threatWeight: 1, travelWeight: 1, circleWeight: 1, rammedWeight: 2, ramWeight: 2, circlePace: 3, whimTurns: 4 },
   revengeChance: 0.33,
   recoverCondition: 0.5,

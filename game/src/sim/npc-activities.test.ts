@@ -34,7 +34,7 @@ import { territoryEntries, territoryOfStock, territoryPieces, territorySpots } f
 import { standardWorld } from '../test/world-cache';
 import { fuelCap, vehicleStats } from './stats';
 import { heatAt } from './sun';
-import { dist, polylineDist, type Vec } from './vec';
+import { DEG, dist, polylineDist, type Vec } from './vec';
 import { advanceFar } from './far';
 import type { NpcActivity, SalvageStock, Vehicle, World } from './types';
 import { addState, workOf } from './states';
@@ -922,6 +922,37 @@ describe('NPC activities', () => {
     expect(topGoal(trader)?.kind).not.toBe('flee');
     planNpcOrders(w);
     expect(topGoal(trader)?.kind).not.toBe('flee');
+  });
+
+  describe('a fleeing driver and its flee point', () => {
+    const reach = TERRAIN.vision.radius - 5;
+    function fleeingFrom() {
+      const w = emptyWorld({ x: 30, y: 30 });
+      const trader = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 60, y: 60 });
+      trader.brain = npcBrain('trader', trader.pos, ['trader']);
+      const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 60 + reach, y: 60 });
+      raider.speed = 4;
+      forceOption('contactHeard', 'flee');
+      planNpcOrders(w);
+      return { w, trader, raider, first: { ...topGoal(trader)!.destination! } };
+    }
+    const threatAt = (from: { x: number; y: number }, degrees: number) => ({ x: from.x + Math.cos(degrees * DEG) * reach, y: from.y + Math.sin(degrees * DEG) * reach });
+
+    it('keeps its flee point while the threat moves around but stays behind it', () => {
+      const { w, trader, raider, first } = fleeingFrom();
+      expect(topGoal(trader)?.kind).toBe('flee');
+      raider.pos = threatAt(trader.pos, 120);
+      planNpcOrders(w);
+      expect(topGoal(trader)?.kind).toBe('flee');
+      expect(topGoal(trader)!.destination).toEqual(first);
+    });
+
+    it('picks again once the kept point leads toward the threat', () => {
+      const { w, trader, raider, first } = fleeingFrom();
+      raider.pos = threatAt(trader.pos, 170);
+      planNpcOrders(w);
+      expect(topGoal(trader)!.destination).not.toEqual(first);
+    });
   });
 
   it('a raider investigates a nearby heard player', () => {
