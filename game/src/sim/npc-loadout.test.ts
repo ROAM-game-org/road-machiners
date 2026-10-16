@@ -1,9 +1,9 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { NPC_UTILITY_PARTS } from '../data/npc-utilities';
 import { CHASSIS } from '../data/chassis';
-import { GEAR_LEVELS, NPCS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
+import { GEAR_LEVELS, GEAR_SCORE, NPCS, type GearLevel, type NpcTemplate, type Weighted } from '../data/npcs';
 import { partDef, type UtilityDef, type WeaponDef } from '../data/parts';
-import { everyGunFires } from './armor';
+import { openArcShares } from './armor';
 import { makeVehicle } from './factory';
 import { goodsCount, gridOf, isMounted, mountedParts, placementError } from './grid';
 import { itemMass, vehicleMass } from './mass';
@@ -57,12 +57,12 @@ describe('NPC equipment generation', () => {
     }
   });
 
-  it.each(Object.values(NPCS))('gives $id only guns that can fire', (template) => {
+  it.each(Object.values(NPCS))('gives $id only guns that keep half their arc', (template) => {
     for (let seed = 1; seed <= 8; seed++) {
       const world = { ...fixture, rngState: seed };
       const loadout = loadoutOf(world, template);
       const v = makeVehicle(world, { ...loadout, faction: fallbackFaction(template), brain: null, pos: { x: 50, y: 50 }, heading: 0 });
-      expect(everyGunFires(v), describeLoadout(v)).toBe(true);
+      for (const share of openArcShares(v)) expect(share, describeLoadout(v)).toBeGreaterThanOrEqual(GEAR_SCORE.minOpenArcShare);
     }
   });
 
