@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { REGION } from '../data/region';
 import { advanceFar } from './far';
 import { corePart, mountedParts } from './grid';
 import { onRouteRoad, terrainNav } from './nav/layer';
@@ -76,13 +77,15 @@ describe('the recorder world log', () => {
 });
 
 describe('raiders keeping off roads in the turn pipeline', () => {
+  const kilnAt = REGION.locations.find((l) => l.id === 'kiln')!.pos;
+  const nearKiln = (dx: number, dy: number) => ({ x: kilnAt.x + dx, y: kilnAt.y + dy });
   function campRoad(): World {
     const w = emptyWorld();
     const t = editableTerrain(w);
     for (let i = 0; i < t.types.length; i++) {
       const x = (i % t.size) + 0.5;
       const y = Math.floor(i / t.size) + 0.5;
-      t.types[i] = Math.abs(x - 325) < 3 && y > 200 && y < 384 ? 'road' : 'hardpan';
+      t.types[i] = Math.abs(x - (kilnAt.x - 5)) < 3 && y > kilnAt.y - 180 && y < kilnAt.y + 4 ? 'road' : 'hardpan';
     }
     return w;
   }
@@ -108,7 +111,7 @@ describe('raiders keeping off roads in the turn pipeline', () => {
 
   it('takes a raider retreating after a knockout beside the road to its camp, where it lies up to refit', () => {
     let w = campRoad();
-    const id = raider(w, { x: 325, y: 345 }).id;
+    const id = raider(w, nearKiln(-5, -35)).id;
     const start = byId(w, id);
     start.defeat = { phase: 'retreat', turns: 3, unseen: 0, foes: [], gaveUp: true };
     const pad = sitePads(npcHomeSite(TEST_MAP, start)!)[0];
@@ -129,13 +132,13 @@ describe('raiders keeping off roads in the turn pipeline', () => {
 
   it('sends a stranded raider beside the road while a stranded trader and a raider not hunting keep their roads', () => {
     let w = campRoad();
-    const dry = raider(w, { x: 325, y: 300 });
+    const dry = raider(w, nearKiln(-5, -80));
     dry.resources!.fuel = 0;
-    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], { x: 326, y: 250 }, Math.PI / 2);
+    const trader = addVehicle(w, 'independent', 'hauler', ['stockEngine'], nearKiln(-4, -130), Math.PI / 2);
     trader.brain = npcBrain('trader', trader.pos, ['trader']);
     trader.resources!.fuel = 0;
-    const patrol = raider(w, { x: 325, y: 220 });
-    patrol.brain!.goals = [{ kind: 'sell', targetId: 'kiln', destination: { x: 325, y: 370 }, phase: 'travel', reason: 'patrolTown' }];
+    const patrol = raider(w, nearKiln(-5, -160));
+    patrol.brain!.goals = [{ kind: 'sell', targetId: 'kiln', destination: nearKiln(-5, -10), phase: 'travel', reason: 'patrolTown' }];
     w = play(w, 7, (w) => {
       expect(byId(w, trader.id).brain!.farRoute?.offRoad).toBe(false);
       expect(byId(w, patrol.id).brain!.farRoute?.offRoad).toBe(false);
