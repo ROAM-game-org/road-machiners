@@ -636,7 +636,7 @@ describe('pile claims', () => {
 
   it('two robbers handed cargo in one turn each claim their own pile', () => {
     const { w, robber, victim } = handover('npc');
-    const second = npcAt(w, 'scavengers', ['raider'], 35);
+    const second = npcAt(w, 'independent', ['raider'], 35);
     addGoods(w, victim, 'scrap', 3);
     yieldTo(w, victim, second);
     const piles = w.salvage.filter((s) => s.pile);
