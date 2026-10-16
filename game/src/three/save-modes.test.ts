@@ -3,9 +3,10 @@ import { startKit } from '../data/start';
 import { defaultSetup } from '../sim/settings';
 import { haulerOf, playerVehicle } from '../sim/damage';
 import { FURY_ROAD } from '../data/modes';
-import { betweenLevels, outpostPad, waitForRoad } from '../sim/fury-road';
+import { betweenLevels, driveOn } from '../sim/fury-road';
+import { gatesShut } from '../sim/outpost-gates';
 import { highwayHash } from '../sim/highway';
-import { furyRoadWorld, parkOnPad } from '../sim/testkit';
+import { furyRoadWorld, parkInYard } from '../sim/testkit';
 import type { World } from '../sim/types';
 import { endTurn, newWorld } from '../sim/world';
 import { TEST_MAP } from '../test/map';
@@ -21,7 +22,7 @@ function saved(world: World): SaveSlots {
 }
 
 function arrived(world: World): World {
-  parkOnPad(world, world.furyRoad!.window + 1);
+  parkInYard(world, world.furyRoad!.window + 1);
   return endTurn(world, () => {});
 }
 
@@ -75,13 +76,15 @@ describe('a saved world by mode', () => {
     expect(loaded).toEqual({ ...world, events: [], removed: [] });
     expect(loaded.furyRoad?.window).toBe(0);
     expect(betweenLevels(loaded)).toBe(true);
+    expect(gatesShut(world)).toBe(true);
+    expect(gatesShut(loaded)).toBe(true);
     expect(next.player.money).toBe(world.player.money);
     expect(next.player.xp).toBe(world.player.xp);
     expect(next.events.some((e) => e.t === 'outpostReached' || e.t === 'money' || e.t === 'practice')).toBe(false);
   });
 
   it('loads the run right after the wait on the opened window', () => {
-    const world = waitForRoad(arrived(furyRoadWorld(21)));
+    const world = driveOn(arrived(furyRoadWorld(21)));
 
     const loaded = loadWorld(saved(world), 'auto', TEST_MAP)!;
     const next = endTurn(loaded, () => {});
@@ -130,7 +133,7 @@ describe('the window swap in the game', () => {
     const paid = arrived(world);
     expect(changeMapIfMoved(run, paid, new SaveHold(), storage, reload)).toBe(false);
 
-    const moved = waitForRoad(paid);
+    const moved = driveOn(paid);
     expect(changeMapIfMoved(run, moved, new SaveHold(), storage, reload)).toBe(true);
     await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(takeBootRequest(storage, SAVE_KEY)).toEqual({ slot: 'auto', reason: 'road' });
@@ -143,7 +146,7 @@ describe('the window swap in the game', () => {
     const hold = new SaveHold();
     hold.noteError();
 
-    expect(() => changeMapIfMoved(run, waitForRoad(arrived(world)), hold, {} as Storage, () => {})).toThrow(/held/);
+    expect(() => changeMapIfMoved(run, driveOn(arrived(world)), hold, {} as Storage, () => {})).toThrow(/held/);
   });
 
   it('throws on a map that moved with no road opened', () => {

@@ -22,7 +22,7 @@ function freshWorld(): World {
 
 function fallToRaider(w: World): void {
   const me = playerVehicle(w);
-  const raider = addVehicle(w, 'raiders', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
+  const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
   me.lastHitBy = raider.id;
   corePart(me, 'cab').hp = 0;
   checkKnockout(w);

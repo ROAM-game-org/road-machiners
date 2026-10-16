@@ -27,7 +27,7 @@ const en = (line: Parameters<typeof lineKey>[0]): string => entryText('en', line
 function duel(targetPos = { x: 33, y: 30 }) {
   const w = emptyWorld();
   const me = w.vehicles[0];
-  const buggy = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], targetPos, Math.PI);
+  const buggy = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], targetPos, Math.PI);
   buggy.brain = npcBrain('buggy', targetPos, ['raider']);
   const mg = vehicleStats(w, me).weapons[0];
   return { w, me, buggy, mg };
@@ -69,7 +69,7 @@ describe('combat', () => {
       { id: 'i1', x: 0, y: 0, rot: 0, kind: 'part', part: { id: 'c1', defId: 'cannon', hp: 30, wear: 0, ...gunFor('cannon') } },
       { id: 'i2', x: 4, y: 0, rot: 0, kind: 'part', part: { id: 'e1', defId: 'stockEngine', hp: 25, wear: 0 } },
     ];
-    const side = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 35 });
+    const side = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 30, y: 35 });
     order(me, 'c1', side.id);
     fireWeapons(w);
     expect(w.events.some((e) => e.t === 'shot' && e.shooter === me.id)).toBe(false);
@@ -78,7 +78,7 @@ describe('combat', () => {
   it('a gun cooling down holds fire until its cooldown runs out', () => {
     const w = emptyWorld();
     const me = cannonHauler(w);
-    const t = addVehicle(w, 'raiders', 'hauler', ['cannon', 'stockEngine', 'plates'], { x: 35, y: 30 }, Math.PI);
+    const t = addVehicle(w, 'scrapjaw', 'hauler', ['cannon', 'stockEngine', 'plates'], { x: 35, y: 30 }, Math.PI);
     const gun = vehicleStats(w, me).weapons[0];
     order(me, gun.part.id, t.id);
     gun.part.gun = { cooldown: 2, ammo: gun.def.magazine, reloadWork: 0 };
@@ -153,7 +153,7 @@ describe('combat', () => {
   it('old kill wrecks are cleared past the cap', () => {
     const { w, me } = duel();
     for (let i = 0; i < RULES.maxKillWrecks + 3; i++) {
-      const b = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 10 + i * 2, y: 10 });
+      const b = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 10 + i * 2, y: 10 });
       b.brain = npcBrain('buggy', b.pos, ['raider']);
       getResources(w, b).health = 0;
       b.lastHitBy = me.id;
@@ -165,25 +165,25 @@ describe('combat', () => {
   it('clearing an old kill wreck stops a search of it', () => {
     const { w } = duel();
     const kill = () => {
-      const b = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 10 + w.obstacles.length * 2, y: 10 });
+      const b = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 10 + w.obstacles.length * 2, y: 10 });
       b.brain = npcBrain('buggy', b.pos, ['raider']);
       getResources(w, b).health = 0;
       resolveDestroyed(w);
       return b.id;
     };
     const oldest = kill();
-    const searcher = addVehicle(w, 'scavengers', 'scout', [], { x: 10, y: 14 });
+    const searcher = addVehicle(w, 'independent', 'scout', [], { x: 10, y: 14 });
     searcher.job = { kind: 'search', stockId: `wreck-${oldest}`, turnsLeft: 3, total: 3 };
     for (let i = 0; i < RULES.maxKillWrecks; i++) kill();
     expect(w.salvage.some((s) => s.id === `wreck-${oldest}`)).toBe(false);
     expect(searcher.job).toBeNull();
   });
 
-  it('shooting a neutral makes it and its nearby mates hostile', () => {
+  it('shooting a neutral makes it and its nearby allies hostile', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 33, y: 30 });
-    const mate = addVehicle(w, 'traders', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 36, y: 33 });
+    const trader = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 33, y: 30 });
+    const mate = addVehicle(w, 'bowl', 'hauler', ['mg', 'stockEngine', 'plates'], { x: 36, y: 33 });
     order(me, vehicleStats(w, me).weapons[0].part.id, trader.id);
     fireWeapons(w);
     expect(stateOf(w, 'feud', trader.id, me.id)).not.toBeNull();
@@ -223,7 +223,7 @@ function aimTest(gunId: string, chassisId: string, heading: number, d = 1.2) {
   const old = w.vehicles[0];
   const me = addVehicle(w, 'player', 'wagon', [gunId, 'stockEngine'], old.pos, 0);
   me.id = old.id;
-  const target = addVehicle(w, 'scavengers', chassisId, ['stockEngine'], { x: old.pos.x + d, y: old.pos.y }, heading);
+  const target = addVehicle(w, 'independent', chassisId, ['stockEngine'], { x: old.pos.x + d, y: old.pos.y }, heading);
   w.vehicles = [me, target];
   for (const p of mountedParts(target)) p.hp = 1e9;
   return { w, me, target, gun: vehicleStats(w, me).weapons[0] };
@@ -274,8 +274,8 @@ describe('towed trucks', () => {
   it('a truck on a tow rope is nobody\'s foe, but its tower stays one', () => {
     const w = emptyWorld();
     const me = w.vehicles[0];
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
-    const tower = addVehicle(w, 'traders', 'scout', ['stockEngine'], { x: 30, y: 36 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 40, y: 30 });
+    const tower = addVehicle(w, 'independent', 'scout', ['stockEngine'], { x: 30, y: 36 });
     addState(w, 'tow', tower.id, me.id, { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: false });
     expect(isHostile(w, raider, me)).toBe(true);
     w.states[w.states.length - 1].data = { kind: 'tow', site: REGION.towns[0].id, fee: 10, waived: 0, hitched: true };
@@ -497,7 +497,7 @@ describe('rounds', () => {
   it('a cannon miss within splash radius damages a part', () => {
     const w = emptyWorld();
     const me = cannonHauler(w);
-    const t = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
+    const t = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: 36, y: 30 }, Math.PI / 2);
     for (const p of mountedParts(t)) p.hp = 1e9;
     t.speed = 3;
     me.speed = 4;
@@ -556,7 +556,7 @@ describe('player vision', () => {
     w.player.autoFire = true;
     autoOrders(w, me);
     expect(me.weaponOrders).toEqual({});
-    const far = w.vehicles.find((v) => v.faction === 'raiders')!;
+    const far = w.vehicles.find((v) => v.faction === 'scrapjaw')!;
     expect(() => setWeaponOrder(w, vehicleStats(w, me).weapons[0].part.id, { targetId: far.id, aim: 'body' })).toThrow("Refused: unseen");
   });
 
@@ -584,13 +584,13 @@ describe('player vision', () => {
 });
 
 describe('NPC attack records and defensive fire', () => {
-  it('records every shot at the driver or a nearby faction mate it sees as an attack, even a miss', () => {
+  it('records every shot at the driver or a nearby ally it sees as an attack, even a miss', () => {
     const w = emptyWorld({ x: 80, y: 80 });
-    const npc = addVehicle(w, 'scavengers', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
+    const npc = addVehicle(w, 'bowl', 'scout', ['mg', 'stockEngine'], { x: 10, y: 10 });
     npc.brain = npcBrain('scavenger', npc.pos, ['scavenger']);
-    const raider = addVehicle(w, 'raiders', 'buggy', ['mg'], { x: 14, y: 10 });
-    const mate = addVehicle(w, 'scavengers', 'scout', [], { x: 12, y: 12 });
-    const far = addVehicle(w, 'scavengers', 'scout', [], { x: 10 + SPAWN.neighborHelp + 8, y: 10 });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', ['mg'], { x: 14, y: 10 });
+    const mate = addVehicle(w, 'bowl', 'scout', [], { x: 12, y: 12 });
+    const far = addVehicle(w, 'bowl', 'scout', [], { x: 10 + SPAWN.neighborHelp + 8, y: 10 });
     const shootAt = (target: Vehicle) => {
       w.events = [];
       raider.weaponOrders = { [mountedParts(raider, 'weapon')[0].id]: { targetId: target.id, aim: 'body' } };
@@ -613,9 +613,9 @@ describe('NPC attack records and defensive fire', () => {
 
   it('an NPC opens fire only on its fight target, also at a town gate, and always on an attacker', () => {
     const w = emptyWorld({ x: 200, y: 200 });
-    const npc = addVehicle(w, 'raiders', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+    const npc = addVehicle(w, 'scrapjaw', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
     npc.brain = npcBrain('buggy', npc.pos, ['raider']);
-    const prey = addVehicle(w, 'traders', 'scout', ['mg'], { x: 33, y: 30 });
+    const prey = addVehicle(w, 'independent', 'scout', ['mg'], { x: 33, y: 30 });
     const aimed = () => Object.values(npc.weaponOrders).map((order) => order.targetId);
     autoOrders(w, npc);
     expect(aimed()).toEqual([]);
@@ -636,9 +636,9 @@ describe('NPC attack records and defensive fire', () => {
   describe('a runner and the truck that attacked it', () => {
     const runner = () => {
       const w = emptyWorld({ x: 200, y: 200 });
-      const npc = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
+      const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: 30, y: 30 });
       npc.brain = npcBrain('trader', npc.pos, ['scumbag']);
-      const attacker = addVehicle(w, 'raiders', 'scout', ['mg'], { x: 33, y: 30 });
+      const attacker = addVehicle(w, 'scrapjaw', 'scout', ['mg'], { x: 33, y: 30 });
       npc.brain.goals = [{ kind: 'flee', targetId: attacker.id, destination: { x: 100, y: 100 }, phase: 'travel', reason: 'escapeAttacker' }];
       npc.brain.attackers = {};
       return { w, npc, attacker };
@@ -673,9 +673,9 @@ describe('NPC attack records and defensive fire', () => {
   it('a robber off its robbery holds its fire even after its victim shoots back', () => {
     const w = emptyWorld({ x: 200, y: 200 });
     const gate = siteGates(REGION.towns[0])[0];
-    const robber = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: gate.x + 3, y: gate.y });
+    const robber = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: gate.x + 3, y: gate.y });
     robber.brain = npcBrain('trader', robber.pos, ['scumbag']);
-    const victim = addVehicle(w, 'traders', 'scout', ['mg'], { ...gate });
+    const victim = addVehicle(w, 'independent', 'scout', ['mg'], { ...gate });
     addState(w, 'feud', robber.id, victim.id, { kind: 'feud', robbery: true });
     robber.brain.goals = [];
     robber.brain.attackers = { [victim.id]: true };
@@ -689,7 +689,7 @@ describe('NPC attack records and defensive fire', () => {
     const gate = siteGates(REGION.towns[0])[0];
     const w = emptyWorld({ x: gate.x - 3, y: gate.y });
     const me = w.vehicles[0];
-    const trader = addVehicle(w, 'traders', 'scout', ['stockEngine'], { ...gate });
+    const trader = addVehicle(w, 'independent', 'scout', ['stockEngine'], { ...gate });
     const mg = vehicleStats(w, me).weapons[0];
     order(me, mg.part.id, trader.id);
     const before = partHp(me);
@@ -785,7 +785,7 @@ describe('recoil and shake', () => {
   function tankGunOn(chassisId: string) {
     const w = emptyWorld();
     const shooter = addVehicle(w, 'player', chassisId, ['stockEngine', 'tankGun'], { x: 60, y: 60 });
-    const target = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 65, y: 60 }, Math.PI / 2);
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 65, y: 60 }, Math.PI / 2);
     return { w, shooter, target, gun: vehicleStats(w, shooter).weapons[0] };
   }
 
@@ -807,7 +807,7 @@ describe('recoil and shake', () => {
   it('a stabilized gun loses less aim to its own speed than a sniper cannon', () => {
     const w = emptyWorld();
     const shooter = addVehicle(w, 'player', 'tractor', ['stockEngine', 'mg', 'sniperCannon'], { x: 60, y: 60 });
-    const target = addVehicle(w, 'raiders', 'buggy', ['stockEngine'], { x: 65, y: 60 }, Math.PI / 2);
+    const target = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine'], { x: 65, y: 60 }, Math.PI / 2);
     shooter.speed = 4;
     const [mg, sniper] = ['mg', 'sniperCannon'].map((id) => vehicleStats(w, shooter).weapons.find((x) => x.def.id === id)!);
     expect(hitOdds(w, shooter, mg, target, 'body').causes.own).toBeLessThan(hitOdds(w, shooter, sniper, target, 'body').causes.own);
@@ -822,7 +822,7 @@ describe('weapon damage multiplier', () => {
       const w = emptyWorld();
       w.rngState = rngState;
       const me = cannonHauler(w);
-      const t = addVehicle(w, 'raiders', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 4, y: me.pos.y }, Math.PI / 2);
+      const t = addVehicle(w, 'scrapjaw', 'buggy', ['mg', 'stockEngine'], { x: me.pos.x + 4, y: me.pos.y }, Math.PI / 2);
       for (const p of mountedParts(t)) p.hp = 1e9;
       order(me, vehicleStats(w, me).weapons[0].part.id, t.id);
       fireWeapons(w);
@@ -847,7 +847,7 @@ describe('betrayal', () => {
   function partners() {
     const w = emptyWorld({ x: 80, y: 80 });
     const me = w.vehicles[0];
-    const npc = addVehicle(w, 'traders', 'scout', ['mg', 'stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
+    const npc = addVehicle(w, 'independent', 'scout', ['mg', 'stockEngine'], { x: me.pos.x + 6, y: me.pos.y });
     npc.brain = npcBrain('trader', npc.pos, ['trader']);
     return { w, me, npc };
   }
