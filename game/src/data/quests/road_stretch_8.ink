@@ -3,11 +3,12 @@ INCLUDE world.ink
 
 VAR asked_hunters = false
 VAR asked_run = false
+VAR grief_said = "none"
 
 === start ===
 # checkpoint: start
 Dusk at the eighth fort, and the Keepers are counting the evening's trucks through the gate. # place: The eighth outpost
-Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. You drove at all of them. Ala drove straight through the middle of what was left.
+Three and four trucks at a time came out of the badlands today, and some of them were army trucks from the old depots. You drove at all of them. Ala drove straight through the middle of what was left. The scout is held together now with the yard's weld and most of the pay.
 An old Keeper stands at the gate with a tally board, a man who has counted trucks for thirty years and looks it. He counts the hauler. He counts your scout. Then he stops counting and looks at the back of your neck, where your collar rides low. # page
 I knew a man with a burn like that. # speaker: Old gatekeeper
 He says it mildly, the way you'd mention the weather. Then he turns to the next truck and goes on counting. # page
@@ -17,11 +18,29 @@ Ala saw. She was watching your hand the whole time. # page
 
 = news
 # checkpoint: start.news
-She sits down on the hauler's step with a strip of paper from the fort's relay, folded small. She does not count the pay. It is the first time she hasn't.
+She sits down on the hauler's step with a strip of paper from the fort's relay, folded small. She does not count the pay into your hand. It is the first time she hasn't.
 Hedda Vell had my father shot in the refinery yard. In front of the crews. It happened while we were at the fourth fort. # speaker: Ala
-Her voice is level. It stays level, which is worse.
-You don't say you're sorry. It would not help her, and she'd hold it against you. # page
-She folds the paper once more and puts it in her coat. # page
+Her voice is level. It stays level, which is worse. # page
+-> loss
+
+= loss
+# checkpoint: start.loss
+She folds the paper once more and puts it in her coat. She is waiting to see what you do with that.
++ [Tell her you're sorry.]
+  ~ grief_said = "sorry"
+  You say it. She takes it the way she takes a coin, and checks it.
+  Don't. Not yet. # speaker: Ala
+  -> why
++ [Ask what she needs.]
+  ~ grief_said = "ask"
+  Nothing you carry, she says. It is the first time she has refused you something kindly.
+  -> why
++ [Say nothing.]
+  ~ grief_said = "silent"
+  You don't say you're sorry. It would not help her, and she'd hold it against you.
+  -> why
+
+= why
 Eight stretches, and every time you drove at the worst of them. Nobody does that for the pay. So why do you do this? # speaker: Ala
 -> hub
 
@@ -38,7 +57,7 @@ She waits. At the gate the tally goes on. # page
   -> menu
 + {not asked_run} [Why don't you leave the truck and run?]
   ~ asked_run = true
-  Run where? The crews are shut in Blackwell's yard, and their families are at the last fort south of here. Northgate will take one crew, if the crew proves it's worth taking. The books in the trailer are the proof: they show what the crews can build and run. # speaker: Ala
+  Run where? The crews are shut in Blackwell's yard, and the families who got out are waiting at the Keepers' southern fort. Northgate will take one crew, if the crew proves it's worth taking. The books in the trailer are the proof: they show what the crews can build and run. # speaker: Ala
   Without them they're Blackwell's children and nothing else. I carry two hundred people, and I'm the one truck Northgate agreed to open for. They don't know it yet. # speaker: Ala
   -> menu
 + [I thought this road would finish me.]

@@ -9,7 +9,7 @@ VAR asked_hunters = false
 # checkpoint: start
 The fourth fort has a water cistern on its roof and a Keeper asleep beside it. # place: The fourth outpost
 Two trucks came out of the badlands this morning. You dealt with the first in the open, and it was quick. The second waited behind a rockfall with its gun on the hauler's cab. You never decided anything. You put your bumper into its front wheel at full speed, and it spun into the rocks. When the dust settled, the gun was pointing at the sky and the driver was not moving.
-Ala climbs down from the hauler and counts the stretch's pay out loud, quickly, without her usual care. Her eyes keep going to your bumper. # page
+Ala climbs down from the hauler and counts the stretch's pay into your hand out loud, quickly, without her usual care. Her eyes keep going to your bumper. # page
 -> death_machine
 
 = death_machine
@@ -19,7 +19,7 @@ She isn't joking. She's measuring what she bought.
 + [Thirty years of this road.]
   ~ death_answer = "road"
   -> road
-+ [I rode with Magnus.]
++ [What Tibor told you: I rode with Magnus.]
   ~ death_answer = "magnus"
   -> magnus
 + [Say nothing.]
@@ -66,7 +66,7 @@ She waits. The Keeper on the roof turns over in his sleep. # page
 + {not asked_north} [Where are we going?]
   ~ asked_north = true
   <term=northgate>Northgate</term>. A valley at the end of the road, with a spring. Its gate opens only to people who wrote ahead. I wrote. # speaker: Ala
-  Its water goes south in <term=blackwell>Blackwell</term>'s tankers. That's the <term=covenant>covenant</term>, and it was old before I could drive. The books are what I'm taking north. Blackwell wants them kept south. # speaker: Ala
+  Its water goes south in <term=blackwell>Blackwell</term>'s tankers. That's the <term=covenant>covenant</term>, and twenty years of it. The books are what I'm taking north. Blackwell wants them kept south. # speaker: Ala
   -> menu
 + {not asked_hunters} [Who set the reward?]
   ~ asked_hunters = true

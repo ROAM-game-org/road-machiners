@@ -5,7 +5,7 @@ INCLUDE world.ink
 # checkpoint: start
 The first fort north is a wall, a gate and a yard full of trucks waiting to be counted. # place: The first outpost
 A truck came for the hauler out of the badlands this morning, and it never got back up. You went at it straight, and when it stopped moving you sat with your hands on the wheel and waited to feel something. What came was closer to disappointment than to anything else. You don't look at that too long.
-Ala counts the stretch's pay out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
+The fort's clerk pays the stretch across his counter, and Ala counts it into your hand out loud: {stretch_pay(1)} M's, coin by coin, as if someone might argue. Every sum comes out level. # page
 -> tougher
 
 = tougher
@@ -14,7 +14,7 @@ Ala counts the stretch's pay out loud: {stretch_pay(1)} M's, coin by coin, as if
 { geezer_pitch == "bullets": Six holes in you, and you still drive straight at the muzzle. # speaker: Ala }
 { geezer_pitch == "none": You drove straight at a gun. # speaker: Ala }
 You're tougher than you look. # speaker: Ala
-She closes her fist over the last coin and does not look away. # page
+She closes your fingers over the last coin and does not look away. # page
 You saved my life. So I'm asking once. The ring scar on your neck. What happened to your link? # speaker: Ala
 -> ask
 

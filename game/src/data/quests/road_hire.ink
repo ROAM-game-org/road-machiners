@@ -4,7 +4,7 @@ INCLUDE world.ink
 VAR asked_pay = false
 VAR asked_north = false
 VAR asked_who = false
-VAR tried_more = false
+VAR asked_trailer = false
 VAR walked_out = false
 
 === start ===
@@ -20,8 +20,8 @@ That's what he drives? A toy like that won't last a stretch, fort to fort. # spe
 -> pitch
 
 = pitch
-Tibor spreads his hands. Your move, he means. She wants a reason to hire you, and you have two. A burn like yours proves you are a real linked driver, one who can feel a truck as a part of his own body. The bullet scars prove you have been shot at and kept driving. Which one does she hear first?
-+ [Show her the link burn on your neck.]
+Tibor spreads his hands. Your move, he means. She wants a reason to hire you, and you have two. The burn at your neck says the link went deep in you, and you lived. The bullet scars say you have been shot at and kept driving. Which one does she hear first?
++ [Show her the burn on your neck.]
   ~ geezer_pitch = "link"
   -> link_scar
 + [Show her the bullet scars.]
@@ -29,21 +29,21 @@ Tibor spreads his hands. Your move, he means. She wants a reason to hire you, an
   -> bullet_scars
 
 = link_scar
-You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it, and the truck answers like an arm. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal. A link seat is fitted to the man who sits in it, and it burns anyone else.
+You turn your collar down and tilt your head. A linked driver has a socket at the base of the skull. The cable from the seat plugs into it, and the truck answers like an arm. Around yours runs a ring of thick pale skin, where the flesh once cooked around the metal.
 When she bent over the coins you saw her own socket under her hair, small and clean. She looks at yours a good while. Her mouth tightens, and it isn't pity.
 Linked. Deeper than I am. # speaker: Ala
-She makes you show the rest. You open your shirt, and she counts the bullet holes. -> both
+She doesn't need you to open your shirt. The old holes show through the torn cloth at your ribs, and she counts them anyway. -> both
 
 = bullet_scars
 You push up a sleeve, then open your shirt. Ribs, shoulder, forearm. Somebody started counting the holes once, and you stopped.
 Ala counts them for you. Her lips move on every one.
 Six. # speaker: Ala
-She wants more. You turn your collar down and show her the other thing, the ring of old burn around the socket at the base of your skull, where a seat's cable plugs in. She looks at it a good while. -> both
+You shrug your shirt closed, and your collar slips. The ring of old burn around the socket at the base of your skull shows, where a seat's cable plugs in. She looks at it a good while. -> both
 
 = both
 # checkpoint: start.both
-{ geezer_pitch == "link": She came for the burn, you can tell, and the bullets are only a bonus. }
-{ geezer_pitch == "bullets": She came for the bullets, you can tell, and the burn is a question she hasn't asked yet. }
+{ geezer_pitch == "link": It's the burn she's been reading, you can tell. The bullets are only a bonus. }
+{ geezer_pitch == "bullets": It's the bullets she's been counting, you can tell. The burn is a question she hasn't asked yet. }
 So you've been burned and shot, and you still drive a toy. Why? # speaker: Ala # page
 She isn't being cruel. She's pricing you.
 Fair question. Two weeks ago, on the road north of here, you drove a truck three times the size of this one. A shell came through the engine bay, and there was one white second. Then you were lying in a ditch, watching your cab burn while the link in your neck still hummed, as if the truck were calling you back in. # page
@@ -65,10 +65,10 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   Fuel, repairs, guns, tires: they come out of that, for my rig and for yours. It covers both, if you're careful. # speaker: Ala
   She pushes three stacks across the table with one finger, to show you what the first three stretches pay: {stretch_pay(1)}, {stretch_pay(2)}, {stretch_pay(3)}. It is only a demonstration. The money is paid at the far gate.
   -> menu
-+ {asked_pay and not tried_more} [Ask for more.]
-  ~ tried_more = true
-  That's the offer. A man who asks for more before he's driven a stretch is a man who plans to leave. # speaker: Ala
-  She has the grace not to smile. You've learned the price is fixed, and that she would have thought less of you if you hadn't asked.
++ {not asked_trailer} [What's in the trailer?]
+  ~ asked_trailer = true
+  Sealed. By the Keepers, and they don't seal for nothing. That's all I know that I'll say, and it's more than they told me. # speaker: Ala
+  She says it too quickly. Tibor, for once, has nothing to add.
   -> menu
 + {not asked_north} [Why north?]
   ~ asked_north = true
@@ -91,5 +91,5 @@ Ala stacks her coins in front of her and waits. The bar goes on around you, loud
   ~ ala_hired = true
   You put your hand flat on the table, and Ala puts hers over it for a second, which is how deals are done here. She slides Tibor his finder's fee without looking, and he is gone before the two of you have let go.
   First stretch at dawn. You're paid at the next fort's gate. # speaker: Ala
-  She goes out to the hauler. You go out to your scout and check the two pins that lock the gun mount, one bright and new, one old and worn. A loose pin will swing your own gun into your cab, and you never trust the old one. Then you sleep.
+  She goes out to the hauler. You go out to your scout and check the two pins that lock the gun mount. A loose pin will swing your own gun into your cab. Then you sleep.
   -> END
