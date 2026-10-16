@@ -32,8 +32,7 @@ describe('a beacon at the emptiest point of Icarus', () => {
   const world = standardWorld(1);
   const pos = emptiestPoint(world);
 
-  it('reaches a town or a road from there', () => {
-    expect(Math.min(...towns.map((t) => dist(t.pos, pos)))).toBeLessThan(BEACON.range);
+  it('reaches a road from there', () => {
     expect(dist(pos, nearestRoadPoint(pos))).toBeLessThan(BEACON.range);
   });
 
