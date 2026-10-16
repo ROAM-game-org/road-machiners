@@ -157,6 +157,8 @@ Queue an ad hoc task with `factory_queue_task` when an answer needs running code
 
 A job too big for a few commands, like a security audit of the server, runs as Claude Code on the server: write the prompt to a file and start `factory-host '/opt/factory/code/factory/hermes/claude-run <name> sonnet' < prompt.md`. Prefer Sonnet. The prompt quotes the member, then says the scope, what the job may change and must only read, what it must never do, and what its report holds. The job folder is `/opt/factory/home/hermes-jobs/<name>/`. It is done when `exit-code` appears there, and the report is `output.log`. Check back and give the member the findings.
 
+A factory change a member asks you to make runs as such a job too. The prompt quotes the member, and tells the job to clone the repo into its own folder, branch from `main`, make the change by `factory/CLAUDE.md`, run the factory checks, push the branch and open a pull request into `main` with `gh`. The job never merges it and never touches `/opt/factory/code`. Give the member the pull request link.
+
 ## What the plugin handles
 
 The factory plugin reads certain committee messages before you see them, and the factory answers them on its next tick. Never add a message of your own about them.
