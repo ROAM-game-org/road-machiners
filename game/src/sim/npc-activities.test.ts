@@ -366,6 +366,7 @@ describe('NPC activities', () => {
     npc.resources!.money = 166700;
     npc.resources!.fuel = fuelCap(npc);
     forceOption('idle', 'trade');
+    forceOption('escortWanted', 'go');
     planNpcOrders(w);
     const source = [...REGION.towns, ...REGION.locations].find((s) => s.id === topGoal(npc)?.targetId)!;
     npc.pos = { ...sitePads(source)[0] };
