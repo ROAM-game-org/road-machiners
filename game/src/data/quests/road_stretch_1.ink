@@ -54,7 +54,7 @@ It is not quite a refusal and not quite a favor.
 She puts the rest of the roll away, and for once she doesn't count it. # page # img: road_ala
 Since I asked you something, here is what I pay for. There's a girl at <term=the_yards>the Yards</term>, Maya, twelve years old. She drank the cheap water <term=blackwell>Blackwell</term> sold us this spring, and the fever hasn't broken. Water from the valley breaks it. Nothing else does. # speaker: Ala
 She says it level, like a sum. It is the first thing she has told you that costs her something.
-The salvagers who gave you the ride south said something else about her, in the cab, over the noise of the scrap. They said her father died on this road. It was sixteen years ago, they said, and nobody at the Yards would say how. # page
+The salvagers who gave you the ride south said something about Ala herself, over the noise of the scrap. They said her own father died on this road. It was sixteen years ago, they said, and nobody at the Yards would say how. # page
 -> father
 
 = father

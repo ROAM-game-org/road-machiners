@@ -2,6 +2,7 @@
 INCLUDE world.ink
 
 VAR stay_said = "none"
+VAR pass_said = false
 
 === start ===
 # checkpoint: start
@@ -19,7 +20,7 @@ Ala folds the slips and puts them away. # page
 You're paid up, and by the deal you're free to go. I won't hold you. # speaker: Ala
 She doesn't say it as if she means it. She says it as if she's reading it.
 She has one more slip, from the Keepers' own relay. She reads it out in the voice she uses for sums. # page
-Your escort wears a Burnt Driver lieutenant's burn. Defend the families behind you. # speaker: Keepers' relay
+The Keepers say your escort wears a Burnt Driver lieutenant's burn. Defend the families behind you. # speaker: Keepers' relay
 -> fire
 
 = fire
@@ -61,7 +62,17 @@ I won't ask whether you were at the pass. If you were, tell me before you leave,
 - else:
   So that's what the scar is. # speaker: Ala
 }
--> stay
+-> pass_pick
+
+= pass_pick
++ [I was at the pass.]
+  ~ pass_said = true
+  You say it and nothing else. You don't say whose order, and she doesn't ask. Her hand closes on her cuff, and opens again.
+  Then you owe me the rest. Not tonight. # speaker: Ala
+  -> stay
++ [Say nothing.]
+  You say nothing, and she lets you.
+  -> stay
 
 = dead
 Somebody dead, you say. The man the Keeper knew is dead, in a way. It is the truest lie you have.
@@ -74,7 +85,7 @@ You say it, and it sits between you on the step.
 Ala doesn't move for a long time.
 Magnus burned in his seat at the tank line. Tibor tells it every night, and the barmen of six forts. # speaker: Ala
 Yes, you say. They tell it very well.
-She looks at the scar. She looks at your hands. She does not ask about the pass, and you do not say it, and you both know the road has only one.
+She looks at the scar. She looks at your hands. She does not ask about the pass, and you do not say it. You both know where the road narrows.
 -> stay
 
 = stay
@@ -110,7 +121,8 @@ So. Are you riding on? # speaker: Ala
 # checkpoint: start.close
 { ala_knows == "burnt":
   She looks at the scar again.
-  I'm paying the man in front of me, whoever he rode with. # speaker: Ala
+  { pass_said: I'm paying the man in front of me, and I'll want the rest of it. # speaker: Ala }
+  { not pass_said: I'm paying the man in front of me, whoever he rode with. # speaker: Ala }
 }
 { ala_knows == "dead": She doesn't ask who the dead man was. She has learned to leave things where they lie. }
 { ala_knows == "magnus":

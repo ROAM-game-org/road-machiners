@@ -129,5 +129,5 @@ She nods slowly, as if she'd put a price on the silence. Maybe she has.
 # checkpoint: start.close
 Ala gets up and brushes off her coat. She walks to the hauler and stands with her hand on the door for a moment, longer than it takes to open. # page
 Tomorrow. # speaker: Ala
-You go and check the gun pins, both of them. { hand_shook: Your hand shakes through the first and is steady by the second. - else: Your hand is steady, and you wonder how much it cost. } # page
+You go and check the gun pins, both of them. { hand_shook: Your hand shakes through the first pin and is steady by the second. }{ not hand_shook: Your hand is steady, and you wonder how much it cost. } # page
 -> END

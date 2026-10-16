@@ -90,7 +90,7 @@ She waits. The Keeper on the roof turns over in his sleep. # page
 = maya
 # checkpoint: start.maya
 Ala doesn't get up. She looks at the cistern, and then at her hands. # page # img: road_ala
-Maya's fever came back on the third night. Sara's slip said she shakes, and she asks for me every hour, and then she asks what the valley looks like. I don't know what to tell her. I've never seen it. # speaker: Ala
+Maya's fever spiked again on the third night. Sara's slip said she shakes, and she asks for me every hour, and then she asks what the valley looks like. I don't know what to tell her. I've never seen it. # speaker: Ala
 She waits. She isn't asking for anything. That is how you know she wants it.
 -> promise
 

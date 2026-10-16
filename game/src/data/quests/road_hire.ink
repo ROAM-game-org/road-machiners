@@ -79,7 +79,7 @@ Ala stacks her M's in front of her and waits. The bar goes on around you, loud a
 + {not asked_north} [Why north?]
   ~ asked_north = true
   Somebody's waiting on it. No more questions than that. # speaker: Ala
-  She says it like something she has said many times, and it sounds like a dodge. The crack in it is somebody's name.
+  She says it like something she has said many times, and it sounds like a dodge. The crack in it is a name she doesn't say.
   Tibor suddenly finds something interesting in his hands. He sold you the job, not the road.
   -> menu
 + {not asked_who} [Who's coming for the truck?]
@@ -90,10 +90,9 @@ Ala stacks her M's in front of her and waits. The bar goes on around you, loud a
   -> menu
 + {asked_pay and not walked_out} [Hold out for more.]
   ~ walked_out = true
-  You tell her it isn't enough, and you stand up.
-  Then go. # speaker: Ala
-  She doesn't look up. You get as far as the door. Outside it is raining, and the scout sits on the pad with everything you own in it, which is nothing. You can barely pay for the scout, you have no pay yet and you have no other road. You stand there a while with the water running down your collar.
-  When you come back in, nobody has moved. Ala is still counting. Tibor is still smiling.
+  You tell her it isn't enough, and you push your chair back.
+  Nobody pays more. The ones who'd pay more for that trailer want the trailer, not the man who drives it. # speaker: Ala
+  She still doesn't look up. Ala is still counting, and Tibor is still smiling.
   I'd have thought less of you if you hadn't tried. The offer is the offer. Sit down. # speaker: Ala
   -> menu
 + [Sign on.]
