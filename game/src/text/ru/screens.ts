@@ -272,7 +272,7 @@ export const SCREENS: Translation<typeof EN> = {
   'hud.tagHostile': 'враждебны',
   'hud.tagNeutral': 'нейтральны',
   'readout.litersShort': '{n} L',
-  'readout.kgShort': '{n} kg',
+  'readout.kgShort': '{n} кг',
   'readout.celsius': '{n} °C',
   'units.kg': '{n} кг',
   'ui.key': '[{key}]',
