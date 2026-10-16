@@ -13,6 +13,7 @@ import type { PreparedTurn, TurnRequest, TurnResponse } from "../phys/turn";
 import { mergePerf } from "../perf";
 import { reportError } from "./crash";
 import { playerVehicle } from "../sim/damage";
+import { currentQuestLanguage } from "../sim/quests";
 import type { GameEvent, Vehicle, World } from "../sim/types";
 import { dist, type Vec } from "../sim/vec";
 import { isOnRope, isTowed } from "../sim/tow";
@@ -397,6 +398,7 @@ export class TurnPreparation {
         world: state,
         drive: saved,
         terrain: this.terrain === terrain ? null : terrain,
+        questLanguage: currentQuestLanguage(),
       } satisfies TurnRequest,
       [saved.snapshot.buffer as ArrayBuffer],
     );

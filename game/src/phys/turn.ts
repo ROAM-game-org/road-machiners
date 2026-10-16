@@ -15,6 +15,8 @@ import { setDownSpot } from '../sim/steering';
 import type { MoveOrder, Pose, Vehicle, World } from '../sim/types';
 import { angleDiff, dist, lerp } from '../sim/vec';
 import { exploreFrom } from '../sim/vision';
+import { setQuestLanguage } from '../sim/quests';
+import type { QuestLanguage } from '../data/quests';
 import { bodyState, GROUND, isLifted, captureDrive, freeDrive, initPhysics, restoreDrive, restWheels, simulateTurn, syncDrive, toTilesPerTurn, trailFrames, TURN_STEPS, type Drive, type DriveSnapshot, type TurnResult, type VehicleResult } from './drive';
 import { headingOf, toMap } from './frames';
 import { planTurns, type PlanFrames } from './plan';
@@ -26,7 +28,7 @@ export type PreparedTurn = {
   result: Omit<TurnResult, 'next'> & { next: DriveSnapshot };
 };
 export type PreviewTask = TurnTask & { meId: string };
-export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null };
+export type TurnRequest = TurnTask & { kind: 'turn'; id: number; terrain: World['terrain'] | null; questLanguage: QuestLanguage };
 export type PreviewRequest = PreviewTask & { kind: 'preview'; id: number; terrain: World['terrain'] | null };
 export type WorkerRequest = TurnRequest | PreviewRequest;
 export type WorkerFailure = { id: number; error: string };
@@ -47,6 +49,11 @@ export function computePreview(task: PreviewTask, terrain: World['terrain']): Pl
   } finally {
     freeDrive(drive);
   }
+}
+
+export function computeRequestedTurn(request: TurnRequest, terrain: World['terrain']): PreparedTurn {
+  setQuestLanguage(request.questLanguage);
+  return computeTurn(request, terrain);
 }
 
 export function computeTurn(task: TurnTask, terrain: World['terrain']): PreparedTurn {
@@ -88,7 +95,7 @@ function startTurnWorker(): void {
 function answer(request: WorkerRequest, terrain: World['terrain']): void {
   switch (request.kind) {
     case 'turn': {
-      const turn = computeTurn(request, terrain);
+      const turn = computeRequestedTurn(request, terrain);
       self.postMessage({ id: request.id, turn, perf: perfSnapshot() } satisfies TurnResponse, {
         transfer: [turn.result.next.snapshot.buffer as ArrayBuffer],
       });
