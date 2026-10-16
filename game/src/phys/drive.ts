@@ -76,8 +76,14 @@ export function restoreDrive(saved: DriveSnapshot): Drive {
   return { ...structuredClone(handles), world: restoreWorld(snapshot) };
 }
 
-export async function initPhysics(): Promise<void> {
-  await RAPIER.init();
+let initialised: Promise<void> | null = null;
+
+export function initPhysics(): Promise<void> {
+  initialised ??= RAPIER.init().catch((error: unknown) => {
+    initialised = null;
+    throw error;
+  });
+  return initialised;
 }
 
 export function buildDrive(w: World): Drive {

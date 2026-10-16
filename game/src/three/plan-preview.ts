@@ -69,7 +69,7 @@ export class PlanPreparation {
   }
 
   private createWorker(): Worker {
-    const worker = new Worker(new URL("../phys/turn.ts", import.meta.url), {
+    const worker = new Worker(new URL("../phys/turn-worker.ts", import.meta.url), {
       type: "module",
     });
     worker.onmessage = (event: MessageEvent<PreviewResponse>) => this.receive(event.data);

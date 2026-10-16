@@ -65,7 +65,7 @@ export function computeTurn(task: TurnTask, terrain: World['terrain']): Prepared
   }
 }
 
-function startTurnWorker(): void {
+export function startTurnWorker(): void {
   let terrain: World['terrain'] | null = null;
   const ready = initPhysics();
   self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -106,7 +106,6 @@ function describeWorkerError(error: unknown): string {
   return error instanceof Error ? error.stack ?? error.message : String(error);
 }
 
-if (typeof self !== 'undefined' && !('document' in self)) startTurnWorker();
 
 const EXPLORE_EVERY = 4;
 const STOPPED = 0.05;
