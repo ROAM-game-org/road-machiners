@@ -5,6 +5,7 @@ import { startKit } from '../data/start';
 import { playerVehicle } from '../sim/damage';
 import { siteOf } from '../sim/market';
 import { chooseQuestOption, QUESTS, questView, startQuest } from '../sim/quests';
+import { greetAtScale } from '../sim/intro';
 import { defaultSetup } from '../sim/settings';
 import { nearestPad } from '../sim/sites';
 import { addState } from '../sim/states';
@@ -90,7 +91,7 @@ describe('the weigher at the Bowl gate yard', () => {
   it('opens nothing while the truck is in a fight', () => {
     const w = parkAt(quietWorld(), 'bowl');
     const me = playerVehicle(w);
-    const raider = addVehicle(w, 'raiders', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
+    const raider = addVehicle(w, 'scrapjaw', 'buggy', [], { x: me.pos.x + 6, y: me.pos.y });
     addState(w, 'combat', raider.id, me.id, { kind: 'none' });
     expect(wait(w).player.quests.session).toBeNull();
   });
@@ -101,6 +102,14 @@ describe('the weigher at the Bowl gate yard', () => {
     expect(talking.player.quests.world.scale_seen).toBeUndefined();
     const after = wait(finishQuest(talking));
     expect(after.player.quests.session?.quest).toBe(SCALE);
+  });
+
+  it('opens nothing while a radio call is open', () => {
+    const w = parkAt(quietWorld(), 'bowl');
+    w.player.call = { with: 'x', topic: 'tale', node: 'offer', vars: {}, line: { line: 'gotAStoryFrom', vars: {} } };
+    greetAtScale(w);
+    expect(w.player.quests.session).toBeNull();
+    expect(w.player.quests.world.scale_seen).toBeUndefined();
   });
 
   it('opens once a game: leaving and parking again opens nothing', () => {

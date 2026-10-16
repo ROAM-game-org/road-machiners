@@ -67,7 +67,7 @@ function newSellerAtScale(w: World): boolean {
 }
 
 function freeToTalk(w: World): boolean {
-  return w.player.state === 'active' && !w.player.quests.session && !inCombat(w, playerVehicle(w));
+  return w.player.state === 'active' && !w.player.quests.session && !w.player.call && !inCombat(w, playerVehicle(w));
 }
 
 function carriesSalvage(v: Vehicle): boolean {
