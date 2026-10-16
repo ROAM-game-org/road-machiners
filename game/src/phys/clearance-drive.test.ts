@@ -107,6 +107,7 @@ describe('reproduced TEST_MAP trips', () => {
     return drive(setMoveOrder(w, { kind, dest }), 20);
   }
 
+  const OPEN_RADIUS = 14;
   const START_FROM_ROCK = { x: 9.2, y: 1.8 };
   const DEST_FROM_ROCK = { x: 2.3, y: -11.1 };
 
@@ -114,7 +115,7 @@ describe('reproduced TEST_MAP trips', () => {
     const w = base();
     const radius = chassisDef(w.vehicles[0].chassisId).radius;
     for (const o of w.obstacles) {
-      if (o.kind !== 'rock' || o.r < 1) continue;
+      if (o.kind !== 'rock' || o.r < 1 || w.obstacles.some((other) => other !== o && dist(other.pos, o.pos) < OPEN_RADIUS)) continue;
       const start = { x: o.pos.x + START_FROM_ROCK.x, y: o.pos.y + START_FROM_ROCK.y };
       const dest = { x: o.pos.x + DEST_FROM_ROCK.x, y: o.pos.y + DEST_FROM_ROCK.y };
       if (isFree(w, start, radius, null) && isFree(w, dest, radius, null)) return { id: o.id, start, dest };
